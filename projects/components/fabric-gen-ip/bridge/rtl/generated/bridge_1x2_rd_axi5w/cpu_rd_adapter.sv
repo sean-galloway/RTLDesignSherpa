@@ -20,7 +20,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     input  logic aresetn,
 
     // External AXI interface (from cpu_rd master)
-    input  logic [3:0]  cpu_rd_axi_arid,
+    input  logic [7:0]  cpu_rd_axi_arid,
     input  logic [31:0]  cpu_rd_axi_araddr,
     input  logic [7:0]  cpu_rd_axi_arlen,
     input  logic [2:0]  cpu_rd_axi_arsize,
@@ -36,7 +36,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     input  logic         cpu_rd_axi_artrace,
     input  logic         cpu_rd_axi_aridunq,
 
-    output  logic [3:0]  cpu_rd_axi_rid,
+    output  logic [7:0]  cpu_rd_axi_rid,
     output  logic [31:0]  cpu_rd_axi_rdata,
     output  logic [1:0]  cpu_rd_axi_rresp,
     output  logic         cpu_rd_axi_rlast,
@@ -73,13 +73,13 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 32;
-    localparam ID_WIDTH = 4;
+    localparam ID_WIDTH = 8;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: ID width matches external (4-bit)
+    // Note: ID width matches external (8-bit)
     // ================================================================
-    logic [3:0]   fub_axi_arid;
+    logic [7:0]   fub_axi_arid;
     logic [31:0]  fub_axi_araddr;
     logic [7:0]   fub_axi_arlen;
     logic [2:0]   fub_axi_arsize;
@@ -92,7 +92,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     logic         fub_axi_arvalid;
     logic         fub_axi_arready;
 
-    logic [3:0]   fub_axi_rid;
+    logic [7:0]   fub_axi_rid;
     logic [31:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
@@ -110,13 +110,19 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     // AXI5 boundary-generated signals (GitHub #102 item 5)
     logic         fub_axi_ridunq;  // regenerated (A5.2)
 
+    // Fabric IDs: {BRIDGE_ID, remap slot} (bridge_id_remap below). Responses
+    // return with the slot, which restores the master's ID.
+    logic [3:0] ar_rmp_slot, r_rmp_slot;
+    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
+    assign xbar_axi_arid = {MASTER_ID_WIDTH'(ar_rmp_slot)};
+
     // ================================================================
     // Timing isolation wrapper (axi5_slave_rd)
     // ================================================================
     axi5_slave_rd #(
         .SKID_DEPTH_AR(SKID_DEPTH_AR),
         .SKID_DEPTH_R(SKID_DEPTH_R),
-        .AXI_ID_WIDTH(4),
+        .AXI_ID_WIDTH(8),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
@@ -213,7 +219,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     // ================================================================
     // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
     // ================================================================
-    localparam int IDUNQ_IDS = 1 << 4;
+    localparam int IDUNQ_IDS = 1 << 8;
     logic [IDUNQ_IDS-1:0] r_aridunq_by_id;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -273,7 +279,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     // ================================================================
 
     // AR channel (request: fub → output)
-    assign cpu_rd_32b_ar.id     = fub_axi_arid;
+    assign cpu_rd_32b_ar.id     = xbar_axi_arid;
     assign cpu_rd_32b_ar.addr   = fub_axi_araddr;
     assign cpu_rd_32b_ar.len    = fub_axi_arlen;
     assign cpu_rd_32b_ar.size   = fub_axi_arsize;
@@ -325,7 +331,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
         .aresetn(aresetn),
 
         // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
-        .s_axi_arid(fub_axi_arid),
+        .s_axi_arid(xbar_axi_arid),
         .s_axi_araddr(fub_axi_araddr),
         .s_axi_arlen(fub_axi_arlen),
         .s_axi_arsize(fub_axi_arsize),
@@ -390,77 +396,41 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
 
     localparam int AR_TRK_DEPTH = 16;
     localparam int AR_TRK_AW    = 4;
-    // -------- AR per-ID target table (fixes bridge GitHub #119 L1) --------
-    // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
-    // in flight may only add more to the SAME slave (AXI same-ID order);
-    // any other ID may go to any slave. IDs that share the index bits are
-    // treated as one ID: safe, at worst a needless stall.
-    localparam int AR_IDT_N = 16;
-    logic [AR_TRK_AW:0]   ar_idt_cnt [AR_IDT_N];
-    logic [NUM_SLAVES-1:0] ar_idt_tgt [AR_IDT_N];
+    // -------- AR ID remap (bridge_id_remap) --------
+    // The fabric ID is {BRIDGE_ID, slot}: a request whose ID is live
+    // reuses its slot (one ID stays one fabric ID, so it stays ordered at
+    // the slave), any other takes a free one; AR_TRK_DEPTH slots, one per
+    // request this port may have outstanding. The slot in a returning
+    // R restores the ID. An ID live toward one slave may only add
+    // requests to that slave (AXI same-ID order).
+    logic                  ar_id_ok, ar_trk_full;
     logic [AR_TRK_AW:0]   ar_out_cnt;
-    // Next counts, and registered flags taken from them, so the gate a
-    // request sees is a 1-bit lookup and a one-hot AND, not a counter
-    // mux and compare in series with the crossbar's arbitration.
-    logic [AR_TRK_AW:0]   ar_idt_cnt_nx [AR_IDT_N];
-    logic [AR_TRK_AW:0]   ar_out_cnt_nx;
-    logic [AR_IDT_N-1:0] ar_idt_busy;
-    logic                  ar_trk_full;
-    logic [3:0] ar_idt_widx, ar_idt_ridx;
-    logic                  ar_idt_trace [AR_IDT_N];  // trace of the in-flight ID
-    logic ar_idt_push, ar_idt_pop;
-    assign ar_idt_widx = fub_axi_arid[3:0];
-    assign ar_idt_ridx = fub_axi_rid[3:0];
+    logic                  ar_idt_push, ar_idt_pop;
+    logic                  r_trk_trace;
     assign ar_idt_push = fub_axi_arvalid && fub_axi_arready;
     assign ar_idt_pop  = fub_axi_rvalid && fub_axi_rready && fub_axi_rlast;
-    logic [1:0] ar_inc_n;   // pushes this cycle
-    assign ar_inc_n = 2'(ar_idt_push);
 
-    always_comb begin
-        for (int i = 0; i < AR_IDT_N; i++) begin
-            ar_idt_cnt_nx[i] = ar_idt_cnt[i]
-                + (AR_TRK_AW+1)'(ar_idt_push && (ar_idt_widx == 4'(i)))
-                - (AR_TRK_AW+1)'(ar_idt_pop  && (ar_idt_ridx == 4'(i)));
-        end
-        ar_out_cnt_nx = ar_out_cnt + (AR_TRK_AW+1)'(ar_idt_push)
-                          - (AR_TRK_AW+1)'(ar_idt_pop);
-    end
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            for (int i = 0; i < AR_IDT_N; i++) begin
-                ar_idt_cnt[i] <= '0;
-                ar_idt_tgt[i] <= '0;
-                ar_idt_trace[i] <= 1'b0;
-            end
-            ar_idt_busy <= '0;
-            ar_out_cnt <= '0;
-            ar_trk_full <= 1'b0;
-        end else begin
-            if (ar_idt_push) ar_idt_tgt[ar_idt_widx] <= comb_slave_select_ar;
-            if (ar_idt_push) ar_idt_trace[ar_idt_widx] <= fub_axi_artrace;
-            for (int i = 0; i < AR_IDT_N; i++) begin
-                ar_idt_cnt[i]  <= ar_idt_cnt_nx[i];
-                ar_idt_busy[i] <= (ar_idt_push && (ar_idt_widx == 4'(i)))
-                                    || (ar_idt_cnt[i] > (AR_TRK_AW+1)'(1))
-                                    || ((ar_idt_cnt[i] == (AR_TRK_AW+1)'(1)) &&
-                                        !(ar_idt_pop && (ar_idt_ridx == 4'(i))));
-            end
-            ar_out_cnt  <= ar_out_cnt_nx;
-            ar_trk_full <=
-                ((ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH))   && (ar_inc_n == 2'(ar_idt_pop))) ||
-                ((ar_out_cnt == (AR_TRK_AW+1)'(AR_TRK_DEPTH-1)) && (ar_inc_n == 2'(ar_idt_pop) + 2'd1));
-        end
-    )
-
-    // bridge BUG-009 (was BRIDGE-011): a bounded number in flight, so no
-    // count wraps; AR_TRK_DEPTH is the port's outstanding limit.
-    // Target match is a one-hot AND: the stored target and the decode
-    // are both one-hot (no hit selects the catch-all).
-    logic ar_id_ok;
-    assign ar_id_ok    = !ar_idt_busy[ar_idt_widx] ||
-                           ((|(ar_idt_tgt[ar_idt_widx] & comb_slave_select_ar)) &&
-                            (ar_idt_trace[ar_idt_widx] == fub_axi_artrace));
+    bridge_id_remap #(
+        .ID_WIDTH   (8),
+        .DEPTH      (AR_TRK_DEPTH),
+        .NUM_TGT    (NUM_SLAVES),
+        .META_WIDTH (1)
+    ) u_ar_id_remap (
+        .aclk     (aclk),
+        .aresetn  (aresetn),
+        .req_id   (fub_axi_arid),
+        .req_tgt  (comb_slave_select_ar),
+        .req_meta (fub_axi_artrace),
+        .req_push (ar_idt_push),
+        .req_slot (ar_rmp_slot),
+        .req_ok   (ar_id_ok),
+        .full     (ar_trk_full),
+        .rsp_slot (r_rmp_slot),
+        .rsp_pop  (ar_idt_pop),
+        .rsp_id   (fub_axi_rid),
+        .rsp_meta (r_trk_trace),
+        .out_cnt  (ar_out_cnt)
+    );
     assign ar_gate_ok = ar_id_ok && !ar_trk_full;
 
     // -------- R path arbiter (fixes bridge GitHub #119 L1) --------
@@ -509,10 +479,6 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     assign r_slave_select = ({NUM_SLAVES{r_pgnt[0]}} & 3'b010)
                           | ({NUM_SLAVES{r_pgnt[1]}} & 3'b001);
 
-    // bridge BUG-010: the R echoes its request's trace (an atomic's AW trace).
-    logic r_trk_trace;
-    assign r_trk_trace = ar_idt_trace[ar_idt_ridx];
-
     // AR-ready MUX (request side: uses combinational comb_slave_select_ar)
     always_comb begin
         fub_axi_arready = 1'b0;
@@ -538,7 +504,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
     // rtrace is NOT driven here -- see the B-channel note (bridge BUG-010, was BRIDGE-012).
     logic r_slave_trace;
     always_comb begin
-        fub_axi_rid = 4'd0;
+        r_rmp_slot = '0;
         fub_axi_rdata = 32'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
@@ -547,7 +513,7 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
 
         case (r_slave_select)
             3'b010: begin  // Slave 1 (32b)
-                fub_axi_rid = cpu_rd_32b_r.id[3:0];
+                r_rmp_slot = cpu_rd_32b_r.id[3:0];
                 fub_axi_rdata = cpu_rd_32b_r.data;
                 fub_axi_rresp = cpu_rd_32b_r.resp;
                 fub_axi_rlast = cpu_rd_32b_r.last;
@@ -555,14 +521,14 @@ module bridge_1x2_rd_axi5w_cpu_rd_adapter
                 r_slave_trace = cpu_rd_32b_r.trace;
             end
             3'b001: begin  // Slave 0 (64b)
-                fub_axi_rid = conv_64b_rid;
+                r_rmp_slot = conv_64b_rid[3:0];
                 fub_axi_rdata = conv_64b_rdata;
                 fub_axi_rresp = conv_64b_rresp;
                 fub_axi_rlast = conv_64b_rlast;
                 fub_axi_rvalid = conv_64b_rvalid;
             end
             3'b100: begin  // Slave 2 (64b)
-                fub_axi_rid = conv_64b_rid;
+                r_rmp_slot = conv_64b_rid[3:0];
                 fub_axi_rdata = conv_64b_rdata;
                 fub_axi_rresp = conv_64b_rresp;
                 fub_axi_rlast = conv_64b_rlast;

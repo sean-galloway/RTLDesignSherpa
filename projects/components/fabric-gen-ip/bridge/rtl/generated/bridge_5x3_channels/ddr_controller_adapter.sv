@@ -12,13 +12,13 @@
 module bridge_5x3_channels_ddr_controller_adapter
     import bridge_5x3_channels_pkg::*;
 #(
-    parameter int ID_WIDTH = 11
+    parameter int ID_WIDTH = 7
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [10:0]  xbar_ddr_controller_axi_awid,
+    input  logic [6:0]  xbar_ddr_controller_axi_awid,
     input  logic [31:0]  xbar_ddr_controller_axi_awaddr,
     input  logic [7:0]  xbar_ddr_controller_axi_awlen,
     input  logic [2:0]  xbar_ddr_controller_axi_awsize,
@@ -37,12 +37,12 @@ module bridge_5x3_channels_ddr_controller_adapter
     input  logic         xbar_ddr_controller_axi_wuser,
     input  logic         xbar_ddr_controller_axi_wvalid,
     output  logic         xbar_ddr_controller_axi_wready,
-    output  logic [10:0]  xbar_ddr_controller_axi_bid,
+    output  logic [6:0]  xbar_ddr_controller_axi_bid,
     output  logic [1:0]  xbar_ddr_controller_axi_bresp,
     output  logic         xbar_ddr_controller_axi_buser,
     output  logic         xbar_ddr_controller_axi_bvalid,
     input  logic         xbar_ddr_controller_axi_bready,
-    input  logic [10:0]  xbar_ddr_controller_axi_arid,
+    input  logic [6:0]  xbar_ddr_controller_axi_arid,
     input  logic [31:0]  xbar_ddr_controller_axi_araddr,
     input  logic [7:0]  xbar_ddr_controller_axi_arlen,
     input  logic [2:0]  xbar_ddr_controller_axi_arsize,
@@ -55,7 +55,7 @@ module bridge_5x3_channels_ddr_controller_adapter
     input  logic         xbar_ddr_controller_axi_aruser,
     input  logic         xbar_ddr_controller_axi_arvalid,
     output  logic         xbar_ddr_controller_axi_arready,
-    output  logic [10:0]  xbar_ddr_controller_axi_rid,
+    output  logic [6:0]  xbar_ddr_controller_axi_rid,
     output  logic [255:0]  xbar_ddr_controller_axi_rdata,
     output  logic [1:0]  xbar_ddr_controller_axi_rresp,
     output  logic         xbar_ddr_controller_axi_rlast,
@@ -73,7 +73,7 @@ module bridge_5x3_channels_ddr_controller_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [10:0]  ddr_controller_axi_awid,
+    output  logic [6:0]  ddr_controller_axi_awid,
     output  logic [31:0]  ddr_controller_axi_awaddr,
     output  logic [7:0]  ddr_controller_axi_awlen,
     output  logic [2:0]  ddr_controller_axi_awsize,
@@ -92,12 +92,12 @@ module bridge_5x3_channels_ddr_controller_adapter
     output  logic         ddr_controller_axi_wuser,
     output  logic         ddr_controller_axi_wvalid,
     input  logic         ddr_controller_axi_wready,
-    input  logic [10:0]  ddr_controller_axi_bid,
+    input  logic [6:0]  ddr_controller_axi_bid,
     input  logic [1:0]  ddr_controller_axi_bresp,
     input  logic         ddr_controller_axi_buser,
     input  logic         ddr_controller_axi_bvalid,
     output  logic         ddr_controller_axi_bready,
-    output  logic [10:0]  ddr_controller_axi_arid,
+    output  logic [6:0]  ddr_controller_axi_arid,
     output  logic [31:0]  ddr_controller_axi_araddr,
     output  logic [7:0]  ddr_controller_axi_arlen,
     output  logic [2:0]  ddr_controller_axi_arsize,
@@ -110,7 +110,7 @@ module bridge_5x3_channels_ddr_controller_adapter
     output  logic         ddr_controller_axi_aruser,
     output  logic         ddr_controller_axi_arvalid,
     input  logic         ddr_controller_axi_arready,
-    input  logic [10:0]  ddr_controller_axi_rid,
+    input  logic [6:0]  ddr_controller_axi_rid,
     input  logic [255:0]  ddr_controller_axi_rdata,
     input  logic [1:0]  ddr_controller_axi_rresp,
     input  logic         ddr_controller_axi_rlast,
@@ -171,7 +171,7 @@ module bridge_5x3_channels_ddr_controller_adapter
         .SKID_DEPTH_AW(0),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(11),
+        .AXI_ID_WIDTH(7),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1)
@@ -239,7 +239,7 @@ module bridge_5x3_channels_ddr_controller_adapter
     axi4_master_rd #(
         .SKID_DEPTH_AR(0),
         .SKID_DEPTH_R(4),
-        .AXI_ID_WIDTH(11),
+        .AXI_ID_WIDTH(7),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),
         .AXI_USER_WIDTH(1)

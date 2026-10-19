@@ -4,7 +4,7 @@
 
 // master port cpu (axi4, rw) on aclk
 bind bridge_2x2_rw_cdc axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_cpu (
@@ -43,7 +43,7 @@ bind bridge_2x2_rw_cdc axi4_protocol_checker #(
 
 // master port dma (axi4, rw) on aclk
 bind bridge_2x2_rw_cdc axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_dma (

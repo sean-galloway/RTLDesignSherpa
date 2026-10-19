@@ -116,6 +116,15 @@ Core AXI4 features that matter:
   A new AW also waits while W is still owed to a different slave (W carries no
   ID). Responses from different slaves return in whatever order they arrive.
   Read-return-atomic and trace-echo ports included (GitHub #119 L1b).
+- Transaction IDs remapped to slots (bridge TASK-018, 2026-10-19): a master
+  whose ID is wider than `$clog2(max_outstanding)` bits gets a remap table
+  per direction in its adapter. A request's ID reuses its live slot or takes
+  a free one, the fabric ID is `{master index, slot}`, and the slot in a
+  response restores the ID. Slave-side IDs, and every per-ID structure in the
+  fabric, are sized by outstanding requests rather than by the masters' ID
+  widths: five 8-bit masters at 16 outstanding give 7-bit IDs at the slaves,
+  not 11. A master no wider than a slot, or a read-return-atomic port, keeps
+  its own ID.
 - Channel-specific masters (write-only, read-only, read-write)
 - Data width conversion (32b ↔ 64b ↔ 128b ↔ 256b ↔ 512b)
 - Configurable M×N topology (1-32 masters, 1-256 slaves)
@@ -413,9 +422,11 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
   the wrong master, so one master receives another's beats and the second
   starves. Nothing detects this.
 - Two masters never alias an ID at a slave: inside the fabric every ID is
-  `{master index, master id}` (bridge TASK-005, was BRIDGE-016), so a slave port carries the
-  widest master's id_width plus `$clog2(NUM_MASTERS)` bits -- 8-bit masters
-  behind a 16-master bridge give 12-bit IDs at the slaves. On a
+  `{master index, master-local id}` (bridge TASK-005, was BRIDGE-016), so a slave port carries
+  the widest master-local ID plus `$clog2(NUM_MASTERS)` bits. The local id is
+  a remap slot, `$clog2(max_outstanding)` bits, for a master whose own ID is
+  wider (bridge TASK-018), so 8-bit masters at 16 outstanding behind a
+  16-master bridge give 8-bit IDs at the slaves, not 12. On a
   FIFO-tracked slave the `bridge_id` sideband still routes responses; on
   every real AXI slave of a multi-master bridge the prefix itself does: it is
   tracked by ID (bridge BUG-012, was BRIDGE-015; the master index read off

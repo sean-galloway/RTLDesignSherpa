@@ -72,27 +72,40 @@ Each AXI4 channel operates independently:
 ### Bridge ID (BID) Concept
 
 ```
-Master ID:                 [MASTER_ID_WIDTH-1:0]
+Master-local ID:           [MASTER_ID_WIDTH-1:0], a remap slot or the master's ID
 Bridge ID (master index):  BRIDGE_ID_WIDTH = clog2(NUM_MASTERS)
-AXI ID on a slave port:    {BRIDGE_ID, master ID}, XBAR_ID_WIDTH bits
+AXI ID on a slave port:    {BRIDGE_ID, local ID}, XBAR_ID_WIDTH bits
 ```
 
-### IDs are widened inside the fabric
+### IDs inside the fabric
 
 With more than one master, each master adapter prepends its index to every
 request ID (bridge TASK-005), so two masters can never alias an ID at a
-slave. In `bridge_2x2_rw`:
+slave. Below the index sits a master-local ID. For a master whose ID is
+wider than `$clog2(max_outstanding)` bits, that is a remap slot (bridge
+TASK-018): the adapter has at most `max_outstanding` requests in flight per
+direction, so at most that many distinct IDs, and its remap table gives each
+live ID a slot. A request whose ID is already live reuses its slot, so one
+ID stays one fabric ID and stays ordered at the slave. In `bridge_2x2_rw`:
 
 ```systemverilog
-input  logic [3:0]  cpu_m_axi_awid     // master side: 4 bits
-output logic [4:0]  ddr_s_axi_awid     // slave side: {BRIDGE_ID, id} = 5 bits
+input  logic [7:0]  cpu_m_axi_awid     // master side: 8 bits
+output logic [4:0]  ddr_s_axi_awid     // slave side: {BRIDGE_ID, slot} = 5 bits
 ```
 
-The slave-side width is the widest master's `id_width` plus
+A master no wider than a slot keeps its own ID as the local part
+(`bridge_2x2_ooo`: 4-bit masters, 5-bit slave IDs), and so does a
+read-return-atomic port. The slave-side width is the widest local ID plus
 `$clog2(NUM_MASTERS)` bits (`XBAR_ID_WIDTH` in `<bridge>_pkg.sv`); a slave
 declared narrower is rejected by the config validator. A single-master
-bridge prepends nothing. On B and R the master adapter returns only the low
-master-ID bits, so a master always sees its own ID.
+bridge prepends nothing. On B and R the master adapter restores the ID from
+the returned slot, or strips the prefix from a kept ID, so a master always
+sees its own ID.
+
+The width is not only a pin count. Every per-ID structure past the master
+adapter is sized by it: a width converter keeps read state per fabric ID,
+and `bridge_5x3_channels` (five 8-bit masters) went from 11-bit IDs, 2048
+entries per converter, to 7-bit, 128 entries.
 
 ## Response Routing
 
@@ -156,7 +169,8 @@ slave may complete in any order. The fabric adds one structural rule:
 
 **Per master -- per-ID targets.** A master may have transactions in flight
 at several slaves at once. The master adapter keeps a small table per ID
-(`[bridge].id_track_bits`, default 4: 16 entries indexed by the ID's low
+(the remap table on a remapped port, one entry per slot; otherwise
+`[bridge].id_track_bits`, default 4: 16 entries indexed by the ID's low
 bits) and `aw_gate_ok`/`ar_gate_ok` hold a new address phase only when its
 ID is already in flight to a DIFFERENT slave -- the AXI same-ID ordering
 rule, enforced where it can be, before the request leaves. Responses from

@@ -103,7 +103,7 @@ class Bridge2x2RwCdcTB(TBBase):
         Channels: RW
         Data Width: 32
         Addr Width: 32
-        ID Width: 4
+        ID Width: 8
     """
 
     # ----------------------------------------------------------------------
@@ -122,7 +122,7 @@ class Bridge2x2RwCdcTB(TBBase):
         self.num_slaves = 2
         self.data_width = 32
         self.addr_width = 32
-        self.id_width = 4
+        self.id_width = 8
 
         # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
         # every count in the tests is read from; SEED (pinned per test node
@@ -437,7 +437,7 @@ class Bridge2x2RwCdcTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -447,7 +447,7 @@ class Bridge2x2RwCdcTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -460,7 +460,7 @@ class Bridge2x2RwCdcTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
     def _setup_master_1_dma(self):
@@ -471,7 +471,7 @@ class Bridge2x2RwCdcTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -481,7 +481,7 @@ class Bridge2x2RwCdcTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -494,7 +494,7 @@ class Bridge2x2RwCdcTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
 

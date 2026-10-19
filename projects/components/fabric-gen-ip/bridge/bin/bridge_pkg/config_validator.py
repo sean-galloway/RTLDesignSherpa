@@ -390,11 +390,12 @@ def validate_axi5_atomic_read_return(masters: List[PortSpec],
 
 def validate_slave_id_widths(masters: List[PortSpec], slaves: List[PortSpec]) -> None:
     """bridge TASK-005 (was BRIDGE-016). Inside the fabric every transaction ID is {master index,
-    master id}, so a slave sees the widest master's id_width plus
+    master-local id}, so a slave sees the widest master-local ID (a remap
+    slot, or the master's own id_width when that is no wider) plus
     $clog2(NUM_MASTERS) bits (zero for one master). The slave's declared
     id_width is the width of its external port and must be at least that, or
     the prefix would be truncated and two masters could alias again."""
-    from bridge_pkg.width_utils import xbar_id_width, id_prefix_width, master_id_width
+    from bridge_pkg.width_utils import xbar_id_width, id_prefix_width, fabric_local_id_width
     need = xbar_id_width(masters)
     if id_prefix_width(masters) == 0:
         return
@@ -407,7 +408,7 @@ def validate_slave_id_widths(masters: List[PortSpec], slaves: List[PortSpec]) ->
             raise ValidationError(
                 f"Slave '{s.port_name}' declares id_width {s.id_width}, but with "
                 f"{len(list(masters))} masters the fabric prepends {id_prefix_width(masters)} "
-                f"master-index bit(s) to the {master_id_width(masters)}-bit master ID, so "
+                f"master-index bit(s) to the {fabric_local_id_width(masters)}-bit master-local ID, so "
                 f"every AXI slave port carries {need}-bit IDs. Set id_width = {need} "
                 f"(or wider) on this slave, and size whatever it connects to accordingly."
             )

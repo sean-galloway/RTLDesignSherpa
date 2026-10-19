@@ -111,7 +111,7 @@ class BridgeMixETB(TBBase):
         Channels: RW
         Data Width: 64
         Addr Width: 32
-        ID Width: 4
+        ID Width: 8
     """
 
     # ----------------------------------------------------------------------
@@ -130,7 +130,7 @@ class BridgeMixETB(TBBase):
         self.num_slaves = 3
         self.data_width = 64
         self.addr_width = 32
-        self.id_width = 4
+        self.id_width = 8
 
         # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
         # every count in the tests is read from; SEED (pinned per test node
@@ -476,7 +476,7 @@ class BridgeMixETB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -486,7 +486,7 @@ class BridgeMixETB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -499,7 +499,7 @@ class BridgeMixETB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
     def _setup_master_2_host_apb(self):

@@ -15,7 +15,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.10"
+REV="0.11"
 ASSETS="bridge_mas/assets"
 MAS_INDEX="bridge_mas/bridge_mas_index.md"
 

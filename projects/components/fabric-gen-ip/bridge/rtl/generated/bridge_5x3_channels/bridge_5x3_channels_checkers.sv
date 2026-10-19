@@ -199,7 +199,7 @@ bind bridge_5x3_channels axi4_protocol_checker #(
 
 // slave port sram_buffer (axi4, rw) on aclk
 bind bridge_5x3_channels axi4_protocol_checker #(
-    .ID_WIDTH(11),
+    .ID_WIDTH(7),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(256)
 ) u_chk_sram_buffer (
@@ -238,7 +238,7 @@ bind bridge_5x3_channels axi4_protocol_checker #(
 
 // slave port ddr_controller (axi4, rw) on aclk
 bind bridge_5x3_channels axi4_protocol_checker #(
-    .ID_WIDTH(11),
+    .ID_WIDTH(7),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(256)
 ) u_chk_ddr_controller (

@@ -23,7 +23,7 @@ description = "2 AXI5 masters x (1 AXI5 + 1 AXI4) slaves rw bridge, native sideb
 [[bridge.masters]]
 name = "cpu"
 prefix = "cpu_axi_"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -34,7 +34,7 @@ axi5_features = ["nsaid", "trace", "unique", "wakeup"]
 [[bridge.masters]]
 name = "dma"
 prefix = "dma_axi_"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -45,7 +45,7 @@ axi5_features = ["nsaid", "trace", "unique"]
 [[bridge.slaves]]
 name = "ddr"  # stays AXI4: the sideband drop path
 prefix = "ddr_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+id_width = 5  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -56,7 +56,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"  # AXI5, same features + width as the masters: native path
 prefix = "sram_axi_"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+id_width = 5  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 32
 user_width = 1

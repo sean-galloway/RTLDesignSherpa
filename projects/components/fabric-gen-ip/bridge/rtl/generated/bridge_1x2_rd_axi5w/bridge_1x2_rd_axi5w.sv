@@ -23,7 +23,7 @@ module bridge_1x2_rd_axi5w
 
     // Master 0: cpu_rd (rd)
     // Master: cpu_rd (axi5, rd)
-    input  logic [3:0]  cpu_rd_axi_arid,
+    input  logic [7:0]  cpu_rd_axi_arid,
     input  logic [31:0]  cpu_rd_axi_araddr,
     input  logic [7:0]  cpu_rd_axi_arlen,
     input  logic [2:0]  cpu_rd_axi_arsize,
@@ -39,7 +39,7 @@ module bridge_1x2_rd_axi5w
     input  logic         cpu_rd_axi_artrace,
     input  logic         cpu_rd_axi_aridunq,
 
-    output  logic [3:0]  cpu_rd_axi_rid,
+    output  logic [7:0]  cpu_rd_axi_rid,
     output  logic [31:0]  cpu_rd_axi_rdata,
     output  logic [1:0]  cpu_rd_axi_rresp,
     output  logic         cpu_rd_axi_rlast,

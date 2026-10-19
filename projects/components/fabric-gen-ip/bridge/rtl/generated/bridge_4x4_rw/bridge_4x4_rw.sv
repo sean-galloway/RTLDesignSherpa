@@ -23,7 +23,7 @@ module bridge_4x4_rw
 
     // Master 0: cpu_master (rw)
     // Master: cpu_master (axi4, rw)
-    input  logic [3:0]  cpu_axi_awid,
+    input  logic [7:0]  cpu_axi_awid,
     input  logic [31:0]  cpu_axi_awaddr,
     input  logic [7:0]  cpu_axi_awlen,
     input  logic [2:0]  cpu_axi_awsize,
@@ -44,13 +44,13 @@ module bridge_4x4_rw
     input  logic         cpu_axi_wvalid,
     output  logic         cpu_axi_wready,
 
-    output  logic [3:0]  cpu_axi_bid,
+    output  logic [7:0]  cpu_axi_bid,
     output  logic [1:0]  cpu_axi_bresp,
     output  logic         cpu_axi_buser,
     output  logic         cpu_axi_bvalid,
     input  logic         cpu_axi_bready,
 
-    input  logic [3:0]  cpu_axi_arid,
+    input  logic [7:0]  cpu_axi_arid,
     input  logic [31:0]  cpu_axi_araddr,
     input  logic [7:0]  cpu_axi_arlen,
     input  logic [2:0]  cpu_axi_arsize,
@@ -64,7 +64,7 @@ module bridge_4x4_rw
     input  logic         cpu_axi_arvalid,
     output  logic         cpu_axi_arready,
 
-    output  logic [3:0]  cpu_axi_rid,
+    output  logic [7:0]  cpu_axi_rid,
     output  logic [63:0]  cpu_axi_rdata,
     output  logic [1:0]  cpu_axi_rresp,
     output  logic         cpu_axi_rlast,
@@ -74,7 +74,7 @@ module bridge_4x4_rw
 
     // Master 1: dma0_master (rw)
     // Master: dma0_master (axi4, rw)
-    input  logic [3:0]  dma0_axi_awid,
+    input  logic [7:0]  dma0_axi_awid,
     input  logic [31:0]  dma0_axi_awaddr,
     input  logic [7:0]  dma0_axi_awlen,
     input  logic [2:0]  dma0_axi_awsize,
@@ -95,13 +95,13 @@ module bridge_4x4_rw
     input  logic         dma0_axi_wvalid,
     output  logic         dma0_axi_wready,
 
-    output  logic [3:0]  dma0_axi_bid,
+    output  logic [7:0]  dma0_axi_bid,
     output  logic [1:0]  dma0_axi_bresp,
     output  logic         dma0_axi_buser,
     output  logic         dma0_axi_bvalid,
     input  logic         dma0_axi_bready,
 
-    input  logic [3:0]  dma0_axi_arid,
+    input  logic [7:0]  dma0_axi_arid,
     input  logic [31:0]  dma0_axi_araddr,
     input  logic [7:0]  dma0_axi_arlen,
     input  logic [2:0]  dma0_axi_arsize,
@@ -115,7 +115,7 @@ module bridge_4x4_rw
     input  logic         dma0_axi_arvalid,
     output  logic         dma0_axi_arready,
 
-    output  logic [3:0]  dma0_axi_rid,
+    output  logic [7:0]  dma0_axi_rid,
     output  logic [31:0]  dma0_axi_rdata,
     output  logic [1:0]  dma0_axi_rresp,
     output  logic         dma0_axi_rlast,
@@ -125,7 +125,7 @@ module bridge_4x4_rw
 
     // Master 2: dma1_master (rw)
     // Master: dma1_master (axi4, rw)
-    input  logic [3:0]  dma1_axi_awid,
+    input  logic [7:0]  dma1_axi_awid,
     input  logic [31:0]  dma1_axi_awaddr,
     input  logic [7:0]  dma1_axi_awlen,
     input  logic [2:0]  dma1_axi_awsize,
@@ -146,13 +146,13 @@ module bridge_4x4_rw
     input  logic         dma1_axi_wvalid,
     output  logic         dma1_axi_wready,
 
-    output  logic [3:0]  dma1_axi_bid,
+    output  logic [7:0]  dma1_axi_bid,
     output  logic [1:0]  dma1_axi_bresp,
     output  logic         dma1_axi_buser,
     output  logic         dma1_axi_bvalid,
     input  logic         dma1_axi_bready,
 
-    input  logic [3:0]  dma1_axi_arid,
+    input  logic [7:0]  dma1_axi_arid,
     input  logic [31:0]  dma1_axi_araddr,
     input  logic [7:0]  dma1_axi_arlen,
     input  logic [2:0]  dma1_axi_arsize,
@@ -166,7 +166,7 @@ module bridge_4x4_rw
     input  logic         dma1_axi_arvalid,
     output  logic         dma1_axi_arready,
 
-    output  logic [3:0]  dma1_axi_rid,
+    output  logic [7:0]  dma1_axi_rid,
     output  logic [127:0]  dma1_axi_rdata,
     output  logic [1:0]  dma1_axi_rresp,
     output  logic         dma1_axi_rlast,
@@ -176,7 +176,7 @@ module bridge_4x4_rw
 
     // Master 3: gpu_master (rw)
     // Master: gpu_master (axi4, rw)
-    input  logic [3:0]  gpu_axi_awid,
+    input  logic [7:0]  gpu_axi_awid,
     input  logic [31:0]  gpu_axi_awaddr,
     input  logic [7:0]  gpu_axi_awlen,
     input  logic [2:0]  gpu_axi_awsize,
@@ -197,13 +197,13 @@ module bridge_4x4_rw
     input  logic         gpu_axi_wvalid,
     output  logic         gpu_axi_wready,
 
-    output  logic [3:0]  gpu_axi_bid,
+    output  logic [7:0]  gpu_axi_bid,
     output  logic [1:0]  gpu_axi_bresp,
     output  logic         gpu_axi_buser,
     output  logic         gpu_axi_bvalid,
     input  logic         gpu_axi_bready,
 
-    input  logic [3:0]  gpu_axi_arid,
+    input  logic [7:0]  gpu_axi_arid,
     input  logic [31:0]  gpu_axi_araddr,
     input  logic [7:0]  gpu_axi_arlen,
     input  logic [2:0]  gpu_axi_arsize,
@@ -217,7 +217,7 @@ module bridge_4x4_rw
     input  logic         gpu_axi_arvalid,
     output  logic         gpu_axi_arready,
 
-    output  logic [3:0]  gpu_axi_rid,
+    output  logic [7:0]  gpu_axi_rid,
     output  logic [255:0]  gpu_axi_rdata,
     output  logic [1:0]  gpu_axi_rresp,
     output  logic         gpu_axi_rlast,

@@ -1212,6 +1212,14 @@ def _emit_bridge_variant(
         filelist_lines.append("# Rate-matching buffers on upsized paths into shared slaves (bridge W2)")
         filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f")
 
+    # ID remap tables: in the master adapter of every master whose ID is
+    # wider than its remap slot (width_utils.id_remapped).
+    from bridge_pkg.width_utils import id_remapped
+    if any(id_remapped(m) for m in config.masters):
+        filelist_lines.append("")
+        filelist_lines.append("# Transaction-ID remap tables in the master adapters (bridge_id_remap)")
+        filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f")
+
     filelist_lines.append("")
     filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
     filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f")

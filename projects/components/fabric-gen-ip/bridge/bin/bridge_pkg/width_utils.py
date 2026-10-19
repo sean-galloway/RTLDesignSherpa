@@ -78,9 +78,9 @@ def get_masters_connecting_to_slave(slave, masters, slaves) -> list:
 
 
 # ---------------------------------------------------------------------------
-# Transaction-ID widths (bridge TASK-005, was BRIDGE-016). ONE place for the arithmetic: the
-# package, the crossbar, the master and slave adapters, the TB generator and
-# the validator all size IDs from these three functions.
+# Transaction-ID widths (bridge TASK-005, was BRIDGE-016; ID remap). ONE place for the
+# arithmetic: the package, the crossbar, the master and slave adapters, the
+# TB generator and the validator all size IDs from these functions.
 # ---------------------------------------------------------------------------
 
 def master_id_width(masters) -> int:
@@ -98,9 +98,39 @@ def id_prefix_width(masters) -> int:
     return (n - 1).bit_length() if n > 1 else 0
 
 
+def remap_slot_width(master) -> int:
+    """Bits of a remap slot: $clog2(max_outstanding). A master has at most
+    max_outstanding requests in flight per direction, so at most that many
+    distinct IDs, and a slot this wide names each of them."""
+    return max(1, int(getattr(master, 'max_outstanding', 16) or 16).bit_length() - 1)
+
+
+def id_remapped(master) -> bool:
+    """True when the master adapter remaps this master's IDs to slots
+    (bridge_id_remap): whenever its ID is wider than a slot, so the fabric
+    and every slave see the slot instead.
+
+    A read-return atomic port (AXI5 'atomic' on an rw port) is the exception:
+    its atomic AW answers on BOTH B and R under one AWID, which one table per
+    direction cannot name; it keeps its own ID."""
+    if (master.id_width or 0) <= remap_slot_width(master):
+        return False
+    feats = (set(getattr(master, 'axi5_features', None) or ())
+             if getattr(master, 'protocol', 'axi4') == 'axi5' else set())
+    return not ('atomic' in feats and getattr(master, 'channels', '') == 'rw')
+
+
+def fabric_local_id_width(masters) -> int:
+    """Width of the master-local part of a fabric ID: a remapped master's
+    slot, otherwise its own ID (floored at 1), widest over the bridge."""
+    return max([remap_slot_width(m) if id_remapped(m) else max(1, m.id_width or 0)
+                for m in masters] or [4])
+
+
 def xbar_id_width(masters) -> int:
     """ID width inside the fabric and on every slave-side port:
-    {master index, master ID}. Eight-bit masters behind a 16-master bridge
-    give 12-bit IDs at the slaves."""
-    return master_id_width(masters) + id_prefix_width(masters)
+    {master index, master-local ID}. The local part is a remap slot for a
+    master whose ID is wider than one (fabric_local_id_width), so five 8-bit
+    masters at max_outstanding 16 give 7-bit IDs at the slaves, not 11."""
+    return fabric_local_id_width(masters) + id_prefix_width(masters)
 

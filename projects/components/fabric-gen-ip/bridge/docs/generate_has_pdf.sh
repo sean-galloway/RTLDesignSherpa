@@ -15,7 +15,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="0.10"
+REV="0.11"
 ASSETS="bridge_has/assets"
 HAS_INDEX="bridge_has/bridge_has_index.md"
 

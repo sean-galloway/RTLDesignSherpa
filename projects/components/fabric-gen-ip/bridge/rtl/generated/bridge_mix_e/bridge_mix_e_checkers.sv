@@ -4,7 +4,7 @@
 
 // master port dma_axi4 (axi4, rw) on aclk
 bind bridge_mix_e axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(64)
 ) u_chk_dma_axi4 (

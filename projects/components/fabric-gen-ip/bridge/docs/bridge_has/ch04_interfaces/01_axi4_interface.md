@@ -76,18 +76,25 @@ input  logic        ddr_s_axi_awready,
 
 ### ID Width Extension
 
-With more than one master, slave-side IDs are WIDER than master-side:
+Slave-side IDs are `{master index, master-local id}`, sized by outstanding
+requests rather than by the masters' ID widths:
 
 ```
-Master ID Width: id_width of the master port (widest master = MASTER_ID_WIDTH)
+Local ID Width:  per master, clog2(max_outstanding) if its id_width is wider
+                 (a remap slot), else its id_width   (widest = MASTER_ID_WIDTH)
 Bridge ID Width: clog2(NUM_MASTERS)            (ID_PREFIX_WIDTH; 0 for one master)
 Slave ID Width:  MASTER_ID_WIDTH + ID_PREFIX_WIDTH  (XBAR_ID_WIDTH)
 
-bridge_2x2_rw: cpu_m_axi_awid [3:0]  ->  ddr_s_axi_awid [4:0]
+bridge_2x2_rw:       cpu_m_axi_awid [7:0]  ->  ddr_s_axi_awid [4:0]   (slot)
+bridge_2x2_ooo:      cpu_axi_awid   [3:0]  ->  ddr_axi_awid   [4:0]   (ID kept)
+bridge_5x3_channels: cpu_axi_awid   [7:0]  ->  sram_buffer_axi_awid [6:0]
 ```
 
-Each master adapter sends `{BRIDGE_ID, id}` into the fabric and strips the
-prefix from B and R. A slave port's declared `id_width` must be at least
+Each master adapter sends `{BRIDGE_ID, slot}` (or `{BRIDGE_ID, id}`) into
+the fabric. On B and R its remap table restores the master's ID from the
+returned slot (bridge TASK-018); a kept ID has the prefix stripped. A master
+sees exactly the IDs it issued, and two of its requests with one ID keep one
+fabric ID, so they stay ordered. A slave port's declared `id_width` must be at least
 `XBAR_ID_WIDTH`; the validator rejects a narrower AXI3/AXI4/AXI5 slave.
 Responses are routed by the master index the slave adapter returns with
 them: the BID/RID prefix bits for a multi-master AXI3/AXI4/AXI5 slave (any

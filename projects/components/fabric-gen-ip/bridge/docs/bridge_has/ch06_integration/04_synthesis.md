@@ -243,6 +243,43 @@ smaller.
 - **No block RAM, no DSPs, anywhere.** The trackers and FIFOs are LUT
   arrays; there is no arithmetic.
 
+### ID remap (rev 0.11)
+
+A master whose ID is wider than `$clog2(max_outstanding)` bits now sends a
+remap slot into the fabric instead of its ID (bridge TASK-018, MAS 2.1). The
+slave-side ID shrinks, and with it every per-ID structure past the master
+adapter; the largest of those is the width converters' per-ID read state,
+which R interleaving (rev 0.10) made necessary. Artix-7 -1, 10 ns, `make
+synth`:
+
+| Bridge | Masters | Fabric ID | LUTs | FFs | WNS (ns) |
+|---|---|---|---:|---:|---:|
+| `bridge_5x3_channels`, rev 0.10 | five 8-bit | 11 bits | 47,850 | 50,894 | -0.309 |
+| `bridge_5x3_channels`, rev 0.11 | five 8-bit, remapped | 7 bits | 25,304 | 23,845 | +0.089 |
+| `bridge_4x4_rw`, rev 0.10 | 4-bit, IDs kept | 6 bits | 43,350 | 42,530 | +0.212 |
+| `bridge_4x4_rw`, rev 0.11 | 8-bit, remapped | 6 bits | 44,627 | 43,756 | -0.024 |
+| `bridge_mix_e`, rev 0.10 | 4-bit, IDs kept | 6 bits | 15,746 | 13,375 | +0.145 |
+| `bridge_mix_e`, rev 0.11 | one 8-bit remapped, one 4-bit kept, one APB | 6 bits | 16,036 | 13,671 | +0.111 |
+
+: ID remap, Artix-7 100T -1 at 10 ns
+
+- **5x3: less than half the size and at the target.** The CPU master's
+  adapter, with a 64-to-256 read converter whose per-ID state had 2048
+  entries at 11 bits, accounted for most of the rev 0.10 growth; at 7 bits it
+  has 128. The bridge is smaller than before R interleaving (30,835 LUTs,
+  rev 1.3 rows above).
+- **4x4 and mix_e are not like for like.** Their masters were widened from 4
+  to 8 bits in rev 0.11 so the regression exercises the remap, so they show
+  the cost of the table over the per-ID target table it replaces at the same
+  fabric ID width: about 1,300 LUTs over four masters, 300 over one. The
+  4x4's worst path is the crossbar's AW arbiter into a converter's W skid,
+  not the table; it is within placement noise of the target.
+- **The table's own path.** The first build counted a response's pop on the
+  cycle it was taken, decoding the returned slot behind the path arbiter into
+  an entry's count: -0.445 ns reg-to-reg on the 5x3, in the read-only master's
+  AR table. The pop is registered now (MAS 2.1), which is what moved the 5x3
+  from -0.493 to +0.089.
+
 ## Design Notes
 
 ### What moves the numbers

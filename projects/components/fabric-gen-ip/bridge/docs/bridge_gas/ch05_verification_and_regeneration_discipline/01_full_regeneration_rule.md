@@ -57,6 +57,7 @@ make clean-all && make run-all-func
 ## Files that are never regenerated
 
 - `rtl/bridge_wr_rate_buf.sv` — hand-written rate-matching buffer on upsized paths into shared slaves.
+- `rtl/bridge_id_remap.sv` — hand-written transaction-ID remap table in the master adapters (bridge TASK-018).
 - `deprecated/` — code no flow uses (`bridge_cam.sv` and its test and proof, the analytical model), kept out of every regression.
 - Anything outside `rtl/generated/` and `rtl/filelists/`.
 

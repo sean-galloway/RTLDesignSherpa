@@ -137,7 +137,7 @@ regen = "cd projects/components/fabric-gen-ip/bridge/bin && make regen"
 rtl_roots = ["projects/components/fabric-gen-ip/bridge/rtl"]
 # filelists/        -- emitted by bridge_generator.py; never hand-edit.
 # filelists_static/ -- hand-written lists for the hand-written bridge RTL
-#                      (bridge_wr_rate_buf, bridge_cdc_slave_arb), kept in a separate
+#                      (bridge_wr_rate_buf, bridge_cdc_slave_arb, bridge_id_remap), kept in a separate
 #                      directory so a clean or regen of the generated half cannot
 #                      delete them.
 # deprecated/rtl/filelists_static/ -- unused bridge RTL kept out of every flow

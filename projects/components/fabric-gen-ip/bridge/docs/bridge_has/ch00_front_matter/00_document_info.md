@@ -28,8 +28,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Bridge Hardware Architecture Specification |
-| Version | 0.10 |
-| Date | 2026-10-18 |
+| Version | 0.11 |
+| Date | 2026-10-19 |
 | Status | Released |
 | Classification | Open Source - MIT License |
 
@@ -57,6 +57,7 @@
 | 1.7 | 2026-10-18 | RTL Design Sherpa | Every open bridge limit closed. W9: a CDC slave that several masters share is crossed per master and arbitrated on its own clock (`bridge_cdc_slave_arb`, `arbiter_matrix`), so round-robin holds there (0.496-0.500 at 32-cycle slave latency, was 0.18-0.20; HAS 4.5a, MAS 2.3, 6.1). W13: the AXI3 slave converter stages chopped requests and merges B and R per entry from registers. W14: APB / AXI4-Lite / WB4 slaves are picked from request slots too, with no early-W bypass. `bridge_2x2_axi3_slaves`, `bridge_mix_e`, `bridge_2x2_rw_cdc` and `bridge_2x2_axi3_masters` all meet 10 ns on the Artix-7 (HAS 5.1). Unused code moved to `deprecated/` (bridge_cam with its test and proof, the analytical model). |
 | 0.9 | 2026-10-18 | RTL Design Sherpa | Renumbered pre-1.0. The rows above carried 1.x-2.0 numbers while the bridge was still taking fundamental fixes (today alone: the per-ID CAM replaced by ID routing, slave-domain arbitration at CDC slaves, request slots at shim slaves). Content is rev 1.7's; the books stay below 1.0 until the architecture stops moving. |
 | 0.10 | 2026-10-18 | RTL Design Sherpa | R interleaving. A slave may interleave R beats of different IDs, as AXI4 allows (PRD FR-9, HAS 4.1); it had to return each burst contiguously. The per-master-path R arbiters in the crossbar and the path arbiter in each master adapter re-arbitrate every beat instead of holding through RLAST: once slaves interleave, a held path deadlocks two slaves that each interleave toward two masters. The read width converters convert each beat against its own ID's state as it arrives (`R_INTERLEAVE = 1`, converters MAS 2.6.9), with no beat pool. The generated TBs' slave BFMs interleave R by default (`BRIDGE_R_INTERLEAVE`); `test_bridge_2x2_rw_r_interleave` (the deadlock) and `test_bridge_4x4_rw_r_interleave` (the converters) cover it. |
+| 0.11 | 2026-10-19 | RTL Design Sherpa | Transaction IDs remapped to slots (bridge TASK-018; PRD FR-2, HAS 3.2, 4.1, 6.4; MAS 2.1). A master whose ID is wider than `$clog2(max_outstanding)` bits gets a `bridge_id_remap` table per direction: a request's ID reuses its live slot or takes a free one, the fabric ID is `{master index, slot}`, and the slot in a response restores the ID. Slave-side IDs, and the width converters' per-ID read state, are sized by outstanding requests instead of the masters' ID widths: `bridge_5x3_channels` goes from 11-bit to 7-bit IDs, 47,850 to 25,304 LUTs and -0.309 to +0.089 ns. A master no wider than a slot, or a read-return-atomic port, keeps its ID. Slave-port protocol checkers now bind at the pins' ID width. |
 
 : Revision history
 

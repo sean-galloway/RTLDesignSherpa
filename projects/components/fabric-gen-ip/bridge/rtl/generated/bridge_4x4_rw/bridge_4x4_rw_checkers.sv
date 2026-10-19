@@ -4,7 +4,7 @@
 
 // master port cpu_master (axi4, rw) on aclk
 bind bridge_4x4_rw axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(64)
 ) u_chk_cpu_master (
@@ -43,7 +43,7 @@ bind bridge_4x4_rw axi4_protocol_checker #(
 
 // master port dma0_master (axi4, rw) on aclk
 bind bridge_4x4_rw axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_dma0_master (
@@ -82,7 +82,7 @@ bind bridge_4x4_rw axi4_protocol_checker #(
 
 // master port dma1_master (axi4, rw) on aclk
 bind bridge_4x4_rw axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(128)
 ) u_chk_dma1_master (
@@ -121,7 +121,7 @@ bind bridge_4x4_rw axi4_protocol_checker #(
 
 // master port gpu_master (axi4, rw) on aclk
 bind bridge_4x4_rw axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(256)
 ) u_chk_gpu_master (

@@ -1409,6 +1409,67 @@ def test_id_prefix_absent_on_single_master(tmp_path):
     assert "xbar_axi_arid" not in (out / "cpu_rd_adapter.sv").read_text()
 
 
+def test_id_remap_width_rules():
+    """width_utils decides which masters remap and how wide the fabric ID
+    is; every generator sizes IDs from it. A master remaps when its ID is
+    wider than a slot ($clog2(max_outstanding)); a read-return atomic port
+    keeps its own ID."""
+    from bridge_pkg.width_utils import (
+        remap_slot_width, id_remapped, fabric_local_id_width, xbar_id_width)
+    from bridge_pkg.generators.adapter_generator import MasterConfig
+
+    def m(idw, mo=16, ch="rw", proto="axi4", feats=None):
+        return MasterConfig("m", "m_", 64, 32, idw, ch, [0], protocol=proto,
+                            axi5_features=feats, max_outstanding=mo)
+
+    assert remap_slot_width(m(8)) == 4 and remap_slot_width(m(8, 64)) == 6
+    assert remap_slot_width(m(8, 2)) == 1
+    assert id_remapped(m(8)) and id_remapped(m(5))
+    assert not id_remapped(m(4)) and not id_remapped(m(6, 64)) and not id_remapped(m(0))
+    assert not id_remapped(m(8, proto="axi5", feats=["atomic"]))           # rr atomic
+    assert id_remapped(m(8, ch="wr", proto="axi5", feats=["atomic"]))      # filtered at the port
+    # Five 8-bit masters at 16 outstanding: 3 index bits + a 4-bit slot.
+    assert xbar_id_width([m(8)] * 5) == 7
+    # The local part is the widest of slots and kept IDs.
+    assert fabric_local_id_width([m(8), m(6, 64)]) == 6
+    assert xbar_id_width([m(1)]) == 1
+
+
+def test_id_remap_generated(tmp_path):
+    """bridge_5x3_channels (five 8-bit masters, 16 outstanding): every master
+    adapter remaps both directions, the fabric ID is {BRIDGE_ID, slot}, the
+    width converters run at the 7-bit fabric ID instead of 11, and the
+    slot in a response restores the ID. bridge_2x2_ooo's 4-bit masters
+    are no wider than a slot and keep their IDs."""
+    out = _generate(tmp_path, "bridge_5x3_channels")
+    pkg = (out / "bridge_5x3_channels_pkg.sv").read_text()
+    assert "MASTER_ID_WIDTH = 4" in pkg and "XBAR_ID_WIDTH   = 7" in pkg
+    cpu = (out / "cpu_master_adapter.sv").read_text()
+    for chan, resp in (("aw", "b"), ("ar", "r")):
+        assert f"u_{chan}_id_remap" in cpu
+        assert (f"assign xbar_axi_{chan}id = {{BRIDGE_ID_WIDTH'(BRIDGE_ID), "
+                f"MASTER_ID_WIDTH'({chan}_rmp_slot)}};") in cpu
+        assert f".rsp_id   (fub_axi_{resp}id)," in cpu
+        assert f"{resp}_rmp_slot = conv_32b_{resp}id[3:0];" in cpu
+        assert f"{chan}_idt_cnt" not in cpu, "the per-ID target table should be gone"
+    assert ".AXI_ID_WIDTH(7)," in cpu and ".AXI_ID_WIDTH(11)," not in cpu
+    assert "[6:0]  sram_buffer_axi_awid" in (out / "bridge_5x3_channels.sv").read_text()
+    # Slave-port checkers bind at the pins' width, not the declared id_width (11).
+    chk = (out / "bridge_5x3_channels_checkers.sv").read_text()
+    assert "u_chk_sram_buffer" in chk and ".ID_WIDTH(11)" not in chk and chk.count(".ID_WIDTH(7)") == 2
+    for wr_only in ("descr_wr_master", "sink_wr_master"):
+        sv = (out / f"{wr_only}_adapter.sv").read_text()
+        assert "u_aw_id_remap" in sv and "u_ar_id_remap" not in sv
+    fl = tmp_path / "filelists" / "bridge_5x3_channels.f"
+    if fl.exists():
+        assert "bridge_id_remap.f" in fl.read_text()
+
+    out2 = _generate(tmp_path / "ooo", "bridge_2x2_ooo")
+    for mname in ("cpu", "dma"):
+        sv = (out2 / f"{mname}_adapter.sv").read_text()
+        assert "bridge_id_remap" not in sv and "aw_idt_cnt" in sv
+
+
 def test_axi5_rr_atomic_accepted(tmp_path):
     toml, conn = _write_rw_atomic_toml(tmp_path)
     cfg = load_config(toml, conn)

@@ -67,7 +67,7 @@ module bridge_mix_e
 
     // Master 1: dma_axi4 (rw)
     // Master: dma_axi4 (axi4, rw)
-    input  logic [3:0]  dma_axi4_awid,
+    input  logic [7:0]  dma_axi4_awid,
     input  logic [31:0]  dma_axi4_awaddr,
     input  logic [7:0]  dma_axi4_awlen,
     input  logic [2:0]  dma_axi4_awsize,
@@ -88,13 +88,13 @@ module bridge_mix_e
     input  logic         dma_axi4_wvalid,
     output  logic         dma_axi4_wready,
 
-    output  logic [3:0]  dma_axi4_bid,
+    output  logic [7:0]  dma_axi4_bid,
     output  logic [1:0]  dma_axi4_bresp,
     output  logic         dma_axi4_buser,
     output  logic         dma_axi4_bvalid,
     input  logic         dma_axi4_bready,
 
-    input  logic [3:0]  dma_axi4_arid,
+    input  logic [7:0]  dma_axi4_arid,
     input  logic [31:0]  dma_axi4_araddr,
     input  logic [7:0]  dma_axi4_arlen,
     input  logic [2:0]  dma_axi4_arsize,
@@ -108,7 +108,7 @@ module bridge_mix_e
     input  logic         dma_axi4_arvalid,
     output  logic         dma_axi4_arready,
 
-    output  logic [3:0]  dma_axi4_rid,
+    output  logic [7:0]  dma_axi4_rid,
     output  logic [63:0]  dma_axi4_rdata,
     output  logic [1:0]  dma_axi4_rresp,
     output  logic         dma_axi4_rlast,

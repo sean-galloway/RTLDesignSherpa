@@ -113,7 +113,7 @@ class Bridge1x2RdAxi5wTB(TBBase):
         Channels: RD
         Data Width: 64
         Addr Width: 32
-        ID Width: 4
+        ID Width: 8
     """
 
     # ----------------------------------------------------------------------
@@ -132,7 +132,7 @@ class Bridge1x2RdAxi5wTB(TBBase):
         self.num_slaves = 2
         self.data_width = 64
         self.addr_width = 32
-        self.id_width = 4
+        self.id_width = 8
 
         # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
         # every count in the tests is read from; SEED (pinned per test node
@@ -444,7 +444,7 @@ class Bridge1x2RdAxi5wTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -458,7 +458,7 @@ class Bridge1x2RdAxi5wTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
 

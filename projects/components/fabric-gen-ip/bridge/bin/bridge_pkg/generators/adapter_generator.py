@@ -1069,7 +1069,87 @@ class AdapterGenerator:
 
     def xid(self, chan: str) -> str:
         """Name of the fabric-facing ID net for 'aw' / 'ar'."""
-        return f"xbar_axi_{chan}id" if self.id_prefix_width else f"fub_axi_{chan}id"
+        return (f"xbar_axi_{chan}id" if (self.id_prefix_width or self.id_remap)
+                else f"fub_axi_{chan}id")
+
+    # --- ID remap ------------------------------------------------------------
+    # A master whose ID is wider than a remap slot ($clog2(max_outstanding))
+    # gets a bridge_id_remap per direction: the request's ID is matched to a
+    # live slot or given a free one, the fabric ID is {master index, slot},
+    # and the slot in a response restores the ID. It replaces the per-ID
+    # target table (_id_table_lines) and its low-bit aliasing. See
+    # width_utils.id_remapped for the one exception.
+    @property
+    def id_remap(self) -> bool:
+        from bridge_pkg.width_utils import id_remapped
+        return id_remapped(self.master)
+
+    @property
+    def remap_sw(self) -> int:
+        from bridge_pkg.width_utils import remap_slot_width
+        return remap_slot_width(self.master)
+
+    def _rsp_id_target(self, resp: str) -> str:
+        """Net the response mux writes the returned ID into: the slot on a
+        remapped port (the table drives fub_axi_{b,r}id from it), else the
+        fub ID itself."""
+        return f"{resp}_rmp_slot" if self.id_remap else f"fub_axi_{resp}id"
+
+    def _rsp_id_select(self, src: str, prefixed_select: bool = True) -> str:
+        """The bits of a returned fabric ID the response mux keeps."""
+        if self.id_remap:
+            return f"{src}[{self.remap_sw - 1}:0]"
+        if prefixed_select:
+            return f"{src}[{self.fub_id_width - 1}:0]"
+        return src
+
+    def _id_remap_lines(self, chan: str, resp: str, resp_hs: str,
+                        trace: Optional[str] = None) -> List[str]:
+        """bridge_id_remap for 'aw'/'ar' on a remapped port. Declares the same
+        nets _id_table_lines does for the gate and the ILA taps ({chan}_id_ok,
+        {chan}_trk_full, {chan}_out_cnt, {chan}_idt_push/pop), plus the slot
+        ({chan}_rmp_slot) the fabric ID carries and, on trace-echo ports, the
+        returning response's trace ({resp}_trk_trace)."""
+        up, sw = chan.upper(), self.remap_sw
+        meta = trace if trace else "1'b0"
+        lines = [
+            f"    // -------- {up} ID remap (bridge_id_remap) --------",
+            f"    // The fabric ID is {{BRIDGE_ID, slot}}: a request whose ID is live",
+            f"    // reuses its slot (one ID stays one fabric ID, so it stays ordered at",
+            f"    // the slave), any other takes a free one; {up}_TRK_DEPTH slots, one per",
+            f"    // request this port may have outstanding. The slot in a returning",
+            f"    // {resp.upper()} restores the ID. An ID live toward one slave may only add",
+            f"    // requests to that slave (AXI same-ID order).",
+            f"    logic                  {chan}_id_ok, {chan}_trk_full;",
+            f"    logic [{up}_TRK_AW:0]   {chan}_out_cnt;",
+            f"    logic                  {chan}_idt_push, {chan}_idt_pop;",
+        ] + ([f"    logic                  {resp}_trk_trace;"] if trace else []) + [
+            f"    assign {chan}_idt_push = fub_axi_{chan}valid && fub_axi_{chan}ready;",
+            f"    assign {chan}_idt_pop  = {resp_hs};",
+            "",
+            "    bridge_id_remap #(",
+            f"        .ID_WIDTH   ({self.fub_id_width}),",
+            f"        .DEPTH      ({up}_TRK_DEPTH),",
+            "        .NUM_TGT    (NUM_SLAVES),",
+            "        .META_WIDTH (1)",
+            f"    ) u_{chan}_id_remap (",
+            "        .aclk     (aclk),",
+            "        .aresetn  (aresetn),",
+            f"        .req_id   (fub_axi_{chan}id),",
+            f"        .req_tgt  (comb_slave_select_{chan}),",
+            f"        .req_meta ({meta}),",
+            f"        .req_push ({chan}_idt_push),",
+            f"        .req_slot ({chan}_rmp_slot),",
+            f"        .req_ok   ({chan}_id_ok),",
+            f"        .full     ({chan}_trk_full),",
+            f"        .rsp_slot ({resp}_rmp_slot),",
+            f"        .rsp_pop  ({chan}_idt_pop),",
+            f"        .rsp_id   (fub_axi_{resp}id),",
+            f"        .rsp_meta ({resp + '_trk_trace' if trace else ''}),",
+            f"        .out_cnt  ({chan}_out_cnt)",
+            "    );",
+        ]
+        return lines
 
     @property
     def rr_local_idx(self):
@@ -1402,14 +1482,16 @@ class AdapterGenerator:
         SystemVerilog that Verilator happens to elaborate as 2 bits and other
         tools may reject outright.
 
-        The placeholder width is the BRIDGE's struct ID width, not 1. AXI4-Lite
-        carries no ID, so the value is a don't-care and any consistent width is
-        correct -- but this face connects directly to the crossbar's channel
-        structs, whose `id` field is that width. Picking 1 instead leaves every
-        one of those connections width-mismatched, which Verilator reports as
+        The placeholder width is the bridge's master-local ID width
+        (MASTER_ID_WIDTH), not 1. AXI4-Lite carries no ID, so the value is a
+        don't-care and any consistent width is correct -- but this face
+        connects to the crossbar's channel structs, whose `id` field is that
+        width under the master index. Picking 1 instead leaves every one of
+        those connections width-mismatched, which Verilator reports as
         WIDTHEXPAND on the way in and WIDTHTRUNC on the way out. Same
-        expression as bridge_module_generator uses to size the package structs,
-        so the two cannot disagree.
+        expression (width_utils.fabric_local_id_width) as
+        bridge_module_generator uses to size the package, so the two cannot
+        disagree.
 
         EVERY site that sizes something on this face reads this, including the
         parameter overrides of instantiated modules. Clamping only the
@@ -1420,8 +1502,8 @@ class AdapterGenerator:
         """
         if self.master.id_width:
             return self.master.id_width
-        masters = self.all_masters or [self.master]
-        return max([max(1, m.id_width or 0) for m in masters] or [4])
+        from bridge_pkg.width_utils import fabric_local_id_width
+        return fabric_local_id_width(self.all_masters or [self.master])
 
     def _generate_internal_signals(self) -> List[str]:
         """Generate internal signal declarations (fub_axi_*)."""
@@ -1518,8 +1600,23 @@ class AdapterGenerator:
         lines.extend(self._sb_wire_decls())
         lines.extend(self._boundary_wire_decls())
 
-        # bridge TASK-005 (was BRIDGE-016): fabric-facing IDs carry this master's index on top.
-        if self.id_prefix_width:
+        # bridge TASK-005 (was BRIDGE-016): fabric-facing IDs carry this master's index on top;
+        # on a remapped port the local part is the slot, not the master's ID.
+        if self.id_remap:
+            pre = "BRIDGE_ID_WIDTH'(BRIDGE_ID), " if self.id_prefix_width else ""
+            lines.append("    // Fabric IDs: {BRIDGE_ID, remap slot} (bridge_id_remap below). Responses")
+            lines.append("    // return with the slot, which restores the master's ID.")
+            sw = self.remap_sw
+            if self.master.channels in ("wr", "rw"):
+                lines.append(f"    logic [{sw-1}:0] aw_rmp_slot, b_rmp_slot;")
+                lines.append("    logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;")
+                lines.append(f"    assign xbar_axi_awid = {{{pre}MASTER_ID_WIDTH'(aw_rmp_slot)}};")
+            if self.master.channels in ("rd", "rw"):
+                lines.append(f"    logic [{sw-1}:0] ar_rmp_slot, r_rmp_slot;")
+                lines.append("    logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;")
+                lines.append(f"    assign xbar_axi_arid = {{{pre}MASTER_ID_WIDTH'(ar_rmp_slot)}};")
+            lines.append("")
+        elif self.id_prefix_width:
             lines.append("    // Master-unique fabric IDs: {BRIDGE_ID, id} (bridge TASK-005, was BRIDGE-016). Responses")
             lines.append("    // return with the prefix; the response muxes select the low bits.")
             if self.master.channels in ("wr", "rw"):
@@ -2262,11 +2359,15 @@ class AdapterGenerator:
             lines.append(f"    localparam int AW_TRK_AW    = {fifo_aw_bits};")
         tr = "fub_axi_awtrace" if self._trace_echo else None
         if self.master.channels in ("wr", "rw"):
-            lines.extend(self._id_table_lines('aw', "fub_axi_bvalid && fub_axi_bready", "fub_axi_bid",
-                                              trace=tr))
+            if self.id_remap:
+                lines.extend(self._id_remap_lines('aw', 'b', "fub_axi_bvalid && fub_axi_bready",
+                                                  trace=tr))
+            else:
+                lines.extend(self._id_table_lines('aw', "fub_axi_bvalid && fub_axi_bready", "fub_axi_bid",
+                                                  trace=tr))
             lines.append("")
             lines.extend(self._path_arb_lines('b', slave_widths, width_to_slaves))
-            if self._trace_echo:
+            if self._trace_echo and not self.id_remap:
                 lines.append("    // bridge BUG-010 (was BRIDGE-012): the B echoes its request's trace,")
                 lines.append("    // looked up by the returning ID (single-valued per in-flight ID).")
                 lines.append("    logic b_trk_trace;")
@@ -2324,9 +2425,14 @@ class AdapterGenerator:
             lines.append("")
             lines.append(f"    localparam int AR_TRK_DEPTH = {fifo_depth};")
             lines.append(f"    localparam int AR_TRK_AW    = {fifo_aw_bits};")
-            lines.extend(self._id_table_lines(
-                'ar', "fub_axi_rvalid && fub_axi_rready && fub_axi_rlast", "fub_axi_rid",
-                trace=("fub_axi_artrace" if self._trace_echo else None), atomic=self.rr_atomic))
+            if self.id_remap:
+                lines.extend(self._id_remap_lines(
+                    'ar', 'r', "fub_axi_rvalid && fub_axi_rready && fub_axi_rlast",
+                    trace=("fub_axi_artrace" if self._trace_echo else None)))
+            else:
+                lines.extend(self._id_table_lines(
+                    'ar', "fub_axi_rvalid && fub_axi_rready && fub_axi_rlast", "fub_axi_rid",
+                    trace=("fub_axi_artrace" if self._trace_echo else None), atomic=self.rr_atomic))
             lines.append("    assign ar_gate_ok = ar_id_ok && !ar_trk_full;")
             lines.append("")
             if self.rr_atomic:
@@ -2376,7 +2482,7 @@ class AdapterGenerator:
                 lines.append("    assign r_local_id = lr_mem[lr_rptr[AR_TRK_AW-1:0]];")
                 lines.append("")
             lines.extend(self._path_arb_lines('r', slave_widths, width_to_slaves, local=local))
-            if self._trace_echo:
+            if self._trace_echo and not self.id_remap:
                 lines.append("    // bridge BUG-010: the R echoes its request's trace (an atomic's AW trace).")
                 lines.append("    logic r_trk_trace;")
                 lines.append("    assign r_trk_trace = ar_idt_trace[ar_idt_ridx];")
@@ -2455,7 +2561,10 @@ class AdapterGenerator:
             lines.append("    always_comb begin")
 
             # Default assignments
-            lines.append(f"        fub_axi_bid = {self.fub_id_width}'d0;")
+            if self.id_remap:
+                lines.append(f"        b_rmp_slot = '0;")
+            else:
+                lines.append(f"        fub_axi_bid = {self.fub_id_width}'d0;")
             lines.append("        fub_axi_bresp = 2'b00;")
             lines.append("        fub_axi_bvalid = 1'b0;")
             for _f, _w, feat, base in self._sb_fields('b', self.sb_own):
@@ -2487,7 +2596,8 @@ class AdapterGenerator:
                         # here recovers exactly what was sent -- but say so
                         # with an explicit select instead of leaving lint to
                         # report an implicit truncation.
-                        lines.append(f"                fub_axi_bid = {self.master.name}_{suffix}_b.id[{self.fub_id_width - 1}:0];")
+                        lines.append(f"                {self._rsp_id_target('b')} = "
+                                     f"{self._rsp_id_select(f'{self.master.name}_{suffix}_b.id')};")
                         lines.append(f"                fub_axi_bresp = {self.master.name}_{suffix}_b.resp;")
                         lines.append(f"                fub_axi_bvalid = {self.master.name}_{suffix}_bvalid;")
                         for field, w, _feat, base in self._sb_fields('b', self.sb_own):
@@ -2496,8 +2606,8 @@ class AdapterGenerator:
                             lines.append(f"                {tgt} = {src};")
                     else:
                         # Converter intermediate signals
-                        lines.append(f"                fub_axi_bid = conv_{suffix}_bid"
-                                     + (f"[{self.fub_id_width - 1}:0];" if self.id_prefix_width else ";"))
+                        lines.append(f"                {self._rsp_id_target('b')} = "
+                                     f"{self._rsp_id_select(f'conv_{suffix}_bid', bool(self.id_prefix_width))};")
                         lines.append(f"                fub_axi_bresp = conv_{suffix}_bresp;")
                         lines.append(f"                fub_axi_bvalid = conv_{suffix}_bvalid;")
 
@@ -2550,7 +2660,10 @@ class AdapterGenerator:
             lines.append("    always_comb begin")
 
             # Default assignments
-            lines.append(f"        fub_axi_rid = {self.fub_id_width}'d0;")
+            if self.id_remap:
+                lines.append(f"        r_rmp_slot = '0;")
+            else:
+                lines.append(f"        fub_axi_rid = {self.fub_id_width}'d0;")
             lines.append(f"        fub_axi_rdata = {master_width}'d0;")
             lines.append("        fub_axi_rresp = 2'b00;")
             lines.append("        fub_axi_rlast = 1'b0;")
@@ -2575,7 +2688,8 @@ class AdapterGenerator:
 
                     if slave_width == master_width:
                         # Direct passthrough signals
-                        lines.append(f"                fub_axi_rid = {self.master.name}_{suffix}_r.id[{self.fub_id_width - 1}:0];")
+                        lines.append(f"                {self._rsp_id_target('r')} = "
+                                     f"{self._rsp_id_select(f'{self.master.name}_{suffix}_r.id')};")
                         lines.append(f"                fub_axi_rdata = {self.master.name}_{suffix}_r.data;")
                         lines.append(f"                fub_axi_rresp = {self.master.name}_{suffix}_r.resp;")
                         lines.append(f"                fub_axi_rlast = {self.master.name}_{suffix}_r.last;")
@@ -2586,8 +2700,8 @@ class AdapterGenerator:
                             lines.append(f"                {tgt} = {src};")
                     else:
                         # Converter intermediate signals
-                        lines.append(f"                fub_axi_rid = conv_{suffix}_rid"
-                                     + (f"[{self.fub_id_width - 1}:0];" if self.id_prefix_width else ";"))
+                        lines.append(f"                {self._rsp_id_target('r')} = "
+                                     f"{self._rsp_id_select(f'conv_{suffix}_rid', bool(self.id_prefix_width))};")
                         lines.append(f"                fub_axi_rdata = conv_{suffix}_rdata;")
                         lines.append(f"                fub_axi_rresp = conv_{suffix}_rresp;")
                         lines.append(f"                fub_axi_rlast = conv_{suffix}_rlast;")

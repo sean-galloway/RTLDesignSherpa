@@ -140,7 +140,7 @@ class Bridge5x3ChannelsTB(TBBase):
         # id_width from this knob. Hand-synced copies of this TB: keep the BFM
         # id_widths equal to this value — do not re-derive or hand-edit them
         # at the call sites (bridge GitHub #99).
-        self.XBAR_ID_WIDTH = 11
+        self.XBAR_ID_WIDTH = 7
         # AXI4 read slaves interleave R beats across IDs (AXI4 allows it, and
         # the bridge converts per ID): every test with overlapping reads at a
         # slave then exercises it. BRIDGE_R_INTERLEAVE=0 sends each burst

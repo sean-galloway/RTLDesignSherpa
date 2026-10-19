@@ -42,6 +42,9 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_2x2_axi
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd.f
 
+# Transaction-ID remap tables in the master adapters (bridge_id_remap)
+-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f
+
 # GAXI skid buffers (used by wrappers and converters)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 

@@ -4,7 +4,7 @@
 
 // master port cpu (axi4, rw) on cpu_aclk
 bind bridge_3x2_rw_mcdc axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_cpu (
@@ -43,7 +43,7 @@ bind bridge_3x2_rw_mcdc axi4_protocol_checker #(
 
 // master port dma (axi4, rw) on aclk
 bind bridge_3x2_rw_mcdc axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_dma (
@@ -82,13 +82,13 @@ bind bridge_3x2_rw_mcdc axi4_protocol_checker #(
 
 // master port lfsr (axi4, rd) on lfsr_aclk
 bind bridge_3x2_rw_mcdc axi4_protocol_checker #(
-    .ID_WIDTH(4),
+    .ID_WIDTH(8),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_lfsr (
     .aclk(lfsr_aclk),
     .aresetn(lfsr_aresetn),
-    .awid(4'b0),
+    .awid(8'b0),
     .awaddr(32'b0),
     .awlen(8'b0),
     .awsize(3'b0),
@@ -100,7 +100,7 @@ bind bridge_3x2_rw_mcdc axi4_protocol_checker #(
     .wlast(1'b0),
     .wvalid(1'b0),
     .wready(1'b0),
-    .bid(4'b0),
+    .bid(8'b0),
     .bresp(2'b0),
     .bvalid(1'b0),
     .bready(1'b0),

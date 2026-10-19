@@ -3,6 +3,8 @@
 # ==============================================================================
 # Two kinds of collateral live here, and they are not the same thing:
 #
+#   bridge_wr_rate_buf/, bridge_id_remap/
+#                     DUT proofs of the hand-written bridge RTL (rtl/*.sv).
 #   (bridge_cam/, a DUT proof, moved to
 #    projects/components/fabric-gen-ip/bridge/deprecated/formal/ on 2026-10-18
 #    with the module it proves, which no bridge instantiates any more.)

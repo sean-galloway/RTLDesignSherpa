@@ -103,7 +103,7 @@ class Bridge4x4RwTB(TBBase):
         Channels: RW
         Data Width: 256
         Addr Width: 32
-        ID Width: 4
+        ID Width: 8
     """
 
     # ----------------------------------------------------------------------
@@ -122,7 +122,7 @@ class Bridge4x4RwTB(TBBase):
         self.num_slaves = 4
         self.data_width = 256
         self.addr_width = 32
-        self.id_width = 4
+        self.id_width = 8
 
         # Depth: TEST_LEVEL (exported by the pytest wrapper) picks the profile
         # every count in the tests is read from; SEED (pinned per test node
@@ -447,7 +447,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -457,7 +457,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -470,7 +470,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=64,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
     def _setup_master_1_dma0_master(self):
@@ -481,7 +481,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -491,7 +491,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -504,7 +504,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=32,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
     def _setup_master_2_dma1_master(self):
@@ -515,7 +515,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=128,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -525,7 +525,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=128,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -538,7 +538,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=128,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
     def _setup_master_3_gpu_master(self):
@@ -549,7 +549,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -559,7 +559,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
             multi_sig=True,
         )
@@ -572,7 +572,7 @@ class Bridge4x4RwTB(TBBase):
             log=self.log,
             data_width=256,
             addr_width=32,
-            id_width=4,
+            id_width=8,
             user_width=1,
         )
 

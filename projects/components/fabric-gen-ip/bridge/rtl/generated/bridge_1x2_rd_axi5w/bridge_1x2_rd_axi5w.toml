@@ -18,7 +18,7 @@ description = "AXI5 32b master x (64b AXI4 + 32b AXI5) slave rd bridge, sideband
 [[bridge.masters]]
 name = "cpu_rd"
 prefix = "cpu_rd_axi_"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1

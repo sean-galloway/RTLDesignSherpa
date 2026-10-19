@@ -18,7 +18,7 @@ b = 2   # Write response channel
 [[bridge.masters]]
 name = "cpu"
 prefix = "cpu_m_axi"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -31,7 +31,7 @@ type = "axi4_master"  # Options: none, axi4_master, axi4_master_mon
 [[bridge.masters]]
 name = "dma"
 prefix = "dma_m_axi"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -50,7 +50,7 @@ b = 4   # Deeper write response buffer
 [[bridge.slaves]]
 name = "ddr"
 prefix = "ddr_s_axi"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+id_width = 5  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -65,7 +65,7 @@ type = "axi4_slave"
 [[bridge.slaves]]
 name = "sram"
 prefix = "sram_s_axi"
-id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+id_width = 5  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 32
 user_width = 1

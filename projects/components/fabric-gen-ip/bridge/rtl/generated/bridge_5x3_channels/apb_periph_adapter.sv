@@ -12,13 +12,13 @@
 module bridge_5x3_channels_apb_periph_adapter
     import bridge_5x3_channels_pkg::*;
 #(
-    parameter int ID_WIDTH = 11
+    parameter int ID_WIDTH = 7
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [10:0]  xbar_apb_periph_axi_awid,
+    input  logic [6:0]  xbar_apb_periph_axi_awid,
     input  logic [31:0]  xbar_apb_periph_axi_awaddr,
     input  logic [7:0]  xbar_apb_periph_axi_awlen,
     input  logic [2:0]  xbar_apb_periph_axi_awsize,
@@ -37,12 +37,12 @@ module bridge_5x3_channels_apb_periph_adapter
     input  logic         xbar_apb_periph_axi_wuser,
     input  logic         xbar_apb_periph_axi_wvalid,
     output  logic         xbar_apb_periph_axi_wready,
-    output  logic [10:0]  xbar_apb_periph_axi_bid,
+    output  logic [6:0]  xbar_apb_periph_axi_bid,
     output  logic [1:0]  xbar_apb_periph_axi_bresp,
     output  logic         xbar_apb_periph_axi_buser,
     output  logic         xbar_apb_periph_axi_bvalid,
     input  logic         xbar_apb_periph_axi_bready,
-    input  logic [10:0]  xbar_apb_periph_axi_arid,
+    input  logic [6:0]  xbar_apb_periph_axi_arid,
     input  logic [31:0]  xbar_apb_periph_axi_araddr,
     input  logic [7:0]  xbar_apb_periph_axi_arlen,
     input  logic [2:0]  xbar_apb_periph_axi_arsize,
@@ -55,7 +55,7 @@ module bridge_5x3_channels_apb_periph_adapter
     input  logic         xbar_apb_periph_axi_aruser,
     input  logic         xbar_apb_periph_axi_arvalid,
     output  logic         xbar_apb_periph_axi_arready,
-    output  logic [10:0]  xbar_apb_periph_axi_rid,
+    output  logic [6:0]  xbar_apb_periph_axi_rid,
     output  logic [31:0]  xbar_apb_periph_axi_rdata,
     output  logic [1:0]  xbar_apb_periph_axi_rresp,
     output  logic         xbar_apb_periph_axi_rlast,
@@ -175,7 +175,7 @@ module bridge_5x3_channels_apb_periph_adapter
     // bridge needs, and it must cost no gates.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [11-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    logic [7-1:0] wr_id_fifo [WR_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -244,7 +244,7 @@ module bridge_5x3_channels_apb_periph_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [11-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [7-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -276,7 +276,7 @@ module bridge_5x3_channels_apb_periph_adapter
         .APB_CMD_DEPTH(4),
         .APB_RSP_DEPTH(4),
         .USE_JOHNSON(0),
-        .AXI_ID_WIDTH(11),
+        .AXI_ID_WIDTH(7),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),

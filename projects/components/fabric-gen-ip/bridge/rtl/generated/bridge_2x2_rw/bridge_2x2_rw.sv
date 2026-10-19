@@ -23,7 +23,7 @@ module bridge_2x2_rw
 
     // Master 0: cpu (rw)
     // Master: cpu (axi4, rw)
-    input  logic [3:0]  cpu_m_axi_awid,
+    input  logic [7:0]  cpu_m_axi_awid,
     input  logic [31:0]  cpu_m_axi_awaddr,
     input  logic [7:0]  cpu_m_axi_awlen,
     input  logic [2:0]  cpu_m_axi_awsize,
@@ -44,13 +44,13 @@ module bridge_2x2_rw
     input  logic         cpu_m_axi_wvalid,
     output  logic         cpu_m_axi_wready,
 
-    output  logic [3:0]  cpu_m_axi_bid,
+    output  logic [7:0]  cpu_m_axi_bid,
     output  logic [1:0]  cpu_m_axi_bresp,
     output  logic         cpu_m_axi_buser,
     output  logic         cpu_m_axi_bvalid,
     input  logic         cpu_m_axi_bready,
 
-    input  logic [3:0]  cpu_m_axi_arid,
+    input  logic [7:0]  cpu_m_axi_arid,
     input  logic [31:0]  cpu_m_axi_araddr,
     input  logic [7:0]  cpu_m_axi_arlen,
     input  logic [2:0]  cpu_m_axi_arsize,
@@ -64,7 +64,7 @@ module bridge_2x2_rw
     input  logic         cpu_m_axi_arvalid,
     output  logic         cpu_m_axi_arready,
 
-    output  logic [3:0]  cpu_m_axi_rid,
+    output  logic [7:0]  cpu_m_axi_rid,
     output  logic [31:0]  cpu_m_axi_rdata,
     output  logic [1:0]  cpu_m_axi_rresp,
     output  logic         cpu_m_axi_rlast,
@@ -74,7 +74,7 @@ module bridge_2x2_rw
 
     // Master 1: dma (rw)
     // Master: dma (axi4, rw)
-    input  logic [3:0]  dma_m_axi_awid,
+    input  logic [7:0]  dma_m_axi_awid,
     input  logic [31:0]  dma_m_axi_awaddr,
     input  logic [7:0]  dma_m_axi_awlen,
     input  logic [2:0]  dma_m_axi_awsize,
@@ -95,13 +95,13 @@ module bridge_2x2_rw
     input  logic         dma_m_axi_wvalid,
     output  logic         dma_m_axi_wready,
 
-    output  logic [3:0]  dma_m_axi_bid,
+    output  logic [7:0]  dma_m_axi_bid,
     output  logic [1:0]  dma_m_axi_bresp,
     output  logic         dma_m_axi_buser,
     output  logic         dma_m_axi_bvalid,
     input  logic         dma_m_axi_bready,
 
-    input  logic [3:0]  dma_m_axi_arid,
+    input  logic [7:0]  dma_m_axi_arid,
     input  logic [31:0]  dma_m_axi_araddr,
     input  logic [7:0]  dma_m_axi_arlen,
     input  logic [2:0]  dma_m_axi_arsize,
@@ -115,7 +115,7 @@ module bridge_2x2_rw
     input  logic         dma_m_axi_arvalid,
     output  logic         dma_m_axi_arready,
 
-    output  logic [3:0]  dma_m_axi_rid,
+    output  logic [7:0]  dma_m_axi_rid,
     output  logic [31:0]  dma_m_axi_rdata,
     output  logic [1:0]  dma_m_axi_rresp,
     output  logic         dma_m_axi_rlast,

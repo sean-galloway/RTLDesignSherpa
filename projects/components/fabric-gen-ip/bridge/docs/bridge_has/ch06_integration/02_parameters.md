@@ -49,8 +49,8 @@ Every bridge the generator emits starts here: port counts, bus widths, per-port 
 | `xbar_pipeline` | bool | `false` | `true` puts a 2-deep skid stage on every slave-side channel (AW, W, AR, B, R) inside the crossbar. Propagation 3/3 cycles instead of 2/2 (Table 5.7), throughput unchanged. For high-fanout or wide fabrics that miss timing on the arbiter-plus-mux or the response OR-merge cone. Measured (HAS 6.4): +0.57 ns against about 0 on the plain 2x2 at 100 MHz on the Artix-7. It registers the slave-side response paths, which is where the larger width-converting fixtures still miss. |
 | `arbitration` | `"rr"` / `"qos"` | `"rr"` | Per-slave arbitration policy. `"qos"` grants the highest `AxQOS` plus aging (MAS 2.3, Per-Slave Request Arbitration); it decides among requests pending at the arbiter, so it shows at a slave that backpressures AW, not at one that accepts every AW on arrival; equals share round-robin. |
 | `qos_aging_shift` | int 0..7 | 4 | With `"qos"`: a waiting request gains one priority level every `2**shift` cycles, so the worst wait for a QoS-0 request is `15 * 2**shift` cycles. |
-| `id_track_bits` | int 0..8 | 4 | Per-ID target tracking in every master adapter: `2**id_track_bits` entries indexed by the ID's low bits (never more bits than the port's ID). A request waits only when its ID is in flight to a different slave; IDs sharing the index bits are treated as one ID, which is safe and at worst stalls needlessly. 0 orders every ID as one. Every port, read-return-atomic and trace-echo ports included (GitHub #119 L1b). |
-| `max_outstanding` | int, power of two 2..64 | 16 | Outstanding limit per direction, the default for every port; a port overrides it with its own `max_outstanding`. A master holds at most this many AWs and ARs in flight; a slave tracks at most this many (its by-ID counter or in-order FIFO), and its AWREADY/ARREADY drop when full. Fixes the fixed 16 (GitHub #119 L5); measured exactly by `test_bridge_2x2_rw_depth_limits`. |
+| `id_track_bits` | int 0..8 | 4 | Per-ID target tracking in a master adapter that keeps its port's ID (one no wider than `$clog2(max_outstanding)`, or a read-return-atomic port; a wider one is remapped to slots and tracked by its remap table, which matches whole IDs): `2**id_track_bits` entries indexed by the ID's low bits (never more bits than the port's ID). A request waits only when its ID is in flight to a different slave; IDs sharing the index bits are treated as one ID, which is safe and at worst stalls needlessly. 0 orders every ID as one. Every port, read-return-atomic and trace-echo ports included (GitHub #119 L1b). |
+| `max_outstanding` | int, power of two 2..64 | 16 | Outstanding limit per direction, the default for every port; a port overrides it with its own `max_outstanding`. A master holds at most this many AWs and ARs in flight, and a master whose ID is wider than `$clog2` of it is remapped to slots of that width (bridge TASK-018), which sets the fabric ID width; a slave tracks at most this many (its by-ID counter or in-order FIFO), and its AWREADY/ARREADY drop when full. Fixes the fixed 16 (GitHub #119 L5); measured exactly by `test_bridge_2x2_rw_depth_limits`. |
 
 : Crossbar options (bridge TASK-006, was BRIDGE-017)
 
@@ -76,7 +76,7 @@ The generator works these out from the core set — you never write them yoursel
 | Parameter | Formula | Example |
 |-----------|---------|---------|
 | BRIDGE_ID_WIDTH | clog2(NUM_MASTERS), minimum 1 | 4 masters = 2 bits |
-| MASTER_ID_WIDTH | widest master `id_width` | 4 |
+| MASTER_ID_WIDTH | widest master-local ID: `clog2(max_outstanding)` for a remapped master, else its `id_width` | 8-bit IDs, 16 outstanding = 4 |
 | ID_PREFIX_WIDTH | clog2(NUM_MASTERS), 0 for one master | 4 masters = 2 bits |
 | XBAR_ID_WIDTH | MASTER_ID_WIDTH + ID_PREFIX_WIDTH | 4 + 2 = 6 bits |
 | STRB_WIDTH | DATA_WIDTH / 8 | 64b = 8 strobes |
@@ -85,8 +85,9 @@ The generator works these out from the core set — you never write them yoursel
 
 > `BRIDGE_ID_WIDTH` sizes the sideband master index stored in each slave
 > adapter's response tracker. `XBAR_ID_WIDTH` is the AXI ID width inside the
-> fabric and on every AXI slave port, because each master adapter widens its
-> IDs to `{BRIDGE_ID, id}`; a slave's `id_width` must be at least this. All
+> fabric and on every AXI slave port, because each master adapter sends
+> `{BRIDGE_ID, slot}` (or `{BRIDGE_ID, id}` for a kept ID); a slave's
+> `id_width` must be at least this. All
 > four are emitted into `<bridge>_pkg.sv`. There is no `TOTAL_ID_WIDTH`.
 
 ### Per-Port Configuration

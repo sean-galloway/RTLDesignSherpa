@@ -42,12 +42,16 @@ def checked_ports(masters, slaves) -> List[Tuple[str, object]]:
     return out
 
 
-def _bind_lines(bridge: str, role: str, port) -> List[str]:
+def _bind_lines(bridge: str, role: str, port, id_width: int) -> List[str]:
+    """`id_width` is the port's real ID width: the master's own, or for a
+    slave the fabric ID width (width_utils.xbar_id_width). A slave's declared
+    id_width is only a floor the validator checks, and binding at it left
+    the checker wider than the pins once the remap narrowed the fabric ID."""
     pfx = _prefix(port.prefix)
     ch = getattr(port, 'channels', 'rw')
     clk, rst = (f"{port.port_name}_aclk", f"{port.port_name}_aresetn") \
         if getattr(port, 'cdc', False) else ("aclk", "aresetn")
-    widths = {'ID': port.id_width, 'ADDR': port.addr_width,
+    widths = {'ID': id_width, 'ADDR': port.addr_width,
               'DATA': port.data_width, 'STRB': port.data_width // 8}
     conns = [f".aclk({clk})", f".aresetn({rst})"]
     for present, sigs in ((ch in ('rw', 'wr'), _WR), (ch in ('rw', 'rd'), _RD)):
@@ -59,7 +63,7 @@ def _bind_lines(bridge: str, role: str, port) -> List[str]:
                 conns.append(f".{sig}({n}'b0)")
     lines = [f"// {role} port {port.port_name} ({port.protocol}, {ch}) on {clk}",
              f"bind {bridge} axi4_protocol_checker #(",
-             f"    .ID_WIDTH({port.id_width}),",
+             f"    .ID_WIDTH({id_width}),",
              f"    .ADDR_WIDTH({port.addr_width}),",
              f"    .DATA_WIDTH({port.data_width})",
              f") u_chk_{port.port_name} ("]
@@ -69,6 +73,7 @@ def _bind_lines(bridge: str, role: str, port) -> List[str]:
 
 
 def generate_checker_binds(bridge: str, masters, slaves) -> str:
+    from bridge_pkg.width_utils import xbar_id_width
     ports = checked_ports(masters, slaves)
     lines = [
         f"// {bridge}_checkers.sv -- opt-in AXI protocol checkers (GitHub #119 L3).",
@@ -79,7 +84,8 @@ def generate_checker_binds(bridge: str, masters, slaves) -> str:
     if not ports:
         lines.append("// No AXI4/AXI5 ports with IDs on this bridge: nothing to bind.")
     for role, port in ports:
-        lines += _bind_lines(bridge, role, port)
+        idw = port.id_width if role == 'master' else xbar_id_width(masters)
+        lines += _bind_lines(bridge, role, port, idw)
     return "\n".join(lines) + "\n"
 
 

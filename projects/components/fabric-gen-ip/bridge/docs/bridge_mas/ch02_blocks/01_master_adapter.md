@@ -209,62 +209,112 @@ end
 
 ### Bridge ID Management
 
-With more than one master, the adapter widens every request ID to a
-fabric ID `{BRIDGE_ID, id}` so two masters can never alias an ID at a slave
-(bridge TASK-005). The generated assignment in `cpu_adapter.sv`
-(`bridge_2x2_rw`) is:
+Inside the fabric every transaction ID is `{BRIDGE_ID, local id}`.
+`BRIDGE_ID` is the master's index, so two masters can never alias an ID at a
+slave (bridge TASK-005); it is prepended only when there is more than one
+master. The local id is what the master adapter makes of the master's own
+ID:
+
+- **A remap slot**, when the master's ID is wider than `$clog2(max_outstanding)`
+  bits (bridge TASK-018). A master has at most `max_outstanding` requests in
+  flight per direction, so at most that many distinct IDs, and a slot that
+  wide names each of them. A `bridge_id_remap` table per direction hands the
+  slots out (below).
+- **The master's ID itself**, when it is no wider than a slot. Remapping would
+  not narrow it, so the adapter keeps it and tracks it in the per-ID target
+  table instead. A read-return-atomic port (rw AXI5 with `atomic`) also keeps
+  its own ID: its atomic AW answers on both B and R under one AWID, which
+  one table per direction cannot name.
+
+The generated assignment in `cpu_adapter.sv` (`bridge_2x2_rw`: two 8-bit
+masters, 16 outstanding) is:
 
 ```systemverilog
-assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};
-assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_arid)};
+assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(aw_rmp_slot)};
+assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(ar_rmp_slot)};
 ```
 
-`BRIDGE_ID` is a per-instance parameter (the master's index). The widths
-come from `<bridge>_pkg.sv`:
+A kept ID uses `fub_axi_awid` / `fub_axi_arid` in place of the slot. The
+widths come from `<bridge>_pkg.sv`, which takes them from
+`width_utils.xbar_id_width`:
 
 | Package constant | Meaning | `bridge_2x2_rw` |
 |---|---|---|
-| `MASTER_ID_WIDTH` | widest master-side ID | 4 |
+| `MASTER_ID_WIDTH` | widest master-local ID: slot or kept ID | 4 |
 | `ID_PREFIX_WIDTH` | master-index bits prepended, `$clog2(NUM_MASTERS)` | 1 |
 | `XBAR_ID_WIDTH` | fabric and slave-port ID width | 5 |
 
 : Bridge ID Management
 
-A single-master bridge prepends nothing (`ID_PREFIX_WIDTH = 0`;
-`bridge_1x2_rd` is 4 bits on both sides). A slave's declared `id_width`
-must be at least `XBAR_ID_WIDTH`, or the config validator rejects the
-bridge.
+A slave's declared `id_width` must be at least `XBAR_ID_WIDTH`, or the config
+validator rejects the bridge.
 
 #### ID Width Examples
-```
-ID_PREFIX_WIDTH = $clog2(num_masters)   (0 for one master)
 
-- 2 masters  -> 1 prefix bit
-- 4 masters  -> 2 prefix bits
-- 8 masters  -> 3 prefix bits
 ```
+XBAR_ID_WIDTH = $clog2(num_masters) + max over masters of
+                ( $clog2(max_outstanding)   if id_width > $clog2(max_outstanding)
+                  id_width                  otherwise )
 
-**Example**: 4-master system, 4-bit master IDs (6-bit fabric IDs)
-```
-Master 0: BRIDGE_ID = 2'b00, ID = 4'h3 -> fabric ID = 6'b00_0011
-Master 1: BRIDGE_ID = 2'b01, ID = 4'h3 -> fabric ID = 6'b01_0011
-Master 2: BRIDGE_ID = 2'b10, ID = 4'h5 -> fabric ID = 6'b10_0101
-Master 3: BRIDGE_ID = 2'b11, ID = 4'hA -> fabric ID = 6'b11_1010
+- 2 masters, 8-bit IDs, 16 outstanding -> 1 + 4 = 5 bits
+- 5 masters, 8-bit IDs, 16 outstanding -> 3 + 4 = 7 bits (was 3 + 8 = 11)
+- 2 masters, 4-bit IDs, 16 outstanding -> 1 + 4 = 5 bits (IDs kept)
+- 1 master,  8-bit ID,  64 outstanding -> 0 + 6 = 6 bits
 ```
 
-#### ID Stripping (Response Path)
+The width matters beyond the slave ports: every per-ID structure downstream
+of the adapter is sized by it. The width converters keep read state per
+fabric ID, and at 11 bits that was 2048 entries per converter.
 
-On B and R the adapter returns only the low `MASTER_ID_WIDTH` bits to the
-master (`fub_axi_bid = cpu_32b_b.id[3:0]` in `bridge_2x2_rw`), so the master
-sees its original ID.
+#### ID Remap (bridge_id_remap)
 
-Routing a response back to the right master does not decode those prefix
-bits. Each slave adapter also receives the originating master's index as
-a sideband (`xbar_bridge_id_aw` / `_ar`) and stores it on the address
-handshake; the crossbar steers B/R by the `bid_bridge_id` / `rid_bridge_id`
-it returns. For an AXI3/AXI4/AXI5 slave of a multi-master bridge that is the
-returned BID/RID's prefix bits, with nothing stored; single-master bridges
-and shim/subtractive slaves use an in-order FIFO. See Section 2.5 and ch04.
+`projects/components/fabric-gen-ip/bridge/rtl/bridge_id_remap.sv`, one per
+direction (`u_aw_id_remap`, `u_ar_id_remap`), `max_outstanding` entries. Each
+entry holds an original ID, its target slave (one-hot), a metadata bit, and a
+count of its requests in flight.
+
+- **Request.** The request's ID is compared with every live entry. A hit
+  reuses that entry's slot, so requests of one ID keep one fabric ID and stay
+  ordered at the slave; a miss takes the lowest free slot. The slot drives
+  the local part of `xbar_axi_awid` / `xbar_axi_arid`, and the handshake
+  counts the entry up.
+- **Gate.** The table's `req_ok` is `aw_id_ok` / `ar_id_ok`: an ID that is
+  live toward one slave may only add requests to that slave, and on a
+  trace-echo port only with the same trace bit (the metadata). Its `full`,
+  set at `max_outstanding` in flight, is `aw_trk_full` / `ar_trk_full`.
+  Because a live entry always has a request in flight, a table that is not
+  full always has a free slot.
+- **Response.** The B / R mux selects the returned ID's low slot bits into
+  `b_rmp_slot` / `r_rmp_slot` instead of into the fub ID. The table reads the
+  entry at that slot and drives `fub_axi_bid` / `fub_axi_rid` with the
+  original ID, and on trace-echo ports `b_trk_trace` / `r_trk_trace` with its
+  trace. A B, or an R with RLAST, counts the entry down a cycle after its
+  handshake, and the entry frees at zero. The pop is registered because
+  decoding the returned slot into a count on the same cycle, behind the path
+  arbiter, was the adapter's slowest path (-0.445 ns on `bridge_5x3_channels`
+  at 100 MHz on the Artix-7). Counting late only holds an entry, and a full
+  table, one cycle longer.
+
+The request lookup is a `max_outstanding`-way compare against registered
+entries. The response restore is a `max_outstanding`:1 read after the path
+arbiter, ahead of the wrapper's B / R skid buffer. The table is proven in
+`formal/bridge/bridge_id_remap` (unbounded, PDR), and
+`test_bridge_2x2_rw_id_remap` drives three times as many IDs as slots through
+both masters and checks the mapping at all four ports.
+
+#### ID Restore (Response Path)
+
+On a remapped port the table restores the ID, as above. On a port that
+keeps its ID, the adapter returns the low `MASTER_ID_WIDTH` bits of BID / RID
+to the master, and the master sees its original ID.
+
+Routing a response back to the right master does not decode those bits.
+Each slave adapter also receives the originating master's index as a
+sideband (`xbar_bridge_id_aw` / `_ar`) and returns it as `bid_bridge_id` /
+`rid_bridge_id`; the crossbar steers B / R by it. For an AXI3/AXI4/AXI5
+slave of a multi-master bridge that is the returned BID/RID's prefix bits,
+with nothing stored; single-master bridges and shim/subtractive slaves use
+an in-order FIFO. See Section 2.5 and ch04.
 
 ### Protocol Normalization
 
@@ -309,7 +359,9 @@ A master used to be held to one target slave at a time, because B / R were
 replayed in issue order from the tracking FIFO. Now the adapter keeps only
 the ordering AXI requires:
 
-- **Per-ID table** (`aw_idt_cnt[]` / `aw_idt_tgt[]`, same for AR):
+- **Per-ID state**: on a remapped port the ID remap table above, one entry
+  per slot, matched by the whole ID. On a port that keeps its ID, the per-ID
+  target table (`aw_idt_cnt[]` / `aw_idt_tgt[]`, same for AR):
   `2**id_track_bits` entries (TOML `[bridge].id_track_bits`, default 4, and
   never more bits than the port's ID), indexed by the ID's low bits. Each entry
   holds an in-flight count and that ID's target slave. The address handshake
@@ -335,7 +387,8 @@ the ordering AXI requires:
   in-flight ID's trace bit. A request whose ID is in flight with a DIFFERENT
   trace waits, so the bit is single-valued per ID, and B/R echo
   `aw_idt_trace[BID]` / `ar_idt_trace[RID]` -- also for a slave that has no
-  trace of its own.
+  trace of its own. On a remapped port the trace bit is the remap entry's
+  metadata, read at the returned slot.
 - **Read-return atomics** (rw AXI5 ports with `atomic`): an atomic AW is also
   counted in the AR table under its AWID (`ar_idt_push_aw`), since its R comes
   back with that ID. Its gate `aw_rr_gate_ok` is the AR per-ID rule plus a

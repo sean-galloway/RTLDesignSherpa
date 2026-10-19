@@ -33,7 +33,7 @@ name      = "dma_axi4"
 prefix    = "dma_axi4_"
 protocol  = "axi4"
 channels  = "rw"
-id_width  = 4
+id_width  = 8  # remapped beside the 4-bit axi3 master, which keeps its ID
 addr_width = 32
 data_width = 64
 user_width = 1
@@ -55,7 +55,7 @@ name      = "ddr_axi3"
 prefix    = "ddr_axi3_"
 protocol  = "axi3"
 channels  = "rw"
-id_width  = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+id_width  = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 64
 user_width = 1
@@ -67,7 +67,7 @@ name      = "sram_axi4"
 prefix    = "sram_axi4_"
 protocol  = "axi4"
 channels  = "rw"
-id_width  = 6  # {master index, master id}: 4-bit ID + 2 prefix bit(s) (bridge TASK-005, was BRIDGE-016)
+id_width  = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 64
 user_width = 1

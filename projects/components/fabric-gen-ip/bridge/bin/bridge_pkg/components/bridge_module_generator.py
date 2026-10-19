@@ -221,7 +221,7 @@ class BridgeModuleGenerator:
         # bridge (id_width=0) doesn't declare a [-1:0] field.
         # bridge TASK-005 (was BRIDGE-016): the struct id is {master index, master id}; see
         # width_utils.xbar_id_width for the one definition.
-        from bridge_pkg.width_utils import xbar_id_width, master_id_width
+        from bridge_pkg.width_utils import xbar_id_width, fabric_local_id_width
         id_width = xbar_id_width(self.masters)
 
         # One bridge-wide address width, taken from the CONFIG rather
@@ -244,7 +244,7 @@ class BridgeModuleGenerator:
         # Generate package with address width and num_masters
         num_masters = len(self.masters)
         pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width, num_masters=num_masters,
-                                   master_id_width=master_id_width(self.masters),
+                                   master_id_width=fabric_local_id_width(self.masters),
                                    sideband_features=sideband_union(self.masters, self.slaves))
         for width in data_widths:
             pkg_gen.add_data_width(width)

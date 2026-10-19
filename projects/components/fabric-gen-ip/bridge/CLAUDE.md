@@ -178,8 +178,10 @@ this workflow exists to prevent (`vault/handbook/dv/running-regressions.md`).
 instantiated by a master adapter on an upsized burst path into a shared slave,
 `rate_buffer`, MAS 2.6), `rtl/bridge_cdc_slave_arb.sv` (hand-written;
 instantiated by the slave adapter of a `cdc = true` slave that two or more
-masters reach, bridge W9, MAS 6.1), and anything in `rtl/` outside
-`rtl/generated/`.
+masters reach, bridge W9, MAS 6.1), `rtl/bridge_id_remap.sv` (hand-written;
+the per-direction ID remap table in the adapter of every master whose ID is
+wider than `$clog2(max_outstanding)`, bridge TASK-018, MAS 2.1), and anything
+in `rtl/` outside `rtl/generated/`.
 Their filelists live in `rtl/filelists_static/`.
 
 **Identifying a generated file takes five strings, not one.** Each generator
@@ -293,8 +295,9 @@ projects/components/fabric-gen-ip/bridge/
 ├── deprecated/                    # Unused code, out of every regression (see below)
 ├── rtl/                           # RTL source files
 │   ├── bridge_cdc_slave_arb.sv    # Hand-written slave-domain arbitration for shared CDC slaves (W9)
+│   ├── bridge_id_remap.sv         # Hand-written transaction-ID remap table (master adapters)
 │   ├── bridge_wr_rate_buf.sv      # Hand-written write rate buffer (upsized paths into shared slaves)
-│   ├── filelists_static/          # Hand-written filelists for the two above
+│   ├── filelists_static/          # Hand-written filelists for the three above
 │   ├── filelists/                 # Generated filelists
 │   └── generated/                 # Generated bridges (one subdir per config)
 ├── CLAUDE.md                      # This file
@@ -848,12 +851,17 @@ module bridge_2x2_rw
    `bridge_id` in a small in-order FIFO instead (`enable_ooo` forces by-ID
    routing on any slave). Until 2026-10-18 the by-ID form was a per-ID CAM
    (`bridge_cam`), whose lookup was the fabric's critical path (bridge W12).
-4. **ID widening (bridge TASK-005):** inside the fabric every ID is
-   `{BRIDGE_ID, master id}` -- the master adapter prepends `$clog2(NUM_MASTERS)`
-   index bits and strips them on B/R. In `bridge_2x2_rw` a 4-bit master ID is
-   5-bit at the slave port (`XBAR_ID_WIDTH` in `<name>_pkg.sv`); a slave's
-   declared `id_width` must be at least that or the validator rejects the
-   config. One master adds zero bits. A FIFO-tracked slave must still
+4. **Fabric IDs (bridge TASK-005, TASK-018):** inside the fabric every ID is
+   `{BRIDGE_ID, local id}` -- the master adapter prepends `$clog2(NUM_MASTERS)`
+   index bits (zero for one master). The local id is a remap slot,
+   `$clog2(max_outstanding)` bits, when the master's ID is wider than that:
+   `bridge_id_remap` gives each live ID a slot (a live ID reuses its own) and
+   restores the ID from the slot on B/R. Otherwise, and on a read-return-atomic
+   port, it is the master's ID, stripped of the prefix on B/R. In
+   `bridge_2x2_rw` an 8-bit master ID is 5-bit at the slave port
+   (`XBAR_ID_WIDTH` in `<name>_pkg.sv`, from `width_utils.xbar_id_width`); a
+   slave's declared `id_width` must be at least that or the validator rejects
+   the config. A FIFO-tracked slave must still
    complete in request order (FR-2 in the PRD).
 5. **Configurable Parameters:** NxM topology, data/addr/ID widths
 
@@ -964,7 +972,8 @@ of them is built:
   all IDs (bridge BUG-008, was BRIDGE-010). A multi-master AXI3/AXI4/AXI5 slave is
   routed by ID and may reorder across IDs. A master may have several slaves
   in flight at once; only a same-ID request to a DIFFERENT slave waits
-  (`aw_gate_ok` / `ar_gate_ok`, `[bridge].id_track_bits`). Read-return-atomic and
+  (`aw_gate_ok` / `ar_gate_ok`; the remap table, or `[bridge].id_track_bits`
+  on a port that keeps its ID). Read-return-atomic and
   trace-echo ports too (GitHub #119 L1b).
 - Burst-locked arbitration. The grant releases at the address handshake, as
   item 4 above already said -- this bullet contradicted it directly.

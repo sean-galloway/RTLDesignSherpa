@@ -19,7 +19,7 @@ description = "3 master x 2 slave bridge, cpu/lfsr masters and the ddr slave on 
 [[bridge.masters]]
 name = "cpu"
 prefix = "cpu_m_axi"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -29,7 +29,7 @@ cdc = true
 [[bridge.masters]]
 name = "dma"
 prefix = "dma_m_axi"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -38,7 +38,7 @@ channels = "rw"
 [[bridge.masters]]
 name = "lfsr"
 prefix = "lfsr_m_axi"
-id_width = 4
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -48,7 +48,7 @@ cdc = true
 [[bridge.slaves]]
 name = "ddr"
 prefix = "ddr_s_axi"
-id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bits
+id_width = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 32
 user_width = 1
@@ -60,7 +60,7 @@ addr_range = "0x80000000"
 [[bridge.slaves]]
 name = "sram"
 prefix = "sram_s_axi"
-id_width = 6  # {master index, master id}: 4-bit ID + 2 prefix bits
+id_width = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
 addr_width = 32
 data_width = 32
 user_width = 1
