@@ -91,6 +91,13 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         self.BASE_ADDRESS = 0x10000000
         self.CHANNEL_OFFSET = 0x00100000
 
+        # Scheduler timeout (wrapper ports since rapids TASK-030). Limit 0 never
+        # escalates: a soft timeout re-arms and keeps waiting, so a pacing slip
+        # stalls one channel instead of wedging it in sticky CH_ERROR.
+        # test_sched_timeout sets a limit to exercise the escalation.
+        self.SCHED_TIMEOUT_CYCLES = 1000
+        self.SCHED_TIMEOUT_LIMIT = 0
+
         # Component interfaces (set up in initialize_test)
         self.descriptor_masters = []  # 8 GAXI masters for descriptors
         self.axis_master = None       # AXIS master to drive input
@@ -138,6 +145,9 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         self.dut.cfg_axi_wr_xfer_beats.value = 8
         # Driven from TEST_ALLOC_SIZE so the 0 case (clamp guard) is reachable.
         self.dut.cfg_alloc_size.value = self.ALLOC_SIZE
+        self.dut.cfg_sched_timeout_cycles.value = self.SCHED_TIMEOUT_CYCLES
+        self.dut.cfg_sched_timeout_limit.value = self.SCHED_TIMEOUT_LIMIT
+        self.dut.cfg_sched_timeout_enable.value = 1
         self.pending_alloc_samples = []
 
         # Reset sequence
@@ -399,8 +409,10 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         desc |= (0 << 200)
         return desc
 
-    async def send_descriptor(self, channel: int, addr: int, beats: int, eos: bool = False):
-        """Send a descriptor to a specific channel"""
+    async def send_descriptor(self, channel: int, addr: int, beats: int, eos: bool = False,
+                              wait_taken: bool = False):
+        """Send a descriptor to a specific channel. wait_taken: also wait until
+        the scheduler FSM takes it (see _wait_desc_taken)."""
         if channel >= self.NUM_CHANNELS:
             raise ValueError(f"Invalid channel {channel}")
 
@@ -422,11 +434,77 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         # Send via GAXI master - use create_packet and send
         master = self.descriptor_masters[channel]
         packet = master.create_packet(packet=desc, error=0)
+        takes_before = self._desc_takes(channel) if wait_taken else 0
         await master.send(packet)
+        if wait_taken:
+            await self._wait_desc_taken(channel, takes_before)
 
         self.test_stats['descriptors_sent'] += 1
         self.test_stats['channel_operations'][channel] += 1
         self.log.info(f"Sent descriptor to ch{channel}: addr=0x{addr:X}, beats={beats}, eos={eos}")
+
+    def _desc_takes(self, channel: int) -> int:
+        """Descriptors channel's scheduler FSM has taken so far (CH_IDLE exits),
+        counted every clock by a background sampler started on first use."""
+        if getattr(self, '_take_counts', None) is None:
+            self._take_counts = [0] * self.NUM_CHANNELS
+            cocotb.start_soon(self._count_desc_takes())
+        return self._take_counts[channel]
+
+    async def _count_desc_takes(self):
+        prev = [True] * self.NUM_CHANNELS
+        while True:
+            await self.wait_clocks(self.clk_name, 1)
+            word = int(self.dut.sched_state.value)
+            for ch in range(self.NUM_CHANNELS):
+                idle = ((word >> (7 * ch)) & 0x7F) == 0x01
+                if prev[ch] and not idle:
+                    self._take_counts[ch] += 1
+                prev[ch] = idle
+
+    async def _wait_desc_taken(self, channel: int, takes_before: int,
+                               timeout_cycles: int = 20000) -> None:
+        """Wait until the channel's scheduler FSM has taken the descriptor.
+
+        The beats scheduler takes one descriptor at a time: a second one sent
+        while the channel is busy holds the descriptor master's valid, and past
+        the master's 1000-cycle ready timeout it is dropped without an error
+        (rapids TASK-030). A caller that sends descriptors back to back on one
+        channel waits here first. Edges are counted from takes_before, sampled
+        before the send, so a take that is over before this starts still counts.
+        Only for a caller whose data for this descriptor is already sent or
+        queued: the FSM cannot finish a transfer whose data never arrives."""
+        for _ in range(timeout_cycles):
+            if self._take_counts[channel] > takes_before:
+                return
+            await self.wait_clocks(self.clk_name, 1)
+        raise AssertionError(f"ch{channel}: scheduler did not take its descriptor "
+                             f"within {timeout_cycles} cycles")
+
+    def bfm_ready_timeouts(self) -> Dict[str, int]:
+        """Ready timeouts per master. A GAXI master that times out drops the
+        transfer it was holding and the test carries on, so a timeout is a lost
+        beat or descriptor even when nothing else notices."""
+        masters = [self.axis_master['interface']] + list(self.descriptor_masters)
+        return {m.title: m.phase_statistics['timeout_count'] for m in masters
+                if m.phase_statistics['timeout_count']}
+
+    def assert_no_bfm_timeouts(self):
+        bad = self.bfm_ready_timeouts()
+        assert not bad, f"BFM ready timeouts (dropped transfers): {bad}"
+
+    async def wait_drained(self, timeout_cycles: int = 50000) -> bool:
+        """Wait until the AXIS master has nothing left to send and every
+        scheduler is idle again (its writes answered)."""
+        axis = self.axis_master['interface']
+        every = (1 << self.NUM_CHANNELS) - 1
+        for _ in range(timeout_cycles):
+            if (not axis.transmit_queue and not axis.transfer_busy
+                    and int(self.dut.sched_idle.value) & every == every):
+                await self.wait_clocks(self.clk_name, 5)
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        return False
 
     # =========================================================================
     # AXIS HELPERS
@@ -515,46 +593,46 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         return failed == 0, stats
 
     async def test_multi_channel_operation(self, num_channels: int = 4, descriptors_per_channel: int = 2) -> Tuple[bool, Dict[str, Any]]:
-        """Test multi-channel operation"""
+        """Multi-channel operation: every channel carries traffic at once.
+
+        Each round streams one packet per channel into the SRAM, then hands
+        every channel the descriptor that drains it (each waits for its
+        scheduler to take it), so the channels' writes overlap on the shared
+        AXI port; the round drains before the next. Every packet's bytes are
+        then checked in memory. This used to queue all the descriptors with no
+        data: the scheduler holds one, so the rest waited out the descriptor
+        master's ready timeout and were dropped, and the test passed anyway
+        (rapids TASK-030).
+        """
         self.log.info(f"Testing multi-channel: {num_channels} channels, {descriptors_per_channel} desc/ch...")
+        beats = 4
+        ops = []
+        errors = []
+        for d in range(descriptors_per_channel):
+            round_ops = []
+            for ch in range(num_channels):
+                addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + d * 0x1000
+                data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
+                await self.send_axis_packet(ch, data, last=True)
+                round_ops.append((ch, addr, data))
+            for ch, addr, data in round_ops:
+                await self.send_descriptor(ch, addr, beats, wait_taken=True)
+            if not await self.wait_drained():
+                errors.append(f"round {d}: did not drain (a scheduler never went idle)")
+                break
+            ops += round_ops
 
-        successful = 0
-        failed = 0
+        for ch, addr, data in ops:
+            bad = self._compare_memory(addr - self.BASE_ADDRESS, data)
+            if bad:
+                errors.append(f"ch{ch} @0x{addr:X}: {bad}")
+        for e in errors:
+            self.log.error(f"  {e}")
         total = num_channels * descriptors_per_channel
-
-        # Send descriptors to multiple channels
-        for ch in range(num_channels):
-            for d in range(descriptors_per_channel):
-                try:
-                    addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + d * 0x1000
-                    beats = 4
-
-                    await self.send_descriptor(ch, addr, beats)
-                    successful += 1
-                    self.test_stats['successful_operations'] += 1
-
-                    # Small delay between sends
-                    await self.wait_clocks(self.clk_name, 5)
-
-                except Exception as e:
-                    self.log.error(f"Ch{ch} desc{d} failed: {e}")
-                    failed += 1
-                    self.test_stats['failed_operations'] += 1
-
-        # Wait for processing
-        await self.wait_clocks(self.clk_name, 200)
-
         self.test_stats['total_operations'] += total
-
-        stats = {
-            'successful': successful,
-            'failed': failed,
-            'total': total,
-            'channels_tested': num_channels,
-            'success_rate': successful / total if total > 0 else 0
-        }
-
-        return failed == 0, stats
+        stats = {'total': total, 'verified': len(ops) - len([e for e in errors if e.startswith('ch')]),
+                 'channels_tested': num_channels, 'errors': errors[:8]}
+        return not errors, stats
 
     async def test_axis_reception(self, num_packets: int = 16) -> Tuple[bool, Dict[str, Any]]:
         """Test AXIS data reception
@@ -902,60 +980,148 @@ class SnkDataPathAxisTestBeatsTB(TBBase):
         await sender
         return True, {'phase': 'done', 'depth': depth, 'beats': n}
 
+    def _err_bit(self, ch: int) -> int:
+        return (int(self.dut.sched_error.value) >> ch) & 1
+
+    async def test_sched_timeout(self) -> Tuple[bool, Dict[str, Any]]:
+        """The wrapper's scheduler timeout, both settings (rapids TASK-030).
+
+        A descriptor whose data is held back for six timeout windows:
+          - limit 0 (the default here): the channel only waits -- no error --
+            and completes with correct bytes once its data arrives;
+          - limit 2: the channel escalates to sticky CH_ERROR within the
+            second window and stays there. This wrapper has no per-channel
+            reset, so a full reset clears it, and the channel must then run a
+            good transfer.
+        The other channels must stay clean throughout.
+        """
+        cycles = 200
+        ch = 2
+        errors = []
+        self.dut.cfg_sched_timeout_cycles.value = cycles
+
+        def others_err() -> int:
+            return int(self.dut.sched_error.value) & ~(1 << ch)
+
+        # limit 0: never escalate
+        self.dut.cfg_sched_timeout_limit.value = 0
+        addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + 0x1000
+        data = [random.getrandbits(self.DATA_WIDTH) for _ in range(3)]
+        await self.send_descriptor(ch, addr, 3, wait_taken=True)
+        await self.wait_clocks(self.clk_name, 6 * cycles)
+        if self._err_bit(ch):
+            errors.append("limit 0: channel escalated to CH_ERROR")
+        await self.send_axis_packet(ch, data, last=True)
+        if not await self.wait_drained():
+            errors.append("limit 0: transfer did not finish once its data arrived")
+        bad = self._compare_memory(addr - self.BASE_ADDRESS, data)
+        if bad:
+            errors.append(f"limit 0: {bad}")
+
+        # limit 2: escalate after two windows with no write progress
+        self.dut.cfg_sched_timeout_limit.value = 2
+        addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + 0x3000
+        await self.send_descriptor(ch, addr, 3, wait_taken=True)
+        taken_at = 0
+        for taken_at in range(6 * cycles):
+            if self._err_bit(ch):
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        if not self._err_bit(ch):
+            errors.append(f"limit 2: no CH_ERROR within {6 * cycles} cycles")
+        elif not cycles < taken_at <= 2 * cycles + 20:
+            errors.append(f"limit 2: CH_ERROR after {taken_at} cycles, expected in window 2 "
+                          f"({cycles}..{2 * cycles + 20})")
+        await self.wait_clocks(self.clk_name, 3 * cycles)
+        if not self._err_bit(ch):
+            errors.append("limit 2: CH_ERROR did not stay sticky")
+        if others_err():
+            errors.append(f"limit 2: error on other channels 0x{others_err():X}")
+
+        # recovery: full reset, limit back to 0, one good transfer
+        self.dut.cfg_sched_timeout_limit.value = 0
+        await self.assert_reset()
+        await self.wait_clocks(self.clk_name, 15)
+        await self.deassert_reset()
+        await self.wait_clocks(self.clk_name, 10)
+        if int(self.dut.sched_error.value):
+            errors.append(f"after reset: sched_error=0x{int(self.dut.sched_error.value):X}")
+        addr = self.BASE_ADDRESS + ch * self.CHANNEL_OFFSET + 0x5000
+        data = [random.getrandbits(self.DATA_WIDTH) for _ in range(5)]
+        await self.send_axis_packet(ch, data, last=True)
+        await self.send_descriptor(ch, addr, 5, wait_taken=True)
+        if not await self.wait_drained():
+            errors.append("after reset: transfer did not finish")
+        bad = self._compare_memory(addr - self.BASE_ADDRESS, data)
+        if bad:
+            errors.append(f"after reset: {bad}")
+        if int(self.dut.sched_error.value):
+            errors.append(f"final: sched_error=0x{int(self.dut.sched_error.value):X}")
+
+        for e in errors:
+            self.log.error(f"  {e}")
+        return not errors, {'errors': errors}
+
     async def stress_test(self, num_operations: int = 32) -> Tuple[bool, Dict[str, Any]]:
         """Stress test with high throughput
 
         CRITICAL: Data flow is AXIS -> SRAM -> AXI Write
         We must send AXIS data BEFORE the descriptor so there's data in SRAM
         for the write engine to drain when the scheduler commands the write.
+
+        Each descriptor waits for its scheduler to take it: ops land on random
+        channels back to back, and a descriptor sent while its channel is still
+        busy can outwait the descriptor master's ready timeout and be dropped.
+        Each operation gets its own 8 KB slot in its channel's window, at a
+        random 64-byte offset (a burst can cross a 4 KB line), so no later
+        write overwrites an earlier one and every packet is checked in memory
+        after the drain. It used to score only whether a send raised, which a
+        dropped transfer never does (rapids TASK-030).
         """
         self.log.info(f"Running stress test ({num_operations} operations)...")
 
-        successful = 0
-        failed = 0
+        bpb = self.DATA_WIDTH // 8
+        slot = 0x2000
+        assert num_operations * slot <= self.CHANNEL_OFFSET, "stress slots overrun a channel window"
+        ops = []
 
         for i in range(num_operations):
-            try:
-                channel = random.randint(0, self.NUM_CHANNELS - 1)
-                addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + random.randint(0, 0xFFFF) * 64
-                beats = random.randint(1, 8)
-                test_data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
+            channel = random.randint(0, self.NUM_CHANNELS - 1)
+            beats = random.randint(1, 8)
+            offset = random.randint(0, (slot - beats * bpb) // 64) * 64
+            addr = self.BASE_ADDRESS + channel * self.CHANNEL_OFFSET + i * slot + offset
+            test_data = [random.getrandbits(self.DATA_WIDTH) for _ in range(beats)]
 
-                # CRITICAL FIX: Send AXIS data FIRST!
-                # Data must be in SRAM before scheduler can command write engine
-                await self.send_axis_packet(channel, test_data, last=True)
+            # Data first (into SRAM), then the descriptor that drains it
+            await self.send_axis_packet(channel, test_data, last=True)
+            await self.wait_clocks(self.clk_name, random.randint(1, 10))
+            await self.send_descriptor(channel, addr, beats, wait_taken=True)
+            ops.append((channel, addr, test_data))
+            self.test_stats['successful_operations'] += 1
 
-                # Random delay after data
-                delay = random.randint(1, 10)
-                await self.wait_clocks(self.clk_name, delay)
+            # Short wait
+            await self.wait_clocks(self.clk_name, random.randint(10, 30))
 
-                # NOW send descriptor - tells scheduler to drain SRAM to memory
-                await self.send_descriptor(channel, addr, beats)
-
-                # Short wait
-                await self.wait_clocks(self.clk_name, random.randint(10, 30))
-
-                successful += 1
-                self.test_stats['successful_operations'] += 1
-
-            except Exception as e:
-                self.log.error(f"Stress op {i} failed: {e}")
-                failed += 1
-                self.test_stats['failed_operations'] += 1
-
-        # Final wait for pipeline to drain
-        await self.wait_clocks(self.clk_name, 500)
+        drained = await self.wait_drained()
+        errors = [] if drained else ["did not drain: a scheduler never went idle"]
+        bad_ops = 0
+        for ch, addr, data in ops:
+            bad = self._compare_memory(addr - self.BASE_ADDRESS, data)
+            if bad:
+                bad_ops += 1
+                errors.append(f"ch{ch} @0x{addr:X}: {bad}")
+        for e in errors[:16]:
+            self.log.error(f"  {e}")
 
         self.test_stats['total_operations'] += num_operations
 
         stats = {
-            'successful': successful,
-            'failed': failed,
             'total': num_operations,
-            'success_rate': successful / num_operations if num_operations > 0 else 0
+            'verified': num_operations - bad_ops,
+            'drained': drained,
+            'errors': errors[:8],
         }
-
-        return failed < (num_operations * 0.1), stats
+        return not errors, stats
 
     def assert_pending_alloc_sane(self):
         """Reserved beats can never exceed the SRAM that backs them.

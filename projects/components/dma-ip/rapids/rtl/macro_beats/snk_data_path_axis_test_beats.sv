@@ -71,6 +71,13 @@ module snk_data_path_axis_test_beats #(
     //=========================================================================
     input  logic [7:0]                  cfg_axi_wr_xfer_beats,
     input  logic [7:0]                  cfg_alloc_size,
+    // Scheduler timeout, shared by every channel. Driven per test (rapids
+    // TASK-030, the beats-tree port of rapids TASK-029): the tie-off of 1000
+    // cycles escalating after one window put any TB pacing slip into a
+    // sticky CH_ERROR that no later check looked at.
+    input  logic [31:0]                 cfg_sched_timeout_cycles,
+    input  logic [7:0]                  cfg_sched_timeout_limit,  // 0 = never escalate
+    input  logic                        cfg_sched_timeout_enable,
 
     //=========================================================================
     // Descriptor Interfaces (8 channels) - Simple valid/ready/packet pattern
@@ -309,9 +316,9 @@ module snk_data_path_axis_test_beats #(
                 // Configuration (channel always enabled for test)
                 .cfg_channel_enable     (1'b1),
                 .cfg_channel_reset      (1'b0),
-                .cfg_sched_timeout_cycles(32'd1000),
-                .cfg_sched_timeout_limit (8'd1),  // escalate after one window (legacy timeout->error)
-                .cfg_sched_timeout_enable(1'b1),
+                .cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+                .cfg_sched_timeout_limit (cfg_sched_timeout_limit),
+                .cfg_sched_timeout_enable(cfg_sched_timeout_enable),
 
                 // Status
                 .scheduler_idle         (sched_idle[i]),

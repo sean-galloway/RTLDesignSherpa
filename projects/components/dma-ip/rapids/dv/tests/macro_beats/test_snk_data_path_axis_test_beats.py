@@ -72,6 +72,7 @@ async def cocotb_test_basic_descriptor_flow(dut):
     result, stats = await tb.test_basic_descriptor_flow(num_descriptors=_profile_depth('dp_descriptors'))
     tb.log.info(f"Basic descriptor flow: {stats}")
     assert result, f"Basic descriptor flow test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 @cocotb.test(timeout_time=500, timeout_unit="ms")
@@ -86,6 +87,7 @@ async def cocotb_test_multi_channel_operation(dut):
     result, stats = await tb.test_multi_channel_operation(num_channels=4, descriptors_per_channel=_profile_depth('dp_desc_per_ch'))
     tb.log.info(f"Multi-channel operation: {stats}")
     assert result, f"Multi-channel operation test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -100,6 +102,7 @@ async def cocotb_test_axis_reception(dut):
     result, stats = await tb.test_axis_reception(num_packets=_profile_depth('dp_packets'))
     tb.log.info(f"AXIS reception: {stats}")
     assert result, f"AXIS reception test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 @cocotb.test(timeout_time=600, timeout_unit="ms")
@@ -114,6 +117,7 @@ async def cocotb_test_axi_write_operations(dut):
     result, stats = await tb.test_axi_write_operations(num_operations=_profile_depth('dp_ops'))
     tb.log.info(f"AXI write operations: {stats}")
     assert result, f"AXI write operations test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 @cocotb.test(timeout_time=800, timeout_unit="ms")
@@ -128,6 +132,7 @@ async def cocotb_test_end_to_end(dut):
     result, stats = await tb.test_end_to_end_flow(num_transfers=_profile_depth('dp_transfers'))
     tb.log.info(f"End-to-end flow: {stats}")
     assert result, f"End-to-end flow test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 @cocotb.test(timeout_time=1000, timeout_unit="ms")
@@ -142,8 +147,8 @@ async def cocotb_test_stress(dut):
 
     result, stats = await tb.stress_test(num_operations=_profile_depth('dp_stress_ops'))
     tb.log.info(f"Stress test: {stats}")
-    # Allow 90% success rate for stress test
-    assert stats['success_rate'] >= 0.9, f"Stress test failed: {stats}"
+    assert result, f"Stress test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 @cocotb.test(timeout_time=1000, timeout_unit="ms")
@@ -159,6 +164,23 @@ async def cocotb_test_residue_full_burst(dut):
     result, stats = await tb.test_residue_full_burst()
     tb.log.info(f"Residue then full-depth burst: {stats}")
     assert result, f"Residue then full-depth burst failed: {stats}"
+    tb.assert_no_bfm_timeouts()
+
+
+@cocotb.test(timeout_time=500, timeout_unit="ms")
+async def cocotb_test_sched_timeout(dut):
+    """rapids TASK-030: the scheduler timeout -- limit 0 only waits, a limit
+    escalates to sticky CH_ERROR in its window and a reset recovers it."""
+    from projects.components.dma_ip.rapids.dv.tbclasses.snk_data_path_axis_test_beats_tb import SnkDataPathAxisTestBeatsTB
+
+    tb = SnkDataPathAxisTestBeatsTB(dut, clk=dut.clk, rst_n=dut.rst_n)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+
+    result, stats = await tb.test_sched_timeout()
+    tb.log.info(f"Scheduler timeout: {stats}")
+    assert result, f"Scheduler timeout test failed: {stats}"
+    tb.assert_no_bfm_timeouts()
 
 
 # ===========================================================================
@@ -266,6 +288,16 @@ def test_residue_full_burst(request, test_level):
     is the total over 8 channels). One cell at every level: it is the
     regression for a board deadlock."""
     _run_sink_axis_test(request, "cocotb_test_residue_full_burst",
+                        8, 64, 256, 8, 1024, 'default', test_level=test_level)
+
+
+@pytest.mark.macro_beats
+@pytest.mark.sink_data_path_axis_test
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_sched_timeout(request, test_level):
+    """Pytest: rapids TASK-030 scheduler timeout, limit 0 and limit 2, on the
+    Genesys 2 shape. One cell at every level."""
+    _run_sink_axis_test(request, "cocotb_test_sched_timeout",
                         8, 64, 256, 8, 1024, 'default', test_level=test_level)
 
 
