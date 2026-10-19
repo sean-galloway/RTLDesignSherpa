@@ -496,6 +496,54 @@ class AXI4ToAXI3WriteTB(TBBase):
         self.stats['bursts_completed'] += 2
         return True
 
+    async def chop_behind_same_id(self):
+        """A chopped write issued while an unchopped write of the SAME ID is
+        in flight must wait for it (bridge W13 stages the chopped write, then
+        checks the ID from registers). Promoted early, its merge state would
+        absorb the unchopped write's B as one of its own chunks, and the
+        chopped write's merged response would go to the unchopped write.
+        The chopped write's second chunk B is a SLVERR: it must reach the
+        chopped write, not the unchopped one."""
+        self.log.info("TEST: chop_behind_same_id")
+        axid = 6
+        size = self.bytes_per_beat.bit_length() - 1
+        mask = (1 << self.data_width) - 1
+        data_a = [(0xA0A00000 + i) & mask for i in range(4)]     # unchopped
+        data_b = [(0xB0B00000 + i) & mask for i in range(33)]    # 16 + 16 + 1
+        initial_aw = len(self.axi3_aw_transactions)
+        initial_b = len(self.axi3_b_responses)
+        seen = [0]
+
+        def slverr_third(_txn_id):
+            # AXI3 Bs in order: the unchopped write's, then the chopped
+            # write's three chunks. The third is its second chunk.
+            seen[0] += 1
+            return 2 if seen[0] == 3 else None  # SLVERR
+
+        self.set_resp_override(slverr_third)
+        try:
+            task_a = cocotb.start_soon(self.write_with_result(0x5000, data_a, axid=axid, size=size))
+            task_b = cocotb.start_soon(self.write_with_result(0x6000, data_b, axid=axid, size=size))
+            result_a = await task_a
+            result_b = await task_b
+        finally:
+            self.clear_resp_override()
+        await self.wait_clocks(self.clk_name, 20)
+        if result_a.get('response') != 0 or result_b.get('response') != 2:
+            self.log.error(f"chop_behind_same_id: responses crossed: "
+                           f"unchopped (want OKAY) {result_a.get('response')}, "
+                           f"chopped (want SLVERR) {result_b.get('response')}")
+            self.stats['errors'] += 1
+            return False
+        n_aw = len(self.axi3_aw_transactions) - initial_aw
+        n_b = len(self.axi3_b_responses) - initial_b
+        if n_aw != 4 or n_b != 4:
+            self.log.error(f"chop_behind_same_id: expected 4 AXI3 AWs and Bs, got {n_aw} / {n_b}")
+            self.stats['errors'] += 1
+            return False
+        self.log.info("chop_behind_same_id PASSED")
+        return True
+
     async def early_w_data(self):
         """Drive W beats before AW handshake; converter buffers and stamps them."""
         self.log.info("TEST: early_w_data")
@@ -1238,6 +1286,9 @@ class AXI4ToAXI3WriteTB(TBBase):
             success = False
 
         if not await self.long_write_len256():
+            success = False
+
+        if not await self.chop_behind_same_id():
             success = False
 
         return success

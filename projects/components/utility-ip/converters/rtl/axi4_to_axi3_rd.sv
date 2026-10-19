@@ -27,6 +27,10 @@
 //   - One AR per cycle, and no AR storage for unchopped reads: they pass
 //     straight to the AXI3 port, so no granted request queues behind the
 //     crossbar's arbiter; only a chopped read is registered while it issues
+//   - A chopped read is best effort: it is taken into a staging register
+//     with no per-ID check and moves to the active register a cycle later,
+//     once its ID has drained, so the per-ID lookup and the chunk-address
+//     load are never in series with the incoming AR (bridge W13)
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4/AXI3 side (1-16)
@@ -158,6 +162,10 @@ module axi4_to_axi3_rd #(
     // round-robin at the slave is not skewed by a queue here).
     ar_req_t active_req;
     logic    active_valid;
+    // A chopped read waits here, registered, for its ID to drain
+    ar_req_t stage_req;
+    logic    stage_valid;
+    logic    stage_go;            // the staged read moves to the active register
     // Max AXI4 burst is 256 beats (arlen=255), so remaining beats needs 9 bits.
     logic [8:0]                active_remaining;
     logic [AXI_ADDR_WIDTH-1:0] active_addr;
@@ -169,7 +177,6 @@ module axi4_to_axi3_rd #(
     // Current chunk size (1..16 beats)
     logic [4:0] chunk_beats;
     logic       ar_chop;          // the incoming AR is longer than 16 beats
-    logic       ar_id_ok;         // its ID can take it
     logic       ar_last_issue;    // the active request issues its last chunk
     logic       ar_handshake;
     logic       ar_direct;        // an unchopped AR offered straight to the port
@@ -207,14 +214,20 @@ module axi4_to_axi3_rd #(
                            (active_remaining <= 9'(Axi3MaxBeats));
     assign ar_chop       = (s_axi_arlen > 8'd15);
     assign total_full    = (total_count == CntW'(MAX_OUTSTANDING));
-    assign ar_id_ok      = !total_full &&
-                           (!ar_chop || (!id_chop[s_axi_arid] && (id_count[s_axi_arid] == '0)));
     // Idle: an unchopped AR goes straight to the port and is accepted with
-    // it; a chopped one is taken into the active register. While a chopped
-    // read issues its chunks, new ARs wait (one cycle after a 17+ beat read).
-    assign ar_direct     = !active_valid && s_axi_arvalid && !ar_chop && !total_full;
-    assign s_axi_arready = !active_valid && ar_id_ok && (ar_chop || m_axi3_arready);
+    // it; a chopped one is taken into the staging register. While a chopped
+    // read waits or issues its chunks, new ARs wait. No per-ID state is read
+    // here: the staged read checks its ID from registers (stage_go).
+    assign ar_direct     = !active_valid && !stage_valid && s_axi_arvalid &&
+                           !ar_chop && !total_full;
+    assign s_axi_arready = !active_valid && !stage_valid && !total_full &&
+                           (ar_chop || m_axi3_arready);
     assign ar_handshake  = s_axi_arvalid && s_axi_arready;
+    // The staged read is counted in its ID already (at acceptance), so it
+    // goes once it is the only read of that ID in flight: an unchopped read
+    // ahead of it would otherwise be counted as one of its chunks.
+    assign stage_go      = stage_valid && !id_chop[stage_req.id] &&
+                           (id_count[stage_req.id] == CntW'(1));
 
     //==========================================================================
     // Master AR Channel Chunk Issuance
@@ -267,6 +280,8 @@ module axi4_to_axi3_rd #(
         if (`RST_ASSERTED(aresetn)) begin
             active_valid      <= 1'b0;
             active_req        <= '0;
+            stage_valid       <= 1'b0;
+            stage_req         <= '0;
             active_remaining  <= '0;
             active_addr       <= '0;
             total_count       <= '0;
@@ -288,25 +303,33 @@ module axi4_to_axi3_rd #(
                     active_valid <= 1'b0;
             end
 
-            // Accept a chopped AR into the active register; an unchopped one
-            // has already gone to the port. Per-ID state is claimed at
+            // Accept a chopped AR into the staging register; an unchopped
+            // one has already gone to the port. The counts are claimed at
             // acceptance either way (below).
             if (ar_handshake && ar_chop) begin
-                active_req.id    <= s_axi_arid;
-                active_req.addr  <= s_axi_araddr;
-                active_req.len   <= s_axi_arlen;
-                active_req.size  <= s_axi_arsize;
-                active_req.burst <= s_axi_arburst;
-                active_req.lock  <= s_axi_arlock;
-                active_req.cache <= s_axi_arcache;
-                active_req.prot  <= s_axi_arprot;
-                active_req.user  <= s_axi_aruser;
-                active_remaining <= 9'(s_axi_arlen) + 9'd1;
-                active_addr      <= s_axi_araddr;
+                stage_req.id    <= s_axi_arid;
+                stage_req.addr  <= s_axi_araddr;
+                stage_req.len   <= s_axi_arlen;
+                stage_req.size  <= s_axi_arsize;
+                stage_req.burst <= s_axi_arburst;
+                stage_req.lock  <= s_axi_arlock;
+                stage_req.cache <= s_axi_arcache;
+                stage_req.prot  <= s_axi_arprot;
+                stage_req.user  <= s_axi_aruser;
+                stage_valid     <= 1'b1;
+            end
+
+            // Once its ID has drained, the staged read starts issuing and
+            // claims the ID's merge state.
+            if (stage_go) begin
+                active_req       <= stage_req;
+                active_remaining <= 9'(stage_req.len) + 9'd1;
+                active_addr      <= stage_req.addr;
                 active_valid     <= 1'b1;
-                id_chop[s_axi_arid]           <= 1'b1;
-                merge_chunks_left[s_axi_arid] <= 8'((9'(s_axi_arlen) + 9'd1 + 9'd15) >> 4);
-                merge_worst[s_axi_arid]       <= 2'b00;
+                stage_valid      <= 1'b0;
+                id_chop[stage_req.id]           <= 1'b1;
+                merge_chunks_left[stage_req.id] <= 8'((9'(stage_req.len) + 9'd1 + 9'd15) >> 4);
+                merge_worst[stage_req.id]       <= 2'b00;
             end
 
             // Counts: +1 on acceptance, -1 on the RLAST that ends an AXI4
@@ -324,14 +347,21 @@ module axi4_to_axi3_rd #(
                     id_count[i] <= id_count[i] - CntW'(1);
             end
 
-            // Chopped-read merge state on each chunk's last R beat.
-            if (r_last_hs && id_chop[r_id]) begin
-                merge_worst[r_id] <= merged_final_resp;
-                if (merge_chunks_left[r_id] == 8'd1) begin
-                    id_chop[r_id]           <= 1'b0;
-                    merge_chunks_left[r_id] <= '0;
-                end else begin
-                    merge_chunks_left[r_id] <= merge_chunks_left[r_id] - 8'd1;
+            // Chopped-read merge state on each chunk's last R beat. Per entry,
+            // so RID only selects which entry steps: each entry decrements
+            // and merges its OWN state, and no RID-indexed read sits in front
+            // of the write (bridge W13: the RID pin reached the counts
+            // through a 32-way mux and a decrement).
+            for (int i = 0; i < NumIds; i++) begin
+                if (r_last_hs && id_chop[i] && (r_id == AXI_ID_WIDTH'(i))) begin
+                    merge_worst[i] <= (m_axi3_rresp > merge_worst[i]) ?
+                                      m_axi3_rresp : merge_worst[i];
+                    if (merge_chunks_left[i] == 8'd1) begin
+                        id_chop[i]           <= 1'b0;
+                        merge_chunks_left[i] <= '0;
+                    end else begin
+                        merge_chunks_left[i] <= merge_chunks_left[i] - 8'd1;
+                    end
                 end
             end
         end

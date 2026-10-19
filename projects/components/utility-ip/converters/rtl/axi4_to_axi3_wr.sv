@@ -35,6 +35,12 @@
 //     straight to the AXI3 port, so no granted request queues behind the
 //     crossbar's arbiter; only a chopped write is registered while it issues
 //   - Descriptor FIFO and early-W buffer are gaxi_fifo_sync (rtl/amba/gaxi)
+//   - A chopped write is best effort: it is taken into a staging register
+//     with no per-ID check and moves to the active register (and pushes its
+//     descriptor) a cycle later, once its ID has drained. B from the AXI3
+//     port lands raw in the one-entry output register and the per-ID merge
+//     runs from there, so neither the incoming AW nor the BID pin is in
+//     series with per-ID state, and B costs no extra cycle (bridge W13)
 //
 // Parameters:
 //   AXI_ID_WIDTH: Transaction ID width on AXI4/AXI3 side (1-16)
@@ -191,7 +197,11 @@ module axi4_to_axi3_wr #(
     logic [AXI_ADDR_WIDTH-1:0] active_addr;
     logic                      aw_last_issue;
     logic                      aw_chop;      // the incoming AW is longer than 16 beats
-    logic                      aw_id_ok;     // its ID can take it
+    // A chopped write waits here, registered, for its ID to drain
+    aw_req_t                   stage_aw;
+    logic                      stage_valid;
+    logic                      stage_go;     // the staged write moves to the active register
+    logic                      desc_push;    // a descriptor enters (FIFO or bypass)
     logic                      aw_handshake;
     logic                      aw_direct;    // an unchopped AW offered straight to the port
 
@@ -234,7 +244,7 @@ module axi4_to_axi3_wr #(
     logic [AXI_ID_WIDTH-1:0] b_pending_id;
     logic [1:0]              b_pending_resp;
     logic [AXI_USER_WIDTH-1:0] b_pending_user;
-    logic                    s_b_handshake;
+    logic                    b_pop;        // the register's B leaves (forwarded or absorbed)
 
     // Current chunk size (1..16 beats)
     logic [4:0] chunk_beats;
@@ -274,19 +284,25 @@ module axi4_to_axi3_wr #(
                            (active_remaining <= 9'(Axi3MaxBeats));
     assign aw_chop       = (s_axi_awlen > 8'd15);
     assign total_full    = (total_count == CntW'(MAX_OUTSTANDING));
-    assign aw_id_ok      = !total_full &&
-                           (!aw_chop || (!id_chop[s_axi_awid] && (id_count[s_axi_awid] == '0)));
     // Idle: an unchopped AW goes straight to the port and is accepted with
-    // it; a chopped one is taken into the active register. While a chopped
-    // write issues its chunks, new AWs wait (one cycle after a 17+ beat write).
-    assign aw_direct     = !active_valid && s_axi_awvalid && !aw_chop && !total_full &&
-                           descq_wr_ready;
-    assign s_axi_awready = !active_valid && aw_id_ok && descq_wr_ready &&
-                           (aw_chop || m_axi3_awready);
+    // it; a chopped one is taken into the staging register. While a chopped
+    // write waits or issues its chunks, new AWs wait. No per-ID state is
+    // read here: the staged write checks its ID from registers (stage_go).
+    assign aw_direct     = !active_valid && !stage_valid && s_axi_awvalid &&
+                           !aw_chop && !total_full && descq_wr_ready;
+    assign s_axi_awready = !active_valid && !stage_valid && !total_full &&
+                           (aw_chop || (m_axi3_awready && descq_wr_ready));
     assign aw_handshake  = s_axi_awvalid && s_axi_awready;
+    // The staged write is counted in its ID already (at acceptance), so it
+    // goes once it is the only write of that ID in flight: an unchopped
+    // write ahead of it would otherwise be absorbed as one of its chunks.
+    // Its descriptor is pushed then, so W starts with its AW as before.
+    assign stage_go      = stage_valid && descq_wr_ready && !id_chop[stage_aw.id] &&
+                           (id_count[stage_aw.id] == CntW'(1));
+    assign desc_push     = (aw_handshake && !aw_chop) || stage_go;
 
-    assign descq_wr_data.id    = s_axi_awid;
-    assign descq_wr_data.beats = 9'(s_axi_awlen) + 9'd1;
+    assign descq_wr_data.id    = stage_go ? stage_aw.id : s_axi_awid;
+    assign descq_wr_data.beats = 9'(stage_go ? stage_aw.len : s_axi_awlen) + 9'd1;
 
     gaxi_fifo_sync #(
         .DATA_WIDTH ($bits(chunk_desc_t)),
@@ -294,7 +310,7 @@ module axi4_to_axi3_wr #(
     ) u_desc_fifo (
         .axi_aclk    (aclk),
         .axi_aresetn (aresetn),
-        .wr_valid    (aw_handshake && !desc_bypass),
+        .wr_valid    (desc_push && !desc_bypass),
         .wr_ready    (descq_wr_ready),
         .wr_data     (descq_wr_data),
         .rd_ready    (descq_rd_ready),
@@ -311,7 +327,7 @@ module axi4_to_axi3_wr #(
     // Order holds: the bypass needs an empty FIFO.
     assign w_desc_done    = m_w_handshake && (cur_desc_beats_remaining == 9'd1);
     assign descq_rd_ready = !cur_desc_valid || w_desc_done;
-    assign desc_bypass    = aw_handshake && !descq_rd_valid && descq_rd_ready;
+    assign desc_bypass    = desc_push && !descq_rd_valid && descq_rd_ready;
     assign desc_load      = (descq_rd_valid && descq_rd_ready) || desc_bypass;
     assign desc_load_data = descq_rd_valid ? descq_rd_data : descq_wr_data;
 
@@ -386,23 +402,29 @@ module axi4_to_axi3_wr #(
     // AXI3 to AXI4 Write Response Channel Merge
     //==========================================================================
 
-    assign b_id          = m_axi3_bid;
+    // B from the port lands RAW in a one-entry register: nothing on the
+    // pin side looks at BID, so the per-ID merge state below is reached from
+    // a flop (bridge W13). BREADY is "the register is empty or the downstream
+    // is ready"; it never depends on BID, and a downstream that waits for BVALID before
+    // BREADY, as AXI allows, still drains it.
+    assign b_id          = b_pending_id;
     assign b_absorb      = id_chop[b_id] && (b_merge_chunks_left[b_id] > 8'd1);
-    assign b_merged_resp = (m_axi3_bresp > b_merge_worst[b_id]) ?
-                           m_axi3_bresp : b_merge_worst[b_id];
-    // B goes through a one-entry output register. BREADY is "the register
-    // has room or is emptying": it never depends on BID (no pin-to-pin path)
-    // or on the downstream VALID/READY loop (a downstream that waits for
-    // VALID before READY, as AXI allows, still drains it). A chopped write's
-    // non-final chunk B is merged and absorbed without using the register.
-    assign s_b_handshake = s_axi_bvalid && s_axi_bready;
+    assign b_merged_resp = (b_pending_resp > b_merge_worst[b_id]) ?
+                           b_pending_resp : b_merge_worst[b_id];
+    // A chopped write's non-final chunk B is merged and absorbed (it leaves
+    // the register without being forwarded); every other B is forwarded.
+    assign b_pop         = b_pending_valid && (b_absorb || s_axi_bready);
+    // BREADY does not wait on the absorb decision (a BID-indexed lookup on
+    // the way to the pin): while an absorbed B leaves without a ready
+    // downstream, the next B waits one cycle. Chopped writes only.
     assign m_axi3_bready = !b_pending_valid || s_axi_bready;
     assign m_b_handshake = m_axi3_bvalid && m_axi3_bready;
-    assign b_txn_done    = m_b_handshake && !b_absorb;
+    assign b_txn_done    = b_pop && !b_absorb;
 
-    assign s_axi_bvalid = b_pending_valid;
-    assign s_axi_bid    = b_pending_valid ? b_pending_id   : '0;
-    assign s_axi_bresp  = b_pending_valid ? b_pending_resp : '0;
+    assign s_axi_bvalid = b_pending_valid && !b_absorb;
+    assign s_axi_bid    = b_pending_valid ? b_pending_id : '0;
+    assign s_axi_bresp  = !b_pending_valid ? '0
+                        : id_chop[b_id]   ? b_merged_resp : b_pending_resp;
     assign s_axi_buser  = b_pending_valid ? b_pending_user : '0;
 
     //==========================================================================
@@ -413,6 +435,8 @@ module axi4_to_axi3_wr #(
         if (`RST_ASSERTED(aresetn)) begin
             active_valid           <= 1'b0;
             active_aw              <= '0;
+            stage_valid            <= 1'b0;
+            stage_aw               <= '0;
             active_remaining       <= '0;
             active_addr            <= '0;
             total_count            <= '0;
@@ -442,27 +466,35 @@ module axi4_to_axi3_wr #(
                     active_valid <= 1'b0;
             end
 
-            // Accept a chopped AW into the active register; an unchopped one
-            // has already gone to the port. Per-ID state is claimed at
-            // acceptance either way (below); the descriptor FIFO takes both.
+            // Accept a chopped AW into the staging register; an unchopped
+            // one has already gone to the port. The counts are claimed at
+            // acceptance either way (below).
             if (aw_handshake && aw_chop) begin
-                active_aw.id     <= s_axi_awid;
-                active_aw.addr   <= s_axi_awaddr;
-                active_aw.len    <= s_axi_awlen;
-                active_aw.size   <= s_axi_awsize;
-                active_aw.burst  <= s_axi_awburst;
-                active_aw.lock   <= s_axi_awlock;
-                active_aw.cache  <= s_axi_awcache;
-                active_aw.prot   <= s_axi_awprot;
-                active_aw.user   <= s_axi_awuser;
-                active_remaining <= 9'(s_axi_awlen) + 9'd1;
-                active_addr      <= s_axi_awaddr;
+                stage_aw.id    <= s_axi_awid;
+                stage_aw.addr  <= s_axi_awaddr;
+                stage_aw.len   <= s_axi_awlen;
+                stage_aw.size  <= s_axi_awsize;
+                stage_aw.burst <= s_axi_awburst;
+                stage_aw.lock  <= s_axi_awlock;
+                stage_aw.cache <= s_axi_awcache;
+                stage_aw.prot  <= s_axi_awprot;
+                stage_aw.user  <= s_axi_awuser;
+                stage_valid    <= 1'b1;
+            end
+
+            // Once its ID has drained, the staged write starts issuing,
+            // pushes its descriptor (desc_push) and claims the merge state.
+            if (stage_go) begin
+                active_aw        <= stage_aw;
+                active_remaining <= 9'(stage_aw.len) + 9'd1;
+                active_addr      <= stage_aw.addr;
                 active_valid     <= 1'b1;
-                id_chop[s_axi_awid]             <= 1'b1;
+                stage_valid      <= 1'b0;
+                id_chop[stage_aw.id]             <= 1'b1;
                 // AXI3 bursts this AW is cut into: ceil((awlen+1) / 16)
-                b_merge_chunks_left[s_axi_awid] <=
-                    8'((9'(s_axi_awlen) + 9'd1 + 9'(Axi3MaxBeats) - 9'd1) >> 4);
-                b_merge_worst[s_axi_awid]       <= 2'b00;
+                b_merge_chunks_left[stage_aw.id] <=
+                    8'((9'(stage_aw.len) + 9'd1 + 9'(Axi3MaxBeats) - 9'd1) >> 4);
+                b_merge_worst[stage_aw.id]       <= 2'b00;
             end
 
             // Forward a buffered W beat to the AXI3 master. WLAST closes each
@@ -493,22 +525,22 @@ module axi4_to_axi3_wr #(
             // B: a chopped write's non-final chunk B is merged and absorbed;
             // every other B ends an AXI4 write and goes to the output
             // register, and a chopped write's final one frees its ID.
-            if (s_b_handshake)
+            if (b_pop)
                 b_pending_valid <= 1'b0;
             if (m_b_handshake) begin
+                b_pending_valid <= 1'b1;
+                b_pending_id    <= m_axi3_bid;
+                b_pending_resp  <= m_axi3_bresp;
+                b_pending_user  <= m_axi3_buser;
+            end
+            if (b_pop) begin
                 if (b_absorb) begin
                     b_merge_worst[b_id]       <= b_merged_resp;
                     b_merge_chunks_left[b_id] <= b_merge_chunks_left[b_id] - 8'd1;
-                end else begin
-                    b_pending_valid <= 1'b1;
-                    b_pending_id    <= b_id;
-                    b_pending_resp  <= id_chop[b_id] ? b_merged_resp : m_axi3_bresp;
-                    b_pending_user  <= m_axi3_buser;
-                    if (id_chop[b_id]) begin
-                        id_chop[b_id]             <= 1'b0;
-                        b_merge_chunks_left[b_id] <= '0;
-                        b_merge_worst[b_id]       <= 2'b00;
-                    end
+                end else if (id_chop[b_id]) begin
+                    id_chop[b_id]             <= 1'b0;
+                    b_merge_chunks_left[b_id] <= '0;
+                    b_merge_worst[b_id]       <= 2'b00;
                 end
             end
 

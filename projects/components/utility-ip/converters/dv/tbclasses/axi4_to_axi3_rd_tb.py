@@ -1020,6 +1020,51 @@ class AXI4ToAXI3ReadTB(TBBase):
     # Multi-ID concurrency test
     # -------------------------------------------------------------------------
 
+    async def chop_behind_same_id(self):
+        """A chopped read issued while an unchopped read of the SAME ID is in
+        flight must wait for it (bridge W13 stages the chopped read, then
+        checks the ID from registers). Promoted early, its merge state would
+        take the unchopped read's RLAST as one of its own chunks: the
+        unchopped read would lose its RLAST and the chopped one end early."""
+        self.log.info("TEST: chop_behind_same_id")
+        axid = 5
+        addr_a, len_a = 0xE000, 4      # unchopped
+        addr_b, len_b = 0xF000, 33     # chopped into 16 + 16 + 1
+        size = self.bytes_per_beat.bit_length() - 1
+        for addr, blen in ((addr_a, len_a), (addr_b, len_b)):
+            pkt = self.axi4_master.ar_channel.create_packet(
+                addr=addr, len=blen - 1, id=axid, size=size, burst=1,
+                lock=0, cache=0, prot=0, qos=0, region=0)
+            await self.axi4_master.ar_channel.send(pkt)
+        # Private member access, as in read_with_responses: same-ID beats
+        # arrive in one per-ID deque, A's then B's.
+        id_queue = self.axi4_master._response_by_id[axid]
+        waited = 0
+        while len(id_queue) < len_a + len_b:
+            await RisingEdge(self.clk)
+            waited += 1
+            if waited > 5000:
+                self.log.error(f"chop_behind_same_id: timeout, {len(id_queue)} of "
+                               f"{len_a + len_b} beats")
+                self.stats['errors'] += 1
+                return False
+        beats = [id_queue.popleft() for _ in range(len_a + len_b)]
+        expect = ([(addr_a + i * self.bytes_per_beat, int(i == len_a - 1)) for i in range(len_a)] +
+                  [(addr_b + i * self.bytes_per_beat, int(i == len_b - 1)) for i in range(len_b)])
+        for i, (pkt, (addr, last)) in enumerate(zip(beats, expect)):
+            data = getattr(pkt, 'data', 0)
+            got_last = getattr(pkt, 'last', 0)
+            want = addr & ((1 << self.data_width) - 1)
+            if data != want or got_last != last:
+                self.log.error(f"chop_behind_same_id: beat {i} data 0x{data:X} last {got_last}, "
+                               f"expected 0x{want:X} last {last}")
+                self.stats['merge_errors'] += 1
+                self.stats['errors'] += 1
+                return False
+        await self.wait_clocks(self.clk_name, 10)
+        self.log.info("chop_behind_same_id: PASS")
+        return True
+
     async def multi_id_outstanding(self):
         """Two IDs chopped concurrently; per-ID data/response/RLAST must not cross."""
         self.log.info("TEST: multi_id_outstanding")
@@ -1190,6 +1235,9 @@ class AXI4ToAXI3ReadTB(TBBase):
             success = False
 
         if not await self.multi_id_outstanding():
+            success = False
+
+        if not await self.chop_behind_same_id():
             success = False
 
         return success
