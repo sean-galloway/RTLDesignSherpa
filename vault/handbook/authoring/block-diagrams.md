@@ -10,7 +10,7 @@ block or microarchitecture diagram follows this note: HAS/MAS books,
 `docs/markdown` module pages, README figures, vault notes, FPGA system docs.
 It supersedes the older "diagrams are Mermaid" rule in [[spec-doc-standards]].
 
-**Status: v1, being refined.** The rules came from the memory-controller
+**Status: v2 (element key added 2026-10-19), being refined.** The rules came from the memory-controller
 family and were proven there. Applying them to other block shapes (an
 arbiter, a CDC block, a FIFO, a bridge, a DMA engine) is in progress with the
 owner, one diagram at a time. When a diagram shows a rule needs restating for
@@ -134,14 +134,15 @@ A label answers "what does it do?" before "what is it called?".
 - **Use left-justified lines (`\l`) for a legend box,** with a hanging indent
   on wrapped lines, so each name heads its own line.
 
-## Element key: shape and fill name the element (v2, trial 2026-10-19)
+## Element key: shape and fill name the element (v2, owner-approved 2026-10-19)
 
 **Owner, 2026-10-19:** "I can't tell what is what by looking at it." A box
 had to be read to learn whether it was a port, logic, a register or a
-memory. Every node now takes the shape and fill of its class. **Trial case:**
+memory. Every node now takes the shape and fill of its class. **Case:**
 `projects/components/dma-ip/rapids/docs/rapids_mas/assets/graphviz/06_axi_write_engine.dot`,
-which carries the key; it is pending owner approval before the repo-wide
-pass.
+which carries the key; the owner approved it on 2026-10-19 ("Perfect!!!!").
+It is the template for the key; new and redrawn diagrams follow it, and the
+existing set converts as each diagram is next touched.
 
 | Class | Graphviz | Fill | What it marks |
 |---|---|---|---|

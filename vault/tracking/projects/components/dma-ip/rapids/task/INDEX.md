@@ -22,7 +22,7 @@ by construction rather than by discipline.
 
 - **TASK-031** — strap values on RAPIDS (TILE_LAND_FLITS 16, TILE_DESC_PER_CORE 2, fixed at build); TILE_STRAPS @ 0x7FC built 2026-10-19; TILE_SPEC 11.12 row remains
 - **TASK-032** — Genesys 2 harness for RAPIDS as the tile I/O (rapids_tile): cell/core injectors on the CXS links, credit intake, receiver; cell sender + credit intake built 2026-10-19
-- **TASK-033** — tagged, indexed tile intake (delta interleaves/reorders): per-flit {sender, pos, head}, landing ring, MonBus class 2; pencilled in + cycle-model validated 2026-10-19
+- **TASK-033** — tagged, indexed tile intake (delta interleaves/reorders): per-flit {sender, pos, head}, landing ring (MonBus stays off the fabric); pencilled in + cycle-model validated 2026-10-19
 
 ## Active
 

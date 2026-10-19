@@ -50,7 +50,7 @@
   together; RAPIDS's header-then-payload framing depends on it.
 - **Pencilled in: a tag on every flit** (2026-10-19, rapids TASK-033). For
   RAPIDS to take interleaved and reordered packets, every flit, body flits
-  included, carries `{sender[5:0], pos[3:0], head}` from the source endpoint
+  included, carries `{sender[4:0], pos[3:0], head}` from the source endpoint
   to the destination on AXIS `tuser` and CXS `user`. Delta forwards it and
   never reads it. Today a body flit's `tuser` is zero.
 

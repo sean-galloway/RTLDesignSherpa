@@ -78,7 +78,7 @@ def test_mutations_caught(mutation):
 def test_throughput(cells, lat):
     """Data flits per cycle on RAPIDS's link: strap-only + indexed vs the
     wait-all rule. Reported, and indexed must never be slower."""
-    common = dict(seed=7, lat=LATS[lat], cells=cells, nodes=0, cores=0, mons=0)
+    common = dict(seed=7, lat=LATS[lat], cells=cells, cores=0)
     a = run(Cfg(**common))
     b = run(Cfg(send_rule='waitall', landing='arrival', **common))
     _show(f"indexed {cells} cells {lat}", a)

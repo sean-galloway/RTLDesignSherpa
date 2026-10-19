@@ -321,10 +321,10 @@ It lets delta interleave and reorder packets into the sink port with no send
 rule beyond the straps.
 
 **The tag.** Every flit, data flits included, carries a sideband tag beside
-its data: `{sender, pos, head}`. `sender` is the 6-bit destination index of
-the source coordinate (`rapids_pkg::tile_dest_index`: nodes 0-21, cells
-32-47, control cores 48-51). `head` marks a header flit. `pos` is the flit's
-place in the space RAPIDS holds for that sender and class. About 11 bits;
+its data: `{sender, pos, head}`. `sender` is the source's 5-bit external
+slot (`rapids_pkg::tile_ext_slot`: cells 0-15, control cores 16-19). `head`
+marks a header flit. `pos` is the flit's place in the space RAPIDS holds for
+that sender and class. About 10 bits;
 delta carries it on AXIS `tuser` and CXS `user` (delta HAS, Interface
 Assumptions).
 
@@ -332,20 +332,21 @@ Assumptions).
 |---|---|---|---|---|---|
 | 0, data | Cells | Header + up to `TILE_LAND_FLITS` - 1 beats | Flits sent, header included, mod `TILE_LAND_FLITS` | The landing space as a ring, written at `pos`, a valid bit per slot | Ring order: the packet at the read pointer, once its header and every flit to its last are present |
 | 1, desc | Control cores | Header + one descriptor beat | Packets sent mod `TILE_DESC_PER_CORE` | One intake entry per `pos` | Entry order |
-| 2, MonBus | Cells, cores, nodes | One header-only flit; the 64-bit MonBus word in header bits [97:34] (length and target[31:0]) | Packets sent mod `TILE_MON_PER_SENDER` | One entry per `pos`, into RAPIDS's MonBus | Entry order |
 
 : Table 3.14.7: Tagged intake by class (pencilled in)
 
-Debug from cells, tetrads and nodes uses MonBus only (owner 2026-10-19), so
-class 2 is the only class a node sends. Its credits return as the entries
-drain, like the other two. A header's class-0 flit returns when its packet
+Debug never rides the fabric. Each cell emits one MonBus on AXI4-Lite, each
+tetrad merges its cells and its node into one AXI4-Lite MonBus, and the tile
+merges the tetrads and the root nodes into one MonBus (owner 2026-10-19,
+TILE_SPEC 5). So nodes never send into RAPIDS, and a MonBus class on the
+fabric (pencilled in earlier the same day) is retired. A header's class-0 flit returns when its packet
 drains, not on arrival, because its slot holds the packet's channel and
 length. The strap keeps a sender's flits in flight below the space, so a
 `pos` is never reused while its slot is full. Resync clears the rings and
 entries and both sides' `pos`.
 
 Model results (one flit per cycle into RAPIDS, random packet sizes, fabric
-latency 2-120 cycles): every class delivered exactly once and in send order
+latency 2-120 cycles): both classes delivered exactly once and in send order
 at `TILE_LAND_FLITS` 16 and 8, every strap whole at the end. Controls:
 today's arrival-order landing corrupts as soon as a cell has two packets in
 flight (strap-only and the retired one-flit rule both fail); the wait-for-
