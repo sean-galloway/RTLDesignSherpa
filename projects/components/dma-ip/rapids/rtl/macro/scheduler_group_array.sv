@@ -245,6 +245,9 @@ module scheduler_group_array #(
     input  logic                                        desc_inj_valid,
     input  logic [((CHAN_WIDTH > 0) ? CHAN_WIDTH : 1)-1:0] desc_inj_ch,
     input  logic [255:0]                                desc_inj_data,
+    // TILE_CREDITS: a valid/ready handshake from the intake queue instead; a
+    // descriptor for a full slot waits (rapids TASK-027)
+    output logic                                        desc_inj_ready,
     output logic [NUM_CHANNELS-1:0]                     desc_inj_dropped,   // sticky per channel
     input  logic [NUM_CHANNELS-1:0]                     desc_inj_dropped_clr,
 
@@ -458,6 +461,7 @@ module scheduler_group_array #(
         // have no second writer); TILE_HDR = 1 is refused below.
         assign sched_rd_pkt_tile = '0;
         assign desc_inj_dropped  = '0;
+        assign desc_inj_ready    = 1'b1;
         logic unused_inj;
         assign unused_inj = &{1'b0, desc_inj_valid, desc_inj_ch, desc_inj_data, desc_inj_dropped_clr,
                               tile_adv_done, tile_dest_legal};
@@ -1016,7 +1020,8 @@ module scheduler_group_array #(
             .USE_ROW_COL_MAJOR_ADDRESSING (USE_ROW_COL_MAJOR_ADDRESSING),
             .MON_AGENT_BASE (16'(DESC_MON_BASE_AGENT_ID)),
             .MON_UNIT_ID    (8'(MON_UNIT_ID)),
-            .INJ_EN         (TILE_HDR != 0)
+            .INJ_EN         (TILE_HDR != 0),
+            .INJ_HOLD       (TILE_CREDITS != 0)
         ) u_desc_engine (
             .clk                    (clk),
             .rst_n                  (rst_n),
@@ -1063,6 +1068,7 @@ module scheduler_group_array #(
             .inj_valid              (desc_inj_valid),
             .inj_ch                 (desc_inj_ch),
             .inj_data               (desc_inj_data),
+            .inj_ready              (desc_inj_ready),
             .inj_dropped            (desc_inj_dropped),
             .inj_dropped_clr        (desc_inj_dropped_clr),
             .descriptor_engine_idle (descriptor_engine_idle),

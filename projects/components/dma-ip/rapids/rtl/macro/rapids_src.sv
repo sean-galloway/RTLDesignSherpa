@@ -324,6 +324,7 @@ module rapids_src #(
     input  logic                        desc_inj_valid,
     input  logic [CIW-1:0]              desc_inj_ch,
     input  logic [255:0]                desc_inj_data,
+    output logic                        desc_inj_ready,     // TILE_CREDITS: 0 = hold (slot full)
     output logic [NC-1:0]               desc_inj_dropped,   // sticky: a desc had no free slot
     input  logic [NC-1:0]               desc_inj_dropped_clr, // CSR write-1-to-clear pulse, per channel
 
@@ -338,7 +339,12 @@ module rapids_src #(
     input  logic [1:0]                  credit_class,
     input  logic [31:0]                 cfg_tile_adv_window,
     output logic                        sts_tile_adv_done,
-    output logic [rapids_pkg::TILE_NUM_DEST-1:0] sts_tile_dest_legal
+    output logic [rapids_pkg::TILE_NUM_DEST-1:0] sts_tile_dest_legal,
+
+    // Stalled-data check (TILE_CREDITS): a channel with reads outstanding that
+    // has received no R beat for cfg_tile_stall_cycles (0 = off) is a MonBus error
+    input  logic [31:0]                 cfg_tile_stall_cycles,
+    output logic [NC-1:0]               sts_tile_stalled
 );
 
     //=========================================================================
@@ -573,6 +579,7 @@ module rapids_src #(
         .desc_inj_valid         (desc_inj_valid),
         .desc_inj_ch            (desc_inj_ch),
         .desc_inj_data          (desc_inj_data),
+        .desc_inj_ready         (desc_inj_ready),
         .desc_inj_dropped       (desc_inj_dropped),
         .desc_inj_dropped_clr   (desc_inj_dropped_clr),
         .tile_adv_done          (sts_tile_adv_done),
@@ -638,9 +645,60 @@ module rapids_src #(
     assign plane_mon_ready         = mon_arb_ready_in[1];
 
     // Client 2: tied-off placeholder (future data-path AXI monitor tap)
-    assign mon_arb_valid_in[2]     = 1'b0;
-    assign mon_arb_packet_in[2]    = '0;
-    assign mon_arb_timestamp_in[2] = '0;
+    generate
+    if (TILE_CREDITS != 0) begin : g_stall_mon
+        // Client 2: the stalled-data check (TILE_SPEC 11.9). ARID carries the
+        // channel in its low bits (axi_read_engine); a channel expects data
+        // while it has bursts outstanding, and it moves on each R beat.
+        logic [NC-1:0]       w_r_moved, w_rd_pending;
+        logic [NC-1:0][15:0] r_rd_out;
+        always_comb begin
+            for (int ch = 0; ch < NC; ch++) begin
+                w_r_moved[ch]    = m_axi_rd_rvalid && m_axi_rd_rready && (m_axi_rd_rid[CIW-1:0] == CIW'(ch));
+                w_rd_pending[ch] = (r_rd_out[ch] != '0);
+            end
+        end
+        `ALWAYS_FF_RST(clk, rst_n,
+            if (`RST_ASSERTED(rst_n)) begin
+                r_rd_out <= '{default:'0};
+            end else begin
+                for (int ch = 0; ch < NC; ch++) begin
+                    logic up;
+                    logic dn;
+                    up = m_axi_rd_arvalid && m_axi_rd_arready && (m_axi_rd_arid[CIW-1:0] == CIW'(ch));
+                    dn = w_r_moved[ch] && m_axi_rd_rlast;
+                    if (up && !dn)      r_rd_out[ch] <= r_rd_out[ch] + 16'd1;
+                    else if (!up && dn) r_rd_out[ch] <= r_rd_out[ch] - 16'd1;
+                end
+            end
+        )
+        rapids_tile_stall_mon #(
+            .NUM_CHANNELS (NC),
+            .KIND         (1'b1),
+            .MON_AGENT_ID (16'h000C),
+            .MON_UNIT_ID  (8'(MON_UNIT_ID))
+        ) u_stall_mon (
+            .clk              (clk),
+            .rst_n            (rst_n),
+            .cfg_stall_cycles (cfg_tile_stall_cycles),
+            .pending          (w_rd_pending),
+            .moved            (w_r_moved),
+            .i_mon_time       ('0),
+            .mon_valid        (mon_arb_valid_in[2]),
+            .mon_ready        (mon_arb_ready_in[2]),
+            .mon_packet       (mon_arb_packet_in[2]),
+            .mon_timestamp    (mon_arb_timestamp_in[2]),
+            .sts_stalled      (sts_tile_stalled)
+        );
+    end else begin : g_no_stall_mon
+        assign mon_arb_valid_in[2]     = 1'b0;
+        assign mon_arb_packet_in[2]    = '0;
+        assign mon_arb_timestamp_in[2] = '0;
+        assign sts_tile_stalled        = '0;
+        logic unused_stall;
+        assign unused_stall = &{1'b0, cfg_tile_stall_cycles};
+    end
+    endgenerate
     // mon_arb_ready_in[2] intentionally unused
 
     monbus_arbiter #(

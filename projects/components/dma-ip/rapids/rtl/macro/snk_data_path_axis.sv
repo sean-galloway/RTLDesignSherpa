@@ -67,6 +67,11 @@ module snk_data_path_axis #(
     parameter int AXIS_DEST_WIDTH = 4,
     parameter int AXIS_USER_WIDTH = 1,
 
+    // Whole-packet admission (tile landing space, rapids TASK-027): beats a
+    // channel must be able to take before chan_can_take says it can take a
+    // packet. 0 = no space test (chan_can_take then only needs a record).
+    parameter int TAKE_ROOM = 0,
+
     // Short aliases
     parameter int NC = NUM_CHANNELS,
     parameter int AW = ADDR_WIDTH,
@@ -101,6 +106,17 @@ module snk_data_path_axis #(
     input  logic [AXIS_USER_WIDTH-1:0]  s_axis_tuser,
     input  logic                        s_axis_tvalid,
     output logic                        s_axis_tready,
+
+    // Per channel: a whole packet started now would flow through without
+    // stalling the shared stream -- the channel is out of reset and either
+    // throwing a cut packet away, or has its next packet record, no spill
+    // waiting and TAKE_ROOM beats of room. For a source that hands over one
+    // whole packet at a time between packets of that channel (the tile
+    // landing space).
+    output logic [NC-1:0]               chan_can_take,
+    // Per channel: the channel's SRAM holds data not yet written out (the
+    // tile stall check, rapids TASK-027)
+    output logic [NC-1:0]               chan_has_data,
 
     //=========================================================================
     // Scheduler Interface (Per-Channel Write Requests)
@@ -427,6 +443,23 @@ module snk_data_path_axis #(
             end
         end
     )
+    // Whole-packet admission. With the settle count at 0 the space view is
+    // current, and beats already allocated but not yet filled are room too.
+    always_comb begin
+        for (int ch = 0; ch < NC; ch++) begin
+            logic room;
+            room = (TAKE_ROOM == 0) ||
+                   ((r_alloc_settle[ch] == 2'd0) &&
+                    ((32'(fill_space_free[ch]) + 32'(r_pending_alloc[ch])) >= 32'(TAKE_ROOM)));
+            // data written and not yet drained: an allocation not yet filled
+            // (the rest of a cfg_alloc_size segment) is free space, not data
+            chan_has_data[ch] = ((32'(fill_space_free[ch]) + 32'(r_pending_alloc[ch])) != 32'(SD));
+            chan_can_take[ch] = !w_rst[ch] &&
+                                (r_discard[ch] ||
+                                 (!w_pq_empty[ch] && !(r_flush_valid && (r_flush_ch == CIW'(ch))) && room));
+        end
+    end
+
     wire w_out_rst = w_rst[r_out_id];   // the held beat belongs to a channel in reset
     wire w_channel_needs_alloc = (r_pending_alloc[r_out_id] == '0) &&
                                  (r_alloc_settle[r_out_id] == 2'd0);

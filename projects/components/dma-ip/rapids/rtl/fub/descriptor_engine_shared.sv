@@ -76,6 +76,11 @@ module descriptor_engine_shared #(
     parameter int MON_FIFO_DEPTH = 4,
     // Second writer into the descriptor FIFOs (cell-issued descriptors)
     parameter bit INJ_EN = 1'b0,
+    // INJ_HOLD = 1 (tile straps, rapids TASK-027): inj_* is a valid/ready
+    // handshake from the intake queue. A descriptor for a channel whose slot
+    // is full waits (inj_ready low) instead of being dropped; one for a
+    // channel in reset, or an EXT one, is still taken and dropped.
+    parameter bit INJ_HOLD = 1'b0,
     parameter int NC = NUM_CHANNELS,
     parameter int CW = CHAN_WIDTH
 ) (
@@ -132,6 +137,7 @@ module descriptor_engine_shared #(
     input  logic                              inj_valid,
     input  logic [CW-1:0]                     inj_ch,
     input  logic [255:0]                      inj_data,
+    output logic                              inj_ready,     // INJ_HOLD: 0 = the slot is full, hold
     output logic [NC-1:0]                     inj_dropped,   // sticky per channel
     input  logic [NC-1:0]                     inj_dropped_clr, // one-cycle W1C clear (a drop wins)
 
@@ -395,6 +401,11 @@ module descriptor_engine_shared #(
                              in_range(w_inj_next_addr, cfg_addr0_base, cfg_addr0_limit,
                                       cfg_addr1_base, cfg_addr1_limit);
 
+    // INJ_HOLD: the named channel's slot cannot take it this cycle
+    logic w_inj_ch_ok;
+    assign w_inj_ch_ok = (int'(inj_ch) < NC);
+    assign inj_ready   = !INJ_HOLD || !w_inj_ch_ok || r_reset[inj_ch] || w_inj_ext || !r_inj_v[inj_ch];
+
     //=========================================================================
     // Per-channel state, kick policy, FIFOs
     //=========================================================================
@@ -417,7 +428,7 @@ module descriptor_engine_shared #(
         assign w_inj_arrive = INJ_EN && inj_valid && (inj_ch == CW'(c));
         assign w_inj_here = w_inj_arrive && !r_reset[c];
         assign w_inj_take = w_inj_here && !r_inj_v[c] && !w_inj_ext;
-        assign w_inj_drop = w_inj_arrive && (r_reset[c] || r_inj_v[c] || w_inj_ext);
+        assign w_inj_drop = w_inj_arrive && (r_reset[c] || (r_inj_v[c] && !INJ_HOLD) || w_inj_ext);
         // S_IDLE: no fetch of this channel is in flight, so the R path cannot
         // be writing this FIFO and needs none of its entries.
         assign w_inj_wr   = INJ_EN && r_inj_v[c] && (r_st[c] == S_IDLE) && !r_reset[c] &&

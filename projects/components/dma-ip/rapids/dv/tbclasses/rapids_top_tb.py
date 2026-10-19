@@ -221,6 +221,13 @@ class RapidsTopTB(TBBase):
         d.cfg_mon_limit_addr.value = 0x0000_5000 - 1
         d.cfg_mon_flush_watermark.value = 3
 
+        # Tile straps (byte tops; idle unless TILE_CREDITS): the credit-return
+        # port is always ready and the tile is quiescent, so channel resets
+        # act at once. A strap test drives these itself.
+        if hasattr(d, 'tile_quiescent'):
+            d.tile_quiescent.value = 1
+            d.m_tile_credit_ready.value = 1
+
     async def deassert_reset(self):
         self.rst_n.value = 1
 

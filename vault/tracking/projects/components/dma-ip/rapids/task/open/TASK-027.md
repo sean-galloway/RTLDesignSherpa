@@ -1,7 +1,7 @@
 # TASK-027: End-to-end credits and straps toward RAPIDS for the tile header
 
 **Priority:** P2
-**Status:** open -- counters, window and legal mask built 2026-10-18 (`TILE_CREDITS`); straps toward RAPIDS remain
+**Status:** open -- items 1-10 built and tested 2026-10-19; only the TILE_SPEC 11.12 row remains (that file has a peer's uncommitted edits)
 **Owner:** sean galloway
 
 ## Progress 2026-10-18
@@ -30,6 +30,75 @@ Owner direction 2026-10-18 (TILE_SPEC 11.14): delta must carry result data
 to `level` 3. Toward RAPIDS the credits are **straps, not grants**: a cell
 writes against a 16-flit strap, a control core (gatling, which creates the
 descriptors) sends `desc` against strapped descriptor-queue entries.
+
+## Progress 2026-10-19: straps toward RAPIDS (items 2-10)
+
+Built behind `TILE_CREDITS` = 1:
+
+- **Landing space** `rtl/fub/rapids_tile_landing.sv` in `rapids_snk`: one
+  `TILE_LAND_FLITS`-deep FIFO per cell (external slots 0-15,
+  `rapids_pkg::tile_ext_slot`). A whole packet drains only when its sink
+  channel can take it (`snk_data_path_axis.chan_can_take`, room >=
+  `TILE_LAND_FLITS`+4), so a cell blocked on a full channel holds only its
+  own strap. Disabled or out-of-range channels are drained and discarded.
+- **Returns** `rtl/fub/rapids_tile_credit_tx.sv` in `rapids_core`: pending
+  counts per {slot, class}, sent round-robin as soon as the output is free
+  (coalescing only what is already pending), header-only `credit` packets on
+  their own port `m_tile_credit_*`. Class 0 = flits (each landing beat, each
+  charged header, each discarded beat); class 1 = intake entries.
+- **Descriptor intake** `rtl/fub/rapids_tile_desc_intake.sv`
+  (4 x `TILE_DESC_PER_CORE` deep); `descriptor_engine_shared` gains `INJ_HOLD`
+  so a desc for a busy channel waits instead of being dropped. The entry's
+  credit returns when it moves into the descriptor queue; an overrun drop
+  still returns it.
+- **Resync** `SRC.TILE_RESYNC.GO`: waits for `tile_quiescent`, then one `set`
+  per legal cell (LAND_FLITS) and core (DESC_PER_CORE). Channel resets are
+  also gated by `tile_quiescent`.
+- **Stall checks** `rtl/fub/rapids_tile_stall_mon.sv`, threshold
+  `SRC.TILE_STALL_CYCLES` (default 1000, 0 = off): sink data that has not
+  moved (agent 0x0B), source reads outstanding with no data (agent 0x0C);
+  `PktTypeError` / `PROTOCOL_CORE` / `RAPIDS_EVENT_STALL` (0x08) on MonBus,
+  once per episode; `SRC/SNK.TILE_STALLED.CH`.
+- Status: `TILE_CREDIT_STATUS` RESYNC_BUSY / LAND_OVERRUN / INTAKE_OVERRUN /
+  RET_COUNT.
+
+Tests: `test_rapids_cxs_top.py::test_rapids_cxs_top_tile_straps[land,
+land_isolation, land_discard, coalesce, intake, intake_overrun, resync,
+quiescent_reset, stall_sink, stall_source]` and
+`test_rapids_16ch_cxs_top_tile_straps` (isolation); TB
+`dv/tbclasses/rapids_cxs_tile_straps_tb.py`.
+
+Mutations (all restored, cmp-verified):
+
+| Mutation | Caught by |
+|---|---|
+| M1 no landing-beat return | land (16 flits sent, 2 returned) |
+| M2 drain ignores chan_can_take | land_isolation |
+| M3 no charged-header return | land (48 sent, 42 returned) |
+| M4 INJ_HOLD off (desc dropped) | intake_overrun |
+| M5 resync ignores quiescent | resync |
+| M6/M6b channel resets ungated | quiescent_reset |
+| M7 old has_data formula | stall_sink (2 records) |
+| M8 source pending forced 0 | stall_source |
+| M9 no intake-pop return | intake |
+| M10 disabled channel not drained | land_discard (same build as M1, not isolated) |
+
+Bug found on the way: `chan_has_data` counted an allocated-but-unfilled SRAM
+segment as data, so the sink stall check fired twice (M7 reproduces it).
+
+Regression: clean-all `run-all-full-parallel` over fub, fub_beats, macro,
+macro_beats, top, top_beats: 1722 + 1284 + 843 + 774 + 162 + 54 = 4839
+passed, 0 failed (2026-10-19).
+
+Docs: MAS 3.14 "Straps Toward RAPIDS" (tables 3.14.4 / 3.14.5), HAS
+Descriptor Format strap paragraph, rapids CLAUDE.md.
+
+Deviations from TILE_SPEC: resync sends one `set` per sender, not a
+multicast (RAPIDS has no multicast header); stall checks are RAPIDS-local
+rather than a shared ocelus module. Limits: read replies into RAPIDS are not
+strap-accounted; only cells hold landing space (cores send only `desc`).
+
+Remaining: the TILE_SPEC 11.12 row (still says the straps are not built).
 
 ## What to build
 

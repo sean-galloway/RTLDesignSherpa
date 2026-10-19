@@ -1645,7 +1645,15 @@ module rapids_byte_harness #(
         .src_system_idle (src_system_idle),
         .src_sched_error (src_sched_error),
         .snk_system_idle (snk_system_idle),
-        .snk_sched_error (snk_sched_error)
+        .snk_sched_error (snk_sched_error),
+        // Tile straps (TILE_CREDITS, off in this build): no credit returns,
+        // and channel resets never wait for a tile quiescent signal
+        /* verilator lint_off PINCONNECTEMPTY */
+        .m_tile_credit_valid (),
+        .m_tile_credit_data  (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        .m_tile_credit_ready (1'b1),
+        .tile_quiescent      (1'b1)
     );
 
     //=========================================================================

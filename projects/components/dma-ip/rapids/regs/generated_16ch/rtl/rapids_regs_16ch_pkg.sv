@@ -221,7 +221,27 @@ package rapids_regs_16ch_pkg;
     } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__ADV_DONE__in_t;
 
     typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__RESYNC_BUSY__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__LAND_OVERRUN__in_t;
+
+    typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__INTAKE_OVERRUN__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__RET_COUNT__in_t;
+
+    typedef struct {
         rapids_engine_regs_16ch__TILE_CREDIT_STATUS__ADV_DONE__in_t ADV_DONE;
+        rapids_engine_regs_16ch__TILE_CREDIT_STATUS__RESYNC_BUSY__in_t RESYNC_BUSY;
+        rapids_engine_regs_16ch__TILE_CREDIT_STATUS__LAND_OVERRUN__in_t LAND_OVERRUN;
+        rapids_engine_regs_16ch__TILE_CREDIT_STATUS__INTAKE_OVERRUN__in_t INTAKE_OVERRUN;
+        rapids_engine_regs_16ch__TILE_CREDIT_STATUS__RET_COUNT__in_t RET_COUNT;
     } rapids_engine_regs_16ch__TILE_CREDIT_STATUS__in_t;
 
     typedef struct {
@@ -231,6 +251,14 @@ package rapids_regs_16ch_pkg;
     typedef struct {
         rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__LEGAL__in_t LEGAL;
     } rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+    } rapids_engine_regs_16ch__TILE_STALLED__CH__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_STALLED__CH__in_t CH;
+    } rapids_engine_regs_16ch__TILE_STALLED__in_t;
 
     typedef struct {
         logic [31:0] next;
@@ -644,6 +672,7 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__TILE_LEGAL_DEST_LO__in_t TILE_LEGAL_DEST_LO;
         rapids_engine_regs_16ch__TILE_CREDIT_STATUS__in_t TILE_CREDIT_STATUS;
         rapids_engine_regs_16ch__TILE_LEGAL_DEST_HI__in_t TILE_LEGAL_DEST_HI;
+        rapids_engine_regs_16ch__TILE_STALLED__in_t TILE_STALLED;
         rapids_engine_regs_16ch__HIST_DATA__in_t HIST_DATA;
         rapids_engine_regs_16ch__HIST_TOTAL__in_t HIST_TOTAL;
         rapids_mon_regs_16ch__in_t MON;
@@ -1190,6 +1219,22 @@ package rapids_regs_16ch_pkg;
     } rapids_engine_regs_16ch__TILE_ADV_WINDOW__out_t;
 
     typedef struct {
+        logic value;
+    } rapids_engine_regs_16ch__TILE_RESYNC__GO__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_RESYNC__GO__out_t GO;
+    } rapids_engine_regs_16ch__TILE_RESYNC__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } rapids_engine_regs_16ch__TILE_STALL_CYCLES__CYCLES__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__TILE_STALL_CYCLES__CYCLES__out_t CYCLES;
+    } rapids_engine_regs_16ch__TILE_STALL_CYCLES__out_t;
+
+    typedef struct {
         logic [3:0] value;
     } rapids_engine_regs_16ch__PERF_CH_SEL__CH_SEL__out_t;
 
@@ -1636,6 +1681,8 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__PERF_CONFIG__out_t PERF_CONFIG;
         rapids_engine_regs_16ch__OBS_CTRL__out_t OBS_CTRL;
         rapids_engine_regs_16ch__TILE_ADV_WINDOW__out_t TILE_ADV_WINDOW;
+        rapids_engine_regs_16ch__TILE_RESYNC__out_t TILE_RESYNC;
+        rapids_engine_regs_16ch__TILE_STALL_CYCLES__out_t TILE_STALL_CYCLES;
         rapids_engine_regs_16ch__PERF_CH_SEL__out_t PERF_CH_SEL;
         rapids_engine_regs_16ch__HIST_SEL__out_t HIST_SEL;
         rapids_mon_regs_16ch__out_t MON;

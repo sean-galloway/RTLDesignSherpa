@@ -70,6 +70,13 @@ module rapids_cxs_top
     // still at 0 is an illegal destination (SRC.TILE_LEGAL_DEST_LO/HI) and a
     // descriptor to it is refused.
     parameter int TILE_CREDITS     = 0,
+    // Straps toward RAPIDS (TILE_CREDITS; TILE_SPEC 11.9, 11.11, rapids
+    // TASK-027). RAPIDS reserves a landing space of TILE_LAND_FLITS beats per
+    // cell and TILE_DESC_PER_CORE descriptor-intake entries per control core,
+    // and returns their credits on m_tile_credit_*. Both are Hive-level straps:
+    // the cells and cores must be built with the same values.
+    parameter int TILE_LAND_FLITS    = 16,
+    parameter int TILE_DESC_PER_CORE = 2,
     //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
     //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
     //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
@@ -399,7 +406,19 @@ module rapids_cxs_top
     output logic                                    sts_tile_tag_mismatch,   // sticky
     output logic [15:0]                             sts_tile_desc_count,
     output logic [15:0]                             sts_tile_credit_count,
-    output logic [NC-1:0]                           sts_tile_desc_dropped    // sticky per source channel
+    output logic [NC-1:0]                           sts_tile_desc_dropped,   // sticky per source channel
+
+    //-------------------------------------------------------------------------
+    // Straps toward RAPIDS (TILE_CREDITS; idle 0 otherwise): credit returns
+    // to the cells and cores on their own interface, one header-only credit
+    // packet (the 128-bit tile header) per transfer; and the tile's global
+    // quiescent signal, which gates a resync (SRC.TILE_RESYNC) and every
+    // channel reset of either half
+    //-------------------------------------------------------------------------
+    output logic                                    m_tile_credit_valid,
+    input  logic                                    m_tile_credit_ready,
+    output logic [127:0]                            m_tile_credit_data,
+    input  logic                                    tile_quiescent
 );
 
     // Plane-facing AXIS streams and the plane interface (rtl/plane)
@@ -452,6 +471,8 @@ module rapids_cxs_top
         .TILE_HDR                (TILE_HDR),
         .TILE_SRC_COORD          (TILE_SRC_COORD),
         .TILE_CREDITS            (TILE_CREDITS),
+        .TILE_LAND_FLITS         (TILE_LAND_FLITS),
+        .TILE_DESC_PER_CORE      (TILE_DESC_PER_CORE),
         .USE_MON_REGS            (USE_MON_REGS),
         .AR_MAX_OUTSTANDING      (AR_MAX_OUTSTANDING),
         .AW_MAX_OUTSTANDING      (AW_MAX_OUTSTANDING),
@@ -698,7 +719,11 @@ module rapids_cxs_top
         .sts_tile_tag_mismatch           (sts_tile_tag_mismatch),
         .sts_tile_desc_count             (sts_tile_desc_count),
         .sts_tile_credit_count           (sts_tile_credit_count),
-        .sts_tile_desc_dropped           (sts_tile_desc_dropped)
+        .sts_tile_desc_dropped           (sts_tile_desc_dropped),
+        .m_tile_credit_valid             (m_tile_credit_valid),
+        .m_tile_credit_ready             (m_tile_credit_ready),
+        .m_tile_credit_data              (m_tile_credit_data),
+        .tile_quiescent                  (tile_quiescent)
     );
 
     // Sink ingress plane: network -> w_snk_axis_* -> SINK half

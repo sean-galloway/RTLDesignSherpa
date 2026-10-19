@@ -18,6 +18,8 @@
 
 # End-to-end tile credits in the source half (TILE_CREDITS); deps already above
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_credits.sv
+# Stalled-data check on MonBus (TILE_CREDITS)
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_stall_mon.sv
 
 # DUT module
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_src.sv

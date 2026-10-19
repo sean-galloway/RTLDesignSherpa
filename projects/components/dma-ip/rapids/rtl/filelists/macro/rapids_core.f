@@ -33,6 +33,12 @@
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_hdr_rx.sv
 # End-to-end tile credits in the source half (TILE_CREDITS); deps already above
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_credits.sv
+# Straps toward RAPIDS (TILE_CREDITS): landing space, intake queue, credit returns
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_landing.sv
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_desc_intake.sv
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_credit_tx.sv
+# Stalled-data check on MonBus (TILE_CREDITS)
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_stall_mon.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_snk.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_src.sv
 

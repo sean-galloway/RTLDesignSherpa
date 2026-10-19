@@ -85,6 +85,9 @@ Don't override. Generated from: $root
 | 0x2E0| TILE_LEGAL_DEST_LO |     Tile Legal Destinations, Low     |
 | 0x2E4| TILE_CREDIT_STATUS |          Tile Credit Status          |
 | 0x2E8| TILE_LEGAL_DEST_HI |     Tile Legal Destinations, High    |
+| 0x2EC|     TILE_RESYNC    |          Tile Credit Resync          |
+| 0x2F0|  TILE_STALL_CYCLES |      Tile Stalled-Data Threshold     |
+| 0x2F4|    TILE_STALLED    |         Tile Stalled Channels        |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -1315,18 +1318,38 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 
 <p>End-to-end tile credit status (SRC half)</p>
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|  0 | ADV_DONE |   r  |  —  |  — |
-|31:1|   RSVD   |   r  | 0x0 |  — |
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+|  0  |   ADV_DONE   |   r  |  —  |  — |
+|  1  |  RESYNC_BUSY |   r  |  —  |  — |
+|  2  | LAND_OVERRUN |   r  |  —  |  — |
+|  3  |INTAKE_OVERRUN|   r  |  —  |  — |
+| 15:4|     RSVD     |   r  | 0x0 |  — |
+|31:16|   RET_COUNT  |   r  |  —  |  — |
 
 #### ADV_DONE field
 
 <p>The advertisement window has closed and TILE_LEGAL_DEST_LO/HI are valid. Tile descriptors wait until it is 1</p>
 
+#### RESYNC_BUSY field
+
+<p>A resync (TILE_RESYNC) is waiting for the tile to be quiescent, or its set packets are still going out (rapids TASK-027)</p>
+
+#### LAND_OVERRUN field
+
+<p>Sticky until reset: a cell sent past its landing-space strap (TILE_LAND_FLITS); the sink port waited for room. A strap contract violation by the sender</p>
+
+#### INTAKE_OVERRUN field
+
+<p>Sticky until reset: a control core sent a desc packet past its intake strap (TILE_DESC_PER_CORE); the descriptor was dropped and its entry returned</p>
+
 #### RSVD field
 
 <p>Reserved</p>
+
+#### RET_COUNT field
+
+<p>Credit packets RAPIDS has sent to the cells and cores (returns and resync sets); 16-bit, wraps</p>
 
 ### TILE_LEGAL_DEST_HI register
 
@@ -1343,6 +1366,64 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 #### LEGAL field
 
 <p>Bit i: destination index 32 + i is legal</p>
+
+### TILE_RESYNC register
+
+- Absolute Address: 0x2EC
+- Base Offset: 0x2EC
+- Size: 0x4
+
+<p>Restores every legal cell's and control core's strap after a root failover (TILE_SPEC 11.10; SRC half). RAPIDS sends each a set credit packet: a cell its TILE_LAND_FLITS, a core its TILE_DESC_PER_CORE. Taken only while the tile is quiescent (tile_quiescent); a request made before then waits for it.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    GO    |   w  | 0x0 |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### GO field
+
+<p>Write 1 to request a resync</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_STALL_CYCLES register
+
+- Absolute Address: 0x2F0
+- Base Offset: 0x2F0
+- Size: 0x4
+
+<p>Stalled-data checks (TILE_SPEC 11.9; SRC half, used by both): data that has not moved for this many cycles raises a MonBus error packet (PktTypeError, event RAPIDS_EVENT_STALL) -- sink SRAM data not written out, a source channel with reads outstanding and no R beat. The default is 10 us at 100 MHz. TILE_CREDITS = 1 only.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  CYCLES  |  rw  |0x3E8|  — |
+
+#### CYCLES field
+
+<p>Threshold in cycles; 0 turns the checks off</p>
+
+### TILE_STALLED register
+
+- Absolute Address: 0x2F4
+- Base Offset: 0x2F4
+- Size: 0x4
+
+<p>Per channel of this half: its data has stopped moving past TILE_STALL_CYCLES (the current episode; clears when the data moves or drains). TILE_CREDITS = 1 only.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|    CH    |   r  |  —  |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### CH field
+
+<p>Bit n: channel n is stalled</p>
+
+#### RSVD field
+
+<p>Reserved</p>
 
 ### PERF_CH_SEL register
 
@@ -2913,6 +2994,9 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 | 0x2E0| TILE_LEGAL_DEST_LO |     Tile Legal Destinations, Low     |
 | 0x2E4| TILE_CREDIT_STATUS |          Tile Credit Status          |
 | 0x2E8| TILE_LEGAL_DEST_HI |     Tile Legal Destinations, High    |
+| 0x2EC|     TILE_RESYNC    |          Tile Credit Resync          |
+| 0x2F0|  TILE_STALL_CYCLES |      Tile Stalled-Data Threshold     |
+| 0x2F4|    TILE_STALLED    |         Tile Stalled Channels        |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -4143,18 +4227,38 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 
 <p>End-to-end tile credit status (SRC half)</p>
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-|  0 | ADV_DONE |   r  |  —  |  — |
-|31:1|   RSVD   |   r  | 0x0 |  — |
+| Bits|  Identifier  |Access|Reset|Name|
+|-----|--------------|------|-----|----|
+|  0  |   ADV_DONE   |   r  |  —  |  — |
+|  1  |  RESYNC_BUSY |   r  |  —  |  — |
+|  2  | LAND_OVERRUN |   r  |  —  |  — |
+|  3  |INTAKE_OVERRUN|   r  |  —  |  — |
+| 15:4|     RSVD     |   r  | 0x0 |  — |
+|31:16|   RET_COUNT  |   r  |  —  |  — |
 
 #### ADV_DONE field
 
 <p>The advertisement window has closed and TILE_LEGAL_DEST_LO/HI are valid. Tile descriptors wait until it is 1</p>
 
+#### RESYNC_BUSY field
+
+<p>A resync (TILE_RESYNC) is waiting for the tile to be quiescent, or its set packets are still going out (rapids TASK-027)</p>
+
+#### LAND_OVERRUN field
+
+<p>Sticky until reset: a cell sent past its landing-space strap (TILE_LAND_FLITS); the sink port waited for room. A strap contract violation by the sender</p>
+
+#### INTAKE_OVERRUN field
+
+<p>Sticky until reset: a control core sent a desc packet past its intake strap (TILE_DESC_PER_CORE); the descriptor was dropped and its entry returned</p>
+
 #### RSVD field
 
 <p>Reserved</p>
+
+#### RET_COUNT field
+
+<p>Credit packets RAPIDS has sent to the cells and cores (returns and resync sets); 16-bit, wraps</p>
 
 ### TILE_LEGAL_DEST_HI register
 
@@ -4171,6 +4275,64 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 #### LEGAL field
 
 <p>Bit i: destination index 32 + i is legal</p>
+
+### TILE_RESYNC register
+
+- Absolute Address: 0x12EC
+- Base Offset: 0x2EC
+- Size: 0x4
+
+<p>Restores every legal cell's and control core's strap after a root failover (TILE_SPEC 11.10; SRC half). RAPIDS sends each a set credit packet: a cell its TILE_LAND_FLITS, a core its TILE_DESC_PER_CORE. Taken only while the tile is quiescent (tile_quiescent); a request made before then waits for it.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |    GO    |   w  | 0x0 |  — |
+|31:1|   RSVD   |   r  | 0x0 |  — |
+
+#### GO field
+
+<p>Write 1 to request a resync</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+### TILE_STALL_CYCLES register
+
+- Absolute Address: 0x12F0
+- Base Offset: 0x2F0
+- Size: 0x4
+
+<p>Stalled-data checks (TILE_SPEC 11.9; SRC half, used by both): data that has not moved for this many cycles raises a MonBus error packet (PktTypeError, event RAPIDS_EVENT_STALL) -- sink SRAM data not written out, a source channel with reads outstanding and no R beat. The default is 10 us at 100 MHz. TILE_CREDITS = 1 only.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|  CYCLES  |  rw  |0x3E8|  — |
+
+#### CYCLES field
+
+<p>Threshold in cycles; 0 turns the checks off</p>
+
+### TILE_STALLED register
+
+- Absolute Address: 0x12F4
+- Base Offset: 0x2F4
+- Size: 0x4
+
+<p>Per channel of this half: its data has stopped moving past TILE_STALL_CYCLES (the current episode; clears when the data moves or drains). TILE_CREDITS = 1 only.</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|    CH    |   r  |  —  |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### CH field
+
+<p>Bit n: channel n is stalled</p>
+
+#### RSVD field
+
+<p>Reserved</p>
 
 ### PERF_CH_SEL register
 

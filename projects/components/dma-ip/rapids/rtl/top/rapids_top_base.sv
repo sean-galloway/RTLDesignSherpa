@@ -109,6 +109,13 @@ module rapids_top_base #(
     // still at 0 is an illegal destination (SRC.TILE_LEGAL_DEST_LO/HI) and a
     // descriptor to it is refused.
     parameter int TILE_CREDITS     = 0,
+    // Straps toward RAPIDS (TILE_CREDITS; TILE_SPEC 11.9, 11.11, rapids
+    // TASK-027). RAPIDS reserves a landing space of TILE_LAND_FLITS beats per
+    // cell and TILE_DESC_PER_CORE descriptor-intake entries per control core,
+    // and returns their credits on m_tile_credit_*. Both are Hive-level straps:
+    // the cells and cores must be built with the same values.
+    parameter int TILE_LAND_FLITS    = 16,
+    parameter int TILE_DESC_PER_CORE = 2,
     //   USE_MON_REGS: whether the MON register windows (SRC and SNK, each at
     //   +0x800 of its 4 KB regfile) are wired to monitor logic. Defaults to
     //   USE_AXI_MONITORS, as in STREAM. When 0 the config blocks strap every
@@ -442,7 +449,19 @@ module rapids_top_base #(
     output logic                                    sts_tile_tag_mismatch,   // sticky
     output logic [15:0]                             sts_tile_desc_count,
     output logic [15:0]                             sts_tile_credit_count,
-    output logic [NC-1:0]                           sts_tile_desc_dropped    // sticky per source channel
+    output logic [NC-1:0]                           sts_tile_desc_dropped,   // sticky per source channel
+
+    //-------------------------------------------------------------------------
+    // Straps toward RAPIDS (TILE_CREDITS; idle 0 otherwise): credit returns
+    // to the cells and cores on their own interface, one header-only credit
+    // packet (the 128-bit tile header) per transfer; and the tile's global
+    // quiescent signal, which gates a resync (SRC.TILE_RESYNC) and every
+    // channel reset of either half
+    //-------------------------------------------------------------------------
+    output logic                                    m_tile_credit_valid,
+    input  logic                                    m_tile_credit_ready,
+    output logic [127:0]                            m_tile_credit_data,
+    input  logic                                    tile_quiescent
 );
 
     // Boundary reset synchronization. The port aresetn is treated as an
@@ -902,6 +921,9 @@ module rapids_top_base #(
     logic [NC-1:0] w_tile_clr_dropped;
     logic          w_tile_adv_done;                    // end-to-end tile credits (TILE_CREDITS)
     logic [rapids_pkg::TILE_NUM_DEST-1:0] w_tile_dest_legal;
+    logic          w_tile_resync_busy, w_tile_land_overrun, w_tile_intake_overrun;   // straps
+    logic [15:0]   w_tile_ret_count;
+    logic [NC-1:0] w_tile_snk_stalled, w_tile_src_stalled;          // stalled-data checks
     logic [`RAPIDS_REGS_NCH-1:0] w_tile_dropped_reg;   // padded to the map for the DROPn glue
     assign w_tile_wr_status  = regblk_req && regblk_req_is_wr && (13'(regblk_addr) == A_SNK_TILE_STATUS);
     assign w_tile_wr_dropped = regblk_req && regblk_req_is_wr && (13'(regblk_addr) == A_SRC_TILE_DROPPED);
@@ -933,6 +955,12 @@ module rapids_top_base #(
         hwif_in.SRC.TILE_LEGAL_DEST_LO.LEGAL.next    = w_tile_dest_legal[31:0];
         hwif_in.SRC.TILE_LEGAL_DEST_HI.LEGAL.next    = w_tile_dest_legal[63:32];
         hwif_in.SRC.TILE_CREDIT_STATUS.ADV_DONE.next = w_tile_adv_done;
+        hwif_in.SRC.TILE_CREDIT_STATUS.RESYNC_BUSY.next    = w_tile_resync_busy;
+        hwif_in.SRC.TILE_CREDIT_STATUS.LAND_OVERRUN.next   = w_tile_land_overrun;
+        hwif_in.SRC.TILE_CREDIT_STATUS.INTAKE_OVERRUN.next = w_tile_intake_overrun;
+        hwif_in.SRC.TILE_CREDIT_STATUS.RET_COUNT.next      = w_tile_ret_count;
+        hwif_in.SRC.TILE_STALLED.CH.next = 16'(w_tile_src_stalled);
+        hwif_in.SNK.TILE_STALLED.CH.next = 16'(w_tile_snk_stalled);
 
         hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next   = src_system_idle;
         hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next  = `RAPIDS_REGS_NCH'(src_desc_engine_idle);
@@ -1628,7 +1656,9 @@ module rapids_top_base #(
         .SHARED_ENGINES       (SHARED_ENGINES),
         .TILE_HDR             (TILE_HDR),
         .TILE_SRC_COORD       (TILE_SRC_COORD),
-        .TILE_CREDITS         (TILE_CREDITS)
+        .TILE_CREDITS         (TILE_CREDITS),
+        .TILE_LAND_FLITS      (TILE_LAND_FLITS),
+        .TILE_DESC_PER_CORE   (TILE_DESC_PER_CORE)
     ) u_core (
         .clk    (aclk),
         .rst_n  (w_aresetn),
@@ -1986,7 +2016,20 @@ module rapids_top_base #(
         // End-to-end tile credits (TILE_CREDITS)
         .cfg_tile_adv_window              (hwif_out.SRC.TILE_ADV_WINDOW.CYCLES.value),
         .sts_tile_adv_done                (w_tile_adv_done),
-        .sts_tile_dest_legal              (w_tile_dest_legal)
+        .sts_tile_dest_legal              (w_tile_dest_legal),
+        // Straps (TILE_CREDITS)
+        .m_tile_credit_valid              (m_tile_credit_valid),
+        .m_tile_credit_ready              (m_tile_credit_ready),
+        .m_tile_credit_data               (m_tile_credit_data),
+        .tile_quiescent                   (tile_quiescent),
+        .tile_resync                      (hwif_out.SRC.TILE_RESYNC.GO.value),
+        .sts_tile_resync_busy             (w_tile_resync_busy),
+        .sts_tile_ret_count               (w_tile_ret_count),
+        .sts_tile_land_overrun            (w_tile_land_overrun),
+        .sts_tile_intake_overrun          (w_tile_intake_overrun),
+        .cfg_tile_stall_cycles            (hwif_out.SRC.TILE_STALL_CYCLES.CYCLES.value),
+        .sts_tile_snk_stalled             (w_tile_snk_stalled),
+        .sts_tile_src_stalled             (w_tile_src_stalled)
     );
 
     //=========================================================================

@@ -107,9 +107,22 @@
 > and a read request to it is refused (`rapids_pkg::tile_dest_is_node`). The scheduler holds tile
 > descriptors until then and refuses one to an illegal destination. `src_data_path_axis` charges each head
 > packet's flits (`tile_acq_*`) before its header or further reservations. Traps: the window counts from
-> RESET, so a TB must advertise during bring-up; the tile coordinate is 15 bits {ext, level, X, Y, Z}; a channel reset does not refund charged credits. The
-> STRAPS toward RAPIDS (16-flit landing space per cell, descriptor-queue entries per core, credit returns; TILE_SPEC
-> 11.9, 11.11; they replaced grants 2026-10-18) are still NOT built (TASK-027 remainder).
+> RESET, so a TB must advertise during bring-up; the tile coordinate is 15 bits {ext, level, X, Y, Z}; a channel reset does not refund charged credits.
+>
+> **Tile straps (2026-10-19, rapids TASK-027 part 2):** the same `TILE_CREDITS` builds the straps TOWARD RAPIDS
+> (TILE_SPEC 11.9-11.11). Sink: `rapids_tile_hdr_rx` (`STRAPS`) tags each data packet with its sender's cell slot
+> (`rapids_pkg::tile_ext_slot`, slot = index - 32) and `rapids_tile_landing` holds `TILE_LAND_FLITS` beats per cell,
+> draining one whole packet at a time only when `snk_data_path_axis` `chan_can_take` (record + `TILE_LAND_FLITS`+4
+> free). Core `desc` packets go through `rapids_tile_desc_intake` (4 x `TILE_DESC_PER_CORE` deep) into
+> `descriptor_engine_shared` with `INJ_HOLD` (a full slot waits, never drops). `rapids_tile_credit_tx` returns every
+> consumed flit / entry as coalesced `add` packets on the top-level `m_tile_credit_*` port (its own interface), and on
+> `SRC.TILE_RESYNC` sends one `set` per legal sender while `tile_quiescent` is high; channel resets of both halves are
+> gated by `tile_quiescent` too. `rapids_tile_stall_mon` on client 2 of each half's MonBus arbiter flags data stuck for
+> `SRC.TILE_STALL_CYCLES` (sink SRAM data with no W beat; source reads with no R beat). Traps: the byte TB drives
+> `tile_quiescent` = 1 and `m_tile_credit_ready` = 1 by default; a data packet must come from a CELL coordinate
+> (ext = 1, level 0) or it is dropped as unsupported; SRAM_DEPTH per channel >= `TILE_LAND_FLITS` + 4; an
+> allocated-but-unfilled SRAM segment is free space, not data (the stall check's first cut got this wrong). Tests:
+> `test_rapids_cxs_top_tile_straps[...]` (`dv/tbclasses/rapids_cxs_tile_straps_tb.py`).
 >
 > **8- and 16-channel builds (2026-10-17, byte tree):** one `rapids_top_base`, two register maps. The
 > 8-channel map is today's hand-written RDL (`rtl/macro_beats/rapids_{regs,engine_regs,mon_regs,regmap}.rdl`,

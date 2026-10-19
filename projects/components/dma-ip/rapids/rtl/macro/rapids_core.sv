@@ -96,6 +96,12 @@ module rapids_core #(
     // credit packets the sink port receives fill the source half's 32
     // destination counters, and a packet leaves only against them.
     parameter int TILE_CREDITS     = 0,
+    // Straps toward RAPIDS (TILE_CREDITS; TILE_SPEC 11.9, 11.11, rapids
+    // TASK-027): a landing space of TILE_LAND_FLITS beats per cell in the sink
+    // half, a descriptor intake queue of TILE_DESC_PER_CORE entries per
+    // control core, and credit returns for both on m_tile_credit_*.
+    parameter int TILE_LAND_FLITS    = 16,
+    parameter int TILE_DESC_PER_CORE = 2,
 
     // Short aliases
     parameter int NC = NUM_CHANNELS,
@@ -529,13 +535,51 @@ module rapids_core #(
     // cycles from reset (CSR), and the result (zero unless TILE_CREDITS)
     input  logic [31:0]                 cfg_tile_adv_window,
     output logic                        sts_tile_adv_done,
-    output logic [rapids_pkg::TILE_NUM_DEST-1:0] sts_tile_dest_legal
+    output logic [rapids_pkg::TILE_NUM_DEST-1:0] sts_tile_dest_legal,
+
+    // Straps (TILE_CREDITS): credit returns to the cells and cores, on their
+    // own interface (header-only credit packets, the 128-bit tile header)
+    output logic                        m_tile_credit_valid,
+    input  logic                        m_tile_credit_ready,
+    output logic [127:0]                m_tile_credit_data,
+    // The tile's global quiescent signal: a resync, and a channel reset of
+    // either half, take effect only while it is high (TILE_SPEC 11.9, 11.10)
+    input  logic                        tile_quiescent,
+    input  logic                        tile_resync,           // CSR pulse
+    output logic                        sts_tile_resync_busy,
+    output logic [15:0]                 sts_tile_ret_count,     // credit packets sent
+    output logic                        sts_tile_land_overrun,  // sticky: a cell overran its strap
+    output logic                        sts_tile_intake_overrun, // sticky: a core overran its strap
+    // Stalled-data checks (TILE_CREDITS; TILE_SPEC 11.9): data that stops
+    // moving for cfg_tile_stall_cycles (0 = off) is a MonBus error -- sink SRAM
+    // data not written out, source reads outstanding with no R beat
+    input  logic [31:0]                 cfg_tile_stall_cycles,
+    output logic [NC-1:0]               sts_tile_snk_stalled,
+    output logic [NC-1:0]               sts_tile_src_stalled
 );
 
-    // Cell-issued descriptors: sink half -> source half (TILE_HDR)
+    // Cell-issued descriptors: sink half -> source half (TILE_HDR); with
+    // TILE_CREDITS through the intake queue (w_intake_*)
     logic                               w_desc_inj_valid;
     logic [CIW-1:0]                     w_desc_inj_ch;
     logic [255:0]                       w_desc_inj_data;
+    logic [rapids_pkg::TILE_EXT_W:0]    w_desc_inj_slot;
+    logic                               w_src_inj_valid, w_src_inj_ready;
+    logic [CIW-1:0]                     w_src_inj_ch;
+    logic [255:0]                       w_src_inj_data;
+    // Straps: credit returns from the sink half, and senders' coordinates
+    logic [1:0]                         w_snk_ret_valid;
+    logic [1:0][rapids_pkg::TILE_EXT_W-1:0] w_snk_ret_slot;
+    logic [1:0]                         w_snk_ret_class;
+    logic                               w_seen_valid;
+    logic [rapids_pkg::TILE_EXT_W-1:0]  w_seen_slot;
+    logic [rapids_pkg::TILE_COORD_W-1:0] w_seen_coord;
+    // Channel resets, gated by the quiescent signal under TILE_CREDITS
+    logic [NC-1:0]                      w_src_ch_reset, w_snk_ch_reset;
+    assign w_src_ch_reset = (TILE_CREDITS != 0) ? (src_cfg_channel_reset & {NC{tile_quiescent}})
+                                                : src_cfg_channel_reset;
+    assign w_snk_ch_reset = (TILE_CREDITS != 0) ? (snk_cfg_channel_reset & {NC{tile_quiescent}})
+                                                : snk_cfg_channel_reset;
     // Credit packets: sink half -> source half (TILE_CREDITS)
     logic                               w_credit_valid;
     logic [rapids_pkg::TILE_COORD_W-1:0] w_credit_src;
@@ -595,7 +639,7 @@ module rapids_core #(
 
         // Configuration
         .cfg_channel_enable         (src_cfg_channel_enable),
-        .cfg_channel_reset          (src_cfg_channel_reset),
+        .cfg_channel_reset          (w_src_ch_reset),
         .cfg_sched_enable           (src_cfg_sched_enable),
         .cfg_sched_timeout_cycles   (src_cfg_sched_timeout_cycles),
         .cfg_sched_timeout_limit    (src_cfg_sched_timeout_limit),
@@ -765,9 +809,10 @@ module rapids_core #(
         .dbg_axis_packets_sent         (src_dbg_axis_packets_sent),
 
         // Cell-issued descriptors from the sink half
-        .desc_inj_valid                (w_desc_inj_valid),
-        .desc_inj_ch                   (w_desc_inj_ch),
-        .desc_inj_data                 (w_desc_inj_data),
+        .desc_inj_valid                (w_src_inj_valid),
+        .desc_inj_ch                   (w_src_inj_ch),
+        .desc_inj_data                 (w_src_inj_data),
+        .desc_inj_ready                (w_src_inj_ready),
         .desc_inj_dropped              (sts_tile_desc_dropped),
         .desc_inj_dropped_clr          (tile_clr_desc_dropped),
         .credit_valid                  (w_credit_valid),
@@ -777,7 +822,9 @@ module rapids_core #(
         .credit_class                  (w_credit_class),
         .cfg_tile_adv_window           (cfg_tile_adv_window),
         .sts_tile_adv_done             (sts_tile_adv_done),
-        .sts_tile_dest_legal           (sts_tile_dest_legal)
+        .sts_tile_dest_legal           (sts_tile_dest_legal),
+        .cfg_tile_stall_cycles         (cfg_tile_stall_cycles),
+        .sts_tile_stalled              (sts_tile_src_stalled)
     );
 
     //=========================================================================
@@ -807,7 +854,9 @@ module rapids_core #(
         .USE_AXI_MONITORS       (USE_AXI_MONITORS),
         .GEN_MON                (GEN_MON),
         .SHARED_ENGINES         (SHARED_ENGINES),
-        .TILE_HDR               (TILE_HDR)
+        .TILE_HDR               (TILE_HDR),
+        .TILE_CREDITS           (TILE_CREDITS),
+        .TILE_LAND_FLITS        (TILE_LAND_FLITS)
     ) u_snk (
         .clk                        (clk),
         .rst_n                      (rst_n),
@@ -819,7 +868,7 @@ module rapids_core #(
 
         // Configuration
         .cfg_channel_enable         (snk_cfg_channel_enable),
-        .cfg_channel_reset          (snk_cfg_channel_reset),
+        .cfg_channel_reset          (w_snk_ch_reset),
         .cfg_sched_enable           (snk_cfg_sched_enable),
         .cfg_sched_timeout_cycles   (snk_cfg_sched_timeout_cycles),
         .cfg_sched_timeout_limit    (snk_cfg_sched_timeout_limit),
@@ -1000,6 +1049,16 @@ module rapids_core #(
         .desc_inj_valid                (w_desc_inj_valid),
         .desc_inj_ch                   (w_desc_inj_ch),
         .desc_inj_data                 (w_desc_inj_data),
+        .desc_inj_slot                 (w_desc_inj_slot),
+        .tile_ret_valid                (w_snk_ret_valid),
+        .tile_ret_slot                 (w_snk_ret_slot),
+        .tile_ret_class                (w_snk_ret_class),
+        .tile_seen_valid               (w_seen_valid),
+        .tile_seen_slot                (w_seen_slot),
+        .tile_seen_coord               (w_seen_coord),
+        .sts_tile_land_overrun         (sts_tile_land_overrun),
+        .cfg_tile_stall_cycles         (cfg_tile_stall_cycles),
+        .sts_tile_stalled              (sts_tile_snk_stalled),
         .credit_valid                  (w_credit_valid),
         .credit_src                    (w_credit_src),
         .credit_op                     (w_credit_op),
@@ -1012,6 +1071,76 @@ module rapids_core #(
         .tile_clr_unsupported          (tile_clr_unsupported),
         .tile_clr_tag_mismatch         (tile_clr_tag_mismatch)
     );
+
+    //=========================================================================
+    // Straps toward RAPIDS (TILE_CREDITS): the descriptor intake queue and
+    // the credit returns
+    //=========================================================================
+    generate
+    if (TILE_CREDITS != 0) begin : g_straps
+        logic                              w_in_ret_valid, w_in_drop_valid;
+        logic [rapids_pkg::TILE_EXT_W-1:0] w_in_ret_slot, w_in_drop_slot;
+
+        rapids_tile_desc_intake #(
+            .NUM_CHANNELS (NC),
+            .DEPTH        (rapids_pkg::TILE_NUM_CORES * TILE_DESC_PER_CORE)
+        ) u_tile_desc_intake (
+            .clk            (clk),
+            .rst_n          (rst_n),
+            .in_valid       (w_desc_inj_valid),
+            .in_ch          (w_desc_inj_ch),
+            .in_data        (w_desc_inj_data),
+            .in_slot        (w_desc_inj_slot),
+            .out_valid      (w_src_inj_valid),
+            .out_ready      (w_src_inj_ready),
+            .out_ch         (w_src_inj_ch),
+            .out_data       (w_src_inj_data),
+            .ret_valid      (w_in_ret_valid),
+            .ret_slot       (w_in_ret_slot),
+            .drop_ret_valid (w_in_drop_valid),
+            .drop_ret_slot  (w_in_drop_slot),
+            .sts_overrun    (sts_tile_intake_overrun)
+        );
+
+        rapids_tile_credit_tx #(
+            .LAND_FLITS    (TILE_LAND_FLITS),
+            .DESC_PER_CORE (TILE_DESC_PER_CORE),
+            .SRC_COORD     (TILE_SRC_COORD),
+            .NUM_EV        (4)
+        ) u_tile_credit_tx (
+            .clk             (clk),
+            .rst_n           (rst_n),
+            .ev_valid        ({w_in_drop_valid, w_in_ret_valid, w_snk_ret_valid}),
+            .ev_slot         ({w_in_drop_slot, w_in_ret_slot, w_snk_ret_slot}),
+            .ev_class        ({1'b1, 1'b1, w_snk_ret_class}),
+            .seen_valid      (w_seen_valid),
+            .seen_slot       (w_seen_slot),
+            .seen_coord      (w_seen_coord),
+            .resync_req      (tile_resync),
+            .quiescent       (tile_quiescent),
+            .ext_legal       (sts_tile_dest_legal[rapids_pkg::TILE_NUM_DEST-1:rapids_pkg::TILE_EXT_SLOTS]),
+            .m_credit_valid  (m_tile_credit_valid),
+            .m_credit_ready  (m_tile_credit_ready),
+            .m_credit_data   (m_tile_credit_data),
+            .sts_resync_busy (sts_tile_resync_busy),
+            .sts_ret_count   (sts_tile_ret_count)
+        );
+    end else begin : g_no_straps
+        // The sink half's pulse goes straight into the descriptor engine's slot
+        assign w_src_inj_valid         = w_desc_inj_valid;
+        assign w_src_inj_ch            = w_desc_inj_ch;
+        assign w_src_inj_data          = w_desc_inj_data;
+        assign m_tile_credit_valid     = 1'b0;
+        assign m_tile_credit_data      = '0;
+        assign sts_tile_resync_busy    = 1'b0;
+        assign sts_tile_ret_count      = '0;
+        assign sts_tile_intake_overrun = 1'b0;
+        logic unused_straps;
+        assign unused_straps = &{1'b0, w_src_inj_ready, w_desc_inj_slot, w_snk_ret_valid, w_snk_ret_slot,
+                                 w_snk_ret_class, w_seen_valid, w_seen_slot, w_seen_coord,
+                                 m_tile_credit_ready, tile_resync};
+    end
+    endgenerate
 
     //=========================================================================
     // Top-level MonBus Arbiter (merges the two half monitor streams)

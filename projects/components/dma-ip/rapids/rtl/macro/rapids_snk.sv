@@ -75,6 +75,12 @@ module rapids_snk #(
     // strips each packet's header and passes cell-issued descriptors out on
     // desc_inj_* to the source half.
     parameter int TILE_HDR         = 0,
+    // Straps toward RAPIDS (TILE_CREDITS = 1, needs TILE_HDR; TILE_SPEC 11.9,
+    // rapids TASK-027): a TILE_LAND_FLITS landing space per cell between the
+    // header decode and the data path, and credit returns for every beat this
+    // half consumes (ret_*, to rapids_tile_credit_tx in rapids_core).
+    parameter int TILE_CREDITS     = 0,
+    parameter int TILE_LAND_FLITS  = 16,
     parameter int MON_MAX_TRANSACTIONS = 16,
 
     // Short aliases
@@ -328,6 +334,21 @@ module rapids_snk #(
     output logic                        desc_inj_valid,
     output logic [CIW-1:0]              desc_inj_ch,
     output logic [255:0]                desc_inj_data,
+    output logic [rapids_pkg::TILE_EXT_W:0] desc_inj_slot,   // TILE_CREDITS: {ok, sender slot}
+    // Straps (TILE_CREDITS): credits this half returns -- [0] the header
+    // decode (headers, dropped beats, refused desc packets), [1] the landing
+    // space (each beat drained) -- and the senders' coordinates
+    output logic [1:0]                  tile_ret_valid,
+    output logic [1:0][rapids_pkg::TILE_EXT_W-1:0] tile_ret_slot,
+    output logic [1:0]                  tile_ret_class,
+    output logic                        tile_seen_valid,
+    output logic [rapids_pkg::TILE_EXT_W-1:0] tile_seen_slot,
+    output logic [rapids_pkg::TILE_COORD_W-1:0] tile_seen_coord,
+    output logic                        sts_tile_land_overrun,    // sticky: a cell overran its strap
+    // Stalled-data check (TILE_CREDITS): sink SRAM data that has not moved
+    // for cfg_tile_stall_cycles (0 = off) is a MonBus error
+    input  logic [31:0]                 cfg_tile_stall_cycles,
+    output logic [NC-1:0]               sts_tile_stalled,
     // Credit packets to the source half's counters (TILE_SPEC 11.9)
     output logic                        credit_valid,
     output logic [rapids_pkg::TILE_COORD_W-1:0] credit_src,
@@ -550,6 +571,9 @@ module rapids_snk #(
         .desc_inj_ch            ('0),
         .desc_inj_data          ('0),
         /* verilator lint_off PINCONNECTEMPTY */
+        .desc_inj_ready         (),
+        /* verilator lint_on PINCONNECTEMPTY */
+        /* verilator lint_off PINCONNECTEMPTY */
         .desc_inj_dropped       (),
         .desc_inj_dropped_clr   ('0),
         /* verilator lint_on PINCONNECTEMPTY */
@@ -616,9 +640,43 @@ module rapids_snk #(
     assign plane_mon_ready         = mon_arb_ready_in[1];
 
     // Client 2: tied-off placeholder (future data-path AXI monitor tap)
-    assign mon_arb_valid_in[2]     = 1'b0;
-    assign mon_arb_packet_in[2]    = '0;
-    assign mon_arb_timestamp_in[2] = '0;
+    generate
+    if (TILE_CREDITS != 0) begin : g_stall_mon
+        // Client 2: the stalled-data check (TILE_SPEC 11.9). A channel's data
+        // moves when a W beat of it is accepted.
+        logic [NC-1:0] w_w_moved;
+        always_comb begin
+            for (int ch = 0; ch < NC; ch++)
+                w_w_moved[ch] = m_axi_wr_wvalid && m_axi_wr_wready && o_active_channel_valid &&
+                                (o_active_channel_id == CIW'(ch));
+        end
+        rapids_tile_stall_mon #(
+            .NUM_CHANNELS (NC),
+            .KIND         (1'b0),
+            .MON_AGENT_ID (16'h000B),
+            .MON_UNIT_ID  (8'(MON_UNIT_ID))
+        ) u_stall_mon (
+            .clk              (clk),
+            .rst_n            (rst_n),
+            .cfg_stall_cycles (cfg_tile_stall_cycles),
+            .pending          (w_chan_has_data),
+            .moved            (w_w_moved),
+            .i_mon_time       ('0),
+            .mon_valid        (mon_arb_valid_in[2]),
+            .mon_ready        (mon_arb_ready_in[2]),
+            .mon_packet       (mon_arb_packet_in[2]),
+            .mon_timestamp    (mon_arb_timestamp_in[2]),
+            .sts_stalled      (sts_tile_stalled)
+        );
+    end else begin : g_no_stall_mon
+        assign mon_arb_valid_in[2]     = 1'b0;
+        assign mon_arb_packet_in[2]    = '0;
+        assign mon_arb_timestamp_in[2] = '0;
+        assign sts_tile_stalled        = '0;
+        logic unused_stall;
+        assign unused_stall = &{1'b0, cfg_tile_stall_cycles, w_chan_has_data};
+    end
+    endgenerate
     // mon_arb_ready_in[2] intentionally unused
 
     monbus_arbiter #(
@@ -671,6 +729,14 @@ module rapids_snk #(
     // AXIS stream, driven straight from the data path.
     //=========================================================================
 
+    initial begin
+        if ((TILE_CREDITS != 0) && (TILE_HDR == 0))
+            $fatal(1, "rapids_snk: TILE_CREDITS = 1 needs TILE_HDR = 1");
+        // the drain admits a landed packet only with TILE_LAND_FLITS + 4 beats free
+        if ((TILE_CREDITS != 0) && (SD < TILE_LAND_FLITS + 4))
+            $fatal(1, "rapids_snk: SRAM_DEPTH (per channel) must be >= TILE_LAND_FLITS + 4");
+    end
+
     //=========================================================================
     // Tile header decode (TILE_HDR): between the plane and the data path
     //=========================================================================
@@ -682,6 +748,19 @@ module rapids_snk #(
     logic [AXIS_USER_WIDTH-1:0] w_dp_tuser;
     logic                       w_dp_tvalid;
     logic                       w_dp_tready;
+    // Header decode output (before the landing space, TILE_CREDITS)
+    logic [DW-1:0]              w_hx_tdata;
+    logic [SW-1:0]              w_hx_tstrb;
+    logic                       w_hx_tlast;
+    logic [AXIS_ID_WIDTH-1:0]   w_hx_tid;
+    logic [AXIS_DEST_WIDTH-1:0] w_hx_tdest;
+    logic [AXIS_USER_WIDTH-1:0] w_hx_tuser;
+    logic                       w_hx_tvalid;
+    logic                       w_hx_tready;
+    logic [rapids_pkg::TILE_EXT_W-2:0] w_hx_tsender;
+    logic [rapids_pkg::TILE_EXT_W-2:0] w_land_ret_slot;
+    logic [NC-1:0]              w_chan_can_take;
+    logic [NC-1:0]              w_chan_has_data;
 
     generate
     if (TILE_HDR != 0) begin : g_tile_hdr
@@ -690,7 +769,8 @@ module rapids_snk #(
             .DATA_WIDTH      (DW),
             .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),
             .AXIS_DEST_WIDTH (AXIS_DEST_WIDTH),
-            .AXIS_USER_WIDTH (AXIS_USER_WIDTH)
+            .AXIS_USER_WIDTH (AXIS_USER_WIDTH),
+            .STRAPS          (TILE_CREDITS != 0)
         ) u_tile_hdr_rx (
             .clk              (clk),
             .rst_n            (rst_n),
@@ -702,17 +782,25 @@ module rapids_snk #(
             .s_axis_tuser     (s_axis_tuser),
             .s_axis_tvalid    (s_axis_tvalid),
             .s_axis_tready    (s_axis_tready),
-            .m_axis_tdata     (w_dp_tdata),
-            .m_axis_tstrb     (w_dp_tstrb),
-            .m_axis_tlast     (w_dp_tlast),
-            .m_axis_tid       (w_dp_tid),
-            .m_axis_tdest     (w_dp_tdest),
-            .m_axis_tuser     (w_dp_tuser),
-            .m_axis_tvalid    (w_dp_tvalid),
-            .m_axis_tready    (w_dp_tready),
+            .m_axis_tdata     (w_hx_tdata),
+            .m_axis_tstrb     (w_hx_tstrb),
+            .m_axis_tlast     (w_hx_tlast),
+            .m_axis_tid       (w_hx_tid),
+            .m_axis_tdest     (w_hx_tdest),
+            .m_axis_tuser     (w_hx_tuser),
+            .m_axis_tvalid    (w_hx_tvalid),
+            .m_axis_tready    (w_hx_tready),
+            .m_axis_tsender   (w_hx_tsender),
             .desc_inj_valid   (desc_inj_valid),
             .desc_inj_ch      (desc_inj_ch),
             .desc_inj_data    (desc_inj_data),
+            .desc_inj_slot    (desc_inj_slot),
+            .ret_valid        (tile_ret_valid[0]),
+            .ret_slot         (tile_ret_slot[0]),
+            .ret_class        (tile_ret_class[0]),
+            .seen_valid       (tile_seen_valid),
+            .seen_slot        (tile_seen_slot),
+            .seen_coord       (tile_seen_coord),
             .credit_valid     (credit_valid),
             .credit_src       (credit_src),
             .credit_op        (credit_op),
@@ -725,6 +813,61 @@ module rapids_snk #(
             .sts_desc_count   (sts_tile_desc_count),
             .sts_credit_count (sts_tile_credit_count)
         );
+
+        if (TILE_CREDITS != 0) begin : g_landing
+            // Landing space per cell; the header decode has taken the headers
+            rapids_tile_landing #(
+                .NUM_CHANNELS    (NC),
+                .DATA_WIDTH      (DW),
+                .AXIS_ID_WIDTH   (AXIS_ID_WIDTH),
+                .AXIS_DEST_WIDTH (AXIS_DEST_WIDTH),
+                .AXIS_USER_WIDTH (AXIS_USER_WIDTH),
+                .LAND_FLITS      (TILE_LAND_FLITS)
+            ) u_tile_landing (
+                .clk                (clk),
+                .rst_n              (rst_n),
+                .cfg_channel_enable (cfg_channel_enable),
+                .s_axis_tdata       (w_hx_tdata),
+                .s_axis_tstrb       (w_hx_tstrb),
+                .s_axis_tlast       (w_hx_tlast),
+                .s_axis_tid         (w_hx_tid),
+                .s_axis_tdest       (w_hx_tdest),
+                .s_axis_tuser       (w_hx_tuser),
+                .s_axis_tsender     (w_hx_tsender),
+                .s_axis_tvalid      (w_hx_tvalid),
+                .s_axis_tready      (w_hx_tready),
+                .m_axis_tdata       (w_dp_tdata),
+                .m_axis_tstrb       (w_dp_tstrb),
+                .m_axis_tlast       (w_dp_tlast),
+                .m_axis_tid         (w_dp_tid),
+                .m_axis_tdest       (w_dp_tdest),
+                .m_axis_tuser       (w_dp_tuser),
+                .m_axis_tvalid      (w_dp_tvalid),
+                .m_axis_tready      (w_dp_tready),
+                .chan_can_take      (w_chan_can_take),
+                .ret_valid          (tile_ret_valid[1]),
+                .ret_slot           (w_land_ret_slot),
+                .sts_overrun        (sts_tile_land_overrun)
+            );
+            assign tile_ret_slot[1]  = rapids_pkg::TILE_EXT_W'(w_land_ret_slot);
+            assign tile_ret_class[1] = 1'b0;
+        end else begin : g_no_landing
+            assign w_dp_tdata     = w_hx_tdata;
+            assign w_dp_tstrb     = w_hx_tstrb;
+            assign w_dp_tlast     = w_hx_tlast;
+            assign w_dp_tid       = w_hx_tid;
+            assign w_dp_tdest     = w_hx_tdest;
+            assign w_dp_tuser     = w_hx_tuser;
+            assign w_dp_tvalid    = w_hx_tvalid;
+            assign w_hx_tready    = w_dp_tready;
+            assign tile_ret_valid[1] = 1'b0;
+            assign tile_ret_slot[1]  = '0;
+            assign tile_ret_class[1] = 1'b0;
+            assign sts_tile_land_overrun = 1'b0;
+            logic unused_land;
+            assign unused_land = &{1'b0, w_hx_tsender, w_chan_can_take, w_land_ret_slot};
+            assign w_land_ret_slot = '0;
+        end
     end else begin : g_no_tile_hdr
         assign w_dp_tdata     = s_axis_tdata;
         assign w_dp_tstrb     = s_axis_tstrb;
@@ -737,6 +880,28 @@ module rapids_snk #(
         assign desc_inj_valid = 1'b0;
         assign desc_inj_ch    = '0;
         assign desc_inj_data  = '0;
+        assign desc_inj_slot  = '0;
+        assign tile_ret_valid = '0;
+        assign tile_ret_slot  = '0;
+        assign tile_ret_class = '0;
+        assign tile_seen_valid = 1'b0;
+        assign tile_seen_slot  = '0;
+        assign tile_seen_coord = '0;
+        assign sts_tile_land_overrun = 1'b0;
+        assign w_land_ret_slot = '0;
+        assign w_hx_tsender    = '0;
+        assign w_hx_tdata  = '0;
+        assign w_hx_tstrb  = '0;
+        assign w_hx_tlast  = 1'b0;
+        assign w_hx_tid    = '0;
+        assign w_hx_tdest  = '0;
+        assign w_hx_tuser  = '0;
+        assign w_hx_tvalid = 1'b0;
+        assign w_hx_tready = 1'b0;
+        logic unused_hx;
+        assign unused_hx = &{1'b0, w_hx_tdata, w_hx_tstrb, w_hx_tlast, w_hx_tid, w_hx_tdest,
+                             w_hx_tuser, w_hx_tvalid, w_hx_tready, w_hx_tsender, w_land_ret_slot,
+                             w_chan_can_take};
         assign credit_valid   = 1'b0;
         assign credit_src     = '0;
         assign credit_op      = 1'b0;
@@ -764,7 +929,10 @@ module rapids_snk #(
         .B_PHASE_FIFO_DEPTH (B_PHASE_FIFO_DEPTH),
         .AXIS_ID_WIDTH      (AXIS_ID_WIDTH),
         .AXIS_DEST_WIDTH    (AXIS_DEST_WIDTH),
-        .AXIS_USER_WIDTH    (AXIS_USER_WIDTH)
+        .AXIS_USER_WIDTH    (AXIS_USER_WIDTH),
+        // a landed packet (at most TILE_LAND_FLITS beats, plus a spill) and
+        // what the previous one may still hold in the shifter
+        .TAKE_ROOM          ((TILE_CREDITS != 0) ? TILE_LAND_FLITS + 4 : 0)
     ) u_sink_data_path (
         .clk                (clk),
         .rst_n              (rst_n),
@@ -783,6 +951,8 @@ module rapids_snk #(
         .s_axis_tuser       (w_dp_tuser),
         .s_axis_tvalid      (w_dp_tvalid),
         .s_axis_tready      (w_dp_tready),
+        .chan_can_take      (w_chan_can_take),
+        .chan_has_data      (w_chan_has_data),
 
         // Scheduler Interface
         .sched_wr_valid     (sched_wr_valid),

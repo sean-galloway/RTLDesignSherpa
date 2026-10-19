@@ -130,6 +130,10 @@ one-descriptor slot:
   is held in reset, or of type EXT (its second chunk has no way in) is dropped
   and sets the channel's sticky drop bit. A drop is not a descriptor error:
   the channel and the work it holds carry on.
+- **Hold (`INJ_HOLD`, `TILE_CREDITS` = 1).** `inj_*` becomes a valid/ready
+  handshake from the descriptor intake queue (below). A descriptor for a channel
+  whose slot is full waits (`inj_ready` low) instead of being dropped; one for a
+  channel in reset, or an EXT one, is still taken and dropped.
 
 ## End-to-End Credits: `rapids_tile_credits` (`TILE_CREDITS`)
 
@@ -192,9 +196,99 @@ Counters are per destination, so concurrent channels to one cell share its
 buffer.
 
 **Limits.** A channel reset that discards a packet whose credits are already
-charged does not refund them. The straps toward RAPIDS (a 16-flit landing space
-per cell, descriptor-queue entries per control core, and the credit returns
-for both; TILE_SPEC 11.9, 11.11) are not built: rapids TASK-027.
+charged does not refund them. With `TILE_CREDITS` a channel reset acts only
+while the tile is quiescent (below), when no packet is in flight against a
+charge, so the case does not arise under the quiescent rule.
+
+## Straps Toward RAPIDS (`TILE_CREDITS`)
+
+What a cell or control core sends into the sink port is charged against a strap
+RAPIDS reserves, and RAPIDS returns the credit as it consumes (TILE_SPEC 11.9,
+11.11). The straps are fixed by construction, not granted: a sender starts
+from its strap after reset. They are Hive-level parameters that the cells and
+cores must be built with too.
+
+| Sender (external slot = index - 32) | Strap | Reserved in RAPIDS | Returned when |
+|---|---|---|---|
+| Cell, slots 0-15 | `TILE_LAND_FLITS` flits (default 16), header included | A landing space of `TILE_LAND_FLITS` beats | Each beat leaves the landing space; the header when it is decoded |
+| Control core, slots 16-19 | `TILE_DESC_PER_CORE` entries (default 2), credit class 1 | A share of the intake queue (`4 x TILE_DESC_PER_CORE` deep) | The descriptor moves into the descriptor queue |
+
+: Table 3.14.4: Straps toward RAPIDS
+
+**Header decode (`rapids_tile_hdr_rx`, `STRAPS`).** The sender is the header's
+source coordinate as an external slot (`rapids_pkg::tile_ext_slot`). Data
+payload goes on with the sender's cell slot to the landing space; the header
+flit returns at once. A packet the decode drops (a read request into RAPIDS, a
+reserved `ptype`) returns every beat. A `desc` packet refused at its header
+returns its entry. A data packet from a sender with no landing space (not a
+cell) is dropped and flagged `UNSUPPORTED`, and returns nothing: it was charged
+to no strap. Credit packets are never charged.
+
+**Landing space (`rapids_tile_landing`, in `rapids_snk`).** One FIFO of
+`TILE_LAND_FLITS` beats per cell, holding payload by sender. A cell under its
+strap can never fill its FIFO, so the sink port never waits on a landing space.
+The drain moves one whole packet at a time into `snk_data_path_axis`,
+round-robin over the cells. A packet is a candidate once its `tlast` beat has
+landed, so the drain never waits on the network, and only when its channel can
+take all of it now: `snk_data_path_axis` `chan_can_take` says the channel is out
+of reset, has the packet's record (its descriptor is running), no spill is
+waiting, and `TILE_LAND_FLITS + 4` beats are free (the packet, a spill and what
+the previous packet may still hold in the shifter). A packet for a disabled
+channel is drained and thrown away. A cell whose channel has no descriptor yet
+holds only its own landing space; every other cell's data keeps flowing. Each
+beat that leaves, delivered or thrown away, returns one flit. A beat arriving
+for a full landing space (a cell past its strap) waits and sets
+`TILE_CREDIT_STATUS.LAND_OVERRUN`. The per-channel sink SRAM must be at least
+`TILE_LAND_FLITS + 4` beats (an elaboration check).
+
+**Descriptor intake (`rapids_tile_desc_intake`, in `rapids_core`).** `desc`
+packets go into a FIFO `4 x TILE_DESC_PER_CORE` deep with their channel and
+sender, and leave in order through the `INJ_HOLD` handshake into
+`descriptor_engine_shared`. A descriptor for a busy channel at the head waits
+there; the schedulers' two-deep descriptor skid keeps that short. When an entry
+leaves, its class-1 credit returns. A `desc` arriving at a full queue (a core
+past its strap) is dropped, sets `TILE_CREDIT_STATUS.INTAKE_OVERRUN`, and still
+returns its entry: no path consumes a descriptor silently.
+
+**Credit returns (`rapids_tile_credit_tx`, in `rapids_core`).** Pending returns
+are kept per external slot and class and taken round-robin into one output
+register as soon as it is free; whatever arrives while a return waits is
+coalesced into that slot's next one, and nothing is held back to build a batch.
+A return is a header-only credit packet (`ptype` = `credit`, `op` = `add`, count
+in the length, class in target bits [1:0]) addressed to the sender's source
+coordinate as last seen in a header, on its own interface, `m_tile_credit_*`
+(valid/ready, the 128-bit header): a return never waits behind data.
+`TILE_CREDIT_STATUS.RET_COUNT` counts them.
+
+**Resync (TILE_SPEC 11.10).** A write of `SRC.TILE_RESYNC.GO` requests one; it
+is taken only while the top-level `tile_quiescent` input is high and waits for
+it otherwise (`TILE_CREDIT_STATUS.RESYNC_BUSY`). It then sends one `set` per
+legal sender in the saved mask: `TILE_LAND_FLITS` (class 0) to each cell and
+`TILE_DESC_PER_CORE` (class 1) to each control core, replacing that slot's
+pending `add`. Sets go before adds. RAPIDS sends one `set` per sender rather
+than the multicast TILE_SPEC 11.10 describes: it has no multicast header to
+build. The answering advertisements refill RAPIDS's own counters as at boot.
+
+**Quiescent gating.** With `TILE_CREDITS`, a channel reset of either half
+(`CHANNEL_RESET`) acts only while `tile_quiescent` is high; a reset bit written
+while it is low has no effect until it rises.
+
+**Stalled-data checks (`rapids_tile_stall_mon`).** Data that stops moving is a
+monitor error (TILE_SPEC 11.9, hazard rules). Each half carries one check, on
+the spare client 2 of its MonBus arbiter:
+
+| Half | Pending | Moves on | Agent |
+|---|---|---|---|
+| Sink | The channel's sink SRAM holds data not yet written out (an allocated, unfilled segment does not count) | A W beat of the channel | `0x0B` |
+| Source | The channel has read bursts outstanding (AR accepted, RLAST not seen; ARID low bits = channel) | An R beat for the channel | `0x0C` |
+
+: Table 3.14.5: Stalled-data checks
+
+A channel pending for `SRC.TILE_STALL_CYCLES` cycles (default 1000, 10 us at
+100 MHz; 0 turns both off) with no movement raises one error packet
+(`PktTypeError`, `PROTOCOL_CORE`, `RAPIDS_EVENT_STALL`; event data bit 32 = 0
+sink / 1 source, bits [31:0] the threshold) and sets its bit in that half's
+`TILE_STALLED`, and raises nothing more until the data moves or drains.
 
 ## Ordering Across the Fabric (open: delta DELTA-013)
 
@@ -211,7 +305,7 @@ today:
 | O2 | Credit `set` vs `add` | A resync `set` (TILE_SPEC 11.10) can overtake, or be overtaken by, an `add` sent before it, and the counter ends wrong | A sequence or epoch on credit packets; an `add` older than the last `set` is discarded |
 | O3 | Write, then a dependent packet | A cell's data write and a later packet that depends on it (a `desc` whose source is that data, a flag) can arrive in either order | Completion is signalled (the credit return says the data was consumed), never implied by send order |
 
-: Table 3.14.4: RAPIDS ordering hazards under multi-path routing
+: Table 3.14.6: RAPIDS ordering hazards under multi-path routing
 
 The flits of one packet stay in order, so the header-then-payload framing of
 the source and sink halves is unaffected.
@@ -220,7 +314,10 @@ the source and sink halves is unaffected.
 
 `SNK.TILE_STATUS` (`UNSUPPORTED`, `TAG_MISMATCH`), `SRC.TILE_DESC_DROPPED`
 (`DROPn`) and `SNK.TILE_COUNTS`, plus, for `TILE_CREDITS`, `SRC.TILE_ADV_WINDOW`
-(RW), `SRC.TILE_LEGAL_DEST_LO` / `_HI` and `SRC.TILE_CREDIT_STATUS` (see the Register Map). The W1C fields are live
+(RW), `SRC.TILE_LEGAL_DEST_LO` / `_HI`, `SRC.TILE_CREDIT_STATUS` (`ADV_DONE`,
+`RESYNC_BUSY`, `LAND_OVERRUN`, `INTAKE_OVERRUN`, `RET_COUNT`), `SRC.TILE_RESYNC`
+(`GO`, singlepulse), `SRC.TILE_STALL_CYCLES` (RW) and `SRC` / `SNK.TILE_STALLED`
+(see the Register Map). The W1C fields are live
 mirrors of stickies owned by the RTL. `rapids_top_base` decodes a write to
 either register from the register block's own request and sends a one-cycle
 clear (`wr_data & wr_biten`) to the owner, where a same-cycle event wins. The
@@ -245,8 +342,17 @@ with `TILE_HDR` = 1:
 | `tile_credits[shared_counter]` | Two channels to one cell share its counter (also on `rapids_16ch_cxs_top`) |
 | `tile_credits[node]` | `cfg` writes to an unadvertised tetrad node go out uncharged; its control core stays illegal; a read request to the node is refused |
 | `tile_credits[illegal]` | Descriptors to an unadvertised cell or core, a zero-advertised cell, an out-of-map or the tile-I/O destination are refused; one to a legal cell and one to that cell's node still go |
+| `tile_straps[land]` | A cell streams past its strap into one channel: every packet lands, the cell keeps going only on the returns, every flit (header included) comes back, the first promptly |
+| `tile_straps[isolation]` | A cell whose channel has no descriptor holds only its own landing space: another cell's packets land meanwhile; the waiting data drains once the descriptors arrive (also on `rapids_16ch_cxs_top`) |
+| `tile_straps[discard]` | A disabled channel's data, a read request into RAPIDS and a reserved `ptype` are consumed and return every flit; a core's data packet returns none; the channel works afterwards |
+| `tile_straps[coalesce]` | Returns held by `m_tile_credit_ready` leave as the held one plus one coalesced `add` |
+| `tile_straps[intake]` | Core descriptors under the strap all run, in order per channel, none dropped, one class-1 entry back each |
+| `tile_straps[intake_overrun]` | A flood past the intake queue: `INTAKE_OVERRUN`, every entry returned, the descriptor queue drops none, the survivors run in send order |
+| `tile_straps[resync]` | A resync waits for `tile_quiescent`, then sets exactly the legal cells (`TILE_LAND_FLITS`) and core (`TILE_DESC_PER_CORE`) |
+| `tile_straps[quiescent_reset]` | A channel reset written while not quiescent does nothing; written while quiescent it clears the channel's error |
+| `tile_straps[stall_sink]` / `[stall_source]` | Held WREADY / late R data raise one MonBus stall record (agent, channel, kind, threshold) and the `TILE_STALLED` bit, which clears when the data moves; the data then lands / goes out correctly |
 
-: Table 3.14.5: Tile Header Test Cells
+: Table 3.14.7: Tile Header Test Cells
 
 `test_descriptor_engine_shared.py` `inject_owed_beat` covers the owed-beat
 guard. Every cell was mutation-checked.

@@ -268,6 +268,37 @@ package rapids_pkg;
         return h;
     endfunction
 
+    // Straps toward RAPIDS (TILE_CREDITS = 1; TILE_SPEC 11.9, 11.11; rapids
+    // TASK-027). What a cell or core sends into the sink port is charged
+    // against a strap RAPIDS reserves, and RAPIDS returns the credit as it
+    // consumes. A sender is named by its external slot, the destination index
+    // less 32: slots 0-15 are the cells (each with a TILE_LAND_FLITS landing
+    // space, class 0), 16-19 the tetrads' control cores (descriptor-intake
+    // entries, class 1), the rest spare.
+    localparam int TILE_EXT_SLOTS   = 32;
+    localparam int TILE_EXT_W       = 5;
+    localparam int TILE_NUM_CELLS   = 16;
+    localparam int TILE_NUM_CORES   = 4;
+    localparam int TILE_CORE_SLOT0  = 16;
+
+    // The external slot of a source coordinate: {ok, slot}. ok = 0 for a
+    // coordinate with no index or an internal (node) ID.
+    function automatic logic [TILE_EXT_W:0] tile_ext_slot(
+        input logic [TILE_COORD_W-1:0] coord);
+        logic [TILE_DEST_W:0] m;
+        m = tile_dest_index(coord);
+        return {m[TILE_DEST_W] && m[TILE_DEST_W-1], m[TILE_EXT_W-1:0]};
+    endfunction
+
+    // The coordinate of an external slot (the inverse of tile_ext_slot), in
+    // layer z: a cell {1, 0, X, Y, z}, a control core {1, 1, X, Y, z}.
+    function automatic logic [TILE_COORD_W-1:0] tile_ext_coord(
+        input logic [TILE_EXT_W-1:0] slot, input logic [3:0] z);
+        if (slot < TILE_EXT_W'(TILE_NUM_CELLS))
+            return {1'b1, TILE_LEVEL_CELL, 2'b00, slot[1:0], 2'b00, slot[3:2], z};
+        return {1'b1, TILE_LEVEL_TETRAD, 3'b000, slot[0], 3'b000, slot[1], z};
+    endfunction
+
     //=========================================================================
     // Channel State Enumeration (ONE-HOT ENCODED - for Phase 1 scheduler)
     //=========================================================================
@@ -313,6 +344,7 @@ package rapids_pkg;
     parameter logic [7:0] RAPIDS_EVENT_WRITE_COMPLETE = 8'h05;  // Write phase completed
     parameter logic [7:0] RAPIDS_EVENT_CHAIN_FETCH    = 8'h06;  // Chained descriptor fetch
     parameter logic [7:0] RAPIDS_EVENT_IRQ            = 8'h07;  // Interrupt request generated
+    parameter logic [7:0] RAPIDS_EVENT_STALL          = 8'h08;  // Buffered data stopped moving (tile, TASK-027)
     parameter logic [7:0] RAPIDS_EVENT_ERROR          = 8'h0F;  // Error occurred
 
     //=========================================================================

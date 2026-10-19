@@ -829,10 +829,34 @@ regfile rapids_engine_regs_16ch {
         } ADV_DONE[0:0];
 
         field {
+            desc = "A resync (TILE_RESYNC) is waiting for the tile to be quiescent, or its set packets are still going out (rapids TASK-027)";
+            sw = r;
+            hw = w;
+        } RESYNC_BUSY[1:1];
+
+        field {
+            desc = "Sticky until reset: a cell sent past its landing-space strap (TILE_LAND_FLITS); the sink port waited for room. A strap contract violation by the sender";
+            sw = r;
+            hw = w;
+        } LAND_OVERRUN[2:2];
+
+        field {
+            desc = "Sticky until reset: a control core sent a desc packet past its intake strap (TILE_DESC_PER_CORE); the descriptor was dropped and its entry returned";
+            sw = r;
+            hw = w;
+        } INTAKE_OVERRUN[3:3];
+
+        field {
             desc = "Reserved";
             sw = r;
             hw = na;
-        } RSVD[31:1] = 31'h0;
+        } RSVD[15:4] = 12'h0;
+
+        field {
+            desc = "Credit packets RAPIDS has sent to the cells and cores (returns and resync sets); 16-bit, wraps";
+            sw = r;
+            hw = w;
+        } RET_COUNT[31:16];
 
     } TILE_CREDIT_STATUS @ 0x2E4;
 
@@ -847,6 +871,55 @@ regfile rapids_engine_regs_16ch {
         } LEGAL[31:0];
 
     } TILE_LEGAL_DEST_HI @ 0x2E8;
+
+    reg {
+        name = "Tile Credit Resync";
+        desc = "Restores every legal cell's and control core's strap after a root failover (TILE_SPEC 11.10; SRC half). RAPIDS sends each a set credit packet: a cell its TILE_LAND_FLITS, a core its TILE_DESC_PER_CORE. Taken only while the tile is quiescent (tile_quiescent); a request made before then waits for it.";
+
+        field {
+            desc = "Write 1 to request a resync";
+            sw = w;
+            hw = r;
+            singlepulse;
+        } GO[0:0] = 1'b0;
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:1] = 31'h0;
+
+    } TILE_RESYNC @ 0x2EC;
+
+    reg {
+        name = "Tile Stalled-Data Threshold";
+        desc = "Stalled-data checks (TILE_SPEC 11.9; SRC half, used by both): data that has not moved for this many cycles raises a MonBus error packet (PktTypeError, event RAPIDS_EVENT_STALL) -- sink SRAM data not written out, a source channel with reads outstanding and no R beat. The default is 10 us at 100 MHz. TILE_CREDITS = 1 only.";
+
+        field {
+            desc = "Threshold in cycles; 0 turns the checks off";
+            sw = rw;
+            hw = r;
+        } CYCLES[31:0] = 32'd1000;
+
+    } TILE_STALL_CYCLES @ 0x2F0;
+
+    reg {
+        name = "Tile Stalled Channels";
+        desc = "Per channel of this half: its data has stopped moving past TILE_STALL_CYCLES (the current episode; clears when the data moves or drains). TILE_CREDITS = 1 only.";
+
+        field {
+            desc = "Bit n: channel n is stalled";
+            sw = r;
+            hw = w;
+        } CH[15:0];
+
+        field {
+            desc = "Reserved";
+            sw = r;
+            hw = na;
+        } RSVD[31:16] = 16'h0;
+
+    } TILE_STALLED @ 0x2F4;
 
     reg {
         name = "Per-Channel Perf Bucket Readout Select";

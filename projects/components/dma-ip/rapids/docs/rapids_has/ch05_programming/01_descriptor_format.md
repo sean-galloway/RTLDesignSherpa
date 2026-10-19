@@ -71,6 +71,19 @@ channel errors. A packet to a cell or core leaves only when it has returned
 enough credits for every flit, header included; a packet to a node is never
 held. A read request (`op` = 1) to a node is refused: a node never replies.
 
+**Straps toward RAPIDS (`TILE_CREDITS` = 1, 2026-10-19):** traffic into RAPIDS
+is not granted; each sender holds a fixed strap. A cell writes against
+`TILE_LAND_FLITS` (default 16) flits of landing space of its own, so a cell
+whose sink channel is full blocks only itself. A control core sends `desc`
+against `TILE_DESC_PER_CORE` (default 2) descriptor-intake entries. RAPIDS
+returns every flit and entry it consumes, discards included, as a header-only
+`credit` packet on its own port (`m_tile_credit_*`), so a return never waits
+behind data. After a root failover, `SRC.TILE_RESYNC.GO` sends a `set` to every
+legal sender once the tile is quiescent (`tile_quiescent`); channel resets wait
+for it too. `SRC.TILE_STALL_CYCLES` arms two stall checks that report on MonBus:
+sink data that has not moved, and source reads that got no data. The detail is
+in the MAS Tile Header chapter.
+
 The authoritative definition is `rapids_pkg::descriptor_t` in `rtl/includes/rapids_pkg.sv`. Only bits `[255:0]` are fetched and used. Every field position is the same as in RAPIDS Beats, so a descriptor builder needs one change: the value written to `length`.
 
 ## Field Descriptions

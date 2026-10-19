@@ -453,6 +453,10 @@ module snk_data_path_axis_test #(
         .s_axis_tuser           (s_axis_tuser),
         .s_axis_tvalid          (s_axis_tvalid),
         .s_axis_tready          (s_axis_tready),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .chan_can_take          (),             // whole-packet admission: the tile landing space only
+        .chan_has_data          (),
+        /* verilator lint_on PINCONNECTEMPTY */
 
         // Scheduler Interface
         .sched_wr_valid         (sched_wr_valid),

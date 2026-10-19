@@ -41,6 +41,23 @@
 //   A data packet whose tag differs from its TID is still delivered by TID
 //   (the channel the link names); sts_tag_mismatch records it.
 //
+//   Straps (STRAPS = 1, TILE_CREDITS; TILE_SPEC 11.9, rapids TASK-027): every
+//   packet a cell or core sends is charged against a strap, and every beat
+//   RAPIDS consumes must come back as a credit. The sender is the header's
+//   source coordinate, as an external slot (rapids_pkg::tile_ext_slot). Data
+//   payload goes on with its sender's cell slot (m_axis_tsender) to the
+//   landing space, which returns it as it drains. What this block consumes
+//   itself returns here, one ret_* pulse per credit:
+//     class 0 (flits)   the header beat of every data packet, and every beat
+//                       of a dropped packet, from a cell
+//     class 1 (entries) a desc packet that is dropped at its header; one whose
+//                       descriptor is taken returns when it leaves the intake
+//                       queue (desc_inj_slot carries the sender)
+//   Credit packets are never charged and return nothing. Data from a sender
+//   with no landing space (not a cell) is dropped and sets sts_unsupported.
+//   seen_* gives the coordinate of every sender with a slot, for addressing
+//   the returns.
+//
 // Documentation: projects/components/compute-eng-ip/tile/docs/TILE_SPEC.md (Section 11)
 // Subsystem: rapids_fub
 //
@@ -57,6 +74,7 @@ module rapids_tile_hdr_rx #(
     parameter int AXIS_ID_WIDTH   = 8,
     parameter int AXIS_DEST_WIDTH = 4,
     parameter int AXIS_USER_WIDTH = 1,
+    parameter bit STRAPS          = 1'b0,
     parameter int NC  = NUM_CHANNELS,
     parameter int DW  = DATA_WIDTH,
     parameter int SW  = DW / 8,
@@ -84,11 +102,22 @@ module rapids_tile_hdr_rx #(
     output logic [AXIS_USER_WIDTH-1:0]  m_axis_tuser,
     output logic                        m_axis_tvalid,
     input  logic                        m_axis_tready,
+    output logic [rapids_pkg::TILE_EXT_W-2:0] m_axis_tsender, // STRAPS: the sender's cell slot
 
     // Cell-issued descriptor to the source half (registered pulse)
     output logic                        desc_inj_valid,
     output logic [CIW-1:0]              desc_inj_ch,
     output logic [255:0]                desc_inj_data,
+    output logic [rapids_pkg::TILE_EXT_W:0] desc_inj_slot,   // STRAPS: {ok, the sender's slot}
+
+    // Straps (STRAPS): one credit to return to a sender (registered pulse),
+    // and the coordinate of a sender that has a slot
+    output logic                        ret_valid,
+    output logic [rapids_pkg::TILE_EXT_W-1:0] ret_slot,
+    output logic                        ret_class,          // 0 = flit, 1 = descriptor entry
+    output logic                        seen_valid,
+    output logic [rapids_pkg::TILE_EXT_W-1:0] seen_slot,
+    output logic [rapids_pkg::TILE_COORD_W-1:0] seen_coord,
 
     // Credit packet to the source half's counters (registered pulse): the
     // sender's coordinate, op (0 = add, 1 = set), the count from the length
@@ -129,6 +158,9 @@ module rapids_tile_hdr_rx #(
     route_t         r_route  [NC];
     logic [CIW-1:0] r_tag    [NC]; // desc: the source channel
     logic [NC-1:0]  r_desc_got;    // desc: descriptor already taken from this packet
+    logic [rapids_pkg::TILE_EXT_W-1:0] r_slot [NC];   // STRAPS: the sender's slot
+    logic [NC-1:0]  r_chg;         // STRAPS: this packet's beats are charged in flits
+    logic [NC-1:0]  r_desc_slot_ok; // STRAPS: a desc packet's sender has a slot
 
     // The current beat
     logic [CIW-1:0] w_s;
@@ -142,6 +174,9 @@ module rapids_tile_hdr_rx #(
     logic           w_hdr_unsup;
     logic           w_fire;
     logic           w_fwd;         // a data payload beat, handed to the sink
+    logic [rapids_pkg::TILE_EXT_W:0] w_hdr_slot;   // {ok, slot} of the header's source
+    logic           w_hdr_cell;    // ...and it is a cell (has a landing space)
+    logic           w_hdr_chg;     // the header's packet is charged in flits
 
     assign w_s      = s_axis_tid[CIW-1:0];
     assign w_s_ok   = (int'(w_s) < NC) && (s_axis_tid >> CIW == '0);
@@ -150,6 +185,12 @@ module rapids_tile_hdr_rx #(
     assign w_op     = s_axis_tdata[rapids_pkg::TILE_HDR_OP];
     assign w_tag    = s_axis_tdata[rapids_pkg::TILE_HDR_TAG_LO +: 4];
     assign w_tag_ok = (int'(w_tag) < NC);
+    assign w_hdr_slot = rapids_pkg::tile_ext_slot(s_axis_tdata[rapids_pkg::TILE_HDR_SRC_LO +: rapids_pkg::TILE_COORD_W]);
+    assign w_hdr_cell = w_hdr_slot[rapids_pkg::TILE_EXT_W] &&
+                        (w_hdr_slot[rapids_pkg::TILE_EXT_W-1:0] < rapids_pkg::TILE_EXT_W'(rapids_pkg::TILE_NUM_CELLS));
+    // only a cell holds a flit strap (a landing space); a core's is entries
+    assign w_hdr_chg  = STRAPS && w_hdr_cell &&
+                        (w_ptype != rapids_pkg::TILE_PTYPE_CREDIT) && (w_ptype != rapids_pkg::TILE_PTYPE_DESC);
 
     // Route decided by a header beat
     always_comb begin
@@ -162,8 +203,9 @@ module rapids_tile_hdr_rx #(
                 rapids_pkg::TILE_PTYPE_CFG,
                 rapids_pkg::TILE_PTYPE_PROG,
                 rapids_pkg::TILE_PTYPE_MEM: begin
-                    if (!w_op) w_hdr_route = R_DATA;
-                    else       w_hdr_unsup = 1'b1;          // read request to RAPIDS
+                    if (w_op)                          w_hdr_unsup = 1'b1;  // read request to RAPIDS
+                    else if (STRAPS && !w_hdr_cell)    w_hdr_unsup = 1'b1;  // no landing space for it
+                    else                               w_hdr_route = R_DATA;
                 end
                 rapids_pkg::TILE_PTYPE_CREDIT: begin
                     w_hdr_route = R_DROP;                   // header-only: to the counters
@@ -188,6 +230,7 @@ module rapids_tile_hdr_rx #(
     assign m_axis_tid    = s_axis_tid;
     assign m_axis_tdest  = s_axis_tdest;
     assign m_axis_tuser  = s_axis_tuser;
+    assign m_axis_tsender = r_slot[w_s][rapids_pkg::TILE_EXT_W-2:0];
 
     // Payload beat of a desc packet. The descriptor is the beat's low 256
     // bits (a desc route is only taken when DW >= 256; the cast keeps a
@@ -204,9 +247,11 @@ module rapids_tile_hdr_rx #(
         if (`RST_ASSERTED(rst_n)) begin
             r_in_pkt   <= '0;
             r_desc_got <= '0;
+            r_chg      <= '0;
             for (int i = 0; i < NC; i++) begin
                 r_route[i] <= R_DROP;
                 r_tag[i]   <= '0;
+                r_slot[i]  <= '0;
             end
         end else if (w_fire && w_s_ok) begin
             if (w_is_hdr) begin
@@ -216,6 +261,8 @@ module rapids_tile_hdr_rx #(
                 r_route[w_s]    <= w_hdr_route;
                 r_tag[w_s]      <= CIW'(w_tag);
                 r_desc_got[w_s] <= 1'b0;
+                r_slot[w_s]     <= w_hdr_slot[rapids_pkg::TILE_EXT_W-1:0];
+                r_chg[w_s]      <= w_hdr_chg;
             end else begin
                 if (w_desc_take)  r_desc_got[w_s] <= 1'b1;
                 if (s_axis_tlast) r_in_pkt[w_s]   <= 1'b0;
@@ -229,12 +276,44 @@ module rapids_tile_hdr_rx #(
             desc_inj_valid <= 1'b0;
             desc_inj_ch    <= '0;
             desc_inj_data  <= '0;
+            desc_inj_slot  <= '0;
         end else begin
             desc_inj_valid <= w_desc_take;
             if (w_desc_take) begin
                 desc_inj_ch   <= r_tag[w_s];
                 desc_inj_data <= w_beat_lo;
+                desc_inj_slot <= {r_desc_slot_ok[w_s], r_slot[w_s]};
             end
+        end
+    )
+
+    // Straps: which consumed beat returns a credit. A desc packet's sender is
+    // kept per stream so the intake queue can return its entry.
+    logic          w_ret_flit, w_ret_entry;
+    // the header beat of a charged packet, or a dropped payload beat of one
+    assign w_ret_flit  = w_fire && w_s_ok &&
+                         (w_is_hdr ? w_hdr_chg : (r_chg[w_s] && (r_route[w_s] != R_DATA)));
+    // a desc packet from a sender with a slot, refused at its header
+    assign w_ret_entry = STRAPS && w_fire && w_s_ok && w_is_hdr && w_hdr_slot[rapids_pkg::TILE_EXT_W] &&
+                         (w_ptype == rapids_pkg::TILE_PTYPE_DESC) && (w_hdr_route != R_DESC);
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_desc_slot_ok <= '0;
+            ret_valid      <= 1'b0;
+            ret_slot       <= '0;
+            ret_class      <= 1'b0;
+            seen_valid     <= 1'b0;
+            seen_slot      <= '0;
+            seen_coord     <= '0;
+        end else begin
+            if (w_fire && w_s_ok && w_is_hdr)
+                r_desc_slot_ok[w_s] <= STRAPS && w_hdr_slot[rapids_pkg::TILE_EXT_W];
+            ret_valid  <= w_ret_flit || w_ret_entry;
+            ret_slot   <= w_is_hdr ? w_hdr_slot[rapids_pkg::TILE_EXT_W-1:0] : r_slot[w_s];
+            ret_class  <= w_ret_entry;
+            seen_valid <= STRAPS && w_fire && w_s_ok && w_is_hdr && w_hdr_slot[rapids_pkg::TILE_EXT_W];
+            seen_slot  <= w_hdr_slot[rapids_pkg::TILE_EXT_W-1:0];
+            seen_coord <= s_axis_tdata[rapids_pkg::TILE_HDR_SRC_LO +: rapids_pkg::TILE_COORD_W];
         end
     )
 

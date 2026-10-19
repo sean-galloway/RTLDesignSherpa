@@ -44,6 +44,7 @@ sys.path.insert(0, repo_root)
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_top_tb import RapidsCxsTopTB
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_tb import RapidsCxsTileTB
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_credits_tb import RapidsCxsTileCreditsTB
+from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_straps_tb import RapidsCxsTileStrapsTB
 
 
 # ===========================================================================
@@ -320,6 +321,97 @@ async def cocotb_test_tile_credit_illegal(dut):
 
 
 # ===========================================================================
+# STRAPS TOWARD RAPIDS (TILE_CREDITS = 1): TILE_SPEC 11.9-11.11, rapids
+# TASK-027. The cells and cores send into RAPIDS against their straps.
+# ===========================================================================
+async def _bring_up_straps(dut):
+    tb = RapidsCxsTileStrapsTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    return tb
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_land(dut):
+    """A cell streams past its strap: every flit lands and comes back."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_land()
+    _finish(tb, ok, stats, "landing space")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_isolation(dut):
+    """A cell whose channel cannot take its data holds only its own landing space."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_land_isolation()
+    _finish(tb, ok, stats, "landing isolation")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_discard(dut):
+    """Discarded packets (disabled channel, unsupported) still return their credits."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_land_discard()
+    _finish(tb, ok, stats, "discards return credits")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_coalesce(dut):
+    """Returns held by the credit port leave coalesced."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_coalesce()
+    _finish(tb, ok, stats, "coalesced returns")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_intake(dut):
+    """Core descriptors through the intake queue, one entry back per descriptor."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_intake()
+    _finish(tb, ok, stats, "descriptor intake")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_tile_strap_intake_overrun(dut):
+    """A core past its strap: the excess is dropped and returned, the rest run in order."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_intake_overrun()
+    _finish(tb, ok, stats, "intake overrun")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_resync(dut):
+    """A resync waits for quiescent, then sets every legal sender's strap."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_resync()
+    _finish(tb, ok, stats, "resync")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_stall_sink(dut):
+    """Sink data that cannot move raises one MonBus stall error."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_stall_sink()
+    _finish(tb, ok, stats, "sink stalled-data check")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_stall_source(dut):
+    """Source reads with no data raise one MonBus stall error."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_stall_source()
+    _finish(tb, ok, stats, "source stalled-data check")
+
+
+@cocotb.test(timeout_time=120, timeout_unit="ms")
+async def cocotb_test_tile_strap_quiescent_reset(dut):
+    """A channel reset acts only while the tile is quiescent."""
+    tb = await _bring_up_straps(dut)
+    ok, stats = await tb.test_quiescent_reset()
+    _finish(tb, ok, stats, "quiescent-gated reset")
+
+
+# ===========================================================================
 # PYTEST WRAPPER
 # ===========================================================================
 
@@ -568,6 +660,27 @@ def test_rapids_cxs_top_tile_credits(request, scenario, test_level):
 def test_rapids_16ch_cxs_top_tile_credits(request, test_level):
     """The 16-channel map carries the same credit registers and counters."""
     _run_top("cocotb_test_tile_credit_shared_counter", "test_rapids_16ch_cxs_top_tile_credit_shared",
+             extra_params=_CREDITS, test_level=test_level, dut="rapids_16ch_cxs_top", nch=16)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("scenario", ["land", "isolation", "discard", "coalesce", "intake",
+                                      "intake_overrun", "resync", "quiescent_reset",
+                                      "stall_sink", "stall_source"])
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_cxs_top_tile_straps(request, scenario, test_level):
+    """Straps toward RAPIDS: landing space, intake queue, credit returns, resync (rapids TASK-027)."""
+    _run_top(f"cocotb_test_tile_strap_{scenario}", f"test_rapids_cxs_top_tile_strap_{scenario}",
+             extra_params=_CREDITS, test_level=test_level)
+
+
+@pytest.mark.top
+@pytest.mark.rapids_cxs_top
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_rapids_16ch_cxs_top_tile_straps(request, test_level):
+    """The 16-channel map: landing isolation on high channels' map."""
+    _run_top("cocotb_test_tile_strap_isolation", "test_rapids_16ch_cxs_top_tile_strap_isolation",
              extra_params=_CREDITS, test_level=test_level, dut="rapids_16ch_cxs_top", nch=16)
 
 

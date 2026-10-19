@@ -20,6 +20,10 @@
 # monitor_pkgs) already arrive above, so the module is listed directly;
 # including fub/rapids_tile_hdr_rx.f would compile rapids_pkg twice.
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_hdr_rx.sv
+# Landing space per cell (TILE_CREDITS); deps already above
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_landing.sv
+# Stalled-data check on MonBus (TILE_CREDITS)
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/rapids_tile_stall_mon.sv
 
 # DUT module
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro/rapids_snk.sv

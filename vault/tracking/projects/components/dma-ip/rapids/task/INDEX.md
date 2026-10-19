@@ -20,7 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
-- **TASK-027** — end-to-end tile credits (counters, window, legal mask built) and straps toward RAPIDS (TILE_SPEC 11.9-11.11)
+- **TASK-027** — end-to-end tile credits and straps toward RAPIDS (TILE_SPEC 11.9-11.11): all built and tested 2026-10-19, 4839/4839; only the TILE_SPEC 11.12 row remains
 
 ## Active
 
