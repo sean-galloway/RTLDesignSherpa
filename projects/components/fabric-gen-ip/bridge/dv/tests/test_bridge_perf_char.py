@@ -130,6 +130,18 @@ def _tb(dut):
     tb = FIXTURES[FIXTURE](dut)
     if CDC_NS:
         tb.CDC_PERIOD_NS = int(CDC_NS)
+    # Slaves return R bursts contiguously here (bridge BUG-017). This suite
+    # measures the fabric, and the floors assume a slave that finishes one
+    # burst before the next. A round-robin interleaving slave finishes all
+    # its outstanding bursts together, so an outstanding-limited master
+    # refills its window in a batch and the R channel idles for a full
+    # latency: lat=16 n=4 measured 0.725 against 1.000 contiguous, on the
+    # same RTL. That is the slave's scheduling, not the fabric's: at lat=0
+    # the fabric carries fully interleaved R at 1.000. Interleaving
+    # correctness is covered by test_bridge_*_r_interleave.
+    tb.R_INTERLEAVE = False
+    for sl in tb.slave_rd.values():
+        sl.interleave_r = False
     return tb
 
 

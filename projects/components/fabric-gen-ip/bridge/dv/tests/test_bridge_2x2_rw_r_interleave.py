@@ -50,6 +50,7 @@ class InterleaveCount:
         self.pins = {s: SLAVE_PINS[s] for s in slaves}
         self.count = {s: 0 for s in slaves}
         self.beats = {s: 0 for s in slaves}
+        self.ars = 0
         self._open = {s: None for s in slaves}   # ID of the burst in progress
         self._task = cocotb.start_soon(self._run())
 
@@ -60,6 +61,8 @@ class InterleaveCount:
         while True:
             await RisingEdge(self.tb.clock)
             for s in self.pins:
+                if int(self._sig(s, 'arvalid').value) and int(self._sig(s, 'arready').value):
+                    self.ars += 1
                 if int(self._sig(s, 'rvalid').value) and int(self._sig(s, 'rready').value):
                     rid = int(self._sig(s, 'rid').value)
                     self.beats[s] += 1
@@ -97,11 +100,29 @@ async def _preload(tb, rng, m, s, region, beats, ids):
     return plan
 
 
-def _slow(tb, slaves, cycles):
-    """Hold each slave's first R beat back long enough that every AR of the
-    case is waiting at once: only bursts waiting together can interleave."""
+GATHER_CYCLES = 400
+
+
+async def _gathered(tb, cnt, slaves, n_ar, launch):
+    """Launch a case's reads and start every slave burst on one cycle, so
+    the bursts are waiting together: only bursts waiting together can
+    interleave. The master BFM spaces its ARs by a seeded random delay
+    and does not offer one until the previous is accepted, so neither a
+    fixed response delay (it counts from each AR's own arrival) nor a
+    stalled AR ready (the ARs wait in the BFM, not the fabric) lines the
+    bursts up; SEED=7 and 80451 saw no interleaving at all. The slave BFM
+    reads response_delay_cycles when an AR arrives, so counting it down
+    every cycle makes every burst start at the same release cycle."""
+    jobs = launch()
+    for k in range(GATHER_CYCLES):
+        for s in slaves:
+            tb.slave_rd[s].response_delay_cycles = GATHER_CYCLES - k
+        await RisingEdge(tb.clock)
     for s in slaves:
-        tb.slave_rd[s].response_delay_cycles = cycles
+        tb.slave_rd[s].response_delay_cycles = 1
+    assert cnt.ars >= n_ar, (f"only {cnt.ars} of {n_ar} ARs reached the slaves in "
+                             f"{GATHER_CYCLES} cycles; widen GATHER_CYCLES")
+    return jobs
 
 
 def _reads(tb, m, plan, beats):
@@ -133,10 +154,9 @@ async def cocotb_test_bridge_2x2_rw_r_interleave(dut):
                 # would keep the two slaves' bursts from ever overlapping
                 ids = (4 * m + 2 * s + 1, 4 * m + 2 * s + 2)
                 plans.append((m, await _preload(tb, rng, m, s, region, 8, ids)))
-        _slow(tb, [DDR, SRAM], 40)
-        jobs = [j for m, plan in plans for j in _reads(tb, m, plan, 8)]
+        jobs = await _gathered(tb, cnt, [DDR, SRAM], 2 * len(plans), lambda: [
+            j for m, plan in plans for j in _reads(tb, m, plan, 8)])
         await _check(tb, jobs, f"cross round {r}")
-        _slow(tb, [DDR, SRAM], 1)
         cnt.stop()
         tb.log.info(f"cross round {r}: ddr {cnt.count[DDR]} / sram {cnt.count[SRAM]} interleave events")
         assert cnt.count[DDR] > 0 and cnt.count[SRAM] > 0, \

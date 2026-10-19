@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Oct 16 20:27:56 2026
+| Date         : Sun Oct 18 21:28:39 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_5x3_channels__xc7a100tcsg324-1/utilization_hier.txt
 | Design       : bridge_5x3_channels
@@ -22,19 +22,19 @@ Table of Contents
 +-----------------------------+---------------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
 |           Instance          |                    Module                   | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
 +-----------------------------+---------------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
-| bridge_5x3_channels         |                                       (top) |      30835 |      30753 |      82 |    0 | 28051 |      0 |      0 |          0 |
+| bridge_5x3_channels         |                                       (top) |      47850 |      47092 |     758 |    0 | 50894 |      0 |      0 |          0 |
 |   (bridge_5x3_channels)     |                                       (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
-|   u_apb_periph_adapter      |      bridge_5x3_channels_apb_periph_adapter |       1132 |       1050 |      82 |    0 |  1165 |      0 |      0 |          0 |
-|   u_cpu_master_adapter      |      bridge_5x3_channels_cpu_master_adapter |      12071 |      12071 |       0 |    0 | 12125 |      0 |      0 |          0 |
-|   u_ddr_controller_adapter  |  bridge_5x3_channels_ddr_controller_adapter |       3249 |       3249 |       0 |    0 |  3269 |      0 |      0 |          0 |
-|   u_descr_wr_master_adapter | bridge_5x3_channels_descr_wr_master_adapter |       1958 |       1958 |       0 |    0 |  1546 |      0 |      0 |          0 |
-|   u_sink_wr_master_adapter  |  bridge_5x3_channels_sink_wr_master_adapter |       1524 |       1524 |       0 |    0 |  1546 |      0 |      0 |          0 |
-|   u_sram_buffer_adapter     |     bridge_5x3_channels_sram_buffer_adapter |       3276 |       3276 |       0 |    0 |  3300 |      0 |      0 |          0 |
-|   u_src_rd_master_adapter   |   bridge_5x3_channels_src_rd_master_adapter |       1308 |       1308 |       0 |    0 |  1370 |      0 |      0 |          0 |
-|   u_stream_master_adapter   |   bridge_5x3_channels_stream_master_adapter |       2784 |       2784 |       0 |    0 |  2916 |      0 |      0 |          0 |
-|   u_subtractive             |                      axi4_subtractive_slave |         42 |         42 |       0 |    0 |    73 |      0 |      0 |          0 |
-|   u_subtractive_adapter     |     bridge_5x3_channels_subtractive_adapter |        457 |        457 |       0 |    0 |   372 |      0 |      0 |          0 |
-|   u_xbar                    |                    bridge_5x3_channels_xbar |       3039 |       3039 |       0 |    0 |   369 |      0 |      0 |          0 |
+|   (u_subtractive_adapter)   |     bridge_5x3_channels_subtractive_adapter |        128 |        128 |       0 |    0 |   116 |      0 |      0 |          0 |
+|   u_apb_periph_adapter      |      bridge_5x3_channels_apb_periph_adapter |       1130 |       1048 |      82 |    0 |  1161 |      0 |      0 |          0 |
+|   u_cpu_master_adapter      |      bridge_5x3_channels_cpu_master_adapter |      30297 |      29621 |     676 |    0 | 34519 |      0 |      0 |          0 |
+|   u_ddr_controller_adapter  |  bridge_5x3_channels_ddr_controller_adapter |       1927 |       1927 |       0 |    0 |  2298 |      0 |      0 |          0 |
+|   u_descr_wr_master_adapter | bridge_5x3_channels_descr_wr_master_adapter |       1573 |       1573 |       0 |    0 |  1546 |      0 |      0 |          0 |
+|   u_sink_wr_master_adapter  |  bridge_5x3_channels_sink_wr_master_adapter |       1545 |       1545 |       0 |    0 |  1546 |      0 |      0 |          0 |
+|   u_sram_buffer_adapter     |     bridge_5x3_channels_sram_buffer_adapter |       1920 |       1920 |       0 |    0 |  2298 |      0 |      0 |          0 |
+|   u_src_rd_master_adapter   |   bridge_5x3_channels_src_rd_master_adapter |       1301 |       1301 |       0 |    0 |  1370 |      0 |      0 |          0 |
+|   u_stream_master_adapter   |   bridge_5x3_channels_stream_master_adapter |       2780 |       2780 |       0 |    0 |  2916 |      0 |      0 |          0 |
+|   u_subtractive             |                      axi4_subtractive_slave |         35 |         35 |       0 |    0 |    74 |      0 |      0 |          0 |
+|   u_xbar                    |                    bridge_5x3_channels_xbar |       5142 |       5142 |       0 |    0 |  2982 |      0 |      0 |          0 |
 +-----------------------------+---------------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 

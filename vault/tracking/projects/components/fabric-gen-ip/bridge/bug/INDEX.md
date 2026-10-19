@@ -12,17 +12,18 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 16 | done (kept for history) |
+| [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-017** — read bandwidth drops below the perf floors once R interleaving is on
 
 ## Closed
+
+- **BUG-017** — read bandwidth below the perf floors once R interleaving landed — RESOLVED 2026-10-18: the interleaving slave BFM's scheduling, not the fabric; perf suite uses contiguous slaves, BFM VALID-drop race fixed in RDS-DV 1.2.8
 
 - **BUG-016** — FULL-level: 14 tests fail with AXI4 write B-timeouts — RESOLVED 2026-10-04: converter B-CAM age-compare boundary swallowed every 32nd downsize B; best_age widened one bit, FULL suite green
 
