@@ -3,8 +3,9 @@
 # ==============================================================================
 # Two kinds of collateral live here, and they are not the same thing:
 #
-#   bridge_cam/       A DUT proof: the RTL is in [files], assumptions on inputs,
-#                     assertions on outputs.
+#   (bridge_cam/, a DUT proof, moved to
+#    projects/components/fabric-gen-ip/bridge/deprecated/formal/ on 2026-10-18
+#    with the module it proves, which no bridge instantiates any more.)
 #   bridge_1x2_rd/    A PROTOCOL MODEL with no DUT -- every port is an assumption
 #                     and the assertions check the AXI4 rules and the decode
 #                     constraints against each other. It passes in under a second

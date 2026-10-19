@@ -137,15 +137,20 @@ regen = "cd projects/components/fabric-gen-ip/bridge/bin && make regen"
 rtl_roots = ["projects/components/fabric-gen-ip/bridge/rtl"]
 # filelists/        -- emitted by bridge_generator.py; never hand-edit.
 # filelists_static/ -- hand-written lists for the hand-written bridge RTL
-#                      (bridge_cam), kept in a separate directory so a clean or
-#                      regen of the generated half cannot delete them.
+#                      (bridge_wr_rate_buf, bridge_cdc_slave_arb), kept in a separate
+#                      directory so a clean or regen of the generated half cannot
+#                      delete them.
+# deprecated/rtl/filelists_static/ -- unused bridge RTL kept out of every flow
+#                      (bridge_cam, 2026-10-18); registered so --check still sees it.
 filelist_dirs = [
     "projects/components/fabric-gen-ip/bridge/rtl/filelists",
     "projects/components/fabric-gen-ip/bridge/rtl/filelists_static",
+    "projects/components/fabric-gen-ip/bridge/deprecated/rtl/filelists_static",
 ]
-# --placement accepts filelists_static/ as a placed dir for the reason above;
+# --placement accepts the filelists_static/ dirs as placed for the reason above;
 # every other .f must sit in a filelists/ subdir.
-placement_ok = ["projects/components/fabric-gen-ip/bridge/rtl/filelists_static"]
+placement_ok = ["projects/components/fabric-gen-ip/bridge/rtl/filelists_static",
+                "projects/components/fabric-gen-ip/bridge/deprecated/rtl/filelists_static"]
 
 [[area]]
 name = "converters"
@@ -532,3 +537,11 @@ name = "hive"
 kind = "component"
 rtl_roots = ["projects/components/compute-eng-ip/hive-serv/rtl"]
 filelist_dirs = ["projects/components/compute-eng-ip/hive-serv/rtl/filelists"]
+
+[[area]]
+name = "cell"
+kind = "component"
+# ALU-INFER bf16 inference ALU inside the compute cell. Registered 2026-10-17
+# with its first RTL (alu_infer_top, alu_infer_pipe, alu_infer_rows, alu_infer_acc).
+rtl_roots = ["projects/components/compute-eng-ip/cell/rtl"]
+filelist_dirs = ["projects/components/compute-eng-ip/cell/rtl/filelists"]

@@ -85,11 +85,8 @@ Testplans document:
 
 ### Hand-Written Modules
 
-8. **bridge_cam_testplan.yaml** - Content Addressable Memory for ID tracking
-   - Status: INTEGRATION TESTED
-   - Tests: Verified via all bridge tests (no standalone test)
-   - Coverage: 81.8% (9/11 scenarios verified, 2 partial)
-   - Note: Foundational module tested through bridges
+8. **bridge_cam_testplan.yaml** - moved to `deprecated/dv/testplans/` with
+   the module (2026-10-18): no bridge instantiates `bridge_cam` any more.
 
 ## Testplan Format
 

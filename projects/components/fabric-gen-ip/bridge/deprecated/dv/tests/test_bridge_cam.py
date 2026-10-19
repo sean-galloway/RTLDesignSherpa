@@ -204,7 +204,7 @@ def test_bridge_cam(request, test_level, pipeline_alloc, pipeline_free):
     # the closure, and a hand-list is a blind spot it cannot see.
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path='projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f')
+        filelist_path='projects/components/fabric-gen-ip/bridge/deprecated/rtl/filelists_static/bridge_cam.f')
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     worker_suffix = f"_{worker_id}" if worker_id else ""
     sim_build_name = f"test_{dut_name}_pa{pipeline_alloc}_pf{pipeline_free}_{test_level}{worker_suffix}"

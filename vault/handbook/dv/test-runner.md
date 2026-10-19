@@ -260,7 +260,7 @@ the real count in the results XML.
 *Case (#102, 2026-10-12):* the APB5, AXI5-Stream and AXI5 fixes each found
 the trap independently: `test_apb5_master.py`, `test_axi5_atomic_filter.py`
 and `test_axi5_atomic_rr_tracker.py` had been green while running nothing,
-and `projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_cam.py`
+and `projects/components/fabric-gen-ip/bridge/dv/tests/test_bridge_cam.py` (since moved to the bridge's `deprecated/`)
 carried the same comma list. A pass whose results XML has no `<testcase>`
 element is this trap.
 

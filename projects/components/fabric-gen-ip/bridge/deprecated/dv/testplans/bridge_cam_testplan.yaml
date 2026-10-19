@@ -2,7 +2,7 @@
 # Maps functional test scenarios to verification coverage
 
 module: bridge_cam
-rtl_file: projects/components/fabric-gen-ip/bridge/rtl/bridge_cam.sv
+rtl_file: projects/components/fabric-gen-ip/bridge/deprecated/rtl/bridge_cam.sv
 test_file: Tested via bridge integration tests (no standalone test)
 
 # Module description:
