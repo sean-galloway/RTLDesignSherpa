@@ -163,8 +163,8 @@ module axil5_opt_slave
     // ---- Storage --------------------------------------------------------
     // Plain arrays: this is test collateral, so a behavioural memory is the
     // point. A library block would use the SRAM wrappers.
-    logic [DW-1:0]           r_mem    [0:MEM_DEPTH-1];
-    logic [POISON_WIDTH-1:0] r_poison [0:MEM_DEPTH-1];
+    logic [DW-1:0]           r_mem    [MEM_DEPTH];
+    logic [POISON_WIDTH-1:0] r_poison [MEM_DEPTH];
 
     // ---- AW holding register -------------------------------------------
     logic                    r_aw_full;

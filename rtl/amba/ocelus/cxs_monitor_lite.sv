@@ -491,7 +491,6 @@ module cxs_monitor_lite
     wire w_push1 = w_take1 || w_drop_rpt;
     wire w_push2 = w_take2;
     wire w_q_pop = monbus_valid && monbus_ready;
-    assign w_entry_out = cxs_entry_t'(w_bank_rd_data[r_q_rb]);
 
     // push1 (slot 1) goes to bank r_q_wb, push2 to the other; a push2 never
     // happens without a push1 (room2 implies room1, the second pick implies
@@ -499,6 +498,7 @@ module cxs_monitor_lite
     logic [1:0]                    w_bank_wr, w_bank_rd_valid;
     logic [$bits(cxs_entry_t)-1:0]    w_bank_wr_data [2];
     logic [$bits(cxs_entry_t)-1:0]    w_bank_rd_data [2];
+    assign w_entry_out = cxs_entry_t'(w_bank_rd_data[r_q_rb]);
     for (genvar b = 0; b < 2; b++) begin : g_bank
         wire w_mine1 = (r_q_wb == 1'(b));
         assign w_bank_wr[b]      = w_mine1 ? w_push1 : w_push2;

@@ -811,10 +811,10 @@ module monbus_group_core
     logic [8:0]                  r_aw_subs;           // AW (sub-burst) handshakes issued (stats)
     logic [8:0]                  r_b_subs;            // B handshakes returned (credit)
     logic [9:0]                  r_w_rem_in_sub;      // beats left in W-side current sub-burst (0 = none loaded)
-    logic [8:0]                  r_os_len [0:WR_OS_CAP-1]; // B-side sub-burst lengths (beats-1), AW order
+    logic [8:0]                  r_os_len [WR_OS_CAP]; // B-side sub-burst lengths (beats-1), AW order
     logic [1:0]                  r_os_rd, r_os_wr;
     logic [2:0]                  r_os_count;
-    logic [8:0]                  r_ws_len [0:WR_OS_CAP-1]; // W-side sub-burst lengths (beats-1), AW order
+    logic [8:0]                  r_ws_len [WR_OS_CAP]; // W-side sub-burst lengths (beats-1), AW order
     logic [1:0]                  r_ws_rd, r_ws_wr;
     logic [2:0]                  r_ws_count;
     logic [31:0]                 r_timeout_cnt;

@@ -580,7 +580,7 @@ module axi4_slave_rd_mon
     //   * disabled          -> the wrapper is transparent (a disabled
     //                          ocelus must never stall the datapath)
     // ------------------------------------------------------------------------
-    always @(*) begin
+    always_comb begin
         if (aresetn && cfg_monitor_enable && !w_block_ready)
             ap_block_ready_gating: assert (!s_axi_arready);
         if (aresetn && !cfg_monitor_enable)
