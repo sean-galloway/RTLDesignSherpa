@@ -18,6 +18,7 @@ summary: RTL rules with the failures that taught them.
 - [[sram-and-memories]] - no-reset SRAMs, ram_style, array syntax
 - [[sizing-invariants]] - shared-resource math; one source of truth
 - [[priority-logic-depth]] - serialized scans vs parallel selects
+- [[static-loop-bounds]] - a loop bounded by a runtime value simulates and lints clean; Vivado refuses it (arbiter_matrix, 2026-10-18)
 - [[area-measure-by-hierarchy]] - after every synthesis pass, the hierarchy report and the worst path pick the next edit; five passes of axi_monitor_lite
 - [[always-comb-block-fusion]] - a block is one scheduling node; mixing independent signals invents dependencies and fakes combinational loops
 - [[global-windows-revalidate-at-issue]] - a window that is not a per-resource property (tRRD, tFAW, tZQCS) must be re-checked in the gate that lets the command FIRE, not only where it is selected; three bugs in one block from this (pumice BUG-021, scoria BUG-001/002)

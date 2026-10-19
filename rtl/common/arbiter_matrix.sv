@@ -196,14 +196,16 @@ module arbiter_matrix #(
         logic [MATRIX_BITS-1:0] m,
         int winner
     );
+        // Static bounds: every stored (row, col) pair is visited and the
+        // winner selects which ones change. Loops bounded by `winner` itself
+        // do not synthesize in Vivado ("loop condition does not converge").
         logic [MATRIX_BITS-1:0] nxt;
-        int i, j;
         nxt = m;
-        for (j = winner + 1; j < CLIENTS; j++) begin
-            nxt[matrix_idx(winner, j)] = 1'b0;
-        end
-        for (i = 0; i < winner; i++) begin
-            nxt[matrix_idx(i, winner)] = 1'b1;
+        for (int r = 0; r < CLIENTS; r++) begin
+            for (int c = r + 1; c < CLIENTS; c++) begin
+                if (r == winner)      nxt[matrix_idx(r, c)] = 1'b0;
+                else if (c == winner) nxt[matrix_idx(r, c)] = 1'b1;
+            end
         end
         return nxt;
     endfunction
