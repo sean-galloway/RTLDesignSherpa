@@ -292,7 +292,7 @@ module axi_monitor_addr_check (
 	parameter signed [31:0] IW = ID_WIDTH;
 	input wire clk;
 	input wire aresetn;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	input wire [M - 1:0] cmd_addr;
 	input wire [IW - 1:0] cmd_id;
@@ -306,7 +306,7 @@ module axi_monitor_addr_check (
 	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
 	output wire addr_pkt_valid;
 	input wire addr_pkt_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] addr_pkt_data;
 	output wire [63:0] addr_pkt_timestamp;
 	wire cmd_fire;
@@ -519,20 +519,20 @@ module axi_monitor_addr_check (
 	wire [8:0] channel_id_field;
 	wire [63:0] event_data_field;
 	wire [59:0] addr_payload;
-	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		if (emit_is_miss) begin
-			pkt_type_field = monitor_common_pkg_PktTypeError;
+			pkt_type_field = ocelus_common_pkg_PktTypeError;
 			event_code_field = 8'h0d;
 			emit_idx = MISS_RANGE_SENTINEL;
 			emit_addr = r_miss_addr;
 			emit_id = r_miss_id;
 		end
 		else begin
-			pkt_type_field = monitor_common_pkg_PktTypeAddrMatch;
+			pkt_type_field = ocelus_common_pkg_PktTypeAddrMatch;
 			event_code_field = 8'h01;
 			emit_idx = match_emit_idx;
 			emit_addr = 1'sb0;
@@ -562,7 +562,7 @@ module axi_monitor_addr_check (
 		end
 	endgenerate
 	assign event_data_field = {emit_idx[3:0], addr_payload};
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -570,9 +570,9 @@ module axi_monitor_addr_check (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_data = ocelus_common_pkg_create_monitor_packet(pkt_type_field, 4'h0, event_code_field, channel_id_field, UNIT_ID, AGENT_ID, event_data_field);
 	assign addr_pkt_timestamp = i_mon_time;
 	initial _sv2v_0 = 0;
 endmodule
@@ -633,10 +633,10 @@ module axi_monitor_reporter_compl (
 	end
 	assign pkt_valid = w_has_event;
 	assign sel_idx = w_sel;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	assign pkt_type = monitor_common_pkg_PktTypeCompletion;
-	localparam [7:0] monitor_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
-	assign pkt_event_code = monitor_amba4_pkg_EVT_TRANS_COMPLETE;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	assign pkt_type = ocelus_common_pkg_PktTypeCompletion;
+	localparam [7:0] ocelus_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
+	assign pkt_event_code = ocelus_amba4_pkg_EVT_TRANS_COMPLETE;
 	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
 	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
 	initial _sv2v_0 = 0;
@@ -717,12 +717,12 @@ module axi_monitor_reporter_debug (
 				else
 					r_prev_state[idx] <= trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3];
 		end
-	localparam [3:0] monitor_common_pkg_PktTypeDebug = 4'hf;
+	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		pkt_valid = 1'b0;
-		pkt_type = monitor_common_pkg_PktTypeDebug;
+		pkt_type = ocelus_common_pkg_PktTypeDebug;
 		pkt_event_code = 8'h00;
 		pkt_channel = 1'sb0;
 		pkt_data = 1'sb0;
@@ -796,8 +796,8 @@ module axi_monitor_reporter_error (
 	end
 	assign pkt_valid = w_has_event;
 	assign sel_idx = w_sel;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	assign pkt_type = monitor_common_pkg_PktTypeError;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	assign pkt_type = ocelus_common_pkg_PktTypeError;
 	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
 	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
 	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
@@ -887,7 +887,7 @@ module axi_monitor_reporter_perf (
 			if (!(pkt_valid && !pkt_taken))
 				r_state <= w_next_state;
 		end
-	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
 	function automatic [63:0] sv2v_cast_64;
 		input reg [63:0] inp;
 		sv2v_cast_64 = inp;
@@ -896,7 +896,7 @@ module axi_monitor_reporter_perf (
 		if (_sv2v_0)
 			;
 		pkt_valid = 1'b0;
-		pkt_type = monitor_common_pkg_PktTypePerf;
+		pkt_type = ocelus_common_pkg_PktTypePerf;
 		pkt_event_code = 8'h07;
 		pkt_channel = 1'sb0;
 		pkt_data = 1'sb0;
@@ -987,7 +987,7 @@ module axi_monitor_reporter_threshold (
 				end
 		end
 	end
-	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			begin : sv2v_autoblock_3
@@ -1013,11 +1013,11 @@ module axi_monitor_reporter_threshold (
 						r_latency_over_thresh[idx] <= (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold);
 					end
 			end
-			if (((w_active_detect && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
+			if (((w_active_detect && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
 				r_active_crossed <= 1'b1;
 			else if ({8'h00, w_active_count} <= active_trans_threshold)
 				r_active_crossed <= 1'b0;
-			if (((w_has_lat && pkt_taken) && (pkt_type == monitor_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
+			if (((w_has_lat && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
 				r_latency_crossed <= 1'b1;
 			else if (!w_has_lat)
 				r_latency_crossed <= 1'b0;
@@ -1026,7 +1026,7 @@ module axi_monitor_reporter_threshold (
 		if (_sv2v_0)
 			;
 		pkt_valid = 1'b0;
-		pkt_type = monitor_common_pkg_PktTypeThreshold;
+		pkt_type = ocelus_common_pkg_PktTypeThreshold;
 		pkt_event_code = 8'h00;
 		pkt_channel = 1'sb0;
 		pkt_data = 1'sb0;
@@ -1104,8 +1104,8 @@ module axi_monitor_reporter_timeout (
 	end
 	assign pkt_valid = w_has_event;
 	assign sel_idx = w_sel;
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
-	assign pkt_type = monitor_common_pkg_PktTypeTimeout;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	assign pkt_type = ocelus_common_pkg_PktTypeTimeout;
 	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
 	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
 	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
@@ -1447,7 +1447,7 @@ module axi_monitor_reporter (
 	input wire cfg_debug_enable;
 	input wire monbus_ready;
 	output reg monbus_valid;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output reg [127:0] monbus_packet;
 	output wire [15:0] event_count;
 	output wire [15:0] perf_completed_count;
@@ -1842,8 +1842,8 @@ module axi_monitor_reporter (
 	reg [7:0] r_event_code;
 	reg [63:0] r_event_data;
 	reg [8:0] r_event_channel;
-	localparam [7:0] monitor_amba4_pkg_EVT_NONE = 8'h00;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	localparam [7:0] ocelus_amba4_pkg_EVT_NONE = 8'h00;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
 	function automatic [15:0] sv2v_cast_16;
 		input reg [15:0] inp;
 		sv2v_cast_16 = inp;
@@ -1858,8 +1858,8 @@ module axi_monitor_reporter (
 			monbus_valid <= 1'b0;
 			r_event_count <= 1'sb0;
 			r_event_reported <= 1'sb0;
-			r_packet_type <= monitor_common_pkg_PktTypeError;
-			r_event_code <= monitor_amba4_pkg_EVT_NONE;
+			r_packet_type <= ocelus_common_pkg_PktTypeError;
+			r_event_code <= ocelus_amba4_pkg_EVT_NONE;
 			r_event_data <= 1'sb0;
 			r_event_channel <= 1'sb0;
 		end
@@ -1912,7 +1912,7 @@ module axi_monitor_reporter (
 	assign thresh_taken = (thresh_valid && !monbus_valid) && !w_fifo_rd_valid;
 	assign perf_taken = ((perf_valid && !monbus_valid) && !w_fifo_rd_valid) && !thresh_valid;
 	assign debug_taken = (((debug_valid && !monbus_valid) && !w_fifo_rd_valid) && !thresh_valid) && !perf_valid;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -1920,12 +1920,12 @@ module axi_monitor_reporter (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		monbus_packet = monitor_common_pkg_create_monitor_packet(r_packet_type, 4'h0, r_event_code, r_event_channel, UNIT_ID, AGENT_ID, r_event_data);
+		monbus_packet = ocelus_common_pkg_create_monitor_packet(r_packet_type, 4'h0, r_event_code, r_event_channel, UNIT_ID, AGENT_ID, r_event_data);
 	end
 	wire unused_fifo_count;
 	assign unused_fifo_count = |w_fifo_count;
@@ -2919,11 +2919,11 @@ module axi_monitor_trans_mgr (
 	assign addr_hit_any = |wb_addr_pend_any;
 	assign resp_hit_any = |wb_resp_match_any;
 	assign data_hit_any = (IS_READ ? |wb_data_match_any : |wb_data_pred_any || |wb_data_bypass_any);
-	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
+	function automatic signed [31:0] ocelus_common_pkg_cmd_entry_reserve;
 		input reg signed [31:0] max_transactions;
-		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
+		ocelus_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
 	endfunction
-	localparam signed [31:0] CMD_ENTRY_RESERVE = monitor_common_pkg_cmd_entry_reserve(N);
+	localparam signed [31:0] CMD_ENTRY_RESERVE = ocelus_common_pkg_cmd_entry_reserve(N);
 	reg [$clog2(N + 1) - 1:0] w_cmd_entry_count;
 	function automatic signed [$clog2(N + 1) - 1:0] sv2v_cast_54CAC_signed;
 		input reg signed [$clog2(N + 1) - 1:0] inp;
@@ -3141,14 +3141,14 @@ module axi_monitor_trans_mgr (
 		end
 	endgenerate
 	genvar _gv_gi_4;
-	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
-	localparam [7:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
-	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
-	localparam [7:0] monitor_amba4_pkg_EVT_PROTOCOL = 8'h04;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_DECERR = 8'h01;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
+	localparam [7:0] ocelus_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
+	localparam [7:0] ocelus_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
+	localparam [7:0] ocelus_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
+	localparam [7:0] ocelus_amba4_pkg_EVT_PROTOCOL = 8'h04;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_DECERR = 8'h01;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
 	function automatic [5:0] sv2v_cast_6;
 		input reg [5:0] inp;
 		sv2v_cast_6 = inp;
@@ -3220,7 +3220,7 @@ module axi_monitor_trans_mgr (
 							end
 							if (data_resp[1]) begin
 								next[277-:3] = 3'h4;
-								next[7-:8] = (data_resp[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+								next[7-:8] = (data_resp[0] ? ocelus_amba4_pkg_EVT_RESP_DECERR : ocelus_amba4_pkg_EVT_RESP_SLVERR);
 							end
 							else if (data_last)
 								next[277-:3] = 3'h3;
@@ -3250,7 +3250,7 @@ module axi_monitor_trans_mgr (
 						next[281] = data_last;
 						next[15-:8] = 8'h01;
 						next[87-:32] = timestamp;
-						next[7-:8] = monitor_amba4_pkg_EVT_DATA_ORPHAN;
+						next[7-:8] = ocelus_amba4_pkg_EVT_DATA_ORPHAN;
 						next_we = 1'b1;
 						next_id = (IS_AXI ? data_id : {IW {1'sb0}});
 					end
@@ -3262,7 +3262,7 @@ module axi_monitor_trans_mgr (
 						next[151-:32] = 1'sb0;
 						if (resp_code[1]) begin
 							next[277-:3] = 3'h4;
-							next[7-:8] = (resp_code[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+							next[7-:8] = (resp_code[0] ? ocelus_amba4_pkg_EVT_RESP_DECERR : ocelus_amba4_pkg_EVT_RESP_SLVERR);
 						end
 						else if (cam_entry_payload[(((N - 1) - gi) * 285) + 281]) begin
 							if (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)
@@ -3270,7 +3270,7 @@ module axi_monitor_trans_mgr (
 						end
 						else begin
 							next[277-:3] = 3'h4;
-							next[7-:8] = monitor_amba4_pkg_EVT_PROTOCOL;
+							next[7-:8] = ocelus_amba4_pkg_EVT_PROTOCOL;
 						end
 						next_we = 1'b1;
 					end
@@ -3288,7 +3288,7 @@ module axi_monitor_trans_mgr (
 							next[221-:6] = 6'h00;
 						next[280] = 1'b1;
 						next[55-:32] = timestamp;
-						next[7-:8] = monitor_amba4_pkg_EVT_RESP_ORPHAN;
+						next[7-:8] = ocelus_amba4_pkg_EVT_RESP_ORPHAN;
 						next_we = 1'b1;
 						next_id = (IS_AXI ? resp_id : {IW {1'sb0}});
 					end
@@ -3296,11 +3296,11 @@ module axi_monitor_trans_mgr (
 				if ((((i_timeout_detected[gi] && cam_entry_valid[gi]) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h3)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h5)) begin
 					next[277-:3] = 3'h4;
 					if (!cam_entry_payload[(((N - 1) - gi) * 285) + 283])
-						next[7-:8] = monitor_amba4_pkg_EVT_CMD_TIMEOUT;
+						next[7-:8] = ocelus_amba4_pkg_EVT_CMD_TIMEOUT;
 					else if (cam_entry_payload[(((N - 1) - gi) * 285) + 281] && !cam_entry_payload[(((N - 1) - gi) * 285) + 280])
-						next[7-:8] = monitor_amba4_pkg_EVT_RESP_TIMEOUT;
+						next[7-:8] = ocelus_amba4_pkg_EVT_RESP_TIMEOUT;
 					else
-						next[7-:8] = monitor_amba4_pkg_EVT_DATA_TIMEOUT;
+						next[7-:8] = ocelus_amba4_pkg_EVT_DATA_TIMEOUT;
 					next_we = 1'b1;
 				end
 				if (cam_entry_valid[gi] && w_can_cleanup[gi]) begin
@@ -3519,11 +3519,11 @@ module axi_monitor_base (
 	input wire cfg_start_trigger;
 	input wire cfg_end_trigger;
 	input wire cfg_window_force_close;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output reg monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output reg [127:0] monbus_packet;
 	output reg [63:0] monbus_timestamp;
 	output wire block_ready;
@@ -3766,11 +3766,11 @@ module axi_monitor_base (
 		end
 	end
 	assign w_addr_pkt_ready = monbus_ready && (r_addr_hold || (!w_reporter_monbus_valid && !w_debug_monbus_valid));
-	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
+	function automatic signed [31:0] ocelus_common_pkg_cmd_entry_reserve;
 		input reg signed [31:0] max_transactions;
-		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
+		ocelus_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
 	endfunction
-	localparam [31:0] CMD_ENTRY_RESERVE = $unsigned(monitor_common_pkg_cmd_entry_reserve(MAX_TRANSACTIONS));
+	localparam [31:0] CMD_ENTRY_RESERVE = $unsigned(ocelus_common_pkg_cmd_entry_reserve(MAX_TRANSACTIONS));
 	localparam [31:0] BLOCK_MARGIN = (CMD_ENTRY_RESERVE > 0 ? CMD_ENTRY_RESERVE - 1 : 3);
 	assign block_ready = (MAX_TRANSACTIONS > BLOCK_MARGIN ? {24'h000000, w_active_count} < (MAX_TRANSACTIONS - BLOCK_MARGIN) : 1'b1);
 	assign busy = w_active_count > 0;
@@ -4073,11 +4073,11 @@ module axi_monitor_filtered (
 	input wire cfg_start_trigger;
 	input wire cfg_end_trigger;
 	input wire cfg_window_force_close;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire block_ready;
@@ -4207,31 +4207,31 @@ module axi_monitor_filtered (
 		.perf_completed_count(perf_completed_count),
 		.perf_error_count(perf_error_count)
 	);
-	function automatic [3:0] monitor_common_pkg_get_packet_type;
+	function automatic [3:0] ocelus_common_pkg_get_packet_type;
 		input reg [127:0] pkt;
-		monitor_common_pkg_get_packet_type = pkt[127:124];
+		ocelus_common_pkg_get_packet_type = pkt[127:124];
 	endfunction
-	assign pkt_type = monitor_common_pkg_get_packet_type(base_monbus_packet);
+	assign pkt_type = ocelus_common_pkg_get_packet_type(base_monbus_packet);
 	assign pkt_protocol = base_monbus_packet[108:105];
-	function automatic [7:0] monitor_common_pkg_get_event_code;
+	function automatic [7:0] ocelus_common_pkg_get_event_code;
 		input reg [127:0] pkt;
-		monitor_common_pkg_get_event_code = pkt[104:97];
+		ocelus_common_pkg_get_event_code = pkt[104:97];
 	endfunction
-	assign pkt_event_code = monitor_common_pkg_get_event_code(base_monbus_packet);
-	function automatic [63:0] monitor_common_pkg_get_event_data;
+	assign pkt_event_code = ocelus_common_pkg_get_event_code(base_monbus_packet);
+	function automatic [63:0] ocelus_common_pkg_get_event_data;
 		input reg [127:0] pkt;
-		monitor_common_pkg_get_event_data = pkt[63:0];
+		ocelus_common_pkg_get_event_data = pkt[63:0];
 	endfunction
-	assign pkt_event_data = monitor_common_pkg_get_event_data(base_monbus_packet);
+	assign pkt_event_data = ocelus_common_pkg_get_event_data(base_monbus_packet);
 	wire [3:0] ec_idx;
 	assign ec_idx = pkt_event_code[3:0];
-	localparam [3:0] monitor_common_pkg_PktTypeAddrMatch = 4'h8;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeDebug = 4'hf;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
-	localparam [3:0] monitor_common_pkg_PktTypeThreshold = 4'h2;
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
+	localparam [3:0] ocelus_common_pkg_PktTypeAddrMatch = 4'h8;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -4242,13 +4242,13 @@ module axi_monitor_filtered (
 				pkt_drop = cfg_axi_pkt_mask[pkt_type];
 				if (!pkt_drop) begin
 					case (pkt_type)
-						monitor_common_pkg_PktTypeError: pkt_event_masked = cfg_axi_error_mask[ec_idx];
-						monitor_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
-						monitor_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
-						monitor_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
-						monitor_common_pkg_PktTypePerf: pkt_event_masked = cfg_axi_perf_mask[ec_idx];
-						monitor_common_pkg_PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
-						monitor_common_pkg_PktTypeDebug: pkt_event_masked = cfg_axi_debug_mask[ec_idx];
+						ocelus_common_pkg_PktTypeError: pkt_event_masked = cfg_axi_error_mask[ec_idx];
+						ocelus_common_pkg_PktTypeTimeout: pkt_event_masked = cfg_axi_timeout_mask[ec_idx];
+						ocelus_common_pkg_PktTypeCompletion: pkt_event_masked = cfg_axi_compl_mask[ec_idx];
+						ocelus_common_pkg_PktTypeThreshold: pkt_event_masked = cfg_axi_thresh_mask[ec_idx];
+						ocelus_common_pkg_PktTypePerf: pkt_event_masked = cfg_axi_perf_mask[ec_idx];
+						ocelus_common_pkg_PktTypeAddrMatch: pkt_event_masked = cfg_axi_addr_mask[ec_idx];
+						ocelus_common_pkg_PktTypeDebug: pkt_event_masked = cfg_axi_debug_mask[ec_idx];
 						default: pkt_event_masked = 1'b0;
 					endcase
 					if (pkt_event_masked)
@@ -4392,6 +4392,7 @@ module axi4_slave_rd_mon (
 	perf_burst_count,
 	cfg_conflict_error
 );
+	reg _sv2v_0;
 	parameter signed [31:0] SKID_DEPTH_AR = 2;
 	parameter signed [31:0] SKID_DEPTH_R = 4;
 	parameter signed [31:0] AXI_ID_WIDTH = 8;
@@ -4505,11 +4506,11 @@ module axi4_slave_rd_mon (
 	input wire cfg_start_trigger;
 	input wire cfg_end_trigger;
 	input wire cfg_window_force_close;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire busy;
@@ -4733,6 +4734,8 @@ module axi4_slave_rd_mon (
 	assign error_count = w_perf_error_count;
 	assign transaction_count = {16'h0000, w_perf_completed_count};
 	always @(*) begin
+		if (_sv2v_0)
+			;
 		if ((aresetn && cfg_monitor_enable) && !w_block_ready) begin : ap_block_ready_gating
 			assert (!s_axi_arready) ;
 		end
@@ -4740,4 +4743,5 @@ module axi4_slave_rd_mon (
 			assert (s_axi_arready == w_core_s_axi_arready) ;
 		end
 	end
+	initial _sv2v_0 = 0;
 endmodule

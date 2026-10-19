@@ -35,7 +35,7 @@
  * - Configuration validation with error flagging
  */
 module axi4_slave_wr_mon
-    import monitor_pkg::*;
+    import ocelus_pkg::*;
 #(
     // AXI4 Slave parameters (passed through to axi4_slave_wr)
     parameter int SKID_DEPTH_AW     = 2,
@@ -227,13 +227,13 @@ module axi4_slave_wr_mon
     input  logic                                    cfg_window_force_close,
 
     // Free-running ocelus-time broadcast from the monbus_group family
-    input  monitor_common_pkg::monbus_timestamp_t   i_mon_time,
+    input  ocelus_common_pkg::monbus_timestamp_t   i_mon_time,
 
     // Ocelus Bus Output
     output logic                                    monbus_valid,            // Ocelus bus valid
     input  logic                                    monbus_ready,            // Ocelus bus ready
-    output monitor_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
-    output monitor_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
+    output ocelus_common_pkg::monitor_packet_t     monbus_packet,           // Ocelus packet (128-bit)
+    output ocelus_common_pkg::monbus_timestamp_t   monbus_timestamp,        // Side-band sampled time
 
     // Status outputs for clock gating and monitoring
     output logic                       busy,
@@ -589,26 +589,8 @@ module axi4_slave_wr_mon
     assign error_count       = w_perf_error_count;
     assign transaction_count = {16'h0, w_perf_completed_count};
 
-`ifdef FORMAL
-    // ------------------------------------------------------------------------
-    // Wrapper gating contract (in-RTL formal properties, flattened into the
-    // proof by sv2v --define=FORMAL). These live HERE and not in the sby
-    // harness because a plain-Verilog harness cannot form hierarchical
-    // references: `dut.w_block_ready` elaborated as an implicitly-declared
-    // FREE wire, which made the old harness-side P6/P7 gating properties
-    // vacuous (guard over a free variable). In-module, the real nets are
-    // visible and the contract is enforceable:
-    //   * enabled + blocked -> upstream ready is forced low
-    //   * disabled          -> the wrapper is transparent (a disabled
-    //                          ocelus must never stall the datapath)
-    // ------------------------------------------------------------------------
-    always_comb begin
-        if (aresetn && cfg_monitor_enable && !w_block_ready)
-            ap_block_ready_gating: assert (!s_axi_awready);
-        if (aresetn && !cfg_monitor_enable)
-            ap_disabled_never_stalls: assert (s_axi_awready == w_core_s_axi_awready);
-    end
-`endif
+    // Gating-contract properties: formal/amba/axi4_slave_wr_mon/axi4_slave_wr_mon_props.svh, spliced
+    // in by the formal flow (no assertions in RTL).
 
 endmodule : axi4_slave_wr_mon
 

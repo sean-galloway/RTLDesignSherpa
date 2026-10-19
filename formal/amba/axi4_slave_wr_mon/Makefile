@@ -41,6 +41,10 @@ DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
 
 DUT := $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr_mon.sv
 
+# Wrapper gating properties, spliced before endmodule of axi4_slave_wr_mon.sv (the RTL
+# carries no assertions; see axi4_slave_wr_mon_props.svh)
+PROPS := $(REPO_ROOT)/formal/amba/axi4_slave_wr_mon/axi4_slave_wr_mon_props.svh
+
 TMPDIR := /tmp/formal_axi4_slave_wr_mon
 
 .PHONY: prove cover clean
@@ -51,14 +55,15 @@ prove: axi4_slave_wr_mon_flat.v
 cover: axi4_slave_wr_mon_flat.v
 	sby -f axi4_slave_wr_mon.sby cover
 
-# Strip `import monitor_pkg::*;` and `monitor_pkg::` scope prefixes (monitor_pkg
+# Strip `import ocelus_pkg::*;` and `ocelus_pkg::` scope prefixes (ocelus_pkg
 # re-exports sub-package types and trips sv2v "ambiguous identifier"), then
 # flatten DUT + closure into a single Verilog file.
-axi4_slave_wr_mon_flat.v: $(DUT) $(PKGS) $(DEPS)
+axi4_slave_wr_mon_flat.v: $(DUT) $(PKGS) $(DEPS) $(PROPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import monitor_pkg::\*;//g' \
-		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		sed -e 's/import ocelus_pkg::\*;//g' \
+		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		if [ "$$(basename $$f)" = "axi4_slave_wr_mon.sv" ]; then sed -i '/^endmodule/e cat $(PROPS)' $(TMPDIR)/axi4_slave_wr_mon.sv; fi; \
 	done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
 		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
@@ -84,11 +89,12 @@ check-flat: .check_flat_tmp
 		exit 1; \
 	fi
 
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
+.check_flat_tmp: $(DUT) $(PKGS) $(DEPS) $(PROPS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import monitor_pkg::\*;//g' \
-		    -e 's/monitor_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		sed -e 's/import ocelus_pkg::\*;//g' \
+		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
+		if [ "$$(basename $$f)" = "axi4_slave_wr_mon.sv" ]; then sed -i '/^endmodule/e cat $(PROPS)' $(TMPDIR)/axi4_slave_wr_mon.sv; fi; \
 	done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
 		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
