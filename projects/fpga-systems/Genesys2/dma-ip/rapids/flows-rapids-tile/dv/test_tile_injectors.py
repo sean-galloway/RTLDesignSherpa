@@ -48,6 +48,22 @@ async def cocotb_test_stream(dut):
     _finish(ok, stats, "cell stream")
 
 
+@cocotb.test(timeout_time=2, timeout_unit="ms")
+async def cocotb_test_stream_ordered(dut):
+    """The same stream with the O4 ordering rule on."""
+    tb = await _bring_up(dut)
+    ok, stats = await tb.test_stream(ordered=True)
+    _finish(ok, stats, "ordered cell stream")
+
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def cocotb_test_ordered(dut):
+    """O4: the next batch waits for one flit of the last one back."""
+    tb = await _bring_up(dut)
+    ok, stats = await tb.test_ordered()
+    _finish(ok, stats, "ordered batches")
+
+
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_strap_gate(dut):
     """With no returns a cell sends only what its strap covers."""
@@ -72,7 +88,7 @@ async def cocotb_test_too_big(dut):
     _finish(ok, stats, "oversized packet")
 
 
-@pytest.mark.parametrize("testcase", ["stream", "strap_gate", "bad_returns", "too_big"])
+@pytest.mark.parametrize("testcase", ["stream", "stream_ordered", "ordered", "strap_gate", "bad_returns", "too_big"])
 @pytest.mark.parametrize("land", [16, 8])
 def test_tile_injectors(request, testcase, land):
     module, repo_root_local, tests_dir, log_dir, _ = get_paths({})

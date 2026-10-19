@@ -67,7 +67,8 @@ class TileInjectorsTB(TBBase):
     # ---- the three mandatory methods -------------------------------------
     async def setup_clocks_and_reset(self):
         await self.start_clock(self.clk_name, 10, 'ns')
-        for name in ('cfg_start', 'cfg_seed', 'cfg_num_beats', 'cfg_beats_per_pkt', 'cfg_hold'):
+        for name in ('cfg_start', 'cfg_seed', 'cfg_num_beats', 'cfg_beats_per_pkt', 'cfg_hold',
+                     'cfg_ordered'):
             getattr(self.dut, name).value = 0
         self._create_bfms()
         await self.assert_reset()
@@ -207,9 +208,12 @@ class TileInjectorsTB(TBBase):
         return errs
 
     # ---- scenarios -----------------------------------------------------------
-    async def test_stream(self, num_beats: int = 70, beats_per_pkt: int = 7) -> Tuple[bool, Dict[str, Any]]:
+    async def test_stream(self, num_beats: int = 70, beats_per_pkt: int = 7,
+                          ordered: bool = False) -> Tuple[bool, Dict[str, Any]]:
         """Both cells stream past their straps; the returns keep them going."""
-        self.log.info(f"=== cells: {num_beats} beats in packets of {beats_per_pkt}, strap {self.LAND} ===")
+        self.log.info(f"=== cells: {num_beats} beats in packets of {beats_per_pkt}, strap {self.LAND}, "
+                      f"ordered {int(ordered)} ===")
+        self.dut.cfg_ordered.value = int(ordered)
         stop = [False]
         cocotb.start_soon(self.rapids(stop=stop))
         await self.start(num_beats, beats_per_pkt)
@@ -232,7 +236,7 @@ class TileInjectorsTB(TBBase):
             sent, ret = self.stat(f"{x}_sent"), self.stat(f"{x}_returned")
             if sent != num_beats + npk or ret != sent:
                 errors.append(f"{x}: sent {sent} flits, returned {ret}, expected {num_beats + npk} both")
-            if self.peak_out[x] < self.LAND - beats_per_pkt:
+            if not ordered and self.peak_out[x] < self.LAND - beats_per_pkt:
                 errors.append(f"{x}: at most {self.peak_out[x]} flits out: the strap was never used")
         if self.a_crc_differs_check():
             errors.append("cells A and B sent the same payload: the per-channel seed is not applied")
@@ -265,6 +269,32 @@ class TileInjectorsTB(TBBase):
                           f"packets, expected {fit + 1}, {fit}")
         stop[0] = True
         return self._finish(errors + self._errs_clean(), "strap gate")
+
+    async def test_ordered(self, beats_per_pkt: int = 3) -> Tuple[bool, Dict[str, Any]]:
+        """O4: with returns withheld a cell sends one batch even though its
+        strap covers more; one flit of that batch back releases the next."""
+        self.log.info("=== cells: ordered, the next batch waits for a flit of the last ===")
+        self.dut.cfg_ordered.value = 1
+        stop = [False]
+        cocotb.start_soon(self.rapids(returns=False, stop=stop))
+        await self.start(10 * beats_per_pkt, beats_per_pkt)
+        await self.wait_clocks(self.clk_name, 1000)
+        errors = []
+        fit = self.LAND // (1 + beats_per_pkt)
+        if fit < 2:
+            errors.append(f"test needs a strap of two batches; {self.LAND} covers {fit}")
+        for x in self.CELLS:
+            if len(self.packets(x)) != 1:
+                errors.append(f"{x}: {len(self.packets(x))} batches with none returned, expected 1 "
+                              f"(the strap alone would allow {fit})")
+        await self.send_credit(self.CELLS['a']['coord'], 1)          # A's header flit
+        self.out_flits['a'] -= 1
+        await self.wait_clocks(self.clk_name, 500)
+        if len(self.packets('a')) != 2 or len(self.packets('b')) != 1:
+            errors.append(f"after one flit back to A: A {len(self.packets('a'))}, B {len(self.packets('b'))} "
+                          f"batches, expected 2, 1")
+        stop[0] = True
+        return self._finish(errors + self._errs_clean(), "ordered batches")
 
     async def test_bad_returns(self) -> Tuple[bool, Dict[str, Any]]:
         """Malformed returns are counted, flagged and not applied; an

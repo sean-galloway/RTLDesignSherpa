@@ -25,6 +25,7 @@ module tb_tile_cell_loop #(
     input  logic [31:0]     cfg_num_beats,
     input  logic [31:0]     cfg_beats_per_pkt,
     input  logic            cfg_hold,
+    input  logic            cfg_ordered,
 
     // cell A: channel 2, slot 0; cell B: channel 5, slot 6
     output logic            a_axis_tvalid,
@@ -81,6 +82,7 @@ module tb_tile_cell_loop #(
         .clk(aclk), .rst_n(aresetn),
         .cfg_start(cfg_start), .cfg_seed(cfg_seed), .cfg_channel(4'd2), .cfg_coord(A_COORD),
         .cfg_num_beats(cfg_num_beats), .cfg_beats_per_pkt(cfg_beats_per_pkt),
+        .cfg_ordered(cfg_ordered),
         .busy(a_busy), .done(),
         .ret_valid(w_ret_valid[0]), .ret_set(w_ret_set), .ret_count(w_ret_count),
         .m_valid(a_axis_tvalid), .m_ready(a_axis_tready), .m_data(a_axis_tdata),
@@ -94,6 +96,7 @@ module tb_tile_cell_loop #(
         .clk(aclk), .rst_n(aresetn),
         .cfg_start(cfg_start), .cfg_seed(cfg_seed), .cfg_channel(4'd5), .cfg_coord(B_COORD),
         .cfg_num_beats(cfg_num_beats), .cfg_beats_per_pkt(cfg_beats_per_pkt),
+        .cfg_ordered(cfg_ordered),
         .busy(b_busy), .done(),
         .ret_valid(w_ret_valid[6]), .ret_set(w_ret_set), .ret_count(w_ret_count),
         .m_valid(b_axis_tvalid), .m_ready(b_axis_tready), .m_data(b_axis_tdata),
