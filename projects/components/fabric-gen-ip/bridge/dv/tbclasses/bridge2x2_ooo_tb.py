@@ -141,6 +141,11 @@ class Bridge2x2OooTB(TBBase):
         # id_widths equal to this value — do not re-derive or hand-edit them
         # at the call sites (bridge GitHub #99).
         self.XBAR_ID_WIDTH = 5
+        # AXI4 read slaves interleave R beats across IDs (AXI4 allows it, and
+        # the bridge converts per ID): every test with overlapping reads at a
+        # slave then exercises it. BRIDGE_R_INTERLEAVE=0 sends each burst
+        # contiguously instead.
+        self.R_INTERLEAVE = os.environ.get('BRIDGE_R_INTERLEAVE', '1') == '1'
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -522,6 +527,7 @@ class Bridge2x2OooTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[0],
             base_addr=0x00000000,
+            interleave_r=self.R_INTERLEAVE,
             # This slave declares enable_ooo, so the bridge tracks its reads by ID
             # (the master index in the ID). Let the BFM actually reorder across IDs, or the by-ID path is
             # never exercised and an in-order FIFO would pass this test just as well.
@@ -565,6 +571,7 @@ class Bridge2x2OooTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x80000000,
+            interleave_r=self.R_INTERLEAVE,
             # This slave declares enable_ooo, so the bridge tracks its reads by ID
             # (the master index in the ID). Let the BFM actually reorder across IDs, or the by-ID path is
             # never exercised and an in-order FIFO would pass this test just as well.

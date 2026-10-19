@@ -225,7 +225,8 @@ smaller.
   2026-10-16, every read width converter carried a 16 x 272-beat
   reassembly pool (about 128k LUTs each). `bridge_mix_a` did not fit the
   Artix-7 and `bridge_4x4_rw` did not finish synthesis. With the pool gone
-  (`R_INTERLEAVE = 0`, legal because slaves may not interleave R), the
+  (`R_INTERLEAVE = 0` then; R interleave came back without the pool on
+  2026-10-18), the
   write converter's B input registered and its CAM match one-hot:
   - `bridge_4x4_rw` went from -7.5 to -3.0 ns on the Artix-7 and is at the
     target on the Kintex-7 (-0.14 ns);

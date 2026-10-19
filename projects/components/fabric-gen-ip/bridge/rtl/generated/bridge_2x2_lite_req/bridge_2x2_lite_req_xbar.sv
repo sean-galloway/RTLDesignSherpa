@@ -328,7 +328,7 @@ module bridge_2x2_lite_req_xbar
 
     wire lite4_32b_r_rgnt_regs = ((regs_axi_rid_bridge_id == 0) && regs_axi_rid_valid);
 
-    // ---- B response arbiter, master lite4 64b: round-robin, lock until taken ----
+    // ---- B response arbiter, master lite4 64b: round-robin per beat, lock until taken ----
     logic [1:0] lite4_64b_b_rarb_req;
     assign lite4_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid) && mem_axi_bvalid};
     logic [0:0] lite4_64b_b_rarb_lock, lite4_64b_b_rarb_rr;
@@ -354,7 +354,7 @@ module bridge_2x2_lite_req_xbar
         end
     )
 
-    // ---- R response arbiter, master lite4 64b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master lite4 64b: round-robin per beat, lock until taken ----
     logic [1:0] lite4_64b_r_rarb_req;
     assign lite4_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid) && mem_axi_rvalid};
     logic [0:0] lite4_64b_r_rarb_lock, lite4_64b_r_rarb_rr;
@@ -366,20 +366,14 @@ module bridge_2x2_lite_req_xbar
     wire lite4_64b_r_rgnt_mem = lite4_64b_r_rarb_gnt_valid && (lite4_64b_r_rarb_gnt == 1'd0);
     wire lite4_64b_r_rgnt_subtractive = lite4_64b_r_rarb_gnt_valid && (lite4_64b_r_rarb_gnt == 1'd1);
     wire lite4_64b_r_rarb_vld = (lite4_64b_r_rgnt_mem && lite4_64b_r_rarb_req[0]) || (lite4_64b_r_rgnt_subtractive && lite4_64b_r_rarb_req[1]);
-    wire lite4_64b_r_rarb_last = (lite4_64b_r_rgnt_mem && mem_axi_rlast) || (lite4_64b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             lite4_64b_r_rarb_lock   <= '0;
             lite4_64b_r_rarb_rr     <= '0;
             lite4_64b_r_rarb_locked <= 1'b0;
         end else if (lite4_64b_r_rarb_vld && lite4_64b_rready) begin
-            if (lite4_64b_r_rarb_last) begin
-                lite4_64b_r_rarb_locked <= 1'b0;
-                lite4_64b_r_rarb_rr <= (lite4_64b_r_rarb_gnt == 1'd1) ? 1'd0 : lite4_64b_r_rarb_gnt + 1'b1;
-            end else begin
-                lite4_64b_r_rarb_lock   <= lite4_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                lite4_64b_r_rarb_locked <= 1'b1;
-            end
+            lite4_64b_r_rarb_locked <= 1'b0;
+            lite4_64b_r_rarb_rr <= (lite4_64b_r_rarb_gnt == 1'd1) ? 1'd0 : lite4_64b_r_rarb_gnt + 1'b1;
         end else if (lite4_64b_r_rarb_vld) begin
             lite4_64b_r_rarb_lock   <= lite4_64b_r_rarb_gnt;       // offered, not taken: hold
             lite4_64b_r_rarb_locked <= 1'b1;
@@ -390,7 +384,7 @@ module bridge_2x2_lite_req_xbar
 
     wire lite5_32b_r_rgnt_regs = ((regs_axi_rid_bridge_id == 1) && regs_axi_rid_valid);
 
-    // ---- B response arbiter, master lite5 64b: round-robin, lock until taken ----
+    // ---- B response arbiter, master lite5 64b: round-robin per beat, lock until taken ----
     logic [1:0] lite5_64b_b_rarb_req;
     assign lite5_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid) && mem_axi_bvalid};
     logic [0:0] lite5_64b_b_rarb_lock, lite5_64b_b_rarb_rr;
@@ -416,7 +410,7 @@ module bridge_2x2_lite_req_xbar
         end
     )
 
-    // ---- R response arbiter, master lite5 64b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master lite5 64b: round-robin per beat, lock until taken ----
     logic [1:0] lite5_64b_r_rarb_req;
     assign lite5_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid) && mem_axi_rvalid};
     logic [0:0] lite5_64b_r_rarb_lock, lite5_64b_r_rarb_rr;
@@ -428,20 +422,14 @@ module bridge_2x2_lite_req_xbar
     wire lite5_64b_r_rgnt_mem = lite5_64b_r_rarb_gnt_valid && (lite5_64b_r_rarb_gnt == 1'd0);
     wire lite5_64b_r_rgnt_subtractive = lite5_64b_r_rarb_gnt_valid && (lite5_64b_r_rarb_gnt == 1'd1);
     wire lite5_64b_r_rarb_vld = (lite5_64b_r_rgnt_mem && lite5_64b_r_rarb_req[0]) || (lite5_64b_r_rgnt_subtractive && lite5_64b_r_rarb_req[1]);
-    wire lite5_64b_r_rarb_last = (lite5_64b_r_rgnt_mem && mem_axi_rlast) || (lite5_64b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             lite5_64b_r_rarb_lock   <= '0;
             lite5_64b_r_rarb_rr     <= '0;
             lite5_64b_r_rarb_locked <= 1'b0;
         end else if (lite5_64b_r_rarb_vld && lite5_64b_rready) begin
-            if (lite5_64b_r_rarb_last) begin
-                lite5_64b_r_rarb_locked <= 1'b0;
-                lite5_64b_r_rarb_rr <= (lite5_64b_r_rarb_gnt == 1'd1) ? 1'd0 : lite5_64b_r_rarb_gnt + 1'b1;
-            end else begin
-                lite5_64b_r_rarb_lock   <= lite5_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                lite5_64b_r_rarb_locked <= 1'b1;
-            end
+            lite5_64b_r_rarb_locked <= 1'b0;
+            lite5_64b_r_rarb_rr <= (lite5_64b_r_rarb_gnt == 1'd1) ? 1'd0 : lite5_64b_r_rarb_gnt + 1'b1;
         end else if (lite5_64b_r_rarb_vld) begin
             lite5_64b_r_rarb_lock   <= lite5_64b_r_rarb_gnt;       // offered, not taken: hold
             lite5_64b_r_rarb_locked <= 1'b1;

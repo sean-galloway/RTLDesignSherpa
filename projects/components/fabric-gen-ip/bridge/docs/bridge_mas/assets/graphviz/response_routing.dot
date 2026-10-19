@@ -12,8 +12,8 @@ digraph response_routing {
 
     port [label="Master Responses\nB / R out, ID = the master's own id", fillcolor="white"];
     skid [label="B / R Skid Buffers - <master>_adapter\naxi4_slave_wr / axi4_slave_rd"];
-    msel [label="Path Arbiter - <master>_adapter\nb_pgnt / r_pgnt: round robin across the width paths; held while offered\nand not taken, R through RLAST; only the granted path's ready is raised;\nlow id bits returned as BID / RID; R also grants the local DECERR queue"];
-    p0 [label="Response Arbiter, Width Path A - <bridge>_xbar\nround robin among path A's slaves whose\nbid_ / rid_bridge_id == this master; grant held\nuntil taken, R through RLAST; one slave: no arbiter"];
+    msel [label="Path Arbiter - <master>_adapter\nb_pgnt / r_pgnt: round robin across the width paths; held while offered\nand not taken, re-arbitrated every beat; only the granted path's ready is raised;\nlow id bits returned as BID / RID; R also grants the local DECERR queue"];
+    p0 [label="Response Arbiter, Width Path A - <bridge>_xbar\nround robin among path A's slaves whose\nbid_ / rid_bridge_id == this master; grant held\nuntil taken, re-arbitrated every beat;\none slave: no arbiter"];
     pn [label="Response Arbiter, Width Path B - <bridge>_xbar\nsame, for the slaves of width B"];
     { rank=same; p0; pn; }
     p0 -> pn [style=invis];

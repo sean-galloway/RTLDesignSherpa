@@ -240,7 +240,7 @@ module bridge_1x2_rw_axi5a_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master cpu 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu 32b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_32b_b_rarb_req;
     assign cpu_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((sram_axi_bid_bridge_id == 0) && sram_axi_bid_valid) && sram_axi_bvalid, ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid) && ddr_axi_bvalid};
     logic [1:0] cpu_32b_b_rarb_lock, cpu_32b_b_rarb_rr;
@@ -268,7 +268,7 @@ module bridge_1x2_rw_axi5a_xbar
         end
     )
 
-    // ---- R response arbiter, master cpu 32b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu 32b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_32b_r_rarb_req;
     assign cpu_32b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((sram_axi_rid_bridge_id == 0) && sram_axi_rid_valid) && sram_axi_rvalid, ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid) && ddr_axi_rvalid};
     logic [1:0] cpu_32b_r_rarb_lock, cpu_32b_r_rarb_rr;
@@ -282,20 +282,14 @@ module bridge_1x2_rw_axi5a_xbar
     wire cpu_32b_r_rgnt_sram = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd1);
     wire cpu_32b_r_rgnt_subtractive = cpu_32b_r_rarb_gnt_valid && (cpu_32b_r_rarb_gnt == 2'd2);
     wire cpu_32b_r_rarb_vld = (cpu_32b_r_rgnt_ddr && cpu_32b_r_rarb_req[0]) || (cpu_32b_r_rgnt_sram && cpu_32b_r_rarb_req[1]) || (cpu_32b_r_rgnt_subtractive && cpu_32b_r_rarb_req[2]);
-    wire cpu_32b_r_rarb_last = (cpu_32b_r_rgnt_ddr && ddr_axi_rlast) || (cpu_32b_r_rgnt_sram && sram_axi_rlast) || (cpu_32b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_32b_r_rarb_lock   <= '0;
             cpu_32b_r_rarb_rr     <= '0;
             cpu_32b_r_rarb_locked <= 1'b0;
         end else if (cpu_32b_r_rarb_vld && cpu_32b_rready) begin
-            if (cpu_32b_r_rarb_last) begin
-                cpu_32b_r_rarb_locked <= 1'b0;
-                cpu_32b_r_rarb_rr <= (cpu_32b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_32b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_32b_r_rarb_lock   <= cpu_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_32b_r_rarb_locked <= 1'b1;
-            end
+            cpu_32b_r_rarb_locked <= 1'b0;
+            cpu_32b_r_rarb_rr <= (cpu_32b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_32b_r_rarb_gnt + 1'b1;
         end else if (cpu_32b_r_rarb_vld) begin
             cpu_32b_r_rarb_lock   <= cpu_32b_r_rarb_gnt;       // offered, not taken: hold
             cpu_32b_r_rarb_locked <= 1'b1;

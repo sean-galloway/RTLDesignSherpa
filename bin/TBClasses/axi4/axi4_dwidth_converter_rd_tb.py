@@ -1104,7 +1104,10 @@ class AXI4DWidthConverterReadTB(TBBase):
             # ID0 is split-eligible; the others are short single master bursts.
             slave_beats_list = [(256 // self.WIDTH_RATIO) + 1, 2, 2]
         else:
-            slave_beats_list = [4, 2, 3]
+            # Each burst spans several wide beats, so one ID's burst resumes
+            # after another ID's wide beat: the per-ID count has to carry
+            # over (R_INTERLEAVE=1 slices per ID, no reassembly).
+            slave_beats_list = [3 * self.WIDTH_RATIO + 1, 2 * self.WIDTH_RATIO, self.WIDTH_RATIO + 2]
         addrs = [0x1000, 0x2000, 0x3000]
 
         self.captured_ar_packets.clear()

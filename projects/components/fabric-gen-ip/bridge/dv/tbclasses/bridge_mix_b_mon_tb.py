@@ -141,6 +141,11 @@ class BridgeMixBMonTB(TBBase):
         # id_widths equal to this value — do not re-derive or hand-edit them
         # at the call sites (bridge GitHub #99).
         self.XBAR_ID_WIDTH = 6
+        # AXI4 read slaves interleave R beats across IDs (AXI4 allows it, and
+        # the bridge converts per ID): every test with overlapping reads at a
+        # slave then exercises it. BRIDGE_R_INTERLEAVE=0 sends each burst
+        # contiguously instead.
+        self.R_INTERLEAVE = os.environ.get('BRIDGE_R_INTERLEAVE', '1') == '1'
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -545,6 +550,7 @@ class BridgeMixBMonTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[0],
             base_addr=0x00000000,
+            interleave_r=self.R_INTERLEAVE,
         )
         self.slave_wr[0] = AXI4SlaveWrite(
             self.dut, self.clock,
@@ -583,6 +589,7 @@ class BridgeMixBMonTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[1],
             base_addr=0x40000000,
+            interleave_r=self.R_INTERLEAVE,
         )
         self.slave_wr[1] = AXI4SlaveWrite(
             self.dut, self.clock,

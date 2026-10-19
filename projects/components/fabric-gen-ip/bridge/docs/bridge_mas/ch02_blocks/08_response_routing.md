@@ -191,8 +191,8 @@ levels:
 
 1. **Crossbar, per master width path** (`<master>_<W>b_{b,r}_rarb_*`): the
    slaves on that path whose tracker names this master request. Round robin
-   grants one. A grant offered and not taken holds, and an R grant holds
-   through RLAST. The mux toward the master and the slave's BREADY / RREADY
+   grants one. A grant offered and not taken holds, and every beat
+   re-arbitrates (R bursts from different slaves interleave). The mux toward the master and the slave's BREADY / RREADY
    both follow the grant (`_rgnt_<slave>`). A path with one slave keeps the
    plain ownership gate. Excerpt in MAS 2.3.
 2. **Master adapter, across width paths** (`b_pgnt` / `r_pgnt`): the same

@@ -326,8 +326,8 @@ the ordering AXI requires:
   `max_outstanding` (default 16; bridge GitHub #119 L5) in
   flight (bridge BUG-009's not-full rule), so no count wraps.
 - **Path arbiter**: with more than one width path, `b_pgnt` / `r_pgnt` pick a
-  path round robin. A grant holds while offered and not taken; an R grant
-  holds through RLAST. The selection feeds `b_slave_select` / `r_slave_select`
+  path round robin. A grant holds while offered and not taken, B and R
+  alike, and is re-arbitrated every beat. The selection feeds `b_slave_select` / `r_slave_select`
   as a representative slave of the path, so the response mux and the path
   readies are unchanged. One width path needs no arbiter. Among the slaves
   on one path, the crossbar's response arbiter has already chosen (MAS 2.3).

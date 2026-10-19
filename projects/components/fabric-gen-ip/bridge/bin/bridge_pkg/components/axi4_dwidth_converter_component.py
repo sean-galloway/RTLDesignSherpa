@@ -64,12 +64,14 @@ class Axi4DwidthConverter:
                 f"parameter int SKID_DEPTH_B     = {skid_depth_resp}"
             )
         else:  # rd
-            # R_INTERLEAVE = 0: no reassembly pool (GitHub #119). The
-            # crossbar's R arbiter holds this width path through RLAST and
-            # slaves may not interleave R beats across IDs (PRD FR-9), so
-            # every R burst reaches the converter contiguously. At the
-            # converter's default (1) each instance carried a 16 x 272-beat
-            # store-and-forward pool: ~128k LUTs.
+            # R_INTERLEAVE = 1: slaves may interleave R beats across IDs
+            # (AXI4) and the crossbar's R arbiters switch per beat, so beats
+            # of different bursts reach the converter interleaved. It
+            # converts each beat against its ID's state (one partial wide
+            # beat or one slice count per ID) -- no reassembly pool. (Until
+            # 2026-10-18 the bridge set 0 and required contiguous R bursts;
+            # the converter's old interleave mode was a 16 x 272-beat
+            # store-and-forward pool, ~128k LUTs per instance.)
             param_str = (
                 f"parameter int S_AXI_DATA_WIDTH = {s_data_width}, "
                 f"parameter int M_AXI_DATA_WIDTH = {m_data_width}, "
@@ -78,7 +80,7 @@ class Axi4DwidthConverter:
                 f"parameter int AXI_USER_WIDTH   = {user_width}, "
                 f"parameter int SKID_DEPTH_AR    = {skid_depth_ax}, "
                 f"parameter int SKID_DEPTH_R     = {skid_depth_data}, "
-                f"parameter int R_INTERLEAVE     = 0"
+                f"parameter int R_INTERLEAVE     = 1"
             )
         self.module.params.add_param_string(param_str)
         self._sections: List[tuple] = []

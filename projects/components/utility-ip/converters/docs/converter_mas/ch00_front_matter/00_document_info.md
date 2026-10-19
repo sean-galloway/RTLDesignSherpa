@@ -28,7 +28,7 @@
 | Field | Value |
 | --- | --- |
 | Document Title | Converters Micro-Architecture Specification |
-| Document Version | 1.8 |
+| Document Version | 1.9 |
 | Component | Converters |
 | Status | Active |
 | Classification | Internal Technical |
@@ -74,6 +74,7 @@ has no standalone PRD — this book is the authoritative document.)
 | 1.0 | 2026-01-03 | RTL Design Sherpa | Initial MAS release |
 | 1.2 | 2026-09-09 | RTL Design Sherpa | Added chapter 3.10, AXI4-Lite to Wishbone B4 |
 | 1.8 | 2026-10-18 | RTL Design Sherpa | 3.11: wb4_to_axil4 keeps memory order, not only termination order -- a command waits for the other direction to drain (a read behind a slow write to the same word returned old data), with a directed hazard probe. 3.15: axi4_to_axi3 stages a chopped request and checks its ID from registers, and runs the B merge from the registered BID, so neither the incoming request nor BID is in series with per-ID state (bridge W13); two directed same-ID tests. |
+| 1.9 | 2026-10-18 | RTL Design Sherpa | 2.6 axi4_dwidth_converter_rd: R interleave without the beat pool. With `R_INTERLEAVE = 1` (the default, and what the bridge builds) each R beat is converted against its own ID's state as it arrives: downsize keeps a partial wide beat per ID in LUTRAM, upsize holds one wide beat and a narrow-beat count per ID. RASM_DEPTH / RASM_MAX_OUTSTANDING are unused. |
 
 : Table 0.3: Revision History
 

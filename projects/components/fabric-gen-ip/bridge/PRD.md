@@ -363,7 +363,8 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
     AW the slave accepted first.
   - B and R: a response arbiter per master width path picks among the
     slaves whose response is for that master (round robin; the grant holds
-    while the response is offered and not taken, and through RLAST). One
+    while the response is offered and not taken, and is re-arbitrated
+    every beat, so R bursts from different slaves may interleave). One
     slave on a path needs no arbiter.
 - Round-robin, grant held to the ADDRESS handshake -- NOT to xlast. The generated arbiters read `lock until handshake`.
 - Separate read/write paths (no head-of-line blocking)
@@ -477,7 +478,7 @@ address_map = {
 - W channel follows the AW owner via a per-slave W-owner FIFO (not a held grant)
 - B and R are routed by the issuing master's index: the returned BID/RID's prefix bits for an AXI3/AXI4/AXI5 slave of a multi-master bridge (or any `enable_ooo` slave), or the head of an in-order FIFO of the `bridge_id` recorded at the address handshake otherwise. Fabric IDs are `{BRIDGE_ID, id}`, so a slave port's ID is wider than a master's.
 - A by-ID slave may complete bursts out of order across IDs; a FIFO-tracked slave must return B/R in request order across all IDs (bridge BUG-008, was BRIDGE-010).
-- Beat-level R interleaving across IDs is NOT supported: a slave returns each R burst contiguously. The per-master-path R arbiters hold through RLAST, and the read width converters rely on it (`R_INTERLEAVE = 0`, no reassembly pool, GitHub #119).
+- Beat-level R interleaving across IDs IS supported (2026-10-18): a slave may interleave R beats of different IDs, as AXI4 allows; beats of one ID stay in order. The per-master-path R arbiters re-arbitrate every beat rather than holding through RLAST, and the read width converters convert each beat per ID as it arrives (`R_INTERLEAVE = 1`, converters MAS 2.6.9). A held arbiter could deadlock two slaves that each interleave toward two masters; `test_bridge_2x2_rw_r_interleave` reproduces that against the old arbiter.
 
 ---
 

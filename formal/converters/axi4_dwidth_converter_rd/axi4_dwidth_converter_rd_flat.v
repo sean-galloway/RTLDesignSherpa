@@ -14,7 +14,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
@@ -116,7 +116,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -237,11 +237,11 @@ module axi_data_upsize (
 	output wire wide_last;
 	initial begin
 		if (WIDE_WIDTH <= NARROW_WIDTH)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [WIDE_WIDTH - 1:0] r_data_accumulator;
 	reg [WIDE_SB_PORT_WIDTH - 1:0] r_sideband_accumulator;
@@ -369,11 +369,11 @@ module axi_data_dnsize (
 	output wire narrow_last;
 	initial begin
 		if (NARROW_WIDTH >= WIDE_WIDTH)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:91:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "NARROW_WIDTH (%0d) must be < WIDE_WIDTH (%0d)", NARROW_WIDTH, WIDE_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:91:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "NARROW_WIDTH (%0d) must be < WIDE_WIDTH (%0d)", NARROW_WIDTH, WIDE_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:93:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:93:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [PTR_WIDTH - 1:0] r_beat_ptr;
 	reg [BURST_LEN_WIDTH:0] r_slave_beat_count;
@@ -563,9 +563,6 @@ module axi4_dwidth_converter_rd (
 	localparam [0:0] UPSIZE = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH ? 1'b1 : 1'b0);
 	localparam [0:0] DOWNSIZE = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH ? 1'b1 : 1'b0);
 	localparam signed [31:0] NUM_IDS = 1 << AXI_ID_WIDTH;
-	localparam signed [31:0] RASM_POOL_DEPTH = RASM_MAX_OUTSTANDING * RASM_DEPTH;
-	localparam signed [31:0] RASM_PTRW = $clog2(RASM_POOL_DEPTH);
-	localparam signed [31:0] RASM_CNTW = $clog2(RASM_DEPTH + 1);
 	localparam signed [31:0] PSB_W = (R_INTERLEAVE ? 2 : (2 + AXI_ID_WIDTH) + AXI_USER_WIDTH);
 	localparam signed [31:0] AR_WIDTH = ((AXI_ID_WIDTH + AXI_ADDR_WIDTH) + 29) + AXI_USER_WIDTH;
 	localparam signed [31:0] R_WIDTH = (((S_AXI_DATA_WIDTH + 2) + AXI_USER_WIDTH) + 1) + AXI_ID_WIDTH;
@@ -625,15 +622,13 @@ module axi4_dwidth_converter_rd (
 	);
 	initial begin
 		if (S_AXI_DATA_WIDTH != (2 ** $clog2(S_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:191:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:181:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
 		if (M_AXI_DATA_WIDTH != (2 ** $clog2(M_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:193:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:183:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:195:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:185:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 		if (!UPSIZE && !DOWNSIZE)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:197:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
-		if (RASM_DEPTH < 256)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:204:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "RASM_DEPTH must cover the 256-beat AXI4 maximum");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:187:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
 	end
 	wire [AR_WIDTH - 1:0] int_ar_data;
 	wire int_ar_valid;
@@ -653,7 +648,7 @@ module axi4_dwidth_converter_rd (
 	wire int_r_valid;
 	wire int_r_ready;
 	wire [AXI_ID_WIDTH - 1:0] int_rid;
-	wire [S_AXI_DATA_WIDTH - 1:0] int_rdata;
+	reg [S_AXI_DATA_WIDTH - 1:0] int_rdata;
 	wire [1:0] int_rresp;
 	wire int_rlast;
 	wire [AXI_USER_WIDTH - 1:0] int_ruser;
@@ -871,206 +866,220 @@ module axi4_dwidth_converter_rd (
 					rasm_rec_lane[int_arid] <= w_ar_lane;
 				end
 		end
-	endgenerate
-	function automatic signed [RASM_CNTW - 1:0] sv2v_cast_E42E0_signed;
-		input reg signed [RASM_CNTW - 1:0] inp;
-		sv2v_cast_E42E0_signed = inp;
-	endfunction
-	function automatic signed [((RASM_PTRW + 0) >= 0 ? RASM_PTRW + 1 : 1 - (RASM_PTRW + 0)) - 1:0] sv2v_cast_8AF0B_signed;
-		input reg signed [((RASM_PTRW + 0) >= 0 ? RASM_PTRW + 1 : 1 - (RASM_PTRW + 0)) - 1:0] inp;
-		sv2v_cast_8AF0B_signed = inp;
-	endfunction
-	function automatic signed [RASM_PTRW - 1:0] sv2v_cast_71C6F_signed;
-		input reg signed [RASM_PTRW - 1:0] inp;
-		sv2v_cast_71C6F_signed = inp;
-	endfunction
-	function automatic [RASM_CNTW - 1:0] sv2v_cast_E42E0;
-		input reg [RASM_CNTW - 1:0] inp;
-		sv2v_cast_E42E0 = inp;
-	endfunction
-	function automatic signed [AXI_ID_WIDTH - 1:0] sv2v_cast_14482_signed;
-		input reg signed [AXI_ID_WIDTH - 1:0] inp;
-		sv2v_cast_14482_signed = inp;
-	endfunction
-	function automatic signed [31:0] sv2v_cast_32_signed;
-		input reg signed [31:0] inp;
-		sv2v_cast_32_signed = inp;
-	endfunction
-	generate
-		if (R_INTERLEAVE) begin : gen_rasm
-			reg [M_AXI_DATA_WIDTH - 1:0] rasm_pool_data [0:RASM_POOL_DEPTH - 1];
-			reg [1:0] rasm_pool_resp [0:RASM_POOL_DEPTH - 1];
-			reg rasm_pool_last [0:RASM_POOL_DEPTH - 1];
-			reg [RASM_PTRW - 1:0] rasm_pool_next [0:RASM_POOL_DEPTH - 1];
-			reg [RASM_PTRW - 1:0] rasm_free_head;
-			reg [RASM_PTRW:0] rasm_free_count;
-			reg [RASM_PTRW - 1:0] rasm_head [0:NUM_IDS - 1];
-			reg [RASM_PTRW - 1:0] rasm_tail [0:NUM_IDS - 1];
-			reg [RASM_CNTW - 1:0] rasm_count [0:NUM_IDS - 1];
-			reg rasm_assembled [0:NUM_IDS - 1];
-			reg [AXI_USER_WIDTH - 1:0] rasm_ruser [0:NUM_IDS - 1];
-			reg [AXI_ID_WIDTH - 1:0] rasm_sched_ptr;
-			reg [AXI_ID_WIDTH - 1:0] rasm_feed_id;
-			reg rasm_feed_active;
-			reg [AXI_ID_WIDTH - 1:0] rasm_out_id;
-			reg rasm_out_active;
-			reg rasm_bstart_pending;
-			wire w_id_has_room;
-			assign w_id_has_room = (rasm_count[m_axi_rid] < sv2v_cast_E42E0_signed(RASM_DEPTH)) && (rasm_free_count > {(RASM_PTRW >= 0 ? RASM_PTRW + 1 : 1 - RASM_PTRW) {1'sb0}});
-			assign m_axi_rready = m_axi_rvalid && w_id_has_room;
-			wire [RASM_PTRW - 1:0] w_alloc_ptr;
-			wire [RASM_PTRW - 1:0] w_feed_next;
-			wire w_push;
-			wire w_pop;
-			wire [RASM_PTRW - 1:0] w_old_free_head;
-			wire [RASM_PTRW - 1:0] w_old_free_next;
-			reg [AXI_ID_WIDTH - 1:0] w_sched_pick;
-			reg w_sched_found;
-			wire [RASM_PTRW - 1:0] w_feed_ptr;
-			assign w_alloc_ptr = rasm_free_head;
-			assign w_feed_next = rasm_pool_next[w_feed_ptr];
-			assign w_push = m_axi_rvalid && m_axi_rready;
-			assign w_pop = rasm_feed_active && prim_rready;
-			assign w_old_free_head = rasm_free_head;
-			assign w_old_free_next = rasm_pool_next[rasm_free_head];
-			always @(posedge aclk)
-				if (w_push) begin
-					rasm_pool_data[w_alloc_ptr] <= m_axi_rdata;
-					rasm_pool_resp[w_alloc_ptr] <= m_axi_rresp;
-					rasm_pool_last[w_alloc_ptr] <= m_axi_rlast;
-				end
-			always @(posedge aclk or negedge w_aresetn)
-				if (!w_aresetn) begin
-					rasm_free_head <= 1'sb0;
-					rasm_free_count <= sv2v_cast_8AF0B_signed(RASM_POOL_DEPTH);
+		if (R_INTERLEAVE) begin : gen_rilv
+			localparam signed [31:0] LW = (WIDTH_RATIO > 1 ? $clog2(WIDTH_RATIO) : 1);
+			localparam signed [31:0] RQ_W = ((AXI_ID_WIDTH + M_AXI_DATA_WIDTH) + 3) + AXI_USER_WIDTH;
+			wire q_rvalid;
+			wire q_rready;
+			wire [AXI_ID_WIDTH - 1:0] q_rid;
+			wire [M_AXI_DATA_WIDTH - 1:0] q_rdata;
+			wire [1:0] q_rresp;
+			wire q_rlast;
+			wire [AXI_USER_WIDTH - 1:0] q_ruser;
+			wire [RQ_W - 1:0] q_rpkt;
+			wire w_out_hs;
+			gaxi_skid_buffer #(
+				.DEPTH(2),
+				.DATA_WIDTH(RQ_W)
+			) r_in_skid(
+				.axi_aclk(aclk),
+				.axi_aresetn(w_aresetn),
+				.wr_valid(m_axi_rvalid),
+				.wr_ready(m_axi_rready),
+				.wr_data({m_axi_rid, m_axi_rdata, m_axi_rresp, m_axi_rlast, m_axi_ruser}),
+				.rd_valid(q_rvalid),
+				.rd_ready(q_rready),
+				.rd_data(q_rpkt),
+				.count(),
+				.rd_count()
+			);
+			assign {q_rid, q_rdata, q_rresp, q_rlast, q_ruser} = q_rpkt;
+			assign w_out_hs = int_r_valid && int_r_ready;
+			assign prim_rvalid = 1'b0;
+			assign prim_rid = 1'sb0;
+			assign prim_rdata = 1'sb0;
+			assign prim_rresp = 1'sb0;
+			assign prim_rlast = 1'b0;
+			assign prim_ruser = 1'sb0;
+			assign prim_sb = 1'sb0;
+			assign int_sb = 1'sb0;
+			assign w_cur_final = 1'b0;
+			assign w_bstart = 1'b0;
+			assign w_blen = 1'sb0;
+			assign w_blane = 1'sb0;
+			if (DOWNSIZE) begin : gen_pack
+				wire [M_AXI_DATA_WIDTH - 1:0] w_acc_rd [0:WIDTH_RATIO - 2];
+				reg [LW - 1:0] cnt [0:NUM_IDS - 1];
+				reg [1:0] worst [0:NUM_IDS - 1];
+				wire [LW - 1:0] w_lane;
+				wire w_final;
+				wire w_emit;
+				wire w_take;
+				wire [1:0] w_resp;
+				assign w_lane = cnt[q_rid];
+				assign w_final = q_rlast && rasm_rec_final[q_rid];
+				function automatic signed [LW - 1:0] sv2v_cast_4587C_signed;
+					input reg signed [LW - 1:0] inp;
+					sv2v_cast_4587C_signed = inp;
+				endfunction
+				assign w_emit = (w_lane == sv2v_cast_4587C_signed(WIDTH_RATIO - 1)) || w_final;
+				assign w_take = q_rvalid && (!w_emit || int_r_ready);
+				assign q_rready = !w_emit || int_r_ready;
+				assign w_resp = (q_rresp > worst[q_rid] ? q_rresp : worst[q_rid]);
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					int_rdata = 1'sb0;
 					begin : sv2v_autoblock_5
-						reg signed [31:0] i;
-						for (i = 0; i < RASM_POOL_DEPTH; i = i + 1)
-							rasm_pool_next[i] <= sv2v_cast_71C6F_signed(i + 1);
+						reg signed [31:0] k;
+						for (k = 0; k < WIDTH_RATIO; k = k + 1)
+							begin : sv2v_autoblock_6
+								reg signed [LW - 1:0] sv2v_tmp_cast;
+								sv2v_tmp_cast = k;
+								if (sv2v_tmp_cast == w_lane)
+									int_rdata[k * M_AXI_DATA_WIDTH+:M_AXI_DATA_WIDTH] = q_rdata;
+								else begin : sv2v_autoblock_7
+									reg signed [LW - 1:0] sv2v_tmp_cast_1;
+									sv2v_tmp_cast_1 = k;
+									if ((k < (WIDTH_RATIO - 1)) && (sv2v_tmp_cast_1 < w_lane))
+										int_rdata[k * M_AXI_DATA_WIDTH+:M_AXI_DATA_WIDTH] = w_acc_rd[k];
+								end
+							end
 					end
-					begin : sv2v_autoblock_6
-						reg signed [31:0] i;
-						for (i = 0; i < NUM_IDS; i = i + 1)
-							rasm_rec_valid[i] <= 1'b0;
+				end
+				assign int_r_valid = q_rvalid && w_emit;
+				assign int_rid = q_rid;
+				assign int_rresp = w_resp;
+				assign int_rlast = w_final;
+				assign int_ruser = q_ruser;
+				genvar _gv_k_1;
+				for (_gv_k_1 = 0; _gv_k_1 < (WIDTH_RATIO - 1); _gv_k_1 = _gv_k_1 + 1) begin : gen_lane
+					localparam k = _gv_k_1;
+					reg [M_AXI_DATA_WIDTH - 1:0] acc [0:NUM_IDS - 1];
+					always @(posedge aclk) begin : sv2v_autoblock_8
+						reg signed [LW - 1:0] sv2v_tmp_cast;
+						sv2v_tmp_cast = k;
+						if ((w_take && !w_emit) && (w_lane == sv2v_tmp_cast))
+							acc[q_rid] <= q_rdata;
 					end
-					begin : sv2v_autoblock_7
+					assign w_acc_rd[k] = acc[q_rid];
+				end
+				always @(posedge aclk or negedge w_aresetn)
+					if (!w_aresetn) begin : sv2v_autoblock_9
 						reg signed [31:0] i;
 						for (i = 0; i < NUM_IDS; i = i + 1)
 							begin
-								rasm_head[i] <= 1'sb0;
-								rasm_tail[i] <= 1'sb0;
-								rasm_count[i] <= 1'sb0;
-								rasm_assembled[i] <= 1'b0;
-								rasm_ruser[i] <= 1'sb0;
+								cnt[i] <= 1'sb0;
+								worst[i] <= 2'b00;
+								rasm_rec_valid[i] <= 1'b0;
 							end
 					end
-					rasm_sched_ptr <= 1'sb0;
-					rasm_feed_active <= 1'b0;
-					rasm_feed_id <= 1'sb0;
-					rasm_out_active <= 1'b0;
-					rasm_out_id <= 1'sb0;
-					rasm_bstart_pending <= 1'b0;
-				end
-				else begin
-					if (w_rasm_push)
-						rasm_rec_valid[w_rasm_push_id] <= 1'b1;
-					if (w_push || w_pop) begin
-						if (w_push && w_pop) begin
-							rasm_free_head <= w_feed_ptr;
-							rasm_pool_next[w_feed_ptr] <= w_old_free_next;
-						end
-						else if (w_push)
-							rasm_free_head <= w_old_free_next;
-						else begin
-							rasm_free_head <= w_feed_ptr;
-							rasm_pool_next[w_feed_ptr] <= w_old_free_head;
-						end
-						rasm_free_count <= (rasm_free_count + sv2v_cast_8AF0B_signed((w_pop ? 1 : 0))) - sv2v_cast_8AF0B_signed((w_push ? 1 : 0));
-					end
-					if (w_push) begin
-						rasm_pool_next[w_alloc_ptr] <= 1'sb0;
-						if (rasm_count[m_axi_rid] == {RASM_CNTW {1'sb0}})
-							rasm_head[m_axi_rid] <= w_alloc_ptr;
-						else
-							rasm_pool_next[rasm_tail[m_axi_rid]] <= w_alloc_ptr;
-						rasm_tail[m_axi_rid] <= w_alloc_ptr;
-						rasm_count[m_axi_rid] <= rasm_count[m_axi_rid] + sv2v_cast_E42E0_signed(1);
-						if (rasm_count[m_axi_rid] == {RASM_CNTW {1'sb0}})
-							rasm_ruser[m_axi_rid] <= m_axi_ruser;
-					end
-					if (w_push) begin
-						if (rasm_rec_valid[m_axi_rid]) begin
-							if (((rasm_count[m_axi_rid] + sv2v_cast_E42E0_signed(1)) == sv2v_cast_E42E0(rasm_rec_beats[m_axi_rid])) && m_axi_rlast)
-								rasm_assembled[m_axi_rid] <= 1'b1;
-						end
-					end
-					if (w_pop) begin
-						rasm_count[rasm_feed_id] <= rasm_count[rasm_feed_id] - sv2v_cast_E42E0_signed(1);
-						rasm_head[rasm_feed_id] <= w_feed_next;
-						if (prim_rlast) begin
-							rasm_assembled[rasm_feed_id] <= 1'b0;
-							rasm_bstart_pending <= 1'b0;
-							if (DOWNSIZE) begin
-								rasm_feed_active <= 1'b0;
-								rasm_rec_valid[rasm_feed_id] <= 1'b0;
+					else begin
+						if (w_take) begin
+							begin : sv2v_autoblock_10
+								reg signed [LW - 1:0] sv2v_tmp_cast;
+								sv2v_tmp_cast = 1;
+								cnt[q_rid] <= (w_emit ? {LW {1'sb0}} : w_lane + sv2v_tmp_cast);
 							end
+							worst[q_rid] <= (w_emit ? 2'b00 : w_resp);
+							if (q_rlast)
+								rasm_rec_valid[q_rid] <= 1'b0;
 						end
+						if (w_rasm_push)
+							rasm_rec_valid[w_rasm_push_id] <= 1'b1;
 					end
-					if (!rasm_out_active && rasm_feed_active) begin
-						rasm_out_active <= 1'b1;
-						rasm_out_id <= rasm_feed_id;
-					end
-					if ((int_r_valid && int_r_ready) && int_rlast)
-						rasm_out_active <= 1'b0;
-					if (((!DOWNSIZE && int_r_valid) && int_r_ready) && int_rlast) begin
-						rasm_feed_active <= 1'b0;
-						rasm_rec_valid[rasm_feed_id] <= 1'b0;
-					end
-					if ((rasm_feed_active && prim_rready) && rasm_bstart_pending)
-						rasm_bstart_pending <= 1'b0;
-					if (!rasm_feed_active && w_sched_found) begin
-						if ((!DOWNSIZE || !rasm_out_active) || (w_sched_pick == rasm_out_id)) begin
-							rasm_feed_active <= 1'b1;
-							rasm_feed_id <= w_sched_pick;
-							rasm_sched_ptr <= w_sched_pick + sv2v_cast_14482_signed(1);
-							rasm_bstart_pending <= !DOWNSIZE;
-						end
-					end
-				end
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				w_sched_found = 1'b0;
-				w_sched_pick = rasm_sched_ptr;
-				begin : sv2v_autoblock_8
-					reg signed [31:0] i;
-					for (i = 0; i < NUM_IDS; i = i + 1)
-						begin : sv2v_autoblock_9
-							reg signed [31:0] raw_idx;
-							reg signed [31:0] idx;
-							raw_idx = sv2v_cast_32_signed(rasm_sched_ptr) + i;
-							idx = raw_idx % NUM_IDS;
-							if (!w_sched_found && rasm_assembled[idx]) begin
-								w_sched_found = 1'b1;
-								w_sched_pick = sv2v_cast_14482_signed(idx);
-							end
-						end
-				end
 			end
-			assign w_feed_ptr = rasm_head[rasm_feed_id];
-			assign prim_rvalid = rasm_feed_active;
-			assign prim_rdata = rasm_pool_data[w_feed_ptr];
-			assign prim_rresp = rasm_pool_resp[w_feed_ptr];
-			assign prim_rlast = rasm_pool_last[w_feed_ptr];
-			assign prim_rid = rasm_feed_id;
-			assign prim_ruser = rasm_ruser[rasm_feed_id];
-			assign int_rid = rasm_out_id;
-			assign int_ruser = rasm_ruser[rasm_out_id];
-			assign w_cur_final = rasm_rec_final[rasm_feed_id];
-			assign w_bstart = rasm_bstart_pending;
-			assign w_blen = rasm_rec_nlen[rasm_feed_id];
-			assign w_blane = sv2v_cast_8(rasm_rec_lane[rasm_feed_id]);
-			assign prim_sb = prim_rresp;
+			else begin : gen_slice
+				reg cur_valid;
+				reg [AXI_ID_WIDTH - 1:0] cur_rid;
+				reg [M_AXI_DATA_WIDTH - 1:0] cur_data;
+				reg [1:0] cur_resp;
+				reg [AXI_USER_WIDTH - 1:0] cur_user;
+				reg [LW - 1:0] cur_lane;
+				reg [8:0] cur_rem;
+				reg [8:0] rem [0:NUM_IDS - 1];
+				reg start [0:NUM_IDS - 1];
+				wire w_last_narrow;
+				wire w_wide_done;
+				wire w_cur_free;
+				wire w_load;
+				wire w_byp;
+				wire [LW - 1:0] w_ld_lane;
+				wire [8:0] w_ld_rem;
+				assign w_last_narrow = cur_rem == 9'd1;
+				function automatic signed [LW - 1:0] sv2v_cast_4587C_signed;
+					input reg signed [LW - 1:0] inp;
+					sv2v_cast_4587C_signed = inp;
+				endfunction
+				assign w_wide_done = w_last_narrow || (cur_lane == sv2v_cast_4587C_signed(WIDTH_RATIO - 1));
+				assign w_cur_free = !cur_valid || (w_out_hs && w_wide_done);
+				assign q_rready = w_cur_free;
+				assign w_load = q_rvalid && w_cur_free;
+				assign w_byp = (cur_valid && (cur_rid == q_rid)) && !w_last_narrow;
+				function automatic [LW - 1:0] sv2v_cast_4587C;
+					input reg [LW - 1:0] inp;
+					sv2v_cast_4587C = inp;
+				endfunction
+				assign w_ld_lane = (start[q_rid] || w_byp ? {LW {1'sb0}} : sv2v_cast_4587C(rasm_rec_lane[q_rid]));
+				assign w_ld_rem = (w_byp ? cur_rem - 9'd1 : (start[q_rid] ? rem[q_rid] : sv2v_cast_9(rasm_rec_nlen[q_rid]) + 9'd1));
+				assign int_r_valid = cur_valid;
+				wire [S_AXI_DATA_WIDTH:1] sv2v_tmp_EC17E;
+				assign sv2v_tmp_EC17E = cur_data[cur_lane * S_AXI_DATA_WIDTH+:S_AXI_DATA_WIDTH];
+				always @(*) int_rdata = sv2v_tmp_EC17E;
+				assign int_rid = cur_rid;
+				assign int_rresp = cur_resp;
+				assign int_rlast = w_last_narrow;
+				assign int_ruser = cur_user;
+				always @(posedge aclk or negedge w_aresetn)
+					if (!w_aresetn) begin
+						cur_valid <= 1'b0;
+						cur_rid <= 1'sb0;
+						cur_data <= 1'sb0;
+						cur_resp <= 1'sb0;
+						cur_user <= 1'sb0;
+						cur_lane <= 1'sb0;
+						cur_rem <= 1'sb0;
+						begin : sv2v_autoblock_11
+							reg signed [31:0] i;
+							for (i = 0; i < NUM_IDS; i = i + 1)
+								begin
+									rem[i] <= 1'sb0;
+									start[i] <= 1'b0;
+									rasm_rec_valid[i] <= 1'b0;
+								end
+						end
+					end
+					else begin
+						if (w_out_hs) begin
+							begin : sv2v_autoblock_12
+								reg signed [LW - 1:0] sv2v_tmp_cast;
+								sv2v_tmp_cast = 1;
+								cur_lane <= cur_lane + sv2v_tmp_cast;
+							end
+							cur_rem <= cur_rem - 9'd1;
+							if (w_last_narrow) begin
+								start[cur_rid] <= 1'b0;
+								rasm_rec_valid[cur_rid] <= 1'b0;
+							end
+							else if (w_wide_done)
+								rem[cur_rid] <= cur_rem - 9'd1;
+							if (w_wide_done)
+								cur_valid <= 1'b0;
+						end
+						if (w_load) begin
+							cur_valid <= 1'b1;
+							cur_rid <= q_rid;
+							cur_data <= q_rdata;
+							cur_resp <= q_rresp;
+							cur_user <= q_ruser;
+							cur_lane <= w_ld_lane;
+							cur_rem <= w_ld_rem;
+							start[q_rid] <= 1'b1;
+						end
+						if (w_rasm_push)
+							rasm_rec_valid[w_rasm_push_id] <= 1'b1;
+					end
+			end
 		end
 		else begin : gen_rbypass
 			localparam signed [31:0] RQ_W = ((AXI_ID_WIDTH + M_AXI_DATA_WIDTH) + 3) + AXI_USER_WIDTH;
@@ -1120,9 +1129,10 @@ module axi4_dwidth_converter_rd (
 			assign prim_sb = {prim_rresp, prim_rid, prim_ruser};
 			assign int_rid = int_sb[AXI_USER_WIDTH+:AXI_ID_WIDTH];
 			assign int_ruser = int_sb[AXI_USER_WIDTH - 1:0];
+			assign int_rresp = int_sb[PSB_W - 1-:2];
 			always @(posedge aclk or negedge w_aresetn)
 				if (!w_aresetn) begin
-					begin : sv2v_autoblock_10
+					begin : sv2v_autoblock_13
 						reg signed [31:0] i;
 						for (i = 0; i < NUM_IDS; i = i + 1)
 							rasm_rec_valid[i] <= 1'b0;
@@ -1147,10 +1157,18 @@ module axi4_dwidth_converter_rd (
 						rasm_rec_valid[w_rasm_push_id] <= 1'b1;
 				end
 		end
-	endgenerate
-	assign int_rresp = int_sb[PSB_W - 1-:2];
-	generate
-		if (DOWNSIZE) begin : gen_r_downsize
+		if (R_INTERLEAVE) begin : gen_r_none
+			assign arsplit_pop = 1'b0;
+			if (DOWNSIZE) begin : gen_tie_dn
+				assign arsplit_final = 1'b1;
+			end
+			assign w_blen_wr_ready = 1'b1;
+			assign w_blen_rd_valid = 1'b0;
+			assign w_blen_rd_data = 1'sb0;
+			assign w_blen_rd_lane = 1'sb0;
+			assign w_blen_pop = 1'b0;
+		end
+		else if (DOWNSIZE) begin : gen_r_downsize
 			assign arsplit_final = w_cur_final;
 			assign arsplit_pop = ((prim_rvalid && prim_rready) && prim_rlast) && w_cur_final;
 			localparam signed [31:0] sv2v_uu_u_r_upsize_NARROW_WIDTH = M_AXI_DATA_WIDTH;
@@ -1158,6 +1176,8 @@ module axi4_dwidth_converter_rd (
 			localparam signed [31:0] sv2v_uu_u_r_upsize_WIDTH_RATIO = sv2v_uu_u_r_upsize_WIDE_WIDTH / sv2v_uu_u_r_upsize_NARROW_WIDTH;
 			localparam signed [31:0] sv2v_uu_u_r_upsize_PTR_WIDTH = $clog2(sv2v_uu_u_r_upsize_WIDTH_RATIO);
 			localparam [sv2v_uu_u_r_upsize_PTR_WIDTH - 1:0] sv2v_uu_u_r_upsize_ext_start_lane_0 = 1'sb0;
+			wire [S_AXI_DATA_WIDTH:1] sv2v_tmp_u_r_upsize_wide_data;
+			always @(*) int_rdata = sv2v_tmp_u_r_upsize_wide_data;
 			axi_data_upsize #(
 				.NARROW_WIDTH(M_AXI_DATA_WIDTH),
 				.WIDE_WIDTH(S_AXI_DATA_WIDTH),
@@ -1175,7 +1195,7 @@ module axi4_dwidth_converter_rd (
 				.start_lane(sv2v_uu_u_r_upsize_ext_start_lane_0),
 				.wide_valid(int_r_valid),
 				.wide_ready(int_r_ready),
-				.wide_data(int_rdata),
+				.wide_data(sv2v_tmp_u_r_upsize_wide_data),
 				.wide_sideband(int_sb),
 				.wide_last(int_rlast)
 			);
@@ -1194,6 +1214,8 @@ module axi4_dwidth_converter_rd (
 			assign w_blen_rd_data = w_blen;
 			assign w_blen_rd_lane = w_blane;
 			assign w_blen_pop = (prim_rvalid && prim_rready) && prim_rlast;
+			wire [S_AXI_DATA_WIDTH:1] sv2v_tmp_u_r_dnsize_narrow_data;
+			always @(*) int_rdata = sv2v_tmp_u_r_dnsize_narrow_data;
 			axi_data_dnsize #(
 				.WIDE_WIDTH(M_AXI_DATA_WIDTH),
 				.NARROW_WIDTH(S_AXI_DATA_WIDTH),
@@ -1215,7 +1237,7 @@ module axi4_dwidth_converter_rd (
 				.wide_last(prim_rlast),
 				.narrow_valid(int_r_valid),
 				.narrow_ready(int_r_ready),
-				.narrow_data(int_rdata),
+				.narrow_data(sv2v_tmp_u_r_dnsize_narrow_data),
 				.narrow_sideband(int_sb),
 				.narrow_last(int_rlast)
 			);

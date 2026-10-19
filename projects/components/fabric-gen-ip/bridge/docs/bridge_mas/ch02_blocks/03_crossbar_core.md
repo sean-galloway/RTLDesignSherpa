@@ -282,8 +282,11 @@ A master may have requests in flight at several slaves (limitation fixed: GitHub
 width path that reaches more than one slave has a B and an R response
 arbiter. A slave requests it when its response is valid and its tracker
 names this master; round robin picks one; a grant that is offered and not
-taken holds (AXI keeps the payload stable), and an R grant holds through
-RLAST so bursts never interleave:
+taken holds (AXI keeps the payload stable). B and R alike re-arbitrate
+every beat, so R bursts from two slaves interleave toward the master.
+(An R grant held through RLAST, as it was until 2026-10-18, deadlocks once
+slaves interleave: two slaves each interleaving toward two masters can
+each wait on a path the other holds.)
 
 ```systemverilog
 // bridge_2x2_rw_xbar.sv: B arbiter for cpu's 32b path (excerpt)

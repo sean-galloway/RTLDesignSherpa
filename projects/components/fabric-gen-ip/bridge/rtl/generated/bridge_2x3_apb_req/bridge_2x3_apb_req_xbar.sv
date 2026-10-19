@@ -364,7 +364,7 @@ module bridge_2x3_apb_req_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master apb4m 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master apb4m 32b: round-robin per beat, lock until taken ----
     logic [3:0] apb4m_32b_b_rarb_req;
     assign apb4m_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((periph_axi_bid_bridge_id == 0) && periph_axi_bid_valid) && periph_axi_bvalid, ((lregs_axi_bid_bridge_id == 0) && lregs_axi_bid_valid) && lregs_axi_bvalid, ((mem_axi_bid_bridge_id == 0) && mem_axi_bid_valid) && mem_axi_bvalid};
     logic [1:0] apb4m_32b_b_rarb_lock, apb4m_32b_b_rarb_rr;
@@ -394,7 +394,7 @@ module bridge_2x3_apb_req_xbar
         end
     )
 
-    // ---- R response arbiter, master apb4m 32b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master apb4m 32b: round-robin per beat, lock until taken ----
     logic [3:0] apb4m_32b_r_rarb_req;
     assign apb4m_32b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((periph_axi_rid_bridge_id == 0) && periph_axi_rid_valid) && periph_axi_rvalid, ((lregs_axi_rid_bridge_id == 0) && lregs_axi_rid_valid) && lregs_axi_rvalid, ((mem_axi_rid_bridge_id == 0) && mem_axi_rid_valid) && mem_axi_rvalid};
     logic [1:0] apb4m_32b_r_rarb_lock, apb4m_32b_r_rarb_rr;
@@ -410,27 +410,21 @@ module bridge_2x3_apb_req_xbar
     wire apb4m_32b_r_rgnt_periph = apb4m_32b_r_rarb_gnt_valid && (apb4m_32b_r_rarb_gnt == 2'd2);
     wire apb4m_32b_r_rgnt_subtractive = apb4m_32b_r_rarb_gnt_valid && (apb4m_32b_r_rarb_gnt == 2'd3);
     wire apb4m_32b_r_rarb_vld = (apb4m_32b_r_rgnt_mem && apb4m_32b_r_rarb_req[0]) || (apb4m_32b_r_rgnt_lregs && apb4m_32b_r_rarb_req[1]) || (apb4m_32b_r_rgnt_periph && apb4m_32b_r_rarb_req[2]) || (apb4m_32b_r_rgnt_subtractive && apb4m_32b_r_rarb_req[3]);
-    wire apb4m_32b_r_rarb_last = (apb4m_32b_r_rgnt_mem && mem_axi_rlast) || (apb4m_32b_r_rgnt_lregs && lregs_axi_rlast) || (apb4m_32b_r_rgnt_periph && periph_axi_rlast) || (apb4m_32b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             apb4m_32b_r_rarb_lock   <= '0;
             apb4m_32b_r_rarb_rr     <= '0;
             apb4m_32b_r_rarb_locked <= 1'b0;
         end else if (apb4m_32b_r_rarb_vld && apb4m_32b_rready) begin
-            if (apb4m_32b_r_rarb_last) begin
-                apb4m_32b_r_rarb_locked <= 1'b0;
-                apb4m_32b_r_rarb_rr <= (apb4m_32b_r_rarb_gnt == 2'd3) ? 2'd0 : apb4m_32b_r_rarb_gnt + 1'b1;
-            end else begin
-                apb4m_32b_r_rarb_lock   <= apb4m_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                apb4m_32b_r_rarb_locked <= 1'b1;
-            end
+            apb4m_32b_r_rarb_locked <= 1'b0;
+            apb4m_32b_r_rarb_rr <= (apb4m_32b_r_rarb_gnt == 2'd3) ? 2'd0 : apb4m_32b_r_rarb_gnt + 1'b1;
         end else if (apb4m_32b_r_rarb_vld) begin
             apb4m_32b_r_rarb_lock   <= apb4m_32b_r_rarb_gnt;       // offered, not taken: hold
             apb4m_32b_r_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- B response arbiter, master apb5m 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master apb5m 32b: round-robin per beat, lock until taken ----
     logic [3:0] apb5m_32b_b_rarb_req;
     assign apb5m_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((periph_axi_bid_bridge_id == 1) && periph_axi_bid_valid) && periph_axi_bvalid, ((lregs_axi_bid_bridge_id == 1) && lregs_axi_bid_valid) && lregs_axi_bvalid, ((mem_axi_bid_bridge_id == 1) && mem_axi_bid_valid) && mem_axi_bvalid};
     logic [1:0] apb5m_32b_b_rarb_lock, apb5m_32b_b_rarb_rr;
@@ -460,7 +454,7 @@ module bridge_2x3_apb_req_xbar
         end
     )
 
-    // ---- R response arbiter, master apb5m 32b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master apb5m 32b: round-robin per beat, lock until taken ----
     logic [3:0] apb5m_32b_r_rarb_req;
     assign apb5m_32b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((periph_axi_rid_bridge_id == 1) && periph_axi_rid_valid) && periph_axi_rvalid, ((lregs_axi_rid_bridge_id == 1) && lregs_axi_rid_valid) && lregs_axi_rvalid, ((mem_axi_rid_bridge_id == 1) && mem_axi_rid_valid) && mem_axi_rvalid};
     logic [1:0] apb5m_32b_r_rarb_lock, apb5m_32b_r_rarb_rr;
@@ -476,20 +470,14 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_r_rgnt_periph = apb5m_32b_r_rarb_gnt_valid && (apb5m_32b_r_rarb_gnt == 2'd2);
     wire apb5m_32b_r_rgnt_subtractive = apb5m_32b_r_rarb_gnt_valid && (apb5m_32b_r_rarb_gnt == 2'd3);
     wire apb5m_32b_r_rarb_vld = (apb5m_32b_r_rgnt_mem && apb5m_32b_r_rarb_req[0]) || (apb5m_32b_r_rgnt_lregs && apb5m_32b_r_rarb_req[1]) || (apb5m_32b_r_rgnt_periph && apb5m_32b_r_rarb_req[2]) || (apb5m_32b_r_rgnt_subtractive && apb5m_32b_r_rarb_req[3]);
-    wire apb5m_32b_r_rarb_last = (apb5m_32b_r_rgnt_mem && mem_axi_rlast) || (apb5m_32b_r_rgnt_lregs && lregs_axi_rlast) || (apb5m_32b_r_rgnt_periph && periph_axi_rlast) || (apb5m_32b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             apb5m_32b_r_rarb_lock   <= '0;
             apb5m_32b_r_rarb_rr     <= '0;
             apb5m_32b_r_rarb_locked <= 1'b0;
         end else if (apb5m_32b_r_rarb_vld && apb5m_32b_rready) begin
-            if (apb5m_32b_r_rarb_last) begin
-                apb5m_32b_r_rarb_locked <= 1'b0;
-                apb5m_32b_r_rarb_rr <= (apb5m_32b_r_rarb_gnt == 2'd3) ? 2'd0 : apb5m_32b_r_rarb_gnt + 1'b1;
-            end else begin
-                apb5m_32b_r_rarb_lock   <= apb5m_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                apb5m_32b_r_rarb_locked <= 1'b1;
-            end
+            apb5m_32b_r_rarb_locked <= 1'b0;
+            apb5m_32b_r_rarb_rr <= (apb5m_32b_r_rarb_gnt == 2'd3) ? 2'd0 : apb5m_32b_r_rarb_gnt + 1'b1;
         end else if (apb5m_32b_r_rarb_vld) begin
             apb5m_32b_r_rarb_lock   <= apb5m_32b_r_rarb_gnt;       // offered, not taken: hold
             apb5m_32b_r_rarb_locked <= 1'b1;

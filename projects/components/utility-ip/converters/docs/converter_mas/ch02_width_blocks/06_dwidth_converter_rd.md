@@ -53,9 +53,9 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 | AXI_USER_WIDTH | int | 1 | User-signal width |
 | SKID_DEPTH_AR | int | 4 | AR skid buffer depth |
 | SKID_DEPTH_R | int | 4 | R skid buffer depth |
-| RASM_DEPTH | int | 272 | Per-ID beat capacity; must cover the 256-beat AXI4 master-burst maximum (BUG-009) |
-| RASM_MAX_OUTSTANDING | int | 16 | Shared reassembly pool capacity in bursts (BUG-009) |
-| R_INTERLEAVE | bit | 1 | 1: the `m_axi` R source may interleave beats across IDs; the reassembly layer (2.6.9) is built. 0: R bursts arrive contiguously (in any order across IDs); no pool, beats pass straight to the data primitive (2.6.9a) |
+| RASM_DEPTH | int | 272 | Unused. Sized the retired BUG-009 beat pool; kept so existing instances still elaborate |
+| RASM_MAX_OUTSTANDING | int | 16 | Unused, as RASM_DEPTH |
+| R_INTERLEAVE | bit | 1 | 1: the `m_axi` R source may interleave beats across IDs; each beat is converted per ID as it arrives (2.6.9). 0: R bursts arrive contiguously (in any order across IDs); beats pass straight to the data primitive (2.6.9a) |
 
 : Table 2.17: Read Converter Parameters
 
@@ -237,12 +237,13 @@ length queue of its own, so framing only the first burst would collapse
 N read bursts into one — bursts 2..N would drain with `narrow_last` never
 asserting.
 
-Since BUG-009 the framing record is the per-ID reassembly record (2.6.9),
-pushed at AR accept and holding the burst's narrow length and start lane;
+The framing record is the per-ID AR record (2.6.8), pushed at AR accept
+and holding the burst's narrow length and start lane;
 it replaces the 16-deep burst-length FIFO this section originally
 described. The record is per-ID (one outstanding master burst per ID by
 reservation), so no shared queue is needed and overlapping bursts are
-framed independently.
+framed independently. With `R_INTERLEAVE = 1` the same record frames the
+per-ID slicer (2.6.9) instead of the primitive.
 
 The narrow→wide R data path (the converter's DOWNSIZE mode) needs no
 such framing; its generate branch ties the shared handshake wires off
@@ -287,9 +288,11 @@ axi_data_dnsize #(
 
 ## 2.6.7 RLAST Generation
 
-There is no local RLAST tracker in the converter. The downsize block
+With `R_INTERLEAVE = 1`, RLAST is the per-ID slicer's last narrow beat
+(upsize) or the final split's RLAST (downsize), 2.6.9. With
+`R_INTERLEAVE = 0` there is no local RLAST tracker: the dnsize primitive
 generates `narrow_last` itself in TRACK_BURSTS mode, framed by the per-ID
-reassembly record (2.6.9): the record supplies the burst's original narrow
+AR record (2.6.8): the record supplies the burst's original narrow
 length and start lane, `burst_start` pulses at the first accepted wide beat,
 and the dnsize counts narrow beats against it — `int_rlast` comes out of the
 dnsize and passes to `s_axi_rlast` through the R skid.
@@ -299,25 +302,18 @@ dnsize and passes to `s_axi_rlast` through the R skid.
 the classic mis-framing bug; a later one used a 16-deep burst-length FIFO of
 narrow arlen/lane per outstanding read. No such multiply exists anywhere in
 the converter, and the FIFO was replaced by the per-ID record when the
-BUG-009 reassembly layer landed.)
+BUG-009 reassembly layer, since retired, landed.)
 
 ## 2.6.8 RID Handling
 
 ### ID Tracking
 
-RID no longer rides a "most recent beat" register. The reassembly layer
-knows which burst it is feeding (`rasm_feed_id`) and which burst is emerging
-at the slave side (`rasm_out_id`, loaded when feeding starts, so it is stable
-before the first output beat); the primitives see one contiguous burst at a
-time by construction:
-
-```systemverilog
-assign int_rid   = rasm_out_id;
-assign int_ruser = rasm_ruser[rasm_out_id];
-```
-
-RUSER is captured on the first beat of each burst in reassembly (exact even
-for single-beat bursts).
+Every converted beat carries its own burst's ID. With `R_INTERLEAVE = 1`
+the output beat is built from the arriving beat (downsize) or from the
+wide beat being sliced (upsize), so `int_rid` / `int_ruser` are that
+beat's RID / RUSER. With `R_INTERLEAVE = 0` they ride the data
+primitive's sideband, `{RRESP, RID, RUSER}`, RRESP in the top field so the
+upsize primitive's numeric-max fold keeps the worst response.
 
 ### Ordering Guarantee (read side; write side fixed by BUG-008)
 
@@ -325,110 +321,84 @@ for single-beat bursts).
 is a per-burst CAM keyed by AWID (see `05_dwidth_converter_wr.md`): any
 cross-ID B completion order is exact (fixed as projects/components/utility-ip/converters BUG-008).
 
-**Read side: full AXI4 R interleaving across IDs is supported (BUG-009,
-fixed 2026-10-04).** A reassembly layer between `m_axi` R and the data
-primitives demuxes beats by RID into per-ID queues backed by a shared beat
-pool, detects when a complete master burst has arrived (beat count from the
-AR-split record plus RLAST), and feeds each assembled burst contiguously into
-`axi_data_upsize`/`axi_data_dnsize`. The primitives are unchanged and still
-see one burst at a time, so per-beat RID/RUSER attribution is exact no matter
-how the downstream interleaves beats across IDs.
+**Read side: full AXI4 R interleaving across IDs is supported.** Beats of
+different IDs may arrive in any interleaving and any burst order; beats of
+one ID arrive in order, as AXI4 requires. Each ID has at most one master
+burst outstanding: master AR issue for an ID waits while that ID's record
+slot is occupied, and the slot frees when the burst has arrived (downsize)
+or its converted slave burst has gone out (upsize). Same-ID read chains
+serialize on that; cross-ID traffic stays concurrent.
 
-The layer is bounded and deadlock-free by reservation: at most one
-unassembled master burst per ID — master AR issue for an ID is throttled
-until its previous burst has been completely fed to the primitive, and the
-shared pool is sized to `RASM_MAX_OUTSTANDING` full bursts (default 16).
-Throughput tradeoff: same-ID read chains serialize through reassembly (they
-complete in order anyway); cross-ID traffic stays concurrent. Buffer sizing:
-`RASM_DEPTH` (default 272 beats) must cover the 256-beat AXI4 master-burst
-maximum; the pool is `RASM_MAX_OUTSTANDING * RASM_DEPTH` entries of
-`{data, resp, last, next}` — a shared linked list, avoiding the 2^ID_WIDTH
-area explosion of per-ID FIFOs. If the per-ID reservation is ever relaxed to
-multiple outstanding bursts per ID, `bridge_cam` mode 2 (`ALLOW_DUPLICATES=1`,
-the ordered duplicate-tag CAM in fabric-gen-ip/bridge) is the designated
-upgrade for the tracking structure.
+An R beat whose ID has no outstanding AR record is flagged by a
+`SIMULATION`-guarded `$error`.
 
-Protocol violations (R beat with no outstanding AR record, more beats than
-the AR promised, premature RLAST) are flagged by `SIMULATION`-guarded
-`$error`s and consumed without deadlock.
+## 2.6.9 R Interleave (`R_INTERLEAVE = 1`, 2026-10-18)
 
-## 2.6.9 R Reassembly Layer (BUG-009, 2026-10-04)
+AXI4 permits a slave to interleave R beats across ARIDs. The converter
+converts each beat against its own ID's state as it arrives; nothing waits
+for a whole burst, and the data primitives are not built.
 
-AXI4 permits a slave to interleave R beats across ARIDs, and the house
-BFM environment is required to exercise that capability — so the read
-converter no longer assumes a contiguous master R stream. Between
-`m_axi` R and the data primitives sits a reassembly layer:
+1. **Registered input.** `m_axi` R enters through a 2-deep skid, so every
+   per-ID lookup starts from a flop.
+2. **Downsize (narrow master beats folded into wide slave beats).** Each
+   ID keeps the lanes of its partial wide beat -- `RATIO - 1` narrow
+   lanes, one ID-indexed distributed-RAM array per lane -- plus a lane
+   count and the worst RRESP so far. The beat that fills the last lane,
+   or the final split's RLAST, emits the wide beat with the lanes already
+   held. Because the arriving beat supplies the last lane itself, emitting
+   costs no extra cycle.
+3. **Upsize (wide master beats sliced into narrow slave beats).** One wide
+   beat is held and sliced lane by lane. Each ID keeps the narrow beats
+   left in its burst and whether the burst has started, so the ID's next
+   wide beat resumes at lane 0 with the right count; the burst's first
+   wide beat starts at the record's start lane. A next beat of the same ID
+   continuing the same burst takes its count from the beat being sliced,
+   not from the table (bypass). RLAST is the burst's last narrow beat.
+4. **Records and reservation** are the same as 2.6.9a: the per-ID AR
+   record supplies the final-split flag (downsize) and the narrow length
+   and start lane (upsize).
 
-1. **Demux by RID.** Every master R beat is appended to its ID's queue.
-   Queues are singly-linked lists through a shared beat pool
-   (`RASM_MAX_OUTSTANDING * RASM_DEPTH` entries of
-   `{data, resp, last, next}`); a free list recycles entries. The shared
-   pool avoids the 2^ID_WIDTH area explosion of per-ID FIFOs at large
-   ID widths.
-2. **Assembly detection.** Each issued master AR pushes a per-ID record
-   `{valid, final, beats}` (downsize: split-record beats + final flag;
-   upsize: wide-beat count, narrow length, start lane). A burst is
-   assembled when its record's beat count is met by beats whose last
-   carries RLAST.
-3. **Reservation.** At most one unassembled master burst per ID: master
-   AR issue for an ID is throttled while its record is valid, so the
-   pool is bounded and no reorder deadlock is possible (a burst's beats
-   always have their reserved space). Cost: same-ID read chains
-   serialize through reassembly; cross-ID traffic stays concurrent.
-4. **Burst-at-a-time feeding.** A round-robin scheduler picks an ID with
-   an assembled burst and feeds that burst's beats contiguously into
-   `axi_data_upsize` (downsize) or `axi_data_dnsize` (upsize). The
-   primitives are untouched; the per-ID record drives final-flag gating
-   (downsize) and burst framing (upsize). For downsize, the scheduler
-   keeps feeding the same ID while its slave burst's converted output is
-   still draining, so wide-word accumulation never mixes splits of
-   different slave bursts.
-5. **Exact attribution.** `int_rid`/`int_ruser` come from the tracked
-   feed/output IDs and the first-beat RUSER capture — exact per beat
-   regardless of arrival order.
+Cost per instance: `(RATIO - 1) x 2^ID_WIDTH` narrow beats of LUTRAM on the
+downsize side, and one wide beat of flops plus a 9-bit count per ID on the
+upsize side.
 
-Protocol violations (R with no outstanding AR, more beats than the AR
-promised, premature RLAST) are flagged by `SIMULATION`-guarded `$error`
-checks and consumed without deadlock.
+This replaced the BUG-009 reassembly layer (2026-10-04), a shared beat pool
+of `RASM_MAX_OUTSTANDING x RASM_DEPTH` entries (16 x 272 by default) that
+stored each master burst whole before feeding it to the primitive. In a
+generated bridge that was about 128k LUTs per read converter on the
+Artix-7; a bridge with ten read converters did not finish synthesis. It was
+dropped on 2026-10-16 in favour of the no-interleave mode below, and
+interleaving came back without the pool two days later.
 
-The layer is store-and-forward and its pool is large: at the default
-sizing every instance holds 4,352 beats of data in LUTRAM and a 4,352-entry
-13-bit next-pointer list in flops. Synthesized inside a generated bridge
-that was about 128k LUTs per instance on the Artix-7, and a bridge with
-ten read converters did not finish synthesis.
+Verified by the converter suite at both modes (the R-interleave tests drive
+an interleaving slave BFM; the upsize bursts span several wide beats so the
+per-ID count is exercised), by formal (`prove` and `prove_rbypass`), and by
+the bridge regression, whose slave BFMs interleave R by default.
 
-## 2.6.9a No-Reassembly Mode (`R_INTERLEAVE = 0`, 2026-10-16)
+## 2.6.9a No-Interleave Mode (`R_INTERLEAVE = 0`, 2026-10-16)
 
-When the `m_axi` R source never interleaves beats of different bursts --
-the bridge's master adapters, whose crossbar R arbiter holds a path
-through RLAST and whose slaves may not interleave (bridge PRD FR-9) --
-the pool and scheduler are not built:
+When the `m_axi` R source never interleaves beats of different bursts,
+beats go straight to the data primitive as they arrive:
 
-1. **Pass-through.** Each R beat goes to the data primitive as it
-   arrives, through one 2-deep skid that registers it (so the record
-   lookup and the primitive's burst framing start from a flop rather than
-   from the source's R mux); no burst is buffered.
-2. **Records and reservation kept.** Bursts of different IDs may still
-   return in any order, so the per-ID AR record is looked up by the
-   arriving beat's RID, and the one-burst-per-ID reservation stays.
-3. **Attribution in the sideband.** The primitive's sideband carries
-   `{RRESP, RID, RUSER}` (RRESP in the top field, so the upsize
-   primitive's numeric-max fold still keeps the worst response), so
-   every converted beat carries its own burst's ID.
+1. **Pass-through.** Each R beat goes to the data primitive through one
+   2-deep skid that registers it (so the record lookup and the
+   primitive's burst framing start from a flop rather than from the
+   source's R mux); no burst is buffered.
+2. **Records and reservation.** Bursts of different IDs may still return
+   in any order, so the per-ID AR record is looked up by the arriving
+   beat's RID, and the one-burst-per-ID reservation applies.
+3. **Attribution in the sideband.** See 2.6.8.
 4. **Downsize accepts other IDs between splits.** Every master burst is a
    whole number of wide beats from lane 0 (splits are 256 narrow beats),
    so no wide beat spans two bursts. Another ID's burst arriving between
-   the splits of a slave burst is taken; refusing it would hold an R
-   arbiter that locks through RLAST and the waiting split could never
-   arrive.
+   the splits of a slave burst is taken.
 5. **Upsize takes one burst at a time.** The dnsize primitive frames
-   from `burst_len`, so a new burst enters once the previous one has
-   left the primitive.
+   from `burst_len`, so a new burst enters once the previous one is
+   leaving it.
 
 A `SIMULATION` check flags an interleaved beat. Covered by the converter
-suite's `_ri0` rows (ordinary traffic both directions at gate and func,
-and the burst-atomic out-of-order R test) and the full bridge regression.
-The formal proof covers the default mode only.
+suite's `_ri0` rows. The bridge used this mode from 2026-10-16 to
+2026-10-18; it now builds every read converter with `R_INTERLEAVE = 1`.
 
 ## 2.6.10 Resource Utilization
 

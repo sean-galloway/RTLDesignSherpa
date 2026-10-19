@@ -14,7 +14,7 @@ OUTPUT_DIR="$SCRIPT_DIR"
 
 # Output files
 # Revision is overridable: ./generate_mas_pdf.sh [--rev <version>]
-REV="1.8"
+REV="1.9"
 if [[ "${1:-}" == "--rev" && -n "${2:-}" ]]; then
   REV="$2"
 fi

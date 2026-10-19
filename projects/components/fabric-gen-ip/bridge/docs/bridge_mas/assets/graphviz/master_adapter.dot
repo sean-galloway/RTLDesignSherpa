@@ -30,7 +30,7 @@ digraph master_adapter {
 
     wsel [label="W Path Select\nw_trk FIFO: pushed with the AW's\nslave select, popped at WLAST", group=L];
     gate [label="Per-ID Target Gate + Fabric ID\naw_gate_ok / ar_gate_ok: a new AW / AR waits only while\nits ID is in flight to a different slave (AW also while\nW is owed to one); ID leaves as {BRIDGE_ID, id}", group=C];
-    rmux [label="Response Mux + Path Arbiter\nround robin across the width paths\n(b_ / r_slave_select); held until taken,\nR through RLAST; each B / last R\ndecrements the gate's ID table", group=R];
+    rmux [label="Response Mux + Path Arbiter\nround robin across the width paths\n(b_ / r_slave_select); held until taken,\nre-arbitrated every beat; each B / last R\ndecrements the gate's ID table", group=R];
     { rank=same; wsel; gate; rmux; }
     wsel -> gate -> rmux [style=invis];
 

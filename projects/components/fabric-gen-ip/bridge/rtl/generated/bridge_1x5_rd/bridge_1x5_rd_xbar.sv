@@ -215,7 +215,7 @@ module bridge_1x5_rd_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- R response arbiter, master cpu_rd 32b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu_rd 32b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_rd_32b_r_rarb_req;
     assign cpu_rd_32b_r_rarb_req = {((axil_periph_axi_rid_bridge_id == 0) && axil_periph_axi_rid_valid) && axil_periph_axi_rvalid, ((apb_periph_axi_rid_bridge_id == 0) && apb_periph_axi_rid_valid) && apb_periph_axi_rvalid, ((periph_rd_axi_rid_bridge_id == 0) && periph_rd_axi_rid_valid) && periph_rd_axi_rvalid};
     logic [1:0] cpu_rd_32b_r_rarb_lock, cpu_rd_32b_r_rarb_rr;
@@ -229,20 +229,14 @@ module bridge_1x5_rd_xbar
     wire cpu_rd_32b_r_rgnt_apb_periph = cpu_rd_32b_r_rarb_gnt_valid && (cpu_rd_32b_r_rarb_gnt == 2'd1);
     wire cpu_rd_32b_r_rgnt_axil_periph = cpu_rd_32b_r_rarb_gnt_valid && (cpu_rd_32b_r_rarb_gnt == 2'd2);
     wire cpu_rd_32b_r_rarb_vld = (cpu_rd_32b_r_rgnt_periph_rd && cpu_rd_32b_r_rarb_req[0]) || (cpu_rd_32b_r_rgnt_apb_periph && cpu_rd_32b_r_rarb_req[1]) || (cpu_rd_32b_r_rgnt_axil_periph && cpu_rd_32b_r_rarb_req[2]);
-    wire cpu_rd_32b_r_rarb_last = (cpu_rd_32b_r_rgnt_periph_rd && periph_rd_axi_rlast) || (cpu_rd_32b_r_rgnt_apb_periph && apb_periph_axi_rlast) || (cpu_rd_32b_r_rgnt_axil_periph && axil_periph_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_rd_32b_r_rarb_lock   <= '0;
             cpu_rd_32b_r_rarb_rr     <= '0;
             cpu_rd_32b_r_rarb_locked <= 1'b0;
         end else if (cpu_rd_32b_r_rarb_vld && cpu_rd_32b_rready) begin
-            if (cpu_rd_32b_r_rarb_last) begin
-                cpu_rd_32b_r_rarb_locked <= 1'b0;
-                cpu_rd_32b_r_rarb_rr <= (cpu_rd_32b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_rd_32b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_rd_32b_r_rarb_lock   <= cpu_rd_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_rd_32b_r_rarb_locked <= 1'b1;
-            end
+            cpu_rd_32b_r_rarb_locked <= 1'b0;
+            cpu_rd_32b_r_rarb_rr <= (cpu_rd_32b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_rd_32b_r_rarb_gnt + 1'b1;
         end else if (cpu_rd_32b_r_rarb_vld) begin
             cpu_rd_32b_r_rarb_lock   <= cpu_rd_32b_r_rarb_gnt;       // offered, not taken: hold
             cpu_rd_32b_r_rarb_locked <= 1'b1;
@@ -251,7 +245,7 @@ module bridge_1x5_rd_xbar
 
     wire cpu_rd_64b_r_rgnt_ddr_rd = ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid);
 
-    // ---- R response arbiter, master cpu_rd 128b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu_rd 128b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_rd_128b_r_rarb_req;
     assign cpu_rd_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((hbm_rd_axi_rid_bridge_id == 0) && hbm_rd_axi_rid_valid) && hbm_rd_axi_rvalid};
     logic [0:0] cpu_rd_128b_r_rarb_lock, cpu_rd_128b_r_rarb_rr;
@@ -263,20 +257,14 @@ module bridge_1x5_rd_xbar
     wire cpu_rd_128b_r_rgnt_hbm_rd = cpu_rd_128b_r_rarb_gnt_valid && (cpu_rd_128b_r_rarb_gnt == 1'd0);
     wire cpu_rd_128b_r_rgnt_subtractive = cpu_rd_128b_r_rarb_gnt_valid && (cpu_rd_128b_r_rarb_gnt == 1'd1);
     wire cpu_rd_128b_r_rarb_vld = (cpu_rd_128b_r_rgnt_hbm_rd && cpu_rd_128b_r_rarb_req[0]) || (cpu_rd_128b_r_rgnt_subtractive && cpu_rd_128b_r_rarb_req[1]);
-    wire cpu_rd_128b_r_rarb_last = (cpu_rd_128b_r_rgnt_hbm_rd && hbm_rd_axi_rlast) || (cpu_rd_128b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_rd_128b_r_rarb_lock   <= '0;
             cpu_rd_128b_r_rarb_rr     <= '0;
             cpu_rd_128b_r_rarb_locked <= 1'b0;
         end else if (cpu_rd_128b_r_rarb_vld && cpu_rd_128b_rready) begin
-            if (cpu_rd_128b_r_rarb_last) begin
-                cpu_rd_128b_r_rarb_locked <= 1'b0;
-                cpu_rd_128b_r_rarb_rr <= (cpu_rd_128b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_128b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_rd_128b_r_rarb_lock   <= cpu_rd_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_rd_128b_r_rarb_locked <= 1'b1;
-            end
+            cpu_rd_128b_r_rarb_locked <= 1'b0;
+            cpu_rd_128b_r_rarb_rr <= (cpu_rd_128b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_128b_r_rarb_gnt + 1'b1;
         end else if (cpu_rd_128b_r_rarb_vld) begin
             cpu_rd_128b_r_rarb_lock   <= cpu_rd_128b_r_rarb_gnt;       // offered, not taken: hold
             cpu_rd_128b_r_rarb_locked <= 1'b1;

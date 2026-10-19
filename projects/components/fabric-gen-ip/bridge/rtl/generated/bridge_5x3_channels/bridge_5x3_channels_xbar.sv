@@ -444,7 +444,7 @@ module bridge_5x3_channels_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master descr_wr_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master descr_wr_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] descr_wr_master_256b_b_rarb_req;
     assign descr_wr_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 0) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 0) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
     logic [1:0] descr_wr_master_256b_b_rarb_lock, descr_wr_master_256b_b_rarb_rr;
@@ -472,7 +472,7 @@ module bridge_5x3_channels_xbar
         end
     )
 
-    // ---- B response arbiter, master sink_wr_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master sink_wr_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] sink_wr_master_256b_b_rarb_req;
     assign sink_wr_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 1) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 1) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
     logic [1:0] sink_wr_master_256b_b_rarb_lock, sink_wr_master_256b_b_rarb_rr;
@@ -500,7 +500,7 @@ module bridge_5x3_channels_xbar
         end
     )
 
-    // ---- R response arbiter, master src_rd_master 256b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master src_rd_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] src_rd_master_256b_r_rarb_req;
     assign src_rd_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_controller_axi_rid_bridge_id == 2) && ddr_controller_axi_rid_valid) && ddr_controller_axi_rvalid, ((sram_buffer_axi_rid_bridge_id == 2) && sram_buffer_axi_rid_valid) && sram_buffer_axi_rvalid};
     logic [1:0] src_rd_master_256b_r_rarb_lock, src_rd_master_256b_r_rarb_rr;
@@ -514,27 +514,21 @@ module bridge_5x3_channels_xbar
     wire src_rd_master_256b_r_rgnt_ddr_controller = src_rd_master_256b_r_rarb_gnt_valid && (src_rd_master_256b_r_rarb_gnt == 2'd1);
     wire src_rd_master_256b_r_rgnt_subtractive = src_rd_master_256b_r_rarb_gnt_valid && (src_rd_master_256b_r_rarb_gnt == 2'd2);
     wire src_rd_master_256b_r_rarb_vld = (src_rd_master_256b_r_rgnt_sram_buffer && src_rd_master_256b_r_rarb_req[0]) || (src_rd_master_256b_r_rgnt_ddr_controller && src_rd_master_256b_r_rarb_req[1]) || (src_rd_master_256b_r_rgnt_subtractive && src_rd_master_256b_r_rarb_req[2]);
-    wire src_rd_master_256b_r_rarb_last = (src_rd_master_256b_r_rgnt_sram_buffer && sram_buffer_axi_rlast) || (src_rd_master_256b_r_rgnt_ddr_controller && ddr_controller_axi_rlast) || (src_rd_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             src_rd_master_256b_r_rarb_lock   <= '0;
             src_rd_master_256b_r_rarb_rr     <= '0;
             src_rd_master_256b_r_rarb_locked <= 1'b0;
         end else if (src_rd_master_256b_r_rarb_vld && src_rd_master_256b_rready) begin
-            if (src_rd_master_256b_r_rarb_last) begin
-                src_rd_master_256b_r_rarb_locked <= 1'b0;
-                src_rd_master_256b_r_rarb_rr <= (src_rd_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : src_rd_master_256b_r_rarb_gnt + 1'b1;
-            end else begin
-                src_rd_master_256b_r_rarb_lock   <= src_rd_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                src_rd_master_256b_r_rarb_locked <= 1'b1;
-            end
+            src_rd_master_256b_r_rarb_locked <= 1'b0;
+            src_rd_master_256b_r_rarb_rr <= (src_rd_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : src_rd_master_256b_r_rarb_gnt + 1'b1;
         end else if (src_rd_master_256b_r_rarb_vld) begin
             src_rd_master_256b_r_rarb_lock   <= src_rd_master_256b_r_rarb_gnt;       // offered, not taken: hold
             src_rd_master_256b_r_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- B response arbiter, master stream_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master stream_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] stream_master_256b_b_rarb_req;
     assign stream_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 3) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 3) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
     logic [1:0] stream_master_256b_b_rarb_lock, stream_master_256b_b_rarb_rr;
@@ -562,7 +556,7 @@ module bridge_5x3_channels_xbar
         end
     )
 
-    // ---- R response arbiter, master stream_master 256b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master stream_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] stream_master_256b_r_rarb_req;
     assign stream_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_controller_axi_rid_bridge_id == 3) && ddr_controller_axi_rid_valid) && ddr_controller_axi_rvalid, ((sram_buffer_axi_rid_bridge_id == 3) && sram_buffer_axi_rid_valid) && sram_buffer_axi_rvalid};
     logic [1:0] stream_master_256b_r_rarb_lock, stream_master_256b_r_rarb_rr;
@@ -576,20 +570,14 @@ module bridge_5x3_channels_xbar
     wire stream_master_256b_r_rgnt_ddr_controller = stream_master_256b_r_rarb_gnt_valid && (stream_master_256b_r_rarb_gnt == 2'd1);
     wire stream_master_256b_r_rgnt_subtractive = stream_master_256b_r_rarb_gnt_valid && (stream_master_256b_r_rarb_gnt == 2'd2);
     wire stream_master_256b_r_rarb_vld = (stream_master_256b_r_rgnt_sram_buffer && stream_master_256b_r_rarb_req[0]) || (stream_master_256b_r_rgnt_ddr_controller && stream_master_256b_r_rarb_req[1]) || (stream_master_256b_r_rgnt_subtractive && stream_master_256b_r_rarb_req[2]);
-    wire stream_master_256b_r_rarb_last = (stream_master_256b_r_rgnt_sram_buffer && sram_buffer_axi_rlast) || (stream_master_256b_r_rgnt_ddr_controller && ddr_controller_axi_rlast) || (stream_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             stream_master_256b_r_rarb_lock   <= '0;
             stream_master_256b_r_rarb_rr     <= '0;
             stream_master_256b_r_rarb_locked <= 1'b0;
         end else if (stream_master_256b_r_rarb_vld && stream_master_256b_rready) begin
-            if (stream_master_256b_r_rarb_last) begin
-                stream_master_256b_r_rarb_locked <= 1'b0;
-                stream_master_256b_r_rarb_rr <= (stream_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : stream_master_256b_r_rarb_gnt + 1'b1;
-            end else begin
-                stream_master_256b_r_rarb_lock   <= stream_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                stream_master_256b_r_rarb_locked <= 1'b1;
-            end
+            stream_master_256b_r_rarb_locked <= 1'b0;
+            stream_master_256b_r_rarb_rr <= (stream_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : stream_master_256b_r_rarb_gnt + 1'b1;
         end else if (stream_master_256b_r_rarb_vld) begin
             stream_master_256b_r_rarb_lock   <= stream_master_256b_r_rarb_gnt;       // offered, not taken: hold
             stream_master_256b_r_rarb_locked <= 1'b1;
@@ -600,7 +588,7 @@ module bridge_5x3_channels_xbar
 
     wire cpu_master_32b_r_rgnt_apb_periph = ((apb_periph_axi_rid_bridge_id == 4) && apb_periph_axi_rid_valid);
 
-    // ---- B response arbiter, master cpu_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_master_256b_b_rarb_req;
     assign cpu_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 4) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_controller_axi_bid_bridge_id == 4) && ddr_controller_axi_bid_valid) && ddr_controller_axi_bvalid, ((sram_buffer_axi_bid_bridge_id == 4) && sram_buffer_axi_bid_valid) && sram_buffer_axi_bvalid};
     logic [1:0] cpu_master_256b_b_rarb_lock, cpu_master_256b_b_rarb_rr;
@@ -628,7 +616,7 @@ module bridge_5x3_channels_xbar
         end
     )
 
-    // ---- R response arbiter, master cpu_master 256b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu_master 256b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_master_256b_r_rarb_req;
     assign cpu_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 4) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_controller_axi_rid_bridge_id == 4) && ddr_controller_axi_rid_valid) && ddr_controller_axi_rvalid, ((sram_buffer_axi_rid_bridge_id == 4) && sram_buffer_axi_rid_valid) && sram_buffer_axi_rvalid};
     logic [1:0] cpu_master_256b_r_rarb_lock, cpu_master_256b_r_rarb_rr;
@@ -642,20 +630,14 @@ module bridge_5x3_channels_xbar
     wire cpu_master_256b_r_rgnt_ddr_controller = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 2'd1);
     wire cpu_master_256b_r_rgnt_subtractive = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 2'd2);
     wire cpu_master_256b_r_rarb_vld = (cpu_master_256b_r_rgnt_sram_buffer && cpu_master_256b_r_rarb_req[0]) || (cpu_master_256b_r_rgnt_ddr_controller && cpu_master_256b_r_rarb_req[1]) || (cpu_master_256b_r_rgnt_subtractive && cpu_master_256b_r_rarb_req[2]);
-    wire cpu_master_256b_r_rarb_last = (cpu_master_256b_r_rgnt_sram_buffer && sram_buffer_axi_rlast) || (cpu_master_256b_r_rgnt_ddr_controller && ddr_controller_axi_rlast) || (cpu_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_master_256b_r_rarb_lock   <= '0;
             cpu_master_256b_r_rarb_rr     <= '0;
             cpu_master_256b_r_rarb_locked <= 1'b0;
         end else if (cpu_master_256b_r_rarb_vld && cpu_master_256b_rready) begin
-            if (cpu_master_256b_r_rarb_last) begin
-                cpu_master_256b_r_rarb_locked <= 1'b0;
-                cpu_master_256b_r_rarb_rr <= (cpu_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_master_256b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_master_256b_r_rarb_locked <= 1'b1;
-            end
+            cpu_master_256b_r_rarb_locked <= 1'b0;
+            cpu_master_256b_r_rarb_rr <= (cpu_master_256b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_master_256b_r_rarb_gnt + 1'b1;
         end else if (cpu_master_256b_r_rarb_vld) begin
             cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;       // offered, not taken: hold
             cpu_master_256b_r_rarb_locked <= 1'b1;

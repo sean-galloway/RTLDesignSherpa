@@ -367,12 +367,19 @@ module wb4_to_axil4_core (
 	wire w_side_rd_valid;
 	wire w_side_head_we;
 	wire w_side_rd_ready;
+	reg [CW - 1:0] r_open_wr;
+	reg [CW - 1:0] r_open_rd;
+	wire w_wr_clear;
+	wire w_rd_clear;
+	wire w_head_is_wr;
+	assign w_wr_clear = r_open_wr == {CW {1'sb0}};
+	assign w_rd_clear = r_open_rd == {CW {1'sb0}};
 	assign w_room = w_side_wr_ready;
-	assign w_wr_go = (((cmd_valid && cmd_we) && w_room) && fub_awready) && fub_wready;
-	assign w_rd_go = ((cmd_valid && !cmd_we) && w_room) && fub_arready;
-	assign fub_awvalid = ((cmd_valid && cmd_we) && w_room) && fub_wready;
-	assign fub_wvalid = ((cmd_valid && cmd_we) && w_room) && fub_awready;
-	assign fub_arvalid = (cmd_valid && !cmd_we) && w_room;
+	assign w_wr_go = ((((cmd_valid && cmd_we) && w_room) && w_rd_clear) && fub_awready) && fub_wready;
+	assign w_rd_go = (((cmd_valid && !cmd_we) && w_room) && w_wr_clear) && fub_arready;
+	assign fub_awvalid = (((cmd_valid && cmd_we) && w_room) && w_rd_clear) && fub_wready;
+	assign fub_wvalid = (((cmd_valid && cmd_we) && w_room) && w_rd_clear) && fub_awready;
+	assign fub_arvalid = ((cmd_valid && !cmd_we) && w_room) && w_wr_clear;
 	assign fub_awaddr = cmd_adr;
 	assign fub_araddr = cmd_adr;
 	assign fub_awprot = AXIL_PROT;
@@ -403,11 +410,16 @@ module wb4_to_axil4_core (
 		sv2v_cast_3D2D3 = inp;
 	endfunction
 	always @(posedge aclk or negedge aresetn)
-		if (!aresetn)
+		if (!aresetn) begin
 			r_open <= 1'sb0;
-		else
+			r_open_wr <= 1'sb0;
+			r_open_rd <= 1'sb0;
+		end
+		else begin
 			r_open <= (r_open + sv2v_cast_3D2D3(w_issue)) - sv2v_cast_3D2D3(w_retire);
-	wire w_head_is_wr;
+			r_open_wr <= (r_open_wr + sv2v_cast_3D2D3(w_wr_go)) - sv2v_cast_3D2D3(w_retire && w_head_is_wr);
+			r_open_rd <= (r_open_rd + sv2v_cast_3D2D3(w_rd_go)) - sv2v_cast_3D2D3(w_retire && !w_head_is_wr);
+		end
 	wire w_head_ready;
 	assign w_head_is_wr = w_side_rd_valid && w_side_head_we;
 	assign w_head_ready = w_side_rd_valid && (w_head_is_wr ? fub_bvalid : fub_rvalid);

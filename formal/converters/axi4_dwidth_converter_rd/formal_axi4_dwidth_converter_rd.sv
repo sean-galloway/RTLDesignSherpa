@@ -186,13 +186,14 @@ module formal_axi4_dwidth_converter_rd (
         assume (s_axi_arsize == 3'($clog2(S_AXI_DATA_WIDTH / 8)));
     end
 
-`ifdef FORMAL_RBYPASS
     // =========================================================================
-    // A legal slave on m_axi, for the R_INTERLEAVE=0 build. The bypass has no
-    // reassembly pool to absorb a misbehaving slave, so its contract (the
-    // DUT's own SIMULATION checks) is a slave that answers only issued ARs,
-    // in order, with RLAST on the right beat. s_axi_arid is anyconst, so
-    // there is one ID and nothing to interleave.
+    // A legal slave on m_axi, for both builds. Neither keeps a reassembly
+    // pool to absorb a misbehaving slave any more (R_INTERLEAVE=1 converts
+    // each beat against its ID's state since 2026-10-18), so the contract
+    // (the DUT's own SIMULATION checks) is a slave that answers only issued
+    // ARs, in order, with RLAST on the right beat. s_axi_arid is anyconst,
+    // so there is one ID and nothing to interleave here; beat-level
+    // interleaving is covered by the cocotb interleave tests.
     // =========================================================================
     reg [7:0] f_slv_len [4];
     reg [1:0] f_slv_wr, f_slv_rd;
@@ -231,7 +232,6 @@ module formal_axi4_dwidth_converter_rd (
         if (aresetn && $past(aresetn) && $past(m_axi_rvalid && !m_axi_rready_o))
             assume (m_axi_rvalid && m_axi_rid == $past(m_axi_rid) &&
                     m_axi_rlast == $past(m_axi_rlast) && m_axi_rdata == $past(m_axi_rdata));
-`endif
 
     // =========================================================================
     // Shadow model: track whether any AXI activity has occurred

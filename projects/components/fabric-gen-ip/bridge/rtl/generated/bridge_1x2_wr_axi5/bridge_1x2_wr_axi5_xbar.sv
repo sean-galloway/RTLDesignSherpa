@@ -144,7 +144,7 @@ module bridge_1x2_wr_axi5_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master cpu_wr 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu_wr 32b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_wr_32b_b_rarb_req;
     assign cpu_wr_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((sram_wr_axi_bid_bridge_id == 0) && sram_wr_axi_bid_valid) && sram_wr_axi_bvalid, ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid) && ddr_wr_axi_bvalid};
     logic [1:0] cpu_wr_32b_b_rarb_lock, cpu_wr_32b_b_rarb_rr;

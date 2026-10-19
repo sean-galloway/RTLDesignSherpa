@@ -135,7 +135,7 @@ module bridge_1x2_rd_axi5w_xbar
 
     wire cpu_rd_32b_r_rgnt_sram_rd = ((sram_rd_axi_rid_bridge_id == 0) && sram_rd_axi_rid_valid);
 
-    // ---- R response arbiter, master cpu_rd 64b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu_rd 64b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_rd_64b_r_rarb_req;
     assign cpu_rd_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_rd_axi_rid_bridge_id == 0) && ddr_rd_axi_rid_valid) && ddr_rd_axi_rvalid};
     logic [0:0] cpu_rd_64b_r_rarb_lock, cpu_rd_64b_r_rarb_rr;
@@ -147,20 +147,14 @@ module bridge_1x2_rd_axi5w_xbar
     wire cpu_rd_64b_r_rgnt_ddr_rd = cpu_rd_64b_r_rarb_gnt_valid && (cpu_rd_64b_r_rarb_gnt == 1'd0);
     wire cpu_rd_64b_r_rgnt_subtractive = cpu_rd_64b_r_rarb_gnt_valid && (cpu_rd_64b_r_rarb_gnt == 1'd1);
     wire cpu_rd_64b_r_rarb_vld = (cpu_rd_64b_r_rgnt_ddr_rd && cpu_rd_64b_r_rarb_req[0]) || (cpu_rd_64b_r_rgnt_subtractive && cpu_rd_64b_r_rarb_req[1]);
-    wire cpu_rd_64b_r_rarb_last = (cpu_rd_64b_r_rgnt_ddr_rd && ddr_rd_axi_rlast) || (cpu_rd_64b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_rd_64b_r_rarb_lock   <= '0;
             cpu_rd_64b_r_rarb_rr     <= '0;
             cpu_rd_64b_r_rarb_locked <= 1'b0;
         end else if (cpu_rd_64b_r_rarb_vld && cpu_rd_64b_rready) begin
-            if (cpu_rd_64b_r_rarb_last) begin
-                cpu_rd_64b_r_rarb_locked <= 1'b0;
-                cpu_rd_64b_r_rarb_rr <= (cpu_rd_64b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_64b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_rd_64b_r_rarb_lock   <= cpu_rd_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_rd_64b_r_rarb_locked <= 1'b1;
-            end
+            cpu_rd_64b_r_rarb_locked <= 1'b0;
+            cpu_rd_64b_r_rarb_rr <= (cpu_rd_64b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_rd_64b_r_rarb_gnt + 1'b1;
         end else if (cpu_rd_64b_r_rarb_vld) begin
             cpu_rd_64b_r_rarb_lock   <= cpu_rd_64b_r_rarb_gnt;       // offered, not taken: hold
             cpu_rd_64b_r_rarb_locked <= 1'b1;

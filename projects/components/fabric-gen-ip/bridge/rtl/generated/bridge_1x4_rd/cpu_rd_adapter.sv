@@ -241,7 +241,7 @@ module bridge_1x4_rd_cpu_rd_adapter
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(4),
-        .R_INTERLEAVE(0)
+        .R_INTERLEAVE(1)
     ) u_rd_conv_32b (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -337,7 +337,7 @@ module bridge_1x4_rd_cpu_rd_adapter
         .AXI_USER_WIDTH(1),
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(4),
-        .R_INTERLEAVE(0)
+        .R_INTERLEAVE(1)
     ) u_rd_conv_128b (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -479,7 +479,8 @@ module bridge_1x4_rd_cpu_rd_adapter
 
     // -------- R path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 3 width paths. A grant holds while its
-    // response is offered and not taken, and through RLAST.
+    // response is offered and not taken; R switches per beat, since the
+    // slaves (and the width converters, per ID) may interleave R bursts.
     logic [2:0] r_pv, r_pgnt, r_r_held;
     logic           r_r_hold;
     logic [1:0] r_r_last;
@@ -518,9 +519,7 @@ module bridge_1x4_rd_cpu_rd_adapter
             r_r_held <= '0;
             r_r_last <= '0;
         end else begin
-            r_r_hold <= r_r_hold
-                ? !(fub_axi_rvalid && fub_axi_rready && fub_axi_rlast)
-                : (fub_axi_rvalid && !(fub_axi_rready && fub_axi_rlast));
+            r_r_hold <= fub_axi_rvalid && !fub_axi_rready;
             r_r_held <= r_pgnt;
             if (fub_axi_rvalid && fub_axi_rready) begin
                 if (r_pgnt[0]) r_r_last <= 2'd0;

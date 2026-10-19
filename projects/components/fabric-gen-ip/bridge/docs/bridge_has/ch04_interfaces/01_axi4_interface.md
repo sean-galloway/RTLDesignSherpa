@@ -94,11 +94,13 @@ them: the BID/RID prefix bits for a multi-master AXI3/AXI4/AXI5 slave (any
 completion order), or an in-order FIFO for single-master bridges and shim
 slaves (request order required, bridge BUG-008). See HAS 3.2.
 
-Either way a slave returns each R burst contiguously: beats of different
-IDs must not interleave. The per-master-path R arbiters hold through
-RLAST, and the read width converters rely on it (they are built with
-`R_INTERLEAVE = 0`, without a reassembly pool, GitHub #119); the
-converter flags an interleaved beat in simulation.
+Either way a slave may interleave R beats of different IDs, as AXI4
+allows; beats of one ID stay in order. The per-master-path R arbiters
+re-arbitrate every beat, so bursts from two slaves interleave toward a
+master rather than one holding the path through RLAST, and the read width
+converters convert each beat against its own ID's state as it arrives
+(`R_INTERLEAVE = 1`). Until 2026-10-18 slaves had to return each R burst
+contiguously.
 
 ## Channel-Specific Interfaces
 

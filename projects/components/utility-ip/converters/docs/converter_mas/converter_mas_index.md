@@ -24,8 +24,8 @@
 # Converters Micro-Architecture Specification Index
 
 **Component:** Converters (Data Width and Protocol Conversion Modules)
-**Version:** 1.8
-**Date:** 2026-10-11
+**Version:** 1.9
+**Date:** 2026-10-18
 **Purpose:** Detailed micro-architecture specification for Converters component
 
 ---
@@ -186,6 +186,9 @@ sequence charts and comparison cards stay Mermaid.
 ---
 
 ## Version History
+
+**Version 1.9 (2026-10-18):**
+- 2.6 axi4_dwidth_converter_rd: R interleave converted per ID as beats arrive; the beat pool is gone
 
 **Version 1.8 (2026-10-18):**
 - 3.11 wb4_to_axil4: memory order across directions, hazard probe

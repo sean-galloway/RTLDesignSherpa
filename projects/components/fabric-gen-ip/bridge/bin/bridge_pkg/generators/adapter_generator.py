@@ -2147,7 +2147,8 @@ class AdapterGenerator:
         pw = max(1, (p - 1).bit_length())
         L = [f"    // -------- {resp.upper()} path arbiter (fixes bridge GitHub #119 L1) --------",
              f"    // Round robin over the {p} width paths. A grant holds while its",
-             f"    // response is offered and not taken" + (", and through RLAST." if resp == 'r' else "."),
+             f"    // response is offered and not taken; R switches per beat, since the",
+             f"    // slaves (and the width converters, per ID) may interleave R bursts.",
              f"    logic [{p-1}:0] {resp}_pv, {resp}_pgnt, r_{resp}_held;",
              f"    logic           r_{resp}_hold;",
              f"    logic [{pw-1}:0] r_{resp}_last;"]
@@ -2177,11 +2178,7 @@ class AdapterGenerator:
               f"            r_{resp}_held <= '0;",
               f"            r_{resp}_last <= '0;",
               "        end else begin",
-              (f"            r_{resp}_hold <= r_{resp}_hold"
-               f"\n                ? !(fub_axi_rvalid && fub_axi_rready && fub_axi_rlast)"
-               f"\n                : (fub_axi_rvalid && !(fub_axi_rready && fub_axi_rlast));"
-               if resp == 'r' else
-               "            r_b_hold <= fub_axi_bvalid && !fub_axi_bready;"),
+              f"            r_{resp}_hold <= fub_axi_{resp}valid && !fub_axi_{resp}ready;",
               f"            r_{resp}_held <= {resp}_pgnt;",
               f"            if (fub_axi_{resp}valid && fub_axi_{resp}ready) begin"]
         for i in range(p):

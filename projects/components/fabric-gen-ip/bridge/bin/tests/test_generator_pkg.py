@@ -2605,3 +2605,19 @@ def test_shim_slave_is_picked_from_slots(tmp_path):
     xbar = (gen / "bridge_mix_e_xbar.sv").read_text()
     assert "u_cpu_axi3_64b_aw_slot_apb_periph (" in xbar or "_aw_slot_apb_periph (" in xbar
     assert "_ar_slot_apb_periph (" in xbar
+
+
+def test_r_interleave_end_to_end(tmp_path):
+    """Slaves may interleave R beats across IDs (AXI4). Every read width
+    converter is built to convert per ID (R_INTERLEAVE = 1), and no R
+    arbiter -- the crossbar's per master path or the master adapter's
+    across its width paths -- holds a grant through RLAST: held, two
+    interleaving slaves could each wait on the other's master path."""
+    gen, _fl = _generate_fixture(tmp_path, "bridge_mix_e")
+    files = {p.name: p.read_text() for p in gen.glob("*.sv")}
+    convs = [t for t in files.values() if "axi4_dwidth_converter_rd" in t]
+    assert convs, "fixture has no read width converter"
+    assert all("R_INTERLEAVE     = 1" in t or ".R_INTERLEAVE(1)" in t for t in convs)
+    for name, text in files.items():
+        assert "hold through RLAST" not in text, name
+        assert "fub_axi_rready && fub_axi_rlast)" not in text, name

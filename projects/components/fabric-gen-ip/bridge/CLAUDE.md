@@ -922,8 +922,8 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 4. **Arbitration:** Per-slave round-robin, AW and AR only, with the grant
    locked until the ADDRESS handshake -- not until burst complete. W is
    owned via a FIFO. B and R are arbitrated per master width path (round
-   robin, held through RLAST) and again across a master's width paths in its
-   adapter.
+   robin, re-arbitrated every beat, so slaves may interleave R) and again
+   across a master's width paths in its adapter.
 5. **Response Routing:** each slave adapter names the originating master.
    For AXI3/AXI4/AXI5 slaves of a multi-master bridge (or any `enable_ooo`
    slave) the master index is read off the returned BID/RID's prefix bits,

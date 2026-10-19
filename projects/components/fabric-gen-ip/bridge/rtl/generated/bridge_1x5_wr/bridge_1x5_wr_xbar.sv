@@ -266,7 +266,7 @@ module bridge_1x5_wr_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master cpu_wr 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu_wr 32b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_wr_32b_b_rarb_req;
     assign cpu_wr_32b_b_rarb_req = {((axil_periph_axi_bid_bridge_id == 0) && axil_periph_axi_bid_valid) && axil_periph_axi_bvalid, ((apb_periph_axi_bid_bridge_id == 0) && apb_periph_axi_bid_valid) && apb_periph_axi_bvalid, ((periph_wr_axi_bid_bridge_id == 0) && periph_wr_axi_bid_valid) && periph_wr_axi_bvalid};
     logic [1:0] cpu_wr_32b_b_rarb_lock, cpu_wr_32b_b_rarb_rr;
@@ -296,7 +296,7 @@ module bridge_1x5_wr_xbar
 
     wire cpu_wr_64b_b_rgnt_ddr_wr = ((ddr_wr_axi_bid_bridge_id == 0) && ddr_wr_axi_bid_valid);
 
-    // ---- B response arbiter, master cpu_wr 128b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu_wr 128b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_wr_128b_b_rarb_req;
     assign cpu_wr_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((hbm_wr_axi_bid_bridge_id == 0) && hbm_wr_axi_bid_valid) && hbm_wr_axi_bvalid};
     logic [0:0] cpu_wr_128b_b_rarb_lock, cpu_wr_128b_b_rarb_rr;

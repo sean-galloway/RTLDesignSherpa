@@ -32,7 +32,7 @@ Complete AMBA AXI4 protocol support:
 - **5 channels:** AW, W, B, AR, R
 - **Burst transactions:** FIXED, INCR, WRAP
 - **Transaction IDs:** Configurable width
-- **Out-of-order:** across IDs at burst granularity for a by-ID slave (multi-master AXI3/AXI4/AXI5, or `enable_ooo`); FIFO-tracked slaves return in request order (bridge BUG-008, was BRIDGE-010). R beats of different IDs never interleave (HAS 4.1)
+- **Out-of-order:** across IDs at burst granularity for a by-ID slave (multi-master AXI3/AXI4/AXI5, or `enable_ooo`); FIFO-tracked slaves return in request order (bridge BUG-008, was BRIDGE-010). R beats of different IDs may interleave (HAS 4.1)
 - **Data widths:** 32, 64, 128, 256, 512 bits
 
 ### AXI4-Lite

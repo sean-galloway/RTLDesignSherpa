@@ -1506,10 +1506,13 @@ class CrossbarGenerator:
         one requesting slave; only it sees the master's ready.
 
         Grant locking: a granted response held off by the master keeps its
-        grant (its payload must not change under an asserted valid), and an
-        R grant is held from the first beat through RLAST so bursts never
-        interleave toward a master -- the width converters reassemble one
-        burst at a time.
+        grant (its payload must not change under an asserted valid); B and R
+        alike re-arbitrate on every beat taken. R used to hold through RLAST
+        so bursts never interleaved toward a master, but a slave may itself
+        interleave R beats across IDs (AXI4), and two such slaves could then
+        each wait on the other's held master path -- a deadlock. The width
+        converters now convert per ID, so beat-level interleaving toward a
+        master is legal and handled (bridge R interleave, 2026-10-18).
 
         A path with a single slave keeps the plain ownership gate (no
         arbiter, no extra state), so its timing and latency are unchanged.
@@ -1544,7 +1547,7 @@ class CrossbarGenerator:
         arb = f"{master.name}_{suffix}_{ch}_rarb"
         ready = f"{master.name}_{suffix}_{ch}ready"
         lines.append(f"    // ---- {ch.upper()} response arbiter, master {master.name} {suffix}: "
-                     f"round-robin, lock {'through RLAST' if ch == 'r' else 'until taken'} ----")
+                     f"round-robin per beat, lock until taken ----")
         req_bits = ", ".join(f"{own[i]} && {self._sp(conn[i][1])}{ch}valid" for i in reversed(range(n)))
         lines.append(f"    logic [{n-1}:0] {arb}_req;")
         lines.append(f"    assign {arb}_req = {{{req_bits}}};")
@@ -1569,27 +1572,14 @@ class CrossbarGenerator:
         vld = " || ".join(f"({self._rgnt(master, suffix, ch, sl)} && {arb}_req[{i}])"
                           for i, (_si, sl) in enumerate(conn))
         lines.append(f"    wire {arb}_vld = {vld};")
-        if ch == "r":
-            last = " || ".join(f"({self._rgnt(master, suffix, ch, sl)} && {self._sp(sl)}rlast)"
-                               for _si, sl in conn)
-            lines.append(f"    wire {arb}_last = {last};")
         lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
         lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
         lines.append(f"            {arb}_lock   <= '0;")
         lines.append(f"            {arb}_rr     <= '0;")
         lines.append(f"            {arb}_locked <= 1'b0;")
         lines.append(f"        end else if ({arb}_vld && {ready}) begin")
-        if ch == "r":
-            lines.append(f"            if ({arb}_last) begin")
-            lines.append(f"                {arb}_locked <= 1'b0;")
-            lines.append(f"                {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
-            lines.append(f"            end else begin")
-            lines.append(f"                {arb}_lock   <= {arb}_gnt;   // mid-burst: hold through RLAST")
-            lines.append(f"                {arb}_locked <= 1'b1;")
-            lines.append(f"            end")
-        else:
-            lines.append(f"            {arb}_locked <= 1'b0;")
-            lines.append(f"            {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
+        lines.append(f"            {arb}_locked <= 1'b0;")
+        lines.append(f"            {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
         lines.append(f"        end else if ({arb}_vld) begin")
         lines.append(f"            {arb}_lock   <= {arb}_gnt;       // offered, not taken: hold")
         lines.append(f"            {arb}_locked <= 1'b1;")

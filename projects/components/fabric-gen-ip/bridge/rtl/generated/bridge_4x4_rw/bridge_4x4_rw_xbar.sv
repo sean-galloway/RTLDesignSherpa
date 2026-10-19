@@ -701,7 +701,7 @@ module bridge_4x4_rw_xbar
 
     wire cpu_master_128b_r_rgnt_sram_slave = ((sram_slave_axi_rid_bridge_id == 0) && sram_slave_axi_rid_valid);
 
-    // ---- B response arbiter, master cpu_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu_master 256b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_master_256b_b_rarb_req;
     assign cpu_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((gpu_mem_slave_axi_bid_bridge_id == 0) && gpu_mem_slave_axi_bid_valid) && gpu_mem_slave_axi_bvalid};
     logic [0:0] cpu_master_256b_b_rarb_lock, cpu_master_256b_b_rarb_rr;
@@ -727,7 +727,7 @@ module bridge_4x4_rw_xbar
         end
     )
 
-    // ---- R response arbiter, master cpu_master 256b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu_master 256b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_master_256b_r_rarb_req;
     assign cpu_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((gpu_mem_slave_axi_rid_bridge_id == 0) && gpu_mem_slave_axi_rid_valid) && gpu_mem_slave_axi_rvalid};
     logic [0:0] cpu_master_256b_r_rarb_lock, cpu_master_256b_r_rarb_rr;
@@ -739,20 +739,14 @@ module bridge_4x4_rw_xbar
     wire cpu_master_256b_r_rgnt_gpu_mem_slave = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 1'd0);
     wire cpu_master_256b_r_rgnt_subtractive = cpu_master_256b_r_rarb_gnt_valid && (cpu_master_256b_r_rarb_gnt == 1'd1);
     wire cpu_master_256b_r_rarb_vld = (cpu_master_256b_r_rgnt_gpu_mem_slave && cpu_master_256b_r_rarb_req[0]) || (cpu_master_256b_r_rgnt_subtractive && cpu_master_256b_r_rarb_req[1]);
-    wire cpu_master_256b_r_rarb_last = (cpu_master_256b_r_rgnt_gpu_mem_slave && gpu_mem_slave_axi_rlast) || (cpu_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_master_256b_r_rarb_lock   <= '0;
             cpu_master_256b_r_rarb_rr     <= '0;
             cpu_master_256b_r_rarb_locked <= 1'b0;
         end else if (cpu_master_256b_r_rarb_vld && cpu_master_256b_rready) begin
-            if (cpu_master_256b_r_rarb_last) begin
-                cpu_master_256b_r_rarb_locked <= 1'b0;
-                cpu_master_256b_r_rarb_rr <= (cpu_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_master_256b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_master_256b_r_rarb_locked <= 1'b1;
-            end
+            cpu_master_256b_r_rarb_locked <= 1'b0;
+            cpu_master_256b_r_rarb_rr <= (cpu_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_master_256b_r_rarb_gnt + 1'b1;
         end else if (cpu_master_256b_r_rarb_vld) begin
             cpu_master_256b_r_rarb_lock   <= cpu_master_256b_r_rarb_gnt;       // offered, not taken: hold
             cpu_master_256b_r_rarb_locked <= 1'b1;
@@ -783,7 +777,7 @@ module bridge_4x4_rw_xbar
 
     wire dma1_master_128b_r_rgnt_sram_slave = ((sram_slave_axi_rid_bridge_id == 2) && sram_slave_axi_rid_valid);
 
-    // ---- B response arbiter, master dma1_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master dma1_master 256b: round-robin per beat, lock until taken ----
     logic [1:0] dma1_master_256b_b_rarb_req;
     assign dma1_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((gpu_mem_slave_axi_bid_bridge_id == 2) && gpu_mem_slave_axi_bid_valid) && gpu_mem_slave_axi_bvalid};
     logic [0:0] dma1_master_256b_b_rarb_lock, dma1_master_256b_b_rarb_rr;
@@ -809,7 +803,7 @@ module bridge_4x4_rw_xbar
         end
     )
 
-    // ---- R response arbiter, master dma1_master 256b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master dma1_master 256b: round-robin per beat, lock until taken ----
     logic [1:0] dma1_master_256b_r_rarb_req;
     assign dma1_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((gpu_mem_slave_axi_rid_bridge_id == 2) && gpu_mem_slave_axi_rid_valid) && gpu_mem_slave_axi_rvalid};
     logic [0:0] dma1_master_256b_r_rarb_lock, dma1_master_256b_r_rarb_rr;
@@ -821,20 +815,14 @@ module bridge_4x4_rw_xbar
     wire dma1_master_256b_r_rgnt_gpu_mem_slave = dma1_master_256b_r_rarb_gnt_valid && (dma1_master_256b_r_rarb_gnt == 1'd0);
     wire dma1_master_256b_r_rgnt_subtractive = dma1_master_256b_r_rarb_gnt_valid && (dma1_master_256b_r_rarb_gnt == 1'd1);
     wire dma1_master_256b_r_rarb_vld = (dma1_master_256b_r_rgnt_gpu_mem_slave && dma1_master_256b_r_rarb_req[0]) || (dma1_master_256b_r_rgnt_subtractive && dma1_master_256b_r_rarb_req[1]);
-    wire dma1_master_256b_r_rarb_last = (dma1_master_256b_r_rgnt_gpu_mem_slave && gpu_mem_slave_axi_rlast) || (dma1_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             dma1_master_256b_r_rarb_lock   <= '0;
             dma1_master_256b_r_rarb_rr     <= '0;
             dma1_master_256b_r_rarb_locked <= 1'b0;
         end else if (dma1_master_256b_r_rarb_vld && dma1_master_256b_rready) begin
-            if (dma1_master_256b_r_rarb_last) begin
-                dma1_master_256b_r_rarb_locked <= 1'b0;
-                dma1_master_256b_r_rarb_rr <= (dma1_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : dma1_master_256b_r_rarb_gnt + 1'b1;
-            end else begin
-                dma1_master_256b_r_rarb_lock   <= dma1_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                dma1_master_256b_r_rarb_locked <= 1'b1;
-            end
+            dma1_master_256b_r_rarb_locked <= 1'b0;
+            dma1_master_256b_r_rarb_rr <= (dma1_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : dma1_master_256b_r_rarb_gnt + 1'b1;
         end else if (dma1_master_256b_r_rarb_vld) begin
             dma1_master_256b_r_rarb_lock   <= dma1_master_256b_r_rarb_gnt;       // offered, not taken: hold
             dma1_master_256b_r_rarb_locked <= 1'b1;
@@ -849,7 +837,7 @@ module bridge_4x4_rw_xbar
 
     wire gpu_master_64b_r_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id == 3) && ddr0_slave_axi_rid_valid);
 
-    // ---- B response arbiter, master gpu_master 256b: round-robin, lock until taken ----
+    // ---- B response arbiter, master gpu_master 256b: round-robin per beat, lock until taken ----
     logic [1:0] gpu_master_256b_b_rarb_req;
     assign gpu_master_256b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((gpu_mem_slave_axi_bid_bridge_id == 3) && gpu_mem_slave_axi_bid_valid) && gpu_mem_slave_axi_bvalid};
     logic [0:0] gpu_master_256b_b_rarb_lock, gpu_master_256b_b_rarb_rr;
@@ -875,7 +863,7 @@ module bridge_4x4_rw_xbar
         end
     )
 
-    // ---- R response arbiter, master gpu_master 256b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master gpu_master 256b: round-robin per beat, lock until taken ----
     logic [1:0] gpu_master_256b_r_rarb_req;
     assign gpu_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 3) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((gpu_mem_slave_axi_rid_bridge_id == 3) && gpu_mem_slave_axi_rid_valid) && gpu_mem_slave_axi_rvalid};
     logic [0:0] gpu_master_256b_r_rarb_lock, gpu_master_256b_r_rarb_rr;
@@ -887,20 +875,14 @@ module bridge_4x4_rw_xbar
     wire gpu_master_256b_r_rgnt_gpu_mem_slave = gpu_master_256b_r_rarb_gnt_valid && (gpu_master_256b_r_rarb_gnt == 1'd0);
     wire gpu_master_256b_r_rgnt_subtractive = gpu_master_256b_r_rarb_gnt_valid && (gpu_master_256b_r_rarb_gnt == 1'd1);
     wire gpu_master_256b_r_rarb_vld = (gpu_master_256b_r_rgnt_gpu_mem_slave && gpu_master_256b_r_rarb_req[0]) || (gpu_master_256b_r_rgnt_subtractive && gpu_master_256b_r_rarb_req[1]);
-    wire gpu_master_256b_r_rarb_last = (gpu_master_256b_r_rgnt_gpu_mem_slave && gpu_mem_slave_axi_rlast) || (gpu_master_256b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             gpu_master_256b_r_rarb_lock   <= '0;
             gpu_master_256b_r_rarb_rr     <= '0;
             gpu_master_256b_r_rarb_locked <= 1'b0;
         end else if (gpu_master_256b_r_rarb_vld && gpu_master_256b_rready) begin
-            if (gpu_master_256b_r_rarb_last) begin
-                gpu_master_256b_r_rarb_locked <= 1'b0;
-                gpu_master_256b_r_rarb_rr <= (gpu_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : gpu_master_256b_r_rarb_gnt + 1'b1;
-            end else begin
-                gpu_master_256b_r_rarb_lock   <= gpu_master_256b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                gpu_master_256b_r_rarb_locked <= 1'b1;
-            end
+            gpu_master_256b_r_rarb_locked <= 1'b0;
+            gpu_master_256b_r_rarb_rr <= (gpu_master_256b_r_rarb_gnt == 1'd1) ? 1'd0 : gpu_master_256b_r_rarb_gnt + 1'b1;
         end else if (gpu_master_256b_r_rarb_vld) begin
             gpu_master_256b_r_rarb_lock   <= gpu_master_256b_r_rarb_gnt;       // offered, not taken: hold
             gpu_master_256b_r_rarb_locked <= 1'b1;

@@ -488,7 +488,7 @@ module bridge_mix_b_xbar
 
     wire cpu_axi4_64b_r_rgnt_scratch = ((scratch_axi_rid_bridge_id == 0) && scratch_axi_rid_valid);
 
-    // ---- B response arbiter, master cpu_axi4 128b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu_axi4 128b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_axi4_128b_b_rarb_req;
     assign cpu_axi4_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_axi_bid_bridge_id == 0) && ddr_axi_bid_valid) && ddr_axi_bvalid};
     logic [0:0] cpu_axi4_128b_b_rarb_lock, cpu_axi4_128b_b_rarb_rr;
@@ -514,7 +514,7 @@ module bridge_mix_b_xbar
         end
     )
 
-    // ---- R response arbiter, master cpu_axi4 128b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu_axi4 128b: round-robin per beat, lock until taken ----
     logic [1:0] cpu_axi4_128b_r_rarb_req;
     assign cpu_axi4_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_axi_rid_bridge_id == 0) && ddr_axi_rid_valid) && ddr_axi_rvalid};
     logic [0:0] cpu_axi4_128b_r_rarb_lock, cpu_axi4_128b_r_rarb_rr;
@@ -526,20 +526,14 @@ module bridge_mix_b_xbar
     wire cpu_axi4_128b_r_rgnt_ddr = cpu_axi4_128b_r_rarb_gnt_valid && (cpu_axi4_128b_r_rarb_gnt == 1'd0);
     wire cpu_axi4_128b_r_rgnt_subtractive = cpu_axi4_128b_r_rarb_gnt_valid && (cpu_axi4_128b_r_rarb_gnt == 1'd1);
     wire cpu_axi4_128b_r_rarb_vld = (cpu_axi4_128b_r_rgnt_ddr && cpu_axi4_128b_r_rarb_req[0]) || (cpu_axi4_128b_r_rgnt_subtractive && cpu_axi4_128b_r_rarb_req[1]);
-    wire cpu_axi4_128b_r_rarb_last = (cpu_axi4_128b_r_rgnt_ddr && ddr_axi_rlast) || (cpu_axi4_128b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_axi4_128b_r_rarb_lock   <= '0;
             cpu_axi4_128b_r_rarb_rr     <= '0;
             cpu_axi4_128b_r_rarb_locked <= 1'b0;
         end else if (cpu_axi4_128b_r_rarb_vld && cpu_axi4_128b_rready) begin
-            if (cpu_axi4_128b_r_rarb_last) begin
-                cpu_axi4_128b_r_rarb_locked <= 1'b0;
-                cpu_axi4_128b_r_rarb_rr <= (cpu_axi4_128b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_axi4_128b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_axi4_128b_r_rarb_lock   <= cpu_axi4_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_axi4_128b_r_rarb_locked <= 1'b1;
-            end
+            cpu_axi4_128b_r_rarb_locked <= 1'b0;
+            cpu_axi4_128b_r_rarb_rr <= (cpu_axi4_128b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_axi4_128b_r_rarb_gnt + 1'b1;
         end else if (cpu_axi4_128b_r_rarb_vld) begin
             cpu_axi4_128b_r_rarb_lock   <= cpu_axi4_128b_r_rarb_gnt;       // offered, not taken: hold
             cpu_axi4_128b_r_rarb_locked <= 1'b1;
@@ -550,7 +544,7 @@ module bridge_mix_b_xbar
 
     wire dma_axi4_64b_r_rgnt_scratch = ((scratch_axi_rid_bridge_id == 1) && scratch_axi_rid_valid);
 
-    // ---- B response arbiter, master dma_axi4 128b: round-robin, lock until taken ----
+    // ---- B response arbiter, master dma_axi4 128b: round-robin per beat, lock until taken ----
     logic [1:0] dma_axi4_128b_b_rarb_req;
     assign dma_axi4_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 1) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_axi_bid_bridge_id == 1) && ddr_axi_bid_valid) && ddr_axi_bvalid};
     logic [0:0] dma_axi4_128b_b_rarb_lock, dma_axi4_128b_b_rarb_rr;
@@ -576,7 +570,7 @@ module bridge_mix_b_xbar
         end
     )
 
-    // ---- R response arbiter, master dma_axi4 128b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master dma_axi4 128b: round-robin per beat, lock until taken ----
     logic [1:0] dma_axi4_128b_r_rarb_req;
     assign dma_axi4_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid) && ddr_axi_rvalid};
     logic [0:0] dma_axi4_128b_r_rarb_lock, dma_axi4_128b_r_rarb_rr;
@@ -588,20 +582,14 @@ module bridge_mix_b_xbar
     wire dma_axi4_128b_r_rgnt_ddr = dma_axi4_128b_r_rarb_gnt_valid && (dma_axi4_128b_r_rarb_gnt == 1'd0);
     wire dma_axi4_128b_r_rgnt_subtractive = dma_axi4_128b_r_rarb_gnt_valid && (dma_axi4_128b_r_rarb_gnt == 1'd1);
     wire dma_axi4_128b_r_rarb_vld = (dma_axi4_128b_r_rgnt_ddr && dma_axi4_128b_r_rarb_req[0]) || (dma_axi4_128b_r_rgnt_subtractive && dma_axi4_128b_r_rarb_req[1]);
-    wire dma_axi4_128b_r_rarb_last = (dma_axi4_128b_r_rgnt_ddr && ddr_axi_rlast) || (dma_axi4_128b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             dma_axi4_128b_r_rarb_lock   <= '0;
             dma_axi4_128b_r_rarb_rr     <= '0;
             dma_axi4_128b_r_rarb_locked <= 1'b0;
         end else if (dma_axi4_128b_r_rarb_vld && dma_axi4_128b_rready) begin
-            if (dma_axi4_128b_r_rarb_last) begin
-                dma_axi4_128b_r_rarb_locked <= 1'b0;
-                dma_axi4_128b_r_rarb_rr <= (dma_axi4_128b_r_rarb_gnt == 1'd1) ? 1'd0 : dma_axi4_128b_r_rarb_gnt + 1'b1;
-            end else begin
-                dma_axi4_128b_r_rarb_lock   <= dma_axi4_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                dma_axi4_128b_r_rarb_locked <= 1'b1;
-            end
+            dma_axi4_128b_r_rarb_locked <= 1'b0;
+            dma_axi4_128b_r_rarb_rr <= (dma_axi4_128b_r_rarb_gnt == 1'd1) ? 1'd0 : dma_axi4_128b_r_rarb_gnt + 1'b1;
         end else if (dma_axi4_128b_r_rarb_vld) begin
             dma_axi4_128b_r_rarb_lock   <= dma_axi4_128b_r_rarb_gnt;       // offered, not taken: hold
             dma_axi4_128b_r_rarb_locked <= 1'b1;

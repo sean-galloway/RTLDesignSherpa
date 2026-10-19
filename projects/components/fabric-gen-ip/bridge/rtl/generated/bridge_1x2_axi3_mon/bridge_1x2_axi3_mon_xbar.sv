@@ -230,7 +230,7 @@ module bridge_1x2_axi3_mon_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master cpu 64b: round-robin, lock until taken ----
+    // ---- B response arbiter, master cpu 64b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_64b_b_rarb_req;
     assign cpu_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((s1_axi_bid_bridge_id == 0) && s1_axi_bid_valid) && s1_axi_bvalid, ((s0_axi_bid_bridge_id == 0) && s0_axi_bid_valid) && s0_axi_bvalid};
     logic [1:0] cpu_64b_b_rarb_lock, cpu_64b_b_rarb_rr;
@@ -258,7 +258,7 @@ module bridge_1x2_axi3_mon_xbar
         end
     )
 
-    // ---- R response arbiter, master cpu 64b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master cpu 64b: round-robin per beat, lock until taken ----
     logic [2:0] cpu_64b_r_rarb_req;
     assign cpu_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((s1_axi_rid_bridge_id == 0) && s1_axi_rid_valid) && s1_axi_rvalid, ((s0_axi_rid_bridge_id == 0) && s0_axi_rid_valid) && s0_axi_rvalid};
     logic [1:0] cpu_64b_r_rarb_lock, cpu_64b_r_rarb_rr;
@@ -272,20 +272,14 @@ module bridge_1x2_axi3_mon_xbar
     wire cpu_64b_r_rgnt_s1 = cpu_64b_r_rarb_gnt_valid && (cpu_64b_r_rarb_gnt == 2'd1);
     wire cpu_64b_r_rgnt_subtractive = cpu_64b_r_rarb_gnt_valid && (cpu_64b_r_rarb_gnt == 2'd2);
     wire cpu_64b_r_rarb_vld = (cpu_64b_r_rgnt_s0 && cpu_64b_r_rarb_req[0]) || (cpu_64b_r_rgnt_s1 && cpu_64b_r_rarb_req[1]) || (cpu_64b_r_rgnt_subtractive && cpu_64b_r_rarb_req[2]);
-    wire cpu_64b_r_rarb_last = (cpu_64b_r_rgnt_s0 && s0_axi_rlast) || (cpu_64b_r_rgnt_s1 && s1_axi_rlast) || (cpu_64b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             cpu_64b_r_rarb_lock   <= '0;
             cpu_64b_r_rarb_rr     <= '0;
             cpu_64b_r_rarb_locked <= 1'b0;
         end else if (cpu_64b_r_rarb_vld && cpu_64b_rready) begin
-            if (cpu_64b_r_rarb_last) begin
-                cpu_64b_r_rarb_locked <= 1'b0;
-                cpu_64b_r_rarb_rr <= (cpu_64b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_64b_r_rarb_gnt + 1'b1;
-            end else begin
-                cpu_64b_r_rarb_lock   <= cpu_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                cpu_64b_r_rarb_locked <= 1'b1;
-            end
+            cpu_64b_r_rarb_locked <= 1'b0;
+            cpu_64b_r_rarb_rr <= (cpu_64b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_64b_r_rarb_gnt + 1'b1;
         end else if (cpu_64b_r_rarb_vld) begin
             cpu_64b_r_rarb_lock   <= cpu_64b_r_rarb_gnt;       // offered, not taken: hold
             cpu_64b_r_rarb_locked <= 1'b1;

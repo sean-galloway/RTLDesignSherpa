@@ -535,7 +535,8 @@ module bridge_1x3_wr_cpu_wr_adapter
 
     // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 3 width paths. A grant holds while its
-    // response is offered and not taken.
+    // response is offered and not taken; R switches per beat, since the
+    // slaves (and the width converters, per ID) may interleave R bursts.
     logic [2:0] b_pv, b_pgnt, r_b_held;
     logic           r_b_hold;
     logic [1:0] r_b_last;
