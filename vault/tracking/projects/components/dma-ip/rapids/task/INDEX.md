@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 26 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 27 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,10 +24,9 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-028** — two-deep descriptor skid buffer in every scheduler, in front of the engine FIFO
-
 ## Closed
 
+- **TASK-028** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler, in front of the engine FIFO; 4800/4800 full regression
 - **TASK-026** — CLOSED 2026-10-17: tile packet header on both ports (TILE_HDR) and cell-issued descriptors into the source channels' queues; grants moved to TASK-027
 - **TASK-025** — CLOSED 2026-10-16: CXS planes frame per stream (CXSSRCID = channel); CXS_MAX_CREDIT defaults to SRAM_DEPTH; concurrent-channel cells
 - **TASK-024** — CLOSED 2026-10-15: swappable AXIS/CXS network planes in

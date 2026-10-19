@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 13 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,8 +22,6 @@ by construction rather than by discipline.
 
 
 ## Open
-- **BUG-015** — snk_data_path_axis stress test stalls the shared AXIS ingress past the
-  BFM ready timeout (pre-existing; seen 2026-10-18 under rapids TASK-028)
 
 
 ## Dropped
@@ -36,6 +34,9 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-015** — snk_data_path_axis stress stall was the TB's own descriptor-take wait
+  racing an idle FSM (test defect, not RTL); the sticky 1000-cycle wrapper timeout
+  cascaded it across all 8 channels (closed 2026-10-18)
 - **BUG-014** — snk_data_path_axis channel-reset block clobbers a HEALTHY channel's
   same-cycle out-reg load / flush registration via stale `r_out_id`/`r_flush_ch`
   compares (silent data loss + PQ wedge). Found by the TASK-022 macro formal

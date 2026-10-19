@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 15 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,11 +22,9 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-017** — two-deep descriptor skid buffer in every scheduler, in front of the engine FIFO (rapids TASK-028 parity)
-
-
 ## Closed
 
+- **TASK-017** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler (rapids TASK-028 parity); formal ap_desc_skid_bound
 - **TASK-016** — CLOSED 2026-10-03: all three Genesys2 stream builds rebuilt on
   the fixed sdpram (71d48b6f7), timing-closed, board-verified; perf 40/40
   cycle-identical to the pre-fix sweep (0 measured datapath change — the tax

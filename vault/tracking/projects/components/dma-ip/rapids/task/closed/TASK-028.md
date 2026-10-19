@@ -1,7 +1,7 @@
-# TASK-017: Two-deep descriptor skid buffer in every scheduler
+# TASK-028: Two-deep descriptor skid buffer in every scheduler
 
 **Priority:** P2
-**Status:** active -- started 2026-10-18
+**Status:** closed -- 2026-10-18
 **Owner:** sean galloway
 
 ## Why
@@ -12,7 +12,7 @@ has a two-deep skid buffer for descriptors, added **in front of** the engine's
 per-channel descriptor FIFO (the FIFO stays). It registers the shared 256-bit
 descriptor fan-out at each scheduler, and a running channel can hold two more
 descriptors -- which absorbs a `desc` for a busy channel at the head of the tile
-`desc` intake queue (rapids TASK-027 item 4).
+`desc` intake queue (TASK-027 item 4).
 
 ## What to build
 
@@ -29,6 +29,10 @@ descriptors -- which absorbs a `desc` for a busy channel at the head of the tile
 
 - A test shows the skid holding two descriptors behind a running one, and a
   channel reset with descriptors in the skid runs none of them.
-- STREAM full regression from clean-all green; MAS scheduler chapter updated.
+- RAPIDS full regression from clean-all green; MAS scheduler chapter updated.
 
-RAPIDS counterpart: rapids TASK-028. STREAM has no tile `desc` intake; the skid is for parity and timing.
+STREAM counterpart: stream TASK-017.
+
+## Closure (2026-10-18)
+
+Landed in 6d6cd5ad3. Full RAPIDS regression from clean-all: 4800 passed, 0 failed. The snk_data_path wait helper was then corrected under rapids BUG-015.

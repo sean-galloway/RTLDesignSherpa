@@ -431,33 +431,51 @@ class SnkDataPathAxisTestTB(TBBase):
         # Send via GAXI master - use create_packet and send
         master = self.descriptor_masters[channel]
         packet = master.create_packet(packet=desc, error=0)
+        takes_before = self._desc_takes(channel) if wait_taken else 0
         await master.send(packet)
         if wait_taken:
-            await self._wait_desc_taken(channel)
+            await self._wait_desc_taken(channel, takes_before)
 
         self.test_stats['descriptors_sent'] += 1
         self.test_stats['channel_operations'][channel] += 1
         self.log.info(f"Sent descriptor to ch{channel}: addr=0x{addr:X}, beats={beats}, eos={eos}")
 
-    async def _wait_desc_taken(self, channel: int, timeout_cycles: int = 20000) -> bool:
+    def _desc_takes(self, channel: int) -> int:
+        """Descriptors channel's scheduler FSM has taken so far (CH_IDLE exits),
+        counted every clock by a background sampler started on first use."""
+        if getattr(self, '_take_counts', None) is None:
+            self._take_counts = [0] * self.NUM_CHANNELS
+            cocotb.start_soon(self._count_desc_takes())
+        return self._take_counts[channel]
+
+    async def _count_desc_takes(self):
+        prev = [True] * self.NUM_CHANNELS
+        while True:
+            await self.wait_clocks(self.clk_name, 1)
+            word = int(self.dut.sched_state.value)
+            for ch in range(self.NUM_CHANNELS):
+                idle = ((word >> (7 * ch)) & 0x7F) == 0x01
+                if prev[ch] and not idle:
+                    self._take_counts[ch] += 1
+                prev[ch] = idle
+
+    async def _wait_desc_taken(self, channel: int, takes_before: int,
+                               timeout_cycles: int = 20000) -> bool:
         """Wait until the channel's scheduler FSM has taken the descriptor.
 
         Since rapids TASK-028 each scheduler takes descriptors through a 2-deep
         skid, so the port handshake completes while the channel is still busy
         and no longer says the FSM took it. The tests here pace the AXIS stream
         on the take (a head beat queued for a busy channel stalls the shared
-        bus past the BFM's ready timeout), so wait for the FSM to pass through
-        CH_IDLE and leave it again. Only for a caller that sends each
-        descriptor's data before the next descriptor: the FSM cannot finish a
-        transfer whose data has not been sent."""
-        def state() -> int:
-            return (int(self.dut.sched_state.value) >> (7 * channel)) & 0x7F
-        seen_idle = state() == 0x01
+        bus past the BFM's ready timeout), so wait for the take count to pass
+        takes_before, sampled before the send. Counting edges rather than
+        sampling the state after the send matters: an idle FSM pops the skid
+        within a clock, so the CH_IDLE exit can be over before this starts.
+        Only for a caller that sends each descriptor's data before the next
+        descriptor: the FSM cannot finish a transfer whose data has not been
+        sent."""
         for _ in range(timeout_cycles):
-            st = state()
-            if st == 0x01:
-                seen_idle = True
-            elif seen_idle:
+            if self._take_counts[channel] > takes_before:
                 return True
             await self.wait_clocks(self.clk_name, 1)
         self.log.warning(f"ch{channel}: scheduler did not take its descriptor "
