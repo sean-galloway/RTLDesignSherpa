@@ -34,11 +34,17 @@ same values.
 
 ## What to do
 
-1. **Report the straps in a CSR.** A read-only `SRC.TILE_STRAPS` register
+1. **Report the straps in a CSR.** A read-only `TILE_STRAPS` register
    (`LAND_FLITS`, `DESC_PER_CORE`, driven from the parameters) so the Hive and
    test software read RAPIDS's straps instead of assuming the defaults. Regen
    both RDLs, the regmaps and the tops; a test reads it by name and checks it
    against the build parameters, including a non-default build.
+   **Placement (owner 2026-10-19):** at the very top or bottom of the config
+   space, not counting the monitor block. Each half's regfile is config
+   0x000-0x7FF with `MON` at 0x800 (8ch and 16ch alike). The bottom, 0x000,
+   is `CH0_DESC_ADDR_LOW`, so it goes at the top: **0x7FC** (last used offset
+   today is `HIST_TOTAL` 0x380), i.e. `SRC.TILE_STRAPS` at 0x07FC. The
+   regfile is shared, so `SNK.TILE_STRAPS` (0x17FC) reads the same values.
 2. **TILE_SPEC 11.12** (RAPIDS implementation status): replace "straps not
    built" with what TASK-027 built and these values, and note the
    deviations: resync sends one `set` per sender rather than a multicast;
@@ -53,7 +59,7 @@ same values.
 
 ## Done when
 
-- `SRC.TILE_STRAPS` reads back the build parameters in a default and a
+- `SRC.TILE_STRAPS` (0x7FC) reads back the build parameters in a default and a
   non-default build; the MAS 3.14 and HAS register text name it.
 - TILE_SPEC 11.12 states the built straps and their values.
 - RAPIDS byte regression clean-all FULL.
