@@ -33,7 +33,7 @@ The following features were considered and deferred:
 - **SRAM FIFO_IMPL** — the `--fifo-impl sram` option hangs in the current RTL (issue #118); regression uses `--fifo-impl reg`.
 
 - **GT/TDM slot-table circuits** — Ethereal/NoC slot tables, headerless GT flits, end-to-end credit flow control, and optional VOQ. Phase-2 candidate.
-- **Fault-tolerant routing** — block fault regions, software absorb/reinject, and fault-status registers.
+- **Fault-tolerant routing** — block fault regions, software absorb/reinject, and fault-status registers. Multi-path tables with failover as a table write are now being worked: hazards in Resilient Routing: Open Hazards, delta DELTA-013.
 - **Barrier/superstep sync wave** — ECLIPSE-style synchronization wave; lands with the CGRA work, not delta.
 - **Express channels/cubes** — little use at the target radix; skipped.
 - **Logical-to-physical address mapping** — revisit if remapping or fault-recovery demands it.

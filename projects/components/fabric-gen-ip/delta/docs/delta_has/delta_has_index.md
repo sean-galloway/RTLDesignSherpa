@@ -97,6 +97,7 @@
 - [Observability and DFT](ch07_mesh_network/08_observability_and_dft.md)
 - [Performance and Verification](ch07_mesh_network/09_performance_and_verification.md)
 - [Deferred Items](ch07_mesh_network/10_deferred_items.md)
+- [Resilient Routing: Open Hazards](ch07_mesh_network/11_resilient_routing.md)
 
 ---
 
