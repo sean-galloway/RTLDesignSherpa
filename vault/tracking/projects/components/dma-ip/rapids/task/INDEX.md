@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-031** — never recycle a number, even when its item closed.
+**Next ID: TASK-032** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -14,18 +14,19 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 29 | done (kept for history) |
+| [closed/](closed/) | 30 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-027** — end-to-end tile credits and straps toward RAPIDS (TILE_SPEC 11.9-11.11): all built and tested 2026-10-19, 4839/4839; only the TILE_SPEC 11.12 row remains
+- **TASK-031** — strap values on RAPIDS (TILE_LAND_FLITS 16, TILE_DESC_PER_CORE 2, fixed at build) reported in a read-only CSR for the Hive; TILE_SPEC 11.12 row
 
 ## Active
 
 ## Closed
 
+- **TASK-027** — CLOSED 2026-10-19: end-to-end tile credits and straps toward RAPIDS (landing space, credit returns, desc intake, resync, stall checks); 10 mutations caught, 4839/4839; TILE_SPEC 11.12 row moved to TASK-031
 - **TASK-030** — CLOSED 2026-10-19: TASK-029 hardening ported to the beats-tree snk_data_path_axis tests (multi_channel dropped 144 descriptors); wrapper timeout test-settable; 3 mutations caught, 504/504 over 3 seeds
 - **TASK-029** — CLOSED 2026-10-18: snk_data_path_axis tests check memory, assert zero BFM timeouts and missed takes; wrapper scheduler timeout is test-settable (limit 0 default, escalation tested); 4 mutations caught
 - **TASK-028** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler, in front of the engine FIFO; 4800/4800 full regression

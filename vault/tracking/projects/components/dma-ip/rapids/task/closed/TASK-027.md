@@ -1,7 +1,7 @@
 # TASK-027: End-to-end credits and straps toward RAPIDS for the tile header
 
 **Priority:** P2
-**Status:** open -- items 1-10 built and tested 2026-10-19; only the TILE_SPEC 11.12 row remains (that file has a peer's uncommitted edits)
+**Status:** closed -- 2026-10-19
 **Owner:** sean galloway
 
 ## Progress 2026-10-18
@@ -147,3 +147,10 @@ head of the intake FIFO.
   destination that never advertises end the window illegal, and a descriptor
   to either is refused.
 - TILE_SPEC 11.12 updated; HAS/MAS chapters; byte regression clean-all FULL.
+
+## Closure (2026-10-19)
+
+Closed by the owner 2026-10-19. Items 1-10 are built and tested (ddba1af95;
+full clean-all regression 4839/4839). The TILE_SPEC 11.12 row, the one
+"Done when" item not done, moved to rapids TASK-031 together with how the
+straps are set on RAPIDS.
