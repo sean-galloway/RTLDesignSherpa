@@ -304,7 +304,7 @@ O4 has an interim rule (2026-10-19), the rest are open:
 | O1 | Read replies | The tag is the sink channel only. Two reads outstanding on one sink channel, to different cells or to one cell over two paths, can reply in either order, and the sink lands the bytes in arrival order | A transaction ID per read, echoed in the reply, and the sink places by ID (AXI-ID style), or one read outstanding per sink channel |
 | O2 | Credit `set` vs `add` | A resync `set` (TILE_SPEC 11.10) can overtake, or be overtaken by, an `add` sent before it, and the counter ends wrong | A sequence or epoch on credit packets; an `add` older than the last `set` is discarded |
 | O3 | Write, then a dependent packet | A cell's data write and a later packet that depends on it (a `desc` whose source is that data, a flag) can arrive in either order | Completion is signalled (the credit return says the data was consumed), never implied by send order |
-| O4 | Writes from one cell to one sink channel | The sink lands a channel's data in arrival order, so a cell's later write that overtakes an earlier one lands in the wrong place | Interim rule: delta may interleave and reorder packets (delta HAS, Interface Assumptions), so the cell sends its next packet only once RAPIDS has returned every flit it has sent (its strap is whole). RAPIDS never returns a flit it has not received, so a whole strap proves every earlier packet landed and drained. No RAPIDS change, at the cost of one round trip per packet. Under evaluation: RAPIDS takes a cell's packets out of order, with the header carrying the packet's offset in that cell's landing space and the landing draining in offset order |
+| O4 | Writes from one cell to one sink channel | The sink lands a channel's data in arrival order, so a cell's later write that overtakes an earlier one lands in the wrong place | Interim rule: delta may interleave and reorder packets (delta HAS, Interface Assumptions), so the cell sends its next packet only once RAPIDS has returned every flit it has sent (its strap is whole). RAPIDS never returns a flit it has not received, so a whole strap proves every earlier packet landed and drained. No RAPIDS change, at the cost of one round trip per packet. Pencilled in (rapids TASK-033): tagged, indexed intake, below |
 
 : Table 3.14.6: RAPIDS ordering hazards under multi-path routing
 
@@ -312,6 +312,58 @@ The flits of one packet stay in order. The header-then-payload framing of the
 source and sink halves also needs each CXS plane port to deliver a packet's
 flits together; whether delta keeps that at its plane ports once it
 interleaves is open.
+
+## Interleaved and Out-of-Order Intake (pencilled in, rapids TASK-033)
+
+Not built. Validated in a cycle model only
+(`dv/models/tile_intake_model.py`, `dv/tests/models/test_tile_intake_model.py`).
+It lets delta interleave and reorder packets into the sink port with no send
+rule beyond the straps.
+
+**The tag.** Every flit, data flits included, carries a sideband tag beside
+its data: `{sender, pos, head}`. `sender` is the 6-bit destination index of
+the source coordinate (`rapids_pkg::tile_dest_index`: nodes 0-21, cells
+32-47, control cores 48-51). `head` marks a header flit. `pos` is the flit's
+place in the space RAPIDS holds for that sender and class. About 11 bits;
+delta carries it on AXIS `tuser` and CXS `user` (delta HAS, Interface
+Assumptions).
+
+| Class | Sender | Packet | `pos` | RAPIDS storage | Leaves in |
+|---|---|---|---|---|---|
+| 0, data | Cells | Header + up to `TILE_LAND_FLITS` - 1 beats | Flits sent, header included, mod `TILE_LAND_FLITS` | The landing space as a ring, written at `pos`, a valid bit per slot | Ring order: the packet at the read pointer, once its header and every flit to its last are present |
+| 1, desc | Control cores | Header + one descriptor beat | Packets sent mod `TILE_DESC_PER_CORE` | One intake entry per `pos` | Entry order |
+| 2, MonBus | Cells, cores, nodes | One header-only flit; the 64-bit MonBus word in header bits [97:34] (length and target[31:0]) | Packets sent mod `TILE_MON_PER_SENDER` | One entry per `pos`, into RAPIDS's MonBus | Entry order |
+
+: Table 3.14.7: Tagged intake by class (pencilled in)
+
+Debug from cells, tetrads and nodes uses MonBus only (owner 2026-10-19), so
+class 2 is the only class a node sends. Its credits return as the entries
+drain, like the other two. A header's class-0 flit returns when its packet
+drains, not on arrival, because its slot holds the packet's channel and
+length. The strap keeps a sender's flits in flight below the space, so a
+`pos` is never reused while its slot is full. Resync clears the rings and
+entries and both sides' `pos`.
+
+Model results (one flit per cycle into RAPIDS, random packet sizes, fabric
+latency 2-120 cycles): every class delivered exactly once and in send order
+at `TILE_LAND_FLITS` 16 and 8, every strap whole at the end. Controls:
+today's arrival-order landing corrupts as soon as a cell has two packets in
+flight (strap-only and the retired one-flit rule both fail); the wait-for-
+every-credit rule is correct on it. Mutations caught: draining any complete
+packet instead of the one at the read pointer; `pos` counting payload only.
+Payload throughput, tagged intake vs wait-for-every-credit:
+
+| Cells | Fabric latency 2-10 | Fabric latency 8-40 |
+|---|---|---|
+| 1 | 0.36 vs 0.28 | 0.21 vs 0.18 |
+| 2 | 0.65 vs 0.48 | 0.42 vs 0.32 |
+| 4 | 0.85 vs 0.77 | 0.70 vs 0.55 |
+| 16 | 0.89 vs 0.89 | 0.88 vs 0.88 |
+
+: Table 3.14.8: Model payload flits per cycle (link peak 1; headers take the rest)
+
+A cell's own ceiling is its strap over the round trip, so the gain is
+largest with few active cells; with many, the link saturates either way.
 
 ## Status Registers
 
