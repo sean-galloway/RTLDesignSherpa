@@ -15,7 +15,7 @@ set -euo pipefail
 # ------------------------------------------------------------
 
 # Default values
-REV="1.7"
+REV="0.9"
 ASSETS="bridge_gas/assets"
 GAS_INDEX="bridge_gas/bridge_gas_index.md"
 
