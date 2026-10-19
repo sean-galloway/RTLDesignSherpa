@@ -55,6 +55,17 @@ side queue and releases only the response at the head. A response that
 completed early waits in its channel's skid until its predecessors have
 retired.
 
+**Memory order.** Terminations in order are not enough: B4 also completes the
+accesses themselves in issue order, so a read behind a write to the same word
+must return the new data, and a write behind a read must not reach memory
+first. AXI4-Lite gives no order between its read and write channels, so a
+command waits until every command of the other direction has retired. Reads
+pipeline behind reads and writes behind writes, up to `OUTSTANDING`; a
+direction change costs one round trip. Until 2026-10-18 the core held only
+the responses in order, and a read issued right behind a slow write to the
+same word returned the old data (found by the converters regression at
+SEED=21655, 64-bit, OUTSTANDING 2 and 4).
+
 **Ordering cost.** A slow write at the head holds back a read that finished
 behind it. `OUTSTANDING = 1` avoids the question entirely and is the
 default; raise it only when the AXI slave answers roughly in order, or
@@ -149,7 +160,10 @@ finds it. Addresses beyond the memory model answer SLVERR and must arrive as
 `ERR`.
 
 The phases are sequential traffic, pipelined traffic under gappy and sparse
-request pacing, and a directed **ordering probe**: write-then-read pairs
+request pacing, a directed **hazard probe** (write, read, read, write, read
+of one word, back to back: it fails every pipelined `OUTSTANDING > 1`
+configuration on the core without the memory-order rule), and a directed
+**ordering probe**: write-then-read pairs
 where the testbench answers the write channel slowly and the read channel
 quickly, so the AXI side completes the read first every time. The scoreboard
 pairs terminations with issue order, so a response that overtook its

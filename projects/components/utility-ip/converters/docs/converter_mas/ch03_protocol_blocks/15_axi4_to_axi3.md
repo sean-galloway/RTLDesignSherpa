@@ -96,10 +96,10 @@ The descriptor FIFO and the early-W buffer are `gaxi_fifo_sync` instances from `
 Both paths take one request per cycle and hold no granted request behind the bridge's arbiter:
 
 * An unchopped request (`AxLEN ≤ 15`) passes straight to the AXI3 port and is accepted with it.
-* A chopped one (`AxLEN > 15`) is taken into the active register, which issues its AXI3 chunks. New requests wait while it does, one cycle after a 17+ beat burst.
+* A chopped one (`AxLEN > 15`) is best effort. It is taken into a staging register with no per-ID check, and moves to the active register, which issues its AXI3 chunks, a cycle later once its ID has drained. New requests wait while it is staged or issuing. The write path pushes the chopped write's W descriptor when it moves, so its W starts with its AW as before.
 * Up to `MAX_OUTSTANDING` (default 32) transactions may be in flight per direction, across all IDs. An unchopped transaction needs no per-ID check. The AXI3 slave returns same-ID responses in order, so an unchopped transaction behind a chopped one of its ID comes back after the chopped one's last chunk, and the chunk counter finds that chunk.
-* A chopped transaction waits for its ID to drain: an unchopped one ahead of it would otherwise be counted as one of its chunks. Only this registered path looks an ID up, so no ID-indexed logic sits between the bridge and the AXI3 pins.
-* B goes through a one-entry output register, and BREADY means the register has room or is emptying. So BID never reaches BREADY combinationally, and a downstream that waits for BVALID before BREADY still drains it. A chopped write's non-final chunk Bs are merged and absorbed without using the register.
+* A chopped transaction waits for its ID to drain: an unchopped one ahead of it would otherwise be counted as one of its chunks. The check reads the staged ID from registers, so neither the per-ID lookup nor the chunk-address load is in series with the incoming AR / AW. (Until 2026-10-18 the check ran on the incoming request and the read converter's chunk-address adder hung off the crossbar's AR grant: 17 LUT levels, -0.387 ns at 10 ns on the Artix-7 in `bridge_mix_e`, bridge W13.)
+* B from the AXI3 port lands raw in a one-entry output register, and the per-ID merge runs from the registered BID on its way out, so no ID-indexed logic sits between the BID pin and a flop (bridge W13: the BID pin fed the merge count combinationally). BREADY means the register is empty or leaving, so it never depends on BID, and a downstream that waits for BVALID before BREADY still drains it. A chopped write's non-final chunk B leaves the register absorbed, merged into its write's response, without being forwarded. The register was already there, so this costs no cycle. (A skid in front of it cost single-beat AXI3 writes a cycle of round trip: 0.801 against 0.862 beat/cycle at 8 in flight.)
 * W passes straight through once a descriptor is loaded and nothing is buffered ahead of it.
 
 Until 2026-10-18 both paths took one transaction per ID at a time. They issued at most one AR or AW every other cycle, lost a W cycle per AXI3 burst, and queued four requests behind the arbiter (bridge W8: single-beat reads 0.50, same-ID single-beat reads 0.334, round-robin share 0.26).
@@ -156,6 +156,8 @@ The tables are approximate hand estimates; no post-route characterization has be
 | Burst write > 16 beats | AW chopping, per-chunk WLAST, B merge | Pass |
 | Early-W before AW | 16-beat buffer, backpressure on 17th beat | Pass |
 | Multi-outstanding writes across IDs | Inter-ID concurrency; same-ID unchopped writes overlap, a chopped one holds its ID | Pass |
+| Chopped read behind an unchopped read of its ID | The staged read waits for its ID to drain (fails without the check) | Pass |
+| Chopped write behind an unchopped write of its ID | Same for writes: a SLVERR on the chopped write's second chunk must reach the chopped write (fails without the check) | Pass |
 
 : Table 3.48: AXI4 to AXI3 test coverage
 

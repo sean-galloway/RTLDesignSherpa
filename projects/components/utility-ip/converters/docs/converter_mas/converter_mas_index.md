@@ -24,7 +24,7 @@
 # Converters Micro-Architecture Specification Index
 
 **Component:** Converters (Data Width and Protocol Conversion Modules)
-**Version:** 1.5
+**Version:** 1.8
 **Date:** 2026-10-11
 **Purpose:** Detailed micro-architecture specification for Converters component
 
@@ -187,6 +187,10 @@ sequence charts and comparison cards stay Mermaid.
 
 ## Version History
 
+**Version 1.8 (2026-10-18):**
+- 3.11 wb4_to_axil4: memory order across directions, hazard probe
+- 3.15 axi4_to_axi3: chopped requests staged; the B merge runs from the registered BID
+
 **Version 1.5 (2026-10-11):**
 - Added AXI4-to-AXI3 and AXI3-to-AXI4 protocol converter chapters (3.15, 3.16)
 - Added references store for converters component
@@ -199,5 +203,5 @@ sequence charts and comparison cards stay Mermaid.
 
 ---
 
-**Last Updated:** 2026-10-11
+**Last Updated:** 2026-10-18
 **Maintained By:** RTL Design Sherpa Project
