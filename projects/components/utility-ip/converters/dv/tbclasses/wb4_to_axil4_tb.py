@@ -176,6 +176,32 @@ class WB4ToAXIL4TB(TBBase):
             self.errors.append(f"ordering probe: {len(self.issued)} transfers never terminated")
         return not self.errors
 
+    async def run_hazard_probe(self, rng, pairs=8):
+        """Directed: back-to-back accesses to the SAME word in both orders.
+        Writes are answered slowly and reads quickly on the AXI side, so with
+        more than one command in flight a read issued right behind a write
+        would reach memory first and return the old word unless the
+        converter holds it (and a write behind a read would land first).
+        B4 completes accesses in issue order; the scoreboard's mirror is
+        updated in issue order, so either reordering fails the data check."""
+        mask = (1 << self.SW) - 1
+        for _ in range(pairs):
+            adr = (rng.randrange(0, MEM_BYTES) // self.SW) * self.SW
+            for we in (1, 0, 0, 1, 0):          # W->R (RAW), R->W (WAR), W->R
+                dat = rng.getrandbits(self.DW)
+                want_status, want_data = self._plan(we, adr, dat, mask)
+                self.issued.append((we, adr, dat, mask, want_status, want_data))
+                self.stats['issued'] += 1
+                await self.master.send(self.master.create_packet(
+                    we=we, adr=adr, dat_w=dat, sel=mask))
+        waited = 0
+        while self.issued and waited < 40000:
+            await RisingEdge(self.clk)
+            waited += 1
+        if self.issued:
+            self.errors.append(f"hazard probe: {len(self.issued)} transfers never terminated")
+        return not self.errors
+
     async def wait_idle(self, limit=4000):
         for _ in range(limit):
             await RisingEdge(self.clk)

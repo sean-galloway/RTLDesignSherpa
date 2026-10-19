@@ -29,6 +29,14 @@
 //   is what makes the Wishbone side legal, and it is the whole reason this
 //   direction needs more than wires.
 //
+//   Memory order too: B4 also completes ACCESSES in issue order, so a read
+//   issued behind a write to the same word must see it, and a write behind a
+//   read must not reach memory first. AXI4-Lite gives no such order between
+//   its read and write channels, so a command waits until every command of
+//   the other direction has retired (same-direction commands still pipeline
+//   up to OUTSTANDING). Without it a read behind a slow write returned the
+//   old word (converters regression, SEED=21655).
+//
 //   Ordering cost: a slow write sitting at the head holds back a read that
 //   finished behind it. OUTSTANDING = 1 avoids the question entirely and is
 //   the default; raise it only when the AXI slave answers roughly in order,
@@ -128,13 +136,21 @@ module wb4_to_axil4_core
     logic w_room, w_issue, w_wr_go, w_rd_go;
     logic w_side_wr_ready, w_side_rd_valid, w_side_head_we, w_side_rd_ready;
 
-    assign w_room  = w_side_wr_ready;
-    assign w_wr_go = cmd_valid &&  cmd_we && w_room && fub_awready && fub_wready;
-    assign w_rd_go = cmd_valid && !cmd_we && w_room && fub_arready;
+    // Commands of each direction issued and not yet retired: a command waits
+    // for the other direction to drain (memory order, see the header).
+    logic [CW-1:0] r_open_wr, r_open_rd;
+    logic          w_wr_clear, w_rd_clear;
+    logic          w_head_is_wr;   // the oldest open command is a write (below)
+    assign w_wr_clear = (r_open_wr == '0);
+    assign w_rd_clear = (r_open_rd == '0);
 
-    assign fub_awvalid = cmd_valid &&  cmd_we && w_room && fub_wready;
-    assign fub_wvalid  = cmd_valid &&  cmd_we && w_room && fub_awready;
-    assign fub_arvalid = cmd_valid && !cmd_we && w_room;
+    assign w_room  = w_side_wr_ready;
+    assign w_wr_go = cmd_valid &&  cmd_we && w_room && w_rd_clear && fub_awready && fub_wready;
+    assign w_rd_go = cmd_valid && !cmd_we && w_room && w_wr_clear && fub_arready;
+
+    assign fub_awvalid = cmd_valid &&  cmd_we && w_room && w_rd_clear && fub_wready;
+    assign fub_wvalid  = cmd_valid &&  cmd_we && w_room && w_rd_clear && fub_awready;
+    assign fub_arvalid = cmd_valid && !cmd_we && w_room && w_wr_clear;
 
     assign fub_awaddr  = cmd_adr;
     assign fub_araddr  = cmd_adr;
@@ -172,15 +188,22 @@ module wb4_to_axil4_core
     logic [CW-1:0] r_open;
     logic          w_retire;
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_open <= '0;
-        else                        r_open <= r_open + CW'(w_issue) - CW'(w_retire);
+        if (`RST_ASSERTED(aresetn)) begin
+            r_open    <= '0;
+            r_open_wr <= '0;
+            r_open_rd <= '0;
+        end else begin
+            r_open    <= r_open + CW'(w_issue) - CW'(w_retire);
+            r_open_wr <= r_open_wr + CW'(w_wr_go) - CW'(w_retire &&  w_head_is_wr);
+            r_open_rd <= r_open_rd + CW'(w_rd_go) - CW'(w_retire && !w_head_is_wr);
+        end
     )
 
     // ------------------------------------------------------------------------
     // Retire: only the head's channel may complete, so Wishbone sees its
     // terminations in issue order however AXI answered.
     // ------------------------------------------------------------------------
-    logic w_head_is_wr, w_head_ready;
+    logic w_head_ready;
     assign w_head_is_wr = w_side_rd_valid && w_side_head_we;
     assign w_head_ready = w_side_rd_valid && (w_head_is_wr ? fub_bvalid : fub_rvalid);
 

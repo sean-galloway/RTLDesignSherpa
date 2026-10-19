@@ -55,6 +55,10 @@ async def cocotb_test_wb4_to_axil4(dut):
         ok = await tb.run_ordering_probe(rng, pairs=max(4, n // 8))
         tb.log.info(f"ordering probe: {'ok' if ok else 'FAILED'}")
 
+    if ok:
+        ok = await tb.run_hazard_probe(rng, pairs=max(4, n // 8))
+        tb.log.info(f"same-word hazard probe: {'ok' if ok else 'FAILED'}")
+
     await tb.wait_idle()
     assert tb.report(), f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
     assert tb.stats['ack'] and tb.stats['err'], \
