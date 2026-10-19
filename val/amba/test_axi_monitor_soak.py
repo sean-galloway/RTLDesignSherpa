@@ -282,7 +282,7 @@ def test_axi_monitor_soak(request):
 
 
 # ---------------------------------------------------------------------------
-# The lite (amba/monitor-lite TASK-002). axi_monitor_pktgen_dut is the full
+# The lite (rtl/amba/monitors TASK-002). axi_monitor_pktgen_dut is the full
 # monitor's reporter + timeout FUBs fed from a hand-built table; the lite is
 # one module with no separable reporter, so its soak drives the CORE's own
 # command/data handshakes with random legal read traffic and checks the

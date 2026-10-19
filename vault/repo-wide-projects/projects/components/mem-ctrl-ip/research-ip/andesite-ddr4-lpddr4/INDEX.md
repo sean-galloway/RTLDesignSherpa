@@ -16,7 +16,7 @@ Knowledge notes about `projects/components/mem-ctrl-ip/research-ip/andesite-ddr4
 their rationale. Not a duplicate of the code and not a substitute for it.
 
 Method and practice belong in [the handbook](../../../../../../../vault/handbook/INDEX.md); work items belong in
-[vault/Tasks/](../../../../../../../vault/Tasks/INDEX.md). This page is for *this area's* durable context: why it is
+[vault/tracking/](../../../../../../../vault/tracking/INDEX.md). This page is for *this area's* durable context: why it is
 shaped the way it is, and what bit someone once.
 
 ## Notes

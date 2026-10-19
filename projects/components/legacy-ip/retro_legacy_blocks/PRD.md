@@ -704,7 +704,7 @@ A block is considered "Production Ready" when:
 - `/PRD.md` - Master repository requirements
 - `projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md` - Component AI guide
 - `projects/components/legacy-ip/retro_legacy_blocks/README.md` - Component overview
-- `vault/Tasks/RLB/` - task tracking (cross-block); `vault/Tasks/RLB/hpet/` for HPET
+- `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/` - task tracking (cross-block); `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/` for HPET
 
 ### 8.3 Block-Specific Documentation
 

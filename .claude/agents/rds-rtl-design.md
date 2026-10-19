@@ -26,7 +26,7 @@ these is unrecoverable:
 - **Never review your own output.** Hand it to `rds-rtl-review`.
 
 - **Never create a TASKS.md, TODO.md or *_TODO.md next to code.** Open work goes
-  to `/vault/Tasks/<area>/open.md`. This is the rule agents break most often here.
+  to `/vault/tracking/<area>/open.md`. This is the rule agents break most often here.
 
 - **When the logic is an index transform** (rotation, mask, priority scan), state
   the intended mapping in a comment and check it at a non-symmetric input. A

@@ -12,7 +12,7 @@ which is a recursive find-and-destroy across the whole subtree. In a shared
 worktree with concurrent sessions that deletes other people's in-flight
 builds, and the failure it produces is not obviously a deletion: the run dies
 somewhere inside Verilator or cocotb with a missing file, or -- worse --
-finishes with a corrupted model. `vault/Tasks/amba/open.md` records three
+finishes with a corrupted model. `vault/tracking/rtl/amba/open.md` records three
 occurrences before the cause was found, one of them traced to a DIFFERENT
 session cleaning the same root.
 

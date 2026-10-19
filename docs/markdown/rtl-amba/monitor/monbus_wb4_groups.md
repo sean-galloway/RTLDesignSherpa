@@ -23,6 +23,8 @@
 
 # monbus_wb4_axil4_group / monbus_wb4_axi4_group
 
+**Plane:** output plane
+
 ## Overview
 
 The monitor-bus groups with their read-only CSR port presented as a

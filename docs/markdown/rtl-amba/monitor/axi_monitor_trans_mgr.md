@@ -28,6 +28,8 @@
 **Category:** Core Infrastructure
 **Status:** Production Ready (CAM-backed revision, 2026-06-08)
 
+**Plane:** protocol plane (transaction manager for the full monitor)
+
 ---
 
 ## Overview

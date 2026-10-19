@@ -23,6 +23,12 @@
 
 # Identity space allocation
 
+> **Plane framing:** Identity fields are assigned where the protocol plane
+> produces the packet and then carried unchanged through every downstream
+> plane. Allocating `unit_id` and `agent_id` is therefore a protocol-plane
+> policy that every error, debug, perf and output-plane consumer inherits.
+> See [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 Three fields in every packet are designer-owned and fixed at build time:
 
 | Field | Bits | Set by | Meaning |

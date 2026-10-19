@@ -186,7 +186,7 @@
 - **Component Path**: `projects/components/legacy-ip/retro_legacy_blocks/`
 
 **Related Issues**
-- Implementation tracked in `vault/Tasks/RLB/` (per-block sub-areas as needed)
+- Implementation tracked in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/` (per-block sub-areas as needed)
 - Status, stated deviations and the known test-vs-design gap documented in the RTL README.md
 
 ### Change History

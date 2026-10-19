@@ -55,7 +55,7 @@ future grep ambiguous.
 - The stub carries only the non-negotiables - the rules that being wrong about
   is unrecoverable. Method lives in the note.
 - A role that may write is never the role that judges that write.
-- Never invent a project-local TODO file. Tasks go to `/vault/Tasks/<area>/`;
+- Never invent a project-local TODO file. Tasks go to `/vault/tracking/<area>/`;
   this is the rule agents break most (see the [[skills]] row for `tasks`).
 - Scope is per repo: these live in `<repo>/.claude/agents/`, never in
   `~/.claude/agents/`, which would apply them to unrelated work.

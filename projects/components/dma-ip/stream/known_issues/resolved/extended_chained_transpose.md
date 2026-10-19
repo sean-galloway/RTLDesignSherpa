@@ -138,7 +138,7 @@ Prime suspects: `descriptor_engine.sv` (extended chunk-1 fetch + prefetch
 sequencing, the `g_ext_fifo` / `w_want_ext` logic) and `scheduler.sv`
 (`w_is_ext_in` handling), plus `stream_run_addr_gen.sv` config latching. This
 is a strong candidate for the signal-contract / K-map "correct by construction"
-work tracked in `vault/Tasks/projects/components/dma-ip/stream/` - the interaction
+work tracked in `vault/tracking/projects/components/dma-ip/stream/` - the interaction
 that fails is exactly the kind of cross-descriptor pipeline hazard a per-signal
 contract on the engines would forbid.
 

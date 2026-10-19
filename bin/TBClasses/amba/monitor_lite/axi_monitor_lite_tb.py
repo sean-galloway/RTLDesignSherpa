@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""axi_monitor_lite through its wrapper (amba/monitor-lite TASK-001).
+"""axi_monitor_lite through its wrapper (rtl/amba/monitors TASK-001).
 
 The DUT is axi4_slave_rd_monlite or axi4_slave_wr_monlite: an
 AXI4 master BFM drives the s_axi side, a memory-backed AXI4 slave BFM answers

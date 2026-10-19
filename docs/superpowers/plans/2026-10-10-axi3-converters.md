@@ -36,8 +36,8 @@
 ### Task 1: Tracking scaffolding (GitHub issue + vault area)
 
 **Files:**
-- Create: `vault/Tasks/utility-ip/converters/task/INDEX.md`, `vault/Tasks/utility-ip/converters/task/open/TASK-001.md`, plus lifecycle dirs `open/ active/ closed/ dropped/` under `task/`, `bug/`, `issue/`
-- Modify: `vault/Tasks/INDEX.md` (register the utility-ip area)
+- Create: `vault/tracking/projects/components/utility-ip/converters/task/INDEX.md`, `vault/tracking/projects/components/utility-ip/converters/task/open/TASK-001.md`, plus lifecycle dirs `open/ active/ closed/ dropped/` under `task/`, `bug/`, `issue/`
+- Modify: `vault/tracking/INDEX.md` (register the utility-ip area)
 
 **Interfaces:**
 - Produces: GitHub issue number referenced by all later commits; vault task ID `utility-ip/converters TASK-001`.
@@ -46,9 +46,9 @@
 
 `gh issue create --repo sean-galloway/RTLDesignSherpa --title "feat: AXI3 converters (axi4_to_axi3 / axi3_to_axi4)" --label enhancement` — body: implements spec `docs/superpowers/specs/2026-10-10-axi3-converters-design.md`, first customer DE10 leg-bridge f2h seam, DV BFMs available via RDS-DV #87 (84f9066).
 
-- [ ] **Step 2: Create the vault area mirroring `vault/Tasks/amba/monitor-lite/` structure**
+- [ ] **Step 2: Create the vault area mirroring `vault/tracking/rtl/amba/monitors/` structure**
 
-TASK-001.md: priority P2, status ACTIVE, "Done when" = plan Task 11's close-out criteria. `bug/` and `issue/` areas get INDEX.md + empty lifecycle dirs (mirror amba/monitor-lite).
+TASK-001.md: priority P2, status ACTIVE, "Done when" = plan Task 11's close-out criteria. `bug/` and `issue/` areas get INDEX.md + empty lifecycle dirs (mirror rtl/amba/monitors).
 
 - [ ] **Step 3: Validate**
 
@@ -58,7 +58,7 @@ Expected: clean (area registered, no ID clashes).
 - [ ] **Step 4: Commit**
 
 ```bash
-git add -- vault/Tasks/INDEX.md vault/Tasks/utility-ip
+git add -- vault/tracking/INDEX.md vault/tracking/projects/components/utility-ip
 git commit -m "vault: utility-ip/converters task area + TASK-001 (AXI3 converters)"
 ```
 
@@ -196,7 +196,7 @@ Issue next chunk's AR as soon as the previous AR handshakes (no waiting for R). 
 
 ### Task 11: Docs, full regression, close-out
 
-**Files:** Modify `docs/` (converters MAS source + regenerate PDF per `docs/generate_mas_pdf.sh` convention used by the converters docs dir); `vault/Tasks/utility-ip/converters/task/open/TASK-001.md` → closed; GitHub issue.
+**Files:** Modify `docs/` (converters MAS source + regenerate PDF per `docs/generate_mas_pdf.sh` convention used by the converters docs dir); `vault/tracking/projects/components/utility-ip/converters/task/open/TASK-001.md` → closed; GitHub issue.
 
 - [ ] **Step 1: MAS** — add AXI3 converter sections (protocol deltas, chop/merge behavior, single-active contract, non-goals) to the converters MAS source; regenerate the PDF with the dir's `generate_mas_pdf.sh`.
 - [ ] **Step 2: Full converters DV regression** — `TEST_LEVEL=func PYTHONPATH=/mnt/data/github/RTLDesignSherpa-DV-dev/src venv/bin/python -m pytest projects/components/utility-ip/converters/dv/tests -q` → all green (no regressions in sibling converters).

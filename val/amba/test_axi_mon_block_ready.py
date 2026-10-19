@@ -61,7 +61,7 @@ WRAPPERS = [
     "axil4_slave_rd_mon",  "axil4_slave_wr_mon",
 ]
 
-# The lite siblings (amba/monitor-lite TASK-002). Same bus ports, same TBs, no
+# The lite siblings (rtl/amba/monitors TASK-002). Same bus ports, same TBs, no
 # block_ready: a command that finds no entry is admitted untracked and counted
 # on refused_count, so these run LiteRefuseCheck -- the same three layers with
 # the gating rule replaced by the refuse-accounting identity.

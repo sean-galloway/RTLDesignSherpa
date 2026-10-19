@@ -1,4 +1,4 @@
-"""axis_monitor_lite through the tb_axis_monitor_lite fixture (amba/monitor-lite TASK-003).
+"""axis_monitor_lite through the tb_axis_monitor_lite fixture (rtl/amba/monitors TASK-003).
 Exact packets for stream start/end, TID/TDEST changes, source bubbles, a held
 tready (backpressure credit + handshake timeout), an in-packet gap timeout, a
 zero-strobe beat, a withdrawn TVALID, the type mask, a held monbus, and clear.

@@ -699,7 +699,7 @@ module scheduler_group_array #(
     // Descriptor AXI Master Monitor
     //=========================================================================
 
-    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
+    // axi_monitor_lite (rtl/amba/monitors TASK-001): the lite monitor on the same taps.
     // No perf window, debug, address-range checker, ID/address filters or per-event
     // masks -- those cfg inputs stay on this module's ports for the register block
     // The lite descriptor monitor has no perf window and no cfg-conflict check:

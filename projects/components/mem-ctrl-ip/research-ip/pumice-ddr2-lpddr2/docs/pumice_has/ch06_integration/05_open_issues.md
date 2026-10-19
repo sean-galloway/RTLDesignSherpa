@@ -142,7 +142,7 @@ The full catalog of planned, config-bit-selectable advanced modes lives in
 `docs/design-requirements.md` ("Advanced modes — selectable scheduling /
 paging / refresh"); the family-level split (commodity-legal here vs
 model-only parked for DDR3/DDR4) is in
-`vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md`. Entry
+`vault/tracking/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md`. Entry
 gate (TASKS.md TASK-FEATURES): board reads validated at the bring-up tuple,
 refresh-collision fix re-soaked on silicon.
 

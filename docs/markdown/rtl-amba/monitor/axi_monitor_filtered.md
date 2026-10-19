@@ -28,6 +28,8 @@
 **Category:** Core Infrastructure
 **Status:** Production Ready
 
+**Plane:** protocol plane (source filter; used by both full and lite monitors)
+
 ---
 
 ## Overview

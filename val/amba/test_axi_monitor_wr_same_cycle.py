@@ -245,7 +245,7 @@ DEFAULT_SEED = 12345
 def generate_test_params():
     """(iw, aw, max_transactions, seed, dut). Directed, deterministic.
 
-    The lite cells (amba/monitor-lite TASK-002) run the same four phases
+    The lite cells (rtl/amba/monitors TASK-002) run the same four phases
     against axi_monitor_lite, whose early-write-data path is the one-burst
     form of the fix the full core got for BUG-037."""
     return [

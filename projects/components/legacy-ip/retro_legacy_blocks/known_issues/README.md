@@ -29,7 +29,7 @@
 > into `projects/components/legacy-ip/retro_legacy_blocks/`; this directory is now
 > `projects/components/legacy-ip/retro_legacy_blocks/known_issues/`. The old `resolved/` and `active/`
 > subdirectories (including `resolved/timer_cleanup_issue.md`) were not carried over -
-> the timer-cleanup fix is documented as TASK-001 in [RLB/hpet TASK-001](../../../../../vault/Tasks/RLB/hpet/INDEX.md).
+> the timer-cleanup fix is documented as TASK-001 in [RLB/hpet TASK-001](../../../../../vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/INDEX.md).
 > Subdirectories are recreated on demand when new issues are filed. Paths below have been
 > updated to the new location.
 
@@ -42,7 +42,7 @@ known_issues/
 ├── README.md           ← This file
 ├── resolved/           ← Fixed bugs and completed investigations (created when needed;
 │                          the old timer_cleanup_issue.md write-up now lives as
-│                          RLB/hpet TASK-001 in vault/Tasks/RLB/hpet/task/closed/)
+│                          RLB/hpet TASK-001 in vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/task/closed/)
 └── active/             ← Unresolved issues and pending enhancements (none - all issues resolved)
 ```
 
@@ -160,7 +160,7 @@ ls projects/components/legacy-ip/retro_legacy_blocks/known_issues/active/
 ls projects/components/legacy-ip/retro_legacy_blocks/known_issues/resolved/
 
 # View the timer-cleanup fix write-up (TASK-001)
-cat vault/Tasks/RLB/hpet/task/closed/TASK-001.md
+cat vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/task/closed/TASK-001.md
 ```
 
 ### Search Issues
@@ -243,7 +243,7 @@ grep -r "Severity.*High" projects/components/legacy-ip/retro_legacy_blocks/known
 
 **Impact:** 3-timer configuration went from 92% to 100% passing
 
-**See:** RLB/hpet TASK-001 in `vault/Tasks/RLB/hpet/task/closed/TASK-001.md` (the old `resolved/timer_cleanup_issue.md` page was not carried over)
+**See:** RLB/hpet TASK-001 in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/task/closed/TASK-001.md` (the old `resolved/timer_cleanup_issue.md` page was not carried over)
 
 ---
 
@@ -252,7 +252,7 @@ grep -r "Severity.*High" projects/components/legacy-ip/retro_legacy_blocks/known
 **APB HPET Documentation:**
 - `projects/components/legacy-ip/retro_legacy_blocks/PRD.md` - Complete specification
 - `projects/components/legacy-ip/retro_legacy_blocks/CLAUDE.md` - AI assistant guide
-- `vault/Tasks/RLB/hpet/` - current HPET work items; `vault/Tasks/RLB/` cross-block
+- `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/` - current HPET work items; `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/` cross-block
 - `projects/components/legacy-ip/retro_legacy_blocks/docs/IMPLEMENTATION_STATUS.md` - Test results
 
 **Test Infrastructure:**

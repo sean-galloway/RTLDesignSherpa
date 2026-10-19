@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Module: axis_monitor_lite_tb
-# Purpose: Exact-packet testbench for axis_monitor_lite (amba/monitor-lite TASK-003).
+# Purpose: Exact-packet testbench for axis_monitor_lite (rtl/amba/monitors TASK-003).
 """axis_monitor_lite, driven through the framework AXIS master and slave BFMs.
 
 The DUT is val/amba/monitor-lite/tb_axis_monitor_lite.sv: the core tapping a

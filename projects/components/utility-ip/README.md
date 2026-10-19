@@ -27,7 +27,7 @@
 Reusable building blocks that serve every other family and belong to none of
 them. Created 2026-09-29 (Sean) when the component tree was regrouped into
 `*-ip` families; both members moved with history and keep their own README,
-CLAUDE.md, rtl/, dv/ and task lanes (`vault/Tasks/projects/components/utility-ip/<ip>/`).
+CLAUDE.md, rtl/, dv/ and task lanes (`vault/tracking/projects/components/utility-ip/<ip>/`).
 Python imports use `projects.components.utility_ip.<ip>...` (the alias in
 `projects/components/__init__.py` maps the underscore name onto this directory).
 

@@ -78,7 +78,7 @@ andesite do).
 `mem-ctrl-ip/docs/` base architectural content into
 `mem-ctrl-common-ip/docs/`. Fix every reference: filelists, dv paths, formal
 configs, doc links, `projects/fpga-systems/Genesys2/mem-ctrl-ip/*` harnesses,
-and the vault task areas (`vault/Tasks/{pumice,scoria,andesite}-*`) which by
+and the vault task areas (`vault/tracking/{pumice,scoria,andesite}-*`) which by
 convention mirror the tree. Tree stays green throughout; no source file
 content changes.
 

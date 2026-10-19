@@ -23,6 +23,12 @@
 
 # Where to insert monitoring
 
+> **Plane framing:** Insertion point is a protocol-plane decision — it
+> determines where the bus is tapped and which `agent_id` the packet carries.
+> The output plane (arbitration, drain, capture) is unaffected by whether the
+> monitor sits on a port, a fabric link or a root. See
+> [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 | Placement | What it sees | Cost | Use when |
 |---|---|---|---|
 | **Per port** (the default; the bridge generator puts a lite monitor on every monitored port) | every transaction on that port, attributed by ID, with completion latency | one lite per port: about 1,100 LUTs / 1,030 FFs at defaults, 677 / 831 with the bridge's narrower parameters ([monitor_characterization.md](../../rtl-amba/monitor/monitor_characterization.md), [axi_monitor_lite.md](../../rtl-amba/monitor/axi_monitor_lite.md)) | you need to know WHICH port misbehaved |

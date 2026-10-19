@@ -247,7 +247,7 @@ DEFAULT_SEED = 12345
 def generate_test_params():
     """(iw, aw, max_transactions, seed, dut). Deterministic: directed stimulus.
 
-    The lite cell (amba/monitor-lite TASK-002) runs the same two phases against
+    The lite cell (rtl/amba/monitors TASK-002) runs the same two phases against
     axi_monitor_lite: no block_ready to wedge, so the leak oracle is that the
     table drains AND refused_count stays 0 -- a leaked entry per disabled
     completion would fill the eight slots inside the first eight of the

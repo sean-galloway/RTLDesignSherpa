@@ -28,6 +28,8 @@
 **Category:** Bulk-Trace Compression Infrastructure
 **Status:** Production — replaces [`monbus_cam`](monbus_cam.md) inside the compressor
 
+**Plane:** output plane
+
 ---
 
 ## Overview

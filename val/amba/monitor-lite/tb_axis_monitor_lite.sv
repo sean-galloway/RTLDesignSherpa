@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
 // Module: tb_axis_monitor_lite
-// Purpose: Test fixture for axis_monitor_lite (amba/monitor-lite TASK-003).
+// Purpose: Test fixture for axis_monitor_lite (rtl/amba/monitors TASK-003).
 //          The core is a TAP with no data port: it never sees TDATA or TUSER.
 //          The framework AXIS BFMs need the full signal set on the top level
 //          to bind to, so this fixture exposes a complete `axis_*` stream --

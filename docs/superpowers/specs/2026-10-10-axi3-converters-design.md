@@ -118,7 +118,7 @@ MC stays constant across legs.
   (loopback, chopping, WID, mapping, stall matrices).
 - Filelists + verible lint clean; `bin/check_sv_decl_order.py` clean;
   `bin/check_task_ids.py` clean after vault edits.
-- Vault: new `vault/Tasks/utility-ip/` area (converters tasks; deferred items
+- Vault: new `vault/tracking/projects/components/utility-ip/` area (converters tasks; deferred items
   incl. `apb3_to_axi4`); GitHub issue on RTLDesignSherpa tracking the work.
 - Consumed by DE10 `leg-bridge` bring-up without modification.
 

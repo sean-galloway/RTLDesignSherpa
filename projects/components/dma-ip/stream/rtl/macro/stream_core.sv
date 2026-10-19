@@ -1534,7 +1534,7 @@ module stream_core #(
         end
     end
 
-    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
+    // axi_monitor_lite (rtl/amba/monitors TASK-001): the lite monitor on the same taps.
     // No perf window, debug, address-range checker, ID/address filters or per-event
     // masks -- those cfg inputs stay on this module's ports for the register block
     // The lite monitors have no cfg-conflict check; the status bits read 0.
@@ -1646,7 +1646,7 @@ module stream_core #(
     // read-side comment: the bound is per-channel outstanding times channels,
     // read back through WRMON_PERF_* CSRs. W-channel cycle buckets match the
     // legacy write-side axi_bus_meter.
-    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same taps.
+    // axi_monitor_lite (rtl/amba/monitors TASK-001): the lite monitor on the same taps.
     // No perf window, debug, address-range checker, ID/address filters or per-event
     // masks -- those cfg inputs stay on this module's ports for the register block
     // but drive nothing here. Drop-and-count instead of block_ready.

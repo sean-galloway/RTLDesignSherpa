@@ -259,7 +259,7 @@ clean-pycache:
 # worktree deleted other sessions' in-flight builds -- and the resulting
 # failure did not look like a deletion, it looked like a corrupt model or a
 # missing file somewhere inside Verilator. Three occurrences before the cause
-# was found (vault/Tasks/amba/open.md). Putting the check HERE means every
+# was found (vault/tracking/rtl/amba/open.md). Putting the check HERE means every
 # caller is safe without remembering a rule, including `clean-all`, which the
 # repo tells everyone to run before a regression.
 clean-build:

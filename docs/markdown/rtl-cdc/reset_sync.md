@@ -225,7 +225,7 @@ passive observers/monitors — a monitor must track the observed domain's reset,
 so synchronizing it would blind it to post-reset traffic). Follow-on areas
 pending their active lanes: stream, granite, pumice, `l1_core`,
 `amber_pair_fabric`, `scoria_top_geared`; the rtl/amba subsystem-level
-candidates are classified in vault `Tasks/cdc` TASK-004.
+candidates are classified in vault `tracking/rtl/cdc` TASK-004.
 `rtl/cdc/fifo_async.sv` and `rtl/common/fifo_sync.sv` header comments state
 the leaf-side contract ("reset synchronization not built-in; use externally").
 

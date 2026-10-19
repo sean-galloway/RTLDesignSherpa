@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CHECKER = ROOT / "bin" / "check_task_ids.py"
 
 INDEX = textwrap.dedent("""\
-    <!-- Managed by the `tasks` convention: see /vault/Tasks/INDEX.md. -->
+    <!-- Managed by the `tasks` convention: see /vault/tracking/INDEX.md. -->
 
     # scratch — tasks
 
@@ -46,7 +46,7 @@ INDEX = textwrap.dedent("""\
 def _lane(tmp_path: Path, *, open_count=1, closed_count=1,
           list_open=("TASK-001",), list_closed=("TASK-002",), h1_002="TASK-002") -> Path:
     repo = tmp_path / "repo"
-    lane = repo / "vault" / "Tasks" / "scratch" / "task"
+    lane = repo / "vault" / "tracking" / "scratch" / "task"
     for st in ("open", "active", "closed", "dropped", "deferred"):
         (lane / st).mkdir(parents=True)
     (lane / "open" / "TASK-000.md").write_text("# TASK-000: TEMPLATE — copy this file\n\n**Status:** open\n")
@@ -81,7 +81,7 @@ def test_unlisted_item_fails(tmp_path):
 
 def test_stale_next_id_fails(tmp_path):
     repo = _lane(tmp_path)
-    idx = repo / "vault/Tasks/scratch/task/INDEX.md"
+    idx = repo / "vault/tracking/scratch/task/INDEX.md"
     idx.write_text(idx.read_text().replace("Next ID: TASK-003", "Next ID: TASK-002"))
     r = _run(repo)
     assert r.returncode == 1 and "Next ID" in r.stderr
@@ -133,7 +133,7 @@ def test_live_body_in_open_page_stays_silent(tmp_path):
 def test_flat_open_page_sees_it_too(tmp_path):
     """The amba case that started TASK-002: a LEGACY flat open.md, not a lane."""
     repo = tmp_path / "repo"
-    area = repo / "vault" / "Tasks" / "scratchflat"
+    area = repo / "vault" / "tracking" / "scratchflat"
     area.mkdir(parents=True)
     (area / "INDEX.md").write_text(
         "# scratchflat\n\n**Next ID: SF-002** — never recycle a number.\n")
@@ -184,7 +184,7 @@ def _repo_with_hook(tmp_path, **kw) -> Path:
 
 
 def _lane_dir(repo: Path) -> Path:
-    return repo / "vault" / "Tasks" / "scratch" / "task"
+    return repo / "vault" / "tracking" / "scratch" / "task"
 
 
 def test_hook_rejects_a_half_committed_move(tmp_path):
@@ -203,8 +203,8 @@ def test_hook_rejects_a_half_committed_move(tmp_path):
         open=0, closed=2,
         open_list="", closed_list="- **TASK-001** — item\n- **TASK-002** — item\n"))
     r = subprocess.run(["git", "commit", "-qm", "move", "--",
-                        "vault/Tasks/scratch/task/closed/TASK-001.md",
-                        "vault/Tasks/scratch/task/INDEX.md"],
+                        "vault/tracking/scratch/task/closed/TASK-001.md",
+                        "vault/tracking/scratch/task/INDEX.md"],
                        cwd=repo, capture_output=True, text=True)
     assert r.returncode != 0, (
         "the hook approved a commit placing TASK-001 in both open/ and closed/\n"
@@ -224,9 +224,9 @@ def test_hook_accepts_a_move_that_names_both_halves(tmp_path):
         open=0, closed=2,
         open_list="", closed_list="- **TASK-001** — item\n- **TASK-002** — item\n"))
     r = subprocess.run(["git", "commit", "-qm", "move", "--",
-                        "vault/Tasks/scratch/task/closed/TASK-001.md",
-                        "vault/Tasks/scratch/task/open/TASK-001.md",
-                        "vault/Tasks/scratch/task/INDEX.md"],
+                        "vault/tracking/scratch/task/closed/TASK-001.md",
+                        "vault/tracking/scratch/task/open/TASK-001.md",
+                        "vault/tracking/scratch/task/INDEX.md"],
                        cwd=repo, capture_output=True, text=True)
     assert r.returncode == 0, f"a correct move was rejected:\n{r.stdout}\n{r.stderr}"
 
@@ -242,8 +242,8 @@ def test_hook_still_sees_a_count_lie_in_the_committed_tree(tmp_path):
     subprocess.run(["git", "mv", "open/TASK-001.md", "closed/TASK-001.md"],
                    cwd=lane, check=True)
     r = subprocess.run(["git", "commit", "-qm", "move", "--",
-                        "vault/Tasks/scratch/task/closed/TASK-001.md",
-                        "vault/Tasks/scratch/task/open/TASK-001.md"],
+                        "vault/tracking/scratch/task/closed/TASK-001.md",
+                        "vault/tracking/scratch/task/open/TASK-001.md"],
                        cwd=repo, capture_output=True, text=True)
     assert r.returncode != 0, (
         "the hook approved a commit whose INDEX counts contradict its "
@@ -262,7 +262,7 @@ def test_area_labels_survive_hook_context(tmp_path):
     subprocess.run(["git", "mv", "open/TASK-001.md", "closed/TASK-001.md"],
                    cwd=lane, check=True)
     r = subprocess.run(["git", "commit", "-qm", "move", "--",
-                        "vault/Tasks/scratch/task/closed/TASK-001.md"],
+                        "vault/tracking/scratch/task/closed/TASK-001.md"],
                        cwd=repo, capture_output=True, text=True)
     out = r.stdout + r.stderr
     assert r.returncode != 0, out
@@ -282,12 +282,12 @@ def test_tasks_root_checks_the_tree_you_point_at(tmp_path):
     good = _lane(tmp_path / "good")
     bad = _lane(tmp_path / "bad", open_count=1, closed_count=1)
     # Plant the half-committed move in `bad` only: the ID in two states at once.
-    badlane = bad / "vault" / "Tasks" / "scratch" / "task"
+    badlane = bad / "vault" / "tracking" / "scratch" / "task"
     (badlane / "closed" / "TASK-001.md").write_text(
         "# TASK-001: an open item\n\n**Status:** closed\n")
 
     r = subprocess.run([sys.executable, str(CHECKER), "--tasks-root",
-                        str(bad / "vault" / "Tasks")],
+                        str(bad / "vault" / "tracking")],
                        cwd=good, capture_output=True, text=True)
     out = r.stdout + r.stderr
     assert r.returncode != 0, f"the planted duplicate was not seen:\n{out}"

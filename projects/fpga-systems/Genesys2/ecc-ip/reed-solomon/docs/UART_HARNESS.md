@@ -244,7 +244,7 @@ a bitstream.
   predicted roughly 1-in-20,000 at e = t + 1. The pass criterion is the bounded
   mis-decode rate, not zero.
 - The erasure `f = 2t` boundary is a known open bug, filed as
-`vault/Tasks/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`.
+`vault/tracking/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`.
 `f = t` corrects and `f = 2t + 1` refuses on the board; `f = 2t` is flagged
 uncorrectable even though the design intent says it should correct.
 - The component DV matrix — 195 cells per `TASK-001.md` — exercises the codec in

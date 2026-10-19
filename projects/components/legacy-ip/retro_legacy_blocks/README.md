@@ -47,7 +47,7 @@ each block has its own DV suite and MAS book:
 - **UART 16550** - Serial port (`0xFEC0_8000-0x8FFF`)
 - **8259 PIC** (cascade slave) - the PC/AT pair's slave half (`0xFEC0_9000-0x9FFF`)
 
-Per-block defects are tracked in `known_issues/` and in `vault/Tasks/RLB/`.
+Per-block defects are tracked in `known_issues/` and in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/`.
 
 **Planned Blocks** -- not present in the shipped design, and with no window
 available: the decoder is the generated `apbx_xbar_1to10` and all ten of its
@@ -102,7 +102,7 @@ retro_legacy_blocks/
 │
 ├── PRD.md                   # Product Requirements Document
 ├── CLAUDE.md                # AI assistant guide
-│                            # (task tracking moved to vault/Tasks/RLB/ 2026-09-25)
+│                            # (task tracking moved to vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/ 2026-09-25)
 └── README.md                # This file
 ```
 

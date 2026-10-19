@@ -1,6 +1,6 @@
 ---
 title: Doc placement
-summary: What kind of documentation lives where - handbook vs docs/markdown vs beside-code vs vault/Tasks - and the rule that a beside-code file is a link, never a second copy.
+summary: What kind of documentation lives where - handbook vs docs/markdown vs beside-code vs vault/tracking - and the rule that a beside-code file is a link, never a second copy.
 ---
 
 # Doc placement
@@ -15,7 +15,7 @@ the next session reads. This note is the authority on where each kind goes.
 |---|---|---|
 | **Method / practice / rationale** - how we do X here, and the failure that taught it | `vault/handbook/` | reset conventions, the review rules, a doc style guide |
 | **Reader-facing product docs** - per-module pages, guides, HAS/MAS, operator manuals | `docs/markdown/` | `rtl-common/fifo_sync.md`, `rtl-common/quickstart.md` |
-| **Work items** - anything with a beginning and an end | `vault/Tasks/<area>/` | "integrate the math findings", "fix DEPTH=6" |
+| **Work items** - anything with a beginning and an end | `vault/tracking/<area>/` | "integrate the math findings", "fix DEPTH=6" |
 | **Beside-code, agent-facing** - subsystem instructions and specs a reader of *that directory* needs | the RTL/project dir | `rtl/common/CLAUDE.md`, an area `PRD.md` |
 
 `/GLOBAL_REQUIREMENTS.md` is the enforcement authority and outranks all of this.
@@ -194,4 +194,4 @@ same procedure the vault consolidation and the `rtl-math` split used.
 
 Related: [[module-doc-template]] (the shape of a docs/markdown page),
 [[doc-pipeline]] (how those pages build), [[kimi-review-rounds]] rule 8 (the
-review pass that catches these), and the `tasks` convention for `vault/Tasks/`.
+review pass that catches these), and the `tasks` convention for `vault/tracking/`.

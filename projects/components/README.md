@@ -41,7 +41,7 @@ tracker. Nothing here is a second copy of either.
 | The component list with status and spec links | [index.md](index.md) |
 | Requirements for the area | [PRD.md](PRD.md) |
 | Area facts for agents (layout, traps, TB placement) | [CLAUDE.md](CLAUDE.md) |
-| Live work items, per component | [vault/Tasks/INDEX.md](../../vault/Tasks/INDEX.md) |
+| Live work items, per component | [vault/tracking/INDEX.md](../../vault/tracking/INDEX.md) |
 | Running a regression (`make clean-all` first, always) | [running-regressions](../../vault/handbook/dv/running-regressions.md); this directory's [Makefile](Makefile) drives every component (`make help`) |
 | Test structure (Pattern B, `cocotb_test_*`, gate/func/full) | [test-runner](../../vault/handbook/dv/test-runner.md) and the `test-patterns` skill |
 | Coverage | [coverage](../../vault/handbook/dv/coverage.md) |

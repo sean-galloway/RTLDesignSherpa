@@ -32,6 +32,12 @@ per packet type. The packet layout is fixed
 ([monitor_package_spec.md](../../rtl-amba/includes/monitor_package_spec.md)); everything
 else on this page is a knob.
 
+> **Plane framing:** The spine is the output plane in action —
+> `monbus_arbiter` merges streams from every protocol-plane port, and the
+> `monbus_group` family filters and drains them off-chip. The ports themselves
+> live in the protocol plane; everything after emission is the output plane.
+> See [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 ![Monitor system spine: ports, arbiter tree, group, two drains](../../assets/rtl-amba-monitors/graphviz/monitor_wp_spine.png)
 
 ## References

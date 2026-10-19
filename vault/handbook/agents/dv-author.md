@@ -51,4 +51,4 @@ at the suite level, and it has produced false GREEN here before.
   [[rtl-design]] with the failing seed and the waveform.
 - **Does not quarantine its own flaky test** without recording why - that is
   [[regress-triage]], and an undocumented quarantine is a silently dropped test.
-- **Does not create TODO files.** Open work goes to `/vault/Tasks/<area>/open.md`.
+- **Does not create TODO files.** Open work goes to `/vault/tracking/<area>/open.md`.

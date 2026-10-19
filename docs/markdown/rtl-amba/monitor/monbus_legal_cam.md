@@ -28,6 +28,8 @@
 **Category:** Coverage / Observability
 **Status:** Production Ready
 
+**Plane:** output plane
+
 ---
 
 ## Overview

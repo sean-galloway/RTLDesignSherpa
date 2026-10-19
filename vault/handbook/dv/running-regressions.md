@@ -271,7 +271,7 @@ Two rules follow, and they generalise beyond pumice:
   `OK: ... passed at BOTH geometries` line — were absent and neither was
   checked.
 
-(Was `vault/Tasks/pumice-ddr2-lpddr2/task/dropped/TASK-003.md`, which was a rule filed as a
+(Was `vault/tracking/pumice-ddr2-lpddr2/task/dropped/TASK-003.md`, which was a rule filed as a
 task and therefore could never be closed.)
 
 ## Serial ordering that matters
@@ -299,7 +299,7 @@ Two things bite here, and both are silent.
 typed the `rm -rf` by hand. Either way a concurrent session's in-flight build
 disappears, and the failure does not look like a deletion -- it surfaces as a
 missing file inside Verilator, or a model that finishes and is simply wrong.
-`vault/Tasks/amba/open.md` records three occurrences before the cause was
+`vault/tracking/rtl/amba/open.md` records three occurrences before the cause was
 found. Both targets now call `bin/clean_sim_builds.py`, which reads the
 `.sim_busy` marker `sim_build_path()` writes and skips directories whose owning
 pid is still alive, reporting what it skipped. Liveness is the test, not

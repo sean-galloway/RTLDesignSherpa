@@ -26,7 +26,9 @@
 **Module:** `axi4_master_rd_monlite.sv` / `axi4_master_wr_monlite.sv` / `axi4_slave_rd_monlite.sv` / `axi4_slave_wr_monlite.sv` / `axi5_master_rd_monlite.sv` / `axi5_master_wr_monlite.sv` / `axi5_slave_rd_monlite.sv` / `axi5_slave_wr_monlite.sv` / `axil4_master_rd_monlite.sv` / `axil4_master_wr_monlite.sv` / `axil4_slave_rd_monlite.sv` / `axil4_slave_wr_monlite.sv` / `axil5_master_rd_monlite.sv` / `axil5_master_wr_monlite.sv` / `axil5_slave_rd_monlite.sv` / `axil5_slave_wr_monlite.sv` / `axi4ace_master_rd_monlite.sv` / `axi4ace_master_wr_monlite.sv` / `axi4ace_slave_rd_monlite.sv` / `axi4ace_slave_wr_monlite.sv` / `axi4ace_snoop_slave_monlite.sv` / `axi4ace_snoop_master_monlite.sv` / `axi4_master_rd_monlite_cg.sv` / `axi4_master_wr_monlite_cg.sv` / `axi4_slave_rd_monlite_cg.sv` / `axi4_slave_wr_monlite_cg.sv` / `axi5_master_rd_monlite_cg.sv` / `axi5_master_wr_monlite_cg.sv` / `axi5_slave_rd_monlite_cg.sv` / `axi5_slave_wr_monlite_cg.sv` / `axil4_master_rd_monlite_cg.sv` / `axil4_master_wr_monlite_cg.sv` / `axil4_slave_rd_monlite_cg.sv` / `axil4_slave_wr_monlite_cg.sv` / `axil5_master_rd_monlite_cg.sv` / `axil5_master_wr_monlite_cg.sv` / `axil5_slave_rd_monlite_cg.sv` / `axil5_slave_wr_monlite_cg.sv`
 **Location:** `rtl/amba/axi4/`, `rtl/amba/axi5/`, `rtl/amba/axil4/`, `rtl/amba/axil5/`, `rtl/amba/ace/`
 **Category:** Protocol wrappers with the lite monitor
-**Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-26)
+**Status:** Production Ready (rtl/amba/monitors TASK-001, 2026-09-26)
+
+**Plane:** protocol plane (lite monitor wrappers)
 
 ---
 
@@ -77,7 +79,7 @@ and the per-wrapper facts fit in three tables.
 The stream families never had a `_mon` sibling to twin: the AXI monitor cores
 are transaction trackers and a stream has no transaction. These wrap
 [`axis_monitor_lite`](axis_monitor_lite.md), the stream monitor built for
-them (amba/monitor-lite TASK-003). The monitor TAPS the endpoint's FUB-side
+them (rtl/amba/monitors TASK-003). The monitor TAPS the endpoint's FUB-side
 port (every monitor taps the FUB side, for timing) and drives nothing.
 
 | Family | Role | Lite wrapper | Clock-gated lite wrapper | Wraps | Tapped port |

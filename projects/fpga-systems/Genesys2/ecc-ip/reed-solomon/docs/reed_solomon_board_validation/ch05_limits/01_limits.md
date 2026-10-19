@@ -31,6 +31,6 @@ Every quantitative claim in this book can be traced to an artifact under
 | e <= 8 corrected, e > 8 uncorrectable | `stable/results/2026-10-05_battery/battery.json`, `sweep` array. |
 | Solver agreement matrix all green | `stable/results/2026-10-05_battery/fig_5_solver_agreement.png`. |
 | Million-block soak PASS on `axi4_ribm` | `stable/results/2026-10-05_soak/battery.json` and `FINDINGS.md`. |
-| f = 2t erasure boundary open | `vault/Tasks/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`. |
+| f = 2t erasure boundary open | `vault/tracking/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`. |
 
 : Table 5.1: Traceability from claim to artifact.

@@ -52,13 +52,13 @@ Everything this spec leans on: the standards, the sibling RLB documents, the too
 ### Related RLB Documentation
 
 **Module-Specific:**
-- `../../rtl/ioapic/README.md` - Block summary; the feature arc is RLB TASK-008 (was RLB-008) in `vault/Tasks/RLB/closed.md`
+- `../../rtl/ioapic/README.md` - Block summary; the feature arc is RLB TASK-008 (was RLB-008) in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/closed.md`
 - `../../rtl/ioapic/README.md` - PeakRDL register generation guide
 - `../../rdl/ioapic/ioapic_regs.rdl` - SystemRDL source specification
 
 **RLB System:**
-- `../../../../../../vault/Tasks/RLB/RLB_MODULE_AUDIT.md` - Architecture compliance verification
-- `../../../../../../vault/Tasks/RLB/RLB_STATUS_AND_ROADMAP.md` - System-wide status and planning
+- `../../../../../../vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/RLB_MODULE_AUDIT.md` - Architecture compliance verification
+- `../../../../../../vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/RLB_STATUS_AND_ROADMAP.md` - System-wide status and planning
 - `../../RLB_FPGA_IMPLEMENTATION_GUIDE.md` - FPGA deployment guide
 - `../../PRD.md` - Product Requirements Document
 - `../../CLAUDE.md` - AI integration guide

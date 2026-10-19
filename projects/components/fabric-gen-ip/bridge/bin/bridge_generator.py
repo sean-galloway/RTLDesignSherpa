@@ -1330,7 +1330,7 @@ def _emit_bridge_variant(
         filelist_lines.append("# instead would mean tracking another component's guts -- exactly the")
         filelist_lines.append("# coupling that let the reporter sub-blocks and monitor_trans_cam go")
         filelist_lines.append("# missing from consumer filelists in the first place.")
-        # Every monitored port is a _monlite wrapper (amba/monitor-lite TASK-001;
+        # Every monitored port is a _monlite wrapper (rtl/amba/monitors TASK-001;
         # Sean 2026-09-26: the bridge swaps the old monitors out entirely).
         msfx = '_monlite'
         filelist_lines.append(f"# {msfx} wrapper variants (instantiated by adapters when use_monitor=true)")

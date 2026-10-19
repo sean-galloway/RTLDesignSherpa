@@ -826,7 +826,7 @@ module scheduler_group_array_beats #(
     // Descriptor AXI Master Monitor
     //=========================================================================
 
-    // axi_monitor_lite (amba/monitor-lite TASK-001): the lite monitor on the same
+    // axi_monitor_lite (rtl/amba/monitors TASK-001): the lite monitor on the same
     // taps. No debug, address-range checker, ID/address filters or per-event masks
     // -- those cfg inputs stay on this module's ports for the register block but
     // drive nothing here. Drop-and-count instead of block_ready. The lite has no

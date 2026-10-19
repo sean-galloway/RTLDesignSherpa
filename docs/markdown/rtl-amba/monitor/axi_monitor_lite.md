@@ -25,7 +25,9 @@
 **Module:** `axi_monitor_lite.sv`
 **Location:** `rtl/amba/ocelus/axi_monitor_lite.sv`
 **Category:** Monitor Infrastructure
-**Status:** Production Ready (amba/monitor-lite TASK-001, 2026-09-25); adopted by every consumer, measured in three board builds and validated on silicon, 2026-09-27
+**Status:** Production Ready (rtl/amba/monitors TASK-001, 2026-09-25); adopted by every consumer, measured in three board builds and validated on silicon, 2026-09-27
+
+**Plane:** protocol plane (lite monitor; the full variant is [axi_monitor_base](axi_monitor_base.md))
 
 ---
 
@@ -305,7 +307,7 @@ burst the AW is absorbing is that burst's next beat and is absorbed with it;
 a same-cycle beat for a refused AW is consumed. Until 2026-09-28 the same-cycle beat was counted
 as early while its own AW queued for beats that had already passed, and the B
 then reported `RESP_ORPHAN`; the inherited same-cycle suite found it
-(amba/monitor-lite TASK-002), along with an off-by-one in the absorbed count
+(rtl/amba/monitors TASK-002), along with an off-by-one in the absorbed count
 that made a legal two-beat write with one early beat report `BURST_LENGTH`.
 
 ### Errors, once per transaction
@@ -329,7 +331,7 @@ it. Since 2026-09-28 one fired timeout the pick could not take is held with
 its own payload (code, id, address) and offered on the following cycles,
 oldest first, so a sustained error stream delays a timeout rather than losing
 it (the inherited starvation suite had measured the loss at one error per
-cycle; monitor-lite TASK-004). A second timeout arriving while the hold is
+cycle; rtl/amba/monitors TASK-004). A second timeout arriving while the hold is
 full is still lost and counted.
 
 ### Latency threshold
@@ -343,7 +345,7 @@ completed slot may be reallocated meanwhile without the packet naming the
 wrong transaction. Until 2026-09-28 the compare and the hold were decided in
 the completion cycle itself, which chained the RRESP decode, the slot pick,
 the subtract, the compare and the drop-count adder into 21 logic levels
-(amba/monitor-lite ISSUE-002).
+(rtl/amba/monitors ISSUE-002).
 
 ### Completion hold
 
@@ -351,7 +353,7 @@ A completion that the pick could not queue -- it lost to a higher class, or
 it won while the output queue was full -- is held with its own payload (id,
 address, latency) and offered on the following cycles, oldest first, at the
 completion rung. This is the same contract the timeout and latency holds
-above have (monitor-lite TASK-004), extended to the completion class on
+above have (rtl/amba/monitors TASK-004), extended to the completion class on
 2026-10-08: coincidence is ordinary traffic (an erroring beat on one ID
 while a clean transaction completes on another), and arming a detection cone
 must change what is reported, never whether an unrelated class is delivered
@@ -397,7 +399,7 @@ not see.
 - The bridge's generated monitor stress tests run unchanged on
   `bridge_1x2_rd_lite_mon` (`mon_preset = "lite"`).
 - The full monitor's own suites in `val/amba`, each with lite cells in its
-  grid (amba/monitor-lite TASK-002, 2026-09-28). Nothing is skipped by file;
+  grid (rtl/amba/monitors TASK-002, 2026-09-28). Nothing is skipped by file;
   where the lite has no equivalent of a full-monitor signal the check is the
   lite's own contract instead:
 
@@ -408,7 +410,7 @@ not see.
   | `test_axi_monitor_runtime_disable` | 1 | table drains with a class runtime-disabled and under backpressure; `refused_count` stays 0 (no `block_ready` to wedge) |
   | `test_axi_mon_block_ready` | 16 cells on 11 wrappers (`LiteRefuseCheck`) | the table filled and refused, `admitted == transaction_count + refused_count + live` exactly, the table EMPTY once the bus is idle (amba #105: the identity alone balanced against leaked entries), occupancy never above the depth. Depth follows the TB's bus-measured concurrency (the AXI-Lite and AXI5 read BFMs hold at most 4 in flight, the AXI-Lite write BFM 2), and `axil4_master_wr_monlite` is not claimed: its core taps behind the write skid and never sees two outstanding |
   | `test_axi_monitor_soak` | 1 (`monitor_soak_monlite`) | 60k-200k cycles of random reads with errors, stalls and 15 % consumer backpressure: generated completions + errors + timeouts == delivered + drops reported + drops pending, exactly (60k cycles: 10,655 = 7,648 + 1,909 + 965 + 133) |
-  | `test_axi_monitor_pktgen` | 2 (timeout starvation) + 1 (BUG-039 completion hold) | one stalled read against an SLVERR flood: accounting exact; the victim's timeout is delivered at a 1-in-2 error duty and LOST (counted) at 1-per-cycle -- see amba/monitor-lite TASK-004. Plus: five clean completions fired into a consumer-stalled depth-4 queue are all delivered with zero drop reports -- the completion that finds the queue full is held, not dropped (amba BUG-039) |
+  | `test_axi_monitor_pktgen` | 2 (timeout starvation) + 1 (BUG-039 completion hold) | one stalled read against an SLVERR flood: accounting exact; the victim's timeout is delivered at a 1-in-2 error duty and LOST (counted) at 1-per-cycle -- see rtl/amba/monitors TASK-004. Plus: five clean completions fired into a consumer-stalled depth-4 queue are all delivered with zero drop reports -- the completion that finds the queue full is held, not dropped (amba BUG-039) |
 
   Every check reports its count, not a bare verdict.
 
@@ -416,7 +418,7 @@ not see.
 
 `axi_monitor_base` (the full monitor), the sixteen `*_monlite` wrappers
 (one per `*_mon`, e.g. `axi4_slave_rd_monlite`), `monbus_arbiter` and `monbus_group` (unchanged
-consumers), `vault/Tasks/amba` amba/monitor-lite TASK-001 (the review that sized this).
+consumers), `vault/tracking/rtl/amba` rtl/amba/monitors TASK-001 (the review that sized this).
 
 ## References
 

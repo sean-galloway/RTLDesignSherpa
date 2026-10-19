@@ -366,7 +366,7 @@ status, so the check was **skipped** -- no output, no warning, exit 0.
 
 Two prefixes in live use defeated it, neither of them exotic:
 
-- `**Status:** <emoji> CLOSED 2026-09-15` -- 37 lines in `vault/Tasks/amba/closed.md`
+- `**Status:** <emoji> CLOSED 2026-09-15` -- 37 lines in `vault/tracking/rtl/amba/closed.md`
 - `**Status:** [x] Done (2026-09-20)` -- 13 lines using a markdown checkbox
 
 So roughly **50 of the tracker's 277 status lines were never checked**, and the
@@ -389,7 +389,7 @@ not evidence that the data is clean.
 ### 19. A gate you can address incorrectly certifies nothing
 
 `bin/check_task_ids.py --area <name>` matched an area by exact bare name or
-exact path. Sub-areas arrived on 2026-09-25 (`vault/Tasks/RLB/hpet/`) and the
+exact path. Sub-areas arrived on 2026-09-25 (`vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/`) and the
 discovery unit turned out to be the LANE, not the area: `laned` collects the
 PARENT of each state directory, so the registered areas are `RLB/hpet/task` and
 `RLB/hpet/bug`, and `RLB/hpet` is not an area at all. Every invocation naming it

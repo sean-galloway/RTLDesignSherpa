@@ -47,11 +47,11 @@ if echo "$STAGED" | grep -q '^formal/'; then
     fi
 fi
 
-# --- task-tracker integrity (vault/Tasks/) ------------------------------------
+# --- task-tracker integrity (vault/tracking/) ------------------------------------
 # Duplicate IDs make every [[LINK]] ambiguous. COMMON-021 (and, until they
 # were renumbered to 019/020 on 2026-09-06, PUMICE-010/-011) each ended up
 # naming two unrelated tasks this way.
-if echo "$STAGED" | grep -q '^vault/Tasks/.*\.md$'; then
+if echo "$STAGED" | grep -q '^vault/tracking/.*\.md$'; then
     echo "[pre-commit] Checking task-tracker IDs..."
     if ! "$PY" "$REPO_ROOT/bin/check_task_ids.py"; then
         echo "" >&2

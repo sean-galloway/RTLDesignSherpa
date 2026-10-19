@@ -147,7 +147,7 @@ Each component follows this standard structure:
 - **[Project README](README.md)** - Overview and getting started
 - **[Project PRD](PRD.md)** - Requirements and goals
 - **[Project CLAUDE Guide](CLAUDE.md)** - area facts for agents
-- **Status** - the live tracker is [vault/Tasks/INDEX.md](../../vault/Tasks/INDEX.md);
+- **Status** - the live tracker is [vault/tracking/INDEX.md](../../vault/tracking/INDEX.md);
   the table above is the only status summary kept here (one source per fact)
 - **Running tests** - [vault/handbook/dv/running-regressions.md](../../vault/handbook/dv/running-regressions.md);
   every `dv/tests/Makefile` is four lines that include [make/tests.mk](../../make/tests.mk),

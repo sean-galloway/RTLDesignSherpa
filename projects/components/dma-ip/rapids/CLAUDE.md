@@ -548,7 +548,7 @@ make run-scheduler_beats-gate-waves AREAS=fub_beats
 
 **Current status:** regenerate it -- `dv/tests/analyze_beats_coverage.py`
 writes to `dv/tests/coverage_reports/`. The ~80% figure that sat here was a
-pre-beats snapshot, as is `vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md`, which
+pre-beats snapshot, as is `vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md`, which
 remains the written-up version of that era.
 
 ---
@@ -819,7 +819,7 @@ it is written. `dv/tests/analyze_beats_coverage.py` writes to
 
 **This component:** `PRD.md`, `TASKS.md`, `known_issues/`.
 
-**Validation:** `vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` -- test results, but a
+**Validation:** `vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` -- test results, but a
 **pre-beats snapshot** (last updated 2026-07-22; it still discusses
 program_engine, network_slave and the retired `scheduler.sv`). `PRD.md` labels
 it the same way. For current numbers run `dv/tests/analyze_beats_coverage.py`.

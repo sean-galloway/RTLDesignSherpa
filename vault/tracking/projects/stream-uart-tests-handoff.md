@@ -1,0 +1,157 @@
+# STREAM UART tests — handoff (update the cosim for the internalized kick)
+
+**Task: update the Genesys 2 UART cosim tests. Nothing in this change set is committed.**
+
+## START HERE — the cosim is currently broken at import
+
+```
+$ python3 -c "import stream_harness_tb"
+KeyError: "unknown HARNESS register 'KICK_GO'"
+```
+
+`dv/tbclasses/stream_harness_tb.py:95` does `CSR_KICK_GO = H("KICK_GO")` at MODULE
+SCOPE. `KICK_GO` was removed from the harness CSR (see below), so the import raises
+and **both** UART tests fail before running:
+
+- `build-mon/dv/tests/test_stream_mon.py` (monitor mode, 2 tests)
+- `build-mon/dv/tests/test_stream_mon_perf.py` (perf mode: desc_perf, rw_perf, obs_equiv)
+
+Failing loudly at import is the intended outcome of by-name register access — it is
+not a mystery, just unfinished work.
+
+### What to change in `stream_harness_tb.py`
+
+| line | now | should be |
+|---|---|---|
+| 95 | `CSR_KICK_GO = H("KICK_GO")` | delete |
+| 109-114 | `kick_addr_csr()` -> `H(f"CH{ch}_KICK_ADDR")` | `A(f"CH{ch}_CTRL_LOW")` (a STREAM reg now) |
+| 134-135 | `APB_CH_KICK_BASE` "kick-off via the kick block" | comment is stale; writes no longer kick |
+
+The working reference implementation is already written — copy its shape:
+`bin/harness_kick.py::batch_kick()` stages `CHx_CTRL_{LOW,HIGH}` then writes
+`KICK_ENABLE` once. `bin/stream_device.py` has `kick()` and `kick_many()`.
+
+## Why the kick changed
+
+`CHx_CTRL_{LOW,HIGH}` (0x000-0x03F) used to be write-only address-map placeholders
+with NO storage; the kick block snooped the raw APB command stream so the WRITE
+ITSELF kicked. Two consequences: the descriptor address was never readable state,
+and an 8-channel launch cost 8 APB-over-UART writes — channels started milliseconds
+apart, biasing every cross-channel measurement.
+
+Now: addresses are ordinary stored registers, launch is one write to
+**`KICK_ENABLE` @ 0x128** (eight 1-bit `singlepulse` fields KICK0..KICK7). One
+32-bit write starts every channel on the same clock edge.
+
+**0x128, not 0x040**, because 0x040-0x0FF is the perf profiler window in
+`cmdrsp_router` and 0x000-0x03F is exactly full at 8 x 64-bit.
+
+### The bug this already caused — do not re-introduce it
+
+`peakrdl_to_cmdrsp` holds `regblk_req` across CMD_IDLE -> CMD_WAIT_ACK (deliberate;
+the one-cycle variant broke every register read and was reverted). A PeakRDL
+`singlepulse` fires once per decoded write strobe, so a held request pulses KICKn
+**twice** and the channel launches twice — exactly 2x the descriptor's beats.
+Fixed by rising-edge detect in `stream_top_ch8`:
+`w_kick_edge = w_kick_pulse & ~r_kick_pulse_d`. A `singlepulse` field is only
+single-pulse if the adapter's request is single-cycle; nothing in the RDL says so.
+
+## State of everything else (all lint-clean, 0 errors)
+
+**Simulation is green at FULL sign-off**: fub 121, macro 635 (+3 skipped),
+top 44 (+1 xfailed) = **800 passed**, `run-all-full-parallel` OK in every area.
+
+| area | state |
+|---|---|
+| RTL kick path | done; the kick block + `i_kick_burst_*` removed from STREAM |
+| STREAM TB | `kick_off_channel()` launches; `kick_off_channels_together()` added |
+| Genesys host | `stream_device`, `harness_kick`, `characterization`, `stream_ext_suite`, `stream_ext_report` all repointed at KICK_ENABLE |
+| `harness_csr` | KICK_GO/CH_KICK_ADDR removed (803->746 lines); regmap regenerated, 75 regs |
+| `BUILD_CLK_HZ` | done AND verified on hardware: `0x101DC = 90000000`, `clk=90.0MHz` |
+| `comp_sram` | bridge slave @ 0x001A0000 (64 KB) + `sdpram_slave_axil_axil` wired in harness |
+| kick block | DELETED (640670341, 2026-09-18). The earlier note here claimed RAPIDS instantiated it twice as `u_kick_src`/`u_kick_snk` and said "do not delete" — that was STALE and wrong. Verified before deleting: zero module declarations, zero instantiation sites, all remaining references were comments, and both `rapids_beats_top` and `stream_top_ch8` elaborate clean without it. |
+
+## After the cosim imports again
+
+1. `make clean-all` (ALWAYS — see landmines) then run both UART suites at
+   `SIM_NUM_CHANNELS=8` to match the bitstream. Perf takes ~80 min; use
+   `OBS_EQUIV_SCALE=16` to shrink obs_equiv transfer size ONLY.
+2. Consider a cosim check for `comp_sram`: write the window, read it back. It is
+   wired but has never been exercised.
+3. Board: `make clean-all && make bitstream`, gate with
+   `build-mon/bin/check_observer_params.sh`, program via
+   `projects/fpga-systems/bin/program_fpga.tcl`, re-run the host checks.
+
+## Landmines (each cost real time this session)
+
+- **`make clean-all` before EVERY build/run, sim included.** Two debug iterations
+  returned byte-identical stale output and sent the investigation after an
+  imaginary bug.
+- **`clean-all` in `build-mon` also wipes tracked `fpga/bitstream` + `fpga/reports`.**
+  It destroyed a verified bitstream mid-session; rebuild before committing artifacts.
+- **Never verify build content from Vivado `get_cells -hier` or timing-path greps.**
+  Timing reports list only reported paths (CAM bank 2 has never appeared in any) and
+  synthesis inlines combinational blocks, so the error/timeout/compl cones are
+  invisible. Use `check_observer_params.sh` (Verilator `--xml-only` elaboration).
+- **A bridge slave in the TOML but missing from the connectivity CSV generates a
+  PORTLESS slot and exits 0.** Only tell: `Total: 13 slaves` vs
+  `Connectivity matrix: 12 slaves` in the regen log.
+- **Baseline before blaming.** Twice this session "surely pre-existing" was wrong;
+  `git stash` + rerun took minutes and changed the answer both times.
+- Regenerate regs only via `bin/peakrdl_generate.py`, passing
+  `--regmap-output .../rtl/stream_regmap.py` (RTL is consumed from
+  `regs/generated/rtl/` but DV/host read `rtl/stream_regmap.py`).
+
+## Board / environment
+
+Genesys 2 attached. JTAG `200300B818A0` — use target `...A0B`, the bare `...A0` has
+no chain. UART is a separate FT232R `AU05X8RM` on `/dev/ttyUSB0`. The board
+currently holds a **pre-kick-refactor** bitstream (8ch, all cones, 90 MHz).
+
+## Also filed
+
+`vault/tracking/projects/components/dma-ip/stream/task/open/` — tally decompression
+(LOW priority; `comp_sram` unblocks compression testing without it).
+
+---
+
+## OPEN 2026-08-31: observer write-side histogram total counts 1:1 with beats
+
+Found while verifying the ext_char burst-count fix on silicon. The plumbing is
+fixed (counts are no longer zero); this is about what one of them MEANS.
+
+Board, `4desc_4ch_1MB` (16 MB), window = 1,048,616 cycles ≈ the run's 1,048,623:
+
+    rd: prod=524288  bp=521197  starv=3131  idle=0
+    wr: prod=524284  bp=0       starv=524332 idle=0
+
+    histogram TOTAL (metric 10):
+      rd hist_metric=0 -> 32766      rd hist_metric=1 -> 32766
+      wr hist_metric=0 -> 524284     wr hist_metric=1 -> 0   (write has one metric)
+
+**Read reconciles exactly.** 32,766 bursts x 16 beats = 524,256 ~= 524,288
+productive. And 524,288 beats x 32 B = 16 MB, so the observer tap is 256-bit
+wide even though `BUILD_CONFIG.DATA_WIDTH_B` reports the DMA beat as 16 B --
+consistent with the observer sitting on the wide side of a width converter.
+
+**Write does not.** 524,284 "bursts" for 524,284 productive beats is 1 beat per
+burst, against a host config of `axi_beats wr=16`.
+
+The cosim gets 16:1 on the same metric: obs_equiv reports `wr AW->B: total=128`
+for a 2048-beat workload. So sim and board disagree on what the write AW->B
+histogram total counts.
+
+Two candidates, neither guessed at here:
+  a) the write histogram total counts beats where the read one counts
+     transactions -- an asymmetry in the observer's histogram plumbing; or
+  b) the board really is issuing single-beat write bursts, which would be a
+     performance finding in its own right (though `wr bp=0` and 95% of peak
+     throughput argue against it).
+
+Cheapest discriminator: read the per-bin histogram (metric 9) on the write side.
+Bursts and beats populate different latency bins, so the shape says which.
+
+NOT chased further because the observers are NOT under suspicion -- one rename
+commit since the last known-good build, zero to the regblock, zero to
+axi_bus_meter, and every other counter reconciles. This is a semantics question
+about one metric, not evidence of observer breakage.

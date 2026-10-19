@@ -28,6 +28,8 @@
 **Wrappers:** `cxs_master_monlite`, `cxs_slave_monlite` (`rtl/amba/cxs/`)
 **Status:** New (2026-10-15)
 
+**Plane:** protocol plane (lite CXS monitor)
+
 ---
 
 ## Overview

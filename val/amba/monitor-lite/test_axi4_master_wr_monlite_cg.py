@@ -1,4 +1,4 @@
-"""axi4_master_wr_monlite_cg: the clock-gated lite-monitor sibling of axi4_master_wr_mon_cg (amba/monitor-lite TASK-001).
+"""axi4_master_wr_monlite_cg: the clock-gated lite-monitor sibling of axi4_master_wr_mon_cg (rtl/amba/monitors TASK-001).
 Derived 2026-09-26 from val/amba/test_axi4_master_wr_mon_cg.py: same TB, same scenarios, clock gating
 left enabled underneath the traffic, the DUT swapped for the _monlite_cg wrapper and
 the full-monitor-only parameters (ENABLE_FILTERING) removed. The TB

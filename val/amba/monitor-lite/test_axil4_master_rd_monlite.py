@@ -1,4 +1,4 @@
-"""axil4_master_rd_monlite: the lite-monitor sibling of axil4_master_rd_mon (amba/monitor-lite TASK-001).
+"""axil4_master_rd_monlite: the lite-monitor sibling of axil4_master_rd_mon (rtl/amba/monitors TASK-001).
 
 Derived 2026-09-26 from val/amba/test_axil4_master_rd_mon.py: same TB, same scenarios,
 the DUT swapped for the _monlite wrapper and the full-monitor-only parameters

@@ -1,4 +1,4 @@
-"""axi_monitor_lite through the axi4_slave_{rd,wr}_monlite wrappers (amba/monitor-lite TASK-001).
+"""axi_monitor_lite through the axi4_slave_{rd,wr}_monlite wrappers (rtl/amba/monitors TASK-001).
 Exact packets for completions, a SLVERR, a stalled slave, an active-count
 threshold and a held monbus. See bin/TBClasses/amba/monitor_lite/axi_monitor_lite_tb.py."""
 import os

@@ -28,6 +28,8 @@
 **Category:** Core Infrastructure
 **Status:** Production Ready
 
+**Plane:** protocol plane (full monitor core; the lite variant is [axi_monitor_lite](axi_monitor_lite.md))
+
 ---
 
 ## Overview

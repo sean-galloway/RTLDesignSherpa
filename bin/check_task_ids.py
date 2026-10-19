@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Task-tracker integrity check for vault/Tasks/.
+"""Task-tracker integrity check for vault/tracking/.
 
 Three failure modes this catches, all of which have actually happened:
 
@@ -28,7 +28,7 @@ can be enforcing from day one without forcing a risky renumber of closed
 history (renumbering breaks existing wikilinks). Anything NEW fails.
 
 `--area` and `--next` name an area by bare name or by path under
-vault/Tasks/. Both USED TO ACCEPT ANYTHING: a name matching no area reported
+vault/tracking/. Both USED TO ACCEPT ANYTHING: a name matching no area reported
 "check passed (0 area(s))" with rc=0, and --next INVENTED an ID from the
 string it was handed -- `--next totally-made-up` printed
 TOTALLY-MADE-UP-001, and `--next RLB/hpet` printed RLB/HPET-001, a prefix
@@ -43,7 +43,7 @@ its five lanes.
 Usage:
     bin/check_task_ids.py                 # check every area
     bin/check_task_ids.py --area pumice   # one area (its pages AND its lanes)
-    bin/check_task_ids.py --area RLB/hpet # a sub-area: every lane beneath it
+    bin/check_task_ids.py --area rtl/amba/monitors # a sub-area: every lane beneath it
     bin/check_task_ids.py --next pumice   # print the next free ID and exit
 """
 from __future__ import annotations
@@ -131,7 +131,7 @@ def repo_root() -> pathlib.Path:
 
 
 # The tracker root actually being checked. Normally the worktree's
-# vault/Tasks; in hook context a materialised copy of the index being committed
+# vault/tracking; in hook context a materialised copy of the index being committed
 # (see tracker_tree). Area labels are relative to THIS, not to the worktree, or
 # they silently degrade to a bare lane name -- and 18 directories are called
 # `task`, so "task: DUPLICATE ID TASK-001" names nothing.
@@ -139,14 +139,14 @@ TASKS_ROOT: Optional[pathlib.Path] = None
 
 
 def tracker_tree(override: Optional[str] = None) -> tuple[pathlib.Path, Optional[str]]:
-    """-> (vault/Tasks to check, tempdir to clean up or None).
+    """-> (vault/tracking to check, tempdir to clean up or None).
 
     `override` (--tasks-root) points the checker at any tracker tree, which is
     how you ask "what did I actually COMMIT?" -- materialise a commit and check
     that, rather than the worktree you happen to be sitting on:
 
         git worktree add --detach /tmp/wt <sha>
-        python3 bin/check_task_ids.py --tasks-root /tmp/wt/vault/Tasks
+        python3 bin/check_task_ids.py --tasks-root /tmp/wt/vault/tracking
 
     That is the procedure that caught BUG-014, and it was a hand-rolled
     incantation until this flag existed.
@@ -188,22 +188,22 @@ def tracker_tree(override: Optional[str] = None) -> tuple[pathlib.Path, Optional
         return p, None
     root = repo_root()
     if not os.environ.get("GIT_INDEX_FILE"):
-        return root / "vault" / "Tasks", None
+        return root / "vault" / "tracking", None
 
     tmp = tempfile.mkdtemp(prefix="check_task_ids-")
-    ls = subprocess.run(["git", "ls-files", "-z", "--", "vault/Tasks"],
+    ls = subprocess.run(["git", "ls-files", "-z", "--", "vault/tracking"],
                         cwd=root, capture_output=True)
     if ls.returncode == 0 and ls.stdout:
         subprocess.run(["git", "checkout-index", "-z", "--stdin",
                         f"--prefix={tmp}/"],
                        cwd=root, input=ls.stdout, capture_output=True)
-    cand = pathlib.Path(tmp) / "vault" / "Tasks"
+    cand = pathlib.Path(tmp) / "vault" / "tracking"
     if not cand.is_dir():
         # The index holds no tracker files at all. Fall back rather than report
         # 0 areas: a checker that silently covers nothing is the failure mode
         # this file warns about at the top.
         shutil.rmtree(tmp, ignore_errors=True)
-        return root / "vault" / "Tasks", None
+        return root / "vault" / "tracking", None
     return cand, tmp
 
 
@@ -341,7 +341,7 @@ LANE_PREFIX = {"task": "TASK", "bug": "BUG", "issue": "ISSUE"}
 
 
 def area_label(area: pathlib.Path) -> str:
-    """Report an area by its path under vault/Tasks, not its bare name.
+    """Report an area by its path under vault/tracking, not its bare name.
 
     Lanes made `.name` ambiguous: 18 directories are called `bug`, 18 `issue`
     and 18 `task`, so "bug: DUPLICATE ID BUG-004" named nothing. The label is
@@ -350,7 +350,7 @@ def area_label(area: pathlib.Path) -> str:
     """
     try:
         return str(area.relative_to(TASKS_ROOT if TASKS_ROOT is not None
-                                    else repo_root() / "vault" / "Tasks"))
+                                    else repo_root() / "vault" / "tracking"))
     except (ValueError, TypeError):
         return area.name
 
@@ -371,7 +371,7 @@ def check_area(area: pathlib.Path) -> tuple[list[str], list[str]]:
     errs += level_errs
 
     # A directory with no numbered task headings is not a task AREA -- e.g.
-    # vault/Tasks/projects/ holds handoff documents. Demanding an INDEX and a
+    # vault/tracking/projects/ holds handoff documents. Demanding an INDEX and a
     # Next ID line there is a false positive, and a checker that cries wolf
     # gets bypassed.
     if not ids:
@@ -465,7 +465,7 @@ def main() -> int:
     ap.add_argument("--next", metavar="AREA",
                     help="print the next free ID for AREA and exit")
     ap.add_argument("--tasks-root", metavar="DIR", default=None,
-                    help="check this vault/Tasks tree instead of the worktree's "
+                    help="check this vault/tracking tree instead of the worktree's "
                          "(e.g. a detached worktree at some commit, to ask what "
                          "that commit actually contains)")
     args = ap.parse_args()
@@ -479,7 +479,7 @@ def main() -> int:
         # of them would litter /tmp on every commit.
         atexit.register(shutil.rmtree, tmpdir, ignore_errors=True)
     # An AREA is any directory holding task pages, at ANY depth -- not just the
-    # top level. `vault/Tasks/projects/components/**` nests two and three deep,
+    # top level. `vault/tracking/projects/components/**` nests two and three deep,
     # and a top-level-only scan silently skipped six areas: it reported "13
     # areas" while 19 existed, so 14 mis-levelled headings and every ID in
     # those areas went unchecked (2026-09-14). A checker that quietly covers
@@ -511,7 +511,7 @@ def main() -> int:
                 or str(a.relative_to(tasks)).startswith(want + "/")]
 
     def no_match(flag: str, want: str) -> int:
-        print(f"{flag} {want!r} matched no area under vault/Tasks/.",
+        print(f"{flag} {want!r} matched no area under vault/tracking/.",
               file=sys.stderr)
         near = [r for r in sorted(known)
                 if want.strip("/").lower() in r.lower()]
@@ -591,7 +591,7 @@ def main() -> int:
         print(f"Task-tracker check FAILED ({len(errs)} issue(s)):\n", file=sys.stderr)
         for e in errs:
             print(f"  - {e}", file=sys.stderr)
-        print("\nSee vault/Tasks/INDEX.md for the ID convention.", file=sys.stderr)
+        print("\nSee vault/tracking/INDEX.md for the ID convention.", file=sys.stderr)
         return 1
     print(f"Task-tracker check passed ({len(areas)} area(s))")
     return 0

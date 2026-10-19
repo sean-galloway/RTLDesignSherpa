@@ -1,0 +1,26 @@
+<!-- Managed by the `tasks` convention: see /vault/tracking/INDEX.md. -->
+
+# bridge — issues
+
+**Next ID: ISSUE-002** — never recycle a number, even when its item closed.
+
+An observed problem that is not yet a diagnosed defect or a decided piece of work: an anomaly, a risk, an open question. It RESOLVES INTO a bug, a task, or a recorded no-action.
+
+Each item is **its own file**, `<ID>.md`, inside the directory for its state.
+Moving an item between states is `git mv`, so an item is in exactly one state
+by construction rather than by discipline.
+
+| State | Count | What |
+|---|---|---|
+| [open/](open/) | 0 | accepted, not started |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 1 | done (kept for history) |
+| [dropped/](dropped/) | 0 | ended without completing |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
+
+## Open
+
+
+## Closed
+
+- **ISSUE-001** — bridge_stream_char_axil.toml stopped generating on 2026-09-11 (BRIDGE-014 rule vs id_width=8 on two AXI-Lite masters); config fixed, regenerated, repo-wide consumer-config gate added. Closed 2026-09-26.

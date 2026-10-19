@@ -28,6 +28,8 @@
 **Category:** Core Infrastructure
 **Status:** Production Ready (Formally Verified)
 
+**Plane:** protocol plane (AXI address-range filter; used by both full and lite monitors)
+
 ---
 
 ## Overview

@@ -36,7 +36,7 @@ form -- `pumice-ddr2-lpddr2`, not `pumice` and not `ddr2-lpddr2`.
 
 **That compound form is the canonical name for the IP everywhere a directory
 names one**: the component directory here, the task area
-(`vault/Tasks/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/`) and the knowledge-note mirror. Before
+(`vault/tracking/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/`) and the knowledge-note mirror. Before
 2026-09-28 the three siblings were named three different ways, so a new area had
 no way to tell which was intended -- see tooling ISSUE-002. The bare codename is
 still how an IP is referred to in prose ("pumice reaches 95% of peak"); it is the
@@ -81,7 +81,7 @@ rather than restating it. Start at
 [`common-ip/docs/INDEX.md`](common-ip/docs/INDEX.md).
 
 Per-IP detail is in each directory's `CLAUDE.md` and `PRD.md`; the DDR3/DDR4
-mode roadmap is `vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md`.
+mode roadmap is `vault/tracking/projects/components/mem-ctrl-ip/memory-controllers/ADVANCED_MODES_ROADMAP.md`.
 
 See [`../dma-ip/stream/README.md`](../dma-ip/stream/README.md) for the per-component
 layout convention this directory follows.

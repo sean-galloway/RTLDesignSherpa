@@ -75,7 +75,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **Tasks** - none tracked. The vault area was deleted 2026-09-27: hive has no .sv,
   no tests and no filelists, so its 24 open items described work that had not begun.
-  They are in git history at `vault/Tasks/projects/components/compute-eng-ip/hive-serv/`.
+  They are in git history at `vault/tracking/projects/components/compute-eng-ip/hive-serv/`.
 
 > **History note:** the earlier `docs/hive_spec/` + `docs/hive_specification.md`
 > drafts (v0.3) were migrated into the HAS/MAS and retired 2026-10-12; they remain

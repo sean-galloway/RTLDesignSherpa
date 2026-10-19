@@ -48,6 +48,13 @@ its queue is genuinely full it counts the loss and reports the count in one
 silently; the consumer always knows how many events it did not see, which
 is the property a filtering strategy can be built on.
 
+> **Plane framing:** Filtering happens in two planes. The wrapper-level
+> enable pins (`cfg_error_enable`, `cfg_compl_enable`, ...) are protocol-plane
+> knobs that stop packets from being generated; the group-level type and event
+> masks are output-plane knobs that drop already-generated packets. Use both,
+> but prefer stopping at the source. See
+> [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 ![Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take](../../assets/rtl-amba-monitors/graphviz/monitor_wp_filtering.png)
 
 ## References

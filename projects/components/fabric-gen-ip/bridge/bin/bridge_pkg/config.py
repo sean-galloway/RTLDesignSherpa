@@ -16,7 +16,7 @@ MON_PRESETS = {
     "error_only": {"error": True,  "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
     "functional": {"error": True,  "timeout": True,  "compl": True,  "threshold": False, "perf": False, "debug": False},
     "none":       {"error": False, "timeout": False, "compl": False, "threshold": False, "perf": False, "debug": False},
-    # amba/monitor-lite TASK-001: the _monlite wrappers (axi_monitor_lite inside the same core wrappers).
+    # rtl/amba/monitors TASK-001: the _monlite wrappers (axi_monitor_lite inside the same core wrappers).
     # Since 2026-09-26 this is what EVERY preset resolves to (see get_mon_enables);
     # the other names are accepted aliases so existing configs keep loading.
     # Error, timeout, completion and the active-count threshold are what the

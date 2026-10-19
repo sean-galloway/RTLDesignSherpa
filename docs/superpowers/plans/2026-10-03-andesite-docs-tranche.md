@@ -35,7 +35,7 @@
 ### Task 1: Vault lane + family docs seed
 
 > **Amended 2026-10-04 (executing):** the vault area already exists —
-> `vault/Tasks/andesite-ddr4-lpddr4/`, top level, scaffolded 2026-09-28 — and
+> `vault/tracking/andesite-ddr4-lpddr4/`, top level, scaffolded 2026-09-28 — and
 > TASK-001 is taken (the advanced-modes survey, 2026-09-29). Per the SDD
 > ledger ruling, the four docs tasks file as TASK-002..005, the DFI-4.0
 > citation suffix is `§TBC(TASK-005)`, and Tasks 7/10/12 close
@@ -43,10 +43,10 @@
 > `projects/components/mem-ctrl-ip/`.
 
 **Files:**
-- Verify existing (do not recreate): `vault/Tasks/andesite-ddr4-lpddr4/task/{open,active,closed,dropped,deferred}/.gitkeep` and `task/open/TASK-000.md` (scaffolded 2026-09-28)
-- Create: `vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-002.md` (HAS + family docs seed), `TASK-003.md` (MAS), `TASK-004.md` (kmaps), `TASK-005.md` (DFI 4.0 BFM study)
-- Modify: `vault/Tasks/andesite-ddr4-lpddr4/task/INDEX.md` (Next ID TASK-006; open count 5; list TASK-001..005)
-- Modify: `vault/Tasks/andesite-ddr4-lpddr4/INDEX.md` (area rollup; Next ID TASK-006; open shortlist)
+- Verify existing (do not recreate): `vault/tracking/andesite-ddr4-lpddr4/task/{open,active,closed,dropped,deferred}/.gitkeep` and `task/open/TASK-000.md` (scaffolded 2026-09-28)
+- Create: `vault/tracking/andesite-ddr4-lpddr4/task/open/TASK-002.md` (HAS + family docs seed), `TASK-003.md` (MAS), `TASK-004.md` (kmaps), `TASK-005.md` (DFI 4.0 BFM study)
+- Modify: `vault/tracking/andesite-ddr4-lpddr4/task/INDEX.md` (Next ID TASK-006; open count 5; list TASK-001..005)
+- Modify: `vault/tracking/andesite-ddr4-lpddr4/INDEX.md` (area rollup; Next ID TASK-006; open shortlist)
 - Create: `projects/components/mem-ctrl-ip/docs/INDEX.md`
 - Create: `projects/components/mem-ctrl-ip/docs/01_mem_ctrl_pkg.md`
 - Create: `projects/components/mem-ctrl-ip/docs/02_family_doctrine.md`
@@ -61,12 +61,12 @@
 
 - [ ] **Step 2: Write the family docs seed.** `01_mem_ctrl_pkg.md`: the family memtype design — pumice's one-bit enum (`pumice_pkg.sv:26-28`), scoria's recorded two-bit intent (`scoria_pkg.sv:13-18`), and the resolution: six members need three bits, so the family enum is one LP axis bit plus a two-bit generation field, values assigned; shared timing-struct inventory (named, not fielded); the scoria/pumice migration plan with conditions; recorded deferral to andesite RTL bring-up. `02_family_doctrine.md`: config-not-param; maintenance request/grant never-preempt; AXI4 host-side shape; marking semantics; the evidentiary rule. `INDEX.md`: the ownership rule (family docs own what no single controller owns). 03/04: purpose paragraph + pointers only (v0.1 stubs, marked as such).
 
-- [ ] **Step 3: Verify.** Run: `python3 bin/check_task_ids.py` → PASS; `grep -c "Next ID: TASK-006" vault/Tasks/andesite-ddr4-lpddr4/INDEX.md vault/Tasks/andesite-ddr4-lpddr4/task/INDEX.md` → 2 matches.
+- [ ] **Step 3: Verify.** Run: `python3 bin/check_task_ids.py` → PASS; `grep -c "Next ID: TASK-006" vault/tracking/andesite-ddr4-lpddr4/INDEX.md vault/tracking/andesite-ddr4-lpddr4/task/INDEX.md` → 2 matches.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add vault/Tasks/andesite-ddr4-lpddr4 projects/components/mem-ctrl-ip/docs projects/components/mem-ctrl-ip/README.md
+git add vault/tracking/andesite-ddr4-lpddr4 projects/components/mem-ctrl-ip/docs projects/components/mem-ctrl-ip/README.md
 git commit -m "docs(tasks): file andesite TASK-002..005; docs(mem-ctrl-ip): family docs seed (mem_ctrl_pkg design, doctrine, INDEX)"
 ```
 
@@ -205,7 +205,7 @@ git commit -m "docs(andesite): HAS ch05 -- parameters, andesite_pkg content, mem
 - [ ] **Step 3: Assemble + gates.** Index status updated; `python3 bin/check_task_ids.py` PASS; mermaid figure source valid (fence-only is acceptable — the pipeline renders at build time); commit:
 
 ```bash
-git add projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_has vault/Tasks/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4
+git add projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4/docs/andesite_has vault/tracking/projects/components/mem-ctrl-ip/andesite-ddr4-lpddr4
 git commit -m "docs(andesite): HAS ch06 + assembly -- verification strategy, open questions, v0.1 book complete"
 ```
 

@@ -592,7 +592,7 @@ clean:              ## Remove Vivado artifacts, reports and the bitstream
 # these -- `clean` only removes Vivado artifacts -- so anyone wanting a cold
 # cosim typed `rm -rf .../local_sim_build` by hand, which is precisely the
 # blunt recursive delete that has taken out other sessions' in-flight builds
-# (vault/Tasks/amba/open.md). Having the target exist is most of the fix: the
+# (vault/tracking/rtl/amba/open.md). Having the target exist is most of the fix: the
 # hand-rolled command was written because there was nothing to call.
 .PHONY: clean-build
 clean-build:        ## Remove cosim Verilator build trees (skips live runs)

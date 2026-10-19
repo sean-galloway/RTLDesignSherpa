@@ -305,7 +305,7 @@ class Axi4TimingWrapper:
         # Every monitored wrapper is the _monlite sibling (Sean, 2026-09-26: the
         # bridge swaps the old monitors out entirely): the same core and taps
         # with axi_monitor_lite, and only the cfg/status ports the lite honours
-        # (amba/monitor-lite TASK-001). The full _mon wrappers remain for
+        # (rtl/amba/monitors TASK-001). The full _mon wrappers remain for
         # consumers outside the bridge generator.
         self.is_lite = bool(mon)
         suffix = '_monlite' if self.is_lite else ('_mon' if mon else '')

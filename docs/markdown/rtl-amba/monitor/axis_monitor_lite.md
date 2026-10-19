@@ -25,7 +25,9 @@
 **Module:** `axis_monitor_lite.sv`
 **Location:** `rtl/amba/ocelus/axis_monitor_lite.sv`
 **Category:** Monitor Infrastructure
-**Status:** Built, formally checked and verified in simulation, with the eight `axis{4,5}_{master,slave}_monlite[_cg]` wrappers (amba/monitor-lite TASK-003, closed 2026-09-27). Standalone area from yosys only; no Vivado fixture build yet.
+**Status:** Built, formally checked and verified in simulation, with the eight `axis{4,5}_{master,slave}_monlite[_cg]` wrappers (rtl/amba/monitors TASK-003, closed 2026-09-27). Standalone area from yosys only; no Vivado fixture build yet.
+
+**Plane:** protocol plane (lite AXI-Stream monitor)
 
 ---
 
@@ -148,7 +150,7 @@ packet leaves the block one cycle after its cause, plus queue occupancy.
 Until 2026-09-29 all of that happened in the deciding cycle, which chained
 the age and stall compares into the pick, the payload mux and the drop-count
 adder -- 16 to 19 logic levels, 10.4 ns on an Artix-7 -1 -- and the block
-missed 10 ns on that part (monitor-lite ISSUE-003). The AXI lite made the
+missed 10 ns on that part (rtl/amba/monitors ISSUE-003). The AXI lite made the
 same split the day before.
 
 ### Drop and count

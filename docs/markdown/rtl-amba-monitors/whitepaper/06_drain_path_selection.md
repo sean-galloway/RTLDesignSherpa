@@ -36,6 +36,12 @@ errors and timeouts to the interrupt path and everything else to the trace
 ring; a debug session flips completions over to the error FIFO for a while
 and reads them one at a time.
 
+> **Plane framing:** Drain-path selection is an output-plane decision:
+> `monbus_group_core` steers each packet type to the interrupt/read FIFO or
+> the master-write ring. The protocol and reporter planes only emit typed
+> packets; they do not know which drain will consume them. See
+> [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 ![Drain paths: error FIFO with interrupt, write FIFO into the memory ring](../../assets/rtl-amba-monitors/graphviz/monitor_wp_drains.png)
 
 ## References

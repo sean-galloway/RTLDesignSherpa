@@ -5,7 +5,7 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: tb_axi4ace_snoop_monitor_lite
-// Purpose: Test fixture for axi4ace_snoop_monitor_lite (amba/monitor-lite).
+// Purpose: Test fixture for axi4ace_snoop_monitor_lite (rtl/amba/monitors).
 //          The monitor only taps handshakes and a few fields; the full ACE
 //          snoop signal set is exposed so both the snoop-master BFM (issue)
 //          and the snoop-slave BFM (responder) can bind with prefix='m_axi_'.

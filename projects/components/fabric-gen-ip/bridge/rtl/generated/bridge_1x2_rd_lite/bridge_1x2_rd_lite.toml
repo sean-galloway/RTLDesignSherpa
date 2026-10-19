@@ -1,4 +1,4 @@
-# Bridge Configuration: bridge_1x2_rd with the LITE monitors (amba/monitor-lite TASK-001).
+# Bridge Configuration: bridge_1x2_rd with the LITE monitors (rtl/amba/monitors TASK-001).
 #
 # Same fabric as bridge_1x2_rd. Filed 2026-09-25 as the fixture that measured
 # axi_monitor_lite against the full monitor (same ports, a fifth of the gates,
@@ -9,7 +9,7 @@
 [bridge]
 name = "bridge_1x2_rd_lite"
 variants = ["no", "mon"]
-description = "1 master x 2 slave read-only bridge, monitors are axi_monitor_lite (mon_preset = lite, amba/monitor-lite TASK-001)"
+description = "1 master x 2 slave read-only bridge, monitors are axi_monitor_lite (mon_preset = lite, rtl/amba/monitors TASK-001)"
 # Monitors: every monitored port builds axi_monitor_lite through the _monlite
 # wrapper (2026-09-26). The cone presets and per-port mon_add/mon_remove this
 # file once carried no longer select hardware; which packets a port emits is

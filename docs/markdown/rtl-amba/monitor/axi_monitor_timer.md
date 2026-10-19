@@ -27,6 +27,8 @@
 **Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
+**Plane:** protocol plane (latency timer; used by both full and lite monitors)
+
 ---
 
 ## Overview

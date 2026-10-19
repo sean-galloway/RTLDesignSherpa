@@ -62,7 +62,7 @@ closes the implementation decisions the HAS deferred.
   boundary reset-sync per the
   [BKM](../docs/BKM_boundary_reset_sync.md) (`003773645`). The bug board
   (BUG-001/002/003) is fully closed as of 2026-10-15 — see
-  `vault/Tasks/amber/bug/`.
+  `vault/tracking/formal/amber/bug/`.
 
 ## What it teaches / why it exists
 

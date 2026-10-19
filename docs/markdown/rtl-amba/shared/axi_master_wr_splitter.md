@@ -43,7 +43,7 @@ The write half of the splitter pair earns its keep. Splitting a boundary-crossin
   final response combinationally (`fub_bresp = w_is_final_response ?
   w_resp_with_current : OKAY`), so an error on the LAST split is included --
   the historical error-on-last-reads-as-success defect was fixed and
-  mutation-proven with the splitter cluster (vault/Tasks/amba)
+  mutation-proven with the splitter cluster (vault/tracking/rtl/amba)
 - WLAST regeneration for split boundaries
 - Zero added latency for non-split transactions
 - Full AXI4 protocol compliance with user extensions

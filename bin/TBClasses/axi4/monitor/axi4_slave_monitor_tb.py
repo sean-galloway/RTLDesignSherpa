@@ -16,7 +16,7 @@
 """
 AXI4 Slave Monitor Integration Testbench
 
-Reusable testbench # The lite-monitor wrappers (*_monlite, amba/monitor-lite TASK-001) carry only
+Reusable testbench # The lite-monitor wrappers (*_monlite, rtl/amba/monitors TASK-001) carry only
 # the cfg ports the lite honours; every cfg write below is guarded by hasattr so
 # one TB drives both the _mon and the _monlite wrapper (2026-09-26).
 class for testing AXI4 slave modules with integrated monitors.

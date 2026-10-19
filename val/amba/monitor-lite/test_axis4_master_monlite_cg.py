@@ -1,4 +1,4 @@
-"""axis4_master_monlite_cg -- the AXI4-Stream master endpoint with the lite stream monitor, clock gated (amba/monitor-lite TASK-003).
+"""axis4_master_monlite_cg -- the AXI4-Stream master endpoint with the lite stream monitor, clock gated (rtl/amba/monitors TASK-003).
 Same exact-packet suite as the bare core (AxisMonitorLiteTB) driven end to end
 through the endpoint: framework AXIS master BFM on fub_axis_*, slave BFM on m_axis_*,
 MonbusSlave on the monitor bus; plus the clock-gating phase (idle gates, a packet wakes and is reported exactly, idle re-gates)."""

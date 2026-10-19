@@ -26,7 +26,7 @@ The `erasure` sequence was run on the Genesys 2 board:
 ## TASK-005 boundary
 
 The f = 2t case is the known open issue TASK-005
-(`vault/Tasks/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`):
+(`vault/tracking/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`):
 the B-stage `t_zero` bypass intends to pass f = 16, but the final verdict
 fires downstream. The f = t and f = 2t+1 paths are correct; the f = 2t path
 must be fixed in the component DV and then re-run on the board. This report

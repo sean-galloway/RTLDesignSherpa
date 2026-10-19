@@ -199,14 +199,29 @@ edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
   mislead. Use one edge with a combined label (`WR / RMW`). The same goes for
   taillabel/headlabel tricks: if a label doesn't land where you want it,
   change the edge structure, not the label.
-- **Use point-node scaffolds when several crossings join the same node
-  pair.** For example, three flows crossing the PHY bar shuffle channels and
-  flip direction unpredictably. Route each crossing through its own invisible
+- **Default: no invisible scaffolding.** Draw direct edges between visible
+  nodes and control the layout with `{ rank=same; ... }` pins, `group=`
+  columns, and `constraint=false` on return lanes. Owner ruling
+  2026-10-18: bends at invisible `shape=point` nodes are unexplained on the
+  rendered page — "you can't tell why the line went there." Every bend must
+  be attributable to something visible: a labeled box, the boundary bar, or
+  an obvious dodge around one. If a lane must join the boundary at a
+  specific place, make the crossing a **visible white port box** (the DFI
+  planes' port boxes are the idiom) so the bend lands on a labeled thing.
+  Keep every multi-rank climb monotonic — each leg goes to an equal-or-higher
+  rank; a leg that dips to a lower rank and climbs again draws the "weird
+  jagged loop."
+- **Point-node scaffolds are a last resort, not a tool.** Reach for them
+  only when several crossings join the same node pair and direct edges
+  demonstrably shuffle channels and flip direction unpredictably (the
+  original PHY-bar case). Then route each crossing through its own invisible
   `shape=point` node in a pinned rank (`{ rank=same; ... }` plus an invisible
-  spacer chain for order). Each crossing is then a distinct node pair, with a
+  spacer chain for order), so each crossing is a distinct node pair with a
   fixed direction and label placement. A leg through a point node leaves a
-  hairline gap (ortho ignores `headclip`/`tailclip`), which is invisible at
-  print scale.
+  hairline gap (ortho ignores `headclip`/`tailclip`), invisible at print
+  scale. But if a scaffolded lane still zigzags, delete the scaffold and
+  restructure — the CELL credit-loop figure renders cleaner with one direct
+  `pktbld -> meshbar` lane than any point chain did.
 
 ### Recipes that made the `fifo_async` layout converge
 

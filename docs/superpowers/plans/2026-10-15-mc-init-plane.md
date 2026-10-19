@@ -255,7 +255,7 @@ git commit --no-verify -m "mc_training_plane: runtime ZQ + DQ cal macro DV (TASK
 - Create: `projects/components/mem-ctrl-ip/common-ip/docs/common_mas/chXX_init_plane/01_mc_init_plane.md` (chapter number follows existing `common_mas` layout)
 - Modify: `projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2/config/product_config.md`
 - Modify: `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_has/ch02_overview/06_what_moved_to_common.md` (+ init-sequences chapter for the LP MR CSRs)
-- Modify: `vault/Tasks/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/task/open/TASK-042.md` (status note only; do not close)
+- Modify: `vault/tracking/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/task/open/TASK-042.md` (status note only; do not close)
 
 **Interfaces:**
 - Consumes: everything above.
@@ -285,7 +285,7 @@ Expected: all green.
 git add projects/components/mem-ctrl-ip/common-ip/docs \
         projects/components/mem-ctrl-ip/product-ip/granite-ddr2-lpddr2/config/product_config.md \
         projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/pumice_has \
-        vault/Tasks/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/task/open/TASK-042.md
+        vault/tracking/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/task/open/TASK-042.md
 git commit --no-verify -m "docs: mc_init_plane plane-stack/MAS/HAS updates + TASK-042 status note"
 ```
 

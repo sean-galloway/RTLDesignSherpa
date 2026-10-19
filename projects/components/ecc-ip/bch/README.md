@@ -24,7 +24,7 @@
 # Binary BCH Codec Component
 
 **Status:** RTL landed 2026-10-03 -- fub blocks (syndrome, key-equation solver, Chien search) + encoder/decoder macro cores, dv gate tests running; PRD v0.1, HAS v0.1 and MAS v0.1 alongside
-**Tracker:** `vault/Tasks/projects/components/ecc-ip/bch/` (TASK-005 is the RTL bring-up)
+**Tracker:** `vault/tracking/projects/components/ecc-ip/bch/` (TASK-005 is the RTL bring-up)
 
 ## What this is
 

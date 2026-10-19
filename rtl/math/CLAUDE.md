@@ -59,7 +59,7 @@ the same commit.
 
 Verification precedent for any change in this space: sweep DUT vs an
 exact-integer-product reference (exhaustive for fp8), then mutation-check --
-see the math BUG-003 (was MATH-007)/008 records in `vault/Tasks/math/closed.md`.
+see the math BUG-003 (was MATH-007)/008 records in `vault/tracking/rtl/math/closed.md`.
 
 ### Before adding a module here
 

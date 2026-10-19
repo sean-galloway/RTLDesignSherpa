@@ -40,13 +40,20 @@ and in place, from the bridge fixture with the bridge's parameters
 
 The lite bridge fixture meets 10 ns on the Artix-7 100T -1 since 2026-09-28
 (+0.366 ns), after the group planner and the lite's event stage were
-re-pipelined (amba ISSUE-001, monitor-lite ISSUE-002). The per-variant
+re-pipelined (amba ISSUE-001, rtl/amba/monitors ISSUE-002). The per-variant
 characterization -- every wrapper family, with and without clock gating,
 full against lite, on both parts, from one repeatable flow -- is
 [monitor/monitor_characterization.md](../../rtl-amba/monitor/monitor_characterization.md).
 Its headline: at default parameters the full AXI monitor is about 7,000
 LUTs and the lite about 1,100, and the lite meets 150 MHz on the Kintex-7
 with 0.8 ns or more to spare where the 16-slot full monitor does not.
+
+> **Plane framing:** Cost denominators are plane-shaped. The protocol-plane
+> monitor choice (full vs lite) dominates per-port area; the output-plane
+> group, compression and CAM options dominate the shared drain cost; and the
+> error, debug and perf reporter cones are paid for only when their
+> `ENABLE_*_LOGIC` parameters are set. See
+> [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
 
 ## References
 

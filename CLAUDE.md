@@ -189,7 +189,7 @@ projects/components/fabric-gen-ip/bridge/rtl/bridge_4x4_rw_xbar.sv  # WRONG!
 
 **Hand-written files (top level):**
 ```bash
-projects/components/fabric-gen-ip/bridge/rtl/bridge_cam.sv          # Hand-written CAM module
+projects/components/fabric-gen-ip/bridge/rtl/bridge_wr_rate_buf.sv  # Hand-written rate buffer
 projects/components/fabric-gen-ip/bridge/rtl/Makefile               # Build script
 ```
 
@@ -245,7 +245,7 @@ from TBClasses.shared.tbbase import TBBase
    NOT -- there is no `rtl/amba/PRD.md`, `rtl/common/PRD.md` or
    `rtl/math/PRD.md`, and there never has been.
 
-2. **Check the task tracker.** Work items live in `vault/Tasks/<area>/`, split
+2. **Check the task tracker.** Work items live in `vault/tracking/<area>/`, split
    into `open.md` / `active.md` / `closed.md` / `dropped.md` with an
    `INDEX.md` carrying the counts. Some components also keep a local
    `TASKS.md`; the `rtl/` subsystems do not.
@@ -456,7 +456,7 @@ demand rather than every session; invoke it before writing or changing a test.
   replaced with `make regen`, `--generate-tests` and `peakrdl_generate.py -o`,
   and widened from bridge-only to the two live generated families. Session
   startup pointed at `rtl/<subsystem>/PRD.md` and `TASKS.md`, which exist for
-  no subsystem; it points at `vault/Tasks/<area>/` now. The naming section
+  no subsystem; it points at `vault/tracking/<area>/` now. The naming section
   claimed "always `aresetn`" and "`i_clk` for common modules" -- measured, it
   is `clk`/`rst_n` in `rtl/common`, with zero of either.
 

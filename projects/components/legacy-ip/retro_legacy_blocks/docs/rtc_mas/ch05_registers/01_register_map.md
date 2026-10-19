@@ -457,7 +457,7 @@ Both of RLB TASK-010 (was RLB-010)'s deferred items have since landed: the share
 are verilator `-Wall` clean as of dc4ea9db7, and the counter-clock source mux
 is now `rtc_clk_mux`, which supplies a device glitchless cell on XILINX and
 SYNTH_PRAGMA and the original combinational mux everywhere else. RLB TASK-010 (was RLB-010) is tracked
-in `vault/Tasks/RLB/`.
+in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/`.
 
 ## History
 

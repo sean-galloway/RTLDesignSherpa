@@ -1,4 +1,4 @@
-"""axi4_slave_rd_monlite: the lite-monitor sibling of axi4_slave_rd_mon (amba/monitor-lite TASK-001).
+"""axi4_slave_rd_monlite: the lite-monitor sibling of axi4_slave_rd_mon (rtl/amba/monitors TASK-001).
 
 Derived 2026-09-26 from val/amba/test_axi4_slave_rd_mon.py: same TB, same scenarios,
 the DUT swapped for the _monlite wrapper and the full-monitor-only parameters

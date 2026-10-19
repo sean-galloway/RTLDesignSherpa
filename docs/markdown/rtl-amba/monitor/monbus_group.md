@@ -34,6 +34,8 @@
 **Category:** Monitor Bus → AXI / AXIL Aggregation
 **Status:** Production Ready
 
+**Plane:** output plane (family overview)
+
 ---
 
 ## Overview

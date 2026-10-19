@@ -36,6 +36,8 @@
 **Category:** Core Infrastructure
 **Status:** Production Ready (refactored to sub-blocks 2026-06-06)
 
+**Plane:** shared reporter infrastructure (not a plane; multiplexes the error, debug and perf reporter cones)
+
 ---
 
 ## Overview

@@ -77,7 +77,7 @@ known_issues/
 trackers moved (see the 2026-09-14 note above for the same failure); the
 directory count is what people read, so the file moves when the fix lands.
 
-Open work that is not a defect is tracked in `vault/Tasks/projects/components/dma-ip/rapids/`,
+Open work that is not a defect is tracked in `vault/tracking/projects/components/dma-ip/rapids/`,
 not here.
 
 ---

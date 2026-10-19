@@ -7,7 +7,7 @@ A few things are intentionally left in simulation or are still open:
   caught real harness bugs (dropped/duplicated beats under skewed drains)
   without costing a bitstream.
 - The erasure `f = 2t` boundary is a known open bug, filed as
-  `vault/Tasks/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`.
+  `vault/tracking/projects/components/ecc-ip/reed-solomon/task/open/TASK-005.md`.
   `f = t` corrects and `f = 2t + 1` refuses on the board; `f = 2t` is flagged
   uncorrectable even though the design intent says it should correct.
 - The component DV matrix — 195 cells per `TASK-001.md` — exercises the codec

@@ -28,6 +28,8 @@
 **Category:** AXI Monitor Infrastructure
 **Status:** Production Ready
 
+**Plane:** protocol plane (transaction CAM for the full monitor)
+
 ---
 
 ## Overview

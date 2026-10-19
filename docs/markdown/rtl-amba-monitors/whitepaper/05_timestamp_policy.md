@@ -42,6 +42,12 @@ Two directions are open to the integrator:
 Neither is prototyped; the hybrid form is the one this paper recommends
 when it is, because it needs no new field and no host-side re-basing.
 
+> **Plane framing:** The timestamp policy is set at the output plane's
+> `monbus_group` family today and stamped onto every packet that has already
+> passed through the protocol, error, debug and perf planes. A change here
+> reaches every plane, so keep the time base consistent across a build. See
+> [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 ![Timestamp policy: the group's local counter today, the hybrid time base as the tweak](../../assets/rtl-amba-monitors/graphviz/monitor_wp_timestamp.png)
 
 ## References

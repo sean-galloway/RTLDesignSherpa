@@ -58,7 +58,7 @@ BURST_WRAP  = 0b10
 
 
 def _drive(dut, pin, value):
-    """Drive `pin` if the DUT has it. axi_monitor_lite (amba/monitor-lite
+    """Drive `pin` if the DUT has it. axi_monitor_lite (rtl/amba/monitors
     TASK-002) has no cmd_size/cmd_burst and no perf, debug or per-channel
     timeout-count cfg; the full core has no cfg_timeout_cnt / cfg_axi_pkt_mask /
     cfg_addr_match_enable. Guarded writes let one TB drive both."""
@@ -536,7 +536,7 @@ def generate_test_params():
         (8, 64, 16, True,  True,  'combined'),  # 11. Combined stress
     ]
     base = [c + ('axi_monitor_base',) for c in curated]
-    # The lite (amba/monitor-lite TASK-002): the same six phases through the
+    # The lite (rtl/amba/monitors TASK-002): the same six phases through the
     # same TB. Every phase applies -- the lite emits completions, response
     # errors and orphans and takes the same handshakes -- so nothing is skipped
     # by class here; only the base-only cfg pins go undriven (see _drive).

@@ -27,7 +27,7 @@ The family directory for error-correction codecs, created 2026-09-29 when the
 Reed-Solomon component moved here from the `projects/components/` root (Sean).
 One IP per subdirectory, each with its own `README.md`, `PRD.md`, `CLAUDE.md`,
 `References/`, and -- when work starts -- `rtl/`, `dv/`, `docs/`. The task
-lanes mirror the path: `vault/Tasks/projects/components/ecc-ip/<ip>/`.
+lanes mirror the path: `vault/tracking/projects/components/ecc-ip/<ip>/`.
 
 | Directory | Code | Status |
 |---|---|---|

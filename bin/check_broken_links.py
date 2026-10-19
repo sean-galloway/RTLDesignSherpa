@@ -19,7 +19,7 @@ the page:
 3. docs/review/ -- archived reviewer output. It QUOTES what a page said at the
    time; rewriting a quoted link falsifies the record.
 4. Wikilinks. A dangling [[name]] in vault/ is a marker for a note worth
-   writing, not a broken link (vault/Tasks/INDEX.md; DOCREV-011 notes 36 of
+   writing, not a broken link (vault/tracking/INDEX.md; DOCREV-011 notes 36 of
    them and says to leave them). This checker never looks at [[...]].
 
 projects/ is NOT in that list. Those links are really broken, they are merely

@@ -13,7 +13,7 @@ This is **area context**, and it is the third of three things the vault holds:
 | Vault area | Holds | Answers |
 |---|---|---|
 | [handbook](../handbook/INDEX.md) | method and practice | "how do we do X here?" |
-| [Tasks](../Tasks/INDEX.md) | work items, with lifecycle | "what is in flight?" |
+| [tracking](../tracking/INDEX.md) | work items, with lifecycle | "what is in flight?" |
 | repo-wide-projects (this) | per-area durable context | "why is *this block* like this?" |
 
 Keep them apart. A rule that applies everywhere is a handbook note. A thing to
@@ -41,7 +41,7 @@ note — it belongs to that block and nowhere else.
 - `ecc-ip/reed-solomon` — v1.0 (2026-10-06); area exists in the repo, no context note written yet
 - [dma-ip/rapids](projects/components/dma-ip/rapids/INDEX.md) — beats rearchitecture; v1.0 (2026-10-06)
 - [dma-ip/stream](projects/components/dma-ip/stream/INDEX.md) — reference DV implementation; v1.0 (2026-10-06)
-- [hive-serv](../../projects/components/riscv-ip/hive-serv/PRD.md) — re-homed from compute-eng-ip/hive 2026-10-10
+- [hive-serv](../../projects/components/compute-eng-ip/hive-serv/PRD.md) — re-homed from compute-eng-ip/hive 2026-10-10
 - [mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/INDEX.md) — board-validated
 - [mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3](projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3/INDEX.md)
 - [andesite-ddr4-lpddr4](projects/components/mem-ctrl-ip/research-ip/andesite-ddr4-lpddr4/INDEX.md)
@@ -81,4 +81,4 @@ at. Nothing flagged it: the links still resolved, and the broken-link gate has
 no opinion about a page filed in the wrong place. A mirror that quietly stops
 mirroring is the exact failure this layout exists to prevent. Moving a note also
 changes its depth, so re-count the `../` prefixes on the `Code:`, handbook and
-Tasks links when you move one.
+tracking links when you move one.

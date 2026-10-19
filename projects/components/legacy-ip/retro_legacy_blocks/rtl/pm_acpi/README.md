@@ -334,7 +334,7 @@ runs on another clock.
 
 ## Not implemented
 
-Deferred work is recorded in `vault/Tasks/RLB/open.md` (RLB TASK-009, was RLB-009), not in a
+Deferred work is recorded in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/open.md` (RLB TASK-009, was RLB-009), not in a
 tracker next to the code. What is left there is out of scope rather than
 deferred: legacy replacement routing (IRQ0 timer, IRQ8 RTC) and processor
 C/P-state hints.

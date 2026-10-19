@@ -53,7 +53,7 @@ The five input classes the spec implies but no single task's obvious tests exerc
 
 **Files:**
 - Create: `.superpowers/sdd/2026-10-04-andesite-macro-integration/progress.md` (gitignored scratch, the P3 pattern — inherits the P3 ledger's rulings; per-task entries land here as Tasks 1–9 execute)
-- Create: `vault/Tasks/andesite-ddr4-lpddr4/task/open/TASK-016.md` (next ID per `bin/check_task_ids.py --next andesite-ddr4-lpddr4/task` — the checker burns any numeric appearing repo-wide, incl. pumice's TASK-013/014/015 tokens and an andesite RTL comment; TASK-016 is the first clean numeric. Move `open → active` when Task 1 starts, `→ closed` at Task 9)
+- Create: `vault/tracking/andesite-ddr4-lpddr4/task/open/TASK-016.md` (next ID per `bin/check_task_ids.py --next andesite-ddr4-lpddr4/task` — the checker burns any numeric appearing repo-wide, incl. pumice's TASK-013/014/015 tokens and an andesite RTL comment; TASK-016 is the first clean numeric. Move `open → active` when Task 1 starts, `→ closed` at Task 9)
 - Commit: this plan file
 
 - [ ] **Step 1:** Create the ledger with a header naming this plan + the P3 ledger as its spec, and the standing gotchas (env exports, pycache purge, trunk sweep checks, carry-gate paths).

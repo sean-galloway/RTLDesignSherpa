@@ -23,6 +23,11 @@
 
 # Aggregation topology
 
+> **Plane framing:** Aggregation topology is an output-plane decision — it
+> determines how protocol-plane sources are merged before they reach the
+> `monbus_group` drain. The packets themselves are unchanged by the tree
+> shape. See [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 | Topology | Block | When |
 |---|---|---|
 | **Tree of round-robin arbiters** (default) | `monbus_arbiter`, any fan-in, ACK-mode grants | ports of similar rate; simplest, fair |

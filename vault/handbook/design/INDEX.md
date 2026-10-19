@@ -5,6 +5,7 @@ summary: RTL rules with the failures that taught them.
 
 # Design
 
+- [[what-is-a-plane]] - purpose-sliced functional layers; repo-unifying definition, membership and edge contract
 - [[reset-and-clocking]] - reset macros, aresetn, clock conventions
 - [[clock-gating-activity-terms]] - wake on peer VALIDs + pending output work, never peer READY; !gating mask; emission latency vs idle count
 - [[cdc]] - crossing rules, gray pointers, handshakes

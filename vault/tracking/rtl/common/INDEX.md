@@ -1,0 +1,86 @@
+# common — task rollup
+
+**Next ID: COMMON-028** — never recycle a number, even when its task closed.
+
+## Lanes
+
+This area tracks three kinds of work, each a directory with its own INDEX and
+its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
+the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
+Pick the lane before filing:
+
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 13 | 2 | 1 |
+| [bug/](bug/INDEX.md) | 2 | 0 | 12 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
+
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../../INDEX.md) for the definitions.
+
+
+Canonical tracker for `rtl/common/` (~57 reusable building blocks).
+Migrated 2026-07-23 from `rtl/common/TASKS.md`.
+
+| Page | Count | What |
+|---|---|---|
+| active.md | 0 | in progress right now |
+| open.md | 2 | accepted, ready to start |
+| deferred.md | 1 | parked pending a named condition |
+| closed.md | 23 | done (kept for history) |
+| dropped.md | 2 | ended without completing |
+
+The library is a stable, mature baseline: all modules production-ready, 100%
+module test coverage, no blocking issues. Activity is maintenance, coverage and
+integration support.
+
+## Open shortlist
+
+- **COMMON-003** — CLOSED 2026-08-09: rescoped twice (Sean) and delivered as
+  `docs/markdown/rtl-integ-common/technique-index.md` — techniques mapped to
+  their real, tested worked examples in projects/ instead of toy designs
+  that would duplicate them. No new RTL by design; see the closed/ dirs
+- **COMMON-020** — CLOSED 2026-08-09: fifo_sync wavedrom now emits 4 diagrams
+  per config and asserts non-empty. Three stacked defects (no constraints,
+  wrong clock-group name, prefixed bindings) + the auto-draining FIFOSlave;
+  see the closed/ dirs
+- **COMMON-024** — CLOSED 2026-08-08: line-coverage gaps closed off the
+  93.3% baseline. Roughly 45% of the apparent gap was a Verilator artifact
+  (coverage points on declarations, which are not executable); the biggest
+  real gap was `counter_bin_load`'s dead `add_enable` path, now tested.
+  Filed as COMMON-021 and renumbered 2026-09-01 — that ID was already the
+  formal refresh below. See closed.md.
+- **COMMON-021** — CLOSED 2026-08-09 (same day): formal refresh — audit found
+  only 7/48 flat files repo-wide are current (common's is); all "prove-only"
+  and icg cover gaps had already closed (verified fresh, all covers reached);
+  bonus: all 147 math .sby were path-broken since the math split, repaired
+  (full re-run = MATH-006). See closed.md + formal/FORMAL_TODO.md.
+- **COMMON-010** — CLOSED 2026-08-09. The gap was "nothing enforces it"; CI now
+  hard-gates `--check` and `--audit`, and common carries zero exemptions.
+- **COMMON-016/017/018** — CLOSED 2026-08-05, fixed in the DV framework
+  (`registered_grant`, the `r_last_valid` mirror in the compliance replay, and
+  queued in-order ACKs). Both arbiter TBs now assert on the compliance verdict
+  with no exclusions. See closed.md.
+- **COMMON-019** — CLOSED 2026-08-07 (RTLDesignSherpa-DV#50). An ACK-mode grant
+  handed between clients without `grant_valid` dropping never retired the old
+  owner, so the model's mask lagged one grant forever. ACK mode now asserts on
+  the compliance verdict.
+- **COMMON-003** — integration examples (P2).
+- **COMMON-007** — DEFERRED (see deferred.md): only hierarchical (grouped
+  two-level composition) remains; un-defers when a consumer names its client
+  groups and fairness intent. DRR + token bucket slices SHIPPED and formally
+  proved (2026-08-09/10).
+- **COMMON-023** — CLOSED 2026-08-11: stale harness, not RTL. The RTL's
+  repeat off-by-one fix (Kimi round_2, 2026-07-23) never reached the shadow
+  FSM and the proof was never re-run — failing silently for 18 days. Shadow
+  repaired, prove+cover PASS, mutation-checked. See closed.md.
+- **COMMON-008** — CLOSED 2026-08-09: premise false — dataint_crc already
+  does CHUNKS = DATA_WIDTH/8 bytes per cycle (cascaded stages +
+  cascade_sel); default build is 8 bytes/cycle. See closed.md.
+- **COMMON-006** (parameterized adders/multipliers) and **COMMON-009**
+  (BCH/Reed-Solomon) DROPPED 2026-08-09 — generation stays the approach for
+  the former; R/S, if it happens, is a future `projects/components/ecc-ip/reed-solomon/`
+  component, not library work (see the dropped/ dirs tracked as RS-001).
+
+Practice and rationale live in the [handbook](../../../handbook/INDEX.md);
+this directory tracks *work* only. `/GLOBAL_REQUIREMENTS.md` wins on conflict.

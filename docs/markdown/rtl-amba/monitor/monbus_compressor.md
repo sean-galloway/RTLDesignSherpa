@@ -28,6 +28,8 @@
 **Category:** Bulk-Trace Compression
 **Status:** Production Ready
 
+**Plane:** output plane
+
 ---
 
 ## Overview

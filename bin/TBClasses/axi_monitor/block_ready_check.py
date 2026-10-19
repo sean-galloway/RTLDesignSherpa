@@ -71,7 +71,7 @@ both pass while commands are admitted with nowhere to go.
 
 THE LITE WRAPPERS INVERT THE CONTRACT
 ------------------------------------
-axi*_{master,slave}_{rd,wr}_monlite (amba/monitor-lite) has NO block_ready and
+axi*_{master,slave}_{rd,wr}_monlite (rtl/amba/monitors) has NO block_ready and
 never gates the command handshake: a command that finds no free entry is
 admitted untracked and COUNTED on the `refused_count` port. So the three layers
 become, for LiteRefuseCheck:

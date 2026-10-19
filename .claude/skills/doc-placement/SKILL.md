@@ -1,6 +1,6 @@
 ---
 name: doc-placement
-description: What kind of documentation lives where in this repo - handbook (method) vs docs/markdown (reader-facing) vs vault/Tasks (work) vs beside-code (CLAUDE.md, PRD). The rule that a beside-code README is a link, never a standalone guide, and that style guides / how-tos never live in the RTL tree. Use before creating, moving, or "tidying" any .md file, and when reviewing an area's meta-docs.
+description: What kind of documentation lives where in this repo - handbook (method) vs docs/markdown (reader-facing) vs vault/tracking (work) vs beside-code (CLAUDE.md, PRD). The rule that a beside-code README is a link, never a standalone guide, and that style guides / how-tos never live in the RTL tree. Use before creating, moving, or "tidying" any .md file, and when reviewing an area's meta-docs.
 ---
 
 # doc-placement

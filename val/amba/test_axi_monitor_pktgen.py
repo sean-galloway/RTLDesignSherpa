@@ -917,7 +917,7 @@ def test_axi_monitor_pktgen_timeout_starvation(request):
 
 
 # ---------------------------------------------------------------------------
-# The lite (amba/monitor-lite TASK-002): timeout under a sustained error flood.
+# The lite (rtl/amba/monitors TASK-002): timeout under a sustained error flood.
 # axi_monitor_pktgen_dut is the full monitor's reporter fed from a hand-built
 # table; the lite has no separable reporter, so this drives axi_monitor_lite's
 # own handshakes: one read (id 0) left without data so it times out, while

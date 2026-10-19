@@ -40,6 +40,19 @@ assignments live in [monitor_package_spec](../includes/monitor_package_spec.md).
 
 ---
 
+## Planes
+
+Ocelus is purpose-sliced into five [planes](monitor_planes.md): the
+**protocol plane** observes the bus and emits event packets; the **error**,
+**debug** and **perf** planes each consume those events independently and
+turn them into typed reporter packets; and the **output plane** arbitrates,
+filters, optionally compresses and drains whatever is kept off-chip. Each
+plane can be included or excluded at build time without rerouting the others.
+See the [Ocelus plane map](monitor_planes.md) for the full membership table,
+example build personas and the data-flow contract.
+
+---
+
 ## The one thing to understand first
 
 Everything is a `monitor_packet_t`: 128 bits, laid out identically no matter who

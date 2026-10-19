@@ -69,7 +69,7 @@ open under PRD D6.
 - Parameters are elaboration-time unless a decision says otherwise (RS D2
   precedent): no run-time t, no run-time m.
 - A parameter's OFF state gets its own test, never an assumption.
-- The task tracker mirrors this path: `vault/Tasks/projects/components/ecc-ip/bch/`.
+- The task tracker mirrors this path: `vault/tracking/projects/components/ecc-ip/bch/`.
 - Running the DV (2026-10-03, hard-won): the repo venv AND the simulator
   choice are both required — `export PATH="$REPO_ROOT/venv/bin:$PATH"` and
   `export SIM=verilator`. The icarus path is broken on this machine

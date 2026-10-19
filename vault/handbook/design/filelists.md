@@ -228,7 +228,7 @@ variant is parameter-selected: build BOTH arms.
 
 ## A new module VARIANT is three places, not one (2026-09-26)
 
-The `_monlite` wrappers (amba/monitor-lite TASK-001) were a suffix variant of
+The `_monlite` wrappers (rtl/amba/monitors TASK-001) were a suffix variant of
 sixteen existing `_mon` modules. Each got its RTL and its `.f`, the registry
 audit passed (193/193 covered), every wrapper linted clean -- and the first
 bridge built with them failed with MODMISSING, because the bridge generator

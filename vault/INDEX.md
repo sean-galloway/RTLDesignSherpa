@@ -1,6 +1,6 @@
 ---
 title: RTL Design Sherpa vault
-summary: The repo's knowledge vault - handbook (method), Tasks (work), repo-wide-projects (area context).
+summary: The repo's knowledge vault - handbook (method), tracking (work), repo-wide-projects (area context).
 ---
 
 # RTL Design Sherpa vault
@@ -12,7 +12,7 @@ root.
 | Area | Holds | Answers |
 |---|---|---|
 | **[handbook](handbook/INDEX.md)** | method and practice, as atomic wikilinked notes | "how do we do X here?" |
-| **[Tasks](Tasks/INDEX.md)** | work items with an open/active/closed/dropped lifecycle | "what is in flight?" |
+| **[tracking](tracking/INDEX.md)** | work items with an open/active/closed/dropped lifecycle | "what is in flight?" |
 | **[repo-wide-projects](repo-wide-projects/INDEX.md)** | one note per RTL subsystem and project, mirroring the repo tree | "why is *this block* like this?" |
 
 ## Which one does a thing go in?

@@ -13,7 +13,7 @@ Existing instances:
     projects/components/dma-ip/stream/docs/
         stream_signal_contracts.xlsx + gen_signal_contracts_kmaps.py
 
-TODO (tooling TASK-006 (was TOOLING-KMAP) step 5, vault/Tasks/tooling/open.md): the common generator machinery belongs in
+TODO (tooling TASK-006 (was TOOLING-KMAP) step 5, vault/tracking/tooling/open.md): the common generator machinery belongs in
 bin/ so the per-project scripts hold only their signal tables and mirrored
 expressions; two diverging copies is the known copy-paste failure mode.
 

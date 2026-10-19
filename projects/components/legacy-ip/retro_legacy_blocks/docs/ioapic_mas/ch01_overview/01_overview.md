@@ -290,7 +290,7 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
       alongside the destination; the local APICs do the matching)
 - [x] Round-robin arbitration behind `IOAPICARBCFG.rr_enable`
 
-**Feature history (RLB TASK-008 (was RLB-008), closed 2026-09-14 in `vault/Tasks/RLB/closed.md`):**
+**Feature history (RLB TASK-008 (was RLB-008), closed 2026-09-14 in `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/closed.md`):**
 - [x] LowestPriority delivery mode, delegated: the IOAPIC forwards the mode
       and the destination set, the local APICs arbitrate, and `irq_out_retry`
       carries a failed arbitration back so the interrupt is re-offered
@@ -316,9 +316,9 @@ When an IRQ arrives while masked, the IRR bit latches but delivery is blocked. U
 ### Related Documentation
 
 - `../../rtl/ioapic/README.md` - Block summary and verification entry point
-- `vault/Tasks/RLB/closed.md` - RLB TASK-008 (was RLB-008), the IOAPIC feature arc (closed)
+- `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/closed.md` - RLB TASK-008 (was RLB-008), the IOAPIC feature arc (closed)
 - `../../rtl/ioapic/README.md` - Register generation guide
-- `../../../../../../vault/Tasks/RLB/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
+- `../../../../../../vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/RLB_STATUS_AND_ROADMAP.md` - System-wide planning
 - 82093AA I/O APIC Datasheet
 
 ## Navigation

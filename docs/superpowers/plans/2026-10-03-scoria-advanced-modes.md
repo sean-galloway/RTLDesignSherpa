@@ -271,10 +271,10 @@ git commit -m "formal(scoria): TASK-001 refresh_ctrl modes re-proved (elastic/TC
 ### Task 8: Full gates, BUG-003 re-measure, vault close-out
 
 **Files:**
-- Modify: `vault/Tasks/scoria-ddr3-lpddr3/task/open/TASK-001.md` (→ closed)
-- Create: `vault/Tasks/scoria-ddr3-lpddr3/task/deferred/TASK-009.md`
-- Modify: `vault/Tasks/scoria-ddr3-lpddr3/task/INDEX.md`, `vault/Tasks/scoria-ddr3-lpddr3/INDEX.md`
-- Modify: `vault/Tasks/scoria-ddr3-lpddr3/bug/open/BUG-003.md` (measurement row only — stays open)
+- Modify: `vault/tracking/scoria-ddr3-lpddr3/task/open/TASK-001.md` (→ closed)
+- Create: `vault/tracking/scoria-ddr3-lpddr3/task/deferred/TASK-009.md`
+- Modify: `vault/tracking/scoria-ddr3-lpddr3/task/INDEX.md`, `vault/tracking/scoria-ddr3-lpddr3/INDEX.md`
+- Modify: `vault/tracking/scoria-ddr3-lpddr3/bug/open/BUG-003.md` (measurement row only — stays open)
 
 **Interfaces:**
 - Consumes: all prior tasks.
@@ -294,7 +294,7 @@ Expected: PASS both. Record the new test count for the vault note.
 - [x] **Step 5: Commit + push**
 
 ```bash
-git add vault/Tasks/scoria-ddr3-lpddr3
+git add vault/tracking/scoria-ddr3-lpddr3
 git commit -m "docs(scoria): close TASK-001, file deferred TASK-009, BUG-003 re-measured"
 git push origin main
 ```

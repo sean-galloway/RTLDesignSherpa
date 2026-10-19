@@ -186,7 +186,7 @@ The design scales linearly with timer count. Each additional timer adds approxim
 **Related Documentation:**
 - `../../PRD.md` - Product Requirements Document
 - `../../CLAUDE.md` - AI integration guide
-- `vault/Tasks/RLB/hpet/` - HPET task tracking (`vault/Tasks/RLB/` for cross-block)
+- `vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/` - HPET task tracking (`vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/` for cross-block)
 - `../IMPLEMENTATION_STATUS.md` - Test results and validation status
 
 ---

@@ -1,0 +1,112 @@
+# TASK-001: Site-wide audit: RTL correct, docs match, docs humanized, verification covers it
+
+> Migrated 2026-09-27 from `vault/tracking/site-audit/open.md` as **AUDIT-001** (tooling TOOL-001). The flat page did not record a lane; this item was placed by hand. Body preserved as written -- only the H1 and this line are new.
+**Status:** closed 2026-10-03 — user confirmed complete (worked July→late September)
+**Priority:** P1
+**Owner:** Sean / TBD
+
+One umbrella sweep over the whole repo, four parts. Run it area by area
+(rtl/common, rtl/math, rtl/amba, then projects/) so a bad area is contained;
+an area is only "audited" when all four parts have evidence on file for it.
+
+### Part 1 — the RTL itself is correct
+
+The RTL has had heavy validation already, so the expectation is FEW issues —
+a large findings count here is itself a signal that the method is wrong, not
+that the RTL is suddenly bad.
+
+- [ ] All regressions green at FULL level per area
+      ([[running-regressions]] — `make clean-all && make run-all-full-parallel`,
+      never bare pytest).
+- [ ] Formal proofs pass where they exist; gaps recorded for Part 4
+      ([[formal]]).
+- [ ] External correctness critique per area (Kimi `qc` rounds already
+      surface RTL defects, not just doc bugs — triage each CONFIRMED finding
+      as RTL-vs-doc, per [[kimi-review-rounds]]). Findings become tasks in
+      the OWNING area (amba/common/pumice/RLB), not here.
+
+### Part 2 — docs/markdown/* matches the RTL
+
+This is the correctness half of DOCREV-009, promoted: every `.md` in the
+area (index/readme/overview/quickstart + per-module pages) checked against
+the CURRENT tree, including the meta-docs where count/structure drift hides
+(the rtl/common 86-vs-55 case). Confirmed mismatches become DOCREV work.
+
+- [ ] Per-area correctness pass, measured against the tree.
+- [ ] Broken links fixed (DOCREV-011); every book has index.md +
+      overview.md (DOCREV-010).
+
+### Part 3 — humanize the docs
+
+Per `docs/kimi_humanization_style_guide.md` and [[humanization-voice]].
+Correctness FIRST, voice second — never humanize a doc that is known-wrong
+(the voice pass must not "improve" bad content). Covers ALL md, not just
+prose docs: index, readme, overview, module pages.
+
+- [ ] Per-area humanization pass after that area's Part 2 is clean.
+
+### Part 4 — verification has excellent coverage
+
+TB quality, coverage metrics, formal — per area:
+
+- [ ] Line/toggle coverage measured and the gaps triaged
+      ([[coverage]]; that backlog now lives in `vault/tracking/coverage/` —
+      COV-001 is the remaining rollout).
+- [ ] Functional coverage where it matters (e.g. the monbus packet-type
+      matrix).
+- [ ] Formal properties for the modules that warrant them
+      ([[formal]]; the `formal/FORMAL_TODO.md` backlog folds in here).
+- [ ] TB discipline holds: BFM usage, register access by name, seeds
+      recorded ([[bfm-usage]], [[registers-by-name]], [[seeds-and-determinism]]).
+
+### Gates and ordering
+
+- Parts 2-3 subsume **DOCREV-009** (which itself absorbed DOCREV-008); when
+  this task goes active, cut DOCREV-009's block here rather than running both.
+- Inherits DOCREV-009's gates, UPDATED 2026-07-28 for the corpus reset:
+  DOCREV-001 is dropped; the docs parts proceed area by area via DOCREV-013's
+  fresh rounds (order: cdc, common, math, amba, projects/components, then
+  assess fpga), each area starting with the four-line-Makefile check
+  (`rtl/make/area.mk` + `make/tests.mk` leaves). The README rollout
+  (DOCREV-007) settling the md set still gates humanization.
+  Off-workstation critique rounds need DOCREV-005.
+- Sequencing per the master Tasks INDEX: rtl/ areas before projects/.
+
+### Done looks like
+
+Per area: regressions green, formal green or gap-listed, docs measured
+against the tree with a near-empty findings round, docs humanized, coverage
+numbers on file with gaps triaged to tasks. The near-empty round is the
+evidence — not the absence of looking.
+
+### Evidence on file
+
+**common — Part 1 regressions, 2026-08-05.** `make clean-all` first, then all
+three levels via the area Makefile (never bare pytest):
+
+| level | collected | result |
+|---|---|---|
+| gate | 75 | 75 passed |
+| func | 208 | 208 passed |
+| full | 925 | 925 passed |
+
+No skips, no deselects, no xfails, and the pass count equals the collected
+count at every level — so nothing is quietly not running. Checked per FILE as
+well as in total: all 48 `test_*.py` collect at least one test at each of the
+three levels. (Beware the obvious way to count that: a `test_[a-z_]*\.py`
+pattern over pytest's node IDs also matches `con`**`test_base.py`** in the log
+lines and reports 49.)
+
+The full level was worth running on its own account — it caught
+`test_counter_load_clear_wavedrom[8]`, dead since the grids were added:
+`loadval` is `[$clog2(MAX)-1:0]`, so `MAX=8` is a 3-bit port while
+`scenario_clear_operation` loads a match value of 8. It raised
+`OverflowError: Int value (8) out of range for assignment of 3-bit signal`, and
+only at FULL, where nothing else in the area runs that width. `MAX=8` is
+meaningless for that diagram anyway — a counter that wraps at 8 can never match
+8. Grid is now `[16, 32, 64]` and the TB refuses `MAX < 16` with a message that
+names the grid entry instead of the assignment.
+
+Still outstanding for common: Part 4 coverage (never measured), the formal gaps
+(53/58 pass, 4 prove-only, 1 error — `counter_freq_invariant`, yosys parse),
+and a test-audit round_2 (round_1's fixes rewrote much of what it reviewed).

@@ -27,7 +27,7 @@
 ## Review Focus
 
 1. **Generated artifacts with baked paths** — PeakRDL outputs, kmap/gen-generated headers, committed build reports under `reports/` may embed old paths; a missed one breaks builds silently while all greps of source pass.
-2. **check_task_ids.py area resolution with deeper nesting** — `vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/<mc>` must still parse as an area (grouping vs area distinction in `vault/Tasks/INDEX.md`); a misfiled area invisibly drops its items from rollups.
+2. **check_task_ids.py area resolution with deeper nesting** — `vault/tracking/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/<mc>` must still parse as an area (grouping vs area distinction in `vault/tracking/INDEX.md`); a misfiled area invisibly drops its items from rollups.
 3. **The lint registry in `projects/components/Makefile`** — component entries are path-keyed (`lint-mem-ctrl-ip/<mc>`); a stale entry makes `make lint-all` fail for everyone.
 4. **CRLF/UTF-16 files under sed** — Windows-edited scripts (e.g. `bin/*.sh`, uart tooling history) can be corrupted by blind `sed -i`; file-type check precedes batch rewrite.
 5. **Symlinks into the moved trees** — a symlinked script outside `mem-ctrl-ip/` pointing at an old inner path survives `git mv` as a dangling link; `find -type l` before and after the move.
@@ -47,7 +47,7 @@
 
 - [ ] **Step 1: Confirm the trunk is quiet for the move set**
 
-Run: `git status --short -- projects/components/mem-ctrl-ip/ projects/fpga-systems/Genesys2/mem-ctrl-ip/ vault/Tasks/`
+Run: `git status --short -- projects/components/mem-ctrl-ip/ projects/fpga-systems/Genesys2/mem-ctrl-ip/ vault/tracking/`
 Expected: no foreign modifications inside the move set (activity in `rtl/amba`, `dma-ip/stream` etc. is fine — disjoint). If the move set is dirty with someone else's work, STOP and report.
 
 - [ ] **Step 2: Create the common skeleton + move the docs**
@@ -217,8 +217,8 @@ repo-wide-projects mirror. Dated docs/superpowers history left untouched."
 ### Task 4: Vault task areas mirror the new tree
 
 **Files:**
-- Move: `vault/Tasks/{pumice-ddr2-lpddr2,scoria-ddr3-lpddr3,andesite-ddr4-lpddr4}` → `vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/<same>`; `vault/Tasks/memory-controllers/` → `vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers/`
-- Modify: `vault/Tasks/INDEX.md` (Areas table rows for the three MCs + memory-controllers row)
+- Move: `vault/tracking/{pumice-ddr2-lpddr2,scoria-ddr3-lpddr3,andesite-ddr4-lpddr4}` → `vault/tracking/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/<same>`; `vault/tracking/memory-controllers/` → `vault/tracking/projects/components/mem-ctrl-ip/memory-controllers/`
+- Modify: `vault/tracking/INDEX.md` (Areas table rows for the three MCs + memory-controllers row)
 - Do NOT modify: item file contents beyond path references (status/history text is immutable record; only path literals inside them get the same sed treatment as Task 2 if any)
 
 **Interfaces:**
@@ -228,11 +228,11 @@ repo-wide-projects mirror. Dated docs/superpowers history left untouched."
 - [ ] **Step 1: Move the areas**
 
 ```bash
-mkdir -p vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip
-git mv vault/Tasks/pumice-ddr2-lpddr2 vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
-git mv vault/Tasks/scoria-ddr3-lpddr3 vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
-git mv vault/Tasks/andesite-ddr4-lpddr4 vault/Tasks/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4
-git mv vault/Tasks/memory-controllers vault/Tasks/projects/components/mem-ctrl-ip/memory-controllers
+mkdir -p vault/tracking/projects/components/mem-ctrl-ip/mem-ctrl-research-ip
+git mv vault/tracking/pumice-ddr2-lpddr2 vault/tracking/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2
+git mv vault/tracking/scoria-ddr3-lpddr3 vault/tracking/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/scoria-ddr3-lpddr3
+git mv vault/tracking/andesite-ddr4-lpddr4 vault/tracking/projects/components/mem-ctrl-ip/mem-ctrl-research-ip/andesite-ddr4-lpddr4
+git mv vault/tracking/memory-controllers vault/tracking/projects/components/mem-ctrl-ip/memory-controllers
 ```
 
 - [ ] **Step 2: Path literals inside moved vault files**
@@ -241,7 +241,7 @@ git mv vault/Tasks/memory-controllers vault/Tasks/projects/components/mem-ctrl-i
 git grep -l -E 'mem-ctrl-ip/(pumice-ddr2-lpddr2|scoria-ddr3-lpddr3|andesite-ddr4-lpddr4)' -- vault/ | xargs -r sed -i -E 's#projects/components/mem-ctrl-ip/(pumice-ddr2-lpddr2|scoria-ddr3-lpddr3|andesite-ddr4-lpddr4)#projects/components/mem-ctrl-ip/mem-ctrl-research-ip/\1#g'
 ```
 
-- [ ] **Step 3: Update `vault/Tasks/INDEX.md` Areas table**
+- [ ] **Step 3: Update `vault/tracking/INDEX.md` Areas table**
 
 The three MC rows' links become `[pumice-ddr2-lpddr2](projects/components/mem-ctrl-ip/mem-ctrl-research-ip/pumice-ddr2-lpddr2/INDEX.md)` (same for scoria/andesite); the `memory-controllers` row (if present) updates likewise. Add one sentence near the table noting the 2026-10-09 reorg mirroring `mem-ctrl-ip/`.
 
@@ -258,7 +258,7 @@ Expected: full run passes (91+ areas), zero warnings. A failure here is almost a
 
 ```bash
 export PATH="$(pwd)/venv/bin:$PATH"
-git add vault/Tasks/ && git commit -m "vault(tasks): mirror mem-ctrl-ip reorg — MC areas under mem-ctrl-research-ip
+git add vault/tracking/ && git commit -m "vault(tasks): mirror mem-ctrl-ip reorg — MC areas under mem-ctrl-research-ip
 
 Areas moved; INDEX table relinked; check_task_ids full-run green."
 ```

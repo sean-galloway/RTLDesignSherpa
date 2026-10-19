@@ -149,7 +149,7 @@ New tests (repo pytest flow, verilator only, per AGENTS.md):
   plane + LP MR CSRs.
 - Register-map docs for both products (three new CSRs; note that init-timing
   CSR values are MC-frequency-dependent — the standing HAS note).
-- `vault/Tasks/.../TASK-042.md` — status note: runtime-ZQ RTL already common;
+- `vault/tracking/.../TASK-042.md` — status note: runtime-ZQ RTL already common;
   macro-level verification test added here; board exercise still open.
 
 ## Risks

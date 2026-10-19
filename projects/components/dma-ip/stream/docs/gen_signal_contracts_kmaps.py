@@ -1725,7 +1725,7 @@ def build_core_monitor_kmaps(wb):
         "A fired event with no queue room is lost and counted. Two events in one "
         "cycle lose one even with room (the pick takes one), which this two-axis "
         "map folds into event_fired; the arithmetic at :741 is exact, and since "
-        "monitor-lite TASK-002 / the latency-threshold fix it also nets out the "
+        "rtl/amba/monitors TASK-002 / the latency-threshold fix it also nets out the "
         "hold slots so a held event leaving is neither a fire nor a loss.",
         depends_only_on=(
             "these two plus the per-cycle event count. Which class won the "

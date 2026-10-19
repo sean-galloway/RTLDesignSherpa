@@ -183,6 +183,8 @@ The Ocelus is an original design of this repository. The papers and standards be
 - Maaref, M. *Architecting and Building High-Speed SoCs*, Packt, 2022, ch. 3 "Basic and Advanced On-Chip Busses and Interconnects", sec. "ARM AMBA interconnect protocols suite". — textbook background on ACE and the AMBA family (secondary source).
 - Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)
 
+**Plane:** protocol plane (lite ACE snoop monitor)
+
 ---
 
 ## Navigation

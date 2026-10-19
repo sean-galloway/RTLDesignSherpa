@@ -120,7 +120,7 @@ This PRD provides a high-level overview. **Detailed specifications are maintaine
 ### Other Documentation
 - **[CLAUDE](CLAUDE.md)** - AI assistance guide for this subsystem
 - **[TASKS](TASKS.md)** - Work items (largely pre-beats history)
-- **[Validation Report](../../../../vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md)** - Test results (pre-beats snapshot)
+- **[Validation Report](../../../../vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md)** - Test results (pre-beats snapshot)
 
 ---
 
@@ -426,7 +426,7 @@ rapids_beats_top #(
   - All delay profiles passing (fast_producer, fast_consumer, fixed_delay, minimal_delay)
   - Applied continuous monitoring methodology for asynchronous output capture
 
-**See:** `vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` for detailed results
+**See:** `vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` for detailed results
 
 ### 7.2 Test Strategy
 
@@ -900,7 +900,7 @@ def test_basic_flow(request, channel_id, num_channels, data_width, credit_width)
 | `projects/components/dma-ip/rapids/docs/rapids_beats_has/` | **Architecture specification** |
 | `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` | **Micro-architecture specification** |
 | `projects/components/dma-ip/rapids/known_issues/` | Bug tracking |
-| `vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` | Test results (pre-beats snapshot) |
+| `vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` | Test results (pre-beats snapshot) |
 
 ### 13.2 Commands
 
@@ -1067,7 +1067,7 @@ The shell scripts will automatically:
 ### 16.1 Internal Documentation
 
 - **Complete Spec:** `docs/rapids_beats_has/` + `docs/rapids_beats_mas/` ← **Primary technical reference**
-- **Validation:** `vault/Tasks/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` (pre-beats snapshot)
+- **Validation:** `vault/tracking/projects/components/dma-ip/rapids/RAPIDS_Validation_Status_Report.md` (pre-beats snapshot)
 - **Master PRD:** `/PRD.md`
 - **Repository Guide:** `/CLAUDE.md`
 

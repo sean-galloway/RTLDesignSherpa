@@ -38,7 +38,7 @@
 **Key Documentation:**
 - `README.md` -- Component overview and quick start
 - `PRD.md` -- Complete product requirements and FUB specifications
-- Task tracking: `vault/Tasks/projects/asic-trials/timing_characterization/` in the vault (was `TASKS.md`, migrated 2026-09-25)
+- Task tracking: `vault/tracking/projects/asic-trials/timing_characterization/` in the vault (was `TASKS.md`, migrated 2026-09-25)
 - `rtl/syn/SYNTHESIS_GUIDE.md` -- Synthesis workflow and result interpretation
 
 ---
@@ -284,7 +284,7 @@ add expected-value computation for the new FUB.
 
 - Update `PRD.md` Section 4 (FUB Specifications)
 - Update `SYNTHESIS_GUIDE.md` Section 3 (FUB Catalog)
-- File the work in `vault/Tasks/projects/asic-trials/timing_characterization/task/` (one file per item; `bin/check_task_ids.py --next asic-trials/timing_characterization/task`)
+- File the work in `vault/tracking/projects/asic-trials/timing_characterization/task/` (one file per item; `bin/check_task_ids.py --next asic-trials/timing_characterization/task`)
 
 ---
 

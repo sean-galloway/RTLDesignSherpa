@@ -27,6 +27,8 @@
 **Location:** `rtl/amba/ocelus/`
 **Status:** Production Ready
 
+**Plane:** output plane
+
 ---
 
 ## Overview

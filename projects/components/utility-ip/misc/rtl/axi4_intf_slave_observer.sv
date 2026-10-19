@@ -450,7 +450,7 @@ module axi4_intf_slave_observer
     // traffic and the split buys nothing. Rather than half-work, it is refused.
     initial begin
         if (ENABLE_ID_SLICE) begin
-            $fatal(1, "ENABLE_ID_SLICE=1 needs a tap with an ID filter; axi4_slave_*_monlite has none (amba/monitor-lite TASK-001)");
+            $fatal(1, "ENABLE_ID_SLICE=1 needs a tap with an ID filter; axi4_slave_*_monlite has none (rtl/amba/monitors TASK-001)");
         end
     end
 
@@ -491,7 +491,7 @@ module axi4_intf_slave_observer
     // Per-tap monitor backpressure. Not a bus signal -- nothing here
     // reaches the observed interface -- but a tap whose table is full
     // stops tracking, so this is the honesty flag for the coverage
-    // numbers. See vault/Tasks/amba (amba BUG-029, was AMBA-MONTRACK).
+    // numbers. See vault/tracking/rtl/amba (amba BUG-029, was AMBA-MONTRACK).
     logic [NUM_RD_PORTS-1:0] obs_rd_tap_lost;          // per tap: refused a command or dropped an event (lite)
     logic [15:0]           obs_rd_dropped [NUM_RD_PORTS];
     logic [15:0]           obs_rd_refused [NUM_RD_PORTS];

@@ -69,6 +69,12 @@ What you give up, and when it matters:
 The rest of this paper assumes the lite at the ports. Every axis below is
 the same for both monitors; the numbers are the lite's.
 
+> **Plane framing:** Choosing the full monitor or the lite is a protocol-plane
+> decision. The lite drops the perf and debug cones that belong to the perf
+> and debug planes, but it still emits protocol-plane events for the error and
+> debug planes downstream. See
+> [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
+
 ## References
 
 The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.

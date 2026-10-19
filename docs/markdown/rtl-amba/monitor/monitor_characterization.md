@@ -45,6 +45,8 @@ stated period, 30 % input/output delays, reset false-pathed. Utilization is
 post-route. Power is Vivado's vectorless estimate (`report_power`, confidence
 "Medium"): it ranks variants against each other and says nothing absolute.
 
+**Plane:** cross-plane (measured cost of protocol-plane monitors and the output-plane group)
+
 ## What was measured
 
 Every module at its **default parameters** (the wrapper's own defaults, not
@@ -227,7 +229,7 @@ them only as a ratio between variants on the same part.
 - `axis4_master_monlite` missed 10 ns on the Artix-7 register to register by
   1.18 ns in the first sweep (16 to 19 levels into `r_dropped`): the AXIS lite
   decided its events and counted drops in one cycle. Fixed the next day as
-  monitor-lite ISSUE-003 with an event stage; the tables above carry the
+  rtl/amba/monitors ISSUE-003 with an event stage; the tables above carry the
   re-run: +1.65 ns on the Artix-7 and +1.87 ns on the Kintex-7 register to
   register, 6 logic levels, for 44 LUTs and 199 flops more.
 - The full AXI4 monitors at 16 slots miss 6.667 ns on the Kintex-7 in the

@@ -68,7 +68,7 @@ layout exists to prevent, one directory up.
 
 ## See also
 
-- [vault/Tasks/](../Tasks/INDEX.md) — vault task lifecycle; a vault task and a
+- [vault/tracking/](../tracking/INDEX.md) — vault task lifecycle; a vault task and a
   GitHub issue can reference each other, but the GitHub issue is the change
   tracker for v1.0 areas.
 - [repo-wide-projects/](../repo-wide-projects/INDEX.md) — the per-area context

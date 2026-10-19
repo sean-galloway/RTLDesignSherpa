@@ -67,7 +67,7 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
   - Known issues and workarounds
   - Test methodology
 
-- [RLB/hpet tasks](../../../../../../../vault/Tasks/RLB/hpet/INDEX.md) - Development Task Tracking
+- [RLB/hpet tasks](../../../../../../../vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/INDEX.md) - Development Task Tracking
   - Active work items
   - Completed milestones
   - Future enhancements
@@ -97,7 +97,7 @@ Everything this MAS leaned on, plus the pointers you'll want when you need to go
 
 **Known Issues Documentation:**
 - `known_issues/README.md` - Issue tracking overview
-- Timer counter-cleanup fix details: see TASK-001 in [RLB/hpet tasks](../../../../../../../vault/Tasks/RLB/hpet/INDEX.md) (the old standalone `known_issues/resolved/timer_cleanup_issue.md` page was not carried over into retro_legacy_blocks)
+- Timer counter-cleanup fix details: see TASK-001 in [RLB/hpet tasks](../../../../../../../vault/tracking/projects/components/legacy-ip/retro_legacy_blocks/hpet/INDEX.md) (the old standalone `known_issues/resolved/timer_cleanup_issue.md` page was not carried over into retro_legacy_blocks)
 
 ### Repository-Wide Documentation
 

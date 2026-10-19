@@ -15,7 +15,7 @@ only what is particular to this directory.
   Every module has a `.f` in `rtl/filelists/`. DV is cocotb under `dv/`, and
   a HAS and a MAS live under `docs/`. `PRD.md` is still a draft: the first
   consumer (D10) is open.
-- Tracker: `vault/Tasks/projects/components/ecc-ip/reed-solomon/` (task/bug/issue
+- Tracker: `vault/tracking/projects/components/ecc-ip/reed-solomon/` (task/bug/issue
   lanes). TASK-001 (stand-up) closed 2026-10-02 with the codec, both
   solvers, AXIS + AXI4 wrappers, DV and the board loop harness; TASK-002
   (erasures, elaboration-time `ERASURE_SUPPORT`, default 0) closed

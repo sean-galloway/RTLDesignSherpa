@@ -1,5 +1,5 @@
 """test_monlite_cg_gating: the six-phase, BFM-driven structural clock-gating test of
-val/amba/test_mon_cg_gating.py run against the sixteen *_monlite_cg wrappers (amba/monitor-lite
+val/amba/test_mon_cg_gating.py run against the sixteen *_monlite_cg wrappers (rtl/amba/monitors
 TASK-001, 2026-09-26). Derived by renaming the wrapper suffix only: the lite's gating logic is
 the _mon_cg logic verbatim, so every phase applies unchanged.
 """

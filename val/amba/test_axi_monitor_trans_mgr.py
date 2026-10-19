@@ -172,7 +172,7 @@ class AxiMonitorTransMgrTB(TBBase):
 
     async def initialize_inputs(self):
         """Quiesce every input. Guarded per pin: this TB also drives
-        axi_monitor_lite (amba/monitor-lite TASK-002), which has no cmd_size /
+        axi_monitor_lite (rtl/amba/monitors TASK-002), which has no cmd_size /
         cmd_burst, no perf/debug/window cfg, no per-channel timeout counts and
         no cfg_addr_range_* -- and has cfg_timeout_cnt / cfg_axi_pkt_mask /
         cfg_addr_match_enable that the full core does not. A pin the DUT lacks

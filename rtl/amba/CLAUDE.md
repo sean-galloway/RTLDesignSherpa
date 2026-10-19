@@ -768,5 +768,5 @@ parallel, and `clean-all` first is not optional. Full grammar and the reasons:
 - `docs/user-guides/AXI_Monitor_Configuration_Guide.md` -- **read before
   configuring a ocelus**; the packet-class rule above is why
 - `rtl/amba/KNOWN_ISSUES/` -- open bugs, check before diagnosing
-- `/vault/Tasks/amba/` -- current work
+- `/vault/tracking/rtl/amba/` -- current work
 - `/GLOBAL_REQUIREMENTS.md` -- enforcement authority

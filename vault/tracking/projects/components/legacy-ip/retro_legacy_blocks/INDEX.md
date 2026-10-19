@@ -1,0 +1,89 @@
+# RLB — Retro Legacy Blocks
+
+**Next ID: RLB-018** — never recycle a number, even when its task closed.
+
+## Lanes
+
+This area tracks three kinds of work, each a directory with its own INDEX and
+its own ID sequence. **Every item is its own file**, `<ID>.md`, filed under
+the directory for its state (`open/`, `active/`, `closed/`, `dropped/`).
+Pick the lane before filing:
+
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 14 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
+
+Items live one per file under the lane directories below; this page is the
+area overview. See [the convention](../../../../INDEX.md) for the definitions.
+
+
+Task rollup for the retro legacy peripheral blocks (gpio, hpet, ioapic,
+pic_8259, pit_8254, pm_acpi, rtc, smbus, uart_16550). MAS specs live under
+`projects/components/legacy-ip/retro_legacy_blocks/docs/<block>_mas/`; RTL under
+`rtl/<block>/`. Kimi review pipeline + reports: `/mnt/data/github/rlb-doc-review/`.
+
+**Each block has its own sub-area** at `RLB/<block>/`, with task/bug/issue
+lanes: [gpio](gpio/INDEX.md), [hpet](hpet/INDEX.md), [ioapic](ioapic/INDEX.md),
+[pic_8259](pic_8259/INDEX.md), [pit_8254](pit_8254/INDEX.md),
+[pm_acpi](pm_acpi/INDEX.md), [rtc](rtc/INDEX.md), [smbus](smbus/INDEX.md),
+[uart_16550](uart_16550/INDEX.md). All nine were scaffolded 2026-09-25 (Sean).
+A block's own defects and features go there; THIS area's lanes are for
+cross-block work. The `RLB-0NN` pages below are the frozen legacy lane.
+
+| Lane | open | active | closed | dropped | deferred |
+|---|---|---|---|---|---|
+| [task/](task/INDEX.md) | 1 | 0 | 14 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 3 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
+
+## Shortlist
+
+- **qc + humanize arc DONE (2026-09-08):** Kimi qc round_2 and round_3
+  findings integrated for all 9 blocks; humanize round_1 applied to every
+  book (book pages only -- PRD/IMPLEMENTATION_STATUS/design-sketch pages
+  reverted), each block committed separately with tag-survival 0 fatal,
+  0 suspect, emoji 0 and its `#NN` deviation references counted before and
+  after. A power outage killed the driver mid-smbus; `run_humanize_resumable.sh`
+  re-sent only smbus + uart_16550 (results in
+  `results/humanize-kimi-k2/round_1/`). RLB-006 was unblocked by this and has
+  since been DONE for retro_legacy_blocks (2026-09-11); its residual is the
+  same scrub in the rtl/ areas and the testqc round, neither of which is RLB
+  work. This line said "is now unblocked" for three days after it finished --
+  reading it as current work cost a session's planning time on 2026-09-14.
+- **RLB-004 CLOSED 2026-09-14.** All 9 RTL bugs (#44–#60 even) and tracking
+  #61 are closed on GitHub; the fixes landed 2026-09-10/11. Verified before
+  closing: clean `make clean-all && make run-all-full-parallel` over all nine
+  blocks at REG_LEVEL=FULL, 63 passed / 0 failed.
+- **RLB-010 CLOSED 2026-09-14.** Its formal area was created, and its last
+  bullet -- the combinational clock mux -- was resolved by `rtc_clk_mux`
+  (`ae03c6b43`), the device-specific cell the entry itself named as the real
+  answer. Verified before closing: clean `make clean-all &&
+  make run-all-full-parallel` over all nine blocks, 63 passed / 0 failed in
+  343.50s. NOTE: the open count above read 9 while listing ten tasks, so it was
+  already wrong by one; it is now 9 listing nine, corrected deliberately rather
+  than made right by the removal.
+- **Nothing is active and nothing is open.** SEVEN closed 2026-09-14: five
+  were already carrying a DONE status of their own (006, 007, 009, 011, 013),
+  RLB-014 closed on the owner's call that the 800-line figure is a
+  guideline rather than a rule -- going over is fine, and it is not a repo
+  requirement in any case -- and RLB-016 closed when rlb_top moved onto the
+  GENERATED crossbar. The hand-rolled sibling sat outside the generator flow
+  and so never received its decode-miss fix, which is why an unmapped address
+  wedged the bus; the variant is now REGISTERED in generate_xbars.py, so it
+  regenerates with the family instead of drifting again.
+
+## Done
+
+All 9 MAS register documentation issues fixed and closed (#43–#59 odd):
+RLB-002's five verified on main (their unpushed-branch limbo resolved by the
+branch merge), RLB-003's four integrated 2026-09-08 from the full round_1
+critiques. Review filed as 18 issues + tracking #61 (roll-up comment posted).
+
+> Note: this area supersedes the pre-migration
+> `projects/components/legacy-ip/retro_legacy_blocks/TASKS.md`, which was folded in and
+> deleted 2026-09-25 -- its six items were all HPET and now live in
+> `RLB/hpet/` (one closed, one bug, four tasks). The `rtl/*/TODO` items this
+> note used to list no longer exist: `rtl/{ioapic,pm_acpi,smbus}/TODO.md` are
+> all gone, so nothing is outstanding from that source either.

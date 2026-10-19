@@ -143,7 +143,7 @@ study = named task); the open-questions table (write CRC, gear-down coverage sco
 CA-parity scope, LPDDR4 DVFS/DSM, BFM provenance); what would make the HAS a 1.0;
 vault filing: **andesite TASK-002 (HAS + family docs seed), TASK-003 (MAS),
 TASK-004 (kmaps), TASK-005 (DFI 4.0 BFM study)** under
-`vault/Tasks/andesite-ddr4-lpddr4/task/` (the area scaffolded 2026-09-28;
+`vault/tracking/andesite-ddr4-lpddr4/task/` (the area scaffolded 2026-09-28;
 TASK-001 was already taken by the advanced-modes survey, so IDs shift by one —
 recorded in the SDD ledger ruling of 2026-10-04), with INDEX updates per the
 tasks convention.
