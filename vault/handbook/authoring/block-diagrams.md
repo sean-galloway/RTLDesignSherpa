@@ -170,6 +170,14 @@ existing set converts as each diagram is next touched.
   one sample node per class, plus a `shape=note` for the edge conventions
   (solid flow, heavy main path or winner, dashed sideband). Keep all seven
   samples even when a class is absent, so the key is identical everywhere.
+- **Center the key under the drawing** (owner, 2026-10-19), never hanging
+  off one side. Anchor it with one invisible edge from the bar to the key's
+  middle sample, `bar -> k_mem [style=invis, weight=10]` (Storage is the
+  middle by width), and keep the edge note to three short lines
+  (`solid: flow\l heavy: main path / winner\l dashed: sideband\l`). An
+  edge to the first sample, or a long one-line note, pushed the row a full
+  sample-width to one side. Copy the key block from the case file rather
+  than retyping it.
 - **Edges keep their meaning:** solid for flow, heavy (`penwidth=1.8`) for
   the main path or a pick's winner, dashed for sideband and feedback.
 - This supersedes the old palette rule ("color never carries meaning";

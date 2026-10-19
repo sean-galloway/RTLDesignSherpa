@@ -78,9 +78,9 @@ digraph axi_write_engine {
         k_mem  [label="Storage\n(FIFO / RAM / CAM)", shape=cylinder, fillcolor="#E8DFF5", fontsize=9];
         k_pick [label="Arbiter /\npick", shape=invtrapezium, fillcolor="#FFF2CC", fontsize=9];
         k_opt  [label="Optional\n(build-dependent)", style="filled,dashed", fontsize=9];
-        k_edge [label="solid: flow    heavy: main path / winner\ldashed: sideband (credits, status, config)\l", shape=note, fontsize=9];
+        k_edge [label="solid: flow\lheavy: main path / winner\ldashed: sideband\l", shape=note, fontsize=9];
         { rank=same; k_if; k_comb; k_reg; k_fsm; k_mem; k_pick; k_opt; k_edge; }
         k_if -> k_comb -> k_reg -> k_fsm -> k_mem -> k_pick -> k_opt -> k_edge [style=invis];
     }
-    bar -> k_reg [style=invis];
+    bar -> k_mem [style=invis, weight=10];
 }
