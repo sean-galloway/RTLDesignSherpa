@@ -1,0 +1,231 @@
+#============================================================================
+# bridge_bs_cfg -- the bridge stress model's host configuration bridge.
+#
+# UART -> AXI4-Lite host master -> one APB register window per block: the
+# harness control regs, and each stress master's and slave's own regblock
+# (bstress_*_csr, which carries the access into the block's clock).
+# Not under test: every build holds it constant.
+#============================================================================
+
+[bridge]
+name = "bridge_bs_cfg"
+description = "bridge stress model: host configuration bridge"
+variants = ["no"]
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name        = "host"
+prefix      = "host_axi_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+
+[[bridge.slaves]]
+name        = "ctl"
+prefix      = "ctl_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00000000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst0"
+prefix      = "mst0_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00010000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst1"
+prefix      = "mst1_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00011000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst2"
+prefix      = "mst2_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00012000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst3"
+prefix      = "mst3_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00013000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst4"
+prefix      = "mst4_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00014000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst5"
+prefix      = "mst5_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00015000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst6"
+prefix      = "mst6_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00016000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "mst7"
+prefix      = "mst7_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00017000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv0"
+prefix      = "slv0_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00020000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv1"
+prefix      = "slv1_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00021000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv2"
+prefix      = "slv2_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00022000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv3"
+prefix      = "slv3_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00023000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv4"
+prefix      = "slv4_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00024000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv5"
+prefix      = "slv5_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00025000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv6"
+prefix      = "slv6_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00026000"
+addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "slv7"
+prefix      = "slv7_apb_"
+protocol    = "apb"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00027000"
+addr_range  = "0x00001000"

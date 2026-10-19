@@ -210,3 +210,21 @@ reset, and a sticky error flag latches it. Carry the check bit INVERTED
 *Case (2026-10-15): `cxs_slave` flagged parity_error on every run with
 CXS_CHECK=1 until the inversion; the first GATE run of the CXS family found
 it.* The same applies to any pair whose reset values are not a legal codeword.
+
+## A toggle synchronizer needs a one-cycle pulse -- edge-detect what feeds it
+
+`sync_pulse` toggles once per source cycle its input is high. A two-cycle
+input toggles twice: the destination sees two pulses, or -- when both
+toggles land inside one of its periods -- none at all. Nothing upstream of a
+register field promises one cycle. A PeakRDL `singlepulse` behind
+`apb4_to_peakrdl` is two cycles wide, because `peakrdl_to_cmdrsp` holds the
+cpuif request until the ack and the regblock takes the write twice
+(converters BUG-010). Feed the synchronizer the rising edge
+(`f & !f_q`), never the field.
+*Case (2026-10-19): the bridge stress harness's GO reached the 75 MHz
+domain as zero or two pulses; the cclk master and slave silently skipped
+runs and kept the previous run's status. The aclk blocks hid it -- a busy
+master ignores a second GO -- and the verdict passed a stale master whose
+old issued count equalled the budget. Found by a TB watch that measures every
+GO's width and counts its arrivals in the far domain; keep such a watch on
+every pulse that crosses.*

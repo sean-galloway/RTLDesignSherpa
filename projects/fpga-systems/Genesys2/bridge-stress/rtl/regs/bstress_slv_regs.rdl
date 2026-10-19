@@ -1,0 +1,110 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Bridge stress model: one stress SLAVE's configuration and status
+// (axi_stress_slv_rd / axi_stress_slv_wr behind the protocol shell).
+//
+// Regenerate with bin/peakrdl_generate.py:
+//   python3 bin/peakrdl_generate.py \
+//     projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_slv_regs.rdl \
+//     -o projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated --no-html
+//
+// Fields map one-to-one onto stress_sdir_cfg_t / stress_sdir_sts_t
+// (bstress_slv.sv). The read and write halves are configured separately;
+// the host normally writes the same window and tag to both. Status is
+// zeroed by the harness's GO.
+//
+//   0x000        identity
+//   0x010 / 030  RD / WR config
+//   0x200 / 240  RD / WR status
+
+addrmap bstress_slv_regs {
+    name = "Bridge stress slave";
+    desc = "Configuration and status of one bus-stress slave";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    reg {
+        desc = "Identity: 0x5353 ('SS') and the build parameters.";
+        field { sw = r; hw = w; desc = "Data width / 8."; } BUS_BYTES[7:0] = 0;
+        field { sw = r; hw = w; desc = "AXI ID width."; } ID_WIDTH[12:8] = 0;
+        field { sw = r; hw = w; desc = "Protocol (as bstress_mst_regs.ID.PROTOCOL)."; } PROTOCOL[15:13] = 0;
+        field { sw = r; hw = w; desc = "Constant 0x5353."; } MAGIC[31:16] = 0;
+    } ID @ 0x000;
+
+    reg {
+        field { sw = r; hw = w; desc = "Requests held per direction, as built."; } DEPTH[7:0] = 0;
+        field { sw = r; hw = w; desc = "Read direction built."; } HAS_RD[12:12] = 0;
+        field { sw = r; hw = w; desc = "Write direction built."; } HAS_WR[13:13] = 0;
+        field { sw = r; hw = w; desc = "Index of this slave in the harness."; } INDEX[19:16] = 0;
+    } PARAMS @ 0x004;
+
+    // Register types instantiated once per direction under its own name (see
+    // bstress_mst_regs.rdl for why these are not regfiles).
+    reg scfg_u32_t { field { sw = rw; hw = r; } VALUE[31:0] = 0; };
+    reg scfg_ctrl_t {
+        field { sw = rw; hw = r; desc = "Window = 2^SIZE_LG2 bytes; a request outside is ERR_S_ADDR."; } SIZE_LG2[5:0] = 0;
+        field { sw = rw; hw = r; desc = "The port carries an offset into the window (APB); the fabric address is BASE | offset."; } OFFSET_MODE[6:6] = 0;
+        field { sw = rw; hw = r; desc = "(A & ERR_MASK) == ERR_BASE answers SLVERR."; } ERR_EN[7:7] = 0;
+        field { sw = rw; hw = r; desc = "Tag folded into this slave's data."; } TAG[15:8] = 0;
+        field { sw = rw; hw = r; desc = "Complete in request order across IDs (required behind a FIFO-tracked bridge slave port)."; } INORDER[16:16] = 0;
+        field { sw = rw; hw = r; desc = "Read: switch bursts between beats."; } INTERLEAVE[17:17] = 0;
+        field { sw = rw; hw = r; desc = "AxREADY low with probability n/16."; } REQ_THROTTLE[23:20] = 0;
+        field { sw = rw; hw = r; desc = "WREADY low / an R bubble with probability n/16."; } DATA_THROTTLE[27:24] = 0;
+    };
+    reg scfg_timing_t {
+        field { sw = rw; hw = r; desc = "Cycles before a request may answer ..."; } LAT_MIN[7:0] = 0;
+        field { sw = rw; hw = r; desc = "... plus random & LAT_MASK."; } LAT_MASK[15:8] = 0;
+        field { sw = rw; hw = r; desc = "Requests held; 0 = as built."; } MAX_OUT[23:16] = 0;
+    };
+    reg ssts_u32_t { field { sw = r; hw = w; } VALUE[31:0] = 0; };
+    reg ssts_err_t {
+        field { sw = r; hw = w; desc = "Sticky, one bit per ERR_* code."; } MASK[15:0] = 0;
+        field { sw = r; hw = w; desc = "Errors counted (saturating)."; } COUNT[31:16] = 0;
+    };
+    reg ssts_fe_t {
+        field { sw = r; hw = w; } FE_VALID[0:0] = 0;
+        field { sw = r; hw = w; } FE_KIND[7:4] = 0;
+        field { sw = r; hw = w; desc = "First error: request / burst ID."; } FE_ID[31:16] = 0;
+    };
+    reg ssts_out_t {
+        field { sw = r; hw = w; } OUT_NOW[7:0] = 0;
+        field { sw = r; hw = w; } OUT_MAX[15:8] = 0;
+        field { sw = r; hw = w; desc = "GOs (status clears) taken (wraps)."; } RUNS[23:16] = 0;
+    };
+
+    scfg_u32_t     RD_BASE      @ 0x010;  // The slave's fabric window base.
+    scfg_ctrl_t    RD_CTRL      @ 0x014;
+    scfg_u32_t     RD_ERR_BASE  @ 0x018;
+    scfg_u32_t     RD_ERR_MASK  @ 0x01C;
+    scfg_timing_t  RD_TIMING    @ 0x020;
+    scfg_u32_t     RD_SEED      @ 0x024;  // Scheduler PRNG seed; 0 = built-in.
+
+    scfg_u32_t     WR_BASE      @ 0x030;  // The slave's fabric window base.
+    scfg_ctrl_t    WR_CTRL      @ 0x034;
+    scfg_u32_t     WR_ERR_BASE  @ 0x038;
+    scfg_u32_t     WR_ERR_MASK  @ 0x03C;
+    scfg_timing_t  WR_TIMING    @ 0x040;
+    scfg_u32_t     WR_SEED      @ 0x044;  // Scheduler PRNG seed; 0 = built-in.
+
+    ssts_u32_t     RD_BURSTS    @ 0x200;
+    ssts_u32_t     RD_BEATS     @ 0x204;
+    ssts_err_t     RD_ERR       @ 0x208;
+    ssts_fe_t      RD_FE        @ 0x20C;
+    ssts_u32_t     RD_FE_ADDR   @ 0x210;
+    ssts_u32_t     RD_FE_EXP    @ 0x214;
+    ssts_u32_t     RD_FE_ACT    @ 0x218;
+    ssts_out_t     RD_OUT       @ 0x21C;
+
+    ssts_u32_t     WR_BURSTS    @ 0x240;
+    ssts_u32_t     WR_BEATS     @ 0x244;
+    ssts_err_t     WR_ERR       @ 0x248;
+    ssts_fe_t      WR_FE        @ 0x24C;
+    ssts_u32_t     WR_FE_ADDR   @ 0x250;
+    ssts_u32_t     WR_FE_EXP    @ 0x254;
+    ssts_u32_t     WR_FE_ACT    @ 0x258;
+    ssts_out_t     WR_OUT       @ 0x25C;
+
+};

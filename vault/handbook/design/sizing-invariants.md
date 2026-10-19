@@ -84,3 +84,14 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   as a START on channel 8. The full 16-channel regression was green, because no
   top test pulled a profiler entry for a channel above 7. A fub cell that walks
   every channel and checks the (channel, event) sequence caught it at once.*
+
+- **A modular difference needs its own wire before it is widened.**
+  `32'(r_now - r_ts)` with 16-bit stamps is not "the 16-bit difference,
+  zero-extended": the cast is a context, and the operands may be extended to
+  32 bits before the subtraction, so a wrapped stamp gives 0xFFFFxxxx. The
+  simulator and the synthesizer need not agree on which reading they take.
+  Declare `logic [15:0] w_d = a - b;` and widen `w_d`.
+  *Case (2026-10-19): the bridge stress master's LAT_SUM was right in
+  Verilator and saturated at 0xFFFFFFFF on the Genesys 2 from the first board
+  run -- mean latency 21,474,836 cycles. A mean <= max check now runs in the
+  pair test; it cannot catch the synthesis-only reading, the board can.*

@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/converters — bugs
 
-**Next ID: BUG-010** — never recycle a number, even when its item closed.
+**Next ID: BUG-011** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,13 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **BUG-010** — peakrdl_to_cmdrsp presents every access to the regblock twice (singlepulse fields fire for 2 cycles)
 
 (none)
 

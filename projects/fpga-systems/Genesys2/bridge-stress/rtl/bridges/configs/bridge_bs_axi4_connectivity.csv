@@ -1,0 +1,5 @@
+master\slave,mem0,mem1,mem2,mem3
+cpu,1,1,1,1
+dma,1,1,1,1
+acc,1,1,1,1
+io,1,1,1,1

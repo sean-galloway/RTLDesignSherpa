@@ -1,0 +1,54 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Bridge stress model: harness control -- the one GO every master starts on,
+// STOP, the shared data seed, the run timer and the roll-up of every block.
+//
+// Regenerate with bin/peakrdl_generate.py:
+//   python3 bin/peakrdl_generate.py \
+//     projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_ctl_regs.rdl \
+//     -o projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated --no-html
+
+addrmap bstress_ctl_regs {
+    name = "Bridge stress harness control";
+    desc = "GO/STOP, the data seed, the run timer and the pass/fail roll-up";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    reg {
+        desc = "Identity: 0x4253 ('BS'), the build's master and slave counts.";
+        field { sw = r; hw = w; } NUM_MASTERS[3:0] = 0;
+        field { sw = r; hw = w; } NUM_SLAVES[7:4] = 0;
+        field { sw = r; hw = w; desc = "Build variant (which DUT bridge)."; } VARIANT[15:8] = 0;
+        field { sw = r; hw = w; desc = "Constant 0x4253."; } MAGIC[31:16] = 0;
+    } ID @ 0x000;
+
+    reg {
+        field { sw = rw; hw = r; singlepulse; desc = "Start every enabled master on one cycle; zero all status and the timer. Ignored by a block still busy."; } GO[0:0] = 0;
+        field { sw = rw; hw = r; singlepulse; desc = "Stop issuing; outstanding bursts drain."; } STOP[1:1] = 0;
+        field { sw = rw; hw = r; singlepulse; desc = "Clear the bridge's unmapped-address status."; } UNMAPPED_CLEAR[2:2] = 0;
+    } CTRL @ 0x004;
+
+    reg {
+        field { sw = rw; hw = r; desc = "Seed of the data function, shared by every master and slave."; } VALUE[31:0] = 0x1234_5678;
+    } HASH_SEED @ 0x008;
+
+    reg {
+        desc = "Roll-up, live.";
+        field { sw = r; hw = w; desc = "Every master: both directions done."; } ALL_DONE[0:0] = 0;
+        field { sw = r; hw = w; desc = "Any block has an error bit set."; } ANY_ERR[1:1] = 0;
+        field { sw = r; hw = w; desc = "Every clock domain locked / out of reset."; } CLOCKS_OK[2:2] = 0;
+        field { sw = r; hw = w; desc = "Bridge unmapped-address flag."; } UNMAPPED[3:3] = 0;
+        field { sw = r; hw = w; desc = "Per master: done."; } MST_DONE[15:8] = 0;
+        field { sw = r; hw = w; desc = "Per master: error."; } MST_ERR[23:16] = 0;
+        field { sw = r; hw = w; desc = "Per slave: error."; } SLV_ERR[31:24] = 0;
+    } STATUS @ 0x00C;
+
+    reg { field { sw = r; hw = w; desc = "aclk cycles from GO to ALL_DONE (counting while busy)."; } VALUE[31:0] = 0; } TIMER @ 0x010;
+    reg { field { sw = r; hw = w; desc = "Bridge unmapped-access count (saturates at 255)."; } COUNT[7:0] = 0; } UNMAPPED_COUNT @ 0x014;
+    reg { field { sw = r; hw = w; desc = "Address of the first unmapped access."; } VALUE[31:0] = 0; } UNMAPPED_ADDR @ 0x018;
+    reg { field { sw = r; hw = w; desc = "Free-running aclk cycle counter (liveness)."; } VALUE[31:0] = 0; } CYCLES @ 0x01C;
+    reg { field { sw = r; hw = w; desc = "GOs issued (wraps at 256). Every block's RUNS must equal it: a block that missed a GO keeps the previous run's status."; } VALUE[7:0] = 0; } GO_COUNT @ 0x020;
+};

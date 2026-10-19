@@ -1,0 +1,241 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+"""axi4_master_stress -> axi4_slave_stress, back to back.
+
+Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
+
+  cocotb_test_axi_stress_clean   one traffic scenario (TEST_TYPE) at the
+      TEST_LEVEL budget; passes only if both blocks report zero errors, the
+      independent bus monitor agrees with every beat, the budget moved in full
+      on both sides, and the scenario's feature (reordering, interleaving,
+      partial strobes, error responses) was actually seen on the wire.
+  cocotb_test_axi_stress_faults  each of the harness's eight one-shot faults
+      must raise the error the blocks claim it raises.
+"""
+
+import os
+import random
+
+import pytest
+import cocotb
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.amba.axi_stress_pair_tb import AxiStressPairTB
+from TBClasses.amba import axi_stress_model as M
+
+TXNS = {'gate': 150, 'func': 600, 'full': 3000}
+SLV_BASE, SLV_LG2 = 0x0000_0000, 20
+ERR_BASE, ERR_LG2 = 0x0008_0000, 16
+
+
+def _windows(tag, *, err=False, narrow=False, aligned=False):
+    full = dict(len_mask=0xFF, size_min=0 if narrow else 7, size_max=7,
+                unaligned=0 if aligned else 1, strb_rand=1 if narrow else 0)
+    wins = [M.Window(SLV_BASE, 19, tag, **full)]
+    if err:
+        wins.append(M.Window(ERR_BASE, ERR_LG2, tag, resp=M.SLVERR, **full))
+    return wins
+
+
+def _scenario(name, n, tag):
+    """(windows, master rd/wr cfg, slave rd/wr cfg) for one scenario."""
+    m = dict(enable=1, txn_count=n, id_base=0x30, id_mask=0x0F,
+             timeout_lg2=16, max_out=0)
+    s = dict(base=SLV_BASE, size_lg2=SLV_LG2, tag=tag, err_en=1,
+             err_base=ERR_BASE, err_mask=(~((1 << ERR_LG2) - 1)) & M.M32)
+    wins = _windows(tag)
+    if name == 'inorder':
+        s.update(inorder=1)
+        m.update(id_mask=0x03)
+    elif name == 'ooo':
+        s.update(lat_mask=0x3F)
+    elif name == 'interleave':
+        s.update(interleave=1, lat_mask=0x1F, req_throttle=4, data_throttle=6)
+        m.update(resp_throttle=5, data_throttle=3, gap_mask=0x03, qos_rand=1)
+    elif name == 'narrow':
+        wins = _windows(tag, narrow=True)
+        s.update(lat_mask=0x0F, data_throttle=3)
+    elif name == 'errwin':
+        wins = _windows(tag, err=True)
+        s.update(lat_mask=0x0F)
+    elif name == 'one_id':
+        s.update(lat_mask=0x3F, interleave=1)
+        m.update(id_mask=0, max_out=4)
+    else:
+        raise ValueError(f'unknown scenario {name}')
+    return wins, dict(m, seed=0x1111_0000 + n), dict(m, seed=0x2222_0000 + n), \
+        dict(s, seed=0x3333), dict(s, seed=0x4444)
+
+
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_axi_stress_clean(dut):
+    tb = AxiStressPairTB(dut)
+    name = os.environ.get('TEST_TYPE', 'ooo')
+    n = TXNS.get(tb.TEST_LEVEL, TXNS['gate'])
+    await tb.setup_clocks_and_reset()
+    wins, mrd, mwr, srd, swr = _scenario(name, n, tag=0x5A)
+    tb.configure(wins, mrd, mwr, srd, swr)
+    await tb.wait_clocks('aclk', 2)
+    await tb.go()
+    # ~50 beats per burst behind throttles: the limit scales with the budget
+    s = await tb.wait_done(timeout_cycles=max(200_000, 400 * n))
+    tb.log.info(f'{name}: monitor {dict(tb.stats)}\n{tb.describe(s)}')
+
+    for k in ('mrd', 'mwr', 'srd', 'swr'):
+        assert s[k]['err_mask'] == 0 and s[k]['err_cnt'] == 0, \
+            f'{k} reported errors:\n{tb.describe(s)}'
+    assert not tb.mon_errors, f'monitor: {len(tb.mon_errors)} errors, first {tb.mon_errors[0]}'
+    for k in ('mrd', 'mwr'):
+        assert s[k]['issued'] == n and s[k]['completed'] == n, \
+            f'{k}: issued {s[k]["issued"]} completed {s[k]["completed"]} of {n}'
+    assert s['srd']['bursts'] == n and s['swr']['bursts'] == n
+    for k in ('mrd', 'mwr'):      # mean <= max: LAT_SUM must not have wrapped or saturated
+        assert 0 < s[k]['lat_sum'] <= s[k]['lat_max'] * s[k]['completed'], \
+            f"{k}: lat_sum {s[k]['lat_sum']} vs max {s[k]['lat_max']} x {s[k]['completed']}"
+    assert tb.stats['ar'] == n and tb.stats['aw'] == n and tb.stats['b'] == n
+    assert tb.stats['r_beats'] == s['mrd']['beats'] == s['srd']['beats']
+    assert tb.stats['w_beats'] == s['mwr']['beats'] == s['swr']['beats']
+
+    if name in ('ooo', 'interleave', 'narrow', 'errwin'):
+        assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
+    if name == 'inorder':
+        assert tb.stats['r_ooo'] == 0, 'an in-order slave reordered'
+    if name in ('interleave', 'one_id'):
+        if name == 'interleave':
+            assert tb.stats['r_interleave'] > 0, 'no R beats interleaved'
+        else:
+            assert tb.stats['r_interleave'] == 0 and tb.stats['r_ooo'] == 0, \
+                'one ID must complete in order and never interleave'
+    if name == 'narrow':
+        assert tb.stats['w_partial_strb'] > 0, 'no partial strobes were sent'
+    if name == 'errwin':
+        assert tb.stats['r_err_beats'] > 0 and tb.stats['b_err'] > 0, \
+            'the error window answered no SLVERR'
+        assert tb.stats['r_err_beats'] < tb.stats['r_beats'], 'every read errored'
+    else:
+        assert tb.stats['r_err_beats'] == 0 and tb.stats['b_err'] == 0
+
+
+FAULTS = [
+    # (bit, status block, error bits any of which proves detection)
+    (0, 'mrd', {'RD_DATA'}),
+    (1, 'mrd', {'RD_STRAY', 'RD_LAST', 'RD_DATA', 'RD_RESP'}),
+    (2, 'mrd', {'RD_LAST'}),
+    (3, 'swr', {'S_WDATA'}),
+    (4, 'mwr', {'WR_STRAY', 'WR_EARLY'}),
+    (5, 'srd', {'S_ADDR'}),
+    (6, 'mwr', {'WR_RESP'}),
+    (7, 'mrd', {'RD_RESP'}),
+]
+
+
+@cocotb.test(timeout_time=400, timeout_unit="ms")
+async def cocotb_test_axi_stress_faults(dut):
+    tb = AxiStressPairTB(dut)
+    for bit, blk, expect in FAULTS:
+        await tb.setup_clocks_and_reset()
+        wins, mrd, mwr, srd, swr = _scenario('ooo', 0, tag=0x5A)  # until STOP
+        tb.configure(wins, mrd, mwr, srd, swr)
+        await tb.wait_clocks('aclk', 2)
+        await tb.go()
+        await tb.wait_clocks('aclk', 200)
+        clean = tb.status()
+        assert all(clean[k]['err_mask'] == 0 for k in clean), \
+            f'errors before fault {bit}:\n{tb.describe(clean)}'
+        await tb.pulse('flt_arm', 1 << bit)
+        for _ in range(5000):
+            await tb.wait_clocks('aclk', 1)
+            if (int(dut.flt_done.value) >> bit) & 1:
+                break
+        else:
+            raise AssertionError(f'fault {bit} never found a handshake to corrupt')
+        await tb.wait_clocks('aclk', 400)
+        await tb.pulse('stop')
+        await tb.wait_clocks('aclk', 50)
+        s = tb.status()
+        got = set(M.err_list(s[blk]['err_mask']))
+        tb.log.info(f'fault {bit}: {blk} {sorted(got)}')
+        assert got & expect, \
+            f'fault {bit}: {blk} raised {sorted(got)}, expected one of {sorted(expect)}\n' \
+            f'{tb.describe(s)}'
+        assert s[blk]['fe_valid'], f'fault {bit}: no first-error capture'
+        tb.reset_monitor()
+
+
+def _params():
+    level = os.environ.get('TEST_LEVEL', 'gate')
+    dws = [64] if level == 'gate' else [32, 64, 128]
+    scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id']
+    out = [(dw, 'clean', sc) for dw in dws for sc in scen]
+    out += [(dw, 'faults', '-') for dw in dws]
+    return out
+
+
+@pytest.mark.parametrize("dw, kind, scenario", _params())
+def test_axi_stress_pair(request, dw, kind, scenario):
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_amba_shared': 'rtl/amba/shared',
+    })
+    dut_name = "tb_axi_stress_pair"
+
+    m_src, m_inc = get_sources_from_filelist(repo_root=repo_root, module='axi4_master_stress')
+    s_src, s_inc = get_sources_from_filelist(repo_root=repo_root, module='axi4_slave_stress')
+    verilog_sources = list(dict.fromkeys(list(m_src) + list(s_src)))
+    verilog_sources.append(os.path.join(tests_dir, "tb_axi_stress_pair.sv"))
+    includes = list(dict.fromkeys(list(m_inc) + list(s_inc)))
+
+    test_level = os.environ.get('TEST_LEVEL', 'gate')
+    tag = scenario if kind == 'clean' else 'faults'
+    test_name_plus_params = f"test_{worker_id}_axi_stress_pair_dw{dw:03d}_{tag}_{test_level}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    seed = int(os.environ.get('SEED', str(random.randint(0, 100000))))
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1' if enable_waves else '0',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'INFO',
+        'TEST_LEVEL': test_level,
+        'TEST_TYPE': scenario,
+        'TEST_DATA_WIDTH': str(dw),
+        'TEST_NWIN': '8',
+        'SEED': str(seed),
+    }
+    compile_args = [
+        "-Wall",
+        "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-UNOPTFLAT",
+        "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY", "-Wno-TIMESCALEMOD",
+        "-Wno-DECLFILENAME", "-Wno-UNUSEDSIGNAL", "-Wno-GENUNNAMED",
+        "-Wno-SYNCASYNCNET", "-Wno-UNUSEDGENVAR", "-Wno-UNUSEDPARAM",
+        "-Wno-VARHIDDEN",
+    ]
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut_name,
+            module=module,
+            testcase=f"cocotb_test_axi_stress_{kind}",
+            parameters={'DW': str(dw), 'IW': '8', 'DEPTH': '16', 'NWIN': '8'},
+            sim_build=sim_build,
+            simulator="verilator",
+            extra_env=extra_env,
+            waves=enable_waves,
+            plus_args=(['--trace'] if enable_waves else []),
+            keep_files=True,
+            compile_args=compile_args,
+        )
+    except Exception as e:
+        print(f"Test failed: {e}\nLogs: {log_path}\nWaveforms: {cmd_filename}")
+        raise

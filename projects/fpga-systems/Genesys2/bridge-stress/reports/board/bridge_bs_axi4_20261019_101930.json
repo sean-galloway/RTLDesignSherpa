@@ -1,0 +1,12 @@
+[
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 200,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 58074,
+  "reasons": ""
+ }
+]

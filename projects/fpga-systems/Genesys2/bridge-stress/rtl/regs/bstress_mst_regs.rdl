@@ -1,0 +1,139 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// Bridge stress model: one stress MASTER's configuration and status
+// (axi_stress_mst_rd / axi_stress_mst_wr behind the protocol shell).
+//
+// Regenerate with bin/peakrdl_generate.py (never raw peakrdl):
+//   python3 bin/peakrdl_generate.py \
+//     projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_mst_regs.rdl \
+//     -o projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated --no-html
+//
+// Every field maps one-to-one onto axi_stress_pkg's stress_mdir_cfg_t,
+// stress_win_t and stress_mdir_sts_t; bstress_mst.sv does the mapping. The
+// config is STAGED: nothing here starts traffic. The harness's GO starts every
+// enabled master on one cycle, and GO is ignored by a master still busy.
+//
+// 4 KB window:
+//   0x000        identity / build parameters
+//   0x010 / 030  RD_* / WR_* direction config
+//   0x100 + 16i  window i (8)
+//   0x200 / 240  RD_* / WR_* status (read only; zeroed by GO)
+
+addrmap bstress_mst_regs {
+    name = "Bridge stress master";
+    desc = "Configuration and status of one bus-stress master";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    reg {
+        desc = "Identity: 0x5354 ('ST') and the build parameters.";
+        field { sw = r; hw = w; desc = "Data width / 8 (bus bytes)."; } BUS_BYTES[7:0] = 0;
+        field { sw = r; hw = w; desc = "AXI ID width."; } ID_WIDTH[12:8] = 0;
+        field { sw = r; hw = w; desc = "Protocol: 0 AXI4, 1 AXI3, 2 AXI5, 3 AXI4-Lite, 4 AXI5-Lite, 5 APB4, 6 APB5, 7 WB4."; } PROTOCOL[15:13] = 0;
+        field { sw = r; hw = w; desc = "Constant 0x5354."; } MAGIC[31:16] = 0;
+    } ID @ 0x000;
+
+    reg {
+        desc = "Build parameters.";
+        field { sw = r; hw = w; desc = "Bursts in flight per direction, as built."; } DEPTH[7:0] = 0;
+        field { sw = r; hw = w; desc = "Windows built."; } NWIN[11:8] = 0;
+        field { sw = r; hw = w; desc = "Read direction built."; } HAS_RD[12:12] = 0;
+        field { sw = r; hw = w; desc = "Write direction built."; } HAS_WR[13:13] = 0;
+        field { sw = r; hw = w; desc = "Index of this master in the harness."; } INDEX[19:16] = 0;
+    } PARAMS @ 0x004;
+
+    // Register types shared by the two directions; each is instantiated twice
+    // under its own name (RD_* / WR_*), because the generated regmap flattens
+    // regfile instances by register name and would merge the two.
+    reg mcfg_ctrl_t {
+        field { sw = rw; hw = r; desc = "This direction runs on GO."; } ENABLE[0:0] = 0;
+        field { sw = rw; hw = r; desc = "AxQOS random (else 0)."; } QOS_RAND[1:1] = 0;
+        field { sw = rw; hw = r; desc = "ERR_HANG after 2^n cycles with work outstanding and no response; 0 = off."; } TIMEOUT_LG2[6:2] = 0;
+        field { sw = rw; hw = r; desc = "RREADY/BREADY low with probability n/16."; } RESP_THROTTLE[11:8] = 0;
+        field { sw = rw; hw = r; desc = "Writes: a WVALID bubble between beats with probability n/16."; } DATA_THROTTLE[15:12] = 0;
+        field { sw = rw; hw = r; desc = "Idle cycles after a burst = random & GAP_MASK."; } GAP_MASK[23:16] = 0;
+        field { sw = rw; hw = r; desc = "Bursts in flight; 0 = as built (PARAMS.DEPTH)."; } MAX_OUT[31:24] = 0;
+    };
+    reg mcfg_count_t { field { sw = rw; hw = r; desc = "Bursts per run; 0 = until STOP."; } VALUE[31:0] = 0; };
+    reg mcfg_seed_t  { field { sw = rw; hw = r; desc = "Transaction PRNG seed; 0 = the built-in seed. The burst sequence is a function of this alone."; } VALUE[31:0] = 0; };
+    reg mcfg_id_t {
+        field { sw = rw; hw = r; desc = "AxID = BASE ^ (random & MASK)."; } BASE[15:0] = 0;
+        field { sw = rw; hw = r; } MASK[31:16] = 0;
+    };
+
+    mcfg_ctrl_t  RD_CTRL      @ 0x010;
+    mcfg_count_t RD_TXN_COUNT @ 0x014;
+    mcfg_seed_t  RD_SEED      @ 0x018;
+    mcfg_id_t    RD_ID_CFG    @ 0x01C;
+    mcfg_ctrl_t  WR_CTRL      @ 0x030;
+    mcfg_count_t WR_TXN_COUNT @ 0x034;
+    mcfg_seed_t  WR_SEED      @ 0x038;
+    mcfg_id_t    WR_ID_CFG    @ 0x03C;
+
+    regfile win_t {
+        reg {
+            field { sw = rw; hw = r; desc = "Window base (aligned to its size)."; } VALUE[31:0] = 0;
+        } BASE @ 0x0;
+        reg {
+            field { sw = rw; hw = r; desc = "Window = 2^SIZE_LG2 bytes (>= the bus width)."; } SIZE_LG2[5:0] = 0;
+            field { sw = rw; hw = r; desc = "Response every access must get: 0 OKAY, 2 SLVERR, 3 DECERR."; } RESP[7:6] = 0;
+            field { sw = rw; hw = r; desc = "Tag of the slave owning the window (folds into its data)."; } TAG[15:8] = 0;
+            field { sw = rw; hw = r; desc = "AxLEN = random & LEN_MASK (15 for an AXI3 path, 0 for single-beat protocols)."; } LEN_MASK[23:16] = 0;
+        } CFG0 @ 0x4;
+        reg {
+            field { sw = rw; hw = r; desc = "Smallest AxSIZE."; } SIZE_MIN[2:0] = 0;
+            field { sw = rw; hw = r; desc = "Largest AxSIZE (clamped to the bus)."; } SIZE_MAX[6:4] = 7;
+            field { sw = rw; hw = r; desc = "Burst types allowed: [0] FIXED [1] INCR [2] WRAP."; } BURST_MASK[10:8] = 2;
+            field { sw = rw; hw = r; desc = "INCR/FIXED may start off the size grid."; } UNALIGNED[12:12] = 0;
+            field { sw = rw; hw = r; desc = "Writes clear random strobes."; } STRB_RAND[13:13] = 0;
+            field { sw = rw; hw = r; desc = "Reads target this window."; } RD_EN[14:14] = 0;
+            field { sw = rw; hw = r; desc = "Writes target this window."; } WR_EN[15:15] = 0;
+        } CFG1 @ 0x8;
+    };
+
+    win_t WIN[8] @ 0x100 += 0x10;
+
+    reg msts_status_t {
+        field { sw = r; hw = w; desc = "Running (or draining)."; } BUSY[0:0] = 0;
+        field { sw = r; hw = w; desc = "Run complete: budget issued and every burst retired."; } DONE[1:1] = 0;
+        field { sw = r; hw = w; desc = "A first error is captured in FE_*."; } FE_VALID[2:2] = 0;
+        field { sw = r; hw = w; desc = "ERR_* code of the first error."; } FE_KIND[7:4] = 0;
+        field { sw = r; hw = w; desc = "GOs this direction has taken (wraps): equal to the control block's GO_COUNT when it ran every run."; } RUNS[15:8] = 0;
+        field { sw = r; hw = w; desc = "Bursts outstanding now."; } OUT_NOW[23:16] = 0;
+        field { sw = r; hw = w; desc = "Most bursts outstanding this run."; } OUT_MAX[31:24] = 0;
+    };
+    reg msts_u32_t { field { sw = r; hw = w; } VALUE[31:0] = 0; };
+    reg msts_u16_t { field { sw = r; hw = w; } VALUE[15:0] = 0; };
+    reg msts_err_t {
+        field { sw = r; hw = w; desc = "Sticky, one bit per ERR_* code."; } MASK[15:0] = 0;
+        field { sw = r; hw = w; desc = "Errors counted (saturating)."; } COUNT[31:16] = 0;
+    };
+
+    msts_status_t  RD_STATUS     @ 0x200;
+    msts_u32_t     RD_ISSUED     @ 0x204;  // Bursts issued this run.
+    msts_u32_t     RD_COMPLETED  @ 0x208;  // Bursts retired (last R / B checked).
+    msts_u32_t     RD_BEATS      @ 0x20C;  // Data beats moved.
+    msts_err_t     RD_ERR        @ 0x210;
+    msts_u16_t     RD_FE_ID      @ 0x214;  // First error: the response ID.
+    msts_u32_t     RD_FE_ADDR    @ 0x218;  // First error: the beat (word) address.
+    msts_u32_t     RD_FE_EXP     @ 0x21C;  // First error: expected word / field.
+    msts_u32_t     RD_FE_ACT     @ 0x220;  // First error: actual word / field.
+    msts_u16_t     RD_LAT_MAX    @ 0x224;  // Longest issue-to-retire latency, cycles.
+    msts_u32_t     RD_LAT_SUM    @ 0x228;  // Sum of latencies (saturating); / COMPLETED = mean.
+
+    msts_status_t  WR_STATUS     @ 0x240;
+    msts_u32_t     WR_ISSUED     @ 0x244;  // Bursts issued this run.
+    msts_u32_t     WR_COMPLETED  @ 0x248;  // Bursts retired (last R / B checked).
+    msts_u32_t     WR_BEATS      @ 0x24C;  // Data beats moved.
+    msts_err_t     WR_ERR        @ 0x250;
+    msts_u16_t     WR_FE_ID      @ 0x254;  // First error: the response ID.
+    msts_u32_t     WR_FE_ADDR    @ 0x258;  // First error: the beat (word) address.
+    msts_u32_t     WR_FE_EXP     @ 0x25C;  // First error: expected word / field.
+    msts_u32_t     WR_FE_ACT     @ 0x260;  // First error: actual word / field.
+    msts_u16_t     WR_LAT_MAX    @ 0x264;  // Longest issue-to-retire latency, cycles.
+    msts_u32_t     WR_LAT_SUM    @ 0x268;  // Sum of latencies (saturating); / COMPLETED = mean.
+
+};

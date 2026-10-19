@@ -257,6 +257,45 @@ MANIFEST = [
         "compare": [("projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses/chargen_regs_regmap.py", "chargen_regs_regmap.py")],
     },
     {
+        "name": "bstress_ctl_regs (Genesys2 bridge stress)",
+        "rdl": "projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_ctl_regs.rdl",
+        "sources": ["projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_ctl_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/rtl/bstress_ctl_regs.sv", "rtl/bstress_ctl_regs.sv"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/rtl/bstress_ctl_regs_pkg.sv", "rtl/bstress_ctl_regs_pkg.sv"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/bstress_ctl_regs_regmap.py", "bstress_ctl_regs_regmap.py"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/docs/bstress_ctl_regs.md", "docs/bstress_ctl_regs.md"),
+        ],
+    },
+    {
+        "name": "bstress_mst_regs (Genesys2 bridge stress)",
+        "rdl": "projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_mst_regs.rdl",
+        "sources": ["projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_mst_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/rtl/bstress_mst_regs.sv", "rtl/bstress_mst_regs.sv"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/rtl/bstress_mst_regs_pkg.sv", "rtl/bstress_mst_regs_pkg.sv"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/bstress_mst_regs_regmap.py", "bstress_mst_regs_regmap.py"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/docs/bstress_mst_regs.md", "docs/bstress_mst_regs.md"),
+        ],
+    },
+    {
+        "name": "bstress_slv_regs (Genesys2 bridge stress)",
+        "rdl": "projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_slv_regs.rdl",
+        "sources": ["projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/bstress_slv_regs.rdl"],
+        "flags": ["--no-html"],
+        "regmap_output": None,
+        "compare": [
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/rtl/bstress_slv_regs.sv", "rtl/bstress_slv_regs.sv"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/rtl/bstress_slv_regs_pkg.sv", "rtl/bstress_slv_regs_pkg.sv"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/bstress_slv_regs_regmap.py", "bstress_slv_regs_regmap.py"),
+            ("projects/fpga-systems/Genesys2/bridge-stress/rtl/regs/generated/docs/bstress_slv_regs.md", "docs/bstress_slv_regs.md"),
+        ],
+    },
+    {
         # REGMAP ONLY. ddr2_char's rtl/harness_csr.sv is HAND-WRITTEN (no
         # PeakRDL banner; a fresh regen differs by 1787 lines) and no
         # harness_csr_pkg.sv is tracked. Putting the .sv in the compare set

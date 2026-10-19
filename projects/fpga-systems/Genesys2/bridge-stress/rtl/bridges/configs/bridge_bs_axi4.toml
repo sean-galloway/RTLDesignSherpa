@@ -1,0 +1,116 @@
+#============================================================================
+# bridge_bs_axi4 -- the bridge stress model's AXI4 device under test.
+#
+# Four AXI4 masters and four AXI4 slaves, every pair connected, chosen so one
+# bitstream reaches every AXI4 path the generator builds:
+#   widths    32 / 64 / 128 on both sides: upsize and downsize converters on
+#             the paths where they differ (128 -> 32 is a 4:1 downsize)
+#   IDs       8-bit masters wider than a remap slot (cpu, io: bridge_id_remap),
+#             a 4-bit master that keeps its own ID (dma), a 6-bit one (acc)
+#   clocks    acc and mem3 on their own clock (cdc = true): a master-side and
+#             a slave-side crossing
+#   order     every slave has four masters, so every slave adapter routes
+#             responses by ID and the stress slaves may reorder and interleave
+#   decode    the 256 MB between mem1 and mem2 belongs to no slave: the
+#             internal subtractive slave answers it DECERR
+# Slave id_width is the fabric's ({master index, slot}); the validator checks it.
+#============================================================================
+
+[bridge]
+name = "bridge_bs_axi4"
+variants = ["no"]
+description = "bridge stress model: 4 AXI4 masters x 4 AXI4 slaves, mixed widths, remap, two CDC ports"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name       = "cpu"
+prefix     = "cpu_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name       = "dma"
+prefix     = "dma_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+
+[[bridge.masters]]
+name       = "acc"
+prefix     = "acc_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 32
+user_width = 1
+cdc        = true
+
+[[bridge.masters]]
+name       = "io"
+prefix     = "io_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.slaves]]
+name       = "mem0"
+prefix     = "mem0_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem1"
+prefix     = "mem1_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 128
+user_width = 1
+base_addr  = "0x10000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem2"
+prefix     = "mem2_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr  = "0x30000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem3"
+prefix     = "mem3_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+cdc        = true
+base_addr  = "0x40000000"
+addr_range = "0x10000000"
