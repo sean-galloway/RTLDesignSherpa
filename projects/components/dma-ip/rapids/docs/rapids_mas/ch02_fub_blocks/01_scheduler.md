@@ -102,7 +102,7 @@ Compared with the RAPIDS Beats scheduler, the state machine, the timeout logic, 
 
 | Signal | Dir | Width | Description |
 |--------|-----|-------|-------------|
-| `scheduler_idle` | out | 1 | High in CH_IDLE with no channel reset pending |
+| `scheduler_idle` | out | 1 | High in CH_IDLE with no channel reset pending and the descriptor skid empty |
 | `scheduler_state` | out | 7 | One-hot state (see Table 2.1.12) |
 | `sched_error` | out | 1 | Sticky, high in CH_ERROR |
 | `dbg_descriptor_error` | out | 1 | Latched fatal descriptor-level error |
@@ -117,12 +117,34 @@ Compared with the RAPIDS Beats scheduler, the state machine, the timeout logic, 
 | Signal | Dir | Width | Description |
 |--------|-----|-------|-------------|
 | `descriptor_valid` | in | 1 | A descriptor is available |
-| `descriptor_ready` | out | 1 | High in CH_IDLE and CH_NEXT_DESC |
+| `descriptor_ready` | out | 1 | The descriptor skid has room (see Descriptor Skid Buffer) |
 | `descriptor_packet` | in | 256 | Descriptor (layout in Table 2.1.10) |
 | `descriptor_ext_packet` | in | 256 | Extended chunk; used only when TYPE=EXT |
 | `descriptor_error` | in | 1 | Descriptor fetch or parse error |
 
 : Table 2.1.4: Descriptor Engine Interface
+
+### Descriptor Skid Buffer
+
+Every scheduler takes its descriptors through a two-deep skid buffer
+(`gaxi_skid_buffer`, DEPTH 2) on `{descriptor_packet, descriptor_ext_packet}`,
+in front of the descriptor engine's per-channel FIFO, which stays (rapids TASK-028).
+The FSM reads the descriptor from the skid's flops rather than straight off
+the engine's 256-bit output, one engine for every channel under
+`SHARED_ENGINES`, and a running channel holds two more descriptors.
+
+- `descriptor_ready` is the skid's `wr_ready`: high while it has room,
+  whatever the FSM state. The FSM's own take (CH_IDLE while
+  `cfg_channel_enable` is set, CH_NEXT_DESC) pops the skid.
+- A disabled channel's descriptor waits in the skid (or behind it in the
+  engine FIFO) until the channel is enabled; it is not consumed and dropped.
+- `scheduler_idle` stays low while the skid holds a descriptor, so the
+  engine and the scheduler never both read idle with work pending.
+- Channel reset: the engine masks `descriptor_valid` during its reset, so
+  nothing is written during one, and the skid drains while the reset is
+  active. Each entry carries the reset epoch it was written in, and the epoch
+  flips as a reset starts, so an entry a reset too short to drain it left
+  behind is dropped at the head, never run.
 
 ### Data Read Interface (to AXI Read Engine)
 
@@ -335,7 +357,7 @@ Transition priority is: registered channel reset to IDLE, then a hard error or t
 
 `w_exec_complete` is `w_transfer_complete` for a DATA descriptor and `w_ctrl_complete` for a control descriptor. `w_transfer_complete` is the read remaining count reaching zero together with the commit remaining count reaching zero. `w_ctrl_complete` is the control request having been accepted and the control engine having returned to idle.
 
-`scheduler_idle` is `CH_IDLE && !r_channel_reset_active`. `sched_error` is the ERROR state.
+`scheduler_idle` is `CH_IDLE && !r_channel_reset_active && !w_desc_skid_valid`. `sched_error` is the ERROR state.
 
 ---
 

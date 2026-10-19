@@ -351,10 +351,10 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         """A desc packet with no free slot is dropped: the channel's sticky
         sts_tile_desc_dropped bit is set, and nothing else changes. The channel
         is kept busy by a long host-kicked transfer, so its scheduler takes
-        nothing from its queue (8) and slot (1) while the cell sends 10
-        descriptors: the 10th has no slot. The running transfer, and the nine
-        that were taken, must all complete; no channel is errored; the sink
-        port keeps taking packets."""
+        nothing from its queue (8), slot (1) and descriptor skid (2, rapids
+        TASK-028) while the cell sends 12 descriptors: the 12th has no slot.
+        The running transfer, and the eleven that were taken, must all
+        complete; no channel is errored; the sink port keeps taking packets."""
         self.log.info(f"=== TILE cell descriptor overflow: ch{channel} ===")
         bpb = self.STRB_WIDTH
         host_beats = 256
@@ -377,7 +377,7 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         self.preload_source(inj_src, inj_pat)
         inj_dst = coord(0, 2, 2, 0)
         d = self.create_tile_descriptor(inj_src, bpb, inj_dst, 0x20, channel_id=channel)
-        n = 8 + 1 + 1                      # queue + slot + the one with no slot
+        n = 8 + 1 + 2 + 1                  # queue + slot + skid + the one with no slot
         for _ in range(n):
             await self.cell_send_descriptor(channel, d)
         await self.wait_clocks(self.clk_name, 50)
@@ -385,7 +385,7 @@ class RapidsCxsTileTB(RapidsCxsTopTB):
         dropped = int(self.dut.sts_tile_desc_dropped.value)
         if dropped != (1 << channel):
             errors.append(f"sts_tile_desc_dropped=0x{dropped:X}, expected 0x{1 << channel:X}")
-        want = 1 + (n - 1)                 # the host packet, then the nine taken
+        want = 1 + (n - 1)                 # the host packet, then the eleven taken
         if not await self.wait_egress_packets(channel, want, timeout_cycles=40000):
             errors.append(f"ch{channel}: {len(self.egress_packets(channel))} of {want} packets")
         await self.wait_clocks(self.clk_name, 200)

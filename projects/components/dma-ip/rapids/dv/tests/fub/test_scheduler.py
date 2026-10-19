@@ -133,6 +133,17 @@ async def cocotb_test_byte_lengths(dut):
     assert result, "Byte length test failed"
 
 
+@cocotb.test(timeout_time=200, timeout_unit="ms")
+async def cocotb_test_desc_skid(dut):
+    """Two-deep descriptor skid: depth behind a running descriptor, and a short channel reset (rapids TASK-028)"""
+    tb = SchedulerByteTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_desc_skid()
+    tb.generate_test_report()
+    assert result, "Descriptor skid test failed"
+
+
 @cocotb.test(timeout_time=100, timeout_unit="ms")
 async def cocotb_test_pkt_backpressure(dut):
     """A full packet-record queue holds the descriptor in CH_FETCH_DESC"""
@@ -322,6 +333,16 @@ def test_scheduler_basic_flow(request, channel_id, num_channels, data_width, tim
 def test_scheduler_byte_lengths(request, channel_id, num_channels, data_width, timing_profile, test_level):
     """Pytest: byte-granular scheduler (rapids TASK-019)"""
     _run_scheduler_test(request, "cocotb_test_byte_lengths",
+                       channel_id, num_channels, data_width, timing_profile, test_level=test_level)
+
+
+@pytest.mark.fub
+@pytest.mark.scheduler
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_desc_skid(request, channel_id, num_channels, data_width, timing_profile, test_level):
+    """Pytest: two-deep descriptor skid buffer (rapids TASK-028)"""
+    _run_scheduler_test(request, "cocotb_test_desc_skid",
                        channel_id, num_channels, data_width, timing_profile, test_level=test_level)
 
 

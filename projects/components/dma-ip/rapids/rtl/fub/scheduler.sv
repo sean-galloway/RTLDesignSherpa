@@ -292,13 +292,68 @@ module scheduler #(
     // Registered to cleanly handle cfg_channel_reset assertion
     logic r_channel_reset_active;
 
+    //=========================================================================
+    // Descriptor skid buffer (rapids TASK-028 / stream TASK-017)
+    //=========================================================================
+    // Every scheduler holds two descriptors in a skid buffer at its input, in
+    // front of the descriptor engine's per-channel FIFO (owner direction
+    // 2026-10-18). The descriptor reaches the FSM from a flop here rather than
+    // straight off the engine's 256-bit fan-out (one engine for every channel
+    // under SHARED_ENGINES), and a running channel holds two more descriptors.
+    //
+    // Channel reset: the engine masks descriptor_valid while it is reset, so
+    // nothing is written during one, and the skid drains while the reset is
+    // active. Each entry carries the epoch it was written in; the epoch flips
+    // as a reset starts, so an entry a short reset did not drain is dropped at
+    // the head instead of being run.
+    localparam int DESC_SKID_DW = 1 + DESC_WIDTH + 256;   // {epoch, packet, ext}
+
+    logic                     w_desc_take;        // FSM takes the head (assigned below)
+    logic                     w_desc_valid;       // a current-epoch descriptor at the head
+    logic [DESC_WIDTH-1:0]    w_desc_packet;
+    logic [255:0]             w_desc_ext_packet;
+    logic                     w_desc_skid_valid;
+    logic                     w_desc_skid_stale;
+    logic [DESC_SKID_DW-1:0]  w_desc_skid_out;
+    logic                     r_desc_epoch;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_desc_epoch <= 1'b0;
+        end else if (cfg_channel_reset && !r_channel_reset_active) begin
+            r_desc_epoch <= !r_desc_epoch;
+        end
+    )
+
+    gaxi_skid_buffer #(
+        .DATA_WIDTH (DESC_SKID_DW),
+        .DEPTH      (2)
+    ) u_desc_skid (
+        .axi_aclk    (clk),
+        .axi_aresetn (rst_n),
+        .wr_valid    (descriptor_valid),
+        .wr_ready    (descriptor_ready),
+        .wr_data     ({r_desc_epoch, descriptor_packet, descriptor_ext_packet}),
+        .count       (),
+        .rd_valid    (w_desc_skid_valid),
+        .rd_ready    (w_desc_take || r_channel_reset_active || w_desc_skid_stale),
+        .rd_count    (),
+        .rd_data     (w_desc_skid_out)
+    );
+
+    assign w_desc_skid_stale = w_desc_skid_valid &&
+                               (w_desc_skid_out[DESC_SKID_DW-1] != r_desc_epoch);
+    assign w_desc_valid      = w_desc_skid_valid && !w_desc_skid_stale && !r_channel_reset_active;
+    assign w_desc_packet     = w_desc_skid_out[DESC_WIDTH+255:256];
+    assign w_desc_ext_packet = w_desc_skid_out[255:0];
+
     // Descriptor fields
-    // Latched from descriptor_packet in rapids_pkg::CH_IDLE state when descriptor_valid
+    // Latched from w_desc_packet in rapids_pkg::CH_IDLE state when w_desc_valid
     rapids_pkg::descriptor_t r_descriptor;
     logic r_descriptor_loaded;  // Flag indicating descriptor successfully loaded
 
     // Control-descriptor support (Phase 2). Opcode latched at descriptor capture
-    // from descriptor_packet[DESC_OPCODE_HI:DESC_OPCODE_LO]; the ctrl addr/data/mask
+    // from w_desc_packet[DESC_OPCODE_HI:DESC_OPCODE_LO]; the ctrl addr/data/mask
     // are reinterpreted from the descriptor's src_addr/dst_addr slots (rapids_pkg
     // DESC_CTRL_* / DESC_OPCODE_*). CTRL_READ = consumer gate, CTRL_WRITE = producer
     // doorbell; DATA runs the existing concurrent read/write engines.
@@ -477,15 +532,15 @@ module scheduler #(
                 case (r_current_state)
                     rapids_pkg::CH_IDLE: begin
                         // Wait for:
-                        // 1. descriptor_valid (descriptor engine has descriptor ready)
+                        // 1. w_desc_valid (descriptor engine has descriptor ready)
                         // 2. cfg_channel_enable (software has enabled this channel)
-                        if (descriptor_valid && cfg_channel_enable) begin
+                        if (w_desc_valid && cfg_channel_enable) begin
                             w_next_state = rapids_pkg::CH_FETCH_DESC;
                         end
                     end
 
                     rapids_pkg::CH_FETCH_DESC: begin
-                        // Descriptor latched from descriptor_packet in one cycle
+                        // Descriptor latched from w_desc_packet in one cycle
                         // Validate descriptor.valid bit before proceeding
                         if (r_descriptor.valid && !w_tile_bad) begin
                             // Valid descriptor -> start the concurrent transfer, once the
@@ -532,10 +587,10 @@ module scheduler #(
                     rapids_pkg::CH_NEXT_DESC: begin
                         // Wait for descriptor engine to fetch next chained descriptor
                         // descriptor_engine uses r_descriptor.next_descriptor_ptr as fetch address
-                        if (descriptor_valid) begin
+                        if (w_desc_valid) begin
                             w_next_state = rapids_pkg::CH_FETCH_DESC;  // Next descriptor ready
                         end
-                        // Note: Stays in NEXT_DESC until descriptor_valid
+                        // Note: Stays in NEXT_DESC until w_desc_valid
                     end
 
                     rapids_pkg::CH_ERROR: begin
@@ -569,21 +624,21 @@ module scheduler #(
     // State-dependent register updates for descriptor fields and transfer tracking
     //
     // Key State Actions:
-    //   rapids_pkg::CH_IDLE/rapids_pkg::CH_NEXT_DESC: Sample descriptor_packet when descriptor_valid
+    //   rapids_pkg::CH_IDLE/rapids_pkg::CH_NEXT_DESC: Sample w_desc_packet when w_desc_valid
     //   rapids_pkg::CH_FETCH_DESC: Initialize working registers from latched descriptor
     //   rapids_pkg::CH_XFER_DATA:  Decrement BOTH read and write counters independently (concurrent!)
     //   rapids_pkg::CH_COMPLETE:   Clear descriptor_loaded flag
     //
-    // CRITICAL: Descriptor packet sampling happens when descriptor_valid && descriptor_ready
+    // CRITICAL: Descriptor packet sampling happens when w_desc_valid && w_desc_take
     //           (in rapids_pkg::CH_IDLE or rapids_pkg::CH_NEXT_DESC states). This ensures fresh descriptor data
     //           is captured for both the first descriptor and all chained descriptors.
     //
     // CRITICAL: In rapids_pkg::CH_XFER_DATA, both counters update independently based on their
     //           respective done strobes. This allows concurrent read/write operation.
 
-    assign w_descriptor_ext_in = rapids_pkg::descriptor_ext_t'(descriptor_ext_packet);
+    assign w_descriptor_ext_in = rapids_pkg::descriptor_ext_t'(w_desc_ext_packet);
     assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
-                         (descriptor_packet[rapids_pkg::DESC_TYPE_HI:rapids_pkg::DESC_TYPE_LO] ==
+                         (w_desc_packet[rapids_pkg::DESC_TYPE_HI:rapids_pkg::DESC_TYPE_LO] ==
                           rapids_pkg::RAPIDS_DESC_TYPE_EXT);
 
     //=========================================================================
@@ -710,31 +765,31 @@ module scheduler #(
             r_rd_run_remaining <= 32'h0;
             r_wr_run_remaining <= 32'h0;
         end else begin
-            // Descriptor capture: Sample descriptor_packet when handshake occurs
+            // Descriptor capture: Sample w_desc_packet when handshake occurs
             // This happens in either rapids_pkg::CH_IDLE (first descriptor) or rapids_pkg::CH_NEXT_DESC (chained)
             if ((r_current_state == rapids_pkg::CH_IDLE || r_current_state == rapids_pkg::CH_NEXT_DESC) &&
-                descriptor_valid && descriptor_ready) begin
+                w_desc_valid && w_desc_take) begin
                 // Extract fields from 256-bit RAPIDS descriptor
                 // - Addresses are BYTE addresses; the low bits are the offset of the
                 //   first byte within its beat (TASK-019)
                 // - Length is in BYTES; beats are derived in w_*_beats_total
                 //
-                r_descriptor.src_addr <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-                r_descriptor.dst_addr <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-                r_descriptor.length <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
-                r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
-                r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
-                r_descriptor.last <= descriptor_packet[DESC_LAST];
+                r_descriptor.src_addr <= w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+                r_descriptor.dst_addr <= w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+                r_descriptor.length <= w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+                r_descriptor.next_descriptor_ptr <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+                r_descriptor.valid <= w_desc_packet[DESC_VALID_BIT];
+                r_descriptor.gen_irq <= w_desc_packet[DESC_GEN_IRQ];
+                r_descriptor.last <= w_desc_packet[DESC_LAST];
 
                 // Latch the opcode; ctrl addr/data/mask are read from the src/dst
                 // slots (see completion/output logic). Fresh control op -> not issued.
-                r_desc_opcode <= descriptor_packet[DESC_OPCODE_HI:DESC_OPCODE_LO];
-                r_tile_ptype  <= descriptor_packet[rapids_pkg::DESC_TILE_PTYPE_HI:rapids_pkg::DESC_TILE_PTYPE_LO];
-                r_tile_op     <= descriptor_packet[rapids_pkg::DESC_TILE_OP];
+                r_desc_opcode <= w_desc_packet[DESC_OPCODE_HI:DESC_OPCODE_LO];
+                r_tile_ptype  <= w_desc_packet[rapids_pkg::DESC_TILE_PTYPE_HI:rapids_pkg::DESC_TILE_PTYPE_LO];
+                r_tile_op     <= w_desc_packet[rapids_pkg::DESC_TILE_OP];
 
                 // Extended descriptor: type at [212:210], chunk 1 arrives in
-                // lockstep on descriptor_ext_packet. Precompute the per-beat
+                // lockstep on w_desc_ext_packet. Precompute the per-beat
                 // flags here so the hot path selects on a register bit.
                 r_descriptor_ext <= w_descriptor_ext_in;
                 r_is_ext         <= w_is_ext_in;
@@ -1018,8 +1073,8 @@ module scheduler #(
     // a disabled channel used to pop and discard every descriptor that reached
     // its queue (a host kick to a disabled channel lost its descriptor). It now
     // waits in the queue and runs once the channel is enabled.
-    assign descriptor_ready = ((r_current_state == rapids_pkg::CH_IDLE) && cfg_channel_enable) ||
-                              (r_current_state == rapids_pkg::CH_NEXT_DESC);
+    assign w_desc_take = ((r_current_state == rapids_pkg::CH_IDLE) && cfg_channel_enable) ||
+                         (r_current_state == rapids_pkg::CH_NEXT_DESC);
 
     //=========================================================================
     // Timeout and Error Management
@@ -1240,7 +1295,8 @@ module scheduler #(
     // Only rapids_pkg::CH_IDLE is "idle". rapids_pkg::CH_ERROR is a faulted channel and must NOT report
     // idle — reporting rapids_pkg::CH_ERROR as idle is what let CHANNEL_IDLE read '1' on a
     // wedged channel. A faulted channel is surfaced via sched_error/CHANNEL_ERROR.
-    assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active;
+    assign scheduler_idle = (r_current_state == rapids_pkg::CH_IDLE) && !r_channel_reset_active &&
+                            !w_desc_skid_valid;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
 

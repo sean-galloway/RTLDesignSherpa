@@ -14,6 +14,8 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
+# descriptor skid (TASK-028 / TASK-017)
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
 

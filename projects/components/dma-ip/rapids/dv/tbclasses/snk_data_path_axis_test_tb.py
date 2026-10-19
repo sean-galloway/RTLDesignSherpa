@@ -407,8 +407,9 @@ class SnkDataPathAxisTestTB(TBBase):
         return desc
 
     async def send_descriptor(self, channel: int, addr: int, beats: int, eos: bool = False,
-                              length_bytes: int = None):
-        """Send a descriptor to a specific channel"""
+                              length_bytes: int = None, wait_taken: bool = False):
+        """Send a descriptor to a specific channel. wait_taken: also wait until
+        the scheduler FSM takes it (see _wait_desc_taken)."""
         if channel >= self.NUM_CHANNELS:
             raise ValueError(f"Invalid channel {channel}")
 
@@ -431,10 +432,37 @@ class SnkDataPathAxisTestTB(TBBase):
         master = self.descriptor_masters[channel]
         packet = master.create_packet(packet=desc, error=0)
         await master.send(packet)
+        if wait_taken:
+            await self._wait_desc_taken(channel)
 
         self.test_stats['descriptors_sent'] += 1
         self.test_stats['channel_operations'][channel] += 1
         self.log.info(f"Sent descriptor to ch{channel}: addr=0x{addr:X}, beats={beats}, eos={eos}")
+
+    async def _wait_desc_taken(self, channel: int, timeout_cycles: int = 20000) -> bool:
+        """Wait until the channel's scheduler FSM has taken the descriptor.
+
+        Since rapids TASK-028 each scheduler takes descriptors through a 2-deep
+        skid, so the port handshake completes while the channel is still busy
+        and no longer says the FSM took it. The tests here pace the AXIS stream
+        on the take (a head beat queued for a busy channel stalls the shared
+        bus past the BFM's ready timeout), so wait for the FSM to pass through
+        CH_IDLE and leave it again. Only for a caller that sends each
+        descriptor's data before the next descriptor: the FSM cannot finish a
+        transfer whose data has not been sent."""
+        def state() -> int:
+            return (int(self.dut.sched_state.value) >> (7 * channel)) & 0x7F
+        seen_idle = state() == 0x01
+        for _ in range(timeout_cycles):
+            st = state()
+            if st == 0x01:
+                seen_idle = True
+            elif seen_idle:
+                return True
+            await self.wait_clocks(self.clk_name, 1)
+        self.log.warning(f"ch{channel}: scheduler did not take its descriptor "
+                         f"within {timeout_cycles} cycles")
+        return False
 
     # =========================================================================
     # AXIS HELPERS
@@ -894,8 +922,9 @@ class SnkDataPathAxisTestTB(TBBase):
         Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
         the descriptor goes FIRST -- the ingress cannot place a packet's bytes
         until the scheduler has fetched the descriptor that says where they
-        go, and send_descriptor() blocks until the channel's scheduler accepts
-        it. Queuing the data first left the AXIS master's head beat waiting on
+        go, and send_descriptor(wait_taken=True) blocks until the channel's
+        scheduler takes it (since rapids TASK-028 the port handshake alone
+        completes into the scheduler's descriptor skid). Queuing the data first left the AXIS master's head beat waiting on
         a channel still busy with its previous transfer, past the BFM's
         1000-cycle ready timeout, and the dropped beat shifted every later
         beat of that channel by one (func, 512-bit, slow_producer).
@@ -924,7 +953,7 @@ class SnkDataPathAxisTestTB(TBBase):
 
                 # CRITICAL FIX: Send AXIS data FIRST!
                 # Descriptor first (byte-granular contract), then the packet
-                await self.send_descriptor(channel, addr, beats)
+                await self.send_descriptor(channel, addr, beats, wait_taken=True)
                 await self.wait_clocks(self.clk_name, 10)
                 await self.send_axis_packet(channel, test_data, last=True)
 
@@ -1001,8 +1030,9 @@ class SnkDataPathAxisTestTB(TBBase):
         Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
         the descriptor goes FIRST -- the ingress cannot place a packet's bytes
         until the scheduler has fetched the descriptor that says where they
-        go, and send_descriptor() blocks until the channel's scheduler accepts
-        it. Queuing the data first left the AXIS master's head beat waiting on
+        go, and send_descriptor(wait_taken=True) blocks until the channel's
+        scheduler takes it (since rapids TASK-028 the port handshake alone
+        completes into the scheduler's descriptor skid). Queuing the data first left the AXIS master's head beat waiting on
         a channel still busy with its previous transfer, past the BFM's
         1000-cycle ready timeout, and the dropped beat shifted every later
         beat of that channel by one (func, 512-bit, slow_producer).
@@ -1042,7 +1072,7 @@ class SnkDataPathAxisTestTB(TBBase):
                 })
 
                 # Descriptor first (byte-granular contract), then the packet
-                await self.send_descriptor(channel, addr, beats)
+                await self.send_descriptor(channel, addr, beats, wait_taken=True)
                 await self.wait_clocks(self.clk_name, 10)
                 await self.send_axis_packet(channel, test_data, last=True)
 
@@ -1115,8 +1145,9 @@ class SnkDataPathAxisTestTB(TBBase):
         Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
         the descriptor goes FIRST -- the ingress cannot place a packet's bytes
         until the scheduler has fetched the descriptor that says where they
-        go, and send_descriptor() blocks until the channel's scheduler accepts
-        it. Queuing the data first left the AXIS master's head beat waiting on
+        go, and send_descriptor(wait_taken=True) blocks until the channel's
+        scheduler takes it (since rapids TASK-028 the port handshake alone
+        completes into the scheduler's descriptor skid). Queuing the data first left the AXIS master's head beat waiting on
         a channel still busy with its previous transfer, past the BFM's
         1000-cycle ready timeout, and the dropped beat shifted every later
         beat of that channel by one (func, 512-bit, slow_producer).
@@ -1135,7 +1166,8 @@ class SnkDataPathAxisTestTB(TBBase):
 
                 # CRITICAL FIX: Send AXIS data FIRST!
                 # Descriptor first (byte-granular contract), then the packet
-                await self.send_descriptor(channel, addr, beats, eos=(i == num_transfers - 1))
+                await self.send_descriptor(channel, addr, beats, eos=(i == num_transfers - 1),
+                                           wait_taken=True)
                 await self.wait_clocks(self.clk_name, 20)
                 await self.send_axis_packet(channel, test_data, last=True)
 
@@ -1247,8 +1279,9 @@ class SnkDataPathAxisTestTB(TBBase):
         Data flow is AXIS -> SRAM -> AXI Write. Byte-granular RAPIDS (TASK-019):
         the descriptor goes FIRST -- the ingress cannot place a packet's bytes
         until the scheduler has fetched the descriptor that says where they
-        go, and send_descriptor() blocks until the channel's scheduler accepts
-        it. Queuing the data first left the AXIS master's head beat waiting on
+        go, and send_descriptor(wait_taken=True) blocks until the channel's
+        scheduler takes it (since rapids TASK-028 the port handshake alone
+        completes into the scheduler's descriptor skid). Queuing the data first left the AXIS master's head beat waiting on
         a channel still busy with its previous transfer, past the BFM's
         1000-cycle ready timeout, and the dropped beat shifted every later
         beat of that channel by one (func, 512-bit, slow_producer).
@@ -1267,7 +1300,7 @@ class SnkDataPathAxisTestTB(TBBase):
 
                 # CRITICAL FIX: Send AXIS data FIRST!
                 # Descriptor first (byte-granular contract), then the packet
-                await self.send_descriptor(channel, addr, beats)
+                await self.send_descriptor(channel, addr, beats, wait_taken=True)
                 delay = random.randint(1, 10)
                 await self.wait_clocks(self.clk_name, delay)
                 await self.send_axis_packet(channel, test_data, last=True)
