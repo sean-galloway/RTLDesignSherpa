@@ -29,5 +29,8 @@ BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_genesys2.bit
 SIM_TESTS := $(AREA)/dv/tests
 SEQ_DIR   := $(AREA)/bin
 PREBUILD  := bash $(AREA)/bin/regen.sh
+# Lint the harness this build synthesizes: Vivado gets BS_HARNESS as a define
+# (fpga/tcl/create_project.tcl); without it here lint checks the default one.
+LINT_DEFINES := +define+USE_ASYNC_RESET +define+BS_HARNESS=$(BS_HARNESS)
 
 include $(RDS_ROOT)/make/fpga_flow.mk

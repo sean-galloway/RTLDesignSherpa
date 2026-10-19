@@ -68,7 +68,7 @@ Each transaction ID has its own outstanding-chunk counter and worst-response acc
 
 ### Address Advance
 
-For `INCR` bursts the start address of chunk *n+1* is computed from the previous chunk's start address plus `chunk_beats << size`. `FIXED` bursts reuse the same address for every chunk; `WRAP` bursts longer than 16 beats are unsupported (see 3.15.7 Non-goals).
+For `INCR` bursts the start address of chunk *n+1* is the previous chunk's start address, **aligned to the transfer size**, plus `chunk_beats << size`: every beat after the first is size-aligned, so an unaligned first address must not carry into chunk 2. (Until 2026-10-19 the alignment was missing and every later chunk of an unaligned burst started unaligned, converters BUG-011.) `FIXED` bursts reuse the same address for every chunk; `WRAP` bursts longer than 16 beats are unsupported (see 3.15.7 Non-goals).
 
 ## 3.15.4 Write Path (axi4_to_axi3_wr)
 

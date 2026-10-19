@@ -459,8 +459,12 @@ module axi4_to_axi3_wr #(
             if (active_valid && m_axi3_awready) begin
                 active_remaining <= active_remaining - 9'(chunk_beats);
                 if (active_aw.burst == 2'b01) begin // INCR
-                    active_addr <= active_addr +
-                                   (AXI_ADDR_WIDTH'(chunk_beats) << active_aw.size);
+                    // Every beat after the first is size-aligned (AXI A3.4.1),
+                    // so the next chunk starts from the aligned address: an
+                    // unaligned first address must not carry into chunk 2.
+                    active_addr <= (active_addr & ~((AXI_ADDR_WIDTH'(1) << active_aw.size)
+                                                    - AXI_ADDR_WIDTH'(1)))
+                                 + (AXI_ADDR_WIDTH'(chunk_beats) << active_aw.size);
                 end
                 if (aw_last_issue)
                     active_valid <= 1'b0;

@@ -308,6 +308,7 @@ module axi4_slave_stress
             .fub_axi_awready   (f_awready),
             .fub_axi_wdata     (f_wdata),
             .fub_axi_wstrb     (f_wstrb),
+            .fub_axi_wid       (IW'(0)),    // AXI4 has no WID
             .fub_axi_wlast     (f_wlast),
             .fub_axi_wuser     (f_wuser),
             .fub_axi_wvalid    (f_wvalid),

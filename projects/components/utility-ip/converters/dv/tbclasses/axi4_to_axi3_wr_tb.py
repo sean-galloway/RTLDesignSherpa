@@ -955,6 +955,55 @@ class AXI4ToAXI3WriteTB(TBBase):
         self.stats['bursts_completed'] += 1
         return True
 
+    async def incr_write_len32_unaligned(self):
+        """An unaligned 32-beat INCR: chunk 1 starts at the ALIGNED next beat.
+
+        Every beat after the first is size-aligned (AXI A3.4.1), so the second
+        AXI3 burst starts at aligned(address) + 16 beats. Before the fix the
+        converter carried the misalignment into chunk 1 and an AXI3 slave took
+        its full-strobe first beat for a partial one (found by the Genesys 2
+        bridge stress model, bridge_bs_axi3: S_WSTRB on every chopped
+        unaligned write).
+        """
+        self.log.info("TEST: incr_write_len32_unaligned")
+        offset = self.bytes_per_beat // 2
+        address = 0xA800 + offset
+        burst_len = 32
+        axid = 22
+        size = self.bytes_per_beat.bit_length() - 1
+        aligned_next = (address & ~(self.bytes_per_beat - 1)) + (16 << size)
+        data_list = [(0x5A000000 + i) & ((1 << self.data_width) - 1)
+                     for i in range(burst_len)]
+
+        initial_aw = len(self.axi3_aw_transactions)
+        result = await self.write_with_result(
+            address, data_list, axid=axid, burst_type=1, size=size)
+        await self.wait_clocks(self.clk_name, 20)
+
+        if not result.get('success', False):
+            self.log.error(f"incr_write_len32_unaligned: AXI4 master reported failure {result}")
+            self.stats['errors'] += 1
+            return False
+        if len(self.axi3_aw_transactions) - initial_aw != 2:
+            self.log.error("incr_write_len32_unaligned: expected 2 AXI3 AWs, got "
+                           f"{len(self.axi3_aw_transactions) - initial_aw}")
+            self.stats['errors'] += 1
+            return False
+        aw0 = self.axi3_aw_transactions[initial_aw]
+        aw1 = self.axi3_aw_transactions[initial_aw + 1]
+        for k, aw, want in ((0, aw0, address), (1, aw1, aligned_next)):
+            if aw['addr'] != want or aw['len'] != 15:
+                self.log.error(f"incr_write_len32_unaligned: AW{k} addr=0x{aw['addr']:08X} "
+                               f"len={aw['len']}, expected 0x{want:08X} / 15")
+                self.stats['errors'] += 1
+                return False
+
+        self.log.info("incr_write_len32_unaligned PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
     async def b_absorb(self):
         """A chopped AW produces per-chunk Bs; only one s_axi B is forwarded."""
         self.log.info("TEST: b_absorb")
@@ -1251,6 +1300,9 @@ class AXI4ToAXI3WriteTB(TBBase):
             success = False
 
         if not await self.bresp_passthrough():
+            success = False
+
+        if not await self.incr_write_len32_unaligned():
             success = False
 
         return success

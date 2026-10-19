@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""axi4_master_stress -> axi4_slave_stress, back to back.
+"""axi{4,3}_master_stress -> axi{4,3}_slave_stress, back to back.
 
 Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
 
@@ -9,8 +9,13 @@ Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
       independent bus monitor agrees with every beat, the budget moved in full
       on both sides, and the scenario's feature (reordering, interleaving,
       partial strobes, error responses) was actually seen on the wire.
-  cocotb_test_axi_stress_faults  each of the harness's eight one-shot faults
-      must raise the error the blocks claim it raises.
+  cocotb_test_axi_stress_faults  each of the harness's one-shot faults (eight;
+      nine with AXI3, which adds a flipped WID) must raise the error the
+      blocks claim it raises.
+
+TEST_PROTO picks the shells (axi4 | axi3); the cores and every check are the
+same. With AXI3 no burst may be longer than 16 beats, and the monitor checks
+WID against the AWID of the burst each beat belongs to.
 """
 
 import os
@@ -97,6 +102,11 @@ async def cocotb_test_axi_stress_clean(dut):
     assert tb.stats['ar'] == n and tb.stats['aw'] == n and tb.stats['b'] == n
     assert tb.stats['r_beats'] == s['mrd']['beats'] == s['srd']['beats']
     assert tb.stats['w_beats'] == s['mwr']['beats'] == s['swr']['beats']
+    if tb.PROTO == 'axi3':
+        assert tb.stats['max_len'] == 15, \
+            f"AXI3: longest burst AxLEN {tb.stats['max_len']}, expected exactly 15"
+    else:
+        assert tb.stats['max_len'] > 15, 'AXI4: no burst longer than 16 beats'
 
     if name in ('ooo', 'interleave', 'narrow', 'errwin'):
         assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
@@ -129,12 +139,13 @@ FAULTS = [
     (6, 'mwr', {'WR_RESP'}),
     (7, 'mrd', {'RD_RESP'}),
 ]
+FAULTS_AXI3 = [(8, 'swr', {'S_WID'})]
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_axi_stress_faults(dut):
     tb = AxiStressPairTB(dut)
-    for bit, blk, expect in FAULTS:
+    for bit, blk, expect in FAULTS + (FAULTS_AXI3 if tb.PROTO == 'axi3' else []):
         await tb.setup_clocks_and_reset()
         wins, mrd, mwr, srd, swr = _scenario('ooo', 0, tag=0x5A)  # until STOP
         tb.configure(wins, mrd, mwr, srd, swr)
@@ -164,32 +175,37 @@ async def cocotb_test_axi_stress_faults(dut):
         tb.reset_monitor()
 
 
+PROTO_CODE = {'axi4': 0, 'axi3': 1}
+
+
 def _params():
     level = os.environ.get('TEST_LEVEL', 'gate')
     dws = [64] if level == 'gate' else [32, 64, 128]
     scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id']
-    out = [(dw, 'clean', sc) for dw in dws for sc in scen]
-    out += [(dw, 'faults', '-') for dw in dws]
+    out = []
+    for proto in PROTO_CODE:
+        out += [(proto, dw, 'clean', sc) for dw in dws for sc in scen]
+        out += [(proto, dw, 'faults', '-') for dw in dws]
     return out
 
 
-@pytest.mark.parametrize("dw, kind, scenario", _params())
-def test_axi_stress_pair(request, dw, kind, scenario):
+@pytest.mark.parametrize("proto, dw, kind, scenario", _params())
+def test_axi_stress_pair(request, proto, dw, kind, scenario):
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
         'rtl_amba_shared': 'rtl/amba/shared',
     })
     dut_name = "tb_axi_stress_pair"
 
-    m_src, m_inc = get_sources_from_filelist(repo_root=repo_root, module='axi4_master_stress')
-    s_src, s_inc = get_sources_from_filelist(repo_root=repo_root, module='axi4_slave_stress')
+    m_src, m_inc = get_sources_from_filelist(repo_root=repo_root, module=f'{proto}_master_stress')
+    s_src, s_inc = get_sources_from_filelist(repo_root=repo_root, module=f'{proto}_slave_stress')
     verilog_sources = list(dict.fromkeys(list(m_src) + list(s_src)))
     verilog_sources.append(os.path.join(tests_dir, "tb_axi_stress_pair.sv"))
     includes = list(dict.fromkeys(list(m_inc) + list(s_inc)))
 
     test_level = os.environ.get('TEST_LEVEL', 'gate')
     tag = scenario if kind == 'clean' else 'faults'
-    test_name_plus_params = f"test_{worker_id}_axi_stress_pair_dw{dw:03d}_{tag}_{test_level}"
+    test_name_plus_params = f"test_{worker_id}_axi_stress_pair_{proto}_dw{dw:03d}_{tag}_{test_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
@@ -208,6 +224,7 @@ def test_axi_stress_pair(request, dw, kind, scenario):
         'TEST_TYPE': scenario,
         'TEST_DATA_WIDTH': str(dw),
         'TEST_NWIN': '8',
+        'TEST_PROTO': proto,
         'SEED': str(seed),
     }
     compile_args = [
@@ -227,7 +244,8 @@ def test_axi_stress_pair(request, dw, kind, scenario):
             toplevel=dut_name,
             module=module,
             testcase=f"cocotb_test_axi_stress_{kind}",
-            parameters={'DW': str(dw), 'IW': '8', 'DEPTH': '16', 'NWIN': '8'},
+            parameters={'DW': str(dw), 'IW': '8', 'DEPTH': '16', 'NWIN': '8',
+                        'PROTO': str(PROTO_CODE[proto])},
             sim_build=sim_build,
             simulator="verilator",
             extra_env=extra_env,

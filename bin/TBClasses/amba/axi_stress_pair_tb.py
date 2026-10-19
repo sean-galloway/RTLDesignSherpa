@@ -48,6 +48,7 @@ class AxiStressPairTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate')
         self.DW = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '64'))
         self.NWIN = self.convert_to_int(os.environ.get('TEST_NWIN', '8'))
+        self.PROTO = os.environ.get('TEST_PROTO', 'axi4')    # axi4 | axi3
         self.NB = self.DW // 8
         self.BUS_LG2 = self.NB.bit_length() - 1
         random.seed(self.SEED)
@@ -202,6 +203,7 @@ class AxiStressPairTB(TBBase):
                 if w is None:
                     self._merr(f'AR {a:#x} in no window')
                 addrs = M.beat_addrs(a, ln + 1, sz, bt)
+                self.stats['max_len'] = max(self.stats['max_len'], ln)
                 rd_q[int(d.m_arid.value)].append(
                     dict(seq=seq, addrs=addrs, size=sz, n=0,
                          resp=w.resp if w else 0))
@@ -256,19 +258,23 @@ class AxiStressPairTB(TBBase):
                     self._merr(f'AW {a:#x} len {ln} size {sz} burst {bt}: {why}')
                 if self._win_of(a) is None:
                     self._merr(f'AW {a:#x} in no window')
-                wr_q.append(dict(addrs=M.beat_addrs(a, ln + 1, sz, bt), size=sz, n=0))
+                self.stats['max_len'] = max(self.stats['max_len'], ln)
+                wr_q.append(dict(addrs=M.beat_addrs(a, ln + 1, sz, bt), size=sz, n=0,
+                                 id=int(d.m_awid.value)))
                 self.stats['aw'] += 1
             # W (before the injector). A W beat may cross the wire before its
             # AW (the slave's skid takes it), so beats wait for their AW here.
             if int(d.m_wvalid.value) and int(d.m_wready.value):
                 w_pend.append((int(d.m_wdata.value), int(d.m_wstrb.value),
-                               int(d.m_wlast.value)))
+                               int(d.m_wlast.value), int(d.m_wid.value)))
             while w_pend and (cur_w is not None or wr_q):
                 if cur_w is None:
                     cur_w = wr_q.popleft()
-                data, strb, wlast = w_pend.popleft()
+                data, strb, wlast, wid = w_pend.popleft()
                 b = cur_w
                 addr = b['addrs'][b['n']]
+                if self.PROTO == 'axi3' and wid != b['id']:
+                    self._merr(f'W addr {addr:#x}: WID {wid:#x} != AWID {b["id"]:#x}')
                 lanes = set(M.beat_lanes(addr, b['size'], self.NB))
                 for lane in range(self.NB):
                     if (strb >> lane) & 1:

@@ -19,7 +19,9 @@
 // axi_stress_ord_table keyed by AWID and an entry in the W queue; AW and W
 // then run independently, so W data may reach the fabric before its AW.
 //
-// W: beats in AW order (AXI4 has no WID). Each active byte lane carries
+// W: beats in AW order (no write interleaving). fub_axi_wid carries the AWID
+// of the burst each beat belongs to, for an AXI3 shell; the AXI4 shell leaves
+// it open. Each active byte lane carries
 // f_word(beat address, tag, WR); inactive lanes carry the complement with
 // their strobes low. A window with strb_rand also clears random strobes of
 // active lanes, so a converter that merges or moves strobes is seen at the
@@ -42,6 +44,7 @@ module axi_stress_mst_wr
     parameter int IW      = 8,
     parameter int DW      = 64,
     parameter int UW      = 1,
+    parameter logic [7:0] LEN_MASK = 8'hFF,   // AxLEN limit (AXI3: 8'h0F)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -74,6 +77,7 @@ module axi_stress_mst_wr
 
     output logic [DW-1:0]       fub_axi_wdata,
     output logic [NB-1:0]       fub_axi_wstrb,
+    output logic [IW-1:0]       fub_axi_wid,
     output logic                fub_axi_wlast,
     output logic [UW-1:0]       fub_axi_wuser,
     output logic                fub_axi_wvalid,
@@ -116,7 +120,8 @@ module axi_stress_mst_wr
     logic [3:0]    t_qos;
 
     axi_stress_txn_gen #(
-        .NWIN(NWIN), .IW(IW), .BUS_LG2(BUS_LG2), .SALT(32'h6A09_E667)
+        .NWIN(NWIN), .IW(IW), .BUS_LG2(BUS_LG2), .LEN_MASK(LEN_MASK),
+        .SALT(32'h6A09_E667)
     ) u_gen (
         .aclk, .aresetn,
         .restart      (w_go),
@@ -182,7 +187,7 @@ module axi_stress_mst_wr
     // =========================================================================
     // W queue: one entry per issued burst, in AW order
     // =========================================================================
-    localparam int WQW = XW + 32 + 8 + 3 + 2 + 8 + 1;
+    localparam int WQW = XW + IW + 32 + 8 + 3 + 2 + 8 + 1;
 
     logic           wq_wr_ready, wq_rd_valid, wq_rd_ready;
     logic [WQW-1:0] wq_rd_data;
@@ -194,7 +199,7 @@ module axi_stress_mst_wr
         .axi_aresetn (aresetn),
         .wr_valid    (w_issue),
         .wr_ready    (wq_wr_ready),
-        .wr_data     ({tb_alloc_idx, t_addr, t_len, t_size, t_burst, t_tag, t_strb_rand}),
+        .wr_data     ({tb_alloc_idx, t_id, t_addr, t_len, t_size, t_burst, t_tag, t_strb_rand}),
         .rd_ready    (wq_rd_ready),
         /* verilator lint_off PINCONNECTEMPTY */
         .count       (),
@@ -204,12 +209,13 @@ module axi_stress_mst_wr
     );
 
     logic [XW-1:0] q_idx;
+    logic [IW-1:0] q_id;
     logic [31:0]   q_addr;
     logic [7:0]    q_len, q_tag;
     logic [2:0]    q_size;
     logic [1:0]    q_burst;
     logic          q_srand;
-    assign {q_idx, q_addr, q_len, q_size, q_burst, q_tag, q_srand} = wq_rd_data;
+    assign {q_idx, q_id, q_addr, q_len, q_size, q_burst, q_tag, q_srand} = wq_rd_data;
 
     // =========================================================================
     // AW issue
@@ -262,6 +268,7 @@ module axi_stress_mst_wr
     // =========================================================================
     logic          r_wa;                 // a burst is part-sent
     logic [XW-1:0] r_wa_idx;
+    logic [IW-1:0] r_wa_id;
     logic [31:0]   r_wa_addr;
     logic [7:0]    r_wa_len, r_wa_left, r_wa_tag;
     logic [2:0]    r_wa_size;
@@ -271,6 +278,7 @@ module axi_stress_mst_wr
     // the beat to send: the part-sent burst, else the queue head
     logic          c_valid;
     logic [XW-1:0] c_idx;
+    logic [IW-1:0] c_id;
     logic [31:0]   c_addr;
     logic [7:0]    c_len, c_left, c_tag;
     logic [2:0]    c_size;
@@ -279,6 +287,7 @@ module axi_stress_mst_wr
     always_comb begin
         c_valid = r_wa || wq_rd_valid;
         c_idx   = r_wa ? r_wa_idx   : q_idx;
+        c_id    = r_wa ? r_wa_id    : q_id;
         c_addr  = r_wa ? r_wa_addr  : q_addr;
         c_len   = r_wa ? r_wa_len   : q_len;
         c_left  = r_wa ? r_wa_left  : q_len;
@@ -361,6 +370,7 @@ module axi_stress_mst_wr
     always_ff @(posedge aclk) begin
         if (w_wmake) begin
             r_wa_idx      <= c_idx;
+            r_wa_id       <= c_id;
             r_wa_addr     <= f_next_addr(c_addr, c_size, c_len, c_burst);
             r_wa_len      <= c_len;
             r_wa_left     <= c_left - 8'd1;
@@ -372,6 +382,7 @@ module axi_stress_mst_wr
             r_wv_last     <= (c_left == 8'd0);
             fub_axi_wdata <= w_data;
             fub_axi_wstrb <= w_lanes & ~(c_srand ? w_sclr : '0);
+            fub_axi_wid   <= c_id;
             fub_axi_wlast <= (c_left == 8'd0);
         end
     end

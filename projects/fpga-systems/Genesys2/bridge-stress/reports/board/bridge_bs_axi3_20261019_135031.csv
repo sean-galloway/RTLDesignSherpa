@@ -1,0 +1,5 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_axi3,clean,1,4000,False,False,560760,mem0.wr: ['S_WSTRB'] x1324 (first S_WSTRB id=0x21 addr=0x069cd664 exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x14fbea28 exp=0x0000ff00 act=0x0000ffff)
+bridge_bs_axi3,clean,2,4000,False,False,558824,mem0.wr: ['S_WSTRB'] x1556 (first S_WSTRB id=0x23 addr=0x0328855c exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x149584dc exp=0x0000f000 act=0x0000ffff)
+bridge_bs_axi3,bursts,1,4000,False,False,493232,mem0.wr: ['S_WSTRB'] x1324 (first S_WSTRB id=0x21 addr=0x069cd664 exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x14fbea28 exp=0x0000ff00 act=0x0000ffff)
+bridge_bs_axi3,bursts,2,4000,False,False,498031,mem0.wr: ['S_WSTRB'] x1556 (first S_WSTRB id=0x23 addr=0x0328855c exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x149584dc exp=0x0000f000 act=0x0000ffff)

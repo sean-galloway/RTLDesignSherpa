@@ -31,7 +31,7 @@ from pathlib import Path
 import bstress
 
 AREA = bstress.AREA
-BUILDS = {'axi4': 'bridge_bs_axi4'}
+BUILDS = {'axi4': 'bridge_bs_axi4', 'axi3': 'bridge_bs_axi3'}
 ACLK_HZ = 100e6
 
 

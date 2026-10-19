@@ -28,6 +28,8 @@
 //   ERR_S_WDATA  a strobed byte differs from f_word(beat address, tag, WR)
 //   ERR_S_WSTRB  a strobe on a byte outside the beat's lanes
 //   ERR_S_WLAST  WLAST on the wrong beat (the burst ends on its AWLEN count)
+//   ERR_S_WID    (CHECK_WID, AXI3) WID is not the AWID of the burst the beat
+//                belongs to -- write interleaving or a mis-stamped WID
 //
 // B: a finished burst waits lat_min + random & lat_mask cycles, then answers
 // once it is the oldest of its ID (all IDs as one with cfg.inorder); among
@@ -45,6 +47,7 @@ module axi_stress_slv_wr
     parameter int IW      = 8,
     parameter int DW      = 64,
     parameter int UW      = 1,
+    parameter bit CHECK_WID = 1'b0,   // AXI3 shell: check fub_axi_wid
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -74,6 +77,7 @@ module axi_stress_slv_wr
 
     input  logic [DW-1:0]       fub_axi_wdata,
     input  logic [NB-1:0]       fub_axi_wstrb,
+    input  logic [IW-1:0]       fub_axi_wid,
     input  logic                fub_axi_wlast,
     input  logic [UW-1:0]       fub_axi_wuser,
     input  logic                fub_axi_wvalid,
@@ -221,7 +225,7 @@ module axi_stress_slv_wr
 
     // check stage
     logic          r_c_valid, r_c_last, r_c_exp_last;
-    logic [IW-1:0] r_c_id;
+    logic [IW-1:0] r_c_id, r_c_wid;
     logic [31:0]   r_c_addr;
     logic [2:0]    r_c_size;
     logic [DW-1:0] r_c_data;
@@ -230,6 +234,7 @@ module axi_stress_slv_wr
     always_ff @(posedge aclk) begin
         if (w_w_hs) begin
             r_c_id       <= c_id;
+            r_c_wid      <= fub_axi_wid;
             r_c_addr     <= c_addr;
             r_c_size     <= c_size;
             r_c_data     <= fub_axi_wdata;
@@ -241,7 +246,7 @@ module axi_stress_slv_wr
 
     logic [NB-1:0] w_c_lanes;
     logic [NL-1:0] w_c_bad;
-    logic          w_c_data_err, w_c_strb_err, w_c_last_err;
+    logic          w_c_data_err, w_c_strb_err, w_c_last_err, w_c_wid_err;
     logic [31:0]   w_c_exp_w, w_c_act_w, w_c_addr_w;
 
     always_comb begin
@@ -266,6 +271,7 @@ module axi_stress_slv_wr
         w_c_data_err = r_c_valid && (|w_c_bad);
         w_c_strb_err = r_c_valid && (|(r_c_strb & ~w_c_lanes));
         w_c_last_err = r_c_valid && (r_c_last != r_c_exp_last);
+        w_c_wid_err  = CHECK_WID && r_c_valid && (r_c_wid != r_c_id);
         w_c_exp_w  = '0;
         w_c_act_w  = '0;
         w_c_addr_w = r_c_addr;
@@ -277,8 +283,10 @@ module axi_stress_slv_wr
             end
         end
         if (!(|w_c_bad)) begin
-            w_c_exp_w = w_c_strb_err ? 32'(w_c_lanes) : {31'd0, r_c_exp_last};
-            w_c_act_w = w_c_strb_err ? 32'(r_c_strb)  : {31'd0, r_c_last};
+            w_c_exp_w = w_c_strb_err ? 32'(w_c_lanes)
+                      : w_c_last_err ? {31'd0, r_c_exp_last} : 32'(r_c_id);
+            w_c_act_w = w_c_strb_err ? 32'(r_c_strb)
+                      : w_c_last_err ? {31'd0, r_c_last}     : 32'(r_c_wid);
         end
     end
 
@@ -401,15 +409,19 @@ module axi_stress_slv_wr
             if (w_c_data_err)  sts.err_mask[ERR_S_WDATA] <= 1'b1;
             if (w_c_strb_err)  sts.err_mask[ERR_S_WSTRB] <= 1'b1;
             if (w_c_last_err)  sts.err_mask[ERR_S_WLAST] <= 1'b1;
-            if (w_q_addr_err || w_q_proto_err || w_c_data_err || w_c_strb_err || w_c_last_err)
-                sts.err_cnt <= (sts.err_cnt > 16'hFFFA) ? 16'hFFFF
+            if (w_c_wid_err)   sts.err_mask[ERR_S_WID]   <= 1'b1;
+            if (w_q_addr_err || w_q_proto_err || w_c_data_err || w_c_strb_err || w_c_last_err
+                || w_c_wid_err)
+                sts.err_cnt <= (sts.err_cnt > 16'hFFF9) ? 16'hFFFF
                              : sts.err_cnt + 16'(w_q_addr_err) + 16'(w_q_proto_err)
-                               + 16'(w_c_data_err) + 16'(w_c_strb_err) + 16'(w_c_last_err);
+                               + 16'(w_c_data_err) + 16'(w_c_strb_err) + 16'(w_c_last_err)
+                               + 16'(w_c_wid_err);
             if (!sts.fe_valid) begin
-                if (w_c_data_err || w_c_strb_err || w_c_last_err) begin
+                if (w_c_data_err || w_c_strb_err || w_c_last_err || w_c_wid_err) begin
                     sts.fe_valid <= 1'b1;
                     sts.fe_kind  <= w_c_data_err ? 4'(ERR_S_WDATA)
-                                  : w_c_strb_err ? 4'(ERR_S_WSTRB) : 4'(ERR_S_WLAST);
+                                  : w_c_strb_err ? 4'(ERR_S_WSTRB)
+                                  : w_c_last_err ? 4'(ERR_S_WLAST) : 4'(ERR_S_WID);
                     sts.fe_id    <= 16'(r_c_id);
                     sts.fe_addr  <= w_c_addr_w;
                     sts.fe_exp   <= w_c_exp_w;
@@ -429,6 +441,6 @@ module axi_stress_slv_wr
     )
 
     wire unused = ^{fub_axi_awlock, fub_axi_awcache, fub_axi_awprot, fub_axi_awqos,
-                    fub_axi_awregion, fub_axi_awuser, fub_axi_wuser, tb_full};
+                    fub_axi_awregion, fub_axi_awuser, fub_axi_wuser, fub_axi_wid, tb_full};
 
 endmodule : axi_stress_slv_wr

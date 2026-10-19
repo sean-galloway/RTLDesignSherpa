@@ -32,6 +32,8 @@
 //                        the window allows unaligned INCR/FIXED starts
 //               INCR     shortened so it neither crosses 4 KB nor leaves the
 //                        window
+//             The window's len_mask is ANDed with LEN_MASK first, so an
+//             AXI3 shell never sees a burst longer than 16 beats.
 //             One draw in eight is forced to a single beat, so single-beat
 //             traffic is always present whatever len_mask says.
 //
@@ -51,6 +53,7 @@ module axi_stress_txn_gen
     parameter int NWIN    = 8,                 // power of two, 2..8
     parameter int IW      = 8,                 // 1..16
     parameter int BUS_LG2 = 3,                 // log2(bus bytes)
+    parameter logic [7:0]  LEN_MASK = 8'hFF,   // protocol AxLEN limit (AXI3: 8'h0F)
     parameter logic [31:0] SALT = 32'h0        // decorrelates rd from wr
 ) (
     input  logic                aclk,
@@ -171,6 +174,8 @@ module axi_stress_txn_gen
     logic [1:0]  w_burst;
     logic [7:0]  w_len;
     logic [31:0] w_addr;
+    logic [7:0]  w_lmask;        // the window's len_mask, cut to the protocol's
+    assign w_lmask = w_w.len_mask & LEN_MASK;
 
     always_comb begin
         logic [2:0]  smax, wrapcap_lg2, wl_lg2;
@@ -203,14 +208,14 @@ module axi_stress_txn_gen
         end
 
         // length
-        w_len = r_d_single ? 8'd0 : (r_d_len & w_w.len_mask);
-        wrapcap_lg2 = (w_w.len_mask >= 8'd15) ? 3'd4 :
-                      (w_w.len_mask >=  8'd7) ? 3'd3 :
-                      (w_w.len_mask >=  8'd3) ? 3'd2 : 3'd1;
+        w_len = r_d_single ? 8'd0 : (r_d_len & w_lmask);
+        wrapcap_lg2 = (w_lmask >= 8'd15) ? 3'd4 :
+                      (w_lmask >=  8'd7) ? 3'd3 :
+                      (w_lmask >=  8'd3) ? 3'd2 : 3'd1;
         wl_lg2 = 3'(r_d_wrapk) + 3'd1;
         if (wl_lg2 > wrapcap_lg2) wl_lg2 = wrapcap_lg2;
         if (w_burst == BURST_WRAP) begin
-            if (w_w.len_mask == 8'd0 || r_d_single ||
+            if (w_lmask == 8'd0 || r_d_single ||
                 (6'(wl_lg2) + 6'(w_size)) > w_pg_lg2) begin
                 w_burst = BURST_INCR;
             end else begin

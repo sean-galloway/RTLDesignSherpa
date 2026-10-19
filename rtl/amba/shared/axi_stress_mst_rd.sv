@@ -47,6 +47,7 @@ module axi_stress_mst_rd
     parameter int IW      = 8,
     parameter int DW      = 64,          // >= 32
     parameter int UW      = 1,
+    parameter logic [7:0] LEN_MASK = 8'hFF,   // AxLEN limit (AXI3: 8'h0F)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -118,7 +119,8 @@ module axi_stress_mst_rd
     logic [3:0]    t_qos;
 
     axi_stress_txn_gen #(
-        .NWIN(NWIN), .IW(IW), .BUS_LG2(BUS_LG2), .SALT(32'h0000_0000)
+        .NWIN(NWIN), .IW(IW), .BUS_LG2(BUS_LG2), .LEN_MASK(LEN_MASK),
+        .SALT(32'h0000_0000)
     ) u_gen (
         .aclk, .aresetn,
         .restart      (w_go),

@@ -1,0 +1,116 @@
+#============================================================================
+# bridge_bs_axi3 -- the bridge stress model's AXI3 device under test.
+#
+# The same 4 x 4 shape as bridge_bs_axi4 (widths, IDs, remap, CDC, the
+# DECERR hole), with AXI3 on every port that does not cross a clock: the
+# generator has no AXI3 CDC (config_validator.validate_axi3, rule 3), so the
+# two CDC ports stay AXI4. That still puts every AXI3 path the generator
+# builds in one bitstream:
+#   AXI3 master -> AXI3 slave   axi3_to_axi4 front end, axi4_to_axi3 back end
+#   AXI3 master -> AXI4 slave   front end only (mem3, also a CDC crossing)
+#   AXI4 master -> AXI3 slave   back end only (acc, from its own clock), with
+#                               AXI4 bursts longer than 16 beats chopped into
+#                               AXI3 bursts and their B / R merged back
+# Masters: cpu AXI3 64b, dma AXI3 128b, acc AXI4 32b (cdc), io AXI3 64b.
+# Slaves:  mem0 AXI3 64b, mem1 AXI3 128b, mem2 AXI3 32b, mem3 AXI4 64b (cdc).
+# Slave id_width is the fabric's ({master index, slot}); the validator checks it.
+#============================================================================
+
+[bridge]
+name = "bridge_bs_axi3"
+variants = ["no"]
+description = "bridge stress model: 3 AXI3 + 1 AXI4 (CDC) masters x 3 AXI3 + 1 AXI4 (CDC) slaves, mixed widths, remap"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name       = "cpu"
+prefix     = "cpu_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name       = "dma"
+prefix     = "dma_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+
+[[bridge.masters]]
+name       = "acc"
+prefix     = "acc_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 32
+user_width = 1
+cdc        = true
+
+[[bridge.masters]]
+name       = "io"
+prefix     = "io_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.slaves]]
+name       = "mem0"
+prefix     = "mem0_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem1"
+prefix     = "mem1_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 128
+user_width = 1
+base_addr  = "0x10000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem2"
+prefix     = "mem2_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr  = "0x30000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem3"
+prefix     = "mem3_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+cdc        = true
+base_addr  = "0x40000000"
+addr_range = "0x10000000"

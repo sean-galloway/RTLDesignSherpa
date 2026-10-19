@@ -74,6 +74,7 @@ package axi_stress_pkg;
     localparam int ERR_S_WDATA  = 10;  // a strobed byte is wrong
     localparam int ERR_S_WSTRB  = 11;  // a strobe outside the beat's byte lanes
     localparam int ERR_S_WLAST  = 12;  // WLAST on the wrong beat
+    localparam int ERR_S_WID    = 13;  // AXI3: WID is not its burst's AWID
 
     // ---- Configuration and status -------------------------------------------
     // One target window of a master. Windows are size-aligned power-of-two

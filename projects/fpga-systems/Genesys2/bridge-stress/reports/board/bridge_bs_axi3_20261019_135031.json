@@ -1,0 +1,42 @@
+[
+ {
+  "build": "bridge_bs_axi3",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 560760,
+  "reasons": "mem0.wr: ['S_WSTRB'] x1324 (first S_WSTRB id=0x21 addr=0x069cd664 exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x14fbea28 exp=0x0000ff00 act=0x0000ffff)"
+ },
+ {
+  "build": "bridge_bs_axi3",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 558824,
+  "reasons": "mem0.wr: ['S_WSTRB'] x1556 (first S_WSTRB id=0x23 addr=0x0328855c exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x149584dc exp=0x0000f000 act=0x0000ffff)"
+ },
+ {
+  "build": "bridge_bs_axi3",
+  "profile": "bursts",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 493232,
+  "reasons": "mem0.wr: ['S_WSTRB'] x1324 (first S_WSTRB id=0x21 addr=0x069cd664 exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x14fbea28 exp=0x0000ff00 act=0x0000ffff)"
+ },
+ {
+  "build": "bridge_bs_axi3",
+  "profile": "bursts",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 498031,
+  "reasons": "mem0.wr: ['S_WSTRB'] x1556 (first S_WSTRB id=0x23 addr=0x0328855c exp=0x000000f0 act=0x000000ff) | mem1.wr: ['S_WSTRB'] x858 (first S_WSTRB id=0x21 addr=0x149584dc exp=0x0000f000 act=0x0000ffff)"
+ }
+]

@@ -10,6 +10,7 @@ summary: RTL rules with the failures that taught them.
 - [[clock-gating-activity-terms]] - wake on peer VALIDs + pending output work, never peer READY; !gating mask; emission latency vs idle count
 - [[cdc]] - crossing rules, gray pointers, handshakes
 - [[valid-ready-contracts]] - stability rules; who may stall whom
+- [[axi-burst-splitting]] - a burst cut into pieces restarts every later piece on the size grid; test the split with an UNALIGNED start (converters BUG-011)
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
 - [[new-monbus-protocol]] - a new PROTOCOL_* value must be passed by every monbus filter (the group core drops unknown ones silently)
 - [[frame-per-stream]] - packet-open state must be per stream wherever streams can interleave (CXS 2.5.2, AXIS TID)

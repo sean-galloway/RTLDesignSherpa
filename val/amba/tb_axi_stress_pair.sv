@@ -2,8 +2,13 @@
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
 // Module: tb_axi_stress_pair
-// Purpose: Simulation harness: axi4_master_stress -> fault injector ->
-//          axi4_slave_stress, back to back with no fabric between them.
+// Purpose: Simulation harness: axi{4,3}_master_stress -> fault injector ->
+//          axi{4,3}_slave_stress, back to back with no fabric between them.
+//
+// PROTO selects the shells: 0 = AXI4, 1 = AXI3. The nets below are AXI4
+// shaped either way (AxLEN 8 bits, AxLOCK 1 bit), so the Python monitor reads
+// one set of names; with AXI3 the upper AxLEN bits are tied 0 and m_wid
+// carries WID.
 //
 // The fault injector corrupts exactly one handshake per armed fault (one bit
 // of flt_arm each), so a test can show that every check the stress blocks
@@ -16,6 +21,7 @@
 //   [5] AR: flip ARADDR bit 31               -> slave  ERR_S_ADDR
 //   [6] B:  BRESP forced to SLVERR           -> master ERR_WR_RESP
 //   [7] R:  RRESP forced to SLVERR           -> master ERR_RD_RESP
+//   [8] W:  flip WID bit 0 (AXI3 only)       -> slave  ERR_S_WID
 // flt_done shows which armed faults have been applied.
 //
 // Struct widths are exported (o_w_*) so the Python packer can check its
@@ -30,7 +36,8 @@ module tb_axi_stress_pair
     parameter int IW    = 8,
     parameter int DW    = 64,
     parameter int DEPTH = 16,
-    parameter int NWIN  = 8
+    parameter int NWIN  = 8,
+    parameter int PROTO = 0            // 0 = AXI4, 1 = AXI3
 ) (
     input  logic                              aclk,
     input  logic                              aresetn,
@@ -49,8 +56,8 @@ module tb_axi_stress_pair
     output logic [$bits(stress_sdir_sts_t)-1:0]    sts_srd,
     output logic [$bits(stress_sdir_sts_t)-1:0]    sts_swr,
 
-    input  logic [7:0]                        flt_arm,     // pulse: arm a fault
-    output logic [7:0]                        flt_done,
+    input  logic [8:0]                        flt_arm,     // pulse: arm a fault
+    output logic [8:0]                        flt_done,
 
     output logic [15:0]                       o_w_win,
     output logic [15:0]                       o_w_mcfg,
@@ -90,6 +97,7 @@ module tb_axi_stress_pair
     logic          m_arvalid, m_arready, m_rvalid, m_rready, m_wlast, m_rlast;
     logic [DW-1:0] m_wdata, m_rdata;
     logic [DW/8-1:0] m_wstrb;
+    logic [IW-1:0] m_wid, s_wid;      // AXI3 only; 0 with AXI4
 
     // ---- slave side nets (after the injector) ---------------------------------
     logic [IW-1:0] s_bid, s_rid;
@@ -98,39 +106,77 @@ module tb_axi_stress_pair
     logic          s_rlast;
     logic [DW-1:0] s_wdata, s_rdata;
 
-    axi4_master_stress #(
-        .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(1)
-    ) u_mst (
-        .aclk, .aresetn, .go, .stop,
-        .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
-        .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
-        .m_axi_awid(m_awid), .m_axi_awaddr(m_awaddr), .m_axi_awlen(m_awlen),
-        .m_axi_awsize(m_awsize), .m_axi_awburst(m_awburst), .m_axi_awlock(m_awlock),
-        .m_axi_awcache(m_awcache), .m_axi_awprot(m_awprot), .m_axi_awqos(m_awqos),
-        .m_axi_awregion(m_awregion), .m_axi_awuser(m_awuser),
-        .m_axi_awvalid(m_awvalid), .m_axi_awready(m_awready),
-        .m_axi_wdata(m_wdata), .m_axi_wstrb(m_wstrb), .m_axi_wlast(m_wlast),
-        .m_axi_wuser(m_wuser), .m_axi_wvalid(m_wvalid), .m_axi_wready(m_wready),
-        .m_axi_bid(m_bid), .m_axi_bresp(m_bresp), .m_axi_buser(m_buser),
-        .m_axi_bvalid(m_bvalid), .m_axi_bready(m_bready),
-        .m_axi_arid(m_arid), .m_axi_araddr(m_araddr), .m_axi_arlen(m_arlen),
-        .m_axi_arsize(m_arsize), .m_axi_arburst(m_arburst), .m_axi_arlock(m_arlock),
-        .m_axi_arcache(m_arcache), .m_axi_arprot(m_arprot), .m_axi_arqos(m_arqos),
-        .m_axi_arregion(m_arregion), .m_axi_aruser(m_aruser),
-        .m_axi_arvalid(m_arvalid), .m_axi_arready(m_arready),
-        .m_axi_rid(m_rid), .m_axi_rdata(m_rdata), .m_axi_rresp(m_rresp),
-        .m_axi_rlast(m_rlast), .m_axi_ruser(m_ruser),
-        .m_axi_rvalid(m_rvalid), .m_axi_rready(m_rready)
-    );
+    generate if (PROTO == 0) begin : g_mst4
+        axi4_master_stress #(
+            .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(1)
+        ) u_mst (
+            .aclk, .aresetn, .go, .stop,
+            .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
+            .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
+            .m_axi_awid(m_awid), .m_axi_awaddr(m_awaddr), .m_axi_awlen(m_awlen),
+            .m_axi_awsize(m_awsize), .m_axi_awburst(m_awburst), .m_axi_awlock(m_awlock),
+            .m_axi_awcache(m_awcache), .m_axi_awprot(m_awprot), .m_axi_awqos(m_awqos),
+            .m_axi_awregion(m_awregion), .m_axi_awuser(m_awuser),
+            .m_axi_awvalid(m_awvalid), .m_axi_awready(m_awready),
+            .m_axi_wdata(m_wdata), .m_axi_wstrb(m_wstrb), .m_axi_wlast(m_wlast),
+            .m_axi_wuser(m_wuser), .m_axi_wvalid(m_wvalid), .m_axi_wready(m_wready),
+            .m_axi_bid(m_bid), .m_axi_bresp(m_bresp), .m_axi_buser(m_buser),
+            .m_axi_bvalid(m_bvalid), .m_axi_bready(m_bready),
+            .m_axi_arid(m_arid), .m_axi_araddr(m_araddr), .m_axi_arlen(m_arlen),
+            .m_axi_arsize(m_arsize), .m_axi_arburst(m_arburst), .m_axi_arlock(m_arlock),
+            .m_axi_arcache(m_arcache), .m_axi_arprot(m_arprot), .m_axi_arqos(m_arqos),
+            .m_axi_arregion(m_arregion), .m_axi_aruser(m_aruser),
+            .m_axi_arvalid(m_arvalid), .m_axi_arready(m_arready),
+            .m_axi_rid(m_rid), .m_axi_rdata(m_rdata), .m_axi_rresp(m_rresp),
+            .m_axi_rlast(m_rlast), .m_axi_ruser(m_ruser),
+            .m_axi_rvalid(m_rvalid), .m_axi_rready(m_rready)
+        );
+        assign m_wid = '0;
+    end else begin : g_mst3
+        logic [3:0] a3_awlen, a3_arlen;
+        logic [1:0] a3_awlock, a3_arlock;
+        assign m_awlen  = {4'd0, a3_awlen};
+        assign m_arlen  = {4'd0, a3_arlen};
+        assign m_awlock = a3_awlock[0];
+        assign m_arlock = a3_arlock[0];
+        assign m_awqos = '0;
+        assign m_arqos = '0;
+        assign m_awregion = '0;
+        assign m_arregion = '0;
+
+        axi3_master_stress #(
+            .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(1)
+        ) u_mst (
+            .aclk, .aresetn, .go, .stop,
+            .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
+            .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
+            .m_axi_awid(m_awid), .m_axi_awaddr(m_awaddr), .m_axi_awlen(a3_awlen),
+            .m_axi_awsize(m_awsize), .m_axi_awburst(m_awburst), .m_axi_awlock(a3_awlock),
+            .m_axi_awcache(m_awcache), .m_axi_awprot(m_awprot), .m_axi_awuser(m_awuser),
+            .m_axi_awvalid(m_awvalid), .m_axi_awready(m_awready),
+            .m_axi_wid(m_wid),
+            .m_axi_wdata(m_wdata), .m_axi_wstrb(m_wstrb), .m_axi_wlast(m_wlast),
+            .m_axi_wuser(m_wuser), .m_axi_wvalid(m_wvalid), .m_axi_wready(m_wready),
+            .m_axi_bid(m_bid), .m_axi_bresp(m_bresp), .m_axi_buser(m_buser),
+            .m_axi_bvalid(m_bvalid), .m_axi_bready(m_bready),
+            .m_axi_arid(m_arid), .m_axi_araddr(m_araddr), .m_axi_arlen(a3_arlen),
+            .m_axi_arsize(m_arsize), .m_axi_arburst(m_arburst), .m_axi_arlock(a3_arlock),
+            .m_axi_arcache(m_arcache), .m_axi_arprot(m_arprot), .m_axi_aruser(m_aruser),
+            .m_axi_arvalid(m_arvalid), .m_axi_arready(m_arready),
+            .m_axi_rid(m_rid), .m_axi_rdata(m_rdata), .m_axi_rresp(m_rresp),
+            .m_axi_rlast(m_rlast), .m_axi_ruser(m_ruser),
+            .m_axi_rvalid(m_rvalid), .m_axi_rready(m_rready)
+        );
+    end endgenerate
 
     // ---- fault injector ----------------------------------------------------------
-    logic [7:0] r_armed;
+    logic [8:0] r_armed;
     wire w_r_hs  = m_rvalid  && m_rready;
     wire w_w_hs  = m_wvalid  && m_wready;
     wire w_b_hs  = m_bvalid  && m_bready;
     wire w_ar_hs = m_arvalid && m_arready;
 
-    logic [7:0] w_fire;
+    logic [8:0] w_fire;
     always_comb begin
         w_fire    = '0;
         w_fire[0] = r_armed[0] && w_r_hs;
@@ -141,6 +187,7 @@ module tb_axi_stress_pair
         w_fire[5] = r_armed[5] && w_ar_hs;
         w_fire[6] = r_armed[6] && w_b_hs;
         w_fire[7] = r_armed[7] && w_r_hs;
+        w_fire[8] = r_armed[8] && w_w_hs;
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
@@ -161,30 +208,57 @@ module tb_axi_stress_pair
     assign m_bid    = s_bid   ^ IW'(r_armed[4]);
     assign m_bresp  = r_armed[6] ? RESP_SLVERR : s_bresp;
     assign s_araddr = m_araddr ^ {r_armed[5], 31'd0};
+    assign s_wid    = m_wid   ^ IW'(r_armed[8]);
 
-    axi4_slave_stress #(
-        .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(1)
-    ) u_slv (
-        .aclk, .aresetn, .clear,
-        .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
-        .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
-        .s_axi_awid(m_awid), .s_axi_awaddr(m_awaddr), .s_axi_awlen(m_awlen),
-        .s_axi_awsize(m_awsize), .s_axi_awburst(m_awburst), .s_axi_awlock(m_awlock),
-        .s_axi_awcache(m_awcache), .s_axi_awprot(m_awprot), .s_axi_awqos(m_awqos),
-        .s_axi_awregion(m_awregion), .s_axi_awuser(m_awuser),
-        .s_axi_awvalid(m_awvalid), .s_axi_awready(m_awready),
-        .s_axi_wdata(s_wdata), .s_axi_wstrb(m_wstrb), .s_axi_wlast(m_wlast),
-        .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
-        .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
-        .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
-        .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen),
-        .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock(m_arlock),
-        .s_axi_arcache(m_arcache), .s_axi_arprot(m_arprot), .s_axi_arqos(m_arqos),
-        .s_axi_arregion(m_arregion), .s_axi_aruser(m_aruser),
-        .s_axi_arvalid(m_arvalid), .s_axi_arready(m_arready),
-        .s_axi_rid(s_rid), .s_axi_rdata(s_rdata), .s_axi_rresp(s_rresp),
-        .s_axi_rlast(s_rlast), .s_axi_ruser(m_ruser),
-        .s_axi_rvalid(m_rvalid), .s_axi_rready(m_rready)
-    );
+    generate if (PROTO == 0) begin : g_slv4
+        axi4_slave_stress #(
+            .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(1)
+        ) u_slv (
+            .aclk, .aresetn, .clear,
+            .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
+            .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
+            .s_axi_awid(m_awid), .s_axi_awaddr(m_awaddr), .s_axi_awlen(m_awlen),
+            .s_axi_awsize(m_awsize), .s_axi_awburst(m_awburst), .s_axi_awlock(m_awlock),
+            .s_axi_awcache(m_awcache), .s_axi_awprot(m_awprot), .s_axi_awqos(m_awqos),
+            .s_axi_awregion(m_awregion), .s_axi_awuser(m_awuser),
+            .s_axi_awvalid(m_awvalid), .s_axi_awready(m_awready),
+            .s_axi_wdata(s_wdata), .s_axi_wstrb(m_wstrb), .s_axi_wlast(m_wlast),
+            .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
+            .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
+            .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
+            .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen),
+            .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock(m_arlock),
+            .s_axi_arcache(m_arcache), .s_axi_arprot(m_arprot), .s_axi_arqos(m_arqos),
+            .s_axi_arregion(m_arregion), .s_axi_aruser(m_aruser),
+            .s_axi_arvalid(m_arvalid), .s_axi_arready(m_arready),
+            .s_axi_rid(s_rid), .s_axi_rdata(s_rdata), .s_axi_rresp(s_rresp),
+            .s_axi_rlast(s_rlast), .s_axi_ruser(m_ruser),
+            .s_axi_rvalid(m_rvalid), .s_axi_rready(m_rready)
+        );
+    end else begin : g_slv3
+        axi3_slave_stress #(
+            .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(1)
+        ) u_slv (
+            .aclk, .aresetn, .clear,
+            .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
+            .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
+            .s_axi_awid(m_awid), .s_axi_awaddr(m_awaddr), .s_axi_awlen(m_awlen[3:0]),
+            .s_axi_awsize(m_awsize), .s_axi_awburst(m_awburst), .s_axi_awlock({1'b0, m_awlock}),
+            .s_axi_awcache(m_awcache), .s_axi_awprot(m_awprot), .s_axi_awuser(m_awuser),
+            .s_axi_awvalid(m_awvalid), .s_axi_awready(m_awready),
+            .s_axi_wid(s_wid),
+            .s_axi_wdata(s_wdata), .s_axi_wstrb(m_wstrb), .s_axi_wlast(m_wlast),
+            .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
+            .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
+            .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
+            .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen[3:0]),
+            .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock({1'b0, m_arlock}),
+            .s_axi_arcache(m_arcache), .s_axi_arprot(m_arprot), .s_axi_aruser(m_aruser),
+            .s_axi_arvalid(m_arvalid), .s_axi_arready(m_arready),
+            .s_axi_rid(s_rid), .s_axi_rdata(s_rdata), .s_axi_rresp(s_rresp),
+            .s_axi_rlast(s_rlast), .s_axi_ruser(m_ruser),
+            .s_axi_rvalid(m_rvalid), .s_axi_rready(m_rready)
+        );
+    end endgenerate
 
 endmodule : tb_axi_stress_pair

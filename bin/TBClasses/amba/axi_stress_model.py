@@ -30,6 +30,7 @@ ERR_NAMES = {
     0: 'RD_STRAY', 1: 'RD_LAST', 2: 'RD_RESP', 3: 'RD_DATA',
     4: 'WR_STRAY', 5: 'WR_RESP', 6: 'WR_EARLY', 7: 'HANG',
     8: 'S_ADDR', 9: 'S_PROTO', 10: 'S_WDATA', 11: 'S_WSTRB', 12: 'S_WLAST',
+    13: 'S_WID',
 }
 ERR_CODES = {v: k for k, v in ERR_NAMES.items()}
 

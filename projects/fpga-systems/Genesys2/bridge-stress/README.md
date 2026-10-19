@@ -8,7 +8,9 @@ answered by a stress slave, and every byte, ID, response code and burst shape
 is checked at both ends.
 
 - **PRD:** [PRD.md](PRD.md) -- why the existing injectors were not reused as-is, the data contract, the checks, the builds and phases.
-- **Status:** phase 1 (AXI4) passes on the board -- 27/27 runs, every
-  profile, three seeds -- and in simulation. It has found bridge BUG-018
-  (width converters vs FIXED / WRAP / narrow / unaligned bursts, confirmed in
-  silicon) and converters BUG-010 (every CSR write lands twice).
+- **Status:** the AXI4 build (`build-axi4`) and the AXI3 build
+  (`build-axi3`) pass on the board -- 27/27 runs each, every profile, three
+  seeds, plus a 15-minute soak each -- and in simulation. It has found bridge
+  BUG-018 (width converters vs FIXED / WRAP / narrow / unaligned bursts,
+  confirmed in silicon), converters BUG-010 (every CSR write lands twice) and
+  converters BUG-011 (AXI4-to-AXI3 chopping of an unaligned burst, fixed).

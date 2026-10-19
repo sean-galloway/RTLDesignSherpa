@@ -263,6 +263,9 @@ module axi4_master_stress
             .fub_axi_awready   (f_awready),
             .fub_axi_wdata     (f_wdata),
             .fub_axi_wstrb     (f_wstrb),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_wid       (),          // AXI4 has no WID
+            /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_wlast     (f_wlast),
             .fub_axi_wuser     (f_wuser),
             .fub_axi_wvalid    (f_wvalid),

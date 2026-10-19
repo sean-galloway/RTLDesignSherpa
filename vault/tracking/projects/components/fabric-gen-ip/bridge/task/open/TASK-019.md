@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-19
 **Priority:** P2
-**Status:** OPEN (phase 1 done)
+**Status:** OPEN (phase 1 and AXI3 done)
 **Owner:** unassigned
 **Where:** `projects/fpga-systems/Genesys2/bridge-stress/` (PRD.md), cores in `rtl/amba/shared/axi_stress_*.sv`
 
@@ -24,10 +24,21 @@ both ends.
   sim UART), board 27/27.
 - Found bridge BUG-018 and converters BUG-010.
 
+## Done (phase 2a, AXI3, 2026-10-19)
+
+- `axi3_{master,slave}_stress`: the generator's LEN_MASK cuts bursts to 16
+  beats; the write core carries each beat's WID; the AXI3 slave checks it
+  (`ERR_S_WID`). Pair test: AXI4 and AXI3, 42 cells at full level, nine
+  faults incl. a flipped WID.
+- `bridge_bs_axi3` / `build-axi3` (the CDC ports stay AXI4: no AXI3 CDC in
+  the generator), harness generator protocol-aware, board 27/27 and a
+  15-minute soak 168/168.
+- Found and fixed converters BUG-011 (unaligned chopped INCR).
+
 ## Remaining
 
 | Phase | Work |
 |---|---|
-| 2 | `axi3_{master,slave}_stress` (WID, 16-beat, 2-bit lock) and `axi5_*` (the bridge's AXI5 feature groups: atomics, unique, poison/trace/MPAM pass-through); a mixed DUT TOML `bridge_bs_mixed_a.toml` and `build-mixed-a/`; `path_caps` rules for AXI3 (len_mask 15, split) |
+| 2b | `axi5_*` (the bridge's AXI5 feature groups: atomics, unique, poison/trace/MPAM pass-through); a mixed DUT TOML and build |
 | 3 | single-beat shells for `axil`/`axil5`, `apb`/`apb5` (slaves in offset mode -- the bridge hands an APB slave a window offset), `wb4`; DUT `bridge_bs_mixed_b.toml` |
 | any | re-run `--full-axi` once BUG-018 is fixed and drop the converted-path limits |

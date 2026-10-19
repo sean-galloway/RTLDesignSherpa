@@ -650,6 +650,60 @@ class AXI4ToAXI3ReadTB(TBBase):
         self.stats['bursts_completed'] += 1
         return True
 
+    async def incr_burst_len17_unaligned(self):
+        """An unaligned 17-beat INCR: chunk 1 starts at the ALIGNED next beat.
+
+        Every beat after the first is size-aligned (AXI A3.4.1), so the second
+        AXI3 burst starts at aligned(address) + 16 beats, not address + 16
+        beats. Before the fix the converter carried the misalignment into
+        chunk 1, and an AXI3 slave read only the upper lanes of its first beat
+        (found by the Genesys 2 bridge stress model, bridge_bs_axi3).
+        """
+        self.log.info("TEST: incr_burst_len17_unaligned")
+        offset = self.bytes_per_beat // 2
+        address = 0x6800 + offset
+        burst_len = 17
+        axid = 2
+        size = self.bytes_per_beat.bit_length() - 1
+        aligned_next = (address & ~(self.bytes_per_beat - 1)) + (16 << size)
+
+        initial_count = len(self.axi3_transactions)
+        read_data = await self.axi4_master.read_transaction(
+            address=address, burst_len=burst_len, burst_type=1, size=size, id=axid)
+        await self.wait_clocks(self.clk_name, 20)
+
+        if len(self.axi3_transactions) - initial_count != 2:
+            self.log.error("incr_burst_len17_unaligned: expected 2 AXI3 ARs, got "
+                           f"{len(self.axi3_transactions) - initial_count}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+        chunk0 = self.axi3_ar_details[initial_count]
+        chunk1 = self.axi3_ar_details[initial_count + 1]
+        if chunk0['len'] != 15 or chunk0['addr'] != address:
+            self.log.error(f"incr_burst_len17_unaligned: chunk0 len={chunk0['len']} "
+                           f"addr=0x{chunk0['addr']:08X}, expected 15 / 0x{address:08X}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+        if chunk1['len'] != 0 or chunk1['addr'] != aligned_next:
+            self.log.error(f"incr_burst_len17_unaligned: chunk1 len={chunk1['len']} "
+                           f"addr=0x{chunk1['addr']:08X}, expected 0 / 0x{aligned_next:08X}")
+            self.stats['chop_errors'] += 1
+            self.stats['errors'] += 1
+            return False
+        if len(read_data) != burst_len:
+            self.log.error(f"incr_burst_len17_unaligned: {len(read_data)} beats, "
+                           f"expected {burst_len}")
+            self.stats['errors'] += 1
+            return False
+
+        self.log.info("incr_burst_len17_unaligned PASSED")
+        self.stats['bursts_sent'] += 1
+        self.stats['beats_expected'] += burst_len
+        self.stats['bursts_completed'] += 1
+        return True
+
     async def incr_burst_len64(self):
         """64-beat INCR burst is chopped into four 16-beat AXI3 bursts."""
         self.log.info("TEST: incr_burst_len64")
@@ -1198,6 +1252,9 @@ class AXI4ToAXI3ReadTB(TBBase):
             success = False
 
         if not await self.id_preserved():
+            success = False
+
+        if not await self.incr_burst_len17_unaligned():
             success = False
 
         return success
