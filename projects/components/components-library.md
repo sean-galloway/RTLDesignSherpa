@@ -64,9 +64,9 @@ Latest revision of every PDF under `projects/components/`.
 | [NASA_TM-102162_Geisel_1990_Tutorial_on_Reed-Solomon_Error_Correction_Coding.pdf](ecc-ip/reed-solomon/References/NASA_TM-102162_Geisel_1990_Tutorial_on_Reed-Solomon_Error_Correction_Coding.pdf) | — | 5.4 MB | `projects/components/ecc-ip/reed-solomon/References/` |
 | [Plank_1997_CS-96-332_Tutorial_on_Reed-Solomon_Coding_for_RAID.pdf](ecc-ip/reed-solomon/References/Plank_1997_CS-96-332_Tutorial_on_Reed-Solomon_Coding_for_RAID.pdf) | — | 197 KB | `projects/components/ecc-ip/reed-solomon/References/` |
 | [Plank_Ding_2003_CS-03-504_Correction_to_the_1997_Tutorial.pdf](ecc-ip/reed-solomon/References/Plank_Ding_2003_CS-03-504_Correction_to_the_1997_Tutorial.pdf) | — | 60 KB | `projects/components/ecc-ip/reed-solomon/References/` |
-| [Bridge_GAS_v1.6.pdf](fabric-gen-ip/bridge/docs/Bridge_GAS_v1.6.pdf) | v1.6 | 1.5 MB | `projects/components/fabric-gen-ip/bridge/docs/` |
-| [Bridge_HAS_v1.6.pdf](fabric-gen-ip/bridge/docs/Bridge_HAS_v1.6.pdf) | v1.6 | 3.7 MB | `projects/components/fabric-gen-ip/bridge/docs/` |
-| [Bridge_MAS_v1.6.pdf](fabric-gen-ip/bridge/docs/Bridge_MAS_v1.6.pdf) | v1.6 | 5.7 MB | `projects/components/fabric-gen-ip/bridge/docs/` |
+| [Bridge_GAS_v1.7.pdf](fabric-gen-ip/bridge/docs/Bridge_GAS_v1.7.pdf) | v1.7 | 1.5 MB | `projects/components/fabric-gen-ip/bridge/docs/` |
+| [Bridge_HAS_v1.7.pdf](fabric-gen-ip/bridge/docs/Bridge_HAS_v1.7.pdf) | v1.7 | 3.7 MB | `projects/components/fabric-gen-ip/bridge/docs/` |
+| [Bridge_MAS_v1.7.pdf](fabric-gen-ip/bridge/docs/Bridge_MAS_v1.7.pdf) | v1.7 | 5.7 MB | `projects/components/fabric-gen-ip/bridge/docs/` |
 | [Delta_GAS_v1.0.pdf](fabric-gen-ip/delta/docs/Delta_GAS_v1.0.pdf) | v1.0 | 862 KB | `projects/components/fabric-gen-ip/delta/docs/` |
 | [Delta_HAS_v1.0.pdf](fabric-gen-ip/delta/docs/Delta_HAS_v1.0.pdf) | v1.0 | 1.3 MB | `projects/components/fabric-gen-ip/delta/docs/` |
 | [Delta_MAS_v1.0.pdf](fabric-gen-ip/delta/docs/Delta_MAS_v1.0.pdf) | v1.0 | 1.2 MB | `projects/components/fabric-gen-ip/delta/docs/` |
@@ -121,4 +121,4 @@ Latest revision of every PDF under `projects/components/`.
 | [14_waterman_riscv_dissertation2016.pdf](riscv-ip/references/papers/14_waterman_riscv_dissertation2016.pdf) | — | 836 KB | `projects/components/riscv-ip/references/papers/` |
 | [15_celio_boom_berkeley2015.pdf](riscv-ip/references/papers/15_celio_boom_berkeley2015.pdf) | — | 382 KB | `projects/components/riscv-ip/references/papers/` |
 | [riscv-spec.pdf](riscv-ip/references/riscv-spec.pdf) | — | 4.9 MB | `projects/components/riscv-ip/references/` |
-| [Converters_MAS_v1.6.pdf](utility-ip/converters/docs/Converters_MAS_v1.6.pdf) | v1.6 | 4.6 MB | `projects/components/utility-ip/converters/docs/` |
+| [Converters_MAS_v1.8.pdf](utility-ip/converters/docs/Converters_MAS_v1.8.pdf) | v1.8 | 4.9 MB | `projects/components/utility-ip/converters/docs/` |

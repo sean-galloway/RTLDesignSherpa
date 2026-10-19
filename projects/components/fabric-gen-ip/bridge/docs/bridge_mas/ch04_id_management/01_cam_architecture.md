@@ -40,8 +40,9 @@ FIFO instead (see [ID Tracking](02_id_tracking.md)).
 > CAM (`bridge_cam`, `u_wr_cam` / `u_rd_cam`) to recover the master index
 > the ID already carries. That lookup sat in series with the crossbar's
 > response arbitration and was the fabric's critical path on the Artix-7
-> (bridge W12; HAS 5.1). The hand-written `rtl/bridge_cam.sv` and its unit
-> test remain in the tree; no generated bridge instantiates it.
+> (bridge W12; HAS 5.1). `bridge_cam.sv`, its unit test and its formal
+> proof are in the bridge's `deprecated/` directory, out of every
+> regression; no generated bridge instantiates it.
 
 ## Functional Description
 
@@ -107,8 +108,9 @@ Measured out of context on the Artix-7 -1 at 10 ns (2026-10-18), at
 : Slave-adapter response routing, CAM against ID bits
 
 Halving the CAM to 8 entries recovered 0.8-0.9 ns and still missed on
-both. The remaining `bridge_mix_e` paths are in the AXI3 slave converter
-(HAS 5.1, W13).
+both. The paths that then remained in `bridge_mix_e` were in the AXI3
+slave converter and the APB slave's arbiter; with those fixed (HAS 5.1, W13
+and W14) it meets 10 ns at +0.174 ns.
 
 ## Related Modules
 

@@ -101,10 +101,21 @@ first enters its own 2-deep registered slot for that slave
 (`<master>_<w>b_aw_slot_<slave>`, a `gaxi_skid_buffer`), and the arbiter
 picks among the slots straight onto the slave-side nets. Nothing queues
 past the pick: the slave adapter's AW/AR timing stage is cut to depth 0 on
-these slaves (AXI4 and AXI5 slaves; an APB or AXI4-Lite shim keeps its
-own), and so is the registered crossbar's AW/AR stage. The slot is the
-channel's register instead, so the address path still crosses two
-registers (master adapter, slot) and its latency is unchanged.
+these slaves (AXI3, AXI4 and AXI5 slaves), and so is the registered
+crossbar's AW/AR stage. The slot is the channel's register instead, so the
+address path still crosses two registers (master adapter, slot) and its
+latency is unchanged.
+
+An APB, AXI4-Lite or WB4 shim slave takes slots too (bridge W14). It used to
+be picked from the masters' live requests, so one master's request gate ran
+through the grant into another master's accept: master A's write-tracking
+gate, the APB slave's pick, then master B's AWREADY and its width
+converter's B-fold write, the worst path in `bridge_mix_e` (-0.106 ns at
+10 ns). The shim holds a request of its own, so the slot adds one cycle of
+address latency on these slow slaves. Their W owner takes no bypass: a shim
+does not accept W ahead of its AW, and the bypass (W to the AW being
+presented, before its handshake) deadlocked `bridge_2x2_wb4`'s concurrent
+test with two masters writing the WB4 slave.
 
 Why it matters: the pick has to be made where the slave is served. The
 arbiter used to pick from the raw requests and feed a 2-deep stage behind

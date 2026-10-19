@@ -25,7 +25,7 @@
 
 ## Overview
 
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-10-18
 **Purpose:** High-level hardware architecture specification for Bridge component
 

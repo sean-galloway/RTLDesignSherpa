@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Fri Oct 16 19:29:27 2026
+| Date         : Sun Oct 18 16:15:20 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_rw_cdc__xc7a100tcsg324-1/utilization_hier.txt
 | Design       : bridge_2x2_rw_cdc
@@ -19,17 +19,18 @@ Table of Contents
 1. Utilization by Hierarchy
 ---------------------------
 
-+-----------------------+--------------------------------+------------+------------+---------+------+------+--------+--------+------------+
-|        Instance       |             Module             | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
-+-----------------------+--------------------------------+------------+------------+---------+------+------+--------+--------+------------+
-| bridge_2x2_rw_cdc     |                          (top) |       5184 |       5032 |     152 |    0 | 4021 |      0 |      0 |          0 |
-|   (bridge_2x2_rw_cdc) |                          (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
-|   u_cpu_adapter       |  bridge_2x2_rw_cdc_cpu_adapter |        716 |        716 |       0 |    0 |  846 |      0 |      0 |          0 |
-|   u_ddr_adapter       |  bridge_2x2_rw_cdc_ddr_adapter |       1515 |       1363 |     152 |    0 | 1145 |      0 |      0 |          0 |
-|   u_dma_adapter       |  bridge_2x2_rw_cdc_dma_adapter |        618 |        618 |       0 |    0 |  846 |      0 |      0 |          0 |
-|   u_sram_adapter      | bridge_2x2_rw_cdc_sram_adapter |       1362 |       1362 |       0 |    0 |  987 |      0 |      0 |          0 |
-|   u_xbar              |         bridge_2x2_rw_cdc_xbar |        915 |        915 |       0 |    0 |  136 |      0 |      0 |          0 |
-+-----------------------+--------------------------------+------------+------------+---------+------+------+--------+--------+------------+
++---------------------------+---------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|          Instance         |                 Module                | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++---------------------------+---------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| bridge_2x2_rw_cdc         |                                 (top) |       3389 |       3121 |     268 |    0 | 3034 |      0 |      0 |          0 |
+|   (bridge_2x2_rw_cdc)     |                                 (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   (u_subtractive_adapter) | bridge_2x2_rw_cdc_subtractive_adapter |         67 |         67 |       0 |    0 |   52 |      0 |      0 |          0 |
+|   u_cpu_adapter           |         bridge_2x2_rw_cdc_cpu_adapter |        740 |        740 |       0 |    0 |  846 |      0 |      0 |          0 |
+|   u_ddr_adapter           |         bridge_2x2_rw_cdc_ddr_adapter |        539 |        271 |     268 |    0 |  288 |      0 |      0 |          0 |
+|   u_dma_adapter           |         bridge_2x2_rw_cdc_dma_adapter |        775 |        775 |       0 |    0 |  846 |      0 |      0 |          0 |
+|   u_sram_adapter          |        bridge_2x2_rw_cdc_sram_adapter |        244 |        244 |       0 |    0 |  274 |      0 |      0 |          0 |
+|   u_xbar                  |                bridge_2x2_rw_cdc_xbar |        981 |        981 |       0 |    0 |  687 |      0 |      0 |          0 |
++---------------------------+---------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
 * Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
 
 

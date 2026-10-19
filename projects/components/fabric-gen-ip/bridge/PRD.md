@@ -245,12 +245,12 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   cycles of bridge-added latency before arbitration. The 2-3 cycle figure in
   6.1 describes the wrapperless flat crossbar, not what the generator emits.
 - [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
-- [x] Performance models implemented (bridge_model.py - V1 Flat)
+- [x] Performance models implemented (bridge_model.py - V1 Flat; in `deprecated/` since 2026-10-18, superseded by the measured perf suite)
 - [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
 
 **Quality:**
 - [x] Complete specifications (PRD) before code
-- [x] Performance models validate requirements (bridge_model.py)
+- [x] Performance models validate requirements (bridge_model.py, now `deprecated/`; `dv/tests/test_bridge_perf_char.py` measures them)
 - [x] All generated RTL Verilator verified
 - [x] Integration examples provided (CSV examples)
 - [x] Comprehensive documentation (bin/GENERATOR_ARCHITECTURE.md, docs/bridge_has/, docs/bridge_mas/)
@@ -308,8 +308,8 @@ The bridge generator now supports both TOML/CSV configuration and legacy array-i
   PENDING while the shim it describes was shipping in six configurations.
 
 **Additional Resources:**
-- `models/bridge_model/bridge_model.py` - Performance modeling (V1 Flat implemented)
-- `rtl/bridge_cam.sv` - hand-written per-ID CAM. Not instantiated by any
+- `deprecated/models/bridge_model/bridge_model.py` - analytical performance model (V1 Flat), unused
+- `deprecated/rtl/bridge_cam.sv` - hand-written per-ID CAM. Not instantiated by any
   generated module since bridge W12 (2026-10-18): by-ID slaves read the
   master index off the ID instead.
 - See `bin/GENERATOR_ARCHITECTURE.md` for the generator/build mechanics
@@ -1000,7 +1000,7 @@ Configuration:
 
 ### 11.2 Performance Analysis (Before Implementation)
 
-- [x] **models/bridge_model/bridge_model.py** - Analytical model (V1 Flat implemented)
+- [x] **models/bridge_model/bridge_model.py** (now `deprecated/models/`) - Analytical model (V1 Flat implemented)
   - Latency calculations (single-beat, burst)
   - Throughput estimates (concurrent paths)
   - Resource estimates (LUT/FF scaling)

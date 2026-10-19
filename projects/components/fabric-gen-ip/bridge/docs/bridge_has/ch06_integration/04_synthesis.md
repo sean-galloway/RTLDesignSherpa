@@ -198,9 +198,12 @@ much from run to run with placement; read them as "at the target".
 These rows were built with a per-ID CAM in every shared slave adapter. Rev
 1.6 (2026-10-18, bridge W12) routes those responses by the ID's
 master-index bits instead, which removes the CAM. The tables have not been
-re-measured since. The two fixtures re-run (HAS 5.1) show the direction:
-`bridge_2x2_axi3_slaves` went from -1.006 to +0.001 ns and
-`bridge_mix_e` from -2.686 to -0.669 ns, with 1,800-2,100 fewer LUTs each.
+re-measured since; nor have the APB / AXI4-Lite / WB4 request slots
+(rev 1.7, bridge W14) or the CDC slave arbitration (W9). The fixtures
+re-run (HAS 5.1) show the direction: `bridge_2x2_axi3_slaves` went from
+-1.006 to +0.231 ns, `bridge_mix_e` from -2.686 to +0.174 ns and
+`bridge_2x2_rw_cdc` from +0.066 to +0.637 ns, each 1,500-1,800 LUTs
+smaller.
 
 - **The 2x2s are at 100 MHz on the Artix-7 and 150 MHz on the Kintex-7.**
   On the Artix-7 every 2x2 except the native-AXI5 one is within 0.3 ns of
@@ -252,9 +255,9 @@ re-measured since. The two fixtures re-run (HAS 5.1) show the direction:
 - **Protocol shims and width converters** are the expensive ports: an APB or
   AXI-Lite slave carries a converter plus its own monitor sandwich, a width
   step carries a converter each way.
-- **CDC slave ports** add one async FIFO per channel (HAS 4.5a); the cost is
-  the FIFO storage, and the crossing does not enter the fabric's critical
-  path.
+- **CDC slave ports** add one async FIFO per channel (HAS 4.5a), and one per
+  master lane when several masters share the port; the cost is the FIFO
+  storage, and the crossing does not enter the fabric's critical path.
 
 ### Before a board build
 

@@ -28,7 +28,7 @@ The master adapter sits between an external master and the internal crossbar. It
 
 - Expose the external port with the configured prefix and protocol.
 - Insert timing-isolation wrappers when requested.
-- Handle CDC if `cdc=true`: `axi4_cdc_{wr,rd}` between the port (on `ext_aclk`) and the timing wrapper (on `aclk`).
+- Handle CDC if `cdc=true`: `axi4_cdc_{wr,rd}` between the port (on `ext_aclk`) and the timing wrapper (on `aclk`). (A slave adapter does the same for one master; for several it takes the crossbar's per-master lanes into `bridge_cdc_slave_arb`, bridge W9.)
 - Insert protocol converters for non-AXI4 master protocols (`apb`, `apb5`, `axil`, `axil5`, `wb4`, `axi3`, `axi5`).
 - Generate per-width internal paths and instantiate width converters only where master and slave widths differ.
 - Decode addresses and emit `slave_select_aw/ar` plus `bridge_id_aw/ar`.
@@ -72,7 +72,7 @@ The crossbar module:
 - Accepts per-master decode outputs (`slave_select_*`, `bridge_id_*`).
 - Builds AW/AR request matrices.
 - On a slave that two or more masters reach, puts each master's AW and AR in its own registered request slot and arbitrates among the slots at the slave-side nets (round-robin or QoS, grant locked to the address handshake); a master's AW enters a slot only while none of its other slots holds one (the write ordering rule, MAS 2.4).
-- Routes W beats via a per-slave W-owner FIFO, pushed at the AW pick.
+- Routes W beats via a per-slave W-owner FIFO, pushed at the AW pick. On an AXI slave with slots the FIFO's empty bypass hands W to the AW being presented; a shim slave (APB / AXI4-Lite / WB4, slotted since bridge W14) takes no bypass, since it does not accept W before its AW.
 - Tells the slave adapter of an arbitrated AXI4/AXI5 slave to cut its AW/AR stage (`arbitrated=True`): the slots are that register.
 - Muxes responses back to masters using the `bridge_id` sideband.
 - Optionally inserts a registered stage when `xbar_pipeline=true`.

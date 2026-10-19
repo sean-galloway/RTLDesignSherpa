@@ -141,6 +141,35 @@ for an AW grant stays inside the aging bound, and equal QoS splits the port
 like the baseline. `AxQOS` itself is still passed through to the
 slave unchanged.
 
+### CDC Slaves: Arbitration on the Slave's Clock (bridge W9)
+
+A `cdc = true` slave that two or more masters reach is not picked here.
+Arbitration belongs where the slave is served; picked on `aclk`, the granted
+requests queued in the one crossing to the slave and a master's share
+followed its outstanding count (0.18-0.20 for 2 in flight against 8). So for
+such a slave the crossbar emits per-master lanes instead of slots, an
+arbiter and a W owner:
+
+```
+assign ddr_axi_lane_awvalid[0] = cpu_32b_aw_to_ddr && !cpu_32b_aw_hold_ddr && cpu_32b_awvalid;
+assign ddr_axi_lane_aw[0*67 +: 67] = {cpu_32b_aw.id, cpu_32b_aw.addr, ... cpu_32b_aw.user};
+assign ddr_axi_lane_wvalid[0] = cpu_32b_w_to_ddr && cpu_32b_wvalid;   // the path's W destination FIFO
+```
+
+A lane carries only its master's W, in that master's AW order, so no owner
+is needed on `aclk`; the slave adapter's `bridge_cdc_slave_arb` crosses the
+lanes, picks AW and AR on `s_aclk` with `arbiter_matrix`, and orders W by
+its own AW pick (MAS 6.1). The ordinary request nets for the slave are tied
+off. B and R come back on the ordinary ports and route by the ID's master
+bits like any shared slave's. Which slaves get lanes, their order and their
+payload widths come from one helper, `bridge_pkg/cdc_lanes.py`, that the
+crossbar, the bridge top and the slave adapter all use.
+
+`arbiter_matrix` is least-recently-granted: any requester that keeps asking
+is served within one grant per other requester. `[bridge] arbitration =
+"qos"` does not reach a CDC slave's pick; it applies to the slaves picked
+here.
+
 ### Request Multiplexers with Stable Address Gating
 
 After arbitration, multiplexers select the granted master's signals. AR/AW gating uses **inline address re-decode** on the stable m_axi address bus (held stable across the full handshake):

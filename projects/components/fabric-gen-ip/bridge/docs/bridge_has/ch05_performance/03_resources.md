@@ -84,7 +84,7 @@ wide response paths that `xbar_pipeline` registers.
 | Slave adapters | O(N), plus a converter and its monitor sandwich for every non-AXI4 or width-stepped port |
 | bridge_id FIFOs | O(N x depth), small LUT arrays, no BRAM |
 | Registered crossbar (`xbar_pipeline`) | one 2-deep skid per slave-side channel |
-| CDC slave port (`cdc`) | one async FIFO per channel of that port |
+| CDC slave port (`cdc`) | one async FIFO per channel; shared by M masters, M lanes of AW / W / AR FIFOs plus B and R, two `arbiter_matrix` and a W owner FIFO |
 
 : Resource Scaling
 

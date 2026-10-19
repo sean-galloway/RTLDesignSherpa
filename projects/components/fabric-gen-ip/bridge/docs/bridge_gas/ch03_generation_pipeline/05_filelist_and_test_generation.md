@@ -38,7 +38,7 @@ The filelist is written to `rtl/filelists/<bridge_name>.f`, two levels above the
 6. **AXI4/AXI5 wrapper closures** — `axi4_slave_wr.f`, `axi4_slave_rd.f`, `axi4_master_wr.f`, `axi4_master_rd.f`, plus AXI5 variants when needed.
 7. **Converter closures** — `axi_data_upsize.f`, `axi_data_dnsize.f`, `axi4_dwidth_converter_{wr,rd}.f`, `axil_to_axi4_wide_align_{wr,rd}.f`.
 8. **Protocol shim closures** — APB, AXI-Lite, AXI3, Wishbone, AXI5 atomic filters/read-return trackers as needed.
-9. **CDC closures** — `axi4_cdc_wr.f`, `axi4_cdc_rd.f` if any port, master or slave, has `cdc=true`.
+9. **CDC closures** — `axi4_cdc_wr.f`, `axi4_cdc_rd.f` if any port, master or slave, has `cdc=true`; `filelists_static/bridge_cdc_slave_arb.f` if a `cdc=true` slave is reached by two or more masters.
 10. **Monitor infrastructure** — `_monlite` wrapper filelists and `monbus_arbiter.f`, plus the selected `monbus_<p1>_<p2>_group.f` for `"mon"` variants.
 11. **Verilator waiver** — `bridge_regblock.vlt` when a cfg regblock is present.
 

@@ -251,47 +251,56 @@ flight reach 0.58 of the port's peak with the slave at 7 ns and 0.62 at
   well as AXI3 ones. Halving the CAM to 8 entries had recovered only
   0.8-0.9 ns.
 
-Built on the Artix-7 at 10 ns (WNS / LUTs):
+- **W13, the AXI3 slave converter's per-ID state on the request and BID
+  paths.** The crossbar's AR grant ran into the read converter's per-ID
+  check and chunk-address adder (17 levels), and the BID and RID pins ran
+  into the merge counts through RID/BID-indexed muxes. A chopped (17+ beat)
+  request is best effort now. It is taken into a staging register with no
+  per-ID check and starts a cycle later, once its ID has drained. B lands raw
+  in the converter's existing output register and is merged from there, and
+  each ID's read-merge entry updates itself. Unchopped traffic gains no
+  cycle. (A skid in front of B cost single-beat AXI3 writes 0.801 against
+  0.862 beat/cycle, so it went into the existing register instead.)
+- **W14, shim slaves picked from live requests.** An APB / AXI4-Lite / WB4
+  slave that several masters share was picked straight from their requests,
+  so one master's request gate ran through the grant into another master's
+  accept and its width converter (`bridge_mix_e`, -0.106 ns). It takes
+  per-master request slots like an AXI slave. The cost is one cycle of
+  address latency on those slow slaves. Its W owner takes no early-W bypass,
+  since a shim does not accept W before its AW.
+- **W9, round-robin share at a CDC slave.** The pick was made on `aclk`, and
+  granted requests queued in the one crossing to the slave, so a master with
+  2 in flight got 0.18-0.20 against one with 8. A CDC slave that several
+  masters share is now crossed per master and arbitrated on its own clock
+  (`bridge_cdc_slave_arb`: per-lane async FIFOs, `arbiter_matrix` with a
+  registered grant, W owner on the slave side; HAS 4.5a). At 32 cycles of
+  slave latency the 2-deep master gets 0.496-0.500. With a slave that
+  answers at once it gets 0.40-0.41, because its two transactions spend
+  their turnaround crossing twice. With 8 in flight each, both get 0.498.
 
-| Bridge | Per-ID CAM | By ID |
-|---|---:|---:|
-| `bridge_2x2_axi3_masters` | +0.060 ns / 6,884 | not re-run |
-| `bridge_2x2_axi3_slaves` | -1.006 ns / 10,636 | +0.001 ns / 8,824 |
-| `bridge_mix_e` | -2.686 ns / 17,158 | -0.669 ns / 15,055 |
+Built on the Artix-7 at 10 ns, every row with the I/O at 30% of the period
+(HAS 6.4):
 
-: AXI3 fixtures before and after by-ID routing, Artix-7 -1 at 10 ns
+| Bridge | Before (per-ID CAM, 2026-10-18 morning) | Now | LUTs before -> now |
+|---|---:|---:|---:|
+| `bridge_2x2_axi3_masters` | +0.060 ns | +1.217 ns | 6,884 -> 5,218 |
+| `bridge_2x2_axi3_slaves` | -1.006 ns | +0.231 ns | 10,636 -> 9,120 |
+| `bridge_mix_e` | -2.686 ns | +0.174 ns | 17,158 -> 15,365 |
+| `bridge_2x2_rw_cdc` | +0.066 ns | +0.637 ns | 5,184 -> 3,389 |
 
-`bridge_mix_e` still misses (see Open, W13).
+: Fixtures re-measured after W9 and W12-W14, Artix-7 -1 at 10 ns
+
+All four meet timing. `rtl/common/arbiter_matrix` and
+`arbiter_matrix_weighted` had never been through Vivado, and their update
+loops were bounded by the winner itself. Vivado would not unroll them
+(handbook `design/static-loop-bounds`); they are rewritten with static
+bounds, and their own suites pass.
 
 #### Open
 
-- **W13, `bridge_mix_e` misses 10 ns by 0.67 ns.** Two paths, both in the
-  AXI3 slave converter `axi4_to_axi3_rd/wr`:
-  - Register to register, -0.387 ns (17 levels, 7 of them carry): the
-    crossbar's AR grant into the read converter's chop-address adder
-    (`active_addr`). With arbitration at the pins the wrapper's AR stage is
-    cut, so the granted AR reaches the converter unregistered.
-  - From the `bid` pin, -0.669 ns: into the write converter's B-merge
-    count (`b_merge_chunks_left`), with the flow's 3 ns input delay.
-
-- **W9, round-robin share at a CDC slave.** The address channels' async
-  FIFOs (8 deep) sit between the arbiter and the slave's pins. Granted
-  requests queue there. Against a slave that takes two at a time, a master
-  with two in flight gets 0.18-0.20 against one with eight. Bandwidth is
-  not affected; the slave stays busy. The depth cannot be traded away. A
-  crossing needs about six entries in flight to carry one request per
-  cycle, and those are granted requests. Measured at 13 ns:
-
-  | CDC depth | Shallow master's share | 4-beat reads | Single-beat reads |
-  |---:|---:|---:|---:|
-  | 8 | 0.20 | 1.000 | 0.671 |
-  | 4 | 0.26 | 0.650 | 0.642 |
-  | 2 | 0.34 | 0.334 | 0.334 |
-
-  : CDC depth against round-robin share and bandwidth, `bridge_2x2_rw_cdc`
-
-  A fair share needs the arbitration in the slave's clock domain: per-master
-  crossings for AW and AR, and for W, since W follows the AW pick.
+None in the bridge's bandwidth or timing. The W9 residue above, a 2-deep
+master at a zero-latency CDC slave, is a property of its own round trip and
+is floored at its measured 0.40 in the perf suite.
 
 #### Outstanding Depth (`max_outstanding`)
 
@@ -327,9 +336,9 @@ shared port; the sum stays at one beat per cycle). The pick is made at the
 slave's pins from per-master request slots, so the round-robin holds when
 the slave throttles too: against a slave taking two transactions at a time,
 a master with 2 in flight gets 0.50 of it against another master's 8 (it
-got 0.34 while granted requests queued behind the arbiter). A CDC slave
-still queues granted requests in its crossing, so there the share follows
-outstanding counts (W9 above). A slave that
+got 0.34 while granted requests queued behind the arbiter). A CDC slave is
+picked on its own clock from per-master lanes, so it holds too (W9, HAS
+4.5a). A slave that
 accepts many at once keeps its own queue, and the share inside it follows
 each master's outstanding count. Per master, then:
 

@@ -152,11 +152,19 @@ crossing on a CDC port, on `aclk`; its `o_wdog_tripped` is the top's
 (HAS, Verification Strategy).
 
 A `cdc = true` slave port's adapter takes `s_aclk`/`s_aresetn` beside
-`aclk`/`aresetn`. Inside it the timing wrapper (and the monitor, when built)
-stay on `aclk`, driving `cdc_{name}_axi_*` nets; `axi4_cdc_wr` and
-`axi4_cdc_rd` carry those to the external port on `s_aclk`, one
-`gaxi_fifo_async` per channel. Nothing upstream of the wrapper knows the
-port is in another domain. `protocol = "axi4"` only (HAS 4.5a).
+`aclk`/`aresetn`. When one master reaches the port, the timing wrapper (and
+the monitor, when built) stay on `aclk`, driving `cdc_{name}_axi_*` nets;
+`axi4_cdc_wr` and `axi4_cdc_rd` carry those to the external port on
+`s_aclk`, one `gaxi_fifo_async` per channel. When two or more do (bridge
+W9), the crossbar sends each master's AW / W / AR on its own lane
+(`{name}_axi_lane_*`, packed, lane i = the i-th master in master order) and
+the adapter instantiates `bridge_cdc_slave_arb` (hand-written, `rtl/`): one
+`gaxi_fifo_async` per lane and channel, `arbiter_matrix` picks for AW and
+AR on `s_aclk` with a registered grant held until the handshake, a W owner
+FIFO in pick order, one async FIFO each for B and R back, and the slave's
+`max_outstanding` counted on `s_aclk`. The ordinary `xbar_{name}_axi_*`
+request ports are tied off; B and R still use them and route by the ID's
+master bits. `protocol = "axi4"` only (HAS 4.5a).
 
 A `cdc = true` master port's adapter takes `ext_aclk`/`ext_aresetn` beside
 `aclk`/`aresetn`, and the crossing sits on the other side of the wrapper:

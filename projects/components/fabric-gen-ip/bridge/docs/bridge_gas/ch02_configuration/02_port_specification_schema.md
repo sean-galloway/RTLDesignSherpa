@@ -36,7 +36,7 @@ Each master and slave is described by a TOML table under `[[bridge.masters]]` or
 | `addr_width` | int | required | `addr_width` | Address bus width in bits. |
 | `id_width` | int | `0` | `id_width` | AXI ID width. Required > 0 for `axi4`/`axi5` masters; must be 0 for APB, AXI-Lite, and Wishbone. |
 | `user_width` | int | `0` | (passed to wrapper) | AXI4 user signal width. |
-| `cdc` | boolean | `false` | `cdc` | Run this port on its own clock (`<name>_aclk` / `<name>_aresetn`) behind `axi4_cdc_{wr,rd}`: on a slave between the timing wrapper and the port, on a master between the port and the timing wrapper (GitHub #119 L2). `protocol="axi4"` only. |
+| `cdc` | boolean | `false` | `cdc` | Run this port on its own clock (`<name>_aclk` / `<name>_aresetn`) behind `axi4_cdc_{wr,rd}`: on a slave between the timing wrapper and the port, on a master between the port and the timing wrapper (GitHub #119 L2). A slave several masters reach is crossed per master and arbitrated on its own clock instead (`bridge_cdc_slave_arb`, bridge W9), and takes no `timeout_cycles` or monitor. `protocol="axi4"` only. |
 
 : Common port fields
 

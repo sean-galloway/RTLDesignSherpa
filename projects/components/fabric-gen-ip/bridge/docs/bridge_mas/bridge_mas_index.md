@@ -24,7 +24,7 @@
 # Bridge Micro-Architecture Specification Index
 
 **Component:** Bridge (Multi-Protocol Crossbar Generator)
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-10-18
 **Purpose:** Detailed micro-architecture specification for Bridge component
 
@@ -103,6 +103,10 @@ returned ID's prefix bits, so the slave adapter reads it off BID / RID and
 bounds its outstanding count with a counter (bridge W12). `bridge_cam`'s
 lookup had been the fabric's critical path. Chapters 2.1, 2.3, 2.5, 2.8,
 2.9, 3.2, 4 and 6.1 follow.
+
+**2026-10-18 (rev 1.7):** a CDC slave that several masters share is
+arbitrated on its own clock from per-master lanes (W9); shim slaves take
+request slots (W14). Chapters 2.3, 2.4 and 6.1 follow.
 
 **Version 1.1 (2026-06-04):** content sync to RTL state at that date.
 

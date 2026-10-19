@@ -25,7 +25,7 @@
 
 ## Overview
 
-**Version:** 1.6
+**Version:** 1.7
 **Date:** 2026-10-18
 **Purpose:** Detailed documentation of the Bridge AXI4/AXI5 crossbar code generator — how to invoke it, how to configure it, how it emits RTL, and how to extend it safely.
 

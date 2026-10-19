@@ -58,7 +58,7 @@ One per slave (`<slave>_adapter`), delivers transactions to the downstream slave
 
 - **Response tracking** - by ID when several masters share the slave (the returned ID's prefix bits name the master; a counter bounds the outstanding count), or an in-order `bridge_id` FIFO when one master does; counted or written at AW / AR accept, read at B / last R
 - **Skid buffers or protocol conversion** - `axi4_master_wr` / `_rd`, or `axi4_to_apb4_shim`, `axi4_to_axil4_*` / `axi4_to_axil5_*`, `axi4_to_wb4`
-- **Clock crossing** - `axi4_cdc_wr` / `_rd` when the slave port is `cdc = true`
+- **Clock crossing** - when the slave port is `cdc = true`: per-master lanes crossed and arbitrated on the slave's clock by `bridge_cdc_slave_arb` when several masters share it (bridge W9), `axi4_cdc_wr` / `_rd` when one master reaches it
 
 ## Data Flow
 

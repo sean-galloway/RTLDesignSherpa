@@ -63,12 +63,26 @@ shares `aclk`.
 
 The FABRIC is one clock domain (`aclk`). Since bridge TASK-006 (was BRIDGE-017) a slave port can
 live in another: `cdc = true` on an AXI4 slave adds `<slave>_aclk` /
-`<slave>_aresetn` to the bridge top, and the slave adapter carries AW, W and
-AR to the port and B, R back through `axi4_cdc_{wr,rd}` -- one Gray-pointer
-async FIFO per channel (`rtl/amba/axi4/axi4_cdc.md`) -- downstream of its
-timing wrapper, which stays on `aclk` with its monitor and the bridge-id
-tracking. Everything upstream of the crossing is unchanged; the port itself
-runs entirely on its own clock, at one beat per cycle of the slower domain.
+`<slave>_aresetn` to the bridge top. How the slave adapter crosses depends
+on how many masters reach the port:
+
+- **Two or more masters: arbitrated on the slave's clock** (bridge W9).
+  The crossbar does not pick for this slave. Each master's AW, W and AR
+  leave on a lane of their own, and `bridge_cdc_slave_arb` crosses every
+  lane through its own Gray-pointer async FIFO (`gaxi_fifo_async`). It then
+  picks AW and AR on `<slave>_aclk` with `arbiter_matrix`; the grant is a
+  flop that holds until the handshake. W follows the AW pick through an
+  owner FIFO, and B and R cross back through one FIFO each and route by
+  their ID's master bits. The crossings hold only requests not yet picked,
+  so the slave's own clock decides the order, and the outstanding limit
+  (`max_outstanding`) is kept there too.
+- **One master: one crossing.** There is nothing to arbitrate. The adapter
+  carries AW, W and AR to the port and B, R back through
+  `axi4_cdc_{wr,rd}` (`rtl/amba/axi4/axi4_cdc.md`), downstream of its timing
+  wrapper, which stays on `aclk` with its monitor.
+
+Either way the port itself runs entirely on its own clock, at one beat per
+cycle of the slower domain.
 
 | Signal | Direction | Description |
 |---|---|---|
@@ -79,7 +93,11 @@ runs entirely on its own clock, at one beat per cycle of the slower domain.
 
 Limits: `protocol = "axi4"` (the crossing carries the AXI4 signal set; AXI5
 sideband and the APB/AXIL/WB4 shims have no crossing yet -- the validator
-rejects those), and the port keeps `latency = "cut_all"`. Measured on `bridge_2x2_rw_cdc`
+rejects those), and the port keeps `latency = "cut_all"`. A port that
+several masters share takes no slave watchdog (`timeout_cycles`) and cannot
+be in a monitored variant: its stream exists only on its own clock, after
+the pick, and both of those sit on `aclk`. The validator and generator
+reject the combination. Measured on `bridge_2x2_rw_cdc`
 (`test_bridge_2x2_rw_cdc_ratio`) with the slave clock at 3, 10 and 23 ns
 against a 10 ns fabric: every burst from both masters completes, the port's
 beats appear on the slave clock, the sustained rate is set by the slower
@@ -92,9 +110,13 @@ slower side's full rate: 0.700 of the 7 ns slave's cycles, which is the
 fabric's one beat per 10 ns, and 1.000 of the 13 ns slave's. The crossing
 adds about 13 fabric cycles to a round trip, two synchronizer crossings
 each way, so single-beat traffic needs more in flight to fill the port.
-One open limit (W9): the address FIFOs queue granted requests between the
-crossbar's arbiter and the slave, so round-robin shares at a CDC slave
-follow each master's outstanding count once the slave throttles.
+Round-robin holds at a CDC slave (W9, fixed 2026-10-18): against a slave
+that takes two at a time and answers after 32 cycles, a master with 2 in
+flight gets 0.496-0.500 against one with 8 (it got 0.18-0.20 while the pick
+was made on `aclk` and granted requests queued in the one crossing). With a
+slave that answers at once, the 2-deep master gets 0.40-0.41: its two
+transactions spend their turnaround crossing twice, so its lane is sometimes
+empty at a pick (8 in flight each gives 0.498).
 
 ### Clock Domain Crossing: CDC Master Ports
 

@@ -70,7 +70,9 @@ the bridge is not ready does not count against the slave.
 It tracks up to the slave's `max_outstanding` transactions per direction,
 and the slave's AWREADY/ARREADY seen by the fabric drop while that is full.
 It sits on `aclk`, between the slave adapter's timing wrapper and the port,
-or the clock crossing on a `cdc = true` port.
+or the clock crossing on a `cdc = true` port that one master reaches. A
+`cdc = true` port that several masters share is arbitrated on its own clock
+and takes no watchdog (HAS 4.5a).
 
 ### Measured
 

@@ -93,7 +93,7 @@ that now reports it.
 ### Clock Domain
 
 - **One fabric clock** - All Bridge logic and every master port synchronous to `aclk`
-- **CDC ports** - An AXI4 slave or master declared `cdc = true` runs on its own `<port>_aclk` behind an async-FIFO crossing inside its adapter (HAS 4.5a); other ports share `aclk`
+- **CDC ports** - An AXI4 slave or master declared `cdc = true` runs on its own `<port>_aclk` behind an async-FIFO crossing inside its adapter, and a CDC slave several masters share is arbitrated on its own clock (HAS 4.5a); other ports share `aclk`
 
 ### Reset
 

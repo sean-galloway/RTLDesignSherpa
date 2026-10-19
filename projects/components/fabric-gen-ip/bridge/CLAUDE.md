@@ -33,7 +33,7 @@
 
 **Before making ANY changes to bridge generator or understanding signal flow:**
 
-**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.6.pdf`)
+**READ:** `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` (generator build mechanics, reconciled against the code 2026-09-29) and `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/` (micro-architecture spec; rendered as `docs/Bridge_MAS_v1.7.pdf`)
 
 These documents contain the **definitive bridge architecture** including:
 - Correct signal flow (wrappers → decoder → converters → crossbar → slaves)
@@ -56,9 +56,9 @@ taking TOML or CSV configuration. There is no second generator: the separate
 **Complete Documentation (Read in This Order):**
 1. `projects/components/fabric-gen-ip/bridge/bin/GENERATOR_ARCHITECTURE.md` ← **START HERE** (generator build mechanics; the design lives in the MAS below)
 2. `projects/components/fabric-gen-ip/bridge/PRD.md` ← Product requirements
-3. `vault/Tasks/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
-4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.6.pdf`)
-5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.6.pdf`)
+3. `vault/tracking/projects/components/fabric-gen-ip/bridge/INDEX.md` ← Task tracking (open / closed / dropped; the old TASKS.md was folded in 2026-09-10)
+4. `projects/components/fabric-gen-ip/bridge/docs/bridge_has/bridge_has_index.md` ← Hardware Architecture Spec (rendered: `docs/Bridge_HAS_v1.7.pdf`)
+5. `projects/components/fabric-gen-ip/bridge/docs/bridge_mas/bridge_mas_index.md` ← Micro-Architecture Spec (rendered: `docs/Bridge_MAS_v1.7.pdf`)
 
 (The older BRIDGE_ARCHITECTURE.md, BRIDGE_CURRENT_STATE.md, BRIDGE_ARCHITECTURE_DIAGRAMS.md, CSV_BRIDGE_STATUS.md, and docs/bridge_spec/ documents were superseded by the HAS/MAS above.)
 
@@ -174,11 +174,12 @@ make clean-all && make run-all-func    # ALL tests; bridge runs serial, ~1GB eac
 stale build directory reports green for the old design -- precisely the failure
 this workflow exists to prevent (`vault/handbook/dv/running-regressions.md`).
 
-**Never regenerated:** `rtl/bridge_cam.sv` (hand-written per-ID CAM; no
-generated bridge instantiates it since 2026-10-18, bridge W12),
-`rtl/bridge_wr_rate_buf.sv` (hand-written;
+**Never regenerated:** `rtl/bridge_wr_rate_buf.sv` (hand-written;
 instantiated by a master adapter on an upsized burst path into a shared slave,
-`rate_buffer`, MAS 2.6), and anything in `rtl/` outside `rtl/generated/`.
+`rate_buffer`, MAS 2.6), `rtl/bridge_cdc_slave_arb.sv` (hand-written;
+instantiated by the slave adapter of a `cdc = true` slave that two or more
+masters reach, bridge W9, MAS 6.1), and anything in `rtl/` outside
+`rtl/generated/`.
 Their filelists live in `rtl/filelists_static/`.
 
 **Identifying a generated file takes five strings, not one.** Each generator
@@ -285,14 +286,13 @@ projects/components/fabric-gen-ip/bridge/
 │   ├── tbclasses/                 # Testbench classes (MANDATORY - TB classes here!)
 │   │   ├── __init__.py
 │   │   └── bridge2x2_rw_tb.py     # Per-config generated TB classes
-│   ├── components/                # Bridge-specific BFMs (if needed)
-│   ├── scoreboards/               # Bridge-specific scoreboards (if needed)
 │   ├── testplans/                 # Test plans
 │   └── tests/                     # All test files (test runners only, flat)
 │       ├── conftest.py            # Pytest configuration (MANDATORY)
 │       └── test_bridge_*.py       # Per-config tests (test_bridge_2x2_rw.py, ...)
+├── deprecated/                    # Unused code, out of every regression (see below)
 ├── rtl/                           # RTL source files
-│   ├── bridge_cam.sv              # Hand-written per-ID CAM (unused since bridge W12, 2026-10-18)
+│   ├── bridge_cdc_slave_arb.sv    # Hand-written slave-domain arbitration for shared CDC slaves (W9)
 │   ├── bridge_wr_rate_buf.sv      # Hand-written write rate buffer (upsized paths into shared slaves)
 │   ├── filelists_static/          # Hand-written filelists for the two above
 │   ├── filelists/                 # Generated filelists
@@ -301,6 +301,16 @@ projects/components/fabric-gen-ip/bridge/
 ├── PRD.md                         # Product requirements
 └── TASKS.md                       # Task history and status
 ```
+
+### `deprecated/` (owner decision, 2026-10-18)
+
+Code no flow uses lives in `deprecated/`, mirroring the area layout. Nothing
+there is generated, regenerated, linted or regressed, and no filelist outside
+it may point into it. Today it holds `bridge_cam` (RTL, filelist, unit test,
+test plan, formal proof; unused since by-ID routing, bridge W12), the
+analytical `bridge_model.py`, and the empty `dv/components` /
+`dv/scoreboards` packages. To revive something, move it back and give it a
+caller and a gate in the same commit.
 
 ### Testbench Class Location (MANDATORY)
 
@@ -788,8 +798,9 @@ file beside it (`test_bridge_2x2_rw_tracking.py`,
 The bandwidth gate is `dv/tests/test_bridge_perf_char.py`, which is
 hand-written and runs in FUNC. `MATRIX` lists the fixtures and their cases.
 `RTT_BUDGET` holds each fixture's measured round trip. `KNOWN` holds the
-open limits, each floored at its measured level (now only W9, CDC-slave
-round-robin); delete a row when its limit is fixed. A fixture key may carry `@<ns>`, the CDC port's clock
+open limits, each floored at its measured level (now only the W9 residue:
+a 2-deep master's share at a zero-latency CDC slave, 0.40); delete a row
+when its limit is fixed. A fixture key may carry `@<ns>`, the CDC port's clock
 period. HAS 5.1 has the results.
 
 **For Mixed AXI4/APB:**
@@ -925,7 +936,9 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 **Key Features:**
 - Configurable NxM topology
 - One fabric clock; an AXI4 port, slave or master (GitHub #119 L2), declared
-  `cdc = true` runs on its own clock behind `axi4_cdc_{wr,rd}` (HAS 4.5a). An
+  `cdc = true` runs on its own clock behind `axi4_cdc_{wr,rd}` (HAS 4.5a); a
+  CDC slave that several masters share takes per-master lanes and is
+  arbitrated on its own clock (`rtl/bridge_cdc_slave_arb.sv`, bridge W9). An
   `apb`/`apb5` slave's shim is built on two async FIFOs but the generator ties
   its `pclk` to `aclk`, so it does not cross
 - Crossbar options: `xbar_pipeline = true` (registered slave-side channels --

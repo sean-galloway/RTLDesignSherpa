@@ -102,7 +102,7 @@ The slave adapter:
 1. Declares the external slave port with the configured prefix and protocol.
 2. Optionally instantiates a timing wrapper or protocol shim (`axi4_to_apb4_shim`, `axi4_to_axi3`, `axi4_to_wb4`, AXI5 boundary wrappers).
 3. Carries the response tracker: by ID (master index from the returned ID's prefix bits, an outstanding counter to `max_outstanding`) for an AXI3/AXI4/AXI5 slave of a multi-master bridge or an `enable_ooo` slave (`SlaveAdapterGenerator.track_by_id`), an in-order `bridge_id` FIFO otherwise. An AXI3 slave takes the AXI4 path throughout (timing wrapper, tracker, request slots), and `axi4_to_axi3` is emitted after the wrapper, on `a3c_<slave>_axi_*` nets, as the last stage before the pins.
-4. Handles CDC if `cdc=true` by inserting `axi4_cdc_{wr,rd}`.
+4. Handles CDC if `cdc=true`. A slave that two or more masters reach takes per-master lane ports (`<slave>_axi_lane_{aw,w,ar}*`, sized and ordered by `bridge_pkg/cdc_lanes.py`) and instantiates `bridge_cdc_slave_arb`, which crosses the lanes and arbitrates on `s_aclk` (bridge W9); the crossbar emits the lanes instead of an arbiter for that slave (`CrossbarGenerator._generate_lane_routing`) and the bridge top wires them. A slave one master reaches inserts `axi4_cdc_{wr,rd}`.
 
 ## Crossbar (`CrossbarGenerator`)
 
