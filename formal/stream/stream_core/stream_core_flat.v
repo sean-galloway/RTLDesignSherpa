@@ -23,74 +23,96 @@ module gaxi_skid_buffer (
 	input wire rd_ready;
 	output wire [3:0] rd_count;
 	output wire [DW - 1:0] rd_data;
-	reg [DW - 1:0] r_data [0:DEPTH - 1];
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
 	reg [3:0] r_data_count;
 	wire w_wr_xfer;
 	wire w_rd_xfer;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
-		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
-	genvar _gv_gi_1;
-	generate
-		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data[gi] <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10:
-							if (r_data_count == gi[3:0])
-								r_data[gi] <= wr_data;
-						2'b01:
-							if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						2'b11:
-							if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-								r_data[gi] <= wr_data;
-							else if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						default:
-							;
-					endcase
-		end
-	endgenerate
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn)
-			r_data_count <= 1'sb0;
-		else
-			(* full_case, parallel_case *)
-			case ({w_wr_xfer, w_rd_xfer})
-				2'b10: r_data_count <= r_data_count + 4'd1;
-				2'b01: r_data_count <= r_data_count - 4'd1;
-				default:
-					;
-			endcase
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn) begin
-			wr_ready <= 1'b0;
-			rd_valid <= 1'b0;
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
 		end
-		else begin
-			wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-			rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
 		end
-	assign rd_data = r_data[0];
-	assign rd_count = r_data_count;
-	assign count = r_data_count;
+	endgenerate
 endmodule
 module axi4_master_rd (
 	aclk,
@@ -486,11 +508,11 @@ module counter_freq_invariant (
 	output reg tick;
 	initial begin : param_check
 		if (MIN_FREQ_MHZ < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
 		if (MAX_FREQ_MHZ < MIN_FREQ_MHZ)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
 		if (NUM_FREQ_ENTRIES < 1)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
 	end
 	function automatic signed [31:0] linear_freq;
 		input reg signed [31:0] idx;
@@ -616,6 +638,293 @@ module counter_freq_invariant (
 					$display("  freq_sel[%2d] = %4d MHz  (%0d cycles/us)", i, freq_mhz_at_idx(i), freq_mhz_at_idx(i));
 			end
 		end
+	end
+endmodule
+module counter_bin (
+	clk,
+	rst_n,
+	enable,
+	counter_bin_curr,
+	counter_bin_next
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 5;
+	parameter signed [31:0] MAX = 10;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin_curr;
+	output reg [WIDTH - 1:0] counter_bin_next;
+	wire [WIDTH - 2:0] w_max_val;
+	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
+		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
+		sv2v_cast_00F62_signed = inp;
+	endfunction
+	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (enable) begin
+			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
+				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
+			else
+				counter_bin_next = counter_bin_curr + 1;
+		end
+		else
+			counter_bin_next = counter_bin_curr;
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_bin_curr <= 'b0;
+		else
+			counter_bin_curr <= counter_bin_next;
+	initial _sv2v_0 = 0;
+endmodule
+module fifo_control (
+	wr_clk,
+	wr_rst_n,
+	rd_clk,
+	rd_rst_n,
+	wr_ptr_bin,
+	wdom_rd_ptr_bin,
+	rd_ptr_bin,
+	rdom_wr_ptr_bin,
+	count,
+	wr_full,
+	wr_almost_full,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] ADDR_WIDTH = 3;
+	parameter signed [31:0] DEPTH = 8;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] REGISTERED = 0;
+	input wire wr_clk;
+	input wire wr_rst_n;
+	input wire rd_clk;
+	input wire rd_rst_n;
+	input wire [ADDR_WIDTH:0] wr_ptr_bin;
+	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
+	output wire [ADDR_WIDTH:0] count;
+	output reg wr_full;
+	output reg wr_almost_full;
+	output reg rd_empty;
+	output reg rd_almost_empty;
+	localparam signed [31:0] D = DEPTH;
+	localparam signed [31:0] AW = ADDR_WIDTH;
+	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
+	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
+	localparam signed [31:0] AFT = D - AFULL;
+	localparam signed [31:0] AET = AEMPTY;
+	wire w_wdom_ptr_xor;
+	wire w_rdom_ptr_xor;
+	wire w_wr_full_d;
+	wire w_wr_almost_full_d;
+	wire w_rd_empty_d;
+	wire w_rd_almost_empty_d;
+	wire [AW:0] w_almost_full_count;
+	wire [AW:0] w_almost_empty_count;
+	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
+	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
+	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
+	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
+		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65_signed = inp;
+	endfunction
+	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
+	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
+	always @(posedge wr_clk or negedge wr_rst_n)
+		if (!wr_rst_n) begin
+			wr_full <= 'b0;
+			wr_almost_full <= 'b0;
+		end
+		else begin
+			wr_full <= w_wr_full_d;
+			wr_almost_full <= w_wr_almost_full_d;
+		end
+	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
+	wire w_rdom_ptr_xor_for_empty;
+	generate
+		if (REGISTERED == 1) begin : gen_flop_mode
+			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
+			always @(posedge rd_clk or negedge rd_rst_n)
+				if (!rd_rst_n)
+					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
+				else
+					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
+			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
+		end
+		else begin : gen_mux_mode
+			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
+		end
+	endgenerate
+	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
+	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
+	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
+	wire [ADDR_WIDTH:0] w_count;
+	reg [ADDR_WIDTH:0] r_count;
+	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign count = (REGISTERED == 1 ? r_count : w_count);
+	always @(posedge rd_clk or negedge rd_rst_n)
+		if (!rd_rst_n) begin
+			rd_empty <= 'b1;
+			rd_almost_empty <= 'b0;
+			r_count <= 'b0;
+		end
+		else begin
+			rd_empty <= w_rd_empty_d;
+			rd_almost_empty <= w_rd_almost_empty_d;
+			r_count <= w_count;
+		end
+endmodule
+module gaxi_fifo_sync (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	rd_ready,
+	count,
+	rd_valid,
+	rd_data
+);
+	parameter signed [31:0] MEM_STYLE = 32'sd0;
+	parameter signed [31:0] REGISTERED = 0;
+	parameter signed [31:0] DATA_WIDTH = 4;
+	parameter signed [31:0] DEPTH = 4;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] D = DEPTH;
+	parameter signed [31:0] AW = $clog2(DEPTH);
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output wire wr_ready;
+	input wire [DW - 1:0] wr_data;
+	input wire rd_ready;
+	output wire [AW:0] count;
+	output wire rd_valid;
+	output wire [DW - 1:0] rd_data;
+	wire [AW - 1:0] r_wr_addr;
+	wire [AW - 1:0] r_rd_addr;
+	wire [AW:0] r_wr_ptr_bin;
+	wire [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	wire r_wr_full;
+	wire r_wr_almost_full;
+	wire r_rd_empty;
+	wire r_rd_almost_empty;
+	wire w_write;
+	wire w_read;
+	assign w_write = wr_valid && wr_ready;
+	assign w_read = rd_valid && rd_ready;
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) write_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_write && !r_wr_full),
+		.counter_bin_curr(r_wr_ptr_bin),
+		.counter_bin_next(w_wr_ptr_bin_next)
+	);
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) read_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_read && !r_rd_empty),
+		.counter_bin_curr(r_rd_ptr_bin),
+		.counter_bin_next(w_rd_ptr_bin_next)
+	);
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(axi_aclk),
+		.wr_rst_n(axi_aresetn),
+		.rd_clk(axi_aclk),
+		.rd_rst_n(axi_aresetn),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
+		.rd_ptr_bin(w_rd_ptr_bin_next),
+		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+		.count(count),
+		.wr_full(r_wr_full),
+		.wr_almost_full(r_wr_almost_full),
+		.rd_empty(r_rd_empty),
+		.rd_almost_empty(r_rd_almost_empty)
+	);
+	assign wr_ready = !r_wr_full;
+	assign rd_valid = !r_rd_empty;
+	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
+	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
+	generate
+		if (MEM_STYLE == 32'sd1) begin : gen_srl
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+		else if (MEM_STYLE == 32'sd2) begin : gen_bram
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_rd_data <= 1'sb0;
+				else
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
+		end
+		else begin : gen_auto
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+	endgenerate
+	always @(posedge axi_aclk) begin
+		if (w_write && r_wr_full)
+			;
+		if (w_read && r_rd_empty)
+			;
 	end
 endmodule
 module axi_monitor_addr_check (
@@ -988,6 +1297,8 @@ module axi_monitor_lite (
 	parameter signed [31:0] TS_WIDTH = 16;
 	parameter signed [31:0] AGE_WIDTH = 16;
 	parameter signed [31:0] OUT_DEPTH = 4;
+	parameter signed [31:0] WSEQ_WIDTH = 8;
+	parameter signed [31:0] EARLY_BURSTS = 1;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
 	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] CFI_MIN_FREQ_MHZ = 5;
@@ -1139,16 +1450,43 @@ module axi_monitor_lite (
 	reg [CW - 1:0] r_wq_cnt;
 	wire w_wq_empty = r_wq_cnt == {CW {1'sb0}};
 	wire [SW - 1:0] w_wq_head = r_wq[r_wq_rp * SW+:SW];
-	reg [7:0] r_early_beats;
-	reg r_early_last;
-	reg r_early_any;
+	wire [SW - 1:0] w_wq_wp_next = (r_wq_wp == sv2v_cast_6C2E3_signed(N - 1) ? {SW {1'sb0}} : r_wq_wp + 1'b1);
+	wire [SW - 1:0] w_wq_rp_next = (r_wq_rp == sv2v_cast_6C2E3_signed(N - 1) ? {SW {1'sb0}} : r_wq_rp + 1'b1);
+	localparam signed [31:0] QW = (WSEQ_WIDTH > 1 ? WSEQ_WIDTH : 2);
+	reg [(N * QW) - 1:0] r_wq_seq;
+	reg [QW - 1:0] r_aw_seq;
+	reg [QW - 1:0] r_w_seq;
+	wire [QW - 1:0] w_seq_gap = r_aw_seq - r_w_seq;
+	wire w_aw_ahead = (w_seq_gap != {QW {1'sb0}}) && !w_seq_gap[QW - 1];
+	wire w_w_next = w_seq_gap == {QW {1'sb0}};
+	wire w_w_after = w_seq_gap == {QW {1'sb1}};
+	wire w_w_past = w_seq_gap[QW - 1];
+	localparam signed [31:0] EB = (EARLY_BURSTS > 0 ? EARLY_BURSTS : 1);
+	localparam signed [31:0] EBW = (EB > 1 ? $clog2(EB) : 1);
+	reg [(EB * 8) - 1:0] r_early_beats;
+	reg [EB - 1:0] r_early_last;
+	reg [EB - 1:0] r_early_any;
+	function automatic [EBW - 1:0] sv2v_cast_FCA16;
+		input reg [EBW - 1:0] inp;
+		sv2v_cast_FCA16 = inp;
+	endfunction
+	wire [EBW - 1:0] w_eslot_aw = (EB > 1 ? sv2v_cast_FCA16(r_aw_seq) : {EBW {1'sb0}});
+	wire [EBW - 1:0] w_eslot_w = (EB > 1 ? sv2v_cast_FCA16(r_w_seq) : {EBW {1'sb0}});
+	wire [QW - 1:0] w_w_lead = r_w_seq - r_aw_seq;
+	wire w_eslot_reuse = cmd_hs && (w_eslot_w == w_eslot_aw);
 	generate
+		if (!IS_READ && ((EB & (EB - 1)) != 0)) begin : g_bad_early_pow2
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/ocelus/axi_monitor_lite.sv:350:13 - axi_monitor_lite.g_bad_early_pow2\n msg: ", "axi_monitor_lite: EARLY_BURSTS must be a power of two, got %0d", EARLY_BURSTS);
+		end
+		if (!IS_READ && (EB >= (1 << (QW - 1)))) begin : g_bad_early_window
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/ocelus/axi_monitor_lite.sv:353:13 - axi_monitor_lite.g_bad_early_window\n msg: ", "axi_monitor_lite: EARLY_BURSTS (%0d) must be below 2**(WSEQ_WIDTH-1)", EARLY_BURSTS);
+		end
 		if (IS_READ) begin : g_rd_attr
 			assign w_dhit = |w_dmatch;
 			assign w_dslot = onehot_idx(w_dmatch);
 		end
 		else begin : g_wr_attr
-			assign w_dhit = !w_wq_empty && r_valid[w_wq_head];
+			assign w_dhit = (!w_wq_empty && r_valid[w_wq_head]) && (r_wq_seq[r_wq_rp * QW+:QW] == r_w_seq);
 			assign w_dslot = w_wq_head;
 		end
 	endgenerate
@@ -1179,12 +1517,19 @@ module axi_monitor_lite (
 	wire w_dbeats_zero = w_beats_zero[w_dslot];
 	wire w_data_err = (((data_hs && w_dhit) && IS_READ) && data_resp[1]) && !r_err[w_dslot];
 	wire w_data_orph = (data_hs && !w_dhit) && IS_READ;
-	wire w_same_w = ((((cmd_hs && w_have_free) && data_hs) && !w_dhit) && !IS_READ) && !r_early_any;
-	wire w_last_early = data_hs && (((w_dhit && data_last) && !w_dbeats_zero) || ((w_same_w && data_last) && (cmd_len != 8'd0)));
+	wire w_w_at_cmd = (((cmd_hs && data_hs) && !w_dhit) && !IS_READ) && w_w_next;
+	wire w_same_w = w_w_at_cmd && w_have_free;
+	wire w_same_skip = w_w_at_cmd && !w_have_free;
+	wire [7:0] w_early_seen = (r_early_any[w_eslot_aw] ? r_early_beats[w_eslot_aw * 8+:8] : 8'd0);
+	wire w_last_early = data_hs && (((w_dhit && data_last) && !w_dbeats_zero) || ((w_same_w && data_last) && (cmd_len != w_early_seen)));
 	wire w_last_late = ((data_hs && w_dhit) && !data_last) && w_dbeats_zero;
 	wire w_data_done = (data_hs && w_dhit) && data_last;
-	wire w_early_w = ((data_hs && !w_dhit) && !IS_READ) && !w_same_w;
-	wire w_early_ovf = (w_early_w && r_early_last) && !(cmd_hs && w_have_free);
+	function automatic signed [QW - 1:0] sv2v_cast_0D861_signed;
+		input reg signed [QW - 1:0] inp;
+		sv2v_cast_0D861_signed = inp;
+	endfunction
+	wire w_early_w = ((data_hs && !w_dhit) && !IS_READ) && ((!cmd_hs && (w_w_lead < sv2v_cast_0D861_signed(EB))) || ((cmd_hs && (w_w_lead != {QW {1'sb0}})) && (w_w_lead <= sv2v_cast_0D861_signed(EB))));
+	wire w_early_ovf = (((((data_hs && !w_dhit) && !IS_READ) && !w_aw_ahead) && !w_same_w) && !w_same_skip) && !w_early_w;
 	wire w_resp_err = ((resp_hs && w_bhit) && resp_code[1]) && !r_err[w_bslot];
 	wire w_resp_orph = resp_hs && !w_bhit;
 	wire w_resp_done = resp_hs && w_bhit;
@@ -1227,8 +1572,8 @@ module axi_monitor_lite (
 	wire w_over_thresh = (sv2v_cast_16(w_occupancy) >= cfg_active_trans_threshold) && (cfg_active_trans_threshold != 16'd0);
 	wire w_thresh_evt = (cfg_threshold_enable && w_over_thresh) && !r_over_thresh;
 	wire w_alloc = cmd_hs && w_have_free;
-	wire [7:0] w_alloc_beats = (!IS_READ && r_early_any ? cmd_len - r_early_beats : (w_same_w && (cmd_len != 8'd0) ? cmd_len - 8'd1 : cmd_len));
-	wire w_alloc_done = ((!IS_READ && r_early_any) && r_early_last) || (w_same_w && data_last);
+	wire [7:0] w_alloc_beats = (w_same_w && (cmd_len != w_early_seen) ? (cmd_len - w_early_seen) - 8'd1 : (!IS_READ && r_early_any[w_eslot_aw] ? cmd_len - r_early_beats[w_eslot_aw * 8+:8] : cmd_len));
+	wire w_alloc_done = (!IS_READ && w_w_past) || (w_same_w && data_last);
 	wire w_dprogress = data_hs && w_dhit;
 	reg [N - 1:0] w_same_tail;
 	always @(*) begin
@@ -1262,9 +1607,12 @@ module axi_monitor_lite (
 			r_wq_wp <= 1'sb0;
 			r_wq_rp <= 1'sb0;
 			r_wq_cnt <= 1'sb0;
+			r_wq_seq <= 1'sb0;
+			r_aw_seq <= 1'sb0;
+			r_w_seq <= 1'sb0;
 			r_early_beats <= 1'sb0;
-			r_early_last <= 1'b0;
-			r_early_any <= 1'b0;
+			r_early_last <= 1'sb0;
+			r_early_any <= 1'sb0;
 			r_scan <= 1'sb0;
 			r_cmd_stall_us0 <= 1'sb0;
 			r_cmd_stalling <= 1'b0;
@@ -1278,9 +1626,11 @@ module axi_monitor_lite (
 			r_wq_wp <= 1'sb0;
 			r_wq_rp <= 1'sb0;
 			r_wq_cnt <= 1'sb0;
+			r_aw_seq <= 1'sb0;
+			r_w_seq <= 1'sb0;
 			r_early_beats <= 1'sb0;
-			r_early_last <= 1'b0;
-			r_early_any <= 1'b0;
+			r_early_last <= 1'sb0;
+			r_early_any <= 1'sb0;
 			r_scan <= 1'sb0;
 			r_cmd_stalling <= 1'b0;
 			r_cmd_stall_rpt <= 1'b0;
@@ -1308,12 +1658,24 @@ module axi_monitor_lite (
 				if (!IS_READ) begin
 					if (!w_alloc_done) begin
 						r_wq[r_wq_wp * SW+:SW] <= w_free_idx;
-						r_wq_wp <= r_wq_wp + 1'b1;
+						r_wq_seq[r_wq_wp * QW+:QW] <= r_aw_seq;
+						r_wq_wp <= w_wq_wp_next;
 					end
-					r_early_beats <= 1'sb0;
-					r_early_last <= 1'b0;
-					r_early_any <= 1'b0;
+					r_early_beats[w_eslot_aw * 8+:8] <= 1'sb0;
+					r_early_last[w_eslot_aw] <= 1'b0;
+					r_early_any[w_eslot_aw] <= 1'b0;
 				end
+			end
+			if (w_refused && !IS_READ) begin
+				r_early_beats[w_eslot_aw * 8+:8] <= 1'sb0;
+				r_early_last[w_eslot_aw] <= 1'b0;
+				r_early_any[w_eslot_aw] <= 1'b0;
+			end
+			if (!IS_READ) begin
+				if (cmd_hs)
+					r_aw_seq <= r_aw_seq + 1'b1;
+				if (data_hs && data_last)
+					r_w_seq <= r_w_seq + 1'b1;
 			end
 			if (w_dprogress) begin
 				r_us0[w_dslot * AGE_WIDTH+:AGE_WIDTH] <= r_us;
@@ -1326,14 +1688,14 @@ module axi_monitor_lite (
 						r_valid[w_dslot] <= 1'b0;
 					else begin
 						r_phase[w_dslot] <= 1'b1;
-						r_wq_rp <= r_wq_rp + 1'b1;
+						r_wq_rp <= w_wq_rp_next;
 					end
 				end
 			end
 			if (w_early_w && !w_early_ovf) begin
-				r_early_any <= 1'b1;
-				r_early_beats <= (w_alloc ? 8'd0 : r_early_beats) + 8'd1;
-				r_early_last <= data_last || (r_early_last && !w_alloc);
+				r_early_any[w_eslot_w] <= 1'b1;
+				r_early_beats[w_eslot_w * 8+:8] <= (w_eslot_reuse ? 8'd0 : r_early_beats[w_eslot_w * 8+:8]) + 8'd1;
+				r_early_last[w_eslot_w] <= data_last || (r_early_last[w_eslot_w] && !w_eslot_reuse);
 			end
 			if (resp_hs && w_bhit)
 				r_valid[w_bslot] <= 1'b0;
@@ -1386,6 +1748,12 @@ module axi_monitor_lite (
 	wire w_tmo_held_take;
 	wire w_tmo_saved;
 	wire w_tmo_save_scan;
+	reg r_cmp_pend;
+	reg [IW - 1:0] r_cmp_id;
+	reg [AW - 1:0] r_cmp_addr;
+	reg [15:0] r_cmp_latency;
+	wire w_cmp_held_take;
+	wire w_cmp_saved;
 	reg r_e_scan_phase;
 	reg r_e_data_decerr;
 	reg r_e_resp_decerr;
@@ -1420,6 +1788,10 @@ module axi_monitor_lite (
 			r_tmo_code <= 1'sb0;
 			r_tmo_id <= 1'sb0;
 			r_tmo_addr <= 1'sb0;
+			r_cmp_pend <= 1'b0;
+			r_cmp_id <= 1'sb0;
+			r_cmp_addr <= 1'sb0;
+			r_cmp_latency <= 1'sb0;
 			r_e_scan_phase <= 1'b0;
 			r_e_data_decerr <= 1'b0;
 			r_e_resp_decerr <= 1'b0;
@@ -1473,6 +1845,16 @@ module axi_monitor_lite (
 			end
 			else if (w_tmo_held_take)
 				r_tmo_pend <= 1'b0;
+			if (clear)
+				r_cmp_pend <= 1'b0;
+			else if (w_cmp_saved) begin
+				r_cmp_pend <= 1'b1;
+				r_cmp_id <= r_id[r_e_cslot * IW+:IW];
+				r_cmp_addr <= r_addr[r_e_cslot * AW+:AW];
+				r_cmp_latency <= r_e_latency;
+			end
+			else if (w_cmp_held_take)
+				r_cmp_pend <= 1'b0;
 			r_e_scan_phase <= r_phase[r_scan];
 			r_e_data_decerr <= data_resp[0];
 			r_e_resp_decerr <= resp_code[0];
@@ -1573,7 +1955,8 @@ module axi_monitor_lite (
 		sv2v_cast_2 = inp;
 	endfunction
 	wire [1:0] w_tmo_fired = (w_tmo_en ? sv2v_cast_2(r_e_scan_hit) + sv2v_cast_2(r_e_cmd_tmo) : 2'd0);
-	wire w_cmp_v = r_e_compl && w_cmp_en;
+	wire w_cmp_fresh = r_e_compl && w_cmp_en;
+	wire w_cmp_v = (w_cmp_fresh || r_cmp_pend) && w_cmp_en;
 	wire w_thr_v = (r_e_thresh || r_lat_pend) && w_thr_en;
 	wire [1:0] w_thr_fired = (w_thr_en ? sv2v_cast_2(r_e_thresh) : 2'd0);
 	reg w_evt_v;
@@ -1626,9 +2009,11 @@ module axi_monitor_lite (
 			w_evt_v = 1'b1;
 			w_evt_type = monitor_common_pkg_PktTypeCompletion;
 			w_evt_code = 8'h00;
-			w_evt_from_slot = 1'b1;
+			w_evt_from_slot = !r_cmp_pend;
 			w_evt_slot = r_e_cslot;
-			w_evt_hi = r_e_latency;
+			w_evt_id_alt = r_cmp_id;
+			w_evt_addr_alt = r_cmp_addr;
+			w_evt_hi = (r_cmp_pend ? r_cmp_latency : r_e_latency);
 		end
 		else if (w_thr_v) begin
 			w_evt_v = 1'b1;
@@ -1648,7 +2033,9 @@ module axi_monitor_lite (
 	wire [IW - 1:0] w_evt_id = (w_evt_from_slot ? r_id[w_evt_slot * IW+:IW] : w_evt_id_alt);
 	wire [AW - 1:0] w_evt_addr = (w_evt_from_slot ? r_addr[w_evt_slot * AW+:AW] : w_evt_addr_alt);
 	wire w_wr_ready;
-	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_v)) + sv2v_cast_4(w_thr_fired);
+	wire w_q_valid;
+	wire w_q_empty = !w_q_valid;
+	wire [3:0] w_offered = ((w_err_fired + sv2v_cast_4(w_tmo_fired)) + sv2v_cast_4(w_cmp_fresh)) + sv2v_cast_4(w_thr_fired);
 	wire w_take = w_evt_v && w_wr_ready;
 	assign w_lat_take = ((((w_take && w_thr_v) && !w_err_v) && !w_tmo_v) && !w_cmp_v) && !r_e_thresh;
 	wire w_tmo_take = (w_take && w_tmo_v) && !w_err_v;
@@ -1657,14 +2044,19 @@ module axi_monitor_lite (
 	wire [1:0] w_tmo_left = w_tmo_fired - sv2v_cast_2(w_tmo_fresh_taken);
 	assign w_tmo_saved = (w_tmo_left != 2'd0) && (!r_tmo_pend || w_tmo_held_take);
 	assign w_tmo_save_scan = r_e_scan_hit && !(w_tmo_fresh_taken && r_e_scan_hit);
-	wire w_take_fresh = (w_take && !w_lat_take) && !w_tmo_held_take;
+	wire w_cmp_take = ((w_take && w_cmp_v) && !w_err_v) && !w_tmo_v;
+	assign w_cmp_held_take = w_cmp_take && r_cmp_pend;
+	wire w_cmp_fresh_taken = w_cmp_take && !r_cmp_pend;
+	assign w_cmp_saved = (w_cmp_fresh && !w_cmp_fresh_taken) && (!r_cmp_pend || w_cmp_held_take);
+	wire w_cmp_lost = (w_cmp_fresh && !w_cmp_fresh_taken) && !w_cmp_saved;
+	wire w_take_fresh = ((w_take && !w_lat_take) && !w_tmo_held_take) && !w_cmp_held_take;
 	wire w_lat_lost = (w_lat_hit && r_lat_pend) && !w_lat_take;
-	wire [3:0] w_lost = ((w_offered - sv2v_cast_4(w_take_fresh)) - sv2v_cast_4(w_tmo_saved)) + sv2v_cast_4(w_lat_lost);
+	wire [3:0] w_lost = (((w_offered - sv2v_cast_4(w_take_fresh)) - sv2v_cast_4(w_tmo_saved)) - sv2v_cast_4(w_cmp_saved)) + sv2v_cast_4(w_lat_lost);
 	reg [15:0] r_dropped;
 	reg [15:0] r_refused;
 	reg [15:0] r_completed;
 	reg [15:0] r_errors;
-	wire w_drop_rpt = (((r_dropped != 16'd0) && !w_evt_v) && w_wr_ready) && w_err_en;
+	wire w_drop_rpt = ((((r_dropped != 16'd0) && !w_evt_v) && w_q_empty) && w_err_en) && !clear;
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_dropped <= 1'sb0;
@@ -1714,33 +2106,33 @@ module axi_monitor_lite (
 		w_out_data[AW - 1:0] = w_entry_out[AW - 1-:AW];
 		w_out_data[63:48] = w_entry_out[AW + 15-:((AW + 15) >= (AW + 0) ? ((AW + 15) - (AW + 0)) + 1 : ((AW + 0) - (AW + 15)) + 1)];
 	end
-	localparam signed [31:0] OQW = (OUT_DEPTH > 1 ? $clog2(OUT_DEPTH) : 1);
-	reg [(34 + AW) - 1:0] r_q [0:OUT_DEPTH - 1];
-	reg [OQW:0] r_q_wp;
-	reg [OQW:0] r_q_rp;
-	wire w_q_empty = r_q_wp == r_q_rp;
-	wire w_q_full = (r_q_wp[OQW - 1:0] == r_q_rp[OQW - 1:0]) && (r_q_wp[OQW] != r_q_rp[OQW]);
+	wire w_q_fifo_ready;
+	wire [(34 + AW) - 1:0] w_q_rd_data;
+	wire w_q_full = !w_q_fifo_ready;
 	wire w_q_push = w_take || w_drop_rpt;
 	wire w_q_ready;
-	wire w_q_valid;
 	wire w_q_pop = w_q_valid && w_q_ready;
 	assign w_wr_ready = !w_q_full;
-	assign w_entry_out = r_q[r_q_rp[OQW - 1:0]];
-	assign w_q_valid = !w_q_empty;
-	always @(posedge aclk)
-		if (w_q_push)
-			r_q[r_q_wp[OQW - 1:0]] <= w_entry_in;
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
-			r_q_wp <= 1'sb0;
-			r_q_rp <= 1'sb0;
-		end
-		else begin
-			if (w_q_push)
-				r_q_wp <= r_q_wp + 1'b1;
-			if (w_q_pop)
-				r_q_rp <= r_q_rp + 1'b1;
-		end
+	function automatic [(34 + AW) - 1:0] sv2v_cast_21FF8;
+		input reg [(34 + AW) - 1:0] inp;
+		sv2v_cast_21FF8 = inp;
+	endfunction
+	assign w_entry_out = sv2v_cast_21FF8(w_q_rd_data);
+	gaxi_fifo_sync #(
+		.REGISTERED(0),
+		.DATA_WIDTH(34 + AW),
+		.DEPTH(OUT_DEPTH)
+	) u_out_q(
+		.axi_aclk(aclk),
+		.axi_aresetn(aresetn),
+		.wr_valid(w_q_push),
+		.wr_ready(w_q_fifo_ready),
+		.wr_data(w_entry_in),
+		.rd_ready(w_q_pop),
+		.count(),
+		.rd_valid(w_q_valid),
+		.rd_data(w_q_rd_data)
+	);
 	wire [127:0] w_q_packet;
 	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
@@ -1817,7 +2209,7 @@ module axi_monitor_lite (
 		sv2v_cast_8 = inp;
 	endfunction
 	assign active_count = sv2v_cast_8(w_occupancy);
-	assign busy = (((|r_valid || monbus_valid) || w_addr_valid) || r_lat_pend) || r_tmo_pend;
+	assign busy = ((((|r_valid || monbus_valid) || w_addr_valid) || r_lat_pend) || r_tmo_pend) || r_cmp_pend;
 	assign perf_completed_count = r_completed;
 	assign perf_error_count = r_errors;
 	assign dropped_count = r_dropped;
@@ -1907,7 +2299,7 @@ module axi4_master_wr_monlite (
 	parameter [15:0] AGENT_ID = 16'h000b;
 	parameter signed [31:0] MAX_TRANSACTIONS = 8;
 	parameter signed [31:0] ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2;
-	parameter signed [31:0] OUT_DEPTH = 4;
+	parameter signed [31:0] OUT_DEPTH = 16;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
 	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] ACLK_MHZ = 100;
@@ -2083,9 +2475,9 @@ module axi4_master_wr_monlite (
 	wire [15:0] w_timeout_cnt;
 	wire [15:0] w_perf_completed_count;
 	wire [15:0] w_perf_error_count;
-	assign w_mon_cmd_valid = m_axi_awvalid & cfg_monitor_enable;
-	assign w_mon_data_valid = m_axi_wvalid & cfg_monitor_enable;
-	assign w_mon_resp_valid = m_axi_bvalid & cfg_monitor_enable;
+	assign w_mon_cmd_valid = fub_axi_awvalid & cfg_monitor_enable;
+	assign w_mon_data_valid = fub_axi_wvalid & cfg_monitor_enable;
+	assign w_mon_resp_valid = fub_axi_bvalid & cfg_monitor_enable;
 	assign w_timeout_cnt = (cfg_timeout_cycles == 16'h0000 ? 16'hffff : cfg_timeout_cycles);
 	function automatic signed [15:0] sv2v_cast_16_signed;
 		input reg signed [15:0] inp;
@@ -2111,20 +2503,20 @@ module axi4_master_wr_monlite (
 				.aresetn(aresetn),
 				.clear(cam_clear | ~cfg_monitor_enable),
 				.i_mon_time(i_mon_time),
-				.cmd_addr(m_axi_awaddr),
-				.cmd_id(m_axi_awid),
-				.cmd_len(m_axi_awlen),
+				.cmd_addr(fub_axi_awaddr),
+				.cmd_id(fub_axi_awid),
+				.cmd_len(fub_axi_awlen),
 				.cmd_valid(w_mon_cmd_valid),
-				.cmd_ready(m_axi_awready),
-				.data_id(m_axi_awid),
-				.data_last(m_axi_wlast),
+				.cmd_ready(fub_axi_awready),
+				.data_id(fub_axi_awid),
+				.data_last(fub_axi_wlast),
 				.data_resp(2'b00),
 				.data_valid(w_mon_data_valid),
-				.data_ready(m_axi_wready),
-				.resp_id(m_axi_bid),
-				.resp_code(m_axi_bresp),
+				.data_ready(fub_axi_wready),
+				.resp_id(fub_axi_bid),
+				.resp_code(fub_axi_bresp),
 				.resp_valid(w_mon_resp_valid),
-				.resp_ready(m_axi_bready),
+				.resp_ready(fub_axi_bready),
 				.cfg_freq_sel(cfg_freq_sel),
 				.cfg_timeout_cnt(w_timeout_cnt),
 				.cfg_error_enable(cfg_error_enable),
@@ -2165,6 +2557,90 @@ module axi4_master_wr_monlite (
 	assign error_count = w_perf_error_count;
 	assign transaction_count = {16'h0000, w_perf_completed_count};
 endmodule
+module reset_sync (
+	clk,
+	rst_n,
+	sync_rst_n
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N = 3;
+	parameter [0:0] KEEP_ATTRS = 1'b1;
+	parameter [0:0] IN_ACTIVE_LOW = 1'b1;
+	parameter [0:0] OUT_ACTIVE_LOW = 1'b1;
+	parameter [0:0] ASYNC_ASSERT = 1'b1;
+	input wire clk;
+	input wire rst_n;
+	output reg sync_rst_n;
+	generate
+		if (N < 2) begin : g_illegal
+			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+		end
+	endgenerate
+	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
+	generate
+		if (ASYNC_ASSERT) begin : g_async_assert
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+		else begin : g_sync_only
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
 module axi_bus_meter (
 	aclk,
 	aresetn,
@@ -2204,6 +2680,18 @@ module axi_bus_meter (
 	output reg [(NUM_CHANNELS * 16) - 1:0] o_ch_starvation;
 	output reg [(NUM_CHANNELS * 16) - 1:0] o_ch_idle;
 	output reg [(NUM_CHANNELS * 4) - 1:0] o_ch_overflow;
+	wire w_aresetn;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(aclk),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
 	wire w_prod;
 	wire w_bp;
 	wire w_starv;
@@ -2216,8 +2704,8 @@ module axi_bus_meter (
 	reg [31:0] r_agg_bp;
 	reg [31:0] r_agg_starv;
 	reg [31:0] r_agg_idle;
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn) begin
 			r_agg_prod <= 1'sb0;
 			r_agg_bp <= 1'sb0;
 			r_agg_starv <= 1'sb0;
@@ -2248,8 +2736,8 @@ module axi_bus_meter (
 	reg [15:0] r_ch_starv [0:NUM_CHANNELS - 1];
 	reg [15:0] r_ch_idle [0:NUM_CHANNELS - 1];
 	reg [3:0] r_ch_overflow [0:NUM_CHANNELS - 1];
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin : sv2v_autoblock_1
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn) begin : sv2v_autoblock_1
 			reg signed [31:0] c;
 			for (c = 0; c < NUM_CHANNELS; c = c + 1)
 				begin
@@ -2369,10 +2857,22 @@ module axi_perf_latency_hist (
 	output wire [CNT_W - 1:0] o_hist_count;
 	output wire [CNT_W - 1:0] o_hist_total;
 	output wire o_cmd_block;
+	wire w_aresetn;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(aclk),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
 	localparam signed [31:0] NUM_METRICS = (IS_READ ? 2 : 1);
 	reg [31:0] r_time;
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn)
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn)
 			r_time <= 32'h00000000;
 		else
 			r_time <= r_time + 32'h00000001;
@@ -2455,8 +2955,8 @@ module axi_perf_latency_hist (
 		input reg signed [CNT_W - 1:0] inp;
 		sv2v_cast_7B3D1_signed = inp;
 	endfunction
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn || i_clear) begin
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn || i_clear) begin
 			for (ci = 0; ci < NUM_CHANNELS; ci = ci + 1)
 				begin
 					r_head[ci] <= 1'sb0;
@@ -2530,147 +3030,6 @@ module axi_perf_latency_hist (
 		end
 	assign o_hist_count = r_hist[(i_hist_metric ? 1 : 0)][i_hist_bin];
 	assign o_hist_total = r_total[(i_hist_metric ? 1 : 0)];
-endmodule
-module counter_bin (
-	clk,
-	rst_n,
-	enable,
-	counter_bin_curr,
-	counter_bin_next
-);
-	reg _sv2v_0;
-	parameter signed [31:0] WIDTH = 5;
-	parameter signed [31:0] MAX = 10;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_bin_curr;
-	output reg [WIDTH - 1:0] counter_bin_next;
-	wire [WIDTH - 2:0] w_max_val;
-	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
-		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
-		sv2v_cast_00F62_signed = inp;
-	endfunction
-	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (enable) begin
-			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
-				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
-			else
-				counter_bin_next = counter_bin_curr + 1;
-		end
-		else
-			counter_bin_next = counter_bin_curr;
-	end
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			counter_bin_curr <= 'b0;
-		else
-			counter_bin_curr <= counter_bin_next;
-	initial _sv2v_0 = 0;
-endmodule
-module fifo_control (
-	wr_clk,
-	wr_rst_n,
-	rd_clk,
-	rd_rst_n,
-	wr_ptr_bin,
-	wdom_rd_ptr_bin,
-	rd_ptr_bin,
-	rdom_wr_ptr_bin,
-	count,
-	wr_full,
-	wr_almost_full,
-	rd_empty,
-	rd_almost_empty
-);
-	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 8;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] REGISTERED = 0;
-	input wire wr_clk;
-	input wire wr_rst_n;
-	input wire rd_clk;
-	input wire rd_rst_n;
-	input wire [ADDR_WIDTH:0] wr_ptr_bin;
-	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
-	input wire [ADDR_WIDTH:0] rd_ptr_bin;
-	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
-	output wire [ADDR_WIDTH:0] count;
-	output reg wr_full;
-	output reg wr_almost_full;
-	output reg rd_empty;
-	output reg rd_almost_empty;
-	localparam signed [31:0] D = DEPTH;
-	localparam signed [31:0] AW = ADDR_WIDTH;
-	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
-	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
-	localparam signed [31:0] AFT = D - AFULL;
-	localparam signed [31:0] AET = AEMPTY;
-	wire w_wdom_ptr_xor;
-	wire w_rdom_ptr_xor;
-	wire w_wr_full_d;
-	wire w_wr_almost_full_d;
-	wire w_rd_empty_d;
-	wire w_rd_almost_empty_d;
-	wire [AW:0] w_almost_full_count;
-	wire [AW:0] w_almost_empty_count;
-	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
-	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
-	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
-	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
-		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
-		sv2v_cast_2BB65_signed = inp;
-	endfunction
-	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
-	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
-	always @(posedge wr_clk or negedge wr_rst_n)
-		if (!wr_rst_n) begin
-			wr_full <= 'b0;
-			wr_almost_full <= 'b0;
-		end
-		else begin
-			wr_full <= w_wr_full_d;
-			wr_almost_full <= w_wr_almost_full_d;
-		end
-	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
-	wire w_rdom_ptr_xor_for_empty;
-	generate
-		if (REGISTERED == 1) begin : gen_flop_mode
-			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk or negedge rd_rst_n)
-				if (!rd_rst_n)
-					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
-				else
-					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
-			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
-		end
-		else begin : gen_mux_mode
-			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
-		end
-	endgenerate
-	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
-	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
-	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
-	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
-	wire [ADDR_WIDTH:0] w_count;
-	reg [ADDR_WIDTH:0] r_count;
-	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
-	assign count = (REGISTERED == 1 ? r_count : w_count);
-	always @(posedge rd_clk or negedge rd_rst_n)
-		if (!rd_rst_n) begin
-			rd_empty <= 'b1;
-			rd_almost_empty <= 'b0;
-			r_count <= 'b0;
-		end
-		else begin
-			rd_empty <= w_rd_empty_d;
-			rd_almost_empty <= w_rd_almost_empty_d;
-			r_count <= w_count;
-		end
 endmodule
 module arbiter_priority_encoder (
 	requests_masked,
@@ -3343,19 +3702,6 @@ module monbus_arbiter (
 			assign monbus_timestamp = int_monbus_timestamp;
 		end
 	endgenerate
-	always @(posedge axi_aclk)
-		if (axi_aresetn && grant_valid)
-			;
-	always @(posedge axi_aclk)
-		if (axi_aresetn && grant_valid)
-			;
-	always @(posedge axi_aclk)
-		if (axi_aresetn) begin : sv2v_autoblock_4
-			reg signed [31:0] i;
-			for (i = 0; i < CLIENTS; i = i + 1)
-				if (!grant[i])
-					;
-		end
 	initial _sv2v_0 = 0;
 endmodule
 module arbiter_single_client (
@@ -3485,7 +3831,7 @@ module axi4_master_rd_monlite (
 	parameter [15:0] AGENT_ID = 16'h000a;
 	parameter signed [31:0] MAX_TRANSACTIONS = 8;
 	parameter signed [31:0] ACTIVE_TRANS_THRESHOLD = MAX_TRANSACTIONS / 2;
-	parameter signed [31:0] OUT_DEPTH = 4;
+	parameter signed [31:0] OUT_DEPTH = 16;
 	parameter signed [31:0] N_ADDR_RANGES = 0;
 	parameter [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] ADDR_RANGE_IS_ERROR = 1'sb0;
 	parameter signed [31:0] ACLK_MHZ = 100;
@@ -3641,9 +3987,9 @@ module axi4_master_rd_monlite (
 	wire [15:0] w_timeout_cnt;
 	wire [15:0] w_perf_completed_count;
 	wire [15:0] w_perf_error_count;
-	assign w_mon_cmd_valid = m_axi_arvalid & cfg_monitor_enable;
-	assign w_mon_data_valid = m_axi_rvalid & cfg_monitor_enable;
-	assign w_mon_resp_valid = (m_axi_rvalid && m_axi_rlast) & cfg_monitor_enable;
+	assign w_mon_cmd_valid = fub_axi_arvalid & cfg_monitor_enable;
+	assign w_mon_data_valid = fub_axi_rvalid & cfg_monitor_enable;
+	assign w_mon_resp_valid = (fub_axi_rvalid && fub_axi_rlast) & cfg_monitor_enable;
 	assign w_timeout_cnt = (cfg_timeout_cycles == 16'h0000 ? 16'hffff : cfg_timeout_cycles);
 	function automatic signed [15:0] sv2v_cast_16_signed;
 		input reg signed [15:0] inp;
@@ -3669,20 +4015,20 @@ module axi4_master_rd_monlite (
 				.aresetn(aresetn),
 				.clear(cam_clear | ~cfg_monitor_enable),
 				.i_mon_time(i_mon_time),
-				.cmd_addr(m_axi_araddr),
-				.cmd_id(m_axi_arid),
-				.cmd_len(m_axi_arlen),
+				.cmd_addr(fub_axi_araddr),
+				.cmd_id(fub_axi_arid),
+				.cmd_len(fub_axi_arlen),
 				.cmd_valid(w_mon_cmd_valid),
-				.cmd_ready(m_axi_arready),
-				.data_id(m_axi_rid),
-				.data_last(m_axi_rlast),
-				.data_resp(m_axi_rresp),
+				.cmd_ready(fub_axi_arready),
+				.data_id(fub_axi_rid),
+				.data_last(fub_axi_rlast),
+				.data_resp(fub_axi_rresp),
 				.data_valid(w_mon_data_valid),
-				.data_ready(m_axi_rready),
-				.resp_id(m_axi_rid),
-				.resp_code(m_axi_rresp),
+				.data_ready(fub_axi_rready),
+				.resp_id(fub_axi_rid),
+				.resp_code(fub_axi_rresp),
 				.resp_valid(w_mon_resp_valid),
-				.resp_ready(m_axi_rready),
+				.resp_ready(fub_axi_rready),
 				.cfg_freq_sel(cfg_freq_sel),
 				.cfg_timeout_cnt(w_timeout_cnt),
 				.cfg_error_enable(cfg_error_enable),
@@ -3722,152 +4068,6 @@ module axi4_master_rd_monlite (
 	endgenerate
 	assign error_count = w_perf_error_count;
 	assign transaction_count = {16'h0000, w_perf_completed_count};
-endmodule
-module gaxi_fifo_sync (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	rd_ready,
-	count,
-	rd_valid,
-	rd_data
-);
-	parameter signed [31:0] MEM_STYLE = 32'sd0;
-	parameter signed [31:0] REGISTERED = 0;
-	parameter signed [31:0] DATA_WIDTH = 4;
-	parameter signed [31:0] DEPTH = 4;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] D = DEPTH;
-	parameter signed [31:0] AW = $clog2(DEPTH);
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output wire wr_ready;
-	input wire [DW - 1:0] wr_data;
-	input wire rd_ready;
-	output wire [AW:0] count;
-	output wire rd_valid;
-	output wire [DW - 1:0] rd_data;
-	wire [AW - 1:0] r_wr_addr;
-	wire [AW - 1:0] r_rd_addr;
-	wire [AW:0] r_wr_ptr_bin;
-	wire [AW:0] r_rd_ptr_bin;
-	wire [AW:0] w_wr_ptr_bin_next;
-	wire [AW:0] w_rd_ptr_bin_next;
-	wire r_wr_full;
-	wire r_wr_almost_full;
-	wire r_rd_empty;
-	wire r_rd_almost_empty;
-	wire w_write;
-	wire w_read;
-	assign w_write = wr_valid && wr_ready;
-	assign w_read = rd_valid && rd_ready;
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) write_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_write && !r_wr_full),
-		.counter_bin_curr(r_wr_ptr_bin),
-		.counter_bin_next(w_wr_ptr_bin_next)
-	);
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) read_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_read && !r_rd_empty),
-		.counter_bin_curr(r_rd_ptr_bin),
-		.counter_bin_next(w_rd_ptr_bin_next)
-	);
-	fifo_control #(
-		.DEPTH(D),
-		.ADDR_WIDTH(AW),
-		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
-		.REGISTERED(REGISTERED)
-	) fifo_control_inst(
-		.wr_clk(axi_aclk),
-		.wr_rst_n(axi_aresetn),
-		.rd_clk(axi_aclk),
-		.rd_rst_n(axi_aresetn),
-		.wr_ptr_bin(w_wr_ptr_bin_next),
-		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
-		.rd_ptr_bin(w_rd_ptr_bin_next),
-		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-		.count(count),
-		.wr_full(r_wr_full),
-		.wr_almost_full(r_wr_almost_full),
-		.rd_empty(r_rd_empty),
-		.rd_almost_empty(r_rd_almost_empty)
-	);
-	assign wr_ready = !r_wr_full;
-	assign rd_valid = !r_rd_empty;
-	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
-	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
-	generate
-		if (MEM_STYLE == 32'sd1) begin : gen_srl
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			if (REGISTERED != 0) begin : g_flop
-				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_rd_data <= 1'sb0;
-					else
-						r_rd_data <= mem[r_rd_addr];
-				assign rd_data = r_rd_data;
-			end
-			else begin : g_mux
-				assign rd_data = mem[r_rd_addr];
-			end
-		end
-		else if (MEM_STYLE == 32'sd2) begin : gen_bram
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			reg [DATA_WIDTH - 1:0] r_rd_data;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_rd_data <= 1'sb0;
-				else
-					r_rd_data <= mem[r_rd_addr];
-			assign rd_data = r_rd_data;
-		end
-		else begin : gen_auto
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			if (REGISTERED != 0) begin : g_flop
-				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_rd_data <= 1'sb0;
-					else
-						r_rd_data <= mem[r_rd_addr];
-				assign rd_data = r_rd_data;
-			end
-			else begin : g_mux
-				assign rd_data = mem[r_rd_addr];
-			end
-		end
-	endgenerate
-	always @(posedge axi_aclk) begin
-		if (w_write && r_wr_full)
-			;
-		if (w_read && r_rd_empty)
-			;
-	end
 endmodule
 module descriptor_engine (
 	clk,
@@ -3980,7 +4180,7 @@ module descriptor_engine (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (AXI_ID_WIDTH < CHAN_WIDTH) begin
-		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv:153:13 - descriptor_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv:153:13 - descriptor_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
 		$finish(1);
 	end
 	reg [2:0] r_current_state;
@@ -4812,7 +5012,7 @@ module scheduler (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
-		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
 		$finish(1);
 	end
 	localparam signed [31:0] DESC_SRC_ADDR_LO = 0;
@@ -4843,6 +5043,39 @@ module scheduler (
 	wire w_state_next_desc = r_current_state == 7'b0010000;
 	wire w_state_error = r_current_state == 7'b0100000;
 	reg r_channel_reset_active;
+	localparam signed [31:0] DESC_SKID_DW = (1 + DESC_WIDTH) + 256;
+	wire w_desc_take;
+	wire w_desc_valid;
+	wire [DESC_WIDTH - 1:0] w_desc_packet;
+	wire [255:0] w_desc_ext_packet;
+	wire w_desc_skid_valid;
+	wire w_desc_skid_stale;
+	wire [DESC_SKID_DW - 1:0] w_desc_skid_out;
+	reg r_desc_epoch;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_desc_epoch <= 1'b0;
+		else if (cfg_channel_reset && !r_channel_reset_active)
+			r_desc_epoch <= !r_desc_epoch;
+	gaxi_skid_buffer #(
+		.DATA_WIDTH(DESC_SKID_DW),
+		.DEPTH(2)
+	) u_desc_skid(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(descriptor_valid),
+		.wr_ready(descriptor_ready),
+		.wr_data({r_desc_epoch, descriptor_packet, descriptor_ext_packet}),
+		.count(),
+		.rd_valid(w_desc_skid_valid),
+		.rd_ready((w_desc_take || r_channel_reset_active) || w_desc_skid_stale),
+		.rd_count(),
+		.rd_data(w_desc_skid_out)
+	);
+	assign w_desc_skid_stale = w_desc_skid_valid && (w_desc_skid_out[DESC_SKID_DW - 1] != r_desc_epoch);
+	assign w_desc_valid = (w_desc_skid_valid && !w_desc_skid_stale) && !r_channel_reset_active;
+	assign w_desc_packet = w_desc_skid_out[DESC_WIDTH + 255:256];
+	assign w_desc_ext_packet = w_desc_skid_out[255:0];
 	reg [271:0] r_descriptor;
 	reg r_descriptor_loaded;
 	reg [ADDR_WIDTH - 1:0] r_src_addr;
@@ -4857,8 +5090,8 @@ module scheduler (
 	assign w_is_ext = r_is_ext;
 	wire [255:0] w_descriptor_ext_in;
 	wire w_is_ext_in;
-	assign w_descriptor_ext_in = descriptor_ext_packet;
-	assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) && (descriptor_packet[210:208] == 3'd1);
+	assign w_descriptor_ext_in = w_desc_ext_packet;
+	assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) && (w_desc_packet[210:208] == 3'd1);
 	reg [31:0] r_rd_run_remaining;
 	reg [31:0] r_wr_run_remaining;
 	wire w_rd_base_valid;
@@ -4951,7 +5184,7 @@ module scheduler (
 		else
 			case (r_current_state)
 				7'b0000001:
-					if (descriptor_valid && cfg_channel_enable)
+					if (w_desc_valid && cfg_channel_enable)
 						w_next_state = 7'b0000010;
 				7'b0000010:
 					if (r_descriptor[192])
@@ -4969,7 +5202,7 @@ module scheduler (
 					else if (w_write_complete)
 						w_next_state = 7'b0000001;
 				7'b0010000:
-					if (descriptor_valid)
+					if (w_desc_valid)
 						w_next_state = 7'b0000010;
 				7'b0100000: w_next_state = 7'b0100000;
 				default: w_next_state = 7'b0100000;
@@ -5011,18 +5244,18 @@ module scheduler (
 		end
 		else begin
 			r_fetch_desc_d <= w_state_fetch_desc;
-			if ((((r_current_state == 7'b0000001) || (r_current_state == 7'b0010000)) && descriptor_valid) && descriptor_ready) begin
-				r_descriptor[63-:64] <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-				r_descriptor[127-:64] <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-				r_descriptor[159-:32] <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
-				r_descriptor[191-:32] <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-				r_descriptor[192] <= descriptor_packet[DESC_VALID_BIT];
-				r_descriptor[193] <= descriptor_packet[DESC_GEN_IRQ];
-				r_descriptor[194] <= descriptor_packet[DESC_LAST];
-				r_descriptor[210-:3] <= descriptor_packet[210:208];
-				r_descriptor_ext <= descriptor_ext_packet;
+			if ((((r_current_state == 7'b0000001) || (r_current_state == 7'b0010000)) && w_desc_valid) && w_desc_take) begin
+				r_descriptor[63-:64] <= w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+				r_descriptor[127-:64] <= w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+				r_descriptor[159-:32] <= w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+				r_descriptor[191-:32] <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+				r_descriptor[192] <= w_desc_packet[DESC_VALID_BIT];
+				r_descriptor[193] <= w_desc_packet[DESC_GEN_IRQ];
+				r_descriptor[194] <= w_desc_packet[DESC_LAST];
+				r_descriptor[210-:3] <= w_desc_packet[210:208];
+				r_descriptor_ext <= w_desc_ext_packet;
 				r_is_ext <= w_is_ext_in;
-				r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !descriptor_packet[DESC_LAST];
+				r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !w_desc_packet[DESC_LAST];
 				r_rd_per_beat <= w_is_ext_in && ($signed(w_descriptor_ext_in[31-:32]) != BEAT_BYTES);
 				r_wr_per_beat <= w_is_ext_in && ($signed(w_descriptor_ext_in[127-:32]) != BEAT_BYTES);
 				r_descriptor_loaded <= 1'b1;
@@ -5076,13 +5309,13 @@ module scheduler (
 				r_descriptor[63-:64] <= w_next_src_addr;
 				r_descriptor[127-:64] <= w_next_dst_addr;
 				r_descriptor[159-:32] <= w_next_length;
-				r_descriptor[191-:32] <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-				r_descriptor[192] <= descriptor_packet[DESC_VALID_BIT];
-				r_descriptor[193] <= descriptor_packet[DESC_GEN_IRQ];
-				r_descriptor[194] <= descriptor_packet[DESC_LAST];
-				r_descriptor[210-:3] <= descriptor_packet[210:208];
+				r_descriptor[191-:32] <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+				r_descriptor[192] <= w_desc_packet[DESC_VALID_BIT];
+				r_descriptor[193] <= w_desc_packet[DESC_GEN_IRQ];
+				r_descriptor[194] <= w_desc_packet[DESC_LAST];
+				r_descriptor[210-:3] <= w_desc_packet[210:208];
 				r_is_ext <= w_is_ext_in;
-				r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !descriptor_packet[DESC_LAST];
+				r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !w_desc_packet[DESC_LAST];
 				if (!r_rd_ahead) begin
 					r_src_addr <= w_next_src_addr[ADDR_WIDTH - 1:0];
 					r_read_beats_remaining <= w_next_length;
@@ -5125,13 +5358,13 @@ module scheduler (
 	assign w_write_issued = r_write_beats_remaining == 32'h00000000;
 	assign w_write_complete = r_write_beats_to_commit == 32'h00000000;
 	assign w_transfer_complete = w_read_complete && w_write_issued;
-	assign w_next_src_addr = descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-	assign w_next_dst_addr = descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-	assign w_next_length = descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+	assign w_next_src_addr = w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+	assign w_next_dst_addr = w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+	assign w_next_length = w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
 	assign w_desc_chained = r_desc_chained;
 	assign w_rd_prefetch_en = (cfg_rd_prefetch_enable && !w_is_ext) && !w_is_ext_in;
-	assign w_rd_peek = (((((w_rd_prefetch_en && w_state_xfer_data) && !r_rd_ahead) && (r_read_beats_remaining == 32'h00000000)) && !w_write_issued) && w_desc_chained) && descriptor_valid;
-	assign w_wr_advance = (((w_rd_prefetch_en && w_state_xfer_data) && w_write_issued) && w_desc_chained) && descriptor_valid;
+	assign w_rd_peek = (((((w_rd_prefetch_en && w_state_xfer_data) && !r_rd_ahead) && (r_read_beats_remaining == 32'h00000000)) && !w_write_issued) && w_desc_chained) && w_desc_valid;
+	assign w_wr_advance = (((w_rd_prefetch_en && w_state_xfer_data) && w_write_issued) && w_desc_chained) && w_desc_valid;
 	wire w_sched_rd_completing_this_cycle;
 	wire w_sched_wr_completing_this_cycle;
 	assign w_sched_rd_completing_this_cycle = sched_rd_done_strobe && (r_read_beats_remaining <= sched_rd_beats_done);
@@ -5202,7 +5435,7 @@ module scheduler (
 			assign w_wr_base_addr = 1'sb0;
 		end
 	endgenerate
-	assign descriptor_ready = ((r_current_state == 7'b0000001) || (r_current_state == 7'b0010000)) || w_wr_advance;
+	assign w_desc_take = (((r_current_state == 7'b0000001) && cfg_channel_enable) || (r_current_state == 7'b0010000)) || w_wr_advance;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_timeout_counter <= 32'h00000000;
@@ -5305,7 +5538,7 @@ module scheduler (
 					;
 			endcase
 		end
-	assign scheduler_idle = (r_current_state == 7'b0000001) && !r_channel_reset_active;
+	assign scheduler_idle = ((r_current_state == 7'b0000001) && !r_channel_reset_active) && !w_desc_skid_valid;
 	assign scheduler_state = r_current_state;
 	assign sched_error = w_state_error;
 	assign dbg_descriptor_error = r_descriptor_error;
@@ -5632,6 +5865,559 @@ module scheduler_group (
 		.last_grant()
 	);
 endmodule
+module descriptor_engine_shared (
+	clk,
+	rst_n,
+	apb_valid,
+	apb_ready,
+	apb_addr,
+	channel_idle,
+	descriptor_valid,
+	descriptor_ready,
+	descriptor_packet,
+	descriptor_ext_packet,
+	descriptor_error,
+	descriptor_eos,
+	descriptor_eol,
+	descriptor_eod,
+	descriptor_type,
+	ar_valid,
+	ar_ready,
+	ar_addr,
+	ar_len,
+	ar_size,
+	ar_burst,
+	ar_id,
+	ar_lock,
+	ar_cache,
+	ar_prot,
+	ar_qos,
+	ar_region,
+	r_valid,
+	r_ready,
+	r_data,
+	r_resp,
+	r_last,
+	r_id,
+	cfg_prefetch_enable,
+	cfg_fifo_threshold,
+	cfg_addr0_base,
+	cfg_addr0_limit,
+	cfg_addr1_base,
+	cfg_addr1_limit,
+	cfg_channel_reset,
+	descriptor_engine_idle,
+	i_mon_time,
+	mon_valid,
+	mon_ready,
+	mon_packet,
+	mon_timestamp
+);
+	reg _sv2v_0;
+	parameter signed [31:0] NUM_CHANNELS = 8;
+	parameter signed [31:0] CHAN_WIDTH = (NUM_CHANNELS > 1 ? $clog2(NUM_CHANNELS) : 1);
+	parameter signed [31:0] ADDR_WIDTH = 64;
+	parameter signed [31:0] AXI_ID_WIDTH = 8;
+	parameter signed [31:0] FIFO_DEPTH = 8;
+	parameter signed [31:0] USE_ROW_COL_MAJOR_ADDRESSING = 1;
+	parameter [15:0] MON_AGENT_BASE = 16'h0010;
+	parameter [7:0] MON_UNIT_ID = 8'h01;
+	parameter signed [31:0] MON_FIFO_DEPTH = 4;
+	parameter [0:0] GEN_MON = 1'b1;
+	parameter signed [31:0] NC = NUM_CHANNELS;
+	parameter signed [31:0] CW = CHAN_WIDTH;
+	input wire clk;
+	input wire rst_n;
+	input wire [NC - 1:0] apb_valid;
+	output wire [NC - 1:0] apb_ready;
+	input wire [(NC * ADDR_WIDTH) - 1:0] apb_addr;
+	input wire [NC - 1:0] channel_idle;
+	output wire [NC - 1:0] descriptor_valid;
+	input wire [NC - 1:0] descriptor_ready;
+	output wire [(NC * 256) - 1:0] descriptor_packet;
+	output wire [(NC * 256) - 1:0] descriptor_ext_packet;
+	output wire [NC - 1:0] descriptor_error;
+	output wire [NC - 1:0] descriptor_eos;
+	output wire [NC - 1:0] descriptor_eol;
+	output wire [NC - 1:0] descriptor_eod;
+	output wire [(NC * 2) - 1:0] descriptor_type;
+	output wire ar_valid;
+	input wire ar_ready;
+	output wire [ADDR_WIDTH - 1:0] ar_addr;
+	output wire [7:0] ar_len;
+	output wire [2:0] ar_size;
+	output wire [1:0] ar_burst;
+	output wire [AXI_ID_WIDTH - 1:0] ar_id;
+	output wire ar_lock;
+	output wire [3:0] ar_cache;
+	output wire [2:0] ar_prot;
+	output wire [3:0] ar_qos;
+	output wire [3:0] ar_region;
+	input wire r_valid;
+	output wire r_ready;
+	input wire [255:0] r_data;
+	input wire [1:0] r_resp;
+	input wire r_last;
+	input wire [AXI_ID_WIDTH - 1:0] r_id;
+	input wire cfg_prefetch_enable;
+	input wire [3:0] cfg_fifo_threshold;
+	input wire [ADDR_WIDTH - 1:0] cfg_addr0_base;
+	input wire [ADDR_WIDTH - 1:0] cfg_addr0_limit;
+	input wire [ADDR_WIDTH - 1:0] cfg_addr1_base;
+	input wire [ADDR_WIDTH - 1:0] cfg_addr1_limit;
+	input wire [NC - 1:0] cfg_channel_reset;
+	output wire [NC - 1:0] descriptor_engine_idle;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	input wire [63:0] i_mon_time;
+	output wire mon_valid;
+	input wire mon_ready;
+	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output wire [127:0] mon_packet;
+	output wire [63:0] mon_timestamp;
+	localparam [0:0] EXT_EN = USE_ROW_COL_MAJOR_ADDRESSING != 0;
+	localparam signed [31:0] DFC_W = $clog2(FIFO_DEPTH) + 1;
+	localparam signed [31:0] FW = 261;
+	initial if (AXI_ID_WIDTH < CW) begin
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/descriptor_engine_shared.sv:135:13 - descriptor_engine_shared.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CW);
+		$finish(1);
+	end
+	reg [2:0] r_st [0:NC - 1];
+	reg [ADDR_WIDTH - 1:0] r_pend_addr [0:NC - 1];
+	reg [NC - 1:0] r_apb_ip;
+	reg [NC - 1:0] r_idle_prev;
+	reg [NC - 1:0] r_reset;
+	reg [NC - 1:0] r_err;
+	reg [NC - 1:0] r_owe;
+	wire [NC - 1:0] w_fifo_wr_valid;
+	wire [NC - 1:0] w_fifo_wr_ready;
+	wire [NC - 1:0] w_fifo_rd_valid;
+	wire [NC - 1:0] w_fifo_rd_ready;
+	wire [DFC_W - 1:0] w_fifo_count [0:NC - 1];
+	wire [260:0] w_fifo_rd_data [0:NC - 1];
+	wire [260:0] w_fifo_wr_data;
+	wire [255:0] w_ext_wr_data;
+	function automatic in_range;
+		input reg [ADDR_WIDTH - 1:0] a;
+		input reg [ADDR_WIDTH - 1:0] b0;
+		input reg [ADDR_WIDTH - 1:0] l0;
+		input reg [ADDR_WIDTH - 1:0] b1;
+		input reg [ADDR_WIDTH - 1:0] l1;
+		in_range = ((a >= b0) && (a <= l0)) || ((a >= b1) && (a <= l1));
+	endfunction
+	reg [DFC_W - 1:0] w_prefetch_limit;
+	function automatic signed [DFC_W - 1:0] sv2v_cast_E6249_signed;
+		input reg signed [DFC_W - 1:0] inp;
+		sv2v_cast_E6249_signed = inp;
+	endfunction
+	function automatic [DFC_W - 1:0] sv2v_cast_E6249;
+		input reg [DFC_W - 1:0] inp;
+		sv2v_cast_E6249 = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (!cfg_prefetch_enable || (cfg_fifo_threshold == 4'h0))
+			w_prefetch_limit = sv2v_cast_E6249_signed(1);
+		else
+			w_prefetch_limit = sv2v_cast_E6249(cfg_fifo_threshold);
+	end
+	reg [NC - 1:0] w_req;
+	reg w_pick_valid;
+	reg [CW - 1:0] w_pick;
+	reg [CW - 1:0] r_rr_ptr;
+	reg [NC - 1:0] w_allows;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] c;
+			for (c = 0; c < NC; c = c + 1)
+				begin
+					w_allows[c] = (w_fifo_count[c] <= w_prefetch_limit) && (w_fifo_count[c] < sv2v_cast_E6249_signed(FIFO_DEPTH));
+					w_req[c] = !r_reset[c] && (((r_st[c] == 3'd1) && w_allows[c]) || (r_st[c] == 3'd3));
+				end
+		end
+	end
+	function automatic signed [CW - 1:0] sv2v_cast_3D2D3_signed;
+		input reg signed [CW - 1:0] inp;
+		sv2v_cast_3D2D3_signed = inp;
+	endfunction
+	function automatic signed [31:0] sv2v_cast_32_signed;
+		input reg signed [31:0] inp;
+		sv2v_cast_32_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_pick_valid = 1'b0;
+		w_pick = r_rr_ptr;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] k;
+			for (k = 1; k <= NC; k = k + 1)
+				begin : sv2v_autoblock_3
+					reg signed [31:0] idx;
+					idx = (sv2v_cast_32_signed(r_rr_ptr) + k) % NC;
+					if (!w_pick_valid && w_req[idx]) begin
+						w_pick_valid = 1'b1;
+						w_pick = sv2v_cast_3D2D3_signed(idx);
+					end
+				end
+		end
+	end
+	reg r_slot_v;
+	reg [CW - 1:0] r_slot_ch;
+	reg [ADDR_WIDTH - 1:0] r_slot_addr;
+	reg r_slot_c1;
+	wire w_slot_range_ok;
+	wire w_range_refuse;
+	wire w_ar_fire;
+	wire w_slot_free;
+	wire w_load;
+	assign w_slot_range_ok = in_range(r_slot_addr, cfg_addr0_base, cfg_addr0_limit, cfg_addr1_base, cfg_addr1_limit);
+	assign w_range_refuse = (r_slot_v && !r_slot_c1) && !w_slot_range_ok;
+	assign ar_valid = r_slot_v && !w_range_refuse;
+	assign w_ar_fire = ar_valid && ar_ready;
+	assign w_slot_free = (!r_slot_v || w_ar_fire) || w_range_refuse;
+	assign w_load = w_pick_valid && w_slot_free;
+	assign ar_addr = r_slot_addr;
+	assign ar_len = 8'h00;
+	assign ar_size = 3'b101;
+	assign ar_burst = 2'b01;
+	function automatic [AXI_ID_WIDTH - 1:0] sv2v_cast_14482;
+		input reg [AXI_ID_WIDTH - 1:0] inp;
+		sv2v_cast_14482 = inp;
+	endfunction
+	assign ar_id = sv2v_cast_14482(r_slot_ch);
+	assign ar_lock = 1'b0;
+	assign ar_cache = 4'b0010;
+	assign ar_prot = 3'b000;
+	assign ar_qos = 4'h0;
+	assign ar_region = 4'h0;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_rr_ptr <= 1'sb0;
+			r_slot_v <= 1'b0;
+			r_slot_ch <= 1'sb0;
+			r_slot_addr <= 1'sb0;
+			r_slot_c1 <= 1'b0;
+		end
+		else if (w_load) begin
+			r_slot_v <= 1'b1;
+			r_slot_ch <= w_pick;
+			r_slot_c1 <= r_st[w_pick] == 3'd3;
+			r_slot_addr <= r_pend_addr[w_pick];
+			r_rr_ptr <= w_pick;
+		end
+		else if (w_ar_fire || w_range_refuse)
+			r_slot_v <= 1'b0;
+	wire [CW - 1:0] w_rc;
+	wire w_rc_ok;
+	wire w_rc_waiting;
+	wire w_rc_chunk1;
+	wire w_r_fire;
+	wire w_resp_ok;
+	wire w_want_ext;
+	wire [255:0] w_chunk0;
+	wire w_push;
+	wire w_r_error;
+	assign w_rc = r_id[CW - 1:0];
+	assign w_rc_ok = sv2v_cast_32_signed(w_rc) < NC;
+	assign w_rc_waiting = w_rc_ok && ((r_st[w_rc] == 3'd2) || (r_st[w_rc] == 3'd4));
+	assign w_rc_chunk1 = w_rc_ok && (r_st[w_rc] == 3'd4);
+	assign r_ready = (w_rc_waiting ? w_fifo_wr_ready[w_rc] : 1'b1);
+	assign w_r_fire = ((r_valid && r_ready) && w_rc_waiting) && !r_reset[w_rc];
+	assign w_resp_ok = r_resp == 2'b00;
+	assign w_want_ext = (EXT_EN && !w_rc_chunk1) && (r_data[210:208] == 3'd1);
+	assign w_r_error = w_r_fire && !w_resp_ok;
+	assign w_push = (w_r_fire && w_resp_ok) && !w_want_ext;
+	wire [255:0] w_hold_rc;
+	generate
+		if (EXT_EN) begin : g_hold
+			reg [255:0] r_hold [0:NC - 1];
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin : sv2v_autoblock_4
+					reg signed [31:0] c;
+					for (c = 0; c < NC; c = c + 1)
+						r_hold[c] <= 1'sb0;
+				end
+				else if ((w_r_fire && w_resp_ok) && w_want_ext)
+					r_hold[w_rc] <= r_data;
+			assign w_hold_rc = r_hold[w_rc];
+		end
+		else begin : g_no_hold
+			assign w_hold_rc = 1'sb0;
+		end
+	endgenerate
+	assign w_chunk0 = (w_rc_chunk1 ? w_hold_rc : r_data);
+	wire [ADDR_WIDTH - 1:0] w_rc_pend;
+	wire [ADDR_WIDTH - 1:0] w_rc_pend_p32;
+	wire [ADDR_WIDTH - 1:0] w_rc_desc_addr;
+	assign w_rc_pend = r_pend_addr[w_rc];
+	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
+		input reg signed [ADDR_WIDTH - 1:0] inp;
+		sv2v_cast_A5DC5_signed = inp;
+	endfunction
+	assign w_rc_pend_p32 = w_rc_pend + sv2v_cast_A5DC5_signed(32);
+	assign w_rc_desc_addr = (w_rc_chunk1 ? w_rc_pend - sv2v_cast_A5DC5_signed(32) : w_rc_pend);
+	assign w_ext_wr_data = r_data;
+	assign w_fifo_wr_data = {w_chunk0, 5'b00000};
+	wire [31:0] w_next_ptr;
+	wire [ADDR_WIDTH - 1:0] w_next_addr;
+	wire w_chunk0_valid;
+	wire w_chain;
+	assign w_next_ptr = w_chunk0[191:160];
+	assign w_next_addr = {{ADDR_WIDTH - 32 {1'b0}}, w_next_ptr};
+	assign w_chunk0_valid = w_chunk0[192];
+	assign w_chain = (((w_next_ptr != {32 {1'sb0}}) && !w_chunk0[194]) && w_chunk0_valid) && in_range(w_next_addr, cfg_addr0_base, cfg_addr0_limit, cfg_addr1_base, cfg_addr1_limit);
+	genvar _gv_c_1;
+	generate
+		for (_gv_c_1 = 0; _gv_c_1 < NC; _gv_c_1 = _gv_c_1 + 1) begin : g_ch
+			localparam c = _gv_c_1;
+			wire w_kick;
+			wire w_load_here;
+			wire w_issue_here;
+			wire w_refuse_here;
+			wire w_slot_refuses;
+			wire w_r_here;
+			wire w_err_event;
+			assign apb_ready[c] = ((((r_st[c] == 3'd0) && !r_reset[c]) && channel_idle[c]) && !r_apb_ip[c]) && !r_owe[c];
+			assign w_kick = apb_valid[c] && apb_ready[c];
+			assign w_load_here = w_load && (w_pick == sv2v_cast_3D2D3_signed(c));
+			assign w_issue_here = w_ar_fire && (r_slot_ch == sv2v_cast_3D2D3_signed(c));
+			assign w_refuse_here = w_range_refuse && (r_slot_ch == sv2v_cast_3D2D3_signed(c));
+			assign w_slot_refuses = ((r_slot_v && (r_slot_ch == sv2v_cast_3D2D3_signed(c))) && !r_slot_c1) && !w_slot_range_ok;
+			assign w_r_here = w_r_fire && (w_rc == sv2v_cast_3D2D3_signed(c));
+			assign w_err_event = (w_refuse_here || (w_r_here && !w_resp_ok)) || ((w_r_here && w_push) && !w_chunk0_valid);
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin
+					r_st[c] <= 3'd0;
+					r_pend_addr[c] <= 1'sb0;
+					r_apb_ip[c] <= 1'b0;
+					r_idle_prev[c] <= 1'b1;
+					r_reset[c] <= 1'b0;
+					r_err[c] <= 1'b0;
+					r_owe[c] <= 1'b0;
+				end
+				else begin
+					r_reset[c] <= cfg_channel_reset[c];
+					if ((((r_owe[c] && r_valid) && r_ready) && w_rc_ok) && (w_rc == sv2v_cast_3D2D3_signed(c)))
+						r_owe[c] <= 1'b0;
+					if (r_reset[c] && ((((r_st[c] == 3'd2) || (r_st[c] == 3'd4)) || (r_st[c] == 3'd6)) || ((r_st[c] == 3'd5) && !w_slot_refuses)))
+						r_owe[c] <= 1'b1;
+					r_idle_prev[c] <= channel_idle[c];
+					r_err[c] <= w_err_event || (apb_valid[c] && (apb_addr[c * ADDR_WIDTH+:ADDR_WIDTH] == {ADDR_WIDTH * 1 {1'sb0}}));
+					if (r_reset[c]) begin
+						r_st[c] <= 3'd0;
+						r_apb_ip[c] <= 1'b0;
+						r_err[c] <= 1'b0;
+					end
+					else begin
+						if (w_kick)
+							r_apb_ip[c] <= 1'b1;
+						else if ((!r_idle_prev[c] && channel_idle[c]) && r_apb_ip[c])
+							r_apb_ip[c] <= 1'b0;
+						case (r_st[c])
+							3'd0:
+								if (w_kick) begin
+									r_st[c] <= 3'd1;
+									r_pend_addr[c] <= apb_addr[c * ADDR_WIDTH+:ADDR_WIDTH];
+								end
+							3'd1:
+								if (w_load_here)
+									r_st[c] <= 3'd5;
+							3'd5:
+								if (w_refuse_here)
+									r_st[c] <= 3'd0;
+								else if (w_issue_here)
+									r_st[c] <= 3'd2;
+							3'd2:
+								if (w_r_here) begin
+									if (!w_resp_ok)
+										r_st[c] <= 3'd0;
+									else if (w_want_ext) begin
+										r_st[c] <= 3'd3;
+										r_pend_addr[c] <= w_rc_pend_p32;
+									end
+									else if (w_chain) begin
+										r_st[c] <= 3'd1;
+										r_pend_addr[c] <= w_next_addr;
+									end
+									else
+										r_st[c] <= 3'd0;
+								end
+							3'd3:
+								if (w_load_here)
+									r_st[c] <= 3'd6;
+							3'd6:
+								if (w_issue_here)
+									r_st[c] <= 3'd4;
+							3'd4:
+								if (w_r_here) begin
+									if (!w_resp_ok)
+										r_st[c] <= 3'd0;
+									else if (w_chain) begin
+										r_st[c] <= 3'd1;
+										r_pend_addr[c] <= w_next_addr;
+									end
+									else
+										r_st[c] <= 3'd0;
+								end
+							default: r_st[c] <= 3'd0;
+						endcase
+					end
+				end
+			assign w_fifo_wr_valid[c] = w_push && (w_rc == sv2v_cast_3D2D3_signed(c));
+			assign w_fifo_rd_ready[c] = (r_reset[c] ? 1'b1 : descriptor_ready[c]);
+			gaxi_fifo_sync #(
+				.DATA_WIDTH(FW),
+				.DEPTH(FIFO_DEPTH)
+			) u_desc_fifo(
+				.axi_aclk(clk),
+				.axi_aresetn(rst_n),
+				.wr_valid(w_fifo_wr_valid[c]),
+				.wr_ready(w_fifo_wr_ready[c]),
+				.wr_data(w_fifo_wr_data),
+				.rd_valid(w_fifo_rd_valid[c]),
+				.rd_ready(w_fifo_rd_ready[c]),
+				.rd_data(w_fifo_rd_data[c]),
+				.count(w_fifo_count[c])
+			);
+			if (EXT_EN) begin : g_ext
+				gaxi_fifo_sync #(
+					.DATA_WIDTH(256),
+					.DEPTH(FIFO_DEPTH)
+				) u_ext_fifo(
+					.axi_aclk(clk),
+					.axi_aresetn(rst_n),
+					.wr_valid(w_fifo_wr_valid[c]),
+					.wr_ready(),
+					.wr_data(w_ext_wr_data),
+					.rd_valid(),
+					.rd_ready(w_fifo_rd_ready[c]),
+					.rd_data(descriptor_ext_packet[c * 256+:256]),
+					.count()
+				);
+			end
+			else begin : g_no_ext
+				assign descriptor_ext_packet[c * 256+:256] = 1'sb0;
+			end
+			assign descriptor_valid[c] = (w_fifo_rd_valid[c] && !r_err[c]) && !r_reset[c];
+			assign descriptor_packet[c * 256+:256] = w_fifo_rd_data[c][260:5];
+			assign descriptor_eos[c] = w_fifo_rd_data[c][4];
+			assign descriptor_eol[c] = w_fifo_rd_data[c][3];
+			assign descriptor_eod[c] = w_fifo_rd_data[c][2];
+			assign descriptor_type[c * 2+:2] = w_fifo_rd_data[c][1:0];
+			assign descriptor_error[c] = r_err[c];
+			assign descriptor_engine_idle[c] = ((r_st[c] == 3'd0) && !r_reset[c]) && !w_fifo_rd_valid[c];
+		end
+	endgenerate
+	localparam signed [31:0] MPW = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;
+	wire w_ev_r;
+	wire [127:0] w_pkt_r;
+	wire [127:0] w_pkt_i;
+	reg r_mv_i;
+	reg r_mv_r;
+	reg [MPW - 1:0] r_md_i;
+	reg [MPW - 1:0] r_md_r;
+	assign w_ev_r = w_r_fire && (!w_resp_ok || w_push);
+	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
+	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+		input reg [3:0] packet_type;
+		input reg [3:0] protocol;
+		input reg [7:0] event_code;
+		input reg [8:0] channel_id;
+		input reg [7:0] unit_id;
+		input reg [15:0] agent_id;
+		input reg [63:0] event_data;
+		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+	endfunction
+	function automatic [8:0] sv2v_cast_9;
+		input reg [8:0] inp;
+		sv2v_cast_9 = inp;
+	endfunction
+	function automatic [15:0] sv2v_cast_16;
+		input reg [15:0] inp;
+		sv2v_cast_16 = inp;
+	endfunction
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	assign w_pkt_r = (w_resp_ok ? monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, 8'h00, sv2v_cast_9(w_rc), MON_UNIT_ID, MON_AGENT_BASE + sv2v_cast_16(w_rc), sv2v_cast_64(w_rc_desc_addr)) : monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h4, 8'h06, sv2v_cast_9(w_rc), MON_UNIT_ID, MON_AGENT_BASE + sv2v_cast_16(w_rc), {46'h000000000000, r_resp, 16'h0000}));
+	assign w_pkt_i = monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h4, 8'h06, sv2v_cast_9(r_slot_ch), MON_UNIT_ID, MON_AGENT_BASE + sv2v_cast_16(r_slot_ch), 64'h0000000000000000);
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_mv_i <= 1'b0;
+			r_md_i <= 1'sb0;
+			r_mv_r <= 1'b0;
+			r_md_r <= 1'sb0;
+		end
+		else begin
+			r_mv_i <= w_range_refuse;
+			r_md_i <= {w_pkt_i, i_mon_time};
+			r_mv_r <= w_ev_r;
+			r_md_r <= {w_pkt_r, i_mon_time};
+		end
+	reg r_hold_i_valid;
+	reg [MPW - 1:0] r_hold_i_data;
+	reg w_mf_wr_valid;
+	wire w_mf_wr_ready;
+	reg [MPW - 1:0] w_mf_wr_data;
+	wire [MPW - 1:0] w_mf_rd_data;
+	wire w_mf_rd_valid;
+	wire w_mf_rd_ready;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (r_mv_r) begin
+			w_mf_wr_valid = 1'b1;
+			w_mf_wr_data = r_md_r;
+		end
+		else if (r_hold_i_valid) begin
+			w_mf_wr_valid = 1'b1;
+			w_mf_wr_data = r_hold_i_data;
+		end
+		else begin
+			w_mf_wr_valid = r_mv_i;
+			w_mf_wr_data = r_md_i;
+		end
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_hold_i_valid <= 1'b0;
+			r_hold_i_data <= 1'sb0;
+		end
+		else if (r_mv_r && r_mv_i) begin
+			r_hold_i_valid <= 1'b1;
+			r_hold_i_data <= r_md_i;
+		end
+		else if (!r_mv_r && r_hold_i_valid) begin
+			r_hold_i_valid <= r_mv_i;
+			r_hold_i_data <= r_md_i;
+		end
+	gaxi_fifo_sync #(
+		.DATA_WIDTH(MPW),
+		.DEPTH(MON_FIFO_DEPTH)
+	) u_mon_fifo(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(w_mf_wr_valid),
+		.wr_ready(w_mf_wr_ready),
+		.wr_data(w_mf_wr_data),
+		.rd_valid(w_mf_rd_valid),
+		.rd_ready(w_mf_rd_ready),
+		.rd_data(w_mf_rd_data),
+		.count()
+	);
+	assign mon_valid = GEN_MON && w_mf_rd_valid;
+	assign w_mf_rd_ready = (GEN_MON ? mon_ready : 1'b1);
+	assign mon_packet = (GEN_MON ? w_mf_rd_data[MPW - 1-:monitor_common_pkg_MONBUS_PKT_WIDTH] : {128 {1'sb0}});
+	assign mon_timestamp = (GEN_MON ? w_mf_rd_data[63:0] : {64 {1'sb0}});
+	wire unused_ok;
+	assign unused_ok = &{1'b0, r_last};
+	initial _sv2v_0 = 0;
+endmodule
 module scheduler_group_array (
 	clk,
 	rst_n,
@@ -5741,6 +6527,7 @@ module scheduler_group_array (
 	parameter [0:0] USE_DESC_AXI_MONITOR = 1'b0;
 	parameter signed [31:0] NUM_CHANNELS = 8;
 	parameter signed [31:0] CHAN_WIDTH = (NUM_CHANNELS > 1 ? $clog2(NUM_CHANNELS) : 1);
+	parameter signed [31:0] SHARED_ENGINES = 1;
 	parameter signed [31:0] ADDR_WIDTH = 64;
 	parameter signed [31:0] DATA_WIDTH = 512;
 	parameter signed [31:0] USE_ROW_COL_MAJOR_ADDRESSING = 1;
@@ -5859,32 +6646,10 @@ module scheduler_group_array (
 	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
-	wire [NUM_CHANNELS - 1:0] desc_ar_valid;
-	reg [NUM_CHANNELS - 1:0] desc_ar_ready;
-	wire [(NUM_CHANNELS * ADDR_WIDTH) - 1:0] desc_ar_addr;
-	wire [(NUM_CHANNELS * 8) - 1:0] desc_ar_len;
-	wire [(NUM_CHANNELS * 3) - 1:0] desc_ar_size;
-	wire [(NUM_CHANNELS * 2) - 1:0] desc_ar_burst;
-	wire [(NUM_CHANNELS * AXI_ID_WIDTH) - 1:0] desc_ar_id;
-	wire [NUM_CHANNELS - 1:0] desc_ar_lock;
-	wire [(NUM_CHANNELS * 4) - 1:0] desc_ar_cache;
-	wire [(NUM_CHANNELS * 3) - 1:0] desc_ar_prot;
-	wire [(NUM_CHANNELS * 4) - 1:0] desc_ar_qos;
-	wire [(NUM_CHANNELS * 4) - 1:0] desc_ar_region;
-	reg [NUM_CHANNELS - 1:0] desc_r_valid;
-	wire [NUM_CHANNELS - 1:0] desc_r_ready;
-	reg [(NUM_CHANNELS * 256) - 1:0] desc_r_data;
-	reg [(NUM_CHANNELS * 2) - 1:0] desc_r_resp;
-	reg [NUM_CHANNELS - 1:0] desc_r_last;
-	reg [(NUM_CHANNELS * AXI_ID_WIDTH) - 1:0] desc_r_id;
 	wire [NUM_CHANNELS - 1:0] mon_valid_ch;
 	reg [NUM_CHANNELS - 1:0] mon_ready_ch;
 	wire [127:0] mon_packet_ch [0:NUM_CHANNELS - 1];
 	wire [63:0] mon_timestamp_ch [0:NUM_CHANNELS - 1];
-	wire desc_ar_grant_valid;
-	wire [NUM_CHANNELS - 1:0] desc_ar_grant;
-	reg [NUM_CHANNELS - 1:0] desc_ar_grant_ack;
-	wire [CHAN_WIDTH - 1:0] desc_ar_grant_id;
 	reg desc_axi_int_arvalid;
 	wire desc_axi_int_arready;
 	reg [ADDR_WIDTH - 1:0] desc_axi_int_araddr;
@@ -5907,200 +6672,388 @@ module scheduler_group_array (
 	reg desc_axi_mon_ready;
 	wire [127:0] desc_axi_mon_packet;
 	wire [63:0] desc_axi_mon_timestamp;
-	localparam signed [31:0] MONBUS_SOURCES = NUM_CHANNELS + 1;
+	localparam signed [31:0] MONBUS_SOURCES = (SHARED_ENGINES != 0 ? NUM_CHANNELS + 2 : NUM_CHANNELS + 1);
+	wire sh_desc_mon_valid;
+	reg sh_desc_mon_ready;
+	wire [127:0] sh_desc_mon_packet;
+	wire [63:0] sh_desc_mon_timestamp;
 	reg [0:MONBUS_SOURCES - 1] monbus_valid_all;
 	wire [0:MONBUS_SOURCES - 1] monbus_ready_all;
 	reg [(MONBUS_SOURCES * monitor_common_pkg_MONBUS_PKT_WIDTH) - 1:0] monbus_packet_all;
 	reg [(MONBUS_SOURCES * monitor_common_pkg_MONBUS_TS_WIDTH) - 1:0] monbus_timestamp_all;
-	genvar _gv_ch_1;
-	generate
-		for (_gv_ch_1 = 0; _gv_ch_1 < NUM_CHANNELS; _gv_ch_1 = _gv_ch_1 + 1) begin : gen_scheduler_groups
-			localparam ch = _gv_ch_1;
-			scheduler_group #(
-				.USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
-				.CHANNEL_ID(ch),
-				.GEN_MON(GEN_MON),
-				.NUM_CHANNELS(NUM_CHANNELS),
-				.CHAN_WIDTH(CHAN_WIDTH),
-				.ADDR_WIDTH(ADDR_WIDTH),
-				.DATA_WIDTH(DATA_WIDTH),
-				.AXI_ID_WIDTH(AXI_ID_WIDTH),
-				.DESC_MON_AGENT_ID(DESC_MON_BASE_AGENT_ID + ch),
-				.SCHED_MON_AGENT_ID(SCHED_MON_BASE_AGENT_ID + ch),
-				.MON_UNIT_ID(MON_UNIT_ID),
-				.MON_CHANNEL_ID(ch)
-			) u_scheduler_group(
-				.clk(clk),
-				.rst_n(rst_n),
-				.apb_valid(apb_valid[ch]),
-				.apb_ready(apb_ready[ch]),
-				.apb_addr(apb_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
-				.cfg_channel_enable(cfg_channel_enable[ch]),
-				.cfg_channel_reset(cfg_channel_reset[ch]),
-				.cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
-				.cfg_sched_timeout_limit(cfg_sched_timeout_limit),
-				.cfg_sched_timeout_enable(cfg_sched_timeout_enable),
-				.cfg_sched_err_enable(cfg_sched_err_enable),
-				.cfg_sched_compl_enable(cfg_sched_compl_enable),
-				.cfg_sched_perf_enable(cfg_sched_perf_enable),
-				.cfg_desceng_prefetch(cfg_desceng_prefetch),
-				.cfg_rd_prefetch_enable(cfg_rd_prefetch_enable),
-				.cfg_desceng_fifo_thresh(cfg_desceng_fifo_thresh),
-				.cfg_desceng_addr0_base(cfg_desceng_addr0_base),
-				.cfg_desceng_addr0_limit(cfg_desceng_addr0_limit),
-				.cfg_desceng_addr1_base(cfg_desceng_addr1_base),
-				.cfg_desceng_addr1_limit(cfg_desceng_addr1_limit),
-				.descriptor_engine_idle(descriptor_engine_idle[ch]),
-				.scheduler_idle(scheduler_idle[ch]),
-				.scheduler_state(scheduler_state[ch * 7+:7]),
-				.sched_error(sched_error[ch]),
-				.dbg_descriptor_error(dbg_descriptor_error[ch]),
-				.dbg_read_error_sticky(dbg_read_error_sticky[ch]),
-				.dbg_write_error_sticky(dbg_write_error_sticky[ch]),
-				.dbg_timeout_expired(dbg_timeout_expired[ch]),
-				.desc_ar_valid(desc_ar_valid[ch]),
-				.desc_ar_ready(desc_ar_ready[ch]),
-				.desc_ar_addr(desc_ar_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
-				.desc_ar_len(desc_ar_len[ch * 8+:8]),
-				.desc_ar_size(desc_ar_size[ch * 3+:3]),
-				.desc_ar_burst(desc_ar_burst[ch * 2+:2]),
-				.desc_ar_id(desc_ar_id[ch * AXI_ID_WIDTH+:AXI_ID_WIDTH]),
-				.desc_ar_lock(desc_ar_lock[ch]),
-				.desc_ar_cache(desc_ar_cache[ch * 4+:4]),
-				.desc_ar_prot(desc_ar_prot[ch * 3+:3]),
-				.desc_ar_qos(desc_ar_qos[ch * 4+:4]),
-				.desc_ar_region(desc_ar_region[ch * 4+:4]),
-				.desc_r_valid(desc_r_valid[ch]),
-				.desc_r_ready(desc_r_ready[ch]),
-				.desc_r_data(desc_r_data[ch * 256+:256]),
-				.desc_r_resp(desc_r_resp[ch * 2+:2]),
-				.desc_r_last(desc_r_last[ch]),
-				.desc_r_id(desc_r_id[ch * AXI_ID_WIDTH+:AXI_ID_WIDTH]),
-				.sched_rd_valid(sched_rd_valid[ch]),
-				.sched_rd_addr(sched_rd_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
-				.sched_rd_beats(sched_rd_beats[ch * 32+:32]),
-				.sched_wr_valid(sched_wr_valid[ch]),
-				.sched_wr_ready(sched_wr_ready[ch]),
-				.sched_wr_addr(sched_wr_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
-				.sched_wr_beats(sched_wr_beats[ch * 32+:32]),
-				.sched_rd_done_strobe(sched_rd_done_strobe[ch]),
-				.sched_rd_beats_done(sched_rd_beats_done[ch * 32+:32]),
-				.sched_wr_done_strobe(sched_wr_done_strobe[ch]),
-				.sched_wr_beats_done(sched_wr_beats_done[ch * 32+:32]),
-				.sched_wr_commit_strobe(sched_wr_commit_strobe[ch]),
-				.sched_wr_commit_beats(sched_wr_commit_beats[ch * 32+:32]),
-				.sched_rd_error(sched_rd_error[ch]),
-				.sched_wr_error(sched_wr_error[ch]),
-				.i_mon_time(i_mon_time),
-				.mon_valid(mon_valid_ch[ch]),
-				.mon_ready(mon_ready_ch[ch]),
-				.mon_packet(mon_packet_ch[ch]),
-				.mon_timestamp(mon_timestamp_ch[ch])
-			);
-		end
-		if (NUM_CHANNELS == 1) begin : gen_single_channel
-			arbiter_single_client #(.WAIT_GNT_ACK(1)) u_desc_ar_arbiter_single(
-				.clk(clk),
-				.rst_n(rst_n),
-				.block_arb(1'b0),
-				.request(desc_ar_valid[0]),
-				.grant_ack(desc_ar_grant_ack[0]),
-				.grant_valid(desc_ar_grant_valid),
-				.grant(desc_ar_grant[0]),
-				.grant_id(desc_ar_grant_id[0])
-			);
-		end
-		else begin : gen_multi_channel
-			arbiter_round_robin #(
-				.CLIENTS(NUM_CHANNELS),
-				.WAIT_GNT_ACK(1)
-			) u_desc_ar_arbiter(
-				.clk(clk),
-				.rst_n(rst_n),
-				.block_arb(1'b0),
-				.request(desc_ar_valid),
-				.grant_ack(desc_ar_grant_ack),
-				.grant_valid(desc_ar_grant_valid),
-				.grant(desc_ar_grant),
-				.grant_id(desc_ar_grant_id),
-				.last_grant()
-			);
-		end
-	endgenerate
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] ch;
-			for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
-				desc_ar_grant_ack[ch] = ((desc_ar_grant_valid && desc_ar_grant[ch]) && desc_ar_valid[ch]) && desc_axi_int_arready;
-		end
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		begin : sv2v_autoblock_2
-			reg signed [31:0] ch;
-			for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
-				desc_ar_ready[ch] = (desc_ar_grant_valid && desc_ar_grant[ch]) && desc_axi_int_arready;
-		end
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		desc_axi_int_arvalid = 1'sb0;
-		desc_axi_int_araddr = 1'sb0;
-		desc_axi_int_arlen = 1'sb0;
-		desc_axi_int_arsize = 1'sb0;
-		desc_axi_int_arburst = 1'sb0;
-		desc_axi_int_arid = 1'sb0;
-		desc_axi_int_arlock = 1'sb0;
-		desc_axi_int_arcache = 1'sb0;
-		desc_axi_int_arprot = 1'sb0;
-		desc_axi_int_arqos = 1'sb0;
-		desc_axi_int_arregion = 1'sb0;
-		begin : sv2v_autoblock_3
-			reg signed [31:0] ch;
-			for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
-				if (desc_ar_grant[ch]) begin
-					desc_axi_int_arvalid = desc_ar_valid[ch];
-					desc_axi_int_araddr = desc_ar_addr[ch * ADDR_WIDTH+:ADDR_WIDTH];
-					desc_axi_int_arlen = desc_ar_len[ch * 8+:8];
-					desc_axi_int_arsize = desc_ar_size[ch * 3+:3];
-					desc_axi_int_arburst = desc_ar_burst[ch * 2+:2];
-					desc_axi_int_arid = {{AXI_ID_WIDTH - CHAN_WIDTH {1'b0}}, ch[CHAN_WIDTH - 1:0]};
-					desc_axi_int_arlock = desc_ar_lock[ch];
-					desc_axi_int_arcache = desc_ar_cache[ch * 4+:4];
-					desc_axi_int_arprot = desc_ar_prot[ch * 3+:3];
-					desc_axi_int_arqos = desc_ar_qos[ch * 4+:4];
-					desc_axi_int_arregion = desc_ar_region[ch * 4+:4];
-				end
-		end
-	end
-	wire [CHAN_WIDTH - 1:0] desc_r_channel_id;
-	assign desc_r_channel_id = desc_axi_int_rid[CHAN_WIDTH - 1:0];
+	function automatic signed [15:0] sv2v_cast_16_signed;
+		input reg signed [15:0] inp;
+		sv2v_cast_16_signed = inp;
+	endfunction
+	function automatic signed [7:0] sv2v_cast_8_signed;
+		input reg signed [7:0] inp;
+		sv2v_cast_8_signed = inp;
+	endfunction
+	function automatic signed [8:0] sv2v_cast_9_signed;
+		input reg signed [8:0] inp;
+		sv2v_cast_9_signed = inp;
+	endfunction
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		desc_r_valid = 1'sb0;
-		begin : sv2v_autoblock_4
-			reg signed [31:0] ch;
-			for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
-				begin
-					desc_r_data[ch * 256+:256] = desc_axi_int_rdata;
-					desc_r_resp[ch * 2+:2] = desc_axi_int_rresp;
-					desc_r_last[ch] = desc_axi_int_rlast;
-					desc_r_id[ch * AXI_ID_WIDTH+:AXI_ID_WIDTH] = desc_axi_int_rid;
+	generate
+		if (SHARED_ENGINES == 0) begin : g_per_channel
+			wire [NUM_CHANNELS - 1:0] desc_ar_valid;
+			reg [NUM_CHANNELS - 1:0] desc_ar_ready;
+			wire [(NUM_CHANNELS * ADDR_WIDTH) - 1:0] desc_ar_addr;
+			wire [(NUM_CHANNELS * 8) - 1:0] desc_ar_len;
+			wire [(NUM_CHANNELS * 3) - 1:0] desc_ar_size;
+			wire [(NUM_CHANNELS * 2) - 1:0] desc_ar_burst;
+			wire [(NUM_CHANNELS * AXI_ID_WIDTH) - 1:0] desc_ar_id;
+			wire [NUM_CHANNELS - 1:0] desc_ar_lock;
+			wire [(NUM_CHANNELS * 4) - 1:0] desc_ar_cache;
+			wire [(NUM_CHANNELS * 3) - 1:0] desc_ar_prot;
+			wire [(NUM_CHANNELS * 4) - 1:0] desc_ar_qos;
+			wire [(NUM_CHANNELS * 4) - 1:0] desc_ar_region;
+			reg [NUM_CHANNELS - 1:0] desc_r_valid;
+			wire [NUM_CHANNELS - 1:0] desc_r_ready;
+			reg [(NUM_CHANNELS * 256) - 1:0] desc_r_data;
+			reg [(NUM_CHANNELS * 2) - 1:0] desc_r_resp;
+			reg [NUM_CHANNELS - 1:0] desc_r_last;
+			reg [(NUM_CHANNELS * AXI_ID_WIDTH) - 1:0] desc_r_id;
+			wire desc_ar_grant_valid;
+			wire [NUM_CHANNELS - 1:0] desc_ar_grant;
+			reg [NUM_CHANNELS - 1:0] desc_ar_grant_ack;
+			wire [CHAN_WIDTH - 1:0] desc_ar_grant_id;
+			genvar _gv_ch_1;
+			for (_gv_ch_1 = 0; _gv_ch_1 < NUM_CHANNELS; _gv_ch_1 = _gv_ch_1 + 1) begin : gen_scheduler_groups
+				localparam ch = _gv_ch_1;
+				scheduler_group #(
+					.USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+					.CHANNEL_ID(ch),
+					.GEN_MON(GEN_MON),
+					.NUM_CHANNELS(NUM_CHANNELS),
+					.CHAN_WIDTH(CHAN_WIDTH),
+					.ADDR_WIDTH(ADDR_WIDTH),
+					.DATA_WIDTH(DATA_WIDTH),
+					.AXI_ID_WIDTH(AXI_ID_WIDTH),
+					.DESC_MON_AGENT_ID(DESC_MON_BASE_AGENT_ID + ch),
+					.SCHED_MON_AGENT_ID(SCHED_MON_BASE_AGENT_ID + ch),
+					.MON_UNIT_ID(MON_UNIT_ID),
+					.MON_CHANNEL_ID(ch)
+				) u_scheduler_group(
+					.clk(clk),
+					.rst_n(rst_n),
+					.apb_valid(apb_valid[ch]),
+					.apb_ready(apb_ready[ch]),
+					.apb_addr(apb_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
+					.cfg_channel_enable(cfg_channel_enable[ch]),
+					.cfg_channel_reset(cfg_channel_reset[ch]),
+					.cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+					.cfg_sched_timeout_limit(cfg_sched_timeout_limit),
+					.cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+					.cfg_sched_err_enable(cfg_sched_err_enable),
+					.cfg_sched_compl_enable(cfg_sched_compl_enable),
+					.cfg_sched_perf_enable(cfg_sched_perf_enable),
+					.cfg_desceng_prefetch(cfg_desceng_prefetch),
+					.cfg_rd_prefetch_enable(cfg_rd_prefetch_enable),
+					.cfg_desceng_fifo_thresh(cfg_desceng_fifo_thresh),
+					.cfg_desceng_addr0_base(cfg_desceng_addr0_base),
+					.cfg_desceng_addr0_limit(cfg_desceng_addr0_limit),
+					.cfg_desceng_addr1_base(cfg_desceng_addr1_base),
+					.cfg_desceng_addr1_limit(cfg_desceng_addr1_limit),
+					.descriptor_engine_idle(descriptor_engine_idle[ch]),
+					.scheduler_idle(scheduler_idle[ch]),
+					.scheduler_state(scheduler_state[ch * 7+:7]),
+					.sched_error(sched_error[ch]),
+					.dbg_descriptor_error(dbg_descriptor_error[ch]),
+					.dbg_read_error_sticky(dbg_read_error_sticky[ch]),
+					.dbg_write_error_sticky(dbg_write_error_sticky[ch]),
+					.dbg_timeout_expired(dbg_timeout_expired[ch]),
+					.desc_ar_valid(desc_ar_valid[ch]),
+					.desc_ar_ready(desc_ar_ready[ch]),
+					.desc_ar_addr(desc_ar_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
+					.desc_ar_len(desc_ar_len[ch * 8+:8]),
+					.desc_ar_size(desc_ar_size[ch * 3+:3]),
+					.desc_ar_burst(desc_ar_burst[ch * 2+:2]),
+					.desc_ar_id(desc_ar_id[ch * AXI_ID_WIDTH+:AXI_ID_WIDTH]),
+					.desc_ar_lock(desc_ar_lock[ch]),
+					.desc_ar_cache(desc_ar_cache[ch * 4+:4]),
+					.desc_ar_prot(desc_ar_prot[ch * 3+:3]),
+					.desc_ar_qos(desc_ar_qos[ch * 4+:4]),
+					.desc_ar_region(desc_ar_region[ch * 4+:4]),
+					.desc_r_valid(desc_r_valid[ch]),
+					.desc_r_ready(desc_r_ready[ch]),
+					.desc_r_data(desc_r_data[ch * 256+:256]),
+					.desc_r_resp(desc_r_resp[ch * 2+:2]),
+					.desc_r_last(desc_r_last[ch]),
+					.desc_r_id(desc_r_id[ch * AXI_ID_WIDTH+:AXI_ID_WIDTH]),
+					.sched_rd_valid(sched_rd_valid[ch]),
+					.sched_rd_addr(sched_rd_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
+					.sched_rd_beats(sched_rd_beats[ch * 32+:32]),
+					.sched_wr_valid(sched_wr_valid[ch]),
+					.sched_wr_ready(sched_wr_ready[ch]),
+					.sched_wr_addr(sched_wr_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
+					.sched_wr_beats(sched_wr_beats[ch * 32+:32]),
+					.sched_rd_done_strobe(sched_rd_done_strobe[ch]),
+					.sched_rd_beats_done(sched_rd_beats_done[ch * 32+:32]),
+					.sched_wr_done_strobe(sched_wr_done_strobe[ch]),
+					.sched_wr_beats_done(sched_wr_beats_done[ch * 32+:32]),
+					.sched_wr_commit_strobe(sched_wr_commit_strobe[ch]),
+					.sched_wr_commit_beats(sched_wr_commit_beats[ch * 32+:32]),
+					.sched_rd_error(sched_rd_error[ch]),
+					.sched_wr_error(sched_wr_error[ch]),
+					.i_mon_time(i_mon_time),
+					.mon_valid(mon_valid_ch[ch]),
+					.mon_ready(mon_ready_ch[ch]),
+					.mon_packet(mon_packet_ch[ch]),
+					.mon_timestamp(mon_timestamp_ch[ch])
+				);
+			end
+			if (NUM_CHANNELS == 1) begin : gen_single_channel
+				arbiter_single_client #(.WAIT_GNT_ACK(1)) u_desc_ar_arbiter_single(
+					.clk(clk),
+					.rst_n(rst_n),
+					.block_arb(1'b0),
+					.request(desc_ar_valid[0]),
+					.grant_ack(desc_ar_grant_ack[0]),
+					.grant_valid(desc_ar_grant_valid),
+					.grant(desc_ar_grant[0]),
+					.grant_id(desc_ar_grant_id[0])
+				);
+			end
+			else begin : gen_multi_channel
+				arbiter_round_robin #(
+					.CLIENTS(NUM_CHANNELS),
+					.WAIT_GNT_ACK(1)
+				) u_desc_ar_arbiter(
+					.clk(clk),
+					.rst_n(rst_n),
+					.block_arb(1'b0),
+					.request(desc_ar_valid),
+					.grant_ack(desc_ar_grant_ack),
+					.grant_valid(desc_ar_grant_valid),
+					.grant(desc_ar_grant),
+					.grant_id(desc_ar_grant_id),
+					.last_grant()
+				);
+			end
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				begin : sv2v_autoblock_1
+					reg signed [31:0] ch;
+					for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
+						desc_ar_grant_ack[ch] = ((desc_ar_grant_valid && desc_ar_grant[ch]) && desc_ar_valid[ch]) && desc_axi_int_arready;
 				end
+			end
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				begin : sv2v_autoblock_2
+					reg signed [31:0] ch;
+					for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
+						desc_ar_ready[ch] = (desc_ar_grant_valid && desc_ar_grant[ch]) && desc_axi_int_arready;
+				end
+			end
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				desc_axi_int_arvalid = 1'sb0;
+				desc_axi_int_araddr = 1'sb0;
+				desc_axi_int_arlen = 1'sb0;
+				desc_axi_int_arsize = 1'sb0;
+				desc_axi_int_arburst = 1'sb0;
+				desc_axi_int_arid = 1'sb0;
+				desc_axi_int_arlock = 1'sb0;
+				desc_axi_int_arcache = 1'sb0;
+				desc_axi_int_arprot = 1'sb0;
+				desc_axi_int_arqos = 1'sb0;
+				desc_axi_int_arregion = 1'sb0;
+				begin : sv2v_autoblock_3
+					reg signed [31:0] ch;
+					for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
+						if (desc_ar_grant[ch]) begin
+							desc_axi_int_arvalid = desc_ar_valid[ch];
+							desc_axi_int_araddr = desc_ar_addr[ch * ADDR_WIDTH+:ADDR_WIDTH];
+							desc_axi_int_arlen = desc_ar_len[ch * 8+:8];
+							desc_axi_int_arsize = desc_ar_size[ch * 3+:3];
+							desc_axi_int_arburst = desc_ar_burst[ch * 2+:2];
+							desc_axi_int_arid = {{AXI_ID_WIDTH - CHAN_WIDTH {1'b0}}, ch[CHAN_WIDTH - 1:0]};
+							desc_axi_int_arlock = desc_ar_lock[ch];
+							desc_axi_int_arcache = desc_ar_cache[ch * 4+:4];
+							desc_axi_int_arprot = desc_ar_prot[ch * 3+:3];
+							desc_axi_int_arqos = desc_ar_qos[ch * 4+:4];
+							desc_axi_int_arregion = desc_ar_region[ch * 4+:4];
+						end
+				end
+			end
+			wire [CHAN_WIDTH - 1:0] desc_r_channel_id;
+			assign desc_r_channel_id = desc_axi_int_rid[CHAN_WIDTH - 1:0];
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				desc_r_valid = 1'sb0;
+				begin : sv2v_autoblock_4
+					reg signed [31:0] ch;
+					for (ch = 0; ch < NUM_CHANNELS; ch = ch + 1)
+						begin
+							desc_r_data[ch * 256+:256] = desc_axi_int_rdata;
+							desc_r_resp[ch * 2+:2] = desc_axi_int_rresp;
+							desc_r_last[ch] = desc_axi_int_rlast;
+							desc_r_id[ch * AXI_ID_WIDTH+:AXI_ID_WIDTH] = desc_axi_int_rid;
+						end
+				end
+				if (desc_axi_int_rvalid && (sv2v_cast_32(desc_r_channel_id) < NUM_CHANNELS))
+					desc_r_valid[desc_r_channel_id] = 1'b1;
+			end
+			assign desc_axi_int_rready = |desc_r_ready;
+			assign sh_desc_mon_valid = 1'b0;
+			assign sh_desc_mon_packet = 1'sb0;
+			assign sh_desc_mon_timestamp = 1'sb0;
+			wire unused_sh_mon;
+			assign unused_sh_mon = sh_desc_mon_ready;
 		end
-		if (desc_axi_int_rvalid && (sv2v_cast_32(desc_r_channel_id) < NUM_CHANNELS))
-			desc_r_valid[desc_r_channel_id] = 1'b1;
-	end
-	assign desc_axi_int_rready = |desc_r_ready;
+		else begin : g_shared
+			wire [NUM_CHANNELS - 1:0] s_desc_valid;
+			wire [NUM_CHANNELS - 1:0] s_desc_ready;
+			wire [NUM_CHANNELS - 1:0] s_desc_error;
+			wire [(NUM_CHANNELS * 256) - 1:0] s_desc_packet;
+			wire [(NUM_CHANNELS * 256) - 1:0] s_desc_ext;
+			genvar _gv_ch_2;
+			for (_gv_ch_2 = 0; _gv_ch_2 < NUM_CHANNELS; _gv_ch_2 = _gv_ch_2 + 1) begin : gen_schedulers
+				localparam ch = _gv_ch_2;
+				scheduler #(
+					.CHANNEL_ID(ch),
+					.GEN_MON(GEN_MON),
+					.NUM_CHANNELS(NUM_CHANNELS),
+					.CHAN_WIDTH(CHAN_WIDTH),
+					.ADDR_WIDTH(ADDR_WIDTH),
+					.DATA_WIDTH(DATA_WIDTH),
+					.USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+					.MON_AGENT_ID(sv2v_cast_16_signed(SCHED_MON_BASE_AGENT_ID + ch)),
+					.MON_UNIT_ID(sv2v_cast_8_signed(MON_UNIT_ID)),
+					.MON_CHANNEL_ID(sv2v_cast_9_signed(ch))
+				) u_scheduler(
+					.clk(clk),
+					.rst_n(rst_n),
+					.cfg_channel_enable(cfg_channel_enable[ch]),
+					.cfg_channel_reset(cfg_channel_reset[ch]),
+					.cfg_sched_timeout_cycles(cfg_sched_timeout_cycles),
+					.cfg_sched_timeout_limit(cfg_sched_timeout_limit),
+					.cfg_sched_timeout_enable(cfg_sched_timeout_enable),
+					.cfg_rd_prefetch_enable(cfg_rd_prefetch_enable),
+					.scheduler_idle(scheduler_idle[ch]),
+					.scheduler_state(scheduler_state[ch * 7+:7]),
+					.sched_error(sched_error[ch]),
+					.dbg_descriptor_error(dbg_descriptor_error[ch]),
+					.dbg_read_error_sticky(dbg_read_error_sticky[ch]),
+					.dbg_write_error_sticky(dbg_write_error_sticky[ch]),
+					.dbg_timeout_expired(dbg_timeout_expired[ch]),
+					.descriptor_valid(s_desc_valid[ch]),
+					.descriptor_ready(s_desc_ready[ch]),
+					.descriptor_packet(s_desc_packet[ch * 256+:256]),
+					.descriptor_ext_packet(s_desc_ext[ch * 256+:256]),
+					.descriptor_error(s_desc_error[ch]),
+					.sched_rd_valid(sched_rd_valid[ch]),
+					.sched_rd_addr(sched_rd_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
+					.sched_rd_beats(sched_rd_beats[ch * 32+:32]),
+					.sched_wr_valid(sched_wr_valid[ch]),
+					.sched_wr_ready(sched_wr_ready[ch]),
+					.sched_wr_addr(sched_wr_addr[ch * ADDR_WIDTH+:ADDR_WIDTH]),
+					.sched_wr_beats(sched_wr_beats[ch * 32+:32]),
+					.sched_rd_done_strobe(sched_rd_done_strobe[ch]),
+					.sched_rd_beats_done(sched_rd_beats_done[ch * 32+:32]),
+					.sched_wr_done_strobe(sched_wr_done_strobe[ch]),
+					.sched_wr_beats_done(sched_wr_beats_done[ch * 32+:32]),
+					.sched_wr_commit_strobe(sched_wr_commit_strobe[ch]),
+					.sched_wr_commit_beats(sched_wr_commit_beats[ch * 32+:32]),
+					.sched_rd_error(sched_rd_error[ch]),
+					.sched_wr_error(sched_wr_error[ch]),
+					.i_mon_time(i_mon_time),
+					.mon_valid(mon_valid_ch[ch]),
+					.mon_ready(mon_ready_ch[ch]),
+					.mon_packet(mon_packet_ch[ch]),
+					.mon_timestamp(mon_timestamp_ch[ch])
+				);
+			end
+			wire [1:1] sv2v_tmp_u_desc_engine_ar_valid;
+			always @(*) desc_axi_int_arvalid = sv2v_tmp_u_desc_engine_ar_valid;
+			wire [ADDR_WIDTH:1] sv2v_tmp_u_desc_engine_ar_addr;
+			always @(*) desc_axi_int_araddr = sv2v_tmp_u_desc_engine_ar_addr;
+			wire [8:1] sv2v_tmp_u_desc_engine_ar_len;
+			always @(*) desc_axi_int_arlen = sv2v_tmp_u_desc_engine_ar_len;
+			wire [3:1] sv2v_tmp_u_desc_engine_ar_size;
+			always @(*) desc_axi_int_arsize = sv2v_tmp_u_desc_engine_ar_size;
+			wire [2:1] sv2v_tmp_u_desc_engine_ar_burst;
+			always @(*) desc_axi_int_arburst = sv2v_tmp_u_desc_engine_ar_burst;
+			wire [AXI_ID_WIDTH:1] sv2v_tmp_u_desc_engine_ar_id;
+			always @(*) desc_axi_int_arid = sv2v_tmp_u_desc_engine_ar_id;
+			wire [1:1] sv2v_tmp_u_desc_engine_ar_lock;
+			always @(*) desc_axi_int_arlock = sv2v_tmp_u_desc_engine_ar_lock;
+			wire [4:1] sv2v_tmp_u_desc_engine_ar_cache;
+			always @(*) desc_axi_int_arcache = sv2v_tmp_u_desc_engine_ar_cache;
+			wire [3:1] sv2v_tmp_u_desc_engine_ar_prot;
+			always @(*) desc_axi_int_arprot = sv2v_tmp_u_desc_engine_ar_prot;
+			wire [4:1] sv2v_tmp_u_desc_engine_ar_qos;
+			always @(*) desc_axi_int_arqos = sv2v_tmp_u_desc_engine_ar_qos;
+			wire [4:1] sv2v_tmp_u_desc_engine_ar_region;
+			always @(*) desc_axi_int_arregion = sv2v_tmp_u_desc_engine_ar_region;
+			descriptor_engine_shared #(
+				.NUM_CHANNELS(NUM_CHANNELS),
+				.CHAN_WIDTH(CHAN_WIDTH),
+				.ADDR_WIDTH(ADDR_WIDTH),
+				.AXI_ID_WIDTH(AXI_ID_WIDTH),
+				.USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING),
+				.MON_AGENT_BASE(sv2v_cast_16_signed(DESC_MON_BASE_AGENT_ID)),
+				.MON_UNIT_ID(sv2v_cast_8_signed(MON_UNIT_ID)),
+				.GEN_MON(GEN_MON)
+			) u_desc_engine(
+				.clk(clk),
+				.rst_n(rst_n),
+				.apb_valid(apb_valid),
+				.apb_ready(apb_ready),
+				.apb_addr(apb_addr),
+				.channel_idle(scheduler_idle),
+				.descriptor_valid(s_desc_valid),
+				.descriptor_ready(s_desc_ready),
+				.descriptor_packet(s_desc_packet),
+				.descriptor_ext_packet(s_desc_ext),
+				.descriptor_error(s_desc_error),
+				.descriptor_eos(),
+				.descriptor_eol(),
+				.descriptor_eod(),
+				.descriptor_type(),
+				.ar_valid(sv2v_tmp_u_desc_engine_ar_valid),
+				.ar_ready(desc_axi_int_arready),
+				.ar_addr(sv2v_tmp_u_desc_engine_ar_addr),
+				.ar_len(sv2v_tmp_u_desc_engine_ar_len),
+				.ar_size(sv2v_tmp_u_desc_engine_ar_size),
+				.ar_burst(sv2v_tmp_u_desc_engine_ar_burst),
+				.ar_id(sv2v_tmp_u_desc_engine_ar_id),
+				.ar_lock(sv2v_tmp_u_desc_engine_ar_lock),
+				.ar_cache(sv2v_tmp_u_desc_engine_ar_cache),
+				.ar_prot(sv2v_tmp_u_desc_engine_ar_prot),
+				.ar_qos(sv2v_tmp_u_desc_engine_ar_qos),
+				.ar_region(sv2v_tmp_u_desc_engine_ar_region),
+				.r_valid(desc_axi_int_rvalid),
+				.r_ready(desc_axi_int_rready),
+				.r_data(desc_axi_int_rdata),
+				.r_resp(desc_axi_int_rresp),
+				.r_last(desc_axi_int_rlast),
+				.r_id(desc_axi_int_rid),
+				.cfg_prefetch_enable(cfg_desceng_prefetch),
+				.cfg_fifo_threshold(cfg_desceng_fifo_thresh),
+				.cfg_addr0_base(cfg_desceng_addr0_base),
+				.cfg_addr0_limit(cfg_desceng_addr0_limit),
+				.cfg_addr1_base(cfg_desceng_addr1_base),
+				.cfg_addr1_limit(cfg_desceng_addr1_limit),
+				.cfg_channel_reset(cfg_channel_reset),
+				.descriptor_engine_idle(descriptor_engine_idle),
+				.i_mon_time(i_mon_time),
+				.mon_valid(sh_desc_mon_valid),
+				.mon_ready(sh_desc_mon_ready),
+				.mon_packet(sh_desc_mon_packet),
+				.mon_timestamp(sh_desc_mon_timestamp)
+			);
+		end
+	endgenerate
 	assign perf_window_active = 1'b0;
 	assign perf_window_cycles = 1'sb0;
 	assign perf_prod_cycles = 1'sb0;
@@ -6217,6 +7170,13 @@ module scheduler_group_array (
 		desc_axi_mon_ready = monbus_ready_all[NUM_CHANNELS];
 		monbus_packet_all[((MONBUS_SOURCES - 1) - NUM_CHANNELS) * monitor_common_pkg_MONBUS_PKT_WIDTH+:monitor_common_pkg_MONBUS_PKT_WIDTH] = desc_axi_mon_packet;
 		monbus_timestamp_all[((MONBUS_SOURCES - 1) - NUM_CHANNELS) * monitor_common_pkg_MONBUS_TS_WIDTH+:monitor_common_pkg_MONBUS_TS_WIDTH] = desc_axi_mon_timestamp;
+		sh_desc_mon_ready = 1'b1;
+		if (SHARED_ENGINES != 0) begin
+			monbus_valid_all[MONBUS_SOURCES - 1] = sh_desc_mon_valid;
+			sh_desc_mon_ready = monbus_ready_all[MONBUS_SOURCES - 1];
+			monbus_packet_all[((MONBUS_SOURCES - 1) - (MONBUS_SOURCES - 1)) * monitor_common_pkg_MONBUS_PKT_WIDTH+:monitor_common_pkg_MONBUS_PKT_WIDTH] = sh_desc_mon_packet;
+			monbus_timestamp_all[((MONBUS_SOURCES - 1) - (MONBUS_SOURCES - 1)) * monitor_common_pkg_MONBUS_TS_WIDTH+:monitor_common_pkg_MONBUS_TS_WIDTH] = sh_desc_mon_timestamp;
+		end
 	end
 	monbus_arbiter #(
 		.CLIENTS(MONBUS_SOURCES),
@@ -6958,7 +7918,7 @@ module axi_write_engine (
 			r_aw_channel_id <= 1'sb0;
 		end
 		else begin
-			if ((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) begin
+			if (((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) && w_phase_txn_fifo_wr_ready) begin
 				r_aw_valid <= 1'b1;
 				r_aw_channel_id <= w_arb_grant_id;
 				r_aw_len <= w_transfer_size[w_arb_grant_id * 8+:8];
@@ -7382,7 +8342,7 @@ module stream_drain_ctrl (
 	assign rd_almost_empty = r_rd_almost_empty;
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule
 module stream_latency_bridge (
 	clk,
@@ -7736,6 +8696,8 @@ module perf_profiler (
 	parameter signed [31:0] TIMESTAMP_WIDTH = 32;
 	parameter signed [31:0] FIFO_DEPTH = 256;
 	parameter signed [31:0] FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH);
+	parameter signed [31:0] CHID_W = (CHANNEL_WIDTH > 3 ? CHANNEL_WIDTH : 3);
+	parameter signed [31:0] ENTRY_W = 33 + CHID_W;
 	input wire clk;
 	input wire rst_n;
 	input wire [NUM_CHANNELS - 1:0] channel_idle;
@@ -7759,11 +8721,11 @@ module perf_profiler (
 	reg [TIMESTAMP_WIDTH - 1:0] r_start_time [0:NUM_CHANNELS - 1];
 	reg [NUM_CHANNELS - 1:0] r_channel_active;
 	reg w_fifo_wr;
-	reg [35:0] w_fifo_wr_data;
+	reg [ENTRY_W - 1:0] w_fifo_wr_data;
 	wire w_fifo_wr_ready_internal;
 	wire w_fifo_full_internal;
 	wire w_fifo_rd_valid_internal;
-	wire [35:0] w_fifo_rd_data;
+	wire [ENTRY_W - 1:0] w_fifo_rd_data;
 	wire [FIFO_ADDR_WIDTH:0] w_fifo_count_internal;
 	reg [CHANNEL_WIDTH - 1:0] w_active_channel;
 	reg w_channel_event;
@@ -7782,10 +8744,10 @@ module perf_profiler (
 			r_idle_prev <= channel_idle;
 	assign w_idle_rising = channel_idle & ~r_idle_prev;
 	assign w_idle_falling = ~channel_idle & r_idle_prev;
-	genvar _gv_ch_2;
+	genvar _gv_ch_3;
 	generate
-		for (_gv_ch_2 = 0; _gv_ch_2 < NUM_CHANNELS; _gv_ch_2 = _gv_ch_2 + 1) begin : gen_channel_tracking
-			localparam ch = _gv_ch_2;
+		for (_gv_ch_3 = 0; _gv_ch_3 < NUM_CHANNELS; _gv_ch_3 = _gv_ch_3 + 1) begin : gen_channel_tracking
+			localparam ch = _gv_ch_3;
 			always @(posedge clk or negedge rst_n)
 				if (!rst_n) begin
 					r_start_time[ch] <= 1'sb0;
@@ -7854,9 +8816,9 @@ module perf_profiler (
 		end
 	end
 	assign w_elapsed_time = r_timestamp_counter - r_start_time[w_active_channel];
-	function automatic [2:0] sv2v_cast_3;
-		input reg [2:0] inp;
-		sv2v_cast_3 = inp;
+	function automatic [CHID_W - 1:0] sv2v_cast_E7F4D;
+		input reg [CHID_W - 1:0] inp;
+		sv2v_cast_E7F4D = inp;
 	endfunction
 	always @(*) begin
 		if (_sv2v_0)
@@ -7866,13 +8828,13 @@ module perf_profiler (
 		if ((cfg_enable && w_channel_event) && !w_fifo_full_internal) begin
 			w_fifo_wr = 1'b1;
 			if (cfg_mode == MODE_TIMESTAMP)
-				w_fifo_wr_data = {(w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START), sv2v_cast_3(w_active_channel), r_timestamp_counter};
+				w_fifo_wr_data = {(w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START), sv2v_cast_E7F4D(w_active_channel), r_timestamp_counter};
 			else
-				w_fifo_wr_data = {EVENT_END, sv2v_cast_3(w_active_channel), w_elapsed_time};
+				w_fifo_wr_data = {EVENT_END, sv2v_cast_E7F4D(w_active_channel), w_elapsed_time};
 		end
 	end
 	gaxi_fifo_sync #(
-		.DATA_WIDTH(36),
+		.DATA_WIDTH(ENTRY_W),
 		.DEPTH(FIFO_DEPTH)
 	) u_perf_fifo(
 		.axi_aclk(clk),
@@ -7890,7 +8852,11 @@ module perf_profiler (
 	assign perf_fifo_full = w_fifo_full_internal;
 	assign perf_fifo_count = {{(16 - FIFO_ADDR_WIDTH) - 1 {1'b0}}, w_fifo_count_internal};
 	assign perf_fifo_data_low = (perf_fifo_empty ? 32'h00000000 : w_fifo_rd_data[31:0]);
-	assign perf_fifo_data_high = (perf_fifo_empty ? 32'h00000000 : {28'b0000000000000000000000000000, w_fifo_rd_data[35:32]});
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	assign perf_fifo_data_high = (perf_fifo_empty ? 32'h00000000 : sv2v_cast_32(w_fifo_rd_data[ENTRY_W - 1:32]));
 	initial _sv2v_0 = 0;
 endmodule
 module stream_core (
@@ -8136,6 +9102,7 @@ module stream_core (
 );
 	reg _sv2v_0;
 	parameter signed [31:0] NUM_CHANNELS = 8;
+	parameter signed [31:0] SHARED_ENGINES = 1;
 	parameter signed [31:0] CHAN_WIDTH = (NUM_CHANNELS > 1 ? $clog2(NUM_CHANNELS) : 1);
 	parameter signed [31:0] ADDR_WIDTH = 64;
 	parameter signed [31:0] DATA_WIDTH = 512;
@@ -8294,7 +9261,7 @@ module stream_core (
 	input wire perf_fifo_rd;
 	output wire [31:0] perf_fifo_data_low;
 	output wire [31:0] perf_fifo_data_high;
-	input wire [2:0] cfg_obs_ch_sel;
+	input wire [(NUM_CHANNELS > 8 ? 4 : 3) - 1:0] cfg_obs_ch_sel;
 	input wire [1:0] cfg_obs_cat_sel;
 	output reg [31:0] obs_flags;
 	output reg [31:0] obs_data0;
@@ -8686,6 +9653,7 @@ module stream_core (
 	scheduler_group_array #(
 		.GEN_MON(GEN_MON),
 		.USE_AXI_MONITORS(USE_AXI_MONITORS),
+		.SHARED_ENGINES(SHARED_ENGINES),
 		.NUM_CHANNELS(NC),
 		.CHAN_WIDTH(CHAN_WIDTH),
 		.ADDR_WIDTH(AW),

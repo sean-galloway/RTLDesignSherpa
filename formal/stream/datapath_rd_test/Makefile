@@ -26,6 +26,7 @@ DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
         $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
+        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv \
         $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv \

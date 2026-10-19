@@ -212,34 +212,34 @@ module formal_scheduler (
     end
 
     // =========================================================================
-    // P4: descriptor_ready asserted only where accepting a descriptor is legal
+    // P4: Descriptor acceptance is bounded by the scheduler's descriptor skid
     //
-    // scheduler.sv:1080 pops the descriptor FIFO on THREE terms:
-    //     descriptor_ready = (state == CH_IDLE) || (state == CH_NEXT_DESC)
-    //                        || w_wr_advance;
-    // The third is the USE_RD_PREFETCH in-place advance:
-    //     w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && w_write_issued
-    //                    && w_desc_chained && descriptor_valid;
-    // so it implies BOTH CH_XFER_DATA and descriptor_valid. CH_XFER_DATA is
-    // admitted ONLY with a descriptor present; CH_FETCH_DESC / CH_COMPLETE /
-    // CH_ERROR stay forbidden.
-    //
-    // NOTE: cfg_rd_prefetch_enable was previously left UNCONNECTED on the DUT
-    // instantiation, so the port was undriven and the proof's behaviour depended
-    // on how yosys happens to treat an undriven input -- measured, it is FREE,
-    // and P4 failed. It is now an explicit (* anyseq *) input so the solver's
-    // freedom is deliberate and greppable. (cfg_sched_timeout_limit is still
-    // unconnected here -- same class of gap, does not affect this property.)
-    // See vault TASK-092.
+    // Since stream TASK-017 every scheduler takes descriptors through a 2-deep
+    // gaxi_skid_buffer: descriptor_ready is the skid's wr_ready and is high in
+    // any FSM state while the skid has room. The FSM's own pop (formerly
+    // descriptor_ready, now w_desc_take) is internal to the scheduler. What the
+    // port still guarantees: through a stretch where the FSM cannot take a
+    // descriptor (CH_FETCH_DESC / CH_COMPLETE / CH_ERROR) at most 2 handshakes
+    // complete. CH_IDLE, CH_NEXT_DESC and CH_XFER_DATA (the prefetch advance)
+    // can pop the skid, so they clear the count, as does a channel reset,
+    // which drains the skid. A skid deeper than 2 fails this property.
+    // Replaces the 2026-04-12 state-only form (TASK-092).
     // =========================================================================
+
+    reg  [2:0] f_skid_hs = 3'd0;
+    wire       f_take_ok = (scheduler_state_o == 7'b0000001) ||  // CH_IDLE
+                           (scheduler_state_o == 7'b0010000) ||  // CH_NEXT_DESC
+                           (scheduler_state_o == 7'b0000100);    // CH_XFER_DATA
+    always @(posedge clk) begin
+        if (!rst_n || f_take_ok || cfg_channel_reset)
+            f_skid_hs <= 3'd0;
+        else if (descriptor_valid && descriptor_ready_o && f_skid_hs != 3'd7)
+            f_skid_hs <= f_skid_hs + 3'd1;
+    end
+
     always @(posedge clk) begin
         if (rst_n)
-            ap_desc_ready_states: assert (
-                !descriptor_ready_o ||
-                scheduler_state_o == 7'b0000001 ||  // CH_IDLE
-                scheduler_state_o == 7'b0010000 ||  // CH_NEXT_DESC
-                (scheduler_state_o == 7'b0000100 && descriptor_valid)  // CH_XFER_DATA: prefetch advance
-            );
+            ap_desc_skid_bound: assert (f_skid_hs <= 3'd2);
     end
 
     // =========================================================================

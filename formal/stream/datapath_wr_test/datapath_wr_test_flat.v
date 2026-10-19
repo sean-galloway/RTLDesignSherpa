@@ -786,6 +786,122 @@ module gaxi_fifo_sync (
 			;
 	end
 endmodule
+module gaxi_skid_buffer (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	count,
+	rd_valid,
+	rd_ready,
+	rd_count,
+	rd_data
+);
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] DEPTH = 2;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output reg wr_ready;
+	input wire [DW - 1:0] wr_data;
+	output wire [3:0] count;
+	output reg rd_valid;
+	input wire rd_ready;
+	output wire [3:0] rd_count;
+	output wire [DW - 1:0] rd_data;
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
+	reg [3:0] r_data_count;
+	wire w_wr_xfer;
+	wire w_rd_xfer;
+	assign w_wr_xfer = wr_valid & wr_ready;
+	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+		end
+	endgenerate
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
+		end
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
+		end
+	endgenerate
+endmodule
 module stream_alloc_ctrl (
 	axi_aclk,
 	axi_aresetn,
@@ -980,7 +1096,7 @@ module stream_drain_ctrl (
 	assign rd_almost_empty = r_rd_almost_empty;
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule
 module stream_latency_bridge (
 	clk,
@@ -1693,7 +1809,7 @@ module scheduler (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
-		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
+		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
 		$finish(1);
 	end
 	localparam signed [31:0] DESC_SRC_ADDR_LO = 0;
@@ -1724,6 +1840,39 @@ module scheduler (
 	wire w_state_next_desc = r_current_state == 7'b0010000;
 	wire w_state_error = r_current_state == 7'b0100000;
 	reg r_channel_reset_active;
+	localparam signed [31:0] DESC_SKID_DW = (1 + DESC_WIDTH) + 256;
+	wire w_desc_take;
+	wire w_desc_valid;
+	wire [DESC_WIDTH - 1:0] w_desc_packet;
+	wire [255:0] w_desc_ext_packet;
+	wire w_desc_skid_valid;
+	wire w_desc_skid_stale;
+	wire [DESC_SKID_DW - 1:0] w_desc_skid_out;
+	reg r_desc_epoch;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_desc_epoch <= 1'b0;
+		else if (cfg_channel_reset && !r_channel_reset_active)
+			r_desc_epoch <= !r_desc_epoch;
+	gaxi_skid_buffer #(
+		.DATA_WIDTH(DESC_SKID_DW),
+		.DEPTH(2)
+	) u_desc_skid(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(descriptor_valid),
+		.wr_ready(descriptor_ready),
+		.wr_data({r_desc_epoch, descriptor_packet, descriptor_ext_packet}),
+		.count(),
+		.rd_valid(w_desc_skid_valid),
+		.rd_ready((w_desc_take || r_channel_reset_active) || w_desc_skid_stale),
+		.rd_count(),
+		.rd_data(w_desc_skid_out)
+	);
+	assign w_desc_skid_stale = w_desc_skid_valid && (w_desc_skid_out[DESC_SKID_DW - 1] != r_desc_epoch);
+	assign w_desc_valid = (w_desc_skid_valid && !w_desc_skid_stale) && !r_channel_reset_active;
+	assign w_desc_packet = w_desc_skid_out[DESC_WIDTH + 255:256];
+	assign w_desc_ext_packet = w_desc_skid_out[255:0];
 	reg [271:0] r_descriptor;
 	reg r_descriptor_loaded;
 	reg [ADDR_WIDTH - 1:0] r_src_addr;
@@ -1738,8 +1887,8 @@ module scheduler (
 	assign w_is_ext = r_is_ext;
 	wire [255:0] w_descriptor_ext_in;
 	wire w_is_ext_in;
-	assign w_descriptor_ext_in = descriptor_ext_packet;
-	assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) && (descriptor_packet[210:208] == 3'd1);
+	assign w_descriptor_ext_in = w_desc_ext_packet;
+	assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) && (w_desc_packet[210:208] == 3'd1);
 	reg [31:0] r_rd_run_remaining;
 	reg [31:0] r_wr_run_remaining;
 	wire w_rd_base_valid;
@@ -1832,7 +1981,7 @@ module scheduler (
 		else
 			case (r_current_state)
 				7'b0000001:
-					if (descriptor_valid && cfg_channel_enable)
+					if (w_desc_valid && cfg_channel_enable)
 						w_next_state = 7'b0000010;
 				7'b0000010:
 					if (r_descriptor[192])
@@ -1850,7 +1999,7 @@ module scheduler (
 					else if (w_write_complete)
 						w_next_state = 7'b0000001;
 				7'b0010000:
-					if (descriptor_valid)
+					if (w_desc_valid)
 						w_next_state = 7'b0000010;
 				7'b0100000: w_next_state = 7'b0100000;
 				default: w_next_state = 7'b0100000;
@@ -1892,18 +2041,18 @@ module scheduler (
 		end
 		else begin
 			r_fetch_desc_d <= w_state_fetch_desc;
-			if ((((r_current_state == 7'b0000001) || (r_current_state == 7'b0010000)) && descriptor_valid) && descriptor_ready) begin
-				r_descriptor[63-:64] <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-				r_descriptor[127-:64] <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-				r_descriptor[159-:32] <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
-				r_descriptor[191-:32] <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-				r_descriptor[192] <= descriptor_packet[DESC_VALID_BIT];
-				r_descriptor[193] <= descriptor_packet[DESC_GEN_IRQ];
-				r_descriptor[194] <= descriptor_packet[DESC_LAST];
-				r_descriptor[210-:3] <= descriptor_packet[210:208];
-				r_descriptor_ext <= descriptor_ext_packet;
+			if ((((r_current_state == 7'b0000001) || (r_current_state == 7'b0010000)) && w_desc_valid) && w_desc_take) begin
+				r_descriptor[63-:64] <= w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+				r_descriptor[127-:64] <= w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+				r_descriptor[159-:32] <= w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+				r_descriptor[191-:32] <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+				r_descriptor[192] <= w_desc_packet[DESC_VALID_BIT];
+				r_descriptor[193] <= w_desc_packet[DESC_GEN_IRQ];
+				r_descriptor[194] <= w_desc_packet[DESC_LAST];
+				r_descriptor[210-:3] <= w_desc_packet[210:208];
+				r_descriptor_ext <= w_desc_ext_packet;
 				r_is_ext <= w_is_ext_in;
-				r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !descriptor_packet[DESC_LAST];
+				r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !w_desc_packet[DESC_LAST];
 				r_rd_per_beat <= w_is_ext_in && ($signed(w_descriptor_ext_in[31-:32]) != BEAT_BYTES);
 				r_wr_per_beat <= w_is_ext_in && ($signed(w_descriptor_ext_in[127-:32]) != BEAT_BYTES);
 				r_descriptor_loaded <= 1'b1;
@@ -1957,13 +2106,13 @@ module scheduler (
 				r_descriptor[63-:64] <= w_next_src_addr;
 				r_descriptor[127-:64] <= w_next_dst_addr;
 				r_descriptor[159-:32] <= w_next_length;
-				r_descriptor[191-:32] <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-				r_descriptor[192] <= descriptor_packet[DESC_VALID_BIT];
-				r_descriptor[193] <= descriptor_packet[DESC_GEN_IRQ];
-				r_descriptor[194] <= descriptor_packet[DESC_LAST];
-				r_descriptor[210-:3] <= descriptor_packet[210:208];
+				r_descriptor[191-:32] <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+				r_descriptor[192] <= w_desc_packet[DESC_VALID_BIT];
+				r_descriptor[193] <= w_desc_packet[DESC_GEN_IRQ];
+				r_descriptor[194] <= w_desc_packet[DESC_LAST];
+				r_descriptor[210-:3] <= w_desc_packet[210:208];
 				r_is_ext <= w_is_ext_in;
-				r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !descriptor_packet[DESC_LAST];
+				r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h00000000) && !w_desc_packet[DESC_LAST];
 				if (!r_rd_ahead) begin
 					r_src_addr <= w_next_src_addr[ADDR_WIDTH - 1:0];
 					r_read_beats_remaining <= w_next_length;
@@ -2006,13 +2155,13 @@ module scheduler (
 	assign w_write_issued = r_write_beats_remaining == 32'h00000000;
 	assign w_write_complete = r_write_beats_to_commit == 32'h00000000;
 	assign w_transfer_complete = w_read_complete && w_write_issued;
-	assign w_next_src_addr = descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-	assign w_next_dst_addr = descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-	assign w_next_length = descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+	assign w_next_src_addr = w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+	assign w_next_dst_addr = w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+	assign w_next_length = w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
 	assign w_desc_chained = r_desc_chained;
 	assign w_rd_prefetch_en = (cfg_rd_prefetch_enable && !w_is_ext) && !w_is_ext_in;
-	assign w_rd_peek = (((((w_rd_prefetch_en && w_state_xfer_data) && !r_rd_ahead) && (r_read_beats_remaining == 32'h00000000)) && !w_write_issued) && w_desc_chained) && descriptor_valid;
-	assign w_wr_advance = (((w_rd_prefetch_en && w_state_xfer_data) && w_write_issued) && w_desc_chained) && descriptor_valid;
+	assign w_rd_peek = (((((w_rd_prefetch_en && w_state_xfer_data) && !r_rd_ahead) && (r_read_beats_remaining == 32'h00000000)) && !w_write_issued) && w_desc_chained) && w_desc_valid;
+	assign w_wr_advance = (((w_rd_prefetch_en && w_state_xfer_data) && w_write_issued) && w_desc_chained) && w_desc_valid;
 	wire w_sched_rd_completing_this_cycle;
 	wire w_sched_wr_completing_this_cycle;
 	assign w_sched_rd_completing_this_cycle = sched_rd_done_strobe && (r_read_beats_remaining <= sched_rd_beats_done);
@@ -2083,7 +2232,7 @@ module scheduler (
 			assign w_wr_base_addr = 1'sb0;
 		end
 	endgenerate
-	assign descriptor_ready = ((r_current_state == 7'b0000001) || (r_current_state == 7'b0010000)) || w_wr_advance;
+	assign w_desc_take = (((r_current_state == 7'b0000001) && cfg_channel_enable) || (r_current_state == 7'b0010000)) || w_wr_advance;
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_timeout_counter <= 32'h00000000;
@@ -2186,7 +2335,7 @@ module scheduler (
 					;
 			endcase
 		end
-	assign scheduler_idle = (r_current_state == 7'b0000001) && !r_channel_reset_active;
+	assign scheduler_idle = ((r_current_state == 7'b0000001) && !r_channel_reset_active) && !w_desc_skid_valid;
 	assign scheduler_state = r_current_state;
 	assign sched_error = w_state_error;
 	assign dbg_descriptor_error = r_descriptor_error;
@@ -2546,7 +2695,7 @@ module axi_write_engine (
 			r_aw_channel_id <= 1'sb0;
 		end
 		else begin
-			if ((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) begin
+			if (((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) && w_phase_txn_fifo_wr_ready) begin
 				r_aw_valid <= 1'b1;
 				r_aw_channel_id <= w_arb_grant_id;
 				r_aw_len <= w_transfer_size[w_arb_grant_id * 8+:8];

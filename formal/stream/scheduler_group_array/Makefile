@@ -30,7 +30,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
 
 # All RTL dependencies requiring monitor_pkg stripping
 # (axi4_master_rd_mon and its monitor infrastructure)
-# The array carries axi4_master_rd_monlite since amba/monitor-lite TASK-001
+# The array carries axi4_master_rd_monlite since rtl/amba/monitors TASK-001
 # (2026-09-28: the list used to name the retired full-monitor stack).
 MON_DEPS := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv \
             $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_lite.sv \
@@ -50,6 +50,7 @@ CLEAN_DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
               $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
               $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
               $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv \
+              $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/descriptor_engine_shared.sv \
               $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv \
               $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/macro/scheduler_group.sv
 
