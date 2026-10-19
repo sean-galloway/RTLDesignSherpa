@@ -283,6 +283,11 @@ async def cocotb_test_scheduler(dut):
         assert tb.generate_test_report(), "Scheduler TB recorded errors"
         assert result, "Disabled channel lost or ran its descriptor early"
 
+    elif test_type == 'desc_skid':
+        result = await tb.test_desc_skid()
+        assert tb.generate_test_report(), "Scheduler TB recorded errors"
+        assert result, "Descriptor skid test failed (stream TASK-017)"
+
     elif test_type == 'varying_lengths':
         tb.log.info("=== Scenario SCHED-LENGTHS: Varying transfer lengths ===")
         tb.log.info("  Tests 1, 2, 4, 8, 15, 16, 17, 31, 32, 64, 128, 255, 256 beats")
@@ -504,6 +509,7 @@ def generate_scheduler_test_params():
         'channel_reset',          # Channel reset functionality
         'varying_lengths',        # Wide variety of transfer lengths
         'disabled_channel',       # A disabled channel keeps its descriptor queued
+        'desc_skid',              # Two-deep descriptor skid: depth and short reset (TASK-017)
         # NEW: Tests for uncovered RTL paths (primarily run at full level)
         'true_chaining',          # True descriptor chaining (CH_NEXT_DESC state)
         'write_engine_error',     # Write engine error (sched_wr_error path)

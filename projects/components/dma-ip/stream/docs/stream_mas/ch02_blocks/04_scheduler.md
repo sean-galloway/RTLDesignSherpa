@@ -178,7 +178,7 @@ if (DESC_WIDTH != 256)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `scheduler_idle` | output | 1 | Scheduler idle flag |
+| `scheduler_idle` | output | 1 | CH_IDLE, no channel reset pending, descriptor skid empty |
 | `scheduler_state` | output | 7 | Current FSM state (one-hot encoding) |
 
 : Status Interface
@@ -188,7 +188,7 @@ if (DESC_WIDTH != 256)
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `descriptor_valid` | input | 1 | Descriptor valid from descriptor engine |
-| `descriptor_ready` | output | 1 | Scheduler ready to accept descriptor |
+| `descriptor_ready` | output | 1 | The descriptor skid has room (see Descriptor Skid Buffer) |
 | `descriptor_packet` | input | 256 | 256-bit STREAM descriptor (see format below) |
 | `descriptor_error` | input | 1 | Error signal from descriptor engine |
 
@@ -291,7 +291,7 @@ input  logic [7:0]                  cfg_sched_timeout_limit;  // Consecutive tim
 ### Status Interface
 
 ```systemverilog
-output logic                        scheduler_idle;         // Scheduler in CH_IDLE
+output logic                        scheduler_idle;         // CH_IDLE, no reset, skid empty
 output logic [6:0]                  scheduler_state;        // Current state (ONE-HOT)
 ```
 
@@ -314,10 +314,31 @@ input  logic                        descriptor_error;       // Error from descri
 ```
 
 **Descriptor Handshake:**
-- `descriptor_ready` asserted in CH_IDLE (only while `cfg_channel_enable` is set) or CH_NEXT_DESC
-- A disabled channel holds `descriptor_ready` low, so a descriptor the engine has already fetched waits in its FIFO until the channel is re-enabled; it is not consumed and dropped
-- Descriptor captured when `valid && ready`
+- `descriptor_ready` is the descriptor skid's room (below); the FSM takes from the skid in CH_IDLE (only while `cfg_channel_enable` is set), CH_NEXT_DESC, or on a write-side advance
+- Descriptor captured when the skid head is valid and the FSM takes it
 - Supports descriptor chaining (next_descriptor_ptr)
+
+### Descriptor Skid Buffer
+
+Every scheduler takes its descriptors through a two-deep skid buffer
+(`gaxi_skid_buffer`, DEPTH 2) on `{descriptor_packet, descriptor_ext_packet}`,
+in front of the descriptor engine's per-channel FIFO, which stays (stream TASK-017).
+The FSM reads the descriptor from the skid's flops rather than straight off
+the engine's 256-bit output, one engine for every channel under
+`SHARED_ENGINES`, and a running channel holds two more descriptors.
+
+- `descriptor_ready` is the skid's `wr_ready`: high while it has room,
+  whatever the FSM state. The FSM's own take (CH_IDLE while
+  `cfg_channel_enable` is set, CH_NEXT_DESC, or a write-side advance) pops the skid.
+- A disabled channel's descriptor waits in the skid (or behind it in the
+  engine FIFO) until the channel is enabled; it is not consumed and dropped.
+- `scheduler_idle` stays low while the skid holds a descriptor, so the
+  engine and the scheduler never both read idle with work pending.
+- Channel reset: the engine masks `descriptor_valid` during its reset, so
+  nothing is written during one, and the skid drains while the reset is
+  active. Each entry carries the reset epoch it was written in, and the epoch
+  flips as a reset starts, so an entry a reset too short to drain it left
+  behind is dropped at the head, never run.
 
 ### Data Read Interface (to AXI Read Engine)
 

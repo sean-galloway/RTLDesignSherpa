@@ -236,8 +236,63 @@ module scheduler #(
     // Registered to cleanly handle cfg_channel_reset assertion
     logic r_channel_reset_active;
 
+    //=========================================================================
+    // Descriptor skid buffer (rapids TASK-028 / stream TASK-017)
+    //=========================================================================
+    // Every scheduler holds two descriptors in a skid buffer at its input, in
+    // front of the descriptor engine's per-channel FIFO (owner direction
+    // 2026-10-18). The descriptor reaches the FSM from a flop here rather than
+    // straight off the engine's 256-bit fan-out (one engine for every channel
+    // under SHARED_ENGINES), and a running channel holds two more descriptors.
+    //
+    // Channel reset: the engine masks descriptor_valid while it is reset, so
+    // nothing is written during one, and the skid drains while the reset is
+    // active. Each entry carries the epoch it was written in; the epoch flips
+    // as a reset starts, so an entry a short reset did not drain is dropped at
+    // the head instead of being run.
+    localparam int DESC_SKID_DW = 1 + DESC_WIDTH + 256;   // {epoch, packet, ext}
+
+    logic                     w_desc_take;        // FSM takes the head (assigned below)
+    logic                     w_desc_valid;       // a current-epoch descriptor at the head
+    logic [DESC_WIDTH-1:0]    w_desc_packet;
+    logic [255:0]             w_desc_ext_packet;
+    logic                     w_desc_skid_valid;
+    logic                     w_desc_skid_stale;
+    logic [DESC_SKID_DW-1:0]  w_desc_skid_out;
+    logic                     r_desc_epoch;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_desc_epoch <= 1'b0;
+        end else if (cfg_channel_reset && !r_channel_reset_active) begin
+            r_desc_epoch <= !r_desc_epoch;
+        end
+    )
+
+    gaxi_skid_buffer #(
+        .DATA_WIDTH (DESC_SKID_DW),
+        .DEPTH      (2)
+    ) u_desc_skid (
+        .axi_aclk    (clk),
+        .axi_aresetn (rst_n),
+        .wr_valid    (descriptor_valid),
+        .wr_ready    (descriptor_ready),
+        .wr_data     ({r_desc_epoch, descriptor_packet, descriptor_ext_packet}),
+        .count       (),
+        .rd_valid    (w_desc_skid_valid),
+        .rd_ready    (w_desc_take || r_channel_reset_active || w_desc_skid_stale),
+        .rd_count    (),
+        .rd_data     (w_desc_skid_out)
+    );
+
+    assign w_desc_skid_stale = w_desc_skid_valid &&
+                               (w_desc_skid_out[DESC_SKID_DW-1] != r_desc_epoch);
+    assign w_desc_valid      = w_desc_skid_valid && !w_desc_skid_stale && !r_channel_reset_active;
+    assign w_desc_packet     = w_desc_skid_out[DESC_WIDTH+255:256];
+    assign w_desc_ext_packet = w_desc_skid_out[255:0];
+
     // Descriptor fields
-    // Latched from descriptor_packet in CH_IDLE state when descriptor_valid
+    // Latched from w_desc_packet in CH_IDLE state when w_desc_valid
     descriptor_t r_descriptor;
     logic r_descriptor_loaded;  // Flag indicating descriptor successfully loaded
 
@@ -271,9 +326,9 @@ module scheduler #(
     // Incoming-descriptor views used to precompute the registered decisions.
     descriptor_ext_t w_descriptor_ext_in;
     logic            w_is_ext_in;
-    assign w_descriptor_ext_in = descriptor_ext_t'(descriptor_ext_packet);
+    assign w_descriptor_ext_in = descriptor_ext_t'(w_desc_ext_packet);
     assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
-                         (desc_type_e'(descriptor_packet[210:208]) == DESC_TYPE_EXT);
+                         (desc_type_e'(w_desc_packet[210:208]) == DESC_TYPE_EXT);
 
     // Per-direction "beats left in the current contiguous run". Capped onto
     // sched_*_beats so the engine never bursts across a run boundary.
@@ -479,15 +534,15 @@ module scheduler #(
                 case (r_current_state)
                     CH_IDLE: begin
                         // Wait for:
-                        // 1. descriptor_valid (descriptor engine has descriptor ready)
+                        // 1. w_desc_valid (descriptor engine has descriptor ready)
                         // 2. cfg_channel_enable (software has enabled this channel)
-                        if (descriptor_valid && cfg_channel_enable) begin
+                        if (w_desc_valid && cfg_channel_enable) begin
                             w_next_state = CH_FETCH_DESC;
                         end
                     end
 
                     CH_FETCH_DESC: begin
-                        // Descriptor latched from descriptor_packet in one cycle
+                        // Descriptor latched from w_desc_packet in one cycle
                         // Validate descriptor.valid bit before proceeding
                         if (r_descriptor.valid) begin
                             w_next_state = CH_XFER_DATA;  // Valid descriptor → start concurrent transfer
@@ -548,10 +603,10 @@ module scheduler #(
                     CH_NEXT_DESC: begin
                         // Wait for descriptor engine to fetch next chained descriptor
                         // descriptor_engine uses r_descriptor.next_descriptor_ptr as fetch address
-                        if (descriptor_valid) begin
+                        if (w_desc_valid) begin
                             w_next_state = CH_FETCH_DESC;  // Next descriptor ready
                         end
-                        // Note: Stays in NEXT_DESC until descriptor_valid
+                        // Note: Stays in NEXT_DESC until w_desc_valid
                     end
 
                     CH_ERROR: begin
@@ -585,12 +640,12 @@ module scheduler #(
     // State-dependent register updates for descriptor fields and transfer tracking
     //
     // Key State Actions:
-    //   CH_IDLE/CH_NEXT_DESC: Sample descriptor_packet when descriptor_valid
+    //   CH_IDLE/CH_NEXT_DESC: Sample w_desc_packet when w_desc_valid
     //   CH_FETCH_DESC: Initialize working registers from latched descriptor
     //   CH_XFER_DATA:  Decrement BOTH read and write counters independently (concurrent!)
     //   CH_COMPLETE:   Clear descriptor_loaded flag
     //
-    // CRITICAL: Descriptor packet sampling happens when descriptor_valid && descriptor_ready
+    // CRITICAL: Descriptor packet sampling happens when w_desc_valid && w_desc_take
     //           (in CH_IDLE or CH_NEXT_DESC states). This ensures fresh descriptor data
     //           is captured for both the first descriptor and all chained descriptors.
     //
@@ -620,26 +675,26 @@ module scheduler #(
             // Track CH_FETCH_DESC for the one-cycle addr-gen start pulse
             r_fetch_desc_d <= w_state_fetch_desc;
 
-            // Descriptor capture: Sample descriptor_packet when handshake occurs
+            // Descriptor capture: Sample w_desc_packet when handshake occurs
             // This happens in either CH_IDLE (first descriptor) or CH_NEXT_DESC (chained)
             if ((r_current_state == CH_IDLE || r_current_state == CH_NEXT_DESC) &&
-                descriptor_valid && descriptor_ready) begin
+                w_desc_valid && w_desc_take) begin
                 // Extract fields from 256-bit STREAM descriptor
                 // - Addresses are pre-aligned (must match data width alignment)
                 // - Length is in BEATS (data width units)
                 // - No alignment metadata (STREAM simplification)
                 //
-                r_descriptor.src_addr <= descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-                r_descriptor.dst_addr <= descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-                r_descriptor.length <= descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
-                r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                r_descriptor.valid <= descriptor_packet[DESC_VALID_BIT];
-                r_descriptor.gen_irq <= descriptor_packet[DESC_GEN_IRQ];
-                r_descriptor.last <= descriptor_packet[DESC_LAST];
+                r_descriptor.src_addr <= w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+                r_descriptor.dst_addr <= w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+                r_descriptor.length <= w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+                r_descriptor.next_descriptor_ptr <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+                r_descriptor.valid <= w_desc_packet[DESC_VALID_BIT];
+                r_descriptor.gen_irq <= w_desc_packet[DESC_GEN_IRQ];
+                r_descriptor.last <= w_desc_packet[DESC_LAST];
                 // TASK-101: descriptor type (bits [210:208]) + extended chunk 1.
                 // For legacy descriptors desc_type=0 and chunk 1 is ignored.
-                r_descriptor.desc_type <= desc_type_e'(descriptor_packet[210:208]);
-                r_descriptor_ext <= descriptor_ext_packet;
+                r_descriptor.desc_type <= desc_type_e'(w_desc_packet[210:208]);
+                r_descriptor_ext <= w_desc_ext_packet;
                 // TASK-101 timing: precompute the ext-mode decisions from the
                 // INCOMING descriptor (lockstep with r_descriptor/r_descriptor_ext)
                 // so the per-cycle sched_*_beats mux selects on a register bit
@@ -648,8 +703,8 @@ module scheduler #(
                 r_is_ext      <= w_is_ext_in;
                 // Registered chained bit for THIS descriptor (retiming: keeps the
                 // 32-bit next_ptr compare out of the read-ahead advance path).
-                r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
-                                  !descriptor_packet[DESC_LAST];
+                r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
+                                  !w_desc_packet[DESC_LAST];
                 r_rd_per_beat <= w_is_ext_in &&
                                  (w_descriptor_ext_in.rd_stride_0 != BEAT_BYTES);
                 r_wr_per_beat <= w_is_ext_in &&
@@ -771,7 +826,7 @@ module scheduler #(
             // is deasserted, so this section is inactive (lockstep) at runtime.
             //-----------------------------------------------------------------
             // PEEK: read loads the FIFO head (N+1) into the read flops and marks
-            // itself one descriptor ahead. FIFO is NOT drained (no descriptor_ready).
+            // itself one descriptor ahead. FIFO is NOT drained (no w_desc_take).
             if (w_rd_peek) begin
                 r_src_addr             <= w_next_src_addr[ADDR_WIDTH-1:0];
                 r_read_beats_remaining <= w_next_length;
@@ -781,7 +836,7 @@ module scheduler #(
 
             // ADVANCE: write reloads the FIFO head (N+1) into the write flops and
             // captures its control fields (so the next w_desc_chained is correct).
-            // The FIFO is drained this cycle via descriptor_ready (see below).
+            // The FIFO is drained this cycle via w_desc_take (see below).
             if (w_wr_advance) begin
                 r_dst_addr              <= w_next_dst_addr[ADDR_WIDTH-1:0];
                 r_write_beats_remaining <= w_next_length;
@@ -789,15 +844,15 @@ module scheduler #(
                 r_descriptor.src_addr            <= w_next_src_addr;
                 r_descriptor.dst_addr            <= w_next_dst_addr;
                 r_descriptor.length              <= w_next_length;
-                r_descriptor.next_descriptor_ptr <= descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                r_descriptor.valid               <= descriptor_packet[DESC_VALID_BIT];
-                r_descriptor.gen_irq             <= descriptor_packet[DESC_GEN_IRQ];
-                r_descriptor.last                <= descriptor_packet[DESC_LAST];
-                r_descriptor.desc_type           <= desc_type_e'(descriptor_packet[210:208]);
+                r_descriptor.next_descriptor_ptr <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
+                r_descriptor.valid               <= w_desc_packet[DESC_VALID_BIT];
+                r_descriptor.gen_irq             <= w_desc_packet[DESC_GEN_IRQ];
+                r_descriptor.last                <= w_desc_packet[DESC_LAST];
+                r_descriptor.desc_type           <= desc_type_e'(w_desc_packet[210:208]);
                 r_is_ext                <= w_is_ext_in;     // legacy head -> 0
                 // Registered chained bit follows the newly-loaded N+1 descriptor.
-                r_desc_chained <= (descriptor_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
-                                  !descriptor_packet[DESC_LAST];
+                r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
+                                  !w_desc_packet[DESC_LAST];
                 // Read side: if it was NOT already ahead, advance also serves as
                 // its lockstep load onto N+1 (read had just finished N). If it
                 // WAS ahead, leave the read flops alone and just clear the flag.
@@ -912,10 +967,10 @@ module scheduler #(
     // Read-ahead prefetch control (USE_RD_PREFETCH, legacy chained only).
     // -----------------------------------------------------------------------
     // FIFO-head (next descriptor) field views. Valid to sample only when
-    // descriptor_valid; guarded by that in every use below.
-    assign w_next_src_addr = descriptor_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
-    assign w_next_dst_addr = descriptor_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
-    assign w_next_length   = descriptor_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
+    // w_desc_valid; guarded by that in every use below.
+    assign w_next_src_addr = w_desc_packet[DESC_SRC_ADDR_HI:DESC_SRC_ADDR_LO];
+    assign w_next_dst_addr = w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
+    assign w_next_length   = w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
 
     // Current descriptor continues a chain (same test the CH_COMPLETE state uses).
     assign w_desc_chained  = r_desc_chained;
@@ -931,16 +986,16 @@ module scheduler #(
     // FIFO head and mark read one descriptor ahead -- WITHOUT draining the FIFO.
     assign w_rd_peek   = w_rd_prefetch_en && w_state_xfer_data && !r_rd_ahead &&
                          (r_read_beats_remaining == 32'h0) && !w_write_issued &&
-                         w_desc_chained && descriptor_valid;
+                         w_desc_chained && w_desc_valid;
 
     // ADVANCE: write has issued its current descriptor. Reload the write flops
-    // from the FIFO head and DRAIN the FIFO (descriptor_ready pulse), staying in
+    // from the FIFO head and DRAIN the FIFO (w_desc_take pulse), staying in
     // CH_XFER_DATA -- no COMPLETE/NEXT_DESC/FETCH walk. If read was already ahead
     // (r_rd_ahead) this just clears the flag (read/write now lockstep on N+1);
     // otherwise the same reload also advances the read flops (read had finished
-    // N in lockstep). Requires the head present (descriptor_valid) and chained.
+    // N in lockstep). Requires the head present (w_desc_valid) and chained.
     assign w_wr_advance = w_rd_prefetch_en && w_state_xfer_data && w_write_issued &&
-                          w_desc_chained && descriptor_valid;
+                          w_desc_chained && w_desc_valid;
 
     // Look-ahead completion detection:
     // De-assert valid on the SAME CYCLE that the completion strobe arrives
@@ -1081,9 +1136,9 @@ module scheduler #(
     // the enable, so a disabled channel used to pop and discard every
     // descriptor reaching its queue (a kick to a disabled channel lost its
     // descriptor; found in RAPIDS 2026-10-17). It now waits until enabled.
-    assign descriptor_ready = ((r_current_state == CH_IDLE) && cfg_channel_enable) ||
-                              (r_current_state == CH_NEXT_DESC) ||
-                              w_wr_advance;
+    assign w_desc_take = ((r_current_state == CH_IDLE) && cfg_channel_enable) ||
+                         (r_current_state == CH_NEXT_DESC) ||
+                         w_wr_advance;
 
     //=========================================================================
     // Timeout and Error Management
@@ -1343,7 +1398,8 @@ module scheduler #(
     // Only CH_IDLE is "idle". CH_ERROR is a faulted channel and must NOT report
     // idle — reporting CH_ERROR as idle is what let CHANNEL_IDLE read '1' on a
     // wedged channel. A faulted channel is surfaced via sched_error/CHANNEL_ERROR.
-    assign scheduler_idle = (r_current_state == CH_IDLE) && !r_channel_reset_active;
+    assign scheduler_idle = (r_current_state == CH_IDLE) && !r_channel_reset_active &&
+                            !w_desc_skid_valid;
     assign scheduler_state = r_current_state;
     assign sched_error = w_state_error;  // Sticky error output
 

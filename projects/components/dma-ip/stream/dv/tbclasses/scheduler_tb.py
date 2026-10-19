@@ -501,8 +501,10 @@ class SchedulerTB(TBBase):
                     self.rd_addr_seq.append((int(self.dut.sched_rd_addr.value), beats_remaining))
                 self.log.info(f"📖 Read engine: Processing {beats_remaining} beats")
 
-                # Simulate read processing time
-                await self.wait_clocks(self.clk_name, random.randint(5, 15))
+                # Simulate read processing time (rd_hold_cycles, when a test
+                # sets it, holds each read that long instead)
+                hold = getattr(self, 'rd_hold_cycles', None)
+                await self.wait_clocks(self.clk_name, hold if hold else random.randint(5, 15))
 
                 # Complete read (all beats in one go for simple tests)
                 self.dut.sched_rd_done_strobe.value = 1
@@ -596,41 +598,151 @@ class SchedulerTB(TBBase):
         return completed == num_descriptors
 
     async def test_disabled_channel_holds(self):
-        """A descriptor offered to a DISABLED channel must stay in the queue:
-        no descriptor handshake while cfg_channel_enable is low, and enabling
-        the channel then takes and runs it. The scheduler used to pop in
-        CH_IDLE regardless of the enable and drop the descriptor (found in
-        RAPIDS 2026-10-17; STREAM had the same rule)."""
+        """A descriptor offered to a DISABLED channel must wait, not run and not
+        be lost: the FSM stays idle while cfg_channel_enable is low, and
+        enabling the channel then runs it exactly once. The scheduler used to
+        pop in CH_IDLE regardless of the enable and drop the descriptor (found
+        in RAPIDS 2026-10-17; STREAM had the same rule).
+
+        Since stream TASK-017 the descriptor is accepted into the scheduler's
+        two-deep skid buffer and waits there, so the port handshake may come
+        while the channel is still disabled; what must not happen is the FSM
+        leaving idle. scheduler_idle reads 0 while the skid holds it."""
         self.log.info("=== Disabled channel holds its descriptor ===")
-        taken = {'n': 0, 'busy': False}
+        idle_state = int(self.dut.scheduler_state.value)
+        taken = {'n': 0, 'ran': False}
 
         async def watch():
             while True:
                 await RisingEdge(self.clk)
                 if int(self.dut.descriptor_valid.value) and int(self.dut.descriptor_ready.value):
                     taken['n'] += 1
-                if int(self.dut.scheduler_idle.value) == 0:
-                    taken['busy'] = True
+                if int(self.dut.scheduler_state.value) != idle_state:
+                    taken['ran'] = True
         w = cocotb.start_soon(watch())
         self.dut.cfg_channel_enable.value = 0
         desc = self.create_descriptor(src_addr=0x30000, dst_addr=0x40000, length=0x40, last=True)
         send = cocotb.start_soon(self.send_descriptor(desc))
         await self.wait_clocks(self.clk_name, 300)
         ok = True
-        if taken['n']:
-            self.log.error(f"disabled channel took {taken['n']} descriptor(s)")
+        if taken['ran']:
+            self.log.error("disabled channel left idle (ran its descriptor early)")
+            ok = False
+        if taken['n'] > 1:
+            self.log.error(f"disabled channel accepted {taken['n']} descriptors, one was sent")
+            ok = False
+        if int(self.dut.scheduler_idle.value):
+            self.log.error("scheduler_idle reads 1 with a descriptor waiting in the skid")
             ok = False
         self.dut.cfg_channel_enable.value = 1
         for _ in range(400):
             await self.wait_clocks(self.clk_name, 1)
-            if taken['n']:
+            if taken['ran']:
                 break
         idle = await self.wait_for_idle(timeout_cycles=500)
         w.kill()
         send.kill()
-        if taken['n'] != 1 or not taken['busy'] or not idle:
-            self.log.error(f"after enable: taken={taken['n']} ran={taken['busy']} idle={idle}")
+        if taken['n'] != 1 or not taken['ran'] or not idle:
+            self.log.error(f"after enable: taken={taken['n']} ran={taken['ran']} idle={idle}")
             ok = False
+        return ok
+
+    async def test_desc_skid(self):
+        """stream TASK-017: the scheduler's two-deep descriptor skid buffer.
+
+        1. Behind a running descriptor the skid takes exactly two more and
+           then holds descriptor_ready low; all four then run in order.
+        2. A one-cycle channel reset with the skid full runs neither entry:
+           the reset drains one, and the reset epoch drops the other at the
+           head. Only a descriptor sent after the reset runs."""
+        self.log.info("=== Descriptor skid buffer: depth and channel reset ===")
+        self.capture_addrs = True
+        self.wr_addr_seq = []
+        self.rd_hold_cycles = 150             # keep the first descriptor running
+        hs = {'n': 0}
+        rd_seen = []   # read addresses the scheduler presents, straight off the port
+
+        async def watch():
+            while True:
+                await RisingEdge(self.clk)
+                if int(self.dut.descriptor_valid.value) and int(self.dut.descriptor_ready.value):
+                    hs['n'] += 1
+                if int(self.dut.sched_rd_valid.value):
+                    a = int(self.dut.sched_rd_addr.value)
+                    if not rd_seen or rd_seen[-1] != a:
+                        rd_seen.append(a)
+
+        async def send_all(descs):
+            for d in descs:
+                await self.send_descriptor(d)
+
+        def desc(src, beats):
+            return self.create_descriptor(src_addr=src, dst_addr=src + 0x8000000,
+                                          length=beats, last=True)
+
+        def starts():
+            return [a for a, _ in self.rd_addr_seq]
+
+        async def until(cond, cycles):
+            for _ in range(cycles):
+                if cond():
+                    return True
+                await self.wait_clocks(self.clk_name, 1)
+            return cond()
+
+        w = cocotb.start_soon(watch())
+        ok = True
+
+        # 1. depth: one running, two in the skid, one held at the port
+        self.rd_addr_seq = []
+        srcs = [0x100000, 0x200000, 0x300000, 0x400000]
+        send = cocotb.start_soon(send_all([desc(s, 1024 if i == 0 else 4)
+                                           for i, s in enumerate(srcs)]))
+        await until(lambda: hs['n'] >= 3, 600)
+        await self.wait_clocks(self.clk_name, 20)
+        d0_running = bool(starts()) and all(a < srcs[1] for a in starts())
+        held = hs['n'] == 3 and int(self.dut.descriptor_ready.value) == 0   # skid full
+        if not (d0_running and held):
+            self.log.error(f"  depth: taken={hs['n']} (exp 3 behind the running one) "
+                           f"ready={int(self.dut.descriptor_ready.value)} d0_running={d0_running}")
+            ok = False
+        idle = await self.wait_for_idle(timeout_cycles=20000)
+        first = [next((a for a in starts() if s <= a < s + 0x100000), None) for s in srcs]
+        order = [starts().index(a) for a in first if a is not None]
+        if not (idle and hs['n'] == 4 and None not in first and order == sorted(order)):
+            self.log.error(f"  depth: idle={idle} taken={hs['n']} first={first}")
+            ok = False
+        send.kill()
+
+        # 2. a one-cycle reset with the skid full runs neither skid entry
+        hs['n'] = 0
+        self.rd_addr_seq = []
+        send = cocotb.start_soon(send_all([desc(0x500000, 1024), desc(0x600000, 4),
+                                           desc(0x700000, 4)]))
+        if not await until(lambda: hs['n'] >= 3, 600):
+            self.log.error(f"  reset: skid never filled (taken={hs['n']})")
+            ok = False
+        await self.wait_clocks(self.clk_name, 2)
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 1)
+        self.dut.cfg_channel_reset.value = 0
+        rd_seen.clear()                       # every read presented from here on is checked
+        self.rd_hold_cycles = None            # back to the normal model
+        await self.wait_clocks(self.clk_name, 200)    # in-flight engine bursts finish
+        await self.wait_for_idle(timeout_cycles=2000)
+        send.kill()
+        await self.send_descriptor(desc(0x800000, 4))
+        idle = await self.wait_for_idle(timeout_cycles=2000)
+        # The skid held 0x600000 and 0x700000; neither may run. (The aborted
+        # 0x500000 descriptor's request can still show the cycle after the
+        # reset, which is the scheduler's registered reset, not the skid.)
+        stale = [a for a in rd_seen if 0x600000 <= a < 0x800000]
+        if not (idle and 0x800000 in rd_seen and not stale):
+            self.log.error(f"  reset: idle={idle} reads after reset={[hex(a) for a in rd_seen]}")
+            ok = False
+        w.kill()
+        self.capture_addrs = False
+        self.rd_hold_cycles = None
         return ok
 
     async def test_extended_addressing(self):
