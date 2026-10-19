@@ -58,10 +58,10 @@ async def cocotb_test_stream_ordered(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_ordered(dut):
-    """O4: the next batch waits for one flit of the last one back."""
+    """O4: the next packet waits for every flit of the last one back."""
     tb = await _bring_up(dut)
     ok, stats = await tb.test_ordered()
-    _finish(ok, stats, "ordered batches")
+    _finish(ok, stats, "ordered packets")
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

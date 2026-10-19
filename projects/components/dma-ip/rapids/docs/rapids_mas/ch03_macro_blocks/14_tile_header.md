@@ -297,19 +297,21 @@ Delta is moving to multi-path route tables, with failover as a table write
 can then take different paths with different latencies, so delta guarantees
 the order of flits within one packet and nothing between packets. RAPIDS
 must not rely on fabric order. Under correct configuration, four places would;
-O4's rule is decided (2026-10-19), the rest are open:
+O4 has an interim rule (2026-10-19), the rest are open:
 
 | # | Where | Mechanism | Candidate direction |
 |---|---|---|---|
 | O1 | Read replies | The tag is the sink channel only. Two reads outstanding on one sink channel, to different cells or to one cell over two paths, can reply in either order, and the sink lands the bytes in arrival order | A transaction ID per read, echoed in the reply, and the sink places by ID (AXI-ID style), or one read outstanding per sink channel |
 | O2 | Credit `set` vs `add` | A resync `set` (TILE_SPEC 11.10) can overtake, or be overtaken by, an `add` sent before it, and the counter ends wrong | A sequence or epoch on credit packets; an `add` older than the last `set` is discarded |
 | O3 | Write, then a dependent packet | A cell's data write and a later packet that depends on it (a `desc` whose source is that data, a flag) can arrive in either order | Completion is signalled (the credit return says the data was consumed), never implied by send order |
-| O4 | Writes from one cell to one sink channel | The sink lands a channel's data in arrival order, so a cell's later write that overtakes an earlier one lands in the wrong place | Built on the delta assumption that packets never interleave on a link (delta HAS, Interface Assumptions): the cell sends its next packet only once RAPIDS has returned at least one flit of the previous one. RAPIDS returns a packet's header credit when the header lands and never returns a flit it has not received, so with returns counted, `returned >= flits sent before the last packet + 1` proves the last packet arrived. No RAPIDS change; coalesced returns still count |
+| O4 | Writes from one cell to one sink channel | The sink lands a channel's data in arrival order, so a cell's later write that overtakes an earlier one lands in the wrong place | Interim rule: delta may interleave and reorder packets (delta HAS, Interface Assumptions), so the cell sends its next packet only once RAPIDS has returned every flit it has sent (its strap is whole). RAPIDS never returns a flit it has not received, so a whole strap proves every earlier packet landed and drained. No RAPIDS change, at the cost of one round trip per packet. Under evaluation: RAPIDS takes a cell's packets out of order, with the header carrying the packet's offset in that cell's landing space and the landing draining in offset order |
 
 : Table 3.14.6: RAPIDS ordering hazards under multi-path routing
 
-The flits of one packet stay in order, so the header-then-payload framing of
-the source and sink halves is unaffected.
+The flits of one packet stay in order. The header-then-payload framing of the
+source and sink halves also needs each CXS plane port to deliver a packet's
+flits together; whether delta keeps that at its plane ports once it
+interleaves is open.
 
 ## Status Registers
 

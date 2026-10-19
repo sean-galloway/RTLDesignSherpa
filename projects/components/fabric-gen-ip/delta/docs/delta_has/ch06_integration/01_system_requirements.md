@@ -40,15 +40,14 @@
 - Slaves drive `m_axis_tready` independently.
 - No master changes `TDEST` while waiting for a grant.
 - `TID` and `TUSER` widths match the generated parameters.
-- **Packets never interleave on a link** (2026-10-19, owner direction for the
-  tile). Once a packet's head flit takes an output, that output carries only
-  that packet until its `TLAST`, whatever its VC, on every mesh link and on the
-  AXIS and CXS plane ports (the CXS plane is one stream). The packet-atomic
-  grant already does this; the tile now depends on it: RAPIDS frames each CXS
-  stream as header-then-payload, and a cell orders its writes to one sink
-  channel by the first credit RAPIDS returns for the previous packet (RAPIDS
-  MAS, Tile Packet Header, Ordering Across the Fabric, O4). Interleaving flits
-  of two packets on a link, for example across the two VCs, would break both.
+- **Packets may interleave and reorder** (2026-10-19, owner direction,
+  replacing the same-day "packets never interleave" assumption). Delta
+  guarantees the order of flits within one packet and nothing between
+  packets; an endpoint must not infer arrival order from send order. The
+  tile's cells order their writes to RAPIDS by waiting for every credit back
+  (RAPIDS MAS, Tile Packet Header, Ordering Across the Fabric, O4). Open:
+  whether the AXIS and CXS plane ports still deliver one packet's flits
+  together; RAPIDS's header-then-payload framing depends on it.
 
 ## Integration Checklist
 

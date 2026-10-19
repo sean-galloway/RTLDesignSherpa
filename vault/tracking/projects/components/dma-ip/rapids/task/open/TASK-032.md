@@ -97,3 +97,12 @@ on `dv/tb_tile_cell_loop.sv` (two cells + intake, cocotb plays RAPIDS with
 AXIS slave and GAXI master BFMs): stream, strap_gate, bad_returns, too_big at
 LAND 16 and 8, 8/8. Mutations: header steps the LFSR (stream), no charge
 (strap_gate), no class check (bad_returns), all caught.
+
+## Ordering rule change 2026-10-19
+
+Owner: delta may interleave packets. `cfg_ordered` now holds the next packet
+until the strap is whole (every flit returned), replacing the one-flit rule
+(03d011c43). `test_ordered` checks the header flit alone and all-but-one flit
+do not release the next packet; the one-flit-short mutation is caught. RAPIDS
+taking a cell's packets out of order (landing offset in the header) is under
+evaluation; see RAPIDS MAS O4.

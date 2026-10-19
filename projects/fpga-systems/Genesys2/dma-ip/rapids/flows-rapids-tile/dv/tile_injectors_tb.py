@@ -271,30 +271,39 @@ class TileInjectorsTB(TBBase):
         return self._finish(errors + self._errs_clean(), "strap gate")
 
     async def test_ordered(self, beats_per_pkt: int = 3) -> Tuple[bool, Dict[str, Any]]:
-        """O4: with returns withheld a cell sends one batch even though its
-        strap covers more; one flit of that batch back releases the next."""
-        self.log.info("=== cells: ordered, the next batch waits for a flit of the last ===")
+        """O4: with returns withheld a cell sends one packet even though its
+        strap covers more; the next waits for every flit of it back, not just
+        the header's."""
+        self.log.info("=== cells: ordered, the next packet waits for all of the last back ===")
         self.dut.cfg_ordered.value = 1
         stop = [False]
         cocotb.start_soon(self.rapids(returns=False, stop=stop))
         await self.start(10 * beats_per_pkt, beats_per_pkt)
         await self.wait_clocks(self.clk_name, 1000)
         errors = []
-        fit = self.LAND // (1 + beats_per_pkt)
+        flits = 1 + beats_per_pkt
+        fit = self.LAND // flits
         if fit < 2:
-            errors.append(f"test needs a strap of two batches; {self.LAND} covers {fit}")
+            errors.append(f"test needs a strap of two packets; {self.LAND} covers {fit}")
         for x in self.CELLS:
             if len(self.packets(x)) != 1:
-                errors.append(f"{x}: {len(self.packets(x))} batches with none returned, expected 1 "
+                errors.append(f"{x}: {len(self.packets(x))} packets with none returned, expected 1 "
                               f"(the strap alone would allow {fit})")
-        await self.send_credit(self.CELLS['a']['coord'], 1)          # A's header flit
+        # The header flit alone does not release A, nor all but one flit
+        await self.send_credit(self.CELLS['a']['coord'], 1)
+        await self.send_credit(self.CELLS['a']['coord'], flits - 2)
+        self.out_flits['a'] -= flits - 1
+        await self.wait_clocks(self.clk_name, 500)
+        if len(self.packets('a')) != 1:
+            errors.append(f"A sent packet 2 with {flits - 1} of {flits} flits back")
+        await self.send_credit(self.CELLS['a']['coord'], 1)          # the last one
         self.out_flits['a'] -= 1
         await self.wait_clocks(self.clk_name, 500)
         if len(self.packets('a')) != 2 or len(self.packets('b')) != 1:
-            errors.append(f"after one flit back to A: A {len(self.packets('a'))}, B {len(self.packets('b'))} "
-                          f"batches, expected 2, 1")
+            errors.append(f"after every flit back to A: A {len(self.packets('a'))}, B {len(self.packets('b'))} "
+                          f"packets, expected 2, 1")
         stop[0] = True
-        return self._finish(errors + self._errs_clean(), "ordered batches")
+        return self._finish(errors + self._errs_clean(), "ordered packets")
 
     async def test_bad_returns(self) -> Tuple[bool, Dict[str, Any]]:
         """Malformed returns are counted, flagged and not applied; an

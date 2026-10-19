@@ -26,13 +26,13 @@
 //   A packet larger than the strap can never go: sticky err_pkt_too_big, and
 //   the cell stops (it would wait forever).
 //
-//   Ordering (cfg_ordered; RAPIDS MAS ordering hazard O4): the next packet
-//   waits until RAPIDS has returned at least one flit of the previous one,
-//   i.e. returned >= (flits sent before the last packet) + 1. RAPIDS returns
-//   a header's flit when the header lands and never a flit it has not
-//   received, so that count proves the last packet arrived; with delta not
-//   interleaving packets on a link, the next one cannot land ahead of it.
-//   The batch itself still goes whole, up to the strap.
+//   Ordering (cfg_ordered; RAPIDS MAS ordering hazard O4): delta may
+//   interleave or reorder packets, so the next packet waits until RAPIDS has
+//   returned every flit sent, i.e. the strap is whole again. RAPIDS never
+//   returns a flit it has not received, so a whole strap proves every earlier
+//   packet landed and drained. The packet itself still goes whole, up to the
+//   strap. Comparing the strap (not the sent / returned counts) keeps the rule
+//   right across a resync set.
 //
 //   Packets: cfg_beats_per_pkt beats each (0 = the whole run in one), the last
 //   one the remainder; cfg_num_beats in all. Every beat is full-strobe.
@@ -72,7 +72,7 @@ module tile_cell_tx #(
     input  logic [CRW-1:0]    cfg_coord,          // this cell's coordinate (the source)
     input  logic [BCW-1:0]    cfg_num_beats,
     input  logic [BCW-1:0]    cfg_beats_per_pkt,
-    input  logic              cfg_ordered,        // O4: wait for a flit of the last packet back
+    input  logic              cfg_ordered,        // O4: wait for every flit back
     output logic              busy,
     output logic              done,               // pulse
 
@@ -153,9 +153,7 @@ module tile_cell_tx #(
     // ---- header, then the beats -----------------------------------------
     logic r_in_pkt;                  // the header went; beats are passing
     logic w_fits, w_too_big, w_hdr_go, w_order_ok;
-    logic [31:0] r_before_last;      // flits sent before the last packet
-    logic        r_any_sent;
-    assign w_order_ok = !cfg_ordered || !r_any_sent || (returned_flits > r_before_last);
+    assign w_order_ok = !cfg_ordered || (strap_free == STW'(LAND_FLITS));
     assign w_too_big  = w_pkt_flits > (BCW + 1)'(LAND_FLITS);
     assign w_fits     = !w_too_big && w_order_ok && ((BCW + 1)'(strap_free) >= w_pkt_flits);
     assign w_hdr_go  = !r_in_pkt && g_valid && w_fits && !err_pkt_too_big && m_ready;
@@ -182,8 +180,6 @@ module tile_cell_tx #(
             sent_flits      <= '0;
             returned_flits  <= '0;
             sent_pkts       <= '0;
-            r_before_last   <= '0;
-            r_any_sent      <= 1'b0;
             err_over_return <= 1'b0;
             err_pkt_too_big <= 1'b0;
         end else begin
@@ -193,8 +189,6 @@ module tile_cell_tx #(
                 sent_flits <= '0;
                 returned_flits <= '0;
                 sent_pkts  <= '0;
-                r_before_last <= '0;
-                r_any_sent <= 1'b0;
             end else if (w_beat) begin
                 r_left <= r_left - 1'b1;
             end
@@ -218,8 +212,6 @@ module tile_cell_tx #(
             strap_free <= STW'(n);
 
             if (w_hdr_go) begin
-                r_before_last <= sent_flits;
-                r_any_sent <= 1'b1;
                 sent_flits <= sent_flits + 32'(w_pkt_flits);
                 sent_pkts  <= sent_pkts + 1'b1;
             end
