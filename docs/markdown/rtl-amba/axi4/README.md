@@ -303,7 +303,7 @@ Monitor modules combine functional core with verification:
 - Non-invasive monitoring (tap signals)
 - 2-Level Filtering: packet-type drop masks + per-event masks (err_select is reserved -- no routing)
 - 128-bit standardized monitor bus + 64-bit side-band timestamp
-  (`monitor_common_pkg::monitor_packet_t` / `monbus_timestamp_t`; field layout is
+  (`ocelus_common_pkg::monitor_packet_t` / `monbus_timestamp_t`; field layout is
   documented in the [monitor bus group reference](../monitor/monbus_group.md))
 - Real-time error detection
 

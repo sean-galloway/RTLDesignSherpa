@@ -267,7 +267,7 @@ Program `cfg_addr_range_low[i] == cfg_addr_range_high[i]` to turn a range into a
 
 **Used by:** the `apb4_monitor` pipeline (address-range violation reporting).
 
-**Uses:** `monitor_common_pkg` (`PktTypeError`, `PROTOCOL_APB`, `monbus_timestamp_t`, `create_monitor_packet`); `monitor_amba4_pkg` (`APB_ERR_ADDR_RANGE` event code); `reset_defs.svh` (`ALWAYS_FF_RST` / `RST_ASSERTED` reset macros).
+**Uses:** `ocelus_common_pkg` (`PktTypeError`, `PROTOCOL_APB`, `monbus_timestamp_t`, `create_monitor_packet`); `ocelus_amba4_pkg` (`APB_ERR_ADDR_RANGE` event code); `reset_defs.svh` (`ALWAYS_FF_RST` / `RST_ASSERTED` reset macros).
 
 **See also:** `axi_monitor_addr_check.sv` (AXI-side equivalent, no `is_read` bit); `apb4_monitor.sv` (the APB monitor this checker plugs into).
 

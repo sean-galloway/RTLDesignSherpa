@@ -132,12 +132,12 @@ variants, and the `axil4_to_wb4` bridge in
 
 The DV side mirrors the same three values in
 `CocoTBFramework.components.shared.wb4_common` (`WB4_STATUS_ACK`,
-`WB4_STATUS_ERR`, `WB4_STATUS_RTY`), and `monitor_wb4_pkg` carries the
+`WB4_STATUS_ERR`, `WB4_STATUS_RTY`), and `ocelus_wb4_pkg` carries the
 separate event codes the monitor emits.
 
 - [Wishbone B4 family README](README.md) — the protocol scope and the
   mode rules
-- [`monitor_wb4_pkg`](../includes/monitor_wb4_pkg.md) — the monitor's
+- [`ocelus_wb4_pkg`](../includes/monitor_wb4_pkg.md) — the monitor's
   event codes, a different package
 
 ## Testing

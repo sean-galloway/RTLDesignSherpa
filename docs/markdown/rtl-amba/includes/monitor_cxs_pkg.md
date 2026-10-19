@@ -26,7 +26,7 @@
 
 The per-protocol event-code reference for CXS (`PROTOCOL_CXS`, 4'h6). Every monbus packet sourced by
 [`cxs_monitor_lite`](../monitor/cxs_monitor_lite.md) takes its 8-bit `event_code` from one of the enums in
-`rtl/amba/includes/ocelus_cxs_pkg.sv` (package `monitor_cxs_pkg`, not re-exported by `monitor_pkg`).
+`rtl/amba/includes/ocelus_cxs_pkg.sv` (package `ocelus_cxs_pkg`, not re-exported by `ocelus_pkg`).
 For the packet layout and the protocol and packet-type enums, see [`monitor_package_spec.md`](./monitor_package_spec.md);
 for what each event means and its `event_data` layout, see the monitor page.
 

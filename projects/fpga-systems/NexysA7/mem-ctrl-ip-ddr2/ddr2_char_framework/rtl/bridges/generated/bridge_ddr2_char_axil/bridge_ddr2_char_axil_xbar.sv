@@ -486,7 +486,7 @@ module bridge_ddr2_char_axil_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master host 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master host 32b: round-robin per beat, lock until taken ----
     logic [4:0] host_32b_b_rarb_req;
     assign host_32b_b_rarb_req = {((chargen_apb_axi_bid_bridge_id == 0) && chargen_apb_axi_bid_valid) && chargen_apb_axi_bvalid, ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) && obs_apb_axi_bvalid, ((dfi_mon_ram_axi_bid_bridge_id == 0) && dfi_mon_ram_axi_bid_valid) && dfi_mon_ram_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((ddr2_apb_axi_bid_bridge_id == 0) && ddr2_apb_axi_bid_valid) && ddr2_apb_axi_bvalid};
     logic [2:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
@@ -518,7 +518,7 @@ module bridge_ddr2_char_axil_xbar
         end
     )
 
-    // ---- R response arbiter, master host 32b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master host 32b: round-robin per beat, lock until taken ----
     logic [4:0] host_32b_r_rarb_req;
     assign host_32b_r_rarb_req = {((chargen_apb_axi_rid_bridge_id == 0) && chargen_apb_axi_rid_valid) && chargen_apb_axi_rvalid, ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) && obs_apb_axi_rvalid, ((dfi_mon_ram_axi_rid_bridge_id == 0) && dfi_mon_ram_axi_rid_valid) && dfi_mon_ram_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((ddr2_apb_axi_rid_bridge_id == 0) && ddr2_apb_axi_rid_valid) && ddr2_apb_axi_rvalid};
     logic [2:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
@@ -536,27 +536,21 @@ module bridge_ddr2_char_axil_xbar
     wire host_32b_r_rgnt_obs_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd3);
     wire host_32b_r_rgnt_chargen_apb = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd4);
     wire host_32b_r_rarb_vld = (host_32b_r_rgnt_ddr2_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_dfi_mon_ram && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_obs_apb && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_chargen_apb && host_32b_r_rarb_req[4]);
-    wire host_32b_r_rarb_last = (host_32b_r_rgnt_ddr2_apb && ddr2_apb_axi_rlast) || (host_32b_r_rgnt_harness_csr && harness_csr_axi_rlast) || (host_32b_r_rgnt_dfi_mon_ram && dfi_mon_ram_axi_rlast) || (host_32b_r_rgnt_obs_apb && obs_apb_axi_rlast) || (host_32b_r_rgnt_chargen_apb && chargen_apb_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_r_rarb_lock   <= '0;
             host_32b_r_rarb_rr     <= '0;
             host_32b_r_rarb_locked <= 1'b0;
         end else if (host_32b_r_rarb_vld && host_32b_rready) begin
-            if (host_32b_r_rarb_last) begin
-                host_32b_r_rarb_locked <= 1'b0;
-                host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd4) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
-            end else begin
-                host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                host_32b_r_rarb_locked <= 1'b1;
-            end
+            host_32b_r_rarb_locked <= 1'b0;
+            host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd4) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
         end else if (host_32b_r_rarb_vld) begin
             host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;       // offered, not taken: hold
             host_32b_r_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- B response arbiter, master host 64b: round-robin, lock until taken ----
+    // ---- B response arbiter, master host 64b: round-robin per beat, lock until taken ----
     logic [1:0] host_64b_b_rarb_req;
     assign host_64b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((debug_sram_axi_bid_bridge_id == 0) && debug_sram_axi_bid_valid) && debug_sram_axi_bvalid};
     logic [0:0] host_64b_b_rarb_lock, host_64b_b_rarb_rr;
@@ -582,7 +576,7 @@ module bridge_ddr2_char_axil_xbar
         end
     )
 
-    // ---- R response arbiter, master host 64b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master host 64b: round-robin per beat, lock until taken ----
     logic [1:0] host_64b_r_rarb_req;
     assign host_64b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((debug_sram_axi_rid_bridge_id == 0) && debug_sram_axi_rid_valid) && debug_sram_axi_rvalid};
     logic [0:0] host_64b_r_rarb_lock, host_64b_r_rarb_rr;
@@ -594,20 +588,14 @@ module bridge_ddr2_char_axil_xbar
     wire host_64b_r_rgnt_debug_sram = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 1'd0);
     wire host_64b_r_rgnt_subtractive = host_64b_r_rarb_gnt_valid && (host_64b_r_rarb_gnt == 1'd1);
     wire host_64b_r_rarb_vld = (host_64b_r_rgnt_debug_sram && host_64b_r_rarb_req[0]) || (host_64b_r_rgnt_subtractive && host_64b_r_rarb_req[1]);
-    wire host_64b_r_rarb_last = (host_64b_r_rgnt_debug_sram && debug_sram_axi_rlast) || (host_64b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_64b_r_rarb_lock   <= '0;
             host_64b_r_rarb_rr     <= '0;
             host_64b_r_rarb_locked <= 1'b0;
         end else if (host_64b_r_rarb_vld && host_64b_rready) begin
-            if (host_64b_r_rarb_last) begin
-                host_64b_r_rarb_locked <= 1'b0;
-                host_64b_r_rarb_rr <= (host_64b_r_rarb_gnt == 1'd1) ? 1'd0 : host_64b_r_rarb_gnt + 1'b1;
-            end else begin
-                host_64b_r_rarb_lock   <= host_64b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                host_64b_r_rarb_locked <= 1'b1;
-            end
+            host_64b_r_rarb_locked <= 1'b0;
+            host_64b_r_rarb_rr <= (host_64b_r_rarb_gnt == 1'd1) ? 1'd0 : host_64b_r_rarb_gnt + 1'b1;
         end else if (host_64b_r_rarb_vld) begin
             host_64b_r_rarb_lock   <= host_64b_r_rarb_gnt;       // offered, not taken: hold
             host_64b_r_rarb_locked <= 1'b1;

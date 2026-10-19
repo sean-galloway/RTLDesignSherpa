@@ -158,7 +158,7 @@ async def _sched_trace(dut):
             sel_op = int(bs.w_sel_op.value)
             sel_slot = (int(bs.w_sel_head.value) >> SLOT_MSB) & ((1 << PTRW) - 1) \
                 if hasattr(bs, "w_sel_head") else -1
-            w_ops = [int(bs.w_op[i].value) for i in range(NB)]
+            w_ops = [int(bs.w_op_pick[i].value) for i in range(NB)]
             ws_v = [(int(bs.r_ws[i].value) >> HEAD_MSB) & 1 for i in range(NB)]
             ws_s = [(int(bs.r_ws[i].value) >> SLOT_MSB) & ((1 << PTRW) - 1) for i in range(NB)]
             rs_v = [(int(bs.r_rs[i].value) >> HEAD_MSB) & 1 for i in range(NB)]
@@ -195,8 +195,11 @@ async def _sched_trace(dut):
                     fh.write(h + "\n")
                 fh.flush()
                 bad_seen = True
-            # Continuous window around the known assert timestamp.
-            if 365300000 <= t <= 365450000:
+            # Continuous window around the known assert timestamp (widened via
+            # env for general burst-window debugging; default ~4 us).
+            t0 = int(os.environ.get("TRACE_T0", "365300000"), 0)
+            t1 = int(os.environ.get("TRACE_T1", "365700000"), 0)
+            if t0 <= t <= t1:
                 fh.write(line + "\n")
                 fh.flush()
         except Exception as e:
@@ -400,9 +403,13 @@ async def cocotb_test_granite_col_major_gap(dut):
         cocotb.start_soon(_pin_trace(dut))
     elif os.environ.get("TRACE", "0") == "2":
         cocotb.start_soon(_pin_trace(dut))
-    # col-major: one row in the SAME bank per txn; wrap at the device.
-    stride = (1 << COL_W) * DRAM_DEVICE_BYTES          # one row, same bank
-    wrap = (1 << ROW_W) * stride - 1                   # device boundary
+    # col-major: one row per txn; wrap at the device.  TEST_ROW_STRIDE
+    # (default 1) scales the stride in row units -- 8 reproduces the perf
+    # proxy's "same-bank row stride" (16 KiB = 8 x 2 KiB rows, bank rotates
+    # every 8 txns on the board geometry), while 1 walks bank-by-bank.
+    row_stride = int(os.environ.get("TEST_ROW_STRIDE", "1"), 0)
+    stride = (1 << COL_W) * DRAM_DEVICE_BYTES * row_stride
+    wrap = (1 << ROW_W) * (1 << COL_W) * DRAM_DEVICE_BYTES - 1  # device boundary
 
     def prog():
         results = {}

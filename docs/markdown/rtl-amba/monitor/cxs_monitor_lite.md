@@ -41,7 +41,7 @@
 - Events the bus cannot take are dropped and counted, and the count is reported as Error/EVENT_DROPPED.
 - Timeouts are in microseconds, independent of the clock frequency.
 
-A separate core is needed because CXS is not a valid/ready stream. Flits move on credits, packets are delimited inside flits by CXSCNTL, and a four-phase ACTIVEREQ/ACTIVEACK handshake brings the link up and down. Every packet is tagged `PROTOCOL_CXS` (4'h6), with event codes from [`monitor_cxs_pkg`](../includes/monitor_cxs_pkg.md).
+A separate core is needed because CXS is not a valid/ready stream. Flits move on credits, packets are delimited inside flits by CXSCNTL, and a four-phase ACTIVEREQ/ACTIVEACK handshake brings the link up and down. Every packet is tagged `PROTOCOL_CXS` (4'h6), with event codes from [`ocelus_cxs_pkg`](../includes/monitor_cxs_pkg.md).
 
 The block is a **tap**: every port is an input and it drives nothing. Following the house rule for monitors, it never sits on the external link pins. It watches two things:
 

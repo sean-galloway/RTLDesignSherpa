@@ -249,8 +249,8 @@ Both counters are 16-bit and wrap on overflow. For very long runs the host shoul
 
 **Uses:**
 
-- **monitor_common_pkg** — `PktTypePerf` and shared packet definitions
-- **monitor_amba4_pkg** — `AXI_PERF_COMPLETED_COUNT` / `AXI_PERF_ERROR_COUNT` event codes
+- **ocelus_common_pkg** — `PktTypePerf` and shared packet definitions
+- **ocelus_amba4_pkg** — `AXI_PERF_COMPLETED_COUNT` / `AXI_PERF_ERROR_COUNT` event codes
 - **reset_defs.svh** — reset macros (`ALWAYS_FF_RST`, `RST_ASSERTED`)
 
 **See also:**

@@ -44,10 +44,10 @@ The `apb4_monitor` is an APB transaction monitor with comprehensive error detect
 
 ```systemverilog
 module apb4_monitor
-    import monitor_common_pkg::*;  // PROTOCOL_APB, PktType*, transaction states
-    import monitor_amba4_pkg::*;   // APB_ERR_*, APB_TIMEOUT_*, etc.
-    // (`import monitor_pkg::*;` is intentionally omitted -- its helpers
-    // duplicate monitor_common_pkg's and Vivado flags the wildcard overlap)
+    import ocelus_common_pkg::*;  // PROTOCOL_APB, PktType*, transaction states
+    import ocelus_amba4_pkg::*;   // APB_ERR_*, APB_TIMEOUT_*, etc.
+    // (`import ocelus_pkg::*;` is intentionally omitted -- its helpers
+    // duplicate ocelus_common_pkg's and Vivado flags the wildcard overlap)
 #(
     parameter bit USE_MONITOR         = 1'b1,  // 0 = omit monitor body, tie outputs
     parameter int N_ADDR_RANGES       = 0,     // 0 = address-range checker disabled
@@ -389,7 +389,7 @@ apb4_monitor #(
 
 - `apb4_master.sv` - APB master with cmd/rsp interfaces
 - `apb4_slave.sv` - APB slave with cmd/rsp interfaces
-- `monitor_common_pkg.sv` / `monitor_amba4_pkg.sv` - Monitor packet definitions and APB event codes
+- `ocelus_common_pkg.sv` / `ocelus_amba4_pkg.sv` - Monitor packet definitions and APB event codes
 - `gaxi_fifo_sync.sv` - Recommended for monitor packet buffering
 
 ## Testing

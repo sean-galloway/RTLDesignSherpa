@@ -46,7 +46,7 @@ The intended home is the Genesys 2 monitor board-validation build; see `vault/ha
 
 | Parameter | Default | Description | Constraints |
 |-----------|---------|-------------|-------------|
-| `PKT_WIDTH` | 128 | Monitor packet width | Locked by `monitor_common_pkg` |
+| `PKT_WIDTH` | 128 | Monitor packet width | Locked by `ocelus_common_pkg` |
 | `TS_WIDTH` | 64 | Side-band timestamp width | Locked |
 | `COUNT_WIDTH` | 32 | Saturating bin-count width | ≥ 1; sizes the SRAM word |
 | `NUM_LATCH` | 4 | First-event capture slots | ≥ 1 |
@@ -243,7 +243,7 @@ Each accepted packet is a read-modify-write on the count SRAM (read the bin, sat
 | Block | Role |
 |-------|------|
 | [`monbus_legal_cam`](monbus_legal_cam.md) | The CSR-loaded legal-set match CAM that maps `{agent, protocol, pkt_type, event_code}` to a dense bin index (hit) or a miss (`UNEXPECTED`). Always in the path. |
-| `monitor_common_pkg` | The locked 128-bit packet field map (`pkt_type[127:124]`, `protocol[108:105]`, `event_code[104:97]`, `agent_id[87:72]`). |
+| `ocelus_common_pkg` | The locked 128-bit packet field map (`pkt_type[127:124]`, `protocol[108:105]`, `event_code[104:97]`, `agent_id[87:72]`). |
 | synchronous single-port SRAM | The backing dense count matrix (`N_PROFILE+1` deep). |
 
 ### See Also

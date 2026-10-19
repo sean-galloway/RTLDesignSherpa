@@ -300,7 +300,7 @@ The five `SKID_DEPTH_*` parameters size the per-channel skid buffers in the leav
 - **monbus_group_core.sv** — protocol-agnostic capture core (all logic)
 - **axi4_slave_rd.sv** — AXI4 slave-read leaf (error drain)
 - **axi4_master_wr.sv** — AXI4 master-write leaf (bulk capture)
-- **monitor_common_pkg** — packet and timestamp types
+- **ocelus_common_pkg** — packet and timestamp types
 
 **See also:**
 

@@ -210,8 +210,8 @@ The 3-bit state codes follow `transaction_state_t` (`TRANS_IDLE=0`, `ADDR_PHASE=
 
 **Uses:**
 
-- **monitor_common_pkg** - `PktTypeDebug`, `transaction_state_t`, `TRANS_IDLE`, `bus_transaction_t`
-- **monitor_amba4_pkg** - `AXI_DEBUG_STATE_CHANGE` event code
+- **ocelus_common_pkg** - `PktTypeDebug`, `transaction_state_t`, `TRANS_IDLE`, `bus_transaction_t`
+- **ocelus_amba4_pkg** - `AXI_DEBUG_STATE_CHANGE` event code
 - **reset_defs.svh** - `ALWAYS_FF_RST` / `RST_ASSERTED` reset macros
 
 **See also:**

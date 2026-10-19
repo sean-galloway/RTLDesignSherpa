@@ -761,3 +761,82 @@ logged as remaining scheduler perf headroom, not a functional defect: the gap
 repro at all four tREFI values and the perf proxy itself both report `mism=0`.
 
 ---
+
+## 15. Session 2026-10-19 — aged-matrix pick core (owner architecture): landed, battery green, timing NOT closed
+
+**Architecture (owner spec):** per-(dir,bank) `mc_age_fifo` (enqueue-time
+`needs_act` decode from the tail-row compare — decode on the way into the
+flops where the information is perfect; 6-bit saturating age, push =
+empty?0:tail+1, global decrement on every fire) + 16x16 `mc_matrix_arbiter`
+over age-minimum, timer-masked requests + registered winner with
+hold-on-not-fired.  The store's combinational per-bank head-scan block is
+deleted at the source (WR fifo pushes at fdone, RD at AR; pops at
+commit/issue).
+
+**Functional: GREEN.**  Unit test (age discipline, decrement saturation,
+simultaneous push+decrement, all four needs_act cases, matrix grant
+rotation) + 3 nets + perf + pumice 6/211 reference.  `test_granite_bankfifo_debug`
+now XPASSES (the bug it documents is fixed by this architecture).  Perf vs
+the previous best core (txn=1024, tREFI=585, mism=0 everywhere):
+incremental 576.7/561.2 rd (+10%), row_major 578.8/562.3, col_ilv
+511.5/498.9 (rd +44%), col_major 261.8/292.8 (wr pinned at the JEDEC wall).
+
+**Timing: NOT CLOSED.**  Clean 75 MHz build: **WNS -33.414 ns**, ~14.8k
+failing endpoints, 80% routing.  Worst paths: fifo array registers
+(`g_age_fifo[*].u_*_fifo/r_*_reg`) -> `r_winner_reg[head payload]/D`, 53
+logic levels.  Root cause is integration shape, not cone depth: the wide
+combinational head+head2 payload buses (~1300 wires) cross the
+store->scheduler boundary, the live per-bank op decode and the 38-bit
+winner payload mux sit in front of `r_winner/D`, and the placer cannot
+co-locate store+fifos+scheduler (domain-wide congestion).  Block diagrams:
+`assets/mc003/01_aged_core_failing_cone.png` and
+`02_aged_core_target_shape.png`.
+
+**Fix path (documented, not yet landed):**
+1. Pair-only winner ({vld,is_rd,bank}, 11 bits) — payload read combinationally
+   AT FIRE from the winner pair's live head (frozen during hold; a pair's
+   fifo only pops on its own fire).  Prototype: the payload cone left the
+   register endpoint but the build above shows the decode+buses must also go.
+2. Tag-gated request cone — `act ? rowop-readies : rdwr_ready` replaces the
+   live op decode in the min/mask (decode then only feeds the fire stage).
+   **Blocked by an N=1 functional bug**, §16.
+3. A thin store-boundary head pipe (head/head2 registered at the boundary) —
+   restores a structural break without the skid hop the seat-pending stage
+   added (its hop is what the fifos replace).
+
+Scoreboard (all clean-build 75 MHz): 0-stage seat-pending (c1dab8e00)
+-1.346 plain / -0.730 directed; registered pick -3.719; aged landed
+-33.414.  The 0-stage core with directives remains the only near-term
+closable configuration; the aged core needs rounds 1-3 above.
+
+## 16. The tag-gate N=1 bug (repro + bisect record for the follow-up)
+
+Prototype = landed aged core + pair-only winner + tag-gated req/min.
+`test_granite_top_geared[gate-1-0]` (NUM_ENTRIES=1) hangs: AXI write
+timeout waiting for B at 0x2000 (id=1), identical signature across
+variants of the gate.
+
+Bisect (single-test loop, ~40 s each): agent version PASSES; +head2-on-fire
+PASSES; +tag-gate (both the OR form and the exact-class
+`row_active ? pre_ready : act_ready` form) FAILS.  So the failure rides
+with the tag-gated req/min specifically, NOT the payload removal.
+
+Probe data (MC003_DBG ifdef, gated $display in mc_bank_sched; define plumbed
+via the test's compile_args): at the hang, `req=bit9` (WR bank 4),
+`wv=bit4` (WR fifo head present), `gnt=bit9`, `pickv=1`, `min=0`,
+`winv=0`, `ovr=0`, `fire=0` — **the matrix grants and w_pick_vld=1 yet
+`r_winner.vld` never loads**, at exactly two sample cycles.  The FF load
+condition (`w_demand_fire || !r_winner.vld || winner_stale`) must load every
+cycle while `!r_winner.vld`; the observed state violates that, which does
+NOT follow from the gate semantics — suspect a subtle interaction at sparse
+grants (winner-load vs head2-presentation vs the gated minimum) or a
+rebuild artifact from the rapid bisect.  Fresh-eyes debug, not more probing:
+rebuild the prototype cleanly from the committed landed core (commit
+pending at writing; check git log for "aged-matrix"), apply the pair-only
++ tag-gate deltas from `/tmp/sched_mine_vs_agent5.diff` (regenerate from
+the committed files if gone), and instrument the winner FF's D-input
+directly.
+
+Also logged: the minimum MUST be over fireable heads (gate or op!=NOP inside
+the min) — a blocked global-oldest with an ungated minimum starves every
+pair (fixed in the prototype, kept in the target spec).

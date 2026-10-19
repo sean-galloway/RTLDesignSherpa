@@ -302,7 +302,7 @@ read/write engines, credit-based flow control).
 
 ### Unified Event Code Union (`arb_core_event_code_t`)
 
-`monitor_arbiter_pkg` exports a single `arb_core_event_code_t` packed
+`ocelus_arbiter_pkg` exports a single `arb_core_event_code_t` packed
 union that overlays all twelve enums (six ARB + six CORE) plus a `raw`
 8-bit view onto a single field. Use this when a wrapper carries event
 codes from either protocol on a shared bus — the `protocol` field of the

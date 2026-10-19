@@ -286,7 +286,7 @@ The error-drain path is byte-for-byte the same as the AXI4/AXI4 group — the re
 - **monbus_group_core.sv** — protocol-agnostic capture core (all logic), `MAX_BURST_BEATS=1`
 - **axi4_slave_rd.sv** — AXI4 slave-read leaf (error drain)
 - **axil4_master_wr.sv** — AXIL master-write leaf (bulk capture)
-- **monitor_common_pkg** — packet and timestamp types
+- **ocelus_common_pkg** — packet and timestamp types
 
 **See also:**
 

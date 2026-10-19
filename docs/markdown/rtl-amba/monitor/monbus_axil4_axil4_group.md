@@ -335,7 +335,7 @@ The `g_drain_2to1` path exists for 32-bit host crossbars. It is a careful 2:1 se
 - **axil4_slave_rd.sv** — Slave-read (err-drain) skid leaf
 - **axil4_master_wr.sv** — Master-write (bulk-capture) skid leaf
 - **monbus_compressor.sv** — Optional runtime compressor (`USE_COMPRESSION=1`)
-- **monitor_common_pkg** — `monitor_packet_t` / `monbus_timestamp_t` types
+- **ocelus_common_pkg** — `monitor_packet_t` / `monbus_timestamp_t` types
 - **reset_defs.svh** — Reset macros
 
 **See also:**

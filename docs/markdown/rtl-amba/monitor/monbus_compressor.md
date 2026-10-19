@@ -92,7 +92,7 @@ downstream packer; the main `out_slot` stream is unchanged.
 
 ```systemverilog
 module monbus_compressor
-    import monitor_common_pkg::*;
+    import ocelus_common_pkg::*;
 #(
     // 0 = default; 64-bit-slot codec only (the committed, timing-closed path).
     // 1 = also expose a 30-bit half-slot sideband (out_half_*) for the

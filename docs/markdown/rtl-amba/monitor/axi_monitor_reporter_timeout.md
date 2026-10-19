@@ -191,8 +191,8 @@ Correct single-reporting depends on the top reporter driving `event_reported` an
 
 **Uses:**
 
-- **monitor_common_pkg** — `PktTypeTimeout`, `bus_transaction_t`, `TRANS_ERROR`
-- **monitor_amba4_pkg** — AMBA event-code definitions
+- **ocelus_common_pkg** — `PktTypeTimeout`, `bus_transaction_t`, `TRANS_ERROR`
+- **ocelus_amba4_pkg** — AMBA event-code definitions
 - (No sequential logic — no reset macros required)
 
 **See also:**

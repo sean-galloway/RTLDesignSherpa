@@ -39,13 +39,13 @@ The RTL splits monitor type definitions across four SystemVerilog packages:
 
 | Package | File | Purpose |
 |---|---|---|
-| `monitor_common_pkg`  | `rtl/amba/includes/ocelus_common_pkg.sv`  | Universal types: packet structure, timestamp, protocol enum, packet-type enum, helper functions. **This doc.** |
-| `monitor_amba4_pkg`   | `rtl/amba/includes/ocelus_amba4_pkg.sv`   | AXI4 / APB4 / AXIS4 event-code enums (error / timeout / completion / threshold / perf / addr-match / debug). |
-| `monitor_amba5_pkg`   | `rtl/amba/includes/ocelus_amba5_pkg.sv`   | AXI5 / APB5 / AXIS5 extended event-code enums (atomic, trace, wakeup, parity, user). |
-| `monitor_arbiter_pkg` | `rtl/amba/includes/ocelus_arbiter_pkg.sv` | ARB and CORE event codes for arbiter monitors and custom subsystems. |
+| `ocelus_common_pkg`  | `rtl/amba/includes/ocelus_common_pkg.sv`  | Universal types: packet structure, timestamp, protocol enum, packet-type enum, helper functions. **This doc.** |
+| `ocelus_amba4_pkg`   | `rtl/amba/includes/ocelus_amba4_pkg.sv`   | AXI4 / APB4 / AXIS4 event-code enums (error / timeout / completion / threshold / perf / addr-match / debug). |
+| `ocelus_amba5_pkg`   | `rtl/amba/includes/ocelus_amba5_pkg.sv`   | AXI5 / APB5 / AXIS5 extended event-code enums (atomic, trace, wakeup, parity, user). |
+| `ocelus_arbiter_pkg` | `rtl/amba/includes/ocelus_arbiter_pkg.sv` | ARB and CORE event codes for arbiter monitors and custom subsystems. |
 
-A wrapper `monitor_pkg` re-exports all four for back-compatibility — code that
-imports `monitor_pkg::*;` continues to compile unchanged.
+A wrapper `ocelus_pkg` re-exports all four for back-compatibility — code that
+imports `ocelus_pkg::*;` continues to compile unchanged.
 
 ---
 
@@ -77,7 +77,7 @@ typedef logic [MONBUS_PKT_WIDTH-1:0] monitor_packet_t;
 typedef logic [MONBUS_TS_WIDTH-1:0]  monbus_timestamp_t;
 ```
 
-The widths are localparams in `monitor_common_pkg`, **not** per-module
+The widths are localparams in `ocelus_common_pkg`, **not** per-module
 parameters — there is exactly one packet format and one timestamp format
 across the codebase. Any consumer that declares a bus or FIFO holding a
 packet must reference these constants, not hard-code `128` / `64`.
@@ -87,7 +87,7 @@ packet must reference these constants, not hard-code `128` / `64`.
 ## Protocol Enum
 
 The 4-bit `protocol` field identifies which protocol family produced the
-event. The enum is defined in `monitor_common_pkg`:
+event. The enum is defined in `ocelus_common_pkg`:
 
 | Value | Name             | Description |
 |---|---|---|
@@ -96,8 +96,8 @@ event. The enum is defined in `monitor_common_pkg`:
 | 4'h2  | `PROTOCOL_APB`   | Advanced Peripheral Bus (APB4 / APB5) |
 | 4'h3  | `PROTOCOL_ARB`   | Arbiter-specific events |
 | 4'h4  | `PROTOCOL_CORE`  | Core / custom subsystem events |
-| 4'h5  | `PROTOCOL_WB`    | Wishbone B4 events (`wb4_monitor`; event codes in `monitor_wb4_pkg`, not re-exported by `monitor_pkg`) |
-| 4'h6  | `PROTOCOL_CXS`   | CXS, Arm IHI 0079 (`cxs_monitor_lite`; event codes in [`monitor_cxs_pkg`](monitor_cxs_pkg.md), not re-exported by `monitor_pkg`) |
+| 4'h5  | `PROTOCOL_WB`    | Wishbone B4 events (`wb4_monitor`; event codes in `ocelus_wb4_pkg`, not re-exported by `ocelus_pkg`) |
+| 4'h6  | `PROTOCOL_CXS`   | CXS, Arm IHI 0079 (`cxs_monitor_lite`; event codes in [`ocelus_cxs_pkg`](monitor_cxs_pkg.md), not re-exported by `ocelus_pkg`) |
 | 4'h7–4'hF | (reserved)   | Forward-compat slack — 16 protocols max. |
 
 ```systemverilog
@@ -117,7 +117,7 @@ typedef enum logic [3:0] {
 ## Packet Type Enum
 
 The 4-bit `packet_type` field classifies the event independent of protocol.
-The 16 codes are defined as localparams in `monitor_common_pkg`:
+The 16 codes are defined as localparams in `ocelus_common_pkg`:
 
 | Value | Name               | Description |
 |---|---|---|
@@ -180,7 +180,7 @@ channel, so it carries an explicit `is_read` flag.
 
 ## Helper Functions
 
-Field accessors and a packet builder are declared in `monitor_common_pkg`:
+Field accessors and a packet builder are declared in `ocelus_common_pkg`:
 
 ```systemverilog
 function automatic logic [3:0]      get_packet_type   (monitor_packet_t pkt); return pkt[127:124]; endfunction
@@ -268,14 +268,14 @@ Categories per protocol (each ~16-entry enum):
 
 | Package | Protocol | Categories |
 |---|---|---|
-| `monitor_amba4_pkg` | AXI4  | error, timeout, completion, threshold, performance, addr_match, debug, **perfwin**, **perfhist** (nine) |
-| `monitor_amba4_pkg` | APB4  | error, timeout, completion, threshold, performance, debug |
-| `monitor_amba4_pkg` | AXIS4 | error, timeout, completion, credit, channel, stream |
-| `monitor_amba5_pkg` | AXI5  | atomic, trace |
-| `monitor_amba5_pkg` | APB5  | wakeup, parity, user |
-| `monitor_amba5_pkg` | AXIS5 | wakeup, parity, **CRC** |
-| `monitor_arbiter_pkg` | ARB | error, timeout, completion, threshold, performance, debug |
-| `monitor_arbiter_pkg` | CORE | error, timeout, completion, threshold, performance, debug |
+| `ocelus_amba4_pkg` | AXI4  | error, timeout, completion, threshold, performance, addr_match, debug, **perfwin**, **perfhist** (nine) |
+| `ocelus_amba4_pkg` | APB4  | error, timeout, completion, threshold, performance, debug |
+| `ocelus_amba4_pkg` | AXIS4 | error, timeout, completion, credit, channel, stream |
+| `ocelus_amba5_pkg` | AXI5  | atomic, trace |
+| `ocelus_amba5_pkg` | APB5  | wakeup, parity, user |
+| `ocelus_amba5_pkg` | AXIS5 | wakeup, parity, **CRC** |
+| `ocelus_arbiter_pkg` | ARB | error, timeout, completion, threshold, performance, debug |
+| `ocelus_arbiter_pkg` | CORE | error, timeout, completion, threshold, performance, debug |
 
 Full enum-value tables are in the sibling docs.
 
@@ -283,21 +283,21 @@ Full enum-value tables are in the sibling docs.
 
 ## Backward Compatibility
 
-The aggregating wrapper `monitor_pkg` re-exports every type from the four
+The aggregating wrapper `ocelus_pkg` re-exports every type from the four
 split packages, so existing code that does:
 
 ```systemverilog
-import monitor_pkg::*;
+import ocelus_pkg::*;
 ```
 
 continues to compile. New code should import the specific package it needs:
 
 ```systemverilog
 // Universal types
-import monitor_common_pkg::*;
+import ocelus_common_pkg::*;
 
 // Plus the protocol you actually use:
-import monitor_amba4_pkg::*;
+import ocelus_amba4_pkg::*;
 ```
 
 This keeps namespace pollution down and makes the dependency graph

@@ -92,12 +92,12 @@ prior revisions; they default to `ADDR_WIDTH` and `ID_WIDTH`.
 ## Ports
 
 The module exports a registered `trans_table` of `bus_transaction_t`
-entries (see `monitor_amba4_pkg.sv`) plus aggregate status:
+entries (see `ocelus_amba4_pkg.sv`) plus aggregate status:
 
 ```systemverilog
 module axi_monitor_trans_mgr
-    import monitor_common_pkg::*;
-    import monitor_amba4_pkg::*;
+    import ocelus_common_pkg::*;
+    import ocelus_amba4_pkg::*;
 #(
     parameter int MAX_TRANSACTIONS = 16,
     parameter int ADDR_WIDTH       = 32,
@@ -167,7 +167,7 @@ scan `trans_table` themselves. To act on a slot moving, compare
 `trans_table[i].state` — which is what `axi_monitor_reporter_debug` does to
 raise its `PktTypeDebug` packets.
 
-The `bus_transaction_t` struct (defined in `monitor_amba4_pkg.sv`) contains:
+The `bus_transaction_t` struct (defined in `ocelus_amba4_pkg.sv`) contains:
 - State flags: `valid`, `cmd_received`, `data_started`, `data_completed`,
   `resp_received`, `event_reported`, `eos_seen`
 - FSM state: `state` (TRANS_IDLE / ADDR_PHASE / DATA_PHASE / COMPLETE /
@@ -532,7 +532,7 @@ Further reading:
 - **Monitor Architecture:** [`docs/markdown/rtl-amba/overview.md`](../overview.md)
 - **Monitor Configuration Guide:** [`axi_monitor_base.md`](./axi_monitor_base.md)
 - **Packet Format Specification:** [`monitor_package_spec.md`](../includes/monitor_package_spec.md)
-- **Saturation-recovery contract:** [`axi_monitor_base.md`](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) and `monitor_common_pkg::cmd_entry_reserve()`
+- **Saturation-recovery contract:** [`axi_monitor_base.md`](./axi_monitor_base.md#flow-control-and-the-saturation-recovery-contract) and `ocelus_common_pkg::cmd_entry_reserve()`
 
 ---
 

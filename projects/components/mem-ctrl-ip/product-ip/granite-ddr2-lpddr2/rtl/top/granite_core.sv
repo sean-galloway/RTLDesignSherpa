@@ -222,6 +222,16 @@ module granite_core
     logic [NUM_BANKS*COL_WIDTH-1:0]     w_wr_bh_col, w_rd_bh_col, w_wr_bh2_col, w_rd_bh2_col;
     logic [NUM_BANKS*IW-1:0]            w_wr_bh_id,  w_rd_bh_id,  w_wr_bh2_id, w_rd_bh2_id;
     logic [NUM_BANKS-1:0]               w_wr_bh_last, w_wr_bh_empty, w_rd_bh_empty, w_wr_bh2_last;
+    logic [NUM_BANKS-1:0]               w_wr_bh_act, w_rd_bh_act, w_wr_bh2_act, w_rd_bh2_act;
+    logic [NUM_BANKS*6-1:0]             w_wr_bh_age, w_rd_bh_age, w_wr_bh2_age, w_rd_bh2_age;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]              w_bank_row_active;
+    logic [NUM_BANKS-1:0]               w_bank_row_active_flat;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] w_bank_open_row;
+    logic [NUM_BANKS*ROW_WIDTH-1:0]     w_bank_open_row_flat;
+    logic                               w_sched_decr;
+
+    assign w_bank_row_active_flat = w_bank_row_active[0];
+    assign w_bank_open_row_flat   = w_bank_open_row[0];
     logic                      w_wr_commit_v, w_wr_commit_rdy;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -431,6 +441,7 @@ module granite_core
     ) u_entry_store (
         .aclk               (aclk),
         .aresetn            (aresetn),
+        .page_policy_i      (page_policy_i),
         .aw_push_valid_i    (aw_push_valid),
         .aw_push_ready_o    (aw_push_ready),
         .aw_push_bank_i     (aw_push_bank),
@@ -472,7 +483,10 @@ module granite_core
         .rd_iss_valid_o     (rd_iss_valid),
         .rd_iss_ticket_o    (rd_iss_ticket),
         .rd_cam_ins_ready_o (rd_cam_ins_ready),
+        .bank_row_active_i  (w_bank_row_active_flat),
+        .bank_open_row_i    (w_bank_open_row_flat),
         .sched_age_thresh_i (sched_age_thresh_i),
+        .sched_decr_i       (w_sched_decr),
         .wr_commit_valid_i  (w_wr_commit_v),
         .wr_commit_ready_o  (w_wr_commit_rdy),
         .wr_commit_slot_i   (w_wr_commit_slot),
@@ -519,6 +533,14 @@ module granite_core
         .rd_bh2_row_o       (w_rd_bh2_row),
         .rd_bh2_col_o       (w_rd_bh2_col),
         .rd_bh2_id_o        (w_rd_bh2_id),
+        .wr_bh_act_o        (w_wr_bh_act),
+        .wr_bh_age_o        (w_wr_bh_age),
+        .rd_bh_act_o        (w_rd_bh_act),
+        .rd_bh_age_o        (w_rd_bh_age),
+        .wr_bh2_act_o       (w_wr_bh2_act),
+        .wr_bh2_age_o       (w_wr_bh2_age),
+        .rd_bh2_act_o       (w_rd_bh2_act),
+        .rd_bh2_age_o       (w_rd_bh2_age),
         .wr_cm_rd_valid_o   (w_cm_v),
         .wr_cm_rd_ready_i   (w_cm_rdy),
         .wr_cm_rd_data_o    (w_cm_data),
@@ -588,7 +610,7 @@ module granite_core
         // enabling to root-cause the refresh-adjacent residual
         // (col_major_bl8_gap write hang / tREFI=50 read error). NOT the
         // shipping value until 14/14.
-        .BANK_FIFO     (1'b0),
+        .BANK_FIFO     (1'b1),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
@@ -686,12 +708,16 @@ module granite_core
         .wr_bh_id_i         (w_wr_bh_id),
         .wr_bh_last_i       (w_wr_bh_last),
         .wr_bh_empty_i      (w_wr_bh_empty),
+        .wr_bh_act_i        (w_wr_bh_act),
+        .wr_bh_age_i        (w_wr_bh_age),
         .wr_bh2_valid_i     (w_wr_bh2_v),
         .wr_bh2_slot_i      (w_wr_bh2_slot),
         .wr_bh2_row_i       (w_wr_bh2_row),
         .wr_bh2_col_i       (w_wr_bh2_col),
         .wr_bh2_id_i        (w_wr_bh2_id),
         .wr_bh2_last_i      (w_wr_bh2_last),
+        .wr_bh2_act_i       (w_wr_bh2_act),
+        .wr_bh2_age_i       (w_wr_bh2_age),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
@@ -709,12 +735,17 @@ module granite_core
         .rd_bh_col_i        (w_rd_bh_col),
         .rd_bh_id_i         (w_rd_bh_id),
         .rd_bh_empty_i      (w_rd_bh_empty),
+        .rd_bh_act_i        (w_rd_bh_act),
+        .rd_bh_age_i        (w_rd_bh_age),
         .rd_bh2_valid_i     (w_rd_bh2_v),
         .rd_bh2_slot_i      (w_rd_bh2_slot),
         .rd_bh2_row_i       (w_rd_bh2_row),
         .rd_bh2_col_i       (w_rd_bh2_col),
         .rd_bh2_id_i        (w_rd_bh2_id),
+        .rd_bh2_act_i       (w_rd_bh2_act),
+        .rd_bh2_age_i       (w_rd_bh2_age),
         .rd_issue_ready_i   (w_rd_issue_rdy),
+        .sched_decr_o       (w_sched_decr),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),
         .rd_ret_busy_i      (w_rd_ret_busy),
@@ -744,8 +775,8 @@ module granite_core
         .maint_col_i        ('0),
         .maint_extra_i      (w_trn_mrr),
         .maint_busy_i       (w_cal_busy),
-        .bank_row_active_o  (),
-        .bank_open_row_o    (),
+        .bank_row_active_o  (w_bank_row_active),
+        .bank_open_row_o    (w_bank_open_row),
         .busy_o             (),
         .cmd_accept_o       (),
         .cmd_accept_op_o    (),

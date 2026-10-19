@@ -354,7 +354,7 @@ The burst is always sized so its last byte stays at or below `cfg_limit_addr` an
 - **monbus_compressor.sv** — optional packet compressor (present when `USE_COMPRESSION==1`)
 - **monbus_halfbeat_packer.sv** — optional half-beat packer (`HALF_BEAT_EN==1`)
 - **math_mod_3_compress.sv** (`rtl/math/`) — carry-save mod-3 for whole-record rounding
-- **monitor_common_pkg** — packet types, protocols, `monitor_packet_t`, `monbus_timestamp_t`
+- **ocelus_common_pkg** — packet types, protocols, `monitor_packet_t`, `monbus_timestamp_t`
 
 ### See Also
 - **monbus_arbiter.sv** — aggregates multiple monitor streams upstream of this core

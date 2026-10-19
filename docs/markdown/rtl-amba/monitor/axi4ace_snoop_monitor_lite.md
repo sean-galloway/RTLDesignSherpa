@@ -77,7 +77,7 @@ The monitor only observes the snoop channels. Each AC handshake adds an entry at
 | aclk | input | logic | AXI clock |
 | aresetn | input | logic | Active-low reset |
 | clear | input | logic | Synchronous clear; also driven by `~cfg_monitor_enable` in wrappers |
-| i_mon_time | input | `monitor_common_pkg::monbus_timestamp_t` | Free-running broadcast timestamp |
+| i_mon_time | input | `ocelus_common_pkg::monbus_timestamp_t` | Free-running broadcast timestamp |
 | cfg_monitor_enable | input | logic | 0 = monitor inert, table held clear |
 | cfg_error_enable | input | logic | Enable error packet emission |
 | cfg_compl_enable | input | logic | Enable completion packet emission |
@@ -86,8 +86,8 @@ The monitor only observes the snoop channels. Each AC handshake adds an entry at
 | cfg_freq_sel | input | logic [SELW-1:0] | Frequency-invariant tick LUT index |
 | monbus_valid | output | logic | monbus packet valid |
 | monbus_ready | input | logic | monbus consumer ready |
-| monbus_packet | output | `monitor_common_pkg::monitor_packet_t` | 128-bit monitor packet |
-| monbus_timestamp | output | `monitor_common_pkg::monbus_timestamp_t` | Side-band timestamp |
+| monbus_packet | output | `ocelus_common_pkg::monitor_packet_t` | 128-bit monitor packet |
+| monbus_timestamp | output | `ocelus_common_pkg::monbus_timestamp_t` | Side-band timestamp |
 | active_transactions | output | logic [7:0] | Entries currently in the snoop table |
 | error_count | output | logic [15:0] | Error + timeout packets emitted |
 | transaction_count | output | logic [31:0] | Completion packets emitted |

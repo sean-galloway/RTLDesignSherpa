@@ -63,23 +63,31 @@ module mc_bank_sched
     input  logic [NUM_BANKS*IW-1:0]   wr_bh_id_i,
     input  logic [NUM_BANKS-1:0]      wr_bh_last_i,
     input  logic [NUM_BANKS-1:0]      wr_bh_empty_i,
+    input  logic [NUM_BANKS-1:0]      wr_bh_act_i,
+    input  logic [NUM_BANKS*6-1:0]    wr_bh_age_i,
     input  logic [NUM_BANKS-1:0]      rd_bh_valid_i,
     input  logic [NUM_BANKS*PTRW-1:0] rd_bh_slot_i,
     input  logic [NUM_BANKS*ROW_WIDTH-1:0] rd_bh_row_i,
     input  logic [NUM_BANKS*COL_WIDTH-1:0] rd_bh_col_i,
     input  logic [NUM_BANKS*IW-1:0]   rd_bh_id_i,
     input  logic [NUM_BANKS-1:0]      rd_bh_empty_i,
+    input  logic [NUM_BANKS-1:0]      rd_bh_act_i,
+    input  logic [NUM_BANKS*6-1:0]    rd_bh_age_i,
     input  logic [NUM_BANKS-1:0]      wr_bh2_valid_i,
     input  logic [NUM_BANKS*PTRW-1:0] wr_bh2_slot_i,
     input  logic [NUM_BANKS*ROW_WIDTH-1:0] wr_bh2_row_i,
     input  logic [NUM_BANKS*COL_WIDTH-1:0] wr_bh2_col_i,
     input  logic [NUM_BANKS*IW-1:0]   wr_bh2_id_i,
     input  logic [NUM_BANKS-1:0]      wr_bh2_last_i,
+    input  logic [NUM_BANKS-1:0]      wr_bh2_act_i,
+    input  logic [NUM_BANKS*6-1:0]    wr_bh2_age_i,
     input  logic [NUM_BANKS-1:0]      rd_bh2_valid_i,
     input  logic [NUM_BANKS*PTRW-1:0] rd_bh2_slot_i,
     input  logic [NUM_BANKS*ROW_WIDTH-1:0] rd_bh2_row_i,
     input  logic [NUM_BANKS*COL_WIDTH-1:0] rd_bh2_col_i,
     input  logic [NUM_BANKS*IW-1:0]   rd_bh2_id_i,
+    input  logic [NUM_BANKS-1:0]      rd_bh2_act_i,
+    input  logic [NUM_BANKS*6-1:0]    rd_bh2_age_i,
 
     // ---- storage commit / issue handshake (same contract as the FRFCFS core)
     input  logic                      wr_commit_ready_i,
@@ -88,6 +96,7 @@ module mc_bank_sched
     input  logic                      rd_issue_ready_i,
     output logic                      rd_issue_valid_o,
     output logic [PTRW-1:0]           rd_issue_slot_o,
+    output logic                      sched_decr_o,
 
     // ---- init passthrough ----
     input  logic                      init_done_i,
@@ -293,20 +302,14 @@ module mc_bank_sched
     end endgenerate
 
     // ======================================================================
-    // Per-(dir,bank) head skid + one-deep seat pending. The pending stage is
-    // a REGISTERED copy of the store's live head view and is the skid's ONLY
-    // load source: the store-array -> scan -> cross-plane -> skid-seat cone
-    // is broken by a bank-sched register (MC-003 2026-10-18: loading the skid
-    // from the live view let that cone chain straight through the op decode
-    // and fire stage in one cycle -- 21 logic levels, 19 ns data path, 75 MHz
-    // WNS -5.9 ns / 3,725 failing endpoints on the A7). The LIVE view stays
-    // the authority: both stages are stale-checked against it every cycle,
-    // exactly as before, and the pending stage is consumed within one cycle
-    // of capture (fields cannot recycle underneath it). Cold start pays +1
-    // cycle per head (zero-load start becomes one-load); steady-state
-    // 1 command/cycle on one bank is untouched because the column-fire
-    // reserve seat (second-oldest, bh2) path is unchanged. ACT/PRE fires do
-    // NOT release the head (its columns are still to come).
+    // Aged matrix-arbiter pick core.  The store keeps one age-ordered fifo per
+    // (direction,bank); this core sees only the head/head2 views plus the
+    // enqueue-time act tag and 6-bit age.  A 16-requester matrix arbiter picks
+    // among the entries whose decoded op is non-NOP and whose presented age
+    // equals the global minimum; the winner registers, is re-checked against
+    // the LIVE JEDEC gates, and fires combinationally.  Head2 is pre-picked
+    // for the pair whose registered winner fires this cycle so back-to-back
+    // same-bank columns run at one command per cycle.
     // ======================================================================
     typedef struct packed {
         logic                 vld;
@@ -317,50 +320,70 @@ module mc_bank_sched
         logic                 last;
     } head_t;
 
-    head_t r_ws [NUM_BANKS];
-    head_t r_rs [NUM_BANKS];
-    head_t r_wp [NUM_BANKS];
-    head_t r_rp [NUM_BANKS];
-
     function automatic head_t wr_cand(input int b);
-        return r_ws[b];
+        head_t h;
+        h.vld  = wr_bh_valid_i[b];
+        h.slot = wr_bh_slot_i[b*PTRW +: PTRW];
+        h.row  = wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
+        h.col  = wr_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
+        h.id   = wr_bh_id_i  [b*IW +: IW];
+        h.last = wr_bh_last_i[b];
+        return h;
     endfunction
     function automatic head_t rd_cand(input int b);
-        return r_rs[b];
+        head_t h;
+        h.vld  = rd_bh_valid_i[b];
+        h.slot = rd_bh_slot_i[b*PTRW +: PTRW];
+        h.row  = rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
+        h.col  = rd_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
+        h.id   = rd_bh_id_i  [b*IW +: IW];
+        h.last = 1'b0;
+        return h;
+    endfunction
+    function automatic head_t wr_cand2(input int b);
+        head_t h;
+        h.vld  = wr_bh2_valid_i[b];
+        h.slot = wr_bh2_slot_i[b*PTRW +: PTRW];
+        h.row  = wr_bh2_row_i [b*ROW_WIDTH +: ROW_WIDTH];
+        h.col  = wr_bh2_col_i [b*COL_WIDTH +: COL_WIDTH];
+        h.id   = wr_bh2_id_i  [b*IW +: IW];
+        h.last = wr_bh2_last_i[b];
+        return h;
+    endfunction
+    function automatic head_t rd_cand2(input int b);
+        head_t h;
+        h.vld  = rd_bh2_valid_i[b];
+        h.slot = rd_bh2_slot_i[b*PTRW +: PTRW];
+        h.row  = rd_bh2_row_i [b*ROW_WIDTH +: ROW_WIDTH];
+        h.col  = rd_bh2_col_i [b*COL_WIDTH +: COL_WIDTH];
+        h.id   = rd_bh2_id_i  [b*IW +: IW];
+        h.last = 1'b0;
+        return h;
     endfunction
 
-    // Per-bank op decode on the registered image. In-order queue => when the
-    // head's row differs from the open row, every older same-bank request has
-    // issued: PRE is always safe to decide immediately (no demand wait).
-    // CLOSE_ON_DRAIN uses the LIVE store empty flag (count==1 in the bank).
-    // Per-bank op decode on the LIVE timer outputs (BANK_LA=0 collapses the
-    // la twins to the live set, so the old flopped image lagged the fire
-    // stage by a full cycle and every row transition -- PRE/tRP, ACT/tRCD --
-    // paid minimum+1. col_major measured it as a 9-cycle inter-burst bubble
-    // vs the 6-cycle JEDEC floor = the 369 MB/s gate exactly; MC-003
-    // 2026-10-17). The fire stage re-checks the SAME live inputs, so decode
-    // can never violate JEDEC -- a live term that guesses wrong costs one
-    // dropped pick (a bubble), nothing more (the timer's own contract).
-    // The flopped r_* image stays for the refresh drain/override scan only.
-    dram_op_e w_op [NUM_BANKS];
-    dram_op_e r_op [NUM_BANKS];
-    logic     w_ap [NUM_BANKS];
-    logic     r_ap [NUM_BANKS];
+    // Per-bank op decode on the LIVE timer outputs.  The request mask uses the
+    // presented candidate (head or head2) for each pair, so both are decoded.
+    dram_op_e w_op  [NUM_BANKS];
+    dram_op_e r_op  [NUM_BANKS];
+    dram_op_e w_op2 [NUM_BANKS];
+    dram_op_e r_op2 [NUM_BANKS];
+    logic     w_ap  [NUM_BANKS];
+    logic     r_ap  [NUM_BANKS];
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
-            automatic head_t wc = wr_cand(b);
-            automatic head_t rc = rd_cand(b);
-            w_op[b] = OP_NOP;
-            r_op[b] = OP_NOP;
-            w_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE);
-            r_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE);
+            automatic head_t wc  = wr_cand(b);
+            automatic head_t rc  = rd_cand(b);
+            automatic head_t wc2 = wr_cand2(b);
+            automatic head_t rc2 = rd_cand2(b);
+            w_op[b]  = OP_NOP;
+            r_op[b]  = OP_NOP;
+            w_op2[b] = OP_NOP;
+            r_op2[b] = OP_NOP;
             if (wc.vld) begin
                 if (bank_row_active_i[RK0][b]
                     && (bank_open_row_i[RK0][b] == wc.row)
                     && bank_rdwr_ready_i[RK0][b]) begin
                     w_op[b] = OP_WR;
-                    w_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE)
-                            || (CLOSE_ON_DRAIN && wr_bh_empty_i[b]);
                 end else if (bank_row_active_i[RK0][b]
                              && bank_pre_ready_i[RK0][b]) begin
                     w_op[b] = OP_PRE;
@@ -369,13 +392,24 @@ module mc_bank_sched
                     w_op[b] = OP_ACT;
                 end
             end
+            if (wc2.vld) begin
+                if (bank_row_active_i[RK0][b]
+                    && (bank_open_row_i[RK0][b] == wc2.row)
+                    && bank_rdwr_ready_i[RK0][b]) begin
+                    w_op2[b] = OP_WR;
+                end else if (bank_row_active_i[RK0][b]
+                             && bank_pre_ready_i[RK0][b]) begin
+                    w_op2[b] = OP_PRE;
+                end else if (!bank_row_active_i[RK0][b]
+                             && bank_act_ready_i[RK0][b]) begin
+                    w_op2[b] = OP_ACT;
+                end
+            end
             if (rc.vld) begin
                 if (bank_row_active_i[RK0][b]
                     && (bank_open_row_i[RK0][b] == rc.row)
                     && bank_rdwr_ready_i[RK0][b]) begin
                     r_op[b] = OP_RD;
-                    r_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE)
-                            || (CLOSE_ON_DRAIN && rd_bh_empty_i[b]);
                 end else if (bank_row_active_i[RK0][b]
                              && bank_pre_ready_i[RK0][b]) begin
                     r_op[b] = OP_PRE;
@@ -384,6 +418,23 @@ module mc_bank_sched
                     r_op[b] = OP_ACT;
                 end
             end
+            if (rc2.vld) begin
+                if (bank_row_active_i[RK0][b]
+                    && (bank_open_row_i[RK0][b] == rc2.row)
+                    && bank_rdwr_ready_i[RK0][b]) begin
+                    r_op2[b] = OP_RD;
+                end else if (bank_row_active_i[RK0][b]
+                             && bank_pre_ready_i[RK0][b]) begin
+                    r_op2[b] = OP_PRE;
+                end else if (!bank_row_active_i[RK0][b]
+                             && bank_act_ready_i[RK0][b]) begin
+                    r_op2[b] = OP_ACT;
+                end
+            end
+            w_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE)
+                   || (CLOSE_ON_DRAIN && wr_bh_empty_i[b]);
+            r_ap[b] = (page_policy_i == PAGE_POLICY_CLOSE)
+                   || (CLOSE_ON_DRAIN && rd_bh_empty_i[b]);
         end
     end
 
@@ -392,14 +443,27 @@ module mc_bank_sched
     // then grant when all idle); generic maintenance when all idle. Same
     // all-banks-idle safety contracts as the FRFCFS core.
     // ======================================================================
+    // Registered demand winner (matrix-arbiter grant held for fire-check).
+    typedef struct packed {
+        logic                 vld;
+        logic                 is_rd;
+        logic [BKW-1:0]       bank;
+        dram_op_e             op;
+        logic [PTRW-1:0]      slot;
+        logic [ROW_WIDTH-1:0] row;
+        logic [COL_WIDTH-1:0] col;
+        logic [IW-1:0]        id;
+        logic                 last;
+        logic                 ap;
+    } winner_t;
+
+    winner_t r_winner;
+
     logic any_head_vld;
     always_comb begin
-        any_head_vld = 1'b0;
-        for (int b = 0; b < NUM_BANKS; b++) begin
+        any_head_vld = r_winner.vld;
+        for (int b = 0; b < NUM_BANKS; b++)
             if (wr_bh_valid_i[b] || rd_bh_valid_i[b]) any_head_vld = 1'b1;
-            if (r_ws[b].vld || r_rs[b].vld)           any_head_vld = 1'b1;
-            if (r_wp[b].vld || r_rp[b].vld)           any_head_vld = 1'b1;
-        end
     end
 
     logic w_any_active, w_rfsh_pre_found;
@@ -531,27 +595,76 @@ module mc_bank_sched
     end
 
     // ======================================================================
-    // Cross-bank demand mux: round-robin rotor over (dir,bank) pairs whose
-    // decoded op is non-NOP. Columns add the sink gate (drain-FIFO /
-    // return-ring room) so a column can never fire into a full sink.
+    // Aged matrix-arbiter request mask.  Each (dir,bank) pair presents the
+    // head normally; the pair whose registered winner is firing this cycle
+    // presents head2 instead, so the reserve becomes visible one cycle early.
+    // Requests are valid op + age==global-minimum.  The matrix grants exactly
+    // one requester (round-robin fairness via pairwise state); the grant is
+    // consumed on demand fire.
     // ======================================================================
-    logic [NPAIR-1:0] w_pair_ready;
+    localparam int AGEW = 6;
+
+    // Forward declaration — assigned at the fire logic below; the head2
+    // pre-pick mux (declare-before-use) consumes it.
+    logic             w_demand_fire;
+
+    logic [NPAIR-1:0] w_use_head2;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
-            w_pair_ready[2*b]   = (r_op[b] != OP_NOP)
-                                && ((r_op[b] != OP_RD) || rd_issue_ready_i);
-            w_pair_ready[2*b+1] = (w_op[b] != OP_NOP)
-                                && ((w_op[b] != OP_WR) || wr_commit_ready_i);
+            w_use_head2[2*b]   = w_demand_fire && r_winner.is_rd
+                              && (r_winner.bank == BKW'(b));
+            w_use_head2[2*b+1] = w_demand_fire && !r_winner.is_rd
+                              && (r_winner.bank == BKW'(b));
         end
     end
 
-    logic [PAIRW-1:0] r_rotor;
-    logic [NPAIR-1:0] w_rot_mask;
+    logic [AGEW-1:0] w_pres_age [NPAIR];
+    logic            w_pres_vld [NPAIR];
+    dram_op_e        w_pres_op  [NPAIR];
+    head_t           w_pres_head [NPAIR];
     always_comb begin
-        w_rot_mask = '0;
-        for (int p = 0; p < NPAIR; p++)
-            w_rot_mask[PAIRW'(p) + r_rotor] = 1'b1;   // 4-bit wrap = rotation
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            // RD pair = 2*b
+            w_pres_age[2*b]   = w_use_head2[2*b] ? rd_bh2_age_i[b*AGEW +: AGEW]
+                                                 : rd_bh_age_i [b*AGEW +: AGEW];
+            w_pres_vld[2*b]   = w_use_head2[2*b] ? rd_bh2_valid_i[b]
+                                                 : rd_bh_valid_i[b];
+            w_pres_op [2*b]   = w_use_head2[2*b] ? r_op2[b] : r_op[b];
+            w_pres_head[2*b]  = w_use_head2[2*b] ? rd_cand2(b) : rd_cand(b);
+            // WR pair = 2*b+1
+            w_pres_age[2*b+1] = w_use_head2[2*b+1] ? wr_bh2_age_i[b*AGEW +: AGEW]
+                                                   : wr_bh_age_i [b*AGEW +: AGEW];
+            w_pres_vld[2*b+1] = w_use_head2[2*b+1] ? wr_bh2_valid_i[b]
+                                                   : wr_bh_valid_i[b];
+            w_pres_op [2*b+1] = w_use_head2[2*b+1] ? w_op2[b] : w_op[b];
+            w_pres_head[2*b+1]= w_use_head2[2*b+1] ? wr_cand2(b) : wr_cand(b);
+        end
     end
+
+    logic [AGEW-1:0] w_min_age;
+    always_comb begin
+        w_min_age = '1;
+        for (int p = 0; p < NPAIR; p++)
+            if (w_pres_vld[p] && (w_pres_op[p] != OP_NOP)
+                && (w_pres_age[p] < w_min_age))
+                w_min_age = w_pres_age[p];
+    end
+
+    logic [NPAIR-1:0] w_req;
+    always_comb begin
+        for (int p = 0; p < NPAIR; p++)
+            w_req[p] = w_pres_vld[p] && (w_pres_op[p] != OP_NOP)
+                    && (w_pres_age[p] == w_min_age);
+    end
+
+    logic [NPAIR-1:0] w_gnt;
+    mc_matrix_arbiter #(.N(NPAIR)) u_matrix (
+        .aclk  (aclk),
+        .aresetn(aresetn),
+        .req_i (w_req),
+        .gnt_o (w_gnt),
+        .upd_i (w_demand_fire)
+    );
 
     logic [PAIRW-1:0] w_pick_pair;
     logic             w_pick_vld;
@@ -559,19 +672,16 @@ module mc_bank_sched
         w_pick_vld  = 1'b0;
         w_pick_pair = '0;
         for (int p = 0; p < NPAIR; p++)
-            if (w_pair_ready[p] && w_rot_mask[p]) begin
+            if (w_gnt[p]) begin
                 w_pick_vld  = 1'b1;
                 w_pick_pair = PAIRW'(p);
             end
     end
 
     // ======================================================================
-    // Live fire-stage authority. The selected op is re-checked against the
-    // LIVE timer outputs; a failing gate does not fire and the head holds in
-    // its skid. No drop, no pipeline drain, no hold-freeze. Pick == fire in
-    // the same cycle, so opposite-direction turnarounds are covered by the
-    // 1-deep fire history + the global tWTR/tRTW windows (there is no
-    // pick-ahead seam to close).
+    // Live fire-stage authority. The registered winner is re-checked against
+    // the LIVE timer outputs and the command FIFO; a failing gate does not
+    // fire and the winner simply holds.  No drop, no pipeline drain.
     // ======================================================================
     logic r_wrfire0, r_rdfire0;
     logic w_rd_turn_block, w_wr_turn_block;
@@ -585,48 +695,43 @@ module mc_bank_sched
     always_comb begin
         w_sel_bank  = BKW'(w_pick_pair >> 1);
         w_sel_is_rd = ~w_pick_pair[0];
-        w_sel_op    = w_sel_is_rd ? r_op[w_sel_bank] : w_op[w_sel_bank];
-        w_sel_head  = w_sel_is_rd ? rd_cand(int'(w_sel_bank))
-                                  : wr_cand(int'(w_sel_bank));
+        w_sel_op    = w_pres_op[w_pick_pair];
+        w_sel_head  = w_pres_head[w_pick_pair];
     end
 
-    // Stale-skid detect — the store's live head view disagrees with the
-    // seated skid. Two ways to go stale: (1) an older same-bank entry
-    // finished filling AFTER the skid seated (the skid holds a younger
-    // entry and shadows the true head), (2) the slot was freed and recycled
-    // (same slot number, different entry -- caught by the ROW compare).
-    // Without this gate a column fire commits a non-head slot: out-of-order
-    // per-bank commits corrupt the write drain, and the next fire
-    // double-commits the freed slot (ENTRY_STORE "commit of WR slot N which
-    // is NOT valid", MC-003 2026-10-15, proven at the harness level with real
-    // JEDEC timings). The FRFCFS core cannot go stale: it recomputes oldest
-    // from the full valid/age matrix every cycle and caches no head.
-    logic [NUM_BANKS-1:0] w_ws_stale, w_rs_stale;
-    logic [NUM_BANKS-1:0] w_wp_stale, w_rp_stale;
+    // Winner-stale detect — the store's live head view for this pair no
+    // longer matches the slot+row that was captured when the winner registered.
+    // The winner also goes stale on an override request, which owns the cycle.
+    logic winner_stale;
     always_comb begin
-        for (int b = 0; b < NUM_BANKS; b++) begin
-            w_ws_stale[b] = r_ws[b].vld && wr_bh_valid_i[b]
-                && ((wr_bh_slot_i[b*PTRW +: PTRW] != r_ws[b].slot)
-                 || (wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_ws[b].row));
-            w_rs_stale[b] = r_rs[b].vld && rd_bh_valid_i[b]
-                && ((rd_bh_slot_i[b*PTRW +: PTRW] != r_rs[b].slot)
-                 || (rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_rs[b].row));
-            // Same live-view authority over the pending stage (the seat
-            // source). A pending older than one cycle is impossible by
-            // construction (it is consumed or cleared the cycle after
-            // capture), so the slot+row compare suffices here too.
-            w_wp_stale[b] = r_wp[b].vld && wr_bh_valid_i[b]
-                && ((wr_bh_slot_i[b*PTRW +: PTRW] != r_wp[b].slot)
-                 || (wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_wp[b].row));
-            w_rp_stale[b] = r_rp[b].vld && rd_bh_valid_i[b]
-                && ((rd_bh_slot_i[b*PTRW +: PTRW] != r_rp[b].slot)
-                 || (rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH] != r_rp[b].row));
+        winner_stale = 1'b0;
+        if (r_winner.vld) begin
+            automatic logic [PTRW-1:0] cur_slot;
+            automatic logic [ROW_WIDTH-1:0] cur_row;
+            automatic logic cur_vld;
+            if (r_winner.is_rd) begin
+                cur_vld  = rd_bh_valid_i[r_winner.bank];
+                cur_slot = rd_bh_slot_i[r_winner.bank*PTRW +: PTRW];
+                cur_row  = rd_bh_row_i [r_winner.bank*ROW_WIDTH +: ROW_WIDTH];
+            end else begin
+                cur_vld  = wr_bh_valid_i[r_winner.bank];
+                cur_slot = wr_bh_slot_i[r_winner.bank*PTRW +: PTRW];
+                cur_row  = wr_bh_row_i [r_winner.bank*ROW_WIDTH +: ROW_WIDTH];
+            end
+            winner_stale = !cur_vld
+                        || (cur_slot != r_winner.slot)
+                        || (cur_row  != r_winner.row)
+                        || w_ovr_vld;
+            if (!winner_stale) begin
+                automatic dram_op_e redec = r_winner.is_rd ? r_op[r_winner.bank]
+                                                           : w_op[r_winner.bank];
+                winner_stale = (redec != r_winner.op);
+            end
         end
     end
 
     // Declared ahead of the forward tCCD counter (which keys w_col_fire_now
-    // off w_fire/w_fis_col); assigned below per the house declare-before-use
-    // rule.
+    // off w_fire/w_fis_col) and the matrix arbiter update; assigned below.
     logic        w_fis_col, w_fis_act, w_fis_pre;
     logic        w_fsafe;
     logic        w_fire;
@@ -655,9 +760,9 @@ module mc_bank_sched
     )
 
     always_comb begin
-        w_fis_col = (w_sel_op == OP_RD) || (w_sel_op == OP_WR);
-        w_fis_act = (w_sel_op == OP_ACT);
-        w_fis_pre = (w_sel_op == OP_PRE);
+        w_fis_col = is_column_op(r_winner.op);
+        w_fis_act = (r_winner.op == OP_ACT);
+        w_fis_pre = (r_winner.op == OP_PRE);
         w_fsafe   = 1'b1;
         if (w_ovr_vld) begin
             // override ops carry their own all-banks-idle / drain predicates
@@ -665,31 +770,39 @@ module mc_bank_sched
             // drain PREs re-check the live pre gate.
             if (w_ovr_op == OP_PRE)
                 w_fsafe = bank_pre_ready_i[RK0][w_ovr_bank];
-        end else if (w_pick_vld) begin
+        end else if (r_winner.vld && !winner_stale) begin
             if (w_fis_act)
-                w_fsafe = bank_act_ready_i[RK0][w_sel_bank] && tfaw_ok_i[RK0]
+                w_fsafe = bank_act_ready_i[RK0][r_winner.bank] && tfaw_ok_i[RK0]
                           && trrd_ok_i[RK0] && !w_rfc_busy && !maint_busy_i
-                          && !w_ref_dmd_block[w_sel_bank];
+                          && !w_ref_dmd_block[r_winner.bank];
             else if (w_fis_col)
-                w_fsafe = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
-                          && (w_sel_is_rd ? (twtr_ok_i && !w_rd_turn_block)
-                                          : (trtw_ok_i && !w_wr_turn_block))
-                          && !w_ref_dmd_block[w_sel_bank]
-                          && !w_rfc_dmd_block[w_sel_bank]
-                          && (w_sel_is_rd ? !w_rs_stale[w_sel_bank]
-                                          : !w_ws_stale[w_sel_bank]);
+                w_fsafe = bank_rdwr_ready_i[RK0][r_winner.bank] && w_tccd_fwd_ok
+                          && (r_winner.is_rd ? (twtr_ok_i && !w_rd_turn_block)
+                                             : (trtw_ok_i && !w_wr_turn_block))
+                          && !w_ref_dmd_block[r_winner.bank]
+                          && !w_rfc_dmd_block[r_winner.bank]
+                          && (r_winner.is_rd ? rd_issue_ready_i
+                                             : wr_commit_ready_i);
             else if (w_fis_pre)
-                w_fsafe = bank_pre_ready_i[RK0][w_sel_bank]
-                          && !w_ref_dmd_block[w_sel_bank]
-                          && !w_rfc_dmd_block[w_sel_bank];
+                w_fsafe = bank_pre_ready_i[RK0][r_winner.bank]
+                          && !w_ref_dmd_block[r_winner.bank]
+                          && !w_rfc_dmd_block[r_winner.bank];
         end
     end
 
-    assign w_fire      = (w_ovr_vld || w_pick_vld) && w_fsafe && cmd_ready_i;
-    assign cmd_valid_o = w_fire;
+    assign w_demand_fire = r_winner.vld && !w_ovr_vld && !winner_stale
+                           && w_fsafe && cmd_ready_i;
+    assign w_fire        = (w_ovr_vld && w_fsafe && cmd_ready_i) || w_demand_fire;
+    assign cmd_valid_o   = w_fire;
 
-    logic w_fis_rd;
-    assign w_fis_rd = w_ovr_vld ? 1'b0 : w_sel_is_rd;
+    // AP is recomputed from the live empty flag at fire time (CLOSE_ON_DRAIN).
+    logic w_live_ap;
+    always_comb begin
+        w_live_ap = (page_policy_i == PAGE_POLICY_CLOSE)
+                 || (CLOSE_ON_DRAIN
+                     && (r_winner.is_rd ? rd_bh_empty_i[r_winner.bank]
+                                        : wr_bh_empty_i[r_winner.bank]));
+    end
 
     always_comb begin
         cmd_op_o    = OP_NOP;
@@ -704,32 +817,31 @@ module mc_bank_sched
             cmd_row_o   = w_ovr_row;
             cmd_col_o   = w_ovr_col;
             cmd_extra_o = maint_extra_i;
-        end else if (w_pick_vld) begin
-            cmd_bank_o = w_sel_bank;
-            cmd_row_o  = w_sel_head.row;
-            cmd_col_o  = w_sel_head.col;
+        end else if (r_winner.vld && !winner_stale) begin
+            cmd_bank_o = r_winner.bank;
+            cmd_row_o  = r_winner.row;
+            cmd_col_o  = r_winner.col;
             if (w_fis_act) begin
                 cmd_op_o = OP_ACT;
             end else if (w_fis_pre) begin
                 cmd_op_o = OP_PRE;
             end else begin
-                // AP was fully decided at decode (static CLOSE policy OR the
-                // exact per-bank queue-empty CLOSE_ON_DRAIN term).
-                cmd_ap_o = w_sel_is_rd ? r_ap[w_sel_bank] : w_ap[w_sel_bank];
-                cmd_op_o = w_sel_is_rd ? (cmd_ap_o ? OP_RDA : OP_RD)
-                                       : (cmd_ap_o ? OP_WRA : OP_WR);
+                cmd_ap_o = w_live_ap;
+                cmd_op_o = r_winner.is_rd ? (cmd_ap_o ? OP_RDA : OP_RD)
+                                          : (cmd_ap_o ? OP_WRA : OP_WR);
             end
         end
     end
     assign cmd_rank_o = RKW'(RK0);
 
-    // ======================================================================
-    // Strobes: storage handshake, grants, timer events, fire history, skid
-    // ======================================================================
-    assign wr_commit_valid_o = w_fire && !w_ovr_vld && w_fis_col && !w_fis_rd;
-    assign wr_commit_slot_o  = w_sel_head.slot;
-    assign rd_issue_valid_o  = w_fire && !w_ovr_vld && w_fis_col &&  w_fis_rd;
-    assign rd_issue_slot_o   = w_sel_head.slot;
+    // ==================================================================
+    // Strobes: storage handshake, grants, timer events, fire history
+    // ==================================================================
+    assign wr_commit_valid_o = w_demand_fire && w_fis_col && !r_winner.is_rd;
+    assign wr_commit_slot_o  = r_winner.slot;
+    assign rd_issue_valid_o  = w_demand_fire && w_fis_col &&  r_winner.is_rd;
+    assign rd_issue_slot_o   = r_winner.slot;
+    assign sched_decr_o      = w_fire;
 
     assign refresh_grant_o = w_fire && w_ovr_vld
                           && ((w_ovr_op == OP_REF) || (w_ovr_op == OP_REFPB));
@@ -739,8 +851,8 @@ module mc_bank_sched
                           && !(HAS_ZQ && zq_req_i);
 
     assign evt_act_o  = w_fire && !w_ovr_vld && w_fis_act;
-    assign evt_rd_o   = w_fire && !w_ovr_vld && w_fis_col &&  w_fis_rd;
-    assign evt_wr_o   = w_fire && !w_ovr_vld && w_fis_col && !w_fis_rd;
+    assign evt_rd_o   = w_fire && !w_ovr_vld && w_fis_col &&  r_winner.is_rd;
+    assign evt_wr_o   = w_fire && !w_ovr_vld && w_fis_col && !r_winner.is_rd;
     assign evt_pre_o  = w_fire && (w_ovr_vld ? (w_ovr_op == OP_PRE)
                                              : w_fis_pre);
     assign evt_ap_o   = w_fire && !w_ovr_vld && w_fis_col && cmd_ap_o;
@@ -750,108 +862,39 @@ module mc_bank_sched
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            for (int b = 0; b < NUM_BANKS; b++) begin
-                r_ws[b] <= '0;
-                r_rs[b] <= '0;
-                r_wp[b] <= '0;
-                r_rp[b] <= '0;
-            end
-            r_rotor   <= '0;
+            r_winner <= '0;
             r_wrfire0 <= 1'b0;
             r_rdfire0 <= 1'b0;
             r_actfire0      <= 1'b0;
             r_actfire0_bank <= '0;
         end else begin
-            for (int b = 0; b < NUM_BANKS; b++) begin
-                // WR pending: one-deep registered copy of the live head view
-                // and the skid's ONLY seat source. Captured while the skid is
-                // empty; consumed or stale-dropped the cycle after capture, so
-                // its fields can never recycle underneath a seat.
-                if (w_wp_stale[b]) begin
-                    r_wp[b].vld <= 1'b0;
-                end else if (!r_ws[b].vld) begin
-                    if (!r_wp[b].vld) begin
-                        r_wp[b].vld  <= wr_bh_valid_i[b];
-                        r_wp[b].slot <= wr_bh_slot_i[b*PTRW +: PTRW];
-                        r_wp[b].row  <= wr_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-                        r_wp[b].col  <= wr_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
-                        r_wp[b].id   <= wr_bh_id_i  [b*IW +: IW];
-                        r_wp[b].last <= wr_bh_last_i[b];
-                    end else begin
-                        r_wp[b].vld <= 1'b0;   // consumed by the skid seat
-                    end
-                end
-                // WR skid: column fire releases the head (seat the reserve);
-                // otherwise seat the pending stage when empty. ACT/PRE fires
-                // hold the head.
-                if (w_fire && !w_ovr_vld && (cmd_bank_o == BKW'(b))
-                    && (w_op[b] == OP_WR)) begin
-                    r_ws[b].vld  <= wr_bh2_valid_i[b];
-                    r_ws[b].slot <= wr_bh2_slot_i[b*PTRW +: PTRW];
-                    r_ws[b].row  <= wr_bh2_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-                    r_ws[b].col  <= wr_bh2_col_i [b*COL_WIDTH +: COL_WIDTH];
-                    r_ws[b].id   <= wr_bh2_id_i  [b*IW +: IW];
-                    r_ws[b].last <= wr_bh2_last_i[b];
-                end else if (w_ws_stale[b]) begin
-                    // Drop the stale skid; the empty branch re-seats the true
-                    // head from the pending stage next cycle.
-                    r_ws[b].vld <= 1'b0;
-                end else if (!r_ws[b].vld && r_wp[b].vld && wr_bh_valid_i[b]
-                             && !w_wp_stale[b]) begin
-                    // Seat from the pending stage, never the live view (that
-                    // combinational load is the cone this register breaks).
-                    // The live-valid gate + live stale compare make a capture
-                    // older than one cycle un-seat-able, so a freed/recycled
-                    // slot can never be seated from stale fields.
-                    r_ws[b] <= r_wp[b];
-                end
-                // RD pending + skid: same discipline (r_op, not w_op -- the RD
-                // fire releases the RD head; checking the WR decode here held
-                // the head past its fire and re-issued the freed slot,
-                // MC-003 2026-10-15). Same stale-drop as the WR skid.
-                if (w_rp_stale[b]) begin
-                    r_rp[b].vld <= 1'b0;
-                end else if (!r_rs[b].vld) begin
-                    if (!r_rp[b].vld) begin
-                        r_rp[b].vld  <= rd_bh_valid_i[b];
-                        r_rp[b].slot <= rd_bh_slot_i[b*PTRW +: PTRW];
-                        r_rp[b].row  <= rd_bh_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-                        r_rp[b].col  <= rd_bh_col_i [b*COL_WIDTH +: COL_WIDTH];
-                        r_rp[b].id   <= rd_bh_id_i  [b*IW +: IW];
-                        r_rp[b].last <= 1'b0;
-                    end else begin
-                        r_rp[b].vld <= 1'b0;   // consumed by the skid seat
-                    end
-                end
-                if (w_fire && !w_ovr_vld && (cmd_bank_o == BKW'(b))
-                    && (r_op[b] == OP_RD)) begin
-                    r_rs[b].vld  <= rd_bh2_valid_i[b];
-                    r_rs[b].slot <= rd_bh2_slot_i[b*PTRW +: PTRW];
-                    r_rs[b].row  <= rd_bh2_row_i [b*ROW_WIDTH +: ROW_WIDTH];
-                    r_rs[b].col  <= rd_bh2_col_i [b*COL_WIDTH +: COL_WIDTH];
-                    r_rs[b].id   <= rd_bh2_id_i  [b*IW +: IW];
-                    r_rs[b].last <= 1'b0;
-                end else if (w_rs_stale[b]) begin
-                    r_rs[b].vld <= 1'b0;
-                end else if (!r_rs[b].vld && r_rp[b].vld && rd_bh_valid_i[b]
-                             && !w_rp_stale[b]) begin
-                    r_rs[b] <= r_rp[b];
-                end
+            // Load the matrix-arbiter winner whenever the current winner fires
+            // (so the reserve behind it becomes visible), goes stale, or is
+            // absent.  Hold otherwise.
+            if (w_demand_fire || !r_winner.vld || winner_stale) begin
+                r_winner.vld   <= w_pick_vld;
+                r_winner.is_rd <= w_sel_is_rd;
+                r_winner.bank  <= w_sel_bank;
+                r_winner.op    <= w_sel_op;
+                r_winner.slot  <= w_sel_head.slot;
+                r_winner.row   <= w_sel_head.row;
+                r_winner.col   <= w_sel_head.col;
+                r_winner.id    <= w_sel_head.id;
+                r_winner.last  <= w_sel_head.last;
+                r_winner.ap    <= r_winner.is_rd ? r_ap[w_sel_bank] : w_ap[w_sel_bank];
             end
-            if (w_fire && w_pick_vld)
-                r_rotor <= w_pick_pair + PAIRW'(1);
-            r_wrfire0 <= w_fire && !w_ovr_vld && w_fis_col && !w_fis_rd;
-            r_rdfire0 <= w_fire && !w_ovr_vld && w_fis_col &&  w_fis_rd;
+            r_wrfire0 <= w_fire && !w_ovr_vld && w_fis_col && !r_winner.is_rd;
+            r_rdfire0 <= w_fire && !w_ovr_vld && w_fis_col &&  r_winner.is_rd;
             r_actfire0      <= w_fire && !w_ovr_vld && w_fis_act;
-            r_actfire0_bank <= w_sel_bank;
+            r_actfire0_bank <= r_winner.bank;
         end
     )
 
     // ======================================================================
     // Stall-cause attribution (same buckets as the FRFCFS core)
     // ======================================================================
-    // any_head_vld above includes the pending stages (r_wp/r_rp), so demand
-    // captured mid-seat is still counted as pending here.
+    // any_head_vld includes the registered winner, so a held demand that is
+    // waiting out a JEDEC gate is still counted as pending here.
     logic w_any_pending;
     assign w_any_pending = (|wr_bh_valid_i) || (|rd_bh_valid_i) || any_head_vld;
     `ALWAYS_FF_RST(aclk, aresetn,

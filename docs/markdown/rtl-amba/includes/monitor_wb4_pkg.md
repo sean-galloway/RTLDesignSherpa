@@ -42,7 +42,7 @@ is the `*_USER_DEFINED` escape hatch, matching the AMBA4 and AMBA5 packages.
 event encodings the Wishbone monitor emits so that each one has exactly one
 definition.
 
-**Deliberately NOT re-exported by `monitor_pkg`.** The aggregating wrapper
+**Deliberately NOT re-exported by `ocelus_pkg`.** The aggregating wrapper
 re-exports the AMBA4, AMBA5 and arbiter packages, but not this one. Only
 `wb4_monitor`'s filelist includes it, so adding Wishbone to the monitor
 family changed no existing consumer's compile closure. If a future block
@@ -50,7 +50,7 @@ needs both, include the package directly rather than widening the
 aggregator.
 
 **`PROTOCOL_WB` lives elsewhere.** The protocol id `4'h5` is an additive
-entry in `monitor_common_pkg`'s `protocol_type_t`, alongside AXI, AXIS, APB,
+entry in `ocelus_common_pkg`'s `protocol_type_t`, alongside AXI, AXIS, APB,
 ARB and CORE, because the protocol enum is universal. Only the event codes
 are Wishbone-specific and live here.
 

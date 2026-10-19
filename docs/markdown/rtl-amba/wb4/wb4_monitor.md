@@ -33,7 +33,7 @@ threshold, optional queue-activity debug events, and address-range
 violations through the shared `apb_monitor_addr_check`. It is the
 Wishbone member of the monitor family and has the same configuration,
 monitor bus and status ports as `apb4_monitor`; every packet is tagged
-`PROTOCOL_WB` (`4'h5`) and its event codes come from `monitor_wb4_pkg`.
+`PROTOCOL_WB` (`4'h5`) and its event codes come from `ocelus_wb4_pkg`.
 
 The queues are the timing-convenient proxy for the bus — the same place
 `apb4_monitor` attaches: a command handshake is a request the master will
@@ -69,8 +69,8 @@ many transfers can be open, so a queue of the same depth never overflows.
 
 ```systemverilog
 module wb4_monitor
-    import monitor_common_pkg::*;   // PROTOCOL_WB, PktType*, packet builder
-    import monitor_wb4_pkg::*;      // WB_ERR_*, WB_TIMEOUT_*, WB_COMPL_*, WB_PERF_*, WB_DEBUG_*
+    import ocelus_common_pkg::*;   // PROTOCOL_WB, PktType*, packet builder
+    import ocelus_wb4_pkg::*;      // WB_ERR_*, WB_TIMEOUT_*, WB_COMPL_*, WB_PERF_*, WB_DEBUG_*
     import wb4_pkg::*;              // WB4_RSP_* status encoding
 #(
     parameter bit USE_MONITOR         = 1'b1,
@@ -227,7 +227,7 @@ Standard 128-bit packet from `create_monitor_packet` with a 64-bit
 side-band timestamp taken from `i_mon_time` at emission:
 
 - `packet_type` per the table above; `protocol` = `PROTOCOL_WB` (`4'h5`)
-- `event_code` from `monitor_wb4_pkg`; `channel_id` = 0 (Wishbone has no
+- `event_code` from `ocelus_wb4_pkg`; `channel_id` = 0 (Wishbone has no
   IDs)
 - `unit_id` = `UNIT_ID`, `agent_id` = `AGENT_ID`
 - `event_data[63:40]` = 0, `[39:32]` = aux, `[31:0]` = value per the
@@ -309,9 +309,9 @@ wb4_monitor #(
 - `USE_MONITOR=0` leaves the ports in place and ties `monbus_valid` and
   the counters to zero, so a build can drop the monitor without touching
   the wrapper.
-- `monitor_wb4_pkg` is imported by this module only; it is deliberately
-  not re-exported by `monitor_pkg`, so no existing consumer's filelist
-  changes. `PROTOCOL_WB` itself lives in `monitor_common_pkg` (an
+- `ocelus_wb4_pkg` is imported by this module only; it is deliberately
+  not re-exported by `ocelus_pkg`, so no existing consumer's filelist
+  changes. `PROTOCOL_WB` itself lives in `ocelus_common_pkg` (an
   additive enum entry).
 
 ## Related Modules

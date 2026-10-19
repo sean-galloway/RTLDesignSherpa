@@ -263,7 +263,7 @@ configure behavior through top-level monitor parameters.
 ### Filter Strategy
 
 `cfg_axi_pkt_mask` uses **drop semantics** — a bit set at index `pkt_type` drops
-that type. Leave a bit `0` to keep the type. Indices follow `monitor_common_pkg`
+that type. Leave a bit `0` to keep the type. Indices follow `ocelus_common_pkg`
 (`PktTypeError`, `PktTypeCompletion`, `PktTypeThreshold`, `PktTypeTimeout`,
 `PktTypePerf`, `PktTypeAddrMatch`, `PktTypeDebug`). Tie the per-event Level 3 masks
 to `16'h0000` unless you need to suppress specific event codes.

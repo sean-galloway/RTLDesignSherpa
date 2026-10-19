@@ -180,8 +180,8 @@ The strict first-match encoder emits at most one completion per cycle. Simultane
 
 **Uses:**
 
-- **monitor_common_pkg** - `PktTypeCompletion`, `TRANS_COMPLETE`, `bus_transaction_t`
-- **monitor_amba4_pkg** - `EVT_TRANS_COMPLETE` event code
+- **ocelus_common_pkg** - `PktTypeCompletion`, `TRANS_COMPLETE`, `bus_transaction_t`
+- **ocelus_amba4_pkg** - `EVT_TRANS_COMPLETE` event code
 
 **See also:**
 

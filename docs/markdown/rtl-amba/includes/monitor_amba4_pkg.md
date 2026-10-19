@@ -406,7 +406,7 @@ code in this section is `PROTOCOL_AXIS` (4'h1).
 
 ### Unified Event Code Union
 
-`monitor_amba4_pkg` also exports a `unified_event_code_t` packed union that
+`ocelus_amba4_pkg` also exports a `unified_event_code_t` packed union that
 overlays the **8-bit event-code enums** in this document onto a single 8-bit
 field, plus a `raw` view for direct 8-bit access. The two perf-window enums
 (`axi_perfwin_code_t`, `axi_perfhist_select_t`) are **not** union members and

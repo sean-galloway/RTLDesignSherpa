@@ -211,7 +211,7 @@ of the output skid. User-signal events are never produced.
 #### 128-bit Packet Structure
 
 The APB5 monitor drives the standard 128-bit packet built by
-`monitor_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
+`ocelus_common_pkg::create_monitor_packet`, paired with the 64-bit side-band
 `monbus_timestamp`. See
 [monitor_package_spec.md](../includes/monitor_package_spec.md) for the canonical
 definition.
@@ -242,7 +242,7 @@ For FIFO-sourced events the event-data field is
 
 ### Packet Types
 
-Packet-type codes follow `monitor_common_pkg`. The APB5 monitor emits the subset
+Packet-type codes follow `ocelus_common_pkg`. The APB5 monitor emits the subset
 marked below; other codes are defined for cross-protocol consistency.
 
 | Value | Type | Emitted by APB5 monitor | Description |

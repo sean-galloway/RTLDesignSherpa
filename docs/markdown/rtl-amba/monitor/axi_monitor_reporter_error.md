@@ -192,8 +192,8 @@ Because `pkt_event_code` comes from the slot's `event_code.raw_code`, this cone 
 
 **Uses:**
 
-- **monitor_common_pkg** - `PktTypeError`, `TRANS_ERROR`, `TRANS_ORPHANED`, `bus_transaction_t`
-- **monitor_amba4_pkg** - AXI error event codes (via the slot's `event_code`)
+- **ocelus_common_pkg** - `PktTypeError`, `TRANS_ERROR`, `TRANS_ORPHANED`, `bus_transaction_t`
+- **ocelus_amba4_pkg** - AXI error event codes (via the slot's `event_code`)
 
 **See also:**
 

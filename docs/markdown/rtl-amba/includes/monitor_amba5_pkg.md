@@ -201,7 +201,7 @@ interface parity (the IHI 0051B ch. 5 `*CHK` check signals), and CRC (TCRC_ERROR
 
 ### Unified Event Code Union
 
-`monitor_amba5_pkg` exports an `amba5_event_code_t` packed union that
+`ocelus_amba5_pkg` exports an `amba5_event_code_t` packed union that
 overlays the eight AMBA5 enums above (plus a `raw` 8-bit view) onto a
 single field. Helper functions `create_axi5_atomic_event`,
 `create_axi5_trace_event`, `create_apb5_wakeup_event`,

@@ -221,8 +221,8 @@ The 16 x 32-bit latency registers plus 16 threshold flags are the reason disabli
 
 **Uses:**
 
-- **monitor_common_pkg** — `PktTypeThreshold`, `bus_transaction_t`, transaction states
-- **monitor_amba4_pkg** — `AXI_THRESH_ACTIVE_COUNT` / `AXI_THRESH_LATENCY` event codes
+- **ocelus_common_pkg** — `PktTypeThreshold`, `bus_transaction_t`, transaction states
+- **ocelus_amba4_pkg** — `AXI_THRESH_ACTIVE_COUNT` / `AXI_THRESH_LATENCY` event codes
 - **reset_defs.svh** — reset macros
 
 **See also:**

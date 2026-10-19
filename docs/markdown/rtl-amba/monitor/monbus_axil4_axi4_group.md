@@ -349,7 +349,7 @@ The filter, FIFOs, burst writer, and drain live once in `monbus_group_core`; the
 - **axil4_slave_rd.sv** — Slave-read (err-drain) skid leaf
 - **axi4_master_wr.sv** — Master-write (burst bulk-capture) skid leaf
 - **monbus_compressor.sv** — Optional runtime compressor (`USE_COMPRESSION=1`)
-- **monitor_common_pkg** — `monitor_packet_t` / `monbus_timestamp_t` types
+- **ocelus_common_pkg** — `monitor_packet_t` / `monbus_timestamp_t` types
 - **reset_defs.svh** — Reset macros
 
 **See also:**

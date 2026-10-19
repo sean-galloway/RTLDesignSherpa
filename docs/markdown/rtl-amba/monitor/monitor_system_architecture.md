@@ -538,7 +538,7 @@ round-robin and weighted round-robin arbiters.
    blocks that are not a bus. Add a new `protocol_type_t` only if your block is
    a family worth separating; there are 16 slots and 5 are used.
 2. Allocate `event_code` values in a package next to
-   `monitor_arbiter_pkg.sv`, and document them. The code is 8 bits per
+   `ocelus_arbiter_pkg.sv`, and document them. The code is 8 bits per
    `{protocol, packet_type}` pair, so the space is not tight.
 3. Emit a `monitor_packet_t`. Fill `unit_id` / `agent_id` so the packet
    identifies your instance, and use the 64 bits of `event_data` for whatever
@@ -615,7 +615,7 @@ Two that have bitten before:
   separate test configurations.
 - **The transaction table has a saturation-recovery contract.** Command-
   originated entries are capped below `MAX_TRANSACTIONS` so a saturated table
-  can always drain; `cmd_entry_reserve()` in `monitor_common_pkg` is the single
+  can always drain; `cmd_entry_reserve()` in `ocelus_common_pkg` is the single
   source of truth, and both `axi_monitor_trans_mgr` and `axi_monitor_base`
   derive from it. Tables smaller than 16 take reserve 0 and trade the guarantee
   for capacity. This was a comment-encoded invariant once, and that is how a

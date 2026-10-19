@@ -205,11 +205,11 @@ All of `<core>`'s own parameters follow, unchanged.
 | `cfg_addr_range_enable` | input | `logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0]` |  |
 | `cfg_addr_range_low` | input | `logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]` |  |
 | `cfg_addr_range_high` | input | `logic [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1)-1:0][AW-1:0]` |  |
-| `i_mon_time` | input | `monitor_common_pkg::monbus_timestamp_t` |  |
+| `i_mon_time` | input | `ocelus_common_pkg::monbus_timestamp_t` |  |
 | `monbus_valid` | output | `logic` |  |
 | `monbus_ready` | input | `logic` |  |
-| `monbus_packet` | output | `monitor_common_pkg::monitor_packet_t` |  |
-| `monbus_timestamp` | output | `monitor_common_pkg::monbus_timestamp_t` |  |
+| `monbus_packet` | output | `ocelus_common_pkg::monitor_packet_t` |  |
+| `monbus_timestamp` | output | `ocelus_common_pkg::monbus_timestamp_t` |  |
 | `active_transactions` | output | `logic [7:0]` | entries in the table |
 | `error_count` | output | `logic [15:0]` | error + timeout packets emitted |
 | `transaction_count` | output | `logic [31:0]` | completion packets emitted |

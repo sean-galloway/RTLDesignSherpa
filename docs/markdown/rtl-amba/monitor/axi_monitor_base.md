@@ -191,7 +191,7 @@ Each detection cone can be compiled out to save area. These gate the **logic**, 
 > **Removed:** the former `CAM_PIPELINE` / `TRANS_CAM_PIPELINE` parameters no longer
 > exist. The transaction CAM is now **always pipelined** (one extra cycle of
 > `active_count` latency). The `block_ready` margin is derived from
-> `monitor_common_pkg::cmd_entry_reserve()` — see
+> `ocelus_common_pkg::cmd_entry_reserve()` — see
 > [Flow Control and the Saturation-Recovery Contract](#flow-control-and-the-saturation-recovery-contract).
 > Overshoot past `MAX_TRANSACTIONS` is structurally impossible regardless of the
 > margin: the CAM allocates from its exact combinational free vector.
@@ -371,7 +371,7 @@ is an internal net ANDed into the upstream-facing ready signal — it is **not**
 a port on the wrappers.
 
 The contract (single source of truth:
-`monitor_common_pkg::cmd_entry_reserve()` in
+`ocelus_common_pkg::cmd_entry_reserve()` in
 `rtl/amba/includes/ocelus_common_pkg.sv`):
 
 - **Command-entry cap.** The transaction manager caps command-originated
