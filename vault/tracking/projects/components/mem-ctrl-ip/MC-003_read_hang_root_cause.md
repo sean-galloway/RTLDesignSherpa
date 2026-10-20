@@ -840,3 +840,135 @@ directly.
 Also logged: the minimum MUST be over fireable heads (gate or op!=NOP inside
 the min) — a blocked global-oldest with an ungated minimum starves every
 pair (fixed in the prototype, kept in the target spec).
+
+## 17. The storage↔scheduler interface contract (owner-directed rethink, 2026-10-19)
+
+Owner, on seeing the 75 MHz timing post-mortem (route 13.5 ns median /
+38.2 ns max per path; worst path 56 logic levels from
+`u_entry_store/.../r_row_reg` to `u_sched_plane/.../r_winner_reg/D`):
+"if this is a fundamental partition issue, we need to rethink what the
+interface looks like between the storage-plane and the scheduler-plane in
+general." RTL review (`granite_core.sv` u_entry_store ↔ u_sched_plane)
+confirms it is. Three sins in the current contract:
+
+1. **Scheduler state crosses INTO the store combinationally.**
+   `bank_open_row_i` / `bank_row_active_i` (sched-owned bank state) feed
+   comb logic inside the entry store.
+2. **Derived flags cross BACK OUT and gate the decision.** The store
+   computes `wr_bh_act_o / rd_bh_act_o / wr_bh2_act_o / rd_bh2_act_o`
+   (head-row == open-row) and the sched arbitrates on them. One cycle,
+   two comb plane crossings, in both directions.
+3. **The records themselves are comb views into the fifo arrays.**
+   `wr_sch_*` / `rd_sch_*` / `*_bh_*` / `*_bh2_*` are array reads, so the
+   sched's winner FF sits at the end of a cone rooted in the store's
+   internal payload flops — the 56-level path.
+
+**The contract (new):** planes exchange registered snapshots, never comb
+probes; a flag that depends on state from two planes is computed in the
+plane that owns the decision.
+
+- store → sched: `wr_sch_*`, `rd_sch_*`, `*_bh_*`, `*_bh2_*` become
+  REGISTERED head-of-queue records (updated on push / pop / aging tick),
+  driven by head registers, not array scans.
+- DELETE from the interface: `bank_open_row_i`, `bank_row_active_i`
+  (stay sched-local), and the four `*_act_o` outputs. Hit classification
+  becomes `head_valid && (head_row == open_row[bank]) && row_active[bank]`
+  computed in the sched plane against its OWN open-row register — ~3
+  levels.
+- sched → store: unchanged fire handshakes (wr_commit / rd_issue /
+  rt_alloc — already flop-to-flop) + the 1-bit `sched_decr_i` aging tick
+  and `sched_age_thresh_i` (registered config, no state mirror).
+
+Resulting sched cone: registered head rows → hit flags → matrix arbiter
+over ≤8 banks → `r_winner` FF. ≤ 5 levels, one plane, placeable locally;
+the 25× row-payload fanout dies behind the registered head record. The
+57-level monster and the routing blow-up (1.68 ns/hop median, util only
+58 %/26 %) cannot re-form, because a comb path can no longer cross the
+boundary in either direction.
+
+Costs (both acceptable): a push into an empty bank queue is visible to
+the scheduler one cycle later (absorbed by the registered-winner /
+hold-on-not-fired rule — winner is decided a cycle ahead of fire), and
+~8 banks × 2 classes × 2 depths × (row+col+id+age ≈ 45 b) ≈ 1.4 k flops
+of head-record duplication.
+
+This contract also subsumes the pair-only-winner prototype (§16): with
+head records as stable snapshots, the grant → winner-load window cannot
+wobble mid-decision (a record only changes on fire, the sched's own
+output), so the winner-load rule
+(`fire || !r_winner.vld || winner_stale`) becomes structurally safe.
+
+General law for the family (house rule, same content as the diagrams'
+flopped/comb annotation, now promoted to RTL): **a plane's internal
+state — fifo arrays, open rows, timers — never leaves its plane as a
+combinational input to another plane. Plane-to-plane signals are
+registered snapshots plus handshakes.**
+
+### 17.1 The actual goal: drop-in storage backends (owner, 2026-10-19)
+
+"The goal is to swap ANY storage plane in at any time." §17's contract is
+necessary but not sufficient for that — swappability deletes signals that
+a timing-only fix would keep. The current u_entry_store port list leaks
+implementation and policy; the contract must be the semantic minimum the
+scheduler decides from.
+
+**Mandatory core of the contract (every backend implements, registered):**
+- per-bank, per-class head record, 2-deep ({head, 2nd}): {valid, row,
+  col, id/slot, urgency flags};
+- aging: `sched_decr_i` tick + `sched_age_thresh_i` in, `older` /
+  `age_exceed` flags out — backend-private policy;
+- fire handshakes unchanged: `wr_commit_*`, `rd_issue_*` (slot), return
+  path `rt_alloc_*`, `rd_iss_*` tickets;
+- bans (§17): no comb array views, no foreign state inputs, no derived
+  hit flags — hit classification is sched-local.
+
+**Removed from the contract (implementation/policy leaks):**
+- `wr_sch_*` / `rd_sch_*` per-class pre-pick records (they carry a bank
+  id — a store-side arbitration decision). A backend must not be forced
+  to replicate a policy to be pluggable: the sched derives its per-class
+  view from the per-bank records instead (sched-side change, done once).
+- `*_act_o` hit flags (§17) and `bank_open_row_i` / `bank_row_active_i`.
+- snarf probe: optional sideband, never required for correctness — the
+  sched runs degraded without it.
+
+**Swap gate** (generalizes the AGENTS.md storage-backend rule): the sched
+RTL is frozen; a backend is drop-in when it (a) implements the registered
+contract, (b) passes the storage-backend battery — contract test, real
+`mc_cmd_arbiter` at max-depth NUM_ENTRIES with > N chunks in flight per
+direction, the geared gate-1 / NUM_ENTRIES=8 / MANY=12 cell, board-level
+uart gate — and (c) closes timing under identical constraints with the
+sched RTL untouched. seat-pending, bank-FIFO and the aged-matrix core
+become reference implementations of one contract rather than three
+architectures wired ad hoc.
+
+### 17.2 Backend conformance assessment (owner ask, 2026-10-19)
+
+"Do the OOO storage and FIFO storage both meet it now?" — **No; neither.**
+
+- **FIFO storage** (`BANK_FIFO=1`: `mc_xddr2_entry_store` per-bank FIFOs +
+  `mc_bank_sched`): closest to the contract shape (per-bank per-class head
+  records exist), but the records are comb array views (the 56-level path),
+  `head_act_o` is computed in the fifo from `bank_open_row_i`, and the aged
+  variant dropped the boundary registers. The planned rework conforms it;
+  commit/issue handshakes and aging already conform. Becomes the reference
+  implementation.
+- **OOO storage** (`BANK_FIFO=0`: `mc_cmd_arbiter` FRFCFS research core):
+  structurally farther. Its interface is the full N-wide per-entry vector
+  dump + age-order matrix (comb, by construction), its CAM storage is fused
+  with its pick logic inside the sched plane (no storage plane exists in
+  that mode — nothing to swap), and `bh_*` views are tied off. To become
+  drop-in: the CAM wraps as a storage plane presenting registered ranked
+  {head, 2nd} per bank per class (FRFCFS-priority order instead of queue
+  order), keeping its age matrix and handshakes.
+
+**Consequence of the contract — policy moves to the sched.** FRFCFS's
+"first-READY" is hit-first prioritization, but hit classification is
+sched-local under §17 (a backend may not consume the open row). So the
+hit-first layer relocates into the sched plane, shared by every backend;
+backends keep only state + candidate ranking (queue order, FCFS/age, or a
+future QoS order). The {head, 2nd} contract shape survives this: it means
+"my two next-servable candidates, ranked," which every backend can define.
+Confirmed load-bearing, not decorative: `mc_bank_sched` bypasses the head
+for the 2nd (`w_use_head2`, including 2nd's age) — the per-bank "in-order"
+core is really a 2-deep reorder window, and the candidate contract covers
+it naturally.
