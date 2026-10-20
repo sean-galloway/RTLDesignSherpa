@@ -1111,14 +1111,14 @@ module axi4_intf_slave_observer
             .axi_aclk         (aclk),
             .axi_aresetn      (aresetn),
             .cam_clear        (cam_clear),
-    
+
             .monbus_valid     (arb_monbus_valid),
             .monbus_ready     (arb_monbus_ready),
             .monbus_packet    (arb_monbus_packet),
             .monbus_timestamp (arb_monbus_timestamp),
-    
+
             .mon_time_out     (mon_time_w),
-    
+
             // AXIL slave-read
             .s_axil_arvalid   (s_axil_arvalid),
             .s_axil_arready   (s_axil_arready),
@@ -1128,9 +1128,9 @@ module axi4_intf_slave_observer
             .s_axil_rready    (s_axil_rready),
             .s_axil_rdata     (s_axil_rdata),
             .s_axil_rresp     (s_axil_rresp),
-    
+
             // AXI4 master-write
-    
+
             .m_axil_awvalid   (m_axil_awvalid),
             .m_axil_awready   (m_axil_awready),
             .m_axil_awaddr    (m_axil_awaddr),
@@ -1142,15 +1142,15 @@ module axi4_intf_slave_observer
             .m_axil_bvalid    (m_axil_bvalid),
             .m_axil_bready    (m_axil_bready),
             .m_axil_bresp     (m_axil_bresp),
-    
+
             .irq_out          (irq_out),
-    
+
             // Address window + filter masks (caller-driven)
             .cfg_base_addr        (cfg_base_addr),
             .cfg_limit_addr       (cfg_limit_addr),
             .cfg_flush_watermark  (cfg_flush_watermark),
             .cfg_compress_en      (cfg_compress_en),
-    
+
             .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
             .cfg_axi_err_select   (cfg_axi_err_select),
             .cfg_axi_error_mask   (cfg_axi_error_mask),
@@ -1160,7 +1160,7 @@ module axi4_intf_slave_observer
             .cfg_axi_perf_mask    (cfg_axi_perf_mask),
             .cfg_axi_addr_mask    (cfg_axi_addr_mask),
             .cfg_axi_debug_mask   (cfg_axi_debug_mask),
-    
+
             // AXIS / CORE protocol masks: this observer doesn't generate
             // AXIS or CORE packets, so tie all to 0 (no filtering).
             .cfg_axis_pkt_mask     (cfg_axis_pkt_mask),
@@ -1179,12 +1179,12 @@ module axi4_intf_slave_observer
             .cfg_core_thresh_mask  (cfg_core_thresh_mask),
             .cfg_core_perf_mask    (cfg_core_perf_mask),
             .cfg_core_debug_mask   (cfg_core_debug_mask),
-    
+
             .err_fifo_full      (err_fifo_full),
             .write_fifo_full    (write_fifo_full),
             .err_fifo_count     (err_fifo_count),
             .write_fifo_count   (write_fifo_count),
-    
+
             /* verilator lint_off PINCONNECTEMPTY */
             .mon_compressor_stat_tier1_a        (w_comp_stat_tier1_a),
             .mon_compressor_stat_tier1_b        (w_comp_stat_tier1_b),
@@ -1214,14 +1214,14 @@ module axi4_intf_slave_observer
             .axi_aclk         (aclk),
             .axi_aresetn      (aresetn),
             .cam_clear        (cam_clear),
-    
+
             .monbus_valid     (arb_monbus_valid),
             .monbus_ready     (arb_monbus_ready),
             .monbus_packet    (arb_monbus_packet),
             .monbus_timestamp (arb_monbus_timestamp),
-    
+
             .mon_time_out     (mon_time_w),
-    
+
             // AXIL slave-read
             .s_axil_arvalid   (s_axil_arvalid),
             .s_axil_arready   (s_axil_arready),
@@ -1231,7 +1231,7 @@ module axi4_intf_slave_observer
             .s_axil_rready    (s_axil_rready),
             .s_axil_rdata     (s_axil_rdata),
             .s_axil_rresp     (s_axil_rresp),
-    
+
             // AXI4 master-write
             .m_axi_awid       (m_axi_awid),
             .m_axi_awaddr     (m_axi_awaddr),
@@ -1257,15 +1257,15 @@ module axi4_intf_slave_observer
             .m_axi_buser      (m_axi_buser),
             .m_axi_bvalid     (m_axi_bvalid),
             .m_axi_bready     (m_axi_bready),
-    
+
             .irq_out          (irq_out),
-    
+
             // Address window + filter masks (caller-driven)
             .cfg_base_addr        (cfg_base_addr),
             .cfg_limit_addr       (cfg_limit_addr),
             .cfg_flush_watermark  (cfg_flush_watermark),
             .cfg_compress_en      (cfg_compress_en),
-    
+
             .cfg_axi_pkt_mask     (cfg_axi_pkt_mask),
             .cfg_axi_err_select   (cfg_axi_err_select),
             .cfg_axi_error_mask   (cfg_axi_error_mask),
@@ -1275,7 +1275,7 @@ module axi4_intf_slave_observer
             .cfg_axi_perf_mask    (cfg_axi_perf_mask),
             .cfg_axi_addr_mask    (cfg_axi_addr_mask),
             .cfg_axi_debug_mask   (cfg_axi_debug_mask),
-    
+
             // AXIS / CORE protocol masks: this observer doesn't generate
             // AXIS or CORE packets, so tie all to 0 (no filtering).
             .cfg_axis_pkt_mask     (cfg_axis_pkt_mask),
@@ -1294,12 +1294,12 @@ module axi4_intf_slave_observer
             .cfg_core_thresh_mask  (cfg_core_thresh_mask),
             .cfg_core_perf_mask    (cfg_core_perf_mask),
             .cfg_core_debug_mask   (cfg_core_debug_mask),
-    
+
             .err_fifo_full      (err_fifo_full),
             .write_fifo_full    (write_fifo_full),
             .err_fifo_count     (err_fifo_count),
             .write_fifo_count   (write_fifo_count),
-    
+
             /* verilator lint_off PINCONNECTEMPTY */
             .mon_compressor_stat_tier1_a        (w_comp_stat_tier1_a),
             .mon_compressor_stat_tier1_b        (w_comp_stat_tier1_b),

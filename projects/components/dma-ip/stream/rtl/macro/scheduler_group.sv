@@ -37,10 +37,10 @@ module scheduler_group #(
     // TASK-101 (STREAM Extended): enable dma_address_gen addressing (default off).
     parameter int USE_ROW_COL_MAJOR_ADDRESSING = 1,
     // Monitor Bus Parameters - Base IDs for each component
-    parameter DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
-    parameter SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
-    parameter MON_UNIT_ID = 1,              // 0x1
-    parameter MON_CHANNEL_ID = 0            // Base channel ID
+    parameter int DESC_MON_AGENT_ID = 16,       // 0x10 - Descriptor Engine
+    parameter int SCHED_MON_AGENT_ID = 48,      // 0x30 - Scheduler
+    parameter int MON_UNIT_ID = 1,              // 0x1
+    parameter int MON_CHANNEL_ID = 0            // Base channel ID
 ) (
     // Clock and Reset
     input  logic                        clk,

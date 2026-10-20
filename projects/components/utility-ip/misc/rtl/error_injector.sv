@@ -255,6 +255,8 @@ module error_injector #(
     logic r_a_v, r_b_v, r_c_v;
     logic w_a_ready, w_b_ready, w_c_ready;
 
+    logic             r_first;      // lane 0 is a block's first beat (registered below)
+
     assign w_c_ready = (!r_c_v || out_ready) && !r_dec_busy && !w_draw_wait;
     // COUNT holds the beat in B for N_GRP decision cycles; in that mode B only
     // refills once empty, EXCEPT in the decision's release cycle -- the fire
@@ -330,9 +332,9 @@ module error_injector #(
         end
     )
 
-    // block position of lane 0 for the beat being accepted
+    // block position of lane 0 for the beat being accepted (r_first is
+    // declared earlier: the stage-A ready term reads it)
     logic [POS_W-1:0] r_pos;
-    logic             r_first;
 
     // A registers
     logic [DATA_WIDTH-1:0] r_a_data;

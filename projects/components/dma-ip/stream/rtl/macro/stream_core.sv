@@ -172,12 +172,12 @@ module stream_core #(
     parameter int SKID_DEPTH_B = 2,
 
     // Monitor Bus Base IDs
-    parameter DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
-    parameter SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
-    parameter DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
-    parameter RD_AXI_MON_AGENT_ID = 9,       // 0x09 - Data-read datapath monitor
-    parameter WR_AXI_MON_AGENT_ID = 10,      // 0x0A - Data-write datapath monitor
-    parameter MON_UNIT_ID = 1,               // 0x1
+    parameter int DESC_MON_BASE_AGENT_ID = 16,   // 0x10 - Descriptor Engines (16-23)
+    parameter int SCHED_MON_BASE_AGENT_ID = 48,  // 0x30 - Schedulers (48-55)
+    parameter int DESC_AXI_MON_AGENT_ID = 8,     // 0x08 - Descriptor AXI Master Monitor
+    parameter int RD_AXI_MON_AGENT_ID = 9,       // 0x09 - Data-read datapath monitor
+    parameter int WR_AXI_MON_AGENT_ID = 10,      // 0x0A - Data-write datapath monitor
+    parameter int MON_UNIT_ID = 1,               // 0x1
 
     // Desc-bus monitor reporter sub-block enables. Pass-through to
     // scheduler_group_array → axi4_master_rd_mon. Defaults match the
@@ -2016,6 +2016,7 @@ module stream_core #(
                 obs_data0 = {{(32-($clog2(FIFO_DEPTH)+1)){1'b0}}, axi_rd_space_free[w_obs_ch]};
                 obs_data1 = {{(32-($clog2(FIFO_DEPTH)+1)){1'b0}}, axi_wr_drain_data_avail[w_obs_ch]};
             end
+            default: ;  // unreachable: the 2-bit select covers all four
         endcase
     end
 
