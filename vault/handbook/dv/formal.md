@@ -452,3 +452,10 @@ expensive family separate from the cheap one, via `chparam` in the `.sby`) is
 the next lever, and also costs no coverage: an area Makefile must then run BOTH
 safety tasks from its `prove` target, or the split silently drops the expensive
 family from every area-level run.
+
+*Case (2026-10-20): `formal/stream/stream_core` on `smtbmc z3` -- prove
+(depth 15) 5h44m, cover (depth 25) 11h44m, two single steps of 4-6 hours
+each. On `smtbmc bitwuzla`: prove **7 s**, cover **23 s**, the same five
+covers reached at the same steps, and two property mutants each FAIL on
+the property broken. A run measured in hours is a solver choice until
+shown otherwise; try bitwuzla before reading a long run as a stuck one.*
