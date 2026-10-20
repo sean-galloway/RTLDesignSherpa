@@ -7,7 +7,8 @@ Tetrad compute engine (barrel RV32I + Xcell), one engine per tetrad,
 
 | Task | Summary |
 |---|---|
-| [TASK-001](task/open/TASK-001.md) | Tetrad compute FSM: kestrel-evaluation answered by gatling; PRD §7 decisions + alu-infer interface conflicts |
+| [TASK-001](task/open/TASK-001.md) | Tetrad compute FSM: kestrel-evaluation answered by gatling; PRD §7 decisions + alu-infer interface conflicts (interface conflicts RESOLVED by owner ruling 2026-10-19: sequencer model) |
+| [TASK-002](task/open/TASK-002.md) | Gatling RTL bring-up: barrel model chapter, RTL, HAS/MAS (blocks tile milestone M1) |
 
 ## Closed
 

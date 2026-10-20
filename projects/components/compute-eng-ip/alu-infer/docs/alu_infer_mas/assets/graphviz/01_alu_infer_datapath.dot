@@ -1,0 +1,40 @@
+// DERIVED from ../../assets/graphviz/01_alu_infer_datapath.dot (PRD-canonical) — keep in
+// line by copying after regenerating the PRD figure; do not edit here.
+// ALU-INFER datapath (definition level) — house style per
+// vault/handbook/authoring/block-diagrams.md (single-clock block mapping:
+// white ports on top, white output bar at the bottom, sideband dashed).
+// Owner direction 2026-10-17: bf16 lanes built on the rtl/math math_bf16_*
+// family — the named rows are the library blocks.
+digraph alu_infer {
+    rankdir=TB;
+    graph [bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // Ports (white) and sideband state
+    in    [label="Operand line(s)\nsame-clock capture\n(from execution FSM)", fillcolor="white"];
+    cfg   [label="FUNC_SEL {opcode, sub-op,\nreserved} (mode select,\nfrom cell config registers)", fillcolor="white"];
+    acc   [label="MAC accumulator\n(one acc element per lane;\nprecision per PRD §7)", style="filled,dashed"];
+
+    // Flow blocks
+    decomp [label="Element decompose\n2xbf16 per 32-bit line\n(rtl/math bf16 lanes)"];
+    funcs  [label="bf16 function array (math_bf16_*)\ncopy | add | sub | mul | mac (fma)\nmin/max | compare/threshold | relu"];
+    comp   [label="Line composer\n(bf16 lanes -> result line)"];
+
+    // Boundary bar
+    out   [label="Result line + flags\n(to result memory push)", fillcolor="white"];
+
+    // Main flow: operands down the center
+    in    -> decomp [label="operand line(s)"];
+    decomp -> funcs [label="bf16 lanes"];
+    funcs  -> comp  [label="result lanes"];
+    comp   -> out   [label="result line"];
+
+    // Sideband: config and accumulator (one combined edge per node pair —
+    // never two parallel edges for the read/update pair)
+    cfg -> decomp [style=dashed, label="(fixed bf16)"];
+    cfg -> funcs  [style=dashed, label="function + sub-op"];
+    acc -> funcs  [dir=both, style=dashed, label="acc read / update (mac)"];
+}

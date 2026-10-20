@@ -1,0 +1,6 @@
+DEVICE SLICE GRID BOUNDS: X=0..89 Y=0..199
+
+u_harness/u_dut/u_ctrl/u_core/u_entry_store BBOX: SLICE_X3Y0 -> SLICE_X89Y125  (width 87, height 126, cells 5998)
+u_harness/u_dut/u_ctrl/u_core/u_sched_plane BBOX: SLICE_X4Y3 -> SLICE_X79Y81  (width 76, height 79, cells 3113)
+u_harness/u_dut/u_ctrl/u_core/u_axi_plane BBOX: SLICE_X7Y10 -> SLICE_X88Y145  (width 82, height 136, cells 3100)
+u_harness/u_dut/u_ctrl BBOX: SLICE_X3Y0 -> SLICE_X89Y169  (width 87, height 170, cells 15448)

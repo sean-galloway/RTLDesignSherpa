@@ -1,0 +1,63 @@
+// ALU-RV32F execution unit (definition level) — house style per
+// vault/handbook/authoring/block-diagrams.md (FP datapath mapping:
+// operands on top, unpack/classify, parallel unit rows in one rank,
+// normalize/round then special-case select, white output bar; flags are a
+// dashed sideband to fcsr; the operation select is a mode port, not a pick —
+// no trapezium).
+digraph alu_rv32f {
+    rankdir=TB;
+    graph [bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // Operand ports and mode select (white)
+    pa [label="FP operand A", fillcolor="white"];
+    pb [label="FP operand B", fillcolor="white"];
+    pc [label="FP operand C\n(fused family only)", fillcolor="white"];
+    op [label="op select + rm (RNE;\nother modes raise NV)", fillcolor="white"];
+
+    // Field split
+    unpack [label="Unpack + classify\nsign, exponent, mantissa;\nNaN / inf / zero / denormal flags"];
+
+    // Parallel unit rows (one rank); rtl/math blocks underneath
+    uadd  [label="FADD / FSUB\nrtl/math fp32 adder"];
+    umul  [label="FMUL\nrtl/math fp32 multiplier"];
+    ufma  [label="FMADD family\nrtl/math fp32 FMA"];
+    udiv  [label="FDIV (non-pipelined)\nrtl/math fp32 divider\n(Goldschmidt)"];
+    usqrt [label="FSQRT (non-pipelined)\nrtl/math fp32 sqrt\n(NR reciprocal-sqrt)"];
+    usm   [label="FSGNJ / FMV / FMIN / FMAX\nFCVT / FCLASS / FEQ / FLT / FLE\nsmall rows"];
+
+    // Post-processing chain
+    norm [label="Normalize + round (RNE)\nGRS per IEEE 754-2008"];
+    sel  [label="Result + special-case select\nNaN / inf / zero overrides"];
+
+    // Boundary bar (white) and flag sideband
+    out   [label="Result 32b (fp32 or int)\nto reservation station / commit", fillcolor="white"];
+    flags [label="{NV, DZ, OF, UF, NX} per-op flag bundle\n(merged in program order at commit)", fillcolor="white"];
+
+    // Main flow
+    pa -> unpack [headlabel="A"];
+    pb -> unpack [headlabel="B"];
+    pc -> ufma   [headlabel="C", label="(fused only)"];
+    unpack -> uadd  [label="fields"];
+    unpack -> umul  [label="fields"];
+    unpack -> ufma  [label="fields"];
+    unpack -> udiv  [label="fields"];
+    unpack -> usqrt [label="fields"];
+    unpack -> usm   [label="fields"];
+    uadd  -> norm [label="sum"];
+    umul  -> norm [label="product"];
+    ufma  -> norm [label="fused"];
+    udiv  -> norm [label="quotient"];
+    usqrt -> norm [label="root"];
+    usm   -> sel  [label="exact result"];
+    norm  -> sel  [label="rounded + GRS"];
+    sel   -> out  [label="result"];
+
+    // Sideband
+    op -> uadd  [style=dashed, label="row"];
+    op -> usm   [style=dashed, label="row"];
+    sel -> flags [style=dashed, label="flag bundle"];
+}

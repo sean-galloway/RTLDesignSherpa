@@ -63,6 +63,16 @@ itself) or its external ID (1, what is attached to it, such as a cell).
 
 : Table 3.14.1: Header Fields and Their Sources
 
+### Header Beat Chaining on Narrow Fabric Links (2026-10-19)
+
+RAPIDS ports are 256 bits or wider, so the 128-bit tile header is one payload
+beat and the existing `DATA_WIDTH` >= 256 elaboration check stays in force. On
+narrower fabric links the header occupies the first `ceil(128 / DATA_WIDTH)`
+payload beats, LSB-first, per TILE_SPEC §11.6. That chaining rule is the
+contract toward narrow delta links (delta `DATA_WIDTH` = 64 today → 2 beats);
+consumers on those links parse the header per TILE_SPEC §11.6, and RAPIDS does
+not insert a width converter for the header.
+
 ## Source Half
 
 **Scheduler.** It latches `ptype` and `op` with the descriptor and passes

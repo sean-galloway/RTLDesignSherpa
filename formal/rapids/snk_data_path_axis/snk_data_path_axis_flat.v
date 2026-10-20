@@ -2071,7 +2071,7 @@ module axi_write_engine (
 			r_aw_channel_id <= 1'sb0;
 		end
 		else begin
-			if ((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) begin
+			if (((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) && w_phase_txn_fifo_wr_ready) begin
 				r_aw_valid <= 1'b1;
 				r_aw_channel_id <= w_arb_grant_id;
 				r_aw_len <= w_transfer_size[w_arb_grant_id * 8+:8];
@@ -2347,6 +2347,8 @@ module snk_data_path_axis (
 	s_axis_tuser,
 	s_axis_tvalid,
 	s_axis_tready,
+	chan_can_take,
+	chan_has_data,
 	sched_wr_valid,
 	sched_wr_ready,
 	sched_wr_addr,
@@ -2398,6 +2400,7 @@ module snk_data_path_axis (
 	parameter signed [31:0] AXIS_ID_WIDTH = 8;
 	parameter signed [31:0] AXIS_DEST_WIDTH = 4;
 	parameter signed [31:0] AXIS_USER_WIDTH = 1;
+	parameter signed [31:0] TAKE_ROOM = 0;
 	parameter signed [31:0] NC = NUM_CHANNELS;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
@@ -2420,6 +2423,8 @@ module snk_data_path_axis (
 	input wire [AXIS_USER_WIDTH - 1:0] s_axis_tuser;
 	input wire s_axis_tvalid;
 	output wire s_axis_tready;
+	output reg [NC - 1:0] chan_can_take;
+	output reg [NC - 1:0] chan_has_data;
 	input wire [NC - 1:0] sched_wr_valid;
 	output wire [NC - 1:0] sched_wr_ready;
 	input wire [(NC * AW) - 1:0] sched_wr_addr;
@@ -2711,6 +2716,24 @@ module snk_data_path_axis (
 						r_alloc_settle[ch * 2+:2] <= 2'd0;
 				end
 		end
+	function automatic signed [CIW - 1:0] sv2v_cast_0111B_signed;
+		input reg signed [CIW - 1:0] inp;
+		sv2v_cast_0111B_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_7
+			reg signed [31:0] ch;
+			for (ch = 0; ch < NC; ch = ch + 1)
+				begin : sv2v_autoblock_8
+					reg room;
+					room = (TAKE_ROOM == 0) || ((r_alloc_settle[ch * 2+:2] == 2'd0) && ((sv2v_cast_32(fill_space_free[ch * SCW+:SCW]) + sv2v_cast_32(r_pending_alloc[ch * 16+:16])) >= TAKE_ROOM));
+					chan_has_data[ch] = (sv2v_cast_32(fill_space_free[ch * SCW+:SCW]) + sv2v_cast_32(r_pending_alloc[ch * 16+:16])) != SD;
+					chan_can_take[ch] = !w_rst[ch] && (r_discard[ch] || ((!w_pq_empty[ch] && !(r_flush_valid && (r_flush_ch == sv2v_cast_0111B_signed(ch)))) && room));
+				end
+		end
+	end
 	wire w_out_rst = w_rst[r_out_id];
 	wire w_channel_needs_alloc = (r_pending_alloc[r_out_id * 16+:16] == {16 {1'sb0}}) && (r_alloc_settle[r_out_id * 2+:2] == 2'd0);
 	assign w_eff_alloc_size = (cfg_alloc_size == 8'd0 ? 8'd1 : cfg_alloc_size);
@@ -2735,7 +2758,7 @@ module snk_data_path_axis (
 			r_axis_packets_received <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_7
+			begin : sv2v_autoblock_9
 				reg signed [31:0] ch;
 				for (ch = 0; ch < NC; ch = ch + 1)
 					begin

@@ -32,7 +32,7 @@
 ## Quick Context
 
 **What:** DELTA (Distributed Execution Layer for Tensor Acceleration) - Mesh Network-on-Chip with intelligent packet routing
-**Status:** Design draft (v0.3) — NOT implemented; no NoC RTL exists (see the README in this directory)
+**Status:** Design draft (v0.3) — NOT implemented in this tree; the live mesh cell RTL exists under `projects/components/fabric-gen-ip/delta/` (see the README in this directory)
 **Your Role:** Help users understand NoC architecture, routing algorithms, and system integration
 
 **Complete Specification:** `projects/components/noc-ip/delta_spec/` ← **Always reference this for technical details**
@@ -65,7 +65,7 @@ cat projects/components/noc-ip/delta_spec/ch02_blocks/01_router_architecture.md
    - Location: `projects/components/noc-ip/delta_spec/`
    - 4×4 mesh topology with routers, virtual channels, XY routing
    - Four packet types (DATA, DESC, CONFIG, STATUS)
-   - **No RTL exists** — aspirational design groundwork for a future NoC
+   - **No RTL exists in this NoC draft** — aspirational design groundwork for a future NoC; the live Delta mesh cell RTL is in `projects/components/fabric-gen-ip/delta/`
 
 2. **Delta AXIS Crossbar** (the implemented component)
    - Location: `projects/components/fabric-gen-ip/delta/`

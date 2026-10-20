@@ -11,6 +11,7 @@ $REPO_ROOT/rtl/amba/includes/axi_stress_pkg.sv
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 
 $REPO_ROOT/rtl/amba/shared/axi_stress_ord_table.sv
+$REPO_ROOT/rtl/amba/shared/axi_stress_r_merge.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_txn_gen.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_mst_rd.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_mst_wr.sv

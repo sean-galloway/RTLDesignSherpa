@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: 2026 sean galloway
 //
-// Formal harness for axis_monitor_lite (amba/monitor-lite TASK-003).
+// Formal harness for axis_monitor_lite (rtl/amba/monitors TASK-003).
 // Free stream and monbus inputs; the checks are the block's delivery
 // contract and its accounting, the covers prove every packet class it emits
 // is reachable (a proof over an unreachable class is vacuous):

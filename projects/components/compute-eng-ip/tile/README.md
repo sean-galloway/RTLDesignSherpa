@@ -45,6 +45,9 @@ pair; module boundaries follow the [`cell` PRD](../cell/docs/PRD.md)
 blocks. The CXS migration (amba lane, in flight) moves the transports
 per §6 without changing the header (§11.6).
 
+Owner direction 2026-10-19: a milestone ladder (M1–M4) is now recorded in
+[`docs/TILE_SPEC.md`](docs/TILE_SPEC.md) §12.
+
 ## Documents
 
 - [Tile Spec — subsystem uarch](docs/TILE_SPEC.md) — the canonical

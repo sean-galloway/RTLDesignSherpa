@@ -1,0 +1,77 @@
+// CELL whole-cell datapath (cell MAS v0.12).
+// House style: vault/handbook/authoring/block-diagrams.md — owner ruling
+// 2026-10-18: no invisible scaffolding. Direct edges between visible nodes
+// only; rank pins and group columns do the layout; return lanes are
+// constraint=false direct edges into the boundary bar.
+// Three flows traceable at a glance:
+//   - programming/config down the center
+//   - operand fill down the left
+//   - result data + credit returns back up the right
+// One boundary bar: the delta node edge.
+digraph cell_whole {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.40", ranksep="0.60", splines=ortho,
+         label="CELL — whole-cell datapath (MAS v0.12)",
+         labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+  edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+  // ---- Top boundary: mesh pass-through ----
+  mesh  [group="C", fillcolor="white",
+         label="Mesh ports x8 — pass through to cell boundary\n(±X  ±Y  ±Z  P_DIA  P_DIA2)"];
+  nodeb [group="C", width=5.8, height=0.55,
+         label="Delta Mesh Node — the cell boundary\ndelta_mesh_cell — fabric-gen-ip/delta"];
+
+  // ---- Cell blocks ----
+  rx     [group="C", label="Rx Header Demux\ncell_rx — cfg / mem / credit route"];
+  inmem  [label="Input Memory\ncell_mem_in — operand buffer, IP++\neach line carries source tag"];
+  cfgregs [group="C", label="Config Registers\ncell_cfg_regs — §7 map\nincl. A·B·C·D·T window"];
+  credit [label="Credit Logic\ncell_credit — per-source batching + timeout"];
+  fsm    [group="C", shape=invtrapezium, width=1.8, height=0.45,
+          label="Execution FSM\ncell_exec_fsm — scheduler"];
+  aluregs [label="ALU Registers\nA · B · C · D + T\npersistent operands + threshold"];
+  alu    [group="C", label="Inference ALU\nalu-infer — bf16 rows, fp32 MAC\nvalid/ready elastic pipe"];
+  outmem [group="C", label="Result Memory\ncell_mem_out — output buffer, OP++"];
+  pktz   [group="C", label="Tx Packetizer\ncell_packetizer — batch X + §11.5 header\nconfig from §7: batch X · flush dest/tag"];
+
+  // ---- Boundary crossings (visible nodes only) ----
+  mesh -> nodeb [dir=back, label="mesh traffic — 8 pass-through ports"];
+  nodeb -> rx [label="local port rx — flits + delta route header (TUSER)"];
+
+  // ---- Programming/config flow: center column, dashed ----
+  rx -> cfgregs [style=dashed, label="cfg writes — §7 map"];
+  cfgregs -> fsm [style=dashed, label="func / op_lines / op_src config"];
+  cfgregs -> aluregs [style=dashed, label="cfg write fan — A B C D T"];
+
+  // ---- Operand fill flow: left column ----
+  rx -> inmem [label="mem payload — operand lines"];
+  inmem -> fsm [label="operand lines — pop (IP++)"];
+  aluregs -> fsm [label="A/B/C/D → op_line_a/b\nT → threshold_imm"];
+
+  // ---- Issue: FSM output, heavy pen ----
+  fsm -> alu [penwidth=1.8, label="issue — valid/ready elastic, II=1"];
+
+  // ---- Result flow: down the spine ----
+  alu -> outmem [label="result lines — in-order (OP++)"];
+  outmem -> pktz [label="result lines buffered"];
+
+  // ---- Return lanes: direct edges into the boundary bar (no scaffolds) ----
+  pktz  -> nodeb [constraint=false, xlabel="result packets — §11.5 header (strap-gated)"];
+  credit -> nodeb [constraint=false, style=dashed, xlabel="credit packets — add → recorded source"];
+  fsm -> credit [style=dashed, xlabel="consumed-line strobe (per-source)"];
+
+  // ---- Rank pinning (visible nodes only) ----
+  { rank=same; mesh }
+  { rank=same; nodeb }
+  { rank=same; rx }
+  { rank=same; inmem; cfgregs; credit }
+  { rank=same; fsm; aluregs }
+  { rank=same; alu }
+  { rank=same; outmem }
+  { rank=same; pktz }
+
+  // ---- Invisible ordering edges between visible nodes ----
+  inmem -> cfgregs [style=invis];
+  cfgregs -> credit [style=invis];
+}

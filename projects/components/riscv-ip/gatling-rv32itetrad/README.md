@@ -4,14 +4,18 @@
 (alongside `cell/`, `tile/`, `hive-serv/`).
 **Codename:** gatling — the barrel machine; one datapath, four barrels.
 **ISA:** RV32I base + `Xcell` non-standard extension (custom-0/custom-1 space).
-**Status:** PRD 0.1 (this document set); no RTL yet.
+**Status:** PRD 0.2 (this document set); no RTL yet.
 
 Gatling is the per-tetrad compute engine of the tile: one barrel
 RV32I processor with **4 architectural contexts**, one context per
-cell of the tetrad. It replaces the per-cell ALU + execution FSM of
-the cell PRD 0.1 datapath decision with a programmable engine — the
-owner decision recorded in the PRD (2026-10-17): *"Instructions"* over
-MMIO for fabric handshake, and a mini RV per tetrad over per-cell ALUs.
+cell of the tetrad. Owner ruling 2026-10-19: gatling sequences the
+four ALUs of its adjacent cells. The barrel core is the programmable
+sequencer for the tetrad — each context runs a small program whose
+POP presents operands to the cell's alu-infer issue handshake and
+whose PUSH retires a result line — while the bf16 ALU datapath in
+every cell stays in place. The earlier owner decision (2026-10-17):
+*"Instructions"* over MMIO for fabric handshake, and a mini RV per
+tetrad over per-cell ALUs.
 
 Derived from `riscv-ip/kestrel-rv32i` (single-cycle RV32I): same ISA
 base, same fub vocabulary (alu / decode / imm_gen / regfile), same
@@ -42,9 +46,11 @@ cost is amortized to ~1 IPC per context.
 
 ## Relationship to cell / tile / hive-serv
 
-- `cell/` PRD 0.1 blocks stand; gatling **is** the ALU + execution FSM
-  slot, upgraded to a processor. Input memory, result memory, packetizer,
-  credit/grant contracts are unchanged.
+- `cell/` PRD 0.1 blocks stand; gatling **drives** the execution FSM
+  slot, upgraded to a programmable sequencer. The bf16 ALU datapath
+  remains in each cell; input memory, result memory, packetizer, and
+  credit/grant contracts are unchanged. Gatling never originates config
+  traffic; cell configuration arrives in-band over delta.
 - `tile/` TILE_SPEC §11 hierarchy stands: 4 gatlings per tile (one per
   tetrad), tetrad MonBus merge observes all four contexts.
 - `hive-serv/` stays the control plane; gatling is data plane, like cell.

@@ -403,3 +403,9 @@ clockInfo.txt
 # formal/kestrel/riscv-formal/checks/, ignored locally)
 /formal/checks
 /formal/insns
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+# mem-ctrl-ip scratch debug diagrams — local only, not committed.
+/projects/components/mem-ctrl-ip/debug/

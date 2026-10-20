@@ -1,0 +1,54 @@
+// CELL credit-loop figure (cell MAS v0.12).
+// House style: vault/handbook/authoring/block-diagrams.md
+// Shows fill -> consume -> per-source batching -> credit return,
+// sender-generic.  The credit path is a dashed return lane.
+digraph credit_loop {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.40", ranksep="0.60", splines=ortho,
+         label="CELL — credit loop (sender-generic)",
+         labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+  edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+  // ---- Sources at top (white) ----
+  rapids [fillcolor="white", label="RAPIDS (level 3)\nsends operand mem writes"];
+  peer   [fillcolor="white", label="Peer cell / core\nmay stream operands"];
+
+  // ---- Top bar: the delta mesh boundary ----
+  meshbar [fillcolor="white", width=4.5, height=0.35,
+           label="Delta mesh — routes by destination coordinate"];
+
+  // ---- Cell blocks ----
+  rx     [label="cell_rx\nrecord source coord per packet"];
+  inmem  [label="cell_mem_in\noperand lines + source tag"];
+  fsm    [label="cell_exec_fsm\nconsumes line, advances IP"];
+  credit [label="cell_credit\nper-source owed counters\nbatch N + 64-cycle timeout"];
+  pktbld [label="credit-packet builder\nptype=credit, op=add/set"];
+
+
+  // ---- Forward flow: sources -> mesh -> rx -> inmem -> fsm ----
+  rapids -> meshbar [label="mem packet (header + payload)"];
+  peer -> meshbar [label="mem packet (header + payload)"];
+  meshbar -> rx [label="cell-bound flits"];
+  rx -> inmem [label="operand lines + src tag"];
+  inmem -> fsm [label="pop line (IP++)"];
+
+  // ---- Consume strobe into credit logic ----
+  fsm -> credit [label="consumed-line strobe\n+ src_coord"];
+
+  // ---- Credit packet build and return ----
+  credit -> pktbld [style=dashed, label="batch ready / timeout"];
+  pktbld -> meshbar [style=dashed, label="credit packets — add → recorded source · boot set → level 3 (IN_DEPTH flits, §6.1)"];
+  meshbar -> rapids [style=dashed, label="credits return to RAPIDS"];
+  meshbar -> peer [style=dashed, label="credits return to peer cell"];
+
+  // ---- Rank pinning ----
+  { rank=same; rapids; peer }
+  { rank=same; meshbar }
+  { rank=same; rx }
+  { rank=same; inmem }
+  { rank=same; fsm }
+  { rank=same; credit }
+  { rank=same; pktbld }
+}

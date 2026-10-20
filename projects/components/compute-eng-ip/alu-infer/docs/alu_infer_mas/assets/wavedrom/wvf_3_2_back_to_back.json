@@ -1,0 +1,54 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "P......."
+    },
+    {
+      "name": "",
+      "wave": "22222222",
+      "data": [
+        "n",
+        "n+1",
+        "n+2",
+        "n+3",
+        "n+4",
+        "n+5",
+        "n+6",
+        "n+7"
+      ]
+    },
+    {
+      "name": "valid (FSM)",
+      "wave": "1110...."
+    },
+    {
+      "name": "func_sel[4:0]",
+      "wave": "222x....",
+      "data": [
+        "MUL",
+        "MUL",
+        "RELU"
+      ]
+    },
+    {
+      "name": "ready (ALU)",
+      "wave": "0111...."
+    },
+    {
+      "name": "result_line",
+      "wave": "x....222",
+      "data": [
+        "r(MUL)",
+        "r(MUL)",
+        "r(RELU)"
+      ]
+    }
+  ],
+  "config": {
+    "hscale": 2.2
+  },
+  "head": {
+    "text": "Back-to-back issue: any opcodes, one per clock while ready, in-order results (L drawn = 4)"
+  }
+}

@@ -1,0 +1,10 @@
+# running in scoria_cmd_arbiter_nofix/src/
+read_verilog -formal arb_flat.v
+read -formal -sv formal_scoria_cmd_arbiter.sv
+chparam -set BUG001 0 formal_scoria_cmd_arbiter
+prep -top formal_scoria_cmd_arbiter
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

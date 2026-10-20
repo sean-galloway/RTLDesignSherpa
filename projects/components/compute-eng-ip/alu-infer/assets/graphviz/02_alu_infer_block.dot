@@ -1,0 +1,82 @@
+// ALU-INFER full block diagram — house style per
+// vault/handbook/authoring/block-diagrams.md (single-clock block mapping:
+// white input ports on top, parallel function rows in one rank, mode select
+// dashed, state dashed, white output bar at the bottom; no trapezium — the
+// function pick is a port-driven mode select, a plain box; shared operand
+// trunk splits at a labeled point node).
+digraph alu_infer_block {
+    rankdir=TB;
+    graph [bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.55", splines=ortho];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize="0.7"];
+
+    // ---- Ports (white), pinned to the top rank so sideband ports never
+    // sit inside the function-row rank ----
+    { rank=same; pa; pb; timm; fsel; actl; clk; }
+    pa  [label="op_line_a (32b)\nsame-clock capture", fillcolor="white"];
+    pb  [label="op_line_b (32b)\nsame-clock capture", fillcolor="white"];
+    timm [label="threshold_imm\n(bf16)", fillcolor="white"];
+    fsel [label="func_sel (9b)\nopcode + sub-op + reserved", fillcolor="white"];
+    actl [label="acc_ctrl\nclear / hold / accumulate", fillcolor="white"];
+    clk  [label="clk, rst_n", fillcolor="white"];
+
+    // ---- Element decompose (one block, both operands) ----
+    da [label="Element decompose\n2xbf16 lanes per 32-bit line (A, B)"];
+    p  [shape=point, style=invis, label="", width="0.05", fixedsize=true];
+
+    // ---- Function rows (one rank; rtl/math block on the second line) ----
+    fcopy [label="Copy / passthrough\n(bypass lane)"];
+    fadd  [label="Add / Subtract\nmath_bf16_adder"];
+    fmul  [label="Multiply\nmath_bf16_multiplier"];
+    fmac  [label="FMA / MAC\nmath_bf16_fma"];
+    fmm   [label="Min / Max\nmath_bf16_min/max"];
+    fcmp  [label="Compare / threshold\nmath_bf16_comparator"];
+    frelu [label="ReLU\nmath_bf16_relu"];
+
+    // ---- Post paths ----
+    sel  [label="Result select (mode mux)\ny = row[func_sel.opcode]"];
+    comp [label="Line composer\npack 2xbf16 -> 32b line\n(MAC: fp32 -> bf16 RNE at drain)"];
+
+    // ---- Outputs (white bar) ----
+    out  [label="result_line (32b)\nto FSM / result-memory push", fillcolor="white"];
+    flg  [label="result_flags\nmask / flags (opcode 6)", fillcolor="white"];
+
+    // ---- State (dashed sideband) ----
+    acc  [label="fp32 MAC accumulator\n(per lane)", style="filled,dashed"];
+
+    // ---- Operand trunk ----
+    pa -> da [label="operand line A"];
+    pb -> da [label="operand line B"];
+    da -> p  [label="bf16 lanes"];
+    p -> fcopy;
+    p -> fadd;
+    p -> fmul;
+    p -> fmac;
+    p -> fmm;
+    p -> fcmp;
+    p -> frelu;
+    timm -> fcmp [label="bf16 imm"];
+
+    // ---- Row results into the mode select ----
+    fcopy -> sel [label="passthrough"];
+    fadd  -> sel [label="sum / diff"];
+    fmul  -> sel [label="product"];
+    fmac  -> sel [label="fused (fp32)"];
+    fmm   -> sel [label="min / max"];
+    fcmp  -> sel [label="mask"];
+    frelu -> sel [label="activated"];
+
+    // ---- Output bar ----
+    sel  -> comp [label="selected lanes"];
+    comp -> out  [label="result line"];
+    fcmp -> flg  [label="mask / flags"];
+
+    // ---- Sideband: config, accumulator, clock ----
+    fsel -> sel  [style=dashed, label="row + sub-op select"];
+    actl -> acc  [style=dashed, label="acc control"];
+    acc  -> fmac [dir=both, style=dashed, label="acc read / update"];
+    clk  -> acc  [style=dashed, label="clk"];
+    clk  -> comp [style=dashed, label="clk"];
+}

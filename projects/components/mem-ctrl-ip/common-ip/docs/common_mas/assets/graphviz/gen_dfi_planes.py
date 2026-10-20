@@ -7,6 +7,17 @@ script keeps the three figures identical where the RTL is identical and
 different only where the generation differs. House style:
 vault/handbook/authoring/block-diagrams.md. Writes the .dot files only;
 render with regenerate_all_graphviz.sh.
+
+Figure idiom (mirrors the common_has whole-unit figure and the approved
+scheduler-plane figure):
+  * three straight columns: write data down the left, DDR command down
+    the center (penwidth=1.8), read data back up the right -- every flow
+    arrow is vertical and enters a top or bottom edge;
+  * one sideband handshake per plane (cal sideband for 2.1, write
+    leveling for 3.1) is a straight vertical dashed lane in the far-right
+    margin -- no invisible scaffold points, no margin wraps;
+  * the runtime-inputs legend is parked at the plane-edge bar's rank,
+    right side, with no edges (the scheduler plane's config-box idiom).
 """
 from pathlib import Path
 
@@ -28,8 +39,7 @@ BODY = '''
     p_wd  [label="Write data in (ctl_clk)\\n{wd_src}", fillcolor="white"];
     p_cmd [label="DDR Command in (ctl_clk)\\nfrom mc_scheduler_plane", fillcolor="white"];
     p_rd  [label="Read data out (ctl_clk)\\nto mc_rd_return_ring", fillcolor="white"];
-    legend [label="{legend}", fillcolor="white"];
-
+{extra_nodes}
     // ---- the single CDC: mc_dfi_cdc (gaxi_fifo_async only) ----
     cdc_wd  [label="Write Data CDC FIFO\\nmc_dfi_cdc - gaxi_fifo_async\\n(ctl_clk -> dfi_clk)"];
     cdc_cmd [label="Command CDC FIFO\\nmc_dfi_cdc - gaxi_fifo_async\\n(ctl_clk -> dfi_clk);\\ndfi_init start / complete tokens (to the PHY pins)"];
@@ -39,33 +49,37 @@ BODY = '''
     cmd_path [label="{cmd_label}"];
     wr_ser   [label="Write Serializer\\nmc_dfi_wr_serializer - FUB\\n{wr_note}"];
     rd_al    [label="Read Aligner\\nmc_dfi_rd_aligner - FUB\\n{rd_note}"];
-{extra_nodes}
-    bar [label="{bar}", fillcolor="white", width={bar_w}, height=0.5, fontsize=11];
 
-    // ---- write data: down the left ----
+    // ---- boundary bar (the PHY pins) + parked runtime-inputs legend ----
+    bar    [label="{bar}", fillcolor="white", width={bar_w}, height=0.5, fontsize=11];
+    legend [label="{legend}", fillcolor="white"];
+
+    // ---- write data: down the left column ----
     p_wd   -> cdc_wd [xlabel="{wd_lbl}"];
     cdc_wd -> wr_ser [xlabel="write data"];
     wr_ser -> bar    [xlabel="Write to DDR"];
 
-    // ---- command: down the center ----
+    // ---- command: down the center column ----
     p_cmd    -> cdc_cmd  [penwidth=1.8, xlabel="DDR Command"];
     cdc_cmd  -> cmd_path [penwidth=1.8, xlabel="DDR Command"];
-    cmd_path -> bar      [penwidth=1.8, label="DDR Command"];
+    cmd_path -> bar      [penwidth=1.8, xlabel="DDR Command"];
     cmd_path -> wr_ser   [style=dashed, xlabel="write fire"];
     cmd_path -> rd_al    [style=dashed, xlabel="read fire"];
 
-    // ---- read data: back up the right ----
-    p_rd   -> cdc_rd [dir=back, xlabel="{rd_lbl}"];
-    cdc_rd -> rd_al  [dir=back, xlabel="read data"];
+    // ---- read data: back up the right column ----
     rd_al  -> bar    [dir=back, xlabel="Read from DDR"];
+    cdc_rd -> rd_al  [dir=back, xlabel="read data"];
+    p_rd   -> cdc_rd [dir=back, xlabel="{rd_lbl}"];
 {extra_edges}
-    // ---- ranks ----
+    // ---- ranks: three straight columns; legend parked at the bar rank ----
     {{ rank=same; p_wd; p_cmd; p_rd; {r0_extra} }}
     {{ rank=same; cdc_wd; cdc_cmd; cdc_rd; {r1_extra} }}
-    {{ rank=same; wr_ser; rd_al; {r3_extra} }}
+    {{ rank=same; wr_ser; rd_al; }}
+    {{ rank=same; bar; legend; }}
     p_wd -> p_cmd -> p_rd {r0_chain}[style=invis];
     cdc_wd -> cdc_cmd -> cdc_rd {r1_chain}[style=invis];
-    wr_ser -> rd_al {r3_chain}[style=invis];
+    wr_ser -> rd_al [style=invis];
+    bar -> legend [style=invis];
 }}
 '''
 
@@ -88,10 +102,10 @@ PLANES = {
         rd_note="dfi_rddata_en at t_rddata_en;\\ncalibration capture",
         bar="DDR PHY (DFI 2.1 pin bus, dfi_clk) - command, dfi_wrdata, dfi_rddata, dfi_init",
         extra_nodes='    p_cal [label="Calibration sideband (dfi_clk)\\nmc_training_plane", fillcolor="white"];\n',
-        extra_edges=('    p_cal  -> rd_al  [dir=both, style=dashed, xlabel="cal expect /\\ncal data + valid"];\n'
-                     ''),
+        extra_edges=('    // ---- calibration sideband: straight dashed lane, far-right margin ----\n'
+                     '    p_cal -> rd_al [dir=both, style=dashed, xlabel="cal expect /\\ncal data + valid"];\n'),
         r0_extra="p_cal;", r0_chain="-> p_cal ",
-        r1_extra="", r1_chain="", r3_extra="legend;", r3_chain="-> legend ",
+        r1_extra="", r1_chain="",
     ),
     "07_mc_dfi_3p1_plane": dict(
         name="mc_dfi_3p1_plane", bar_w=11,
@@ -106,13 +120,11 @@ PLANES = {
         bar="DDR PHY (DFI 3.1 pin bus, dfi_clk) - command, dfi_wrdata, dfi_rddata, dfi_init, leveling",
         extra_nodes=('    p_wl [label="Write-leveling handshake (ctl_clk)\\nfrom the rock training plane", fillcolor="white"];\n'
                      '    wl_sync [label="Write-Leveling Handshake Sync\\ncdc_synchronizer x4 + sync_pulse (strobe)\\nreq / mode down, ack / prime_dq up"];\n'),
-        extra_edges=('    p_wl   -> wl_sync [dir=both, style=dashed, xlabel="req, mode, strobe /\\nack, prime_dq"];\n'
-                     '    x_wl [shape=point, width=0.01, height=0.01, label="", style=invis];\n'
-                     '    wl_sync -> x_wl   [dir=back, style=dashed, xlabel="dfi_phylvl_req / ack,\\nwrlvl strobe, prime_dq"];\n'
-                     '    x_wl -> bar       [style=dashed];\n'
-                     ''),
+        extra_edges=('    // ---- write-leveling handshake: straight dashed lanes, far-right margin ----\n'
+                     '    p_wl    -> wl_sync [dir=both, style=dashed, xlabel="req, mode, strobe /\\nack, prime_dq"];\n'
+                     '    wl_sync -> bar     [dir=both, style=dashed, xlabel="dfi_phylvl_req / ack,\\nwrlvl strobe, prime_dq"];\n'),
         r0_extra="p_wl;", r0_chain="-> p_wl ",
-        r1_extra="wl_sync;", r1_chain="-> wl_sync ", r3_extra="x_wl; legend;", r3_chain="-> x_wl -> legend ",
+        r1_extra="wl_sync;", r1_chain="-> wl_sync ",
     ),
     "08_mc_dfi_4p0_plane": dict(
         name="mc_dfi_4p0_plane", bar_w=9,
@@ -130,7 +142,7 @@ PLANES = {
         extra_nodes="",
         extra_edges='',
         r0_extra="", r0_chain="",
-        r1_extra="", r1_chain="", r3_extra="legend;", r3_chain="-> legend ",
+        r1_extra="", r1_chain="",
     ),
 }
 

@@ -2091,6 +2091,11 @@ module src_data_path_axis (
 	sched_rd_pkt_ready,
 	sched_rd_pkt_bytes,
 	sched_rd_pkt_offset,
+	sched_rd_pkt_tile,
+	tile_acq_req,
+	tile_acq_dest,
+	tile_acq_flits,
+	tile_acq_gnt,
 	sched_rd_done_strobe,
 	sched_rd_beats_done,
 	sched_rd_error,
@@ -2136,6 +2141,11 @@ module src_data_path_axis (
 	parameter signed [31:0] AXIS_ID_WIDTH = 8;
 	parameter signed [31:0] AXIS_DEST_WIDTH = 4;
 	parameter signed [31:0] AXIS_USER_WIDTH = 1;
+	parameter signed [31:0] TILE_HDR = 0;
+	localparam signed [31:0] rapids_pkg_TILE_COORD_W = 15;
+	localparam [1:0] rapids_pkg_TILE_LEVEL_IO = 2'd3;
+	parameter [14:0] TILE_SRC_COORD = {1'b0, rapids_pkg_TILE_LEVEL_IO, 12'h000};
+	parameter signed [31:0] TILE_CREDITS = 0;
 	parameter signed [31:0] NC = NUM_CHANNELS;
 	parameter signed [31:0] AW = ADDR_WIDTH;
 	parameter signed [31:0] DW = DATA_WIDTH;
@@ -2157,6 +2167,14 @@ module src_data_path_axis (
 	output wire [NC - 1:0] sched_rd_pkt_ready;
 	input wire [(NC * 32) - 1:0] sched_rd_pkt_bytes;
 	input wire [(NC * OFF_W) - 1:0] sched_rd_pkt_offset;
+	localparam signed [31:0] rapids_pkg_TILE_PKT_W = 68;
+	input wire [(NC * rapids_pkg_TILE_PKT_W) - 1:0] sched_rd_pkt_tile;
+	output reg [NC - 1:0] tile_acq_req;
+	localparam signed [31:0] rapids_pkg_TILE_DEST_W = 6;
+	output reg [(NC * rapids_pkg_TILE_DEST_W) - 1:0] tile_acq_dest;
+	localparam signed [31:0] rapids_pkg_TILE_CREDIT_W = 32;
+	output reg [(NC * rapids_pkg_TILE_CREDIT_W) - 1:0] tile_acq_flits;
+	input wire [NC - 1:0] tile_acq_gnt;
 	output wire [NC - 1:0] sched_rd_done_strobe;
 	output wire [(NC * 32) - 1:0] sched_rd_beats_done;
 	output wire [NC - 1:0] sched_rd_error;
@@ -2189,6 +2207,20 @@ module src_data_path_axis (
 	output wire [NC - 1:0] dbg_sram_bridge_out_valid;
 	output wire [31:0] dbg_axis_beats_sent;
 	output wire [31:0] dbg_axis_packets_sent;
+	initial begin
+		if ((TILE_HDR != 0) && (DW < 128)) begin
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_data_path_axis.sv:175:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_HDR needs DATA_WIDTH >= 128 (the header is one 128-bit beat)");
+			$finish(1);
+		end
+		if ((TILE_HDR != 0) && (NC > 16)) begin
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_data_path_axis.sv:177:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_HDR carries the channel in a 4-bit tag: NUM_CHANNELS <= 16");
+			$finish(1);
+		end
+		if ((TILE_CREDITS != 0) && (TILE_HDR == 0)) begin
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_data_path_axis.sv:179:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_CREDITS = 1 needs TILE_HDR = 1");
+			$finish(1);
+		end
+	end
 	wire [(NC * SCW) - 1:0] drain_data_avail;
 	reg [NC - 1:0] drain_req;
 	reg [(NC * 8) - 1:0] drain_size;
@@ -2245,6 +2277,9 @@ module src_data_path_axis (
 	reg [NC - 1:0] w_pq_pop;
 	reg [(NC * OFF_W) - 1:0] w_head_off;
 	reg [(NC * 32) - 1:0] w_head_bytes;
+	localparam signed [31:0] TPW = rapids_pkg_TILE_PKT_W;
+	reg [((NC * PQ_DEPTH) * 68) - 1:0] r_pq_tile;
+	reg [(NC * TPW) - 1:0] w_head_tile;
 	function automatic signed [2:0] sv2v_cast_3CADD_signed;
 		input reg signed [2:0] inp;
 		sv2v_cast_3CADD_signed = inp;
@@ -2262,10 +2297,63 @@ module src_data_path_axis (
 					w_pq_push[ch] = (sched_rd_pkt_valid[ch] && !w_pq_full[ch]) && !w_rst[ch];
 					w_head_off[ch * OFF_W+:OFF_W] = r_pq_off[((ch * PQ_DEPTH) + r_pq_rp[(ch * 3) + 1-:PQ_PW]) * OFF_W+:OFF_W];
 					w_head_bytes[ch * 32+:32] = r_pq_bytes[((ch * PQ_DEPTH) + r_pq_rp[(ch * 3) + 1-:PQ_PW]) * 32+:32];
+					w_head_tile[ch * TPW+:TPW] = (TILE_HDR != 0 ? r_pq_tile[((ch * PQ_DEPTH) + r_pq_rp[(ch * 3) + 1-:PQ_PW]) * 68+:68] : {68 {1'sb0}});
 				end
 		end
 	end
 	assign sched_rd_pkt_ready = ~w_pq_full;
+	reg [NC - 1:0] r_cred_ok;
+	reg [NC - 1:0] w_cred_ok;
+	localparam [1:0] rapids_pkg_TILE_LEVEL_CELL = 2'd0;
+	localparam [1:0] rapids_pkg_TILE_LEVEL_ROOT = 2'd2;
+	localparam [1:0] rapids_pkg_TILE_LEVEL_TETRAD = 2'd1;
+	function automatic [rapids_pkg_TILE_DEST_W:0] rapids_pkg_tile_dest_index;
+		input reg [14:0] coord;
+		reg ext;
+		reg [1:0] lvl;
+		reg [3:0] x;
+		reg [3:0] y;
+		begin
+			ext = coord[14];
+			lvl = coord[13:12];
+			x = coord[11:8];
+			y = coord[7:4];
+			case (lvl)
+				rapids_pkg_TILE_LEVEL_CELL: rapids_pkg_tile_dest_index = ((x < 4'd4) && (y < 4'd4) ? {1'b1, ext, 1'b0, y[1:0], x[1:0]} : {7 {1'sb0}});
+				rapids_pkg_TILE_LEVEL_TETRAD: rapids_pkg_tile_dest_index = ((x < 4'd2) && (y < 4'd2) ? {1'b1, ext, 3'b100, y[0], x[0]} : {7 {1'sb0}});
+				rapids_pkg_TILE_LEVEL_ROOT: rapids_pkg_tile_dest_index = (x < 4'd2 ? {1'b1, ext, 4'b1010, x[0]} : {7 {1'sb0}});
+				default: rapids_pkg_tile_dest_index = 1'sb0;
+			endcase
+		end
+	endfunction
+	function automatic [32:0] sv2v_cast_33;
+		input reg [32:0] inp;
+		sv2v_cast_33 = inp;
+	endfunction
+	function automatic signed [32:0] sv2v_cast_33_signed;
+		input reg signed [32:0] inp;
+		sv2v_cast_33_signed = inp;
+	endfunction
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] ch;
+			for (ch = 0; ch < NC; ch = ch + 1)
+				begin : sv2v_autoblock_3
+					reg [rapids_pkg_TILE_DEST_W:0] dmap;
+					dmap = rapids_pkg_tile_dest_index(w_head_tile[(ch * TPW) + 63-:rapids_pkg_TILE_COORD_W]);
+					tile_acq_req[ch] = (((TILE_CREDITS != 0) && !w_pq_empty[ch]) && !r_cred_ok[ch]) && !w_rst[ch];
+					tile_acq_dest[ch * rapids_pkg_TILE_DEST_W+:rapids_pkg_TILE_DEST_W] = dmap[5:0];
+					tile_acq_flits[ch * rapids_pkg_TILE_CREDIT_W+:rapids_pkg_TILE_CREDIT_W] = (w_head_tile[(ch * TPW) + 67] ? 32'sd1 : sv2v_cast_32(32'd1 + sv2v_cast_32((sv2v_cast_33(w_head_bytes[ch * 32+:32]) + sv2v_cast_33_signed(SW - 1)) >> OFF_W)));
+					w_cred_ok[ch] = (TILE_CREDITS == 0) || r_cred_ok[ch];
+				end
+		end
+	end
 	reg [(NC * DW) - 1:0] r_hold_data;
 	reg [NC - 1:0] r_hold_valid;
 	reg [NC - 1:0] r_eg_started;
@@ -2297,19 +2385,7 @@ module src_data_path_axis (
 	assign w_c = r_d_ch;
 	assign w_off = w_head_off[w_c * OFF_W+:OFF_W];
 	assign w_bytes_left = (r_eg_started[w_c] ? r_eg_bytes_left[w_c * 32+:32] : w_head_bytes[w_c * 32+:32]);
-	function automatic [32:0] sv2v_cast_33;
-		input reg [32:0] inp;
-		sv2v_cast_33 = inp;
-	endfunction
-	function automatic signed [32:0] sv2v_cast_33_signed;
-		input reg signed [32:0] inp;
-		sv2v_cast_33_signed = inp;
-	endfunction
 	assign w_mem_span = (sv2v_cast_33(w_off) + sv2v_cast_33(w_head_bytes[w_c * 32+:32])) + sv2v_cast_33_signed(SW - 1);
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
 	assign w_mem_total = sv2v_cast_32(w_mem_span >> OFF_W);
 	assign w_mem_left = (r_eg_started[w_c] ? r_eg_mem_left[w_c * 32+:32] : w_mem_total);
 	function automatic signed [CIW - 1:0] sv2v_cast_0111B_signed;
@@ -2319,14 +2395,14 @@ module src_data_path_axis (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_2
+		begin : sv2v_autoblock_4
 			reg signed [31:0] ch;
 			for (ch = 0; ch < NC; ch = ch + 1)
 				w_need_flush[ch] = ((r_eg_started[ch] && (r_eg_mem_left[ch * 32+:32] == 32'd0)) && (r_eg_bytes_left[ch * 32+:32] != 32'd0)) && !w_rst[ch];
 		end
 		w_flush_any = 1'b0;
 		w_flush_ch = 1'sb0;
-		begin : sv2v_autoblock_3
+		begin : sv2v_autoblock_5
 			reg signed [31:0] ch;
 			for (ch = 0; ch < NC; ch = ch + 1)
 				if (w_need_flush[ch] && !w_flush_any) begin
@@ -2335,8 +2411,97 @@ module src_data_path_axis (
 				end
 		end
 	end
+	reg [NC - 1:0] r_hdr_sent;
+	reg [NC - 1:0] w_hdr_need;
+	reg [NC - 1:0] w_hdr_ok;
+	reg w_hdr_any;
+	reg [CIW - 1:0] w_hdr_ch;
+	reg [CIW - 1:0] r_hdr_last;
+	reg r_hdr_turn;
+	wire w_hdr_only;
+	wire [127:0] w_hdr_word;
+	function automatic signed [31:0] sv2v_cast_32_signed;
+		input reg signed [31:0] inp;
+		sv2v_cast_32_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_6
+			reg signed [31:0] ch;
+			for (ch = 0; ch < NC; ch = ch + 1)
+				begin
+					w_hdr_need[ch] = ((((TILE_HDR != 0) && !w_pq_empty[ch]) && !r_hdr_sent[ch]) && !w_rst[ch]) && w_cred_ok[ch];
+					w_hdr_ok[ch] = w_hdr_need[ch] && (w_head_tile[(ch * TPW) + 67] || (((r_d_active && (r_d_ch == sv2v_cast_0111B_signed(ch))) && drain_valid[ch]) && drain_valid_comb[ch]));
+				end
+		end
+		w_hdr_any = 1'b0;
+		w_hdr_ch = 1'sb0;
+		if (r_d_active && w_hdr_ok[r_d_ch]) begin
+			w_hdr_any = 1'b1;
+			w_hdr_ch = r_d_ch;
+		end
+		else begin : sv2v_autoblock_7
+			reg signed [31:0] k;
+			for (k = 1; k <= NC; k = k + 1)
+				if (w_hdr_ok[(sv2v_cast_32_signed(r_hdr_last) + k) % NC] && !w_hdr_any) begin
+					w_hdr_any = 1'b1;
+					w_hdr_ch = sv2v_cast_0111B_signed((sv2v_cast_32_signed(r_hdr_last) + k) % NC);
+				end
+		end
+	end
+	assign w_hdr_only = w_head_tile[(w_hdr_ch * TPW) + 67];
+	localparam signed [31:0] rapids_pkg_TILE_TARGET_W = 49;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_DST_LO = 0;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_LEN_LO = 34;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_OP = 33;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_PTYPE_LO = 30;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_SRC_LO = 15;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_TAG_LO = 115;
+	localparam signed [31:0] rapids_pkg_TILE_HDR_TGT_LO = 66;
+	function automatic [127:0] rapids_pkg_tile_hdr_pack;
+		input reg [14:0] dst_coord;
+		input reg [14:0] src_coord;
+		input reg [2:0] ptype;
+		input reg op;
+		input reg [31:0] length;
+		input reg [48:0] target;
+		input reg [3:0] tag;
+		reg [127:0] h;
+		begin
+			h = 1'sb0;
+			h[rapids_pkg_TILE_HDR_DST_LO+:rapids_pkg_TILE_COORD_W] = dst_coord;
+			h[rapids_pkg_TILE_HDR_SRC_LO+:rapids_pkg_TILE_COORD_W] = src_coord;
+			h[rapids_pkg_TILE_HDR_PTYPE_LO+:3] = ptype;
+			h[rapids_pkg_TILE_HDR_OP] = op;
+			h[rapids_pkg_TILE_HDR_LEN_LO+:32] = length;
+			h[rapids_pkg_TILE_HDR_TGT_LO+:rapids_pkg_TILE_TARGET_W] = target;
+			h[rapids_pkg_TILE_HDR_TAG_LO+:4] = tag;
+			rapids_pkg_tile_hdr_pack = h;
+		end
+	endfunction
+	function automatic [3:0] sv2v_cast_4;
+		input reg [3:0] inp;
+		sv2v_cast_4 = inp;
+	endfunction
+	assign w_hdr_word = rapids_pkg_tile_hdr_pack(w_head_tile[(w_hdr_ch * TPW) + 63-:rapids_pkg_TILE_COORD_W], TILE_SRC_COORD, w_head_tile[(w_hdr_ch * TPW) + 66-:3], w_hdr_only, w_head_bytes[w_hdr_ch * 32+:32], w_head_tile[(w_hdr_ch * TPW) + 48-:rapids_pkg_TILE_TARGET_W], sv2v_cast_4(w_hdr_ch));
+	wire w_pop_base;
+	wire w_hdr_go;
 	assign w_out_free = !r_out_valid || m_axis_tready;
-	assign w_pop = (((((r_d_active && drain_valid[w_c]) && drain_valid_comb[w_c]) && w_out_free) && !w_flush_any) && !w_pq_empty[w_c]) && !w_rst[w_c];
+	assign w_pop_base = ((((((r_d_active && drain_valid[w_c]) && drain_valid_comb[w_c]) && w_out_free) && !w_flush_any) && !w_pq_empty[w_c]) && !w_rst[w_c]) && ((TILE_HDR == 0) || r_hdr_sent[w_c]);
+	assign w_hdr_go = ((w_hdr_any && w_out_free) && !w_flush_any) && (!w_pop_base || r_hdr_turn);
+	assign w_pop = w_pop_base && !w_hdr_go;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_hdr_turn <= 1'b1;
+			r_hdr_last <= 1'sb0;
+		end
+		else begin
+			if (((w_pop_base && w_hdr_any) && w_out_free) && !w_flush_any)
+				r_hdr_turn <= !w_hdr_go;
+			if (w_hdr_go && w_hdr_only)
+				r_hdr_last <= w_hdr_ch;
+		end
 	assign w_emit_on_pop = ((w_off == {OFF_W {1'sb0}}) || r_hold_valid[w_c]) || (w_mem_left == 32'd1);
 	assign w_pop_out = (r_hold_valid[w_c] ? r_hold_data[w_c * DW+:DW] | (drain_data << ((SW - sv2v_cast_32(w_off)) * 8)) : drain_data >> (w_off * 8));
 	assign w_pop_hold_next = drain_data >> (w_off * 8);
@@ -2353,8 +2518,10 @@ module src_data_path_axis (
 	assign w_out_bytes_n = (w_bytes_left_sel >= SW ? sv2v_cast_8_signed(SW) : sv2v_cast_8(w_bytes_left_sel));
 	assign w_out_strb_n = (w_out_bytes_n >= sv2v_cast_8_signed(SW) ? {SW {1'b1}} : ~({SW {1'b1}} << w_out_bytes_n));
 	wire w_emit;
+	wire w_emit_hdr;
 	wire [CIW - 1:0] w_emit_ch;
 	assign w_emit = (w_flush_any && w_out_free) || (w_pop && w_emit_on_pop);
+	assign w_emit_hdr = w_hdr_go;
 	assign w_emit_ch = (w_flush_any ? w_flush_ch : w_c);
 	always @(*) begin
 		if (_sv2v_0)
@@ -2362,7 +2529,10 @@ module src_data_path_axis (
 		w_pq_pop = 1'sb0;
 		if (w_emit && (w_bytes_left_sel == sv2v_cast_32(w_out_bytes_n)))
 			w_pq_pop[w_emit_ch] = 1'b1;
+		if (w_emit_hdr && w_hdr_only)
+			w_pq_pop[w_hdr_ch] = 1'b1;
 	end
+	localparam signed [31:0] rapids_pkg_TILE_HDR_BYTES = 16;
 	function automatic [(PQ_DEPTH * OFF_W) - 1:0] sv2v_cast_B47FD;
 		input reg [(PQ_DEPTH * OFF_W) - 1:0] inp;
 		sv2v_cast_B47FD = inp;
@@ -2370,6 +2540,10 @@ module src_data_path_axis (
 	function automatic [127:0] sv2v_cast_F3D50;
 		input reg [127:0] inp;
 		sv2v_cast_F3D50 = inp;
+	endfunction
+	function automatic [(PQ_DEPTH * TPW) - 1:0] sv2v_cast_8111B;
+		input reg [(PQ_DEPTH * TPW) - 1:0] inp;
+		sv2v_cast_8111B = inp;
 	endfunction
 	function automatic [2:0] sv2v_cast_0125D;
 		input reg [2:0] inp;
@@ -2379,10 +2553,20 @@ module src_data_path_axis (
 		input reg [DW - 1:0] inp;
 		sv2v_cast_C1F1E = inp;
 	endfunction
+	function automatic [DW - 1:0] sv2v_cast_A0774;
+		input reg [DW - 1:0] inp;
+		sv2v_cast_A0774 = inp;
+	endfunction
+	function automatic [SW - 1:0] sv2v_cast_6C2E3;
+		input reg [SW - 1:0] inp;
+		sv2v_cast_6C2E3 = inp;
+	endfunction
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_pq_off <= {NC {sv2v_cast_B47FD(1'sb0)}};
 			r_pq_bytes <= {NC {sv2v_cast_F3D50(1'sb0)}};
+			r_pq_tile <= {NC {sv2v_cast_8111B(1'sb0)}};
+			r_hdr_sent <= 1'sb0;
 			r_pq_wp <= {NC {sv2v_cast_0125D(1'sb0)}};
 			r_pq_rp <= {NC {sv2v_cast_0125D(1'sb0)}};
 			r_hold_data <= {NC {sv2v_cast_C1F1E(1'sb0)}};
@@ -2395,14 +2579,18 @@ module src_data_path_axis (
 			r_out_strb <= 1'sb0;
 			r_out_last <= 1'b0;
 			r_out_ch <= 1'sb0;
+			r_cred_ok <= 1'sb0;
 		end
 		else begin
-			begin : sv2v_autoblock_4
+			r_cred_ok <= r_cred_ok | (TILE_CREDITS != 0 ? tile_acq_gnt : {NC {1'sb0}});
+			begin : sv2v_autoblock_8
 				reg signed [31:0] ch;
 				for (ch = 0; ch < NC; ch = ch + 1)
 					if (w_pq_push[ch]) begin
 						r_pq_off[((ch * PQ_DEPTH) + r_pq_wp[(ch * 3) + 1-:PQ_PW]) * OFF_W+:OFF_W] <= sched_rd_pkt_offset[ch * OFF_W+:OFF_W];
 						r_pq_bytes[((ch * PQ_DEPTH) + r_pq_wp[(ch * 3) + 1-:PQ_PW]) * 32+:32] <= sched_rd_pkt_bytes[ch * 32+:32];
+						if (TILE_HDR != 0)
+							r_pq_tile[((ch * PQ_DEPTH) + r_pq_wp[(ch * 3) + 1-:PQ_PW]) * 68+:68] <= sched_rd_pkt_tile[ch * rapids_pkg_TILE_PKT_W+:rapids_pkg_TILE_PKT_W];
 						r_pq_wp[0 + (ch * 3)+:3] <= r_pq_wp[0 + (ch * 3)+:3] + 1'b1;
 					end
 			end
@@ -2415,6 +2603,14 @@ module src_data_path_axis (
 				r_out_last <= w_bytes_left_sel == sv2v_cast_32(w_out_bytes_n);
 				r_out_ch <= w_emit_ch;
 			end
+			else if (w_emit_hdr) begin
+				r_out_valid <= 1'b1;
+				r_out_data <= sv2v_cast_A0774(w_hdr_word);
+				r_out_strb <= sv2v_cast_6C2E3({rapids_pkg_TILE_HDR_BYTES {1'b1}});
+				r_out_last <= w_hdr_only;
+				r_out_ch <= w_hdr_ch;
+				r_hdr_sent[w_hdr_ch] <= 1'b1;
+			end
 			if (w_pop) begin
 				r_eg_started[w_c] <= 1'b1;
 				r_eg_mem_left[w_c * 32+:32] <= w_mem_left - 32'd1;
@@ -2426,11 +2622,13 @@ module src_data_path_axis (
 			end
 			else if (w_flush_any && w_out_free)
 				r_eg_bytes_left[w_flush_ch * 32+:32] <= r_eg_bytes_left[w_flush_ch * 32+:32] - sv2v_cast_32(w_out_bytes_n);
-			begin : sv2v_autoblock_5
+			begin : sv2v_autoblock_9
 				reg signed [31:0] ch;
 				for (ch = 0; ch < NC; ch = ch + 1)
 					if (w_pq_pop[ch]) begin
 						r_pq_rp[0 + (ch * 3)+:3] <= r_pq_rp[0 + (ch * 3)+:3] + 1'b1;
+						r_cred_ok[ch] <= 1'b0;
+						r_hdr_sent[ch] <= 1'b0;
 						r_eg_started[ch] <= 1'b0;
 						r_hold_valid[ch] <= 1'b0;
 						r_hold_data[ch * DW+:DW] <= 1'sb0;
@@ -2438,12 +2636,14 @@ module src_data_path_axis (
 						r_eg_mem_left[ch * 32+:32] <= 1'sb0;
 					end
 			end
-			begin : sv2v_autoblock_6
+			begin : sv2v_autoblock_10
 				reg signed [31:0] ch;
 				for (ch = 0; ch < NC; ch = ch + 1)
 					if (w_rst[ch]) begin
 						r_pq_wp[0 + (ch * 3)+:3] <= 1'sb0;
 						r_pq_rp[0 + (ch * 3)+:3] <= 1'sb0;
+						r_cred_ok[ch] <= 1'b0;
+						r_hdr_sent[ch] <= 1'b0;
 						r_eg_started[ch] <= 1'b0;
 						r_hold_valid[ch] <= 1'b0;
 						r_hold_data[ch * DW+:DW] <= 1'sb0;
@@ -2472,7 +2672,7 @@ module src_data_path_axis (
 			r_drain_tminus1 <= {NC {sv2v_cast_79219(1'sb0)}};
 		else begin
 			r_drain_tminus1 <= w_drain_t;
-			begin : sv2v_autoblock_7
+			begin : sv2v_autoblock_11
 				reg signed [31:0] ch;
 				for (ch = 0; ch < NC; ch = ch + 1)
 					if (w_rst[ch])
@@ -2482,7 +2682,7 @@ module src_data_path_axis (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_8
+		begin : sv2v_autoblock_12
 			reg signed [31:0] ch;
 			for (ch = 0; ch < NC; ch = ch + 1)
 				begin
@@ -2495,12 +2695,12 @@ module src_data_path_axis (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_9
+		begin : sv2v_autoblock_13
 			reg signed [31:0] ch;
 			for (ch = 0; ch < NC; ch = ch + 1)
 				begin
 					w_no_more_fill[ch] = (sched_rd_beats[ch * 32+:32] == 32'd0) && dbg_rd_all_complete[ch];
-					w_ch_grantable[ch] = !w_rst[ch] && ((w_effective_avail[ch * SCW+:SCW] >= sv2v_cast_14961(w_eff_drain_size)) || ((w_effective_avail[ch * SCW+:SCW] != {SCW * 1 {1'sb0}}) && w_no_more_fill[ch]));
+					w_ch_grantable[ch] = (!w_rst[ch] && w_cred_ok[ch]) && ((w_effective_avail[ch * SCW+:SCW] >= sv2v_cast_14961(w_eff_drain_size)) || ((w_effective_avail[ch * SCW+:SCW] != {SCW * 1 {1'sb0}}) && w_no_more_fill[ch]));
 					w_grant_size[ch] = (w_effective_avail[ch * SCW+:SCW] >= sv2v_cast_14961(w_eff_drain_size) ? w_eff_drain_size : sv2v_cast_8(w_effective_avail[ch * SCW+:SCW]));
 					r_arb_request[ch] = w_ch_grantable[ch];
 				end
@@ -2517,11 +2717,7 @@ module src_data_path_axis (
 		sv2v_cast_1D27F_signed = inp;
 	endfunction
 	assign w_rq_room = (w_rq_count + sv2v_cast_1D27F(r_res_valid)) < sv2v_cast_1D27F_signed(RQ_DEPTH);
-	function automatic signed [31:0] sv2v_cast_32_signed;
-		input reg signed [31:0] inp;
-		sv2v_cast_32_signed = inp;
-	endfunction
-	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_10
+	always @(posedge clk or negedge rst_n) begin : sv2v_autoblock_14
 		reg [0:1] _sv2v_jump;
 		_sv2v_jump = 2'b00;
 		if (!rst_n) begin
@@ -2532,14 +2728,14 @@ module src_data_path_axis (
 		end
 		else begin
 			r_res_valid <= 1'b0;
-			if (w_rq_room) begin : sv2v_autoblock_11
+			if (w_rq_room) begin : sv2v_autoblock_15
 				reg signed [31:0] ch;
-				begin : sv2v_autoblock_12
+				begin : sv2v_autoblock_16
 					reg signed [31:0] _sv2v_value_on_break;
 					for (ch = 0; ch < NC; ch = ch + 1)
 						if (_sv2v_jump < 2'b10) begin
 							_sv2v_jump = 2'b00;
-							begin : sv2v_autoblock_13
+							begin : sv2v_autoblock_17
 								reg [CIW - 1:0] check_ch;
 								check_ch = sv2v_cast_0111B_signed(((sv2v_cast_32_signed(r_rr_last) + 1) + ch) % NC);
 								if (w_ch_grantable[check_ch]) begin
@@ -2602,13 +2798,13 @@ module src_data_path_axis (
 				else
 					r_d_remaining <= r_d_remaining - 8'd1;
 			end
-			begin : sv2v_autoblock_14
+			begin : sv2v_autoblock_18
 				reg signed [31:0] k;
 				for (k = 0; k < RQ_DEPTH; k = k + 1)
 					if (w_rst[r_rq_ch[k * CIW+:CIW]] && !((r_res_valid && !w_rst[r_res_ch]) && (k == sv2v_cast_32_signed(r_rq_wp[1:0]))))
 						r_rq_size[k * 8+:8] <= 1'sb0;
 			end
-			begin : sv2v_autoblock_15
+			begin : sv2v_autoblock_19
 				reg signed [31:0] ch;
 				for (ch = 0; ch < NC; ch = ch + 1)
 					if ((w_rst[ch] && r_d_active) && (r_d_ch == ch[CIW - 1:0])) begin

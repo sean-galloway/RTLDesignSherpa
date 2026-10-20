@@ -54,7 +54,11 @@ design.
 | cache-ip/basalt-moesi-l2 | README "pencil only"; PRD v0.1 all rows OPEN | Gated behind onyx v1 |
 | cache-ip/jet-mesi-l1 | README "Scaffolded 2026-10-04 — README + PRD only"; placeholder rtl/dv/docs | Waits for amber |
 | cache-ip/onyx-ace-ccu | README "Scaffolded 2026-10-05 — README + PRD only"; placeholder rtl/dv/docs | Waits for amber pair rig |
-| compute-eng-ip | Area README only (2026-09-29); hive re-homed to riscv-ip | Empty area |
+| compute-eng-ip | Area README current (2026-10-18): hive-serv, cell, tile + three alu-* definition dirs | Compute family: HIVE control plane, cell/tile engines, ALU definitions |
+| compute-eng-ip/cell | PRD v0.3 (2026-10-18): cell = alu-infer ALU + delta node + config registers + ALU registers (A–D persistent operands, T, OP_SRC, DEST, IP/OP) + data-in/out memories; sender-generic per-source credit returns; DEST default = recorded source (chain-back); tetrad engine deferred (gatling leading); ALU RTL landed in cell/rtl (func + gate green) | The tile's compute unit — the lowest module; one delta node per cell; elastic valid/ready ALU pipeline |
+| compute-eng-ip/alu-infer | PRD v0.50 + MAS v0.50 (2026-10-18, revs pinned at 0.50 per owner while the ALU heads to the board; PDF/DOCX built at 0.50); RTL implemented inside cell on the math_bf16_* library (func + gate green); per-tetrad control core deferred 2026-10-18 (gatling-rv32itetrad leading candidate), in-band config/programming; valid/ready elastic pipeline (tag-based alignment ruling 2026-10-18 — 8-bit tag per loaded invocation, FIFO-tracked, op valid gated on its tag group; as-built realization is the alignment-timer mailbox); same-clock operand capture; multiplier/FMA deep-pipelining queued for FPGA bring-up | Cell inference ALU: bf16 lanes (2 per 32-bit line), fp32 MAC accumulate, function array on rtl/math bf16 blocks |
+| compute-eng-ip/alu-rv32f | PRD definition only (2026-10-17) | Falcon-suite RV32F FP unit contract on rtl/math fp32 blocks; garuda realization |
+| compute-eng-ip/alu-rv32i | PRD definition only (2026-10-17) | Falcon-suite RV32I integer ALU contract; per-rung realization (kestrel_alu reference) |
 | dfx-ip/jtag-axil-agent | README "Scaffold (2026-10-11) — spec pending"; no RTL | Config-plane agent spec |
 | dfx-ip/jtag-tap | README "Scaffold (2026-10-11) — spec pending"; no RTL | IEEE 1149.1 TAP spec |
 | dfx-ip/riscv-debug | README "Scaffold (2026-10-11) — spec pending"; no RTL | DTM/DM spec |
@@ -79,6 +83,7 @@ design.
 | fabric-gen-ip/bridge | Owner-confirmed Done 2026-10-11; 1.0 + AXI3 support; HAS/MAS v1.9 | Follow-ups #98/#99 + TASK-014/015/016 tracked as issues — see note 2 |
 | legacy-ip/retro_legacy_blocks | README "Version: 1.0", 10 shipped address windows | RLB TOP MAS v1.0 + per-block MAS |
 | riscv-ip/kestrel-rv32i | rv32ui battery 42/42 spike lockstep; riscv-formal 42/42; doc book v0.1 | KESTREL HAS/MAS v0.1 |
+| riscv-ip/gatling-rv32itetrad | PRD v0.1 scaffold (2026-10-17, owner-authored); docs shells (barrel_model study, HAS, MAS) | Tetrad compute engine: barrel RV32I + Xcell (CFG/POP/PUSH/ECTX), 4 contexts = 4 cells; would replace the cell ALU+FSM block — **deferred 2026-10-18** (owner: the cell is fully defined and working first, then gatling/tetrad is shaped); the bf16 alu-infer stays (cell PRD v0.3); open conflicts tracked in vault TASK-001 |
 | utility-ip/converters | README "Production Ready" v1.2; converter MAS v1.9; AXI3 suite landed | AxLOCK fix tracked as #98 — see note 2 |
 | utility-ip/misc | README "Five complete utility modules" v1.2 | Includes the error injector |
 

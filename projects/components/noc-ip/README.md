@@ -32,12 +32,13 @@ was regrouped into `*-ip` families.
 > [`fabric-gen-ip/delta/`](../fabric-gen-ip/delta/) where the other
 > interconnect generators live. What stayed here is the aspirational
 > **DELTA mesh NoC design draft** — a chaptered spec (routers, virtual
-> channels, XY routing, packet types) that has **no RTL** and exists as
-> design groundwork for a future NoC.
+> channels, XY routing, packet types) that has **no RTL of its own** and exists
+> as design groundwork for a future NoC. The live Delta mesh cell RTL is under
+> `projects/components/fabric-gen-ip/delta/` (verified 2026-10-19).
 
 | Directory | What | Status |
 |---|---|---|
-| [`delta_spec/`](delta_spec/) | DELTA mesh NoC design draft (4×4 mesh, VC, XY routing) + rendered PDF/DOCX | **Draft — not implemented** (no RTL; do not cite as existing hardware) |
+| [`delta_spec/`](delta_spec/) | DELTA mesh NoC design draft (4×4 mesh, VC, XY routing) + rendered PDF/DOCX | **Draft — not implemented in this tree** (live mesh cell RTL is under `../fabric-gen-ip/delta/`; do not cite this draft as existing hardware) |
 | [`CLAUDE.md`](CLAUDE.md) | Agent guide for the NoC draft | — |
 | `generate_pdf.sh` | Renders `delta_spec/` to DOCX/PDF | — |
 

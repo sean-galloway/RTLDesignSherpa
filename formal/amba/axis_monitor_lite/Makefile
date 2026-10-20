@@ -1,4 +1,4 @@
-# axis_monitor_lite formal harness (amba/monitor-lite TASK-003). Flattened with
+# axis_monitor_lite formal harness (rtl/amba/monitors TASK-003). Flattened with
 # sv2v like its siblings; `make prove cover`.
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v

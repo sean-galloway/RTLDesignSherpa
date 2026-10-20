@@ -55,11 +55,14 @@ A flit is one `DATA_WIDTH` beat. A packet is a head flit, zero or more body flit
 | QoS class | 2 | 0 = config, 1 = latency, 2 = bulk. |
 | VC | 1 | Assigned at injection per §6. |
 | multicast | 1 | Set for multicast packets; group/mask reference is mode-specific. |
-| misroute budget | 3 | Decremented on each non-minimal hop; packet dropped and counted at 0. |
-| source-route ptr | 4 | Indexes an inline port list when source-route mode is active. |
+| misroute budget | 4 | Decremented on each non-minimal hop; packet dropped and counted at 0. |
+| source-route ptr | 8 | Indexes an inline port list when source-route mode is active. |
 | packet ID | 4 | Tolerates reordering at endpoints under multi-VC or adaptive routing. |
 
 : Head-flit header fields carried in `TUSER` on the head beat.
+
+**Note (2026-10-19):** The checked-in RTL (`delta_mesh_cell.sv`, generated from
+`bin/delta_mesh/header.py`) is binding for these widths.
 
 **Proposed (2026-10-16, not implemented):** the compute-engine tile proposes extending this header with a `level` field in the coordinates, a payload type (`cfg` / `prog` / `mem`), a length and a target address. The description lives in [`TILE_SPEC.md`](../../../../../compute-eng-ip/tile/docs/TILE_SPEC.md) Section 11, not here.
 

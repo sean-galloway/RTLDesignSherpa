@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
---------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Mon Aug 24 18:21:05 2026
+| Date             : Thu Oct 15 00:30:49 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/build-perf/fpga/reports/power.txt
 | Design           : ddr2_char_top
@@ -10,7 +10,7 @@ Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanc
 | Grade            : commercial
 | Process          : typical
 | Characterization : Production
---------------------------------------------------------------------------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 Power Report
 
@@ -30,14 +30,14 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.731        |
+| Total On-Chip Power (W)  | 0.855        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.625        |
-| Device Static (W)        | 0.106        |
+| Dynamic (W)              | 0.749        |
+| Device Static (W)        | 0.107        |
 | Effective TJA (C/W)      | 4.6          |
-| Max Ambient (C)          | 81.7         |
-| Junction Temperature (C) | 28.3         |
+| Max Ambient (C)          | 81.1         |
+| Junction Temperature (C) | 28.9         |
 | Confidence Level         | Low          |
 | Setting File             | ---          |
 | Simulation Activity File | ---          |
@@ -52,21 +52,21 @@ Table of Contents
 +--------------------------+-----------+----------+-----------+-----------------+
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
-| Clocks                   |     0.047 |        9 |       --- |             --- |
-| Slice Logic              |     0.023 |    45236 |       --- |             --- |
-|   LUT as Logic           |     0.020 |    18617 |     63400 |           29.36 |
-|   LUT as Distributed RAM |     0.002 |     1864 |     19000 |            9.81 |
-|   Register               |    <0.001 |    19095 |    126800 |           15.06 |
-|   CARRY4                 |    <0.001 |      521 |     15850 |            3.29 |
-|   F7/F8 Muxes            |    <0.001 |     1396 |     63400 |            2.20 |
-|   LUT as Shift Register  |    <0.001 |      132 |     19000 |            0.69 |
-|   Others                 |     0.000 |      267 |       --- |             --- |
-| Signals                  |     0.034 |    33749 |       --- |             --- |
-| MMCM                     |     0.097 |        1 |         6 |           16.67 |
-| DSPs                     |     0.001 |       28 |       240 |           11.67 |
-| I/O                      |     0.422 |       82 |       210 |           39.05 |
-| Static Power             |     0.106 |          |           |                 |
-| Total                    |     0.731 |          |           |                 |
+| Clocks                   |     0.069 |        9 |       --- |             --- |
+| Slice Logic              |     0.058 |    76183 |       --- |             --- |
+|   LUT as Logic           |     0.051 |    34155 |     63400 |           53.87 |
+|   LUT as Distributed RAM |     0.004 |     2084 |     19000 |           10.97 |
+|   Register               |     0.002 |    30607 |    126800 |           24.14 |
+|   CARRY4                 |     0.001 |     1529 |     15850 |            9.65 |
+|   F7/F8 Muxes            |    <0.001 |     1268 |     63400 |            2.00 |
+|   Others                 |     0.000 |      535 |       --- |             --- |
+| Signals                  |     0.101 |    53842 |       --- |             --- |
+| Block RAM                |     0.002 |        2 |       135 |            1.48 |
+| MMCM                     |     0.086 |        1 |         6 |           16.67 |
+| DSPs                     |     0.000 |       16 |       240 |            6.67 |
+| I/O                      |     0.432 |       82 |       210 |           39.05 |
+| Static Power             |     0.107 |          |           |                 |
+| Total                    |     0.855 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -76,11 +76,11 @@ Table of Contents
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
 | Source    | Voltage (V) | Total (A) | Dynamic (A) | Static (A) | Powerup (A) | Budget (A)  | Margin (A) |
 +-----------+-------------+-----------+-------------+------------+-------------+-------------+------------+
-| Vccint    |       1.000 |     0.127 |       0.111 |      0.017 |       NA    | Unspecified | NA         |
-| Vccaux    |       1.800 |     0.106 |       0.088 |      0.018 |       NA    | Unspecified | NA         |
+| Vccint    |       1.000 |     0.253 |       0.235 |      0.017 |       NA    | Unspecified | NA         |
+| Vccaux    |       1.800 |     0.103 |       0.084 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.005 |       0.001 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
-| Vcco18    |       1.800 |     0.199 |       0.195 |      0.004 |       NA    | Unspecified | NA         |
+| Vcco18    |       1.800 |     0.203 |       0.199 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco15    |       1.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco135   |       1.350 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco12    |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -132,13 +132,13 @@ Table of Contents
 +---------------+----------------------------------------+-----------------+
 | Clock         | Domain                                 | Constraint (ns) |
 +---------------+----------------------------------------+-----------------+
-| led_slow_clk  | u_harness/u_led_status_driver/slow_clk |      15000000.0 |
+| led_slow_clk  | u_harness/u_led_status_driver/slow_clk |      13333334.0 |
 | sys_clk_pin   | CLK100MHZ                              |            10.0 |
 | w_clkfb_i     | w_clkfb_i                              |            10.0 |
 | w_idelay_i    | w_idelay_i                             |             5.0 |
-| w_sys2x_dqs_i | w_sys2x_dqs_i                          |             7.5 |
-| w_sys2x_i     | w_sys2x_i                              |             7.5 |
-| w_sys_i       | w_sys_i                                |            15.0 |
+| w_sys2x_dqs_i | w_sys2x_dqs_i                          |             6.7 |
+| w_sys2x_i     | w_sys2x_i                              |             6.7 |
+| w_sys_i       | w_sys_i                                |            13.3 |
 +---------------+----------------------------------------+-----------------+
 
 
@@ -148,50 +148,50 @@ Table of Contents
 3.1 By Hierarchy
 ----------------
 
-+--------------------------+-----------+
-| Name                     | Power (W) |
-+--------------------------+-----------+
-| ddr2_char_top            |     0.625 |
-|   u_a7ddrphy             |     0.245 |
-|     IOBUF                |     0.008 |
-|     IOBUFDS              |     0.023 |
-|       OBUFTDS            |     0.004 |
-|     IOBUFDS_1            |     0.023 |
-|       OBUFTDS            |     0.004 |
-|     IOBUF_1              |     0.008 |
-|     IOBUF_10             |     0.008 |
-|     IOBUF_11             |     0.008 |
-|     IOBUF_12             |     0.008 |
-|     IOBUF_13             |     0.008 |
-|     IOBUF_14             |     0.008 |
-|     IOBUF_15             |     0.008 |
-|     IOBUF_2              |     0.008 |
-|     IOBUF_3              |     0.008 |
-|     IOBUF_4              |     0.008 |
-|     IOBUF_5              |     0.008 |
-|     IOBUF_6              |     0.008 |
-|     IOBUF_7              |     0.008 |
-|     IOBUF_8              |     0.008 |
-|     IOBUF_9              |     0.008 |
-|     OBUFDS               |     0.008 |
-|   u_harness              |     0.101 |
-|     u_bridge             |     0.009 |
-|       u_ddr2_apb_adapter |     0.004 |
-|       u_host_adapter     |     0.004 |
-|     u_debug_sram         |     0.005 |
-|       u_core             |     0.003 |
-|     u_dfi_mon_ram        |     0.008 |
-|       u_core             |     0.006 |
-|     u_dfi_rddata_delay   |     0.002 |
-|     u_dut                |     0.069 |
-|       u_csr_shim         |     0.003 |
-|       u_ctrl             |     0.036 |
-|       u_hist_rd          |     0.010 |
-|       u_hist_wr          |     0.005 |
-|       u_rd_engine        |     0.007 |
-|       u_wr_engine        |     0.007 |
-|     u_harness_csr        |     0.004 |
-|     u_uart               |     0.002 |
-+--------------------------+-----------+
++-----------------------------+-----------+
+| Name                        | Power (W) |
++-----------------------------+-----------+
+| ddr2_char_top               |     0.749 |
+|   u_a7ddrphy                |     0.256 |
+|     IOBUF                   |     0.009 |
+|     IOBUFDS                 |     0.023 |
+|       OBUFTDS               |     0.004 |
+|     IOBUFDS_1               |     0.023 |
+|       OBUFTDS               |     0.004 |
+|     IOBUF_1                 |     0.009 |
+|     IOBUF_10                |     0.009 |
+|     IOBUF_11                |     0.009 |
+|     IOBUF_12                |     0.009 |
+|     IOBUF_13                |     0.009 |
+|     IOBUF_14                |     0.009 |
+|     IOBUF_15                |     0.009 |
+|     IOBUF_2                 |     0.009 |
+|     IOBUF_3                 |     0.009 |
+|     IOBUF_4                 |     0.009 |
+|     IOBUF_5                 |     0.009 |
+|     IOBUF_6                 |     0.009 |
+|     IOBUF_7                 |     0.009 |
+|     IOBUF_8                 |     0.009 |
+|     IOBUF_9                 |     0.009 |
+|     OBUFDS                  |     0.008 |
+|   u_harness                 |     0.224 |
+|     u_bridge                |     0.014 |
+|       u_chargen_apb_adapter |     0.004 |
+|       u_ddr2_apb_adapter    |     0.004 |
+|       u_host_adapter        |     0.004 |
+|       u_obs_apb_adapter     |     0.001 |
+|     u_debug_sram            |     0.009 |
+|       u_axil_rd             |     0.001 |
+|       u_core                |     0.007 |
+|     u_dfi_mon_ram           |     0.019 |
+|       u_core                |     0.017 |
+|     u_dfi_rddata_delay      |     0.002 |
+|     u_dut                   |     0.172 |
+|       u_csr_shim            |     0.003 |
+|       u_ctrl                |     0.041 |
+|       u_engines             |     0.128 |
+|     u_harness_csr           |     0.002 |
+|     u_uart                  |     0.002 |
++-----------------------------+-----------+
 
 

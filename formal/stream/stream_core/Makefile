@@ -36,12 +36,19 @@ TMPDIR    := .sv2v_prep
 # The filelist resolves $STREAM_ROOT via the environment (see env_python);
 # define it here so this Makefile stands alone -- CI and check-flat do not
 # source env_python. Same default the fpga-systems stream Makefiles export.
-export STREAM_ROOT ?= $(REPO_ROOT)/projects/components/dma-ip/stream
+# Forced (:=), not defaulted: the flat bakes source paths into its $display
+# strings, so they must derive from REPO_ROOT alone -- an inherited
+# STREAM_ROOT made the bytes depend on who ran make, and broke the AWE_PREP
+# substitution below under check-flat's canonical REPO_ROOT.
+export STREAM_ROOT := $(REPO_ROOT)/projects/components/dma-ip/stream
 
 FILELIST  := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/stream_core.f
 FLATTEN   := $(PYTHON) $(REPO_ROOT)/bin/flatten_filelist.py
 
-# The single file needing preprocessing, and its prepped copy.
+# The single file needing preprocessing, and its prepped copy. The recipes
+# swap it in by its tail, not by $(AWE_SRC) verbatim: the resolved filelist
+# spells the path through whatever root resolved it, and a silent no-match
+# leaves the $display in, which yosys rejects (AST_AUTOWIRE).
 AWE_SRC   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/axi_write_engine.sv
 AWE_PREP  := $(TMPDIR)/axi_write_engine.sv
 
@@ -68,7 +75,7 @@ stream_core_flat.v: $(FILELIST) $(AWE_PREP)
 	$(SV2V) \
 	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \
 	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
-	     | sed 's|^$(AWE_SRC)$$|$(AWE_PREP)|') \
+	     | sed 's|^.*/stream/rtl/fub/axi_write_engine\.sv$$|$(AWE_PREP)|') \
 	  > $@
 
 # Show the resolved source list (debugging aid: what the closure actually is).
@@ -100,5 +107,5 @@ check-flat: .check_flat_tmp
 	$(SV2V) \
 	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \
 	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
-	     | sed 's|^$(AWE_SRC)$$|$(AWE_PREP)|') \
+	     | sed 's|^.*/stream/rtl/fub/axi_write_engine\.sv$$|$(AWE_PREP)|') \
 	  > $@

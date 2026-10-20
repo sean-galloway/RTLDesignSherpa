@@ -1,0 +1,15 @@
+config,scenario,family,burst_len,txn_count,gap,id_mode,ok,mismatched,bytes_moved,clk_mhz,wr_cycles,wr_util,wr_bw_mb_s,rd_cycles,rd_util,rd_bw_mb_s,rd_avg_latency_cyc,rd_hist_total,notes
+defaults,incremental_bl4,incremental,4,64000,0,0,1,0,2048000,75.0,537165,0.0102,285.95,555513,0.0076,276.50,117.21,64000,
+defaults,incremental_bl8,incremental,8,64000,0,0,1,0,4096000,75.0,1074320,0.0203,285.95,1110981,0.0152,276.51,122.25,64000,
+defaults,incremental_bl16,incremental,16,64000,0,0,1,0,8192000,75.0,2148628,0.0388,285.95,2221945,0.0294,276.51,140.25,64000,
+defaults,row_major_bl4,row_major,4,64000,0,0,1,0,2048000,75.0,530117,0.0102,289.75,528279,0.0076,290.76,96.00,64000,
+defaults,row_major_bl8,row_major,8,64000,0,0,1,0,4096000,75.0,1060197,0.0203,289.76,1056497,0.0152,290.77,96.00,64000,
+defaults,row_major_bl16,row_major,16,64000,0,0,1,0,8192000,75.0,2120397,0.0388,289.76,2112933,0.0294,290.78,110.87,64000,
+defaults,col_major_bl4,col_major,4,64000,0,0,1,0,2048000,75.0,1115367,0.0102,137.71,986982,0.0076,155.63,96.00,64000,
+defaults,col_major_bl8,col_major,8,64000,0,0,1,0,4096000,75.0,1630610,0.0194,188.40,1500190,0.0147,204.77,96.00,64000,
+defaults,col_major_bl16,col_major,16,64000,0,0,1,0,8192000,75.0,2678881,0.0388,229.35,2568799,0.0294,239.18,191.99,64000,
+defaults,col_major_interleaved_bl4,col_major_interleaved,4,64000,0,0,1,0,2048000,75.0,864771,0.0102,177.62,926072,0.0076,165.86,231.39,64000,
+defaults,col_major_interleaved_bl8,col_major_interleaved,8,64000,0,0,1,0,4096000,75.0,1486446,0.0194,206.67,1538334,0.0147,199.70,229.49,64000,
+defaults,col_major_interleaved_bl16,col_major_interleaved,16,64000,0,0,1,0,8192000,75.0,2549609,0.0388,240.98,2678940,0.0294,229.34,253.71,64000,
+defaults,col_major_bl8_multiid,col_major,8,64000,0,2,1,0,4096000,75.0,1630610,0.0194,188.40,1500196,0.0147,204.77,96.00,64000,
+defaults,col_major_bl8_gap,col_major,8,64000,8,0,0,59352,4096000,75.0,1630617,0.0003,188.39,1500213,0.0147,204.77,96.02,64000,write engine did not complete; 59352 beats mismatched

@@ -1,0 +1,81 @@
+// CELL ALU-focused datapath (cell MAS v0.12) — no delta/network side.
+// House style: vault/handbook/authoring/block-diagrams.md — owner ruling
+// 2026-10-18: no invisible scaffolding. Direct edges between visible nodes
+// only; rank pins and group columns do the layout.
+// Flows:
+//   - operand fill (mem_in pop + A/B/C/D/T regs) into the FSM, left column
+//   - issue down the center into the ALU (heavy pen, valid/ready elastic)
+//   - result back UP its own route to the FSM, then push down to mem_out
+// One boundary bar: the alu_infer_top edge.
+digraph cell_alu_focus {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.42", ranksep="0.55", splines=ortho,
+         label="CELL — ALU datapath focus (MAS v0.12)",
+         labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+  edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+  // ---- Operand sources (left) + config (right) ----
+  inmem   [group="L", label="Input Memory\ncell_mem_in — operand lines, IP++"];
+  aluregs [group="L", label="ALU Registers\nA · B · C · D + T\npersistent operands + threshold"];
+  cfgregs [group="R", label="Cell Config (§7)\nOP_SRC · IP/OP · CTRL\nFLUSH_DEST / FLUSH_TAG"];
+
+  // ---- Scheduler ----
+  fsm [group="C", shape=invtrapezium, width=2.6, height=0.5,
+       label="Execution FSM — cell_exec_fsm\nPop → Issue → Push (scheduler; tetrad: gatling)"];
+
+  // ---- ALU internals (inside the alu_infer_top boundary) ----
+  tagassign [group="C", label="Tag assign\n8-bit tag per invocation group"];
+  rows      [group="C", label="bf16 rows\n2×bf16 per operand line"];
+  tagfifo   [group="L", label="Tag FIFO\ntracks in-flight groups\n(ratified spec — RTL pending)"];
+  mac       [group="C", label="fp32 MAC\nper-lane accumulate\nCLEAR / ACCUMULATE / DRAIN"];
+  align     [group="C", label="Align gate\nresult_valid waits for every\nsame-tag op's valid"];
+
+  // ---- Boundary bar ----
+  alubar [group="C", width=5.4, height=0.5, fillcolor="white",
+          label="ALU boundary — alu_infer_top"];
+
+  // ---- Result sink ----
+  outmem [group="R", label="Result Memory\ncell_mem_out — result lines, OP++"];
+
+  // ---- Operand fill flow (left column, top down) ----
+  inmem   -> fsm [label="op lines — pop (IP++)"];
+  aluregs -> fsm [label="op_line_a/b ← A|B|C|D (OP_SRC)\nT → threshold_imm"];
+
+  // ---- Config flow (dashed) ----
+  cfgregs -> fsm [style=dashed, label="cfg — OP_SRC sel_a/sel_b,\nIP/OP seed, CTRL"];
+
+  // ---- Issue: heavy pen, narrow edge of the scheduler ----
+  fsm -> tagassign [penwidth=1.8,
+       label="issue — alu_valid: op_line_a/b · func_sel · acc_ctrl · threshold_imm"];
+
+  // ---- Inside the ALU ----
+  tagassign -> rows   [label="operand lines"];
+  tagassign -> tagfifo [label="8-bit tag"];
+  rows      -> mac    [label="bf16 products (exact in fp32)"];
+  mac       -> align  [label="round to bf16 per result line"];
+  tagfifo   -> align  [constraint=false, style=dashed, label="tag-complete status"];
+  align     -> alubar [label="result_line — in-order"];
+
+  // ---- Result flow: back UP its own route ----
+  alubar -> fsm [constraint=false,
+       xlabel="result_line + result_valid / result_ready\n(in-order, II=1 while draining)"];
+
+  // ---- Push: down to result memory ----
+  fsm -> outmem [constraint=false, label="push result lines (OP++)"];
+
+  // ---- Rank pinning (visible nodes only) ----
+  { rank=same; inmem; cfgregs }
+  { rank=same; aluregs }
+  { rank=same; fsm }
+  { rank=same; tagassign }
+  { rank=same; rows; tagfifo }
+  { rank=same; mac }
+  { rank=same; align }
+  { rank=same; alubar; outmem }
+
+  // ---- Invisible ordering edges between visible nodes ----
+  inmem -> cfgregs [style=invis];
+  tagfifo -> rows [style=invis];
+}

@@ -1,0 +1,67 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "P......."
+    },
+    {
+      "name": "",
+      "wave": "22222222",
+      "data": [
+        "n",
+        "n+1",
+        "n+2",
+        "n+3",
+        "n+4",
+        "n+5",
+        "n+6",
+        "n+7"
+      ]
+    },
+    {
+      "name": "acc_ctrl[1:0]",
+      "wave": ".22222x.",
+      "data": [
+        "CLEAR",
+        "ACC",
+        "ACC",
+        "ACC",
+        "DRAIN"
+      ]
+    },
+    {
+      "name": "valid (FSM)",
+      "wave": "0111110."
+    },
+    {
+      "name": "ready (ALU)",
+      "wave": "0111110."
+    },
+    {
+      "name": "acc lane 0 (fp32)",
+      "wave": "==2=2==x",
+      "data": [
+        "0",
+        "p0",
+        "p0+p1",
+        "p0+p1+p2"
+      ]
+    },
+    {
+      "name": "result_line",
+      "wave": "x..2222x",
+      "data": [
+        "view0",
+        "view1",
+        "view2",
+        "drain"
+      ]
+    }
+  ],
+  "config": {
+    "hscale": 2.2
+  },
+  "head": {
+    "text": "MAC chain at II=1: pipelined exact product + 1-cycle fp32 accumulate"
+  }
+}

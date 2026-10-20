@@ -25,7 +25,16 @@
 
 # Tile — Compute Engine Tile Subsystem Specification
 
-**Version:** 1.5 (2026-10-18; §11.13 tetrad control core **deferred** pending
+**Version:** 1.8 (2026-10-19; §11.13/§11.14 tetrad control core and result flush — owner direction: gatling sequences the four alu-infer ALUs of its adjacent cells via `POP`/`PUSH` against the cell ALU issue/result contract, the cell slice-3 exec FSM stays the standalone bring-up driver with the same client contract, and gatling never originates config traffic; `Xcell FLUSH` programs the cell's `FLUSH_DEST`/`FLUSH_TAG` and triggers flush-and-send; §12 milestone ladder M1–M4 added). Carries 1.7 (2026-10-19; §5 MonBus per level — owner direction: every
+cell emits one MonBus on AXI4-Lite, the tetrad merges every MonBus at its
+level (4 cells + the tetrad node) into one AXI4-Lite out, and the tile merges
+the 4 tetrads and the tile-level nodes (root 0, root 1) into one MonBus).
+Carries 1.6 (2026-10-18; §11.5–11.6 header-transport binding — two-header
+model: delta route header in `TUSER` (AXIS), the 128-bit tile header as the
+first data flit on both transports per the RAPIDS built implementation;
+§11.2 cell-traffic QoS rule — QoS 0 reserved for the node's own config
+plane, all cell-bound traffic rides QoS ≠ 0; `TILE_LAND_FLITS` home is the
+Hive top. Clarifications, no mechanism change. Carries 1.5 (2026-10-18; §11.13 tetrad control core **deferred** pending
 the cell — owner direction 2026-10-18, gatling-rv32itetrad the leading
 candidate; cell→cell grant mediation added to §10 open items; §11.3 internal/external ID on every node, §11.9-11.10
 credits — owner direction 2026-10-18: delta nodes are conduits for transit
@@ -125,11 +134,13 @@ tetrads inside the tile.
   allocators. The network is the collective of instantiated nodes; this
   IP is not it.
 - `tetrad` (`rtl/tetrad.sv`, this IP) — instantiates 4 delta nodes; wires
-  the K4 connectivity of §3; merges the 4 node MonBus streams into one
-  tetrad MonBus (§5). No datapath function.
+  the K4 connectivity of §3; merges every MonBus stream at its level (the
+  4 cells and the tetrad node, §11.1) into one tetrad MonBus on AXI4-Lite
+  (§5). No datapath function.
 - `tile_top` (`rtl/tile_top.sv`, this IP — house `<ip>_top` naming) —
-  instantiates 4 tetrads; merges the 4 tetrad MonBus streams into the
-  single tile-top MonBus (§5); exposes boundary nodes' local ports for
+  instantiates 4 tetrads; merges the 4 tetrad MonBus streams and the
+  tile-level nodes' streams (root 0, root 1) into the single tile-top
+  MonBus (§5); exposes boundary nodes' local ports for
   rapids attachment. No datapath function. (Working names during the
   delta-side design phase were `delta_mesh_tetrad` / `delta_mesh_tile`;
   retired with this re-home.)
@@ -148,18 +159,30 @@ attached at the tetrad node's local port, per §11.13 and alu-infer PRD
 
 ## 5. Observation (MonBus aggregation)
 
-Owner decision 2026-10-15. Every cell emits exactly **one** MonBus
-stream; observation aggregates 4:1 per level:
+Owner decision 2026-10-15; refined by owner direction 2026-10-19. One
+MonBus leaves each level, and each level merges **every** MonBus source at
+that level, nodes included, not only the level below:
+
+| Level | MonBus sources merged | Out |
+|---|---|---|
+| Cell | the cell | one MonBus, on AXI4-Lite |
+| Tetrad | its 4 cells + the tetrad node (+ the control core, §11.13, when it exists) | one MonBus, on AXI4-Lite |
+| Tile | the 4 tetrads + the tile-level nodes: root 0, root 1 (the root mux is not a node, §11.1) | one MonBus |
+
+: MonBus sources per level
 
 ```
-cell  ┐
-cell  ├─ tetrad (this IP) ────── 1 tetrad MonBus
-cell  ┤
-cell  ┘
-tetrad ┐
-tetrad ├─ tile_top (this IP) ─── 1 tile-top MonBus  ← host/board sees this
-tetrad ┤
-tetrad ┘
+cell        ┐
+cell        ├─ tetrad (this IP) ───── 1 tetrad MonBus (AXI4-Lite)
+cell        ┤
+cell        ┤
+tetrad node ┘
+tetrad      ┐
+tetrad      ├─ tile_top (this IP) ─── 1 tile-top MonBus  ← host/board sees this
+tetrad      ┤
+tetrad      ┤
+root 0      ┤
+root 1      ┘
 ```
 
 Aggregation uses the house AXIL MonBus group family
@@ -168,8 +191,9 @@ host-read flavor) — the same observation path as the amber tally
 harness (merge → group → AXIL read-out), so standard host tooling
 (`monbus_tally_axil`, regmaps) attaches at the tile top unchanged. Exact
 leaf selection inside the wrappers is implementation detail; the
-architectural contract is **one MonBus per level boundary, 4:1 merge per
-level**.
+architectural contract is **one MonBus per level boundary, merging every
+source at that level**: 5:1 at the tetrad (6:1 once the control core
+exists), 6:1 at the tile.
 
 This hierarchy is also the verification anchor: per-tetrad and per-tile
 observability come for free, and the tile-top stream is the single
@@ -244,7 +268,7 @@ and straps gating cell→rapids traffic (§§11.9–11.10, owner direction
 2026-10-18, replacing grants); credit-return
 batching as a per-cell config with default N=1 (cell PRD §6).
 
-Still open:
+Still open (see the milestone ladder in §12):
 
 - The global quiescent signal (§11.9): how it is formed across every cell
   and tile, and how each reset and partial reset sequences against it.
@@ -269,15 +293,18 @@ Still open:
   its input-buffer credits to peer cells, is undefined. Needed for the
   cell PRD's `DEST` override (cell PRD v0.3 §6.3); v1 result traffic is
   rapids-bound.
-- Result flush (§11.14): how gatling commands a cell's drain controller (an
-  Xcell instruction or a `CTRL` flush-and-send write) and passes it the
-  destination, how much the drain sends, and how the cell reports the drain
-  complete.
-- Tetrad control core (§11.13): the kick/wait custom-opcode encoding,
-  its local memory map, and its program-load conventions — cell/tetrad
-  MAS work, per alu-infer PRD §5. **Deferred** (owner direction
+- Result flush (§11.14): the gatling-to-cell command is now defined as the
+  `Xcell FLUSH` custom instruction (gatling PRD v0.2); the cell's
+  flush-and-send CSR details and encoding land in the cell/tetrad MAS.
+- Tetrad control core (§11.13): the 2026-10-19 ruling records gatling
+  sequencing the four cell ALUs and no config origination; the
+  `KICK`/`WAIT`/`FLUSH` encoding, local memory map, and program-load
+  conventions remain cell/tetrad MAS work. **Deferred** (owner direction
   2026-10-18): the engine is defined after the cell is fully defined and
   working; gatling-rv32itetrad is the leading candidate (§11.13).
+- Multi-path routing and failover (§11.15, delta DELTA-013): fully adaptive
+  or pinned forward with an adaptive return; the transaction ID that makes
+  ordering a requester-side property.
 
 Tile RTL (`tetrad` node, `tile_top` with roots + mux + I/O) is pending
 the adopted-shape module split above; the node RTL (`delta_mesh_cell`,
@@ -319,8 +346,13 @@ produced it:
 | 4 | `desc` | A cell-issued RAPIDS source descriptor (§11.11) |
 | 5-7 | reserved | - |
 
-Delta's existing QoS class 0 (config) would map from `cfg`, so the
-fabric keeps one notion of config traffic.
+Delta QoS classes (owner clarification 2026-10-18): QoS 0 is **reserved
+for the delta node's own config plane** — a node consumes any head flit
+with `dst == POS && qos == 0` as route-table config and never ejects it
+to its local port. All cell-bound traffic (`cfg`, `prog`, `mem`,
+`credit`, `desc`) therefore rides delta QoS ≠ 0: class 1 (latency) for
+`cfg` / `credit` / `desc`, class 2 (bulk) for `mem` / `prog`. A cell's
+demux dispatches by the tile header's `ptype` (§11.5), never by QoS.
 
 ### 11.3 Destination coordinate
 
@@ -401,18 +433,42 @@ Proposed packing, for a transport that carries the header as data:
 
 : Proposed header packing
 
+Two headers, two owners (owner clarification 2026-10-18): this tile
+header is a **payload** header — the first data flit of the packet. It is
+distinct from delta's **route header**, which delta owns and which rides
+`TUSER` of the head beat on AXI4-Stream (§11.6). Consumers that need the
+packet's *originator* — credit returns (§11.9), a cell's recorded source —
+read the tile header's source coordinate; delta's route-header `src` is
+the previous hop, not the originator.
+
 The header costs one flit per packet. For short `cfg` writes that is a
 large share; a later revision could pack a small payload into the reserved
 bits.
 
 ### 11.6 Transport
 
-The header is the same whatever carries it:
+The header is the same whatever carries it — a **data flit**, per the
+RAPIDS built implementation (`rapids_pkg::tile_hdr_pack`, 128 bits; see
+§11.12). Delta's route header (§11.5 note) is separate and stays
+delta's:
 
-| Transport | Where the header rides |
-|---|---|
-| AXI4-Stream (delta ports today) | `TUSER` of the head beat, as delta does now |
-| CXS (RAPIDS CXS tops; delta ports after the migration in §6) | The data of the first flit of the packet. CXS has no address field, and `CXSSRCID` / `CXSTGTID` are at most 8 bits, too narrow for a coordinate. |
+| Transport | Delta route header | Tile packet header (§11.5) |
+|---|---|---|
+| AXI4-Stream (delta ports today) | `TUSER` of the head beat, as delta does now | First data beat of the packet (`tdata[127:0]` of beat 0) |
+| CXS (RAPIDS CXS tops; delta ports after the migration in §6) | Per delta's CXS port mapping (delta migration, §6) | The data of the first flit of the packet |
+
+Binding (owner clarification 2026-10-18): the earlier "AXIS: `TUSER` of
+the head beat" wording for the *tile* header is superseded — on AXIS,
+`TUSER` carries only delta's route header. Until delta ports move to CXS,
+a cell on an AXIS local port sees: `TUSER` = delta route header,
+beat-0 `tdata` = tile header, then payload beats.
+
+**Beat-chained header (owner ruling 2026-10-18):** every link keeps its
+own data width; the 128-bit tile header occupies the first
+`ceil(128/DW)` payload beats of the packet, LSB-first (on a 64-bit link:
+beat 0 = header `[63:0]`, beat 1 = header `[127:64]`). No link widens
+and no width converter is needed anywhere in the fabric for the header's
+sake; the tile I/O link (256-bit) carries header and payload together.
 
 On CXS the link's own sidebands keep their link-level meaning: RAPIDS keeps
 the channel in `CXSSRCID`, so per-stream framing is unchanged.
@@ -516,7 +572,7 @@ construction instead of granted at run time:
 
 | Sender | Sends to RAPIDS | Credit |
 |---|---|---|
-| Cell (a cell-level node's external ID) | Memory writes (results, §11.14) | A strap of `TILE_LAND_FLITS` flits (a RAPIDS parameter, default 16), header included |
+| Cell (a cell-level node's external ID) | Memory writes (results, §11.14) | A strap of `TILE_LAND_FLITS` flits (a Hive-set strap passed to RAPIDS, default 16; §11.9 Hive contract below), header included |
 | Control core (a tetrad node's external ID) | `desc` packets (§11.11) | Entries in RAPIDS's `desc` intake queue |
 | delta node | Nothing | None |
 
@@ -687,20 +743,24 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 | Straps toward RAPIDS (§11.9, §11.11) | Not built: no per-cell landing space (`TILE_LAND_FLITS`), no `desc` intake queue, no credit returns from RAPIDS; RAPIDS ignores class-1 credits (rapids TASK-027) |
 | Status | CSRs: `SNK.TILE_STATUS` and `SRC.TILE_DESC_DROPPED` (W1C), `SNK.TILE_COUNTS`, and for credits `SRC.TILE_LEGAL_DEST_LO` / `_HI` / `SRC.TILE_CREDIT_STATUS`; the same values on the top-level `sts_tile_*` ports |
 
-### 11.13 Tetrad control core (owner direction 2026-10-17; deferred 2026-10-18)
+### 11.13 Tetrad control core (owner direction 2026-10-17; deferred 2026-10-18; ruling 2026-10-19)
 
 **Deferral (owner direction 2026-10-18):** the tetrad engine is defined
 **after the cell is fully defined and working** — the cell is the lowest
 module (cell PRD v0.3 §1). The owner-authored
 [`gatling-rv32itetrad`](../../../riscv-ip/gatling-rv32itetrad/PRD.md) barrel-core
 PRD (2026-10-17) is the leading candidate, with kestrel-class remaining a
-candidate flavor via `CORE_FLAVOR`. The model below stays recorded — frozen
-— for when the engine work resumes; the in-band-everything rulings are
-unaffected.
+candidate flavor via `CORE_FLAVOR`.
+
+**Owner ruling 2026-10-19:** gatling sequences the four **alu-infer**
+ALUs of its adjacent cells. Each barrel context's `POP` presents operands
+to the cell ALU's issue handshake, and `PUSH` retires result lines; the
+cell's slice-3 exec FSM remains the standalone bring-up driver with the
+same client contract. Gatling never originates config traffic.
 
 Each tetrad carries **one RV32I control core** — kestrel-class,
 `CORE_FLAVOR`-swappable, defined with its full duty list in
-[alu-infer PRD §5](../../alu-infer/PRD.md). The model, frozen here so
+[alu-infer PRD §5](../../alu-infer/PRD.md). The model, recorded here so
 the tile records it:
 
 - **Attach.** The core sits at its tetrad node's **local port**, the same
@@ -719,8 +779,10 @@ the tile records it:
   (layer-boundary detection, flush policy), and exercises *operational*
   registers only (flush-and-send, soft reset, IRQ clear — the
   AXIL-for-registers plane, not fabric config).
-- **Custom instructions stay minimal** (a custom-0 kick/wait pair for
-  local coordination); encoding lands in the cell/tetrad MAS (§10).
+- **Custom instructions stay minimal** (a custom-0 `KICK`/`WAIT` pair for
+  local coordination, provisional pending the tetrad MAS); the `FLUSH`
+  instruction is part of result-flush (§11.14). Encoding lands in the
+  cell/tetrad MAS (§10).
 - **Observability is unchanged.** SERV and the MonBus aggregation (§5)
   remain the tile's observability plane; the core reads registers and
   reacts — it takes no MonBus tap by default.
@@ -729,7 +791,7 @@ the tile records it:
   four cells, without sixteen instruction streams. A tetrad steps as
   4 cells × 2 bf16 lanes = 8 bf16 lanes.
 
-### 11.14 Result flush to the tile I/O (owner direction 2026-10-18)
+### 11.14 Result flush to the tile I/O (owner direction 2026-10-18; defined 2026-10-19)
 
 Delta **must** be able to carry a cell's result data to `level` 3, the tile
 I/O, and so into RAPIDS. It is the path computed results leave the tile by:
@@ -749,13 +811,63 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
    sink strips the header and delivers the data by tag into that sink
    channel, which writes it to memory.
 
+**Flush instruction (owner ruling 2026-10-19):** gatling PRD v0.2 adds the
+`Xcell FLUSH` custom instruction: `funct3 = 011`, `rs1[14:0]` = drain
+destination coordinate, `rs1[18:15]` = sink-channel tag. The instruction
+programs the cell's `FLUSH_DEST` / `FLUSH_TAG` and triggers the cell's
+flush-and-send. The coordination pair `KICK` (`funct3 = 100`) / `WAIT`
+(`funct3 = 101`) is also added (provisional pending the tetrad MAS). The
+engine is still deferred until the cell works (§11.13); the instruction
+encoding and cell CSR details land in the cell/tetrad MAS.
+
 | Link | State |
 |---|---|
-| Gatling detects and commands | Not defined: gatling PRD v0.1 has no flush instruction, and the engine is deferred until the cell works (§11.13) |
-| Cell drain controller | Not built: the cell PRD has the packetizer and `CTRL` flush-and-send; no cell RTL beyond alu-infer |
+| Gatling detects and commands | Defined in gatling PRD v0.2: `Xcell FLUSH`, `KICK`, `WAIT`; engine deferred until the cell works (§11.13) |
+| Cell drain controller | Defined: the cell PRD has the packetizer and `CTRL` flush-and-send; no cell RTL beyond alu-infer |
 | Delta to `level` 3 | Interim: delta has no `level` field, so the destination gatling hands the cell includes the attach cell's delta coordinate, and the cell writes it into delta's header; delta needs no change for that. Permanent: `level` and `ext` in delta's header (delta DELTA-011) |
 | RAPIDS sink delivery by tag | Built (§11.12) |
 | Straps toward RAPIDS | Not built (rapids TASK-027). Without the reserved landing space a drain into a full sink channel stalls in the routers |
+
+### 11.15 Multi-path routing and failover: open hazards (2026-10-18)
+
+Resilience is to come from delta route tables that hold a primary and an
+alternate next hop, with failover as an in-band table write and no new wires
+(delta DELTA-013). The tile topology already has the alternates: each
+tetrad node reaches the other three directly (K4) or through one of them,
+and every tetrad node links to both roots. Then a packet's path depends on
+table state, so a request and its reply can take different paths. The
+hazards, worked in DELTA-013, are recorded where they bite:
+
+- **Delta** (delta HAS ch07, Resilient Routing: Open Hazards): mixed tables
+  during a node-by-node update; the VC0 escape channel losing connectivity
+  when a failed link sits on it, so the escape rule (up/down over this
+  hierarchy is the natural one) is re-derived on every failover; the config
+  route crossing the failure; and a misroute drop losing a `credit` or data
+  packet, which breaks "always return credits" (§11.9).
+- **Ordering is gone between packets.** Only the flits of one packet stay
+  in order. Order becomes a requester-side property: a transaction ID per
+  request, echoed in the reply. RAPIDS's cases (read replies sharing a
+  sink-channel tag, a resync `set` racing an older `add`, a write followed
+  by a packet that depends on it) are in the RAPIDS MAS, ch03 Tile Packet
+  Header, Ordering Across the Fabric. Nothing in the tile may be built on
+  fabric order.
+- **Design fork:** fully adaptive on both legs, or pinned forward
+  (requests follow the table's path, deterministic per table state) with an
+  adaptive return. Pinned forward is the leading option, being much easier
+  to verify and enough for surviving a forward-path failure; it still
+  reorders at a failover flip and on the return leg.
+
+## 12. Milestones
+
+Owner direction 2026-10-19: the tile work is staged so that the cell and
+tetrad are proven before rapids and real data are brought in.
+
+| Milestone | What is proven |
+|---|---|
+| **M1** | A fully working **tetrad** on the FPGA — 4 cells + gatling sequencer over delta; proves the cell datapath, credit loop, and programmability. |
+| **M2** | A **tile** running in isolation (with injectors) on an FPGA — 16 cells, tetrads, roots, and MonBus levels; no rapids. |
+| **M3** | **Rapids + tile** working artificially (injectors/test data) — full source/sink loop with tile headers, end-to-end credits, and straps. |
+| **M4** | **Rapids + tile** working on real data and benchmarks. |
 
 ## References
 
@@ -766,5 +878,5 @@ I/O, and so into RAPIDS. It is the path computed results leave the tile by:
 
 ---
 
-**Last Updated:** 2026-10-18
+**Last Updated:** 2026-10-19
 **Maintained By:** RTL Design Sherpa Project

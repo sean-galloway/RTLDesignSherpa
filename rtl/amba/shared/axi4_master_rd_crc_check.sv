@@ -13,7 +13,7 @@
 //          Accumulates a CRC-32 over the returned data so the harness can
 //          also compare actual_crc against the writer's expected_crc.
 //
-// Documentation: projects/fpga-systems/NexysA7/mem-ctrl-ip/pumice/ddr2-characterization/README.md
+// Documentation: projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2-characterization/README.md
 // Subsystem: amba (shared characterization harness blocks)
 //
 // Author: sean galloway
@@ -56,36 +56,21 @@
 //   side or the comparison and CRC roll-up are meaningless. The default
 //   parameters here mirror axi4_master_wr_injector exactly.
 //
-//   ===== OUT-OF-ORDER COMPLETION — KNOWN LIMITATION (v2 TODO) =====
+//   ===== OUT-OF-ORDER COMPLETION =====
 //
-//   The v1 LFSR mirror advances on every accepted R beat, so the expected
-//   value at beat K depends on K — the *arrival* index — not on the AR's
-//   (address, beat_index_within_burst). With AXI4 this is fine while:
-//
-//     1. Bursts in flight are bounded by MAX_OUTSTANDING (the AR path is
-//        otherwise decoupled from R: it does NOT wait for rlast), AND
-//     2. R bursts arrive in AR order -- guaranteed by AXI4 when all ARs share
-//        one ID, and by a controller that returns in AR order regardless.
-//
-//   With multiple outstanding ARs at distinct IDs, the controller is free
-//   to return their R bursts interleaved or fully OOO. The current LFSR
-//   stream is a single phase counter; an OOO return reorders R beats vs
-//   the writer's W phase and per-beat compare + CRC roll-up both break.
-//
-//   For v2:
-//     - Switch the "expected" function to a deterministic per-address
-//       hash, e.g. expected_word(addr_word_idx) = LFSR_skip(seed,
-//       hash(addr_word_idx)). Compare per-beat against the looked-up
-//       value rather than a phase counter.
-//     - Make the CRC accumulator commutative (XOR-sum over per-beat
-//       values, not the LFSR stream) OR accumulate per-burst CRCs in a
-//       slot indexed by AR id and only roll up at cfg_done.
-//     - The writer's o_expected_crc has to use the same commutative
-//       roll-up so the two values can still be compared end-to-end.
-//
-//   Until that lands, the harness CSR must keep the read block in
-//   single-outstanding mode (cfg_force_inorder or all-same-id) when
-//   the controller has OOO enabled.
+//   cfg_data_mode selects how the expected data is produced:
+//     0 = LFSR phase counter. The mirror advances on every accepted R beat,
+//         so the expected value depends on the ARRIVAL index. Valid only
+//         while R bursts return in AR order (one ID, or an in-order
+//         controller). This is the only mode that reports the CRC roll-up
+//         (o_actual_crc_valid is asserted only when the run used mode 0).
+//     1 = address hash. Each beat's expected word is a pure function of its
+//         byte address, so the per-beat compare is correct under multi-ID /
+//         out-of-order completion. No CRC roll-up is reported.
+//     2 = fill pattern replicated across the bus; order-independent, no
+//         CRC roll-up.
+//   For an OOO-capable controller, run the multi-ID traffic in mode 1 (or 2);
+//   use mode 0 only for in-order runs that need the end-to-end CRC.
 //==============================================================================
 module axi4_master_rd_crc_check #(
     // ---- AXI ----

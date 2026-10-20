@@ -1,12 +1,15 @@
 # GATLING PRD — Tetrad Compute Engine
 
-**Version:** 0.1 (scaffold)
-**Date:** 2026-10-17
+**Version:** 0.2 (2026-10-19 — owner ruling: gatling sequences the four
+ALUs of its adjacent cells; the barrel core is the programmable sequencer
+for the tetrad; the cell's bf16 ALU remains the datapath.)
+**Date:** 2026-10-19
 **Owner decision inputs:** "Instructions" (over MMIO) for fabric
 handshake; mini RV per tetrad (over per-cell ALU+FSM); codename
 gatling (barrel machine).
-**Supersedes:** nothing — cell PRD 0.1 datapath blocks stand, with the
-ALU + execution FSM slot upgraded to gatling (this engine).
+**Supersedes:** PRD 0.1 wording that described gatling as replacing the
+per-cell ALU — the ALU stays; gatling replaces the execution FSM as its
+driver.
 
 ---
 
@@ -19,9 +22,17 @@ the barrel processor as the kestrel→merlin lesson, inverted — instead
 of pipeline stages hiding latency for one stream, N contexts hide the
 multi-cycle latency of one shared datapath.
 
-The cell PRD's fixed `ALU + execution FSM (config-selected fn)`
-becomes *the program is the config*. Mode bits that remain
-(element width, credit batch N) move to the CFG read path.
+Owner ruling 2026-10-19: gatling sequences the four ALUs of its
+adjacent cells. The barrel RV32I core is the programmable sequencer
+for its tetrad — each context runs a small program whose POP presents
+operands to the cell's alu-infer issue handshake and whose PUSH retires
+a result line; the ALU keeps its elastic valid/ready seam and
+tag-alignment contract unchanged. *The program is the config*. Mode
+bits that remain (element width, credit batch N) move to the CFG read
+path. Gatling is also a barrel RISC-V with custom commands (Xcell:
+CFG/POP/PUSH/ECTX/FLUSH/KICK/WAIT) — the program is the schedule.
+Gatling never originates config traffic; cell configuration arrives
+in-band over delta.
 
 ## 2. Non-goals
 
@@ -48,26 +59,34 @@ standard extensions.
  31                     15 14   12 11      7 6       0
 +-------------------------+-------+---------+--------+
 |        imm[31:12]       | funct3|   rd    | 0x0B   |  CFG
-|        000000000000     |  000  |  rs1    | 0x0B   |  POP
+|        000000000000     |  000  |   rd    | 0x0B   |  POP
 |        000000000000     |  001  |  rs1    | 0x0B   |  PUSH
 |        000000000000     |  010  |  00000  | 0x0B   |  ECTX
+|        000000000000     |  011  |  rs1    | 0x0B   |  FLUSH
+|        000000000000     |  100  |  rs1    | 0x0B   |  KICK
+|        000000000000     |  101  |  rs1    | 0x0B   |  WAIT
 +-------------------------+-------+---------+--------+
-funct3 010+ : reserved (WAITCD/WAITGT live here if blocking-POP/PUSH
-            hardware interlock proves insufficient in bring-up)
+funct3 110/111 : reserved.
+funct3 010 (ECTX) and 011/100/101 (FLUSH/KICK/WAIT) added in v0.2.
+The v0.1 WAITCD/WAITGT placeholders are superseded by KICK/WAIT pending
+the tetrad MAS.
 ```
 
 | Instr | Action | Blocking behavior |
 |---|---|---|
-| `CFG rd, imm` | rd ← mode-register[imm]: 0=element width (B4/8/16/32), 1=credit batch N, 2=context ID (read-only, see §7 open item), 3+=reserved | never blocks |
+| `CFG rd, imm` | rd ← mode-register[imm]: 0=element mode (0=bf16: 2 bf16 lanes per 32-bit line, fp32 accumulate; other values reserved for the int8/fp32 roadmap per alu-infer PRD `func_sel[8:7]`), 1=credit batch N, 2=context ID (read-only, see §7 open item), 3+=reserved | never blocks |
 | `POP rd` | rd ← next element of this context's input memory; head advances; consumed-line credit returned to rapids per credit-batch config | context stalls if input empty — hardware interlock, not a spin |
 | `PUSH rs1` | rs1 → this context's result memory; tail advances; grant requested on result path; packetizer batches X flits | context stalls if no grant |
 | `ECTX` | context done: freeze PC, raise done status to tetrad MonBus, release datapath share; context restarts on reset/config reload | drains at next context boundary |
+| `FLUSH rs1` | rs1[14:0] → cell `FLUSH_DEST` {ext,level,X,Y,Z}; rs1[18:15] → cell `FLUSH_TAG` (RAPIDS sink-channel tag); trigger cell flush-and-send of result memory | context stalls until drain controller accepts command |
+| `KICK rs1` | raise tetrad coordination event on the tetrad MonBus with value `rs1`; provisional encoding pending tetrad MAS | non-blocking once event is posted |
+| `WAIT rs1` | stall context until the tetrad coordination condition in `rs1` is observed (e.g. group-done bitmask); provisional encoding pending tetrad MAS | context stalls until condition true |
 
 Design note (owner doctrine): fixed hardware owns the line-rate
 handshake (credit/grant detection, memory ports); the program owns
-policy. POP/PUSH blocking interlocks subsume the explicit WAIT
-instructions — a context that would wait simply isn't scheduled.
-WAIT* opcodes are reserved as an escape hatch, not a plan.
+policy. POP/PUSH blocking interlocks subsume most waiting — a context
+that would wait simply isn't scheduled. WAIT is an explicit escape
+hatch for cross-context coordination, not the common case.
 
 Element semantics: with element width < 32, POP zero-extends into rd
 and PUSH takes the low bits of rs1; packing/unpacking is the
@@ -75,9 +94,10 @@ program's business (one ANDI/SLTI pair, honest and visible).
 
 ### 3.2 Assembly mnemonics
 
-`gatling_pop`, `gatling_push`, `gatling_cfg`, `gatling_ectx` as
-canonical toolchain names; assembler aliases `pop/push/cfg/ectx` live
-in the Xcell binutils fragment when the flow arrives (§8).
+`gatling_pop`, `gatling_push`, `gatling_cfg`, `gatling_ectx`,
+`gatling_flush`, `gatling_kick`, `gatling_wait` as canonical toolchain
+names; assembler aliases `pop/push/cfg/ectx/flush/kick/wait` live in
+the Xcell binutils fragment when the flow arrives (§8).
 
 ## 4. Barrel microarchitecture
 
@@ -96,9 +116,10 @@ Gatling splits that into a 4-state FSM:
 
 Each FSM state advances context `sel` one step; `sel` rotates
 0→1→2→3→0. Steady state: every context retires one instruction per
-4-cycle window ⇒ 1 IPC per context, one ALU, one decoder, one Xcell
-unit, **four** register files + PCs (the cheap replication) —
-replacing the cell PRD's four ALU+FSM pairs.
+4-cycle window ⇒ 1 IPC per context, one gatling ALU, one decoder, one
+Xcell unit, **four** register files + PCs (the cheap replication) —
+replacing the cell PRD's four execution FSMs while each cell keeps its
+own bf16 ALU datapath (owner ruling 2026-10-19).
 
 ### 4.2 Structural hazards (all resolved by rotation, by construction)
 
@@ -134,8 +155,8 @@ decision.
 | Input memory, line fill by node from rapids | stands; per-context, addressed by `sel` |
 | Result memory, X-flit batching, packetizer, grants | stands |
 | Consumed-line credits to rapids, batch N (default 1) | stands; N read via CFG |
-| Element widths B4/8/16/32 | stands; width read via CFG |
-| ALU + execution FSM (config-selected fn) | **replaced by gatling** — this PRD |
+| Element widths B4/8/16/32 | superseded — alu-infer's bf16 element model (2 bf16 lanes per 32-bit line, fp32 accumulate) is normative; CFG[0] reports the alu-infer element mode (bf16 today; int8/fp32 modes are a roadmap item in the alu-infer PRD via `func_sel[8:7]`) |
+| ALU + execution FSM (config-selected fn) | **replaced by gatling as the execution FSM driver** — the cell's bf16 ALU datapath remains; gatling issues it via POP/PUSH and the alu-infer elastic valid/ready seam (owner ruling 2026-10-19) |
 | MonBus observation (per-cell → per-tetrad merge) | stands; gatling adds per-context status (active/stall-reason/done) to the observed set |
 
 Consequences that must not fork: credit counting is in *elements
@@ -161,19 +182,31 @@ consumed* (POP), not instructions; grants are in *elements pushed*
 
 ## 7. Open items (owner decisions needed)
 
-1. **Context visibility:** implicit (hardware-only `sel`; software
+1. **ALU-infer relationship:** RESOLVED 2026-10-19 — gatling is the
+   programmable sequencer for the tetrad's four bf16 ALUs; each
+   context runs a small program whose POP presents operands to the
+   cell's alu-infer issue handshake and whose PUSH retires a result
+   line; the ALU keeps its elastic valid/ready seam and tag-alignment
+   contract unchanged. The v0.1 wording that made gatling "the ALU
+   + execution FSM" is superseded.
+2. **Context visibility:** implicit (hardware-only `sel`; software
    cannot tell contexts apart — simplest, binaries uniform) vs
    explicit (CFG[2] returns context ID, enabling per-context
    specialization). Leaning implicit; one word settles it.
-2. **Program image placement:** input memory holds both program and
+3. **Program image placement:** input memory holds both program and
    data (self-contained cell, POP-after-code addressing) vs separate
    program region (needs a second read port or F-state fetch from
    program image, D-state POP from data). Separate is cleaner;
    self-contained is cheaper. Open.
-3. **Illegal-instruction policy:** context-lock (proposed §4.4) vs
+4. **Illegal-instruction policy:** context-lock (proposed §4.4) vs
    tetrad-lock. Leaning context-lock.
-4. **Xcell binutils/toolchain:** hand-assembled hex for bring-up;
+5. **Xcell binutils/toolchain:** hand-assembled hex for bring-up;
    gcc/binutils fragment later. Non-blocking.
+
+Resolved/added in v0.2: the FLUSH/KICK/WAIT Xcell encodings of §3.1
+(answer TILE_SPEC §11.14 and the alu-infer PRD §5 tetrad-coordination
+pair). Their exact field layouts and MonBus integration remain
+provisional pending the tetrad MAS.
 
 ## 8. Deliverables & sequencing
 
@@ -187,6 +220,12 @@ consumed* (POP), not instructions; grants are in *elements pushed*
 
 ## 9. History
 
+- 2026-10-19: PRD 0.2. Owner ruling: gatling sequences the four ALUs
+  of its adjacent cells — the barrel core is the programmable
+  sequencer for the tetrad, the cell's bf16 ALU remains the datapath,
+  and gatling never originates config traffic. Added FLUSH/KICK/WAIT
+  Xcell encodings; fixed POP to read `rd`; updated CFG[0] to report
+  the alu-infer element mode.
 - 2026-10-17: PRD 0.1 scaffold. Owner decisions: instructions over
   MMIO; mini RV per tetrad; codename gatling; four contexts = four
   cells; blocking POP/PUSH interlock; ECTX exit. Cell PRD 0.1

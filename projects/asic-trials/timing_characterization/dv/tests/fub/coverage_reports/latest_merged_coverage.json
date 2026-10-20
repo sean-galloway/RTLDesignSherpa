@@ -1,0 +1,14 @@
+{
+  "test_count": 0,
+  "tests": [],
+  "groups": {},
+  "overall_protocol_pct": 0.0,
+  "overall_line_pct": 100.0,
+  "line_files": {
+    "inverter_chain.sv": {
+      "covered": 9,
+      "total": 9,
+      "pct": 100.0
+    }
+  }
+}

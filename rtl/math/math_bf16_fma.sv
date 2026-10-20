@@ -279,8 +279,10 @@ always_comb begin
         ow_result = {w_prod_sign, 8'hFF, 23'h0};  // Product infinity
     end else if (w_c_is_inf) begin
         ow_result = {w_sign_c, 8'hFF, 23'h0};  // Addend infinity
-    end else if (w_prod_is_zero & w_c_eff_zero) begin
-        // 0 * 0 + 0 = 0 (sign from IEEE rules)
+    end else if ((w_a_eff_zero | w_b_eff_zero) & w_c_eff_zero) begin
+        // Exact zero product + zero addend: IEEE 754 zero-sign rule.
+        // (Product underflow is NOT exact zero; it is handled below so the
+        // rounded signed-zero result keeps the product sign.)
         ow_result = {w_prod_sign & w_sign_c, 8'h00, 23'h0};
     end else if (w_prod_is_zero) begin
         // 0 * X + C = C (pass-through addend when product is zero)
@@ -294,7 +296,7 @@ always_comb begin
             ow_result = {w_prod_sign, 8'hFF, 23'h0};  // Overflow to inf
             ow_overflow = 1'b1;
         end else if (w_prod_underflow) begin
-            ow_result = {w_prod_sign, 8'h00, 23'h0};  // Underflow to zero
+            ow_result = {w_prod_sign, 8'h00, 23'h0};  // Underflow to signed zero
             ow_underflow = 1'b1;
         end else begin
             ow_result = {w_prod_sign, w_prod_exp[7:0], w_prod_mant_ext[22:0]};

@@ -1,0 +1,72 @@
+// Cell top-level block plan (cell PRD v0.4).
+// House style: vault/handbook/authoring/block-diagrams.md — owner ruling
+// 2026-10-18: no invisible scaffolding. Direct edges between visible nodes;
+// rank pins and group columns do the layout; return lanes are
+// constraint=false direct edges into the boundary bar.
+digraph cell_top {
+  graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+         nodesep="0.40", ranksep="0.60", splines=ortho,
+         label="Cell — top-level block plan (slice 1 landed; slices 2–3 planned)",
+         labelloc=t];
+  node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+  edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+  // ---- Boundary bar: the delta node is the cell's network boundary ----
+  mesh  [group="C", fillcolor="white",
+         label="Mesh ports x8 — pass through to cell boundary\n(±X  ±Y  ±Z  P_DIA  P_DIA2)"];
+  nodeb [group="C", width=5.6, height=0.55,
+         label="Delta Mesh Node — the cell's network boundary\ndelta_mesh_cell — fabric-gen-ip/delta (landed)"];
+
+  // ---- Cell's own design (PRD §1) ----
+  demux  [group="C", label="Rx Header Demux — cfg / mem / credit route\ncell_rx (landed)"];
+  inmem  [label="Input Memory — operand buffer, IP auto-increments\ncell_mem_in (landed) — each line carries a source tag"];
+  cfgregs [group="C", label="Config Registers — §7 map (incl. A·B·C·D·T)\ncell_cfg_regs (landed) — CTRL · STATUS · FUNC_SEL · OP_SRC · DEST …"];
+  credit [label="Credit Logic — per-source owed, batch N + timeout\ncell_credit (slice 2)"];
+  fsm    [group="C", label="Execution FSM — pop → issue → push loop\ncell_exec_fsm (slice 3)"];
+  aluregs [label="ALU Registers — A · B · C · D + T\nin cell_cfg_regs (§7 window) — persistent operands + threshold"];
+  alu    [group="C", label="Inference ALU — bf16 rows, fp32 MAC, elastic valid/ready pipe\ncell_alu_infer — alu_infer_top (landed)"];
+  outmem [group="C", label="Result Memory — output buffer, OP auto-increments\ncell_mem_out (landed)"];
+  pktz   [group="C", label="Tx Packetizer — batch X flits + §11.5 header, strap-gated\ncell_packetizer (slice 2)"];
+
+  // ---- Boundary crossings (visible nodes only) ----
+  mesh -> nodeb [dir=back, label="mesh traffic — 8 ports, pass-through"];
+  nodeb -> demux [label="local port rx — flits + header (TUSER / first flit)"];
+
+  // ---- Programming flow: demux fans cfg to the register files (dashed) ----
+  demux -> inmem   [label="mem payload — operand lines"];
+  demux -> cfgregs [style=dashed, label="cfg writes — §7 map"];
+  demux -> credit  [style=dashed, label="credit pkts — add / set (§6.2 · strap returns §6.3)"];
+  cfgregs -> fsm   [style=dashed, label="func / op_lines / dest config"];
+  cfgregs -> aluregs [style=dashed, label="cfg write fan — A B C D T window"];
+
+  // ---- Operand fill: forward data, down the left into the FSM ----
+  inmem -> fsm [label="operand lines — pop (IP++)"];
+  fsm -> credit [style=dashed, xlabel="consumed-line strobe (per-source counts)"];
+
+  // ---- Issue: the cell's command output, heavy pen ----
+  fsm -> alu [penwidth=1.8, label="issue — valid/ready elastic, II=1"];
+  aluregs -> alu [label="A/B/C/D → op_line_a/b (OP_SRC)\nT → threshold_imm"];
+
+  // ---- Result flow: down the spine ----
+  alu -> outmem [label="result lines — in-order (OP++)"];
+  outmem -> pktz [label="result lines buffered"];
+
+  // ---- Return lanes: direct edges into the boundary bar (no scaffolds) ----
+  pktz   -> nodeb [constraint=false, xlabel="result packets — §11.5 header (strap-gated, §6.3)"];
+  credit -> nodeb [constraint=false, style=dashed, xlabel="credit packets — add → recorded source (§6.2)"];
+
+  // ---- Rank pinning (visible nodes only) ----
+  { rank=same; mesh }
+  { rank=same; nodeb }
+  { rank=same; demux }
+  { rank=same; inmem; cfgregs; credit }
+  { rank=same; fsm; aluregs }
+  { rank=same; alu }
+  { rank=same; outmem }
+  { rank=same; pktz }
+
+  // ---- Invisible ordering edges between visible nodes ----
+  inmem -> cfgregs [style=invis];
+  cfgregs -> credit [style=invis];
+}

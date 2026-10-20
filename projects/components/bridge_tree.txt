@@ -1,0 +1,2 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs']
+Error: './bridge/' is not a valid directory.

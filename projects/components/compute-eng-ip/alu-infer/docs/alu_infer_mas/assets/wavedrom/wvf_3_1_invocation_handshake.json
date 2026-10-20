@@ -1,0 +1,76 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "P.........."
+    },
+    {
+      "name": "",
+      "wave": "2222222222",
+      "data": [
+        "n",
+        "n+1",
+        "n+2",
+        "n+3",
+        "n+4",
+        "n+5",
+        "n+6",
+        "n+7",
+        "n+8",
+        "n+9"
+      ]
+    },
+    {
+      "name": "valid (FSM)",
+      "wave": "110......."
+    },
+    {
+      "name": "func_sel[4:0]",
+      "wave": "22x.......",
+      "data": [
+        "MUL",
+        "MUL"
+      ]
+    },
+    {
+      "name": "ready (ALU)",
+      "wave": "010......."
+    },
+    {
+      "name": "issue = valid & ready",
+      "wave": ".10......."
+    },
+    {
+      "name": "operand lines",
+      "wave": "x=x.......",
+      "data": [
+        "A0/B0 \u00b7 A1/B1 (same clock)"
+      ]
+    },
+    {
+      "name": "result_valid (ALU)",
+      "wave": ".....1110."
+    },
+    {
+      "name": "result_ready (FSM)",
+      "wave": "111110011."
+    },
+    {
+      "name": "result_line",
+      "wave": "x....=22x.",
+      "data": [
+        "result"
+      ]
+    },
+    {
+      "name": "retire",
+      "wave": ".......10."
+    }
+  ],
+  "config": {
+    "hscale": 2.2
+  },
+  "head": {
+    "text": "Elastic handshake: input stall, all operand lines captured at issue, result offered at L = 4, output stall holds until consumed"
+  }
+}

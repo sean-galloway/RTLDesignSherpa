@@ -67,6 +67,31 @@ can figure out what gatling/tetrad needs to look like."
   deferral + §10 cell→cell grant item — the `DEST` result-routing
   question surfaced the missing cell→cell grant rules).
 
+## Owner ruling 2026-10-19 (deep-review synthesis — RESOLVES item 5)
+
+Owner: "gatling sequences the four ALUs in its adjacent cells; it is a
+barrel riscv with possible custom commands."
+
+- **Item 5 closed, sequencer model:** gatling replaces the cell's exec FSM
+  as its DRIVER — each barrel context's POP presents operands to the cell's
+  alu-infer issue handshake and PUSH retires a result line. The bf16
+  alu-infer ALU remains the datapath in every cell (its elastic valid/ready
+  seam and tag-alignment contract unchanged). No integer-X coprocessor
+  question, no "gatling supersedes alu-infer" — the program is the schedule.
+- **Item 6 closed:** gatling §5's B4/8/16/32 citation replaced — CFG[0] now
+  reports the alu-infer element mode (bf16 today; int8/fp32 via
+  func_sel[8:7] are the roadmap, alu-infer PRD v0.50 §3 addendum).
+- **FLUSH/KICK/WAIT defined:** gatling PRD v0.2 (2026-10-19) adds Xcell
+  FLUSH (funct3=011, rs1[14:0] = drain destination coordinate,
+  rs1[18:15] = sink-channel tag — programs the cell's FLUSH_DEST/FLUSH_TAG
+  and triggers flush-and-send; answers TILE_SPEC 11.14) plus KICK (100) /
+  WAIT (101) coordination pair, provisional pending the tetrad MAS.
+  The earlier "gatling PRD has no flush instruction" gap in TILE_SPEC is
+  closed by the same edit.
+- **Remaining before RTL:** PRD 7 leanings to confirm (context visibility,
+  program image placement, illegal-instruction policy); then gatling
+  TASK-002 (RTL bring-up).
+
 ## Sequencing context
 
 - Deliverable 1 of the gatling PRD (`docs/barrel_model/` study chapter)

@@ -1,0 +1,50 @@
+// ALU-RV32I combinational block (definition level) — house style per
+// vault/handbook/authoring/block-diagrams.md (single-clock combinational
+// mapping: white input ports on top, parallel function rows in one rank,
+// white output bar at the bottom, mode select dashed, no trapezium — a
+// port-driven mode select is a plain box).
+digraph alu_rv32i {
+    rankdir=TB;
+    graph [bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.35", ranksep="0.60", splines=ortho];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // Input ports (white)
+    a  [label="a (rs1 or pc)", fillcolor="white"];
+    b  [label="b (rs2 or imm)", fillcolor="white"];
+    op [label="alu_op (10 rows)", fillcolor="white"];
+
+    // Parallel function rows (one rank)
+    arith [label="Adder / subtractor\nADD, SUB"];
+    logic [label="Logic unit\nAND, OR, XOR"];
+    shift [label="Shifter\nSLL, SRL, SRA"];
+    cmp   [label="Comparator\nSLT, SLTU + eq/lt/ltu"];
+
+    // Mode select (plain box, not a trapezium) and outputs (white bar)
+    sel [label="Result select\ny = row[alu_op]"];
+    y   [label="y (32b)\nto core writeback", fillcolor="white"];
+    fl  [label="eq / lt / ltu\n(not the branch comparator — §4)", fillcolor="white"];
+
+    // Operand fan-out
+    a -> arith [headlabel="a"];
+    a -> logic [headlabel="a"];
+    a -> shift [headlabel="a"];
+    a -> cmp   [headlabel="a"];
+    b -> arith [headlabel="b"];
+    b -> logic [headlabel="b"];
+    b -> shift [headlabel="b"];
+    b -> cmp   [headlabel="b"];
+
+    // Row results into the mode select; opcode is dashed sideband
+    arith -> sel [label="sum / diff"];
+    logic -> sel [label="logic"];
+    shift -> sel [label="shifted"];
+    cmp   -> sel [label="slt / sltu"];
+    op    -> sel [style=dashed, label="row select"];
+
+    // Output bar
+    sel -> y [label="result"];
+    cmp -> fl [label="flags"];
+}

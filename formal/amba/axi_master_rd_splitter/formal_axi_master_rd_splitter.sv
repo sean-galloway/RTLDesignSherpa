@@ -31,6 +31,19 @@ module formal_axi_master_rd_splitter #(
         if (f_past_valid >= 1) assume (rst_n);
     end
 
+    // The DUT's internal reset is a reset_sync (N=3, async assert, sync
+    // deassert; d661406b0): it releases THREE clock edges after rst_n. The
+    // harness cannot reach dut.w_aresetn in this flow (a plain-Verilog read
+    // makes a dotted reference a free implicit wire), so it mirrors the
+    // synchronizer and gates every environment assumption, model and check on
+    // the mirror. Gating them on raw rst_n modelled a bus the DUT was not yet
+    // answering for three cycles, and the proof failed at step 3.
+    reg [2:0] f_rs = 3'b0;
+    always @(posedge clk or negedge rst_n)
+        if (!rst_n) f_rs <= 3'b0;
+        else        f_rs <= {f_rs[1:0], 1'b1};
+    wire f_rst_n = f_rs[2];
+
     // =========================================================================
     // Free inputs
     // =========================================================================
@@ -153,12 +166,12 @@ module formal_axi_master_rd_splitter #(
     localparam int BYTES_PER_BEAT = DW / 8;
     localparam int LOG2_BPB = $clog2(BYTES_PER_BEAT);
 
-    always @(posedge clk) if (rst_n) assume (alignment_mask == 12'hFFF);
-    always @(posedge clk) if (rst_n) assume (fub_arburst == 2'b01);
-    always @(posedge clk) if (rst_n) assume (fub_arsize == LOG2_BPB[2:0]);
-    always @(posedge clk) if (rst_n) assume (fub_arlen <= 8'd3);
-    always @(posedge clk) if (rst_n) assume ((fub_araddr & AW'(BYTES_PER_BEAT - 1)) == '0);
-    always @(posedge clk) if (rst_n) assume (!block_ready);
+    always @(posedge clk) if (f_rst_n) assume (alignment_mask == 12'hFFF);
+    always @(posedge clk) if (f_rst_n) assume (fub_arburst == 2'b01);
+    always @(posedge clk) if (f_rst_n) assume (fub_arsize == LOG2_BPB[2:0]);
+    always @(posedge clk) if (f_rst_n) assume (fub_arlen <= 8'd3);
+    always @(posedge clk) if (f_rst_n) assume ((fub_araddr & AW'(BYTES_PER_BEAT - 1)) == '0);
+    always @(posedge clk) if (f_rst_n) assume (!block_ready);
 
     // TASK-095 is FIXED: axi_split_combi carries the boundary in AW+1 bits, so
     // the top alignment window no longer produces a spurious split and the
@@ -166,13 +179,13 @@ module formal_axi_master_rd_splitter #(
 
     // AXI valid-stable
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
+        if (f_past_valid > 0 && f_rst_n && $past(f_rst_n))
             if ($past(fub_arvalid) && !$past(fub_arready))
                 assume (fub_arvalid);
     end
 
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
+        if (f_past_valid > 0 && f_rst_n && $past(f_rst_n))
             if ($past(fub_arvalid) && !$past(fub_arready)) begin
                 assume (fub_araddr == $past(fub_araddr));
                 assume (fub_arlen  == $past(fub_arlen));
@@ -187,13 +200,13 @@ module formal_axi_master_rd_splitter #(
     // P1: After reset deasserts, m_axi_arvalid should mirror fub_arvalid
     //     (IDLE passthrough). This checks first cycle after reset.
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n) && rst_n)
+        if (f_past_valid > 0 && $past(!f_rst_n) && f_rst_n)
             ap_reset_arvalid: assert (m_axi_arvalid == fub_arvalid);
     end
 
     // P2: Read response passthrough (combinational, always true)
     always @(posedge clk) begin
-        if (rst_n) begin
+        if (f_rst_n) begin
             ap_rdata_pass:  assert (fub_rdata  == m_axi_rdata);
             ap_rresp_pass:  assert (fub_rresp  == m_axi_rresp);
             ap_rvalid_pass: assert (fub_rvalid == m_axi_rvalid);
@@ -206,7 +219,7 @@ module formal_axi_master_rd_splitter #(
 
     // P3: m_axi_rready mirrors fub_rready
     always @(posedge clk) begin
-        if (rst_n)
+        if (f_rst_n)
             ap_rready_pass: assert (m_axi_rready == fub_rready);
     end
 
@@ -214,7 +227,7 @@ module formal_axi_master_rd_splitter #(
     //     m_axi_arvalid should be low (no spurious transactions)
     //     Right after reset when no request pending
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n) && !fub_arvalid &&
+        if (f_past_valid > 0 && f_rst_n && $past(f_rst_n) && !fub_arvalid &&
             $past(!fub_arvalid) && $past(!m_axi_arvalid || m_axi_arready))
             ap_no_spurious: assert (!m_axi_arvalid || m_axi_arvalid);
     end
@@ -229,13 +242,13 @@ module formal_axi_master_rd_splitter #(
 
     // P7: After reset with no valid fub request, fub_arready follows m_axi_arready
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(!rst_n) && !fub_arvalid)
+        if (f_past_valid > 0 && f_rst_n && $past(!f_rst_n) && !fub_arvalid)
             ap_reset_arready: assert (fub_arready == m_axi_arready);
     end
 
     // P8: m_axi_arlen never exceeds fub_arlen (splits produce shorter bursts)
     always @(posedge clk) begin
-        if (rst_n && m_axi_arvalid)
+        if (f_rst_n && m_axi_arvalid)
             ap_len_bounded: assert (m_axi_arlen <= fub_arlen || m_axi_arlen <= 8'd3);
     end
 
@@ -245,25 +258,25 @@ module formal_axi_master_rd_splitter #(
 
     // C1: No-split passthrough transaction
     always @(posedge clk) begin
-        if (rst_n)
+        if (f_rst_n)
             cp_passthrough: cover (fub_arvalid && fub_arready);
     end
 
     // C2: fub_arvalid high but fub_arready suppressed (split in progress)
     always @(posedge clk) begin
-        if (rst_n)
+        if (f_rst_n)
             cp_ready_suppressed: cover (fub_arvalid && !fub_arready);
     end
 
     // C3: Split FIFO write
     always @(posedge clk) begin
-        if (rst_n)
+        if (f_rst_n)
             cp_split_fifo: cover (fub_split_valid);
     end
 
     // C4: m_axi_arvalid handshake
     always @(posedge clk) begin
-        if (rst_n)
+        if (f_rst_n)
             cp_master_handshake: cover (m_axi_arvalid && m_axi_arready);
     end
 
@@ -284,12 +297,12 @@ module formal_axi_master_rd_splitter #(
     // =========================================================================
     reg [8:0] f_beats;
     always @(posedge clk) begin
-        if (!rst_n)                                        f_beats <= 9'd0;
+        if (!f_rst_n)                                        f_beats <= 9'd0;
         else if (fub_arvalid && fub_arready)               f_beats <= 9'(fub_arlen) + 9'd1;
         else if (fub_rvalid && fub_rready && f_beats != 0) f_beats <= f_beats - 9'd1;
     end
     always @(posedge clk)
-        if (rst_n && f_beats != 9'd0 && fub_rvalid && fub_rready)
+        if (f_rst_n && f_beats != 9'd0 && fub_rvalid && fub_rready)
             ap_rlast_on_last_beat: assert (fub_rlast == (f_beats == 9'd1));
 
 
@@ -301,16 +314,16 @@ module formal_axi_master_rd_splitter #(
     // =========================================================================
     reg [8:0] f_down_beats;
     always @(posedge clk) begin
-        if (!rst_n) f_down_beats <= 9'd0;
+        if (!f_rst_n) f_down_beats <= 9'd0;
         else f_down_beats <= f_down_beats
              + ((m_axi_arvalid && m_axi_arready) ? (9'(m_axi_arlen) + 9'd1) : 9'd0)
              - ((m_axi_rvalid && m_axi_rready && f_down_beats != 9'd0) ? 9'd1 : 9'd0);
     end
-    always @(*) if (rst_n) assume (!m_axi_rvalid || f_down_beats != 9'd0);
+    always @(*) if (f_rst_n) assume (!m_axi_rvalid || f_down_beats != 9'd0);
 
     // AXI A3.3.1: a slave must not assert RVALID until the AR handshake it is
     // answering has COMPLETED. On the fub port, the splitter IS that slave.
     always @(posedge clk)
-        if (rst_n) ap_rvalid_after_ar: assert (!fub_rvalid || f_beats != 9'd0);
+        if (f_rst_n) ap_rvalid_after_ar: assert (!fub_rvalid || f_beats != 9'd0);
 
 endmodule

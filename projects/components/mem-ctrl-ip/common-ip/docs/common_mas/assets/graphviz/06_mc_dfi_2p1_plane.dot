@@ -14,7 +14,7 @@ digraph mc_dfi_2p1_plane {
     p_wd  [label="Write data in (ctl_clk)\nfrom the write-data commit stream", fillcolor="white"];
     p_cmd [label="DDR Command in (ctl_clk)\nfrom mc_scheduler_plane", fillcolor="white"];
     p_rd  [label="Read data out (ctl_clk)\nto mc_rd_return_ring", fillcolor="white"];
-    legend [label="Runtime inputs (dfi_clk side, CSR-driven)\l  t_phy_wrlat: write serializer launch delay\l  t_rddata_en: read aligner enable delay\l  rd_phase / wr_phase: DFI phase of the column\l  gear: active DFI phases (masks the data enables)\l  n_subcmd / strides: sub-command split\l", fillcolor="white"];
+    p_cal [label="Calibration sideband (dfi_clk)\nmc_training_plane", fillcolor="white"];
 
     // ---- the single CDC: mc_dfi_cdc (gaxi_fifo_async only) ----
     cdc_wd  [label="Write Data CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(ctl_clk -> dfi_clk)"];
@@ -25,33 +25,37 @@ digraph mc_dfi_2p1_plane {
     cmd_path [label="DFI Command Path\nmc_dfi_cmd_path - FUB\nDDR2 / LPDDR2 pins, sub-command split,\nwrite / read fire strobes"];
     wr_ser   [label="Write Serializer\nmc_dfi_wr_serializer - FUB\nlaunch at t_phy_wrlat"];
     rd_al    [label="Read Aligner\nmc_dfi_rd_aligner - FUB\ndfi_rddata_en at t_rddata_en;\ncalibration capture"];
-    p_cal [label="Calibration sideband (dfi_clk)\nmc_training_plane", fillcolor="white"];
 
-    bar [label="DDR PHY (DFI 2.1 pin bus, dfi_clk) - command, dfi_wrdata, dfi_rddata, dfi_init", fillcolor="white", width=9, height=0.5, fontsize=11];
+    // ---- boundary bar (the PHY pins) + parked runtime-inputs legend ----
+    bar    [label="DDR PHY (DFI 2.1 pin bus, dfi_clk) - command, dfi_wrdata, dfi_rddata, dfi_init", fillcolor="white", width=9, height=0.5, fontsize=11];
+    legend [label="Runtime inputs (dfi_clk side, CSR-driven)\l  t_phy_wrlat: write serializer launch delay\l  t_rddata_en: read aligner enable delay\l  rd_phase / wr_phase: DFI phase of the column\l  gear: active DFI phases (masks the data enables)\l  n_subcmd / strides: sub-command split\l", fillcolor="white"];
 
-    // ---- write data: down the left ----
+    // ---- write data: down the left column ----
     p_wd   -> cdc_wd [xlabel="write data + strb + last"];
     cdc_wd -> wr_ser [xlabel="write data"];
     wr_ser -> bar    [xlabel="Write to DDR"];
 
-    // ---- command: down the center ----
+    // ---- command: down the center column ----
     p_cmd    -> cdc_cmd  [penwidth=1.8, xlabel="DDR Command"];
     cdc_cmd  -> cmd_path [penwidth=1.8, xlabel="DDR Command"];
-    cmd_path -> bar      [penwidth=1.8, label="DDR Command"];
+    cmd_path -> bar      [penwidth=1.8, xlabel="DDR Command"];
     cmd_path -> wr_ser   [style=dashed, xlabel="write fire"];
     cmd_path -> rd_al    [style=dashed, xlabel="read fire"];
 
-    // ---- read data: back up the right ----
-    p_rd   -> cdc_rd [dir=back, xlabel="read data + resp + last"];
-    cdc_rd -> rd_al  [dir=back, xlabel="read data"];
+    // ---- read data: back up the right column ----
     rd_al  -> bar    [dir=back, xlabel="Read from DDR"];
-    p_cal  -> rd_al  [dir=both, style=dashed, xlabel="cal expect /\ncal data + valid"];
+    cdc_rd -> rd_al  [dir=back, xlabel="read data"];
+    p_rd   -> cdc_rd [dir=back, xlabel="read data + resp + last"];
+    // ---- calibration sideband: straight dashed lane, far-right margin ----
+    p_cal -> rd_al [dir=both, style=dashed, xlabel="cal expect /\ncal data + valid"];
 
-    // ---- ranks ----
+    // ---- ranks: three straight columns; legend parked at the bar rank ----
     { rank=same; p_wd; p_cmd; p_rd; p_cal; }
     { rank=same; cdc_wd; cdc_cmd; cdc_rd;  }
-    { rank=same; wr_ser; rd_al; legend; }
+    { rank=same; wr_ser; rd_al; }
+    { rank=same; bar; legend; }
     p_wd -> p_cmd -> p_rd -> p_cal [style=invis];
     cdc_wd -> cdc_cmd -> cdc_rd [style=invis];
-    wr_ser -> rd_al -> legend [style=invis];
+    wr_ser -> rd_al [style=invis];
+    bar -> legend [style=invis];
 }

@@ -1,8 +1,11 @@
 // mc_axi4_plane internal block diagram -- house style per
 // vault/handbook/authoring/block-diagrams.md and STYLE.md (common_has).
 // Plane scale: the boundary bar is the plane edge (storage / scheduler /
-// DFI planes). Command down the center, write data down the left, read
-// data back up the right edge into the AXI read channel.
+// DFI planes). Whole-unit idiom: the write chain is one straight column
+// on the left, the read chain one straight column on the right, host
+// responses ride the same hops back up (double-headed), and the read
+// return rises on its own center lane into the ring, then up into the
+// read intake. Every arrow is vertical; nothing wraps a margin.
 digraph mc_axi4_plane {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.60", ranksep="0.55", splines=ortho,
@@ -29,48 +32,33 @@ digraph mc_axi4_plane {
     bar [label="Plane edge - mc_storage_plane (wr / rd CAMs), mc_scheduler_plane (issue), DFI plane (read return)",
          fillcolor="white", width=13, height=0.5, fontsize=11];
 
-    // ---- crossing scaffolds (one point per crossing, pinned rank) ----
-    node [shape=point, width=0.01, height=0.01, label="", style=invis];
-    x_wd; x_wc; x_done; x_rc; x_sn; x_tk; x_rd; p_r;
-    node [shape=box, style=filled];
+    // ---- host channel hops: request down, response up on the same hop ----
+    axi_wr   -> wr_split  [dir=both, xlabel="AW / W · B"];
+    wr_split -> wr_intake [xlabel="AW / W (split)"];
+    axi_rd   -> rd_chop   [dir=both, xlabel="AR · R"];
+    rd_chop  -> rd_intake [xlabel="AR (split)"];
 
-    // ---- host channel hops ----
-    axi_wr   -> wr_split  [label="AW / W"];
-    wr_split -> wr_intake [label="AW / W (split)"];
-    wr_intake -> axi_wr   [xlabel="B (one per host burst)", constraint=false];
-    axi_rd   -> rd_chop   [label="AR"];
-    rd_chop  -> rd_intake [label="AR (split)"];
+    // ---- write flow: down the left column, write done back up the same lane ----
+    wr_intake -> bar [dir=both, xlabel="WR push + write data (write done back)"];
 
-    // ---- write flow: command center-left, data far left ----
-    wr_intake -> x_wd   [dir=none, xlabel="write data beats"];
-    x_wd      -> bar;
-    wr_intake -> x_wc   [dir=none, xlabel="WR push"];
-    x_wc      -> bar;
-    wr_intake -> x_done [dir=back, style=dashed, xlabel="write done"];
-    x_done    -> bar    [dir=none, style=dashed];
+    // ---- read request: down the right column (snarf probe on a parallel dashed lane) ----
+    rd_intake -> bar [xlabel="RD push"];
+    rd_intake -> bar [dir=both, style=dashed, xlabel="snarf probe / hit + data"];
 
-    // ---- read flow: command center-right ----
-    rd_intake -> x_rc   [dir=none, xlabel="RD push"];
-    x_rc      -> bar;
-    rd_intake -> x_sn   [dir=both, style=dashed, xlabel="snarf probe / hit + data"];
-    x_sn      -> bar    [dir=none, style=dashed];
+    // ---- read return: up the center lane into the ring (parked at the
+    //      intake rank, between the columns), drained across to the intake.
+    //      All three ring edges are constraint=false: their rank constraints
+    //      would cycle (bar -> ring -> intake -> bar); the rank=same pin
+    //      below is the single source of truth for the ring's rank.
+    bar  -> ring [constraint=false, xlabel="read data (issue order)"];
+    ring -> bar  [dir=both, constraint=false, style=dashed, xlabel="tickets"];
+    ring -> rd_intake [constraint=false, style=dashed, xlabel="drain"];
 
-    // ---- read return: up the right edge ----
-    ring -> x_tk [dir=both, style=dashed, xlabel="tickets"];
-    x_tk -> bar  [dir=none, style=dashed];
-    ring -> x_rd [dir=back, xlabel="Read from DFI\n(issue order)"];
-    x_rd -> bar  [dir=none];
-    rd_intake -> ring [dir=back, label="drain (AR order)"];
-    axi_rd -> p_r [dir=back, xlabel="R (AR order)"];
-    p_r -> rd_intake [dir=none];
-
-    // ---- rank pinning ----
+    // ---- rank pinning (write column left, read column right, ring center) ----
     { rank=same; axi_wr; axi_rd; }
-    { rank=same; wr_split; rd_chop; p_r; }
-    { rank=same; wr_intake; rd_intake; }
-    { rank=same; x_wd; x_wc; x_done; x_rc; x_sn; x_tk; x_rd; }
-    x_wd -> x_wc -> x_done -> x_rc -> x_sn -> x_rd -> x_tk [style=invis];
+    { rank=same; wr_split; rd_chop; }
+    { rank=same; wr_intake; ring; rd_intake; }
     axi_wr -> axi_rd [style=invis];
-    wr_split -> rd_chop -> p_r [style=invis];
-    wr_intake -> rd_intake [style=invis];
+    wr_split -> rd_chop [style=invis];
+    wr_intake -> ring -> rd_intake [style=invis];
 }

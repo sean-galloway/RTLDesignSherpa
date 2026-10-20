@@ -36,7 +36,7 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 
 ### Key Features
 
-- **Flat crossbar (implemented); mesh cell (planned):** The checked-in RTL remains the flat TDEST crossbar. The `delta_mesh_cell` microarchitecture is a planned generator mode per the 2026-10-13 mesh design spec; no RTL exists yet. Tree generation was retired on 2026-10-12.
+- **Flat crossbar (implemented); mesh cell (implemented):** The checked-in RTL includes both the flat TDEST crossbar and the `delta_mesh_cell` mesh generator mode. The mesh RTL is in `rtl/delta_mesh_cell.sv` and `rtl/delta_mesh_fabric_4x4x1.sv`; the hardware architecture is documented in [Delta HAS](../delta_has/delta_has_index.md), implemented 2026-10-15/16. Tree generation was retired on 2026-10-12. *(Verified 2026-10-19.)*
 - **TDEST-based routing:** No address map; the destination slave is taken directly from `s_axis_tdest`.
 - **Packet-atomic round-robin arbitration:** A granted master holds the slave until `TLAST`.
 - **Combinational data mux:** The grant is the registered stage; payload passes through combinatorially.
@@ -87,9 +87,9 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 
 - [Test Strategy](ch05_verification/01_test_strategy.md)
 
-### Chapter 6: Planned Mesh Cell Microarchitecture
+### Chapter 6: Mesh Cell Microarchitecture
 
-> **PLANNED:** The `delta_mesh_cell` microarchitecture described in this chapter is a design target per the 2026-10-13 mesh design spec. No RTL exists yet.
+> **IMPLEMENTED:** The `delta_mesh_cell` microarchitecture described in this chapter is now implemented in `rtl/delta_mesh_cell.sv` and `rtl/delta_mesh_fabric_4x4x1.sv`. The hardware architecture is documented in [Delta HAS](../delta_has/delta_has_index.md). *(Verified 2026-10-19.)*
 
 - [Buffers and Virtual Channels](ch06_mesh_cell/01_buffers_and_vcs.md)
 - [Pipeline Stages](ch06_mesh_cell/02_pipeline.md)
@@ -102,5 +102,5 @@ Delta is a Python generator that emits a single self-contained SystemVerilog mod
 
 ---
 
-**Last Updated:** 2026-10-14
+**Last Updated:** 2026-10-19
 **Maintained By:** RTL Design Sherpa Project

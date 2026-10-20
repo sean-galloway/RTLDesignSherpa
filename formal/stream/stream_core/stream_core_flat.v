@@ -32,7 +32,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -508,11 +508,11 @@ module counter_freq_invariant (
 	output reg tick;
 	initial begin : param_check
 		if (MIN_FREQ_MHZ < 1)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
 		if (MAX_FREQ_MHZ < MIN_FREQ_MHZ)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
 		if (NUM_FREQ_ENTRIES < 1)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
 	end
 	function automatic signed [31:0] linear_freq;
 		input reg signed [31:0] idx;
@@ -1476,10 +1476,10 @@ module axi_monitor_lite (
 	wire w_eslot_reuse = cmd_hs && (w_eslot_w == w_eslot_aw);
 	generate
 		if (!IS_READ && ((EB & (EB - 1)) != 0)) begin : g_bad_early_pow2
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/ocelus/axi_monitor_lite.sv:350:13 - axi_monitor_lite.g_bad_early_pow2\n msg: ", "axi_monitor_lite: EARLY_BURSTS must be a power of two, got %0d", EARLY_BURSTS);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/ocelus/axi_monitor_lite.sv:350:13 - axi_monitor_lite.g_bad_early_pow2\n msg: ", "axi_monitor_lite: EARLY_BURSTS must be a power of two, got %0d", EARLY_BURSTS);
 		end
 		if (!IS_READ && (EB >= (1 << (QW - 1)))) begin : g_bad_early_window
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/ocelus/axi_monitor_lite.sv:353:13 - axi_monitor_lite.g_bad_early_window\n msg: ", "axi_monitor_lite: EARLY_BURSTS (%0d) must be below 2**(WSEQ_WIDTH-1)", EARLY_BURSTS);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/ocelus/axi_monitor_lite.sv:353:13 - axi_monitor_lite.g_bad_early_window\n msg: ", "axi_monitor_lite: EARLY_BURSTS (%0d) must be below 2**(WSEQ_WIDTH-1)", EARLY_BURSTS);
 		end
 		if (IS_READ) begin : g_rd_attr
 			assign w_dhit = |w_dmatch;
@@ -2573,7 +2573,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
@@ -4180,7 +4180,7 @@ module descriptor_engine (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (AXI_ID_WIDTH < CHAN_WIDTH) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv:153:13 - descriptor_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
+		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv:153:13 - descriptor_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
 		$finish(1);
 	end
 	reg [2:0] r_current_state;
@@ -5012,7 +5012,7 @@ module scheduler (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
+		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
 		$finish(1);
 	end
 	localparam signed [31:0] DESC_SRC_ADDR_LO = 0;
@@ -5626,10 +5626,10 @@ module scheduler_group (
 	parameter signed [31:0] DATA_WIDTH = 512;
 	parameter signed [31:0] AXI_ID_WIDTH = 8;
 	parameter signed [31:0] USE_ROW_COL_MAJOR_ADDRESSING = 1;
-	parameter DESC_MON_AGENT_ID = 16;
-	parameter SCHED_MON_AGENT_ID = 48;
-	parameter MON_UNIT_ID = 1;
-	parameter MON_CHANNEL_ID = 0;
+	parameter signed [31:0] DESC_MON_AGENT_ID = 16;
+	parameter signed [31:0] SCHED_MON_AGENT_ID = 48;
+	parameter signed [31:0] MON_UNIT_ID = 1;
+	parameter signed [31:0] MON_CHANNEL_ID = 0;
 	input wire clk;
 	input wire rst_n;
 	input wire apb_valid;
@@ -5978,7 +5978,7 @@ module descriptor_engine_shared (
 	localparam signed [31:0] DFC_W = $clog2(FIFO_DEPTH) + 1;
 	localparam signed [31:0] FW = 261;
 	initial if (AXI_ID_WIDTH < CW) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/descriptor_engine_shared.sv:135:13 - descriptor_engine_shared.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CW);
+		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/descriptor_engine_shared.sv:135:13 - descriptor_engine_shared.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CW);
 		$finish(1);
 	end
 	reg [2:0] r_st [0:NC - 1];
@@ -8342,7 +8342,7 @@ module stream_drain_ctrl (
 	assign rd_almost_empty = r_rd_almost_empty;
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule
 module stream_latency_bridge (
 	clk,
@@ -9123,12 +9123,12 @@ module stream_core (
 	parameter signed [31:0] SKID_DEPTH_AW = 2;
 	parameter signed [31:0] SKID_DEPTH_W = 4;
 	parameter signed [31:0] SKID_DEPTH_B = 2;
-	parameter DESC_MON_BASE_AGENT_ID = 16;
-	parameter SCHED_MON_BASE_AGENT_ID = 48;
-	parameter DESC_AXI_MON_AGENT_ID = 8;
-	parameter RD_AXI_MON_AGENT_ID = 9;
-	parameter WR_AXI_MON_AGENT_ID = 10;
-	parameter MON_UNIT_ID = 1;
+	parameter signed [31:0] DESC_MON_BASE_AGENT_ID = 16;
+	parameter signed [31:0] SCHED_MON_BASE_AGENT_ID = 48;
+	parameter signed [31:0] DESC_AXI_MON_AGENT_ID = 8;
+	parameter signed [31:0] RD_AXI_MON_AGENT_ID = 9;
+	parameter signed [31:0] WR_AXI_MON_AGENT_ID = 10;
+	parameter signed [31:0] MON_UNIT_ID = 1;
 	parameter [0:0] DESC_MON_ENABLE_ERROR_LOGIC = 1'b0;
 	parameter [0:0] DESC_MON_ENABLE_TIMEOUT_LOGIC = 1'b0;
 	parameter [0:0] DESC_MON_ENABLE_COMPL_LOGIC = 1'b0;
@@ -10463,6 +10463,8 @@ module stream_core (
 				obs_data0 = {{32 - ($clog2(FIFO_DEPTH) + 1) {1'b0}}, axi_rd_space_free[(($clog2(FIFO_DEPTH) + 0) >= 0 ? 0 : $clog2(FIFO_DEPTH) + 0) + (w_obs_ch * (($clog2(FIFO_DEPTH) + 0) >= 0 ? $clog2(FIFO_DEPTH) + 1 : 1 - ($clog2(FIFO_DEPTH) + 0)))+:(($clog2(FIFO_DEPTH) + 0) >= 0 ? $clog2(FIFO_DEPTH) + 1 : 1 - ($clog2(FIFO_DEPTH) + 0))]};
 				obs_data1 = {{32 - ($clog2(FIFO_DEPTH) + 1) {1'b0}}, axi_wr_drain_data_avail[(($clog2(FIFO_DEPTH) + 0) >= 0 ? 0 : $clog2(FIFO_DEPTH) + 0) + (w_obs_ch * (($clog2(FIFO_DEPTH) + 0) >= 0 ? $clog2(FIFO_DEPTH) + 1 : 1 - ($clog2(FIFO_DEPTH) + 0)))+:(($clog2(FIFO_DEPTH) + 0) >= 0 ? $clog2(FIFO_DEPTH) + 1 : 1 - ($clog2(FIFO_DEPTH) + 0))]};
 			end
+			default:
+				;
 		endcase
 	end
 	initial _sv2v_0 = 0;

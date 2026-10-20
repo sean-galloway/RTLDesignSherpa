@@ -11,7 +11,8 @@ REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 INC  := -I$(REPO_ROOT)/rtl/amba/includes
 PKGS := 
-SRCS := $(REPO_ROOT)/rtl/amba/shared/axi_split_combi.sv \
+SRCS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
+        $(REPO_ROOT)/rtl/amba/shared/axi_split_combi.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/common/fifo_control.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \

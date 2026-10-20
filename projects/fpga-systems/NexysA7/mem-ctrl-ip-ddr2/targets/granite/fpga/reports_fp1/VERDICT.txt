@@ -1,0 +1,47 @@
+Floorplan campaign VERDICT
+==========================
+
+Device: xc7a100tcsg324-1
+SLICE grid bounds from routed retry3a checkpoint: X=0..89, Y=0..199
+
+Baseline retry3a (for reference):
+  WNS = -0.730 ns, TNS = -414.570 ns, failing endpoints = 1333
+
+Variant pblock recipe:
+  v1: single pblock containing u_entry_store + u_sched_plane
+      SLICE_X3Y0:SLICE_X89Y125 + RAMB36_X2Y17:RAMB36_X3Y24
+  v2: single pblock containing u_entry_store + u_sched_plane + u_axi_plane
+      SLICE_X3Y0:SLICE_X89Y145 + RAMB36_X2Y17:RAMB36_X3Y24
+  v3: two adjacent pblocks (store left | sched right, cmd_fifo+timers in sched)
+      store: SLICE_X3Y0:SLICE_X50Y125 + RAMB36_X2Y17:RAMB36_X3Y24
+      sched: SLICE_X51Y0:SLICE_X79Y81
+  v4: single pblock containing u_entry_store + u_sched_plane, ~20% larger than v1
+      SLICE_X0Y0:SLICE_X89Y149 + RAMB36_X2Y17:RAMB36_X3Y24
+
+Results (all from post-route timing_summary):
+
+  Variant | WNS (ns) | TNS (ns)   | Failing endpoints
+  --------|----------|------------|------------------
+  v1      | -2.607   | -3000.327  | 1911
+  v2      | -3.082   | -3471.862  | 1987
+  v3      | -2.807   | -3560.881  | 1889
+  v4      | -2.607   | -3000.327  | 1911
+
+Best variant: v1 (tied with v4; v1 chosen as first to achieve the result)
+No variant reached WNS >= 0.
+
+Worst remaining path in best variant (v1):
+  Slack: -2.607 ns
+  Source:      u_harness/u_dut/u_ctrl/u_core/u_entry_store/r_wr_bank_reg[3][1]/C
+  Destination: u_harness/u_dut/u_ctrl/u_core/u_sched_plane/u_bank_timers/g_rank[0].g_bank[3].u_bt/r_rcd_reg[3]/CE
+  Data path delay: 15.477 ns (logic 3.840 ns / 24.8%, route 11.637 ns / 75.2%)
+  Logic levels: 18
+  Path class: entry-store per-bank head scan -> sched-plane bank_timer counter CE
+
+Observations:
+- All floorplan variants degraded timing vs. retry3a, suggesting the chosen
+  pblock rectangles were too restrictive for the placer and increased routing
+  delay (route share ~75% on the worst path).
+- v1/v4 are identical in result because the larger Y extent of v4 is unused by
+  the constrained cells.
+- The original retry3a result remains the best known point.

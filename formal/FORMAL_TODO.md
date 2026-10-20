@@ -113,14 +113,14 @@ the day they were written (TASK-093).
 
 **Nothing here is open. All five were stale, verified 2026-09-25 (tooling
 TOOL-001).** This list was the reason `formal` sat on the TOOL-001 migration
-checklist; the migration found zero open items, so no `vault/Tasks/formal/` area
+checklist; the migration found zero open items, so no `vault/tracking/formal/` area
 was created. An empty area would be worse than none -- it asserts a backlog that
 does not exist.
 
 - [x] Create formal/stream/Makefile for STREAM proofs -- EXISTS since 2026-09-18
       (`formal/stream/Makefile`, alongside six proof directories).
 - [x] TASK-090: the four axi4 *_mon_cg proofs -- CLOSED 2026-09-11, all four
-      written, proved and mutation-tested. See `vault/Tasks/amba/closed.md`;
+      written, proved and mutation-tested. See `vault/tracking/rtl/amba/closed.md`;
       `FORMAL_PRIORITY.md` records the same.
 - [x] TASK-091: apb4/apb5_master_cg wake-latency property -- CLOSED 2026-09-11.
       A HARNESS bug: the property checked one clock too early against two
@@ -355,7 +355,7 @@ mutation-checked). Of the 14 non-passes at run time:
   wallace reconfirmed serially (low8 + boundary, ~35 min), dadda's
   prove_boundary does NOT converge (killed at 1 h parallel, 1 h serial and
   3 h serial z3) while its prove_low8 passes -- honest heavy-bucket entry,
-  sby dies loudly. Full disposition in vault/Tasks/math (math TASK-003 (was MATH-006), closed).
+  sby dies loudly. Full disposition in vault/tracking/rtl/math (math TASK-003 (was MATH-006), closed).
 
 Operational gotcha for the next sweep: `sby -f <dir>/<cfg>.sby` resolves the
 relative `[files]` paths against the CWD, not the .sby location — run from
@@ -463,7 +463,7 @@ These have prove PASS but no cover task defined, or cover not yet run:
 | descriptor_engine_beats | rapids | **2026-09-28:** `ap_ar_size` still said 3'b110 (the fetch has been 32 bytes since the beats rework) and the address-range registers were free every cycle, so a range write withdrew an unaccepted AR (since BUG-006 the engine gates ar_valid on the range). Property corrected, ranges assumed quasi-static; depth bounded 20 -> 16 (step 16 in 60 min): PASS in 35 min |
 | scheduler | stream | **2026-09-24:** same three errors. `DEPS :=` was empty; `cfg_rd_prefetch_enable` was UNCONNECTED (undriven -> proof meaning undefined). Fixed + property corrected (TASK-092): prove depth-8 PASS, cover PASS (5 covers), full depth-35 **INCONCLUSIVE** -- 30/35 steps (reached 29), timed out after 6h with no counterexample and no sby status file. Not a pass; not re-run, since 6h bought 29 steps and the last steps cost most. |
 | scheduler_beats | rapids | **2026-09-28:** the flat rule never passed DEPS to sv2v and DEPS was empty, so `stream_run_addr_gen` (rapids TASK-015 port) was missing and the proof had been ERROR since the port. Makefile fixed (address generators + FIFO stack); depth bounded 35 -> 25 (step 26 in 60 min): PASS in 31 min |
-| scheduler_group_array | stream | **2026-09-28:** MON_DEPS still named the retired full-monitor stack; the array carries `axi4_master_rd_monlite` since amba/monitor-lite TASK-001. Deps replaced with the lite closure, `ap_desc_ar_size_match` corrected to 3'b101, ranges assumed quasi-static: PASS |
+| scheduler_group_array | stream | **2026-09-28:** MON_DEPS still named the retired full-monitor stack; the array carries `axi4_master_rd_monlite` since rtl/amba/monitors TASK-001. Deps replaced with the lite closure, `ap_desc_ar_size_match` corrected to 3'b101, ranges assumed quasi-static: PASS |
 
 **2026-09-28 rapids/stream formal pass (after the rapids TASK-013/014/015 and
 BUG-004..007 / stream BUG-012..015 RTL changes).** Every flat that was newer than

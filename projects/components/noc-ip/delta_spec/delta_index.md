@@ -21,6 +21,12 @@
 
 <!-- End Header -->
 
+> **RETIRED DRAFT — kept for reference only (2026-10-19).** This
+> `noc-ip/delta_spec/` tree is the aspirational pre-split NoC draft (v0.3) and
+> has no RTL. The live Delta component is at
+> `projects/components/fabric-gen-ip/delta/` (RTL + `delta_has`
+> hardware-architecture docs).
+
 # DELTA Network Specification Index
 **Distributed Execution Layer for Tensor Acceleration**
 Version 0.3 - Early Proof of Concept (Draft)

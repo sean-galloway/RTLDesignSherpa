@@ -1,3 +1,87 @@
+module reset_sync (
+	clk,
+	rst_n,
+	sync_rst_n
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N = 3;
+	parameter [0:0] KEEP_ATTRS = 1'b1;
+	parameter [0:0] IN_ACTIVE_LOW = 1'b1;
+	parameter [0:0] OUT_ACTIVE_LOW = 1'b1;
+	parameter [0:0] ASYNC_ASSERT = 1'b1;
+	input wire clk;
+	input wire rst_n;
+	output reg sync_rst_n;
+	generate
+		if (N < 2) begin : g_illegal
+			initial $display("Error [%0t] /tmp/formal_axi_master_rd_splitter/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+		end
+	endgenerate
+	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
+	generate
+		if (ASYNC_ASSERT) begin : g_async_assert
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+		else begin : g_sync_only
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
 module axi_split_combi (
 	aclk,
 	aresetn,
@@ -479,6 +563,18 @@ module axi_master_rd_splitter (
 	output wire fub_split_valid;
 	output wire o_split_fifo_overflow;
 	input wire fub_split_ready;
+	wire w_aresetn;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(aclk),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
 	reg r_split_fifo_overflow;
 	assign o_split_fifo_overflow = r_split_fifo_overflow;
 	reg [1:0] r_split_state;
@@ -523,7 +619,7 @@ module axi_master_rd_splitter (
 		.DW(DW)
 	) inst_axi_split_combi(
 		.aclk(aclk),
-		.aresetn(aresetn),
+		.aresetn(w_aresetn),
 		.current_addr(w_current_addr),
 		.current_len(w_current_len),
 		.ax_size(w_current_size),
@@ -548,8 +644,8 @@ module axi_master_rd_splitter (
 		input reg [8:0] inp;
 		sv2v_cast_9 = inp;
 	endfunction
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn) begin
 			r_rbeats_remaining <= 9'd0;
 			r_rbeats_active <= 1'b0;
 			r_split_state <= 2'b01;
@@ -664,8 +760,8 @@ module axi_master_rd_splitter (
 	reg [(AW + IW) + 7:0] split_fifo_din;
 	wire w_split_fifo_valid;
 	wire w_split_fifo_ready;
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn)
+	always @(posedge aclk or negedge w_aresetn)
+		if (!w_aresetn)
 			r_split_fifo_overflow <= 1'b0;
 		else if (w_split_fifo_valid && !w_split_fifo_ready)
 			r_split_fifo_overflow <= 1'b1;
@@ -684,7 +780,7 @@ module axi_master_rd_splitter (
 		.DEPTH(SPLIT_FIFO_DEPTH)
 	) inst_split_info_fifo(
 		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
+		.axi_aresetn(w_aresetn),
 		.wr_valid(w_split_fifo_valid),
 		.wr_data(split_fifo_din),
 		.rd_ready(fub_split_ready),
@@ -694,7 +790,7 @@ module axi_master_rd_splitter (
 		.count()
 	);
 	always @(posedge aclk)
-		if (aresetn) begin
+		if (w_aresetn) begin
 			if (r_split_state == 2'b10)
 				;
 			if (r_split_state == 2'b10)

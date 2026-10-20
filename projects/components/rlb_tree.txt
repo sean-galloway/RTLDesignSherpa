@@ -1,0 +1,1087 @@
+DEBUG: exclude_dir = ['__pycache__', 'local_sim_build', 'logs', 'ioapic_regs.html', 'hpet_regs.html', 'smbus_regs.html', 'pm_acpi_regs.html']
+legacy-ip/retro_legacy_blocks
+├── CLAUDE.md
+├── PRD.md
+├── README.md
+├── References
+│   ├── 8254.pdf
+│   ├── 8259A.pdf
+│   ├── LegacyBlocksAndDriverGuide.docx
+│   ├── LegacyBlocksAndDriverGuide.pdf
+│   ├── MC146818.pdf
+│   ├── REN_82c54_DST_19960325.pdf
+│   ├── SMBus_3_3_20240512.pdf
+│   ├── acpica-reference-19.pdf
+│   ├── hpet-spec-1-0a.pdf
+│   ├── ioapic.pdf
+│   └── smbus-controller-i2c-devices-paper.pdf
+├── docs
+│   ├── GPIO_MAS_v1.0.docx
+│   ├── GPIO_MAS_v1.0.pdf
+│   ├── HPET_MAS_v1.0.docx
+│   ├── HPET_MAS_v1.0.pdf
+│   ├── IMPLEMENTATION_STATUS.md
+│   ├── IOAPIC_MAS_v1.0.docx
+│   ├── IOAPIC_MAS_v1.0.pdf
+│   ├── LegacyBlocksAndDriverGuide.md
+│   ├── PIC_8259_MAS_v1.0.docx
+│   ├── PIC_8259_MAS_v1.0.pdf
+│   ├── PIT_8254_MAS_v1.0.docx
+│   ├── PIT_8254_MAS_v1.0.pdf
+│   ├── PM_ACPI_MAS_v1.0.docx
+│   ├── PM_ACPI_MAS_v1.0.pdf
+│   ├── RLB_FPGA_IMPLEMENTATION_GUIDE.md
+│   ├── RLB_TOP_MAS_v1.0.docx
+│   ├── RLB_TOP_MAS_v1.0.pdf
+│   ├── RTC_MAS_v1.0.docx
+│   ├── RTC_MAS_v1.0.pdf
+│   ├── SMBUS_MAS_v1.0.docx
+│   ├── SMBUS_MAS_v1.0.pdf
+│   ├── UART_16550_MAS_v1.0.docx
+│   ├── UART_16550_MAS_v1.0.pdf
+│   ├── generate_mas_pdf.sh
+│   ├── generate_pdf.sh
+│   ├── gpio_mas
+│   │   ├── gpio_mas_index.md
+│   │   ├── gpio_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── gpio_async_mode.mmd
+│   │   │   │   ├── gpio_async_mode.png
+│   │   │   │   ├── gpio_block_diagram.mmd
+│   │   │   │   ├── gpio_block_diagram.png
+│   │   │   │   ├── gpio_block_overview.mmd
+│   │   │   │   ├── gpio_block_overview.png
+│   │   │   │   ├── gpio_cdc_block.mmd
+│   │   │   │   ├── gpio_cdc_block.png
+│   │   │   │   ├── gpio_cdc_disabled.mmd
+│   │   │   │   ├── gpio_cdc_disabled.png
+│   │   │   │   ├── gpio_cdc_enabled.mmd
+│   │   │   │   ├── gpio_cdc_enabled.png
+│   │   │   │   ├── gpio_edge_detection.mmd
+│   │   │   │   ├── gpio_edge_detection.png
+│   │   │   │   ├── gpio_interrupt_block.mmd
+│   │   │   │   ├── gpio_interrupt_block.png
+│   │   │   │   ├── gpio_interrupt_flow.mmd
+│   │   │   │   ├── gpio_interrupt_flow.png
+│   │   │   │   ├── gpio_module_hierarchy.mmd
+│   │   │   │   ├── gpio_module_hierarchy.png
+│   │   │   │   ├── gpio_read_flow.mmd
+│   │   │   │   ├── gpio_read_flow.png
+│   │   │   │   ├── gpio_sync_mode.mmd
+│   │   │   │   ├── gpio_sync_mode.png
+│   │   │   │   ├── gpio_write_flow.mmd
+│   │   │   │   └── gpio_write_flow.png
+│   │   │   ├── svg
+│   │   │   │   ├── gpio_core.mmd
+│   │   │   │   ├── gpio_core.png
+│   │   │   │   ├── gpio_core.svg
+│   │   │   │   ├── gpio_interfaces.mmd
+│   │   │   │   ├── gpio_interfaces.png
+│   │   │   │   ├── gpio_interfaces.svg
+│   │   │   │   ├── gpio_register_file.mmd
+│   │   │   │   ├── gpio_register_file.png
+│   │   │   │   └── gpio_register_file.svg
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── gpio_atomic_operations.json
+│   │   │           ├── gpio_atomic_operations.png
+│   │   │           ├── gpio_atomic_operations.svg
+│   │   │           ├── gpio_direction_write.json
+│   │   │           ├── gpio_direction_write.png
+│   │   │           ├── gpio_direction_write.svg
+│   │   │           ├── gpio_falling_edge_interrupt.json
+│   │   │           ├── gpio_falling_edge_interrupt.png
+│   │   │           ├── gpio_falling_edge_interrupt.svg
+│   │   │           ├── gpio_input_read.json
+│   │   │           ├── gpio_input_read.png
+│   │   │           ├── gpio_input_read.svg
+│   │   │           ├── gpio_input_sync.json
+│   │   │           ├── gpio_input_sync.png
+│   │   │           ├── gpio_input_sync.svg
+│   │   │           ├── gpio_interrupt_clear.json
+│   │   │           ├── gpio_interrupt_clear.png
+│   │   │           ├── gpio_interrupt_clear.svg
+│   │   │           ├── gpio_level_interrupt.json
+│   │   │           ├── gpio_level_interrupt.png
+│   │   │           ├── gpio_level_interrupt.svg
+│   │   │           ├── gpio_output_write.json
+│   │   │           ├── gpio_output_write.png
+│   │   │           ├── gpio_output_write.svg
+│   │   │           ├── gpio_rising_edge_interrupt.json
+│   │   │           ├── gpio_rising_edge_interrupt.png
+│   │   │           └── gpio_rising_edge_interrupt.svg
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   ├── 02_architecture.md
+│   │   │   ├── 03_clocks_and_reset.md
+│   │   │   ├── 04_acronyms.md
+│   │   │   └── 05_references.md
+│   │   ├── ch02_blocks
+│   │   │   ├── 00_overview.md
+│   │   │   ├── 01_apb_interface.md
+│   │   │   ├── 02_register_file.md
+│   │   │   ├── 03_gpio_core.md
+│   │   │   ├── 04_interrupt_controller.md
+│   │   │   └── 05_cdc_logic.md
+│   │   ├── ch03_interfaces
+│   │   │   ├── 00_overview.md
+│   │   │   ├── 01_apb4_slave.md
+│   │   │   ├── 02_gpio_pins.md
+│   │   │   ├── 03_interrupt.md
+│   │   │   └── 04_system.md
+│   │   ├── ch04_programming
+│   │   │   ├── 00_overview.md
+│   │   │   ├── 01_basic_operations.md
+│   │   │   ├── 02_interrupt_config.md
+│   │   │   ├── 03_examples.md
+│   │   │   └── 04_software_notes.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── hpet_mas
+│   │   ├── hpet_mas_index.md
+│   │   ├── hpet_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── draw.io
+│   │   │   │   ├── .xdp-.$apb4_hpet.drawio.bkp-9s0td0
+│   │   │   │   ├── apb4_hpet.drawio
+│   │   │   │   ├── apb4_hpet_blocks.mmd
+│   │   │   │   └── apb4_hpet_blocks.png
+│   │   │   ├── graphviz
+│   │   │   │   ├── Makefile
+│   │   │   │   ├── README.md
+│   │   │   │   ├── apb4_hpet.gv
+│   │   │   │   ├── cdc_handshake.dot
+│   │   │   │   ├── cdc_handshake.png
+│   │   │   │   ├── hpet_config_regs.gv
+│   │   │   │   ├── hpet_core.gv
+│   │   │   │   ├── interrupt_handling.dot
+│   │   │   │   ├── interrupt_handling.png
+│   │   │   │   ├── multi_timer_concurrent.dot
+│   │   │   │   ├── multi_timer_concurrent.png
+│   │   │   │   ├── oneshot_timer.dot
+│   │   │   │   ├── oneshot_timer.png
+│   │   │   │   ├── periodic_timer.dot
+│   │   │   │   ├── periodic_timer.png
+│   │   │   │   ├── regenerate_diagrams.sh
+│   │   │   │   ├── software_init.dot
+│   │   │   │   ├── software_init.png
+│   │   │   │   ├── timer_mode_switch.dot
+│   │   │   │   └── timer_mode_switch.png
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── hpet_async_mode.mmd
+│   │   │   │   ├── hpet_async_mode.png
+│   │   │   │   ├── hpet_block_diagram.mmd
+│   │   │   │   ├── hpet_block_diagram.png
+│   │   │   │   ├── hpet_module_hierarchy.mmd
+│   │   │   │   ├── hpet_module_hierarchy.png
+│   │   │   │   ├── hpet_sync_mode.mmd
+│   │   │   │   └── hpet_sync_mode.png
+│   │   │   ├── puml
+│   │   │   │   ├── hpet_core_fsm.puml
+│   │   │   │   └── regenerate_diagrams.sh
+│   │   │   ├── svg
+│   │   │   │   ├── apb4_hpet.png
+│   │   │   │   ├── apb4_hpet.svg
+│   │   │   │   ├── apb_read_counter.png
+│   │   │   │   ├── apb_read_counter.svg
+│   │   │   │   ├── apb_write_timer_config.png
+│   │   │   │   ├── apb_write_timer_config.svg
+│   │   │   │   ├── cdc_handshake.svg
+│   │   │   │   ├── comparator_match.svg
+│   │   │   │   ├── config_register_write.svg
+│   │   │   │   ├── hpet_config_regs.png
+│   │   │   │   ├── hpet_config_regs.svg
+│   │   │   │   ├── hpet_core.png
+│   │   │   │   ├── hpet_core.svg
+│   │   │   │   ├── hpet_core_fsm.png
+│   │   │   │   ├── hpet_core_fsm.svg
+│   │   │   │   ├── hpet_registers.svg
+│   │   │   │   ├── interrupt_generation.svg
+│   │   │   │   ├── interrupt_handling.svg
+│   │   │   │   ├── interrupt_w1c_sequence.png
+│   │   │   │   ├── interrupt_w1c_sequence.svg
+│   │   │   │   ├── multi_timer_concurrent.svg
+│   │   │   │   ├── oneshot_mode.svg
+│   │   │   │   ├── oneshot_timer.svg
+│   │   │   │   ├── periodic_timer.svg
+│   │   │   │   ├── software_init.svg
+│   │   │   │   ├── timer_initialization.svg
+│   │   │   │   ├── timer_mode_switch.svg
+│   │   │   │   ├── timer_setup_sequence.png
+│   │   │   │   └── timer_setup_sequence.svg
+│   │   │   ├── wavedrom
+│   │   │   │   ├── README.md
+│   │   │   │   ├── apb_read_counter.json
+│   │   │   │   ├── apb_write_timer_config.json
+│   │   │   │   ├── hpet_registers.html
+│   │   │   │   ├── hpet_registers.json
+│   │   │   │   ├── interrupt_w1c_sequence.json
+│   │   │   │   ├── regenerate_waveforms.sh
+│   │   │   │   ├── timer_setup_sequence.json
+│   │   │   │   └── timing
+│   │   │   │       ├── README.md
+│   │   │   │       ├── hpet_cdc_crossing.json
+│   │   │   │       ├── hpet_cdc_crossing.png
+│   │   │   │       ├── hpet_cdc_crossing.svg
+│   │   │   │       ├── hpet_config_write.json
+│   │   │   │       ├── hpet_config_write.png
+│   │   │   │       ├── hpet_config_write.svg
+│   │   │   │       ├── hpet_counter_read.json
+│   │   │   │       ├── hpet_counter_read.png
+│   │   │   │       ├── hpet_counter_read.svg
+│   │   │   │       ├── hpet_interrupt_clear.json
+│   │   │   │       ├── hpet_interrupt_clear.png
+│   │   │   │       ├── hpet_interrupt_clear.svg
+│   │   │   │       ├── hpet_timer_fire_oneshot.json
+│   │   │   │       ├── hpet_timer_fire_oneshot.png
+│   │   │   │       ├── hpet_timer_fire_oneshot.svg
+│   │   │   │       ├── hpet_timer_fire_periodic.json
+│   │   │   │       ├── hpet_timer_fire_periodic.png
+│   │   │   │       ├── hpet_timer_fire_periodic.svg
+│   │   │   │       ├── hpet_timer_setup.json
+│   │   │   │       ├── hpet_timer_setup.png
+│   │   │   │       └── hpet_timer_setup.svg
+│   │   │   └── waves
+│   │   │       ├── comparator_match.json
+│   │   │       ├── config_register_write.json
+│   │   │       ├── interrupt_generation.json
+│   │   │       ├── oneshot_mode.json
+│   │   │       ├── periodic_timer.json
+│   │   │       ├── regenerate_waveforms.sh
+│   │   │       └── timer_initialization.json
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   ├── 02_architecture.md
+│   │   │   ├── 03_clocks_and_reset.md
+│   │   │   ├── 04_acronyms.md
+│   │   │   └── 05_references.md
+│   │   ├── ch02_blocks
+│   │   │   ├── 00_overview.md
+│   │   │   ├── 01_hpet_core.md
+│   │   │   ├── 02_hpet_config_regs.md
+│   │   │   ├── 03_hpet_regs.md
+│   │   │   ├── 04_apb4_hpet_top.md
+│   │   │   └── 05_fsm_summary.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── ioapic_mas
+│   │   ├── README.md
+│   │   ├── ioapic_mas_index.md
+│   │   ├── ioapic_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── graphviz
+│   │   │   │   ├── Makefile
+│   │   │   │   ├── README.md
+│   │   │   │   ├── apb4_ioapic.gv
+│   │   │   │   ├── delivery_fsm.dot
+│   │   │   │   ├── indirect_access.gv
+│   │   │   │   └── regenerate_diagrams.sh
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── ioapic_block_diagram.mmd
+│   │   │   │   └── ioapic_block_diagram.png
+│   │   │   ├── svg
+│   │   │   │   ├── apb4_ioapic.png
+│   │   │   │   ├── apb4_ioapic.svg
+│   │   │   │   ├── delivery_fsm.png
+│   │   │   │   ├── delivery_fsm.svg
+│   │   │   │   ├── indirect_access.png
+│   │   │   │   └── indirect_access.svg
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── README.md
+│   │   │           ├── ioapic_interrupt_delivery.json
+│   │   │           ├── ioapic_interrupt_delivery.png
+│   │   │           ├── ioapic_interrupt_delivery.svg
+│   │   │           ├── ioapic_level_triggered.json
+│   │   │           ├── ioapic_level_triggered.png
+│   │   │           ├── ioapic_level_triggered.svg
+│   │   │           ├── ioapic_mask_interrupt.json
+│   │   │           ├── ioapic_mask_interrupt.png
+│   │   │           ├── ioapic_mask_interrupt.svg
+│   │   │           ├── ioapic_rte_write.json
+│   │   │           ├── ioapic_rte_write.png
+│   │   │           └── ioapic_rte_write.svg
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   ├── 02_architecture.md
+│   │   │   ├── 03_clocks_and_reset.md
+│   │   │   ├── 04_acronyms.md
+│   │   │   └── 05_references.md
+│   │   ├── ch02_blocks
+│   │   │   ├── 00_overview.md
+│   │   │   └── 05_fsm_summary.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── pic_8259_mas
+│   │   ├── README.md
+│   │   ├── pic_8259_mas_index.md
+│   │   ├── pic_8259_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── graphviz
+│   │   │   │   └── pic_8259_top.gv
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── pic_8259_block_diagram.mmd
+│   │   │   │   └── pic_8259_block_diagram.png
+│   │   │   ├── svg
+│   │   │   │   ├── pic_8259_top.png
+│   │   │   │   └── pic_8259_top.svg
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── README.md
+│   │   │           ├── pic_cascade.json
+│   │   │           ├── pic_cascade.png
+│   │   │           ├── pic_cascade.svg
+│   │   │           ├── pic_eoi.json
+│   │   │           ├── pic_eoi.png
+│   │   │           ├── pic_eoi.svg
+│   │   │           ├── pic_interrupt_acknowledge.json
+│   │   │           ├── pic_interrupt_acknowledge.png
+│   │   │           ├── pic_interrupt_acknowledge.svg
+│   │   │           ├── pic_interrupt_request.json
+│   │   │           ├── pic_interrupt_request.png
+│   │   │           ├── pic_interrupt_request.svg
+│   │   │           ├── pic_priority_rotation.json
+│   │   │           ├── pic_priority_rotation.png
+│   │   │           └── pic_priority_rotation.svg
+│   │   ├── ch01_overview
+│   │   │   └── 01_overview.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── pit_8254_mas
+│   │   ├── PIT_8254_DESIGN_SKETCH.md
+│   │   ├── README.md
+│   │   ├── pit_8254_mas_index.md
+│   │   ├── pit_8254_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── diagrams
+│   │   │   │   ├── apb4_pit_8254_blocks.mmd
+│   │   │   │   └── apb4_pit_8254_blocks.png
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── pit_8254_block_diagram.mmd
+│   │   │   │   └── pit_8254_block_diagram.png
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── README.md
+│   │   │           ├── pit_gate_control.json
+│   │   │           ├── pit_gate_control.png
+│   │   │           ├── pit_gate_control.svg
+│   │   │           ├── pit_mode0_terminal_count.json
+│   │   │           ├── pit_mode0_terminal_count.png
+│   │   │           ├── pit_mode0_terminal_count.svg
+│   │   │           ├── pit_mode2_rate_generator.json
+│   │   │           ├── pit_mode2_rate_generator.png
+│   │   │           ├── pit_mode2_rate_generator.svg
+│   │   │           ├── pit_mode3_square_wave.json
+│   │   │           ├── pit_mode3_square_wave.png
+│   │   │           ├── pit_mode3_square_wave.svg
+│   │   │           ├── pit_readback.json
+│   │   │           ├── pit_readback.png
+│   │   │           └── pit_readback.svg
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   ├── 02_architecture.md
+│   │   │   ├── 03_clocks_and_reset.md
+│   │   │   ├── 04_acronyms.md
+│   │   │   └── 05_references.md
+│   │   ├── ch02_blocks
+│   │   │   └── 00_overview.md
+│   │   ├── ch03_interfaces
+│   │   │   └── 01_top_level.md
+│   │   ├── ch04_programming
+│   │   │   ├── 01_initialization.md
+│   │   │   └── 02_use_cases.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── pm_acpi_mas
+│   │   ├── README.md
+│   │   ├── pm_acpi_mas_index.md
+│   │   ├── pm_acpi_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── graphviz
+│   │   │   │   └── pm_acpi_top.gv
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── pm_acpi_block_diagram.mmd
+│   │   │   │   └── pm_acpi_block_diagram.png
+│   │   │   ├── svg
+│   │   │   │   ├── pm_acpi_top.png
+│   │   │   │   └── pm_acpi_top.svg
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── README.md
+│   │   │           ├── pm_gpe_event.json
+│   │   │           ├── pm_gpe_event.png
+│   │   │           ├── pm_gpe_event.svg
+│   │   │           ├── pm_sleep_entry.json
+│   │   │           ├── pm_sleep_entry.png
+│   │   │           ├── pm_sleep_entry.svg
+│   │   │           ├── pm_timer.json
+│   │   │           ├── pm_timer.png
+│   │   │           ├── pm_timer.svg
+│   │   │           ├── pm_wake_event.json
+│   │   │           ├── pm_wake_event.png
+│   │   │           └── pm_wake_event.svg
+│   │   ├── ch01_overview
+│   │   │   └── 01_overview.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── rlb_top_mas
+│   │   ├── README.md
+│   │   ├── rlb_top_mas_index.md
+│   │   ├── rlb_top_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   └── mermaid
+│   │   │       ├── Makefile
+│   │   │       ├── puppeteer.json
+│   │   │       ├── rlb_integration_hierarchy.mmd
+│   │   │       ├── rlb_integration_hierarchy.png
+│   │   │       ├── rlb_interrupt_fabric.mmd
+│   │   │       └── rlb_interrupt_fabric.png
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   ├── 02_architecture.md
+│   │   │   ├── 03_clocks_and_reset.md
+│   │   │   ├── 04_acronyms.md
+│   │   │   └── 05_references.md
+│   │   ├── ch02_blocks
+│   │   │   ├── 00_overview.md
+│   │   │   ├── 01_apbx_xbar.md
+│   │   │   ├── 02_interrupt_fabric.md
+│   │   │   └── 03_cascade.md
+│   │   ├── ch03_interfaces
+│   │   │   ├── 01_top_level.md
+│   │   │   ├── 02_apb_interface_spec.md
+│   │   │   └── 03_interrupt_interfaces.md
+│   │   ├── ch04_programming
+│   │   │   ├── 01_initialization.md
+│   │   │   ├── 02_use_cases.md
+│   │   │   └── 03_power_management.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── rtc_mas
+│   │   ├── README.md
+│   │   ├── rtc_mas_index.md
+│   │   ├── rtc_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── graphviz
+│   │   │   │   └── rtc_top.gv
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── rtc_block_diagram.mmd
+│   │   │   │   ├── rtc_block_diagram.png
+│   │   │   │   ├── rtc_module_hierarchy.mmd
+│   │   │   │   └── rtc_module_hierarchy.png
+│   │   │   ├── svg
+│   │   │   │   ├── rtc_top.png
+│   │   │   │   └── rtc_top.svg
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── README.md
+│   │   │           ├── rtc_alarm_match.json
+│   │   │           ├── rtc_alarm_match.png
+│   │   │           ├── rtc_alarm_match.svg
+│   │   │           ├── rtc_periodic_interrupt.json
+│   │   │           ├── rtc_periodic_interrupt.png
+│   │   │           ├── rtc_periodic_interrupt.svg
+│   │   │           ├── rtc_time_increment.json
+│   │   │           ├── rtc_time_increment.png
+│   │   │           ├── rtc_time_increment.svg
+│   │   │           ├── rtc_time_read.json
+│   │   │           ├── rtc_time_read.png
+│   │   │           └── rtc_time_read.svg
+│   │   ├── ch01_overview
+│   │   │   ├── 01_overview.md
+│   │   │   └── 02_architecture.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   ├── shared_assets
+│   │   ├── rlb_mas_styles_template.yaml
+│   │   └── images
+│   │       └── logo.png
+│   ├── smbus_mas
+│   │   ├── README.md
+│   │   ├── smbus_mas_index.md
+│   │   ├── smbus_mas_styles.yaml
+│   │   ├── assets
+│   │   │   ├── graphviz
+│   │   │   │   └── smbus_top.gv
+│   │   │   ├── images
+│   │   │   │   └── logo.png
+│   │   │   ├── mermaid
+│   │   │   │   ├── smbus_block_diagram.mmd
+│   │   │   │   └── smbus_block_diagram.png
+│   │   │   ├── svg
+│   │   │   │   ├── smbus_top.png
+│   │   │   │   └── smbus_top.svg
+│   │   │   └── wavedrom
+│   │   │       └── timing
+│   │   │           ├── README.md
+│   │   │           ├── smbus_arbitration.json
+│   │   │           ├── smbus_arbitration.png
+│   │   │           ├── smbus_arbitration.svg
+│   │   │           ├── smbus_byte_read.json
+│   │   │           ├── smbus_byte_read.png
+│   │   │           ├── smbus_byte_read.svg
+│   │   │           ├── smbus_byte_write.json
+│   │   │           ├── smbus_byte_write.png
+│   │   │           ├── smbus_byte_write.svg
+│   │   │           ├── smbus_clock_stretch.json
+│   │   │           ├── smbus_clock_stretch.png
+│   │   │           ├── smbus_clock_stretch.svg
+│   │   │           ├── smbus_pec.json
+│   │   │           ├── smbus_pec.png
+│   │   │           ├── smbus_pec.svg
+│   │   │           ├── smbus_timeout_recovery.json
+│   │   │           ├── smbus_timeout_recovery.png
+│   │   │           └── smbus_timeout_recovery.svg
+│   │   ├── ch01_overview
+│   │   │   └── 01_overview.md
+│   │   └── ch05_registers
+│   │       └── 01_register_map.md
+│   └── uart_16550_mas
+│       ├── uart_16550_mas_index.md
+│       ├── uart_16550_mas_styles.yaml
+│       ├── assets
+│       │   ├── graphviz
+│       │   │   ├── regenerate_diagrams.sh
+│       │   │   ├── uart_interfaces.gv
+│       │   │   ├── uart_rx_engine.gv
+│       │   │   ├── uart_top.gv
+│       │   │   └── uart_tx_engine.gv
+│       │   ├── images
+│       │   │   └── logo.png
+│       │   ├── mermaid
+│       │   │   ├── uart_block_diagram.mmd
+│       │   │   ├── uart_block_diagram.png
+│       │   │   ├── uart_module_hierarchy.mmd
+│       │   │   └── uart_module_hierarchy.png
+│       │   ├── svg
+│       │   │   ├── uart_apb_interface.mmd
+│       │   │   ├── uart_apb_interface.png
+│       │   │   ├── uart_apb_interface.svg
+│       │   │   ├── uart_baud_gen.mmd
+│       │   │   ├── uart_baud_gen.png
+│       │   │   ├── uart_baud_gen.svg
+│       │   │   ├── uart_fifo.mmd
+│       │   │   ├── uart_fifo.png
+│       │   │   ├── uart_fifo.svg
+│       │   │   ├── uart_interfaces.png
+│       │   │   ├── uart_interfaces.svg
+│       │   │   ├── uart_register_file.mmd
+│       │   │   ├── uart_register_file.png
+│       │   │   ├── uart_register_file.svg
+│       │   │   ├── uart_rx_engine.png
+│       │   │   ├── uart_rx_engine.svg
+│       │   │   ├── uart_top.png
+│       │   │   ├── uart_top.svg
+│       │   │   ├── uart_tx_engine.png
+│       │   │   └── uart_tx_engine.svg
+│       │   └── wavedrom
+│       │       └── timing
+│       │           ├── README.md
+│       │           ├── uart_baud_generator.json
+│       │           ├── uart_baud_generator.png
+│       │           ├── uart_baud_generator.svg
+│       │           ├── uart_fifo_threshold.json
+│       │           ├── uart_fifo_threshold.png
+│       │           ├── uart_fifo_threshold.svg
+│       │           ├── uart_line_status.json
+│       │           ├── uart_line_status.png
+│       │           ├── uart_line_status.svg
+│       │           ├── uart_loopback.json
+│       │           ├── uart_loopback.png
+│       │           ├── uart_loopback.svg
+│       │           ├── uart_modem_status.json
+│       │           ├── uart_modem_status.png
+│       │           ├── uart_modem_status.svg
+│       │           ├── uart_rx_byte.json
+│       │           ├── uart_rx_byte.png
+│       │           ├── uart_rx_byte.svg
+│       │           ├── uart_tx_byte.json
+│       │           ├── uart_tx_byte.png
+│       │           └── uart_tx_byte.svg
+│       ├── ch01_overview
+│       │   ├── 01_overview.md
+│       │   ├── 02_architecture.md
+│       │   ├── 03_clocks_and_reset.md
+│       │   ├── 04_acronyms.md
+│       │   └── 05_references.md
+│       ├── ch02_blocks
+│       │   ├── 00_overview.md
+│       │   ├── 01_apb_interface.md
+│       │   ├── 02_register_file.md
+│       │   ├── 03_tx_engine.md
+│       │   ├── 04_rx_engine.md
+│       │   ├── 05_baud_generator.md
+│       │   └── 06_fifo.md
+│       ├── ch03_interfaces
+│       │   ├── 00_overview.md
+│       │   ├── 01_apb4_slave.md
+│       │   ├── 02_serial.md
+│       │   ├── 03_modem.md
+│       │   ├── 04_interrupt.md
+│       │   └── 05_system.md
+│       ├── ch04_programming
+│       │   ├── 00_overview.md
+│       │   ├── 01_initialization.md
+│       │   ├── 02_data_transfer.md
+│       │   ├── 03_interrupts.md
+│       │   └── 04_examples.md
+│       └── ch05_registers
+│           └── 01_register_map.md
+├── dv
+│   ├── __init__.py
+│   ├── components
+│   │   └── __init__.py
+│   ├── filelists
+│   │   ├── ioapic_boot_intx_tb_top.f
+│   │   ├── ioapic_deliv_merge_tb_top.f
+│   │   ├── ioapic_lowest_pri_arb_tb_top.f
+│   │   ├── ioapic_msi_emit_tb_top.f
+│   │   └── pic_8259_cascade_tb_top.f
+│   ├── host
+│   │   ├── __init__.py
+│   │   └── rlb_bringup_programs.py
+│   ├── scoreboards
+│   │   └── __init__.py
+│   ├── tb
+│   │   ├── ioapic_boot_intx_tb_top.sv
+│   │   ├── ioapic_deliv_merge_tb_top.sv
+│   │   ├── ioapic_lowest_pri_arb_tb_top.sv
+│   │   ├── ioapic_msi_emit_tb_top.sv
+│   │   └── pic_8259_cascade_tb_top.sv
+│   ├── tbclasses
+│   │   ├── gpio
+│   │   │   ├── __init__.py
+│   │   │   ├── gpio_tb.py
+│   │   │   ├── gpio_tests_basic.py
+│   │   │   ├── gpio_tests_full.py
+│   │   │   └── gpio_tests_medium.py
+│   │   ├── hpet
+│   │   │   ├── __init__.py
+│   │   │   ├── hpet_tb.py
+│   │   │   ├── hpet_tests_basic.py
+│   │   │   ├── hpet_tests_full.py
+│   │   │   ├── hpet_tests_legacy.py
+│   │   │   └── hpet_tests_medium.py
+│   │   ├── ioapic
+│   │   │   ├── README.md
+│   │   │   ├── ioapic_arb_tb.py
+│   │   │   ├── ioapic_arb_tests.py
+│   │   │   ├── ioapic_boot_intx_tests.py
+│   │   │   ├── ioapic_merge_tb.py
+│   │   │   ├── ioapic_merge_tests.py
+│   │   │   ├── ioapic_msi_tb.py
+│   │   │   ├── ioapic_msi_tests.py
+│   │   │   ├── ioapic_tb.py
+│   │   │   ├── ioapic_tests_basic.py
+│   │   │   └── ioapic_tests_medium.py
+│   │   ├── pic_8259
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── pic_8259_cascade_tests.py
+│   │   │   ├── pic_8259_tb.py
+│   │   │   ├── pic_8259_tests_basic.py
+│   │   │   └── pic_8259_tests_medium.py
+│   │   ├── pit_8254
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── pit_tb.py
+│   │   │   ├── pit_tests_basic.py
+│   │   │   └── pit_tests_medium.py
+│   │   ├── pm_acpi
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── pm_acpi_tb.py
+│   │   │   ├── pm_acpi_tests_basic.py
+│   │   │   ├── pm_acpi_tests_full.py
+│   │   │   ├── pm_acpi_tests_gh54.py
+│   │   │   └── pm_acpi_tests_medium.py
+│   │   ├── rlb_top
+│   │   │   ├── __init__.py
+│   │   │   ├── ir_lines.py
+│   │   │   ├── rlb_top_tb.py
+│   │   │   ├── rlb_top_tests.py
+│   │   │   └── tests
+│   │   │       └── test_ir_lines.py
+│   │   ├── rtc
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── rtc_tb.py
+│   │   │   ├── rtc_tests_basic.py
+│   │   │   └── rtc_tests_medium.py
+│   │   ├── smbus
+│   │   │   ├── README.md
+│   │   │   ├── __init__.py
+│   │   │   ├── smbus_tb.py
+│   │   │   ├── smbus_tests_basic.py
+│   │   │   └── smbus_tests_medium.py
+│   │   └── uart_16550
+│   │       ├── __init__.py
+│   │       ├── uart_16550_tb.py
+│   │       ├── uart_16550_tests_basic.py
+│   │       ├── uart_16550_tests_full.py
+│   │       └── uart_16550_tests_medium.py
+│   ├── testplans
+│   │   ├── README.md
+│   │   ├── apb4_gpio_testplan.yaml
+│   │   ├── apb4_hpet_testplan.yaml
+│   │   ├── apb4_ioapic_testplan.yaml
+│   │   ├── apb4_pic_8259_testplan.yaml
+│   │   ├── apb4_pit_8254_testplan.yaml
+│   │   ├── apb4_pm_acpi_testplan.yaml
+│   │   ├── apb4_rtc_testplan.yaml
+│   │   ├── apb4_smbus_testplan.yaml
+│   │   └── apb4_uart_16550_testplan.yaml
+│   └── tests
+│       ├── Makefile
+│       ├── README_MAKEFILE.md
+│       ├── conftest.py
+│       ├── test_apb4_gpio.py
+│       ├── test_apb4_hpet.py
+│       ├── test_apb4_ioapic.py
+│       ├── test_apb4_pic_8259.py
+│       ├── test_apb4_pit_8254.py
+│       ├── test_apb4_pm_acpi.py
+│       ├── test_apb4_rtc.py
+│       ├── test_apb4_smbus.py
+│       ├── test_apb4_uart_16550.py
+│       ├── test_ioapic_boot_intx.py
+│       ├── test_ioapic_deliv_merge.py
+│       ├── test_ioapic_lowest_pri_arb.py
+│       ├── test_ioapic_msi_emit.py
+│       ├── test_pic_8259_cascade.py
+│       ├── test_rlb_top.py
+│       ├── test_rlb_top_bringup.py
+│       ├── GTKW
+│       │   ├── hpet_t2_v8086.gtkw
+│       │   ├── pic_8259.gtkw
+│       │   ├── pit_8254.gtkw
+│       │   ├── apb4_gpio
+│       │   │   └── apb4_gpio.gtkw
+│       │   ├── apb4_ioapic
+│       │   │   └── apb4_ioapic.gtkw
+│       │   ├── apb4_pm_acpi
+│       │   │   └── apb4_pm_acpi.gtkw
+│       │   ├── apb4_rtc
+│       │   │   └── apb4_rtc.gtkw
+│       │   ├── apb4_smbus
+│       │   │   └── apb4_smbus.gtkw
+│       │   ├── apb4_uart_16550
+│       │   │   └── apb4_uart_16550.gtkw
+│       │   └── rlb_top
+│       │       └── rlb_top.gtkw
+│       ├── coverage_data
+│       │   ├── merged
+│       │   │   ├── latest_merged_coverage.dat
+│       │   │   └── merged_coverage_20261004_142738.dat
+│       │   ├── per_test
+│       │   └── reports
+│       └── coverage_reports
+│           ├── coverage_report_20261004_141802.md
+│           ├── coverage_report_20261004_142739.md
+│           ├── latest_coverage_report.md
+│           ├── latest_merged_coverage.json
+│           ├── merged_coverage_20261004_141802.json
+│           └── merged_coverage_20261004_142739.json
+├── known_issues
+│   └── README.md
+├── rdl
+│   ├── .gitignore
+│   ├── gpio
+│   │   └── gpio_regs.rdl
+│   ├── hpet
+│   │   ├── hpet_regs.rdl
+│   │   └── generated
+│   │       ├── hpet_regs_regmap.py
+│   │       ├── docs
+│   │       │   └── hpet_regs.md
+│   │       ├── headers
+│   │       └── rtl
+│   │           ├── hpet_regs.sv
+│   │           └── hpet_regs_pkg.sv
+│   ├── ioapic
+│   │   ├── ioapic_regs.rdl
+│   │   └── generated
+│   │       ├── ioapic_regs_regmap.py
+│   │       ├── docs
+│   │       │   └── ioapic_regs.md
+│   │       ├── headers
+│   │       └── rtl
+│   │           ├── ioapic_regs.sv
+│   │           └── ioapic_regs_pkg.sv
+│   ├── pic_8259
+│   │   └── pic_8259_regs.rdl
+│   ├── pit_8254
+│   │   └── pit_regs.rdl
+│   ├── pm_acpi
+│   │   └── pm_acpi_regs.rdl
+│   ├── rtc
+│   │   └── rtc_regs.rdl
+│   ├── smbus
+│   │   └── smbus_regs.rdl
+│   └── uart_16550
+│       └── uart_16550_regs.rdl
+└── rtl
+    ├── Makefile
+    ├── apbx_xbar
+    │   ├── README.md
+    │   └── apbx_xbar_1to10.sv
+    ├── filelists
+    │   └── retro_legacy_blocks_all.f
+    ├── gpio
+    │   ├── README.md
+    │   ├── apb4_gpio.sv
+    │   ├── gpio_config_regs.sv
+    │   ├── gpio_core.sv
+    │   ├── gpio_regs.sv
+    │   ├── gpio_regs.vlt
+    │   ├── gpio_regs_pkg.sv
+    │   └── filelists
+    │       └── apb4_gpio.f
+    ├── hpet
+    │   ├── Makefile
+    │   ├── README.md
+    │   ├── apb4_hpet.sv
+    │   ├── hpet_config_regs.sv
+    │   ├── hpet_core.sv
+    │   ├── hpet_helper.py
+    │   ├── hpet_regmap.py
+    │   ├── hpet_regs.sv
+    │   ├── hpet_regs_pkg.sv
+    │   ├── docs
+    │   │   └── assets
+    │   │       └── graphviz
+    │   │           ├── Makefile
+    │   │           ├── hpet_architecture.gv
+    │   │           └── hpet_architecture.png
+    │   └── filelists
+    │       ├── README.md
+    │       ├── component
+    │       │   ├── hpet_config_regs.f
+    │       │   ├── hpet_core.f
+    │       │   └── hpet_regs.f
+    │       └── integration
+    │           └── apb4_hpet.f
+    ├── ioapic
+    │   ├── README.md
+    │   ├── apb4_ioapic.sv
+    │   ├── ioapic_boot_intx.sv
+    │   ├── ioapic_config_regs.sv
+    │   ├── ioapic_core.sv
+    │   ├── ioapic_deliv_merge.sv
+    │   ├── ioapic_deliv_merge.vlt
+    │   ├── ioapic_lowest_pri_arb.sv
+    │   ├── ioapic_msi_emit.sv
+    │   ├── ioapic_regs.sv
+    │   ├── ioapic_regs_pkg.sv
+    │   └── filelists
+    │       ├── apb4_ioapic.f
+    │       ├── ioapic_boot_intx.f
+    │       ├── ioapic_deliv_merge.f
+    │       ├── ioapic_lowest_pri_arb.f
+    │       └── ioapic_msi_emit.f
+    ├── lint_reports
+    │   ├── verible
+    │   │   ├── apb4_gpio.log
+    │   │   ├── apb4_hpet.log
+    │   │   ├── apb4_ioapic.log
+    │   │   ├── apb4_pic_8259.log
+    │   │   ├── apb4_pit_8254.log
+    │   │   ├── apb4_pm_acpi.log
+    │   │   ├── apb4_rtc.log
+    │   │   ├── apb4_smbus.log
+    │   │   ├── apb4_uart_16550.log
+    │   │   ├── apbx_xbar_1to10.log
+    │   │   ├── gpio_config_regs.log
+    │   │   ├── gpio_core.log
+    │   │   ├── gpio_regs.log
+    │   │   ├── gpio_regs_pkg.log
+    │   │   ├── hpet_config_regs.log
+    │   │   ├── hpet_core.log
+    │   │   ├── hpet_regs.log
+    │   │   ├── hpet_regs_pkg.log
+    │   │   ├── ioapic_boot_intx.log
+    │   │   ├── ioapic_config_regs.log
+    │   │   ├── ioapic_core.log
+    │   │   ├── ioapic_deliv_merge.log
+    │   │   ├── ioapic_lowest_pri_arb.log
+    │   │   ├── ioapic_msi_emit.log
+    │   │   ├── ioapic_regs.log
+    │   │   ├── ioapic_regs_pkg.log
+    │   │   ├── pic_8259_config_regs.log
+    │   │   ├── pic_8259_core.log
+    │   │   ├── pic_8259_regs.log
+    │   │   ├── pic_8259_regs_pkg.log
+    │   │   ├── pit_config_regs.log
+    │   │   ├── pit_core.log
+    │   │   ├── pit_counter.log
+    │   │   ├── pit_regs.log
+    │   │   ├── pit_regs_pkg.log
+    │   │   ├── pm_acpi_config_regs.log
+    │   │   ├── pm_acpi_core.log
+    │   │   ├── pm_acpi_regs.log
+    │   │   ├── pm_acpi_regs_pkg.log
+    │   │   ├── rlb_top.log
+    │   │   ├── rtc_clk_mux.log
+    │   │   ├── rtc_config_regs.log
+    │   │   ├── rtc_core.log
+    │   │   ├── rtc_regs.log
+    │   │   ├── rtc_regs_pkg.log
+    │   │   ├── simple_fifo.log
+    │   │   ├── smbus_abort_track.log
+    │   │   ├── smbus_bit_phy.log
+    │   │   ├── smbus_byte_fifos.log
+    │   │   ├── smbus_config_regs.log
+    │   │   ├── smbus_core.log
+    │   │   ├── smbus_flow_rules.log
+    │   │   ├── smbus_int_status.log
+    │   │   ├── smbus_pec.log
+    │   │   ├── smbus_regs.log
+    │   │   ├── smbus_regs_pkg.log
+    │   │   ├── smbus_slave_engine.log
+    │   │   ├── smbus_trans_decode.log
+    │   │   ├── uart_16550_config_regs.log
+    │   │   ├── uart_16550_core.log
+    │   │   ├── uart_16550_intr.log
+    │   │   ├── uart_16550_modem.log
+    │   │   ├── uart_16550_regs.log
+    │   │   └── uart_16550_regs_pkg.log
+    │   └── verilator
+    │       ├── apb4_gpio.f
+    │       ├── apb4_hpet.f
+    │       ├── apb4_ioapic.f
+    │       ├── apb4_pic_8259.f
+    │       ├── apb4_pit_8254.f
+    │       ├── apb4_pm_acpi.f
+    │       ├── apb4_rtc.f
+    │       ├── apb4_smbus.f
+    │       ├── apb4_uart_16550.f
+    │       ├── hpet_config_regs.f
+    │       ├── hpet_core.f
+    │       ├── hpet_regs.f
+    │       ├── ioapic_boot_intx.f
+    │       ├── ioapic_deliv_merge.f
+    │       ├── ioapic_lowest_pri_arb.f
+    │       ├── ioapic_msi_emit.f
+    │       ├── retro_legacy_blocks_all.log
+    │       ├── retro_legacy_blocks_flat.f
+    │       ├── rlb_top.f
+    │       ├── smbus_abort_track.f
+    │       ├── smbus_bit_phy.f
+    │       ├── smbus_byte_fifos.f
+    │       ├── smbus_core.f
+    │       ├── smbus_flow_rules.f
+    │       ├── smbus_int_status.f
+    │       └── smbus_trans_decode.f
+    ├── pic_8259
+    │   ├── README.md
+    │   ├── apb4_pic_8259.sv
+    │   ├── pic_8259_config_regs.sv
+    │   ├── pic_8259_core.sv
+    │   ├── pic_8259_helper.py
+    │   ├── pic_8259_regmap.py
+    │   ├── pic_8259_regs.sv
+    │   ├── pic_8259_regs.vlt
+    │   ├── pic_8259_regs_pkg.sv
+    │   └── filelists
+    │       └── apb4_pic_8259.f
+    ├── pit_8254
+    │   ├── README.md
+    │   ├── apb4_pit_8254.sv
+    │   ├── pit_config_regs.sv
+    │   ├── pit_core.sv
+    │   ├── pit_counter.sv
+    │   ├── pit_helper.py
+    │   ├── pit_regmap.py
+    │   ├── pit_regs.sv
+    │   ├── pit_regs.vlt
+    │   ├── pit_regs_pkg.sv
+    │   ├── docs
+    │   │   └── assets
+    │   │       └── graphviz
+    │   │           ├── Makefile
+    │   │           ├── pit_architecture.gv
+    │   │           └── pit_architecture.png
+    │   └── filelists
+    │       └── apb4_pit_8254.f
+    ├── pm_acpi
+    │   ├── README.md
+    │   ├── apb4_pm_acpi.sv
+    │   ├── pm_acpi_config_regs.sv
+    │   ├── pm_acpi_core.sv
+    │   ├── pm_acpi_regs.sv
+    │   ├── pm_acpi_regs_pkg.sv
+    │   └── filelists
+    │       └── apb4_pm_acpi.f
+    ├── rlb_top
+    │   ├── rlb_top.sv
+    │   └── filelists
+    │       └── rlb_top.f
+    ├── rtc
+    │   ├── README.md
+    │   ├── apb4_rtc.sv
+    │   ├── rtc_clk_mux.sv
+    │   ├── rtc_config_regs.sv
+    │   ├── rtc_core.sv
+    │   ├── rtc_helper.py
+    │   ├── rtc_regmap.py
+    │   ├── rtc_regs.sv
+    │   ├── rtc_regs.vlt
+    │   ├── rtc_regs_pkg.sv
+    │   └── filelists
+    │       └── apb4_rtc.f
+    ├── smbus
+    │   ├── README.md
+    │   ├── apb4_smbus.sv
+    │   ├── simple_fifo.sv
+    │   ├── smbus_abort_track.sv
+    │   ├── smbus_bit_phy.sv
+    │   ├── smbus_byte_fifos.sv
+    │   ├── smbus_config_regs.sv
+    │   ├── smbus_core.sv
+    │   ├── smbus_flow_rules.sv
+    │   ├── smbus_helper.py
+    │   ├── smbus_int_status.sv
+    │   ├── smbus_pec.sv
+    │   ├── smbus_regs.sv
+    │   ├── smbus_regs.vlt
+    │   ├── smbus_regs_pkg.sv
+    │   ├── smbus_slave_engine.sv
+    │   ├── smbus_trans_decode.sv
+    │   └── filelists
+    │       ├── apb4_smbus.f
+    │       ├── smbus_abort_track.f
+    │       ├── smbus_bit_phy.f
+    │       ├── smbus_byte_fifos.f
+    │       ├── smbus_core.f
+    │       ├── smbus_flow_rules.f
+    │       ├── smbus_int_status.f
+    │       └── smbus_trans_decode.f
+    └── uart_16550
+        ├── README.md
+        ├── apb4_uart_16550.sv
+        ├── uart_16550_config_regs.sv
+        ├── uart_16550_core.sv
+        ├── uart_16550_intr.sv
+        ├── uart_16550_modem.sv
+        ├── uart_16550_regs.sv
+        ├── uart_16550_regs.vlt
+        ├── uart_16550_regs_pkg.sv
+        └── filelists
+            └── apb4_uart_16550.f
