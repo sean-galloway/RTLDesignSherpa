@@ -24,7 +24,7 @@
 # CELL Micro-Architecture Specification Index
 
 **Component:** CELL — the compute-engine cell (one of sixteen in a tile)
-**Version:** 0.13
+**Version:** 0.14
 **Date:** 2026-10-20
 **Purpose:** Detailed micro-architecture specification for the cell's
 slice-1 RTL as built and the slice-2/3 design decisions that complete it
@@ -89,6 +89,7 @@ This book documents:
 | 0.11 | 2026-10-18 | RTL Design Sherpa | Beat-chained header rule + issue-tag/same-tag-alignment MAS decision. |
 | 0.10 | 2026-10-18 | RTL Design Sherpa | First cell MAS issue. Documents slice-1 RTL as built and specifies slice-2/3 modules. Closes PRD §12 open questions: IN_DEPTH=OUT_DEPTH=32 lines; CREDIT_BATCH_N default 1 with 64-cycle partial-batch timeout; EMIT_BATCH_X flush on batch-full or CTRL.flush-and-send; strap counter default 16 (mirrors TILE_LAND_FLITS). |
 | 0.13 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.14 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Revision history
 

@@ -30,7 +30,7 @@ This directory contains documentation for the AMBA (Advanced Microcontroller Bus
 ## Overview
 
 - **[Overview](overview.md)** - Complete overview of the RTL AMBA library architecture and protocol implementations
-- **[Monitor system white paper](../rtl-amba-monitors/whitepaper/index.md)** - Ocelus as a design surface: identity allocation, insertion points, timestamp policy, drain paths, filtering, aggregation topology, and what each costs. One chapter per file under `rtl-amba-monitors/whitepaper/`; branded PDF `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf` via `generate_rtl_pdfs.sh monitor-wp`.
+- **[Ocelus White Paper](../rtl-amba-monitors/whitepaper/index.md)** - Ocelus as a design surface: identity allocation, insertion points, timestamp policy, drain paths, filtering, aggregation topology, and what each costs. One chapter per file under `rtl-amba-monitors/whitepaper/`; branded PDF `docs/pdfs/Ocelus_White_Paper.pdf` via `generate_rtl_pdfs.sh monitor-wp`.
 
 ---
 

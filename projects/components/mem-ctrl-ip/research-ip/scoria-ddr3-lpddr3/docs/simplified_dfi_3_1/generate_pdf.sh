@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Simplified DFI 3.1 study-notes PDF generator. Builds
-# SIMPLIFIED_DFI_3_1_v0.1.docx/.pdf from the Markdown sources using the
+# SIMPLIFIED_DFI_3_1_v<rev>.docx/.pdf from the Markdown sources using the
 # RTLDesignSherpa md_to_docx.py pipeline. REPO_ROOT must point at a
 # checkout of RTLDesignSherpa.
 
@@ -13,7 +13,10 @@ cd "$SCRIPT_DIR"
 
 INDEX="simplified_dfi_3_1_index.md"
 STYLES="simplified_dfi_3_1_styles.yaml"
-OUT_BASE="SIMPLIFIED_DFI_3_1_v0.1"
+# The revision lives in the index's "**Version:**" line, not here.
+REV="$(grep -m1 -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' "$INDEX" | grep -oE '[0-9]+\.[0-9]+$' || true)"
+if [[ -z "$REV" ]]; then echo "ERROR: no **Version:** line in $INDEX" >&2; exit 1; fi
+OUT_BASE="SIMPLIFIED_DFI_3_1_v${REV}"
 
 for required in "$INDEX" "$STYLES"; do
   if [[ ! -f "$required" ]]; then

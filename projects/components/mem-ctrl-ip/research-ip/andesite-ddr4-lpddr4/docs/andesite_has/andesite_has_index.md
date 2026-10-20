@@ -23,7 +23,7 @@
 
 # andesite DDR4/LPDDR4 Family Controller — Hardware Architecture Specification
 
-**Version:** 0.6
+**Version:** 0.7
 **Date:** 2026-10-20
 **Status:** v0.1 complete — all six chapters committed, per the docs
 tranche plan. Written from the delta analysis before RTL exists, per the

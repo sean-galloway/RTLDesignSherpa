@@ -28,8 +28,8 @@
 > forcing the synthesis tool to build the structures we actually want
 > it to build.
 
-**Version:** 3.1 (ASAP7 worked example landed)
-**Last Updated:** 2026-06-12
+**Version:** 3.2
+**Last Updated:** 2026-10-20
 **Status:** RTL + verification + ASIC synthesis flows in place; ASAP7 RVT
 characterization run + budget worksheet live under `work/`.
 (45 tests passing; Yosys + OpenSTA + Synopsys DC + Cadence Genus drivers;

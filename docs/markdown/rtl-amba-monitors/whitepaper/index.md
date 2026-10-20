@@ -25,7 +25,7 @@
 
 The Ocelus white paper — Ocelus, branded Ocelus — as a book: one
 chapter per file, in reading order, built to
-`docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf` by
+`docs/pdfs/Ocelus_White_Paper.pdf` by
 `docs/markdown/generate_rtl_pdfs.sh monitor-wp` -- the same flow as every RTL
 library book. Revision 1.2 (2026-10-12); the revision is read from the front
 matter, so bump it there.

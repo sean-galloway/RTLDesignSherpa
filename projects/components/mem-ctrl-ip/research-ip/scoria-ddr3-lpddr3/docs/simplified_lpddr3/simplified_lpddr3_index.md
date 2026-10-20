@@ -4,8 +4,8 @@
 **Edition:** Simplified for the scoria DDR3/LPDDR3 memory controller. Derived from the
 Memory Notes condensed study notes (a personal paraphrase of the JEDEC
 source); timing values follow that book's fixed drill configurations.
-**Version:** 0.1
-**Last Updated:** 2026-10-03
+**Version:** 0.2
+**Last Updated:** 2026-10-20
 **Status:** Draft. Personal study notes.
 
 ---
@@ -71,3 +71,4 @@ Chapter 1.
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-10-03 | First draft |
+| 0.2 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |

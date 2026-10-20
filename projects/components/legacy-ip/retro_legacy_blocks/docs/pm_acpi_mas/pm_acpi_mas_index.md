@@ -24,7 +24,7 @@
 # pm_acpi MAS -- Micro Architecture Specification
 
 **Component:** APB Power Management / ACPI Controller
-**Version:** 1.3
+**Version:** 1.4
 **Last Updated:** 2026-10-20
 **Status:** RTL Functional -- per-bit sticky W1C status owned by the core
 (ACPI_STATUS, ACPI_INT_STATUS, PM1_STATUS, WAKE_STATUS, GPE0_STATUS), a GPE
@@ -58,6 +58,7 @@ is closed apart from what was always out of scope.
 | 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #54 fixes: sticky per-bit W1C status moved into pm_acpi_core with set-wins-over-clear and PSTRB-honoured clears, GPE status on the synchronized edge with a W1C clear that drops gpe_int and unblocks sleep, PM1_ENABLE per-source interrupt gating (wak_sts has no enable), level pm_interrupt over enabled sticky bits, latched wake outranking sleep_type with a one-shot sleep_enable, SYNC_STAGES synchronizers on rtc_alarm/ext_wake_n/gpe_events, strict 21-register decode with PSLVERR (no 0x80 aliasing), sticky por_reset/sw_reset with wired RESET_CTRL requests and a soft_reset that clears all status; storage-only fields stated; deferred work moved to RLB TASK-009 (was RLB-009) |
 | 1.2 | 2026-09-10 | RTL Design Sherpa | RLB TASK-009 (was RLB-009) closed. S5 soft off: as dark as S3 but retains nothing, so LEAVING it pulses sys_reset_req -- a wake from soft off is a boot, not a resume; current_state reports encoding 2 for it, the one the three previous states left free. Buttons: a candidate level must hold for BUTTON_TIMING.debounce_cycles before it is accepted (0 = accept immediately, the old behaviour), and holding the accepted level for 2^long_press_shift cycles is the power-button override, ENABLED by PM1_CONTROL.pwrbtn_ovr rather than commanded by it. PM timer: a power-of-two prescaler ahead of the divider reaches the slow end of the range without widening a field software already uses; the counter is always 64 bits and timer_64bit only chooses WHICH carry counts as an overflow; PM_TIMER_MATCH is an equality comparator on the low word that drives the interrupt through ACPI_INT_ENABLE.timer_match_enable; PM_TIMER_VALUE_HI is a snapshot latched when the low word is read, so a pair of reads cannot straddle a carry. Rail sequencer (PWR_SEQ_CONFIG/STATUS, off at reset): clocks gated before the rails drop and restored only after they are all back, rails walked 7-to-0 out and 0-to-7 in with a programmable gap, each step optionally waiting for power_domain_ack, and no timeout because a made-up one turns a board fault into a silent half-powered state. GPE: per-source edge or level (GPEx_TRIGGER), a second bank on gpe1_events with its own status/enable/trigger/wake registers, and ACPI_CONTROL.gpe_split_enable separating the runtime interrupt arming from the wake arming. RESET_STATUS.wdt_reset and ext_reset come from device pins now, latched rather than sampled. Fifteen new registers take the map to thirty-eight and the decode to eight address bits, moving the first alias of ACPI_CONTROL from 0x080 to 0x100 |
 | 1.3 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 1.4 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ---
 

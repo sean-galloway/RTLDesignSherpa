@@ -26,7 +26,7 @@
 | Field | Value |
 |---|---|
 | Document | mem-ctrl-ip Common IP — Micro-Architecture Specification |
-| Version | 0.2 |
+| Version | 0.3 |
 | Date | 2026-10-20 |
 | Status | Partner-review draft, land-and-review with the common_has v0.1 book |
 | Owner | mem-ctrl-ip family (common-ip/docs/) |
@@ -38,6 +38,7 @@
 |---|---|---|
 | 0.1 | 2026-10-10 | First edition, written against the Phase-2 extraction as landed: `mc_common_pkg`, eight planes (`mc_axi4_plane`, `mc_storage_plane`, `mc_scheduler_plane`, `mc_training_plane`, `mc_ras_plane`, `mc_dfi_2p1_plane`, `mc_dfi_3p1_plane`, `mc_dfi_4p0_plane`), and seventeen shared FUBs. Skeleton blocks (`mc_ras_plane`, `mc_training_plane` shell, per-generation DFI deltas) are documented honestly thin. |
 | 0.2 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.3 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ## Chapter conventions
 

@@ -24,7 +24,7 @@
 # Lattice Micro-Architecture Specification Index
 
 **Component:** Lattice (MxN Interconnect)
-**Version:** 1.3
+**Version:** 1.4
 **Date:** 2026-10-20
 **Purpose:** Detailed micro-architecture specification for Lattice component
 

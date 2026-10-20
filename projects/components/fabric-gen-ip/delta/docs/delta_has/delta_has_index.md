@@ -25,7 +25,7 @@
 
 ## Overview
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for the Delta AXI4-Stream crossbar generator, including the planned mesh network mode
 

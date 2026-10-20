@@ -26,7 +26,7 @@
 ## HIVE Micro-Architecture Specification
 
 **Document Number:** HIVE-MAS-001
-**Version:** 0.2
+**Version:** 0.3
 **Status:** Draft (pre-RTL — implementation intent)
 **Classification:** Open Source - MIT License
 
@@ -87,6 +87,7 @@ open, it is marked as an open item rather than resolved silently.
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-12 | seang | Initial MAS release; migrates the implementation content of the retired v0.3 `hive_specification.md` into block-level implementation intent |
 | 0.2 | 2026-10-13 | seang | Owner decisions: quiesce status via fabric IDLE signal into a PeakRDL config register (hard interlock demoted to optional hardening); kestrel loader pattern; dual-flop tap synchronizers; descriptor mailbox parameter-controlled, dedicated register file default, custom-instruction alternative rejected; PKT_CONFIG injection path still TBD. Addendum: delta is the fabric (owner); everything that leaves a block is a stream — control network AXIS-shaped (32-bit, `tuser[0]` urgent), no AXI4 full in HIVE |
+| 0.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Document Revision History
 

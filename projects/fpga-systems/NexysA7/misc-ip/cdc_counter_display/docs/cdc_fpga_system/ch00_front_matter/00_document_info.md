@@ -26,7 +26,7 @@
 | Field | Value |
 |-------|-------|
 | Title | CDC Counter Display on the Nexys A7 -- The FPGA System |
-| Version | 1.1 |
+| Version | 1.2 |
 | Date | 2026-10-20 |
 | Scope | The CDC demonstration system: the board, the two builds and how far apart they are, the harness around the counters, the five CDC modes, and the watch-it-fail flow |
 | Not in scope | The CDC primitives themselves (`rtl/cdc/`, documented per module under `docs/markdown/`); the operator procedure (`docs/cdc_demo_guide/`, `docs/HARNESS.md`) |
@@ -74,6 +74,7 @@ failure cannot be blamed on the board.
 |---------|------|--------|
 | 1.0 | 2026-09-29 | First edition. |
 | 1.1 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 1.2 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Table 0.3: Revision history
 

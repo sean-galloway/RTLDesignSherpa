@@ -35,6 +35,7 @@
 | 0.12 | 2026-10-16 | RTL Design Sherpa | Routing and payload-type PROPOSAL (not implemented): the tile packet header is defined in the compute-engine tile's TILE_SPEC Section 11; CXS only transports it. Descriptor Format adds the proposed `ptype`, destination-coordinate and target-address fields; the CXS Network Interface chapter points at TILE_SPEC |
 | 0.13 | 2026-10-17 | RTL Design Sherpa | Descriptor Format: the tile header fields are implemented in the byte-granular RAPIDS (`TILE_HDR` = 1), not in RAPIDS Beats; Register Map: tile status registers (0x2D0-0x2D8); CXS chapter names the sink and source ports |
 | 0.14 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.15 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Document Revision History
 

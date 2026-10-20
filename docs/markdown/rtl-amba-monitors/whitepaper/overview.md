@@ -34,7 +34,7 @@ a tweak in simulation. Revision 1.1's recommendation: the lite monitor on
 every port; the full monitor is the exception you justify.
 
 **Read it:** [index.md](index.md) is the chapter list in order; the branded
-PDF is `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf`. Start with chapter 2,
+PDF is `docs/pdfs/Ocelus_White_Paper.pdf`. Start with chapter 2,
 "Which monitor", if you only have five minutes.
 
 **What it is not:** a status snapshot of the tree (that is

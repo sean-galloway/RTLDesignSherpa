@@ -82,7 +82,7 @@ This specification describes DELTA, a configurable mesh Network-on-Chip (NoC) th
 
 ---
 
-**Document Version:** 0.3 (Early Draft - Proof of Concept)
-**Last Updated:** 2025-10-19
+**Document Version:** 1.1 (Early Draft - Proof of Concept)
+**Last Updated:** 2026-10-20
 **Status:** Preliminary specification, subject to significant change
 **Maintained By:** DELTA Development Team

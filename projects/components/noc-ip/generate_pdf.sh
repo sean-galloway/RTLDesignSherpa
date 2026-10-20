@@ -87,7 +87,8 @@ echo "  Repo Root:   ${REPO_ROOT}"
 echo "------------------------------------------------------------"
 
 python3 "${REPO_ROOT}/bin/md_to_docx.py" \
-  --expand-index --toc --pagebreak --title-page --pdf \
+  --style "delta_spec/delta_spec_styles.yaml" \
+  --expand-index --skip-index-content --toc --pagebreak --title-page --pdf \
   --pdf-engine=lualatex \
   --mainfont "Noto Serif" \
   --monofont "Noto Sans Mono" \

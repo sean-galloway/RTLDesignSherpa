@@ -23,8 +23,8 @@
 
 # Timing Characterization Hardware Architecture Specification Index
 
-**Version:** 1.0
-**Date:** 2026-03-18
+**Version:** 1.1
+**Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for the Timing Characterization component
 
 ---

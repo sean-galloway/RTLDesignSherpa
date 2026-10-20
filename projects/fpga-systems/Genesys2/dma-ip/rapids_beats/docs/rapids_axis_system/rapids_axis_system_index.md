@@ -23,7 +23,7 @@
 
 # RAPIDS beats on the Genesys 2 -- The AXIS4 Side
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** 2026-10-20
 **Purpose:** What makes the rapids-beats characterization system a different
 build from STREAM's, and not the same harness around a different DUT: the two

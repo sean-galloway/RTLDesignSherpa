@@ -23,7 +23,7 @@
 
 # DDR2 / LPDDR2 Family Controller Micro-Architecture Specification Index
 
-**Version:** 0.10-draft
+**Version:** 0.11-draft
 **Date:** 2026-10-20
 **Purpose:** Implementation-level micro-architecture specification for the unified DDR2 / LPDDR2 memory controller family
 

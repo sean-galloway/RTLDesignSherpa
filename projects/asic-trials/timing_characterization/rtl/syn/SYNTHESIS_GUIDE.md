@@ -1,7 +1,7 @@
 # Timing Characterization -- Synthesis Guide
 
-**Version:** 1.0
-**Last Updated:** 2026-03-18
+**Version:** 1.1
+**Last Updated:** 2026-10-20
 **Purpose:** Detailed guide to synthesizing and interpreting timing characterization results
 
 ---
@@ -626,6 +626,6 @@ rtl/filelists/            <-- Filelist for synthesis and simulation
 
 ---
 
-**Version:** 1.0
-**Last Updated:** 2026-03-18
+**Version:** 1.1
+**Last Updated:** 2026-10-20
 **Maintained By:** RTL Design Sherpa Project

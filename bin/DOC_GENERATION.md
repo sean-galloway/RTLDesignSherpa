@@ -75,9 +75,10 @@ the body). The index therefore defines the document structure:
 
 Chapter files start with a top-level `#` heading; sections use `##`, `###`.
 
-Every `h1` opens a new page **by default** -- opt out by setting
-`page_break_before: false` on `h1` in the styles YAML. Deeper levels are
-opt-in: `page_break_before: true` on `h2`, `h3`, ... (most books set `h2`).
+Every `h1` and `h2` opens a new page **by default** -- opt a level out by
+setting `page_break_before: false` on it in the styles YAML. Deeper levels
+are opt-in: `page_break_before: true` on `h3`, ... An `h2` that directly
+follows its `h1` with nothing between them shares the chapter's page.
 The DOCX post-processor inserts a real `<w:br w:type="page"/>` run before each
 such heading, which is the only form that survives the LibreOffice TOC
 round-trip to the PDF. `--pagebreak` inserts `::: {.pagebreak}` divs between

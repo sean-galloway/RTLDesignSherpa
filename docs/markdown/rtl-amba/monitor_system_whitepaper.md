@@ -28,6 +28,6 @@ so it renders through the same PDF flow as the module references:
 
 - Chapters and build order: [rtl-amba-monitors/whitepaper/index.md](../rtl-amba-monitors/whitepaper/index.md)
 - Orientation: [rtl-amba-monitors/whitepaper/overview.md](../rtl-amba-monitors/whitepaper/overview.md)
-- Branded PDF: `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf`, built by `docs/markdown/generate_rtl_pdfs.sh monitor-wp`
+- Branded PDF: `docs/pdfs/Ocelus_White_Paper.pdf`, built by `docs/markdown/generate_rtl_pdfs.sh monitor-wp`
 
 This page stays only so that older links resolve; nothing else lives here.

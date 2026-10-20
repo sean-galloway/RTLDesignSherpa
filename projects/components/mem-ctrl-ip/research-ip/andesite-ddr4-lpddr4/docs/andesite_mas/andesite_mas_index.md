@@ -25,8 +25,8 @@
 
 ## Overview
 
-**Version:** 0.5 (draft)
-**Date:** 2026-10-03
+**Version:** 0.6 (draft)
+**Date:** 2026-10-20
 **Status:** v0.1 complete — all chapters committed. Micro-architecture
 specification — the HAS taken one level down: per-block signal tables, cycle
 behavior, FSM policy, and the contract anchors the generated kmap book cites,

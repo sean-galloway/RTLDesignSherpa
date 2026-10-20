@@ -170,7 +170,7 @@ runs the in-core rd/wr datapath monitors and interface observers against the
 STREAM DMA DUT, with compressed MonBus capture into on-board SRAM.
 
 **Architecture:** [Monitor System Whitepaper](docs/markdown/rtl-amba/monitor_system_whitepaper.md)
-([PDF](docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf)) — packet format, event
+([PDF](docs/pdfs/Ocelus_White_Paper.pdf)) — packet format, event
 taxonomy, reporter cones, and the observation fabric.
 
 ### 4. **Clock Domain Crossing (CDC)** — Cross-cutting

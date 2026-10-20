@@ -24,8 +24,8 @@
 # Timing Characterization Micro-Architecture Specification Index
 
 **Component:** Timing Characterization (Synthesis Benchmarking Harness)
-**Version:** 1.0
-**Date:** 2026-03-18
+**Version:** 1.1
+**Date:** 2026-10-20
 **Purpose:** Detailed micro-architecture specification for the Timing Characterization component
 
 ---

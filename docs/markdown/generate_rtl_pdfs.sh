@@ -16,7 +16,7 @@ set -euo pipefail
 # Usage: ./generate_rtl_pdfs.sh [--rev X.Y] [book ...]   (default: all books)
 # ------------------------------------------------------------
 
-REV="0.91"
+REV="0.92"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"       # docs/markdown
 REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"
 MD2DOCX="${REPO_ROOT}/bin/md_to_docx.py"
@@ -143,14 +143,14 @@ if want monitor; then
   build_book "RTL AMBA Monitor Subsystem" "${SUB}" rtl-amba/_book_monitor_index.md RTL_AMBA_Monitor
 fi
 
-# ---- Monitor system white paper (rtl-amba-monitors/whitepaper, one chapter per file) ----
+# ---- Ocelus White Paper (rtl-amba-monitors/whitepaper, one chapter per file) ----
 # A paper, not a module reference: its own subtitle, revision read from the
 # front matter's "**Version:**" line, no LoF/LoT (the figures are plain image
 # embeds without caption encoding). The index IS the chapter order.
 if want monitor-wp; then
   WP_REV="$(grep -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' rtl-amba-monitors/whitepaper/00_front_matter.md | grep -oE '[0-9]+\.[0-9]+' | head -1)"
-  build_book "Ocelus as a Design Surface" "AMBA Ocelus White Paper — Rev ${WP_REV:-?}" \
-             rtl-amba-monitors/whitepaper/index.md RTL_AMBA_Monitor_Whitepaper
+  build_book "Ocelus White Paper" "Ocelus as a Design Surface — Rev ${WP_REV:-?}" \
+             rtl-amba-monitors/whitepaper/index.md Ocelus_White_Paper
 fi
 
 # ---- AMBA, split by protocol ----

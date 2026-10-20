@@ -147,6 +147,7 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.10 | 2026-10-16 | seang | Sections 3.13 and 4.4 point at the routing and payload-type proposal in the tile's TILE_SPEC Section 11 (`CXSSRCID` keeps the channel) |
 | 0.11 | 2026-10-17 | seang | CXS interface spec names the sink and source ports |
 | 0.12 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.13 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Table 0.2: RAPIDS Beats MAS Document Revision History
 

@@ -33,6 +33,7 @@
 | 0.2 | 2026-09-30 | RTL Design Sherpa | Channel reset recovers every error class; the aresetn-only caveats are removed from Error Handling |
 | 0.1 | 2026-09-30 | RTL Design Sherpa | Initial release: the byte-granular RAPIDS, split from the RAPIDS Beats HAS |
 | 0.8 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.9 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Document Revision History
 

@@ -23,7 +23,7 @@
 
 # CDC Counter Display on the Nexys A7 -- The FPGA System
 
-**Version:** 1.1
+**Version:** 1.2
 **Date:** 2026-10-20
 **Purpose:** What is on the bench and in the bitstream for the CDC
 demonstration: the board, the two builds and how far apart they really are, the

@@ -29,8 +29,8 @@
 > reports off the Nexys A7), and the validation loop runs through an
 > on-board clock sweep instead of an STA tool.
 
-**Version:** 0.1 (initial publication; calibration runs pending)
-**Last Updated:** 2026-06-12
+**Version:** 0.4
+**Last Updated:** 2026-10-20
 **Companion to:** [`README.md`](README.md) (ASIC / ASAP7 paper)
 **Status:** Vivado flow live; spreadsheet seeded with datasheet numbers;
 hardware validation loop planned, not built.
@@ -452,6 +452,6 @@ on a Vivado run to learn the same thing.
 
 ---
 
-**Version:** 0.1
-**Last Updated:** 2026-06-12
+**Version:** 0.4
+**Last Updated:** 2026-10-20
 **Maintained By:** RTL Design Sherpa Project

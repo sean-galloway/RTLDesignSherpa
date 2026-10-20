@@ -26,7 +26,7 @@
 | Field | Value |
 |-------|-------|
 | Title | andesite DDR4/LPDDR4 Family Controller — Hardware Architecture Specification |
-| Version | 0.6 |
+| Version | 0.7 |
 | Date | 2026-10-20 |
 | Status | Integration edition: the scheduler macro is rewired to the P1 init/policy interface and the training/DFI/AXI4 plane assemblies plus `andesite_core` exist; 248 DV tests green at the DFI 4.0 boundary. Open questions remain in Chapter 6 |
 | Scope | Controller architecture to the DFI v4.0 boundary, for DDR4 and LPDDR4 |
@@ -80,6 +80,7 @@ confirmed, not claims whose substance is unverified.
 | 0.3 | 2026-10-04 | P2 carried per this chapter's inheritance table: `bank_timer`/`bank_timers`, `page_policy`, the read/write CAMs, `wr_splitter` + `axi_burst_chopper`, `rd_return_ring`, `dfi_cdc`, and `cmd_history_checker` land as `andesite_*` with scoria's suites ported green (the checker grows the DDR4 long/short spacing set the MAS names — additive checks, mechanism untouched). `powerdown_ctrl`/`dfi_signal_pack` ride as the dormant pair, uninstantiated, waking condition unchanged. `rd_intake`/`wr_intake` re-sequence to the front of P3: they instantiate `addr_mapper`, a P3 block — dependency order over this book's idealized list, recorded in the P2 gate. |
 | 0.2 | 2026-10-04 | P1 RTL landed per the RTL-bootstrap spec: `andesite_pkg`, `andesite_dfi_cmd_formatter`, `andesite_mode_register`, and `andesite_init_sequencer` exist with model-first DV. The init slice walks the DFI 4.0 BFM at DDR4-1600 (vendored jedec/ddr4-1600.csv timings) through JEDEC init with the anchored order proven at the pins and zero DRAM-state violations; gear-down entry exercised as a second configuration. The kmap book's command-decode citations now point at the RTL lines, so the drift gate is live; per-command boolean SOP verdicts land with the P3 maps. First-consumer BFM gaps the slice exposed and the DV repo fixed: the v4.0 `cs` rename in the receive path and wired roster, and presence-guarded optional wires. The MAS Table 2.2/2.2.2 port tables were reconciled with the landed interface (v4.0 names, 5-bit `op_i`, 3-bit MR index on `cmd_bank`); deferred ports (`dfi_alert_n`, `ca_o`/`ca_valid_o`) are recorded as follow-ons, not stubs. |
 | 0.6 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.7 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Table 0.3: Revision history
 

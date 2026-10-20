@@ -463,6 +463,13 @@ def _starts_with_heading(text: str) -> int:
     return 0
 
 
+# The page break every injector emits. The raw LaTeX is what breaks the page
+# on the pandoc->LaTeX PDF path (an unstyled build); the DOCX writer drops it,
+# so on the styled path the div stays empty and the DOCX post-processor's
+# explicit break run does the work, exactly as before.
+PAGEBREAK_DIV = '\n::: {.pagebreak}\n```{=latex}\n\\newpage\n```\n:::\n'
+
+
 def concat_markdown(files: list[pathlib.Path], pagebreak: bool,
                     strip_header: bool = False) -> str:
     parts = []
@@ -490,17 +497,22 @@ def concat_markdown(files: list[pathlib.Path], pagebreak: bool,
             nxt = _starts_with_heading(prepared[i + 1])
             if here and nxt and nxt > here:
                 continue
-            parts.append('\n::: {.pagebreak}\n:::\n')
+            parts.append(PAGEBREAK_DIV)
     return "\n".join(parts)
 
 # ---- Wavedrom handling ----
 
+# Heading levels that open a fresh page when the styles YAML says nothing:
+# chapters (h1) and their numbered sections (h2, "2.1 References").
+DEFAULT_PAGEBREAK_LEVELS = (1, 2)
+
+
 def pagebreak_levels_from_style(style_path) -> set:
     """Heading levels that open a fresh page.
 
-    h1 breaks by default; a styles YAML opts out with
-    `page_break_before: false` on h1, and opts a deeper level in with
-    `page_break_before: true`.
+    h1 and h2 break by default (DEFAULT_PAGEBREAK_LEVELS); a styles YAML
+    opts a level out with `page_break_before: false`, and opts a deeper
+    level in with `page_break_before: true`.
 
     Read at markdown-merge time so the break can be injected as a
     `::: {.pagebreak}` div. Doing it later, as a paragraph property on
@@ -519,10 +531,11 @@ def pagebreak_levels_from_style(style_path) -> set:
     levels = set()
     for n in range(1, 7):
         h_cfg = headings.get(f'h{n}')
+        default = n in DEFAULT_PAGEBREAK_LEVELS
         if isinstance(h_cfg, dict):
-            if h_cfg.get('page_break_before', n == 1):
+            if h_cfg.get('page_break_before', default):
                 levels.add(n)
-        elif n == 1:
+        elif default:
             levels.add(n)
     return levels
 
@@ -579,9 +592,10 @@ def inject_heading_pagebreaks(md: str, levels: set) -> str:
             orphan = (prev_heading_level is not None
                       and level > prev_heading_level
                       and not seen_content)
-            already = any(p.strip() == ':::' for p in out[-3:])
+            already = any(p == PAGEBREAK_DIV or p.strip() == ':::'
+                          for p in out[-3:])
             if not orphan and not already:
-                out.append('\n::: {.pagebreak}\n:::\n')
+                out.append(PAGEBREAK_DIV)
 
         out.append(line)
         prev_heading_level = level
@@ -1550,13 +1564,14 @@ def apply_docx_style(docx_path: pathlib.Path, style_config_path: pathlib.Path, q
                     ul_color = resolve_color(h_cfg['underline_color'], colors)
                     add_bottom_border(para, ul_color)
 
-            # Section headings that open a fresh page. h1 breaks by
-            # default -- set page_break_before: false on h1 in the
-            # styles YAML to keep it flowing; deeper levels break
-            # only with page_break_before: true. Outside the styling
-            # block above so an h1 with no styles-YAML entry still
-            # breaks.
-            if h_cfg.get('page_break_before', level == 1):
+            # Section headings that open a fresh page. h1 and h2 break
+            # by default (DEFAULT_PAGEBREAK_LEVELS) -- set
+            # page_break_before: false in the styles YAML to keep a
+            # level flowing; deeper levels break only with
+            # page_break_before: true. Outside the styling block above
+            # so a heading with no styles-YAML entry still breaks.
+            if h_cfg.get('page_break_before',
+                         level in DEFAULT_PAGEBREAK_LEVELS):
                 wants_break = para_idx not in keep_with_parent
                 # Keep the property for Word's benefit, but the
                 # explicit run is what actually survives to the PDF

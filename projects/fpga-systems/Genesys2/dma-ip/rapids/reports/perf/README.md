@@ -24,8 +24,8 @@
 
 # RAPIDS Byte-Granular DMA: Byte Characterization Report
 
-**Version:** 0.11  
-**Date:** 2026-10-03  
+**Version:** 0.12  
+**Date:** 2026-10-20  
 **Platform:** Genesys 2, 256-bit, 8 channels, 100 MHz  
 **Results:** `rapids_byte_perf_20261003_122406.json`
 

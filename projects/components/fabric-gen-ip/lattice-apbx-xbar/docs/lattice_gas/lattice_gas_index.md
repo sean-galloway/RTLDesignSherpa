@@ -24,8 +24,8 @@
 
 ## Overview
 
-**Version:** 1.0
-**Date:** 2026-10-12
+**Version:** 1.3
+**Date:** 2026-10-20
 **Purpose:** Detailed documentation of the Lattice code generator — how to invoke it, how to parameterize it, how it emits RTL, and how to extend it safely.
 
 ---

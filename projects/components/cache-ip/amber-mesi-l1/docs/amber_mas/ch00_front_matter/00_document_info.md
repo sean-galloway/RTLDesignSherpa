@@ -110,6 +110,7 @@ Simple dual-port RAM. The house `sdpram_core` primitive is the only allowed tag/
 | 0.5 | 2026-10-06 | seang | Initial amber MAS: index, ch01–ch06, styles, title, and pre-RTL kmap workbook. No RTL yet; all micro-architecture proposals are contracts for the landing implementation. |
 | 0.6 | 2026-10-11 | seang | Owner rulings recorded: RACK/WACK omitted from the family ACE contract (auto-pulse deprecated, removal tracked as A5). |
 | 0.7 | 2026-10-15 | seang | `l1_*` rename sweep (RTL commit 79dc18ccb; module + file names, chapter files renamed to match). ACE issue #106 corrections (2594d73bb): ReadNotSharedDirty read misses, PassDirty honoured (install M), CleanUnique/MakeUnique on AR with spec encodings. PF_GUARD documented (BUG-002, ab308d108). Stale dv paths and moved common-ip paths fixed. |
+| 0.8 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : amber MAS Document Revision History
 

@@ -46,5 +46,6 @@ The project ships in two phases that coexist in the same tree:
 |---------|------|-------|
 | 0.90 | 2026-07-18 | Initial project guide |
 | 0.91 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.92 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Revision history

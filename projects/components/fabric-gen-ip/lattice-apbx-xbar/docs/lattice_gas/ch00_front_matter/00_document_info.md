@@ -27,8 +27,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Lattice Generator Architecture Specification |
-| Version | 1.0 |
-| Date | 2026-10-12 |
+| Version | 1.3 |
+| Date | 2026-10-20 |
 | Status | Released |
 | Classification | Open Source - MIT License |
 
@@ -40,6 +40,7 @@
 |---------|------|--------|-------------|
 | 1.0 | 2026-10-12 | RTL Design Sherpa | Initial GAS release — verified against `apbx_xbar_generator.py`, `generate_xbars.py`, and emitted fixtures in `rtl/`. |
 | 1.2 | 2026-10-13 | seang | Rebrand: component codename **lattice**, directory `lattice-apbx-xbar`; book titles and document number (LATTICE-GAS-001) updated; RTL module names unchanged (`apbx_xbar_*`) |
+| 1.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Document Revision History
 

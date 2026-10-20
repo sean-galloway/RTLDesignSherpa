@@ -6,6 +6,7 @@
 |----------|------|--------|-------------|
 | 0.1 | 2026-10-06 | RTL Design Sherpa | Initial harness guide for the BCH Genesys 2 UART loop. |
 | 0.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.3 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Table 0.1: Revision history.
 

@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | andesite DDR4/LPDDR4 Family Controller Micro-Architecture Specification |
-| Version | 0.5 (draft) |
+| Version | 0.6 (draft) |
 | Date | October 5, 2026 |
 | Status | v0.5 with the integration pass landed (2026-10-05): the scheduler macro carries the P1 rewiring, `dfi_cmd_path` exists, and the training/DFI/AXI4 plane assemblies plus `andesite_core` are built and suite-green (248 tests at the DFI 4.0 boundary). This book expands the owner-reviewed HAS's changed and new blocks to signal level. Every claim is inherited from a named scoria source, cited to JESD79-4 / JESD209-4 / DFI 4.0 with the `§TBC(TASK-005)` discipline, or recorded as an open question in the HAS ch06 |
 | Classification | Open Source - MIT License |
@@ -42,6 +42,7 @@
 | 0.4 | 2026-10-04 | RTL Design Sherpa | P3 gate: the modified/new tier is landed. 30 design files: 15 carried-inherited rename-only (13 active + the `powerdown_ctrl`/`dfi_signal_pack` dormant pair), 8 carried-modified (`addr_mapper` +bg, `global_timers` +L/S, `cmd_arbiter` +L/S admission, `refresh_ctrl` +FGR, `zq_ctrl` +MPC submodule, `mem_cmd_scheduler` carrying the FGR/MPC/recovery consumer paths, `dfi_wr_serializer`/`dfi_rd_aligner` +DBI), 4 new (`odt_ctrl`, `rdlvl_ifc`, `ca_train_ifc`, `zq_mpc_lpddr4`), and the 3 P1 blocks (`dfi_cmd_formatter`, `init_sequencer` +TASK-006 recovery FSM, `mode_register`). The marking-pair gate (HAS reuse table vs this book's What-Changes table) is GREEN at 23=23. The kmap CITES for the address-decode and MR-semantics fences now point at RTL anchor blocks in `addr_mapper`/`mode_register` (drift gate live, byte-identical reruns). `dfi_cmd_path` + `dfi_plane` remain per the plan: cmd_path rides the T9 integration pass; the plane is P4. The scheduler macro's init/mode_register rewiring and its macro-level suite land with that same pass. |
 | 0.3 | 2026-10-04 | RTL Design Sherpa | P2 carry reconciliation: the inheritance table's ten active blocks exist as `andesite_*` with scoria's port lists (carry-diff gates prove rename/import/header-only deltas); `cmd_history_checker` carries the DDR4 L/S growth named on the scheduler page. The dormant pair exists uninstantiated. `rd_intake`/`wr_intake` land with P3's `addr_mapper` (they instantiate it). |
 | 0.2 | 2026-10-04 | RTL Design Sherpa | P1 RTL reconciliation: Tables 2.2/2.2.2 (formatter, init_sequencer) and the mode_register interface now match the landed modules — v4.0 `dfi_cs` naming, 5-bit `op_i` carrying `OP_MPC`, 3-bit MR index on `cmd_bank`, 6-bit MR addresses, `csr_mrN_image` init payloads. Deferred ports (`dfi_alert_n`, `ca_o`/`ca_valid_o`) are recorded as follow-ons (TASK-006 / LPDDR4 breadth), not stubs. The kmap book's command-decode citations re-pointed at the RTL (drift gate live); per-command boolean SOP verdicts land with P3. |
+| 0.6 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ## Document Purpose
 

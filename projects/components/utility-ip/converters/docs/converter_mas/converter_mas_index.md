@@ -24,7 +24,7 @@
 # Converters Micro-Architecture Specification Index
 
 **Component:** Converters (Data Width and Protocol Conversion Modules)
-**Version:** 1.10
+**Version:** 1.11
 **Date:** 2026-10-20
 **Purpose:** Detailed micro-architecture specification for Converters component
 

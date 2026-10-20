@@ -25,8 +25,8 @@
 
 **Hierarchical Intelligent Vector Environment**
 
-**Version:** 0.2
-**Date:** 2026-10-13
+**Version:** 0.3
+**Date:** 2026-10-20
 **Purpose:** Block-level micro-architecture specification for the HIVE
 distributed control and monitoring subsystem — implementation intent for
 the RTL that has not been written yet.

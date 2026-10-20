@@ -23,7 +23,7 @@
 
 # RAPIDS Characterization — Project Guide
 
-**Version:** 0.92
+**Version:** 0.93
 **Date:** 2026-10-20
 **Purpose:** Operator / developer guide for the Nexys A7 `rapids_beats`
 project — how it works, how to build/simulate/program/run it, and the harness

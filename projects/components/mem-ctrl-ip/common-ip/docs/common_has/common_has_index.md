@@ -23,7 +23,7 @@
 
 # mem-ctrl-ip Family — Overarching Hardware Architecture Specification
 
-**Version:** 0.2
+**Version:** 0.3
 **Date:** 2026-10-20
 **Status:** v0.1, the vision edition. This book is the family-level HAS: the
 plane-stack architecture the partner set out during the Phase-2 common-IP

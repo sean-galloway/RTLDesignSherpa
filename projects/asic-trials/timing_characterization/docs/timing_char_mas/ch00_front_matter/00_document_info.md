@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Timing Characterization Micro-Architecture Specification |
-| Version | 1.0 |
+| Version | 1.1 |
 | Date | March 18, 2026 |
 | Status | Released |
 | Classification | Open Source - MIT License |
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 1.0 | 2026-03-18 | RTL Design Sherpa | Initial release |
+| 1.1 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ## Document Purpose
 

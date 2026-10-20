@@ -38,7 +38,7 @@ Latest revision of every PDF under `docs/`.
 | [RTL_AMBA_AXI5_Lite.pdf](pdfs/RTL_AMBA_AXI5_Lite.pdf) | — | 6.4 MB | `docs/pdfs/` |
 | [RTL_AMBA_AXI5_Stream.pdf](pdfs/RTL_AMBA_AXI5_Stream.pdf) | — | 1.8 MB | `docs/pdfs/` |
 | [RTL_AMBA_Monitor.pdf](pdfs/RTL_AMBA_Monitor.pdf) | — | 12.4 MB | `docs/pdfs/` |
-| [RTL_AMBA_Monitor_Whitepaper.pdf](pdfs/RTL_AMBA_Monitor_Whitepaper.pdf) | — | 1.4 MB | `docs/pdfs/` |
+| [Ocelus_White_Paper.pdf](pdfs/Ocelus_White_Paper.pdf) | — | 1.4 MB | `docs/pdfs/` |
 | [RTL_AMBA_Shared.pdf](pdfs/RTL_AMBA_Shared.pdf) | — | 8.9 MB | `docs/pdfs/` |
 | [RTL_AMBA_WB4.pdf](pdfs/RTL_AMBA_WB4.pdf) | — | 2.5 MB | `docs/pdfs/` |
 | [RTL_CDC.pdf](pdfs/RTL_CDC.pdf) | — | 6.1 MB | `docs/pdfs/` |

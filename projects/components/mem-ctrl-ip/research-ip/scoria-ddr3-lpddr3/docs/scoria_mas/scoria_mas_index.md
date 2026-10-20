@@ -25,8 +25,8 @@
 
 ## Overview
 
-**Version:** 0.1 (first issue)
-**Date:** 2026-10-07
+**Version:** 0.3
+**Date:** 2026-10-20
 **Status:** v0.1 — the HAS taken one level down, written against complete RTL.
 scoria's RTL is complete and sim-verified (221 tests and 9 formal blocks
 measured 2026-10-01; TASK-001's bounded advanced modes then landed with their

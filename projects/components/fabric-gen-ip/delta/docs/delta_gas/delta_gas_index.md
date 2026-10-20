@@ -24,8 +24,8 @@
 
 ## Overview
 
-**Version:** 1.0
-**Date:** 2026-10-12
+**Version:** 1.2
+**Date:** 2026-10-20
 **Purpose:** Detailed documentation of the Delta AXI-Stream fabric generator — flat mode is implemented, mesh mode is planned per the 2026-10-13 design spec, and tree mode is retired — covering how to invoke it, how to configure it, how it emits RTL, and how to extend it safely.
 
 ---

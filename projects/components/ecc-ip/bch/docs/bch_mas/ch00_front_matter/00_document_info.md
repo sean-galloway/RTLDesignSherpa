@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Binary BCH Codec Micro-Architecture Specification |
-| Version | 0.2 (draft) |
+| Version | 0.3 (draft) |
 | Date | October 3, 2026 |
 | Status | Draft — no RTL exists; every structural choice is either carried from the PRD or open and tied to a PRD decision ID |
 | Classification | Open Source - MIT License |
@@ -39,6 +39,7 @@
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-03 | RTL Design Sherpa | First draft, written before any RTL exists. Carries the HAS architecture one level down: per-block signal-level intent, FSM policy, timing, and signal-contract references. Numbers are analytic placeholders derived from parameters; none are measured. |
 | 0.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.3 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ## Document Purpose
 

@@ -134,6 +134,7 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.98 | 2026-10-17 | seang | Shared descriptor engine: `descriptor_engine_shared` (`SHARED_ENGINES = 1`, the default) in `02_scheduler_group_array.md` (new Figure 2.2.1), `05_descriptor_engine.md`, `01_stream_core.md` and `01_architecture.md`, with measured area. 16-channel build: `stream_top_ch16`, the derived 16-channel register map (`ch04_registers/register_map.md`, new section), `REG_NCH` in `14_apb_config.md`. RTL fixes documented: write-engine W-phase FIFO room gate (`12_axi_write_engine.md`), `descriptor_ready` requires channel enable (`04_scheduler.md`), perf-profiler channel ID widened for 16 channels (`15_perf_profiler.md`). Diagrams 01_stream_core, 10_axi_write_engine and 14_stream_config_block updated. |
 | 0.99 | 2026-10-17 | seang | `02_scheduler_group_array.md`: post-route area of the per-channel and shared descriptor engines on the Genesys 2 board build (4,974 / 4,120 -> 3,825 / 1,725 LUTs / flip-flops, 1,840 LUTs of it the per-channel FIFOs), with a pointer to the HAS before-and-after. |
 | 0.100 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.101 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : STREAM MAS Document Revision History
 

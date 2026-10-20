@@ -47,7 +47,10 @@ MAS_DIR="fpga_systems_mas"
 MAS_INDEX="${MAS_DIR}/fpga_systems_mas_index.md"
 STYLES="${MAS_DIR}/fpga_systems_mas_styles.yaml"
 ASSETS="${MAS_DIR}/assets"
-OUT_BASE="FPGA_SYSTEMS_MAS_v1.0"
+# The revision lives in the index's "**Version:**" line, not here.
+REV="$(grep -m1 -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' "$MAS_INDEX" | grep -oE '[0-9]+\.[0-9]+$' || true)"
+if [[ -z "$REV" ]]; then echo "ERROR: no **Version:** line in $MAS_INDEX" >&2; exit 1; fi
+OUT_BASE="FPGA_SYSTEMS_MAS_v${REV}"
 
 # Fail early and by name. A missing styles file or logo otherwise surfaces as a
 # pandoc error that names neither.

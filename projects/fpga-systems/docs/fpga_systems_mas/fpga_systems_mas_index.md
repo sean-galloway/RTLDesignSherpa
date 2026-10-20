@@ -24,8 +24,8 @@
 # FPGA Systems Host Layer Specification
 
 **Component:** The shared host-side board and UART layer (`projects/fpga-systems/bin/`)
-**Version:** 1.0
-**Last Updated:** 2026-09-30
+**Version:** 1.1
+**Last Updated:** 2026-10-20
 **Status:** Current. The layer is in production use by every board flow in the
 repository. One part is explicitly unverified and is flagged where it appears:
 the JTAG identity readback's hardware path has never been exercised against a
@@ -124,6 +124,7 @@ the PDF.
 | Version | Date | Change |
 | --- | --- | --- |
 | 1.0 | 2026-09-30 | First edition. Filed as tooling TASK-024. |
+| 1.1 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ---
 

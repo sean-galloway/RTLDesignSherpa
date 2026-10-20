@@ -23,8 +23,8 @@
 
 # amber MAS Index
 
-**Version:** 0.7
-**Date:** 2026-10-15
+**Version:** 0.8
+**Date:** 2026-10-20
 **Purpose:** Micro-architecture specification for the amber blocking MESI snoopy L1 cache
 
 **Scope:** Cycle-level behavior, per-module micro-architecture, and the signal-contract / kmap workbook for `amber_top` (pair-rig top) and `amber_ace_top` (onyx-rig top). The shared cache core is `l1_core` and its `l1_*` FUBs in `cache-ip/common-ip/`; amber owns the two tops, `amber_ace_issue`, and the pair-rig fabric. The binding architecture lives in the [amber HAS](../amber_has/amber_has_index.md); this book closes the implementation decisions the HAS deferred.

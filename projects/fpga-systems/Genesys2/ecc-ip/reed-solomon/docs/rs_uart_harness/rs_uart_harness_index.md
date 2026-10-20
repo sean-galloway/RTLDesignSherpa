@@ -23,7 +23,7 @@
 
 # Reed-Solomon UART Harness
 
-**Version:** 0.2
+**Version:** 0.3
 **Date:** 2026-10-20
 **Purpose:** What the RS(252,236) t=8 UART harness is, what is inside it, how
 the pieces connect, and why the FPGA testing choices are shaped the way they

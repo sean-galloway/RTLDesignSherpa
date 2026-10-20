@@ -23,7 +23,7 @@
 
 # Lattice Hardware Architecture Specification Index
 
-**Version:** 1.3
+**Version:** 1.4
 **Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for Lattice component
 

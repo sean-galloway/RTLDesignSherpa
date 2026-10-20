@@ -24,7 +24,7 @@
 # RLB Top Specification
 
 **Component:** Retro Legacy Blocks subsystem integration (`rlb_top`)
-**Version:** 1.1
+**Version:** 1.2
 **Last Updated:** 2026-10-20
 **Status:** RTL Functional -- all ten windows implemented and answering, the
 interrupt fabric routing all six sourcing blocks to both 8259s and the IOAPIC,
@@ -129,6 +129,7 @@ surprised somebody:
 |---------|------|--------|---------|
 | 1.0 | 2026-09-30 | RTL Design Sherpa | Initial release. Documents the ten-window map, the interrupt fabric (RLB TASK-015), the cascade cross-connect (RLB/pic_8259 TASK-001), boot-interrupt rerouting (RLB TASK-008) and the two deliberate integration gaps. Written because the routing table and the bring-up order had existed only in the testbench. |
 | 1.1 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 1.2 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ---
 

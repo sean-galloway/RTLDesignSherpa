@@ -26,7 +26,7 @@
 | Field | Value |
 |---|---|
 | Document | mem-ctrl-ip Family — Overarching Hardware Architecture Specification |
-| Version | 0.2 |
+| Version | 0.3 |
 | Date | 2026-10-20 |
 | Status | Partner-review draft — the owner reads and comments before scoria/andesite books are moved to this stack |
 | Owner | mem-ctrl-ip family (common-ip/docs/) |
@@ -39,6 +39,7 @@
 |---|---|---|
 | 0.1 | 2026-10-10 | First edition. The Phase-2 common-IP campaign (2026-10-09 → 2026-10-10) extracted the shared package, eight planes, and seventeen FUBs into common-ip; this book records the architecture those blocks implement — the partner's planeed-stack vision — as the family's binding contract. Doctrines added by the campaign are Chapter 4; the original five doctrines remain in [02_family_doctrine.md](../../02_family_doctrine.md) and are not restated. |
 | 0.2 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.3 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 ## Related documents
 

@@ -7,8 +7,8 @@ sections, not pages) and the falcon-suite design documentation
 the falcon suite. Derived from condensed study notes; emphasis is on what
 the as-built kestrel core actually does and verifies, with the RISC-V
 specification cited as the authority.
-**Version:** 0.1
-**Last Updated:** 2026-10-06
+**Version:** 0.2
+**Last Updated:** 2026-10-20
 **Status:** Draft. Personal study notes.
 
 ---
@@ -90,5 +90,6 @@ merlin (Chapter 7).
 | Version | Date | Change |
 | --- | --- | --- |
 | 0.1 | 2026-10-06 | First draft |
+| 0.2 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 
 : Version history

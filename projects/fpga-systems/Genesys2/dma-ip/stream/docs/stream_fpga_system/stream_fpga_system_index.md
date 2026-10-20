@@ -23,7 +23,7 @@
 
 # STREAM on the Genesys 2 -- The FPGA System
 
-**Version:** 1.2
+**Version:** 1.3
 **Date:** 2026-10-20
 **Purpose:** What is on the bench and in the bitstream for the STREAM
 characterization and monitor-validation system: the board, the harness that

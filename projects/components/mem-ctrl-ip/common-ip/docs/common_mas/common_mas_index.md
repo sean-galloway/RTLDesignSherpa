@@ -23,7 +23,7 @@
 
 # mem-ctrl-ip Common IP — Micro-Architecture Specification
 
-**Version:** 0.2
+**Version:** 0.3
 **Date:** 2026-10-20
 **Status:** v0.1. One chapter per common block. The architecture these blocks
 implement — the plane stack, the descriptor seam, the doctrines — is the

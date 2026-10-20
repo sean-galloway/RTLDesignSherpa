@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Simplified LPDDR2 study-notes PDF generator. Builds
-# SIMPLIFIED_LPDDR2_v0.1.docx/.pdf from the Markdown sources using the
+# SIMPLIFIED_LPDDR2_v<rev>.docx/.pdf from the Markdown sources using the
 # RTLDesignSherpa md_to_docx.py pipeline. REPO_ROOT must point at a
 # checkout of RTLDesignSherpa.
 
@@ -13,7 +13,10 @@ cd "$SCRIPT_DIR"
 
 INDEX="simplified_lpddr2_index.md"
 STYLES="simplified_lpddr2_styles.yaml"
-OUT_BASE="SIMPLIFIED_LPDDR2_v0.1"
+# The revision lives in the index's "**Version:**" line, not here.
+REV="$(grep -m1 -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' "$INDEX" | grep -oE '[0-9]+\.[0-9]+$' || true)"
+if [[ -z "$REV" ]]; then echo "ERROR: no **Version:** line in $INDEX" >&2; exit 1; fi
+OUT_BASE="SIMPLIFIED_LPDDR2_v${REV}"
 
 for required in "$INDEX" "$STYLES"; do
   if [[ ! -f "$required" ]]; then

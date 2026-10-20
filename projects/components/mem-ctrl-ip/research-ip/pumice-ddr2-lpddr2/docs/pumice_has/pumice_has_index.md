@@ -23,7 +23,7 @@
 
 # DDR2 / LPDDR2 Family Controller Hardware Architecture Specification Index
 
-**Version:** 1.1-draft
+**Version:** 1.2-draft
 **Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for the unified DDR2 / LPDDR2 memory controller family
 

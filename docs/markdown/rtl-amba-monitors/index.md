@@ -30,7 +30,7 @@ chapter list, which is also the PDF build order) and an `overview.md`.
 
 | Document | Chapters | PDF |
 |---|---|---|
-| [The Ocelus as a Design Surface](whitepaper/index.md) -- the integrator's white paper | [whitepaper/](whitepaper/overview.md) | `docs/pdfs/RTL_AMBA_Monitor_Whitepaper.pdf` (`generate_rtl_pdfs.sh monitor-wp`) |
+| [The Ocelus as a Design Surface](whitepaper/index.md) -- the integrator's white paper | [whitepaper/](whitepaper/overview.md) | `docs/pdfs/Ocelus_White_Paper.pdf` (`generate_rtl_pdfs.sh monitor-wp`) |
 
 ## References
 
