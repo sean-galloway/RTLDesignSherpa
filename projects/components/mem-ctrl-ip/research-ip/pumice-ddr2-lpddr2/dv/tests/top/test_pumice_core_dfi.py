@@ -1734,7 +1734,7 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
                                   round(100.0 * ceil, 1), round(cpa, 2)))
     # static_close is no longer held to the exact-100% claim. BUG-021
     # (2026-10-03) now enforces tFAW/tRRD at the fire stage -- legal, and
-    # formal-proven in formal/pumice -- and the 8-bank close-page stream
+    # formal-proven in formal/mc_common -- and the 8-bank close-page stream
     # front-loads ACTs into the tFAW window: the held ACT parks head-of-line in
     # the single-issue output register, in front of ready columns, so the
     # write channel pays tFAW waits it cannot hide. Measured 2026-10-08 at

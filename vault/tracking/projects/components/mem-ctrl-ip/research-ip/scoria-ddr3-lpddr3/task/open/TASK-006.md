@@ -19,7 +19,7 @@ area tally is being read as coverage it does not have. Both blocks carry real
 sim suites, so this is about what FORMAL adds, not about whether the blocks
 work.
 **Status:** OPEN. Measured 2026-10-01 while porting the proofs from
-`formal/pumice`. Both were already disabled in pumice's wrappers; the port
+`formal/mc_common`. Both were already disabled in pumice's wrappers; the port
 inherited the gaps along with the properties.
 
 ## dfi_cdc: was 5 of 7 commented out, now 4

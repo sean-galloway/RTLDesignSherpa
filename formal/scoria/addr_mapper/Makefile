@@ -6,9 +6,11 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 SCORIA    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3
+# scoria_pkg imports and re-exports mc_common_pkg (the family package in common-ip)
+MC        := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(SCORIA)/rtl/includes
-PKGS := $(SCORIA)/rtl/includes/scoria_pkg.sv
+INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(MC)/rtl/includes -I$(SCORIA)/rtl/includes
+PKGS := $(MC)/rtl/includes/mc_common_pkg.sv $(SCORIA)/rtl/includes/scoria_pkg.sv
 DUT  := $(SCORIA)/rtl/fub/scoria_addr_mapper.sv
 
 .PHONY: prove cover all clean

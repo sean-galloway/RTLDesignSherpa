@@ -27,7 +27,7 @@
 **Location:** `rtl/fub/`
 **Category:** in-flight read data buffer
 **Parent:** `scoria_axi4_plane`
-**Status:** complete and sim-verified; formal suite `formal/scoria/rd_return_ring/scoria_rd_return_ring.sby`
+**Status:** complete and sim-verified; formal suite `formal/mc_common/mc_rd_return_ring/rd_return_ring.sby`
 
 ---
 
@@ -151,5 +151,5 @@ Allocation is combinational from `alloc_valid_i` to `alloc_ready_o`. DFI return 
 - **Two non-synthesis input-contract assertions** at `scoria_rd_return_ring.sv:280-283`:
   - `assert (!(dfi_ret_valid_i && !w_iq_rd_valid))` — a DFI return beat arrived with no ticket in flight.
   - `assert (!(issue_valid_i && w_empty))` — a ticket was issued while the ring was empty.
-- **Formal treatment:** both assertions are stated as assumptions in `formal/scoria/rd_return_ring/formal_scoria_rd_return_ring.sv`. The proof takes them as given, and the simulation checks remain as independent cross-checks.
+- **Formal treatment:** both assertions are stated as assumptions in `formal/mc_common/mc_rd_return_ring/formal_rd_return_ring.sv`. The proof takes them as given, and the simulation checks remain as independent cross-checks.
 - **BRAM latency trap:** the data storage is reset-free so Vivado maps it to Block RAM. Read latency is exactly one cycle; adding an output register without matching the fetch tag pipeline would silently corrupt the data path.

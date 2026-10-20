@@ -243,7 +243,7 @@ def find_flat(d: pathlib.Path, name: str) -> pathlib.Path | None:
 
 def _gitignored(path: pathlib.Path) -> bool:
     """True if git ignores this path (an area that deliberately does not
-    commit flats -- formal/pumice/.gitignore documents the pattern)."""
+    commit flats -- formal/mc_common/.gitignore documents the pattern)."""
     try:
         rel = path.resolve().relative_to(ROOT.resolve())
     except ValueError:
@@ -262,7 +262,7 @@ def check_flat(entry, env) -> tuple[str, str]:
         if n == 0 and _gitignored(d / f"{entry['name']}_flat.v"):
             return ("SKIPPED",
                     "this area gitignores *_flat.v -- flats are built, not "
-                    "committed (formal/pumice pattern); nothing to go stale")
+                    "committed (formal/mc_common pattern); nothing to go stale")
         return "UNHANDLED", ("no committed *_flat.v" if n == 0
                              else "multiple committed *_flat.v; ambiguous")
 

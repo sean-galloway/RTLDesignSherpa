@@ -53,7 +53,7 @@ check-tools:
 # 2026-09-11: `make formal` ran neither, so ninety task directories had no
 # entry point and nobody noticed twelve flat files drifting from their RTL.
 .PHONY: formal
-formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-pumice formal-scoria formal-apbx-xbar formal-bridge
+formal: formal-rtl formal-converters formal-stream formal-rapids formal-rlb formal-mc-common formal-scoria formal-apbx-xbar formal-bridge
 
 # Everything whose RTL lives in repo-root rtl/.
 .PHONY: formal-rtl
@@ -88,13 +88,14 @@ formal-stream:
 formal-rapids:
 	$(MAKE) -C rapids prove-all
 
-# pumice DDR2/LPDDR2 memory controller. Added 2026-09-28; wired into the
-# `formal:` list in the SAME edit, for the reason the RLB note below gives.
-# Every pumice proof flattens with sv2v first, so this MUST go through
-# formal/pumice/Makefile rather than invoking sby directly.
-.PHONY: formal-pumice
-formal-pumice:
-	$(MAKE) -C pumice all
+# mc_common: the memory-controller family's shared FUBs (mc_* in common-ip).
+# Was formal-pumice (added 2026-09-28) until those FUBs moved to common-ip; the
+# pumice proofs moved with them on 2026-10-19 (formal/mc_common/Makefile header).
+# Every proof flattens with sv2v first, so this MUST go through
+# formal/mc_common/Makefile rather than invoking sby directly.
+.PHONY: formal-mc-common
+formal-mc-common:
+	$(MAKE) -C mc_common all
 
 # scoria DDR3/LPDDR3 memory controller. Added 2026-10-01. Like pumice, every
 # scoria proof flattens with sv2v first, so this MUST go through

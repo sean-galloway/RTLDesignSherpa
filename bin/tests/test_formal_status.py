@@ -305,7 +305,7 @@ def test_staged_mode_catches_staged_flat(tmp_path):
 
 
 def test_gitignored_flat_area_is_skipped(tmp_path):
-    """An area that gitignores *_flat.v (the formal/pumice pattern) skips
+    """An area that gitignores *_flat.v (the formal/mc_common pattern) skips
     cleanly instead of failing -- there is no committed flat to go stale."""
     repo = tmp_path / "scratch"
     proof = repo / "formal" / "demo" / "block1"

@@ -78,7 +78,7 @@ real spacing against a history the wrapper keeps itself. If the proof fails, the
 contract is weaker than the port list suggests. That is how ISSUE-018 was found,
 and after the fix the same proof passes with the same assumptions, which is the
 evidence the fix is complete. See [[formal]] and
-`formal/pumice/global_timers`.
+`formal/mc_common/mc_global_timers`.
 
 **Reviewer's tell:** a consumer that carries a comment explaining why it does
 NOT trust a neighbour's status output. That comment is a bug report against the

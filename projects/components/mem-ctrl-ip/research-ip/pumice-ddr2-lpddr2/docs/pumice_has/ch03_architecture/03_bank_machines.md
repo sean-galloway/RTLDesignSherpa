@@ -104,4 +104,4 @@ The timers consume the arbiter's `evt_act` (with `evt_act_rank`), `evt_rd`, and 
 
 tFAW / tRRD are kept per-rank because they are device-local activate-stagger limits; the data-bus turnaround windows (tWTR / tRTW / tCCD) are global because the DQ bus is shared across ranks.
 
-All five are registered from the **next** state of their counters rather than the current one, so the arbiter may AND them into its pick directly and every JEDEC window holds. They were previously flopped from the current state, which left each gate open for one cycle past the command that should have closed it -- see pumice ISSUE-018, and `formal/pumice/global_timers` for the proof that the published outputs are now sufficient on their own.
+All five are registered from the **next** state of their counters rather than the current one, so the arbiter may AND them into its pick directly and every JEDEC window holds. They were previously flopped from the current state, which left each gate open for one cycle past the command that should have closed it -- see pumice ISSUE-018, and `formal/mc_common/mc_global_timers` for the proof that the published outputs are now sufficient on their own.

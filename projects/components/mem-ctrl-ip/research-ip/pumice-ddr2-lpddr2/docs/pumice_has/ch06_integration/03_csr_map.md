@@ -118,7 +118,7 @@ Packed timing parameters in MC (`aclk`) cycles. All fields are `sw = rw`,
 
 Every JEDEC timing field in this map is a count of MC cycles to BLOCK, so the
 command spacing the DRAM sees is **N+1**. Proved and bounded tight in
-`formal/pumice/{bank_timer,mc_global_timers}`; see
+`formal/mc_common/{mc_bank_timer,mc_global_timers}`; see
 `pumice_mas/ch04_apb_config/03_runtime_overrides.md` for what that means when
 programming a part from its datasheet, and pumice TASK-034 for the open question
 of recovering the cycle.

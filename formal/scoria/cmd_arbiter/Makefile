@@ -7,10 +7,12 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 SV2V      ?= sv2v
 SCORIA    := $(REPO_ROOT)/projects/components/mem-ctrl-ip/research-ip/scoria-ddr3-lpddr3
+# scoria_pkg imports and re-exports mc_common_pkg (the family package in common-ip)
+MC        := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(SCORIA)/rtl/includes
-PKGS := $(SCORIA)/rtl/includes/scoria_pkg.sv
-DUT  := $(SCORIA)/rtl/fub/scoria_global_timers.sv $(SCORIA)/rtl/fub/scoria_cmd_arbiter.sv
+INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(MC)/rtl/includes -I$(SCORIA)/rtl/includes
+PKGS := $(MC)/rtl/includes/mc_common_pkg.sv $(SCORIA)/rtl/includes/scoria_pkg.sv
+DUT  := $(MC)/rtl/fub/mc_global_timers.sv $(MC)/rtl/fub/mc_cmd_arbiter.sv $(SCORIA)/rtl/fub/scoria_cmd_arbiter.sv
 
 .PHONY: prove nofix cover all clean
 # `all` deliberately excludes nofix: that task re-proves the PRE-FIX gate and
@@ -29,8 +31,14 @@ nofix: arb_flat.v
 cover: arb_flat.v
 	sby -f scoria_cmd_arbiter.sby cover
 
+# scoria_cmd_arbiter wraps mc_cmd_arbiter, whose always_comb blocks read whole
+# unpacked arrays; sv2v lists them in explicit `always @(a or b ...)` lists that
+# yosys rejects. A combinational sensitivity list carries no meaning for yosys,
+# so every non-edge list is rewritten to @(*) (same as formal/mc_common/mc_cmd_arbiter).
+COMB_STAR := sed -E '/(posedge|negedge)/!s/^([[:space:]]*)always @\(.*\) begin$$/\1always @(*) begin/'
+
 arb_flat.v: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
+	$(SV2V) $(INC) $(PKGS) $(DUT) | $(COMB_STAR) > $@
 
 clean:
 	rm -rf *_flat.v arb_flat.v scoria_cmd_arbiter_prove \
@@ -54,4 +62,4 @@ check-flat: .check_flat_tmp
 	fi
 
 .check_flat_tmp: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
+	$(SV2V) $(INC) $(PKGS) $(DUT) | $(COMB_STAR) > $@

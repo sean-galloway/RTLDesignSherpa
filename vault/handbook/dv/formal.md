@@ -382,7 +382,7 @@ packed. The RTL is identical hardware; only the flat file changes.
 
 ## A bound on one input can make a property about another vacuous (2026-09-28)
 
-`formal/pumice/global_timers` proves five JEDEC windows. One of them, tFAW,
+`formal/mc_common/mc_global_timers` proves five JEDEC windows. One of them, tFAW,
 passed a mutation that broke the tFAW logic outright -- every ACT installed into
 slot 0, so the other three slots never fill and the sliding window never closes.
 Nothing caught it.
@@ -424,7 +424,7 @@ made it unobservable.
 
 ## Pick the solver for the state, not by habit (2026-09-28)
 
-`formal/pumice/rd_return_ring` carries a real BRAM array (`DEPTH*BEATS` words)
+`formal/mc_common/mc_rd_return_ring` carries a real BRAM array (`DEPTH*BEATS` words)
 plus a `gaxi_fifo_sync` and an anyconst pair indexing that array. With
 `smtbmc z3` it reached step 17 and then took 3m48s for step 18, on a run whose
 depth was 28 -- it was never going to finish. With `smtbmc bitwuzla`, same

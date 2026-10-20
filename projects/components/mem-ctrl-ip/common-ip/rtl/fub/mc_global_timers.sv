@@ -118,7 +118,7 @@ module mc_global_timers
     //
     // Deriving the next state ONCE and feeding both flops from it removes the
     // class, not just the instances: there is no longer a second derivation to
-    // fall out of step. Proved in formal/pumice/mc_global_timers, whose
+    // fall out of step. Proved in formal/mc_common/mc_global_timers, whose
     // environment now assumes only what these outputs publish -- no
     // compensating term -- and still holds every JEDEC window.
     //=========================================================================

@@ -27,7 +27,7 @@
 **Location:** `rtl/fub/`
 **Category:** scheduling window
 **Parent:** `scoria_axi4_plane`
-**Status:** complete and sim-verified; formal suite `formal/scoria/rd_cmd_cam/scoria_rd_cmd_cam.sby`
+**Status:** complete and sim-verified; formal suite `formal/mc_common/mc_rd_cmd_cam/rd_cmd_cam.sby`
 
 ---
 
@@ -181,6 +181,6 @@ Insert is combinational from `ins_valid_i` to `ins_ready_o`. The scheduler vecto
 
 ## Notes
 
-- **Input-contract assertion at `scoria_rd_cmd_cam.sv:321-322`:** a non-synthesis assertion fires if the scheduler issues a slot that is not valid. This is an input contract on the issuer, not a property of the CAM. It is mirrored here because the block historically had no dedicated DV suite. The same contract is stated as an assumption in `formal/scoria/rd_cmd_cam/formal_scoria_rd_cmd_cam.sv`, so the formal proof takes it as given.
+- **Input-contract assertion at `scoria_rd_cmd_cam.sv:321-322`:** a non-synthesis assertion fires if the scheduler issues a slot that is not valid. This is an input contract on the issuer, not a property of the CAM. It is mirrored here because the block historically had no dedicated DV suite. The same contract is stated as an assumption in `formal/mc_common/mc_rd_cmd_cam/formal_scoria_rd_cmd_cam.sv`, so the formal proof takes it as given.
 - **Formal coverage now exists:** the block has a dedicated `scoria_rd_cmd_cam.sby` suite. The simulation assertion remains as an independent cross-check and is guarded from synthesis.
 - **CAM depth is not the in-flight limit:** `NUM_ENTRIES` is only the scheduling window. The number of reads the controller can hold in flight is bounded by `scoria_rd_return_ring.DEPTH`, not by this CAM.

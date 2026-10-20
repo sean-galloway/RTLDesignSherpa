@@ -65,7 +65,7 @@ new coverage, and four items are specific enough to name now:
    Carried forward unchanged it would prove the wrong thing and appear green.
 
 **Important — the formal area is the right home for the spacing properties.**
-No assertions go in the RTL. pumice's `formal/pumice` area proved nine modules
+No assertions go in the RTL. pumice's `formal/mc_common` area proved nine modules
 and found two real bugs, including the `global_timers` next-state defect this
 specification tells scoria to inherit the fix for. scoria should open its own
 formal area early, and the `cmd_history_checker` — which independently re-derives

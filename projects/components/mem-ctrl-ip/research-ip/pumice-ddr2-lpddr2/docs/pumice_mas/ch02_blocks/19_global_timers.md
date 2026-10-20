@@ -76,7 +76,7 @@ fire-history terms to the turnarounds after a board ILA capture showed a tRTW of
 20 honoured as 1), while tFAW and tRRD had no compensation and were simply
 exposed. The counters and the readiness flags are now derived from one
 next-state function, so there is no second derivation to fall out of step. See
-pumice ISSUE-018 and `formal/pumice/global_timers`, whose proof assumes only
+pumice ISSUE-018 and `formal/mc_common/mc_global_timers`, whose proof assumes only
 what these outputs publish.
 
 Default after reset is `'1` / `1'b1` (all windows open), which is correct given
@@ -108,7 +108,7 @@ outputs are now registered from the next state, the two views are **aligned in
 the same cycle** -- `*_window_ok` equals `!obs_*_nz` throughout. They used to be
 one cycle apart, which is the same lag that was the bug; a debug read that
 disagreed with the gate would misdirect any investigation of a spacing
-violation. Asserted in `formal/pumice/global_timers`.
+violation. Asserted in `formal/mc_common/mc_global_timers`.
 
 ```
 obs_faw_nz_o  [NUM_RANKS]   obs_trrd_nz_o [NUM_RANKS]

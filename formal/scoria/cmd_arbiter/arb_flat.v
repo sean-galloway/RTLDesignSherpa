@@ -1,4 +1,4 @@
-module scoria_global_timers (
+module mc_global_timers (
 	mc_clk,
 	mc_rst_n,
 	t_faw_i,
@@ -10,11 +10,23 @@ module scoria_global_timers (
 	evt_act_rank_i,
 	evt_rd_i,
 	evt_wr_i,
+	t_ccd_l_i,
+	t_ccd_s_i,
+	t_rrd_l_i,
+	t_rrd_s_i,
+	evt_act_bg_i,
+	evt_col_bg_i,
+	cand_rank_i,
+	cand_bg_i,
 	tfaw_window_ok_o,
 	trrd_window_ok_o,
 	twtr_global_ok_o,
 	trtw_window_ok_o,
 	tccd_window_ok_o,
+	tccd_l_window_ok_o,
+	tccd_s_window_ok_o,
+	trrd_l_window_ok_o,
+	trrd_s_window_ok_o,
 	obs_faw_nz_o,
 	obs_trrd_nz_o,
 	obs_twtr_nz_o,
@@ -26,6 +38,9 @@ module scoria_global_timers (
 	parameter signed [31:0] NUM_BANKS = 8;
 	parameter signed [31:0] RKW = (NUM_RANKS > 1 ? $clog2(NUM_RANKS) : 1);
 	parameter signed [31:0] BKW = $clog2(NUM_BANKS);
+	parameter signed [31:0] NUM_BG = 4;
+	parameter signed [31:0] BGW = 2;
+	parameter [0:0] HAS_LS_PAIRS = 0;
 	input wire mc_clk;
 	input wire mc_rst_n;
 	input wire [7:0] t_faw_i;
@@ -37,11 +52,23 @@ module scoria_global_timers (
 	input wire [RKW - 1:0] evt_act_rank_i;
 	input wire evt_rd_i;
 	input wire evt_wr_i;
+	input wire [7:0] t_ccd_l_i;
+	input wire [7:0] t_ccd_s_i;
+	input wire [7:0] t_rrd_l_i;
+	input wire [7:0] t_rrd_s_i;
+	input wire [BGW - 1:0] evt_act_bg_i;
+	input wire [BGW - 1:0] evt_col_bg_i;
+	input wire [RKW - 1:0] cand_rank_i;
+	input wire [BGW - 1:0] cand_bg_i;
 	output reg [NUM_RANKS - 1:0] tfaw_window_ok_o;
 	output reg [NUM_RANKS - 1:0] trrd_window_ok_o;
 	output reg twtr_global_ok_o;
 	output reg trtw_window_ok_o;
 	output reg tccd_window_ok_o;
+	output wire tccd_l_window_ok_o;
+	output wire tccd_s_window_ok_o;
+	output wire trrd_l_window_ok_o;
+	output wire trrd_s_window_ok_o;
 	output reg [NUM_RANKS - 1:0] obs_faw_nz_o;
 	output reg [NUM_RANKS - 1:0] obs_trrd_nz_o;
 	output reg obs_twtr_nz_o;
@@ -216,9 +243,70 @@ module scoria_global_timers (
 		obs_trtw_nz_o = r_trtw_cnt != 8'd0;
 		obs_tccd_nz_o = r_tccd_cnt != 8'd0;
 	end
+	function automatic [BGW - 1:0] sv2v_cast_9F7A4;
+		input reg [BGW - 1:0] inp;
+		sv2v_cast_9F7A4 = inp;
+	endfunction
+	generate
+		if (HAS_LS_PAIRS) begin : g_ls_pairs
+			reg [(NUM_BG * 8) - 1:0] r_tccd_g_cnt;
+			reg [7:0] r_tccd_any_cnt;
+			reg [((NUM_RANKS * NUM_BG) * 8) - 1:0] r_trrd_g_cnt;
+			reg [(NUM_RANKS * 8) - 1:0] r_trrd_any_cnt;
+			reg [(NUM_BG * 8) - 1:0] w_tccd_g_nxt;
+			reg [7:0] w_tccd_any_nxt;
+			reg [((NUM_RANKS * NUM_BG) * 8) - 1:0] w_trrd_g_nxt;
+			reg [(NUM_RANKS * 8) - 1:0] w_trrd_any_nxt;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				begin : sv2v_autoblock_13
+					reg [31:0] g;
+					for (g = 0; g < NUM_BG; g = g + 1)
+						w_tccd_g_nxt[g * 8+:8] = (w_evt_col && (sv2v_cast_9F7A4(g) == evt_col_bg_i) ? t_ccd_l_i : (r_tccd_g_cnt[g * 8+:8] > 8'd0 ? r_tccd_g_cnt[g * 8+:8] - 8'd1 : 8'd0));
+				end
+				w_tccd_any_nxt = (w_evt_col ? t_ccd_s_i : (r_tccd_any_cnt > 8'd0 ? r_tccd_any_cnt - 8'd1 : 8'd0));
+				begin : sv2v_autoblock_14
+					reg [31:0] k;
+					for (k = 0; k < NUM_RANKS; k = k + 1)
+						begin
+							begin : sv2v_autoblock_15
+								reg [31:0] g;
+								for (g = 0; g < NUM_BG; g = g + 1)
+									w_trrd_g_nxt[((k * NUM_BG) + g) * 8+:8] = (w_act_rank[k] && (sv2v_cast_9F7A4(g) == evt_act_bg_i) ? t_rrd_l_i : (r_trrd_g_cnt[((k * NUM_BG) + g) * 8+:8] > 8'd0 ? r_trrd_g_cnt[((k * NUM_BG) + g) * 8+:8] - 8'd1 : 8'd0));
+							end
+							w_trrd_any_nxt[k * 8+:8] = (w_act_rank[k] ? t_rrd_s_i : (r_trrd_any_cnt[k * 8+:8] > 8'd0 ? r_trrd_any_cnt[k * 8+:8] - 8'd1 : 8'd0));
+						end
+				end
+			end
+			always @(posedge mc_clk or negedge mc_rst_n)
+				if (!mc_rst_n) begin
+					r_tccd_g_cnt <= 1'sb0;
+					r_tccd_any_cnt <= 8'd0;
+					r_trrd_g_cnt <= 1'sb0;
+					r_trrd_any_cnt <= 1'sb0;
+				end
+				else begin
+					r_tccd_g_cnt <= w_tccd_g_nxt;
+					r_tccd_any_cnt <= w_tccd_any_nxt;
+					r_trrd_g_cnt <= w_trrd_g_nxt;
+					r_trrd_any_cnt <= w_trrd_any_nxt;
+				end
+			assign tccd_l_window_ok_o = r_tccd_g_cnt[cand_bg_i * 8+:8] == 8'd0;
+			assign tccd_s_window_ok_o = r_tccd_any_cnt == 8'd0;
+			assign trrd_l_window_ok_o = r_trrd_g_cnt[((cand_rank_i * NUM_BG) + cand_bg_i) * 8+:8] == 8'd0;
+			assign trrd_s_window_ok_o = r_trrd_any_cnt[cand_rank_i * 8+:8] == 8'd0;
+		end
+		else begin : g_no_ls_pairs
+			assign tccd_l_window_ok_o = 1'b1;
+			assign tccd_s_window_ok_o = 1'b1;
+			assign trrd_l_window_ok_o = 1'b1;
+			assign trrd_s_window_ok_o = 1'b1;
+		end
+	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
-module scoria_cmd_arbiter (
+module mc_cmd_arbiter (
 	aclk,
 	aresetn,
 	page_policy_i,
@@ -252,10 +340,18 @@ module scoria_cmd_arbiter (
 	refresh_bank_i,
 	refresh_grant_o,
 	t_rfc_i,
+	t_rfc_pb_i,
 	zq_req_i,
 	zq_grant_o,
 	t_zqcs_i,
-	t_rfc_pb_i,
+	maint_req_i,
+	maint_grant_o,
+	maint_op_i,
+	maint_bank_i,
+	maint_row_i,
+	maint_col_i,
+	maint_extra_i,
+	maint_busy_i,
 	bank_act_ready_i,
 	bank_rdwr_ready_i,
 	bank_pre_ready_i,
@@ -269,6 +365,9 @@ module scoria_cmd_arbiter (
 	twtr_ok_i,
 	trtw_ok_i,
 	tccd_ok_i,
+	tccd_l_ok_i,
+	trrd_l_ok_i,
+	pick_group_o,
 	t_ccd_i,
 	wr_sch_valid_i,
 	wr_sch_bank_i,
@@ -302,6 +401,7 @@ module scoria_cmd_arbiter (
 	cmd_row_o,
 	cmd_col_o,
 	cmd_ap_o,
+	cmd_extra_o,
 	stall_bp_o,
 	stall_refresh_o,
 	stall_turnaround_o,
@@ -314,15 +414,21 @@ module scoria_cmd_arbiter (
 	reg _sv2v_0;
 	parameter signed [31:0] NUM_RANKS = 1;
 	parameter signed [31:0] NUM_BANKS = 8;
+	parameter signed [31:0] NUM_BG = 1;
 	parameter signed [31:0] ROW_WIDTH = 14;
 	parameter signed [31:0] COL_WIDTH = 10;
 	parameter signed [31:0] AXI_ID_WIDTH = 8;
 	parameter signed [31:0] NUM_ENTRIES = 8;
 	parameter signed [31:0] AGE_WIDTH = 16;
+	parameter [0:0] HAS_ZQ = 1'b0;
+	parameter [0:0] CLOSE_ON_DRAIN = 1'b1;
+	parameter [0:0] BANK_IN_ORDER = 1'b0;
+	parameter signed [31:0] MAINT_EXTRA_WIDTH = 1;
 	parameter signed [31:0] RKW = (NUM_RANKS > 1 ? $clog2(NUM_RANKS) : 1);
 	parameter signed [31:0] BKW = $clog2(NUM_BANKS);
-	parameter signed [31:0] PTRW = $clog2(NUM_ENTRIES);
+	parameter signed [31:0] PTRW = (NUM_ENTRIES > 1 ? $clog2(NUM_ENTRIES) : 1);
 	parameter signed [31:0] IW = AXI_ID_WIDTH;
+	parameter signed [31:0] BGW_EFF = (NUM_BG > 1 ? $clog2(NUM_BG) : 1);
 	input wire aclk;
 	input wire aresetn;
 	input wire [1:0] page_policy_i;
@@ -347,7 +453,7 @@ module scoria_cmd_arbiter (
 	input wire [BKW - 1:0] timeout_pre_bank_i;
 	input wire init_done_i;
 	input wire init_cmd_valid_i;
-	input wire [3:0] init_cmd_op_i;
+	input wire [4:0] init_cmd_op_i;
 	input wire [BKW - 1:0] init_cmd_bank_i;
 	input wire [ROW_WIDTH - 1:0] init_cmd_row_i;
 	input wire refresh_req_i;
@@ -356,10 +462,18 @@ module scoria_cmd_arbiter (
 	input wire [BKW - 1:0] refresh_bank_i;
 	output wire refresh_grant_o;
 	input wire [15:0] t_rfc_i;
+	input wire [7:0] t_rfc_pb_i;
 	input wire zq_req_i;
 	output wire zq_grant_o;
 	input wire [15:0] t_zqcs_i;
-	input wire [7:0] t_rfc_pb_i;
+	input wire maint_req_i;
+	output wire maint_grant_o;
+	input wire [4:0] maint_op_i;
+	input wire [BKW - 1:0] maint_bank_i;
+	input wire [ROW_WIDTH - 1:0] maint_row_i;
+	input wire [COL_WIDTH - 1:0] maint_col_i;
+	input wire [MAINT_EXTRA_WIDTH - 1:0] maint_extra_i;
+	input wire maint_busy_i;
 	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_act_ready_i;
 	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_rdwr_ready_i;
 	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_pre_ready_i;
@@ -373,6 +487,9 @@ module scoria_cmd_arbiter (
 	input wire twtr_ok_i;
 	input wire trtw_ok_i;
 	input wire tccd_ok_i;
+	input wire tccd_l_ok_i;
+	input wire trrd_l_ok_i;
+	output wire [BGW_EFF - 1:0] pick_group_o;
 	input wire [7:0] t_ccd_i;
 	input wire [NUM_ENTRIES - 1:0] wr_sch_valid_i;
 	input wire [(NUM_ENTRIES * BKW) - 1:0] wr_sch_bank_i;
@@ -400,12 +517,13 @@ module scoria_cmd_arbiter (
 	output wire [ROW_WIDTH - 1:0] evt_row_o;
 	output wire cmd_valid_o;
 	input wire cmd_ready_i;
-	output wire [3:0] cmd_op_o;
+	output wire [4:0] cmd_op_o;
 	output wire [RKW - 1:0] cmd_rank_o;
 	output wire [BKW - 1:0] cmd_bank_o;
 	output wire [ROW_WIDTH - 1:0] cmd_row_o;
 	output wire [COL_WIDTH - 1:0] cmd_col_o;
 	output wire cmd_ap_o;
+	output wire [MAINT_EXTRA_WIDTH - 1:0] cmd_extra_o;
 	output reg [31:0] stall_bp_o;
 	output reg [31:0] stall_refresh_o;
 	output reg [31:0] stall_turnaround_o;
@@ -424,7 +542,7 @@ module scoria_cmd_arbiter (
 	reg [NUM_BANKS - 1:0] r_guard0;
 	reg [NUM_BANKS - 1:0] r_guard1;
 	reg r_pick_valid;
-	reg [3:0] r_op;
+	reg [4:0] r_op;
 	reg [BKW - 1:0] r_bank;
 	reg [ROW_WIDTH - 1:0] r_row;
 	reg [COL_WIDTH - 1:0] r_col_out;
@@ -435,10 +553,12 @@ module scoria_cmd_arbiter (
 	reg r_do_pre;
 	reg r_grant;
 	reg r_zq_grant;
+	reg r_maint_grant;
 	reg r_wr_commit;
 	reg r_rd_issue;
 	reg [PTRW - 1:0] r_commit_slot;
 	reg [PTRW - 1:0] r_issue_slot;
+	reg [MAINT_EXTRA_WIDTH - 1:0] r_cmd_extra;
 	reg rd_col_f;
 	reg wr_col_f;
 	reg rd_act_f;
@@ -463,6 +583,8 @@ module scoria_cmd_arbiter (
 	reg [COL_WIDTH - 1:0] wr_col_col;
 	reg [ROW_WIDTH - 1:0] rd_act_row;
 	reg [ROW_WIDTH - 1:0] wr_act_row;
+	reg [ROW_WIDTH - 1:0] rd_col_row;
+	reg [ROW_WIDTH - 1:0] wr_col_row;
 	reg w_sel_rd_col_f;
 	reg w_sel_wr_col_f;
 	reg w_sel_rd_act_f;
@@ -480,21 +602,37 @@ module scoria_cmd_arbiter (
 	reg [15:0] r_zqcs_cnt;
 	wire w_zq_busy;
 	assign w_zq_busy = r_zqcs_cnt != 16'd0;
+	wire [BGW_EFF - 1:0] w_pick_group;
+	reg [BGW_EFF - 1:0] r_last_col_bg;
+	reg [BGW_EFF - 1:0] r_last_act_bg;
+	wire w_tccd_ls_ok;
+	wire w_trrd_ls_ok;
 	reg w_out_safe;
 	wire w_out_reject;
+	wire w_out_hold;
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_out_safe = 1'b1;
 		if (r_do_act)
-			w_out_safe = ((bank_act_ready_i[(RK0 * NUM_BANKS) + r_bank] && tfaw_ok_i[RK0]) && trrd_ok_i[RK0]) && !w_zq_busy;
+			w_out_safe = ((((!maint_busy_i && bank_act_ready_i[(RK0 * NUM_BANKS) + r_bank]) && tfaw_ok_i[RK0]) && trrd_ok_i[RK0]) && w_trrd_ls_ok) && !w_zq_busy;
 		else if (r_do_rd || r_do_wr)
-			w_out_safe = bank_rdwr_ready_i[(RK0 * NUM_BANKS) + r_bank] && !w_zq_busy;
+			w_out_safe = ((!maint_busy_i && bank_rdwr_ready_i[(RK0 * NUM_BANKS) + r_bank]) && w_tccd_ls_ok) && !w_zq_busy;
 		else if (r_do_pre)
-			w_out_safe = bank_pre_ready_i[(RK0 * NUM_BANKS) + r_bank] && !w_zq_busy;
+			w_out_safe = (!maint_busy_i && bank_pre_ready_i[(RK0 * NUM_BANKS) + r_bank]) && !w_zq_busy;
 	end
-	assign w_out_reject = r_pick_valid && !w_out_safe;
-	assign w_out_ready = (!r_pick_valid || cmd_ready_i) || w_out_reject;
+	reg [NUM_BANKS - 1:0] r_ap_closing;
+	wire [NUM_BANKS - 1:0] w_ap_fire_bank;
+	reg w_ap_sibling;
+	wire w_ap_fire;
+	function automatic signed [NUM_BANKS - 1:0] sv2v_cast_A03D0_signed;
+		input reg signed [NUM_BANKS - 1:0] inp;
+		sv2v_cast_A03D0_signed = inp;
+	endfunction
+	assign w_ap_fire_bank = ((w_fire_out && (r_do_rd || r_do_wr)) && w_ap_fire ? sv2v_cast_A03D0_signed(1) << r_bank : {NUM_BANKS {1'sb0}});
+	assign w_out_hold = (((r_pick_valid && !maint_busy_i) && r_do_act) && !w_zq_busy) && ((bank_act_ready_i[(RK0 * NUM_BANKS) + r_bank] && !(tfaw_ok_i[RK0] && trrd_ok_i[RK0])) || ((CLOSE_ON_DRAIN && r_ap_closing[r_bank]) && !bank_act_ready_i[(RK0 * NUM_BANKS) + r_bank]));
+	assign w_out_reject = (r_pick_valid && !w_out_safe) && !w_out_hold;
+	assign w_out_ready = (!r_pick_valid || (cmd_ready_i && !w_out_hold)) || w_out_reject;
 	assign w_fire_out = (r_pick_valid && cmd_ready_i) && w_out_safe;
 	wire w_prepick_col;
 	wire w_prepick_preact;
@@ -504,7 +642,6 @@ module scoria_cmd_arbiter (
 	wire w_inflight_preact;
 	assign w_inflight_col = r_pick_valid && (r_do_rd || r_do_wr);
 	assign w_inflight_preact = r_pick_valid && (r_do_act || r_do_pre);
-	wire [NUM_BANKS - 1:0] w_guarded;
 	reg [NUM_BANKS - 1:0] w_if_preact_sel;
 	reg [NUM_BANKS - 1:0] w_if_preact_pre;
 	reg [NUM_BANKS - 1:0] w_if_preact_out;
@@ -515,10 +652,6 @@ module scoria_cmd_arbiter (
 		input reg [(NUM_ENTRIES * BKW) - 1:0] v;
 		input reg [PTRW - 1:0] e;
 		f_bank = v[e * BKW+:BKW];
-	endfunction
-	function automatic signed [NUM_BANKS - 1:0] sv2v_cast_A03D0_signed;
-		input reg signed [NUM_BANKS - 1:0] inp;
-		sv2v_cast_A03D0_signed = inp;
 	endfunction
 	always @(*) begin
 		if (_sv2v_0)
@@ -582,20 +715,6 @@ module scoria_cmd_arbiter (
 	assign w_act_classify_gate = (sched_access_pref_i == 2'd2 ? tfaw_ok_i[RK0] && trrd_ok_i[RK0] : 1'b1);
 	wire [NUM_BANKS - 1:0] w_col_inflight_bank;
 	assign w_col_inflight_bank = w_col_inflight_guard | (w_inflight_col ? sv2v_cast_A03D0_signed(1) << r_bank : {NUM_BANKS {1'sb0}});
-	reg [NUM_BANKS - 1:0] w_ref_col_block;
-	function automatic signed [BKW - 1:0] sv2v_cast_1D528_signed;
-		input reg signed [BKW - 1:0] inp;
-		sv2v_cast_1D528_signed = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] b;
-			for (b = 0; b < NUM_BANKS; b = b + 1)
-				w_ref_col_block[b] = (refresh_req_i || refresh_drain_i) && (!refresh_kind_i || (sv2v_cast_1D528_signed(b) == refresh_bank_i));
-		end
-	end
 	reg [7:0] r_tccd_fwd;
 	wire w_col_sel_now;
 	wire w_tccd_fwd_ok;
@@ -608,9 +727,7 @@ module scoria_cmd_arbiter (
 			r_tccd_fwd <= (t_ccd_i > 8'd1 ? t_ccd_i - 8'd1 : 8'd0);
 		else if (r_tccd_fwd != 8'd0)
 			r_tccd_fwd <= r_tccd_fwd - 8'd1;
-	reg [NUM_BANKS - 1:0] r_ap_closing;
-	wire [NUM_BANKS - 1:0] w_ap_fire_bank;
-	assign w_ap_fire_bank = ((w_fire_out && (r_do_rd || r_do_wr)) && r_ap_out ? sv2v_cast_A03D0_signed(1) << r_bank : {NUM_BANKS {1'sb0}});
+	wire [NUM_BANKS - 1:0] w_guarded;
 	assign w_guarded = ((((r_guard0 | r_guard1) | w_prepick_guard) | w_col_inflight_guard) | w_if_preact_out) | w_if_col_out;
 	wire [NUM_BANKS - 1:0] w_preact_bank_guard;
 	assign w_preact_bank_guard = w_prepick_guard | w_if_preact_out;
@@ -664,50 +781,155 @@ module scoria_cmd_arbiter (
 		input reg [PTRW - 1:0] e;
 		f_col = v[e * COL_WIDTH+:COL_WIDTH];
 	endfunction
-	reg [NUM_ENTRIES - 1:0] rd_col_m;
-	reg [NUM_ENTRIES - 1:0] rd_act_m;
-	reg [NUM_ENTRIES - 1:0] rd_pre_m;
-	reg [NUM_ENTRIES - 1:0] wr_col_m;
-	reg [NUM_ENTRIES - 1:0] wr_act_m;
-	reg [NUM_ENTRIES - 1:0] wr_pre_m;
 	function automatic signed [PTRW - 1:0] sv2v_cast_E6D00_signed;
 		input reg signed [PTRW - 1:0] inp;
 		sv2v_cast_E6D00_signed = inp;
 	endfunction
-	always @(r_bank_pre_ready[RK0 * NUM_BANKS+:NUM_BANKS] or w_guarded or r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS] or w_rfc_busy or w_act_classify_gate or r_bank_act_ready[RK0 * NUM_BANKS+:NUM_BANKS] or w_guarded or r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS] or w_preact_bank_guard or w_pre_col_guard or w_ap_col_guard or w_wr_turn_block or w_ref_col_block or w_wr_col_inflight_ent or r_ap_closing or w_col_inflight_bank or w_ap or ap_close_i or ap_mode_en_i or wr_commit_ready_i or trtw_ok_i or w_tccd_fwd_ok or r_bank_rdwr_ready[RK0 * NUM_BANKS+:NUM_BANKS] or wr_sch_valid_i or r_bank_pre_ready[RK0 * NUM_BANKS+:NUM_BANKS] or w_guarded or r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS] or w_rfc_busy or w_act_classify_gate or r_bank_act_ready[RK0 * NUM_BANKS+:NUM_BANKS] or w_guarded or r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS] or w_preact_bank_guard or w_pre_col_guard or w_ap_col_guard or w_rd_turn_block or w_ref_col_block or w_rd_col_inflight_ent or r_ap_closing or w_col_inflight_bank or w_ap or ap_close_i or ap_mode_en_i or rd_issue_ready_i or twtr_ok_i or w_tccd_fwd_ok or r_bank_rdwr_ready[RK0 * NUM_BANKS+:NUM_BANKS] or rd_sch_valid_i or r_bank_open_row[ROW_WIDTH * (RK0 * NUM_BANKS)+:ROW_WIDTH * NUM_BANKS] or wr_sch_row_i or r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS] or r_bank_open_row[ROW_WIDTH * (RK0 * NUM_BANKS)+:ROW_WIDTH * NUM_BANKS] or rd_sch_row_i or r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS] or wr_sch_bank_i or rd_sch_bank_i or _sv2v_0) begin
+	function automatic signed [31:0] sv2v_cast_32_signed;
+		input reg signed [31:0] inp;
+		sv2v_cast_32_signed = inp;
+	endfunction
+	always @(*) begin
 		if (_sv2v_0)
 			;
-		rd_col_m = 1'sb0;
-		rd_act_m = 1'sb0;
-		rd_pre_m = 1'sb0;
-		wr_col_m = 1'sb0;
-		wr_act_m = 1'sb0;
-		wr_pre_m = 1'sb0;
+		w_ap_sibling = 1'b0;
+		if ((r_pick_valid && (r_do_rd || r_do_wr)) && r_ap_out) begin : sv2v_autoblock_1
+			reg signed [31:0] j;
+			for (j = 0; j < NUM_ENTRIES; j = j + 1)
+				begin
+					if (((rd_sch_valid_i[j] && !(r_do_rd && (j == sv2v_cast_32_signed(r_issue_slot)))) && (f_bank(rd_sch_bank_i, sv2v_cast_E6D00_signed(j)) == r_bank)) && (f_row(rd_sch_row_i, sv2v_cast_E6D00_signed(j)) == r_row))
+						w_ap_sibling = 1'b1;
+					if (((wr_sch_valid_i[j] && !(r_do_wr && (j == sv2v_cast_32_signed(r_commit_slot)))) && (f_bank(wr_sch_bank_i, sv2v_cast_E6D00_signed(j)) == r_bank)) && (f_row(wr_sch_row_i, sv2v_cast_E6D00_signed(j)) == r_row))
+						w_ap_sibling = 1'b1;
+				end
+		end
+	end
+	assign w_ap_fire = r_ap_out && !w_ap_sibling;
+	reg [NUM_ENTRIES - 1:0] w_rd_bh;
+	reg [NUM_ENTRIES - 1:0] w_wr_bh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
 		begin : sv2v_autoblock_2
-			reg signed [31:0] e;
-			for (e = 0; e < NUM_ENTRIES; e = e + 1)
+			reg signed [31:0] i;
+			for (i = 0; i < NUM_ENTRIES; i = i + 1)
 				begin : sv2v_autoblock_3
-					reg [PTRW - 1:0] ei;
-					reg [BKW - 1:0] rb;
-					reg [BKW - 1:0] wb;
-					reg rhit;
-					reg whit;
-					ei = sv2v_cast_E6D00_signed(e);
-					rb = f_bank(rd_sch_bank_i, ei);
-					wb = f_bank(wr_sch_bank_i, ei);
-					rhit = r_bank_row_active[(RK0 * NUM_BANKS) + rb] && (f_row(rd_sch_row_i, ei) == r_bank_open_row[((RK0 * NUM_BANKS) + rb) * ROW_WIDTH+:ROW_WIDTH]);
-					whit = r_bank_row_active[(RK0 * NUM_BANKS) + wb] && (f_row(wr_sch_row_i, ei) == r_bank_open_row[((RK0 * NUM_BANKS) + wb) * ROW_WIDTH+:ROW_WIDTH]);
-					if (rd_sch_valid_i[e]) begin
-						rd_col_m[e] = (((((((((((rhit && r_bank_rdwr_ready[(RK0 * NUM_BANKS) + rb]) && w_tccd_fwd_ok) && twtr_ok_i) && rd_issue_ready_i) && !(f_ap(rb) && w_col_inflight_bank[rb])) && !r_ap_closing[rb]) && !w_rd_col_inflight_ent[e]) && !w_ref_col_block[rb]) && !w_rd_turn_block) && !w_ap_col_guard[rb]) && !w_pre_col_guard[rb]) && !w_preact_bank_guard[rb];
-						rd_act_m[e] = (((!r_bank_row_active[(RK0 * NUM_BANKS) + rb] && !w_guarded[rb]) && r_bank_act_ready[(RK0 * NUM_BANKS) + rb]) && w_act_classify_gate) && !w_rfc_busy;
-						rd_pre_m[e] = ((r_bank_row_active[(RK0 * NUM_BANKS) + rb] && !w_guarded[rb]) && !rhit) && r_bank_pre_ready[(RK0 * NUM_BANKS) + rb];
+					reg hr;
+					reg hw;
+					hr = 1'b1;
+					hw = 1'b1;
+					begin : sv2v_autoblock_4
+						reg signed [31:0] j;
+						for (j = 0; j < NUM_ENTRIES; j = j + 1)
+							begin
+								if ((((j != i) && rd_sch_valid_i[j]) && (f_bank(rd_sch_bank_i, sv2v_cast_E6D00_signed(j)) == f_bank(rd_sch_bank_i, sv2v_cast_E6D00_signed(i)))) && rd_sch_older_i[(j * NUM_ENTRIES) + i])
+									hr = 1'b0;
+								if ((((j != i) && wr_sch_valid_i[j]) && (f_bank(wr_sch_bank_i, sv2v_cast_E6D00_signed(j)) == f_bank(wr_sch_bank_i, sv2v_cast_E6D00_signed(i)))) && wr_sch_older_i[(j * NUM_ENTRIES) + i])
+									hw = 1'b0;
+							end
 					end
-					if (wr_sch_valid_i[e]) begin
-						wr_col_m[e] = (((((((((((whit && r_bank_rdwr_ready[(RK0 * NUM_BANKS) + wb]) && w_tccd_fwd_ok) && trtw_ok_i) && wr_commit_ready_i) && !(f_ap(wb) && w_col_inflight_bank[wb])) && !r_ap_closing[wb]) && !w_wr_col_inflight_ent[e]) && !w_ref_col_block[wb]) && !w_wr_turn_block) && !w_ap_col_guard[wb]) && !w_pre_col_guard[wb]) && !w_preact_bank_guard[wb];
-						wr_act_m[e] = (((!r_bank_row_active[(RK0 * NUM_BANKS) + wb] && !w_guarded[wb]) && r_bank_act_ready[(RK0 * NUM_BANKS) + wb]) && w_act_classify_gate) && !w_rfc_busy;
-						wr_pre_m[e] = ((r_bank_row_active[(RK0 * NUM_BANKS) + wb] && !w_guarded[wb]) && !whit) && r_bank_pre_ready[(RK0 * NUM_BANKS) + wb];
+					w_rd_bh[i] = hr;
+					w_wr_bh[i] = hw;
+				end
+		end
+	end
+	localparam signed [31:0] POOL = 2 * NUM_ENTRIES;
+	localparam signed [31:0] PTXW = PTRW + 1;
+	wire [POOL - 1:0] pool_valid;
+	wire [(POOL * BKW) - 1:0] pool_bank;
+	wire [(POOL * ROW_WIDTH) - 1:0] pool_row;
+	wire [(POOL * COL_WIDTH) - 1:0] pool_col;
+	assign pool_valid = {wr_sch_valid_i, rd_sch_valid_i};
+	assign pool_bank = {wr_sch_bank_i, rd_sch_bank_i};
+	assign pool_row = {wr_sch_row_i, rd_sch_row_i};
+	assign pool_col = {wr_sch_col_i, rd_sch_col_i};
+	function automatic [BKW - 1:0] f_pool_bank;
+		input reg [PTXW - 1:0] e;
+		f_pool_bank = pool_bank[e * BKW+:BKW];
+	endfunction
+	function automatic [ROW_WIDTH - 1:0] f_pool_row;
+		input reg [PTXW - 1:0] e;
+		f_pool_row = pool_row[e * ROW_WIDTH+:ROW_WIDTH];
+	endfunction
+	function automatic [COL_WIDTH - 1:0] f_pool_col;
+		input reg [PTXW - 1:0] e;
+		f_pool_col = pool_col[e * COL_WIDTH+:COL_WIDTH];
+	endfunction
+	reg [POOL - 1:0] pool_col_m;
+	reg [POOL - 1:0] pool_act_m;
+	reg [POOL - 1:0] pool_pre_m;
+	reg [POOL - 1:0] pool_col_mi;
+	reg [POOL - 1:0] pool_act_mi;
+	reg [POOL - 1:0] pool_pre_mi;
+	wire [NUM_ENTRIES - 1:0] rd_col_m;
+	wire [NUM_ENTRIES - 1:0] rd_act_m;
+	wire [NUM_ENTRIES - 1:0] rd_pre_m;
+	wire [NUM_ENTRIES - 1:0] wr_col_m;
+	wire [NUM_ENTRIES - 1:0] wr_act_m;
+	wire [NUM_ENTRIES - 1:0] wr_pre_m;
+	assign rd_col_m = pool_col_mi[NUM_ENTRIES - 1:0];
+	assign rd_act_m = pool_act_mi[NUM_ENTRIES - 1:0];
+	assign rd_pre_m = pool_pre_mi[NUM_ENTRIES - 1:0];
+	assign wr_col_m = pool_col_mi[POOL - 1:NUM_ENTRIES];
+	assign wr_act_m = pool_act_mi[POOL - 1:NUM_ENTRIES];
+	assign wr_pre_m = pool_pre_mi[POOL - 1:NUM_ENTRIES];
+	reg [NUM_BANKS - 1:0] w_ref_col_block;
+	function automatic signed [PTXW - 1:0] sv2v_cast_2D38A_signed;
+		input reg signed [PTXW - 1:0] inp;
+		sv2v_cast_2D38A_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		pool_col_m = 1'sb0;
+		pool_act_m = 1'sb0;
+		pool_pre_m = 1'sb0;
+		begin : sv2v_autoblock_5
+			reg signed [31:0] e;
+			for (e = 0; e < POOL; e = e + 1)
+				begin : sv2v_autoblock_6
+					reg pdir;
+					reg signed [31:0] pslot;
+					reg [BKW - 1:0] pbank;
+					reg phit;
+					pdir = e >= NUM_ENTRIES;
+					pslot = (pdir ? e - NUM_ENTRIES : e);
+					pbank = f_pool_bank(sv2v_cast_2D38A_signed(e));
+					phit = r_bank_row_active[(RK0 * NUM_BANKS) + pbank] && (f_pool_row(sv2v_cast_2D38A_signed(e)) == r_bank_open_row[((RK0 * NUM_BANKS) + pbank) * ROW_WIDTH+:ROW_WIDTH]);
+					if (pool_valid[e]) begin
+						pool_col_m[e] = ((((((((((((phit && r_bank_rdwr_ready[(RK0 * NUM_BANKS) + pbank]) && w_tccd_fwd_ok) && (pdir ? trtw_ok_i : twtr_ok_i)) && (pdir ? wr_commit_ready_i : rd_issue_ready_i)) && !(f_ap(pbank) && w_col_inflight_bank[pbank])) && !r_ap_closing[pbank]) && !(pdir ? w_wr_col_inflight_ent[pslot] : w_rd_col_inflight_ent[pslot])) && !w_ref_col_block[pbank]) && (pdir ? !w_wr_turn_block : !w_rd_turn_block)) && !w_ap_col_guard[pbank]) && !w_pre_col_guard[pbank]) && !w_preact_bank_guard[pbank]) && w_tccd_ls_ok;
+						pool_act_m[e] = ((((!r_bank_row_active[(RK0 * NUM_BANKS) + pbank] || (CLOSE_ON_DRAIN && r_ap_closing[pbank])) && !w_guarded[pbank]) && r_bank_act_ready[(RK0 * NUM_BANKS) + pbank]) && w_act_classify_gate) && !w_rfc_busy;
+						pool_pre_m[e] = ((r_bank_row_active[(RK0 * NUM_BANKS) + pbank] && !w_guarded[pbank]) && !phit) && r_bank_pre_ready[(RK0 * NUM_BANKS) + pbank];
 					end
 				end
+		end
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_7
+			reg signed [31:0] e;
+			for (e = 0; e < POOL; e = e + 1)
+				begin : sv2v_autoblock_8
+					reg head;
+					head = (e >= NUM_ENTRIES ? w_wr_bh[e - NUM_ENTRIES] : w_rd_bh[e]);
+					pool_col_mi[e] = pool_col_m[e] && (!BANK_IN_ORDER || head);
+					pool_act_mi[e] = pool_act_m[e] && (!BANK_IN_ORDER || head);
+					pool_pre_mi[e] = pool_pre_m[e] && (!BANK_IN_ORDER || head);
+				end
+		end
+	end
+	function automatic signed [BKW - 1:0] sv2v_cast_1D528_signed;
+		input reg signed [BKW - 1:0] inp;
+		sv2v_cast_1D528_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_9
+			reg signed [31:0] b;
+			for (b = 0; b < NUM_BANKS; b = b + 1)
+				w_ref_col_block[b] = (refresh_req_i || refresh_drain_i) && (!refresh_kind_i || (sv2v_cast_1D528_signed(b) == refresh_bank_i));
 		end
 	end
 	function automatic [PTRW:0] arg_oldest;
@@ -717,15 +939,15 @@ module scoria_cmd_arbiter (
 		reg [PTRW - 1:0] slot;
 		reg [NUM_ENTRIES - 1:0] is_old;
 		begin
-			begin : sv2v_autoblock_4
+			begin : sv2v_autoblock_10
 				reg signed [31:0] i;
 				for (i = 0; i < NUM_ENTRIES; i = i + 1)
-					begin : sv2v_autoblock_5
+					begin : sv2v_autoblock_11
 						reg [NUM_ENTRIES - 1:0] orow;
 						reg ge_all;
 						orow = older[i * NUM_ENTRIES+:NUM_ENTRIES];
 						ge_all = 1'b1;
-						begin : sv2v_autoblock_6
+						begin : sv2v_autoblock_12
 							reg signed [31:0] j;
 							for (j = 0; j < NUM_ENTRIES; j = j + 1)
 								if (((j != i) && mask[j]) && !orow[j])
@@ -736,7 +958,7 @@ module scoria_cmd_arbiter (
 			end
 			found = |is_old;
 			slot = 1'sb0;
-			begin : sv2v_autoblock_7
+			begin : sv2v_autoblock_13
 				reg signed [31:0] i;
 				for (i = NUM_ENTRIES - 1; i >= 0; i = i - 1)
 					if (is_old[i])
@@ -753,15 +975,15 @@ module scoria_cmd_arbiter (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_8
+		begin : sv2v_autoblock_14
 			reg signed [31:0] i;
 			for (i = 0; i < NUM_ENTRIES; i = i + 1)
-				begin : sv2v_autoblock_9
+				begin : sv2v_autoblock_15
 					reg older_rd;
 					reg older_wr;
 					older_rd = 1'b0;
 					older_wr = 1'b0;
-					begin : sv2v_autoblock_10
+					begin : sv2v_autoblock_16
 						reg signed [31:0] j;
 						for (j = 0; j < NUM_ENTRIES; j = j + 1)
 							begin
@@ -827,6 +1049,8 @@ module scoria_cmd_arbiter (
 	localparam signed [31:0] POPW = $clog2(NUM_ENTRIES + 1);
 	reg [POPW - 1:0] rd_pop [0:NUM_ENTRIES - 1];
 	reg [POPW - 1:0] wr_pop [0:NUM_ENTRIES - 1];
+	reg [POPW - 1:0] rd_xpop [0:NUM_ENTRIES - 1];
+	reg [POPW - 1:0] wr_xpop [0:NUM_ENTRIES - 1];
 	function automatic signed [POPW - 1:0] sv2v_cast_15CC9_signed;
 		input reg signed [POPW - 1:0] inp;
 		sv2v_cast_15CC9_signed = inp;
@@ -834,20 +1058,44 @@ module scoria_cmd_arbiter (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		begin : sv2v_autoblock_11
+		begin : sv2v_autoblock_17
 			reg signed [31:0] i;
 			for (i = 0; i < NUM_ENTRIES; i = i + 1)
 				begin
 					rd_pop[i] = 1'sb0;
 					wr_pop[i] = 1'sb0;
-					begin : sv2v_autoblock_12
+					rd_xpop[i] = 1'sb0;
+					wr_xpop[i] = 1'sb0;
+				end
+		end
+		begin : sv2v_autoblock_18
+			reg signed [31:0] e;
+			for (e = 0; e < POOL; e = e + 1)
+				begin : sv2v_autoblock_19
+					reg pdir;
+					reg signed [31:0] pslot;
+					reg [BKW - 1:0] ppbk;
+					reg [ROW_WIDTH - 1:0] pprw;
+					pdir = e >= NUM_ENTRIES;
+					pslot = (pdir ? e - NUM_ENTRIES : e);
+					ppbk = f_pool_bank(sv2v_cast_2D38A_signed(e));
+					pprw = f_pool_row(sv2v_cast_2D38A_signed(e));
+					begin : sv2v_autoblock_20
 						reg signed [31:0] j;
-						for (j = 0; j < NUM_ENTRIES; j = j + 1)
+						for (j = 0; j < POOL; j = j + 1)
 							begin
-								if ((rd_sch_valid_i[j] && (f_bank(rd_sch_bank_i, sv2v_cast_E6D00_signed(j)) == f_bank(rd_sch_bank_i, sv2v_cast_E6D00_signed(i)))) && (f_row(rd_sch_row_i, sv2v_cast_E6D00_signed(j)) == f_row(rd_sch_row_i, sv2v_cast_E6D00_signed(i))))
-									rd_pop[i] = rd_pop[i] + sv2v_cast_15CC9_signed(1);
-								if ((wr_sch_valid_i[j] && (f_bank(wr_sch_bank_i, sv2v_cast_E6D00_signed(j)) == f_bank(wr_sch_bank_i, sv2v_cast_E6D00_signed(i)))) && (f_row(wr_sch_row_i, sv2v_cast_E6D00_signed(j)) == f_row(wr_sch_row_i, sv2v_cast_E6D00_signed(i))))
-									wr_pop[i] = wr_pop[i] + sv2v_cast_15CC9_signed(1);
+								if (((pool_valid[j] && ((j >= NUM_ENTRIES) == pdir)) && (f_pool_bank(sv2v_cast_2D38A_signed(j)) == ppbk)) && (f_pool_row(sv2v_cast_2D38A_signed(j)) == pprw)) begin
+									if (pdir)
+										wr_pop[pslot] = wr_pop[pslot] + sv2v_cast_15CC9_signed(1);
+									else
+										rd_pop[pslot] = rd_pop[pslot] + sv2v_cast_15CC9_signed(1);
+								end
+								if (((pool_valid[j] && ((j >= NUM_ENTRIES) != pdir)) && (f_pool_bank(sv2v_cast_2D38A_signed(j)) == ppbk)) && (f_pool_row(sv2v_cast_2D38A_signed(j)) == pprw)) begin
+									if (pdir)
+										wr_xpop[pslot] = wr_xpop[pslot] + sv2v_cast_15CC9_signed(1);
+									else
+										rd_xpop[pslot] = rd_xpop[pslot] + sv2v_cast_15CC9_signed(1);
+								end
 							end
 					end
 				end
@@ -862,18 +1110,18 @@ module scoria_cmd_arbiter (
 		reg [PTRW - 1:0] slot;
 		reg [NUM_ENTRIES - 1:0] is_best;
 		begin
-			begin : sv2v_autoblock_13
+			begin : sv2v_autoblock_21
 				reg signed [31:0] i;
 				for (i = 0; i < NUM_ENTRIES; i = i + 1)
-					begin : sv2v_autoblock_14
+					begin : sv2v_autoblock_22
 						reg [NUM_ENTRIES - 1:0] orow;
 						reg best;
 						orow = older[i * NUM_ENTRIES+:NUM_ENTRIES];
 						best = 1'b1;
-						begin : sv2v_autoblock_15
+						begin : sv2v_autoblock_23
 							reg signed [31:0] j;
 							for (j = 0; j < NUM_ENTRIES; j = j + 1)
-								if ((j != i) && mask[j]) begin : sv2v_autoblock_16
+								if ((j != i) && mask[j]) begin : sv2v_autoblock_24
 									reg j_pop_wins;
 									reg pop_tie;
 									j_pop_wins = (sel == 2'd1 ? pops[((NUM_ENTRIES - 1) - j) * POPW+:POPW] > pops[((NUM_ENTRIES - 1) - i) * POPW+:POPW] : (sel == 2'd2 ? pops[((NUM_ENTRIES - 1) - j) * POPW+:POPW] < pops[((NUM_ENTRIES - 1) - i) * POPW+:POPW] : 1'b0));
@@ -887,7 +1135,7 @@ module scoria_cmd_arbiter (
 			end
 			found = |is_best;
 			slot = 1'sb0;
-			begin : sv2v_autoblock_17
+			begin : sv2v_autoblock_25
 				reg signed [31:0] i;
 				for (i = NUM_ENTRIES - 1; i >= 0; i = i - 1)
 					if (is_best[i])
@@ -903,13 +1151,13 @@ module scoria_cmd_arbiter (
 		reg [NUM_ENTRIES - 1:0] out;
 		begin
 			best = 1'sb0;
-			begin : sv2v_autoblock_18
+			begin : sv2v_autoblock_26
 				reg signed [31:0] i;
 				for (i = 0; i < NUM_ENTRIES; i = i + 1)
 					if (mask[i] && (qosv[i * 4+:4] > best))
 						best = qosv[i * 4+:4];
 			end
-			begin : sv2v_autoblock_19
+			begin : sv2v_autoblock_27
 				reg signed [31:0] i;
 				for (i = 0; i < NUM_ENTRIES; i = i + 1)
 					out[i] = mask[i] && (qosv[i * 4+:4] == best);
@@ -943,6 +1191,8 @@ module scoria_cmd_arbiter (
 	reg [(NUM_ENTRIES * NUM_ENTRIES) - 1:0] r_wr_older;
 	reg [(NUM_ENTRIES * POPW) - 1:0] r_rd_pop;
 	reg [(NUM_ENTRIES * POPW) - 1:0] r_wr_pop;
+	reg [POPW - 1:0] r_rd_xpop [0:NUM_ENTRIES - 1];
+	reg [POPW - 1:0] r_wr_xpop [0:NUM_ENTRIES - 1];
 	reg [1:0] r_col_sel;
 	reg [1:0] r_row_sel;
 	reg [NUM_BANKS - 1:0] r_ap_snap;
@@ -959,7 +1209,7 @@ module scoria_cmd_arbiter (
 			r_col_sel <= 1'sb0;
 			r_row_sel <= 1'sb0;
 			r_ap_snap <= 1'sb0;
-			begin : sv2v_autoblock_20
+			begin : sv2v_autoblock_28
 				reg signed [31:0] i;
 				for (i = 0; i < NUM_ENTRIES; i = i + 1)
 					begin
@@ -979,22 +1229,24 @@ module scoria_cmd_arbiter (
 			r_wr_older <= wr_sch_older_i;
 			r_col_sel <= sched_col_sel_i;
 			r_row_sel <= sched_row_sel_i;
-			begin : sv2v_autoblock_21
+			begin : sv2v_autoblock_29
 				reg signed [31:0] i;
 				for (i = 0; i < NUM_ENTRIES; i = i + 1)
 					begin
 						r_rd_pop[((NUM_ENTRIES - 1) - i) * POPW+:POPW] <= rd_pop[i];
 						r_wr_pop[((NUM_ENTRIES - 1) - i) * POPW+:POPW] <= wr_pop[i];
+						r_rd_xpop[i] <= rd_xpop[i];
+						r_wr_xpop[i] <= wr_xpop[i];
 					end
 			end
-			begin : sv2v_autoblock_22
+			begin : sv2v_autoblock_30
 				reg signed [31:0] b;
 				for (b = 0; b < NUM_BANKS; b = b + 1)
 					r_ap_snap[b] <= f_ap(sv2v_cast_1D528_signed(b));
 			end
 		end
 	wire w_act_gate_live;
-	assign w_act_gate_live = (!w_rfc_busy && tfaw_ok_i[RK0]) && trrd_ok_i[RK0];
+	assign w_act_gate_live = ((!w_rfc_busy && tfaw_ok_i[RK0]) && trrd_ok_i[RK0]) && w_trrd_ls_ok;
 	wire w_rd_turn_live;
 	wire w_wr_turn_live;
 	assign w_rd_turn_live = (twtr_ok_i && !w_rd_turn_block) && !(w_fire_out && r_do_wr);
@@ -1013,6 +1265,30 @@ module scoria_cmd_arbiter (
 			w_sel_wr_act_f = 1'b0;
 		end
 	end
+	reg w_rd_ylast;
+	reg w_wr_ylast;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_rd_ylast = (CLOSE_ON_DRAIN && (r_col_sel == 2'd0)) && (r_rd_xpop[w_sel_rd_col_s] == sv2v_cast_15CC9_signed(0));
+		begin : sv2v_autoblock_31
+			reg signed [31:0] j;
+			for (j = 0; j < NUM_ENTRIES; j = j + 1)
+				if ((((rd_sch_valid_i[j] && (j != sv2v_cast_32_signed(w_sel_rd_col_s))) && (f_bank(rd_sch_bank_i, sv2v_cast_E6D00_signed(j)) == f_bank(rd_sch_bank_i, w_sel_rd_col_s))) && (f_row(rd_sch_row_i, sv2v_cast_E6D00_signed(j)) == f_row(rd_sch_row_i, w_sel_rd_col_s))) && !r_rd_older[(j * NUM_ENTRIES) + sv2v_cast_32_signed(w_sel_rd_col_s)])
+					w_rd_ylast = 1'b0;
+		end
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_wr_ylast = (CLOSE_ON_DRAIN && (r_col_sel == 2'd0)) && (r_wr_xpop[w_sel_wr_col_s] == sv2v_cast_15CC9_signed(0));
+		begin : sv2v_autoblock_32
+			reg signed [31:0] j;
+			for (j = 0; j < NUM_ENTRIES; j = j + 1)
+				if ((((wr_sch_valid_i[j] && (j != sv2v_cast_32_signed(w_sel_wr_col_s))) && (f_bank(wr_sch_bank_i, sv2v_cast_E6D00_signed(j)) == f_bank(wr_sch_bank_i, w_sel_wr_col_s))) && (f_row(wr_sch_row_i, sv2v_cast_E6D00_signed(j)) == f_row(wr_sch_row_i, w_sel_wr_col_s))) && !r_wr_older[(j * NUM_ENTRIES) + sv2v_cast_32_signed(w_sel_wr_col_s)])
+					w_wr_ylast = 1'b0;
+		end
+	end
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			rd_col_f <= 1'b0;
@@ -1029,8 +1305,8 @@ module scoria_cmd_arbiter (
 			rd_col_s <= w_sel_rd_col_s;
 			wr_col_f <= w_sel_wr_col_f;
 			wr_col_s <= w_sel_wr_col_s;
-			rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)];
-			wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)];
+			rd_col_ap <= r_ap_snap[f_bank(rd_sch_bank_i, w_sel_rd_col_s)] || w_rd_ylast;
+			wr_col_ap <= r_ap_snap[f_bank(wr_sch_bank_i, w_sel_wr_col_s)] || w_wr_ylast;
 			rd_act_f <= w_sel_rd_act_f;
 			rd_act_s <= w_sel_rd_act_s;
 			wr_act_f <= w_sel_wr_act_f;
@@ -1041,8 +1317,10 @@ module scoria_cmd_arbiter (
 			wr_pre_s <= w_sel_wr_pre_s;
 			rd_col_bank <= f_bank(rd_sch_bank_i, w_sel_rd_col_s);
 			rd_col_col <= f_col(rd_sch_col_i, w_sel_rd_col_s);
+			rd_col_row <= f_row(rd_sch_row_i, w_sel_rd_col_s);
 			wr_col_bank <= f_bank(wr_sch_bank_i, w_sel_wr_col_s);
 			wr_col_col <= f_col(wr_sch_col_i, w_sel_wr_col_s);
+			wr_col_row <= f_row(wr_sch_row_i, w_sel_wr_col_s);
 			rd_act_bank <= f_bank(rd_sch_bank_i, w_sel_rd_act_s);
 			rd_act_row <= f_row(rd_sch_row_i, w_sel_rd_act_s);
 			wr_act_bank <= f_bank(wr_sch_bank_i, w_sel_wr_act_s);
@@ -1060,7 +1338,7 @@ module scoria_cmd_arbiter (
 		if (_sv2v_0)
 			;
 		w_wr_occ = 1'sb0;
-		begin : sv2v_autoblock_23
+		begin : sv2v_autoblock_33
 			reg signed [31:0] i;
 			for (i = 0; i < NUM_ENTRIES; i = i + 1)
 				if (wr_sch_valid_i[i])
@@ -1131,9 +1409,11 @@ module scoria_cmd_arbiter (
 		else if (w_stalled) begin
 			if (w_out_reject)
 				stall_banktimer_o <= stall_banktimer_o + 32'h00000001;
+			else if (w_out_hold)
+				stall_actlimit_o <= stall_actlimit_o + 32'h00000001;
 			else if (r_pick_valid)
 				stall_bp_o <= stall_bp_o + 32'h00000001;
-			else if (w_zq_busy || zq_req_i)
+			else if (HAS_ZQ && (w_zq_busy || zq_req_i))
 				stall_zq_o <= stall_zq_o + 32'h00000001;
 			else if (refresh_req_i || refresh_drain_i)
 				stall_refresh_o <= stall_refresh_o + 32'h00000001;
@@ -1151,7 +1431,7 @@ module scoria_cmd_arbiter (
 	reg w_col_wrf;
 	reg w_act_wrf;
 	reg w_pre_wrf;
-	always @(*) begin : sv2v_autoblock_24
+	always @(*) begin : sv2v_autoblock_34
 		reg rr;
 		rr = (sched_prio_sub_i == 2'd1) && r_dir_rr;
 		if (_sv2v_0)
@@ -1187,7 +1467,7 @@ module scoria_cmd_arbiter (
 		w_any_active = |r_bank_row_active[RK0 * NUM_BANKS+:NUM_BANKS];
 		w_rfsh_pre_found = 1'b0;
 		w_rfsh_pre_bank = 1'sb0;
-		begin : sv2v_autoblock_25
+		begin : sv2v_autoblock_35
 			reg signed [31:0] j;
 			for (j = NUM_BANKS - 1; j >= 0; j = j - 1)
 				if ((r_bank_row_active[(RK0 * NUM_BANKS) + j] && r_bank_pre_ready[(RK0 * NUM_BANKS) + j]) && !w_guarded[j]) begin
@@ -1196,12 +1476,14 @@ module scoria_cmd_arbiter (
 				end
 		end
 	end
-	assign w_ref_safe = (((((!w_any_active && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !r_grant) && !r_zq_grant;
+	assign w_ref_safe = (((((!w_any_active && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !r_grant) && !r_maint_grant;
 	wire w_refpb_safe;
-	assign w_refpb_safe = ((((!r_bank_row_active[(RK0 * NUM_BANKS) + refresh_bank_i] && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !r_grant;
+	assign w_refpb_safe = (((((!r_bank_row_active[(RK0 * NUM_BANKS) + refresh_bank_i] && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !r_grant) && !r_maint_grant;
+	wire w_maint_safe;
+	assign w_maint_safe = (((((((!w_any_active && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !w_zq_busy) && !r_grant) && !r_maint_grant) && !(HAS_ZQ && r_zq_grant);
 	wire w_zq_safe;
-	assign w_zq_safe = ((((((!w_any_active && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !w_zq_busy) && !r_grant) && !r_zq_grant;
-	reg [3:0] w_op;
+	assign w_zq_safe = ((((((!w_any_active && !w_inflight_preact) && (r_guard0 == {NUM_BANKS {1'sb0}})) && (r_guard1 == {NUM_BANKS {1'sb0}})) && !w_rfc_busy) && !w_zq_busy) && !r_grant) && !r_maint_grant;
+	reg [4:0] w_op;
 	reg [BKW - 1:0] w_bank;
 	reg [ROW_WIDTH - 1:0] w_row;
 	reg [COL_WIDTH - 1:0] w_col;
@@ -1213,6 +1495,7 @@ module scoria_cmd_arbiter (
 	reg w_do_pre;
 	reg w_grant;
 	reg w_zq_grant;
+	reg w_maint_grant;
 	reg w_wr_commit;
 	reg w_rd_issue;
 	reg [PTRW - 1:0] w_commit_slot;
@@ -1220,7 +1503,7 @@ module scoria_cmd_arbiter (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		w_op = 4'h0;
+		w_op = 5'h00;
 		w_bank = 1'sb0;
 		w_row = 1'sb0;
 		w_col = 1'sb0;
@@ -1232,6 +1515,7 @@ module scoria_cmd_arbiter (
 		w_do_pre = 1'b0;
 		w_grant = 1'b0;
 		w_zq_grant = 1'b0;
+		w_maint_grant = 1'b0;
 		w_wr_commit = 1'b0;
 		w_rd_issue = 1'b0;
 		w_commit_slot = 1'sb0;
@@ -1244,21 +1528,21 @@ module scoria_cmd_arbiter (
 				w_row = init_cmd_row_i;
 			end
 		end
-		else if (w_zq_busy)
+		else if (HAS_ZQ && w_zq_busy)
 			w_valid = 1'b0;
 		else if (refresh_req_i || refresh_drain_i) begin
 			if (refresh_kind_i) begin
 				if (r_bank_row_active[(RK0 * NUM_BANKS) + refresh_bank_i]) begin
 					if (r_bank_pre_ready[(RK0 * NUM_BANKS) + refresh_bank_i] && !w_guarded[refresh_bank_i]) begin
 						w_valid = 1'b1;
-						w_op = 4'h6;
+						w_op = 5'h06;
 						w_bank = refresh_bank_i;
 						w_do_pre = 1'b1;
 					end
 				end
 				else if (w_refpb_safe) begin
 					w_valid = 1'b1;
-					w_op = 4'h9;
+					w_op = 5'h09;
 					w_bank = refresh_bank_i;
 					w_grant = 1'b1;
 				end
@@ -1266,37 +1550,46 @@ module scoria_cmd_arbiter (
 			else if (w_any_active) begin
 				if (w_rfsh_pre_found) begin
 					w_valid = 1'b1;
-					w_op = 4'h6;
+					w_op = 5'h06;
 					w_bank = w_rfsh_pre_bank;
 					w_do_pre = 1'b1;
 				end
 			end
 			else if (w_ref_safe) begin
 				w_valid = 1'b1;
-				w_op = 4'h8;
+				w_op = 5'h08;
 				w_grant = 1'b1;
 			end
 		end
-		else if (zq_req_i) begin
+		else if (HAS_ZQ && zq_req_i) begin
 			if (w_any_active) begin
 				if (w_rfsh_pre_found) begin
 					w_valid = 1'b1;
-					w_op = 4'h6;
+					w_op = 5'h06;
 					w_bank = w_rfsh_pre_bank;
 					w_do_pre = 1'b1;
 				end
 			end
 			else if (w_zq_safe) begin
 				w_valid = 1'b1;
-				w_op = 4'hb;
+				w_op = 5'h0b;
 				w_zq_grant = 1'b1;
 			end
+		end
+		else if (maint_req_i && w_maint_safe) begin
+			w_valid = 1'b1;
+			w_op = maint_op_i;
+			w_bank = maint_bank_i;
+			w_row = maint_row_i;
+			w_col = maint_col_i;
+			w_maint_grant = 1'b1;
 		end
 		else if (((((w_pick_class == 2'd1) && rd_col_f) && rd_issue_ready_i) && w_rd_turn_live) && !(((w_col_wrf && wr_col_f) && wr_commit_ready_i) && w_wr_turn_live)) begin
 			w_bank = rd_col_bank;
 			w_col = rd_col_col;
+			w_row = rd_col_row;
 			w_valid = 1'b1;
-			w_op = (rd_col_ap ? 4'h3 : 4'h2);
+			w_op = (rd_col_ap ? 5'h03 : 5'h02);
 			w_ap_out = rd_col_ap;
 			w_do_rd = 1'b1;
 			w_rd_issue = 1'b1;
@@ -1305,8 +1598,9 @@ module scoria_cmd_arbiter (
 		else if ((((w_pick_class == 2'd1) && wr_col_f) && wr_commit_ready_i) && w_wr_turn_live) begin
 			w_bank = wr_col_bank;
 			w_col = wr_col_col;
+			w_row = wr_col_row;
 			w_valid = 1'b1;
-			w_op = (wr_col_ap ? 4'h5 : 4'h4);
+			w_op = (wr_col_ap ? 5'h05 : 5'h04);
 			w_ap_out = wr_col_ap;
 			w_do_wr = 1'b1;
 			w_wr_commit = 1'b1;
@@ -1314,33 +1608,33 @@ module scoria_cmd_arbiter (
 		end
 		else if ((((w_pick_class == 2'd2) && rd_act_f) && w_act_gate_live) && !(w_act_wrf && wr_act_f)) begin
 			w_valid = 1'b1;
-			w_op = 4'h1;
+			w_op = 5'h01;
 			w_bank = rd_act_bank;
 			w_row = rd_act_row;
 			w_do_act = 1'b1;
 		end
 		else if (((w_pick_class == 2'd2) && wr_act_f) && w_act_gate_live) begin
 			w_valid = 1'b1;
-			w_op = 4'h1;
+			w_op = 5'h01;
 			w_bank = wr_act_bank;
 			w_row = wr_act_row;
 			w_do_act = 1'b1;
 		end
 		else if (((w_pick_class == 2'd3) && rd_pre_f) && !(w_pre_wrf && wr_pre_f)) begin
 			w_valid = 1'b1;
-			w_op = 4'h6;
+			w_op = 5'h06;
 			w_bank = rd_pre_bank;
 			w_do_pre = 1'b1;
 		end
 		else if ((w_pick_class == 2'd3) && wr_pre_f) begin
 			w_valid = 1'b1;
-			w_op = 4'h6;
+			w_op = 5'h06;
 			w_bank = wr_pre_bank;
 			w_do_pre = 1'b1;
 		end
 		else if (((timeout_pre_req_i && r_bank_row_active[(RK0 * NUM_BANKS) + timeout_pre_bank_i]) && r_bank_pre_ready[(RK0 * NUM_BANKS) + timeout_pre_bank_i]) && !w_guarded[timeout_pre_bank_i]) begin
 			w_valid = 1'b1;
-			w_op = 4'h6;
+			w_op = 5'h06;
 			w_bank = timeout_pre_bank_i;
 			w_do_pre = 1'b1;
 		end
@@ -1358,9 +1652,11 @@ module scoria_cmd_arbiter (
 			r_do_wr <= 1'b0;
 			r_do_pre <= 1'b0;
 			r_grant <= 1'b0;
+			r_maint_grant <= 1'b0;
+			r_zq_grant <= 1'b0;
 			r_wr_commit <= 1'b0;
 			r_rd_issue <= 1'b0;
-			r_zq_grant <= 1'b0;
+			r_cmd_extra <= 1'sb0;
 		end
 		else if (w_out_ready) begin
 			r_pick_valid <= w_valid;
@@ -1374,14 +1670,16 @@ module scoria_cmd_arbiter (
 			r_do_wr <= w_do_wr;
 			r_do_pre <= w_do_pre;
 			r_grant <= w_grant;
+			r_maint_grant <= w_maint_grant;
 			r_zq_grant <= w_zq_grant;
+			r_cmd_extra <= (w_maint_grant ? maint_extra_i : {MAINT_EXTRA_WIDTH {1'sb0}});
 			r_wr_commit <= w_wr_commit;
 			r_commit_slot <= w_commit_slot;
 			r_rd_issue <= w_rd_issue;
 			r_issue_slot <= w_issue_slot;
 		end
 	assign cmd_valid_o = r_pick_valid && w_out_safe;
-	assign cmd_op_o = r_op;
+	assign cmd_op_o = (r_do_rd && !w_ap_fire ? 5'h02 : (r_do_wr && !w_ap_fire ? 5'h04 : r_op));
 	function automatic signed [RKW - 1:0] sv2v_cast_6B7F8_signed;
 		input reg signed [RKW - 1:0] inp;
 		sv2v_cast_6B7F8_signed = inp;
@@ -1390,12 +1688,13 @@ module scoria_cmd_arbiter (
 	assign cmd_bank_o = r_bank;
 	assign cmd_row_o = r_row;
 	assign cmd_col_o = r_col_out;
-	assign cmd_ap_o = r_ap_out;
+	assign cmd_ap_o = w_ap_fire;
+	assign cmd_extra_o = r_cmd_extra;
 	assign evt_act_o = w_fire_out && r_do_act;
 	assign evt_rd_o = w_fire_out && r_do_rd;
 	assign evt_wr_o = w_fire_out && r_do_wr;
 	assign evt_pre_o = w_fire_out && r_do_pre;
-	assign evt_ap_o = r_ap_out;
+	assign evt_ap_o = w_ap_fire;
 	assign evt_rank_o = sv2v_cast_6B7F8_signed(RK0);
 	assign evt_bank_o = r_bank;
 	assign evt_row_o = r_row;
@@ -1404,7 +1703,8 @@ module scoria_cmd_arbiter (
 	assign rd_issue_valid_o = w_fire_out && r_rd_issue;
 	assign rd_issue_slot_o = r_issue_slot;
 	assign refresh_grant_o = w_fire_out && r_grant;
-	assign zq_grant_o = w_fire_out && r_zq_grant;
+	assign zq_grant_o = (HAS_ZQ ? w_fire_out && r_zq_grant : 1'b0);
+	assign maint_grant_o = w_fire_out && r_maint_grant;
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_guard0 <= 1'sb0;
@@ -1435,22 +1735,369 @@ module scoria_cmd_arbiter (
 			r_rdfire0 <= w_fire_out && r_do_rd;
 			r_apguard1 <= r_apguard0;
 			r_apguard0 <= 1'sb0;
-			if ((w_fire_out && (r_do_rd || r_do_wr)) && r_ap_out)
+			if ((w_fire_out && (r_do_rd || r_do_wr)) && w_ap_fire)
 				r_apguard0 <= sv2v_cast_A03D0_signed(1) << r_bank;
 		end
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn)
 			r_rfc_cnt <= 1'sb0;
 		else if (w_fire_out && r_grant)
-			r_rfc_cnt <= ((r_op == 4'h9) && (t_rfc_pb_i != 8'd0) ? {8'h00, t_rfc_pb_i} : t_rfc_i);
+			r_rfc_cnt <= ((r_op == 5'h09) && (t_rfc_pb_i != 8'd0) ? {8'h00, t_rfc_pb_i} : t_rfc_i);
 		else if (w_rfc_busy)
 			r_rfc_cnt <= r_rfc_cnt - 16'd1;
+	generate
+		if (HAS_ZQ) begin : g_zqcs_cnt
+			always @(posedge aclk or negedge aresetn)
+				if (!aresetn)
+					r_zqcs_cnt <= 1'sb0;
+				else if (w_fire_out && r_zq_grant)
+					r_zqcs_cnt <= t_zqcs_i;
+				else if (w_zq_busy)
+					r_zqcs_cnt <= r_zqcs_cnt - 16'd1;
+		end
+		else begin : g_no_zqcs_cnt
+			wire [16:1] sv2v_tmp_660FE;
+			assign sv2v_tmp_660FE = 16'd0;
+			always @(*) r_zqcs_cnt = sv2v_tmp_660FE;
+		end
+	endgenerate
+	assign w_pick_group = (NUM_BG > 1 ? r_bank[BKW - 1-:BGW_EFF] : {BGW_EFF {1'sb0}});
 	always @(posedge aclk or negedge aresetn)
-		if (!aresetn)
-			r_zqcs_cnt <= 1'sb0;
-		else if (w_fire_out && r_zq_grant)
-			r_zqcs_cnt <= t_zqcs_i;
-		else if (w_zq_busy)
-			r_zqcs_cnt <= r_zqcs_cnt - 16'd1;
+		if (!aresetn) begin
+			r_last_col_bg <= 1'sb0;
+			r_last_act_bg <= 1'sb0;
+		end
+		else begin
+			if (w_rd_col_fire || w_wr_col_fire)
+				r_last_col_bg <= w_pick_group;
+			if (w_fire_out && r_do_act)
+				r_last_act_bg <= w_pick_group;
+		end
+	assign w_tccd_ls_ok = (w_pick_group != r_last_col_bg) || tccd_l_ok_i;
+	assign w_trrd_ls_ok = (w_pick_group != r_last_act_bg) || trrd_l_ok_i;
+	assign pick_group_o = w_pick_group;
 	initial _sv2v_0 = 0;
+endmodule
+module scoria_cmd_arbiter (
+	aclk,
+	aresetn,
+	page_policy_i,
+	sched_order_mode_i,
+	sched_row_sel_i,
+	sched_col_sel_i,
+	sched_access_pref_i,
+	sched_wr_high_wm_i,
+	sched_wr_batch_max_i,
+	sched_wr_low_wm_i,
+	sched_prio_sub_i,
+	sched_qos_en_i,
+	rd_sch_qos_i,
+	wr_sch_qos_i,
+	rd_sch_age_exceed_i,
+	wr_sch_age_exceed_i,
+	rd_sch_head_rel_i,
+	wr_sch_head_rel_i,
+	ap_mode_en_i,
+	ap_close_i,
+	timeout_pre_req_i,
+	timeout_pre_bank_i,
+	init_done_i,
+	init_cmd_valid_i,
+	init_cmd_op_i,
+	init_cmd_bank_i,
+	init_cmd_row_i,
+	refresh_req_i,
+	refresh_drain_i,
+	refresh_kind_i,
+	refresh_bank_i,
+	refresh_grant_o,
+	t_rfc_i,
+	t_rfc_pb_i,
+	zq_req_i,
+	zq_grant_o,
+	t_zqcs_i,
+	bank_act_ready_i,
+	bank_rdwr_ready_i,
+	bank_pre_ready_i,
+	bank_act_ready_la_i,
+	bank_rdwr_ready_la_i,
+	bank_pre_ready_la_i,
+	bank_row_active_i,
+	bank_open_row_i,
+	tfaw_ok_i,
+	trrd_ok_i,
+	twtr_ok_i,
+	trtw_ok_i,
+	tccd_ok_i,
+	t_ccd_i,
+	wr_sch_valid_i,
+	wr_sch_bank_i,
+	wr_sch_row_i,
+	wr_sch_col_i,
+	wr_sch_older_i,
+	wr_commit_ready_i,
+	wr_commit_valid_o,
+	wr_commit_slot_o,
+	rd_sch_valid_i,
+	rd_sch_bank_i,
+	rd_sch_row_i,
+	rd_sch_col_i,
+	rd_sch_older_i,
+	rd_issue_ready_i,
+	rd_issue_valid_o,
+	rd_issue_slot_o,
+	evt_act_o,
+	evt_rd_o,
+	evt_wr_o,
+	evt_pre_o,
+	evt_ap_o,
+	evt_rank_o,
+	evt_bank_o,
+	evt_row_o,
+	cmd_valid_o,
+	cmd_ready_i,
+	cmd_op_o,
+	cmd_rank_o,
+	cmd_bank_o,
+	cmd_row_o,
+	cmd_col_o,
+	cmd_ap_o,
+	stall_bp_o,
+	stall_refresh_o,
+	stall_turnaround_o,
+	stall_tccd_o,
+	stall_actlimit_o,
+	stall_banktimer_o,
+	stall_noreq_o,
+	stall_zq_o
+);
+	parameter signed [31:0] NUM_RANKS = 1;
+	parameter signed [31:0] NUM_BANKS = 8;
+	parameter signed [31:0] ROW_WIDTH = 14;
+	parameter signed [31:0] COL_WIDTH = 10;
+	parameter signed [31:0] AXI_ID_WIDTH = 8;
+	parameter signed [31:0] NUM_ENTRIES = 8;
+	parameter signed [31:0] AGE_WIDTH = 16;
+	parameter signed [31:0] RKW = (NUM_RANKS > 1 ? $clog2(NUM_RANKS) : 1);
+	parameter signed [31:0] BKW = $clog2(NUM_BANKS);
+	parameter signed [31:0] PTRW = $clog2(NUM_ENTRIES);
+	parameter signed [31:0] IW = AXI_ID_WIDTH;
+	input wire aclk;
+	input wire aresetn;
+	input wire [1:0] page_policy_i;
+	input wire [1:0] sched_order_mode_i;
+	input wire [1:0] sched_row_sel_i;
+	input wire [1:0] sched_col_sel_i;
+	input wire [1:0] sched_access_pref_i;
+	input wire [7:0] sched_wr_high_wm_i;
+	input wire [7:0] sched_wr_batch_max_i;
+	input wire [7:0] sched_wr_low_wm_i;
+	input wire [1:0] sched_prio_sub_i;
+	input wire sched_qos_en_i;
+	input wire [(NUM_ENTRIES * 4) - 1:0] rd_sch_qos_i;
+	input wire [(NUM_ENTRIES * 4) - 1:0] wr_sch_qos_i;
+	input wire [NUM_ENTRIES - 1:0] rd_sch_age_exceed_i;
+	input wire [NUM_ENTRIES - 1:0] wr_sch_age_exceed_i;
+	input wire [AGE_WIDTH - 1:0] rd_sch_head_rel_i;
+	input wire [AGE_WIDTH - 1:0] wr_sch_head_rel_i;
+	input wire ap_mode_en_i;
+	input wire [NUM_BANKS - 1:0] ap_close_i;
+	input wire timeout_pre_req_i;
+	input wire [BKW - 1:0] timeout_pre_bank_i;
+	input wire init_done_i;
+	input wire init_cmd_valid_i;
+	input wire [4:0] init_cmd_op_i;
+	input wire [BKW - 1:0] init_cmd_bank_i;
+	input wire [ROW_WIDTH - 1:0] init_cmd_row_i;
+	input wire refresh_req_i;
+	input wire refresh_drain_i;
+	input wire refresh_kind_i;
+	input wire [BKW - 1:0] refresh_bank_i;
+	output wire refresh_grant_o;
+	input wire [15:0] t_rfc_i;
+	input wire [7:0] t_rfc_pb_i;
+	input wire zq_req_i;
+	output wire zq_grant_o;
+	input wire [15:0] t_zqcs_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_act_ready_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_rdwr_ready_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_pre_ready_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_act_ready_la_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_rdwr_ready_la_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_pre_ready_la_i;
+	input wire [(NUM_RANKS * NUM_BANKS) - 1:0] bank_row_active_i;
+	input wire [((NUM_RANKS * NUM_BANKS) * ROW_WIDTH) - 1:0] bank_open_row_i;
+	input wire [NUM_RANKS - 1:0] tfaw_ok_i;
+	input wire [NUM_RANKS - 1:0] trrd_ok_i;
+	input wire twtr_ok_i;
+	input wire trtw_ok_i;
+	input wire tccd_ok_i;
+	input wire [7:0] t_ccd_i;
+	input wire [NUM_ENTRIES - 1:0] wr_sch_valid_i;
+	input wire [(NUM_ENTRIES * BKW) - 1:0] wr_sch_bank_i;
+	input wire [(NUM_ENTRIES * ROW_WIDTH) - 1:0] wr_sch_row_i;
+	input wire [(NUM_ENTRIES * COL_WIDTH) - 1:0] wr_sch_col_i;
+	input wire [(NUM_ENTRIES * NUM_ENTRIES) - 1:0] wr_sch_older_i;
+	input wire wr_commit_ready_i;
+	output wire wr_commit_valid_o;
+	output wire [PTRW - 1:0] wr_commit_slot_o;
+	input wire [NUM_ENTRIES - 1:0] rd_sch_valid_i;
+	input wire [(NUM_ENTRIES * BKW) - 1:0] rd_sch_bank_i;
+	input wire [(NUM_ENTRIES * ROW_WIDTH) - 1:0] rd_sch_row_i;
+	input wire [(NUM_ENTRIES * COL_WIDTH) - 1:0] rd_sch_col_i;
+	input wire [(NUM_ENTRIES * NUM_ENTRIES) - 1:0] rd_sch_older_i;
+	input wire rd_issue_ready_i;
+	output wire rd_issue_valid_o;
+	output wire [PTRW - 1:0] rd_issue_slot_o;
+	output wire evt_act_o;
+	output wire evt_rd_o;
+	output wire evt_wr_o;
+	output wire evt_pre_o;
+	output wire evt_ap_o;
+	output wire [RKW - 1:0] evt_rank_o;
+	output wire [BKW - 1:0] evt_bank_o;
+	output wire [ROW_WIDTH - 1:0] evt_row_o;
+	output wire cmd_valid_o;
+	input wire cmd_ready_i;
+	output wire [4:0] cmd_op_o;
+	output wire [RKW - 1:0] cmd_rank_o;
+	output wire [BKW - 1:0] cmd_bank_o;
+	output wire [ROW_WIDTH - 1:0] cmd_row_o;
+	output wire [COL_WIDTH - 1:0] cmd_col_o;
+	output wire cmd_ap_o;
+	output wire [31:0] stall_bp_o;
+	output wire [31:0] stall_refresh_o;
+	output wire [31:0] stall_turnaround_o;
+	output wire [31:0] stall_tccd_o;
+	output wire [31:0] stall_actlimit_o;
+	output wire [31:0] stall_banktimer_o;
+	output wire [31:0] stall_noreq_o;
+	output wire [31:0] stall_zq_o;
+	wire [0:0] w_cmd_extra;
+	localparam signed [31:0] sv2v_uu_u_core_NUM_BANKS = NUM_BANKS;
+	localparam signed [31:0] sv2v_uu_u_core_BKW = $clog2(sv2v_uu_u_core_NUM_BANKS);
+	localparam [sv2v_uu_u_core_BKW - 1:0] sv2v_uu_u_core_ext_maint_bank_i_0 = 1'sb0;
+	localparam signed [31:0] sv2v_uu_u_core_ROW_WIDTH = ROW_WIDTH;
+	localparam [sv2v_uu_u_core_ROW_WIDTH - 1:0] sv2v_uu_u_core_ext_maint_row_i_0 = 1'sb0;
+	localparam signed [31:0] sv2v_uu_u_core_COL_WIDTH = COL_WIDTH;
+	localparam [sv2v_uu_u_core_COL_WIDTH - 1:0] sv2v_uu_u_core_ext_maint_col_i_0 = 1'sb0;
+	localparam signed [31:0] sv2v_uu_u_core_MAINT_EXTRA_WIDTH = 1;
+	localparam [0:0] sv2v_uu_u_core_ext_maint_extra_i_0 = 1'sb0;
+	mc_cmd_arbiter #(
+		.NUM_RANKS(NUM_RANKS),
+		.NUM_BANKS(NUM_BANKS),
+		.NUM_BG(1),
+		.ROW_WIDTH(ROW_WIDTH),
+		.COL_WIDTH(COL_WIDTH),
+		.AXI_ID_WIDTH(IW),
+		.NUM_ENTRIES(NUM_ENTRIES),
+		.AGE_WIDTH(AGE_WIDTH),
+		.HAS_ZQ(1'b1),
+		.MAINT_EXTRA_WIDTH(1)
+	) u_core(
+		.aclk(aclk),
+		.aresetn(aresetn),
+		.page_policy_i(page_policy_i),
+		.sched_order_mode_i(sched_order_mode_i),
+		.sched_row_sel_i(sched_row_sel_i),
+		.sched_col_sel_i(sched_col_sel_i),
+		.sched_access_pref_i(sched_access_pref_i),
+		.sched_wr_high_wm_i(sched_wr_high_wm_i),
+		.sched_wr_batch_max_i(sched_wr_batch_max_i),
+		.sched_wr_low_wm_i(sched_wr_low_wm_i),
+		.sched_prio_sub_i(sched_prio_sub_i),
+		.sched_qos_en_i(sched_qos_en_i),
+		.rd_sch_qos_i(rd_sch_qos_i),
+		.wr_sch_qos_i(wr_sch_qos_i),
+		.rd_sch_age_exceed_i(rd_sch_age_exceed_i),
+		.wr_sch_age_exceed_i(wr_sch_age_exceed_i),
+		.rd_sch_head_rel_i(rd_sch_head_rel_i),
+		.wr_sch_head_rel_i(wr_sch_head_rel_i),
+		.ap_mode_en_i(ap_mode_en_i),
+		.ap_close_i(ap_close_i),
+		.timeout_pre_req_i(timeout_pre_req_i),
+		.timeout_pre_bank_i(timeout_pre_bank_i),
+		.init_done_i(init_done_i),
+		.init_cmd_valid_i(init_cmd_valid_i),
+		.init_cmd_op_i(init_cmd_op_i),
+		.init_cmd_bank_i(init_cmd_bank_i),
+		.init_cmd_row_i(init_cmd_row_i),
+		.refresh_req_i(refresh_req_i),
+		.refresh_drain_i(refresh_drain_i),
+		.refresh_grant_o(refresh_grant_o),
+		.refresh_kind_i(refresh_kind_i),
+		.refresh_bank_i(refresh_bank_i),
+		.t_rfc_i(t_rfc_i),
+		.t_rfc_pb_i(t_rfc_pb_i),
+		.zq_req_i(zq_req_i),
+		.zq_grant_o(zq_grant_o),
+		.t_zqcs_i(t_zqcs_i),
+		.maint_req_i(1'b0),
+		.maint_grant_o(),
+		.maint_op_i(5'h00),
+		.maint_bank_i(sv2v_uu_u_core_ext_maint_bank_i_0),
+		.maint_row_i(sv2v_uu_u_core_ext_maint_row_i_0),
+		.maint_col_i(sv2v_uu_u_core_ext_maint_col_i_0),
+		.maint_extra_i(sv2v_uu_u_core_ext_maint_extra_i_0),
+		.maint_busy_i(1'b0),
+		.bank_act_ready_i(bank_act_ready_i),
+		.bank_rdwr_ready_i(bank_rdwr_ready_i),
+		.bank_pre_ready_i(bank_pre_ready_i),
+		.bank_act_ready_la_i(bank_act_ready_la_i),
+		.bank_rdwr_ready_la_i(bank_rdwr_ready_la_i),
+		.bank_pre_ready_la_i(bank_pre_ready_la_i),
+		.bank_row_active_i(bank_row_active_i),
+		.bank_open_row_i(bank_open_row_i),
+		.tfaw_ok_i(tfaw_ok_i),
+		.trrd_ok_i(trrd_ok_i),
+		.twtr_ok_i(twtr_ok_i),
+		.trtw_ok_i(trtw_ok_i),
+		.tccd_ok_i(tccd_ok_i),
+		.tccd_l_ok_i(1'b1),
+		.trrd_l_ok_i(1'b1),
+		.pick_group_o(),
+		.t_ccd_i(t_ccd_i),
+		.wr_sch_valid_i(wr_sch_valid_i),
+		.wr_sch_bank_i(wr_sch_bank_i),
+		.wr_sch_row_i(wr_sch_row_i),
+		.wr_sch_col_i(wr_sch_col_i),
+		.wr_sch_older_i(wr_sch_older_i),
+		.wr_commit_ready_i(wr_commit_ready_i),
+		.wr_commit_valid_o(wr_commit_valid_o),
+		.wr_commit_slot_o(wr_commit_slot_o),
+		.rd_sch_valid_i(rd_sch_valid_i),
+		.rd_sch_bank_i(rd_sch_bank_i),
+		.rd_sch_row_i(rd_sch_row_i),
+		.rd_sch_col_i(rd_sch_col_i),
+		.rd_sch_older_i(rd_sch_older_i),
+		.rd_issue_ready_i(rd_issue_ready_i),
+		.rd_issue_valid_o(rd_issue_valid_o),
+		.rd_issue_slot_o(rd_issue_slot_o),
+		.evt_act_o(evt_act_o),
+		.evt_rd_o(evt_rd_o),
+		.evt_wr_o(evt_wr_o),
+		.evt_pre_o(evt_pre_o),
+		.evt_ap_o(evt_ap_o),
+		.evt_rank_o(evt_rank_o),
+		.evt_bank_o(evt_bank_o),
+		.evt_row_o(evt_row_o),
+		.cmd_valid_o(cmd_valid_o),
+		.cmd_ready_i(cmd_ready_i),
+		.cmd_op_o(cmd_op_o),
+		.cmd_rank_o(cmd_rank_o),
+		.cmd_bank_o(cmd_bank_o),
+		.cmd_row_o(cmd_row_o),
+		.cmd_col_o(cmd_col_o),
+		.cmd_ap_o(cmd_ap_o),
+		.cmd_extra_o(w_cmd_extra),
+		.stall_bp_o(stall_bp_o),
+		.stall_refresh_o(stall_refresh_o),
+		.stall_turnaround_o(stall_turnaround_o),
+		.stall_tccd_o(stall_tccd_o),
+		.stall_actlimit_o(stall_actlimit_o),
+		.stall_banktimer_o(stall_banktimer_o),
+		.stall_noreq_o(stall_noreq_o),
+		.stall_zq_o(stall_zq_o)
+	);
+	wire _unused = &{1'b0, w_cmd_extra};
 endmodule

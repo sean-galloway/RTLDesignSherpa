@@ -145,8 +145,8 @@ The map is 4 KB, addressed by `s_cpuif_addr[11:0]`. The full generated descripti
 
 : Table 3.1.5: CSR liveness classes
 
-## The N+1 timing convention
+## The timing convention: exact per bank, N+1 global
 
-Every JEDEC timing field in the core-timing registers is a count of MC cycles to block, so a value programmed as `N` is enforced as `N+1` cycles of command spacing. The counter is loaded with `N` on the event and the gate opens the cycle after it would reach zero. This is stated explicitly in `TIMINGS_RC_RCD_RP_RAS` and is measured tight in `formal/scoria/bank_timer` and `formal/scoria/global_timers` (`a_*_bound_n1`). Program the JEDEC value from the part datasheet; do not subtract one to compensate.
+Every JEDEC timing field in the core-timing registers is a count of MC cycles. The per-bank windows (tRC, tRP, tRCD, tRAS, tRTP, tWR, in `mc_bank_timer`) are JEDEC-exact: the counter loads `N-1` and the gate opens exactly `N` cycles after the command (b409f364e, 2026-10-17; before that they were `N+1` too), pinned by the `c_t*_exact` covers in `formal/mc_common/mc_bank_timer`. The global windows (tRRD, tCCD, tWTR, tRTW, in `mc_global_timers`) still enforce `N+1`: the counter loads `N` and the gate opens the cycle after it would reach zero, pinned by `a_*_bound_n1` in `formal/mc_common/mc_global_timers`. Program the JEDEC value from the part datasheet; do not subtract one to compensate.
 
 The generated register reference with full field descriptions is `regs/generated/docs/scoria_csr.md`.

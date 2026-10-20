@@ -88,7 +88,7 @@ guess the alignment.
 What DOES find them, cheaply: compose the gating block with the gated block --
 the real one, not a model -- let the environment free, and time the events with
 a counter the wrapper keeps itself rather than trusting either DUT to report
-its own spacing. `formal/scoria/cmd_arbiter` and `formal/pumice/cmd_arbiter`
+its own spacing. `formal/scoria/cmd_arbiter` and `formal/mc_common/mc_cmd_arbiter`
 are both ~300 lines and run in under a minute.
 
 See also [[registered-status-outputs]] (the producer-side twin: a registered
