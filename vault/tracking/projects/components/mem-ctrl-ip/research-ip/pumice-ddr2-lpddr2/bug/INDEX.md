@@ -12,23 +12,14 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 22 | done (kept for history) |
+| [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-027** — six core_dfi perf-shape cells red (fixed_open,
-  perf_write_ceiling, perf_paging_sched_cross, refresh_credit,
-  perf_read_inflight, perf_paging_sweep). PROVEN PRE-EXISTING (fail
-  identically with mc_bank_sched reverted to the pre-MC-003 state;
-  filed 2026-10-17 during the MC-003 verification). Likely fallout from
-  the MC-003-era common-plane work, made visible when the BUG-015
-  vacuous-pass window closed.
-- **BUG-025** — OBS_ROW_HIT counters read zero: the BUG-020 regression net
-  was dark (vacuous pass).
 - **BUG-024** — pumice_zq_ctrl random_soak loses exactly one grant at some
   SEED draws (`total() == grants` off by one; repro: `SEED=58170` on the
   random_soak test). PROVEN PRE-EXISTING (reproduced on pristine 0a0a216c6);
@@ -38,6 +29,11 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-027** (2026-10-20) — six perf-shape cells red; root cause
+  CLOSE_ON_DRAIN auto-precharge in mc_cmd_arbiter; fixed by pumice
+  CLOSE_ON_DRAIN=0 + skip-gated probe. See the item.
+- **BUG-025** (2026-10-20) — OBS_ROW_HIT counters read zero; collateral of
+  BUG-027 (all misses under AP-on-drain). See the item.
 - **BUG-023** — the reset-parity manifest was re-based at BUG-020 (73 -> 65
   FIELDS, correctly) but the test's `>= 70` floor was never moved, so the
   floor test was red 2026-09-28 -> 2026-10-07 — FIXED 2026-10-08: it went

@@ -252,6 +252,12 @@ async def cocotb_test_close_drain(dut):
 
 
 def test_pumice_close_drain(request):
+    # BUG-027 (2026-10-20): pumice disables CLOSE_ON_DRAIN (the AP-on-drain
+    # feature chops open-page streams); this probe only makes sense with the
+    # feature on. PUMICE_CLOSE_ON_DRAIN=1 rebuilds the DUT with it enabled.
+    if os.environ.get("PUMICE_CLOSE_ON_DRAIN", "0") != "1":
+        pytest.skip("CLOSE_ON_DRAIN disabled in pumice (BUG-027); "
+                    "set PUMICE_CLOSE_ON_DRAIN=1 to run this probe")
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core"
     test_name = "cocotb_test_close_drain"
@@ -263,7 +269,8 @@ def test_pumice_close_drain(request):
               "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
               "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
-              "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8")}
+              "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
+              "CLOSE_ON_DRAIN": os.environ.get("PUMICE_CLOSE_ON_DRAIN", "0")}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml")}

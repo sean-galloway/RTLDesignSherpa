@@ -48,6 +48,8 @@ module pumice_core
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
     parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
+    parameter bit CLOSE_ON_DRAIN = 1'b0, // BUG-027: AP-on-drain chops pumice's
+                                         // open-page streams; product-only feature
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int AGE_WIDTH      = 16,
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
@@ -660,7 +662,8 @@ module pumice_core
         // Init is owned by u_init_plane; the scheduler plane takes its
         // external-init mode (the same mode scoria's wrapper uses).
         .HAS_INIT_SEQUENCER(1'b0),
-        .HAS_MODE_REGISTER (1'b0)
+        .HAS_MODE_REGISTER (1'b0),
+        .CLOSE_ON_DRAIN    (CLOSE_ON_DRAIN)
     ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
