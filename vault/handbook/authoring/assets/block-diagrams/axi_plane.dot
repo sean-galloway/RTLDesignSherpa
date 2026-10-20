@@ -7,7 +7,7 @@
 // Return flows drawn downward with dir=back so ranks stay natural.
 digraph axi_plane {
     rankdir=TB;
-    graph [splines=ortho, nodesep=0.35, ranksep=0.75, compound=true, fontname="Helvetica"];
+    graph [splines=ortho, nodesep=1.1, ranksep=0.95, compound=true, fontname="Helvetica"];
     node  [fontname="Helvetica", fontsize=11, style=filled, fillcolor="white", penwidth=1.2];
     edge  [fontname="Helvetica", fontsize=10, color="#333333", arrowsize=0.8];
 
@@ -36,24 +36,24 @@ digraph axi_plane {
          width=14.5, height=0.5, fontsize=12];
 
     // ---- write request flow (top-down, left) -------------------------------
-    aw -> wr_intake [xlabel="AW {awid, awaddr, awlen, awsize, awburst}"];
-    w  -> wr_intake [xlabel="W beats {wdata, wstrb, wlast}"];
-    wr_intake -> chopper [xlabel="addr + len, chop to bursts"];
-    chopper -> bar [xlabel="WR push {slot, row, col, id, last}"];
+    aw -> wr_intake [xlabel="AW\n{awid, awaddr,\nawlen, awsize,\nawburst}"];
+    w  -> wr_intake [xlabel="W beats\n{wdata, wstrb,\nwlast}"];
+    wr_intake -> chopper [xlabel="addr + len,\nchop to bursts"];
+    chopper -> bar [xlabel="WR push\n{slot, row, col,\nid, last}"];
 
     // ---- read request flow (top-down, right) -------------------------------
-    ar -> rd_intake [xlabel="AR {arid, araddr, arlen, arsize, arburst}"];
-    rd_intake -> bar [xlabel="RD push {slot, row, col, id}"];
+    ar -> rd_intake [minlen=2, xlabel="AR\n{arid, araddr,\narlen, arsize,\narburst}"];
+    rd_intake -> bar [xlabel="RD push\n{slot, row,\ncol, id}"];
 
     // ---- read return flow (drawn down, dir=back => reads as data climbing) -
     r -> ret_ring [dir=back, color="#1A7A1A",
-                   xlabel="R {rid, rdata, rlast, rresp}"];
+                   xlabel="R\n{rid, rdata,\nrlast, rresp}"];
     ret_ring -> bar [dir=back, color="#1A7A1A", style=dashed,
-                     xlabel="read return {data, slot, last}"];
+                     xlabel="read return\n{data, slot,\nlast}"];
 
     // ---- write response sideband (drawn down, dir=back) --------------------
     b -> bar [dir=back, style=dashed, color="#777777",
-              xlabel="write done {id, resp}"];
+              xlabel="write done\n{id, resp}"];
 
     // ---- snarf probe sideband ----------------------------------------------
     snarf_tap [label="snarf\ntap", shape=box, style="filled,dashed",

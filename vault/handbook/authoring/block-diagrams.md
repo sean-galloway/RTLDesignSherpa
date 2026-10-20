@@ -167,8 +167,9 @@ most of the elements"): the mem-ctrl AXI plane, stored with this note in
 rendered `axi_plane.png` (its key is generated, see "The key"). Copy from it;
 do not retype. It is brought to the rulings
 below (its debug-directory original filled every block green and marked
-flops `[==]`). Open item: six of its edge labels still sit on a line
-(rule 10); the next legibility pass on it fixes them.
+flops `[==]`). Its legibility pass stacked every multi-field payload as a
+multi-line `xlabel` and widened `nodesep` 0.35 -> 1.1 so each label fits
+between its lanes (six had sat across a neighbouring line).
 
 | Class | Graphviz | Fill | What it marks |
 |---|---|---|---|
