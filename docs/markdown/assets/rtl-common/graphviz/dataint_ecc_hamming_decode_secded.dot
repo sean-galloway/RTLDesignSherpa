@@ -25,7 +25,7 @@ digraph dataint_ecc_hamming_decode_secded {
     par [label="Overall Parity Check (combinational)\n^hamming_data[TotalWidth-2:0]\nvs stored hamming_data[TotalWidth-1]", style="filled", fillcolor="white"];
 
     // ---- decision (next-state logic of the register stage) ----
-    cls [group=C, width=8.2, label="Error Classifier (next-state logic)\nparity mismatch: single error, flip if syndrome != 0\nparity match, syndrome != 0: double error, no flip\nboth clean: no error", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cls [group=C, width=8.2, label="Error Classifier (next-state logic)\nparity mismatch: single error, flip if syndrome != 0\nparity match, syndrome != 0: double error, no flip\nboth clean: no error", style="filled", fillcolor="white"];
 
     // ---- the register stage (flops) ----
     creg [group=C, label="Correction Register\nr_data_with_parity (flop, loads on enable)\ncodeword with bit [syndrome-1] flipped", peripheries=2, style="filled", fillcolor="#D6E4F0"];

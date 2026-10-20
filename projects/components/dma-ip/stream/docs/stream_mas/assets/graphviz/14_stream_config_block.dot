@@ -10,9 +10,9 @@ digraph stream_config_block {
 
     regs [label="Register Block - stream_regs or stream_regs_16ch (PeakRDL)\nhwif_out: packed register fields (per-channel fields REG_NCH = 8 or 16 bits)", fillcolor="white", width=8.0, style="rounded,filled", fillcolor="#E2EFDA"];
     g1 [label="Global + Channel\nGLOBAL_EN, channel\nenable and reset", style="filled", fillcolor="white"];
-    g2 [label="Scheduler + Descriptor\nEngine\ntimeouts, prefetch,\naddress windows", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    g2 [label="Scheduler + Descriptor\nEngine\ntimeouts, prefetch,\naddress windows", style="filled", fillcolor="white"];
     g3 [label="Monitors\ndescriptor, read and\nwrite monitor masks\nand thresholds", style="filled", fillcolor="white"];
-    g4 [label="AXI Transfer +\nProfiler\nburst sizes, perf\nenable / mode / clear", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    g4 [label="AXI Transfer +\nProfiler\nburst sizes, perf\nenable / mode / clear", style="filled", fillcolor="white"];
     bar [label="Engine Configuration (to stream_core and the monitor group)\ncfg_* signals, defaults applied for unimplemented fields", fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     regs -> g1 [label="fields"]; regs -> g2 [label="fields"]; regs -> g3 [label="fields"]; regs -> g4 [label="fields"];

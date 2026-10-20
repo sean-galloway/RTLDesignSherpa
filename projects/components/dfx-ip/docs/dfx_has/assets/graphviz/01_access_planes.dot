@@ -14,7 +14,7 @@ digraph dfx_access_planes {
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     jtag [label="JTAG pins\n(TCK domain)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    tap  [label="JTAG TAP (planned)\njtag-tap - shared transport (TCK)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tap  [label="JTAG TAP (planned)\njtag-tap - shared transport (TCK)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
     agent [label="Config Plane (planned)\njtag-axil-agent: ADDR / WDATA / RDATA / CTRL\ncommand registers behind a USER DR (TCK)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     dm    [label="Override Plane (planned)\nriscv-debug: DTM + Debug Module,\nabstract commands, program buffer (TCK side)", peripheries=2, style="filled", fillcolor="#D6E4F0"];

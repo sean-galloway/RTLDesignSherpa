@@ -20,7 +20,7 @@ digraph math_mod_3_compress {
 
     split [label="Base-4 Digit Split (wiring)\nw_g0 .. w_g7 = d_in[1:0], d_in[3:2], ... d_in[15:14]\neach zero-extended to 6 bits (4 = 1 mod 3, so digits add)", style="filled", fillcolor="white"];
     l1   [label="Level 1 - three 3:2 compressors\nmath_adder_carry_save_nbit #(N=6) - comp1, comp2, comp3\n(comp3 takes w_g6, w_g7 and zero)", style="filled", fillcolor="white"];
-    l24  [label="Levels 2 .. 4 - four more 3:2 compressors\ncomp4, comp5 (level 2), comp6 (level 3), comp7 (level 4)\ncarries shifted left one place before each level", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    l24  [label="Levels 2 .. 4 - four more 3:2 compressors\ncomp4, comp5 (level 2), comp6 (level 3), comp7 (level 4)\ncarries shifted left one place before each level", style="filled", fillcolor="white"];
     cpa  [label="Carry-Propagate Add (combinational)\nw_grp_sum = w_sumG4 + (w_carryG4 << 1)\ndigit sum of d_in, 0 .. 24", style="filled", fillcolor="white"];
     fold [label="Base-4 Fold (combinational)\nw_fold = w_grp_sum[1:0] + w_grp_sum[3:2] + w_grp_sum[4]\n0 .. 7, same value mod 3", style="filled", fillcolor="white"];
     sub  [label="Conditional Subtract (combinational)\nw_fold >= 6: - 6   |   >= 3: - 3   |   else pass", style="filled", fillcolor="white"];

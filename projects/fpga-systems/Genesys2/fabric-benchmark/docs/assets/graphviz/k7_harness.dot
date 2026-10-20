@@ -19,7 +19,7 @@ digraph k7_harness {
 
     sapb [group=L, label="stream_apb\n0xF000_0000 (8 KB)\nSTREAM config + kicks", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     hcsr [group=L2, label="harness_csr\n0xF001_0000 (4 KB)\nCTRL / STATUS / CRCs", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
-    dwr  [group=L, label="desc_ram write port\n0xF002_0000 (64 KB)\nhost preload", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dwr  [group=L, label="desc_ram write port\n0xF002_0000 (64 KB)\nhost preload", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     obs_s [group=R, label="obs_slave\n0xF018_0000 (4 KB)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     obs_m [group=R, label="obs_master\n0xF019_0000 (4 KB)", peripheries=2, style="filled", fillcolor="#D6E4F0"];

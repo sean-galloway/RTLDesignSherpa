@@ -22,7 +22,7 @@ digraph credit_loop {
   // ---- Cell blocks ----
   rx     [label="cell_rx\nrecord source coord per packet", peripheries=2, style="filled", fillcolor="#D6E4F0"];
   inmem  [label="cell_mem_in\noperand lines + source tag", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-  fsm    [label="cell_exec_fsm\nconsumes line, advances IP", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  fsm    [label="cell_exec_fsm\nconsumes line, advances IP", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
   credit [label="cell_credit\nper-source owed counters\nbatch N + 64-cycle timeout", peripheries=2, style="filled", fillcolor="#D6E4F0"];
   pktbld [label="credit-packet builder\nptype=credit, op=add/set", style="filled", fillcolor="white"];
 

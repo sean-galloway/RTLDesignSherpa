@@ -19,8 +19,8 @@ digraph alu_rv32i {
     // Parallel function rows (one rank)
     arith [label="Adder / subtractor\nADD, SUB", style="filled", fillcolor="white"];
     logic [label="Logic unit\nAND, OR, XOR", style="filled", fillcolor="white"];
-    shift [label="Shifter\nSLL, SRL, SRA", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    cmp   [label="Comparator\nSLT, SLTU + eq/lt/ltu", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    shift [label="Shifter\nSLL, SRL, SRA", style="filled", fillcolor="white"];
+    cmp   [label="Comparator\nSLT, SLTU + eq/lt/ltu", style="filled", fillcolor="white"];
 
     // Mode select (plain box, not a trapezium) and outputs (white bar)
     sel [label="Result select\ny = row[alu_op]", style="filled", fillcolor="white"];

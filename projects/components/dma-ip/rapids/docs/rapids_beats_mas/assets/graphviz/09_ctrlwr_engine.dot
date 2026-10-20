@@ -15,7 +15,7 @@ digraph ctrlwr_engine {
     skid [label="Request Skid Buffer\ngaxi_skid_buffer {addr, data}", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     fsm  [label="Write FSM (see the FSM figure)\nnull address -> skip; addr[1:0] != 0 -> WRITE_ERROR;\nissue AW, then W, then wait for B", group=C, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     wbeat [label="W Beat\nw_data = doorbell data,\nWSTRB 0xF, WLAST", group=L, style="filled", fillcolor="white"];
-    resp [label="Response Check\nBRESP != OKAY -> WRITE_ERROR,\nelse WRITE_COMPLETE", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    resp [label="Response Check\nBRESP != OKAY -> WRITE_ERROR,\nelse WRITE_COMPLETE", group=R, style="filled", fillcolor="white"];
     mon  [label="MonBus Packet Generator\ncompletion, error events", style="filled,dashed", group=R2, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar  [label="Module Boundary - control-write AXI master (shared per array)\nW out   |   AW out: addr, id (one beat)   |   B in: resp", fillcolor="white", width=9.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];

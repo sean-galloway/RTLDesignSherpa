@@ -25,11 +25,11 @@ digraph alu_infer_block {
     clk  [label="clk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- Element decompose (one block, both operands) ----
-    da [label="Element decompose\n2xbf16 lanes per 32-bit line (A, B)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    da [label="Element decompose\n2xbf16 lanes per 32-bit line (A, B)", style="filled", fillcolor="white"];
     p  [shape=point, style=invis, label="", width="0.05", fixedsize=true];
 
     // ---- Function rows (one rank; rtl/math block on the second line) ----
-    fcopy [label="Copy / passthrough\n(bypass lane)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fcopy [label="Copy / passthrough\n(bypass lane)", style="filled", fillcolor="white"];
     fadd  [label="Add / Subtract\nmath_bf16_adder", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     fmul  [label="Multiply\nmath_bf16_multiplier", style="filled", fillcolor="white"];
     fmac  [label="FMA / MAC\nmath_bf16_fma", style="filled", fillcolor="white"];

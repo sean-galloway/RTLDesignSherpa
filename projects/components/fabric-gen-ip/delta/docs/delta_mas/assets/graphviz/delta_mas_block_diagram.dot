@@ -48,7 +48,7 @@ digraph delta_mas_block_diagram {
     pwk3 -> mux -> cnt -> pr3 -> ech [style=invis];
 
     ech [label="Egress Checks (--amba5) - gen_m_chk[s]\nm_axis_tvalidchk / twakeupchk generated;\nm_axis_treadychk checked; sticky\nm_parity_error[s]", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
-    asr [label="Assertions (`ifdef FORMAL)\n$onehot0(grant_matrix[s]);\nTVALID implies TDEST < NUM_SLAVES", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    asr [label="Assertions (`ifdef FORMAL)\n$onehot0(grant_matrix[s]);\nTVALID implies TDEST < NUM_SLAVES", style="filled,dashed", style="filled,dashed", fillcolor="white"];
     cnt [label="Packet Counters (unless --no-counters)\npkt_count_master / pkt_count_slave:\none per TLAST handshake", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Slave Port s - m_axis_tdata, tstrb, tlast, tid, tdest, tuser, tvalid out; m_axis_tready in; m_axis_twakeup out (--amba5)",

@@ -21,8 +21,8 @@ digraph monitor_wp_timestamp {
         label="As built: one local time base per group"; labelloc=b; style=dashed; fontsize=10;
         ctr  [label="Group Counter (flop)\nmonbus_group_core r_ts_counter\nfree-running, +1 every clock", peripheries=2, style="filled", fillcolor="#D6E4F0"];
         wrp  [label="Wrappers\nevery *_mon / *_monlite: i_mon_time", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-        pkt  [label="Packet + Timestamp\n128-bit packet beside a\n64-bit monbus_timestamp_t", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-        rec  [label="Record Beat 0 (written by the group)\n{tag[3:0] = 4'h0, ts[59:0]}", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        pkt  [label="Packet + Timestamp\n128-bit packet beside a\n64-bit monbus_timestamp_t", style="filled", fillcolor="white"];
+        rec  [label="Record Beat 0 (written by the group)\n{tag[3:0] = 4'h0, ts[59:0]}", style="filled", fillcolor="white"];
     }
 
     // the other open direction, outside both regions: not built
@@ -32,7 +32,7 @@ digraph monitor_wp_timestamp {
         label="Tweak: hybrid time base, same 64-bit field (not prototyped)"; labelloc=b; style=dashed; fontsize=10;
         gus  [label="System microsecond count\n(shared across subsystems)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
         cyc  [label="Wrapper cycle count\n(per wrapper)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-        hyb  [label="monbus_timestamp_t\n{global_us[47:0], local_cyc[15:0]}\nnothing in the packet layout moves", width=5.2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        hyb  [label="monbus_timestamp_t\n{global_us[47:0], local_cyc[15:0]}\nnothing in the packet layout moves", width=5.2, style="filled", fillcolor="white"];
     }
 
     note [label="Within one group every packet is on one clock; across groups there is no shared time base\n-- the hybrid's global upper bits give cross-subsystem correlation with no host-side re-basing",

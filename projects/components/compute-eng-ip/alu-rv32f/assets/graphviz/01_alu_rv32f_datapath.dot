@@ -23,14 +23,14 @@ digraph alu_rv32f {
 
     // Parallel unit rows (one rank); rtl/math blocks underneath
     uadd  [label="FADD / FSUB\nrtl/math fp32 adder", style="filled", fillcolor="white"];
-    umul  [label="FMUL\nrtl/math fp32 multiplier", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    ufma  [label="FMADD family\nrtl/math fp32 FMA", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    umul  [label="FMUL\nrtl/math fp32 multiplier", style="filled", fillcolor="white"];
+    ufma  [label="FMADD family\nrtl/math fp32 FMA", style="filled", fillcolor="white"];
     udiv  [label="FDIV (non-pipelined)\nrtl/math fp32 divider\n(Goldschmidt)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     usqrt [label="FSQRT (non-pipelined)\nrtl/math fp32 sqrt\n(NR reciprocal-sqrt)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    usm   [label="FSGNJ / FMV / FMIN / FMAX\nFCVT / FCLASS / FEQ / FLT / FLE\nsmall rows", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    usm   [label="FSGNJ / FMV / FMIN / FMAX\nFCVT / FCLASS / FEQ / FLT / FLE\nsmall rows", style="filled", fillcolor="white"];
 
     // Post-processing chain
-    norm [label="Normalize + round (RNE)\nGRS per IEEE 754-2008", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    norm [label="Normalize + round (RNE)\nGRS per IEEE 754-2008", style="filled", fillcolor="white"];
     sel  [label="Result + special-case select\nNaN / inf / zero overrides", style="filled", fillcolor="white"];
 
     // Boundary bar (white) and flag sideband

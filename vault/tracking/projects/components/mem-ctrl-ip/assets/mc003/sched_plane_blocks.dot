@@ -15,7 +15,7 @@ digraph sched_plane_blocks {
     axi_return  [label="AXI return ring\nu_axi_plane u_rd_ring", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- scheduler plane blocks ----
-    init [label="Init / refresh / page policy\nu_init / u_refresh / u_page_policy", group=C, width=2.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    init [label="Init / refresh / page policy\nu_init / u_refresh / u_page_policy", group=C, width=2.6, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     bank_timers [label="Per-bank JEDEC timers\nu_bank_timers\n(r_rc / r_rcd / r_rp / r_ras / r_preblk)", group=C, width=2.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     global_timers [label="Global rank timers\nu_global_timers\n(tFAW / tRRD / tWTR / tRTW / tCCD)", group=C, width=2.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     sched_core [label="Per-bank pick core\nu_bank_sched - mc_bank_sched",

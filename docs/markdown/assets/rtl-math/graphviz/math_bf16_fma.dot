@@ -26,7 +26,7 @@ digraph math_bf16_fma {
     unp [group=C, width=7.0, label="Unpack + Classify (combinational)\nBF16 a, b and FP32 c: sign / exponent / mantissa\nzero, subnormal (flushed to zero), infinity, NaN; normal operands get the hidden 1", style="filled", fillcolor="white"];
 
     // ---- product path (left) ----
-    sgn [group=S, label="Signs\nproduct sign = sign_a ^ sign_b\naddend sign = sign_c", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sgn [group=S, label="Signs\nproduct sign = sign_a ^ sign_b\naddend sign = sign_c", style="filled", fillcolor="white"];
     mul [group=P, label="Mantissa Multiply\nmath_multiplier_dadda_4to2_008 - u_mant_mult\n8x8 Dadda tree, 4:2 compressors", style="filled", fillcolor="white"];
     pex [group=P, label="Product Exponent (combinational, signed)\nexp_a + exp_b - 127, + 1 if product >= 2.0\nbelow 1: product underflows (treated as zero)\nproduct mantissa extended to 24 bits", style="filled", fillcolor="white"];
 
@@ -38,7 +38,7 @@ digraph math_bf16_fma {
     add [group=C, label="48-bit Add / Subtract\nmath_adder_han_carlson_048 - u_wide_adder\nsubtract: invert the smaller operand, carry-in 1", style="filled", fillcolor="white"];
     abv [group=C, label="Absolute Value (combinational select)\nnegative difference: math_adder_han_carlson_048 - u_negate_adder (~sum + 1),\nresult sign flips; carry out on add: shift right 1, exp + 1", style="filled", fillcolor="white"];
     nrm [group=C, label="Normalize\ncount_leading_zeros (WIDTH = 48) - u_clz\nshift left by the count, exponent - count", style="filled", fillcolor="white"];
-    rnd [group=C, label="Round to Nearest Even (FP32)\nmantissa [46:24]; G = [23], R = [22], S = |[21:0]\nround up = G & (R | S | LSB); carry-out -> exp + 1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rnd [group=C, label="Round to Nearest Even (FP32)\nmantissa [46:24]; G = [23], R = [22], S = |[21:0]\nround up = G & (R | S | LSB); carry-out -> exp + 1", style="filled", fillcolor="white"];
     sel [group=C, width=7.0, label="Special-Case Select (priority)\nNaN, 0 x inf or inf - inf -> quiet NaN (invalid)  >  product or addend inf -> signed inf\n>  zero product: pass i_c through (0 x 0 + 0 -> signed 0)  >  zero addend: the product alone\n>  exact zero -> +0  >  overflow -> inf  >  underflow -> 0  >  else the rounded sum", style="filled", fillcolor="white"];
 
     bar [label="Outputs\now_result[31:0] (FP32)   |   ow_overflow   |   ow_underflow   |   ow_invalid",

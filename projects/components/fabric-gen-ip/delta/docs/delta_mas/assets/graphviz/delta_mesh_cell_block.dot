@@ -28,7 +28,7 @@ digraph delta_mesh_cell_block {
               shape=invtrapezium, width=4.0, height=0.7, group=P, style="filled", fillcolor="#FFF2CC"];
     vc_alloc -> sw_alloc [xlabel="VC grant"];
 
-    xb [label="Crossbar\n7 x 7 (input ports to outputs)", group=P, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    xb [label="Crossbar\n7 x 7 (input ports to outputs)", group=P, style="filled", fillcolor="white"];
     sw_alloc -> xb [xlabel="switch grant"];
 
     bar [label="Output port q\n(one of 7)\nm_axis_tdata/valid/ready + header sideband",

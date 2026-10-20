@@ -34,7 +34,7 @@ digraph apbx_xbar_architecture {
     arb -> pr3 [style=invis];
 
     mux [label="Command Mux\ns<s>_cmd_* = cmd of the master\nholding s<s>_arb_grant", style="filled", fillcolor="white"];
-    rr [label="Response Return\ns<s>_rsp_ready from the granted master;\ns<s>_arb_grant_ack = grant && rsp handshake", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rr [label="Response Return\ns<s>_rsp_ready from the granted master;\ns<s>_arb_grant_ack = grant && rsp handshake", group=R, style="filled", fillcolor="white"];
     { rank=same; mux; rr; }
     mux -> rr [style=invis];
 

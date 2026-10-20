@@ -19,9 +19,9 @@ digraph alu_infer {
     acc   [label="MAC accumulator\n(one acc element per lane;\nprecision per PRD §7)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // Flow blocks
-    decomp [label="Element decompose\n2xbf16 per 32-bit line\n(rtl/math bf16 lanes)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    decomp [label="Element decompose\n2xbf16 per 32-bit line\n(rtl/math bf16 lanes)", style="filled", fillcolor="white"];
     funcs  [label="bf16 function array (math_bf16_*)\ncopy | add | sub | mul | mac (fma)\nmin/max | compare/threshold | relu", style="filled", fillcolor="white"];
-    comp   [label="Line composer\n(bf16 lanes -> result line)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    comp   [label="Line composer\n(bf16 lanes -> result line)", style="filled", fillcolor="white"];
 
     // Boundary bar
     out   [label="Result line + flags\n(to result memory push)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];

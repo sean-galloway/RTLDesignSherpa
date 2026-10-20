@@ -27,7 +27,7 @@ digraph cell_alu_focus {
 
   // ---- ALU internals (inside the alu_infer_top boundary) ----
   tagassign [group="C", label="Tag assign\n8-bit tag per invocation group", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-  rows      [group="C", label="bf16 rows\n2×bf16 per operand line", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  rows      [group="C", label="bf16 rows\n2×bf16 per operand line", style="filled", fillcolor="white"];
   tagfifo   [group="L", label="Tag FIFO\ntracks in-flight groups\n(ratified spec — RTL pending)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
   mac       [group="C", label="fp32 MAC\nper-lane accumulate\nCLEAR / ACCUMULATE / DRAIN", peripheries=2, style="filled", fillcolor="#D6E4F0"];
   align     [group="C", label="Align gate\nresult_valid waits for every\nsame-tag op's valid", style="filled", fillcolor="white"];

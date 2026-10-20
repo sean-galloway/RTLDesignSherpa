@@ -21,7 +21,7 @@ digraph error_handling {
     dec -> rmux [style=invis];
 
     trk [label="Catch-all Adapter - subtractive_adapter\naxi4_master_wr / _rd + bridge_id FIFO", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    serr [label="Slave Error Responses\nSLVERR / DECERR from any slave pass\nthrough unchanged; an APB shim maps\nPSLVERR -> SLVERR, a write-only\nAXI5 port's atomic filter answers DECERR", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    serr [label="Slave Error Responses\nSLVERR / DECERR from any slave pass\nthrough unchanged; an APB shim maps\nPSLVERR -> SLVERR, a write-only\nAXI5 port's atomic filter answers DECERR", group=R, style="filled", fillcolor="white"];
     chk [label="Response-Order Check (simulation only)\n$error when a returned BID / RID is not\nthe bridge_id FIFO head (bridge BUG-008)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
     { rank=same; trk; serr; chk; }
     trk -> serr -> chk [style=invis];

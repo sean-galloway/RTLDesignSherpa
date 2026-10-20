@@ -25,12 +25,12 @@ digraph math_bf16_multiplier {
     unp [group=M, width=6.5, label="Unpack + Classify (combinational)\nsplit sign / exponent / mantissa of each operand\nzero, subnormal (flushed to zero), infinity, NaN\nnormal operands get the hidden 1", style="filled", fillcolor="white"];
 
     // ---- three field paths ----
-    sgn  [group=S, label="Sign\nsign_a ^ sign_b", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sgn  [group=S, label="Sign\nsign_a ^ sign_b", style="filled", fillcolor="white"];
     mm   [group=M, label="Mantissa Multiply\nmath_bf16_mantissa_mult - u_mant_mult\n8x8 Dadda tree with 4:2 compressors\n(math_multiplier_dadda_4to2_008)\nnormalize select, guard / round / sticky", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     ea   [group=E, label="Exponent Add\nmath_bf16_exponent_adder - u_exp_add\nexp_a + exp_b - 127 + needs_norm\nsaturates; overflow / underflow flags", style="filled", fillcolor="white"];
 
     // ---- rounding ----
-    rnd  [group=M, label="Round to Nearest Even\nround up = G & (R | S | LSB)\nmantissa carry-out: exponent + 1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rnd  [group=M, label="Round to Nearest Even\nround up = G & (R | S | LSB)\nmantissa carry-out: exponent + 1", style="filled", fillcolor="white"];
 
     // ---- special-case select ----
     sel  [group=M, width=8.2, label="Special-Case Select (priority)\nNaN or 0 x inf -> quiet NaN (invalid)  >  zero -> signed 0\n>  inf or overflow -> signed inf  >  underflow -> 0 (unless rounding\nreached the minimum normal)  >  else the rounded product", style="filled", fillcolor="white"];

@@ -19,7 +19,7 @@ digraph response_delay {
     cyc   [label="Cycle Counter (flop)\nr_cyc[31:0], free-running", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     admit [group=C, label="Admit (combinational)\nenqueue on s_valid & s_ready;\nstamp t_in = r_cyc", style="filled", fillcolor="white"];
     fifo  [group=C, label="Timestamp FIFO, CAPACITY slots (power of 2)\nr_data[] {payload} - block RAM  |  r_tin[] {t_in} - distributed RAM\nhead / tail pointers, r_count; full = (r_count == CAPACITY)", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    dly   [label="Delay (runtime input)\ni_delay_cycles - from the\nRESP_DELAY CSR field", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dly   [label="Delay (runtime input)\ni_delay_cycles - from the\nRESP_DELAY CSR field", style="rounded,filled", fillcolor="#E2EFDA"];
     gate  [group=C, label="Drain Gate (combinational)\nhead_dwell = r_cyc - r_tin[head];\nrelease when head_dwell >= i_delay_cycles", style="filled", fillcolor="white"];
     oreg  [group=C, label="Output Register (flop)\nr_out_data, r_out_valid: loads when the head\nis ready and the stage is empty or consumed", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     bar   [group=C, label="Master-side Port (to the DUT): m_data, m_valid, m_ready", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];

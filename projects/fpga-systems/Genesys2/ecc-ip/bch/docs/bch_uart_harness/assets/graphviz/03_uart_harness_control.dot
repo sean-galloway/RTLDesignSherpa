@@ -14,7 +14,7 @@ digraph bch_uart_harness_control {
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     host [group=C, label="Host Python\nbin/run_smoke.py\nBchLoopDriver", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    uart [group=C, label="UART 115200 8N1\n/dev/ttyUSB*", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    uart [group=C, label="UART 115200 8N1\n/dev/ttyUSB*", style="rounded,filled", fillcolor="#E2EFDA"];
     bridge [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     fabric [group=C, label="Generated 1 x 3 AXIL/APB Fabric\nbridge_bch_loop_axil - u_bridge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 

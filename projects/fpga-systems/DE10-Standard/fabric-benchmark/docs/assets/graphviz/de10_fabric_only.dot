@@ -16,7 +16,7 @@ digraph de10_fabric_only {
     om  [label="Master-side meters\nobs_master, obs_desc", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     fab [label="FABRIC under test\nthe only thing measured", penwidth=2.2, width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     os  [label="Slave-side meters\nobs_slave (rd: LFSR source, wr: CRC sink)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    dsc [label="Descriptor store\ndesc_ram rd 0x8000_0000", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dsc [label="Descriptor store\ndesc_ram rd 0x8000_0000", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     cr  [label="Read crossing\naxi4_cdc_rd", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     cw  [label="Write crossing\naxi4_cdc_wr", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     src [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector - never stalls", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];

@@ -30,7 +30,7 @@ digraph arbiter_matrix {
     pick [group=C, label="Matrix Pick (combinational)\nclient i wins if no requester outranks it",
           shape=invtrapezium, width=7.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
     greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid (flop)\nlast_grant = previous grant", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    mupd [group=M, label="Matrix Update (next state)\nwinner's row cleared, its column set:\nthe winner drops to lowest priority", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mupd [group=M, label="Matrix Update (next state)\nwinner's row cleared, its column set:\nthe winner drops to lowest priority", style="filled", fillcolor="white"];
 
     // ---- the boundary bar: outputs ----
     outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid   |   last_grant",

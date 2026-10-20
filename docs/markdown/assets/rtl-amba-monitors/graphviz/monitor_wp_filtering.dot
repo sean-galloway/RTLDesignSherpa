@@ -21,7 +21,7 @@ digraph monitor_wp_filtering {
 
     ev [group=C, label="Event fires in the monitor\n(error, timeout, completion, threshold, ...)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-        en  [group=C, label="1. Enable Pins (wrapper)\ncfg_error_enable, cfg_compl_enable,\ncfg_timeout_enable, cfg_threshold_enable", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        en  [group=C, label="1. Enable Pins (wrapper)\ncfg_error_enable, cfg_compl_enable,\ncfg_timeout_enable, cfg_threshold_enable", style="filled", fillcolor="white"];
         tmw [group=C, label="2a. Type Mask (lite wrapper)\ncfg_axi_pkt_mask[type]: 1 drops the type", style="filled", fillcolor="white"];
         q   [label="Lite output queue full (wrapper)\nlost events are counted", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
         drp [label="One Error/EVENT_DROPPED\npacket carries the count,\nsent when the bus is free", peripheries=2, style="filled", fillcolor="#D6E4F0"];

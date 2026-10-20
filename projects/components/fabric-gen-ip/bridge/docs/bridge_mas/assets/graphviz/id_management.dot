@@ -17,7 +17,7 @@ digraph id_management {
     pc -> pr [style=invis];
 
     pre [label="ID Prefix - <master>_adapter\nfabric ID = {BRIDGE_ID, id}; BRIDGE_ID is the\nmaster's index, so IDs are unique across masters", group=C, style="filled", fillcolor="white"];
-    strip [label="ID Strip - <master>_adapter\nresponse muxes keep the low id bits", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    strip [label="ID Strip - <master>_adapter\nresponse muxes keep the low id bits", group=R, style="filled", fillcolor="white"];
     { rank=same; pre; strip; }
     pre -> strip [style=invis];
 

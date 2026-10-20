@@ -23,7 +23,7 @@ digraph apb4_monitor {
     trk  [label="Transaction Tracker (flop)\nhandshake detect; r_trans_state: IDLE > CMD_SENT > COMPLETE\ntransaction table (MAX_TRANSACTIONS) with start timestamps", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     tmo  [label="Timeout Detect\ncmd / rsp waits vs\ncfg_*_timeout_cnt", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    err  [label="Error Detect\nPSLVERR, protocol\nviolations", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    err  [label="Error Detect\nPSLVERR, protocol\nviolations", style="filled", fillcolor="white"];
     perf [label="Performance\nlatency and throughput\nvs thresholds", style="filled", fillcolor="white"];
 
     evt  [label="Event Select (combinational, priority)\nerror > timeout > performance > debug > completion\none packet per event, gated by its cfg enable", style="filled", fillcolor="white"];

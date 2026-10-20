@@ -15,7 +15,7 @@ digraph onyx_planned {
     peers [label="Peer caches\n(snoop targets)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     fe   [label="Front-End Decode (one per cache-side port)\nread-side vs write-side, uniform internal request\n(split and buffering: D1, D2)", group=C, style="filled", fillcolor="white"];
-    dec  [label="Coherence Decision Layer\nwhich snoops to send, CRRESP interpretation,\nmemory-read elision (D6), directory-lite state (D3)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec  [label="Coherence Decision Layer\nwhich snoops to send, CRRESP interpretation,\nmemory-read elision (D6), directory-lite state (D3)", group=C, style="filled", fillcolor="white"];
     ser  [label="Serializer / PoS\norders same-address transactions\n(scoreboard vs in-order: D5; sizing: D10.8)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     fan  [label="Fanout / Gather Engine\nAC out, CR / CD in, completion tracking\n(D4, N3, N4)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     mem  [label="Memory-Side AXI4 Master\nreads / writes when adjudication needs memory,\nWriteBack / Evict drains (AWID policy: D5)", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];

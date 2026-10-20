@@ -18,7 +18,7 @@ digraph board_and_host {
     host   [group=C, label="Host PC - measurement programs\npumice_char.py, ddr2_char.py, host_bringup_*.py\nCSRs by name through the generated regmaps;\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     vivado [label="Host PC - Vivado\nmake bitstream / make program\nILA captures", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    usb    [group=C, label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (numbering drifts: the host resolves the port)\nJTAG serial 210292BFA3EE (a second board may share the chain)", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    usb    [group=C, label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (numbering drifts: the host resolves the port)\nJTAG serial 210292BFA3EE (a second board may share the chain)", width=6, style="rounded,filled", fillcolor="#E2EFDA"];
 
     top    [group=C, label="Board Top - ddr2_char_top\nMMCM from the 100 MHz oscillator: sys 75 MHz (PUMICE_SYS_75, the design point;\notherwise 66.67), sys2x = DRAM CK 150 MHz (DDR2-300), idelay 200 MHz; reset sync", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     harn   [group=C, label="Characterization Harness - ddr2_char_harness - u_harness (Figure 2.1)\nUART bridge, harness_csr, generator array, perf instruments, DFI alignment;\nDUT: pumice_top_geared (in ddr2_char_macro)", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];

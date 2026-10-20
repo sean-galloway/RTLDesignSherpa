@@ -12,7 +12,7 @@ digraph reverse_vector {
     label="reverse_vector - bit-order reversal (combinational)";
 
     vin  [label="Vector Input\nvector_in[WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    rev  [label="Bit Reverse (wiring only, no gates)\nvector_rev[WIDTH-1-i] = vector_in[i]\nMSB becomes LSB; zero logic depth", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rev  [label="Bit Reverse (wiring only, no gates)\nvector_rev[WIDTH-1-i] = vector_in[i]\nMSB becomes LSB; zero logic depth", style="filled", fillcolor="white"];
     vout [label="Reversed Output\nvector_rev[WIDTH-1:0]", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
     vin -> rev  [xlabel="vector_in"];

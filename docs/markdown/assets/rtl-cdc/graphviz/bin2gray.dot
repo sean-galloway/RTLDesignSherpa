@@ -13,7 +13,7 @@ digraph bin2gray {
     label="bin2gray - binary to Gray code (combinational)";
 
     bin_in  [label="Binary Input\nbinary[WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    msb     [label="MSB Pass-Through\ngray[WIDTH-1] = binary[WIDTH-1]", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    msb     [label="MSB Pass-Through\ngray[WIDTH-1] = binary[WIDTH-1]", style="filled", fillcolor="white"];
     xornet  [label="Adjacent-Bit XOR Network\ngray[i] = binary[i] ^ binary[i+1]\n(WIDTH-1 XOR gates, i = 0 .. WIDTH-2)", style="filled", fillcolor="white"];
     gray_out[label="Gray Output\ngray[WIDTH-1:0]", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 

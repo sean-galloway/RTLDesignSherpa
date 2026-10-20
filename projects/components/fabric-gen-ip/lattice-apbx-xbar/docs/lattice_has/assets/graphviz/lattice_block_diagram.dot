@@ -34,7 +34,7 @@ digraph lattice_block_diagram {
     arb -> pr3 [style=invis];
 
     mux [label="Command Mux\nthe granted master's cmd to slave s", group=C, style="filled", fillcolor="white"];
-    rrdy [label="Response Return\nslave s's rsp_ready from the granted master;\nthe rsp handshake is the arbiter's grant_ack", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rrdy [label="Response Return\nslave s's rsp_ready from the granted master;\nthe rsp handshake is the arbiter's grant_ack", group=R, style="filled", fillcolor="white"];
     { rank=same; mux; rrdy; }
     mux -> rrdy [style=invis];
 

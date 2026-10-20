@@ -28,13 +28,13 @@ digraph cdc_4_phase_handshake {
 
     subgraph cluster_src {
         label="clk_src domain"; style=dashed; fontsize=10;
-        src_ctl  [group=SO, label="Source Control\nS_IDLE / S_WAIT_ACK /\nS_WAIT_ACK_CLR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        src_ctl  [group=SO, label="Source Control\nS_IDLE / S_WAIT_ACK /\nS_WAIT_ACK_CLR", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
         ack_sync [group=SI, label="Ack Synchronizer\nr_ack_sync (SYNC_STAGES on clk_src)\nlevel, no edge detect", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     subgraph cluster_dst {
         label="clk_dst domain"; style=dashed; fontsize=10;
-        dst_ctl  [group=DO, label="Destination Control\nD_IDLE / D_WAIT_READY /\nD_WAIT_REQ_CLR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        dst_ctl  [group=DO, label="Destination Control\nD_IDLE / D_WAIT_READY /\nD_WAIT_REQ_CLR", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
         req_sync [group=DI, label="Req Synchronizer\nr_req_sync (SYNC_STAGES on clk_dst)\nlevel, no edge detect", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 

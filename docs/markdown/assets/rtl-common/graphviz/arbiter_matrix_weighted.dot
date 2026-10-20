@@ -36,7 +36,7 @@ digraph arbiter_matrix_weighted {
     crd  [group=K, label="Credit Counters\nr_credit_counter per client (flop)\ncompleted grant: - 1\nlast credit: reload weight", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     pick [group=C, label="Matrix Pick (combinational)\nclient i wins if no eligible requester outranks it",
           shape=invtrapezium, width=7.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
-    mupd [group=M, label="Matrix Update (next state)\nonly when the winner spends its last credit:\nwinner's row cleared, its column set", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mupd [group=M, label="Matrix Update (next state)\nonly when the winner spends its last credit:\nwinner's row cleared, its column set", style="filled", fillcolor="white"];
     greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid (flop)\nlast_grant = previous grant", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the boundary bar: outputs ----

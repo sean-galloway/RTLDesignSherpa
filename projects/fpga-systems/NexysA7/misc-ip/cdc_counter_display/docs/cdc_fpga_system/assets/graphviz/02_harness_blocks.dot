@@ -32,7 +32,7 @@ digraph harness_blocks {
     m1 [label="Mode 1 STRETCH\ncdc_open_loop\nu_stretch", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     m2 [label="Mode 2 SYNC_FIFO\nfifo_async\nu_fifo", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     m3 [label="Mode 3 TWO_PHASE\ncdc_2_phase_\nhandshake - u_hs2p", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    m4 [label="Mode 4 FOUR_PHASE\ncdc_4_phase_\nhandshake - u_hs4p", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m4 [label="Mode 4 FOUR_PHASE\ncdc_4_phase_\nhandshake - u_hs4p", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     gray [label="PRESS_COUNT, ticks\nbin2gray -> 2-FF\n-> gray2bin", style="filled", fillcolor="white"];
 
     subgraph cluster_sys {
