@@ -24,8 +24,8 @@
 # Delta Micro-Architecture Specification Index
 
 **Component:** Delta (AXI4-Stream Crossbar Generator)
-**Version:** 1.0
-**Date:** 2026-10-12
+**Version:** 1.2
+**Date:** 2026-10-20
 **Purpose:** Detailed micro-architecture specification for the generated Delta RTL
 
 ---

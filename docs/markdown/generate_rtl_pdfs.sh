@@ -16,7 +16,7 @@ set -euo pipefail
 # Usage: ./generate_rtl_pdfs.sh [--rev X.Y] [book ...]   (default: all books)
 # ------------------------------------------------------------
 
-REV="0.90"
+REV="0.91"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"       # docs/markdown
 REPO_ROOT="$(git -C "${SCRIPT_DIR}" rev-parse --show-toplevel)"
 MD2DOCX="${REPO_ROOT}/bin/md_to_docx.py"

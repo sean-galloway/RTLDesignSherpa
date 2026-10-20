@@ -23,8 +23,8 @@
 
 # Reed-Solomon Board Validation Report
 
-**Version:** 0.1
-**Date:** 2026-10-05
+**Version:** 0.2
+**Date:** 2026-10-20
 **Purpose:** What was built, how it was exercised, and what the board says about
 the RS(252,236) t=8 codec on the Digilent Genesys 2. This book rolls up the
 four-image matrix, the 2026-10-05 battery, the erasure boundary finding, and

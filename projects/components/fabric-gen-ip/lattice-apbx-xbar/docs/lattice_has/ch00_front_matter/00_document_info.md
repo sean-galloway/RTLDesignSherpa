@@ -26,7 +26,7 @@
 ## Lattice Hardware Architecture Specification
 
 **Document Number:** LATTICE-HAS-001
-**Version:** 1.2
+**Version:** 1.3
 **Status:** Production Ready
 **Classification:** Open Source - MIT License (matches the SPDX tags on every RTL file)
 
@@ -85,6 +85,7 @@ This Hardware Architecture Specification (HAS) is the high-level architectural v
 | 1.0 | 2026-01-03 | seang | Initial HAS release |
 | 1.1 | 2026-10-12 | seang | Refresh: update LOC counts, verification status, and generator CLI options |
 | 1.2 | 2026-10-13 | seang | Rebrand: component codename **lattice**, directory `lattice-apbx-xbar`; book titles and document number (LATTICE-HAS-001) updated; RTL module names unchanged (`apbx_xbar_*`) |
+| 1.3 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Document Revision History
 

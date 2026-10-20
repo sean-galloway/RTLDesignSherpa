@@ -23,8 +23,8 @@
 
 # STREAM on the Genesys 2 -- The FPGA System
 
-**Version:** 1.0
-**Date:** 2026-09-29
+**Version:** 1.2
+**Date:** 2026-10-20
 **Purpose:** What is on the bench and in the bitstream for the STREAM
 characterization and monitor-validation system: the board, the harness that
 surrounds the DUT, why one RTL source is built three ways (`mon`, `obs`,

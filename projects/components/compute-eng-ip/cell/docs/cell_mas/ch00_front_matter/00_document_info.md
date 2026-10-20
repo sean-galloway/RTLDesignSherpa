@@ -30,8 +30,8 @@
 | Property | Value |
 |---|---|
 | Document Title | CELL Micro-Architecture Specification |
-| Version | 0.12 |
-| Date | 2026-10-19 |
+| Version | 0.13 |
+| Date | 2026-10-20 |
 | Status | Draft — slice-1 RTL built; slice-2/3 modules specified |
 | Classification | Open Source - MIT License |
 

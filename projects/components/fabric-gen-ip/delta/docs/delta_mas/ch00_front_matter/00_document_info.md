@@ -28,8 +28,8 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Delta Micro-Architecture Specification |
-| Version | 1.0 |
-| Date | 2026-10-12 |
+| Version | 1.2 |
+| Date | 2026-10-20 |
 | Status | Released |
 | Classification | Open Source - MIT License |
 
@@ -41,6 +41,7 @@
 |---------|------|--------|-------------|
 | 1.0 | 2026-10-12 | RTL Design Sherpa | Initial release; describes the generated flat crossbar RTL including request decode, packet-atomic RR arbitration, mux, TREADY/TWAKEUP steering, counters, and assertions. |
 | 1.1 | 2026-10-12 | RTL Design Sherpa | AMBA 5 interface parity per IHI 0051B ch. 5 (issue #102): `TPARITY`/`PW_WIDTH`/`--parity-width` replaced by the odd-parity check signals `TDATACHK` ... `TWAKEUPCHK` (spec widths, checked at every port, sticky `*_parity_error`), matching `rtl/amba/axis5`. First `dv/` suite. |
+| 1.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Revision History
 

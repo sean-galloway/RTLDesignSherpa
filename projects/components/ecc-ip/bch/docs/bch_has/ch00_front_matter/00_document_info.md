@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Binary BCH Codec Hardware Architecture Specification |
-| Version | 0.1 (draft) |
+| Version | 0.2 (draft) |
 | Date | October 3, 2026 |
 | Status | Draft -- decisions D1-D6, D8, the D9 bits-per-beat sub-question, and D11 of the PRD are open; this document carries them as parameters |
 | Classification | Open Source - MIT License |
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-03 | RTL Design Sherpa | First draft, written before any RTL exists. Captures what the PRD has decided (D7: share the reed-solomon GF layer; D9 direction: valid/ready core with optional AXIS and AXI4 adapters; D10 direction: first consumer expected from a future memory-controller project; D12: scrambler out of scope) and carries the undecided items -- field dimension m, correctable bits t, shortening, encoder/decoder mix, erasures, throughput architecture, bits per beat, generator conventions, key-equation solver -- as parameters tied to their PRD decision IDs. Numbers are analytic placeholders; none are measured. |
+| 0.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ## Document Purpose
 

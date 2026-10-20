@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Reed-Solomon Codec Micro-Architecture Specification |
-| Version | 0.1 (draft) |
+| Version | 0.2 (draft) |
 | Date | October 4, 2026 |
 | Status | Draft — written retroactively against landed RTL (encoder and decoder cores, both solvers, gate DV green); the `.sv` files cited in this document are the ground truth |
 | Classification | Open Source - MIT License |
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-04 | RTL Design Sherpa | First draft, written after the RTL landed. Documents the landed micro-architecture block by block: signal-level structure, FSM policy, cycle behavior, and the verification posture. Where the FUB catalog (`docs/rs_fub_catalog.md`, 2026-09-29) and the RTL disagree, the RTL wins and the catalog is noted as the plan this MAS checks. |
+| 0.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ## Document Purpose
 

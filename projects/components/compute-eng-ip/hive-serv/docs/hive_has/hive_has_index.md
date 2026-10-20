@@ -25,8 +25,8 @@
 
 **Hierarchical Intelligent Vector Environment**
 
-**Version:** 0.2
-**Date:** 2026-10-13
+**Version:** 0.3
+**Date:** 2026-10-20
 **Purpose:** System-level hardware architecture specification for the HIVE
 distributed control and monitoring subsystem (1 VexRiscv master + 16 SERV
 monitors) coordinating RAPIDS and Delta.

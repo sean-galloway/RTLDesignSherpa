@@ -23,8 +23,8 @@
 
 # DDR2/LPDDR2 Characterization — Project Guide
 
-**Version:** 0.95
-**Date:** 2026-09-14
+**Version:** 0.96
+**Date:** 2026-10-20
 **Purpose:** Operator / developer guide for the Nexys A7 `ddr2-characterization`
 project — how it works, how to build/simulate/program/run it, and the harness
 CSR configuration, and what the board actually measured. The DDR2 controller

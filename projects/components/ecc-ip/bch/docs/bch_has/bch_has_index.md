@@ -2,8 +2,8 @@
 
 ## Overview
 
-**Version:** 0.1 (draft)
-**Date:** 2026-10-03
+**Version:** 0.2 (draft)
+**Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for the Binary BCH codec component (`projects/components/ecc-ip/bch/`)
 
 ---

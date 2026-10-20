@@ -26,8 +26,8 @@
 | Field | Value |
 |-------|-------|
 | Title | RAPIDS beats on the Genesys 2 -- The AXIS4 Side |
-| Version | 1.0 |
-| Date | 2026-09-29 |
+| Version | 1.1 |
+| Date | 2026-10-20 |
 | Scope | The stream side of the rapids-beats characterization system: the two AXIS4 links, their stimulus and checking, their meters and observers, and what differs from STREAM's memory-to-memory harness |
 | Companion | `rapids_fpga_system` (board, harness, build variants, flow) |
 | Not in scope | The RAPIDS core architecture (HAS/MAS); the measured results (`reports/perf/README.md`) |
@@ -40,6 +40,7 @@
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-09-29 | First edition. Written after the AXIS monitor-lites (rapids TASK-015), the ingress window rework (ISSUE-001), the interleaved generator schedule (TASK-018), the 256-bit design point (report v2.0) and the ingress findings of BUG-009. |
+| 1.1 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Table 0.2: Revision history
 

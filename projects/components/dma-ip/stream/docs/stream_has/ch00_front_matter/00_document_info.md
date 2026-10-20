@@ -26,7 +26,7 @@
 ## STREAM Hardware Architecture Specification
 
 **Document Number:** STREAM-HAS-001
-**Version:** 0.97
+**Version:** 0.98
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -93,6 +93,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | 0.95 | 2026-07-09 | seang | Documented read-ahead descriptor prefetch: the scheduler read side advances to the next chained legacy descriptor while the write side drains the current one, eliminating the per-descriptor boundary bubble (cross-descriptor streaming). Added a section to `ch05_performance/01_throughput.md` with on-silicon A/B (Nexys A7, single bitstream: 95.3% datapath util prefetch-on vs 76.1% off at 64-beat descriptors; row-major EXT 99.7% util bubble-free; transpose single-beat latency-bound). Runtime `SCHED_CONFIG.RD_PREFETCH_EN`, default on. |
 | 0.96 | 2026-10-17 | seang | 8- or 16-channel builds (`stream_top_ch8` / `stream_top_ch16`) and the 16-channel register map; one shared descriptor engine by default (`SHARED_ENGINES`), with measured area (8 channels 25.8k -> 20.7k LUTs; 16 channels 36.8k) in `ch05_performance/03_resources.md`. Corrected three pages that did not match the RTL: the channel FSM (six states, read and write concurrent in CH_XFER_DATA), SRAM buffering (`SRAM_DEPTH` is per channel, with no dynamic reallocation), and interrupts (one `stream_irq`, no per-channel vector). Diagrams ch02_system_context, ch03_whole_unit, ch03_channel_architecture and 05_channel_fsm redrawn. |
 | 0.97 | 2026-10-17 | seang | Measured Genesys 2 board builds with `SHARED_ENGINES` 0 and 1: post-route utilization and timing in `ch05_performance/03_resources.md` (STREAM 30,781 -> 29,247 LUTs, 23,079 -> 20,654 flip-flops; BRAM and DSP unchanged), and the 40-configuration board sweep of both in `ch05_performance/01_throughput.md` (40 of 40 on both, line rate on both, the shared build one cycle sooner per run). |
+| 0.98 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Document Revision History
 

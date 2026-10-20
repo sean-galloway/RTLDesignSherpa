@@ -52,8 +52,9 @@ MAS Components:
 
 Output Files:
   For each component, generates:
-    - <NAME>_MAS_v1.0.docx
-    - <NAME>_MAS_v1.0.pdf
+    - <NAME>_MAS_v<rev>.docx
+    - <NAME>_MAS_v<rev>.pdf
+  where <rev> is the **Version:** line of that component's MAS index.
 EOF
 }
 
@@ -109,7 +110,14 @@ generate_component() {
   local mas_index="${mas_dir}/${index_file}"
   local styles_file="${mas_dir}/${component_key}_mas_styles.yaml"
   local assets="${mas_dir}/assets"
-  local output_basename="${display_name}_MAS_v1.0"
+  # Each book carries its own revision: the index's **Version:** line.
+  local rev
+  rev="$(grep -m1 -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' "$mas_index" | grep -oE '[0-9]+\.[0-9]+$' || true)"
+  if [[ -z "$rev" ]]; then
+    echo "ERROR: no **Version:** line in $mas_index"
+    return 1
+  fi
+  local output_basename="${display_name}_MAS_v${rev}"
   local output_docx="${output_basename}.docx"
   local output_pdf="${output_basename}.pdf"
 

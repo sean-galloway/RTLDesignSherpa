@@ -24,8 +24,8 @@
 # APB GPIO Micro-Architecture Specification
 
 **Component:** APB General Purpose I/O (GPIO) Controller
-**Version:** 1.1
-**Last Updated:** 2026-09-08
+**Version:** 1.2
+**Last Updated:** 2026-10-20
 **Status:** RTL Functional - register interface and interrupt semantics
 validated; the atomic SET/CLR/TGL registers, GPIO_OUTPUT live readback,
 GPIO_INT_STATUS per-bit W1C merge and the pclk-synchronized CDC irq are as
@@ -75,5 +75,6 @@ Five chapters, working from the block diagram down to the register map. Read the
 |---------|------|--------|---------|
 | 1.0 | 2026-01-04 | RTL Design Sherpa | Initial MAS release |
 | 1.1 | 2026-09-08 | RTL Design Sherpa | Issue #44 fixes: strobe-driven atomics and direct writes, live GPIO_OUTPUT readback, per-bit W1C merge, irq synchronized into pclk |
+| 1.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Table: Version History

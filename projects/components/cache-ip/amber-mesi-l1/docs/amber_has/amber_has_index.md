@@ -23,8 +23,8 @@
 
 # amber — Blocking MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 0.9
-**Date:** 2026-10-11
+**Version:** 0.10
+**Date:** 2026-10-20
 **Status:** full HAS ratifies the Pre-HAS sketch; book-informed pass folded Chinnakonda multiprocessor-cache material into coherence FSM, snoop adapter, and future hooks as candidates/hooks. All PRD decisions D1–D11 are DECIDED (D3 and D11 decided PRD v0.6, 2026-10-07; chapter hedges closed in this revision). Rulings recorded 2026-10-11 (Sean): RACK/WACK omitted from the family ACE contract (wrapper auto-pulse deprecated, removal tracked as A5); CD-before-CR convention confirmed.
 
 **Scope:** The architecture of `amber` (pair-rig top) and `amber_ace` (onyx-rig top) from the CPU GAXI slave through the shared cache core to the fabric masters and ACE snoop responder. The [MAS](../amber_mas/amber_mas_index.md) closes the micro-architecture decisions this book defers.

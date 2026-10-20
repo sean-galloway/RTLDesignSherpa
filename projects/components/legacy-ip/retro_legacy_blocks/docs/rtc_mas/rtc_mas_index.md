@@ -24,8 +24,8 @@
 # APB RTC Specification - Table of Contents
 
 **Component:** APB Real-Time Clock (RTC) Controller
-**Version:** 1.6
-**Last Updated:** 2026-09-09
+**Version:** 1.7
+**Last Updated:** 2026-10-20
 **Status:** RTL Functional - two clock domains with explicit crossings on the
 repo's CDC primitives, an atomic time-set commit that works at the real
 32.768 kHz ratio, coherent six-register time reads, sticky single-event W1C
@@ -102,6 +102,7 @@ The specification is organized into five chapters covering the APB RTC end to en
 | 1.4 | 2026-09-09 | RTL Design Sherpa | Precision pass, fourth review: bus-side commit bookkeeping (pending, busy, timeout event detector) reset by either presetn or the synchronized rtc_resetn so a commit staged under rtc_resetn is dropped without hanging busy or reporting a timeout, commit_timeout never self-setting (a presetn pulse cannot produce it after release), busy never dropping while a transfer is pending (a commit accepted as a timed-out transfer returns to idle keeps busy and its staged values), staging pause stated as best effort at the production ratio (about three counter clocks to be seen) with the commit bracketing the tick regardless |
 | 1.5 | 2026-09-09 | RTL Design Sherpa | Precision pass, fifth review: a presetn-only reset keeps the clock (the counter domain holds its run/enable state and clock source; RTC_CONFIG reads its reset value but a crossed rtc_enable or clock_select is applied only after software writes RTC_CONFIG, gated by a config-valid flag set by any RTC_CONFIG write and cleared by presetn; the mux select is held in a flop under rtc_resetn; time and time_valid remain correct), completion evidence shares the bookkeeping's reset (snapshot and tick synchronizer destination sides reset only with the synchronized rtc_resetn, so a presetn pulse can neither destroy nor fabricate a snapshot pulse or a flag event, busy always clears once a commit lands, no pre-commit time is published as the answer to a commit), a stall is always reported (commit_timeout sets for the in-flight transfer even with a retry queued behind it), a warm bus reset does not abort a commit issued before it, COMMIT_TIMEOUT_CYCLES=65535 stated as about 655 us at 100 MHz, a commit landing exactly on the alarm value does not fire the alarm |
 | 1.6 | 2026-09-09 | RTL Design Sherpa | Precision pass, sixth review: time_set_mode not held in the counter domain's configuration copy (taken live from the crossing, so a presetn during staging releases the pause and drops the staged time), the config-valid flag crossing inside the 34-bit bundle with the hold loaded only from a settled word whose valid bit is set (5 counter clocks), busy released only on load evidence (a dedicated load pulse synchronized back into pclk) plus the shadow showing the committed bytes, commit_timeout reset with the commit bookkeeping (survives presetn while the stall is outstanding, cleared by rtc_resetn dropping the transfer), the counter domain's reset release held until the clock-source select has settled, register file reading reset defaults with time_valid=0 while busy spans a presetn, time not to be read after a bus reset until RTC_CONFIG is re-written, held/outstanding wording replacing abandoned; a commit queued behind a stalled link has its own timeout window from its commit pulse (busy cannot hang on a dead clock); counter reset release needs pclk (settle one-shot) |
+| 1.7 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ---
 

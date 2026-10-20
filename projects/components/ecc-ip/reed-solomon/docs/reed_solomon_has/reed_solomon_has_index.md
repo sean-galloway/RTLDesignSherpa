@@ -2,8 +2,8 @@
 
 ## Overview
 
-**Version:** 0.1 (draft)
-**Date:** 2026-09-29
+**Version:** 0.2 (draft)
+**Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for the Reed-Solomon codec component (`projects/components/ecc-ip/reed-solomon/`)
 
 ---

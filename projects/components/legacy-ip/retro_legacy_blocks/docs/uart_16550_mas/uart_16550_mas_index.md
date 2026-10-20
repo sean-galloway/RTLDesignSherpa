@@ -24,8 +24,8 @@
 # APB UART 16550 Specification — Table of Contents
 
 **Component:** APB UART 16550 Compatible Serial Controller
-**Version:** 1.2
-**Last Updated:** 2026-09-10
+**Version:** 1.3
+**Last Updated:** 2026-10-20
 **Status:** RTL complete; issue #60 fixed and covered by the regression suite
 (37 tests per configuration, standard and CDC), and the five RLB TASK-012 (was RLB-013) features
 (character timeout, auto flow control, 1.5 stop bits, DLAB remapping, DMA
@@ -78,6 +78,7 @@ This specification is organized into five chapters covering all aspects of the A
 | 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
 | 1.1 | 2026-09-10 | RTL Design Sherpa | Issue #60 fixed and the book reconciled to the RTL: RBR returns the received byte in [7:0] and THR is write-only with no readback; LSR[4:1] and MSR[3:0] clear on a read of their own register and the line-status and modem-status interrupts deassert with them; LSR[2:4] are the tags of the character being handed over and LSR[7] aggregates over the whole FIFO; framing errors and breaks assert and tag the FIFO entry, with exactly one zero character loaded per break; received data is right-justified and zero-filled at every word length; each of the four interrupt sources is gated by its own IER bit and reading IIR clears THR-empty when it is the reported source; only the eleven mapped offsets decode and everything else in the window answers with PSLVERR; FCR[0] selects character mode, FCR[2] no longer truncates the character in flight, and a THR write with the data lane masked transmits nothing; the block is now five modules with the interrupt and modem logic split out |
 | 1.2 | 2026-09-10 | RTL Design Sherpa | RLB TASK-012 (was RLB-013) features implemented: the character-timeout interrupt (four character times, IIR 0x0C, sharing the received-data slot and gated by IER[0]); auto flow control on MCR[5], with CTS gating the start of a character and RTS driven from the RX FIFO level; 1.5 stop bits for a 5-bit word; DLAB remapping of 0x00 and 0x04 to the divisor latches, additive to the flat offsets; and DMA mode select on FCR[3] driving the new rxrdy_n and txrdy_n pins |
+| 1.3 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ---
 

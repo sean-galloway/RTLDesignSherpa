@@ -23,8 +23,8 @@
 
 # CDC Counter Display — Project Guide
 
-**Version:** 0.90
-**Date:** 2026-07-18
+**Version:** 0.91
+**Date:** 2026-10-20
 **Purpose:** Operator / developer guide for the Nexys A7 `cdc_counter_display`
 project — how it works, how to build/simulate/program/run it, and the harness
 CSR configuration.

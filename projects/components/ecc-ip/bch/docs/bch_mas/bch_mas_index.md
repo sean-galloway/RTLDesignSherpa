@@ -25,8 +25,8 @@
 
 ## Overview
 
-**Version:** 0.1 (draft)
-**Date:** 2026-10-03
+**Version:** 0.2 (draft)
+**Date:** 2026-10-20
 **Purpose:** Micro-architecture specification — the HAS taken one level down:
 per-block signal tables, cycle behavior, FSM policy, and signal-contract
 references for the Binary BCH codec component

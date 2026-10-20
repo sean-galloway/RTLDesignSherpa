@@ -24,8 +24,8 @@
 # APB PIT 8254 Specification
 
 **Component:** APB Programmable Interval Timer (PIT 8254)
-**Version:** 1.1
-**Last Updated:** 2026-09-09
+**Version:** 1.2
+**Last Updated:** 2026-10-20
 **Status:** RTL Functional -- Mode 0 with 8254 GATE pause/resume, count
 0 = 65536, the counter-latch command, byte-lane loads and strict address
 decode with PSLVERR (issue #52 fixes, 2026-09-09). Modes 1-5 and the
@@ -109,6 +109,7 @@ This is the micro architecture specification for the APB PIT 8254, an 8254-compa
 |---------|------|--------|---------|
 | 1.0 | 2025-11-08 | RTL Design Sherpa | Initial production release, all tests passing |
 | 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #52 fixes: GATE pauses and resumes Mode 0 counting through a SYNC_STAGES synchronizer, a count of 0 means 65536, counter latch is the RW=00 control-word command (released by the next data read), loads honour PSTRB and the RW byte lanes on both write and read, one glitch-free load per write with a single post-terminal steady state, strict seven-register decode with PSLVERR (no aliases); remaining limitations stated as such |
+| 1.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ---
 

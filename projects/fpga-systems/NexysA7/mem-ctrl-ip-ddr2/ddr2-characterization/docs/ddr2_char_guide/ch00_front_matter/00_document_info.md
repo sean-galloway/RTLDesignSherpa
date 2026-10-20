@@ -64,5 +64,6 @@ window; there is no hardware leveling FSM.
 | Version | Date | Notes |
 |---------|------|-------|
 | 0.90 | 2026-07-18 | Initial project guide |
+| 0.96 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Revision history

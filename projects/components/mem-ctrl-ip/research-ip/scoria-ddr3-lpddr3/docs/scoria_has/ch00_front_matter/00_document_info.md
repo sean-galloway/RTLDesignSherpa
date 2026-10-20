@@ -26,8 +26,8 @@
 | Field | Value |
 |-------|-------|
 | Title | scoria DDR3/LPDDR3 Family Controller — Hardware Architecture Specification |
-| Version | 0.10 |
-| Date | 2026-10-10 |
+| Version | 0.11 |
+| Date | 2026-10-20 |
 | Status | Advanced-modes edition. v0.8 reconciled this book with the landed RTL; v0.9 specifies TASK-001's bounded advanced modes (elastic refresh, TCR, ZQCS placement) in Ch 3.2/3.4 per that RTL; v0.10 restates the design-point clock at 75 MHz per the owner (2026-10-10: "100 MHz was never the target"), closing scoria BUG-003 — revision history below |
 | Scope | Controller architecture to the DFI v3.1 boundary, for DDR3 and LPDDR3 |
 | Not in scope | The PHY; board bring-up; the DDR4/LPDDR4 features DFI v3.1 also carries |
@@ -81,6 +81,7 @@ it a scheduling problem and not only a sequencing one.
 | 0.3 | 2026-09-30 | Q2 and D2 re-answered from a generated DDR3 LiteDRAM core instead of by analogy (Sean: "you might need to generate a ddr3 version of litedram"). ZQCS confirmed as request/grant sharing the refresher FSM; write leveling confirmed as CSR-only with no state machine. |
 | 0.2 | 2026-09-29 | Q1-Q5 resolved or deferred with conditions. `refresh_ctrl` corrected from MODIFIED to INHERITED: pumice already implements `REFpb` and the device owns the sequence, so Q5 was malformed and is struck. |
 | 0.1 | 2026-09-29 | First edition. Written from the delta analysis, with decisions D1-D3 settled. No RTL exists; every block is specified, not described. |
+| 0.11 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Table 0.3: Revision history
 

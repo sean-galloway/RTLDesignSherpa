@@ -28,7 +28,7 @@
 | Property | Value |
 |----------|-------|
 | Document Title | Reed-Solomon Codec Hardware Architecture Specification |
-| Version | 0.1 (draft) |
+| Version | 0.2 (draft) |
 | Date | September 29, 2026 |
 | Status | Draft -- decisions D2, D3, D5 and D10 of the PRD are open; this document carries them as parameters |
 | Classification | Open Source - MIT License |
@@ -38,6 +38,7 @@
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-09-29 | RTL Design Sherpa | First draft, written before any RTL exists. Captures what the PRD has decided (valid/ready core with optional AXIS and AXI4 adapters, symbol width as a parameter with the bus a multiple of it, riBM solver with a Euclidean alternative, scrambler behind an enable, endpoint placement, BCH out of scope) and carries the undecided items -- correctable-symbol count and profile, shortening, erasures, first consumer -- as parameters with candidate values. Numbers are analytic, from the FUB catalog; none are measured. |
+| 0.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ## Document Purpose
 

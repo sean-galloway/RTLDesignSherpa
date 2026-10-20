@@ -23,8 +23,8 @@
 
 # RAPIDS beats on the Genesys 2 -- The FPGA System
 
-**Version:** 1.0
-**Date:** 2026-09-29
+**Version:** 1.2
+**Date:** 2026-10-20
 **Purpose:** What is on the bench and in the bitstream for the `rapids_beats`
 characterization system: the board, the harness that surrounds the DUT, why
 there is one RTL source and several bitstreams built from it at different

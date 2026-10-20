@@ -62,5 +62,6 @@ match.
 |---------|------|-------|
 | 0.90 | 2026-07-18 | Initial project guide |
 | 0.91 | 2026-10-15 | The on-chip run timer and CRC verdict (`char_run_timer`, shared with STREAM): register map rows at `0x160`-`0x180`, the methodology and Figure 3.1 name it, troubleshooting no longer calls the generator valid flag a non-fatal flake. |
+| 0.92 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Revision history

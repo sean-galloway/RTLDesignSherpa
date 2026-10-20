@@ -24,8 +24,8 @@
 # pic_8259 MAS -- Micro Architecture Specification
 
 **Component:** APB 8259A-Compatible Programmable Interrupt Controller
-**Version:** 1.1
-**Last Updated:** 2026-09-09
+**Version:** 1.2
+**Last Updated:** 2026-10-20
 **Status:** RTL Functional -- acknowledge by read (PIC_INTA), live ISR with
 fully nested priority, all EOI/rotation variants, special mask mode, strict
 address decode with PSLVERR and a synchronized `irq_in` (issue #50 fixes,
@@ -52,6 +52,7 @@ slave's vector on that read) the text says so, plainly.
 |---------|------|--------|---------|
 | 1.0 | 2025-12-01 | RTL Design Sherpa | Initial specification |
 | 1.1 | 2026-09-09 | RTL Design Sherpa | Issue #50 fixes: PIC_INTA acknowledge-by-read with pre-acknowledge vector and spurious IRQ7, live ISR (nesting, non-specific/specific/rotating EOI, set-priority, one-shot rotate-on-AEOI), in-service and special-mask blocking rules, single-copy IMR, OCW2/OCW3 gated on init_complete and pic_enable, edge-taken init_mode with hardware-precedence auto-clear, strict decode with PSLVERR (no aliases), SYNC_STAGES irq_in synchronizer; storage-only fields stated |
+| 1.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 ## Navigation
 

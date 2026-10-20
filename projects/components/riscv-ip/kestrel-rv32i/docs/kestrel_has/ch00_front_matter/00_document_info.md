@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Hardware Architecture Specification
 
 **Document Number:** KESTREL-HAS-001
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -91,6 +91,7 @@ This document does not describe the internal microarchitecture. Block internals,
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-07 | seang | Initial HAS release; documents the as-built RTL (Tasks 1-11) including the Task-9 IALIGN halt and the Task-11 AXIL board loader |
+| 0.2 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Document Revision History
 

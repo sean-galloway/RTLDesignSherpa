@@ -23,8 +23,8 @@
 
 # pumice on the Nexys A7 -- The FPGA System
 
-**Version:** 1.0
-**Date:** 2026-09-29
+**Version:** 1.1
+**Date:** 2026-10-20
 **Purpose:** What is on the bench and in the bitstream for the DDR2
 characterization system: the board and the clock chain that fixes the peak, the
 harness that surrounds the controller and why each block is shaped the way it

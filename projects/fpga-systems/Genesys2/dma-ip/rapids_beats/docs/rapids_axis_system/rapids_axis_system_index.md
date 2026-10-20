@@ -23,8 +23,8 @@
 
 # RAPIDS beats on the Genesys 2 -- The AXIS4 Side
 
-**Version:** 1.0
-**Date:** 2026-09-29
+**Version:** 1.1
+**Date:** 2026-10-20
 **Purpose:** What makes the rapids-beats characterization system a different
 build from STREAM's, and not the same harness around a different DUT: the two
 AXI4-Stream links, the stream endpoints that drive and check them, the way a

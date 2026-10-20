@@ -26,8 +26,8 @@
 | Field | Value |
 |-------|-------|
 | Title | pumice on the Nexys A7 -- The FPGA System |
-| Version | 1.0 |
-| Date | 2026-09-29 |
+| Version | 1.1 |
+| Date | 2026-10-20 |
 | Scope | The DDR2 characterization system: board, the harness around the controller, the five things built from one harness source, and the host flow |
 | Not in scope | The pumice controller itself (HAS/MAS under `projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/docs/`); the measured results (`build-perf/results/`, `ddr2-characterization/char_results/`) |
 | Status | Current; written against the tree after the `mem-ctrl-ip` and `fabric-gen-ip` family moves |
@@ -74,6 +74,7 @@ registers, generator array, AXI merge, bus meters and latency histograms.
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0 | 2026-09-29 | First edition. Written after the family-directory moves, so every path in it is `mem-ctrl-ip/` and `fabric-gen-ip/`. |
+| 1.1 | 2026-10-20 | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Table 0.3: Revision history
 

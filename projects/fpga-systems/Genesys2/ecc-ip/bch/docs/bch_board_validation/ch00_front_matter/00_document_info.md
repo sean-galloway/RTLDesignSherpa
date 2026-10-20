@@ -5,6 +5,7 @@
 | Revision | Date | Author | Description |
 |----------|------|--------|-------------|
 | 0.1 | 2026-10-05 | RTL Design Sherpa | Initial board validation roll-up for the BCH Genesys 2 harness. |
+| 0.2 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Table 0.1: Revision history.
 

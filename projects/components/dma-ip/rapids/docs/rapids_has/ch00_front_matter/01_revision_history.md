@@ -32,6 +32,7 @@
 | 0.3 | 2026-10-16 | RTL Design Sherpa | `SRAM_DEPTH` stated as beats per channel, per direction |
 | 0.2 | 2026-09-30 | RTL Design Sherpa | Channel reset recovers every error class; the aresetn-only caveats are removed from Error Handling |
 | 0.1 | 2026-09-30 | RTL Design Sherpa | Initial release: the byte-granular RAPIDS, split from the RAPIDS Beats HAS |
+| 0.8 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 
 : Document Revision History
 
