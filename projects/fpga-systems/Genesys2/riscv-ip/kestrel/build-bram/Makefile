@@ -10,6 +10,7 @@ RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 export KESTREL_ROOT    ?= $(RDS_ROOT)/projects/components/riscv-ip/kestrel-rv32i
 
+BOARD     ?= genesys2
 FLOW      := kestrel_bram
 TOP       := kestrel_genesys2_top
 FILELIST  := $(SELF_DIR)/rtl/filelists/kestrel_genesys2_top.f

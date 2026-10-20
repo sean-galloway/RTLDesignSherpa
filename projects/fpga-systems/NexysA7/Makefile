@@ -55,6 +55,7 @@ CLEAN_DIRS = $(CLEAN_ALL_DIRS) $(CLEAN_ONLY_DIRS)
 # listed; the pre-reorg `reed-solomon` path they replace did not exist.
 STATUS_ROOTS = \
     misc-ip/cdc_counter_display \
+    riscv-ip/kestrel \
     mem-ctrl-ip-ddr2
 
 

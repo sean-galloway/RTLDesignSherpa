@@ -13,6 +13,7 @@ RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel
 
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 
+BOARD       ?= genesys2
 FLOW        := alu_infer
 TOP         := alu_genesys2_top
 FILELIST    := $(SELF_DIR)/rtl/filelists/alu_genesys2_top.f
