@@ -1,0 +1,26 @@
+// aligner_after: remove full flag from capture cone; add dfi_clk skid
+digraph aligner_after {
+    rankdir=LR;
+    graph [splines=ortho, nodesep=0.45, ranksep=0.75, compound=true, fontname="Helvetica"];
+    node  [fontname="Helvetica", fontsize=9, style=filled, fillcolor="white", color="black", penwidth=1.1, margin="0.10,0.05"];
+    edge  [fontname="Helvetica", fontsize=8, color="#333333", arrowsize=0.7];
+
+    aligner_capture [label="mc_dfi_rd_aligner capture\nr_age shift reg + r_outstanding + r_credit (dfi_clk)\npush = word_valid && credit", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    skid [label="1–2 entry dfi_clk skid\nabsorbs full stalls", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    cdc_fifo [label="rd CDC FIFO push\ndrain when !full", shape=cylinder, fillcolor="#E8DFF5"];
+
+    latency_note [label="return latency +0–1 dfi_clk cycle\n(≤5 ns)", shape=note, fontsize=8, fillcolor="white"];
+
+    { rank=same; aligner_capture; latency_note; }
+
+    aligner_capture -> skid [xlabel="push"];
+
+    skid -> after_spacer [xlabel="push (when !full)"];
+    after_spacer [shape=point, width=0.15, style=invis];
+    after_spacer -> cdc_fifo;
+
+    cdc_fifo -> after_spacer [dir=back, style=dashed, color="#777777"];
+    after_spacer -> skid [dir=back, style=dashed, color="#777777", xlabel="full (out of capture cone)"];
+
+    aligner_capture -> latency_note [style=dashed, color="#777777"];
+}

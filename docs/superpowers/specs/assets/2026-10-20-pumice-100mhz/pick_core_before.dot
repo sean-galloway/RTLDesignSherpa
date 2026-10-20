@@ -1,0 +1,39 @@
+// pick_core_before: current mc_cmd_arbiter pipeline (the -13.2 ns cone)
+digraph pick_core_before {
+    rankdir=LR;
+    graph [splines=ortho, nodesep=0.45, ranksep=0.75, compound=true, fontname="Helvetica"];
+    node  [fontname="Helvetica", fontsize=9, style=filled, fillcolor="white", color="black", penwidth=1.1, margin="0.10,0.05"];
+    edge  [fontname="Helvetica", fontsize=8, color="#333333", arrowsize=0.7];
+
+    cam_vectors [label="wr/rd CAM per-entry vectors + age matrices\nvalid/bank/row/col/older/age (flops)", shape=cylinder, fillcolor="#E8DFF5"];
+    classify [label="comb classify + oldest pick\nSTAGE 0 classify (comb, 22 ns cone)", shape=invtrapezium, width=2.6, height=0.6, fillcolor="#FFF2CC", penwidth=1.5];
+    class_masks [label="registered class masks r_*_q\ncol/act/pre per direction", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    arg_oldest [label="comb arg_oldest + sel", shape=box];
+    out_decision [label="output decision regs\nrd/wr col/act/pre_f + slots", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    fire [label="fire: live JEDEC re-check\nw_out_safe; drop-on-reject; rank-global ACT hold", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    cmd_fifo [label="DFI cmd FIFO\n(on fire)", shape=cylinder, fillcolor="#E8DFF5"];
+
+    bank_timers [label="bank timers\nmc_bank_timers", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+
+    cone_note [label="WNS −13.2 ns (55 paths) aclk\n— pop→classify→next-state loop", shape=note, fontsize=8, fillcolor="white"];
+
+    { rank=same; classify; cone_note; }
+
+    cam_vectors -> classify;
+    classify -> class_masks;
+    class_masks -> arg_oldest;
+    arg_oldest -> out_decision;
+    out_decision -> fire;
+    fire -> cmd_spacer [xlabel="cmd → DFI cmd FIFO"];
+    cmd_spacer [shape=point, width=0.15, style=invis];
+    cmd_spacer -> cmd_fifo;
+
+    out_decision -> classify [style=dashed, color="#777777",
+                              xlabel="pop bookkeeping → re-classify (the loop)",
+                              constraint=false];
+    bank_timers -> classify [style=dashed, color="#777777",
+                             xlabel="bank ready/open row (live)",
+                             constraint=false];
+
+    classify -> cone_note [color="#D00000", penwidth=2.2];
+}

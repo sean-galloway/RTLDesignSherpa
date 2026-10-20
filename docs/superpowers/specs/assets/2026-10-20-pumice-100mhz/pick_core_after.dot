@@ -1,0 +1,39 @@
+// pick_core_after: spec design §3 — split cone into shallow stages
+digraph pick_core_after {
+    rankdir=LR;
+    graph [splines=ortho, nodesep=0.45, ranksep=0.75, compound=true, fontname="Helvetica"];
+    node  [fontname="Helvetica", fontsize=9, style=filled, fillcolor="white", color="black", penwidth=1.1, margin="0.10,0.05"];
+    edge  [fontname="Helvetica", fontsize=8, color="#333333", arrowsize=0.7];
+
+    cam_predecode [label="wr/rd CAM push-side pre-decode\nclass bits computed once at push/fill — never in pick cone", shape=cylinder, fillcolor="#E8DFF5"];
+    bank_img [label="bank image\nr_bank_* (registered)", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    stageA [label="Stage A: pool qualify\nvalid && !done && preclass && r_bank_* image", shape=box];
+    r_cls_a [label="r_cls_a masks", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    stageB [label="Stage B: window overlay + oldest select\nturnaround/tCCD/AP/REF + age-matrix oldest", shape=box];
+    r_pick_next [label="r_pick_next (winner idx+class)\nspeculative: pool − {r_pick if popping};\nmask-minus-one only, no payload in cone", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    r_pick [label="r_pick (winner) reg", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    payload_read [label="payload read: CAM arrays by winner idx\nshallow index mux", shape=box];
+    out_decision [label="r_pick + output decision regs\npayload regs from CAM flops", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    fire [label="fire: live JEDEC re-check (unchanged authority)\npass → r_pick ← r_pick_next;\nfail → HOLD winner, no recompute", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    cmd_fifo [label="DFI cmd FIFO", shape=cylinder, fillcolor="#E8DFF5"];
+
+    target_note [label="target: WNS ≥ 0 aclk\n(stage depth ≤ ~6 ns each)", shape=note, fontsize=8, fillcolor="white"];
+
+    { rank=same; stageB; target_note; }
+    { rank=same; r_pick_next; payload_read; }
+
+    cam_predecode -> stageA;
+    bank_img -> stageA [style=dashed, color="#777777", xlabel="registered bank image", constraint=false];
+    stageA -> r_cls_a;
+    r_cls_a -> stageB;
+    stageB -> r_pick_next;
+    r_pick -> stageB [style=dashed, color="#777777", xlabel="remove firing winner", constraint=false];
+    r_pick_next -> payload_read;
+    payload_read -> out_decision;
+    out_decision -> fire;
+    fire -> cmd_spacer [xlabel="cmd → DFI cmd FIFO"];
+    cmd_spacer [shape=point, width=0.15, style=invis];
+    cmd_spacer -> cmd_fifo;
+
+    stageB -> target_note [color="#D00000", penwidth=2.2];
+}

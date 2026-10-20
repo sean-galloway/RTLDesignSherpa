@@ -62,6 +62,14 @@ rank-global ACT hold (`w_out_hold`) is correct and stays.
 
 **Known-ahead winner, zero bubbles, hold-on-not-fired.**
 
+Before (current pipeline, failing cone marked red):
+
+![pick core before](assets/2026-10-20-pumice-100mhz/pick_core_before.png)
+
+After (this spec):
+
+![pick core after](assets/2026-10-20-pumice-100mhz/pick_core_after.png)
+
 1. **Push-side pre-decode.** Per-entry class qualifiers that do not depend
    on live JEDEC state are computed once, when the entry is pushed/filled
    in the storage plane (wr_data_cam / rd_cmd_cam side), and stored as bits
@@ -95,6 +103,14 @@ rank-global ACT hold (`w_out_hold`) is correct and stays.
    fire-stage live re-check remains the correctness backstop.
 
 ## 4. dfi_clk read aligner (`mc_dfi_rd_aligner` + rd CDC FIFO) — skid decouple
+
+Before (current capture→push gate, failing cone marked red):
+
+![aligner before](assets/2026-10-20-pumice-100mhz/aligner_before.png)
+
+After (this spec):
+
+![aligner after](assets/2026-10-20-pumice-100mhz/aligner_after.png)
 
 Insert a small (1–2 entry) `dfi_clk` skid between the aligner capture side
 and the `gaxi_fifo_async` rd FIFO push:
