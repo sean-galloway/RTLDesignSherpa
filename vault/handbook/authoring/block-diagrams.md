@@ -99,6 +99,26 @@ own route.
      visible exit is the "mux with nothing coming out" failure.
    - **The output leaves the narrow edge with a heavier pen**
      (`penwidth=1.8`) and a label, so the exit reads at a glance.
+10. **Legibility: no text ever sits on a line, and spacing makes every
+    association unambiguous** (owner, 2026-10-19). If a reader has to guess
+    which label belongs to which arrow or which block, the diagram fails —
+    same as an untraceable flow.
+    - **Labels never overlap an edge, another label, or a node fill.** Same-
+      rank (horizontal) edge labels use `xlabel` — plain `label` gets
+      overdrawn by node fills. A label that would cross any line moves: change
+      the ranks, not the font size.
+    - **One job per rank; spread ranks before adding columns.** If a rank
+      holds more than about three blocks, or any two labels would sit within
+      a label-height of each other, split it into two ranks. White space is
+      free; a cramped diagram costs the reader the association.
+    - **Edge labels sit beside their edge, offset from the arrowhead.** An
+      unlabeled arrow must still be identifiable by position — label and
+      arrow travel together, end to end.
+    - **The readback is a legibility check, not just a flow check.** When you
+      read the rendered PNG at full resolution, verify per rule: no text on
+      any line, no two text elements touching, every label within a finger's
+      trace of its arrow. Any violation re-ranks the diagram — never shrinks
+      text to fit.
 
 ## Labels
 
@@ -163,6 +183,25 @@ existing set converts as each diagram is next touched.
   on an abort is Combinational, with the hold in its label (the W output).
   If a timing cut matters to the reader (a request register added for 100
   MHz), draw it as its own Registered box.
+- **The key is graphical samples, not prose** (owner, 2026-10-19). The Key
+  is a row of drawn samples: every shape next to its name, every line style
+  as a short drawn arrow (flow, heavy winner-exit, dashed sideband, and the
+  red failing-cone sample where a diagram carries one). A text-only legend
+  ("solid: flow | dashed: sideband") is meaningless — the reader must be
+  able to *see* the style once and match it everywhere. The sample arrows
+  are SHORT and the elements close together; the row is titled by a plain
+  `Key` label node and must be CENTERED on the graphics — more whitespace
+  beside the key than key content is a design failure (owner). Dot cannot
+  center a boxed cluster or an anchored row (every anchor variant leaves it
+  off-center), so the row is split-rendered as its own dot file and pasted
+  centered under the drawing by a small compositing script (recipe below).
+- **Interfaces state their timing class** (owner, 2026-10-19). Every
+  interface node and plane crossing is annotated `flopped` or `comb`: in the
+  node label ("AXI AW / host (flopped)") or on the edge ("(comb)", "(flopped
+  at DFI cmd FIFO)", "(sampled at store)"). A combinational crossing is where
+  timing failures live — a diagram that hides them hides the one thing the
+  reader came to check. The Key carries both samples: interface (flopped)
+  and interface (comb, dashed border).
 - **Shape carries the class; fill repeats it.** A black-and-white copy must
   still read: double border, cylinder, rounded, trapezium, diagonals. The
   fills are fixed so every diagram in the repo reads the same.
@@ -233,7 +272,31 @@ edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
   points the way the data goes, and the ranks stay top-down.
 - **Horizontal (same-rank) edges use `xlabel`, not `label`.** A plain label
   is drawn at the edge midpoint and the node fill paints over it. The
-  "timer window" arrow into the scheduler trapezium was the case.
+  "timer window" arrow into the scheduler trapezium was the case. In
+  `splines=ortho` this is absolute and stronger than it sounds: dot does
+  not render PLAIN edge labels at all ("Orthogonal edges do not currently
+  handle edge labels") — `xlabel` still renders, `label` vanishes. Sample
+  arrows in a legend are the trap: a labeled sample edge must use `xlabel`
+  or be drawn without `splines=ortho` (short legend arrows don't need ortho).
+- **A key row that must be exactly centered is split-rendered and
+  composited** (owner, 2026-10-19). Dot cannot center a multi-item row
+  under the graphics: a cluster is an anchored object, and a single anchor
+  edge pins one node's column while dot reorders the rest freely — a dozen
+  anchor variants all leave the row off-center. The working method: render
+  the drawing and the key as separate dot files, then paste the key PNG
+  centered under the drawing with a tiny PIL/Pillow script
+  (alpha-composite onto white). Deterministic, pixel-exact, and the key's
+  own spacing (short arrows, tight nodesep) stops fighting the main
+  graph's.
+- **Stack multi-field payloads as a multi-line `xlabel`.** "snarf probe /
+  {bank,row,col} / hit + data" becomes `xlabel="snarf probe\n{bank,row,col}\nhit
+  + data"` — three short lines centered on the segment read as one payload,
+  instead of one long line drifting into a neighbor.
+- **A sideband whose label would crowd its segment routes through a visible
+  waypoint box** (owner, 2026-10-19): a small white port box (the DFI port
+  idiom above), never an invisible `shape=point` — the visible box gives the
+  bend something to land on and buys the label guaranteed-empty space beside
+  its segment.
 - **Never draw two parallel edges between the same node pair for two
   classes.** Dot assigns their channels in an order you can't control, and
   `splines=ortho` ignores labels when it routes, so the labels drift and
