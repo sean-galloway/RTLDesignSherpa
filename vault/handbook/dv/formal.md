@@ -459,3 +459,17 @@ each. On `smtbmc bitwuzla`: prove **7 s**, cover **23 s**, the same five
 covers reached at the same steps, and two property mutants each FAIL on
 the property broken. A run measured in hours is a solver choice until
 shown otherwise; try bitwuzla before reading a long run as a stuck one.*
+
+*Same day, the other long z3 units, each engine capped at 2 h: stream
+`datapath_rd_test` prove 207 min -> 10 s, `datapath_wr_test` 351 min ->
+15 s, `descriptor_engine` 96 min -> 9 s, cdc `gaxi_skid_buffer_async`
+77 min -> 3 s, all on `smtbmc bitwuzla` with covers at seconds. Where
+bitwuzla itself was slow, bit-level BMC won: rapids `snk_data_path_axis`
+101 -> 7 min and `src_data_path_axis` 124 -> 20 min on `abc bmc3`
+(yices and boolector timed out). The cost of `abc bmc3`: a failure
+reports ERROR with no trace, because yosys cannot replay the witness
+onto the sv2v flat's ports -- rerun on `smtbmc bitwuzla` for the
+counterexample. Every switched unit was mutation-checked first (one
+inverted property, which must FAIL). Not every proof yields: amber
+`amber_control` (depth 126) stalls near step 45 on yices and abc bmc3
+too (`abc pdr` needs the task in `mode prove`; it is a `mode bmc` task).*
