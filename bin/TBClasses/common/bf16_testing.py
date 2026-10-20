@@ -4975,6 +4975,13 @@ class BF16Exp2TB(TBBase):
         # Overflow/underflow
         await self.test_single_exp2(BF16Utils.float_to_bf16(128.0), "overflow")
         await self.test_single_exp2(BF16Utils.float_to_bf16(-127.0), "underflow")
+        # |x| >= 256 takes the saturating branch: a 9-bit signed +256 once
+        # wrapped to -256 there and returned 0 for every large positive x.
+        for v, d in ((256.0, "overflow 2^256"), (1000.0, "overflow 2^1000"),
+                     (-256.0, "underflow 2^-256"), (-1000.0, "underflow 2^-1000")):
+            await self.test_single_exp2(BF16Utils.float_to_bf16(v), d)
+        await self.test_single_exp2(0x7F7F, "overflow 2^max-finite")
+        await self.test_single_exp2(0xFF7F, "underflow 2^-max-finite")
 
         # Random values in valid range
         count = {'simple': 20, 'basic': 50, 'medium': 200, 'full': 1000}.get(self.test_level, 50)

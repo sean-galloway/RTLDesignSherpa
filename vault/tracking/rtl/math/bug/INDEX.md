@@ -2,7 +2,7 @@
 
 # math — bugs
 
-**Next ID: BUG-009** — never recycle a number, even when its item closed.
+**Next ID: BUG-010** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 8 | done (kept for history) |
+| [closed/](closed/) | 9 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,6 +22,10 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-009** — math_bf16_exp2 returns 0 for every x >= 256: the 9-bit signed
+  +256 saturate wrapped to -256, so overflow read as underflow (CLOSED
+  2026-10-20; fix-RTL +255; library test gains the |x| >= 256 cases, which
+  FAIL pre-fix; formal prove+cover PASS; found by the alu-infer exp2 row)
 - **BUG-008** — math_fp8_e4m3_to_fp8_e5m2 converts the top of the e4m3 range
   (exp=15, mant=1..6; 264..448 incl. max-normal) to e5m2 NaN + ow_invalid
   (CLOSED 2026-10-10; fix-generator: narrowing conversion templates now emit the

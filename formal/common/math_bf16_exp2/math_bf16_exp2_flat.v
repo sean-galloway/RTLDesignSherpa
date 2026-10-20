@@ -39,7 +39,7 @@ module math_bf16_exp2 (
 		if (_sv2v_0)
 			;
 		if (w_exp >= 8'd135) begin
-			w_int_part = (w_sign ? -9'sd256 : 9'sd256);
+			w_int_part = (w_sign ? -9'sd256 : 9'sd255);
 			w_frac_part = 8'd0;
 		end
 		else if (w_exp >= 8'd127)
@@ -77,7 +77,7 @@ module math_bf16_exp2 (
 					w_frac_part = 8'd0;
 				end
 				default: begin
-					w_int_part = (w_sign ? -9'sd256 : 9'sd256);
+					w_int_part = (w_sign ? -9'sd256 : 9'sd255);
 					w_frac_part = 8'd0;
 				end
 			endcase

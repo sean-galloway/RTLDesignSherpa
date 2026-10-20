@@ -93,8 +93,11 @@ module math_bf16_exp2 #(
     always_comb begin
         if (w_exp >= 8'd135) begin
             // Very large magnitude (|x| >= 256)
-            // Will definitely overflow or underflow
-            w_int_part = w_sign ? -9'sd256 : 9'sd256;
+            // Will definitely overflow or underflow.  +255, not +256: a 9-bit
+            // signed value tops out at 255, and 9'sd256 wraps to -256 -- which
+            // turned every |x| >= 256 into an UNDERFLOW (2^1000 returned 0).
+            // 127 + 255 still clears the overflow threshold.
+            w_int_part = w_sign ? -9'sd256 : 9'sd255;
             w_frac_part = 8'd0;
         end else if (w_exp >= 8'd127) begin
             // |x| >= 1.0
@@ -139,8 +142,8 @@ module math_bf16_exp2 #(
                                            9'(signed'({2'b01, w_mant}));
                     w_frac_part = 8'd0;  // All mantissa bits used for integer
                 end
-                default: begin  // >= 256 (will definitely overflow)
-                    w_int_part = w_sign ? -9'sd256 : 9'sd256;
+                default: begin  // >= 256 (will definitely overflow); +255, see above
+                    w_int_part = w_sign ? -9'sd256 : 9'sd255;
                     w_frac_part = 8'd0;
                 end
             endcase
