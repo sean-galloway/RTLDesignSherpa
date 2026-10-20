@@ -8,9 +8,6 @@ test_granite_core's bring-up with a file-based state logger (the proven
 close-drain idiom) tracing, per aclk edge:
   skid[0] (packed head_t slice), rd head view (valid/slot), bh2 valid,
   w_fire, cmd op/bank, rd_issue valid/slot, store r_rd_valid[0..1].
-The per-bank core is now a registered-pick pipeline: the skid/pending stages
-are unchanged, but w_fire reflects a decision registered one cycle earlier
-and re-validated against the live head view + live bank state at fire time.
 NOT a regression gate -- delete or fold into the real tests after MC-003.
 """
 
@@ -153,11 +150,11 @@ async def cocotb_test_bankfifo_race(dut):
         while True:
             await RisingEdge(dut.aclk)
             n["n"] += 1
-            wv = int(bs.r_winner.value)
+            wv = int(bs.r_rs[1].value)
             vv = [int(dut.u_entry_store.r_rd_valid[i].value) for i in range(8)]
             if n["n"] > 20:
-                fh.write("T%d winner%012x bh1v%d bh1s%d bh2_1v%d fire%d op%02x bk%d iss(v%ds%d) valids%s\n"
-                         % (n["n"], wv,
+                fh.write("T%d skid(v%ds%d) bh1v%d bh1s%d bh2_1v%d fire%d op%02x bk%d iss(v%ds%d) valids%s\n"
+                         % (n["n"], (wv >> 36) & 1, (wv >> 33) & 7,
                             (int(dut.w_rd_bh_v.value) >> 1) & 1,
                             (int(dut.w_rd_bh_slot.value) >> 3) & 7,
                             (int(dut.w_rd_bh2_v.value) >> 1) & 1,

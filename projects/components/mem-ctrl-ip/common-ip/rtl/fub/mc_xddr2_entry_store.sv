@@ -131,7 +131,6 @@ module mc_xddr2_entry_store
     // Scheduler commit / issue
     //=========================================================================
     input  logic [7:0]          sched_age_thresh_i,
-    input  logic                sched_decr_i,
     input  logic                wr_commit_valid_i,
     output logic                wr_commit_ready_o,
     input  logic [PTRW-1:0]     wr_commit_slot_i,
@@ -162,17 +161,13 @@ module mc_xddr2_entry_store
 
     //=========================================================================
     // Per-bank head views — BANK_FIFO pick core (mc_scheduler_plane v2).
-    // CONTRACT (MC-003 SS17): REGISTERED snapshots out of the per-bank age
-    // fifos — these wires are flops at the storage->scheduler boundary, no
-    // combinational array reads.  The core latches a bank's head into its
-    // own sequencer register and drives the SAME commit/issue strobes above
-    // (head slot), so no store state changes here.
+    // Purely combinational off the entry arrays; the core latches a bank's
+    // head into its own sequencer register and drives the SAME commit/issue
+    // strobes above (head slot), so no store state changes here.
     //   head  = oldest schedulable entry of the bank (wr: valid && fdone &&
     //           !sched; rd: valid), via the age matrix.
     //   empty = exactly one schedulable entry in the bank (CLOSE_ON_DRAIN:
     //           the head's close is exact when its queue drains behind it).
-    // Hit classification does NOT cross here: the scheduler plane decodes
-    // each candidate against the live bank state (owner ruling 2026-10-19).
     //=========================================================================
     output logic [NUM_BANKS-1:0]                wr_bh_valid_o,
     output logic [NUM_BANKS*PTRW-1:0]           wr_bh_slot_o,
@@ -203,10 +198,6 @@ module mc_xddr2_entry_store
     output logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh2_row_o,
     output logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh2_col_o,
     output logic [NUM_BANKS*IW-1:0]             rd_bh2_id_o,
-    output logic [NUM_BANKS*6-1:0]              wr_bh_age_o,
-    output logic [NUM_BANKS*6-1:0]              rd_bh_age_o,
-    output logic [NUM_BANKS*6-1:0]              wr_bh2_age_o,
-    output logic [NUM_BANKS*6-1:0]              rd_bh2_age_o,
 
     //=========================================================================
     // WR commit data to DFI plane
@@ -336,40 +327,6 @@ module mc_xddr2_entry_store
     assign w_aw_fire = aw_push_valid_i && aw_push_ready_o;
     assign w_wd_fire = wd_valid_i && wd_ready_o;
 
-    // Per-bank age-fifo push/pop controls
-    localparam int AF_AGEW = 6;
-    localparam int AF_DEPTH = 8;
-    logic w_wr_fifo_push;
-    logic [BKW-1:0] w_wr_fifo_push_bank;
-    logic [PTRW-1:0] w_wr_fifo_push_slot;
-    logic w_rd_fifo_push;
-    logic [BKW-1:0] w_rd_fifo_push_bank;
-    logic [PTRW-1:0] w_rd_fifo_push_slot;
-    logic w_wr_fifo_pop;
-    logic [BKW-1:0] w_wr_fifo_pop_bank;
-    logic w_rd_fifo_pop;
-    logic [BKW-1:0] w_rd_fifo_pop_bank;
-    // Forward declarations — assigned with their fire logic below (declare-
-    // before-use for the pop controls above); the array duplicates are
-    // removed at the original sites.
-    logic           w_wr_commit_fire;
-    logic           w_rd_issue_fire;
-    logic           w_ar_fire;
-    logic [PTRW-1:0] w_rd_free_slot;
-    logic [BKW-1:0] r_rd_bank   [NUM_ENTRIES];
-
-    assign w_wr_fifo_push = w_wd_fire
-        && (wd_last_i || (r_wr_bcnt[w_fill_slot] == BCW'(AXI_BEATS_PER_BURST - 1)));
-    assign w_wr_fifo_push_bank = r_wr_bank[w_fill_slot];
-    assign w_wr_fifo_push_slot = w_fill_slot;
-    assign w_rd_fifo_push = w_ar_fire;
-    assign w_rd_fifo_push_bank = ar_push_bank_i;
-    assign w_rd_fifo_push_slot = w_rd_free_slot;
-    assign w_wr_fifo_pop = w_wr_commit_fire;
-    assign w_wr_fifo_pop_bank = r_wr_bank[wr_commit_slot_i];
-    assign w_rd_fifo_pop = w_rd_issue_fire;
-    assign w_rd_fifo_pop_bank = r_rd_bank[rd_issue_slot_i];
-
     assign aw_push_ready_o = w_wr_have_free;
     assign wd_ready_o      = w_fill_vld;
 
@@ -408,6 +365,7 @@ module mc_xddr2_entry_store
     // fire (one commit/cycle can never overflow a slot it already counted),
     // and remains safe for the FRFCFS core (at most one undecided commit, so
     // occ at fire <= occ at decide + 1 <= DEPTH). Gate on r_dq_occ directly.
+    logic            w_wr_commit_fire;
     logic            w_dq_pop;
     logic [PTRW:0]   r_dq_occ;
     assign w_wr_commit_fire = wr_commit_valid_i && w_dq_wr_ready
@@ -612,6 +570,7 @@ module mc_xddr2_entry_store
     // RD entry state
     // ======================================================================
     logic                 r_rd_valid  [NUM_ENTRIES];
+    logic [BKW-1:0]       r_rd_bank   [NUM_ENTRIES];
     logic [ROW_WIDTH-1:0] r_rd_row    [NUM_ENTRIES];
     logic [COL_WIDTH-1:0] r_rd_col    [NUM_ENTRIES];
     logic [IW-1:0]        r_rd_id     [NUM_ENTRIES];
@@ -624,6 +583,7 @@ module mc_xddr2_entry_store
 
     // RD free-slot allocation.
     logic            w_rd_have_free;
+    logic [PTRW-1:0] w_rd_free_slot;
     always_comb begin
         w_rd_have_free = 1'b0;
         w_rd_free_slot = '0;
@@ -633,6 +593,9 @@ module mc_xddr2_entry_store
                 w_rd_free_slot = PTRW'(i);
             end
     end
+
+    logic w_ar_fire;
+    logic w_rd_issue_fire;
 
     assign w_ar_fire       = ar_push_valid_i && ar_push_ready_o;
     assign w_rd_issue_fire = rd_issue_valid_i && rd_issue_ready_o;
@@ -776,96 +739,77 @@ module mc_xddr2_entry_store
     end
 
     // ======================================================================
-    // Per-bank age-ordered command queues (BANK_FIFO pick core).
-    // One mc_age_fifo per (direction, bank).  Pushes are structural events:
-    // WR when the last W beat finishes the entry; RD at the AR handshake.
-    // Pops ride the existing commit/issue fire handshakes.  Head/head2 views
-    // are the fifos' REGISTERED snapshots (contract SS17); empty flags ride
-    // the registered one_o.
+    // Per-bank head views (BANK_FIFO pick core) — oldest schedulable entry
+    // of each bank + queue-empty flags + the second-oldest (reserve). Purely
+    // combinational.
     // ======================================================================
-    generate
-        for (genvar b = 0; b < NUM_BANKS; b++) begin : g_age_fifo
-            logic w_wr_push_b, w_rd_push_b, w_wr_pop_b, w_rd_pop_b;
-            assign w_wr_push_b = w_wr_fifo_push && (w_wr_fifo_push_bank == BKW'(b));
-            assign w_rd_push_b = w_rd_fifo_push && (w_rd_fifo_push_bank == BKW'(b));
-            assign w_wr_pop_b  = w_wr_fifo_pop  && (w_wr_fifo_pop_bank  == BKW'(b));
-            assign w_rd_pop_b  = w_rd_fifo_pop  && (w_rd_fifo_pop_bank  == BKW'(b));
-
-            mc_age_fifo #(
-                .SLOT_W(PTRW),
-                .ROW_W (ROW_WIDTH),
-                .COL_W (COL_WIDTH),
-                .ID_W  (IW),
-                .AGE_W (AF_AGEW),
-                .DEPTH (AF_DEPTH)
-            ) u_wr_fifo (
-                .aclk            (aclk),
-                .aresetn         (aresetn),
-                .push_i          (w_wr_push_b),
-                .push_slot_i     (w_wr_fifo_push_slot),
-                .push_row_i      (r_wr_row[w_wr_fifo_push_slot]),
-                .push_col_i      (r_wr_col[w_wr_fifo_push_slot]),
-                .push_id_i       (r_wr_id [w_wr_fifo_push_slot]),
-                .push_last_i     (r_wr_last[w_wr_fifo_push_slot]),
-                .full_o          (),
-                .decr_i          (sched_decr_i),
-                .head_vld_o      (wr_bh_valid_o[b]),
-                .head_slot_o     (wr_bh_slot_o[b*PTRW +: PTRW]),
-                .head_row_o      (wr_bh_row_o[b*ROW_WIDTH +: ROW_WIDTH]),
-                .head_col_o      (wr_bh_col_o[b*COL_WIDTH +: COL_WIDTH]),
-                .head_id_o       (wr_bh_id_o[b*IW +: IW]),
-                .head_last_o     (wr_bh_last_o[b]),
-                .head_age_o      (wr_bh_age_o[b*AF_AGEW +: AF_AGEW]),
-                .head2_vld_o     (wr_bh2_valid_o[b]),
-                .head2_slot_o    (wr_bh2_slot_o[b*PTRW +: PTRW]),
-                .head2_row_o     (wr_bh2_row_o[b*ROW_WIDTH +: ROW_WIDTH]),
-                .head2_col_o     (wr_bh2_col_o[b*COL_WIDTH +: COL_WIDTH]),
-                .head2_id_o      (wr_bh2_id_o[b*IW +: IW]),
-                .head2_last_o    (wr_bh2_last_o[b]),
-                .head2_age_o     (wr_bh2_age_o[b*AF_AGEW +: AF_AGEW]),
-                .pop_i           (w_wr_pop_b),
-                .empty_o         (),
-                .one_o           (wr_bh_empty_o[b])
-            );
-
-            mc_age_fifo #(
-                .SLOT_W(PTRW),
-                .ROW_W (ROW_WIDTH),
-                .COL_W (COL_WIDTH),
-                .ID_W  (IW),
-                .AGE_W (AF_AGEW),
-                .DEPTH (AF_DEPTH)
-            ) u_rd_fifo (
-                .aclk            (aclk),
-                .aresetn         (aresetn),
-                .push_i          (w_rd_push_b),
-                .push_slot_i     (w_rd_fifo_push_slot),
-                .push_row_i      (ar_push_row_i),
-                .push_col_i      (ar_push_col_i),
-                .push_id_i       (ar_push_id_i),
-                .push_last_i     (1'b0),
-                .full_o          (),
-                .decr_i          (sched_decr_i),
-                .head_vld_o      (rd_bh_valid_o[b]),
-                .head_slot_o     (rd_bh_slot_o[b*PTRW +: PTRW]),
-                .head_row_o      (rd_bh_row_o[b*ROW_WIDTH +: ROW_WIDTH]),
-                .head_col_o      (rd_bh_col_o[b*COL_WIDTH +: COL_WIDTH]),
-                .head_id_o       (rd_bh_id_o[b*IW +: IW]),
-                .head_last_o     (),
-                .head_age_o      (rd_bh_age_o[b*AF_AGEW +: AF_AGEW]),
-                .head2_vld_o     (rd_bh2_valid_o[b]),
-                .head2_slot_o    (rd_bh2_slot_o[b*PTRW +: PTRW]),
-                .head2_row_o     (rd_bh2_row_o[b*ROW_WIDTH +: ROW_WIDTH]),
-                .head2_col_o     (rd_bh2_col_o[b*COL_WIDTH +: COL_WIDTH]),
-                .head2_id_o      (rd_bh2_id_o[b*IW +: IW]),
-                .head2_last_o    (),
-                .head2_age_o     (rd_bh2_age_o[b*AF_AGEW +: AF_AGEW]),
-                .pop_i           (w_rd_pop_b),
-                .empty_o         (),
-                .one_o           (rd_bh_empty_o[b])
-            );
+    always_comb begin
+        for (int b = 0; b < NUM_BANKS; b++) begin
+            automatic logic            wv  = 1'b0;
+            automatic logic [PTRW-1:0] ws  = '0;
+            automatic logic            wv2 = 1'b0;
+            automatic logic [PTRW-1:0] ws2 = '0;
+            automatic int              wc  = 0;
+            automatic logic            rv  = 1'b0;
+            automatic logic [PTRW-1:0] rs  = '0;
+            automatic logic            rv2 = 1'b0;
+            automatic logic [PTRW-1:0] rs2 = '0;
+            automatic int              rc  = 0;
+            for (int i = 0; i < NUM_ENTRIES; i++) begin
+                if (r_wr_valid[i] && r_wr_fdone[i] && !r_wr_sched[i]
+                    && (int'(r_wr_bank[i]) == b)) begin
+                    automatic int n_older = 0;
+                    wc = wc + 1;
+                    for (int j = 0; j < NUM_ENTRIES; j++)
+                        if ((j != i) && r_wr_valid[j] && r_wr_fdone[j] && !r_wr_sched[j]
+                            && (int'(r_wr_bank[j]) == b) && r_wr_older[j][i])
+                            n_older = n_older + 1;
+                    if (n_older == 0) begin
+                        wv = 1'b1;  ws = PTRW'(i);
+                    end else if (n_older == 1) begin
+                        wv2 = 1'b1; ws2 = PTRW'(i);
+                    end
+                end
+                if (r_rd_valid[i] && (int'(r_rd_bank[i]) == b)) begin
+                    automatic int n_older = 0;
+                    rc = rc + 1;
+                    for (int j = 0; j < NUM_ENTRIES; j++)
+                        if ((j != i) && r_rd_valid[j]
+                            && (int'(r_rd_bank[j]) == b) && r_rd_older[j][i])
+                            n_older = n_older + 1;
+                    if (n_older == 0) begin
+                        rv = 1'b1;  rs = PTRW'(i);
+                    end else if (n_older == 1) begin
+                        rv2 = 1'b1; rs2 = PTRW'(i);
+                    end
+                end
+            end
+            wr_bh_valid_o[b] = wv;
+            wr_bh_slot_o [b*PTRW +: PTRW]           = ws;
+            wr_bh_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[ws];
+            wr_bh_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_wr_col[ws];
+            wr_bh_id_o   [b*IW +: IW]               = r_wr_id [ws];
+            wr_bh_last_o [b]                        = r_wr_last[ws];
+            wr_bh_empty_o[b]                        = wv && (wc == 1);
+            rd_bh_valid_o[b] = rv;
+            rd_bh_slot_o [b*PTRW +: PTRW]           = rs;
+            rd_bh_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[rs];
+            rd_bh_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_rd_col[rs];
+            rd_bh_id_o   [b*IW +: IW]               = r_rd_id [rs];
+            rd_bh_empty_o[b]                        = rv && (rc == 1);
+            wr_bh2_valid_o[b] = wv2;
+            wr_bh2_slot_o [b*PTRW +: PTRW]           = ws2;
+            wr_bh2_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[ws2];
+            wr_bh2_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_wr_col[ws2];
+            wr_bh2_id_o   [b*IW +: IW]               = r_wr_id [ws2];
+            wr_bh2_last_o [b]                        = r_wr_last[ws2];
+            rd_bh2_valid_o[b] = rv2;
+            rd_bh2_slot_o [b*PTRW +: PTRW]           = rs2;
+            rd_bh2_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[rs2];
+            rd_bh2_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_rd_col[rs2];
+            rd_bh2_id_o   [b*IW +: IW]               = r_rd_id [rs2];
         end
-    endgenerate
+    end
 
     // ======================================================================
     // Snarf (storage-less SKU: disabled)
@@ -904,5 +848,17 @@ module mc_xddr2_entry_store
                      snarf_probe_row_i, snarf_probe_col_i,
                      snarf_probe_id_i, snarf_probe_len_i,
                      snarf_accept_i, snarf_rd_ready_i, wd_last_i};
+
+`ifndef SYNTHESIS
+    always @(posedge aclk)
+        if (aresetn) begin
+            assert (!(w_wr_commit_fire && !r_wr_valid[wr_commit_slot_i]))
+              else $error("ENTRY_STORE @%0t: commit of WR slot %0d which is NOT valid", $time, wr_commit_slot_i);
+            assert (!(w_rd_issue_fire && !r_rd_valid[rd_issue_slot_i]))
+              else $error("ENTRY_STORE @%0t: issue of RD slot %0d which is NOT valid", $time, rd_issue_slot_i);
+            assert (!(w_wd_fire && !w_fill_vld))
+              else $error("ENTRY_STORE @%0t: W beat with no filling entry", $time);
+        end
+`endif
 
 endmodule : mc_xddr2_entry_store
