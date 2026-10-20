@@ -6,7 +6,10 @@ cover
 prove: mode bmc
 prove: depth 30
 cover: mode cover
-cover: depth 50
+# 50 -> 80: a UART command must arrive before any AXI handshake; AR / AW
+# are first reachable at step 71 and W at 72 (measured 2026-10-19), so
+# depth 50 could never reach them. Margin over 72.
+cover: depth 80
 
 [engines]
 prove: smtbmc z3
