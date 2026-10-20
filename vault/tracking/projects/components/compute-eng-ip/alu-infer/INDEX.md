@@ -11,11 +11,11 @@ RDS-DV BFM testbench in `alu-infer/dv/` (own component area since
 
 | Task | Summary |
 |---|---|
-| [TASK-001](task/open/TASK-001.md) | Line-reduce row (sum/max tree into the fp32 accumulator) — softmax/layernorm/pooling |
-| [TASK-002](task/open/TASK-002.md) | PWL/LUT activation row (sigmoid/tanh/gelu/exp) |
-| [TASK-003](task/open/TASK-003.md) | const/bias row (emit immediate as a result line) |
-| [TASK-004](task/open/TASK-004.md) | int8 x4-lane element width (func_sel[8:7], open item M6) |
-| [TASK-005](task/open/TASK-005.md) | fp32 single-lane element width (func_sel[8:7], open item M6) |
+| [TASK-001](task/closed/TASK-001.md) | Line-reduce row (sum/max tree into the fp32 accumulator) — softmax/layernorm/pooling |
+| [TASK-002](task/closed/TASK-002.md) | PWL/LUT activation row (sigmoid/tanh/gelu/exp) |
+| [TASK-003](task/closed/TASK-003.md) | const/bias row (emit immediate as a result line) |
+| [TASK-004](task/closed/TASK-004.md) | int8 x4-lane element width (func_sel[8:7], open item M6) |
+| [TASK-005](task/closed/TASK-005.md) | fp32 single-lane element width (func_sel[8:7], open item M6) |
 | [TASK-007](task/open/TASK-007.md) | Close M1-M8 numeric-policy open items at FPGA bring-up |
 
 ## Closed
