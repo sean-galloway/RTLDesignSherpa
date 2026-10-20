@@ -6,7 +6,7 @@
 bind bridge_bs_axi5 axi4_protocol_checker #(
     .ID_WIDTH(4),
     .ADDR_WIDTH(32),
-    .DATA_WIDTH(64)
+    .DATA_WIDTH(128)
 ) u_chk_cpu (
     .aclk(aclk),
     .aresetn(aresetn),
@@ -162,7 +162,7 @@ bind bridge_bs_axi5 axi4_protocol_checker #(
 bind bridge_bs_axi5 axi4_protocol_checker #(
     .ID_WIDTH(6),
     .ADDR_WIDTH(32),
-    .DATA_WIDTH(64)
+    .DATA_WIDTH(128)
 ) u_chk_mem0 (
     .aclk(aclk),
     .aresetn(aresetn),
@@ -240,7 +240,7 @@ bind bridge_bs_axi5 axi4_protocol_checker #(
 bind bridge_bs_axi5 axi4_protocol_checker #(
     .ID_WIDTH(6),
     .ADDR_WIDTH(32),
-    .DATA_WIDTH(64)
+    .DATA_WIDTH(128)
 ) u_chk_mem2 (
     .aclk(aclk),
     .aresetn(aresetn),

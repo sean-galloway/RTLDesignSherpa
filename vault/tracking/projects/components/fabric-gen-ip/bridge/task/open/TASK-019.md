@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-19
 **Priority:** P2
-**Status:** OPEN (phases 1, 2a, 2b, 2c done on the board; MTE next)
+**Status:** OPEN (phases 1, 2a-2d done on the board: AXI4, AXI3, AXI5 incl. sideband, poison, IDUNQ, atomics, MTE; 2e (third-party IP) in progress; phase 3 next)
 **Owner:** unassigned
 **Where:** `projects/fpga-systems/Genesys2/bridge-stress/` (PRD.md), cores in `rtl/amba/shared/axi_stress_*.sv`
 
@@ -81,10 +81,38 @@ both ends.
   IDUNQ and poison at the pins and fails a run where they did not happen.
   Board 27/27 and a 15-minute soak 172/172; WNS +0.298 ns, 92.1k LUTs.
 
+## Done (phase 2d, MTE, 2026-10-19)
+
+- Stateless tag contract (axi_stress_pkg): AxTAGOP / WTAG / WTAGUPDATE /
+  RTAG / BTAGMATCH as hashes of addresses both ends know; window `mte` for a
+  far end that answers tags (the bridge's DECERR answers none). Pair test:
+  four tag faults caught (23 on AXI5).
+- Every per-address pick moved to the keyed hash `f_hk`: XOR-keyed xorshift
+  picks were correlated, and the first MTE run never failed a tag match.
+- bridge_bs_axi5's cpu clique is 128-bit and carries every AXI5 feature.
+  Sim 9/9 on all three builds, board 27/27, soak 172/172; WNS +0.020 ns.
+
+## In progress (phase 2e, build-xil: third-party IP, 2026-10-20)
+
+- Real memories: window `mem` (writes carry the read hash at `f_maddr`, so
+  they are idempotent) and cfg `fill`; each run is fill GO, run, read sweep.
+  `val/amba/test_axi_stress_mem.py` (BFM memory, 3 widths) catches one
+  flipped byte at its word.
+- Generator `[harness] vendor` brings ports out as pins; the configuration
+  bridge gains ext0 / ext1 AXI4-Lite windows; EXT_STS0..3 carry IP status.
+- `bs_genesys2_xil_top`: MIG, dual-port BRAM controller, AXI Traffic
+  Generator, AXI CDMA, a protocol checker per memory link. Board 27/27 with
+  mig excluded.
+- Found: bridge BUG-020 (W waits on the slave's AW handshake; the CDMA
+  register slave deadlocks it). MIG wedges on this board (spurious
+  `app_rd_data_valid`, ILA), owner decision pending: debug MIG, LiteDRAM,
+  or BRAM only.
+- Next: a stress-slave option that holds AWREADY until WVALID (the BUG-020
+  gate), then the bridge fix.
+
 ## Remaining
 
 | Phase | Work |
 |---|---|
-| 2d | MTE (tags as an address hash; BTAGMATCH predicted) |
 | 3 | single-beat shells for `axil`/`axil5`, `apb`/`apb5` (slaves in offset mode -- the bridge hands an APB slave a window offset), `wb4`; DUT `bridge_bs_mixed_b.toml` |
 | any | re-run `--full-axi` once BUG-018 is fixed and drop the converted-path limits |

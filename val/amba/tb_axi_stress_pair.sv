@@ -9,7 +9,7 @@
 // AXI4 shaped either way (AxLEN 8 bits, AxLOCK 1 bit), so the Python monitor
 // reads one set of names; with AXI3 the upper AxLEN bits are tied 0 and m_wid
 // carries WID. AXI5 builds both shells with NSAID, TRACE, MPAM, MECID, POISON,
-// UNIQUE and ATOMIC, and adds the m_*trace / m_*poison / m_*nsaid / m_*mpam / m_*mecid
+// UNIQUE, ATOMIC and MTE, and adds the m_*trace / m_*poison / m_*nsaid / m_*mpam / m_*mecid
 // nets; they are 0 for AXI3 / AXI4.
 //
 // The fault injector corrupts exactly one handshake per armed fault (one bit
@@ -39,6 +39,10 @@
 //           MSB set; AXI5 only)              -> master write side ERR_RD_DATA
 //  [19] AW: an atomic's AWATOP forced to a reserved encoding (AXI5 only)
 //                                            -> slave ERR_S_PROTO
+//  [20] W:  flip WTAG bit 0     (AXI5 only)  -> slave  ERR_S_SB
+//  [21] R:  flip RTAG bit 0 of a read's beat (AXI5 only) -> master ERR_M_SB
+//  [22] B:  flip BTAGMATCH bit 0 (AXI5 only) -> master ERR_M_SB
+//  [23] AR: flip ARTAGOP bit 0  (AXI5 only)  -> slave  ERR_S_SB
 // flt_done shows which armed faults have been applied.
 //
 // Struct widths are exported (o_w_*) so the Python packer can check its
@@ -73,8 +77,8 @@ module tb_axi_stress_pair
     output logic [$bits(stress_sdir_sts_t)-1:0]    sts_srd,
     output logic [$bits(stress_sdir_sts_t)-1:0]    sts_swr,
 
-    input  logic [19:0]                       flt_arm,     // pulse: arm a fault
-    output logic [19:0]                       flt_done,
+    input  logic [23:0]                       flt_arm,     // pulse: arm a fault
+    output logic [23:0]                       flt_done,
 
     output logic [15:0]                       o_w_win,
     output logic [15:0]                       o_w_mcfg,
@@ -122,6 +126,11 @@ module tb_axi_stress_pair
     logic [15:0]   m_awmecid, m_armecid;
     logic          m_aridunq, m_ridunq, m_awidunq, m_bidunq;
     logic [5:0]    m_awatop, s_awatop;
+    localparam int NT = (DW / 128 > 0) ? DW / 128 : 1;
+    localparam int TW = 4 * NT;
+    logic [1:0]    m_awtagop, m_artagop, s_artagop, m_btagmatch, s_btagmatch;
+    logic [TW-1:0] m_wtag, s_wtag, m_rtag, s_rtag;
+    logic [NT-1:0] m_wtagupdate;
 
     // ---- slave side nets (after the injector) ---------------------------------
     logic [IW-1:0] s_bid, s_rid;
@@ -202,7 +211,7 @@ module tb_axi_stress_pair
         axi5_master_stress #(
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(1),
             .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1),
-            .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1)
+            .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .EN_MTE(1'b1)
         ) u_mst (
             .aclk, .aresetn, .go, .stop,
             .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
@@ -213,24 +222,24 @@ module tb_axi_stress_pair
             .m_axi_awuser(m_awuser), .m_axi_awvalid(m_awvalid), .m_axi_awready(m_awready),
             .m_axi_awatop(m_awatop), .m_axi_awnsaid(m_awnsaid), .m_axi_awtrace(m_awtrace),
             .m_axi_awmpam(m_awmpam), .m_axi_awmecid(m_awmecid), .m_axi_awidunq(m_awidunq),
-            .m_axi_awtagop(), .m_axi_awakeup(),
+            .m_axi_awtagop(m_awtagop), .m_axi_awakeup(),
             .m_axi_wdata(m_wdata), .m_axi_wstrb(m_wstrb), .m_axi_wlast(m_wlast),
             .m_axi_wuser(m_wuser), .m_axi_wvalid(m_wvalid), .m_axi_wready(m_wready),
-            .m_axi_wpoison(m_wpoison), .m_axi_wtag(), .m_axi_wtagupdate(),
+            .m_axi_wpoison(m_wpoison), .m_axi_wtag(m_wtag), .m_axi_wtagupdate(m_wtagupdate),
             .m_axi_bid(m_bid), .m_axi_bresp(m_bresp), .m_axi_buser(m_buser),
             .m_axi_bvalid(m_bvalid), .m_axi_bready(m_bready),
-            .m_axi_btrace(m_btrace), .m_axi_bidunq(m_bidunq), .m_axi_btagmatch(2'b00),
+            .m_axi_btrace(m_btrace), .m_axi_bidunq(m_bidunq), .m_axi_btagmatch(m_btagmatch),
             .m_axi_arid(m_arid), .m_axi_araddr(m_araddr), .m_axi_arlen(m_arlen),
             .m_axi_arsize(m_arsize), .m_axi_arburst(m_arburst), .m_axi_arlock(m_arlock),
             .m_axi_arcache(m_arcache), .m_axi_arprot(m_arprot), .m_axi_arqos(m_arqos),
             .m_axi_aruser(m_aruser), .m_axi_arvalid(m_arvalid), .m_axi_arready(m_arready),
             .m_axi_arnsaid(m_arnsaid), .m_axi_artrace(m_artrace), .m_axi_armpam(m_armpam),
-            .m_axi_armecid(m_armecid), .m_axi_aridunq(m_aridunq), .m_axi_archunken(), .m_axi_artagop(),
+            .m_axi_armecid(m_armecid), .m_axi_aridunq(m_aridunq), .m_axi_archunken(), .m_axi_artagop(m_artagop),
             .m_axi_rid(m_rid), .m_axi_rdata(m_rdata), .m_axi_rresp(m_rresp),
             .m_axi_rlast(m_rlast), .m_axi_ruser(m_ruser),
             .m_axi_rvalid(m_rvalid), .m_axi_rready(m_rready),
             .m_axi_rtrace(m_rtrace), .m_axi_ridunq(m_ridunq), .m_axi_rpoison(m_rpoison),
-            .m_axi_rchunkv(1'b0), .m_axi_rchunknum(4'd0), .m_axi_rchunkstrb('0), .m_axi_rtag('0)
+            .m_axi_rchunkv(1'b0), .m_axi_rchunknum(4'd0), .m_axi_rchunkstrb('0), .m_axi_rtag(m_rtag)
         );
         /* verilator lint_on PINCONNECTEMPTY */
     end endgenerate
@@ -251,12 +260,18 @@ module tb_axi_stress_pair
         assign m_aridunq = '0;
         assign m_awidunq = '0;
         assign m_awatop  = '0;
+        assign m_awtagop = '0;
+        assign m_artagop = '0;
+        assign m_wtag    = '0;
+        assign m_wtagupdate = '0;
+        assign s_rtag    = '0;
+        assign s_btagmatch = '0;
         assign s_ridunq  = '0;
         assign s_bidunq  = '0;
     end endgenerate
 
     // ---- fault injector ----------------------------------------------------------
-    logic [19:0] r_armed;
+    logic [23:0] r_armed;
     logic [7:0]  r_rd_out [1 << IW];      // read bursts outstanding per ID, on the wire
     wire w_r_hs  = m_rvalid  && m_rready;
     wire w_w_hs  = m_wvalid  && m_wready;
@@ -265,7 +280,7 @@ module tb_axi_stress_pair
 
     wire w_aw_hs = m_awvalid && m_awready;
 
-    logic [19:0] w_fire;
+    logic [23:0] w_fire;
     always_comb begin
         w_fire    = '0;
         w_fire[0] = r_armed[0] && w_r_hs;
@@ -288,6 +303,10 @@ module tb_axi_stress_pair
         w_fire[17] = r_armed[17] && w_ar_hs && (r_rd_out[m_arid] > 8'd1) && !m_aridunq;
         w_fire[18] = r_armed[18] && w_r_hs && s_rid[IW-1] && (s_rresp == RESP_OKAY);
         w_fire[19] = r_armed[19] && w_aw_hs && (m_awatop != 6'd0);
+        w_fire[20] = r_armed[20] && w_w_hs;
+        w_fire[21] = r_armed[21] && w_r_hs && !s_rid[IW-1];
+        w_fire[22] = r_armed[22] && w_b_hs;
+        w_fire[23] = r_armed[23] && w_ar_hs;
     end
 
     always_ff @(posedge aclk or negedge aresetn) begin
@@ -324,6 +343,10 @@ module tb_axi_stress_pair
     assign m_bidunq  = s_bidunq  ^ r_armed[16];
     assign s_aridunq = m_aridunq || w_fire[17];
     assign s_awatop  = (r_armed[19] && (m_awatop != 6'd0)) ? 6'b110010 : m_awatop;
+    assign s_wtag      = m_wtag      ^ TW'(r_armed[20]);
+    assign m_rtag      = s_rtag      ^ TW'(r_armed[21] && !s_rid[IW-1]);
+    assign m_btagmatch = s_btagmatch ^ 2'(r_armed[22]);
+    assign s_artagop   = m_artagop   ^ 2'(r_armed[23]);
 
     generate if (PROTO == 0) begin : g_slv4
         axi4_slave_stress #(
@@ -379,7 +402,7 @@ module tb_axi_stress_pair
         axi5_slave_stress #(
             .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(1),
             .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1),
-            .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1)
+            .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .EN_MTE(1'b1)
         ) u_slv (
             .aclk, .aresetn, .clear,
             .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
@@ -390,25 +413,25 @@ module tb_axi_stress_pair
             .s_axi_awuser(m_awuser), .s_axi_awvalid(m_awvalid), .s_axi_awready(m_awready),
             .s_axi_awatop(s_awatop), .s_axi_awnsaid(m_awnsaid), .s_axi_awtrace(m_awtrace),
             .s_axi_awmpam(m_awmpam), .s_axi_awmecid(s_awmecid), .s_axi_awidunq(m_awidunq),
-            .s_axi_awtagop(2'b00), .s_axi_awakeup(1'b0),
+            .s_axi_awtagop(m_awtagop), .s_axi_awakeup(1'b0),
             .s_axi_wdata(s_wdata), .s_axi_wstrb(m_wstrb), .s_axi_wlast(m_wlast),
             .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
-            .s_axi_wpoison(s_wpoison), .s_axi_wtag('0), .s_axi_wtagupdate('0),
+            .s_axi_wpoison(s_wpoison), .s_axi_wtag(s_wtag), .s_axi_wtagupdate(m_wtagupdate),
             .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
             .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
-            .s_axi_btrace(s_btrace), .s_axi_bidunq(s_bidunq), .s_axi_btagmatch(),
+            .s_axi_btrace(s_btrace), .s_axi_bidunq(s_bidunq), .s_axi_btagmatch(s_btagmatch),
             .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen),
             .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock(m_arlock),
             .s_axi_arcache(m_arcache), .s_axi_arprot(m_arprot), .s_axi_arqos(m_arqos),
             .s_axi_aruser(m_aruser), .s_axi_arvalid(m_arvalid), .s_axi_arready(m_arready),
             .s_axi_arnsaid(m_arnsaid), .s_axi_artrace(s_artrace), .s_axi_armpam(m_armpam),
             .s_axi_armecid(m_armecid), .s_axi_aridunq(s_aridunq), .s_axi_archunken(1'b0),
-            .s_axi_artagop(2'b00),
+            .s_axi_artagop(s_artagop),
             .s_axi_rid(s_rid), .s_axi_rdata(s_rdata), .s_axi_rresp(s_rresp),
             .s_axi_rlast(s_rlast), .s_axi_ruser(m_ruser),
             .s_axi_rvalid(m_rvalid), .s_axi_rready(m_rready),
             .s_axi_rtrace(s_rtrace), .s_axi_ridunq(s_ridunq), .s_axi_rpoison(s_rpoison),
-            .s_axi_rchunkv(), .s_axi_rchunknum(), .s_axi_rchunkstrb(), .s_axi_rtag()
+            .s_axi_rchunkv(), .s_axi_rchunknum(), .s_axi_rchunkstrb(), .s_axi_rtag(s_rtag)
         );
         /* verilator lint_on PINCONNECTEMPTY */
     end endgenerate

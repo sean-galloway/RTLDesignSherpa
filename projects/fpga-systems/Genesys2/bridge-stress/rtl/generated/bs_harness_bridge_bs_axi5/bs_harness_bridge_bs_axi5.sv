@@ -139,6 +139,44 @@ module bs_harness_bridge_bs_axi5
     logic [31:0] slv7_apb_PADDR, slv7_apb_PWDATA, slv7_apb_PRDATA;
     logic [3:0]  slv7_apb_PSTRB;
     logic [2:0]  slv7_apb_PPROT;
+    logic [31:0]  ext0_axil_awaddr;
+    logic [2:0]   ext0_axil_awprot;
+    logic         ext0_axil_awvalid;
+    logic         ext0_axil_awready;
+    logic [31:0]  ext0_axil_wdata;
+    logic [3:0]   ext0_axil_wstrb;
+    logic         ext0_axil_wvalid;
+    logic         ext0_axil_wready;
+    logic [1:0]   ext0_axil_bresp;
+    logic         ext0_axil_bvalid;
+    logic         ext0_axil_bready;
+    logic [31:0]  ext0_axil_araddr;
+    logic [2:0]   ext0_axil_arprot;
+    logic         ext0_axil_arvalid;
+    logic         ext0_axil_arready;
+    logic [31:0]  ext0_axil_rdata;
+    logic [1:0]   ext0_axil_rresp;
+    logic         ext0_axil_rvalid;
+    logic         ext0_axil_rready;
+    logic [31:0]  ext1_axil_awaddr;
+    logic [2:0]   ext1_axil_awprot;
+    logic         ext1_axil_awvalid;
+    logic         ext1_axil_awready;
+    logic [31:0]  ext1_axil_wdata;
+    logic [3:0]   ext1_axil_wstrb;
+    logic         ext1_axil_wvalid;
+    logic         ext1_axil_wready;
+    logic [1:0]   ext1_axil_bresp;
+    logic         ext1_axil_bvalid;
+    logic         ext1_axil_bready;
+    logic [31:0]  ext1_axil_araddr;
+    logic [2:0]   ext1_axil_arprot;
+    logic         ext1_axil_arvalid;
+    logic         ext1_axil_arready;
+    logic [31:0]  ext1_axil_rdata;
+    logic [1:0]   ext1_axil_rresp;
+    logic         ext1_axil_rvalid;
+    logic         ext1_axil_rready;
     logic        cfg_unmapped_irq;
 
     bridge_bs_cfg u_cfg (
@@ -199,6 +237,8 @@ module bs_harness_bridge_bs_axi5
         .slv7_apb_PSEL, .slv7_apb_PADDR, .slv7_apb_PENABLE, .slv7_apb_PWRITE,
         .slv7_apb_PWDATA, .slv7_apb_PSTRB, .slv7_apb_PPROT,
         .slv7_apb_PRDATA, .slv7_apb_PREADY, .slv7_apb_PSLVERR,
+        .ext0_axil_awaddr, .ext0_axil_awprot, .ext0_axil_awvalid, .ext0_axil_awready, .ext0_axil_wdata, .ext0_axil_wstrb, .ext0_axil_wvalid, .ext0_axil_wready, .ext0_axil_bresp, .ext0_axil_bvalid, .ext0_axil_bready, .ext0_axil_araddr, .ext0_axil_arprot, .ext0_axil_arvalid, .ext0_axil_arready, .ext0_axil_rdata, .ext0_axil_rresp, .ext0_axil_rvalid, .ext0_axil_rready,
+        .ext1_axil_awaddr, .ext1_axil_awprot, .ext1_axil_awvalid, .ext1_axil_awready, .ext1_axil_wdata, .ext1_axil_wstrb, .ext1_axil_wvalid, .ext1_axil_wready, .ext1_axil_bresp, .ext1_axil_bvalid, .ext1_axil_bready, .ext1_axil_araddr, .ext1_axil_arprot, .ext1_axil_arvalid, .ext1_axil_arready, .ext1_axil_rdata, .ext1_axil_rresp, .ext1_axil_rvalid, .ext1_axil_rready,
         .unmapped_irq   (cfg_unmapped_irq),
         /* verilator lint_off PINCONNECTEMPTY */
         .unmapped_addr  (),
@@ -240,6 +280,76 @@ module bs_harness_bridge_bs_axi5
     assign slv7_apb_PSLVERR = 1'b1;
     assign slv7_apb_PRDATA  = 32'hDEAD_0000;
     wire unused_cfg = ^{cfg_unmapped_irq, mst4_apb_PSEL, mst4_apb_PADDR, mst4_apb_PENABLE, mst4_apb_PWRITE, mst4_apb_PWDATA, mst4_apb_PSTRB, mst4_apb_PPROT, mst5_apb_PSEL, mst5_apb_PADDR, mst5_apb_PENABLE, mst5_apb_PWRITE, mst5_apb_PWDATA, mst5_apb_PSTRB, mst5_apb_PPROT, mst6_apb_PSEL, mst6_apb_PADDR, mst6_apb_PENABLE, mst6_apb_PWRITE, mst6_apb_PWDATA, mst6_apb_PSTRB, mst6_apb_PPROT, mst7_apb_PSEL, mst7_apb_PADDR, mst7_apb_PENABLE, mst7_apb_PWRITE, mst7_apb_PWDATA, mst7_apb_PSTRB, mst7_apb_PPROT, slv4_apb_PSEL, slv4_apb_PADDR, slv4_apb_PENABLE, slv4_apb_PWRITE, slv4_apb_PWDATA, slv4_apb_PSTRB, slv4_apb_PPROT, slv5_apb_PSEL, slv5_apb_PADDR, slv5_apb_PENABLE, slv5_apb_PWRITE, slv5_apb_PWDATA, slv5_apb_PSTRB, slv5_apb_PPROT, slv6_apb_PSEL, slv6_apb_PADDR, slv6_apb_PENABLE, slv6_apb_PWRITE, slv6_apb_PWDATA, slv6_apb_PSTRB, slv6_apb_PPROT, slv7_apb_PSEL, slv7_apb_PADDR, slv7_apb_PENABLE, slv7_apb_PWRITE, slv7_apb_PWDATA, slv7_apb_PSTRB, slv7_apb_PPROT};
+
+    // ext0: no vendor IP in this build -- every access answers SLVERR
+    // (readies from state alone: the bridge's AXI4-Lite adapter may gate
+    // its VALIDs on them)
+    logic r_ext0_aw, r_ext0_w, r_ext0_bv, r_ext0_rv;
+    assign ext0_axil_awready = !r_ext0_aw && !r_ext0_bv;
+    assign ext0_axil_wready  = !r_ext0_w  && !r_ext0_bv;
+    assign ext0_axil_bvalid  = r_ext0_bv;
+    assign ext0_axil_bresp   = 2'b10;
+    assign ext0_axil_arready = !r_ext0_rv;
+    assign ext0_axil_rvalid  = r_ext0_rv;
+    assign ext0_axil_rresp   = 2'b10;
+    assign ext0_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ext0_aw <= 1'b0;
+            r_ext0_w  <= 1'b0;
+            r_ext0_bv <= 1'b0;
+            r_ext0_rv <= 1'b0;
+        end else begin
+            if (ext0_axil_awvalid && ext0_axil_awready) r_ext0_aw <= 1'b1;
+            if (ext0_axil_wvalid  && ext0_axil_wready)  r_ext0_w  <= 1'b1;
+            if (r_ext0_aw && r_ext0_w) begin
+                r_ext0_bv <= 1'b1;
+                r_ext0_aw <= 1'b0;
+                r_ext0_w  <= 1'b0;
+            end else if (r_ext0_bv && ext0_axil_bready) begin
+                r_ext0_bv <= 1'b0;
+            end
+            if (ext0_axil_arvalid && ext0_axil_arready) r_ext0_rv <= 1'b1;
+            else if (ext0_axil_rready)                 r_ext0_rv <= 1'b0;
+        end
+    end
+    wire unused_ext0 = ^{ext0_axil_awaddr, ext0_axil_awprot, ext0_axil_wdata, ext0_axil_wstrb,
+                        ext0_axil_araddr, ext0_axil_arprot};
+
+    // ext1: no vendor IP in this build -- every access answers SLVERR
+    // (readies from state alone: the bridge's AXI4-Lite adapter may gate
+    // its VALIDs on them)
+    logic r_ext1_aw, r_ext1_w, r_ext1_bv, r_ext1_rv;
+    assign ext1_axil_awready = !r_ext1_aw && !r_ext1_bv;
+    assign ext1_axil_wready  = !r_ext1_w  && !r_ext1_bv;
+    assign ext1_axil_bvalid  = r_ext1_bv;
+    assign ext1_axil_bresp   = 2'b10;
+    assign ext1_axil_arready = !r_ext1_rv;
+    assign ext1_axil_rvalid  = r_ext1_rv;
+    assign ext1_axil_rresp   = 2'b10;
+    assign ext1_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ext1_aw <= 1'b0;
+            r_ext1_w  <= 1'b0;
+            r_ext1_bv <= 1'b0;
+            r_ext1_rv <= 1'b0;
+        end else begin
+            if (ext1_axil_awvalid && ext1_axil_awready) r_ext1_aw <= 1'b1;
+            if (ext1_axil_wvalid  && ext1_axil_wready)  r_ext1_w  <= 1'b1;
+            if (r_ext1_aw && r_ext1_w) begin
+                r_ext1_bv <= 1'b1;
+                r_ext1_aw <= 1'b0;
+                r_ext1_w  <= 1'b0;
+            end else if (r_ext1_bv && ext1_axil_bready) begin
+                r_ext1_bv <= 1'b0;
+            end
+            if (ext1_axil_arvalid && ext1_axil_arready) r_ext1_rv <= 1'b1;
+            else if (ext1_axil_rready)                 r_ext1_rv <= 1'b0;
+        end
+    end
+    wire unused_ext1 = ^{ext1_axil_awaddr, ext1_axil_awprot, ext1_axil_wdata, ext1_axil_wstrb,
+                        ext1_axil_araddr, ext1_axil_arprot};
 
     // =========================================================================
     // Control regblock (aclk)
@@ -316,7 +426,7 @@ module bs_harness_bridge_bs_axi5
     logic [NS-1:0] slv_err_raw, slv_err;
 
     // =========================================================================
-    // Master 0: cpu (axi5, rw, 64-bit, ID 4, aclk)
+    // Master 0: cpu (axi5, rw, 128-bit, ID 4, aclk)
     // =========================================================================
     stress_mdir_cfg_t m0_cfg_rd, m0_cfg_wr;
     stress_mdir_sts_t m0_sts_rd, m0_sts_wr;
@@ -340,13 +450,16 @@ module bs_harness_bridge_bs_axi5
     logic [15:0]   cpu_axi_awmecid;
     logic          cpu_axi_awidunq;
     logic [5:0]    cpu_axi_awatop;
-    logic [63:0]   cpu_axi_wdata;
-    logic [7:0]    cpu_axi_wstrb;
+    logic [1:0]    cpu_axi_awtagop;
+    logic [127:0]  cpu_axi_wdata;
+    logic [15:0]   cpu_axi_wstrb;
     logic          cpu_axi_wlast;
     logic          cpu_axi_wuser;
     logic          cpu_axi_wvalid;
     logic          cpu_axi_wready;
     logic          cpu_axi_wpoison;
+    logic [3:0]    cpu_axi_wtag;
+    logic          cpu_axi_wtagupdate;
     logic [3:0]    cpu_axi_bid;
     logic [1:0]    cpu_axi_bresp;
     logic          cpu_axi_buser;
@@ -354,6 +467,7 @@ module bs_harness_bridge_bs_axi5
     logic          cpu_axi_bready;
     logic          cpu_axi_btrace;
     logic          cpu_axi_bidunq;
+    logic [1:0]    cpu_axi_btagmatch;
     logic [3:0]    cpu_axi_arid;
     logic [31:0]   cpu_axi_araddr;
     logic [7:0]    cpu_axi_arlen;
@@ -371,8 +485,9 @@ module bs_harness_bridge_bs_axi5
     logic [10:0]   cpu_axi_armpam;
     logic [15:0]   cpu_axi_armecid;
     logic          cpu_axi_aridunq;
+    logic [1:0]    cpu_axi_artagop;
     logic [3:0]    cpu_axi_rid;
-    logic [63:0]   cpu_axi_rdata;
+    logic [127:0]  cpu_axi_rdata;
     logic [1:0]    cpu_axi_rresp;
     logic          cpu_axi_rlast;
     logic          cpu_axi_ruser;
@@ -381,9 +496,10 @@ module bs_harness_bridge_bs_axi5
     logic          cpu_axi_rtrace;
     logic          cpu_axi_ridunq;
     logic          cpu_axi_rpoison;
+    logic [3:0]    cpu_axi_rtag;
 
     bstress_mst_csr #(
-        .INDEX(0), .PROTOCOL(2), .DW(64), .IW(4),
+        .INDEX(0), .PROTOCOL(2), .DW(128), .IW(4),
         .DEPTH(16), .NWIN(8), .HAS_RD(1'b1), .HAS_WR(1'b1)
     ) u_m0_csr (
         .aclk (aclk), .aresetn (aresetn), .pclk (aclk), .presetn (aresetn),
@@ -399,7 +515,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_master_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16), .NWIN(8),
-        .IW(4), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1)
+        .IW(4), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .EN_MTE(1'b1)
     ) u_m0 (
         .aclk (aclk), .aresetn (aresetn), .go (go_a), .stop (stop_a),
         .cfg_rd (m0_cfg_rd), .cfg_wr (m0_cfg_wr), .cfg_win (m0_win),
@@ -424,7 +540,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_awmpam    (cpu_axi_awmpam),
         .m_axi_awmecid   (cpu_axi_awmecid),
         .m_axi_awidunq   (cpu_axi_awidunq),
-        .m_axi_awtagop   (),
+        .m_axi_awtagop   (cpu_axi_awtagop),
         .m_axi_awakeup   (),
         .m_axi_wdata     (cpu_axi_wdata),
         .m_axi_wstrb     (cpu_axi_wstrb),
@@ -433,8 +549,8 @@ module bs_harness_bridge_bs_axi5
         .m_axi_wvalid    (cpu_axi_wvalid),
         .m_axi_wready    (cpu_axi_wready),
         .m_axi_wpoison   (cpu_axi_wpoison),
-        .m_axi_wtag      (),
-        .m_axi_wtagupdate (),
+        .m_axi_wtag      (cpu_axi_wtag),
+        .m_axi_wtagupdate (cpu_axi_wtagupdate),
         .m_axi_bid       (cpu_axi_bid),
         .m_axi_bresp     (cpu_axi_bresp),
         .m_axi_buser     (cpu_axi_buser),
@@ -442,7 +558,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_bready    (cpu_axi_bready),
         .m_axi_btrace    (cpu_axi_btrace),
         .m_axi_bidunq    (cpu_axi_bidunq),
-        .m_axi_btagmatch ('0),
+        .m_axi_btagmatch (cpu_axi_btagmatch),
         .m_axi_arid      (cpu_axi_arid),
         .m_axi_araddr    (cpu_axi_araddr),
         .m_axi_arlen     (cpu_axi_arlen),
@@ -461,7 +577,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_armecid   (cpu_axi_armecid),
         .m_axi_aridunq   (cpu_axi_aridunq),
         .m_axi_archunken (),
-        .m_axi_artagop   (),
+        .m_axi_artagop   (cpu_axi_artagop),
         .m_axi_rid       (cpu_axi_rid),
         .m_axi_rdata     (cpu_axi_rdata),
         .m_axi_rresp     (cpu_axi_rresp),
@@ -475,7 +591,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_rchunkv   ('0),
         .m_axi_rchunknum ('0),
         .m_axi_rchunkstrb ('0),
-        .m_axi_rtag      ('0)
+        .m_axi_rtag      (cpu_axi_rtag)
         /* verilator lint_on PINCONNECTEMPTY */
     );
     assign mst_done_raw[0] = m0_sts_rd.done && m0_sts_wr.done;
@@ -562,7 +678,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_master_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16), .NWIN(8),
-        .IW(4), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0)
+        .IW(4), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0), .EN_MTE(1'b0)
     ) u_m1 (
         .aclk (aclk), .aresetn (aresetn), .go (go_a), .stop (stop_a),
         .cfg_rd (m1_cfg_rd), .cfg_wr (m1_cfg_wr), .cfg_win (m1_win),
@@ -850,7 +966,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_master_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16), .NWIN(8),
-        .IW(8), .DW(32), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0)
+        .IW(8), .DW(32), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0), .EN_MTE(1'b0)
     ) u_m3 (
         .aclk (aclk), .aresetn (aresetn), .go (go_a), .stop (stop_a),
         .cfg_rd (m3_cfg_rd), .cfg_wr (m3_cfg_wr), .cfg_win (m3_win),
@@ -933,7 +1049,7 @@ module bs_harness_bridge_bs_axi5
     assign mst_err_raw[3]  = (|m3_sts_rd.err_mask) || (|m3_sts_wr.err_mask);
 
     // =========================================================================
-    // Slave 0: mem0 (axi5, rw, 64-bit, ID 6, aclk)
+    // Slave 0: mem0 (axi5, rw, 128-bit, ID 6, aclk)
     //          window 0x00000000 + 0x10000000
     // =========================================================================
     stress_sdir_cfg_t s0_cfg_rd, s0_cfg_wr;
@@ -957,13 +1073,16 @@ module bs_harness_bridge_bs_axi5
     logic [15:0]   mem0_axi_awmecid;
     logic          mem0_axi_awidunq;
     logic [5:0]    mem0_axi_awatop;
-    logic [63:0]   mem0_axi_wdata;
-    logic [7:0]    mem0_axi_wstrb;
+    logic [1:0]    mem0_axi_awtagop;
+    logic [127:0]  mem0_axi_wdata;
+    logic [15:0]   mem0_axi_wstrb;
     logic          mem0_axi_wlast;
     logic          mem0_axi_wuser;
     logic          mem0_axi_wvalid;
     logic          mem0_axi_wready;
     logic          mem0_axi_wpoison;
+    logic [3:0]    mem0_axi_wtag;
+    logic          mem0_axi_wtagupdate;
     logic [5:0]    mem0_axi_bid;
     logic [1:0]    mem0_axi_bresp;
     logic          mem0_axi_buser;
@@ -971,6 +1090,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem0_axi_bready;
     logic          mem0_axi_btrace;
     logic          mem0_axi_bidunq;
+    logic [1:0]    mem0_axi_btagmatch;
     logic [5:0]    mem0_axi_arid;
     logic [31:0]   mem0_axi_araddr;
     logic [7:0]    mem0_axi_arlen;
@@ -988,8 +1108,9 @@ module bs_harness_bridge_bs_axi5
     logic [10:0]   mem0_axi_armpam;
     logic [15:0]   mem0_axi_armecid;
     logic          mem0_axi_aridunq;
+    logic [1:0]    mem0_axi_artagop;
     logic [5:0]    mem0_axi_rid;
-    logic [63:0]   mem0_axi_rdata;
+    logic [127:0]  mem0_axi_rdata;
     logic [1:0]    mem0_axi_rresp;
     logic          mem0_axi_rlast;
     logic          mem0_axi_ruser;
@@ -998,9 +1119,10 @@ module bs_harness_bridge_bs_axi5
     logic          mem0_axi_rtrace;
     logic          mem0_axi_ridunq;
     logic          mem0_axi_rpoison;
+    logic [3:0]    mem0_axi_rtag;
 
     bstress_slv_csr #(
-        .INDEX(0), .PROTOCOL(2), .DW(64), .IW(6),
+        .INDEX(0), .PROTOCOL(2), .DW(128), .IW(6),
         .DEPTH(16), .HAS_RD(1'b1), .HAS_WR(1'b1)
     ) u_s0_csr (
         .aclk (aclk), .aresetn (aresetn), .pclk (aclk), .presetn (aresetn),
@@ -1016,7 +1138,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_slave_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16),
-        .IW(6), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .SRC_LSB(4), .SRC_W(2)
+        .IW(6), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .EN_MTE(1'b1), .SRC_LSB(4), .SRC_W(2)
     ) u_s0 (
         .aclk (aclk), .aresetn (aresetn), .clear (go_a),
         .cfg_rd (s0_cfg_rd), .cfg_wr (s0_cfg_wr), .cfg_hash_seed (seed_a),
@@ -1040,7 +1162,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_awmpam    (mem0_axi_awmpam),
         .s_axi_awmecid   (mem0_axi_awmecid),
         .s_axi_awidunq   (mem0_axi_awidunq),
-        .s_axi_awtagop   ('0),
+        .s_axi_awtagop   (mem0_axi_awtagop),
         .s_axi_awakeup   ('0),
         .s_axi_wdata     (mem0_axi_wdata),
         .s_axi_wstrb     (mem0_axi_wstrb),
@@ -1049,8 +1171,8 @@ module bs_harness_bridge_bs_axi5
         .s_axi_wvalid    (mem0_axi_wvalid),
         .s_axi_wready    (mem0_axi_wready),
         .s_axi_wpoison   (mem0_axi_wpoison),
-        .s_axi_wtag      ('0),
-        .s_axi_wtagupdate ('0),
+        .s_axi_wtag      (mem0_axi_wtag),
+        .s_axi_wtagupdate (mem0_axi_wtagupdate),
         .s_axi_bid       (mem0_axi_bid),
         .s_axi_bresp     (mem0_axi_bresp),
         .s_axi_buser     (mem0_axi_buser),
@@ -1058,7 +1180,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_bready    (mem0_axi_bready),
         .s_axi_btrace    (mem0_axi_btrace),
         .s_axi_bidunq    (mem0_axi_bidunq),
-        .s_axi_btagmatch (),
+        .s_axi_btagmatch (mem0_axi_btagmatch),
         .s_axi_arid      (mem0_axi_arid),
         .s_axi_araddr    (mem0_axi_araddr),
         .s_axi_arlen     (mem0_axi_arlen),
@@ -1077,7 +1199,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_armecid   (mem0_axi_armecid),
         .s_axi_aridunq   (mem0_axi_aridunq),
         .s_axi_archunken ('0),
-        .s_axi_artagop   ('0),
+        .s_axi_artagop   (mem0_axi_artagop),
         .s_axi_rid       (mem0_axi_rid),
         .s_axi_rdata     (mem0_axi_rdata),
         .s_axi_rresp     (mem0_axi_rresp),
@@ -1091,7 +1213,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_rchunkv   (),
         .s_axi_rchunknum (),
         .s_axi_rchunkstrb (),
-        .s_axi_rtag      ()
+        .s_axi_rtag      (mem0_axi_rtag)
         /* verilator lint_on PINCONNECTEMPTY */
     );
     assign slv_err_raw[0] = (|s0_sts_rd.err_mask) || (|s0_sts_wr.err_mask);
@@ -1177,7 +1299,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_slave_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16),
-        .IW(6), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0), .SRC_LSB(4), .SRC_W(2)
+        .IW(6), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0), .EN_MTE(1'b0), .SRC_LSB(4), .SRC_W(2)
     ) u_s1 (
         .aclk (aclk), .aresetn (aresetn), .clear (go_a),
         .cfg_rd (s1_cfg_rd), .cfg_wr (s1_cfg_wr), .cfg_hash_seed (seed_a),
@@ -1258,7 +1380,7 @@ module bs_harness_bridge_bs_axi5
     assign slv_err_raw[1] = (|s1_sts_rd.err_mask) || (|s1_sts_wr.err_mask);
 
     // =========================================================================
-    // Slave 2: mem2 (axi5, rw, 64-bit, ID 6, aclk)
+    // Slave 2: mem2 (axi5, rw, 128-bit, ID 6, aclk)
     //          window 0x30000000 + 0x10000000
     // =========================================================================
     stress_sdir_cfg_t s2_cfg_rd, s2_cfg_wr;
@@ -1282,13 +1404,16 @@ module bs_harness_bridge_bs_axi5
     logic [15:0]   mem2_axi_awmecid;
     logic          mem2_axi_awidunq;
     logic [5:0]    mem2_axi_awatop;
-    logic [63:0]   mem2_axi_wdata;
-    logic [7:0]    mem2_axi_wstrb;
+    logic [1:0]    mem2_axi_awtagop;
+    logic [127:0]  mem2_axi_wdata;
+    logic [15:0]   mem2_axi_wstrb;
     logic          mem2_axi_wlast;
     logic          mem2_axi_wuser;
     logic          mem2_axi_wvalid;
     logic          mem2_axi_wready;
     logic          mem2_axi_wpoison;
+    logic [3:0]    mem2_axi_wtag;
+    logic          mem2_axi_wtagupdate;
     logic [5:0]    mem2_axi_bid;
     logic [1:0]    mem2_axi_bresp;
     logic          mem2_axi_buser;
@@ -1296,6 +1421,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem2_axi_bready;
     logic          mem2_axi_btrace;
     logic          mem2_axi_bidunq;
+    logic [1:0]    mem2_axi_btagmatch;
     logic [5:0]    mem2_axi_arid;
     logic [31:0]   mem2_axi_araddr;
     logic [7:0]    mem2_axi_arlen;
@@ -1313,8 +1439,9 @@ module bs_harness_bridge_bs_axi5
     logic [10:0]   mem2_axi_armpam;
     logic [15:0]   mem2_axi_armecid;
     logic          mem2_axi_aridunq;
+    logic [1:0]    mem2_axi_artagop;
     logic [5:0]    mem2_axi_rid;
-    logic [63:0]   mem2_axi_rdata;
+    logic [127:0]  mem2_axi_rdata;
     logic [1:0]    mem2_axi_rresp;
     logic          mem2_axi_rlast;
     logic          mem2_axi_ruser;
@@ -1323,9 +1450,10 @@ module bs_harness_bridge_bs_axi5
     logic          mem2_axi_rtrace;
     logic          mem2_axi_ridunq;
     logic          mem2_axi_rpoison;
+    logic [3:0]    mem2_axi_rtag;
 
     bstress_slv_csr #(
-        .INDEX(2), .PROTOCOL(2), .DW(64), .IW(6),
+        .INDEX(2), .PROTOCOL(2), .DW(128), .IW(6),
         .DEPTH(16), .HAS_RD(1'b1), .HAS_WR(1'b1)
     ) u_s2_csr (
         .aclk (aclk), .aresetn (aresetn), .pclk (aclk), .presetn (aresetn),
@@ -1341,7 +1469,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_slave_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16),
-        .IW(6), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .SRC_LSB(4), .SRC_W(2)
+        .IW(6), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .EN_MTE(1'b1), .SRC_LSB(4), .SRC_W(2)
     ) u_s2 (
         .aclk (aclk), .aresetn (aresetn), .clear (go_a),
         .cfg_rd (s2_cfg_rd), .cfg_wr (s2_cfg_wr), .cfg_hash_seed (seed_a),
@@ -1365,7 +1493,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_awmpam    (mem2_axi_awmpam),
         .s_axi_awmecid   (mem2_axi_awmecid),
         .s_axi_awidunq   (mem2_axi_awidunq),
-        .s_axi_awtagop   ('0),
+        .s_axi_awtagop   (mem2_axi_awtagop),
         .s_axi_awakeup   ('0),
         .s_axi_wdata     (mem2_axi_wdata),
         .s_axi_wstrb     (mem2_axi_wstrb),
@@ -1374,8 +1502,8 @@ module bs_harness_bridge_bs_axi5
         .s_axi_wvalid    (mem2_axi_wvalid),
         .s_axi_wready    (mem2_axi_wready),
         .s_axi_wpoison   (mem2_axi_wpoison),
-        .s_axi_wtag      ('0),
-        .s_axi_wtagupdate ('0),
+        .s_axi_wtag      (mem2_axi_wtag),
+        .s_axi_wtagupdate (mem2_axi_wtagupdate),
         .s_axi_bid       (mem2_axi_bid),
         .s_axi_bresp     (mem2_axi_bresp),
         .s_axi_buser     (mem2_axi_buser),
@@ -1383,7 +1511,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_bready    (mem2_axi_bready),
         .s_axi_btrace    (mem2_axi_btrace),
         .s_axi_bidunq    (mem2_axi_bidunq),
-        .s_axi_btagmatch (),
+        .s_axi_btagmatch (mem2_axi_btagmatch),
         .s_axi_arid      (mem2_axi_arid),
         .s_axi_araddr    (mem2_axi_araddr),
         .s_axi_arlen     (mem2_axi_arlen),
@@ -1402,7 +1530,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_armecid   (mem2_axi_armecid),
         .s_axi_aridunq   (mem2_axi_aridunq),
         .s_axi_archunken ('0),
-        .s_axi_artagop   ('0),
+        .s_axi_artagop   (mem2_axi_artagop),
         .s_axi_rid       (mem2_axi_rid),
         .s_axi_rdata     (mem2_axi_rdata),
         .s_axi_rresp     (mem2_axi_rresp),
@@ -1416,7 +1544,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_rchunkv   (),
         .s_axi_rchunknum (),
         .s_axi_rchunkstrb (),
-        .s_axi_rtag      ()
+        .s_axi_rtag      (mem2_axi_rtag)
         /* verilator lint_on PINCONNECTEMPTY */
     );
     assign slv_err_raw[2] = (|s2_sts_rd.err_mask) || (|s2_sts_wr.err_mask);
@@ -1573,6 +1701,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_awmecid,
         .cpu_axi_awidunq,
         .cpu_axi_awatop,
+        .cpu_axi_awtagop,
         .cpu_axi_wdata,
         .cpu_axi_wstrb,
         .cpu_axi_wlast,
@@ -1580,6 +1709,8 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_wvalid,
         .cpu_axi_wready,
         .cpu_axi_wpoison,
+        .cpu_axi_wtag,
+        .cpu_axi_wtagupdate,
         .cpu_axi_bid,
         .cpu_axi_bresp,
         .cpu_axi_buser,
@@ -1587,6 +1718,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_bready,
         .cpu_axi_btrace,
         .cpu_axi_bidunq,
+        .cpu_axi_btagmatch,
         .cpu_axi_arid,
         .cpu_axi_araddr,
         .cpu_axi_arlen,
@@ -1604,6 +1736,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_armpam,
         .cpu_axi_armecid,
         .cpu_axi_aridunq,
+        .cpu_axi_artagop,
         .cpu_axi_rid,
         .cpu_axi_rdata,
         .cpu_axi_rresp,
@@ -1614,6 +1747,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_rtrace,
         .cpu_axi_ridunq,
         .cpu_axi_rpoison,
+        .cpu_axi_rtag,
         .dma_axi_awid,
         .dma_axi_awaddr,
         .dma_axi_awlen,
@@ -1788,6 +1922,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_awmecid,
         .mem0_axi_awidunq,
         .mem0_axi_awatop,
+        .mem0_axi_awtagop,
         .mem0_axi_wdata,
         .mem0_axi_wstrb,
         .mem0_axi_wlast,
@@ -1795,6 +1930,8 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_wvalid,
         .mem0_axi_wready,
         .mem0_axi_wpoison,
+        .mem0_axi_wtag,
+        .mem0_axi_wtagupdate,
         .mem0_axi_bid,
         .mem0_axi_bresp,
         .mem0_axi_buser,
@@ -1802,6 +1939,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_bready,
         .mem0_axi_btrace,
         .mem0_axi_bidunq,
+        .mem0_axi_btagmatch,
         .mem0_axi_arid,
         .mem0_axi_araddr,
         .mem0_axi_arlen,
@@ -1819,6 +1957,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_armpam,
         .mem0_axi_armecid,
         .mem0_axi_aridunq,
+        .mem0_axi_artagop,
         .mem0_axi_rid,
         .mem0_axi_rdata,
         .mem0_axi_rresp,
@@ -1829,6 +1968,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_rtrace,
         .mem0_axi_ridunq,
         .mem0_axi_rpoison,
+        .mem0_axi_rtag,
         .mem1_axi_awid,
         .mem1_axi_awaddr,
         .mem1_axi_awlen,
@@ -1903,6 +2043,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_awmecid,
         .mem2_axi_awidunq,
         .mem2_axi_awatop,
+        .mem2_axi_awtagop,
         .mem2_axi_wdata,
         .mem2_axi_wstrb,
         .mem2_axi_wlast,
@@ -1910,6 +2051,8 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_wvalid,
         .mem2_axi_wready,
         .mem2_axi_wpoison,
+        .mem2_axi_wtag,
+        .mem2_axi_wtagupdate,
         .mem2_axi_bid,
         .mem2_axi_bresp,
         .mem2_axi_buser,
@@ -1917,6 +2060,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_bready,
         .mem2_axi_btrace,
         .mem2_axi_bidunq,
+        .mem2_axi_btagmatch,
         .mem2_axi_arid,
         .mem2_axi_araddr,
         .mem2_axi_arlen,
@@ -1934,6 +2078,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_armpam,
         .mem2_axi_armecid,
         .mem2_axi_aridunq,
+        .mem2_axi_artagop,
         .mem2_axi_rid,
         .mem2_axi_rdata,
         .mem2_axi_rresp,
@@ -1944,6 +2089,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_rtrace,
         .mem2_axi_ridunq,
         .mem2_axi_rpoison,
+        .mem2_axi_rtag,
         .mem3_axi_awid,
         .mem3_axi_awaddr,
         .mem3_axi_awlen,
@@ -2008,6 +2154,8 @@ module bs_harness_bridge_bs_axi5
     assign slv_err[2] = slv_err_raw[2];
     cdc_synchronizer #(.WIDTH(1)) u_s3_sync (.clk (aclk), .rst_n (aresetn),
         .async_in (slv_err_raw[3]), .sync_out (slv_err[3]));
+    logic [127:0] w_ext_sts;      // vendor IP status (EXT_STS0..3)
+    assign w_ext_sts = '0;
 
     // Run timer: GO to ALL_DONE. ALL_DONE is ignored for the first 16 cycles
     // after GO -- the blocks' done flags, and the synchronized ones longer
@@ -2063,6 +2211,10 @@ module bs_harness_bridge_bs_axi5
         ctl_hi.UNMAPPED_ADDR.VALUE.next  = dut_unmapped_addr;
         ctl_hi.CYCLES.VALUE.next         = r_cycles;
         ctl_hi.GO_COUNT.VALUE.next       = r_go_count;
+        ctl_hi.EXT_STS0.VALUE.next       = w_ext_sts[31:0];
+        ctl_hi.EXT_STS1.VALUE.next       = w_ext_sts[63:32];
+        ctl_hi.EXT_STS2.VALUE.next       = w_ext_sts[95:64];
+        ctl_hi.EXT_STS3.VALUE.next       = w_ext_sts[127:96];
     end
 
     assign o_all_done = w_all_done && !r_busy;

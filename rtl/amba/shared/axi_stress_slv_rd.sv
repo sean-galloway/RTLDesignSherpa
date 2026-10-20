@@ -43,6 +43,10 @@
 // burst's request sideband (f_rsb(ARSB) & RSB_MASK: RTRACE = ARTRACE) and
 // carries RPOISON = f_poison(beat address, cfg.poison_lg2).
 //
+// AXI5 MTE (MTE): ARTAGOP must be f_artagop(fabric address) (ERR_S_SB); each
+// R beat carries RTAG = f_tag(slot address, RD) per 16-byte slot, 0 when
+// ARTAGOP is Invalid.
+//
 // AXI5 IDUNQ (UNIQUE): an ARIDUNQ request whose ID already has a burst held,
 // or any request on an ID whose held burst is unique, is ERR_S_SB; RIDUNQ
 // echoes the burst's ARIDUNQ.
@@ -63,12 +67,15 @@ module axi_stress_slv_rd
     parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
     parameter bit POISON  = 1'b0,        // AXI5 RPOISON driven
     parameter bit UNIQUE  = 1'b0,        // AXI5 ARIDUNQ checked, RIDUNQ echoed
+    parameter bit MTE     = 1'b0,        // AXI5 ARTAGOP checked, RTAG driven
     parameter int SRC_LSB = 0,           // master-index field of the ID
     parameter int SRC_W   = 0,           //   (0: one master, index 0)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
-    parameter int NL      = DW / 32
+    parameter int NL      = DW / 32,
+    parameter int NT      = (DW / 128 > 0) ? DW / 128 : 1,   // MTE tag slots per beat
+    parameter int TW      = 4 * NT
 ) (
     input  logic                aclk,
     input  logic                aresetn,
@@ -91,6 +98,7 @@ module axi_stress_slv_rd
     input  logic [UW-1:0]       fub_axi_aruser,
     input  logic [31:0]      fub_axi_arsb,
     input  logic                fub_axi_aridunq,
+    input  logic [1:0]          fub_axi_artagop,
     input  logic                fub_axi_arvalid,
     output logic                fub_axi_arready,
 
@@ -102,6 +110,7 @@ module axi_stress_slv_rd
     output logic [7:0]     fub_axi_rsb,
     output logic                fub_axi_rpoison,
     output logic                fub_axi_ridunq,
+    output logic [TW-1:0]       fub_axi_rtag,
     output logic                fub_axi_rvalid,
     input  logic                fub_axi_rready
 );
@@ -153,6 +162,16 @@ module axi_stress_slv_rd
     logic [8:0]    r_s_dly   [DEPTH];      // cycles until it may answer
     logic [7:0]    r_s_rsb   [DEPTH];      // AXI5: the response sideband echo
     logic [DEPTH-1:0] r_s_uq;              // AXI5: accepted with ARIDUNQ
+    logic [1:0]    r_s_tagop [DEPTH];      // AXI5: ARTAGOP
+
+    // AXI5 MTE: the tags of the beat at `a`, one per 16-byte slot of the bus
+    function automatic logic [TW-1:0] f_beat_tags(input logic [31:0] a, input logic [31:0] seed,
+                                                   input logic dir);
+        logic [TW-1:0] t;
+        for (int i = 0; i < NT; i++)
+            t[i*4 +: 4] = f_tag({a[31:BUS_LG2], BUS_LG2'(0)} + 32'(i * 16), seed, dir);
+        return t;
+    endfunction
 
     // =========================================================================
     // AR accept
@@ -196,6 +215,7 @@ module axi_stress_slv_rd
             r_s_dly  [tb_alloc_idx] <= w_dly;
             r_s_rsb  [tb_alloc_idx] <= f_rsb(fub_axi_arsb) & RSB_MASK;
             r_s_uq   [tb_alloc_idx] <= UNIQUE && fub_axi_aridunq;
+            r_s_tagop[tb_alloc_idx] <= MTE ? fub_axi_artagop : TAGOP_INVALID;
         end
         if (w_rmake) begin
             r_s_addr[w_pick_idx] <= f_next_addr(r_s_addr[w_pick_idx], r_s_size[w_pick_idx],
@@ -213,12 +233,14 @@ module axi_stress_slv_rd
     logic [1:0]    r_q_burst;
     logic [31:0]   r_q_faddr;
     logic [31:0] r_q_sb;
+    logic [1:0]    r_q_tagop;
 
     always_ff @(posedge aclk) begin
         if (w_ar_hs) begin
             r_q_win   <= w_in_win;
             r_q_faddr <= w_faddr;
             r_q_sb    <= fub_axi_arsb;
+            r_q_tagop <= fub_axi_artagop;
             r_q_id    <= fub_axi_arid;
             r_q_addr  <= fub_axi_araddr;
             r_q_len   <= fub_axi_arlen;
@@ -238,7 +260,8 @@ module axi_stress_slv_rd
         if (SRC_W > 0) w_q_src = 3'(r_q_id[SRC_LSB_P +: SRC_W_P]);
         w_q_sb_exp = cfg.sb_src[w_q_src] ? (f_sb(r_q_faddr, cfg_hash_seed) & SB_MASK) : '0;
     end
-    assign w_q_sb_err = (SB_MASK != '0) && r_q_valid && ((r_q_sb & SB_MASK) != w_q_sb_exp);
+    assign w_q_sb_err = r_q_valid && (((SB_MASK != '0) && ((r_q_sb & SB_MASK) != w_q_sb_exp))
+                                   || (MTE && (r_q_tagop != f_artagop(r_q_faddr, cfg_hash_seed))));
 
     // AXI5 IDUNQ (A5.2): per ID, bursts held (request accepted, response not
     // yet made) and whether the held one is unique. A request breaks the rule
@@ -353,6 +376,8 @@ module axi_stress_slv_rd
             fub_axi_rpoison <= POISON && f_poison(r_s_addr[w_pick_idx], cfg_hash_seed,
                                                   cfg.poison_lg2);
             fub_axi_ridunq  <= r_s_uq[w_pick_idx];
+            fub_axi_rtag    <= (MTE && r_s_tagop[w_pick_idx] != TAGOP_INVALID)
+                               ? f_beat_tags(r_s_addr[w_pick_idx], cfg_hash_seed, 1'b1) : '0;
         end
     end
 

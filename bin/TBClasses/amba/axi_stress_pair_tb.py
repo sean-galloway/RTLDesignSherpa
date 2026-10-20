@@ -31,6 +31,9 @@ contract, or check nothing. Three things stop that:
   nothing else outstanding; each read-return class must get exactly one R
   beat with its ID, RLAST set and the read hash on its lanes. A run counts
   each class, so an atomic run that never issued one fails.
+  MTE: AWTAGOP / ARTAGOP, every W beat's WTAG / WTAGUPDATE, every read beat's
+  RTAG and every BTAGMATCH against the tag contract; tag operations are
+  counted by kind.
 * Every run first proves traffic moved: issued == completed == the budget,
   and the slave saw the same number of bursts.
 * The fault injector in the harness corrupts one handshake per fault, and
@@ -244,9 +247,15 @@ class AxiStressPairTB(TBBase):
                 if axi5:
                     self._check_req_sb('ar', a)
                     self._check_uq('ar', uq_out['ar'][int(d.m_arid.value)], uq, a)
+                tagop = 0
+                if axi5:
+                    tagop = int(d.m_artagop.value)
+                    if tagop != M.f_artagop(a, self.hash_seed):
+                        self._merr(f'AR {a:#x}: ARTAGOP {tagop} != {M.f_artagop(a, self.hash_seed)}')
+                    self.stats[f'artagop{tagop}'] += 1
                 rd_q[int(d.m_arid.value)].append(
                     dict(seq=seq, addrs=addrs, size=sz, n=0,
-                         resp=w.resp if w else 0, win=w, start=a, uq=uq))
+                         resp=w.resp if w else 0, win=w, start=a, uq=uq, tagop=tagop))
                 rd_order.append(seq)
                 seq += 1
                 self.stats['ar'] += 1
@@ -300,6 +309,10 @@ class AxiStressPairTB(TBBase):
                         self.stats['r_poison'] += e_p
                         if int(d.m_ridunq.value) != b['uq']:
                             self._merr(f'R ID {rid:#x} addr {addr:#x}: RIDUNQ != {b["uq"]}')
+                        e_t = M.beat_tags(addr, self.NB, self.hash_seed, True,
+                                          b['tagop'] if (w and w.mte) else 0)
+                        if int(d.m_rtag.value) != e_t:
+                            self._merr(f'R ID {rid:#x} addr {addr:#x}: RTAG {int(d.m_rtag.value):#x} != {e_t:#x}')
                     last = b['n'] == len(b['addrs']) - 1
                     if int(d.m_rlast.value) != int(last):
                         self._merr(f'R ID {rid:#x} RLAST={int(d.m_rlast.value)} on beat '
@@ -342,20 +355,28 @@ class AxiStressPairTB(TBBase):
                         if atop & 0x20:
                             rr_exp[awid] = (a, sz, self._win_of(a))
                     self._check_uq('aw', uq_out['aw'][awid], uq, a)
-                b_q[int(d.m_awid.value)].append((a, self._win_of(a), uq))
+                tagop = 0
+                if axi5:
+                    tagop = int(d.m_awtagop.value)
+                    e_op = 0 if int(d.m_awatop.value) else M.f_awtagop(a, self.hash_seed)
+                    if tagop != e_op:
+                        self._merr(f'AW {a:#x}: AWTAGOP {tagop} != {e_op}')
+                    self.stats[f'awtagop{tagop}'] += 1
+                b_q[int(d.m_awid.value)].append((a, self._win_of(a), uq, tagop))
                 wr_q.append(dict(addrs=M.beat_addrs(a, ln + 1, sz, bt), size=sz, n=0,
-                                 id=int(d.m_awid.value), win=self._win_of(a)))
+                                 id=int(d.m_awid.value), win=self._win_of(a), tagop=tagop))
                 self.stats['aw'] += 1
             # W (before the injector). A W beat may cross the wire before its
             # AW (the slave's skid takes it), so beats wait for their AW here.
             if int(d.m_wvalid.value) and int(d.m_wready.value):
                 w_pend.append((int(d.m_wdata.value), int(d.m_wstrb.value),
                                int(d.m_wlast.value), int(d.m_wid.value),
-                               int(d.m_wpoison.value)))
+                               int(d.m_wpoison.value), int(d.m_wtag.value),
+                               int(d.m_wtagupdate.value)))
             while w_pend and (cur_w is not None or wr_q):
                 if cur_w is None:
                     cur_w = wr_q.popleft()
-                data, strb, wlast, wid, wpoison = w_pend.popleft()
+                data, strb, wlast, wid, wpoison, wtag, wtagupd = w_pend.popleft()
                 b = cur_w
                 addr = b['addrs'][b['n']]
                 if axi5:
@@ -363,6 +384,10 @@ class AxiStressPairTB(TBBase):
                     e_p = int(M.f_poison(addr, self.hash_seed, w.poison_lg2 if w else 0))
                     if wpoison != e_p:
                         self._merr(f'W addr {addr:#x}: WPOISON {wpoison} != {e_p}')
+                    e_t = M.beat_tags(addr, self.NB, self.hash_seed, False, b['tagop'])
+                    e_u = M.beat_tagupd(addr, self.NB, self.hash_seed, b['tagop'])
+                    if wtag != e_t or wtagupd != e_u:
+                        self._merr(f'W addr {addr:#x}: WTAG {wtag:#x}/{wtagupd:#x} != {e_t:#x}/{e_u:#x}')
                     self.stats['w_poison'] += e_p
                 if self.PROTO == 'axi3' and wid != b['id']:
                     self._merr(f'W addr {addr:#x}: WID {wid:#x} != AWID {b["id"]:#x}')
@@ -389,7 +414,7 @@ class AxiStressPairTB(TBBase):
             if int(d.m_bvalid.value) and int(d.m_bready.value):
                 q = b_q.get(int(d.m_bid.value))
                 if q:
-                    a, w, uq = q.popleft()
+                    a, w, uq, tagop = q.popleft()
                     e_tr = M.f_rsb(M.f_sb(a, self.hash_seed)) if (axi5 and w and w.sb) else 0
                     if axi5 and int(d.m_btrace.value) != e_tr:
                         self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BTRACE != {e_tr}')
@@ -397,6 +422,10 @@ class AxiStressPairTB(TBBase):
                         if int(d.m_bidunq.value) != uq:
                             self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BIDUNQ != {uq}')
                         uq_out['aw'][int(d.m_bid.value)].pop(0)
+                        e_m = M.f_btagmatch(a, self.hash_seed, tagop) if (w and w.mte) else 0
+                        if int(d.m_btagmatch.value) != e_m:
+                            self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BTAGMATCH != {e_m}')
+                        self.stats[f'btagmatch{int(d.m_btagmatch.value)}'] += 1
                 self.stats['b'] += 1
                 if int(d.m_bresp.value) != M.OKAY:
                     self.stats['b_err'] += 1

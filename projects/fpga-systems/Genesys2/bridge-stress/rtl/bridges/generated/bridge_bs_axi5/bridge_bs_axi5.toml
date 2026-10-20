@@ -18,8 +18,8 @@
 #                              BTRACE / RTRACE come back 0
 # mem1 so sees three kinds of request at once and must tell them apart by the
 # master index in the fabric ID.
-# Masters: cpu AXI5 64b (IDs 4), dma AXI5 128b, acc AXI4 32b (cdc), io AXI5 32b.
-# Slaves:  mem0 AXI5 64b, mem1 AXI5 128b, mem2 AXI5 64b, mem3 AXI4 64b (cdc).
+# Masters: cpu AXI5 128b (IDs 4), dma AXI5 128b, acc AXI4 32b (cdc), io AXI5 32b.
+# Slaves:  mem0 AXI5 128b, mem1 AXI5 128b, mem2 AXI5 128b, mem3 AXI4 64b (cdc).
 # Slave id_width is the fabric's ({master index, slot}); the validator checks it.
 #============================================================================
 
@@ -36,11 +36,11 @@ frequency_mhz = 100
 name          = "cpu"
 prefix        = "cpu_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic", "mte"]
 channels      = "rw"
 id_width      = 4
 addr_width    = 32
-data_width    = 64
+data_width    = 128
 user_width    = 1
 
 [[bridge.masters]]
@@ -80,11 +80,11 @@ user_width    = 1
 name          = "mem0"
 prefix        = "mem0_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic", "mte"]
 channels      = "rw"
 id_width      = 6
 addr_width    = 32
-data_width    = 64
+data_width    = 128
 user_width    = 1
 base_addr     = "0x00000000"
 addr_range    = "0x10000000"
@@ -106,11 +106,11 @@ addr_range    = "0x10000000"
 name          = "mem2"
 prefix        = "mem2_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic", "mte"]
 channels      = "rw"
 id_width      = 6
 addr_width    = 32
-data_width    = 64
+data_width    = 128
 user_width    = 1
 base_addr     = "0x30000000"
 addr_range    = "0x10000000"

@@ -41,14 +41,17 @@ module bridge_bs_axi5
     input  logic [15:0]  cpu_axi_awmecid,
     input  logic         cpu_axi_awidunq,
     input  logic [5:0]  cpu_axi_awatop,
+    input  logic [1:0]  cpu_axi_awtagop,
 
-    input  logic [63:0]  cpu_axi_wdata,
-    input  logic [7:0]  cpu_axi_wstrb,
+    input  logic [127:0]  cpu_axi_wdata,
+    input  logic [15:0]  cpu_axi_wstrb,
     input  logic         cpu_axi_wlast,
     input  logic         cpu_axi_wuser,
     input  logic         cpu_axi_wvalid,
     output  logic         cpu_axi_wready,
     input  logic         cpu_axi_wpoison,
+    input  logic [3:0]  cpu_axi_wtag,
+    input  logic         cpu_axi_wtagupdate,
 
     output  logic [3:0]  cpu_axi_bid,
     output  logic [1:0]  cpu_axi_bresp,
@@ -57,6 +60,7 @@ module bridge_bs_axi5
     input  logic         cpu_axi_bready,
     output  logic         cpu_axi_btrace,
     output  logic         cpu_axi_bidunq,
+    output  logic [1:0]  cpu_axi_btagmatch,
 
     input  logic [3:0]  cpu_axi_arid,
     input  logic [31:0]  cpu_axi_araddr,
@@ -75,9 +79,10 @@ module bridge_bs_axi5
     input  logic [10:0]  cpu_axi_armpam,
     input  logic [15:0]  cpu_axi_armecid,
     input  logic         cpu_axi_aridunq,
+    input  logic [1:0]  cpu_axi_artagop,
 
     output  logic [3:0]  cpu_axi_rid,
-    output  logic [63:0]  cpu_axi_rdata,
+    output  logic [127:0]  cpu_axi_rdata,
     output  logic [1:0]  cpu_axi_rresp,
     output  logic         cpu_axi_rlast,
     output  logic         cpu_axi_ruser,
@@ -86,6 +91,7 @@ module bridge_bs_axi5
     output  logic         cpu_axi_rtrace,
     output  logic         cpu_axi_ridunq,
     output  logic         cpu_axi_rpoison,
+    output  logic [3:0]  cpu_axi_rtag,
 
     // Master 1: dma (rw)
     // Master: dma (axi5, rw)
@@ -286,14 +292,17 @@ module bridge_bs_axi5
     output  logic [15:0]  mem0_axi_awmecid,
     output  logic         mem0_axi_awidunq,
     output  logic [5:0]  mem0_axi_awatop,
+    output  logic [1:0]  mem0_axi_awtagop,
 
-    output  logic [63:0]  mem0_axi_wdata,
-    output  logic [7:0]  mem0_axi_wstrb,
+    output  logic [127:0]  mem0_axi_wdata,
+    output  logic [15:0]  mem0_axi_wstrb,
     output  logic         mem0_axi_wlast,
     output  logic         mem0_axi_wuser,
     output  logic         mem0_axi_wvalid,
     input  logic         mem0_axi_wready,
     output  logic         mem0_axi_wpoison,
+    output  logic [3:0]  mem0_axi_wtag,
+    output  logic         mem0_axi_wtagupdate,
 
     input  logic [5:0]  mem0_axi_bid,
     input  logic [1:0]  mem0_axi_bresp,
@@ -302,6 +311,7 @@ module bridge_bs_axi5
     output  logic         mem0_axi_bready,
     input  logic         mem0_axi_btrace,
     input  logic         mem0_axi_bidunq,
+    input  logic [1:0]  mem0_axi_btagmatch,
 
     output  logic [5:0]  mem0_axi_arid,
     output  logic [31:0]  mem0_axi_araddr,
@@ -320,9 +330,10 @@ module bridge_bs_axi5
     output  logic [10:0]  mem0_axi_armpam,
     output  logic [15:0]  mem0_axi_armecid,
     output  logic         mem0_axi_aridunq,
+    output  logic [1:0]  mem0_axi_artagop,
 
     input  logic [5:0]  mem0_axi_rid,
-    input  logic [63:0]  mem0_axi_rdata,
+    input  logic [127:0]  mem0_axi_rdata,
     input  logic [1:0]  mem0_axi_rresp,
     input  logic         mem0_axi_rlast,
     input  logic         mem0_axi_ruser,
@@ -331,6 +342,7 @@ module bridge_bs_axi5
     input  logic         mem0_axi_rtrace,
     input  logic         mem0_axi_ridunq,
     input  logic         mem0_axi_rpoison,
+    input  logic [3:0]  mem0_axi_rtag,
 
     // Slave 1: mem1
     // AXI5 Slave: mem1
@@ -415,14 +427,17 @@ module bridge_bs_axi5
     output  logic [15:0]  mem2_axi_awmecid,
     output  logic         mem2_axi_awidunq,
     output  logic [5:0]  mem2_axi_awatop,
+    output  logic [1:0]  mem2_axi_awtagop,
 
-    output  logic [63:0]  mem2_axi_wdata,
-    output  logic [7:0]  mem2_axi_wstrb,
+    output  logic [127:0]  mem2_axi_wdata,
+    output  logic [15:0]  mem2_axi_wstrb,
     output  logic         mem2_axi_wlast,
     output  logic         mem2_axi_wuser,
     output  logic         mem2_axi_wvalid,
     input  logic         mem2_axi_wready,
     output  logic         mem2_axi_wpoison,
+    output  logic [3:0]  mem2_axi_wtag,
+    output  logic         mem2_axi_wtagupdate,
 
     input  logic [5:0]  mem2_axi_bid,
     input  logic [1:0]  mem2_axi_bresp,
@@ -431,6 +446,7 @@ module bridge_bs_axi5
     output  logic         mem2_axi_bready,
     input  logic         mem2_axi_btrace,
     input  logic         mem2_axi_bidunq,
+    input  logic [1:0]  mem2_axi_btagmatch,
 
     output  logic [5:0]  mem2_axi_arid,
     output  logic [31:0]  mem2_axi_araddr,
@@ -449,9 +465,10 @@ module bridge_bs_axi5
     output  logic [10:0]  mem2_axi_armpam,
     output  logic [15:0]  mem2_axi_armecid,
     output  logic         mem2_axi_aridunq,
+    output  logic [1:0]  mem2_axi_artagop,
 
     input  logic [5:0]  mem2_axi_rid,
-    input  logic [63:0]  mem2_axi_rdata,
+    input  logic [127:0]  mem2_axi_rdata,
     input  logic [1:0]  mem2_axi_rresp,
     input  logic         mem2_axi_rlast,
     input  logic         mem2_axi_ruser,
@@ -460,6 +477,7 @@ module bridge_bs_axi5
     input  logic         mem2_axi_rtrace,
     input  logic         mem2_axi_ridunq,
     input  logic         mem2_axi_rpoison,
+    input  logic [3:0]  mem2_axi_rtag,
 
     // Slave 3: mem3
     input  logic                  mem3_aclk,
@@ -533,22 +551,6 @@ module bridge_bs_axi5
     logic [BRIDGE_ID_WIDTH-1:0] cpu_bridge_id_aw;
     logic [NUM_SLAVES-1:0] cpu_slave_select_ar;
     logic [BRIDGE_ID_WIDTH-1:0] cpu_bridge_id_ar;
-    // 64b path
-    axi4_aw_t     cpu_64b_aw;
-    logic         cpu_64b_awvalid;
-    logic         cpu_64b_awready;
-    axi4_w_64b_t  cpu_64b_w;
-    logic         cpu_64b_wvalid;
-    logic         cpu_64b_wready;
-    axi4_b_t      cpu_64b_b;
-    logic         cpu_64b_bvalid;
-    logic         cpu_64b_bready;
-    axi4_ar_t     cpu_64b_ar;
-    logic         cpu_64b_arvalid;
-    logic         cpu_64b_arready;
-    axi4_r_64b_t  cpu_64b_r;
-    logic         cpu_64b_rvalid;
-    logic         cpu_64b_rready;
     // 128b path
     axi4_aw_t     cpu_128b_aw;
     logic         cpu_128b_awvalid;
@@ -681,7 +683,7 @@ module bridge_bs_axi5
     logic         io_128b_rready;
 
     // Crossbar-to-Slave Internal AXI4 Signals
-    // mem0 (AXI5, 64b AXI4 interface)
+    // mem0 (AXI5, 128b AXI4 interface)
     logic [5:0]            xbar_mem0_axi_awid;
     logic [31:0]               xbar_mem0_axi_awaddr;
     logic [7:0]                xbar_mem0_axi_awlen;
@@ -695,8 +697,8 @@ module bridge_bs_axi5
     logic                      xbar_mem0_axi_awuser;
     logic                      xbar_mem0_axi_awvalid;
     logic                      xbar_mem0_axi_awready;
-    logic [63:0] xbar_mem0_axi_wdata;
-    logic [7:0] xbar_mem0_axi_wstrb;
+    logic [127:0] xbar_mem0_axi_wdata;
+    logic [15:0] xbar_mem0_axi_wstrb;
     logic                      xbar_mem0_axi_wlast;
     logic                      xbar_mem0_axi_wuser;
     logic                      xbar_mem0_axi_wvalid;
@@ -720,7 +722,7 @@ module bridge_bs_axi5
     logic                      xbar_mem0_axi_arvalid;
     logic                      xbar_mem0_axi_arready;
     logic [5:0]            xbar_mem0_axi_rid;
-    logic [63:0] xbar_mem0_axi_rdata;
+    logic [127:0] xbar_mem0_axi_rdata;
     logic [1:0]                xbar_mem0_axi_rresp;
     logic                      xbar_mem0_axi_rlast;
     logic                      xbar_mem0_axi_ruser;
@@ -732,15 +734,21 @@ module bridge_bs_axi5
     logic [15:0]               xbar_mem0_axi_awmecid;  // AXI5 sideband (mecid)
     logic                       xbar_mem0_axi_awidunq;  // AXI5 sideband (unique)
     logic [5:0]               xbar_mem0_axi_awatop;  // AXI5 sideband (atomic)
+    logic [1:0]               xbar_mem0_axi_awtagop;  // AXI5 sideband (mte)
     logic                       xbar_mem0_axi_wpoison;  // AXI5 sideband (poison)
+    logic [3:0]               xbar_mem0_axi_wtag;  // AXI5 sideband (mte)
+    logic                       xbar_mem0_axi_wtagupdate;  // AXI5 sideband (mte)
     logic                       xbar_mem0_axi_btrace;  // AXI5 sideband (trace)
+    logic [1:0]               xbar_mem0_axi_btagmatch;  // AXI5 sideband (mte)
     logic [3:0]               xbar_mem0_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic                       xbar_mem0_axi_artrace;  // AXI5 sideband (trace)
     logic [10:0]               xbar_mem0_axi_armpam;  // AXI5 sideband (mpam)
     logic [15:0]               xbar_mem0_axi_armecid;  // AXI5 sideband (mecid)
     logic                       xbar_mem0_axi_aridunq;  // AXI5 sideband (unique)
+    logic [1:0]               xbar_mem0_axi_artagop;  // AXI5 sideband (mte)
     logic                       xbar_mem0_axi_rtrace;  // AXI5 sideband (trace)
     logic                       xbar_mem0_axi_rpoison;  // AXI5 sideband (poison)
+    logic [3:0]               xbar_mem0_axi_rtag;  // AXI5 sideband (mte)
     logic [BRIDGE_ID_WIDTH-1:0] mem0_axi_bridge_id_aw;
     logic [BRIDGE_ID_WIDTH-1:0] mem0_axi_bid_bridge_id;
     logic                       mem0_axi_bid_valid;
@@ -812,7 +820,7 @@ module bridge_bs_axi5
     logic [BRIDGE_ID_WIDTH-1:0] mem1_axi_rid_bridge_id;
     logic                       mem1_axi_rid_valid;
 
-    // mem2 (AXI5, 64b AXI4 interface)
+    // mem2 (AXI5, 128b AXI4 interface)
     logic [5:0]            xbar_mem2_axi_awid;
     logic [31:0]               xbar_mem2_axi_awaddr;
     logic [7:0]                xbar_mem2_axi_awlen;
@@ -826,8 +834,8 @@ module bridge_bs_axi5
     logic                      xbar_mem2_axi_awuser;
     logic                      xbar_mem2_axi_awvalid;
     logic                      xbar_mem2_axi_awready;
-    logic [63:0] xbar_mem2_axi_wdata;
-    logic [7:0] xbar_mem2_axi_wstrb;
+    logic [127:0] xbar_mem2_axi_wdata;
+    logic [15:0] xbar_mem2_axi_wstrb;
     logic                      xbar_mem2_axi_wlast;
     logic                      xbar_mem2_axi_wuser;
     logic                      xbar_mem2_axi_wvalid;
@@ -851,7 +859,7 @@ module bridge_bs_axi5
     logic                      xbar_mem2_axi_arvalid;
     logic                      xbar_mem2_axi_arready;
     logic [5:0]            xbar_mem2_axi_rid;
-    logic [63:0] xbar_mem2_axi_rdata;
+    logic [127:0] xbar_mem2_axi_rdata;
     logic [1:0]                xbar_mem2_axi_rresp;
     logic                      xbar_mem2_axi_rlast;
     logic                      xbar_mem2_axi_ruser;
@@ -863,15 +871,21 @@ module bridge_bs_axi5
     logic [15:0]               xbar_mem2_axi_awmecid;  // AXI5 sideband (mecid)
     logic                       xbar_mem2_axi_awidunq;  // AXI5 sideband (unique)
     logic [5:0]               xbar_mem2_axi_awatop;  // AXI5 sideband (atomic)
+    logic [1:0]               xbar_mem2_axi_awtagop;  // AXI5 sideband (mte)
     logic                       xbar_mem2_axi_wpoison;  // AXI5 sideband (poison)
+    logic [3:0]               xbar_mem2_axi_wtag;  // AXI5 sideband (mte)
+    logic                       xbar_mem2_axi_wtagupdate;  // AXI5 sideband (mte)
     logic                       xbar_mem2_axi_btrace;  // AXI5 sideband (trace)
+    logic [1:0]               xbar_mem2_axi_btagmatch;  // AXI5 sideband (mte)
     logic [3:0]               xbar_mem2_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic                       xbar_mem2_axi_artrace;  // AXI5 sideband (trace)
     logic [10:0]               xbar_mem2_axi_armpam;  // AXI5 sideband (mpam)
     logic [15:0]               xbar_mem2_axi_armecid;  // AXI5 sideband (mecid)
     logic                       xbar_mem2_axi_aridunq;  // AXI5 sideband (unique)
+    logic [1:0]               xbar_mem2_axi_artagop;  // AXI5 sideband (mte)
     logic                       xbar_mem2_axi_rtrace;  // AXI5 sideband (trace)
     logic                       xbar_mem2_axi_rpoison;  // AXI5 sideband (poison)
+    logic [3:0]               xbar_mem2_axi_rtag;  // AXI5 sideband (mte)
     logic [BRIDGE_ID_WIDTH-1:0] mem2_axi_bridge_id_aw;
     logic [BRIDGE_ID_WIDTH-1:0] mem2_axi_bid_bridge_id;
     logic                       mem2_axi_bid_valid;
@@ -1118,6 +1132,7 @@ module bridge_bs_axi5
         .cpu_axi_awmecid(cpu_axi_awmecid),
         .cpu_axi_awidunq(cpu_axi_awidunq),
         .cpu_axi_awatop(cpu_axi_awatop),
+        .cpu_axi_awtagop(cpu_axi_awtagop),
         .cpu_axi_wdata(cpu_axi_wdata),
         .cpu_axi_wstrb(cpu_axi_wstrb),
         .cpu_axi_wlast(cpu_axi_wlast),
@@ -1125,6 +1140,8 @@ module bridge_bs_axi5
         .cpu_axi_wvalid(cpu_axi_wvalid),
         .cpu_axi_wready(cpu_axi_wready),
         .cpu_axi_wpoison(cpu_axi_wpoison),
+        .cpu_axi_wtag(cpu_axi_wtag),
+        .cpu_axi_wtagupdate(cpu_axi_wtagupdate),
         .cpu_axi_bid(cpu_axi_bid),
         .cpu_axi_bresp(cpu_axi_bresp),
         .cpu_axi_buser(cpu_axi_buser),
@@ -1132,6 +1149,7 @@ module bridge_bs_axi5
         .cpu_axi_bready(cpu_axi_bready),
         .cpu_axi_btrace(cpu_axi_btrace),
         .cpu_axi_bidunq(cpu_axi_bidunq),
+        .cpu_axi_btagmatch(cpu_axi_btagmatch),
         .cpu_axi_arid(cpu_axi_arid),
         .cpu_axi_araddr(cpu_axi_araddr),
         .cpu_axi_arlen(cpu_axi_arlen),
@@ -1149,6 +1167,7 @@ module bridge_bs_axi5
         .cpu_axi_armpam(cpu_axi_armpam),
         .cpu_axi_armecid(cpu_axi_armecid),
         .cpu_axi_aridunq(cpu_axi_aridunq),
+        .cpu_axi_artagop(cpu_axi_artagop),
         .cpu_axi_rid(cpu_axi_rid),
         .cpu_axi_rdata(cpu_axi_rdata),
         .cpu_axi_rresp(cpu_axi_rresp),
@@ -1159,29 +1178,13 @@ module bridge_bs_axi5
         .cpu_axi_rtrace(cpu_axi_rtrace),
         .cpu_axi_ridunq(cpu_axi_ridunq),
         .cpu_axi_rpoison(cpu_axi_rpoison),
+        .cpu_axi_rtag(cpu_axi_rtag),
 
         // Decode outputs
         .slave_select_aw(cpu_slave_select_aw),
         .bridge_id_aw(cpu_bridge_id_aw),
         .slave_select_ar(cpu_slave_select_ar),
         .bridge_id_ar(cpu_bridge_id_ar),
-
-        // 64b path
-        .cpu_64b_aw(cpu_64b_aw),
-        .cpu_64b_awvalid(cpu_64b_awvalid),
-        .cpu_64b_awready(cpu_64b_awready),
-        .cpu_64b_w(cpu_64b_w),
-        .cpu_64b_wvalid(cpu_64b_wvalid),
-        .cpu_64b_wready(cpu_64b_wready),
-        .cpu_64b_b(cpu_64b_b),
-        .cpu_64b_bvalid(cpu_64b_bvalid),
-        .cpu_64b_bready(cpu_64b_bready),
-        .cpu_64b_ar(cpu_64b_ar),
-        .cpu_64b_arvalid(cpu_64b_arvalid),
-        .cpu_64b_arready(cpu_64b_arready),
-        .cpu_64b_r(cpu_64b_r),
-        .cpu_64b_rvalid(cpu_64b_rvalid),
-        .cpu_64b_rready(cpu_64b_rready),
 
         // 128b path
         .cpu_128b_aw(cpu_128b_aw),
@@ -1521,22 +1524,6 @@ module bridge_bs_axi5
         .cpu_bridge_id_aw(cpu_bridge_id_aw),
         .cpu_slave_select_ar(cpu_slave_select_ar),
         .cpu_bridge_id_ar(cpu_bridge_id_ar),
-        // 64b path
-        .cpu_64b_aw(cpu_64b_aw),
-        .cpu_64b_awvalid(cpu_64b_awvalid),
-        .cpu_64b_awready(cpu_64b_awready),
-        .cpu_64b_w(cpu_64b_w),
-        .cpu_64b_wvalid(cpu_64b_wvalid),
-        .cpu_64b_wready(cpu_64b_wready),
-        .cpu_64b_b(cpu_64b_b),
-        .cpu_64b_bvalid(cpu_64b_bvalid),
-        .cpu_64b_bready(cpu_64b_bready),
-        .cpu_64b_ar(cpu_64b_ar),
-        .cpu_64b_arvalid(cpu_64b_arvalid),
-        .cpu_64b_arready(cpu_64b_arready),
-        .cpu_64b_r(cpu_64b_r),
-        .cpu_64b_rvalid(cpu_64b_rvalid),
-        .cpu_64b_rready(cpu_64b_rready),
         // 128b path
         .cpu_128b_aw(cpu_128b_aw),
         .cpu_128b_awvalid(cpu_128b_awvalid),
@@ -1719,15 +1706,21 @@ module bridge_bs_axi5
         .mem0_axi_awmecid(xbar_mem0_axi_awmecid),
         .mem0_axi_awidunq(xbar_mem0_axi_awidunq),
         .mem0_axi_awatop(xbar_mem0_axi_awatop),
+        .mem0_axi_awtagop(xbar_mem0_axi_awtagop),
         .mem0_axi_wpoison(xbar_mem0_axi_wpoison),
+        .mem0_axi_wtag(xbar_mem0_axi_wtag),
+        .mem0_axi_wtagupdate(xbar_mem0_axi_wtagupdate),
         .mem0_axi_btrace(xbar_mem0_axi_btrace),
+        .mem0_axi_btagmatch(xbar_mem0_axi_btagmatch),
         .mem0_axi_arnsaid(xbar_mem0_axi_arnsaid),
         .mem0_axi_artrace(xbar_mem0_axi_artrace),
         .mem0_axi_armpam(xbar_mem0_axi_armpam),
         .mem0_axi_armecid(xbar_mem0_axi_armecid),
         .mem0_axi_aridunq(xbar_mem0_axi_aridunq),
+        .mem0_axi_artagop(xbar_mem0_axi_artagop),
         .mem0_axi_rtrace(xbar_mem0_axi_rtrace),
         .mem0_axi_rpoison(xbar_mem0_axi_rpoison),
+        .mem0_axi_rtag(xbar_mem0_axi_rtag),
         .mem0_axi_bridge_id_aw(mem0_axi_bridge_id_aw),
         .mem0_axi_bid_bridge_id(mem0_axi_bid_bridge_id),
         .mem0_axi_bid_valid(mem0_axi_bid_valid),
@@ -1852,15 +1845,21 @@ module bridge_bs_axi5
         .mem2_axi_awmecid(xbar_mem2_axi_awmecid),
         .mem2_axi_awidunq(xbar_mem2_axi_awidunq),
         .mem2_axi_awatop(xbar_mem2_axi_awatop),
+        .mem2_axi_awtagop(xbar_mem2_axi_awtagop),
         .mem2_axi_wpoison(xbar_mem2_axi_wpoison),
+        .mem2_axi_wtag(xbar_mem2_axi_wtag),
+        .mem2_axi_wtagupdate(xbar_mem2_axi_wtagupdate),
         .mem2_axi_btrace(xbar_mem2_axi_btrace),
+        .mem2_axi_btagmatch(xbar_mem2_axi_btagmatch),
         .mem2_axi_arnsaid(xbar_mem2_axi_arnsaid),
         .mem2_axi_artrace(xbar_mem2_axi_artrace),
         .mem2_axi_armpam(xbar_mem2_axi_armpam),
         .mem2_axi_armecid(xbar_mem2_axi_armecid),
         .mem2_axi_aridunq(xbar_mem2_axi_aridunq),
+        .mem2_axi_artagop(xbar_mem2_axi_artagop),
         .mem2_axi_rtrace(xbar_mem2_axi_rtrace),
         .mem2_axi_rpoison(xbar_mem2_axi_rpoison),
+        .mem2_axi_rtag(xbar_mem2_axi_rtag),
         .mem2_axi_bridge_id_aw(mem2_axi_bridge_id_aw),
         .mem2_axi_bid_bridge_id(mem2_axi_bid_bridge_id),
         .mem2_axi_bid_valid(mem2_axi_bid_valid),
@@ -2048,15 +2047,21 @@ module bridge_bs_axi5
         .xbar_mem0_axi_awmecid(xbar_mem0_axi_awmecid),
         .xbar_mem0_axi_awidunq(xbar_mem0_axi_awidunq),
         .xbar_mem0_axi_awatop(xbar_mem0_axi_awatop),
+        .xbar_mem0_axi_awtagop(xbar_mem0_axi_awtagop),
         .xbar_mem0_axi_wpoison(xbar_mem0_axi_wpoison),
+        .xbar_mem0_axi_wtag(xbar_mem0_axi_wtag),
+        .xbar_mem0_axi_wtagupdate(xbar_mem0_axi_wtagupdate),
         .xbar_mem0_axi_btrace(xbar_mem0_axi_btrace),
+        .xbar_mem0_axi_btagmatch(xbar_mem0_axi_btagmatch),
         .xbar_mem0_axi_arnsaid(xbar_mem0_axi_arnsaid),
         .xbar_mem0_axi_artrace(xbar_mem0_axi_artrace),
         .xbar_mem0_axi_armpam(xbar_mem0_axi_armpam),
         .xbar_mem0_axi_armecid(xbar_mem0_axi_armecid),
         .xbar_mem0_axi_aridunq(xbar_mem0_axi_aridunq),
+        .xbar_mem0_axi_artagop(xbar_mem0_axi_artagop),
         .xbar_mem0_axi_rtrace(xbar_mem0_axi_rtrace),
         .xbar_mem0_axi_rpoison(xbar_mem0_axi_rpoison),
+        .xbar_mem0_axi_rtag(xbar_mem0_axi_rtag),
 
         // External AXI5 interface (mem0_axi_*)
         .mem0_axi_awid(mem0_axi_awid),
@@ -2077,6 +2082,7 @@ module bridge_bs_axi5
         .mem0_axi_awmecid(mem0_axi_awmecid),
         .mem0_axi_awidunq(mem0_axi_awidunq),
         .mem0_axi_awatop(mem0_axi_awatop),
+        .mem0_axi_awtagop(mem0_axi_awtagop),
         .mem0_axi_wdata(mem0_axi_wdata),
         .mem0_axi_wstrb(mem0_axi_wstrb),
         .mem0_axi_wlast(mem0_axi_wlast),
@@ -2084,6 +2090,8 @@ module bridge_bs_axi5
         .mem0_axi_wvalid(mem0_axi_wvalid),
         .mem0_axi_wready(mem0_axi_wready),
         .mem0_axi_wpoison(mem0_axi_wpoison),
+        .mem0_axi_wtag(mem0_axi_wtag),
+        .mem0_axi_wtagupdate(mem0_axi_wtagupdate),
         .mem0_axi_bid(mem0_axi_bid),
         .mem0_axi_bresp(mem0_axi_bresp),
         .mem0_axi_buser(mem0_axi_buser),
@@ -2091,6 +2099,7 @@ module bridge_bs_axi5
         .mem0_axi_bready(mem0_axi_bready),
         .mem0_axi_btrace(mem0_axi_btrace),
         .mem0_axi_bidunq(mem0_axi_bidunq),
+        .mem0_axi_btagmatch(mem0_axi_btagmatch),
         .mem0_axi_arid(mem0_axi_arid),
         .mem0_axi_araddr(mem0_axi_araddr),
         .mem0_axi_arlen(mem0_axi_arlen),
@@ -2108,6 +2117,7 @@ module bridge_bs_axi5
         .mem0_axi_armpam(mem0_axi_armpam),
         .mem0_axi_armecid(mem0_axi_armecid),
         .mem0_axi_aridunq(mem0_axi_aridunq),
+        .mem0_axi_artagop(mem0_axi_artagop),
         .mem0_axi_rid(mem0_axi_rid),
         .mem0_axi_rdata(mem0_axi_rdata),
         .mem0_axi_rresp(mem0_axi_rresp),
@@ -2118,6 +2128,7 @@ module bridge_bs_axi5
         .mem0_axi_rtrace(mem0_axi_rtrace),
         .mem0_axi_ridunq(mem0_axi_ridunq),
         .mem0_axi_rpoison(mem0_axi_rpoison),
+        .mem0_axi_rtag(mem0_axi_rtag),
 
         // Bridge ID tracking
         .xbar_bridge_id_aw(mem0_axi_bridge_id_aw),
@@ -2314,15 +2325,21 @@ module bridge_bs_axi5
         .xbar_mem2_axi_awmecid(xbar_mem2_axi_awmecid),
         .xbar_mem2_axi_awidunq(xbar_mem2_axi_awidunq),
         .xbar_mem2_axi_awatop(xbar_mem2_axi_awatop),
+        .xbar_mem2_axi_awtagop(xbar_mem2_axi_awtagop),
         .xbar_mem2_axi_wpoison(xbar_mem2_axi_wpoison),
+        .xbar_mem2_axi_wtag(xbar_mem2_axi_wtag),
+        .xbar_mem2_axi_wtagupdate(xbar_mem2_axi_wtagupdate),
         .xbar_mem2_axi_btrace(xbar_mem2_axi_btrace),
+        .xbar_mem2_axi_btagmatch(xbar_mem2_axi_btagmatch),
         .xbar_mem2_axi_arnsaid(xbar_mem2_axi_arnsaid),
         .xbar_mem2_axi_artrace(xbar_mem2_axi_artrace),
         .xbar_mem2_axi_armpam(xbar_mem2_axi_armpam),
         .xbar_mem2_axi_armecid(xbar_mem2_axi_armecid),
         .xbar_mem2_axi_aridunq(xbar_mem2_axi_aridunq),
+        .xbar_mem2_axi_artagop(xbar_mem2_axi_artagop),
         .xbar_mem2_axi_rtrace(xbar_mem2_axi_rtrace),
         .xbar_mem2_axi_rpoison(xbar_mem2_axi_rpoison),
+        .xbar_mem2_axi_rtag(xbar_mem2_axi_rtag),
 
         // External AXI5 interface (mem2_axi_*)
         .mem2_axi_awid(mem2_axi_awid),
@@ -2343,6 +2360,7 @@ module bridge_bs_axi5
         .mem2_axi_awmecid(mem2_axi_awmecid),
         .mem2_axi_awidunq(mem2_axi_awidunq),
         .mem2_axi_awatop(mem2_axi_awatop),
+        .mem2_axi_awtagop(mem2_axi_awtagop),
         .mem2_axi_wdata(mem2_axi_wdata),
         .mem2_axi_wstrb(mem2_axi_wstrb),
         .mem2_axi_wlast(mem2_axi_wlast),
@@ -2350,6 +2368,8 @@ module bridge_bs_axi5
         .mem2_axi_wvalid(mem2_axi_wvalid),
         .mem2_axi_wready(mem2_axi_wready),
         .mem2_axi_wpoison(mem2_axi_wpoison),
+        .mem2_axi_wtag(mem2_axi_wtag),
+        .mem2_axi_wtagupdate(mem2_axi_wtagupdate),
         .mem2_axi_bid(mem2_axi_bid),
         .mem2_axi_bresp(mem2_axi_bresp),
         .mem2_axi_buser(mem2_axi_buser),
@@ -2357,6 +2377,7 @@ module bridge_bs_axi5
         .mem2_axi_bready(mem2_axi_bready),
         .mem2_axi_btrace(mem2_axi_btrace),
         .mem2_axi_bidunq(mem2_axi_bidunq),
+        .mem2_axi_btagmatch(mem2_axi_btagmatch),
         .mem2_axi_arid(mem2_axi_arid),
         .mem2_axi_araddr(mem2_axi_araddr),
         .mem2_axi_arlen(mem2_axi_arlen),
@@ -2374,6 +2395,7 @@ module bridge_bs_axi5
         .mem2_axi_armpam(mem2_axi_armpam),
         .mem2_axi_armecid(mem2_axi_armecid),
         .mem2_axi_aridunq(mem2_axi_aridunq),
+        .mem2_axi_artagop(mem2_axi_artagop),
         .mem2_axi_rid(mem2_axi_rid),
         .mem2_axi_rdata(mem2_axi_rdata),
         .mem2_axi_rresp(mem2_axi_rresp),
@@ -2384,6 +2406,7 @@ module bridge_bs_axi5
         .mem2_axi_rtrace(mem2_axi_rtrace),
         .mem2_axi_ridunq(mem2_axi_ridunq),
         .mem2_axi_rpoison(mem2_axi_rpoison),
+        .mem2_axi_rtag(mem2_axi_rtag),
 
         // Bridge ID tracking
         .xbar_bridge_id_aw(mem2_axi_bridge_id_aw),

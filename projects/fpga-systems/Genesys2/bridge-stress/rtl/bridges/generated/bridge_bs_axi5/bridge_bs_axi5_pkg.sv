@@ -37,6 +37,7 @@ package bridge_bs_axi5_pkg;
         logic [15:0]  mecid;   // AXI5 sideband (mecid)
         logic         idunq;   // AXI5 sideband (unique)
         logic [5:0]  atop;    // AXI5 sideband (atomic)
+        logic [1:0]  tagop;   // AXI5 sideband (mte)
     } axi4_aw_t;
 
     // AXI4 Read Address Channel (width-independent)
@@ -57,6 +58,7 @@ package bridge_bs_axi5_pkg;
         logic [10:0]  mpam;    // AXI5 sideband (mpam)
         logic [15:0]  mecid;   // AXI5 sideband (mecid)
         logic         idunq;   // AXI5 sideband (unique)
+        logic [1:0]  tagop;   // AXI5 sideband (mte)
     } axi4_ar_t;
 
     // AXI4 Write Data Channel - 32-bit data width
@@ -66,6 +68,8 @@ package bridge_bs_axi5_pkg;
         logic         last;    // Last transfer in burst
         logic         user;    // User signal
         logic         poison;  // AXI5 sideband (poison)
+        logic [3:0]  tag;     // AXI5 sideband (mte)
+        logic         tagupdate; // AXI5 sideband (mte)
     } axi4_w_32b_t;
 
     // AXI4 Write Data Channel - 64-bit data width
@@ -75,6 +79,8 @@ package bridge_bs_axi5_pkg;
         logic         last;    // Last transfer in burst
         logic         user;    // User signal
         logic         poison;  // AXI5 sideband (poison)
+        logic [3:0]  tag;     // AXI5 sideband (mte)
+        logic         tagupdate; // AXI5 sideband (mte)
     } axi4_w_64b_t;
 
     // AXI4 Write Data Channel - 128-bit data width
@@ -84,6 +90,8 @@ package bridge_bs_axi5_pkg;
         logic         last;    // Last transfer in burst
         logic         user;    // User signal
         logic         poison;  // AXI5 sideband (poison)
+        logic [3:0]  tag;     // AXI5 sideband (mte)
+        logic         tagupdate; // AXI5 sideband (mte)
     } axi4_w_128b_t;
 
     // AXI4 Write Response Channel (width-independent)
@@ -92,6 +100,7 @@ package bridge_bs_axi5_pkg;
         logic [1:0]   resp;    // Write response
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
+        logic [1:0]  tagmatch; // AXI5 sideband (mte)
     } axi4_b_t;
 
     // AXI4 Read Data Channel - 32-bit data width
@@ -103,6 +112,7 @@ package bridge_bs_axi5_pkg;
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
         logic         poison;  // AXI5 sideband (poison)
+        logic [3:0]  tag;     // AXI5 sideband (mte)
     } axi4_r_32b_t;
 
     // AXI4 Read Data Channel - 64-bit data width
@@ -114,6 +124,7 @@ package bridge_bs_axi5_pkg;
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
         logic         poison;  // AXI5 sideband (poison)
+        logic [3:0]  tag;     // AXI5 sideband (mte)
     } axi4_r_64b_t;
 
     // AXI4 Read Data Channel - 128-bit data width
@@ -125,6 +136,7 @@ package bridge_bs_axi5_pkg;
         logic         user;    // User signal
         logic         trace;   // AXI5 sideband (trace)
         logic         poison;  // AXI5 sideband (poison)
+        logic [3:0]  tag;     // AXI5 sideband (mte)
     } axi4_r_128b_t;
 
 endpackage : bridge_bs_axi5_pkg

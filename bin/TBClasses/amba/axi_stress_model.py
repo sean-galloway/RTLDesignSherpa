@@ -77,14 +77,61 @@ def f_rsb(sb: int) -> int:
     return (sb >> 4) & 1
 
 
+def f_hk(addr: int, seed: int, key: int) -> int:
+    """Keyed hash for per-address choices (axi_stress_pkg f_hk): the add of
+    the key between the rounds breaks xorshift's GF(2) linearity."""
+    rot = ((key << 16) | (key >> 16)) & M32
+    return xs32((xs32((addr ^ seed ^ key) & M32) + rot) & M32)
+
+
 def f_poison(addr: int, seed: int, lg2: int) -> bool:
     """A beat at addr is poisoned 1 in 2**lg2 (never for lg2 = 0)."""
-    return lg2 != 0 and (f_sb(addr ^ 0x9E37_79B9, seed) & ((1 << lg2) - 1)) == 0
+    return lg2 != 0 and (f_hk(addr, seed, 0x9E37_79B9) & ((1 << lg2) - 1)) == 0
 
 
 # AXI5 atomics (axi_stress_pkg): AWATOP[5:4] 01 store, 10 load, 11 swap /
 # compare; [5] = read-return. The stress model issues one aligned INCR beat.
 ATOP_SWAP, ATOP_COMPARE = 0b110000, 0b110001
+
+
+# AXI5 MTE (axi_stress_pkg tag contract): one 4-bit tag per 16 bytes.
+TAGOP_INVALID, TAGOP_TRANSFER, TAGOP_UPDATE, TAGOP_MATCH = 0, 1, 2, 3
+
+
+def f_awtagop(addr: int, seed: int) -> int:
+    return f_hk(addr, seed, 0x7A6E_0F11) & 3
+
+
+def f_artagop(addr: int, seed: int) -> int:
+    v = f_hk(addr, seed, 0x7A6E_0F22) & 3
+    return TAGOP_MATCH if v == 2 else v
+
+
+def f_tag(addr: int, seed: int, rd: bool) -> int:
+    return f_hk(addr & ~0xF & M32, seed, 0x7A6E_0F44 if rd else 0x7A6E_0F33) & 0xF
+
+
+def f_tagupd(addr: int, seed: int) -> int:
+    return f_hk(addr & ~0xF & M32, seed, 0x7A6E_0F55) & 1
+
+
+def f_btagmatch(addr: int, seed: int, tagop: int) -> int:
+    return (0b10 | (f_hk(addr, seed, 0x7A6E_0F66) & 1)) if tagop == TAGOP_MATCH else 0
+
+
+def beat_tags(addr: int, bus_bytes: int, seed: int, rd: bool, tagop: int) -> int:
+    """WTAG / RTAG of a beat: one tag per 16-byte slot of the bus."""
+    if tagop == TAGOP_INVALID:
+        return 0
+    base = addr & ~(bus_bytes - 1)
+    return sum(f_tag(base + 16 * i, seed, rd) << (4 * i) for i in range(max(1, bus_bytes // 16)))
+
+
+def beat_tagupd(addr: int, bus_bytes: int, seed: int, tagop: int) -> int:
+    if tagop != TAGOP_UPDATE:
+        return 0
+    base = addr & ~(bus_bytes - 1)
+    return sum(f_tagupd(base + 16 * i, seed) << i for i in range(max(1, bus_bytes // 16)))
 
 
 def atop_class(atop: int) -> str:
@@ -113,6 +160,30 @@ def atop_illegal(atop: int, axlen: int, size: int, burst: int, addr: int, bus_lg
     elif size > 3:
         return 'store/load larger than 8 bytes'
     return ''
+
+
+def f_maddr(addr: int, mem: bool, lg2: int) -> int:
+    """The address a mem window's bytes are hashed by: modulo 2**lg2.
+
+    A real memory returns what was written, so on a mem window every write
+    carries f_word(f_maddr(A), tag, RD) -- the value a read expects -- and the
+    contents stay a function of the address whatever order writes land in.
+    """
+    return addr & ((1 << lg2) - 1) if mem and lg2 < 32 else addr
+
+
+def mem_byte(addr: int, seed: int, tag: int, lg2: int) -> int:
+    """What a filled mem window holds at addr."""
+    return f_byte(f_maddr(addr, True, lg2), seed, tag, True)
+
+
+def fill_bursts(size_lg2: int, bus_lg2: int, len_mask: int = 0xFF) -> int:
+    """Bursts a fill (cfg fill) takes to sweep a 2**size_lg2-byte window once:
+    full-width INCR bursts of (len_mask + 1) beats, cut at the 4 KB page or
+    the window, whichever is smaller."""
+    page = 1 << min(12, size_lg2)
+    per = min(page, (len_mask + 1) << bus_lg2)
+    return (1 << size_lg2) // per
 
 
 def f_byte(addr: int, seed: int, tag: int, rd: bool) -> int:
@@ -178,12 +249,13 @@ def burst_illegal(addr: int, axlen: int, size: int, burst: int, bus_lg2: int) ->
 WIN_FIELDS = (('base', 32), ('size_lg2', 6), ('tag', 8), ('resp', 2),
               ('len_mask', 8), ('size_min', 3), ('size_max', 3),
               ('burst_mask', 3), ('unaligned', 1), ('strb_rand', 1),
-              ('rd_en', 1), ('wr_en', 1), ('sb', 1), ('poison_lg2', 4), ('atomic', 1))
+              ('rd_en', 1), ('wr_en', 1), ('sb', 1), ('poison_lg2', 4), ('atomic', 1),
+              ('mte', 1), ('mem', 1))
 
 MCFG_FIELDS = (('enable', 1), ('txn_count', 32), ('seed', 32), ('id_base', 16),
                ('id_mask', 16), ('gap_mask', 8), ('resp_throttle', 4),
                ('data_throttle', 4), ('max_out', 8), ('timeout_lg2', 5),
-               ('qos_rand', 1), ('idunq', 1), ('atom_lg2', 4))
+               ('qos_rand', 1), ('idunq', 1), ('atom_lg2', 4), ('fill', 1), ('mem_lg2', 6))
 
 MSTS_FIELDS = (('busy', 1), ('done', 1), ('runs', 8), ('issued', 32), ('completed', 32),
                ('beats', 32), ('err_mask', 16), ('err_cnt', 16), ('fe_valid', 1),
@@ -257,6 +329,8 @@ class Window:
     sb: int = 0
     poison_lg2: int = 0
     atomic: int = 0
+    mte: int = 0
+    mem: int = 0
 
     def fields(self) -> Dict[str, int]:
         return dict(self.__dict__)

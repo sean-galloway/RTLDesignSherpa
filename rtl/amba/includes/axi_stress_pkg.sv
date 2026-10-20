@@ -102,6 +102,8 @@ package axi_stress_pkg;
         logic        sb;           // AXI5: responses echo the request sideband
         logic [3:0]  poison_lg2;   // AXI5: beats poisoned 1 in 2^n; 0 = never
         logic        atomic;       // AXI5: the path carries atomics
+        logic        mte;          // AXI5: the far end answers tags (RTAG / BTAGMATCH)
+        logic        mem;          // a real memory: writes carry the read hash (f_maddr)
     } stress_win_t;
 
     // One direction of a master.
@@ -119,6 +121,8 @@ package axi_stress_pkg;
         logic        qos_rand;     // AxQOS random (else 0)
         logic        idunq;        // AXI5: mark eligible bursts AxIDUNQ
         logic [3:0]  atom_lg2;     // AXI5 writes: 1 burst in 2^n made atomic; 0 = none
+        logic        fill;         // sweep the lowest enabled window, full bursts, every byte
+        logic [5:0]  mem_lg2;      // mem windows hash the address modulo 2^n (f_maddr)
     } stress_mdir_cfg_t;
 
     typedef struct packed {
@@ -222,6 +226,33 @@ package axi_stress_pkg;
         return f_xs32(f_xs32(a ^ seed ^ 32'hC6A4_A793) ^ 32'h5851_F42D);
     endfunction
 
+    // A keyed hash for every per-address CHOICE (poison, the MTE fields, the
+    // atomic and IDUNQ picks). f_sb alone will not do: xorshift32 is linear
+    // over GF(2), so f_sb(a ^ K1) ^ f_sb(a ^ K2) is a constant and two picks
+    // drawn from one address with different keys are locked together -- the
+    // first MTE run never saw a failed tag match, because "this is a Match"
+    // fixed the pass / fail bit. The add of the key between the two rounds
+    // carries, which breaks the linearity; an adder, not a multiplier, so it
+    // still costs little at bus rate.
+    function automatic logic [31:0] f_hk(input logic [31:0] a, input logic [31:0] seed,
+                                         input logic [31:0] key);
+        return f_xs32(f_xs32(a ^ seed ^ key) + {key[15:0], key[31:16]});
+    endfunction
+
+    // The address a mem window's bytes are hashed by. A real memory keeps
+    // what was written, so on a mem window every write of a byte carries the
+    // value a read of it expects -- f_word(f_maddr(a), tag, RD) -- and the
+    // contents stay a function of the address whatever order the writes land
+    // in. Hashing modulo 2^lg2 (the window offset, for a window aligned to
+    // 2^lg2) makes two mem windows with one tag hold the same image, so a
+    // copy engine moving bytes between them at equal offsets keeps both
+    // checkable. A misroute between two such windows at the same offset is
+    // the one error it cannot see.
+    function automatic logic [31:0] f_maddr(input logic [31:0] a, input logic mem,
+                                            input logic [5:0] lg2);
+        return (mem && lg2 < 6'd32) ? (a & ((32'd1 << lg2) - 32'd1)) : a;
+    endfunction
+
     // The response sideband word that echoes a request sideband word.
     function automatic logic [7:0] f_rsb(input logic [31:0] sb);
         return {7'd0, sb[4]};             // RTRACE / BTRACE = AxTRACE
@@ -233,7 +264,7 @@ package axi_stress_pkg;
                                       input logic [31:0] seed,
                                       input logic [3:0]  lg2);
         logic [31:0] h;
-        h = f_sb(a ^ 32'h9E37_79B9, seed);
+        h = f_hk(a, seed, 32'h9E37_79B9);
         return (lg2 != 4'd0) && ((h & ((32'd1 << lg2) - 32'd1)) == 32'd0);
     endfunction
 
@@ -293,6 +324,55 @@ package axi_stress_pkg;
             if (atop[0] ? (size == 3'd0 || size > 3'd5) : (size > 3'd3)) return 1'b1;
         end else if (size > 3'd3)                          return 1'b1;
         return 1'b0;
+    endfunction
+
+    // ---- AXI5 Memory Tagging (MTE) ---------------------------------------------
+    // One 4-bit tag per 16 bytes of data (IHI 0022L A12). The fabric carries
+    // tags as payload and never interprets them, so the stress model, like
+    // the data, makes every field a hash of an address both ends know:
+    //   AWTAGOP   f_awtagop(start): Invalid / Transfer / Update / Match
+    //   ARTAGOP   f_artagop(start): Invalid / Transfer / Fetch (never 2'b10)
+    //   WTAG      per 16-byte slot of the beat, f_tag(slot address, WR); 0 if
+    //             the burst's AWTAGOP is Invalid
+    //   WTAGUPDATE  per slot, a hash bit on Update; else 0
+    //   RTAG      per slot, f_tag(slot address, RD); 0 if ARTAGOP is Invalid
+    //   BTAGMATCH Match: pass (2'b11) or fail (2'b10) by hash; else 2'b00
+    localparam logic [1:0] TAGOP_INVALID  = 2'b00;
+    localparam logic [1:0] TAGOP_TRANSFER = 2'b01;
+    localparam logic [1:0] TAGOP_UPDATE   = 2'b10;   // AW only
+    localparam logic [1:0] TAGOP_MATCH    = 2'b11;   // AW: Match; AR: Fetch
+
+    function automatic logic [1:0] f_awtagop(input logic [31:0] a, input logic [31:0] seed);
+        logic [31:0] h;
+        h = f_hk(a, seed, 32'h7A6E_0F11);
+        return h[1:0];
+    endfunction
+
+    function automatic logic [1:0] f_artagop(input logic [31:0] a, input logic [31:0] seed);
+        logic [31:0] h;
+        h = f_hk(a, seed, 32'h7A6E_0F22);
+        return (h[1:0] == 2'b10) ? TAGOP_MATCH : h[1:0];
+    endfunction
+
+    // The tag of the 16-byte slot at (16-byte aligned) address a.
+    function automatic logic [3:0] f_tag(input logic [31:0] a, input logic [31:0] seed,
+                                         input logic dir);
+        logic [31:0] h;
+        h = f_hk({a[31:4], 4'd0}, seed, dir ? 32'h7A6E_0F44 : 32'h7A6E_0F33);
+        return h[3:0];
+    endfunction
+
+    function automatic logic f_tagupd(input logic [31:0] a, input logic [31:0] seed);
+        logic [31:0] h;
+        h = f_hk({a[31:4], 4'd0}, seed, 32'h7A6E_0F55);
+        return h[0];
+    endfunction
+
+    function automatic logic [1:0] f_btagmatch(input logic [31:0] a, input logic [31:0] seed,
+                                               input logic [1:0] tagop);
+        logic [31:0] h;
+        h = f_hk(a, seed, 32'h7A6E_0F66);
+        return (tagop == TAGOP_MATCH) ? {1'b1, h[0]} : 2'b00;
     endfunction
 
     // The address of the beat after `a` in a burst (AXI4 A3.4.1). WRAP needs

@@ -1,0 +1,3 @@
+# bs_litedram is LiteX toolchain output (bin/gen_litedram.sh); its port
+# blackbox (rtl/litedram/bb/) is tracked.
+rtl/litedram/generated/

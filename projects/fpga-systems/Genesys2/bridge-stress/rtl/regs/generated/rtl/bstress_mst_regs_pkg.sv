@@ -225,6 +225,19 @@ package bstress_mst_regs_pkg;
     } bstress_mst_regs__mcfg_id_t__out_t;
 
     typedef struct {
+        logic value;
+    } bstress_mst_regs__mcfg_mem_t__FILL__out_t;
+
+    typedef struct {
+        logic [5:0] value;
+    } bstress_mst_regs__mcfg_mem_t__MEM_LG2__out_t;
+
+    typedef struct {
+        bstress_mst_regs__mcfg_mem_t__FILL__out_t FILL;
+        bstress_mst_regs__mcfg_mem_t__MEM_LG2__out_t MEM_LG2;
+    } bstress_mst_regs__mcfg_mem_t__out_t;
+
+    typedef struct {
         logic [3:0] value;
     } bstress_mst_regs__WR_ATOM__LG2__out_t;
 
@@ -304,6 +317,14 @@ package bstress_mst_regs_pkg;
     } bstress_mst_regs__win_t__CFG1__ATOMIC__out_t;
 
     typedef struct {
+        logic value;
+    } bstress_mst_regs__win_t__CFG1__MTE__out_t;
+
+    typedef struct {
+        logic value;
+    } bstress_mst_regs__win_t__CFG1__MEM__out_t;
+
+    typedef struct {
         bstress_mst_regs__win_t__CFG1__SIZE_MIN__out_t SIZE_MIN;
         bstress_mst_regs__win_t__CFG1__SIZE_MAX__out_t SIZE_MAX;
         bstress_mst_regs__win_t__CFG1__BURST_MASK__out_t BURST_MASK;
@@ -314,6 +335,8 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__win_t__CFG1__SB__out_t SB;
         bstress_mst_regs__win_t__CFG1__POISON_LG2__out_t POISON_LG2;
         bstress_mst_regs__win_t__CFG1__ATOMIC__out_t ATOMIC;
+        bstress_mst_regs__win_t__CFG1__MTE__out_t MTE;
+        bstress_mst_regs__win_t__CFG1__MEM__out_t MEM;
     } bstress_mst_regs__win_t__CFG1__out_t;
 
     typedef struct {
@@ -327,11 +350,13 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__mcfg_count_t__out_t RD_TXN_COUNT;
         bstress_mst_regs__mcfg_seed_t__out_t RD_SEED;
         bstress_mst_regs__mcfg_id_t__out_t RD_ID_CFG;
+        bstress_mst_regs__mcfg_mem_t__out_t RD_MEM;
         bstress_mst_regs__mcfg_ctrl_t__out_t WR_CTRL;
         bstress_mst_regs__mcfg_count_t__out_t WR_TXN_COUNT;
         bstress_mst_regs__mcfg_seed_t__out_t WR_SEED;
         bstress_mst_regs__mcfg_id_t__out_t WR_ID_CFG;
         bstress_mst_regs__WR_ATOM__out_t WR_ATOM;
+        bstress_mst_regs__mcfg_mem_t__out_t WR_MEM;
         bstress_mst_regs__win_t__out_t WIN[8];
     } bstress_mst_regs__out_t;
 endpackage

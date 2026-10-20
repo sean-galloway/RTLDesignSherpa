@@ -31,7 +31,8 @@ from pathlib import Path
 import bstress
 
 AREA = bstress.AREA
-BUILDS = {'axi4': 'bridge_bs_axi4', 'axi3': 'bridge_bs_axi3', 'axi5': 'bridge_bs_axi5'}
+BUILDS = {'axi4': 'bridge_bs_axi4', 'axi3': 'bridge_bs_axi3', 'axi5': 'bridge_bs_axi5',
+          'xil': 'bridge_bs_xil'}
 ACLK_HZ = 100e6
 
 
@@ -55,10 +56,15 @@ def main() -> int:
     ap.add_argument('--full-axi', action='store_true',
                     help='ignore path limits (reproduces the converter findings)')
     ap.add_argument('--timeout', type=float, default=120.0, help='seconds per run')
+    ap.add_argument('--exclude', nargs='+', default=[],
+                    help='slaves to leave out of the plan (e.g. mig): no window targets them')
     args = ap.parse_args()
 
     toml = AREA / 'rtl/bridges/configs' / f'{BUILDS[args.build]}.toml'
     build = bstress.load_build(toml)
+    unknown = set(args.exclude) - {s.name for s in build.slaves}
+    if unknown:
+        sys.exit(f'--exclude: no such slave {sorted(unknown)}')
     for p in args.profiles:
         if p not in bstress.PROFILES:
             sys.exit(f'unknown profile {p!r}; have {sorted(bstress.PROFILES)}')
@@ -68,8 +74,27 @@ def main() -> int:
     bus = open_bridge(port=port, baudrate=args.baud)
     h = bstress.StressHarness(bus, build)
     h.identify()
+    if args.exclude:
+        # after identify (it counts the bitstream's ports) and after the hole
+        # is chosen (it must stay clear of the excluded slave's range too)
+        h.build = build = replace(build, slaves=tuple(s for s in build.slaves
+                                                     if s.name not in args.exclude))
+        print(f'[bstress] excluded from the plan: {args.exclude}')
     print(f'[bstress] {build.name}: {len(build.masters)} masters, {len(build.slaves)} slaves '
           f'on {port}')
+    if any(m.vendor for m in build.masters):
+        import bstress_xil
+        h.vendor = bstress_xil.XilVendors(h)
+    if build.memories:
+        # build-xil: EXT_STS0 [0] DDR3 init_done, [10] init_error (bs_genesys2_xil_top)
+        t0 = time.monotonic()
+        while not h.ctl.read('EXT_STS0') & 1:
+            if h.ctl.read('EXT_STS0') >> 10 & 1:
+                sys.exit(f"[bstress] DDR3 calibration failed (EXT_STS0 {h.ctl.read('EXT_STS0'):#010x})")
+            if time.monotonic() - t0 > 10:
+                sys.exit(f"[bstress] DDR3 never calibrated (EXT_STS0 {h.ctl.read('EXT_STS0'):#010x})")
+            time.sleep(0.1)
+        print(f"[bstress] DDR3 calibrated; EXT_STS0 {h.ctl.read('EXT_STS0'):#010x}")
 
     plan = []
     if args.soak:

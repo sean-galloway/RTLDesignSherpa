@@ -171,6 +171,10 @@ module axi4_slave_stress
             .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(UW)
         ) u_core (
             .aclk, .aresetn, .clear,
+            .fub_axi_artagop   (2'b00),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_rtag      (),
+            /* verilator lint_on PINCONNECTEMPTY */
             .cfg (cfg_rd), .cfg_hash_seed, .sts (sts_rd),
             .fub_axi_arid      (f_arid),
             .fub_axi_araddr    (f_araddr),
@@ -299,6 +303,12 @@ module axi4_slave_stress
             .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(UW)
         ) u_core (
             .aclk, .aresetn, .clear,
+            .fub_axi_awtagop   (2'b00),
+            .fub_axi_wtag      ('0),
+            .fub_axi_wtagupdate('0),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_btagmatch (),
+            /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_awatop    (6'd0),
             .fub_axi_atr_ready (1'b1),
             /* verilator lint_off PINCONNECTEMPTY */

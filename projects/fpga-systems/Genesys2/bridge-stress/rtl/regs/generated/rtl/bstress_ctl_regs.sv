@@ -75,6 +75,10 @@ module bstress_ctl_regs (
         logic UNMAPPED_ADDR;
         logic CYCLES;
         logic GO_COUNT;
+        logic EXT_STS0;
+        logic EXT_STS1;
+        logic EXT_STS2;
+        logic EXT_STS3;
     } decoded_reg_strb_t;
     decoded_reg_strb_t decoded_reg_strb;
     logic decoded_req;
@@ -92,6 +96,10 @@ module bstress_ctl_regs (
         decoded_reg_strb.UNMAPPED_ADDR = cpuif_req_masked & (cpuif_addr == 6'h18);
         decoded_reg_strb.CYCLES = cpuif_req_masked & (cpuif_addr == 6'h1c);
         decoded_reg_strb.GO_COUNT = cpuif_req_masked & (cpuif_addr == 6'h20);
+        decoded_reg_strb.EXT_STS0 = cpuif_req_masked & (cpuif_addr == 6'h30);
+        decoded_reg_strb.EXT_STS1 = cpuif_req_masked & (cpuif_addr == 6'h34);
+        decoded_reg_strb.EXT_STS2 = cpuif_req_masked & (cpuif_addr == 6'h38);
+        decoded_reg_strb.EXT_STS3 = cpuif_req_masked & (cpuif_addr == 6'h3c);
     end
 
     // Pass down signals to next stage
@@ -265,7 +273,7 @@ module bstress_ctl_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[9];
+    logic [31:0] readback_array[13];
     assign readback_array[0][3:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? hwif_in.ID.NUM_MASTERS.next : '0;
     assign readback_array[0][7:4] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? hwif_in.ID.NUM_SLAVES.next : '0;
     assign readback_array[0][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? hwif_in.ID.VARIANT.next : '0;
@@ -290,6 +298,10 @@ module bstress_ctl_regs (
     assign readback_array[7][31:0] = (decoded_reg_strb.CYCLES && !decoded_req_is_wr) ? hwif_in.CYCLES.VALUE.next : '0;
     assign readback_array[8][7:0] = (decoded_reg_strb.GO_COUNT && !decoded_req_is_wr) ? hwif_in.GO_COUNT.VALUE.next : '0;
     assign readback_array[8][31:8] = '0;
+    assign readback_array[9][31:0] = (decoded_reg_strb.EXT_STS0 && !decoded_req_is_wr) ? hwif_in.EXT_STS0.VALUE.next : '0;
+    assign readback_array[10][31:0] = (decoded_reg_strb.EXT_STS1 && !decoded_req_is_wr) ? hwif_in.EXT_STS1.VALUE.next : '0;
+    assign readback_array[11][31:0] = (decoded_reg_strb.EXT_STS2 && !decoded_req_is_wr) ? hwif_in.EXT_STS2.VALUE.next : '0;
+    assign readback_array[12][31:0] = (decoded_reg_strb.EXT_STS3 && !decoded_req_is_wr) ? hwif_in.EXT_STS3.VALUE.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -297,7 +309,7 @@ module bstress_ctl_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<9; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<13; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

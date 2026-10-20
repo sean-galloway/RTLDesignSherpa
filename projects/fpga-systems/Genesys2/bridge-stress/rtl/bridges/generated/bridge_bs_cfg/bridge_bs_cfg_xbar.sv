@@ -12,7 +12,7 @@
 module bridge_bs_cfg_xbar
     import bridge_bs_cfg_pkg::*;
 #(
-    parameter int NUM_SLAVES = 18
+    parameter int NUM_SLAVES = 20
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -1025,7 +1025,123 @@ module bridge_bs_cfg_xbar
     input  logic         slv7_axi_rvalid,
     output  logic         slv7_axi_rready,
 
-    // Slave 17: subtractive
+    // Slave 17: ext0
+    output logic [BRIDGE_ID_WIDTH-1:0] ext0_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] ext0_axi_bid_bridge_id,
+    input  logic                       ext0_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] ext0_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] ext0_axi_rid_bridge_id,
+    input  logic                       ext0_axi_rid_valid,
+
+    output  logic         ext0_axi_awid,
+    output  logic [31:0]  ext0_axi_awaddr,
+    output  logic [7:0]  ext0_axi_awlen,
+    output  logic [2:0]  ext0_axi_awsize,
+    output  logic [1:0]  ext0_axi_awburst,
+    output  logic         ext0_axi_awlock,
+    output  logic [3:0]  ext0_axi_awcache,
+    output  logic [2:0]  ext0_axi_awprot,
+    output  logic [3:0]  ext0_axi_awqos,
+    output  logic [3:0]  ext0_axi_awregion,
+    output  logic         ext0_axi_awuser,
+    output  logic         ext0_axi_awvalid,
+    input  logic         ext0_axi_awready,
+
+    output  logic [31:0]  ext0_axi_wdata,
+    output  logic [3:0]  ext0_axi_wstrb,
+    output  logic         ext0_axi_wlast,
+    output  logic         ext0_axi_wuser,
+    output  logic         ext0_axi_wvalid,
+    input  logic         ext0_axi_wready,
+
+    input  logic         ext0_axi_bid,
+    input  logic [1:0]  ext0_axi_bresp,
+    input  logic         ext0_axi_buser,
+    input  logic         ext0_axi_bvalid,
+    output  logic         ext0_axi_bready,
+
+    output  logic         ext0_axi_arid,
+    output  logic [31:0]  ext0_axi_araddr,
+    output  logic [7:0]  ext0_axi_arlen,
+    output  logic [2:0]  ext0_axi_arsize,
+    output  logic [1:0]  ext0_axi_arburst,
+    output  logic         ext0_axi_arlock,
+    output  logic [3:0]  ext0_axi_arcache,
+    output  logic [2:0]  ext0_axi_arprot,
+    output  logic [3:0]  ext0_axi_arqos,
+    output  logic [3:0]  ext0_axi_arregion,
+    output  logic         ext0_axi_aruser,
+    output  logic         ext0_axi_arvalid,
+    input  logic         ext0_axi_arready,
+
+    input  logic         ext0_axi_rid,
+    input  logic [31:0]  ext0_axi_rdata,
+    input  logic [1:0]  ext0_axi_rresp,
+    input  logic         ext0_axi_rlast,
+    input  logic         ext0_axi_ruser,
+    input  logic         ext0_axi_rvalid,
+    output  logic         ext0_axi_rready,
+
+    // Slave 18: ext1
+    output logic [BRIDGE_ID_WIDTH-1:0] ext1_axi_bridge_id_aw,
+    input  logic [BRIDGE_ID_WIDTH-1:0] ext1_axi_bid_bridge_id,
+    input  logic                       ext1_axi_bid_valid,
+
+    output logic [BRIDGE_ID_WIDTH-1:0] ext1_axi_bridge_id_ar,
+    input  logic [BRIDGE_ID_WIDTH-1:0] ext1_axi_rid_bridge_id,
+    input  logic                       ext1_axi_rid_valid,
+
+    output  logic         ext1_axi_awid,
+    output  logic [31:0]  ext1_axi_awaddr,
+    output  logic [7:0]  ext1_axi_awlen,
+    output  logic [2:0]  ext1_axi_awsize,
+    output  logic [1:0]  ext1_axi_awburst,
+    output  logic         ext1_axi_awlock,
+    output  logic [3:0]  ext1_axi_awcache,
+    output  logic [2:0]  ext1_axi_awprot,
+    output  logic [3:0]  ext1_axi_awqos,
+    output  logic [3:0]  ext1_axi_awregion,
+    output  logic         ext1_axi_awuser,
+    output  logic         ext1_axi_awvalid,
+    input  logic         ext1_axi_awready,
+
+    output  logic [31:0]  ext1_axi_wdata,
+    output  logic [3:0]  ext1_axi_wstrb,
+    output  logic         ext1_axi_wlast,
+    output  logic         ext1_axi_wuser,
+    output  logic         ext1_axi_wvalid,
+    input  logic         ext1_axi_wready,
+
+    input  logic         ext1_axi_bid,
+    input  logic [1:0]  ext1_axi_bresp,
+    input  logic         ext1_axi_buser,
+    input  logic         ext1_axi_bvalid,
+    output  logic         ext1_axi_bready,
+
+    output  logic         ext1_axi_arid,
+    output  logic [31:0]  ext1_axi_araddr,
+    output  logic [7:0]  ext1_axi_arlen,
+    output  logic [2:0]  ext1_axi_arsize,
+    output  logic [1:0]  ext1_axi_arburst,
+    output  logic         ext1_axi_arlock,
+    output  logic [3:0]  ext1_axi_arcache,
+    output  logic [2:0]  ext1_axi_arprot,
+    output  logic [3:0]  ext1_axi_arqos,
+    output  logic [3:0]  ext1_axi_arregion,
+    output  logic         ext1_axi_aruser,
+    output  logic         ext1_axi_arvalid,
+    input  logic         ext1_axi_arready,
+
+    input  logic         ext1_axi_rid,
+    input  logic [31:0]  ext1_axi_rdata,
+    input  logic [1:0]  ext1_axi_rresp,
+    input  logic         ext1_axi_rlast,
+    input  logic         ext1_axi_ruser,
+    input  logic         ext1_axi_rvalid,
+    output  logic         ext1_axi_rready,
+
+    // Slave 19: subtractive
     output logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bridge_id_aw,
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_bid_bridge_id,
     input  logic                       subtractive_axi_bid_valid,
@@ -1123,6 +1239,10 @@ module bridge_bs_cfg_xbar
     logic host_32b_w_sel_slv6;
     logic host_32b_w_to_slv7;
     logic host_32b_w_sel_slv7;
+    logic host_32b_w_to_ext0;
+    logic host_32b_w_sel_ext0;
+    logic host_32b_w_to_ext1;
+    logic host_32b_w_sel_ext1;
     logic host_32b_w_to_subtractive;
     logic host_32b_w_sel_subtractive;
 
@@ -1131,28 +1251,30 @@ module bridge_bs_cfg_xbar
     // ================================================================
 
     // ---- B response arbiter, master host 32b: round-robin per beat, lock until taken ----
-    logic [17:0] host_32b_b_rarb_req;
-    assign host_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((slv7_axi_bid_bridge_id == 0) && slv7_axi_bid_valid) && slv7_axi_bvalid, ((slv6_axi_bid_bridge_id == 0) && slv6_axi_bid_valid) && slv6_axi_bvalid, ((slv5_axi_bid_bridge_id == 0) && slv5_axi_bid_valid) && slv5_axi_bvalid, ((slv4_axi_bid_bridge_id == 0) && slv4_axi_bid_valid) && slv4_axi_bvalid, ((slv3_axi_bid_bridge_id == 0) && slv3_axi_bid_valid) && slv3_axi_bvalid, ((slv2_axi_bid_bridge_id == 0) && slv2_axi_bid_valid) && slv2_axi_bvalid, ((slv1_axi_bid_bridge_id == 0) && slv1_axi_bid_valid) && slv1_axi_bvalid, ((slv0_axi_bid_bridge_id == 0) && slv0_axi_bid_valid) && slv0_axi_bvalid, ((mst7_axi_bid_bridge_id == 0) && mst7_axi_bid_valid) && mst7_axi_bvalid, ((mst6_axi_bid_bridge_id == 0) && mst6_axi_bid_valid) && mst6_axi_bvalid, ((mst5_axi_bid_bridge_id == 0) && mst5_axi_bid_valid) && mst5_axi_bvalid, ((mst4_axi_bid_bridge_id == 0) && mst4_axi_bid_valid) && mst4_axi_bvalid, ((mst3_axi_bid_bridge_id == 0) && mst3_axi_bid_valid) && mst3_axi_bvalid, ((mst2_axi_bid_bridge_id == 0) && mst2_axi_bid_valid) && mst2_axi_bvalid, ((mst1_axi_bid_bridge_id == 0) && mst1_axi_bid_valid) && mst1_axi_bvalid, ((mst0_axi_bid_bridge_id == 0) && mst0_axi_bid_valid) && mst0_axi_bvalid, ((ctl_axi_bid_bridge_id == 0) && ctl_axi_bid_valid) && ctl_axi_bvalid};
+    logic [19:0] host_32b_b_rarb_req;
+    assign host_32b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ext1_axi_bid_bridge_id == 0) && ext1_axi_bid_valid) && ext1_axi_bvalid, ((ext0_axi_bid_bridge_id == 0) && ext0_axi_bid_valid) && ext0_axi_bvalid, ((slv7_axi_bid_bridge_id == 0) && slv7_axi_bid_valid) && slv7_axi_bvalid, ((slv6_axi_bid_bridge_id == 0) && slv6_axi_bid_valid) && slv6_axi_bvalid, ((slv5_axi_bid_bridge_id == 0) && slv5_axi_bid_valid) && slv5_axi_bvalid, ((slv4_axi_bid_bridge_id == 0) && slv4_axi_bid_valid) && slv4_axi_bvalid, ((slv3_axi_bid_bridge_id == 0) && slv3_axi_bid_valid) && slv3_axi_bvalid, ((slv2_axi_bid_bridge_id == 0) && slv2_axi_bid_valid) && slv2_axi_bvalid, ((slv1_axi_bid_bridge_id == 0) && slv1_axi_bid_valid) && slv1_axi_bvalid, ((slv0_axi_bid_bridge_id == 0) && slv0_axi_bid_valid) && slv0_axi_bvalid, ((mst7_axi_bid_bridge_id == 0) && mst7_axi_bid_valid) && mst7_axi_bvalid, ((mst6_axi_bid_bridge_id == 0) && mst6_axi_bid_valid) && mst6_axi_bvalid, ((mst5_axi_bid_bridge_id == 0) && mst5_axi_bid_valid) && mst5_axi_bvalid, ((mst4_axi_bid_bridge_id == 0) && mst4_axi_bid_valid) && mst4_axi_bvalid, ((mst3_axi_bid_bridge_id == 0) && mst3_axi_bid_valid) && mst3_axi_bvalid, ((mst2_axi_bid_bridge_id == 0) && mst2_axi_bid_valid) && mst2_axi_bvalid, ((mst1_axi_bid_bridge_id == 0) && mst1_axi_bid_valid) && mst1_axi_bvalid, ((mst0_axi_bid_bridge_id == 0) && mst0_axi_bid_valid) && mst0_axi_bvalid, ((ctl_axi_bid_bridge_id == 0) && ctl_axi_bid_valid) && ctl_axi_bvalid};
     logic [4:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
     logic host_32b_b_rarb_locked;
-    wire [4:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 5'd0) ? (host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : 5'd17) : 
-        (host_32b_b_rarb_rr == 5'd1) ? (host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : 5'd0) : 
-        (host_32b_b_rarb_rr == 5'd2) ? (host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : 5'd1) : 
-        (host_32b_b_rarb_rr == 5'd3) ? (host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : 5'd2) : 
-        (host_32b_b_rarb_rr == 5'd4) ? (host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : 5'd3) : 
-        (host_32b_b_rarb_rr == 5'd5) ? (host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : 5'd4) : 
-        (host_32b_b_rarb_rr == 5'd6) ? (host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : 5'd5) : 
-        (host_32b_b_rarb_rr == 5'd7) ? (host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : 5'd6) : 
-        (host_32b_b_rarb_rr == 5'd8) ? (host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : 5'd7) : 
-        (host_32b_b_rarb_rr == 5'd9) ? (host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : 5'd8) : 
-        (host_32b_b_rarb_rr == 5'd10) ? (host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : 5'd9) : 
-        (host_32b_b_rarb_rr == 5'd11) ? (host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : 5'd10) : 
-        (host_32b_b_rarb_rr == 5'd12) ? (host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : 5'd11) : 
-        (host_32b_b_rarb_rr == 5'd13) ? (host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : 5'd12) : 
-        (host_32b_b_rarb_rr == 5'd14) ? (host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : 5'd13) : 
-        (host_32b_b_rarb_rr == 5'd15) ? (host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : 5'd14) : 
-        (host_32b_b_rarb_rr == 5'd16) ? (host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : 5'd15) : 
-        host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : 5'd16;
+    wire [4:0] host_32b_b_rarb_pick = (host_32b_b_rarb_rr == 5'd0) ? (host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : 5'd19) : 
+        (host_32b_b_rarb_rr == 5'd1) ? (host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : 5'd0) : 
+        (host_32b_b_rarb_rr == 5'd2) ? (host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : 5'd1) : 
+        (host_32b_b_rarb_rr == 5'd3) ? (host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : 5'd2) : 
+        (host_32b_b_rarb_rr == 5'd4) ? (host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : 5'd3) : 
+        (host_32b_b_rarb_rr == 5'd5) ? (host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : 5'd4) : 
+        (host_32b_b_rarb_rr == 5'd6) ? (host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : 5'd5) : 
+        (host_32b_b_rarb_rr == 5'd7) ? (host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : 5'd6) : 
+        (host_32b_b_rarb_rr == 5'd8) ? (host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : 5'd7) : 
+        (host_32b_b_rarb_rr == 5'd9) ? (host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : 5'd8) : 
+        (host_32b_b_rarb_rr == 5'd10) ? (host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : 5'd9) : 
+        (host_32b_b_rarb_rr == 5'd11) ? (host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : 5'd10) : 
+        (host_32b_b_rarb_rr == 5'd12) ? (host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : 5'd11) : 
+        (host_32b_b_rarb_rr == 5'd13) ? (host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : 5'd12) : 
+        (host_32b_b_rarb_rr == 5'd14) ? (host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : 5'd13) : 
+        (host_32b_b_rarb_rr == 5'd15) ? (host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : 5'd14) : 
+        (host_32b_b_rarb_rr == 5'd16) ? (host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : 5'd15) : 
+        (host_32b_b_rarb_rr == 5'd17) ? (host_32b_b_rarb_req[17] ? 5'd17 : host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : 5'd16) : 
+        (host_32b_b_rarb_rr == 5'd18) ? (host_32b_b_rarb_req[18] ? 5'd18 : host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : 5'd17) : 
+        host_32b_b_rarb_req[19] ? 5'd19 : host_32b_b_rarb_req[0] ? 5'd0 : host_32b_b_rarb_req[1] ? 5'd1 : host_32b_b_rarb_req[2] ? 5'd2 : host_32b_b_rarb_req[3] ? 5'd3 : host_32b_b_rarb_req[4] ? 5'd4 : host_32b_b_rarb_req[5] ? 5'd5 : host_32b_b_rarb_req[6] ? 5'd6 : host_32b_b_rarb_req[7] ? 5'd7 : host_32b_b_rarb_req[8] ? 5'd8 : host_32b_b_rarb_req[9] ? 5'd9 : host_32b_b_rarb_req[10] ? 5'd10 : host_32b_b_rarb_req[11] ? 5'd11 : host_32b_b_rarb_req[12] ? 5'd12 : host_32b_b_rarb_req[13] ? 5'd13 : host_32b_b_rarb_req[14] ? 5'd14 : host_32b_b_rarb_req[15] ? 5'd15 : host_32b_b_rarb_req[16] ? 5'd16 : host_32b_b_rarb_req[17] ? 5'd17 : 5'd18;
     wire [4:0] host_32b_b_rarb_gnt = host_32b_b_rarb_locked ? host_32b_b_rarb_lock : host_32b_b_rarb_pick;
     wire host_32b_b_rarb_gnt_valid = host_32b_b_rarb_locked || (|host_32b_b_rarb_req);
     wire host_32b_b_rgnt_ctl = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd0);
@@ -1172,8 +1294,10 @@ module bridge_bs_cfg_xbar
     wire host_32b_b_rgnt_slv5 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd14);
     wire host_32b_b_rgnt_slv6 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd15);
     wire host_32b_b_rgnt_slv7 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd16);
-    wire host_32b_b_rgnt_subtractive = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd17);
-    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_ctl && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_mst0 && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_mst1 && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_mst2 && host_32b_b_rarb_req[3]) || (host_32b_b_rgnt_mst3 && host_32b_b_rarb_req[4]) || (host_32b_b_rgnt_mst4 && host_32b_b_rarb_req[5]) || (host_32b_b_rgnt_mst5 && host_32b_b_rarb_req[6]) || (host_32b_b_rgnt_mst6 && host_32b_b_rarb_req[7]) || (host_32b_b_rgnt_mst7 && host_32b_b_rarb_req[8]) || (host_32b_b_rgnt_slv0 && host_32b_b_rarb_req[9]) || (host_32b_b_rgnt_slv1 && host_32b_b_rarb_req[10]) || (host_32b_b_rgnt_slv2 && host_32b_b_rarb_req[11]) || (host_32b_b_rgnt_slv3 && host_32b_b_rarb_req[12]) || (host_32b_b_rgnt_slv4 && host_32b_b_rarb_req[13]) || (host_32b_b_rgnt_slv5 && host_32b_b_rarb_req[14]) || (host_32b_b_rgnt_slv6 && host_32b_b_rarb_req[15]) || (host_32b_b_rgnt_slv7 && host_32b_b_rarb_req[16]) || (host_32b_b_rgnt_subtractive && host_32b_b_rarb_req[17]);
+    wire host_32b_b_rgnt_ext0 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd17);
+    wire host_32b_b_rgnt_ext1 = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd18);
+    wire host_32b_b_rgnt_subtractive = host_32b_b_rarb_gnt_valid && (host_32b_b_rarb_gnt == 5'd19);
+    wire host_32b_b_rarb_vld = (host_32b_b_rgnt_ctl && host_32b_b_rarb_req[0]) || (host_32b_b_rgnt_mst0 && host_32b_b_rarb_req[1]) || (host_32b_b_rgnt_mst1 && host_32b_b_rarb_req[2]) || (host_32b_b_rgnt_mst2 && host_32b_b_rarb_req[3]) || (host_32b_b_rgnt_mst3 && host_32b_b_rarb_req[4]) || (host_32b_b_rgnt_mst4 && host_32b_b_rarb_req[5]) || (host_32b_b_rgnt_mst5 && host_32b_b_rarb_req[6]) || (host_32b_b_rgnt_mst6 && host_32b_b_rarb_req[7]) || (host_32b_b_rgnt_mst7 && host_32b_b_rarb_req[8]) || (host_32b_b_rgnt_slv0 && host_32b_b_rarb_req[9]) || (host_32b_b_rgnt_slv1 && host_32b_b_rarb_req[10]) || (host_32b_b_rgnt_slv2 && host_32b_b_rarb_req[11]) || (host_32b_b_rgnt_slv3 && host_32b_b_rarb_req[12]) || (host_32b_b_rgnt_slv4 && host_32b_b_rarb_req[13]) || (host_32b_b_rgnt_slv5 && host_32b_b_rarb_req[14]) || (host_32b_b_rgnt_slv6 && host_32b_b_rarb_req[15]) || (host_32b_b_rgnt_slv7 && host_32b_b_rarb_req[16]) || (host_32b_b_rgnt_ext0 && host_32b_b_rarb_req[17]) || (host_32b_b_rgnt_ext1 && host_32b_b_rarb_req[18]) || (host_32b_b_rgnt_subtractive && host_32b_b_rarb_req[19]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_b_rarb_lock   <= '0;
@@ -1181,7 +1305,7 @@ module bridge_bs_cfg_xbar
             host_32b_b_rarb_locked <= 1'b0;
         end else if (host_32b_b_rarb_vld && host_32b_bready) begin
             host_32b_b_rarb_locked <= 1'b0;
-            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 5'd17) ? 5'd0 : host_32b_b_rarb_gnt + 1'b1;
+            host_32b_b_rarb_rr <= (host_32b_b_rarb_gnt == 5'd19) ? 5'd0 : host_32b_b_rarb_gnt + 1'b1;
         end else if (host_32b_b_rarb_vld) begin
             host_32b_b_rarb_lock   <= host_32b_b_rarb_gnt;       // offered, not taken: hold
             host_32b_b_rarb_locked <= 1'b1;
@@ -1189,28 +1313,30 @@ module bridge_bs_cfg_xbar
     )
 
     // ---- R response arbiter, master host 32b: round-robin per beat, lock until taken ----
-    logic [17:0] host_32b_r_rarb_req;
-    assign host_32b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((slv7_axi_rid_bridge_id == 0) && slv7_axi_rid_valid) && slv7_axi_rvalid, ((slv6_axi_rid_bridge_id == 0) && slv6_axi_rid_valid) && slv6_axi_rvalid, ((slv5_axi_rid_bridge_id == 0) && slv5_axi_rid_valid) && slv5_axi_rvalid, ((slv4_axi_rid_bridge_id == 0) && slv4_axi_rid_valid) && slv4_axi_rvalid, ((slv3_axi_rid_bridge_id == 0) && slv3_axi_rid_valid) && slv3_axi_rvalid, ((slv2_axi_rid_bridge_id == 0) && slv2_axi_rid_valid) && slv2_axi_rvalid, ((slv1_axi_rid_bridge_id == 0) && slv1_axi_rid_valid) && slv1_axi_rvalid, ((slv0_axi_rid_bridge_id == 0) && slv0_axi_rid_valid) && slv0_axi_rvalid, ((mst7_axi_rid_bridge_id == 0) && mst7_axi_rid_valid) && mst7_axi_rvalid, ((mst6_axi_rid_bridge_id == 0) && mst6_axi_rid_valid) && mst6_axi_rvalid, ((mst5_axi_rid_bridge_id == 0) && mst5_axi_rid_valid) && mst5_axi_rvalid, ((mst4_axi_rid_bridge_id == 0) && mst4_axi_rid_valid) && mst4_axi_rvalid, ((mst3_axi_rid_bridge_id == 0) && mst3_axi_rid_valid) && mst3_axi_rvalid, ((mst2_axi_rid_bridge_id == 0) && mst2_axi_rid_valid) && mst2_axi_rvalid, ((mst1_axi_rid_bridge_id == 0) && mst1_axi_rid_valid) && mst1_axi_rvalid, ((mst0_axi_rid_bridge_id == 0) && mst0_axi_rid_valid) && mst0_axi_rvalid, ((ctl_axi_rid_bridge_id == 0) && ctl_axi_rid_valid) && ctl_axi_rvalid};
+    logic [19:0] host_32b_r_rarb_req;
+    assign host_32b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((ext1_axi_rid_bridge_id == 0) && ext1_axi_rid_valid) && ext1_axi_rvalid, ((ext0_axi_rid_bridge_id == 0) && ext0_axi_rid_valid) && ext0_axi_rvalid, ((slv7_axi_rid_bridge_id == 0) && slv7_axi_rid_valid) && slv7_axi_rvalid, ((slv6_axi_rid_bridge_id == 0) && slv6_axi_rid_valid) && slv6_axi_rvalid, ((slv5_axi_rid_bridge_id == 0) && slv5_axi_rid_valid) && slv5_axi_rvalid, ((slv4_axi_rid_bridge_id == 0) && slv4_axi_rid_valid) && slv4_axi_rvalid, ((slv3_axi_rid_bridge_id == 0) && slv3_axi_rid_valid) && slv3_axi_rvalid, ((slv2_axi_rid_bridge_id == 0) && slv2_axi_rid_valid) && slv2_axi_rvalid, ((slv1_axi_rid_bridge_id == 0) && slv1_axi_rid_valid) && slv1_axi_rvalid, ((slv0_axi_rid_bridge_id == 0) && slv0_axi_rid_valid) && slv0_axi_rvalid, ((mst7_axi_rid_bridge_id == 0) && mst7_axi_rid_valid) && mst7_axi_rvalid, ((mst6_axi_rid_bridge_id == 0) && mst6_axi_rid_valid) && mst6_axi_rvalid, ((mst5_axi_rid_bridge_id == 0) && mst5_axi_rid_valid) && mst5_axi_rvalid, ((mst4_axi_rid_bridge_id == 0) && mst4_axi_rid_valid) && mst4_axi_rvalid, ((mst3_axi_rid_bridge_id == 0) && mst3_axi_rid_valid) && mst3_axi_rvalid, ((mst2_axi_rid_bridge_id == 0) && mst2_axi_rid_valid) && mst2_axi_rvalid, ((mst1_axi_rid_bridge_id == 0) && mst1_axi_rid_valid) && mst1_axi_rvalid, ((mst0_axi_rid_bridge_id == 0) && mst0_axi_rid_valid) && mst0_axi_rvalid, ((ctl_axi_rid_bridge_id == 0) && ctl_axi_rid_valid) && ctl_axi_rvalid};
     logic [4:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
     logic host_32b_r_rarb_locked;
-    wire [4:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 5'd0) ? (host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : 5'd17) : 
-        (host_32b_r_rarb_rr == 5'd1) ? (host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : 5'd0) : 
-        (host_32b_r_rarb_rr == 5'd2) ? (host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : 5'd1) : 
-        (host_32b_r_rarb_rr == 5'd3) ? (host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : 5'd2) : 
-        (host_32b_r_rarb_rr == 5'd4) ? (host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : 5'd3) : 
-        (host_32b_r_rarb_rr == 5'd5) ? (host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : 5'd4) : 
-        (host_32b_r_rarb_rr == 5'd6) ? (host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : 5'd5) : 
-        (host_32b_r_rarb_rr == 5'd7) ? (host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : 5'd6) : 
-        (host_32b_r_rarb_rr == 5'd8) ? (host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : 5'd7) : 
-        (host_32b_r_rarb_rr == 5'd9) ? (host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : 5'd8) : 
-        (host_32b_r_rarb_rr == 5'd10) ? (host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : 5'd9) : 
-        (host_32b_r_rarb_rr == 5'd11) ? (host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : 5'd10) : 
-        (host_32b_r_rarb_rr == 5'd12) ? (host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : 5'd11) : 
-        (host_32b_r_rarb_rr == 5'd13) ? (host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : 5'd12) : 
-        (host_32b_r_rarb_rr == 5'd14) ? (host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : 5'd13) : 
-        (host_32b_r_rarb_rr == 5'd15) ? (host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : 5'd14) : 
-        (host_32b_r_rarb_rr == 5'd16) ? (host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : 5'd15) : 
-        host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : 5'd16;
+    wire [4:0] host_32b_r_rarb_pick = (host_32b_r_rarb_rr == 5'd0) ? (host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : 5'd19) : 
+        (host_32b_r_rarb_rr == 5'd1) ? (host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : 5'd0) : 
+        (host_32b_r_rarb_rr == 5'd2) ? (host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : 5'd1) : 
+        (host_32b_r_rarb_rr == 5'd3) ? (host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : 5'd2) : 
+        (host_32b_r_rarb_rr == 5'd4) ? (host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : 5'd3) : 
+        (host_32b_r_rarb_rr == 5'd5) ? (host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : 5'd4) : 
+        (host_32b_r_rarb_rr == 5'd6) ? (host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : 5'd5) : 
+        (host_32b_r_rarb_rr == 5'd7) ? (host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : 5'd6) : 
+        (host_32b_r_rarb_rr == 5'd8) ? (host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : 5'd7) : 
+        (host_32b_r_rarb_rr == 5'd9) ? (host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : 5'd8) : 
+        (host_32b_r_rarb_rr == 5'd10) ? (host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : 5'd9) : 
+        (host_32b_r_rarb_rr == 5'd11) ? (host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : 5'd10) : 
+        (host_32b_r_rarb_rr == 5'd12) ? (host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : 5'd11) : 
+        (host_32b_r_rarb_rr == 5'd13) ? (host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : 5'd12) : 
+        (host_32b_r_rarb_rr == 5'd14) ? (host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : 5'd13) : 
+        (host_32b_r_rarb_rr == 5'd15) ? (host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : 5'd14) : 
+        (host_32b_r_rarb_rr == 5'd16) ? (host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : 5'd15) : 
+        (host_32b_r_rarb_rr == 5'd17) ? (host_32b_r_rarb_req[17] ? 5'd17 : host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : 5'd16) : 
+        (host_32b_r_rarb_rr == 5'd18) ? (host_32b_r_rarb_req[18] ? 5'd18 : host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : 5'd17) : 
+        host_32b_r_rarb_req[19] ? 5'd19 : host_32b_r_rarb_req[0] ? 5'd0 : host_32b_r_rarb_req[1] ? 5'd1 : host_32b_r_rarb_req[2] ? 5'd2 : host_32b_r_rarb_req[3] ? 5'd3 : host_32b_r_rarb_req[4] ? 5'd4 : host_32b_r_rarb_req[5] ? 5'd5 : host_32b_r_rarb_req[6] ? 5'd6 : host_32b_r_rarb_req[7] ? 5'd7 : host_32b_r_rarb_req[8] ? 5'd8 : host_32b_r_rarb_req[9] ? 5'd9 : host_32b_r_rarb_req[10] ? 5'd10 : host_32b_r_rarb_req[11] ? 5'd11 : host_32b_r_rarb_req[12] ? 5'd12 : host_32b_r_rarb_req[13] ? 5'd13 : host_32b_r_rarb_req[14] ? 5'd14 : host_32b_r_rarb_req[15] ? 5'd15 : host_32b_r_rarb_req[16] ? 5'd16 : host_32b_r_rarb_req[17] ? 5'd17 : 5'd18;
     wire [4:0] host_32b_r_rarb_gnt = host_32b_r_rarb_locked ? host_32b_r_rarb_lock : host_32b_r_rarb_pick;
     wire host_32b_r_rarb_gnt_valid = host_32b_r_rarb_locked || (|host_32b_r_rarb_req);
     wire host_32b_r_rgnt_ctl = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd0);
@@ -1230,8 +1356,10 @@ module bridge_bs_cfg_xbar
     wire host_32b_r_rgnt_slv5 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd14);
     wire host_32b_r_rgnt_slv6 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd15);
     wire host_32b_r_rgnt_slv7 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd16);
-    wire host_32b_r_rgnt_subtractive = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd17);
-    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_ctl && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_mst0 && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_mst1 && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_mst2 && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_mst3 && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_mst4 && host_32b_r_rarb_req[5]) || (host_32b_r_rgnt_mst5 && host_32b_r_rarb_req[6]) || (host_32b_r_rgnt_mst6 && host_32b_r_rarb_req[7]) || (host_32b_r_rgnt_mst7 && host_32b_r_rarb_req[8]) || (host_32b_r_rgnt_slv0 && host_32b_r_rarb_req[9]) || (host_32b_r_rgnt_slv1 && host_32b_r_rarb_req[10]) || (host_32b_r_rgnt_slv2 && host_32b_r_rarb_req[11]) || (host_32b_r_rgnt_slv3 && host_32b_r_rarb_req[12]) || (host_32b_r_rgnt_slv4 && host_32b_r_rarb_req[13]) || (host_32b_r_rgnt_slv5 && host_32b_r_rarb_req[14]) || (host_32b_r_rgnt_slv6 && host_32b_r_rarb_req[15]) || (host_32b_r_rgnt_slv7 && host_32b_r_rarb_req[16]) || (host_32b_r_rgnt_subtractive && host_32b_r_rarb_req[17]);
+    wire host_32b_r_rgnt_ext0 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd17);
+    wire host_32b_r_rgnt_ext1 = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd18);
+    wire host_32b_r_rgnt_subtractive = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 5'd19);
+    wire host_32b_r_rarb_vld = (host_32b_r_rgnt_ctl && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_mst0 && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_mst1 && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_mst2 && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_mst3 && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_mst4 && host_32b_r_rarb_req[5]) || (host_32b_r_rgnt_mst5 && host_32b_r_rarb_req[6]) || (host_32b_r_rgnt_mst6 && host_32b_r_rarb_req[7]) || (host_32b_r_rgnt_mst7 && host_32b_r_rarb_req[8]) || (host_32b_r_rgnt_slv0 && host_32b_r_rarb_req[9]) || (host_32b_r_rgnt_slv1 && host_32b_r_rarb_req[10]) || (host_32b_r_rgnt_slv2 && host_32b_r_rarb_req[11]) || (host_32b_r_rgnt_slv3 && host_32b_r_rarb_req[12]) || (host_32b_r_rgnt_slv4 && host_32b_r_rarb_req[13]) || (host_32b_r_rgnt_slv5 && host_32b_r_rarb_req[14]) || (host_32b_r_rgnt_slv6 && host_32b_r_rarb_req[15]) || (host_32b_r_rgnt_slv7 && host_32b_r_rarb_req[16]) || (host_32b_r_rgnt_ext0 && host_32b_r_rarb_req[17]) || (host_32b_r_rgnt_ext1 && host_32b_r_rarb_req[18]) || (host_32b_r_rgnt_subtractive && host_32b_r_rarb_req[19]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_r_rarb_lock   <= '0;
@@ -1239,7 +1367,7 @@ module bridge_bs_cfg_xbar
             host_32b_r_rarb_locked <= 1'b0;
         end else if (host_32b_r_rarb_vld && host_32b_rready) begin
             host_32b_r_rarb_locked <= 1'b0;
-            host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 5'd17) ? 5'd0 : host_32b_r_rarb_gnt + 1'b1;
+            host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 5'd19) ? 5'd0 : host_32b_r_rarb_gnt + 1'b1;
         end else if (host_32b_r_rarb_vld) begin
             host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;       // offered, not taken: hold
             host_32b_r_rarb_locked <= 1'b1;
@@ -2318,14 +2446,140 @@ module bridge_bs_cfg_xbar
 
 
     // ================================================================
-    // Slave 17: subtractive (32b)
+    // Slave 17: ext0 (32b)
+    // ================================================================
+    // Single master: host → ext0
+    // Master width: 32b, Slave width: 32b
+    // Using 32b path from adapter
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_ext0 = ((host_32b_aw.addr >= 32'h00100000) && (host_32b_aw.addr <= 32'h0010ffff));
+    wire host_32b_aw_gnt_ext0 = host_32b_aw_to_ext0;
+    assign ext0_axi_awid     = host_32b_aw_to_ext0 ? host_32b_aw.id : '0;
+    assign ext0_axi_awaddr   = host_32b_aw_to_ext0 ? host_32b_aw.addr : '0;
+    assign ext0_axi_awlen    = host_32b_aw_to_ext0 ? host_32b_aw.len : '0;
+    assign ext0_axi_awsize   = host_32b_aw_to_ext0 ? host_32b_aw.size : '0;
+    assign ext0_axi_awburst  = host_32b_aw_to_ext0 ? host_32b_aw.burst : '0;
+    assign ext0_axi_awlock   = host_32b_aw_to_ext0 ? host_32b_aw.lock : '0;
+    assign ext0_axi_awcache  = host_32b_aw_to_ext0 ? host_32b_aw.cache : '0;
+    assign ext0_axi_awprot   = host_32b_aw_to_ext0 ? host_32b_aw.prot : '0;
+    assign ext0_axi_awqos    = host_32b_aw_to_ext0 ? host_32b_aw.qos : '0;
+    assign ext0_axi_awregion = host_32b_aw_to_ext0 ? host_32b_aw.region : '0;
+    assign ext0_axi_awuser   = host_32b_aw_to_ext0 ? host_32b_aw.user : '0;
+    assign ext0_axi_awvalid  = host_32b_aw_to_ext0 && host_32b_awvalid;
+
+    assign host_32b_w_sel_ext0 = host_32b_w_to_ext0;
+
+    // W channel (gated by the W destination FIFO head)
+    assign ext0_axi_wdata  = host_32b_w_to_ext0 ? host_32b_w.data : '0;
+    assign ext0_axi_wstrb  = host_32b_w_to_ext0 ? host_32b_w.strb : '0;
+    assign ext0_axi_wlast  = host_32b_w_to_ext0 ? host_32b_w.last : '0;
+    assign ext0_axi_wuser  = host_32b_w_to_ext0 ? host_32b_w.user : '0;
+    assign ext0_axi_wvalid = host_32b_w_to_ext0 && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign ext0_axi_bready = host_32b_b_rgnt_ext0 ? host_32b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign ext0_axi_bridge_id_aw = host_32b_aw_to_ext0 ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_ext0 = ((host_32b_ar.addr >= 32'h00100000) && (host_32b_ar.addr <= 32'h0010ffff));
+    wire host_32b_ar_gnt_ext0 = host_32b_ar_to_ext0;
+    assign ext0_axi_arid     = host_32b_ar_to_ext0 ? host_32b_ar.id : '0;
+    assign ext0_axi_araddr   = host_32b_ar_to_ext0 ? host_32b_ar.addr : '0;
+    assign ext0_axi_arlen    = host_32b_ar_to_ext0 ? host_32b_ar.len : '0;
+    assign ext0_axi_arsize   = host_32b_ar_to_ext0 ? host_32b_ar.size : '0;
+    assign ext0_axi_arburst  = host_32b_ar_to_ext0 ? host_32b_ar.burst : '0;
+    assign ext0_axi_arlock   = host_32b_ar_to_ext0 ? host_32b_ar.lock : '0;
+    assign ext0_axi_arcache  = host_32b_ar_to_ext0 ? host_32b_ar.cache : '0;
+    assign ext0_axi_arprot   = host_32b_ar_to_ext0 ? host_32b_ar.prot : '0;
+    assign ext0_axi_arqos    = host_32b_ar_to_ext0 ? host_32b_ar.qos : '0;
+    assign ext0_axi_arregion = host_32b_ar_to_ext0 ? host_32b_ar.region : '0;
+    assign ext0_axi_aruser   = host_32b_ar_to_ext0 ? host_32b_ar.user : '0;
+    assign ext0_axi_arvalid  = host_32b_ar_to_ext0 && host_32b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign ext0_axi_rready = host_32b_r_rgnt_ext0 ? host_32b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign ext0_axi_bridge_id_ar = host_32b_ar_to_ext0 ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
+    // Slave 18: ext1 (32b)
+    // ================================================================
+    // Single master: host → ext1
+    // Master width: 32b, Slave width: 32b
+    // Using 32b path from adapter
+
+    // AW channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_aw_to_ext1 = ((host_32b_aw.addr >= 32'h00110000) && (host_32b_aw.addr <= 32'h0011ffff));
+    wire host_32b_aw_gnt_ext1 = host_32b_aw_to_ext1;
+    assign ext1_axi_awid     = host_32b_aw_to_ext1 ? host_32b_aw.id : '0;
+    assign ext1_axi_awaddr   = host_32b_aw_to_ext1 ? host_32b_aw.addr : '0;
+    assign ext1_axi_awlen    = host_32b_aw_to_ext1 ? host_32b_aw.len : '0;
+    assign ext1_axi_awsize   = host_32b_aw_to_ext1 ? host_32b_aw.size : '0;
+    assign ext1_axi_awburst  = host_32b_aw_to_ext1 ? host_32b_aw.burst : '0;
+    assign ext1_axi_awlock   = host_32b_aw_to_ext1 ? host_32b_aw.lock : '0;
+    assign ext1_axi_awcache  = host_32b_aw_to_ext1 ? host_32b_aw.cache : '0;
+    assign ext1_axi_awprot   = host_32b_aw_to_ext1 ? host_32b_aw.prot : '0;
+    assign ext1_axi_awqos    = host_32b_aw_to_ext1 ? host_32b_aw.qos : '0;
+    assign ext1_axi_awregion = host_32b_aw_to_ext1 ? host_32b_aw.region : '0;
+    assign ext1_axi_awuser   = host_32b_aw_to_ext1 ? host_32b_aw.user : '0;
+    assign ext1_axi_awvalid  = host_32b_aw_to_ext1 && host_32b_awvalid;
+
+    assign host_32b_w_sel_ext1 = host_32b_w_to_ext1;
+
+    // W channel (gated by the W destination FIFO head)
+    assign ext1_axi_wdata  = host_32b_w_to_ext1 ? host_32b_w.data : '0;
+    assign ext1_axi_wstrb  = host_32b_w_to_ext1 ? host_32b_w.strb : '0;
+    assign ext1_axi_wlast  = host_32b_w_to_ext1 ? host_32b_w.last : '0;
+    assign ext1_axi_wuser  = host_32b_w_to_ext1 ? host_32b_w.user : '0;
+    assign ext1_axi_wvalid = host_32b_w_to_ext1 && host_32b_wvalid;
+
+    // Bready (master → slave) — gated on bid_valid so the path stays
+    // open through the entire B handshake, not just the AW phase.
+    assign ext1_axi_bready = host_32b_b_rgnt_ext1 ? host_32b_bready : '0;
+
+    // Bridge ID (master → slave)
+    assign ext1_axi_bridge_id_aw = host_32b_aw_to_ext1 ? host_bridge_id_aw : '0;
+
+    // AR channel (gated by address re-decode -- see _addr_decode_expr)
+    wire host_32b_ar_to_ext1 = ((host_32b_ar.addr >= 32'h00110000) && (host_32b_ar.addr <= 32'h0011ffff));
+    wire host_32b_ar_gnt_ext1 = host_32b_ar_to_ext1;
+    assign ext1_axi_arid     = host_32b_ar_to_ext1 ? host_32b_ar.id : '0;
+    assign ext1_axi_araddr   = host_32b_ar_to_ext1 ? host_32b_ar.addr : '0;
+    assign ext1_axi_arlen    = host_32b_ar_to_ext1 ? host_32b_ar.len : '0;
+    assign ext1_axi_arsize   = host_32b_ar_to_ext1 ? host_32b_ar.size : '0;
+    assign ext1_axi_arburst  = host_32b_ar_to_ext1 ? host_32b_ar.burst : '0;
+    assign ext1_axi_arlock   = host_32b_ar_to_ext1 ? host_32b_ar.lock : '0;
+    assign ext1_axi_arcache  = host_32b_ar_to_ext1 ? host_32b_ar.cache : '0;
+    assign ext1_axi_arprot   = host_32b_ar_to_ext1 ? host_32b_ar.prot : '0;
+    assign ext1_axi_arqos    = host_32b_ar_to_ext1 ? host_32b_ar.qos : '0;
+    assign ext1_axi_arregion = host_32b_ar_to_ext1 ? host_32b_ar.region : '0;
+    assign ext1_axi_aruser   = host_32b_ar_to_ext1 ? host_32b_ar.user : '0;
+    assign ext1_axi_arvalid  = host_32b_ar_to_ext1 && host_32b_arvalid;
+
+    // Rready (master → slave) — gated on rid_valid so the path stays
+    // open through the entire R handshake, not just the AR phase.
+    assign ext1_axi_rready = host_32b_r_rgnt_ext1 ? host_32b_rready : '0;
+
+    // Bridge ID (master → slave)
+    assign ext1_axi_bridge_id_ar = host_32b_ar_to_ext1 ? host_bridge_id_ar : '0;
+
+
+    // ================================================================
+    // Slave 19: subtractive (32b)
     // ================================================================
     // Single master: host → subtractive
     // Master width: 32b, Slave width: 32b
     // Using 32b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_aw_to_subtractive = !(((host_32b_aw.addr <= 32'h00000fff)) || (((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff))) || (((host_32b_aw.addr >= 32'h00011000) && (host_32b_aw.addr <= 32'h00011fff))) || (((host_32b_aw.addr >= 32'h00012000) && (host_32b_aw.addr <= 32'h00012fff))) || (((host_32b_aw.addr >= 32'h00013000) && (host_32b_aw.addr <= 32'h00013fff))) || (((host_32b_aw.addr >= 32'h00014000) && (host_32b_aw.addr <= 32'h00014fff))) || (((host_32b_aw.addr >= 32'h00015000) && (host_32b_aw.addr <= 32'h00015fff))) || (((host_32b_aw.addr >= 32'h00016000) && (host_32b_aw.addr <= 32'h00016fff))) || (((host_32b_aw.addr >= 32'h00017000) && (host_32b_aw.addr <= 32'h00017fff))) || (((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff))) || (((host_32b_aw.addr >= 32'h00021000) && (host_32b_aw.addr <= 32'h00021fff))) || (((host_32b_aw.addr >= 32'h00022000) && (host_32b_aw.addr <= 32'h00022fff))) || (((host_32b_aw.addr >= 32'h00023000) && (host_32b_aw.addr <= 32'h00023fff))) || (((host_32b_aw.addr >= 32'h00024000) && (host_32b_aw.addr <= 32'h00024fff))) || (((host_32b_aw.addr >= 32'h00025000) && (host_32b_aw.addr <= 32'h00025fff))) || (((host_32b_aw.addr >= 32'h00026000) && (host_32b_aw.addr <= 32'h00026fff))) || (((host_32b_aw.addr >= 32'h00027000) && (host_32b_aw.addr <= 32'h00027fff))));
+    wire host_32b_aw_to_subtractive = !(((host_32b_aw.addr <= 32'h00000fff)) || (((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff))) || (((host_32b_aw.addr >= 32'h00011000) && (host_32b_aw.addr <= 32'h00011fff))) || (((host_32b_aw.addr >= 32'h00012000) && (host_32b_aw.addr <= 32'h00012fff))) || (((host_32b_aw.addr >= 32'h00013000) && (host_32b_aw.addr <= 32'h00013fff))) || (((host_32b_aw.addr >= 32'h00014000) && (host_32b_aw.addr <= 32'h00014fff))) || (((host_32b_aw.addr >= 32'h00015000) && (host_32b_aw.addr <= 32'h00015fff))) || (((host_32b_aw.addr >= 32'h00016000) && (host_32b_aw.addr <= 32'h00016fff))) || (((host_32b_aw.addr >= 32'h00017000) && (host_32b_aw.addr <= 32'h00017fff))) || (((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff))) || (((host_32b_aw.addr >= 32'h00021000) && (host_32b_aw.addr <= 32'h00021fff))) || (((host_32b_aw.addr >= 32'h00022000) && (host_32b_aw.addr <= 32'h00022fff))) || (((host_32b_aw.addr >= 32'h00023000) && (host_32b_aw.addr <= 32'h00023fff))) || (((host_32b_aw.addr >= 32'h00024000) && (host_32b_aw.addr <= 32'h00024fff))) || (((host_32b_aw.addr >= 32'h00025000) && (host_32b_aw.addr <= 32'h00025fff))) || (((host_32b_aw.addr >= 32'h00026000) && (host_32b_aw.addr <= 32'h00026fff))) || (((host_32b_aw.addr >= 32'h00027000) && (host_32b_aw.addr <= 32'h00027fff))) || (((host_32b_aw.addr >= 32'h00100000) && (host_32b_aw.addr <= 32'h0010ffff))) || (((host_32b_aw.addr >= 32'h00110000) && (host_32b_aw.addr <= 32'h0011ffff))));
     wire host_32b_aw_gnt_subtractive = host_32b_aw_to_subtractive;
     assign subtractive_axi_awid     = host_32b_aw_to_subtractive ? host_32b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_32b_aw_to_subtractive ? host_32b_aw.addr : '0;
@@ -2357,7 +2611,7 @@ module bridge_bs_cfg_xbar
     assign subtractive_axi_bridge_id_aw = host_32b_aw_to_subtractive ? host_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire host_32b_ar_to_subtractive = !(((host_32b_ar.addr <= 32'h00000fff)) || (((host_32b_ar.addr >= 32'h00010000) && (host_32b_ar.addr <= 32'h00010fff))) || (((host_32b_ar.addr >= 32'h00011000) && (host_32b_ar.addr <= 32'h00011fff))) || (((host_32b_ar.addr >= 32'h00012000) && (host_32b_ar.addr <= 32'h00012fff))) || (((host_32b_ar.addr >= 32'h00013000) && (host_32b_ar.addr <= 32'h00013fff))) || (((host_32b_ar.addr >= 32'h00014000) && (host_32b_ar.addr <= 32'h00014fff))) || (((host_32b_ar.addr >= 32'h00015000) && (host_32b_ar.addr <= 32'h00015fff))) || (((host_32b_ar.addr >= 32'h00016000) && (host_32b_ar.addr <= 32'h00016fff))) || (((host_32b_ar.addr >= 32'h00017000) && (host_32b_ar.addr <= 32'h00017fff))) || (((host_32b_ar.addr >= 32'h00020000) && (host_32b_ar.addr <= 32'h00020fff))) || (((host_32b_ar.addr >= 32'h00021000) && (host_32b_ar.addr <= 32'h00021fff))) || (((host_32b_ar.addr >= 32'h00022000) && (host_32b_ar.addr <= 32'h00022fff))) || (((host_32b_ar.addr >= 32'h00023000) && (host_32b_ar.addr <= 32'h00023fff))) || (((host_32b_ar.addr >= 32'h00024000) && (host_32b_ar.addr <= 32'h00024fff))) || (((host_32b_ar.addr >= 32'h00025000) && (host_32b_ar.addr <= 32'h00025fff))) || (((host_32b_ar.addr >= 32'h00026000) && (host_32b_ar.addr <= 32'h00026fff))) || (((host_32b_ar.addr >= 32'h00027000) && (host_32b_ar.addr <= 32'h00027fff))));
+    wire host_32b_ar_to_subtractive = !(((host_32b_ar.addr <= 32'h00000fff)) || (((host_32b_ar.addr >= 32'h00010000) && (host_32b_ar.addr <= 32'h00010fff))) || (((host_32b_ar.addr >= 32'h00011000) && (host_32b_ar.addr <= 32'h00011fff))) || (((host_32b_ar.addr >= 32'h00012000) && (host_32b_ar.addr <= 32'h00012fff))) || (((host_32b_ar.addr >= 32'h00013000) && (host_32b_ar.addr <= 32'h00013fff))) || (((host_32b_ar.addr >= 32'h00014000) && (host_32b_ar.addr <= 32'h00014fff))) || (((host_32b_ar.addr >= 32'h00015000) && (host_32b_ar.addr <= 32'h00015fff))) || (((host_32b_ar.addr >= 32'h00016000) && (host_32b_ar.addr <= 32'h00016fff))) || (((host_32b_ar.addr >= 32'h00017000) && (host_32b_ar.addr <= 32'h00017fff))) || (((host_32b_ar.addr >= 32'h00020000) && (host_32b_ar.addr <= 32'h00020fff))) || (((host_32b_ar.addr >= 32'h00021000) && (host_32b_ar.addr <= 32'h00021fff))) || (((host_32b_ar.addr >= 32'h00022000) && (host_32b_ar.addr <= 32'h00022fff))) || (((host_32b_ar.addr >= 32'h00023000) && (host_32b_ar.addr <= 32'h00023fff))) || (((host_32b_ar.addr >= 32'h00024000) && (host_32b_ar.addr <= 32'h00024fff))) || (((host_32b_ar.addr >= 32'h00025000) && (host_32b_ar.addr <= 32'h00025fff))) || (((host_32b_ar.addr >= 32'h00026000) && (host_32b_ar.addr <= 32'h00026fff))) || (((host_32b_ar.addr >= 32'h00027000) && (host_32b_ar.addr <= 32'h00027fff))) || (((host_32b_ar.addr >= 32'h00100000) && (host_32b_ar.addr <= 32'h0010ffff))) || (((host_32b_ar.addr >= 32'h00110000) && (host_32b_ar.addr <= 32'h0011ffff))));
     wire host_32b_ar_gnt_subtractive = host_32b_ar_to_subtractive;
     assign subtractive_axi_arid     = host_32b_ar_to_subtractive ? host_32b_ar.id : '0;
     assign subtractive_axi_araddr   = host_32b_ar_to_subtractive ? host_32b_ar.addr : '0;
@@ -2383,10 +2637,10 @@ module bridge_bs_cfg_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // host 32b path -> ctl, mst0, mst1, mst2, mst3, mst4, mst5, mst6, mst7, slv0, slv1, slv2, slv3, slv4, slv5, slv6, slv7, subtractive (16 deep: max_outstanding)
+    // host 32b path -> ctl, mst0, mst1, mst2, mst3, mst4, mst5, mst6, mst7, slv0, slv1, slv2, slv3, slv4, slv5, slv6, slv7, ext0, ext1, subtractive (16 deep: max_outstanding)
     logic [4:0] host_32b_wdest_mem [16];
     logic [4:0] host_32b_wdest_wptr, host_32b_wdest_rptr;
-    wire [4:0] host_32b_wdest_enc = host_32b_aw_to_mst0 ? 5'd1 : host_32b_aw_to_mst1 ? 5'd2 : host_32b_aw_to_mst2 ? 5'd3 : host_32b_aw_to_mst3 ? 5'd4 : host_32b_aw_to_mst4 ? 5'd5 : host_32b_aw_to_mst5 ? 5'd6 : host_32b_aw_to_mst6 ? 5'd7 : host_32b_aw_to_mst7 ? 5'd8 : host_32b_aw_to_slv0 ? 5'd9 : host_32b_aw_to_slv1 ? 5'd10 : host_32b_aw_to_slv2 ? 5'd11 : host_32b_aw_to_slv3 ? 5'd12 : host_32b_aw_to_slv4 ? 5'd13 : host_32b_aw_to_slv5 ? 5'd14 : host_32b_aw_to_slv6 ? 5'd15 : host_32b_aw_to_slv7 ? 5'd16 : host_32b_aw_to_subtractive ? 5'd17 : 5'd0;
+    wire [4:0] host_32b_wdest_enc = host_32b_aw_to_mst0 ? 5'd1 : host_32b_aw_to_mst1 ? 5'd2 : host_32b_aw_to_mst2 ? 5'd3 : host_32b_aw_to_mst3 ? 5'd4 : host_32b_aw_to_mst4 ? 5'd5 : host_32b_aw_to_mst5 ? 5'd6 : host_32b_aw_to_mst6 ? 5'd7 : host_32b_aw_to_mst7 ? 5'd8 : host_32b_aw_to_slv0 ? 5'd9 : host_32b_aw_to_slv1 ? 5'd10 : host_32b_aw_to_slv2 ? 5'd11 : host_32b_aw_to_slv3 ? 5'd12 : host_32b_aw_to_slv4 ? 5'd13 : host_32b_aw_to_slv5 ? 5'd14 : host_32b_aw_to_slv6 ? 5'd15 : host_32b_aw_to_slv7 ? 5'd16 : host_32b_aw_to_ext0 ? 5'd17 : host_32b_aw_to_ext1 ? 5'd18 : host_32b_aw_to_subtractive ? 5'd19 : 5'd0;
     wire host_32b_wdest_push = host_32b_awvalid && host_32b_awready;
     wire host_32b_wdest_pop  = host_32b_wvalid && host_32b_wready && host_32b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -2422,7 +2676,9 @@ module bridge_bs_cfg_xbar
     assign host_32b_w_to_slv5 = host_32b_wdest_valid && (host_32b_wdest_head == 5'd14);
     assign host_32b_w_to_slv6 = host_32b_wdest_valid && (host_32b_wdest_head == 5'd15);
     assign host_32b_w_to_slv7 = host_32b_wdest_valid && (host_32b_wdest_head == 5'd16);
-    assign host_32b_w_to_subtractive = host_32b_wdest_valid && (host_32b_wdest_head == 5'd17);
+    assign host_32b_w_to_ext0 = host_32b_wdest_valid && (host_32b_wdest_head == 5'd17);
+    assign host_32b_w_to_ext1 = host_32b_wdest_valid && (host_32b_wdest_head == 5'd18);
+    assign host_32b_w_to_subtractive = host_32b_wdest_valid && (host_32b_wdest_head == 5'd19);
 
     // ================================================================
     // Response MUXes (OR together all slave responses)
@@ -2447,6 +2703,8 @@ module bridge_bs_cfg_xbar
         (host_32b_aw_gnt_slv5 ? slv5_axi_awready : '0) |
         (host_32b_aw_gnt_slv6 ? slv6_axi_awready : '0) |
         (host_32b_aw_gnt_slv7 ? slv7_axi_awready : '0) |
+        (host_32b_aw_gnt_ext0 ? ext0_axi_awready : '0) |
+        (host_32b_aw_gnt_ext1 ? ext1_axi_awready : '0) |
         (host_32b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
 
     assign host_32b_wready = 
@@ -2467,6 +2725,8 @@ module bridge_bs_cfg_xbar
         (host_32b_w_sel_slv5 ? slv5_axi_wready : '0) |
         (host_32b_w_sel_slv6 ? slv6_axi_wready : '0) |
         (host_32b_w_sel_slv7 ? slv7_axi_wready : '0) |
+        (host_32b_w_sel_ext0 ? ext0_axi_wready : '0) |
+        (host_32b_w_sel_ext1 ? ext1_axi_wready : '0) |
         (host_32b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign host_32b_b.id = 
@@ -2487,6 +2747,8 @@ module bridge_bs_cfg_xbar
         (host_32b_b_rgnt_slv5 ? slv5_axi_bid : '0) |
         (host_32b_b_rgnt_slv6 ? slv6_axi_bid : '0) |
         (host_32b_b_rgnt_slv7 ? slv7_axi_bid : '0) |
+        (host_32b_b_rgnt_ext0 ? ext0_axi_bid : '0) |
+        (host_32b_b_rgnt_ext1 ? ext1_axi_bid : '0) |
         (host_32b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign host_32b_b.resp = 
@@ -2507,6 +2769,8 @@ module bridge_bs_cfg_xbar
         (host_32b_b_rgnt_slv5 ? slv5_axi_bresp : '0) |
         (host_32b_b_rgnt_slv6 ? slv6_axi_bresp : '0) |
         (host_32b_b_rgnt_slv7 ? slv7_axi_bresp : '0) |
+        (host_32b_b_rgnt_ext0 ? ext0_axi_bresp : '0) |
+        (host_32b_b_rgnt_ext1 ? ext1_axi_bresp : '0) |
         (host_32b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign host_32b_b.user = 
@@ -2527,6 +2791,8 @@ module bridge_bs_cfg_xbar
         (host_32b_b_rgnt_slv5 ? slv5_axi_buser : '0) |
         (host_32b_b_rgnt_slv6 ? slv6_axi_buser : '0) |
         (host_32b_b_rgnt_slv7 ? slv7_axi_buser : '0) |
+        (host_32b_b_rgnt_ext0 ? ext0_axi_buser : '0) |
+        (host_32b_b_rgnt_ext1 ? ext1_axi_buser : '0) |
         (host_32b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign host_32b_bvalid = 
@@ -2547,6 +2813,8 @@ module bridge_bs_cfg_xbar
         (host_32b_b_rgnt_slv5 ? slv5_axi_bvalid : '0) |
         (host_32b_b_rgnt_slv6 ? slv6_axi_bvalid : '0) |
         (host_32b_b_rgnt_slv7 ? slv7_axi_bvalid : '0) |
+        (host_32b_b_rgnt_ext0 ? ext0_axi_bvalid : '0) |
+        (host_32b_b_rgnt_ext1 ? ext1_axi_bvalid : '0) |
         (host_32b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign host_32b_arready = 
@@ -2567,6 +2835,8 @@ module bridge_bs_cfg_xbar
         (host_32b_ar_gnt_slv5 ? slv5_axi_arready : '0) |
         (host_32b_ar_gnt_slv6 ? slv6_axi_arready : '0) |
         (host_32b_ar_gnt_slv7 ? slv7_axi_arready : '0) |
+        (host_32b_ar_gnt_ext0 ? ext0_axi_arready : '0) |
+        (host_32b_ar_gnt_ext1 ? ext1_axi_arready : '0) |
         (host_32b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
 
     assign host_32b_r.id = 
@@ -2587,6 +2857,8 @@ module bridge_bs_cfg_xbar
         (host_32b_r_rgnt_slv5 ? slv5_axi_rid : '0) |
         (host_32b_r_rgnt_slv6 ? slv6_axi_rid : '0) |
         (host_32b_r_rgnt_slv7 ? slv7_axi_rid : '0) |
+        (host_32b_r_rgnt_ext0 ? ext0_axi_rid : '0) |
+        (host_32b_r_rgnt_ext1 ? ext1_axi_rid : '0) |
         (host_32b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign host_32b_r.data = 
@@ -2607,6 +2879,8 @@ module bridge_bs_cfg_xbar
         (host_32b_r_rgnt_slv5 ? slv5_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_slv6 ? slv6_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_slv7 ? slv7_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_ext0 ? ext0_axi_rdata : 32'b0) |
+        (host_32b_r_rgnt_ext1 ? ext1_axi_rdata : 32'b0) |
         (host_32b_r_rgnt_subtractive ? subtractive_axi_rdata : 32'b0);
 
     assign host_32b_r.resp = 
@@ -2627,6 +2901,8 @@ module bridge_bs_cfg_xbar
         (host_32b_r_rgnt_slv5 ? slv5_axi_rresp : '0) |
         (host_32b_r_rgnt_slv6 ? slv6_axi_rresp : '0) |
         (host_32b_r_rgnt_slv7 ? slv7_axi_rresp : '0) |
+        (host_32b_r_rgnt_ext0 ? ext0_axi_rresp : '0) |
+        (host_32b_r_rgnt_ext1 ? ext1_axi_rresp : '0) |
         (host_32b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign host_32b_r.last = 
@@ -2647,6 +2923,8 @@ module bridge_bs_cfg_xbar
         (host_32b_r_rgnt_slv5 ? slv5_axi_rlast : '0) |
         (host_32b_r_rgnt_slv6 ? slv6_axi_rlast : '0) |
         (host_32b_r_rgnt_slv7 ? slv7_axi_rlast : '0) |
+        (host_32b_r_rgnt_ext0 ? ext0_axi_rlast : '0) |
+        (host_32b_r_rgnt_ext1 ? ext1_axi_rlast : '0) |
         (host_32b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign host_32b_r.user = 
@@ -2667,6 +2945,8 @@ module bridge_bs_cfg_xbar
         (host_32b_r_rgnt_slv5 ? slv5_axi_ruser : '0) |
         (host_32b_r_rgnt_slv6 ? slv6_axi_ruser : '0) |
         (host_32b_r_rgnt_slv7 ? slv7_axi_ruser : '0) |
+        (host_32b_r_rgnt_ext0 ? ext0_axi_ruser : '0) |
+        (host_32b_r_rgnt_ext1 ? ext1_axi_ruser : '0) |
         (host_32b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign host_32b_rvalid = 
@@ -2687,6 +2967,8 @@ module bridge_bs_cfg_xbar
         (host_32b_r_rgnt_slv5 ? slv5_axi_rvalid : '0) |
         (host_32b_r_rgnt_slv6 ? slv6_axi_rvalid : '0) |
         (host_32b_r_rgnt_slv7 ? slv7_axi_rvalid : '0) |
+        (host_32b_r_rgnt_ext0 ? ext0_axi_rvalid : '0) |
+        (host_32b_r_rgnt_ext1 ? ext1_axi_rvalid : '0) |
         (host_32b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
 

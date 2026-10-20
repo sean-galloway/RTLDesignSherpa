@@ -16,6 +16,14 @@ are new TOMLs through this same script, not new harnesses.
 writes rtl/generated/bs_harness_<dut>/bs_harness_<dut>.sv and
 rtl/generated/filelists/bs_harness_<dut>.f. Clock domains: a port with
 `cdc = true` runs on cclk, everything else on aclk (the DUT's clock).
+
+A port named in the TOML's `[harness] vendor` list gets no stress block: its
+DUT pins become harness pins, for the board top to connect to third-party IP
+(build-xil). Such a master counts as done and error-free in the roll-up; its
+results are the host's to read. The configuration bridge's two AXI4-Lite
+windows ext0 / ext1 then leave the harness too, for that IP's control ports,
+and EXT_STS0..3 in the control block carry 128 bits of its status in; in a
+build without vendor ports ext0 / ext1 answer SLVERR.
 """
 from __future__ import annotations
 
@@ -68,7 +76,16 @@ AR5_X = [('arnsaid', '4'), ('artrace', '1'), ('armpam', '11'), ('armecid', '16')
 R5_X = [('rtrace', '1'), ('ridunq', '1'), ('rpoison', '1'), ('rchunkv', '1'),
         ('rchunknum', '4'), ('rchunkstrb', 'NT'), ('rtag', 'TW')]
 # What the AXI5 stress shells model; any other feature on a DUT port is refused.
-AXI5_STRESS_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'poison', 'unique', 'atomic')
+AXI5_STRESS_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'poison', 'unique', 'atomic', 'mte')
+
+# The configuration bridge's AXI4-Lite windows for vendor IP control ports:
+# (signal, width, driven by the bridge)
+EXT_AXIL = [('awaddr', 32, 1), ('awprot', 3, 1), ('awvalid', 1, 1), ('awready', 1, 0),
+            ('wdata', 32, 1), ('wstrb', 4, 1), ('wvalid', 1, 1), ('wready', 1, 0),
+            ('bresp', 2, 0), ('bvalid', 1, 0), ('bready', 1, 1),
+            ('araddr', 32, 1), ('arprot', 3, 1), ('arvalid', 1, 1), ('arready', 1, 0),
+            ('rdata', 32, 0), ('rresp', 2, 0), ('rvalid', 1, 0), ('rready', 1, 1)]
+EXT_WINDOWS = ('ext0', 'ext1')
 
 # protocol -> (AW, W, B, AR, R); the stress shells are <protocol>_{master,slave}_stress
 CHANNELS = {'axi4': (AW, W, B, AR, R), 'axi3': (AW3, W3, B, AR3, R),
@@ -89,6 +106,7 @@ class Port:
     size: int = 0
     features: List[str] = field(default_factory=list)   # axi5_features
     max_outstanding: int = 16
+    vendor: bool = False       # [harness] vendor: pins out, no stress block
 
     @property
     def rd(self) -> bool:
@@ -140,24 +158,28 @@ class Port:
         return (f", .EN_NSAID(1'b{self.en('nsaid')}), .EN_TRACE(1'b{self.en('trace')}),"
                 f" .EN_MPAM(1'b{self.en('mpam')}), .EN_MECID(1'b{self.en('mecid')}),"
                 f" .EN_POISON(1'b{self.en('poison')}), .EN_UNIQUE(1'b{self.en('unique')}),"
-                f" .EN_ATOMIC(1'b{self.en('atomic')})")
+                f" .EN_ATOMIC(1'b{self.en('atomic')}), .EN_MTE(1'b{self.en('mte')})")
 
 
 def load(toml: Path):
-    cfg = tomllib.loads(toml.read_text())['bridge']
+    doc = tomllib.loads(toml.read_text())
+    cfg = doc['bridge']
+    vendor = set(doc.get('harness', {}).get('vendor', []))
     ms, ss = [], []
     for m in cfg['masters']:
         ms.append(Port(m['name'], m['prefix'], m.get('protocol', 'axi4'),
                        m.get('channels', 'rw'), m['data_width'], m.get('id_width', 0),
                        max(1, m.get('user_width', 1)), bool(m.get('cdc', False)),
                        features=list(m.get('axi5_features', [])),
-                       max_outstanding=int(m.get('max_outstanding', 16))))
+                       max_outstanding=int(m.get('max_outstanding', 16)),
+                       vendor=m['name'] in vendor))
     for s in cfg['slaves']:
         ss.append(Port(s['name'], s['prefix'], s.get('protocol', 'axi4'),
                        s.get('channels', 'rw'), s['data_width'], s.get('id_width', 0),
                        max(1, s.get('user_width', 1)), bool(s.get('cdc', False)),
                        int(s['base_addr'], 0), int(s['addr_range'], 0),
-                       features=list(s.get('axi5_features', []))))
+                       features=list(s.get('axi5_features', [])),
+                       vendor=s['name'] in vendor))
     for p in ms + ss:
         if p.protocol not in CHANNELS:
             sys.exit(f'{p.name}: protocol {p.protocol!r} has no stress shell yet '
@@ -166,6 +188,9 @@ def load(toml: Path):
         if extra:
             sys.exit(f'{p.name}: axi5_features {sorted(extra)} are not modelled by the '
                      f'stress shells yet (have {list(AXI5_STRESS_FEATURES)})')
+    unknown = vendor - {p.name for p in ms + ss}
+    if unknown:
+        sys.exit(f'[harness] vendor names no port: {sorted(unknown)}')
     if len(ms) > MAX_PORTS or len(ss) > MAX_PORTS:
         sys.exit(f'at most {MAX_PORTS} masters and {MAX_PORTS} slaves')
     return cfg['name'], ms, ss
@@ -193,6 +218,29 @@ def cpuif_addr_msb(regblock: str) -> int:
 def gen(dut: str, ms: List[Port], ss: List[Port], variant: int) -> str:
     L: List[str] = []
     ctl_msb = cpuif_addr_msb('bstress_ctl_regs')
+    has_vendor = any(p.vendor for p in ms + ss)
+    vp: List[str] = []
+    if has_vendor:
+        vp.append('    // vendor IP control (AXI4-Lite out of the configuration bridge) and status')
+        for x in EXT_WINDOWS:
+            for n, wd, out in EXT_AXIL:
+                rng = f'[{wd - 1}:0]' if wd > 1 else ''
+                vp.append(f"    {'output' if out else 'input '} logic {rng:<7} {x}_axil_{n}")
+        vp.append('    input  logic [127:0] i_ext_sts')
+        for p in ms + ss:
+            if not p.vendor:
+                continue
+            aw, w, b, ar, r = p.chans
+            dut_in = {x for x, _ in aw + w + ar} | {'bready', 'rready'}
+            dut_in -= {'awready', 'wready', 'arready'}
+            if p in ss:     # a slave port's DUT inputs are the responses
+                dut_in = {x for x, _ in p.sigs()} - dut_in
+            vp.append(f'    // {p.name}: DUT {"master" if p in ms else "slave"} port, '
+                      f'to vendor IP ({p.clk})')
+            for n, wd in p.sigs():
+                d = 'input ' if n in dut_in else 'output'
+                vp.append(f'    {d} logic {width(wd, p):<7} {p.prefix}{n}')
+    vendor_ports = (',\n' + ',\n'.join(vp)) if vp else ''
     a = L.append
     nm, ns = len(ms), len(ss)
     a(f"""// SPDX-License-Identifier: MIT
@@ -232,7 +280,7 @@ module bs_harness_{dut}
 
     output logic o_all_done,
     output logic o_any_err,
-    output logic o_busy
+    output logic o_busy{vendor_ports}
 );
 
     localparam int NM = {nm};
@@ -277,6 +325,11 @@ module bs_harness_{dut}
         a(f"    logic [31:0] {w}_apb_PADDR, {w}_apb_PWDATA, {w}_apb_PRDATA;")
         a(f"    logic [3:0]  {w}_apb_PSTRB;")
         a(f"    logic [2:0]  {w}_apb_PPROT;")
+    if not has_vendor:
+        for x in EXT_WINDOWS:
+            for n, wd, _ in EXT_AXIL:
+                rng = f'[{wd - 1}:0]' if wd > 1 else ''
+                a(f"    logic {rng:<7} {x}_axil_{n};")
     a("    logic        cfg_unmapped_irq;")
     a("""
     bridge_bs_cfg u_cfg (
@@ -290,6 +343,8 @@ module bs_harness_{dut}
         a(f"        .{w}_apb_PSEL, .{w}_apb_PADDR, .{w}_apb_PENABLE, .{w}_apb_PWRITE,")
         a(f"        .{w}_apb_PWDATA, .{w}_apb_PSTRB, .{w}_apb_PPROT,")
         a(f"        .{w}_apb_PRDATA, .{w}_apb_PREADY, .{w}_apb_PSLVERR,")
+    for x in EXT_WINDOWS:
+        a("        " + ", ".join(f".{x}_axil_{n}" for n, _, _ in EXT_AXIL) + ",")
     a("""        .unmapped_irq   (cfg_unmapped_irq),
         /* verilator lint_off PINCONNECTEMPTY */
         .unmapped_addr  (),
@@ -310,6 +365,44 @@ module bs_harness_{dut}
         f"{w}_apb_PSEL, {w}_apb_PADDR, {w}_apb_PENABLE, {w}_apb_PWRITE, "
         f"{w}_apb_PWDATA, {w}_apb_PSTRB, {w}_apb_PPROT" for w in wins if w not in used)
       + "};\n" if len(used) < len(wins) else "    wire unused_cfg = cfg_unmapped_irq;\n")
+
+    if not has_vendor:
+        for x in EXT_WINDOWS:
+            a(f"""    // {x}: no vendor IP in this build -- every access answers SLVERR
+    // (readies from state alone: the bridge's AXI4-Lite adapter may gate
+    // its VALIDs on them)
+    logic r_{x}_aw, r_{x}_w, r_{x}_bv, r_{x}_rv;
+    assign {x}_axil_awready = !r_{x}_aw && !r_{x}_bv;
+    assign {x}_axil_wready  = !r_{x}_w  && !r_{x}_bv;
+    assign {x}_axil_bvalid  = r_{x}_bv;
+    assign {x}_axil_bresp   = 2'b10;
+    assign {x}_axil_arready = !r_{x}_rv;
+    assign {x}_axil_rvalid  = r_{x}_rv;
+    assign {x}_axil_rresp   = 2'b10;
+    assign {x}_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_{x}_aw <= 1'b0;
+            r_{x}_w  <= 1'b0;
+            r_{x}_bv <= 1'b0;
+            r_{x}_rv <= 1'b0;
+        end else begin
+            if ({x}_axil_awvalid && {x}_axil_awready) r_{x}_aw <= 1'b1;
+            if ({x}_axil_wvalid  && {x}_axil_wready)  r_{x}_w  <= 1'b1;
+            if (r_{x}_aw && r_{x}_w) begin
+                r_{x}_bv <= 1'b1;
+                r_{x}_aw <= 1'b0;
+                r_{x}_w  <= 1'b0;
+            end else if (r_{x}_bv && {x}_axil_bready) begin
+                r_{x}_bv <= 1'b0;
+            end
+            if ({x}_axil_arvalid && {x}_axil_arready) r_{x}_rv <= 1'b1;
+            else if ({x}_axil_rready)                 r_{x}_rv <= 1'b0;
+        end
+    end
+    wire unused_{x} = ^{{{x}_axil_awaddr, {x}_axil_awprot, {x}_axil_wdata, {x}_axil_wstrb,
+                        {x}_axil_araddr, {x}_axil_arprot}};
+""")
 
     # ---------------------------------------------------------------- ctl
     a(f"""    // =========================================================================
@@ -390,6 +483,12 @@ module bs_harness_{dut}
     # ---------------------------------------------------------------- masters
     for i, p in enumerate(ms):
         go, stop, seed = ('go_c', 'stop_c', 'seed_c') if p.cdc else ('go_a', 'stop_a', 'seed_a')
+        if p.vendor:
+            a(f"""    // Master {i}: {p.name} -- vendor IP on harness pins; done and error-free here
+    assign mst_done_raw[{i}] = 1'b1;
+    assign mst_err_raw[{i}]  = 1'b0;
+""")
+            continue
         a(f"""    // =========================================================================
     // Master {i}: {p.name} ({p.protocol}, {p.channels}, {p.dw}-bit, ID {p.iw}, {p.clk})
     // =========================================================================
@@ -446,6 +545,12 @@ module bs_harness_{dut}
     src_lsb, src_w = fabric_local_id_width(spec), id_prefix_width(spec)
     for i, p in enumerate(ss):
         go, seed = ('go_c', 'seed_c') if p.cdc else ('go_a', 'seed_a')
+        if p.vendor:
+            a(f"""    // Slave {i}: {p.name} -- vendor IP on harness pins
+    //          window 0x{p.base:08X} + 0x{p.size:X}
+    assign slv_err_raw[{i}] = 1'b0;
+""")
+            continue
         src_params = (f", .SRC_LSB({src_lsb}), .SRC_W({src_w})"
                       if p.protocol == 'axi5' else '')
         a(f"""    // =========================================================================
@@ -537,6 +642,8 @@ module bs_harness_{dut}
               f"        .async_in (slv_err_raw[{i}]), .sync_out (slv_err[{i}]));")
         else:
             a(f"    assign slv_err[{i}] = slv_err_raw[{i}];")
+    a("    logic [127:0] w_ext_sts;      // vendor IP status (EXT_STS0..3)")
+    a(f"    assign w_ext_sts = {'i_ext_sts' if has_vendor else "'0"};")
     a(f"""
     // Run timer: GO to ALL_DONE. ALL_DONE is ignored for the first 16 cycles
     // after GO -- the blocks' done flags, and the synchronized ones longer
@@ -592,6 +699,10 @@ module bs_harness_{dut}
         ctl_hi.UNMAPPED_ADDR.VALUE.next  = dut_unmapped_addr;
         ctl_hi.CYCLES.VALUE.next         = r_cycles;
         ctl_hi.GO_COUNT.VALUE.next       = r_go_count;
+        ctl_hi.EXT_STS0.VALUE.next       = w_ext_sts[31:0];
+        ctl_hi.EXT_STS1.VALUE.next       = w_ext_sts[63:32];
+        ctl_hi.EXT_STS2.VALUE.next       = w_ext_sts[95:64];
+        ctl_hi.EXT_STS3.VALUE.next       = w_ext_sts[127:96];
     end
 
     assign o_all_done = w_all_done && !r_busy;

@@ -65,10 +65,16 @@ addrmap bstress_mst_regs {
         field { sw = rw; hw = r; } MASK[31:16] = 0;
     };
 
+    reg mcfg_mem_t {
+        field { sw = rw; hw = r; desc = "Fill: sweep the lowest enabled window from its base in full-width INCR bursts, every strobe set, instead of drawing bursts. TXN_COUNT = window bytes / bytes per burst covers it once. How a real memory (a MEM window) gets known contents before it is read."; } FILL[0:0] = 0;
+        field { sw = rw; hw = r; desc = "MEM windows hash the address modulo 2^MEM_LG2 (the window offset when the window is aligned to it), so two MEM windows with one tag hold one image."; } MEM_LG2[13:8] = 0;
+    };
+
     mcfg_ctrl_t  RD_CTRL      @ 0x010;
     mcfg_count_t RD_TXN_COUNT @ 0x014;
     mcfg_seed_t  RD_SEED      @ 0x018;
     mcfg_id_t    RD_ID_CFG    @ 0x01C;
+    mcfg_mem_t   RD_MEM       @ 0x020;
     mcfg_ctrl_t  WR_CTRL      @ 0x030;
     mcfg_count_t WR_TXN_COUNT @ 0x034;
     mcfg_seed_t  WR_SEED      @ 0x038;
@@ -76,6 +82,7 @@ addrmap bstress_mst_regs {
     reg {
         field { sw = rw; hw = r; desc = "AXI5: 1 write burst in 2^n to an ATOMIC window becomes a one-beat atomic (Store / Load / Swap / Compare, by address hash) on an ID with the MSB set; 0 = none. Keep RD_ID_CFG and WR_ID_CFG below the ID MSB when this is set: those IDs belong to atomics."; } LG2[3:0] = 0;
     } WR_ATOM @ 0x040;
+    mcfg_mem_t   WR_MEM       @ 0x044;
 
     regfile win_t {
         reg {
@@ -98,6 +105,8 @@ addrmap bstress_mst_regs {
             field { sw = rw; hw = r; desc = "AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0."; } SB[16:16] = 0;
             field { sw = rw; hw = r; desc = "AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2."; } POISON_LG2[23:20] = 0;
             field { sw = rw; hw = r; desc = "AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM)."; } ATOMIC[24:24] = 0;
+            field { sw = rw; hw = r; desc = "AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags)."; } MTE[25:25] = 0;
+            field { sw = rw; hw = r; desc = "A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read."; } MEM[26:26] = 0;
         } CFG1 @ 0x8;
     };
 

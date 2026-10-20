@@ -16,6 +16,14 @@ were exercised, and the verdict cannot see that (a host write that failed to
 enable atomics would pass every check). So every AXI5 master port's pins are
 counted per run -- atomics by class and their read-returns, AxIDUNQ, poisoned
 W / R beats -- and a run that should have produced one and did not fails.
+
+build-xil (vendor ports): the AMD/Xilinx IP is not simulated. Each vendor
+slave (a real memory on the board) is the framework's AXI4 slave BFM with a
+memory model, each vendor master is held idle, the vendor control windows
+are left unanswered (the host does not drive them here) and EXT_STS0 reports
+DDR3 calibrated. What this proves is the harness plumbing, the mem windows
+through the bridge and the fill / read sweeps; the BFM models aligned INCR
+only, so build-xil sims run the clean profile.
 """
 from __future__ import annotations
 
@@ -29,6 +37,9 @@ from cocotb.triggers import RisingEdge
 
 from TBClasses.harness.cocotb_axil_bridge import make_uart_channel
 from TBClasses.shared.tbbase import TBBase
+from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.axi4.axi4_factories import (
+    create_axi4_slave_rd, create_axi4_slave_wr)
 
 import bstress
 from uart_axi_bridge import UARTAxiBridge
@@ -48,6 +59,8 @@ class BsHarnessTB(TBBase):
         self.h = bstress.StressHarness(self.bus, self.build,
                                        log=lambda m, _l=self.log: _l.info(m))
         self.failures: list[str] = []
+        self.mems: dict[str, MemoryModel] = {}
+        self._vendor_bfms: list = []
         # wall-clock bound on one run's ALL_DONE poll (a hang must fail, not spin)
         self.timeout_s = float(os.environ.get('BS_TIMEOUT_S', '1200'))
 
@@ -56,6 +69,7 @@ class BsHarnessTB(TBBase):
         self.dut.i_uart_rx.value = 1
         await self.start_clock('aclk', self.aclk_ps, 'ps')
         await self.start_clock('cclk', self.cclk_ps, 'ps')
+        self._vendor_ports()
         await self.assert_reset()
         await self.wait_clocks('aclk', 20)
         await self.deassert_reset()
@@ -68,6 +82,30 @@ class BsHarnessTB(TBBase):
         for m in self.build.masters:
             if m.protocol == 'axi5':
                 cocotb.start_soon(self._watch_axi5(m))
+
+    def _vendor_ports(self) -> None:
+        """build-xil: BFM memories on the vendor slaves, idle vendor masters."""
+        d = self.dut
+        for s in self.build.memories:
+            mem = MemoryModel(num_lines=(1 << s.mem_lg2) // (s.dw // 8),
+                              bytes_per_line=s.dw // 8, log=self.log)
+            self.mems[s.name] = mem
+            kw = dict(dut=d, clock=d.aclk, prefix=f'{s.name}_axi', log=self.log,
+                      id_width=s.iw, addr_width=32, data_width=s.dw, user_width=1,
+                      memory_model=mem, base_addr=s.base)
+            self._vendor_bfms += [create_axi4_slave_rd(**kw), create_axi4_slave_wr(**kw)]
+        for m in self.build.masters:
+            if not m.vendor:
+                continue
+            for n in ('awvalid', 'wvalid', 'arvalid'):
+                getattr(d, f'{m.name}_axi_{n}').value = 0
+            for n in ('bready', 'rready'):
+                getattr(d, f'{m.name}_axi_{n}').value = 1
+        if any(p.vendor for p in self.build.masters + self.build.slaves):
+            for x in ('ext0', 'ext1'):
+                for n in ('awready', 'wready', 'bvalid', 'arready', 'rvalid'):
+                    getattr(d, f'{x}_axil_{n}').value = 0
+            d.i_ext_sts.value = 1                  # EXT_STS0[0]: DDR3 calibrated
 
     # GO reaches cclk through a toggle synchronizer: a GO wider than one aclk
     # cycle toggles it twice and the cclk blocks never start. Every GO must be
@@ -107,6 +145,9 @@ class BsHarnessTB(TBBase):
         if 'poison' in f:
             s['wpoison'] = self._sig(p + 'wpoison')
             s['rpoison'] = self._sig(p + 'rpoison')
+        if 'mte' in f:
+            for n in ('awtagop', 'artagop', 'bvalid', 'bready', 'btagmatch'):
+                s[n] = self._sig(p + n)
         msb = 1 << (m.iw - 1)
         while True:
             await RisingEdge(self.dut.aclk)
@@ -118,8 +159,14 @@ class BsHarnessTB(TBBase):
                     c['atomic_' + bstress.M.atop_class(atop)] += 1
                     c['atomic_rr'] += (atop >> 5) & 1
                 c['awidunq'] += v.get('awidunq', 0)
+                if 'mte' in f:
+                    c[f"awtagop{v['awtagop']}"] += 1
             if v['arvalid'] and v['arready']:
                 c['aridunq'] += v.get('aridunq', 0)
+                if 'mte' in f:
+                    c[f"artagop{v['artagop']}"] += 1
+            if 'mte' in f and v['bvalid'] and v['bready']:
+                c[f"btagmatch{v['btagmatch']}"] += 1
             if v['wvalid'] and v['wready']:
                 c['wpoison'] += v.get('wpoison', 0)
             if v['rvalid'] and v['rready']:
@@ -139,8 +186,17 @@ class BsHarnessTB(TBBase):
                 if c['atomic_r'] != c['atomic_rr']:
                     miss.append(f"{c['atomic_rr']} read-return atomics, "
                                 f"{c['atomic_r']} R beats for them")
-            if 'unique' in f and not (c['awidunq'] if prof.wr else 0) + (c['aridunq'] if prof.rd else 0):
+            # single_id keeps every burst on one ID, which is then almost never
+            # idle, and AxIDUNQ is legal only on an idle ID
+            if ('unique' in f and not prof.single_id
+                    and not (c['awidunq'] if prof.wr else 0) + (c['aridunq'] if prof.rd else 0)):
                 miss.append('no AxIDUNQ issued')
+            if 'mte' in f:
+                kinds = ((['awtagop1', 'awtagop2', 'awtagop3'] if prof.wr else [])
+                         + (['artagop1', 'artagop3'] if prof.rd else []))
+                gone = [k for k in kinds if not c[k]]
+                if gone:
+                    miss.append(f'MTE never issued {gone}')
             if 'poison' in f and prof.poison_lg2:
                 if prof.wr and not c['wpoison']:
                     miss.append('no poisoned W beat')

@@ -3,8 +3,8 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 #
 # Regenerate every generated file of the bridge stress model from its sources:
-# the DUT bridge(s) and the configuration bridge from rtl/bridges/configs, and
-# the three regblocks from rtl/regs/*.rdl. Delete-all-then-regenerate (Rule #0):
+# the DUT bridge(s) and the configuration bridge from rtl/bridges/configs, the
+# three regblocks from rtl/regs/*.rdl, the harnesses and build-xil's LiteDRAM core. Delete-all-then-regenerate (Rule #0):
 # nothing generated survives a run.
 set -euo pipefail
 AREA="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -39,4 +39,7 @@ for toml in "$CFG"/bridge_*.toml; do
     [ "$(basename "$toml")" = "bridge_bs_cfg.toml" ] && continue
     python3 "$AREA/bin/gen_bs_harness.py" "$toml"
 done
+# build-xil's DDR3 controller (LiteDRAM; skips while current, so the BIOS is
+# not rebuilt every run). Outside rtl/generated, which this script wipes.
+bash "$AREA/bin/gen_litedram.sh"
 echo "[regen] done"

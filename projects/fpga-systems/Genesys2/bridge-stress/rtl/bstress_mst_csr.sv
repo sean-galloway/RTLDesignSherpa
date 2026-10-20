@@ -97,6 +97,8 @@ module bstress_mst_csr
         cfg_rd.seed          = ho.RD_SEED.VALUE.value;
         cfg_rd.id_base       = ho.RD_ID_CFG.BASE.value;
         cfg_rd.id_mask       = ho.RD_ID_CFG.MASK.value;
+        cfg_rd.fill          = ho.RD_MEM.FILL.value;
+        cfg_rd.mem_lg2       = ho.RD_MEM.MEM_LG2.value;
 
         cfg_wr = '0;
         cfg_wr.enable        = ho.WR_CTRL.ENABLE.value;
@@ -112,6 +114,8 @@ module bstress_mst_csr
         cfg_wr.seed          = ho.WR_SEED.VALUE.value;
         cfg_wr.id_base       = ho.WR_ID_CFG.BASE.value;
         cfg_wr.id_mask       = ho.WR_ID_CFG.MASK.value;
+        cfg_wr.fill          = ho.WR_MEM.FILL.value;
+        cfg_wr.mem_lg2       = ho.WR_MEM.MEM_LG2.value;
 
         for (int i = 0; i < NWIN; i++) begin
             cfg_win[i]            = '0;
@@ -128,6 +132,8 @@ module bstress_mst_csr
             cfg_win[i].sb         = ho.WIN[i].CFG1.SB.value;
             cfg_win[i].poison_lg2 = ho.WIN[i].CFG1.POISON_LG2.value;
             cfg_win[i].atomic     = ho.WIN[i].CFG1.ATOMIC.value;
+            cfg_win[i].mte        = ho.WIN[i].CFG1.MTE.value;
+            cfg_win[i].mem        = ho.WIN[i].CFG1.MEM.value;
             cfg_win[i].rd_en      = ho.WIN[i].CFG1.RD_EN.value && HAS_RD;
             cfg_win[i].wr_en      = ho.WIN[i].CFG1.WR_EN.value && HAS_WR;
         end

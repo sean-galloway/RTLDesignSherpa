@@ -1,0 +1,3 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xil,clean,1,1000,False,False,270134,cdma: no copy completed during the run
+bridge_bs_xil,bursts,1,1000,False,False,272884,cdma: no copy completed during the run

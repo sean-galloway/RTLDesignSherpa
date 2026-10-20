@@ -20,11 +20,13 @@ Don't override. Generated from: $root
 | 0x014|RD_TXN_COUNT|  — |
 | 0x018|   RD_SEED  |  — |
 | 0x01C|  RD_ID_CFG |  — |
+| 0x020|   RD_MEM   |  — |
 | 0x030|   WR_CTRL  |  — |
 | 0x034|WR_TXN_COUNT|  — |
 | 0x038|   WR_SEED  |  — |
 | 0x03C|  WR_ID_CFG |  — |
 | 0x040|   WR_ATOM  |  — |
+| 0x044|   WR_MEM   |  — |
 | 0x100|   WIN[0]   |  — |
 | 0x110|   WIN[1]   |  — |
 | 0x120|   WIN[2]   |  — |
@@ -215,6 +217,25 @@ Don't override. Generated from: $root
 
 <p>AxID = BASE ^ (random &amp; MASK).</p>
 
+### RD_MEM register
+
+- Absolute Address: 0x20
+- Base Offset: 0x20
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   FILL   |  rw  | 0x0 |  — |
+|13:8|  MEM_LG2 |  rw  | 0x0 |  — |
+
+#### FILL field
+
+<p>Fill: sweep the lowest enabled window from its base in full-width INCR bursts, every strobe set, instead of drawing bursts. TXN_COUNT = window bytes / bytes per burst covers it once. How a real memory (a MEM window) gets known contents before it is read.</p>
+
+#### MEM_LG2 field
+
+<p>MEM windows hash the address modulo 2^MEM_LG2 (the window offset when the window is aligned to it), so two MEM windows with one tag hold one image.</p>
+
 ### WR_CTRL register
 
 - Absolute Address: 0x30
@@ -321,6 +342,25 @@ Don't override. Generated from: $root
 
 <p>AXI5: 1 write burst in 2^n to an ATOMIC window becomes a one-beat atomic (Store / Load / Swap / Compare, by address hash) on an ID with the MSB set; 0 = none. Keep RD_ID_CFG and WR_ID_CFG below the ID MSB when this is set: those IDs belong to atomics.</p>
 
+### WR_MEM register
+
+- Absolute Address: 0x44
+- Base Offset: 0x44
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   FILL   |  rw  | 0x0 |  — |
+|13:8|  MEM_LG2 |  rw  | 0x0 |  — |
+
+#### FILL field
+
+<p>Fill: sweep the lowest enabled window from its base in full-width INCR bursts, every strobe set, instead of drawing bursts. TXN_COUNT = window bytes / bytes per burst covers it once. How a real memory (a MEM window) gets known contents before it is read.</p>
+
+#### MEM_LG2 field
+
+<p>MEM windows hash the address modulo 2^MEM_LG2 (the window offset when the window is aligned to it), so two MEM windows with one tag hold one image.</p>
+
 ## WIN register file
 
 - Absolute Address: 0x100
@@ -397,6 +437,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -437,6 +479,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -514,6 +564,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -554,6 +606,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -631,6 +691,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -671,6 +733,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -748,6 +818,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -788,6 +860,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -865,6 +945,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -905,6 +987,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -982,6 +1072,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1022,6 +1114,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -1099,6 +1199,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1139,6 +1241,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ## WIN register file
 
@@ -1216,6 +1326,8 @@ Don't override. Generated from: $root
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
 |  24 |  ATOMIC  |  rw  | 0x0 |  — |
+|  25 |    MTE   |  rw  | 0x0 |  — |
+|  26 |    MEM   |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1256,6 +1368,14 @@ Don't override. Generated from: $root
 #### ATOMIC field
 
 <p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
+
+#### MTE field
+
+<p>AXI5 MTE: the far end of this window answers tags (both ends MTE), so RTAG / BTAGMATCH are checked against the tag contract; else they must be 0 (a fabric's own DECERR answers no tags).</p>
+
+#### MEM field
+
+<p>A real memory: it returns what was written. Writes carry the value a read expects, f_word(f_maddr(address), TAG, RD), so contents stay checkable whatever order writes land in; the window must be filled (FILL) before it is read.</p>
 
 ### RD_STATUS register
 

@@ -1,0 +1,22 @@
+[
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 1000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 270134,
+  "reasons": "cdma: no copy completed during the run"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 1,
+  "txns": 1000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 272884,
+  "reasons": "cdma: no copy completed during the run"
+ }
+]

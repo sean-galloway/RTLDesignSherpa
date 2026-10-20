@@ -549,12 +549,16 @@ module bridge_bs_axi5_dma_adapter
     assign dma_64b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign dma_64b_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign dma_64b_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign dma_64b_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_ar.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign dma_64b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign dma_64b_ar.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
 
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(128),
@@ -704,6 +708,7 @@ module bridge_bs_axi5_dma_adapter
     assign dma_128b_aw.mecid = fub_axi_awmecid;  // AXI5 sideband
     assign dma_128b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
     assign dma_128b_aw.atop = '0;  // AXI5 sideband (not on this master)
+    assign dma_128b_aw.tagop = '0;  // AXI5 sideband (not on this master)
     assign dma_128b_awvalid   = fub_axi_awvalid && aw_path_active_128b;
     // awready routed via MUX
 
@@ -713,6 +718,8 @@ module bridge_bs_axi5_dma_adapter
     assign dma_128b_w.last  = fub_axi_wlast;
     assign dma_128b_w.user  = fub_axi_wuser;
     assign dma_128b_w.poison = '0;  // AXI5 sideband (not on this master)
+    assign dma_128b_w.tag = '0;  // AXI5 sideband (not on this master)
+    assign dma_128b_w.tagupdate = '0;  // AXI5 sideband (not on this master)
     assign dma_128b_wvalid  = fub_axi_wvalid && w_path_active_128b;
     // wready routed via MUX
 
@@ -738,6 +745,7 @@ module bridge_bs_axi5_dma_adapter
     assign dma_128b_ar.mpam = fub_axi_armpam;  // AXI5 sideband
     assign dma_128b_ar.mecid = fub_axi_armecid;  // AXI5 sideband
     assign dma_128b_ar.idunq = fub_axi_aridunq;  // AXI5 sideband
+    assign dma_128b_ar.tagop = '0;  // AXI5 sideband (not on this master)
     assign dma_128b_arvalid   = fub_axi_arvalid && ar_path_active_128b;
     // arready routed via MUX
 

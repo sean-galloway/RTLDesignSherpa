@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x24
+- Size: 0x40
 
 <p>GO/STOP, the data seed, the run timer and the pass/fail roll-up</p>
 
@@ -23,6 +23,10 @@ Don't override. Generated from: $root
 | 0x18 | UNMAPPED_ADDR|  — |
 | 0x1C |    CYCLES    |  — |
 | 0x20 |   GO_COUNT   |  — |
+| 0x30 |   EXT_STS0   |  — |
+| 0x34 |   EXT_STS1   |  — |
+| 0x38 |   EXT_STS2   |  — |
+| 0x3C |   EXT_STS3   |  — |
 
 ### ID register
 
@@ -200,3 +204,59 @@ Don't override. Generated from: $root
 #### VALUE field
 
 <p>GOs issued (wraps at 256). Every block's RUNS must equal it: a block that missed a GO keeps the previous run's status.</p>
+
+### EXT_STS0 register
+
+- Absolute Address: 0x30
+- Base Offset: 0x30
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+#### VALUE field
+
+<p>Vendor IP status (build-xil: protocol checkers, MIG); 0 in a build without vendor ports. The board top defines the bits.</p>
+
+### EXT_STS1 register
+
+- Absolute Address: 0x34
+- Base Offset: 0x34
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+#### VALUE field
+
+<p>Vendor IP status (build-xil: protocol checkers, MIG); 0 in a build without vendor ports. The board top defines the bits.</p>
+
+### EXT_STS2 register
+
+- Absolute Address: 0x38
+- Base Offset: 0x38
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+#### VALUE field
+
+<p>Vendor IP status (build-xil: protocol checkers, MIG); 0 in a build without vendor ports. The board top defines the bits.</p>
+
+### EXT_STS3 register
+
+- Absolute Address: 0x3C
+- Base Offset: 0x3C
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   VALUE  |   r  | 0x0 |  — |
+
+#### VALUE field
+
+<p>Vendor IP status (build-xil: protocol checkers, MIG); 0 in a build without vendor ports. The board top defines the bits.</p>

@@ -1,0 +1,36 @@
+# bs_litedram -- build-xil's DDR3 controller (LiteDRAM), on bridge_bs_xil's ddr port.
+#
+# The PHY, module, clocks and CPU are the board-proven LiteDRAM memtest build's
+# (mem-ctrl-ip/scoria/build-litedram/litedram_genesys2_ddr3.yml), as the
+# fabric benchmark uses them: K7DDRPHY, 2 x MT41J256M16 (32-bit DQ, 1 GB),
+# DDR3-800 at 1:4, 100 MHz sys from the board's 200 MHz clock. The VexRiscv +
+# BIOS calibrate the PHY at boot and then idle; init_done is "DDR3 ready".
+#
+# The user port is the ddr port's: 128-bit AXI4, ID width 6
+# (bridge_bs_xil.toml). user_clk is aclk, so the port needs no crossing.
+#
+# Replaces MIG 7-series (owner decision 2026-10-20): MIG's controller raised
+# app_rd_data_valid with no read issued and then stopped accepting commands
+# on this board (bridge-stress PRD findings).
+{
+    "speedgrade":       -2,
+    "cpu":              "vexriscv",
+    "memtype":          "DDR3",
+    "uart":             "rs232",
+
+    "cmd_latency":      0,
+    "sdram_module":     "MT41J256M16",
+    "sdram_module_nb":  4,
+    "sdram_rank_nb":    1,
+    "sdram_phy":        "K7DDRPHY",
+
+    "input_clk_freq":   200e6,
+    "sys_clk_freq":     100e6,
+    "iodelay_clk_freq": 200e6,
+
+    "cmd_buffer_depth": 16,
+
+    "user_ports": {
+        "axi_0": { "type": "axi", "data_width": 128, "id_width": 6 }
+    }
+}

@@ -36,6 +36,13 @@ the request's TRACE on BTRACE / RTRACE at the bridge boundary whatever the
 slave (bridge BUG-010), so every window of such a master, the DECERR hole
 included, expects the echo (window SB). A poison path (both ends enable
 poison) poisons 1 beat in 2^poison_lg2 in both directions.
+
+Vendor ports (the TOML's [harness] vendor, build-xil): no stress block and no
+registers. A vendor slave is a real memory, so every stress master addresses
+it as a mem window (axi_stress_pkg f_maddr): tag MEM_TAG, hashed modulo
+2^MEM_LG2, its lowest 2^MEM_LG2 bytes at most. Each run starts with a fill
+GO (one stress master sweeps each memory) so the image is known before the
+run's GO reads it. Vendor masters are driven by bstress_xil.
 """
 from __future__ import annotations
 
@@ -77,6 +84,8 @@ NWIN = 8
 PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil': 3, 'axil5': 4,
               'apb': 5, 'apb5': 6, 'wb4': 7}
 TAG0 = 0x10                         # slave i's tag = TAG0 + i
+MEM_TAG = 0x6D                      # every mem window: one image across memories
+MEM_LG2 = 20                        # mem windows hash modulo 1 MB (cfg mem_lg2)
 
 
 # =============================================================================
@@ -96,6 +105,7 @@ class Port:
     size: int = 0
     ooo: bool = False
     features: Tuple[str, ...] = ()           # axi5_features
+    vendor: bool = False                     # [harness] vendor: third-party IP
 
     @property
     def rd(self) -> bool:
@@ -108,6 +118,11 @@ class Port:
     @property
     def size_lg2(self) -> int:
         return self.size.bit_length() - 1
+
+    @property
+    def mem_lg2(self) -> int:
+        """A vendor slave's mem window: its lowest 2^n bytes."""
+        return min(self.size_lg2, MEM_LG2)
 
 
 @dataclass(frozen=True)
@@ -123,19 +138,33 @@ class Build:
     def masters_of(self, s: Port) -> List[Port]:
         return [m for m in self.masters if s.name in self.conn[m.name]]
 
+    @property
+    def stress_masters(self) -> Tuple[Port, ...]:
+        return tuple(m for m in self.masters if not m.vendor)
+
+    @property
+    def stress_slaves(self) -> Tuple[Port, ...]:
+        return tuple(s for s in self.slaves if not s.vendor)
+
+    @property
+    def memories(self) -> Tuple[Port, ...]:
+        return tuple(s for s in self.slaves if s.vendor)
+
 
 def load_build(toml: Path) -> Build:
     toml = Path(toml)
-    cfg = tomllib.loads(toml.read_text())['bridge']
+    doc = tomllib.loads(toml.read_text())
+    cfg = doc['bridge']
+    vendor = set(doc.get('harness', {}).get('vendor', []))
     ms = tuple(Port(i, m['name'], m.get('protocol', 'axi4'), m.get('channels', 'rw'),
                     m['data_width'], m.get('id_width', 0), bool(m.get('cdc', False)),
-                    features=tuple(m.get('axi5_features', ())))
+                    features=tuple(m.get('axi5_features', ())), vendor=m['name'] in vendor)
                for i, m in enumerate(cfg['masters']))
     ss = tuple(Port(i, s['name'], s.get('protocol', 'axi4'), s.get('channels', 'rw'),
                     s['data_width'], s.get('id_width', 0), bool(s.get('cdc', False)),
                     int(s['base_addr'], 0), int(s['addr_range'], 0),
                     bool(s.get('enable_ooo', False)),
-                    features=tuple(s.get('axi5_features', ())))
+                    features=tuple(s.get('axi5_features', ())), vendor=s['name'] in vendor)
                for i, s in enumerate(cfg['slaves']))
     conn_file = toml.with_name(f"{cfg['name']}_connectivity.csv")
     conn: Dict[str, Tuple[str, ...]] = {}
@@ -179,6 +208,10 @@ def atomic_path(m: Port, s: Port) -> bool:
     """Both ends enable atomic (the validator then guarantees AXI5 both
     ends, rw and one width)."""
     return is_atomic(m) and is_atomic(s)
+
+
+def is_mte(p: Port) -> bool:
+    return p.protocol == 'axi5' and 'mte' in p.features
 
 
 def poison_path(m: Port, s: Port) -> bool:
@@ -280,12 +313,14 @@ class StressHarness:
         self.log = log
         self.ctl = Device(bridge, 'ctl', regs_base=CTL_BASE,
                           regmap_file=str(REGMAPS / 'bstress_ctl_regs_regmap.py'))
+        # one register block per STRESS port, in build.stress_* order
         self.mst = [Device(bridge, f'mst{m.index}', regs_base=MST_BASE + m.index * WIN_STRIDE,
                            regmap_file=str(REGMAPS / 'bstress_mst_regs_regmap.py'))
-                    for m in build.masters]
+                    for m in build.stress_masters]
         self.slv = [Device(bridge, f'slv{s.index}', regs_base=SLV_BASE + s.index * WIN_STRIDE,
                            regmap_file=str(REGMAPS / 'bstress_slv_regs_regmap.py'))
-                    for s in build.slaves]
+                    for s in build.stress_slaves]
+        self.vendor = None          # bstress_xil.XilVendors on a build with vendor masters
         self.hole = find_hole(build)
         self.plan: Dict[int, List[M.Window]] = {}
 
@@ -299,7 +334,8 @@ class StressHarness:
         if (nm, ns) != (len(b.masters), len(b.slaves)):
             raise BuildMismatch(f'bitstream has {nm} masters / {ns} slaves, '
                                 f'{b.name} has {len(b.masters)} / {len(b.slaves)}')
-        for dev, ports, magic in ((self.mst, b.masters, 0x5354), (self.slv, b.slaves, 0x5353)):
+        for dev, ports, magic in ((self.mst, b.stress_masters, 0x5354),
+                                  (self.slv, b.stress_slaves, 0x5353)):
             for d, p in zip(dev, ports):
                 v = d.read('ID')
                 want = (magic << 16) | (PROTO_CODE[p.protocol] << 13) | (p.iw << 8) | (p.dw // 8)
@@ -320,7 +356,7 @@ class StressHarness:
 
         def limited(s: Port) -> dict:
             c = dict(common, poison_lg2=prof.poison_lg2 if poison_path(m, s) else 0,
-                     atomic=int(atomic_path(m, s)))
+                     atomic=int(atomic_path(m, s)), mte=int(is_mte(m) and is_mte(s)))
             caps = {} if prof.full_axi else path_caps(m, s)
             if 'bursts' in caps:
                 c['burst_mask'] = c['burst_mask'] & caps['bursts'] or caps['bursts']
@@ -330,14 +366,17 @@ class StressHarness:
                 c['unaligned'] = c['unaligned'] & caps['unaligned']
             return c
 
-        wins = [M.Window(s.base, s.size_lg2 - 1, TAG0 + s.index, M.OKAY, **limited(s))
+        wins = [M.Window(s.base, s.mem_lg2, MEM_TAG, M.OKAY, mem=1, **limited(s))
+                if s.vendor else
+                M.Window(s.base, s.size_lg2 - 1, TAG0 + s.index, M.OKAY, **limited(s))
                 for s in slaves]
+        slaves = [s for s in slaves if not s.vendor]   # SLVERR windows: stress slaves only
         if prof.errors:
             if self.hole is not None:
                 wins.append(M.Window(self.hole, 24, 0, M.DECERR, **common))
             k = m.index           # rotate which slaves get an error window
             for j in range(len(slaves)):
-                if len(wins) >= NWIN:
+                if len(wins) >= NWIN or not slaves:
                     break
                 s = slaves[(j + k) % len(slaves)]
                 wins.append(M.Window(s.base + (s.size >> 1), s.size_lg2 - 2,
@@ -347,7 +386,7 @@ class StressHarness:
     def configure(self, prof: Profile, seed: int, txns: int) -> None:
         b = self.build
         self.plan = {}
-        for m, d in zip(b.masters, self.mst):
+        for m, d in zip(b.stress_masters, self.mst):
             wins = self.windows(m, prof)
             self.plan[m.index] = wins
             for i in range(NWIN):
@@ -361,7 +400,8 @@ class StressHarness:
                 d.write(f'WIN{i}_CFG1', size_min=w.size_min, size_max=w.size_max,
                         burst_mask=w.burst_mask, unaligned=w.unaligned,
                         strb_rand=w.strb_rand, rd_en=w.rd_en, wr_en=w.wr_en,
-                        sb=w.sb, poison_lg2=w.poison_lg2, atomic=w.atomic)
+                        sb=w.sb, poison_lg2=w.poison_lg2, atomic=w.atomic, mte=w.mte,
+                        **({'mem': w.mem} if b.memories else {}))
             # an atomic master's upper ID half belongs to its atomics
             id_bits = m.iw - 1 if is_atomic(m) else m.iw
             id_mask = 0 if prof.single_id else (1 << id_bits) - 1
@@ -378,8 +418,11 @@ class StressHarness:
                         mask=id_mask)
             if any(p.protocol == 'axi5' for p in b.masters + b.slaves):
                 d.write('WR_ATOM', lg2=prof.atom_lg2 if is_atomic(m) else 0)
+            if b.memories:   # MEM is new with build-xil; older bitstreams lack it
+                for dr in ('RD', 'WR'):
+                    d.write(f'{dr}_MEM', fill=0, mem_lg2=MEM_LG2)
         axi5 = any(p.protocol == 'axi5' for p in b.masters + b.slaves)
-        for s, d in zip(b.slaves, self.slv):
+        for s, d in zip(b.stress_slaves, self.slv):
             inorder = len(b.masters_of(s)) <= 1 and not s.ooo
             sb_src = sum(1 << m.index for m in b.masters_of(s) if sb_native(m, s))
             plg2 = prof.poison_lg2 if (s.protocol == 'axi5' and 'poison' in s.features) else 0
@@ -413,6 +456,8 @@ class StressHarness:
         while time.monotonic() - t0 < timeout_s:
             if self.ctl.field('STATUS', 'ALL_DONE'):
                 return True
+            if self.vendor is not None:
+                self.vendor.tick()      # keep the vendor masters busy meanwhile
             sleep(poll_s)
         return False
 
@@ -420,7 +465,7 @@ class StressHarness:
         b = self.build
         out = {'ctl': {r: self.ctl.read(r) for r in
                        ('STATUS', 'TIMER', 'UNMAPPED_COUNT', 'UNMAPPED_ADDR', 'GO_COUNT')}}
-        for m, d in zip(b.masters, self.mst):
+        for m, d in zip(b.stress_masters, self.mst):
             for dr in ('RD', 'WR'):
                 st = d.read(f'{dr}_STATUS')
                 err = d.read(f'{dr}_ERR')
@@ -432,7 +477,7 @@ class StressHarness:
                     fe_id=d.read(f'{dr}_FE_ID'), fe_addr=d.read(f'{dr}_FE_ADDR'),
                     fe_exp=d.read(f'{dr}_FE_EXP'), fe_act=d.read(f'{dr}_FE_ACT'),
                     lat_max=d.read(f'{dr}_LAT_MAX'), lat_sum=d.read(f'{dr}_LAT_SUM'))
-        for s, d in zip(b.slaves, self.slv):
+        for s, d in zip(b.stress_slaves, self.slv):
             for dr in ('RD', 'WR'):
                 err = d.read(f'{dr}_ERR')
                 fe = d.read(f'{dr}_FE')
@@ -450,15 +495,76 @@ class StressHarness:
             sleep: Callable[[float], None] = time.sleep) -> dict:
         if txns <= 0:
             raise ValueError('a verdict needs a budget: txns >= 1')
+        fill_why = self.sweep('WR', timeout_s, sleep) if self.build.memories else []
         self.configure(prof, seed, txns)
+        if self.vendor is not None:
+            self.vendor.start(prof, seed)
         self.go()
         finished = self.wait_done(timeout_s, sleep=sleep)
         if not finished:
             self.stop()
+        vendor_why = self.vendor.finish(sleep) if self.vendor is not None else []
         res = self.collect()
+        if self.build.memories:   # after collect: the sweep is a GO of its own
+            vendor_why += self.sweep('RD', timeout_s, sleep)
         res['meta'] = dict(profile=prof.name, seed=seed, txns=txns, finished=finished)
         res['prof'] = prof
+        res['vendor'] = fill_why + vendor_why
         return res
+
+    # ---- real memories -------------------------------------------------------
+    def sweep(self, dr: str, timeout_s: float = 60.0,
+              sleep: Callable[[float], None] = time.sleep) -> List[str]:
+        """One GO in which, for every memory, the first connected stress
+        master sweeps its mem window (cfg fill) in full-width bursts:
+        dr 'WR' writes the image (before a run), 'RD' reads every byte back
+        against it (after one, so a byte any master -- the vendor masters
+        included -- left wrong is caught). Returns what went wrong."""
+        b, why = self.build, []
+        owner: Dict[int, Port] = {}
+        for s in b.memories:
+            free = [m for m in b.stress_masters if s in b.slaves_of(m)
+                    and (m.wr if dr == 'WR' else m.rd) and m.index not in owner]
+            if not free:
+                why.append(f'{s.name}: no free stress master can sweep it')
+                continue
+            owner[free[0].index] = s
+        for m, d in zip(b.stress_masters, self.mst):
+            s = owner.get(m.index)
+            for i in range(NWIN):
+                d.write(f'WIN{i}_CFG1', rd_en=0, wr_en=0)
+            for x in ('RD', 'WR'):
+                d.write(f'{x}_CTRL', enable=int(s is not None and x == dr), timeout_lg2=20)
+                d.write(f'{x}_MEM', fill=int(s is not None and x == dr), mem_lg2=MEM_LG2)
+            if s is None:
+                continue
+            full = (m.dw // 8).bit_length() - 1
+            d.write_word('WIN0_BASE', s.base)
+            d.write('WIN0_CFG0', size_lg2=s.mem_lg2, resp=M.OKAY, tag=MEM_TAG, len_mask=0xFF)
+            d.write('WIN0_CFG1', size_min=full, size_max=full, burst_mask=0b010,
+                    unaligned=0, strb_rand=0, rd_en=int(dr == 'RD'), wr_en=int(dr == 'WR'),
+                    mem=1)
+            d.write_word(f'{dr}_TXN_COUNT', M.fill_bursts(s.mem_lg2, full))
+            d.write(f'{dr}_ID_CFG', base=0, mask=0)
+        self.go()
+        if not self.wait_done(timeout_s, sleep=sleep):
+            self.stop()
+            why.append(f'{dr.lower()} sweep: timed out before ALL_DONE')
+        for m, d in zip(b.stress_masters, self.mst):
+            if m.index not in owner:
+                continue
+            s = owner[m.index]
+            err = d.read(f'{dr}_ERR') & 0xFFFF
+            n = d.read(f'{dr}_COMPLETED')
+            want = M.fill_bursts(s.mem_lg2, (m.dw // 8).bit_length() - 1)
+            if err or n != want:
+                fe = ''
+                if err:
+                    fe = (f" first at {d.read(f'{dr}_FE_ADDR'):#010x} exp "
+                          f"{d.read(f'{dr}_FE_EXP'):#010x} act {d.read(f'{dr}_FE_ACT'):#010x}")
+                why.append(f'{dr.lower()} sweep of {s.name} by {m.name}: '
+                           f'{M.err_list(err)}, {n} of {want} bursts{fe}')
+        return why
 
     # ---- verdict -------------------------------------------------------------
     def verdict(self, res: dict) -> Tuple[bool, List[str]]:
@@ -469,17 +575,17 @@ class StressHarness:
         # Every block must have taken THIS run's GO; one that missed it still
         # shows the previous run's status, which can look like a pass.
         gos = res['ctl']['GO_COUNT'] & 0xFF
-        for m in b.masters:
+        for m in b.stress_masters:
             for dr, built in (('rd', m.rd), ('wr', m.wr)):
                 if built and res[f'{m.name}.{dr}']['runs'] != gos:
                     why.append(f"{m.name}.{dr}: took {res[f'{m.name}.{dr}']['runs']} GOs, "
                                f"control issued {gos}")
-        for s in b.slaves:
+        for s in b.stress_slaves:
             for dr, built in (('rd', s.rd), ('wr', s.wr)):
                 if built and res[f'{s.name}.{dr}']['runs'] != gos:
                     why.append(f"{s.name}.{dr}: took {res[f'{s.name}.{dr}']['runs']} GOs, "
                                f"control issued {gos}")
-        for m in b.masters:
+        for m in b.stress_masters:
             for dr, en in (('rd', m.rd and prof.rd), ('wr', m.wr and prof.wr)):
                 r = res[f'{m.name}.{dr}']
                 if r['err_mask']:
@@ -488,15 +594,16 @@ class StressHarness:
                 if en and (r['issued'] != n or r['completed'] != n):
                     why.append(f'{m.name}.{dr}: issued {r["issued"]} completed '
                                f'{r["completed"]} of {n}')
-        for s in b.slaves:
+        for s in b.stress_slaves:
             for dr in ('rd', 'wr'):
                 r = res[f'{s.name}.{dr}']
                 if r['err_mask']:
                     why.append(f'{s.name}.{dr}: {M.err_list(r["err_mask"])} x{r["err_cnt"]}'
                                + self._fe(r))
             reached = res[f'{s.name}.rd']['beats'] + res[f'{s.name}.wr']['beats']
-            if b.masters_of(s) and reached == 0:
+            if [m for m in b.masters_of(s) if not m.vendor] and reached == 0:
                 why.append(f'{s.name}: no traffic reached it')
+        why += res.get('vendor', [])
         unm = res['ctl']['UNMAPPED_COUNT'] & 0xFF
         if prof.errors and self.hole is not None and unm == 0:
             why.append('DECERR windows planned but the bridge saw no unmapped access')
@@ -516,7 +623,7 @@ class StressHarness:
         t = res['ctl']['TIMER'] or 1
         lines = [f"{res['meta']['profile']} seed={res['meta']['seed']} "
                  f"txns={res['meta']['txns']}: {t} cycles ({t / hz * 1e3:.2f} ms)"]
-        for m in b.masters:
+        for m in b.stress_masters:
             for dr in ('rd', 'wr'):
                 r = res[f'{m.name}.{dr}']
                 if not r['issued']:
@@ -526,7 +633,7 @@ class StressHarness:
                 lines.append(f"  {m.name:>6}.{dr} {r['completed']:>7} bursts {r['beats']:>8} beats "
                              f"{mb:8.1f} MB/s  lat mean {lat:6.1f} max {r['lat_max']:>5}  "
                              f"out max {r['out_max']}")
-        for s in b.slaves:
+        for s in b.stress_slaves:
             rd, wr = res[f'{s.name}.rd'], res[f'{s.name}.wr']
             lines.append(f"  {s.name:>6}    rd {rd['bursts']:>7} bursts {rd['beats']:>8} beats   "
                          f"wr {wr['bursts']:>7} bursts {wr['beats']:>8} beats")

@@ -356,3 +356,24 @@ call then queues its address and W beats on the driver instead of waiting
 for the pipeline to drain, so back-to-back calls keep VALID high. Without
 it the requester itself caps a write stream at 0.89 beats/cycle and the
 gap gets blamed on the fabric.
+
+## The AXI4 slave's memory model steps every beat by its size (2026-10-20)
+
+`AXI4SlaveRead` / `AXI4SlaveWrite` with a `memory_model` address beat `i` of
+a burst at `AxADDR + i * 2^AxSIZE`, whatever AxBURST says. That is AXI only
+for an aligned INCR burst. A FIXED burst should hit one address every beat;
+a WRAP burst should wrap at its container; an unaligned INCR start should
+realign from the second beat on. Against the model, all three read and write
+the wrong bytes, and a DUT that drives them correctly fails its data check.
+(Narrow beats are fine: both paths place them on their lanes since RDS-DV
+593c279, above.)
+
+Where it showed: the bridge stress model's mem windows
+(`val/amba/test_axi_stress_mem.py`, `bs_harness_bridge_bs_xil` in
+bridge-stress) put a stress master on the model as a real memory. Both
+restrict that window to aligned INCR, and say so; the other burst shapes
+against a real memory are covered on the board (MIG, the AXI BRAM
+controller). **Give a memory-model slave aligned INCR only, or model the
+burst yourself in the test** -- and do not read a FIXED / WRAP failure there
+as a DUT bug. Fixing it is an RDS-DV change with ~80 consumers; it needs the
+owner's go-ahead first.

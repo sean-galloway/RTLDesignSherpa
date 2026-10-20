@@ -21,7 +21,9 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
-DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5']
+DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil']
+# build-xil's vendor slaves are BFM memories here, which model aligned INCR only
+DUT_PROFILES = {'bridge_bs_xil': ['clean']}
 TXNS = {'gate': 40, 'func': 200, 'full': 1000}
 SIM_UART_CLKS_PER_BIT = 4
 
@@ -51,7 +53,7 @@ def _params():
     profiles = [
         'clean', 'bursts', 'backpressure', 'reorder', 'narrow', 'single_id',
         'errors', 'short', 'chaos']
-    return [(d, p) for d in DUTS for p in profiles]
+    return [(d, p) for d in DUTS for p in DUT_PROFILES.get(d, profiles)]
 
 
 @pytest.mark.parametrize("dut_bridge, profile", _params())

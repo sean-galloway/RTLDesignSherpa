@@ -3,7 +3,9 @@
 #
 # UART -> AXI4-Lite host master -> one APB register window per block: the
 # harness control regs, and each stress master's and slave's own regblock
-# (bstress_*_csr, which carries the access into the block's clock).
+# (bstress_*_csr, which carries the access into the block's clock), and two
+# AXI4-Lite windows, ext0 / ext1, for vendor IP control ports (build-xil: the
+# traffic generator and the DMA; every other harness answers them SLVERR).
 # Not under test: every build holds it constant.
 #============================================================================
 
@@ -229,3 +231,27 @@ data_width  = 32
 user_width  = 0
 base_addr   = "0x00027000"
 addr_range  = "0x00001000"
+
+[[bridge.slaves]]
+name        = "ext0"
+prefix      = "ext0_axil_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00100000"
+addr_range  = "0x00010000"
+
+[[bridge.slaves]]
+name        = "ext1"
+prefix      = "ext1_axil_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00110000"
+addr_range  = "0x00010000"

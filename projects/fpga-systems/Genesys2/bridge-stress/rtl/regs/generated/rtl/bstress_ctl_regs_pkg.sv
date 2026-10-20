@@ -5,7 +5,7 @@ package bstress_ctl_regs_pkg;
 
     localparam BSTRESS_CTL_REGS_DATA_WIDTH = 32;
     localparam BSTRESS_CTL_REGS_MIN_ADDR_WIDTH = 6;
-    localparam BSTRESS_CTL_REGS_SIZE = 'h24;
+    localparam BSTRESS_CTL_REGS_SIZE = 'h40;
 
     typedef struct {
         logic [3:0] next;
@@ -109,6 +109,14 @@ package bstress_ctl_regs_pkg;
     } bstress_ctl_regs__GO_COUNT__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } bstress_ctl_regs__ext_sts_t__VALUE__in_t;
+
+    typedef struct {
+        bstress_ctl_regs__ext_sts_t__VALUE__in_t VALUE;
+    } bstress_ctl_regs__ext_sts_t__in_t;
+
+    typedef struct {
         bstress_ctl_regs__ID__in_t ID;
         bstress_ctl_regs__STATUS__in_t STATUS;
         bstress_ctl_regs__TIMER__in_t TIMER;
@@ -116,6 +124,10 @@ package bstress_ctl_regs_pkg;
         bstress_ctl_regs__UNMAPPED_ADDR__in_t UNMAPPED_ADDR;
         bstress_ctl_regs__CYCLES__in_t CYCLES;
         bstress_ctl_regs__GO_COUNT__in_t GO_COUNT;
+        bstress_ctl_regs__ext_sts_t__in_t EXT_STS0;
+        bstress_ctl_regs__ext_sts_t__in_t EXT_STS1;
+        bstress_ctl_regs__ext_sts_t__in_t EXT_STS2;
+        bstress_ctl_regs__ext_sts_t__in_t EXT_STS3;
     } bstress_ctl_regs__in_t;
 
     typedef struct {

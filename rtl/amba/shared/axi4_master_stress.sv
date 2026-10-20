@@ -125,6 +125,10 @@ module axi4_master_stress
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_artagop   (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .fub_axi_rtag      ('0),
             .cfg (cfg_rd), .cfg_win, .cfg_hash_seed, .sts (sts_rd),
             .fub_axi_arid      (f_arid),
             .fub_axi_araddr    (f_araddr),
@@ -254,6 +258,12 @@ module axi4_master_stress
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_awtagop   (),
+            .fub_axi_wtag      (),
+            .fub_axi_wtagupdate(),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .fub_axi_btagmatch (2'b00),
             /* verilator lint_off PINCONNECTEMPTY */
             .fub_axi_awatop    (),
             .fub_axi_atr_ready (),

@@ -22,22 +22,6 @@ module bridge_bs_axi5_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] cpu_bridge_id_aw,
     input  logic [NUM_SLAVES-1:0] cpu_slave_select_ar,
     input  logic [BRIDGE_ID_WIDTH-1:0] cpu_bridge_id_ar,
-    // 64b path
-    input  axi4_aw_t     cpu_64b_aw,
-    input  logic         cpu_64b_awvalid,
-    output logic         cpu_64b_awready,
-    input  axi4_w_64b_t  cpu_64b_w,
-    input  logic         cpu_64b_wvalid,
-    output logic         cpu_64b_wready,
-    output axi4_b_t      cpu_64b_b,
-    output logic         cpu_64b_bvalid,
-    input  logic         cpu_64b_bready,
-    input  axi4_ar_t     cpu_64b_ar,
-    input  logic         cpu_64b_arvalid,
-    output logic         cpu_64b_arready,
-    output axi4_r_64b_t  cpu_64b_r,
-    output logic         cpu_64b_rvalid,
-    input  logic         cpu_64b_rready,
     // 128b path
     input  axi4_aw_t     cpu_128b_aw,
     input  logic         cpu_128b_awvalid,
@@ -185,15 +169,21 @@ module bridge_bs_axi5_xbar
     output logic [15:0]  mem0_axi_awmecid,
     output logic         mem0_axi_awidunq,
     output logic [5:0]  mem0_axi_awatop,
+    output logic [1:0]  mem0_axi_awtagop,
     output logic         mem0_axi_wpoison,
+    output logic [3:0]  mem0_axi_wtag,
+    output logic         mem0_axi_wtagupdate,
     output logic [3:0]  mem0_axi_arnsaid,
     output logic         mem0_axi_artrace,
     output logic [10:0]  mem0_axi_armpam,
     output logic [15:0]  mem0_axi_armecid,
     output logic         mem0_axi_aridunq,
+    output logic [1:0]  mem0_axi_artagop,
     input  logic         mem0_axi_btrace,
+    input  logic [1:0]  mem0_axi_btagmatch,
     input  logic         mem0_axi_rtrace,
     input  logic         mem0_axi_rpoison,
+    input  logic [3:0]  mem0_axi_rtag,
 
     output  logic [5:0]  mem0_axi_awid,
     output  logic [31:0]  mem0_axi_awaddr,
@@ -209,8 +199,8 @@ module bridge_bs_axi5_xbar
     output  logic         mem0_axi_awvalid,
     input  logic         mem0_axi_awready,
 
-    output  logic [63:0]  mem0_axi_wdata,
-    output  logic [7:0]  mem0_axi_wstrb,
+    output  logic [127:0]  mem0_axi_wdata,
+    output  logic [15:0]  mem0_axi_wstrb,
     output  logic         mem0_axi_wlast,
     output  logic         mem0_axi_wuser,
     output  logic         mem0_axi_wvalid,
@@ -237,7 +227,7 @@ module bridge_bs_axi5_xbar
     input  logic         mem0_axi_arready,
 
     input  logic [5:0]  mem0_axi_rid,
-    input  logic [63:0]  mem0_axi_rdata,
+    input  logic [127:0]  mem0_axi_rdata,
     input  logic [1:0]  mem0_axi_rresp,
     input  logic         mem0_axi_rlast,
     input  logic         mem0_axi_ruser,
@@ -332,15 +322,21 @@ module bridge_bs_axi5_xbar
     output logic [15:0]  mem2_axi_awmecid,
     output logic         mem2_axi_awidunq,
     output logic [5:0]  mem2_axi_awatop,
+    output logic [1:0]  mem2_axi_awtagop,
     output logic         mem2_axi_wpoison,
+    output logic [3:0]  mem2_axi_wtag,
+    output logic         mem2_axi_wtagupdate,
     output logic [3:0]  mem2_axi_arnsaid,
     output logic         mem2_axi_artrace,
     output logic [10:0]  mem2_axi_armpam,
     output logic [15:0]  mem2_axi_armecid,
     output logic         mem2_axi_aridunq,
+    output logic [1:0]  mem2_axi_artagop,
     input  logic         mem2_axi_btrace,
+    input  logic [1:0]  mem2_axi_btagmatch,
     input  logic         mem2_axi_rtrace,
     input  logic         mem2_axi_rpoison,
+    input  logic [3:0]  mem2_axi_rtag,
 
     output  logic [5:0]  mem2_axi_awid,
     output  logic [31:0]  mem2_axi_awaddr,
@@ -356,8 +352,8 @@ module bridge_bs_axi5_xbar
     output  logic         mem2_axi_awvalid,
     input  logic         mem2_axi_awready,
 
-    output  logic [63:0]  mem2_axi_wdata,
-    output  logic [7:0]  mem2_axi_wstrb,
+    output  logic [127:0]  mem2_axi_wdata,
+    output  logic [15:0]  mem2_axi_wstrb,
     output  logic         mem2_axi_wlast,
     output  logic         mem2_axi_wuser,
     output  logic         mem2_axi_wvalid,
@@ -384,7 +380,7 @@ module bridge_bs_axi5_xbar
     input  logic         mem2_axi_arready,
 
     input  logic [5:0]  mem2_axi_rid,
-    input  logic [63:0]  mem2_axi_rdata,
+    input  logic [127:0]  mem2_axi_rdata,
     input  logic [1:0]  mem2_axi_rresp,
     input  logic         mem2_axi_rlast,
     input  logic         mem2_axi_ruser,
@@ -524,10 +520,10 @@ module bridge_bs_axi5_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
-    logic cpu_64b_w_to_mem0;
-    logic cpu_64b_w_sel_mem0;
-    logic cpu_64b_w_to_mem2;
-    logic cpu_64b_w_sel_mem2;
+    logic cpu_128b_w_to_mem0;
+    logic cpu_128b_w_sel_mem0;
+    logic cpu_128b_w_to_mem2;
+    logic cpu_128b_w_sel_mem2;
     logic cpu_128b_w_to_subtractive;
     logic cpu_128b_w_sel_subtractive;
     logic dma_64b_w_to_mem3;
@@ -580,8 +576,8 @@ module bridge_bs_axi5_xbar
     logic io_128b_ar_slot_subtractive_valid, io_128b_ar_slot_subtractive_ready, io_128b_ar_slot_subtractive_in_valid, io_128b_ar_slot_subtractive_in_ready;
     // Write ordering: a master's AW waits while another of its slots
     // holds an AW (see _generate_request_slots)
-    wire cpu_64b_aw_hold_mem0 = cpu_128b_aw_slot_subtractive_valid;
-    wire cpu_64b_aw_hold_mem2 = cpu_128b_aw_slot_subtractive_valid;
+    wire cpu_128b_aw_hold_mem0 = cpu_128b_aw_slot_subtractive_valid;
+    wire cpu_128b_aw_hold_mem2 = cpu_128b_aw_slot_subtractive_valid;
     wire dma_64b_aw_hold_mem3 = dma_128b_aw_slot_mem1_valid || dma_128b_aw_slot_subtractive_valid;
     wire dma_128b_aw_hold_mem1 = dma_128b_aw_slot_subtractive_valid;
     wire dma_128b_aw_hold_subtractive = dma_128b_aw_slot_mem1_valid;
@@ -596,61 +592,61 @@ module bridge_bs_axi5_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master cpu 64b: round-robin per beat, lock until taken ----
-    logic [1:0] cpu_64b_b_rarb_req;
-    assign cpu_64b_b_rarb_req = {((mem2_axi_bid_bridge_id == 0) && mem2_axi_bid_valid) && mem2_axi_bvalid, ((mem0_axi_bid_bridge_id == 0) && mem0_axi_bid_valid) && mem0_axi_bvalid};
-    logic [0:0] cpu_64b_b_rarb_lock, cpu_64b_b_rarb_rr;
-    logic cpu_64b_b_rarb_locked;
-    wire [0:0] cpu_64b_b_rarb_pick = (cpu_64b_b_rarb_rr == 1'd0) ? (cpu_64b_b_rarb_req[0] ? 1'd0 : 1'd1) : 
-        cpu_64b_b_rarb_req[1] ? 1'd1 : 1'd0;
-    wire [0:0] cpu_64b_b_rarb_gnt = cpu_64b_b_rarb_locked ? cpu_64b_b_rarb_lock : cpu_64b_b_rarb_pick;
-    wire cpu_64b_b_rarb_gnt_valid = cpu_64b_b_rarb_locked || (|cpu_64b_b_rarb_req);
-    wire cpu_64b_b_rgnt_mem0 = cpu_64b_b_rarb_gnt_valid && (cpu_64b_b_rarb_gnt == 1'd0);
-    wire cpu_64b_b_rgnt_mem2 = cpu_64b_b_rarb_gnt_valid && (cpu_64b_b_rarb_gnt == 1'd1);
-    wire cpu_64b_b_rarb_vld = (cpu_64b_b_rgnt_mem0 && cpu_64b_b_rarb_req[0]) || (cpu_64b_b_rgnt_mem2 && cpu_64b_b_rarb_req[1]);
+    // ---- B response arbiter, master cpu 128b: round-robin per beat, lock until taken ----
+    logic [2:0] cpu_128b_b_rarb_req;
+    assign cpu_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((mem2_axi_bid_bridge_id == 0) && mem2_axi_bid_valid) && mem2_axi_bvalid, ((mem0_axi_bid_bridge_id == 0) && mem0_axi_bid_valid) && mem0_axi_bvalid};
+    logic [1:0] cpu_128b_b_rarb_lock, cpu_128b_b_rarb_rr;
+    logic cpu_128b_b_rarb_locked;
+    wire [1:0] cpu_128b_b_rarb_pick = (cpu_128b_b_rarb_rr == 2'd0) ? (cpu_128b_b_rarb_req[0] ? 2'd0 : cpu_128b_b_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_128b_b_rarb_rr == 2'd1) ? (cpu_128b_b_rarb_req[1] ? 2'd1 : cpu_128b_b_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_128b_b_rarb_req[2] ? 2'd2 : cpu_128b_b_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_128b_b_rarb_gnt = cpu_128b_b_rarb_locked ? cpu_128b_b_rarb_lock : cpu_128b_b_rarb_pick;
+    wire cpu_128b_b_rarb_gnt_valid = cpu_128b_b_rarb_locked || (|cpu_128b_b_rarb_req);
+    wire cpu_128b_b_rgnt_mem0 = cpu_128b_b_rarb_gnt_valid && (cpu_128b_b_rarb_gnt == 2'd0);
+    wire cpu_128b_b_rgnt_mem2 = cpu_128b_b_rarb_gnt_valid && (cpu_128b_b_rarb_gnt == 2'd1);
+    wire cpu_128b_b_rgnt_subtractive = cpu_128b_b_rarb_gnt_valid && (cpu_128b_b_rarb_gnt == 2'd2);
+    wire cpu_128b_b_rarb_vld = (cpu_128b_b_rgnt_mem0 && cpu_128b_b_rarb_req[0]) || (cpu_128b_b_rgnt_mem2 && cpu_128b_b_rarb_req[1]) || (cpu_128b_b_rgnt_subtractive && cpu_128b_b_rarb_req[2]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            cpu_64b_b_rarb_lock   <= '0;
-            cpu_64b_b_rarb_rr     <= '0;
-            cpu_64b_b_rarb_locked <= 1'b0;
-        end else if (cpu_64b_b_rarb_vld && cpu_64b_bready) begin
-            cpu_64b_b_rarb_locked <= 1'b0;
-            cpu_64b_b_rarb_rr <= (cpu_64b_b_rarb_gnt == 1'd1) ? 1'd0 : cpu_64b_b_rarb_gnt + 1'b1;
-        end else if (cpu_64b_b_rarb_vld) begin
-            cpu_64b_b_rarb_lock   <= cpu_64b_b_rarb_gnt;       // offered, not taken: hold
-            cpu_64b_b_rarb_locked <= 1'b1;
+            cpu_128b_b_rarb_lock   <= '0;
+            cpu_128b_b_rarb_rr     <= '0;
+            cpu_128b_b_rarb_locked <= 1'b0;
+        end else if (cpu_128b_b_rarb_vld && cpu_128b_bready) begin
+            cpu_128b_b_rarb_locked <= 1'b0;
+            cpu_128b_b_rarb_rr <= (cpu_128b_b_rarb_gnt == 2'd2) ? 2'd0 : cpu_128b_b_rarb_gnt + 1'b1;
+        end else if (cpu_128b_b_rarb_vld) begin
+            cpu_128b_b_rarb_lock   <= cpu_128b_b_rarb_gnt;       // offered, not taken: hold
+            cpu_128b_b_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- R response arbiter, master cpu 64b: round-robin per beat, lock until taken ----
-    logic [1:0] cpu_64b_r_rarb_req;
-    assign cpu_64b_r_rarb_req = {((mem2_axi_rid_bridge_id == 0) && mem2_axi_rid_valid) && mem2_axi_rvalid, ((mem0_axi_rid_bridge_id == 0) && mem0_axi_rid_valid) && mem0_axi_rvalid};
-    logic [0:0] cpu_64b_r_rarb_lock, cpu_64b_r_rarb_rr;
-    logic cpu_64b_r_rarb_locked;
-    wire [0:0] cpu_64b_r_rarb_pick = (cpu_64b_r_rarb_rr == 1'd0) ? (cpu_64b_r_rarb_req[0] ? 1'd0 : 1'd1) : 
-        cpu_64b_r_rarb_req[1] ? 1'd1 : 1'd0;
-    wire [0:0] cpu_64b_r_rarb_gnt = cpu_64b_r_rarb_locked ? cpu_64b_r_rarb_lock : cpu_64b_r_rarb_pick;
-    wire cpu_64b_r_rarb_gnt_valid = cpu_64b_r_rarb_locked || (|cpu_64b_r_rarb_req);
-    wire cpu_64b_r_rgnt_mem0 = cpu_64b_r_rarb_gnt_valid && (cpu_64b_r_rarb_gnt == 1'd0);
-    wire cpu_64b_r_rgnt_mem2 = cpu_64b_r_rarb_gnt_valid && (cpu_64b_r_rarb_gnt == 1'd1);
-    wire cpu_64b_r_rarb_vld = (cpu_64b_r_rgnt_mem0 && cpu_64b_r_rarb_req[0]) || (cpu_64b_r_rgnt_mem2 && cpu_64b_r_rarb_req[1]);
+    // ---- R response arbiter, master cpu 128b: round-robin per beat, lock until taken ----
+    logic [2:0] cpu_128b_r_rarb_req;
+    assign cpu_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((mem2_axi_rid_bridge_id == 0) && mem2_axi_rid_valid) && mem2_axi_rvalid, ((mem0_axi_rid_bridge_id == 0) && mem0_axi_rid_valid) && mem0_axi_rvalid};
+    logic [1:0] cpu_128b_r_rarb_lock, cpu_128b_r_rarb_rr;
+    logic cpu_128b_r_rarb_locked;
+    wire [1:0] cpu_128b_r_rarb_pick = (cpu_128b_r_rarb_rr == 2'd0) ? (cpu_128b_r_rarb_req[0] ? 2'd0 : cpu_128b_r_rarb_req[1] ? 2'd1 : 2'd2) : 
+        (cpu_128b_r_rarb_rr == 2'd1) ? (cpu_128b_r_rarb_req[1] ? 2'd1 : cpu_128b_r_rarb_req[2] ? 2'd2 : 2'd0) : 
+        cpu_128b_r_rarb_req[2] ? 2'd2 : cpu_128b_r_rarb_req[0] ? 2'd0 : 2'd1;
+    wire [1:0] cpu_128b_r_rarb_gnt = cpu_128b_r_rarb_locked ? cpu_128b_r_rarb_lock : cpu_128b_r_rarb_pick;
+    wire cpu_128b_r_rarb_gnt_valid = cpu_128b_r_rarb_locked || (|cpu_128b_r_rarb_req);
+    wire cpu_128b_r_rgnt_mem0 = cpu_128b_r_rarb_gnt_valid && (cpu_128b_r_rarb_gnt == 2'd0);
+    wire cpu_128b_r_rgnt_mem2 = cpu_128b_r_rarb_gnt_valid && (cpu_128b_r_rarb_gnt == 2'd1);
+    wire cpu_128b_r_rgnt_subtractive = cpu_128b_r_rarb_gnt_valid && (cpu_128b_r_rarb_gnt == 2'd2);
+    wire cpu_128b_r_rarb_vld = (cpu_128b_r_rgnt_mem0 && cpu_128b_r_rarb_req[0]) || (cpu_128b_r_rgnt_mem2 && cpu_128b_r_rarb_req[1]) || (cpu_128b_r_rgnt_subtractive && cpu_128b_r_rarb_req[2]);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            cpu_64b_r_rarb_lock   <= '0;
-            cpu_64b_r_rarb_rr     <= '0;
-            cpu_64b_r_rarb_locked <= 1'b0;
-        end else if (cpu_64b_r_rarb_vld && cpu_64b_rready) begin
-            cpu_64b_r_rarb_locked <= 1'b0;
-            cpu_64b_r_rarb_rr <= (cpu_64b_r_rarb_gnt == 1'd1) ? 1'd0 : cpu_64b_r_rarb_gnt + 1'b1;
-        end else if (cpu_64b_r_rarb_vld) begin
-            cpu_64b_r_rarb_lock   <= cpu_64b_r_rarb_gnt;       // offered, not taken: hold
-            cpu_64b_r_rarb_locked <= 1'b1;
+            cpu_128b_r_rarb_lock   <= '0;
+            cpu_128b_r_rarb_rr     <= '0;
+            cpu_128b_r_rarb_locked <= 1'b0;
+        end else if (cpu_128b_r_rarb_vld && cpu_128b_rready) begin
+            cpu_128b_r_rarb_locked <= 1'b0;
+            cpu_128b_r_rarb_rr <= (cpu_128b_r_rarb_gnt == 2'd2) ? 2'd0 : cpu_128b_r_rarb_gnt + 1'b1;
+        end else if (cpu_128b_r_rarb_vld) begin
+            cpu_128b_r_rarb_lock   <= cpu_128b_r_rarb_gnt;       // offered, not taken: hold
+            cpu_128b_r_rarb_locked <= 1'b1;
         end
     )
-
-    wire cpu_128b_b_rgnt_subtractive = ((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid);
-
-    wire cpu_128b_r_rgnt_subtractive = ((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid);
 
     wire dma_64b_b_rgnt_mem3 = ((mem3_axi_bid_bridge_id == 1) && mem3_axi_bid_valid);
 
@@ -821,78 +817,82 @@ module bridge_bs_axi5_xbar
     )
 
     // ================================================================
-    // Slave 0: mem0 (64b)
+    // Slave 0: mem0 (128b)
     // ================================================================
     // Single master: cpu → mem0
-    // Master width: 64b, Slave width: 64b
-    // Using 64b path from adapter
+    // Master width: 128b, Slave width: 128b
+    // Using 128b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire cpu_64b_aw_to_mem0 = (cpu_64b_aw.addr <= 32'h0fffffff);
-    wire cpu_64b_aw_gnt_mem0 = cpu_64b_aw_to_mem0 && !cpu_64b_aw_hold_mem0;
-    assign mem0_axi_awid     = cpu_64b_aw_to_mem0 ? cpu_64b_aw.id : '0;
-    assign mem0_axi_awaddr   = cpu_64b_aw_to_mem0 ? cpu_64b_aw.addr : '0;
-    assign mem0_axi_awlen    = cpu_64b_aw_to_mem0 ? cpu_64b_aw.len : '0;
-    assign mem0_axi_awsize   = cpu_64b_aw_to_mem0 ? cpu_64b_aw.size : '0;
-    assign mem0_axi_awburst  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.burst : '0;
-    assign mem0_axi_awlock   = cpu_64b_aw_to_mem0 ? cpu_64b_aw.lock : '0;
-    assign mem0_axi_awcache  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.cache : '0;
-    assign mem0_axi_awprot   = cpu_64b_aw_to_mem0 ? cpu_64b_aw.prot : '0;
-    assign mem0_axi_awqos    = cpu_64b_aw_to_mem0 ? cpu_64b_aw.qos : '0;
-    assign mem0_axi_awregion = cpu_64b_aw_to_mem0 ? cpu_64b_aw.region : '0;
-    assign mem0_axi_awuser   = cpu_64b_aw_to_mem0 ? cpu_64b_aw.user : '0;
-    assign mem0_axi_awnsaid  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.nsaid : '0;  // AXI5 sideband
-    assign mem0_axi_awtrace  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.trace : '0;  // AXI5 sideband
-    assign mem0_axi_awmpam  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.mpam : '0;  // AXI5 sideband
-    assign mem0_axi_awmecid  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.mecid : '0;  // AXI5 sideband
-    assign mem0_axi_awidunq  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.idunq : '0;  // AXI5 sideband
-    assign mem0_axi_awatop  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.atop : '0;  // AXI5 sideband
-    assign mem0_axi_awvalid  = cpu_64b_aw_gnt_mem0 && cpu_64b_awvalid;
+    wire cpu_128b_aw_to_mem0 = (cpu_128b_aw.addr <= 32'h0fffffff);
+    wire cpu_128b_aw_gnt_mem0 = cpu_128b_aw_to_mem0 && !cpu_128b_aw_hold_mem0;
+    assign mem0_axi_awid     = cpu_128b_aw_to_mem0 ? cpu_128b_aw.id : '0;
+    assign mem0_axi_awaddr   = cpu_128b_aw_to_mem0 ? cpu_128b_aw.addr : '0;
+    assign mem0_axi_awlen    = cpu_128b_aw_to_mem0 ? cpu_128b_aw.len : '0;
+    assign mem0_axi_awsize   = cpu_128b_aw_to_mem0 ? cpu_128b_aw.size : '0;
+    assign mem0_axi_awburst  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.burst : '0;
+    assign mem0_axi_awlock   = cpu_128b_aw_to_mem0 ? cpu_128b_aw.lock : '0;
+    assign mem0_axi_awcache  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.cache : '0;
+    assign mem0_axi_awprot   = cpu_128b_aw_to_mem0 ? cpu_128b_aw.prot : '0;
+    assign mem0_axi_awqos    = cpu_128b_aw_to_mem0 ? cpu_128b_aw.qos : '0;
+    assign mem0_axi_awregion = cpu_128b_aw_to_mem0 ? cpu_128b_aw.region : '0;
+    assign mem0_axi_awuser   = cpu_128b_aw_to_mem0 ? cpu_128b_aw.user : '0;
+    assign mem0_axi_awnsaid  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.nsaid : '0;  // AXI5 sideband
+    assign mem0_axi_awtrace  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.trace : '0;  // AXI5 sideband
+    assign mem0_axi_awmpam  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.mpam : '0;  // AXI5 sideband
+    assign mem0_axi_awmecid  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.mecid : '0;  // AXI5 sideband
+    assign mem0_axi_awidunq  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.idunq : '0;  // AXI5 sideband
+    assign mem0_axi_awatop  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.atop : '0;  // AXI5 sideband
+    assign mem0_axi_awtagop  = cpu_128b_aw_to_mem0 ? cpu_128b_aw.tagop : '0;  // AXI5 sideband
+    assign mem0_axi_awvalid  = cpu_128b_aw_gnt_mem0 && cpu_128b_awvalid;
 
-    assign cpu_64b_w_sel_mem0 = cpu_64b_w_to_mem0;
+    assign cpu_128b_w_sel_mem0 = cpu_128b_w_to_mem0;
 
     // W channel (gated by the W destination FIFO head)
-    assign mem0_axi_wdata  = cpu_64b_w_to_mem0 ? cpu_64b_w.data : '0;
-    assign mem0_axi_wstrb  = cpu_64b_w_to_mem0 ? cpu_64b_w.strb : '0;
-    assign mem0_axi_wlast  = cpu_64b_w_to_mem0 ? cpu_64b_w.last : '0;
-    assign mem0_axi_wuser  = cpu_64b_w_to_mem0 ? cpu_64b_w.user : '0;
-    assign mem0_axi_wpoison = cpu_64b_w_to_mem0 ? cpu_64b_w.poison : '0;  // AXI5 sideband
-    assign mem0_axi_wvalid = cpu_64b_w_to_mem0 && cpu_64b_wvalid;
+    assign mem0_axi_wdata  = cpu_128b_w_to_mem0 ? cpu_128b_w.data : '0;
+    assign mem0_axi_wstrb  = cpu_128b_w_to_mem0 ? cpu_128b_w.strb : '0;
+    assign mem0_axi_wlast  = cpu_128b_w_to_mem0 ? cpu_128b_w.last : '0;
+    assign mem0_axi_wuser  = cpu_128b_w_to_mem0 ? cpu_128b_w.user : '0;
+    assign mem0_axi_wpoison = cpu_128b_w_to_mem0 ? cpu_128b_w.poison : '0;  // AXI5 sideband
+    assign mem0_axi_wtag = cpu_128b_w_to_mem0 ? cpu_128b_w.tag : '0;  // AXI5 sideband
+    assign mem0_axi_wtagupdate = cpu_128b_w_to_mem0 ? cpu_128b_w.tagupdate : '0;  // AXI5 sideband
+    assign mem0_axi_wvalid = cpu_128b_w_to_mem0 && cpu_128b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign mem0_axi_bready = cpu_64b_b_rgnt_mem0 ? cpu_64b_bready : '0;
+    assign mem0_axi_bready = cpu_128b_b_rgnt_mem0 ? cpu_128b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign mem0_axi_bridge_id_aw = cpu_64b_aw_to_mem0 ? cpu_bridge_id_aw : '0;
+    assign mem0_axi_bridge_id_aw = cpu_128b_aw_to_mem0 ? cpu_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire cpu_64b_ar_to_mem0 = (cpu_64b_ar.addr <= 32'h0fffffff);
-    wire cpu_64b_ar_gnt_mem0 = cpu_64b_ar_to_mem0;
-    assign mem0_axi_arid     = cpu_64b_ar_to_mem0 ? cpu_64b_ar.id : '0;
-    assign mem0_axi_araddr   = cpu_64b_ar_to_mem0 ? cpu_64b_ar.addr : '0;
-    assign mem0_axi_arlen    = cpu_64b_ar_to_mem0 ? cpu_64b_ar.len : '0;
-    assign mem0_axi_arsize   = cpu_64b_ar_to_mem0 ? cpu_64b_ar.size : '0;
-    assign mem0_axi_arburst  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.burst : '0;
-    assign mem0_axi_arlock   = cpu_64b_ar_to_mem0 ? cpu_64b_ar.lock : '0;
-    assign mem0_axi_arcache  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.cache : '0;
-    assign mem0_axi_arprot   = cpu_64b_ar_to_mem0 ? cpu_64b_ar.prot : '0;
-    assign mem0_axi_arqos    = cpu_64b_ar_to_mem0 ? cpu_64b_ar.qos : '0;
-    assign mem0_axi_arregion = cpu_64b_ar_to_mem0 ? cpu_64b_ar.region : '0;
-    assign mem0_axi_aruser   = cpu_64b_ar_to_mem0 ? cpu_64b_ar.user : '0;
-    assign mem0_axi_arnsaid  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.nsaid : '0;  // AXI5 sideband
-    assign mem0_axi_artrace  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.trace : '0;  // AXI5 sideband
-    assign mem0_axi_armpam  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.mpam : '0;  // AXI5 sideband
-    assign mem0_axi_armecid  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.mecid : '0;  // AXI5 sideband
-    assign mem0_axi_aridunq  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.idunq : '0;  // AXI5 sideband
-    assign mem0_axi_arvalid  = cpu_64b_ar_to_mem0 && cpu_64b_arvalid;
+    wire cpu_128b_ar_to_mem0 = (cpu_128b_ar.addr <= 32'h0fffffff);
+    wire cpu_128b_ar_gnt_mem0 = cpu_128b_ar_to_mem0;
+    assign mem0_axi_arid     = cpu_128b_ar_to_mem0 ? cpu_128b_ar.id : '0;
+    assign mem0_axi_araddr   = cpu_128b_ar_to_mem0 ? cpu_128b_ar.addr : '0;
+    assign mem0_axi_arlen    = cpu_128b_ar_to_mem0 ? cpu_128b_ar.len : '0;
+    assign mem0_axi_arsize   = cpu_128b_ar_to_mem0 ? cpu_128b_ar.size : '0;
+    assign mem0_axi_arburst  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.burst : '0;
+    assign mem0_axi_arlock   = cpu_128b_ar_to_mem0 ? cpu_128b_ar.lock : '0;
+    assign mem0_axi_arcache  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.cache : '0;
+    assign mem0_axi_arprot   = cpu_128b_ar_to_mem0 ? cpu_128b_ar.prot : '0;
+    assign mem0_axi_arqos    = cpu_128b_ar_to_mem0 ? cpu_128b_ar.qos : '0;
+    assign mem0_axi_arregion = cpu_128b_ar_to_mem0 ? cpu_128b_ar.region : '0;
+    assign mem0_axi_aruser   = cpu_128b_ar_to_mem0 ? cpu_128b_ar.user : '0;
+    assign mem0_axi_arnsaid  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.nsaid : '0;  // AXI5 sideband
+    assign mem0_axi_artrace  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.trace : '0;  // AXI5 sideband
+    assign mem0_axi_armpam  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.mpam : '0;  // AXI5 sideband
+    assign mem0_axi_armecid  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.mecid : '0;  // AXI5 sideband
+    assign mem0_axi_aridunq  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.idunq : '0;  // AXI5 sideband
+    assign mem0_axi_artagop  = cpu_128b_ar_to_mem0 ? cpu_128b_ar.tagop : '0;  // AXI5 sideband
+    assign mem0_axi_arvalid  = cpu_128b_ar_to_mem0 && cpu_128b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign mem0_axi_rready = cpu_64b_r_rgnt_mem0 ? cpu_64b_rready : '0;
+    assign mem0_axi_rready = cpu_128b_r_rgnt_mem0 ? cpu_128b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign mem0_axi_bridge_id_ar = cpu_64b_ar_to_mem0 ? cpu_bridge_id_ar : '0;
+    assign mem0_axi_bridge_id_ar = cpu_128b_ar_to_mem0 ? cpu_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -1205,78 +1205,82 @@ module bridge_bs_axi5_xbar
 
 
     // ================================================================
-    // Slave 2: mem2 (64b)
+    // Slave 2: mem2 (128b)
     // ================================================================
     // Single master: cpu → mem2
-    // Master width: 64b, Slave width: 64b
-    // Using 64b path from adapter
+    // Master width: 128b, Slave width: 128b
+    // Using 128b path from adapter
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
-    wire cpu_64b_aw_to_mem2 = ((cpu_64b_aw.addr >= 32'h30000000) && (cpu_64b_aw.addr <= 32'h3fffffff));
-    wire cpu_64b_aw_gnt_mem2 = cpu_64b_aw_to_mem2 && !cpu_64b_aw_hold_mem2;
-    assign mem2_axi_awid     = cpu_64b_aw_to_mem2 ? cpu_64b_aw.id : '0;
-    assign mem2_axi_awaddr   = cpu_64b_aw_to_mem2 ? cpu_64b_aw.addr : '0;
-    assign mem2_axi_awlen    = cpu_64b_aw_to_mem2 ? cpu_64b_aw.len : '0;
-    assign mem2_axi_awsize   = cpu_64b_aw_to_mem2 ? cpu_64b_aw.size : '0;
-    assign mem2_axi_awburst  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.burst : '0;
-    assign mem2_axi_awlock   = cpu_64b_aw_to_mem2 ? cpu_64b_aw.lock : '0;
-    assign mem2_axi_awcache  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.cache : '0;
-    assign mem2_axi_awprot   = cpu_64b_aw_to_mem2 ? cpu_64b_aw.prot : '0;
-    assign mem2_axi_awqos    = cpu_64b_aw_to_mem2 ? cpu_64b_aw.qos : '0;
-    assign mem2_axi_awregion = cpu_64b_aw_to_mem2 ? cpu_64b_aw.region : '0;
-    assign mem2_axi_awuser   = cpu_64b_aw_to_mem2 ? cpu_64b_aw.user : '0;
-    assign mem2_axi_awnsaid  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.nsaid : '0;  // AXI5 sideband
-    assign mem2_axi_awtrace  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.trace : '0;  // AXI5 sideband
-    assign mem2_axi_awmpam  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.mpam : '0;  // AXI5 sideband
-    assign mem2_axi_awmecid  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.mecid : '0;  // AXI5 sideband
-    assign mem2_axi_awidunq  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.idunq : '0;  // AXI5 sideband
-    assign mem2_axi_awatop  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.atop : '0;  // AXI5 sideband
-    assign mem2_axi_awvalid  = cpu_64b_aw_gnt_mem2 && cpu_64b_awvalid;
+    wire cpu_128b_aw_to_mem2 = ((cpu_128b_aw.addr >= 32'h30000000) && (cpu_128b_aw.addr <= 32'h3fffffff));
+    wire cpu_128b_aw_gnt_mem2 = cpu_128b_aw_to_mem2 && !cpu_128b_aw_hold_mem2;
+    assign mem2_axi_awid     = cpu_128b_aw_to_mem2 ? cpu_128b_aw.id : '0;
+    assign mem2_axi_awaddr   = cpu_128b_aw_to_mem2 ? cpu_128b_aw.addr : '0;
+    assign mem2_axi_awlen    = cpu_128b_aw_to_mem2 ? cpu_128b_aw.len : '0;
+    assign mem2_axi_awsize   = cpu_128b_aw_to_mem2 ? cpu_128b_aw.size : '0;
+    assign mem2_axi_awburst  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.burst : '0;
+    assign mem2_axi_awlock   = cpu_128b_aw_to_mem2 ? cpu_128b_aw.lock : '0;
+    assign mem2_axi_awcache  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.cache : '0;
+    assign mem2_axi_awprot   = cpu_128b_aw_to_mem2 ? cpu_128b_aw.prot : '0;
+    assign mem2_axi_awqos    = cpu_128b_aw_to_mem2 ? cpu_128b_aw.qos : '0;
+    assign mem2_axi_awregion = cpu_128b_aw_to_mem2 ? cpu_128b_aw.region : '0;
+    assign mem2_axi_awuser   = cpu_128b_aw_to_mem2 ? cpu_128b_aw.user : '0;
+    assign mem2_axi_awnsaid  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.nsaid : '0;  // AXI5 sideband
+    assign mem2_axi_awtrace  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.trace : '0;  // AXI5 sideband
+    assign mem2_axi_awmpam  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.mpam : '0;  // AXI5 sideband
+    assign mem2_axi_awmecid  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.mecid : '0;  // AXI5 sideband
+    assign mem2_axi_awidunq  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.idunq : '0;  // AXI5 sideband
+    assign mem2_axi_awatop  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.atop : '0;  // AXI5 sideband
+    assign mem2_axi_awtagop  = cpu_128b_aw_to_mem2 ? cpu_128b_aw.tagop : '0;  // AXI5 sideband
+    assign mem2_axi_awvalid  = cpu_128b_aw_gnt_mem2 && cpu_128b_awvalid;
 
-    assign cpu_64b_w_sel_mem2 = cpu_64b_w_to_mem2;
+    assign cpu_128b_w_sel_mem2 = cpu_128b_w_to_mem2;
 
     // W channel (gated by the W destination FIFO head)
-    assign mem2_axi_wdata  = cpu_64b_w_to_mem2 ? cpu_64b_w.data : '0;
-    assign mem2_axi_wstrb  = cpu_64b_w_to_mem2 ? cpu_64b_w.strb : '0;
-    assign mem2_axi_wlast  = cpu_64b_w_to_mem2 ? cpu_64b_w.last : '0;
-    assign mem2_axi_wuser  = cpu_64b_w_to_mem2 ? cpu_64b_w.user : '0;
-    assign mem2_axi_wpoison = cpu_64b_w_to_mem2 ? cpu_64b_w.poison : '0;  // AXI5 sideband
-    assign mem2_axi_wvalid = cpu_64b_w_to_mem2 && cpu_64b_wvalid;
+    assign mem2_axi_wdata  = cpu_128b_w_to_mem2 ? cpu_128b_w.data : '0;
+    assign mem2_axi_wstrb  = cpu_128b_w_to_mem2 ? cpu_128b_w.strb : '0;
+    assign mem2_axi_wlast  = cpu_128b_w_to_mem2 ? cpu_128b_w.last : '0;
+    assign mem2_axi_wuser  = cpu_128b_w_to_mem2 ? cpu_128b_w.user : '0;
+    assign mem2_axi_wpoison = cpu_128b_w_to_mem2 ? cpu_128b_w.poison : '0;  // AXI5 sideband
+    assign mem2_axi_wtag = cpu_128b_w_to_mem2 ? cpu_128b_w.tag : '0;  // AXI5 sideband
+    assign mem2_axi_wtagupdate = cpu_128b_w_to_mem2 ? cpu_128b_w.tagupdate : '0;  // AXI5 sideband
+    assign mem2_axi_wvalid = cpu_128b_w_to_mem2 && cpu_128b_wvalid;
 
     // Bready (master → slave) — gated on bid_valid so the path stays
     // open through the entire B handshake, not just the AW phase.
-    assign mem2_axi_bready = cpu_64b_b_rgnt_mem2 ? cpu_64b_bready : '0;
+    assign mem2_axi_bready = cpu_128b_b_rgnt_mem2 ? cpu_128b_bready : '0;
 
     // Bridge ID (master → slave)
-    assign mem2_axi_bridge_id_aw = cpu_64b_aw_to_mem2 ? cpu_bridge_id_aw : '0;
+    assign mem2_axi_bridge_id_aw = cpu_128b_aw_to_mem2 ? cpu_bridge_id_aw : '0;
 
     // AR channel (gated by address re-decode -- see _addr_decode_expr)
-    wire cpu_64b_ar_to_mem2 = ((cpu_64b_ar.addr >= 32'h30000000) && (cpu_64b_ar.addr <= 32'h3fffffff));
-    wire cpu_64b_ar_gnt_mem2 = cpu_64b_ar_to_mem2;
-    assign mem2_axi_arid     = cpu_64b_ar_to_mem2 ? cpu_64b_ar.id : '0;
-    assign mem2_axi_araddr   = cpu_64b_ar_to_mem2 ? cpu_64b_ar.addr : '0;
-    assign mem2_axi_arlen    = cpu_64b_ar_to_mem2 ? cpu_64b_ar.len : '0;
-    assign mem2_axi_arsize   = cpu_64b_ar_to_mem2 ? cpu_64b_ar.size : '0;
-    assign mem2_axi_arburst  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.burst : '0;
-    assign mem2_axi_arlock   = cpu_64b_ar_to_mem2 ? cpu_64b_ar.lock : '0;
-    assign mem2_axi_arcache  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.cache : '0;
-    assign mem2_axi_arprot   = cpu_64b_ar_to_mem2 ? cpu_64b_ar.prot : '0;
-    assign mem2_axi_arqos    = cpu_64b_ar_to_mem2 ? cpu_64b_ar.qos : '0;
-    assign mem2_axi_arregion = cpu_64b_ar_to_mem2 ? cpu_64b_ar.region : '0;
-    assign mem2_axi_aruser   = cpu_64b_ar_to_mem2 ? cpu_64b_ar.user : '0;
-    assign mem2_axi_arnsaid  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.nsaid : '0;  // AXI5 sideband
-    assign mem2_axi_artrace  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.trace : '0;  // AXI5 sideband
-    assign mem2_axi_armpam  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.mpam : '0;  // AXI5 sideband
-    assign mem2_axi_armecid  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.mecid : '0;  // AXI5 sideband
-    assign mem2_axi_aridunq  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.idunq : '0;  // AXI5 sideband
-    assign mem2_axi_arvalid  = cpu_64b_ar_to_mem2 && cpu_64b_arvalid;
+    wire cpu_128b_ar_to_mem2 = ((cpu_128b_ar.addr >= 32'h30000000) && (cpu_128b_ar.addr <= 32'h3fffffff));
+    wire cpu_128b_ar_gnt_mem2 = cpu_128b_ar_to_mem2;
+    assign mem2_axi_arid     = cpu_128b_ar_to_mem2 ? cpu_128b_ar.id : '0;
+    assign mem2_axi_araddr   = cpu_128b_ar_to_mem2 ? cpu_128b_ar.addr : '0;
+    assign mem2_axi_arlen    = cpu_128b_ar_to_mem2 ? cpu_128b_ar.len : '0;
+    assign mem2_axi_arsize   = cpu_128b_ar_to_mem2 ? cpu_128b_ar.size : '0;
+    assign mem2_axi_arburst  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.burst : '0;
+    assign mem2_axi_arlock   = cpu_128b_ar_to_mem2 ? cpu_128b_ar.lock : '0;
+    assign mem2_axi_arcache  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.cache : '0;
+    assign mem2_axi_arprot   = cpu_128b_ar_to_mem2 ? cpu_128b_ar.prot : '0;
+    assign mem2_axi_arqos    = cpu_128b_ar_to_mem2 ? cpu_128b_ar.qos : '0;
+    assign mem2_axi_arregion = cpu_128b_ar_to_mem2 ? cpu_128b_ar.region : '0;
+    assign mem2_axi_aruser   = cpu_128b_ar_to_mem2 ? cpu_128b_ar.user : '0;
+    assign mem2_axi_arnsaid  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.nsaid : '0;  // AXI5 sideband
+    assign mem2_axi_artrace  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.trace : '0;  // AXI5 sideband
+    assign mem2_axi_armpam  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.mpam : '0;  // AXI5 sideband
+    assign mem2_axi_armecid  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.mecid : '0;  // AXI5 sideband
+    assign mem2_axi_aridunq  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.idunq : '0;  // AXI5 sideband
+    assign mem2_axi_artagop  = cpu_128b_ar_to_mem2 ? cpu_128b_ar.tagop : '0;  // AXI5 sideband
+    assign mem2_axi_arvalid  = cpu_128b_ar_to_mem2 && cpu_128b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
     // open through the entire R handshake, not just the AR phase.
-    assign mem2_axi_rready = cpu_64b_r_rgnt_mem2 ? cpu_64b_rready : '0;
+    assign mem2_axi_rready = cpu_128b_r_rgnt_mem2 ? cpu_128b_rready : '0;
 
     // Bridge ID (master → slave)
-    assign mem2_axi_bridge_id_ar = cpu_64b_ar_to_mem2 ? cpu_bridge_id_ar : '0;
+    assign mem2_axi_bridge_id_ar = cpu_128b_ar_to_mem2 ? cpu_bridge_id_ar : '0;
 
 
     // ================================================================
@@ -1689,35 +1693,10 @@ module bridge_bs_axi5_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 64b path -> mem0, mem2 (16 deep: max_outstanding)
-    logic [0:0] cpu_64b_wdest_mem [16];
-    logic [4:0] cpu_64b_wdest_wptr, cpu_64b_wdest_rptr;
-    wire [0:0] cpu_64b_wdest_enc = cpu_64b_aw_to_mem2 ? 1'd1 : 1'd0;
-    wire cpu_64b_wdest_push = cpu_64b_awvalid && cpu_64b_awready;
-    wire cpu_64b_wdest_pop  = cpu_64b_wvalid && cpu_64b_wready && cpu_64b_w.last;
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            cpu_64b_wdest_wptr <= '0;
-            cpu_64b_wdest_rptr <= '0;
-        end else begin
-            if (cpu_64b_wdest_push) begin
-                cpu_64b_wdest_mem[cpu_64b_wdest_wptr[3:0]] <= cpu_64b_wdest_enc;
-                cpu_64b_wdest_wptr <= cpu_64b_wdest_wptr + 1'b1;
-            end
-            if (cpu_64b_wdest_pop) begin
-                cpu_64b_wdest_rptr <= cpu_64b_wdest_rptr + 1'b1;
-            end
-        end
-    )
-    wire cpu_64b_wdest_valid = (cpu_64b_wdest_wptr != cpu_64b_wdest_rptr);
-    wire [0:0] cpu_64b_wdest_head = cpu_64b_wdest_mem[cpu_64b_wdest_rptr[3:0]];
-    assign cpu_64b_w_to_mem0 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 1'd0);
-    assign cpu_64b_w_to_mem2 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 1'd1);
-
-    // cpu 128b path -> subtractive (16 deep: max_outstanding)
-    logic [0:0] cpu_128b_wdest_mem [16];
+    // cpu 128b path -> mem0, mem2, subtractive (16 deep: max_outstanding)
+    logic [1:0] cpu_128b_wdest_mem [16];
     logic [4:0] cpu_128b_wdest_wptr, cpu_128b_wdest_rptr;
-    wire [0:0] cpu_128b_wdest_enc = 1'd0;
+    wire [1:0] cpu_128b_wdest_enc = cpu_128b_aw_to_mem2 ? 2'd1 : cpu_128b_aw_to_subtractive ? 2'd2 : 2'd0;
     wire cpu_128b_wdest_push = cpu_128b_awvalid && cpu_128b_awready;
     wire cpu_128b_wdest_pop  = cpu_128b_wvalid && cpu_128b_wready && cpu_128b_w.last;
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1735,8 +1714,10 @@ module bridge_bs_axi5_xbar
         end
     )
     wire cpu_128b_wdest_valid = (cpu_128b_wdest_wptr != cpu_128b_wdest_rptr);
-    wire [0:0] cpu_128b_wdest_head = cpu_128b_wdest_mem[cpu_128b_wdest_rptr[3:0]];
-    assign cpu_128b_w_to_subtractive = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 1'd0);
+    wire [1:0] cpu_128b_wdest_head = cpu_128b_wdest_mem[cpu_128b_wdest_rptr[3:0]];
+    assign cpu_128b_w_to_mem0 = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 2'd0);
+    assign cpu_128b_w_to_mem2 = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 2'd1);
+    assign cpu_128b_w_to_subtractive = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 2'd2);
 
     // dma 64b path -> mem3 (16 deep: max_outstanding)
     logic [0:0] dma_64b_wdest_mem [16];
@@ -1889,120 +1870,91 @@ module bridge_bs_axi5_xbar
     // Response MUXes (OR together all slave responses)
     // ================================================================
 
-    // Master: cpu, Width path: 64b
-    assign cpu_64b_awready = 
-        (cpu_64b_aw_gnt_mem0 ? mem0_axi_awready : '0) |
-        (cpu_64b_aw_gnt_mem2 ? mem2_axi_awready : '0);
-
-    assign cpu_64b_wready = 
-        (cpu_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
-        (cpu_64b_w_sel_mem2 ? mem2_axi_wready : '0);
-
-    assign cpu_64b_b.id = 
-        (cpu_64b_b_rgnt_mem0 ? mem0_axi_bid : '0) |
-        (cpu_64b_b_rgnt_mem2 ? mem2_axi_bid : '0);
-
-    assign cpu_64b_b.resp = 
-        (cpu_64b_b_rgnt_mem0 ? mem0_axi_bresp : '0) |
-        (cpu_64b_b_rgnt_mem2 ? mem2_axi_bresp : '0);
-
-    assign cpu_64b_b.user = 
-        (cpu_64b_b_rgnt_mem0 ? mem0_axi_buser : '0) |
-        (cpu_64b_b_rgnt_mem2 ? mem2_axi_buser : '0);
-
-    assign cpu_64b_bvalid = 
-        (cpu_64b_b_rgnt_mem0 ? mem0_axi_bvalid : '0) |
-        (cpu_64b_b_rgnt_mem2 ? mem2_axi_bvalid : '0);
-
-    assign cpu_64b_b.trace = 
-        (cpu_64b_b_rgnt_mem0 ? mem0_axi_btrace : '0) |
-        (cpu_64b_b_rgnt_mem2 ? mem2_axi_btrace : '0);
-
-    assign cpu_64b_arready = 
-        (cpu_64b_ar_gnt_mem0 ? mem0_axi_arready : '0) |
-        (cpu_64b_ar_gnt_mem2 ? mem2_axi_arready : '0);
-
-    assign cpu_64b_r.id = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rid : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rid : '0);
-
-    assign cpu_64b_r.data = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rdata : 64'b0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rdata : 64'b0);
-
-    assign cpu_64b_r.resp = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rresp : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rresp : '0);
-
-    assign cpu_64b_r.last = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rlast : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rlast : '0);
-
-    assign cpu_64b_r.user = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_ruser : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_ruser : '0);
-
-    assign cpu_64b_rvalid = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rvalid : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rvalid : '0);
-
-    assign cpu_64b_r.trace = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rtrace : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rtrace : '0);
-
-    assign cpu_64b_r.poison = 
-        (cpu_64b_r_rgnt_mem0 ? mem0_axi_rpoison : '0) |
-        (cpu_64b_r_rgnt_mem2 ? mem2_axi_rpoison : '0);
-
-
     // Master: cpu, Width path: 128b
     assign cpu_128b_awready = 
+        (cpu_128b_aw_gnt_mem0 ? mem0_axi_awready : '0) |
+        (cpu_128b_aw_gnt_mem2 ? mem2_axi_awready : '0) |
         ((cpu_128b_aw_to_subtractive) ? cpu_128b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_128b_wready = 
+        (cpu_128b_w_sel_mem0 ? mem0_axi_wready : '0) |
+        (cpu_128b_w_sel_mem2 ? mem2_axi_wready : '0) |
         (cpu_128b_w_sel_subtractive ? subtractive_axi_wready : '0);
 
     assign cpu_128b_b.id = 
+        (cpu_128b_b_rgnt_mem0 ? mem0_axi_bid : '0) |
+        (cpu_128b_b_rgnt_mem2 ? mem2_axi_bid : '0) |
         (cpu_128b_b_rgnt_subtractive ? subtractive_axi_bid : '0);
 
     assign cpu_128b_b.resp = 
+        (cpu_128b_b_rgnt_mem0 ? mem0_axi_bresp : '0) |
+        (cpu_128b_b_rgnt_mem2 ? mem2_axi_bresp : '0) |
         (cpu_128b_b_rgnt_subtractive ? subtractive_axi_bresp : '0);
 
     assign cpu_128b_b.user = 
+        (cpu_128b_b_rgnt_mem0 ? mem0_axi_buser : '0) |
+        (cpu_128b_b_rgnt_mem2 ? mem2_axi_buser : '0) |
         (cpu_128b_b_rgnt_subtractive ? subtractive_axi_buser : '0);
 
     assign cpu_128b_bvalid = 
+        (cpu_128b_b_rgnt_mem0 ? mem0_axi_bvalid : '0) |
+        (cpu_128b_b_rgnt_mem2 ? mem2_axi_bvalid : '0) |
         (cpu_128b_b_rgnt_subtractive ? subtractive_axi_bvalid : '0);
 
     assign cpu_128b_b.trace = 
-        '0;
+        (cpu_128b_b_rgnt_mem0 ? mem0_axi_btrace : '0) |
+        (cpu_128b_b_rgnt_mem2 ? mem2_axi_btrace : '0);
+
+    assign cpu_128b_b.tagmatch = 
+        (cpu_128b_b_rgnt_mem0 ? mem0_axi_btagmatch : '0) |
+        (cpu_128b_b_rgnt_mem2 ? mem2_axi_btagmatch : '0);
 
     assign cpu_128b_arready = 
+        (cpu_128b_ar_gnt_mem0 ? mem0_axi_arready : '0) |
+        (cpu_128b_ar_gnt_mem2 ? mem2_axi_arready : '0) |
         ((cpu_128b_ar_to_subtractive) ? cpu_128b_ar_slot_subtractive_in_ready : '0);
 
     assign cpu_128b_r.id = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rid : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rid : '0) |
         (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rid : '0);
 
     assign cpu_128b_r.data = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rdata : 128'b0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rdata : 128'b0) |
         (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rdata : 128'b0);
 
     assign cpu_128b_r.resp = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rresp : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rresp : '0) |
         (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rresp : '0);
 
     assign cpu_128b_r.last = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rlast : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rlast : '0) |
         (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rlast : '0);
 
     assign cpu_128b_r.user = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_ruser : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_ruser : '0) |
         (cpu_128b_r_rgnt_subtractive ? subtractive_axi_ruser : '0);
 
     assign cpu_128b_rvalid = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rvalid : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rvalid : '0) |
         (cpu_128b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0);
 
     assign cpu_128b_r.trace = 
-        '0;
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rtrace : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rtrace : '0);
 
     assign cpu_128b_r.poison = 
-        '0;
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rpoison : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rpoison : '0);
+
+    assign cpu_128b_r.tag = 
+        (cpu_128b_r_rgnt_mem0 ? mem0_axi_rtag : '0) |
+        (cpu_128b_r_rgnt_mem2 ? mem2_axi_rtag : '0);
 
 
     // Master: dma, Width path: 64b
@@ -2025,6 +1977,9 @@ module bridge_bs_axi5_xbar
         (dma_64b_b_rgnt_mem3 ? mem3_axi_bvalid : '0);
 
     assign dma_64b_b.trace = 
+        '0;
+
+    assign dma_64b_b.tagmatch = 
         '0;
 
     assign dma_64b_arready = 
@@ -2052,6 +2007,9 @@ module bridge_bs_axi5_xbar
         '0;
 
     assign dma_64b_r.poison = 
+        '0;
+
+    assign dma_64b_r.tag = 
         '0;
 
 
@@ -2082,6 +2040,9 @@ module bridge_bs_axi5_xbar
 
     assign dma_128b_b.trace = 
         (dma_128b_b_rgnt_mem1 ? mem1_axi_btrace : '0);
+
+    assign dma_128b_b.tagmatch = 
+        '0;
 
     assign dma_128b_arready = 
         ((dma_128b_ar_to_mem1) ? dma_128b_ar_slot_mem1_in_ready : '0) |
@@ -2117,6 +2078,9 @@ module bridge_bs_axi5_xbar
     assign dma_128b_r.poison = 
         '0;
 
+    assign dma_128b_r.tag = 
+        '0;
+
 
     // Master: acc, Width path: 64b
     assign acc_64b_awready = 
@@ -2138,6 +2102,9 @@ module bridge_bs_axi5_xbar
         (acc_64b_b_rgnt_mem3 ? mem3_axi_bvalid : '0);
 
     assign acc_64b_b.trace = 
+        '0;
+
+    assign acc_64b_b.tagmatch = 
         '0;
 
     assign acc_64b_arready = 
@@ -2165,6 +2132,9 @@ module bridge_bs_axi5_xbar
         '0;
 
     assign acc_64b_r.poison = 
+        '0;
+
+    assign acc_64b_r.tag = 
         '0;
 
 
@@ -2195,6 +2165,9 @@ module bridge_bs_axi5_xbar
 
     assign acc_128b_b.trace = 
         (acc_128b_b_rgnt_mem1 ? mem1_axi_btrace : '0);
+
+    assign acc_128b_b.tagmatch = 
+        '0;
 
     assign acc_128b_arready = 
         ((acc_128b_ar_to_mem1) ? acc_128b_ar_slot_mem1_in_ready : '0) |
@@ -2230,6 +2203,9 @@ module bridge_bs_axi5_xbar
     assign acc_128b_r.poison = 
         '0;
 
+    assign acc_128b_r.tag = 
+        '0;
+
 
     // Master: io, Width path: 64b
     assign io_64b_awready = 
@@ -2251,6 +2227,9 @@ module bridge_bs_axi5_xbar
         (io_64b_b_rgnt_mem3 ? mem3_axi_bvalid : '0);
 
     assign io_64b_b.trace = 
+        '0;
+
+    assign io_64b_b.tagmatch = 
         '0;
 
     assign io_64b_arready = 
@@ -2278,6 +2257,9 @@ module bridge_bs_axi5_xbar
         '0;
 
     assign io_64b_r.poison = 
+        '0;
+
+    assign io_64b_r.tag = 
         '0;
 
 
@@ -2308,6 +2290,9 @@ module bridge_bs_axi5_xbar
 
     assign io_128b_b.trace = 
         (io_128b_b_rgnt_mem1 ? mem1_axi_btrace : '0);
+
+    assign io_128b_b.tagmatch = 
+        '0;
 
     assign io_128b_arready = 
         ((io_128b_ar_to_mem1) ? io_128b_ar_slot_mem1_in_ready : '0) |
@@ -2341,6 +2326,9 @@ module bridge_bs_axi5_xbar
         (io_128b_r_rgnt_mem1 ? mem1_axi_rtrace : '0);
 
     assign io_128b_r.poison = 
+        '0;
+
+    assign io_128b_r.tag = 
         '0;
 
 

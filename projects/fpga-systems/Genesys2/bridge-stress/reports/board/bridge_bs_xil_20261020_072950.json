@@ -1,0 +1,272 @@
+[
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1259882,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1292765,
+  "reasons": "cpu.rd: ['RD_DATA'] x794 (first RD_DATA id=0xc addr=0x20003ba8 exp=0x35f0e1d8 act=0x4378ac75) | dma.rd: ['RD_DATA'] x795 (first RD_DATA id=0x9 addr=0x2000ea20 exp=0x9b202a24 act=0x9ea96834) | atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648 | rd sweep of bram by cpu: ['RD_DATA'], 32 of 32 bursts first at 0x20003970 exp 0x4378ac75 act 0xe871f05d | rd sweep of ddr by dma: ['RD_DATA'], 256 of 256 bursts first at 0x40000528 exp 0xc17886fd act 0xe80f3ee4"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1211875,
+  "reasons": "cpu.rd: ['RD_DATA'] x12 (first RD_DATA id=0x1e addr=0x2000b1b0 exp=0x066abea1 act=0x6f1a1101) | atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680 | rd sweep of ddr by dma: ['RD_DATA'], 256 of 256 bursts first at 0x40003410 exp 0xa85ccc42 act 0x2f02122f"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1015423,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1014708,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1044585,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "backpressure",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1605268,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "backpressure",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1613896,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "backpressure",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1649389,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "reorder",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1028313,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "reorder",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1024538,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "reorder",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1037961,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "narrow",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1109055,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "narrow",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1128162,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "narrow",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1132278,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "single_id",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1198926,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "single_id",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1203057,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "single_id",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1190671,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "errors",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 957382,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "errors",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 992579,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "errors",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 979233,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "short",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 105167,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "short",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 105947,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "short",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 108342,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1331417,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1397635,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x40003cb0: 0x6e944152, expected 0x6d654ef4 | atg read 0x2000ea20: 0x2f02122f, expected 0x9b202a24 | atg read 0x2000c1d8: 0xe871f05d, expected 0x245c20d4 | atg read 0x40007420: 0x8e94edfc, expected 0x68414473 | atg read 0x40000528: 0xeae816b7, expected 0xc17886fd | atg read 0x4000e740: 0xfc2e8d23, expected 0x70044a13 | atg read 0x4000da88: 0xb8504660, expected 0xbe854341 | atg read 0x2000ab50: 0x3e32945e, expected 0x513a7648"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 4075636958,
+  "reasons": "timed out before ALL_DONE | cpu.wr: ['WR_RESP', 'HANG'] x2 (first WR_RESP id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000002) | cpu.wr: issued 3658 completed 3652 of 4000 | atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set | atg read 0x2000b1b0: 0x6e944152, expected 0x066abea1 | atg read 0x20002098: 0x2f02122f, expected 0x2c209ba7 | atg read 0x400042b0: 0xe871f05d, expected 0x9c7f4f8d | atg read 0x200016c8: 0x8e94edfc, expected 0xde1c238d | atg read 0x400072a0: 0xeae816b7, expected 0x5c57f88d | atg read 0x20003090: 0xfc2e8d23, expected 0x8c46fa9e | atg read 0x4000af10: 0xb8504660, expected 0x7322f340 | atg read 0x20008150: 0x3e32945e, expected 0x01cc7680 | rd sweep: timed out before ALL_DONE"
+ }
+]

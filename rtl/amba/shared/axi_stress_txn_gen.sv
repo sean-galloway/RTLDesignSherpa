@@ -37,6 +37,14 @@
 //             One draw in eight is forced to a single beat, so single-beat
 //             traffic is always present whatever len_mask says.
 //
+// Fill (cfg_fill): instead of drawing, sweep the lowest enabled window from
+// its base, one INCR burst after another at the bus width, as long as the
+// 4 KB page (or the window) and LEN_MASK allow, every strobe set. Bursts
+// per window = 2^size_lg2 / (bytes per burst); the host sets txn_count to
+// that, and a longer budget wraps to the base. It is how a real memory (a
+// mem window) is given known contents before reads check it. ID, QoS and
+// gap are still drawn.
+//
 // The streams step once per descriptor taken, never per cycle, so the
 // descriptor sequence is a function of the seed alone: a run on the board and
 // the same seed in simulation issue identical bursts whatever the back
@@ -66,6 +74,7 @@ module axi_stress_txn_gen
     input  logic [15:0]         cfg_id_mask,
     input  logic [7:0]          cfg_gap_mask,
     input  logic                cfg_qos_rand,
+    input  logic                cfg_fill,
     input  stress_win_t         cfg_win  [NWIN],
     input  logic [NWIN-1:0]     cfg_win_en,    // this direction's enables
 
@@ -83,7 +92,9 @@ module axi_stress_txn_gen
     output logic                txn_strb_rand,
     output logic                txn_sb,        // AXI5: the window expects responses to echo
     output logic [3:0]          txn_plg2,      // AXI5: the window's poison rate
-    output logic                txn_atom       // AXI5: the window's path carries atomics
+    output logic                txn_atom,      // AXI5: the window's path carries atomics
+    output logic                txn_mte,       // AXI5: the window's far end answers tags
+    output logic                txn_mem        // the window is a real memory (f_maddr)
 );
 
     localparam int WSW = (NWIN > 1) ? $clog2(NWIN) : 1;
@@ -113,8 +124,11 @@ module axi_stress_txn_gen
     // k = random mod (number enabled).
     logic [WSW-1:0]  w_pick;
     logic            w_pick_ok;
+    logic [WSW-1:0]  w_first;      // fill: the lowest enabled window
     always_comb begin
         logic [3:0] n, k, seen;
+        w_first = '0;
+        for (int i = NWIN - 1; i >= 0; i--) if (cfg_win_en[i]) w_first = WSW'(i);
         n = '0;
         for (int i = 0; i < NWIN; i++) n = n + 4'(cfg_win_en[i]);
         k    = (n == '0) ? 4'd0 : 4'(r_ra[7:0] % 8'(n));
@@ -155,7 +169,7 @@ module axi_stress_txn_gen
 
     always_ff @(posedge aclk) begin
         if (w_d_load) begin
-            r_d_win    <= w_pick;
+            r_d_win    <= cfg_fill ? w_first : w_pick;
             r_d_size   <= r_ra[10:8];
             r_d_burst  <= r_ra[12:11];
             r_d_len    <= r_ra[20:13];
@@ -177,6 +191,7 @@ module axi_stress_txn_gen
     logic [1:0]  w_burst;
     logic [7:0]  w_len;
     logic [31:0] w_addr;
+    logic [31:0] r_f_off;        // fill: the sweep's next window offset
     logic [7:0]  w_lmask;        // the window's len_mask, cut to the protocol's
     assign w_lmask = w_w.len_mask & LEN_MASK;
 
@@ -235,12 +250,37 @@ module axi_stress_txn_gen
                ? ((w_w.base & ~((32'd1 << w_w.size_lg2) - 32'd1)) | off)
                : off;
 
+        // fill: the next full-width INCR of the sweep
+        if (cfg_fill) begin
+            w_size  = smax;
+            bytes   = 32'd1 << w_size;
+            w_burst = BURST_INCR;
+            w_len   = LEN_MASK;
+            off     = r_f_off & ~(bytes - 32'd1);
+            if (w_w.size_lg2 < 6'd32) off = off & ((32'd1 << w_w.size_lg2) - 32'd1);
+            w_addr = (w_w.size_lg2 < 6'd32)
+                   ? ((w_w.base & ~((32'd1 << w_w.size_lg2) - 32'd1)) | off)
+                   : off;
+        end
+
         // INCR: stop at the page (or the window, if smaller)
         aligned_off = (w_addr & ~(bytes - 32'd1)) & ((32'd1 << w_pg_lg2) - 32'd1);
         room_beats  = 14'(((32'd1 << w_pg_lg2) - aligned_off) >> w_size);
         if (w_burst == BURST_INCR && ({6'd0, w_len} + 14'd1) > room_beats)
             w_len = 8'(room_beats - 14'd1);
     end
+
+    // fill: the sweep's next window offset
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_f_off <= '0;
+        end else if (restart) begin
+            r_f_off <= '0;
+        end else if (w_d_take && cfg_fill) begin
+            r_f_off <= (w_addr + ((32'({1'b0, w_len}) + 32'd1) << w_size))
+                     & ((w_w.size_lg2 < 6'd32) ? ((32'd1 << w_w.size_lg2) - 32'd1) : 32'hFFFF_FFFF);
+        end
+    )
 
     logic r_o_valid;
     assign w_d_take = r_d_valid && (!r_o_valid || txn_ready);
@@ -267,10 +307,12 @@ module axi_stress_txn_gen
             txn_gap       <= r_d_gap;
             txn_tag       <= w_w.tag;
             txn_resp      <= w_w.resp;
-            txn_strb_rand <= w_w.strb_rand;
+            txn_strb_rand <= w_w.strb_rand && !cfg_fill;
             txn_sb        <= w_w.sb;
             txn_plg2      <= w_w.poison_lg2;
             txn_atom      <= w_w.atomic;
+            txn_mte       <= w_w.mte;
+            txn_mem       <= w_w.mem;
         end
     end
 

@@ -125,3 +125,20 @@ This is one of three orthogonal axes - see [[rds-dv-axes]].
 
 Related: [[bfm-usage]], [[seeds-and-determinism]] (a rerun that changes seeds is
 not a reproduction), [[test-runner]].
+
+## Choices drawn from one linear hash with XOR keys are locked together
+
+xorshift and LFSRs are linear over GF(2): `h(a ^ K1) ^ h(a ^ K2)` is a
+constant for every `a`. Derive two "independent" choices from one address
+that way -- `tagop = h(a ^ K1)[1:0]`, `match_ok = h(a ^ K2)[0]` -- and the
+second is a fixed function of the first. The AXI5 stress model's first MTE
+run never produced a failed tag match: every burst picked as a Match came
+out "pass", in RTL and in the Python model alike, so the two agreed and every
+check was green. Only the coverage assertion (`btagmatch2 never seen`)
+caught it.
+
+Put a non-linear step between the key and the output -- the stress model's
+`f_hk` adds a rotation of the key between two xorshift rounds, which carries
+-- and keep a coverage count on every value a derived choice can take, since
+a correlated choice is still a valid choice and no protocol check can see it.
+(`rtl/amba/includes/axi_stress_pkg.sv`, 2026-10-19.)

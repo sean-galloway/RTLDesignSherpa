@@ -551,12 +551,16 @@ module bridge_bs_axi5_io_adapter
     assign io_64b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_ar.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
 
     // Write rate buffer (16 x 64b): the converter's wide side
     // feeds it, and a burst of up to 16 beats reaches the crossbar only once
@@ -759,12 +763,16 @@ module bridge_bs_axi5_io_adapter
     assign io_128b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_ar.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
 
     // Write rate buffer (16 x 128b): the converter's wide side
     // feeds it, and a burst of up to 16 beats reaches the crossbar only once

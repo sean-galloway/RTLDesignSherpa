@@ -16,6 +16,8 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/br
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/bridge_bs_cfg.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/bridge_bs_cfg_xbar.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ctl_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ext0_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ext1_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/mst0_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/mst1_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/mst2_adapter.sv
@@ -76,3 +78,8 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/regs/bridge_regblock.vlt
 # axi_gen_addr and both gaxi FIFOs. Hand-listing those here is how the
 # shim's newer gaxi_fifo_async CDC dependency went missing.
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_apb4_shim.f
+
+# AXI4-Lite protocol converter dependencies.
+# -f the converters filelists; do not hand-list its sources.
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_rd.f
+-f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axil4_wr.f

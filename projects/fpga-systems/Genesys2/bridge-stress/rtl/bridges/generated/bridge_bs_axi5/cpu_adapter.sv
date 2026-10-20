@@ -42,14 +42,17 @@ module bridge_bs_axi5_cpu_adapter
     input  logic [15:0]  cpu_axi_awmecid,
     input  logic         cpu_axi_awidunq,
     input  logic [5:0]  cpu_axi_awatop,
+    input  logic [1:0]  cpu_axi_awtagop,
 
-    input  logic [63:0]  cpu_axi_wdata,
-    input  logic [7:0]  cpu_axi_wstrb,
+    input  logic [127:0]  cpu_axi_wdata,
+    input  logic [15:0]  cpu_axi_wstrb,
     input  logic         cpu_axi_wlast,
     input  logic         cpu_axi_wuser,
     input  logic         cpu_axi_wvalid,
     output  logic         cpu_axi_wready,
     input  logic         cpu_axi_wpoison,
+    input  logic [3:0]  cpu_axi_wtag,
+    input  logic         cpu_axi_wtagupdate,
 
     output  logic [3:0]  cpu_axi_bid,
     output  logic [1:0]  cpu_axi_bresp,
@@ -58,6 +61,7 @@ module bridge_bs_axi5_cpu_adapter
     input  logic         cpu_axi_bready,
     output  logic         cpu_axi_btrace,
     output  logic         cpu_axi_bidunq,
+    output  logic [1:0]  cpu_axi_btagmatch,
 
     input  logic [3:0]  cpu_axi_arid,
     input  logic [31:0]  cpu_axi_araddr,
@@ -76,9 +80,10 @@ module bridge_bs_axi5_cpu_adapter
     input  logic [10:0]  cpu_axi_armpam,
     input  logic [15:0]  cpu_axi_armecid,
     input  logic         cpu_axi_aridunq,
+    input  logic [1:0]  cpu_axi_artagop,
 
     output  logic [3:0]  cpu_axi_rid,
-    output  logic [63:0]  cpu_axi_rdata,
+    output  logic [127:0]  cpu_axi_rdata,
     output  logic [1:0]  cpu_axi_rresp,
     output  logic         cpu_axi_rlast,
     output  logic         cpu_axi_ruser,
@@ -87,6 +92,7 @@ module bridge_bs_axi5_cpu_adapter
     output  logic         cpu_axi_rtrace,
     output  logic         cpu_axi_ridunq,
     output  logic         cpu_axi_rpoison,
+    output  logic [3:0]  cpu_axi_rtag,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
@@ -94,27 +100,7 @@ module bridge_bs_axi5_cpu_adapter
     output logic [NUM_SLAVES-1:0] slave_select_ar,
     output logic [BRIDGE_ID_WIDTH-1:0] bridge_id_ar,
 
-    // 64b width outputs (to crossbar)
-    output axi4_aw_t     cpu_64b_aw,
-    output logic         cpu_64b_awvalid,
-    input  logic         cpu_64b_awready,
-
-    output axi4_w_64b_t  cpu_64b_w,
-    output logic         cpu_64b_wvalid,
-    input  logic         cpu_64b_wready,
-
-    input  axi4_b_t      cpu_64b_b,
-    input  logic         cpu_64b_bvalid,
-    output logic         cpu_64b_bready,
-
-    output axi4_ar_t     cpu_64b_ar,
-    output logic         cpu_64b_arvalid,
-    input  logic         cpu_64b_arready,
-
-    input  axi4_r_64b_t  cpu_64b_r,
-    input  logic         cpu_64b_rvalid,
-    output logic         cpu_64b_rready,
-
+    // 128b width outputs (to crossbar)
     output axi4_aw_t     cpu_128b_aw,
     output logic         cpu_128b_awvalid,
     input  logic         cpu_128b_awready,
@@ -140,7 +126,7 @@ module bridge_bs_axi5_cpu_adapter
     // Localparams
     // ================================================================
     localparam ADDR_WIDTH = 32;
-    localparam DATA_WIDTH = 64;
+    localparam DATA_WIDTH = 128;
     localparam ID_WIDTH = 4;
 
     // ================================================================
@@ -160,8 +146,8 @@ module bridge_bs_axi5_cpu_adapter
     logic         fub_axi_awvalid;
     logic         fub_axi_awready;
 
-    logic [63:0]  fub_axi_wdata;
-    logic [7:0]   fub_axi_wstrb;
+    logic [127:0]  fub_axi_wdata;
+    logic [15:0]   fub_axi_wstrb;
     logic         fub_axi_wlast;
     logic         fub_axi_wuser;
     logic         fub_axi_wvalid;
@@ -186,7 +172,7 @@ module bridge_bs_axi5_cpu_adapter
     logic         fub_axi_arready;
 
     logic [3:0]   fub_axi_rid;
-    logic [63:0]  fub_axi_rdata;
+    logic [127:0]  fub_axi_rdata;
     logic [1:0]   fub_axi_rresp;
     logic         fub_axi_rlast;
     logic         fub_axi_rvalid;
@@ -202,15 +188,21 @@ module bridge_bs_axi5_cpu_adapter
     logic [15:0]  fub_axi_awmecid;  // AXI5 sideband (mecid)
     logic         fub_axi_awidunq;  // AXI5 sideband (unique)
     logic [5:0]  fub_axi_awatop;  // AXI5 sideband (atomic)
+    logic [1:0]  fub_axi_awtagop;  // AXI5 sideband (mte)
     logic         fub_axi_wpoison;  // AXI5 sideband (poison)
+    logic [3:0]  fub_axi_wtag;  // AXI5 sideband (mte)
+    logic         fub_axi_wtagupdate;  // AXI5 sideband (mte)
     logic         fub_axi_btrace;  // AXI5 sideband (trace)
+    logic [1:0]  fub_axi_btagmatch;  // AXI5 sideband (mte)
     logic [3:0]  fub_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_artrace;  // AXI5 sideband (trace)
     logic [10:0]  fub_axi_armpam;  // AXI5 sideband (mpam)
     logic [15:0]  fub_axi_armecid;  // AXI5 sideband (mecid)
     logic         fub_axi_aridunq;  // AXI5 sideband (unique)
+    logic [1:0]  fub_axi_artagop;  // AXI5 sideband (mte)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
     logic         fub_axi_rpoison;  // AXI5 sideband (poison)
+    logic [3:0]  fub_axi_rtag;  // AXI5 sideband (mte)
 
     // AXI5 boundary-generated signals (GitHub #102 item 5)
     logic         fub_axi_bidunq;  // regenerated (A5.2)
@@ -232,7 +224,7 @@ module bridge_bs_axi5_cpu_adapter
         .SKID_DEPTH_B(SKID_DEPTH_B),
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(64),
+        .AXI_DATA_WIDTH(128),
         .AXI_USER_WIDTH(1),
         .ENABLE_ATOMIC(1'b1),
         .ENABLE_NSAID(1'b1),
@@ -240,7 +232,7 @@ module bridge_bs_axi5_cpu_adapter
         .ENABLE_MPAM(1'b1),
         .ENABLE_MECID(1'b1),
         .ENABLE_UNIQUE(1'b1),
-        .ENABLE_MTE(1'b0),
+        .ENABLE_MTE(1'b1),
         .ENABLE_POISON(1'b1),
         .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_wr (
@@ -266,7 +258,7 @@ module bridge_bs_axi5_cpu_adapter
         .s_axi_awmpam(cpu_axi_awmpam),
         .s_axi_awmecid(cpu_axi_awmecid),
         .s_axi_awidunq(cpu_axi_awidunq),
-        .s_axi_awtagop('0),
+        .s_axi_awtagop(cpu_axi_awtagop),
         .s_axi_awakeup('0),
         .s_axi_wdata(cpu_axi_wdata),
         .s_axi_wstrb(cpu_axi_wstrb),
@@ -275,8 +267,8 @@ module bridge_bs_axi5_cpu_adapter
         .s_axi_wvalid(cpu_axi_wvalid),
         .s_axi_wready(cpu_axi_wready),
         .s_axi_wpoison(cpu_axi_wpoison),
-        .s_axi_wtag('0),
-        .s_axi_wtagupdate('0),
+        .s_axi_wtag(cpu_axi_wtag),
+        .s_axi_wtagupdate(cpu_axi_wtagupdate),
         .s_axi_bid(cpu_axi_bid),
         .s_axi_bresp(cpu_axi_bresp),
         .s_axi_buser(cpu_axi_buser),
@@ -284,7 +276,7 @@ module bridge_bs_axi5_cpu_adapter
         .s_axi_bready(cpu_axi_bready),
         .s_axi_btrace(cpu_axi_btrace),
         .s_axi_bidunq(cpu_axi_bidunq),
-        .s_axi_btagmatch(),
+        .s_axi_btagmatch(cpu_axi_btagmatch),
 
         // Bridge-internal side (fub_axi)
         .fub_axi_awid(fub_axi_awid),
@@ -305,7 +297,7 @@ module bridge_bs_axi5_cpu_adapter
         .fub_axi_awmpam(fub_axi_awmpam),
         .fub_axi_awmecid(fub_axi_awmecid),
         .fub_axi_awidunq(fub_axi_awidunq),
-        .fub_axi_awtagop(),
+        .fub_axi_awtagop(fub_axi_awtagop),
         .fub_axi_awakeup(),
         .fub_axi_wdata(fub_axi_wdata),
         .fub_axi_wstrb(fub_axi_wstrb),
@@ -314,8 +306,8 @@ module bridge_bs_axi5_cpu_adapter
         .fub_axi_wvalid(fub_axi_wvalid),
         .fub_axi_wready(fub_axi_wready),
         .fub_axi_wpoison(fub_axi_wpoison),
-        .fub_axi_wtag(),
-        .fub_axi_wtagupdate(),
+        .fub_axi_wtag(fub_axi_wtag),
+        .fub_axi_wtagupdate(fub_axi_wtagupdate),
         .fub_axi_bid(fub_axi_bid),
         .fub_axi_bresp(fub_axi_bresp),
         .fub_axi_buser(1'b0),
@@ -323,7 +315,7 @@ module bridge_bs_axi5_cpu_adapter
         .fub_axi_bready(fub_axi_bready),
         .fub_axi_btrace(fub_axi_btrace),
         .fub_axi_bidunq(fub_axi_bidunq),
-        .fub_axi_btagmatch('0),
+        .fub_axi_btagmatch(fub_axi_btagmatch),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_wr_busy)
@@ -337,7 +329,7 @@ module bridge_bs_axi5_cpu_adapter
         .SKID_DEPTH_R(SKID_DEPTH_R),
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
-        .AXI_DATA_WIDTH(64),
+        .AXI_DATA_WIDTH(128),
         .AXI_USER_WIDTH(1),
         .ENABLE_NSAID(1'b1),
         .ENABLE_TRACE(1'b1),
@@ -345,7 +337,7 @@ module bridge_bs_axi5_cpu_adapter
         .ENABLE_MECID(1'b1),
         .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b0),
-        .ENABLE_MTE(1'b0),
+        .ENABLE_MTE(1'b1),
         .ENABLE_POISON(1'b1),
         .ENABLE_WAKEUP(1'b0)
     ) u_timing_wrapper_rd (
@@ -371,7 +363,7 @@ module bridge_bs_axi5_cpu_adapter
         .s_axi_armecid(cpu_axi_armecid),
         .s_axi_aridunq(cpu_axi_aridunq),
         .s_axi_archunken('0),
-        .s_axi_artagop('0),
+        .s_axi_artagop(cpu_axi_artagop),
         .s_axi_awakeup('0),
         .s_axi_rid(cpu_axi_rid),
         .s_axi_rdata(cpu_axi_rdata),
@@ -386,7 +378,7 @@ module bridge_bs_axi5_cpu_adapter
         .s_axi_rchunkv(),
         .s_axi_rchunknum(),
         .s_axi_rchunkstrb(),
-        .s_axi_rtag(),
+        .s_axi_rtag(cpu_axi_rtag),
 
         // Bridge-internal side (fub_axi)
         .fub_axi_arid(fub_axi_arid),
@@ -407,7 +399,7 @@ module bridge_bs_axi5_cpu_adapter
         .fub_axi_armecid(fub_axi_armecid),
         .fub_axi_aridunq(fub_axi_aridunq),
         .fub_axi_archunken(),
-        .fub_axi_artagop(),
+        .fub_axi_artagop(fub_axi_artagop),
         .fub_axi_awakeup(),
         .fub_axi_rid(fub_axi_rid),
         .fub_axi_rdata(fub_axi_rdata),
@@ -422,7 +414,7 @@ module bridge_bs_axi5_cpu_adapter
         .fub_axi_rchunkv('0),
         .fub_axi_rchunknum('0),
         .fub_axi_rchunkstrb('0),
-        .fub_axi_rtag('0),
+        .fub_axi_rtag(fub_axi_rtag),
 
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)
@@ -516,307 +508,93 @@ module bridge_bs_axi5_cpu_adapter
     assign bridge_id_ar = BRIDGE_ID_WIDTH'(BRIDGE_ID);
 
     // ================================================================
-    // Width adaptation - Master: 64b
-    // Connected to slaves with widths: [64, 128]
+    // Width adaptation - Master: 128b
+    // Connected to slaves with widths: [128]
     // ================================================================
 
     // Per-width path-active gates (see comment in adapter_generator.py).
     logic aw_gate_ok;
     logic ar_gate_ok;
-    logic aw_path_active_64b;
-    assign aw_path_active_64b = (comb_slave_select_aw[0] | comb_slave_select_aw[2]) && aw_gate_ok;
-    logic w_path_active_64b;
-    assign w_path_active_64b = w_slave_select[0] | w_slave_select[2];
-    logic ar_path_active_64b;
-    assign ar_path_active_64b = (comb_slave_select_ar[0] | comb_slave_select_ar[2]) && ar_gate_ok;
-    logic b_path_active_64b;
-    assign b_path_active_64b = b_slave_select[0] | b_slave_select[2];
-    logic r_path_active_64b;
-    assign r_path_active_64b = (r_slave_select[0] | r_slave_select[2]) && !r_local_head;
     logic aw_path_active_128b;
-    assign aw_path_active_128b = (comb_slave_select_aw[4]) && aw_gate_ok;
+    assign aw_path_active_128b = (comb_slave_select_aw[0] | comb_slave_select_aw[2] | comb_slave_select_aw[4]) && aw_gate_ok;
     logic w_path_active_128b;
-    assign w_path_active_128b = w_slave_select[4];
+    assign w_path_active_128b = w_slave_select[0] | w_slave_select[2] | w_slave_select[4];
     logic ar_path_active_128b;
-    assign ar_path_active_128b = (comb_slave_select_ar[4]) && ar_gate_ok;
+    assign ar_path_active_128b = (comb_slave_select_ar[0] | comb_slave_select_ar[2] | comb_slave_select_ar[4]) && ar_gate_ok;
     logic b_path_active_128b;
-    assign b_path_active_128b = b_slave_select[4];
+    assign b_path_active_128b = b_slave_select[0] | b_slave_select[2] | b_slave_select[4];
     logic r_path_active_128b;
-    assign r_path_active_128b = (r_slave_select[4]) && !r_local_head;
+    assign r_path_active_128b = (r_slave_select[0] | r_slave_select[2] | r_slave_select[4]) && !r_local_head;
 
     // ================================================================
-    // Direct passthrough: 64b → 64b (no converter)
-    // Requests: fub_axi_* → cpu_64b_*
-    // Responses: cpu_64b_* → MUX → fub_axi_*
+    // Direct passthrough: 128b → 128b (no converter)
+    // Requests: fub_axi_* → cpu_128b_*
+    // Responses: cpu_128b_* → MUX → fub_axi_*
     // ================================================================
 
     // AW channel (request: fub → output)
-    assign cpu_64b_aw.id     = xbar_axi_awid;
-    assign cpu_64b_aw.addr   = fub_axi_awaddr;
-    assign cpu_64b_aw.len    = fub_axi_awlen;
-    assign cpu_64b_aw.size   = fub_axi_awsize;
-    assign cpu_64b_aw.burst  = fub_axi_awburst;
-    assign cpu_64b_aw.lock   = fub_axi_awlock;
-    assign cpu_64b_aw.cache  = fub_axi_awcache;
-    assign cpu_64b_aw.prot   = fub_axi_awprot;
-    assign cpu_64b_aw.qos    = fub_axi_awqos;
-    assign cpu_64b_aw.region = 4'b0;  // AXI5 has no REGION
-    assign cpu_64b_aw.user   = fub_axi_awuser;
-    assign cpu_64b_aw.nsaid = fub_axi_awnsaid;  // AXI5 sideband
-    assign cpu_64b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
-    assign cpu_64b_aw.mpam = fub_axi_awmpam;  // AXI5 sideband
-    assign cpu_64b_aw.mecid = fub_axi_awmecid;  // AXI5 sideband
-    assign cpu_64b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
-    assign cpu_64b_aw.atop = fub_axi_awatop;  // AXI5 sideband
-    assign cpu_64b_awvalid   = fub_axi_awvalid && aw_path_active_64b;
+    assign cpu_128b_aw.id     = xbar_axi_awid;
+    assign cpu_128b_aw.addr   = fub_axi_awaddr;
+    assign cpu_128b_aw.len    = fub_axi_awlen;
+    assign cpu_128b_aw.size   = fub_axi_awsize;
+    assign cpu_128b_aw.burst  = fub_axi_awburst;
+    assign cpu_128b_aw.lock   = fub_axi_awlock;
+    assign cpu_128b_aw.cache  = fub_axi_awcache;
+    assign cpu_128b_aw.prot   = fub_axi_awprot;
+    assign cpu_128b_aw.qos    = fub_axi_awqos;
+    assign cpu_128b_aw.region = 4'b0;  // AXI5 has no REGION
+    assign cpu_128b_aw.user   = fub_axi_awuser;
+    assign cpu_128b_aw.nsaid = fub_axi_awnsaid;  // AXI5 sideband
+    assign cpu_128b_aw.trace = fub_axi_awtrace;  // AXI5 sideband
+    assign cpu_128b_aw.mpam = fub_axi_awmpam;  // AXI5 sideband
+    assign cpu_128b_aw.mecid = fub_axi_awmecid;  // AXI5 sideband
+    assign cpu_128b_aw.idunq = fub_axi_awidunq;  // AXI5 sideband
+    assign cpu_128b_aw.atop = fub_axi_awatop;  // AXI5 sideband
+    assign cpu_128b_aw.tagop = fub_axi_awtagop;  // AXI5 sideband
+    assign cpu_128b_awvalid   = fub_axi_awvalid && aw_path_active_128b;
     // awready routed via MUX
 
     // W channel (request: fub → output)
-    assign cpu_64b_w.data  = fub_axi_wdata;
-    assign cpu_64b_w.strb  = fub_axi_wstrb;
-    assign cpu_64b_w.last  = fub_axi_wlast;
-    assign cpu_64b_w.user  = fub_axi_wuser;
-    assign cpu_64b_w.poison = fub_axi_wpoison;  // AXI5 sideband
-    assign cpu_64b_wvalid  = fub_axi_wvalid && w_path_active_64b;
+    assign cpu_128b_w.data  = fub_axi_wdata;
+    assign cpu_128b_w.strb  = fub_axi_wstrb;
+    assign cpu_128b_w.last  = fub_axi_wlast;
+    assign cpu_128b_w.user  = fub_axi_wuser;
+    assign cpu_128b_w.poison = fub_axi_wpoison;  // AXI5 sideband
+    assign cpu_128b_w.tag = fub_axi_wtag;  // AXI5 sideband
+    assign cpu_128b_w.tagupdate = fub_axi_wtagupdate;  // AXI5 sideband
+    assign cpu_128b_wvalid  = fub_axi_wvalid && w_path_active_128b;
     // wready routed via MUX
 
     // B channel (response: output → MUX → fub)
     // Ready gated by the response head — see b_path_active comment.
-    assign cpu_64b_bready = fub_axi_bready && b_path_active_64b;
+    assign cpu_128b_bready = fub_axi_bready && b_path_active_128b;
     // bid, bresp, bvalid routed via MUX (user field ignored)
 
     // AR channel (request: fub → output)
-    assign cpu_64b_ar.id     = xbar_axi_arid;
-    assign cpu_64b_ar.addr   = fub_axi_araddr;
-    assign cpu_64b_ar.len    = fub_axi_arlen;
-    assign cpu_64b_ar.size   = fub_axi_arsize;
-    assign cpu_64b_ar.burst  = fub_axi_arburst;
-    assign cpu_64b_ar.lock   = fub_axi_arlock;
-    assign cpu_64b_ar.cache  = fub_axi_arcache;
-    assign cpu_64b_ar.prot   = fub_axi_arprot;
-    assign cpu_64b_ar.qos    = fub_axi_arqos;
-    assign cpu_64b_ar.region = 4'b0;  // AXI5 has no REGION
-    assign cpu_64b_ar.user   = fub_axi_aruser;
-    assign cpu_64b_ar.nsaid = fub_axi_arnsaid;  // AXI5 sideband
-    assign cpu_64b_ar.trace = fub_axi_artrace;  // AXI5 sideband
-    assign cpu_64b_ar.mpam = fub_axi_armpam;  // AXI5 sideband
-    assign cpu_64b_ar.mecid = fub_axi_armecid;  // AXI5 sideband
-    assign cpu_64b_ar.idunq = fub_axi_aridunq;  // AXI5 sideband
-    assign cpu_64b_arvalid   = fub_axi_arvalid && ar_path_active_64b;
+    assign cpu_128b_ar.id     = xbar_axi_arid;
+    assign cpu_128b_ar.addr   = fub_axi_araddr;
+    assign cpu_128b_ar.len    = fub_axi_arlen;
+    assign cpu_128b_ar.size   = fub_axi_arsize;
+    assign cpu_128b_ar.burst  = fub_axi_arburst;
+    assign cpu_128b_ar.lock   = fub_axi_arlock;
+    assign cpu_128b_ar.cache  = fub_axi_arcache;
+    assign cpu_128b_ar.prot   = fub_axi_arprot;
+    assign cpu_128b_ar.qos    = fub_axi_arqos;
+    assign cpu_128b_ar.region = 4'b0;  // AXI5 has no REGION
+    assign cpu_128b_ar.user   = fub_axi_aruser;
+    assign cpu_128b_ar.nsaid = fub_axi_arnsaid;  // AXI5 sideband
+    assign cpu_128b_ar.trace = fub_axi_artrace;  // AXI5 sideband
+    assign cpu_128b_ar.mpam = fub_axi_armpam;  // AXI5 sideband
+    assign cpu_128b_ar.mecid = fub_axi_armecid;  // AXI5 sideband
+    assign cpu_128b_ar.idunq = fub_axi_aridunq;  // AXI5 sideband
+    assign cpu_128b_ar.tagop = fub_axi_artagop;  // AXI5 sideband
+    assign cpu_128b_arvalid   = fub_axi_arvalid && ar_path_active_128b;
     // arready routed via MUX
 
     // R channel (response: output → MUX → fub)
     // Ready gated by the response head — see r_path_active comment.
-    assign cpu_64b_rready = fub_axi_rready && r_path_active_64b;
+    assign cpu_128b_rready = fub_axi_rready && r_path_active_128b;
     // rid, rdata, rresp, rlast, rvalid routed via MUX (user field ignored)
-
-    // ================================================================
-    // Width converter: 64b → 128b
-    // ================================================================
-
-    // Intermediate signals for 128b converter
-    logic conv_128b_awready;
-    logic conv_128b_wready;
-    logic [5:0] conv_128b_bid;
-    logic [1:0] conv_128b_bresp;
-    logic conv_128b_bvalid;
-    logic conv_128b_arready;
-    logic [5:0] conv_128b_rid;
-    logic [63:0] conv_128b_rdata;
-    logic [1:0] conv_128b_rresp;
-    logic conv_128b_rlast;
-    logic conv_128b_rvalid;
-
-    assign cpu_128b_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_ar.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
-
-    // Write rate buffer (16 x 128b): the converter's wide side
-    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
-    // it is buffered whole, so the shared slave's W runs at its full rate
-    // (bridge W2). Longer bursts pass through.
-    axi4_aw_t cpu_128b_rb_aw;
-    axi4_w_128b_t cpu_128b_rb_w;
-    logic cpu_128b_rb_awvalid, cpu_128b_rb_awready, cpu_128b_rb_wvalid, cpu_128b_rb_wready;
-    axi4_dwidth_converter_wr #(
-        .S_AXI_DATA_WIDTH(64),
-        .M_AXI_DATA_WIDTH(128),
-        .AXI_ID_WIDTH(6),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
-        .SKID_DEPTH_B(2)
-    ) u_wr_conv_128b (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // Slave side (from wrapper) - BROADCAST requests; ready/B intercepted for FIFO
-        .s_axi_awid(xbar_axi_awid),
-        .s_axi_awaddr(fub_axi_awaddr),
-        .s_axi_awlen(fub_axi_awlen),
-        .s_axi_awsize(fub_axi_awsize),
-        .s_axi_awburst(fub_axi_awburst),
-        .s_axi_awlock(fub_axi_awlock),
-        .s_axi_awcache(fub_axi_awcache),
-        .s_axi_awprot(fub_axi_awprot),
-        .s_axi_awqos(4'b0),
-        .s_axi_awregion(4'b0),
-        .s_axi_awuser(1'b0),
-        .s_axi_awvalid(fub_axi_awvalid && aw_path_active_128b),
-        .s_axi_awready(conv_128b_awready),
-        .s_axi_wdata(fub_axi_wdata),
-        .s_axi_wstrb(fub_axi_wstrb),
-        .s_axi_wlast(fub_axi_wlast),
-        .s_axi_wuser(1'b0),
-        .s_axi_wvalid(fub_axi_wvalid && w_path_active_128b),
-        .s_axi_wready(conv_128b_wready),
-        .s_axi_bid(conv_128b_bid),
-        .s_axi_bresp(conv_128b_bresp),
-        .s_axi_buser(),
-        .s_axi_bvalid(conv_128b_bvalid),
-        .s_axi_bready(fub_axi_bready && b_path_active_128b),
-
-        // Master side (to crossbar)
-        .m_axi_awid(cpu_128b_rb_aw.id),
-        .m_axi_awaddr(cpu_128b_rb_aw.addr),
-        .m_axi_awlen(cpu_128b_rb_aw.len),
-        .m_axi_awsize(cpu_128b_rb_aw.size),
-        .m_axi_awburst(cpu_128b_rb_aw.burst),
-        .m_axi_awlock(cpu_128b_rb_aw.lock),
-        .m_axi_awcache(cpu_128b_rb_aw.cache),
-        .m_axi_awprot(cpu_128b_rb_aw.prot),
-        .m_axi_awqos(cpu_128b_rb_aw.qos),
-        .m_axi_awregion(cpu_128b_rb_aw.region),
-        .m_axi_awuser(cpu_128b_rb_aw.user),
-        .m_axi_awvalid(cpu_128b_rb_awvalid),
-        .m_axi_awready(cpu_128b_rb_awready),
-        .m_axi_wdata(cpu_128b_rb_w.data),
-        .m_axi_wstrb(cpu_128b_rb_w.strb),
-        .m_axi_wlast(cpu_128b_rb_w.last),
-        .m_axi_wuser(cpu_128b_rb_w.user),
-        .m_axi_wvalid(cpu_128b_rb_wvalid),
-        .m_axi_wready(cpu_128b_rb_wready),
-        .m_axi_bid(cpu_128b_b.id),
-        .m_axi_bresp(cpu_128b_b.resp),
-        .m_axi_buser(cpu_128b_b.user),
-        .m_axi_bvalid(cpu_128b_bvalid),
-        .m_axi_bready(cpu_128b_bready)
-    );
-
-    bridge_wr_rate_buf #(
-        .AW_WIDTH        ($bits(axi4_aw_t)),
-        .W_WIDTH         ($bits(axi4_w_128b_t)),
-        .DEPTH           (16),
-        .AW_DEPTH        (4),
-        .MAX_OUTSTANDING (16)
-    ) u_wr_rbuf_128b (
-        .aclk      (aclk),
-        .aresetn   (aresetn),
-        .s_aw      (cpu_128b_rb_aw),
-        .s_awlen   (cpu_128b_rb_aw.len),
-        .s_awvalid (cpu_128b_rb_awvalid),
-        .s_awready (cpu_128b_rb_awready),
-        .s_w       (cpu_128b_rb_w),
-        .s_wlast   (cpu_128b_rb_w.last),
-        .s_wvalid  (cpu_128b_rb_wvalid),
-        .s_wready  (cpu_128b_rb_wready),
-        .m_aw      (cpu_128b_aw),
-        .m_awvalid (cpu_128b_awvalid),
-        .m_awready (cpu_128b_awready),
-        .m_w       (cpu_128b_w),
-        .m_wvalid  (cpu_128b_wvalid),
-        .m_wready  (cpu_128b_wready)
-    );
-
-    // Read rate buffer (16 x 128b): R is taken from the crossbar
-    // at the slave's full rate and drained at this master's narrow rate, so
-    // the shared slave's R is not held by a slow consumer (bridge W2).
-    axi4_r_128b_t cpu_128b_rb_r;
-    logic cpu_128b_rb_rvalid, cpu_128b_rb_rready;
-    axi4_dwidth_converter_rd #(
-        .S_AXI_DATA_WIDTH(64),
-        .M_AXI_DATA_WIDTH(128),
-        .AXI_ID_WIDTH(6),
-        .AXI_ADDR_WIDTH(32),
-        .AXI_USER_WIDTH(1),
-        .SKID_DEPTH_AR(2),
-        .SKID_DEPTH_R(4),
-        .R_INTERLEAVE(1)
-    ) u_rd_conv_128b (
-        .aclk(aclk),
-        .aresetn(aresetn),
-
-        // Slave side (from wrapper) - BROADCAST requests; arready/R intercepted for FIFO
-        .s_axi_arid(xbar_axi_arid),
-        .s_axi_araddr(fub_axi_araddr),
-        .s_axi_arlen(fub_axi_arlen),
-        .s_axi_arsize(fub_axi_arsize),
-        .s_axi_arburst(fub_axi_arburst),
-        .s_axi_arlock(fub_axi_arlock),
-        .s_axi_arcache(fub_axi_arcache),
-        .s_axi_arprot(fub_axi_arprot),
-        .s_axi_arqos(4'b0),
-        .s_axi_arregion(4'b0),
-        .s_axi_aruser(1'b0),
-        .s_axi_arvalid(fub_axi_arvalid && ar_path_active_128b),
-        .s_axi_arready(conv_128b_arready),
-        .s_axi_rid(conv_128b_rid),
-        .s_axi_rdata(conv_128b_rdata),
-        .s_axi_rresp(conv_128b_rresp),
-        .s_axi_rlast(conv_128b_rlast),
-        .s_axi_ruser(),
-        .s_axi_rvalid(conv_128b_rvalid),
-        .s_axi_rready(fub_axi_rready && r_path_active_128b),
-
-        // Master side (to crossbar)
-        .m_axi_arid(cpu_128b_ar.id),
-        .m_axi_araddr(cpu_128b_ar.addr),
-        .m_axi_arlen(cpu_128b_ar.len),
-        .m_axi_arsize(cpu_128b_ar.size),
-        .m_axi_arburst(cpu_128b_ar.burst),
-        .m_axi_arlock(cpu_128b_ar.lock),
-        .m_axi_arcache(cpu_128b_ar.cache),
-        .m_axi_arprot(cpu_128b_ar.prot),
-        .m_axi_arqos(cpu_128b_ar.qos),
-        .m_axi_arregion(cpu_128b_ar.region),
-        .m_axi_aruser(cpu_128b_ar.user),
-        .m_axi_arvalid(cpu_128b_arvalid),
-        .m_axi_arready(cpu_128b_arready),
-        .m_axi_rid(cpu_128b_rb_r.id),
-        .m_axi_rdata(cpu_128b_rb_r.data),
-        .m_axi_rresp(cpu_128b_rb_r.resp),
-        .m_axi_rlast(cpu_128b_rb_r.last),
-        .m_axi_ruser(cpu_128b_rb_r.user),
-        .m_axi_rvalid(cpu_128b_rb_rvalid),
-        .m_axi_rready(cpu_128b_rb_rready)
-    );
-
-    gaxi_fifo_sync #(
-        .DATA_WIDTH ($bits(axi4_r_128b_t)),
-        .DEPTH      (16)
-    ) u_rd_rbuf_128b (
-        .axi_aclk    (aclk),
-        .axi_aresetn (aresetn),
-        .wr_valid    (cpu_128b_rvalid),
-        .wr_ready    (cpu_128b_rready),
-        .wr_data     (cpu_128b_r),
-        .rd_ready    (cpu_128b_rb_rready),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count       (),
-        /* verilator lint_on PINCONNECTEMPTY */
-        .rd_valid    (cpu_128b_rb_rvalid),
-        .rd_data     (cpu_128b_rb_r)
-    );
 
     // ================================================================
     // Response MUX - Route responses from width-specific paths
@@ -911,51 +689,9 @@ module bridge_bs_axi5_cpu_adapter
                            ((|(aw_idt_tgt[aw_idt_widx] & comb_slave_select_aw)) &&
                             (aw_idt_trace[aw_idt_widx] == fub_axi_awtrace));
 
-    // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
-    // Round robin over the 2 width paths. A grant holds while its
-    // response is offered and not taken; R switches per beat, since the
-    // slaves (and the width converters, per ID) may interleave R bursts.
-    logic [1:0] b_pv, b_pgnt, r_b_held;
-    logic           r_b_hold;
-    logic [0:0] r_b_last;
-    assign b_pv[0] = cpu_64b_bvalid;  // 64b path
-    assign b_pv[1] = conv_128b_bvalid;  // 128b path
-    always_comb begin
-        b_pgnt = '0;
-        if (r_b_hold) begin
-            b_pgnt = r_b_held;
-        end else begin
-            case (r_b_last)
-                1'd0: begin
-                    if (b_pv[0]) b_pgnt = 2'b01;
-                    if (b_pv[1]) b_pgnt = 2'b10;
-                end
-                1'd1: begin
-                    if (b_pv[1]) b_pgnt = 2'b10;
-                    if (b_pv[0]) b_pgnt = 2'b01;
-                end
-                default: ;
-            endcase
-        end
-    end
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_b_hold <= 1'b0;
-            r_b_held <= '0;
-            r_b_last <= '0;
-        end else begin
-            r_b_hold <= fub_axi_bvalid && !fub_axi_bready;
-            r_b_held <= b_pgnt;
-            if (fub_axi_bvalid && fub_axi_bready) begin
-                if (b_pgnt[0]) r_b_last <= 1'd0;
-                if (b_pgnt[1]) r_b_last <= 1'd1;
-            end
-        end
-    )
-
-    assign b_slave_select = ({NUM_SLAVES{b_pgnt[0]}} & 5'b00001)
-                          | ({NUM_SLAVES{b_pgnt[1]}} & 5'b10000);
+    // One width path: every response arrives on it; the crossbar has
+    // already chosen among the slaves behind it.
+    assign b_slave_select = 5'b00001;
 
     // bridge BUG-010 (was BRIDGE-012): the B echoes its request's trace,
     // looked up by the returning ID (single-valued per in-flight ID).
@@ -1132,35 +868,27 @@ module bridge_bs_axi5_cpu_adapter
     assign r_local_id = lr_mem[lr_rptr[AR_TRK_AW-1:0]];
 
     // -------- R path arbiter (fixes bridge GitHub #119 L1) --------
-    // Round robin over the 3 width paths. A grant holds while its
+    // Round robin over the 2 width paths. A grant holds while its
     // response is offered and not taken; R switches per beat, since the
     // slaves (and the width converters, per ID) may interleave R bursts.
-    logic [2:0] r_pv, r_pgnt, r_r_held;
+    logic [1:0] r_pv, r_pgnt, r_r_held;
     logic           r_r_hold;
-    logic [1:0] r_r_last;
-    assign r_pv[0] = cpu_64b_rvalid;  // 64b path
-    assign r_pv[1] = conv_128b_rvalid;  // 128b path
-    assign r_pv[2] = lr_valid;  // local DECERR queue
+    logic [0:0] r_r_last;
+    assign r_pv[0] = cpu_128b_rvalid;  // 128b path
+    assign r_pv[1] = lr_valid;  // local DECERR queue
     always_comb begin
         r_pgnt = '0;
         if (r_r_hold) begin
             r_pgnt = r_r_held;
         end else begin
             case (r_r_last)
-                2'd0: begin
-                    if (r_pv[0]) r_pgnt = 3'b001;
-                    if (r_pv[2]) r_pgnt = 3'b100;
-                    if (r_pv[1]) r_pgnt = 3'b010;
+                1'd0: begin
+                    if (r_pv[0]) r_pgnt = 2'b01;
+                    if (r_pv[1]) r_pgnt = 2'b10;
                 end
-                2'd1: begin
-                    if (r_pv[1]) r_pgnt = 3'b010;
-                    if (r_pv[0]) r_pgnt = 3'b001;
-                    if (r_pv[2]) r_pgnt = 3'b100;
-                end
-                2'd2: begin
-                    if (r_pv[2]) r_pgnt = 3'b100;
-                    if (r_pv[1]) r_pgnt = 3'b010;
-                    if (r_pv[0]) r_pgnt = 3'b001;
+                1'd1: begin
+                    if (r_pv[1]) r_pgnt = 2'b10;
+                    if (r_pv[0]) r_pgnt = 2'b01;
                 end
                 default: ;
             endcase
@@ -1176,17 +904,15 @@ module bridge_bs_axi5_cpu_adapter
             r_r_hold <= fub_axi_rvalid && !fub_axi_rready;
             r_r_held <= r_pgnt;
             if (fub_axi_rvalid && fub_axi_rready) begin
-                if (r_pgnt[0]) r_r_last <= 2'd0;
-                if (r_pgnt[1]) r_r_last <= 2'd1;
-                if (r_pgnt[2]) r_r_last <= 2'd2;
+                if (r_pgnt[0]) r_r_last <= 1'd0;
+                if (r_pgnt[1]) r_r_last <= 1'd1;
             end
         end
     )
 
-    assign r_slave_select = ({NUM_SLAVES{r_pgnt[0]}} & 5'b00001)
-                          | ({NUM_SLAVES{r_pgnt[1]}} & 5'b10000);
+    assign r_slave_select = ({NUM_SLAVES{r_pgnt[0]}} & 5'b00001);
 
-    assign r_local_head = r_pgnt[2];  // the local queue holds R
+    assign r_local_head = r_pgnt[1];  // the local queue holds R
 
     // bridge BUG-010: the R echoes its request's trace (an atomic's AW trace).
     logic r_trk_trace;
@@ -1196,14 +922,14 @@ module bridge_bs_axi5_cpu_adapter
     always_comb begin
         fub_axi_awready = 1'b0;
         case (comb_slave_select_aw)
-            5'b00001: begin  // Slave 0 (64b)
-                fub_axi_awready = cpu_64b_awready;
+            5'b00001: begin  // Slave 0 (128b)
+                fub_axi_awready = cpu_128b_awready;
             end
-            5'b00100: begin  // Slave 2 (64b)
-                fub_axi_awready = cpu_64b_awready;
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_awready = cpu_128b_awready;
             end
             5'b10000: begin  // Slave 4 (128b)
-                fub_axi_awready = conv_128b_awready;
+                fub_axi_awready = cpu_128b_awready;
             end
             default: begin
                 // No slave selected
@@ -1217,14 +943,14 @@ module bridge_bs_axi5_cpu_adapter
     always_comb begin
         fub_axi_wready = 1'b0;
         case (w_slave_select)
-            5'b00001: begin  // Slave 0 (64b)
-                fub_axi_wready = cpu_64b_wready;
+            5'b00001: begin  // Slave 0 (128b)
+                fub_axi_wready = cpu_128b_wready;
             end
-            5'b00100: begin  // Slave 2 (64b)
-                fub_axi_wready = cpu_64b_wready;
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_wready = cpu_128b_wready;
             end
             5'b10000: begin  // Slave 4 (128b)
-                fub_axi_wready = conv_128b_wready;
+                fub_axi_wready = cpu_128b_wready;
             end
             default: begin
                 // No active W transaction
@@ -1241,24 +967,29 @@ module bridge_bs_axi5_cpu_adapter
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
         b_slave_trace = '0;  // AXI5 sideband (trace)
+        fub_axi_btagmatch = '0;  // AXI5 sideband (mte)
 
         case (b_slave_select)
-            5'b00001: begin  // Slave 0 (64b)
-                fub_axi_bid = cpu_64b_b.id[3:0];
-                fub_axi_bresp = cpu_64b_b.resp;
-                fub_axi_bvalid = cpu_64b_bvalid;
-                b_slave_trace = cpu_64b_b.trace;
+            5'b00001: begin  // Slave 0 (128b)
+                fub_axi_bid = cpu_128b_b.id[3:0];
+                fub_axi_bresp = cpu_128b_b.resp;
+                fub_axi_bvalid = cpu_128b_bvalid;
+                b_slave_trace = cpu_128b_b.trace;
+                fub_axi_btagmatch = cpu_128b_b.tagmatch;
             end
-            5'b00100: begin  // Slave 2 (64b)
-                fub_axi_bid = cpu_64b_b.id[3:0];
-                fub_axi_bresp = cpu_64b_b.resp;
-                fub_axi_bvalid = cpu_64b_bvalid;
-                b_slave_trace = cpu_64b_b.trace;
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_bid = cpu_128b_b.id[3:0];
+                fub_axi_bresp = cpu_128b_b.resp;
+                fub_axi_bvalid = cpu_128b_bvalid;
+                b_slave_trace = cpu_128b_b.trace;
+                fub_axi_btagmatch = cpu_128b_b.tagmatch;
             end
             5'b10000: begin  // Slave 4 (128b)
-                fub_axi_bid = conv_128b_bid[3:0];
-                fub_axi_bresp = conv_128b_bresp;
-                fub_axi_bvalid = conv_128b_bvalid;
+                fub_axi_bid = cpu_128b_b.id[3:0];
+                fub_axi_bresp = cpu_128b_b.resp;
+                fub_axi_bvalid = cpu_128b_bvalid;
+                b_slave_trace = cpu_128b_b.trace;
+                fub_axi_btagmatch = cpu_128b_b.tagmatch;
             end
             default: begin
                 // No slave selected - hold defaults
@@ -1274,7 +1005,7 @@ module bridge_bs_axi5_cpu_adapter
     // A slave that DOES implement trace must echo it too. Echoing at the
     // boundary keeps this port correct whatever the slave does, but it
     // must not launder a trace-capable slave that returns the wrong bit.
-    localparam logic [NUM_SLAVES-1:0] B_TRACE_CAPABLE = 5'b00001;
+    localparam logic [NUM_SLAVES-1:0] B_TRACE_CAPABLE = 5'b00000;
     always_ff @(posedge aclk) begin
         if (aresetn && fub_axi_bvalid && fub_axi_bready &&
             |(b_slave_select & B_TRACE_CAPABLE) &&
@@ -1289,14 +1020,14 @@ module bridge_bs_axi5_cpu_adapter
     always_comb begin
         fub_axi_arready = 1'b0;
         case (comb_slave_select_ar)
-            5'b00001: begin  // Slave 0 (64b)
-                fub_axi_arready = cpu_64b_arready;
+            5'b00001: begin  // Slave 0 (128b)
+                fub_axi_arready = cpu_128b_arready;
             end
-            5'b00100: begin  // Slave 2 (64b)
-                fub_axi_arready = cpu_64b_arready;
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_arready = cpu_128b_arready;
             end
             5'b10000: begin  // Slave 4 (128b)
-                fub_axi_arready = conv_128b_arready;
+                fub_axi_arready = cpu_128b_arready;
             end
             default: begin
                 // No slave selected
@@ -1311,38 +1042,44 @@ module bridge_bs_axi5_cpu_adapter
     logic r_slave_trace;
     always_comb begin
         fub_axi_rid = 4'd0;
-        fub_axi_rdata = 64'd0;
+        fub_axi_rdata = 128'd0;
         fub_axi_rresp = 2'b00;
         fub_axi_rlast = 1'b0;
         fub_axi_rvalid = 1'b0;
         r_slave_trace = '0;  // AXI5 sideband (trace)
         fub_axi_rpoison = '0;  // AXI5 sideband (poison)
+        fub_axi_rtag = '0;  // AXI5 sideband (mte)
 
         case (r_slave_select)
-            5'b00001: begin  // Slave 0 (64b)
-                fub_axi_rid = cpu_64b_r.id[3:0];
-                fub_axi_rdata = cpu_64b_r.data;
-                fub_axi_rresp = cpu_64b_r.resp;
-                fub_axi_rlast = cpu_64b_r.last;
-                fub_axi_rvalid = cpu_64b_rvalid;
-                r_slave_trace = cpu_64b_r.trace;
-                fub_axi_rpoison = cpu_64b_r.poison;
+            5'b00001: begin  // Slave 0 (128b)
+                fub_axi_rid = cpu_128b_r.id[3:0];
+                fub_axi_rdata = cpu_128b_r.data;
+                fub_axi_rresp = cpu_128b_r.resp;
+                fub_axi_rlast = cpu_128b_r.last;
+                fub_axi_rvalid = cpu_128b_rvalid;
+                r_slave_trace = cpu_128b_r.trace;
+                fub_axi_rpoison = cpu_128b_r.poison;
+                fub_axi_rtag = cpu_128b_r.tag;
             end
-            5'b00100: begin  // Slave 2 (64b)
-                fub_axi_rid = cpu_64b_r.id[3:0];
-                fub_axi_rdata = cpu_64b_r.data;
-                fub_axi_rresp = cpu_64b_r.resp;
-                fub_axi_rlast = cpu_64b_r.last;
-                fub_axi_rvalid = cpu_64b_rvalid;
-                r_slave_trace = cpu_64b_r.trace;
-                fub_axi_rpoison = cpu_64b_r.poison;
+            5'b00100: begin  // Slave 2 (128b)
+                fub_axi_rid = cpu_128b_r.id[3:0];
+                fub_axi_rdata = cpu_128b_r.data;
+                fub_axi_rresp = cpu_128b_r.resp;
+                fub_axi_rlast = cpu_128b_r.last;
+                fub_axi_rvalid = cpu_128b_rvalid;
+                r_slave_trace = cpu_128b_r.trace;
+                fub_axi_rpoison = cpu_128b_r.poison;
+                fub_axi_rtag = cpu_128b_r.tag;
             end
             5'b10000: begin  // Slave 4 (128b)
-                fub_axi_rid = conv_128b_rid[3:0];
-                fub_axi_rdata = conv_128b_rdata;
-                fub_axi_rresp = conv_128b_rresp;
-                fub_axi_rlast = conv_128b_rlast;
-                fub_axi_rvalid = conv_128b_rvalid;
+                fub_axi_rid = cpu_128b_r.id[3:0];
+                fub_axi_rdata = cpu_128b_r.data;
+                fub_axi_rresp = cpu_128b_r.resp;
+                fub_axi_rlast = cpu_128b_r.last;
+                fub_axi_rvalid = cpu_128b_rvalid;
+                r_slave_trace = cpu_128b_r.trace;
+                fub_axi_rpoison = cpu_128b_r.poison;
+                fub_axi_rtag = cpu_128b_r.tag;
             end
             default: begin
                 // No slave selected - hold defaults
@@ -1353,7 +1090,7 @@ module bridge_bs_axi5_cpu_adapter
         // subtractive slave has already been held off via r_path_active.
         if (r_local_head) begin
             fub_axi_rid    = r_local_id;
-            fub_axi_rdata  = 64'd0;
+            fub_axi_rdata  = 128'd0;
             fub_axi_rresp  = 2'b11;
             fub_axi_rlast  = 1'b1;
             fub_axi_rvalid = 1'b1;
@@ -1368,7 +1105,7 @@ module bridge_bs_axi5_cpu_adapter
     // A slave that DOES implement trace must echo it too. Echoing at the
     // boundary keeps this port correct whatever the slave does, but it
     // must not launder a trace-capable slave that returns the wrong bit.
-    localparam logic [NUM_SLAVES-1:0] R_TRACE_CAPABLE = 5'b00001;
+    localparam logic [NUM_SLAVES-1:0] R_TRACE_CAPABLE = 5'b00000;
     always_ff @(posedge aclk) begin
         if (aresetn && fub_axi_rvalid && fub_axi_rready &&
             |(r_slave_select & R_TRACE_CAPABLE) &&

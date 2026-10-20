@@ -29,8 +29,10 @@
 //            IDs with the MSB set; R beats with RID MSB set are the
 //            read-return atomics' and go to the write core, every other R
 //            beat to the read core. The host keeps read IDs below the MSB.
-// No AxREGION (AXI5 removed it). Not driven yet, held at 0: AxTAGOP / WTAG /
-// WTAGUPDATE, ARCHUNKEN, AWAKEUP; their response fields are ignored. Every AXI5 pin is on the port whatever the build; a pin of a
+//   AxTAGOP, WTAG, WTAGUPDATE  (EN_MTE) driven and BTAGMATCH / RTAG checked
+//            as axi_stress_pkg's tag contract sets out.
+// No AxREGION (AXI5 removed it). Not driven yet, held at 0: ARCHUNKEN,
+// AWAKEUP; their response fields are ignored. Every AXI5 pin is on the port whatever the build; a pin of a
 // disabled feature is tied off by the channel module.
 // A port built for one direction (EN_RD / EN_WR = 0) elaborates no logic for
 // the other; its outputs are tied idle and its status reads done, no errors.
@@ -52,6 +54,7 @@ module axi5_master_stress
     parameter bit EN_POISON = 1'b0,
     parameter bit EN_UNIQUE = 1'b0,
     parameter bit EN_ATOMIC = 1'b0,      // needs EN_RD and EN_WR, IW >= 2
+    parameter bit EN_MTE    = 1'b0,
     parameter int DEPTH   = 16,
     parameter int NWIN    = 8,
     parameter int IW      = 8,
@@ -192,10 +195,13 @@ module axi5_master_stress
         logic              c_rlast, c_rvalid, c_rready, c_rtrace, c_rpoison, c_ridunq;
         logic [UW-1:0]     c_ruser;
         logic              w_is_atr;
+        logic [1:0]        f_artagop_w;
+        logic [TW-1:0]     c_rtag;
 
         axi_stress_mst_rd #(
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW),
-            .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON), .UNIQUE(EN_UNIQUE)
+            .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON), .UNIQUE(EN_UNIQUE),
+            .MTE(EN_MTE)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
             .cfg (cfg_rd), .cfg_win, .cfg_hash_seed, .sts (sts_rd),
@@ -212,6 +218,7 @@ module axi5_master_stress
             .fub_axi_aruser    (f_aruser),
             .fub_axi_arsb      (f_arsb),
             .fub_axi_aridunq   (f_aridunq),
+            .fub_axi_artagop   (f_artagop_w),
             .fub_axi_arvalid   (f_arvalid),
             .fub_axi_arready   (f_arready),
             .fub_axi_rid       (f_rid),
@@ -222,6 +229,7 @@ module axi5_master_stress
             .fub_axi_rsb       ({7'd0, f_rtrace}),
             .fub_axi_rpoison   (f_rpoison),
             .fub_axi_ridunq    (f_ridunq),
+            .fub_axi_rtag      (c_rtag),
             .fub_axi_rvalid    (f_rvalid),
             .fub_axi_rready    (f_rready)
         );
@@ -231,7 +239,7 @@ module axi5_master_stress
             .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
             .ENABLE_NSAID(EN_NSAID), .ENABLE_TRACE(EN_TRACE), .ENABLE_MPAM(EN_MPAM),
             .ENABLE_MECID(EN_MECID), .ENABLE_UNIQUE(EN_UNIQUE), .ENABLE_CHUNKING(1'b0),
-            .ENABLE_MTE(1'b0), .ENABLE_POISON(EN_POISON), .ENABLE_WAKEUP(1'b0)
+            .ENABLE_MTE(EN_MTE), .ENABLE_POISON(EN_POISON), .ENABLE_WAKEUP(1'b0)
         ) u_chan (
             .aclk, .aresetn,
             .fub_axi_arid      (f_arid),
@@ -253,7 +261,7 @@ module axi5_master_stress
             .fub_axi_armecid   (f_arsb[31:16]),
             .fub_axi_aridunq   (f_aridunq),
             .fub_axi_archunken (1'b0),
-            .fub_axi_artagop   (2'b00),
+            .fub_axi_artagop   (f_artagop_w),
             .fub_axi_rid       (c_rid),
             .fub_axi_rdata     (c_rdata),
             .fub_axi_rresp     (c_rresp),
@@ -268,8 +276,8 @@ module axi5_master_stress
             .fub_axi_rchunkv   (),
             .fub_axi_rchunknum (),
             .fub_axi_rchunkstrb(),
-            .fub_axi_rtag      (),
             /* verilator lint_on PINCONNECTEMPTY */
+            .fub_axi_rtag      (c_rtag),
             .m_axi_arid        (m_axi_arid),
             .m_axi_araddr      (m_axi_araddr),
             .m_axi_arlen       (m_axi_arlen),
@@ -394,11 +402,14 @@ module axi5_master_stress
         logic [UW-1:0]     f_buser;
         logic              f_bvalid, f_bready, f_btrace, f_awidunq, f_bidunq;
         logic [5:0]        f_awatop;
+        logic [1:0]        f_awtagop_w, f_btm;
+        logic [TW-1:0]     f_wtag;
+        logic [NUM_TAGS-1:0] f_wtagupd;
 
         axi_stress_mst_wr #(
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW),
             .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON), .UNIQUE(EN_UNIQUE),
-            .ATOMIC(EN_ATOMIC)
+            .ATOMIC(EN_ATOMIC), .MTE(EN_MTE)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
             .cfg (cfg_wr), .cfg_win, .cfg_hash_seed, .sts (sts_wr),
@@ -416,6 +427,7 @@ module axi5_master_stress
             .fub_axi_awsb      (f_awsb),
             .fub_axi_awidunq   (f_awidunq),
             .fub_axi_awatop    (f_awatop),
+            .fub_axi_awtagop   (f_awtagop_w),
             .fub_axi_awvalid   (f_awvalid),
             .fub_axi_awready   (f_awready),
             .fub_axi_wdata     (f_wdata),
@@ -424,6 +436,8 @@ module axi5_master_stress
             .fub_axi_wlast     (f_wlast),
             .fub_axi_wuser     (f_wuser),
             .fub_axi_wpoison   (f_wpoison),
+            .fub_axi_wtag      (f_wtag),
+            .fub_axi_wtagupdate(f_wtagupd),
             .fub_axi_wvalid    (f_wvalid),
             .fub_axi_wready    (f_wready),
             .fub_axi_bid       (f_bid),
@@ -431,6 +445,7 @@ module axi5_master_stress
             .fub_axi_buser     (f_buser),
             .fub_axi_bsb       ({7'd0, f_btrace}),
             .fub_axi_bidunq    (f_bidunq),
+            .fub_axi_btagmatch (f_btm),
             .fub_axi_bvalid    (f_bvalid),
             .fub_axi_bready    (f_bready),
             .fub_axi_atr_valid (atr_valid),
@@ -449,7 +464,7 @@ module axi5_master_stress
             .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
             .ENABLE_ATOMIC(EN_ATOMIC), .ENABLE_NSAID(EN_NSAID), .ENABLE_TRACE(EN_TRACE),
             .ENABLE_MPAM(EN_MPAM), .ENABLE_MECID(EN_MECID), .ENABLE_UNIQUE(EN_UNIQUE),
-            .ENABLE_MTE(1'b0), .ENABLE_POISON(EN_POISON), .ENABLE_WAKEUP(1'b0)
+            .ENABLE_MTE(EN_MTE), .ENABLE_POISON(EN_POISON), .ENABLE_WAKEUP(1'b0)
         ) u_chan (
             .aclk, .aresetn,
             .fub_axi_awid      (f_awid),
@@ -471,7 +486,7 @@ module axi5_master_stress
             .fub_axi_awmpam    (f_awsb[15:5]),
             .fub_axi_awmecid   (f_awsb[31:16]),
             .fub_axi_awidunq   (f_awidunq),
-            .fub_axi_awtagop   (2'b00),
+            .fub_axi_awtagop   (f_awtagop_w),
             .fub_axi_wdata     (f_wdata),
             .fub_axi_wstrb     (f_wstrb),
             .fub_axi_wlast     (f_wlast),
@@ -479,8 +494,8 @@ module axi5_master_stress
             .fub_axi_wvalid    (f_wvalid),
             .fub_axi_wready    (f_wready),
             .fub_axi_wpoison   (f_wpoison),
-            .fub_axi_wtag      ('0),
-            .fub_axi_wtagupdate('0),
+            .fub_axi_wtag      (f_wtag),
+            .fub_axi_wtagupdate(f_wtagupd),
             .fub_axi_bid       (f_bid),
             .fub_axi_bresp     (f_bresp),
             .fub_axi_buser     (f_buser),
@@ -488,9 +503,7 @@ module axi5_master_stress
             .fub_axi_bready    (f_bready),
             .fub_axi_btrace    (f_btrace),
             .fub_axi_bidunq    (f_bidunq),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .fub_axi_btagmatch (),
-            /* verilator lint_on PINCONNECTEMPTY */
+            .fub_axi_btagmatch (f_btm),
             .m_axi_awid        (m_axi_awid),
             .m_axi_awaddr      (m_axi_awaddr),
             .m_axi_awlen       (m_axi_awlen),

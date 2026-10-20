@@ -43,6 +43,11 @@
 // AXI5 IDUNQ (UNIQUE): as axi_stress_slv_rd, held = AW accepted to B made;
 // BIDUNQ echoes the burst's AWIDUNQ.
 //
+// AXI5 MTE (MTE): AWTAGOP must be f_awtagop(fabric address) -- Invalid on an
+// atomic -- and each W beat's WTAG / WTAGUPDATE must match axi_stress_pkg's
+// tag contract (ERR_S_SB); B carries BTAGMATCH = f_btagmatch(address,
+// AWTAGOP).
+//
 // AXI5 atomics (ATOMIC): an AWATOP the stress master would never issue (not
 // one aligned INCR beat inside the bus, a size its class does not allow, a
 // reserved encoding: axi_stress_pkg f_atop_illegal) is ERR_S_PROTO. The
@@ -71,12 +76,15 @@ module axi_stress_slv_wr
     parameter bit POISON  = 1'b0,        // AXI5 WPOISON checked
     parameter bit UNIQUE  = 1'b0,        // AXI5 AWIDUNQ checked, BIDUNQ echoed
     parameter bit ATOMIC  = 1'b0,        // AXI5 atomics checked and answered
+    parameter bit MTE     = 1'b0,        // AXI5 AWTAGOP / WTAG checked, BTAGMATCH driven
     parameter int SRC_LSB = 0,           // master-index field of the ID
     parameter int SRC_W   = 0,           //   (0: one master, index 0)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
-    parameter int NL      = DW / 32
+    parameter int NL      = DW / 32,
+    parameter int NT      = (DW / 128 > 0) ? DW / 128 : 1,   // MTE tag slots per beat
+    parameter int TW      = 4 * NT
 ) (
     input  logic                aclk,
     input  logic                aresetn,
@@ -100,6 +108,7 @@ module axi_stress_slv_wr
     input  logic [31:0]      fub_axi_awsb,
     input  logic                fub_axi_awidunq,
     input  logic [5:0]          fub_axi_awatop,
+    input  logic [1:0]          fub_axi_awtagop,
     input  logic                fub_axi_awvalid,
     output logic                fub_axi_awready,
 
@@ -109,6 +118,8 @@ module axi_stress_slv_wr
     input  logic                fub_axi_wlast,
     input  logic [UW-1:0]       fub_axi_wuser,
     input  logic                fub_axi_wpoison,
+    input  logic [TW-1:0]       fub_axi_wtag,
+    input  logic [NT-1:0]       fub_axi_wtagupdate,
     input  logic                fub_axi_wvalid,
     output logic                fub_axi_wready,
 
@@ -117,6 +128,7 @@ module axi_stress_slv_wr
     output logic [UW-1:0]       fub_axi_buser,
     output logic [7:0]     fub_axi_bsb,
     output logic                fub_axi_bidunq,
+    output logic [1:0]          fub_axi_btagmatch,
     output logic                fub_axi_bvalid,
     input  logic                fub_axi_bready,
 
@@ -141,7 +153,24 @@ module axi_stress_slv_wr
     // =========================================================================
     // AW queue
     // =========================================================================
-    localparam int AQW = IW + 32 + 8 + 3 + 2 + 2 + 8 + 1 + 1;
+    localparam int AQW = IW + 32 + 8 + 3 + 2 + 2 + 8 + 1 + 1 + 2 + 2;
+
+    // AXI5 MTE: the tags of the beat at `a`, one per 16-byte slot of the bus
+    function automatic logic [TW-1:0] f_beat_tags(input logic [31:0] a, input logic [31:0] seed,
+                                                   input logic dir);
+        logic [TW-1:0] t;
+        for (int i = 0; i < NT; i++)
+            t[i*4 +: 4] = f_tag({a[31:BUS_LG2], BUS_LG2'(0)} + 32'(i * 16), seed, dir);
+        return t;
+    endfunction
+
+    function automatic logic [NT-1:0] f_beat_tagupd(input logic [31:0] a, input logic [31:0] seed);
+        logic [NT-1:0] u;
+        for (int i = 0; i < NT; i++)
+            u[i] = f_tagupd({a[31:BUS_LG2], BUS_LG2'(0)} + 32'(i * 16), seed);
+        return u;
+    endfunction
+
 
     logic           aq_wr_ready, aq_rd_valid, aq_rd_ready, w_aw_hs;
     logic [AQW-1:0] aq_rd_data;
@@ -174,7 +203,9 @@ module axi_stress_slv_wr
         .wr_ready    (aq_wr_ready),
         .wr_data     ({fub_axi_awid, w_faddr, fub_axi_awlen, fub_axi_awsize,
                        fub_axi_awburst, w_aw_resp, f_rsb(fub_axi_awsb) & RSB_MASK,
-                       UNIQUE && fub_axi_awidunq, ATOMIC && fub_axi_awatop[5]}),
+                       UNIQUE && fub_axi_awidunq, ATOMIC && fub_axi_awatop[5],
+                       MTE ? fub_axi_awtagop : TAGOP_INVALID,
+                       MTE ? f_btagmatch(w_faddr, cfg_hash_seed, fub_axi_awtagop) : 2'b00}),
         .rd_ready    (aq_rd_ready),
         /* verilator lint_off PINCONNECTEMPTY */
         .count       (),
@@ -190,7 +221,8 @@ module axi_stress_slv_wr
     logic [1:0]    q_burst, q_resp;
     logic [7:0]    q_rsb;
     logic          q_uq, q_rr;
-    assign {q_id, q_addr, q_len, q_size, q_burst, q_resp, q_rsb, q_uq, q_rr} = aq_rd_data;
+    logic [1:0]    q_tagop, q_btm;
+    assign {q_id, q_addr, q_len, q_size, q_burst, q_resp, q_rsb, q_uq, q_rr, q_tagop, q_btm} = aq_rd_data;
 
     // registered request checks
     logic          r_q_valid, r_q_win;
@@ -202,6 +234,7 @@ module axi_stress_slv_wr
     logic [5:0]    r_q_atop;
     logic [31:0]   r_q_faddr;
     logic [31:0] r_q_sb;
+    logic [1:0]    r_q_tagop;
 
     logic w_in_win;
     assign w_in_win = (cfg.size_lg2 >= 6'd32) ? 1'b1
@@ -214,6 +247,7 @@ module axi_stress_slv_wr
             r_q_win   <= w_in_win;
             r_q_faddr <= w_faddr;
             r_q_sb    <= fub_axi_awsb;
+            r_q_tagop <= fub_axi_awtagop;
             r_q_id    <= fub_axi_awid;
             r_q_addr  <= fub_axi_awaddr;
             r_q_len   <= fub_axi_awlen;
@@ -234,7 +268,9 @@ module axi_stress_slv_wr
         if (SRC_W > 0) w_q_src = 3'(r_q_id[SRC_LSB_P +: SRC_W_P]);
         w_q_sb_exp = cfg.sb_src[w_q_src] ? (f_sb(r_q_faddr, cfg_hash_seed) & SB_MASK) : '0;
     end
-    assign w_q_sb_err = (SB_MASK != '0) && r_q_valid && ((r_q_sb & SB_MASK) != w_q_sb_exp);
+    assign w_q_sb_err = r_q_valid && (((SB_MASK != '0) && ((r_q_sb & SB_MASK) != w_q_sb_exp))
+                                   || (MTE && (r_q_tagop != ((r_q_atop != 6'd0) ? TAGOP_INVALID
+                                                            : f_awtagop(r_q_faddr, cfg_hash_seed)))));
 
     logic w_q_addr_err, w_q_proto_err;
     assign w_q_addr_err  = r_q_valid && !r_q_win;
@@ -255,6 +291,7 @@ module axi_stress_slv_wr
     logic [7:0]    r_wa_rsb;              // AXI5: the B sideband echo
     logic          r_wa_uq;               // AXI5: AWIDUNQ, echoed on B
     logic          r_wa_rr;               // AXI5: a read-return atomic
+    logic [1:0]    r_wa_tagop, r_wa_btm;  // AXI5 MTE
 
     logic          c_valid;
     logic [IW-1:0] c_id;
@@ -264,6 +301,7 @@ module axi_stress_slv_wr
     logic [1:0]    c_burst, c_resp;
     logic [7:0]    c_rsb;
     logic          c_uq, c_rr;
+    logic [1:0]    c_tagop, c_btm;
     always_comb begin
         c_valid = r_wa || aq_rd_valid;
         c_id    = r_wa ? r_wa_id    : q_id;
@@ -276,6 +314,8 @@ module axi_stress_slv_wr
         c_rsb   = r_wa ? r_wa_rsb   : q_rsb;
         c_uq    = r_wa ? r_wa_uq    : q_uq;
         c_rr    = r_wa ? r_wa_rr    : q_rr;
+        c_tagop = r_wa ? r_wa_tagop : q_tagop;
+        c_btm   = r_wa ? r_wa_btm   : q_btm;
     end
 
     // AXI5 read-return atomics: answered after their (single) W beat
@@ -301,6 +341,8 @@ module axi_stress_slv_wr
             r_wa_rsb   <= c_rsb;
             r_wa_uq    <= c_uq;
             r_wa_rr    <= c_rr;
+            r_wa_tagop <= c_tagop;
+            r_wa_btm   <= c_btm;
         end
     end
 
@@ -353,6 +395,9 @@ module axi_stress_slv_wr
     logic [DW-1:0] r_c_data;
     logic [NB-1:0] r_c_strb;
     logic          r_c_poison;
+    logic [1:0]    r_c_tagop;
+    logic [TW-1:0] r_c_wtag;
+    logic [NT-1:0] r_c_wtagupd;
 
     always_ff @(posedge aclk) begin
         if (w_w_hs) begin
@@ -365,6 +410,9 @@ module axi_stress_slv_wr
             r_c_last     <= fub_axi_wlast;
             r_c_exp_last <= (c_left == 8'd0);
             r_c_poison   <= fub_axi_wpoison;
+            r_c_tagop    <= c_tagop;
+            r_c_wtag     <= fub_axi_wtag;
+            r_c_wtagupd  <= fub_axi_wtagupdate;
         end
     end
 
@@ -376,7 +424,11 @@ module axi_stress_slv_wr
     // AXI5: WPOISON of the beat
     logic w_c_p_exp, w_c_poison_err;
     assign w_c_p_exp      = POISON && f_poison(r_c_addr, cfg_hash_seed, cfg.poison_lg2);
-    assign w_c_poison_err = POISON && r_c_valid && (r_c_poison != w_c_p_exp);
+    assign w_c_poison_err = r_c_valid && ((POISON && (r_c_poison != w_c_p_exp))
+                                       || (MTE && (r_c_wtag != ((r_c_tagop != TAGOP_INVALID)
+                                                                ? f_beat_tags(r_c_addr, cfg_hash_seed, 1'b0) : '0)))
+                                       || (MTE && (r_c_wtagupd != ((r_c_tagop == TAGOP_UPDATE)
+                                                                   ? f_beat_tagupd(r_c_addr, cfg_hash_seed) : '0))));
 
     always_comb begin
         logic [BUS_LG2:0] lo, hi;
@@ -455,6 +507,7 @@ module axi_stress_slv_wr
     logic [8:0]    r_s_dly  [DEPTH];
     logic [7:0] r_s_bsb [DEPTH];
     logic [DEPTH-1:0] r_s_uq;              // AXI5: accepted with AWIDUNQ
+    logic [1:0]    r_s_btm [DEPTH];        // AXI5: BTAGMATCH
 
     logic [8:0] w_dly;
     assign w_dly = 9'(cfg.lat_min) + 9'(r_rnd[7:0] & cfg.lat_mask);
@@ -469,6 +522,7 @@ module axi_stress_slv_wr
             r_s_dly [tb_alloc_idx] <= w_dly;
             r_s_bsb [tb_alloc_idx] <= c_rsb;
             r_s_uq  [tb_alloc_idx] <= c_uq;
+            r_s_btm [tb_alloc_idx] <= c_btm;
         end
     end
 
@@ -532,6 +586,7 @@ module axi_stress_slv_wr
             fub_axi_bresp <= r_s_resp[w_pick_idx];
             fub_axi_bsb   <= r_s_bsb[w_pick_idx];
             fub_axi_bidunq <= r_s_uq[w_pick_idx];
+            fub_axi_btagmatch <= r_s_btm[w_pick_idx];
         end
     end
 
