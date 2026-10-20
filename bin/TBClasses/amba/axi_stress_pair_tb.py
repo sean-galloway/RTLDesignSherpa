@@ -24,7 +24,13 @@ contract, or check nothing. Three things stop that:
   against f_sb(start address), every RTRACE / BTRACE (the request's TRACE,
   echoed) and every R / W
   poison bit, and counts poisoned beats, so a poison run that never
-  poisoned anything fails too.
+  poisoned anything fails too. It checks the IDUNQ rule on the wire (a unique
+  request only on an ID with nothing outstanding, nothing on an ID whose
+  unique burst is out) and that BIDUNQ / RIDUNQ return each burst's bit.
+  Atomics: every AWATOP must be a shape the master issues, on an ID with
+  nothing else outstanding; each read-return class must get exactly one R
+  beat with its ID, RLAST set and the read hash on its lanes. A run counts
+  each class, so an atomic run that never issued one fails.
 * Every run first proves traffic moved: issued == completed == the budget,
   and the slave saw the same number of bursts.
 * The fault injector in the harness corrupts one handshake per fault, and
@@ -196,10 +202,21 @@ class AxiStressPairTB(TBBase):
                 self._merr(f'{ch.upper()} {a:#x}: {ch.upper()}{f.upper()} {got:#x} != {e:#x}')
         self.stats['sb_req'] += 1
 
+    def _check_uq(self, ch: str, live: list, uq: int, a: int):
+        """AXI5 IDUNQ (A5.2) on one ID's outstanding list, then record."""
+        if uq and live:
+            self._merr(f'{ch.upper()} {a:#x}: IDUNQ with {len(live)} outstanding on the ID')
+        if any(live):
+            self._merr(f'{ch.upper()} {a:#x}: issued while a unique burst is outstanding')
+        live.append(uq)
+        self.stats[f'uq_{ch}'] += uq
+
     async def _monitor(self):
         d = self.dut
         axi5 = self.PROTO == 'axi5'
         b_q: Dict[int, deque] = defaultdict(deque)     # bid -> AW addresses
+        uq_out = {'ar': defaultdict(list), 'aw': defaultdict(list)}   # id -> [uq bits]
+        rr_exp: Dict[int, tuple] = {}                   # read-return atomics owed: id -> (addr, size, win)
         rd_q: Dict[int, deque] = defaultdict(deque)    # rid -> bursts
         rd_order: deque = deque()                       # AR issue order (seq numbers)
         wr_q: deque = deque()
@@ -223,16 +240,33 @@ class AxiStressPairTB(TBBase):
                     self._merr(f'AR {a:#x} in no window')
                 addrs = M.beat_addrs(a, ln + 1, sz, bt)
                 self.stats['max_len'] = max(self.stats['max_len'], ln)
+                uq = int(d.m_aridunq.value) if axi5 else 0
                 if axi5:
                     self._check_req_sb('ar', a)
+                    self._check_uq('ar', uq_out['ar'][int(d.m_arid.value)], uq, a)
                 rd_q[int(d.m_arid.value)].append(
                     dict(seq=seq, addrs=addrs, size=sz, n=0,
-                         resp=w.resp if w else 0, win=w, start=a))
+                         resp=w.resp if w else 0, win=w, start=a, uq=uq))
                 rd_order.append(seq)
                 seq += 1
                 self.stats['ar'] += 1
             # R (wire after the injector, as the master sees it)
-            if int(d.m_rvalid.value) and int(d.m_rready.value):
+            if (axi5 and int(d.m_rvalid.value) and int(d.m_rready.value)
+                    and int(d.m_rid.value) in rr_exp):
+                rid = int(d.m_rid.value)
+                a, sz, w = rr_exp.pop(rid)
+                if not int(d.m_rlast.value):
+                    self._merr(f'atomic R ID {rid:#x}: RLAST low')
+                if int(d.m_rresp.value) == M.OKAY:
+                    data = int(d.m_rdata.value)
+                    for lane in M.beat_lanes(a, sz, self.NB):
+                        exp = M.f_byte((a & ~(self.NB - 1)) + lane, self.hash_seed,
+                                       self.slave_tag, True)
+                        if ((data >> (8 * lane)) & 0xFF) != exp:
+                            self._merr(f'atomic R ID {rid:#x} addr {a:#x} lane {lane}')
+                            break
+                self.stats['atom_rr'] += 1
+            elif int(d.m_rvalid.value) and int(d.m_rready.value):
                 rid = int(d.m_rid.value)
                 q = rd_q.get(rid)
                 if not q:
@@ -264,6 +298,8 @@ class AxiStressPairTB(TBBase):
                         if int(d.m_rpoison.value) != e_p:
                             self._merr(f'R ID {rid:#x} addr {addr:#x}: RPOISON != {e_p}')
                         self.stats['r_poison'] += e_p
+                        if int(d.m_ridunq.value) != b['uq']:
+                            self._merr(f'R ID {rid:#x} addr {addr:#x}: RIDUNQ != {b["uq"]}')
                     last = b['n'] == len(b['addrs']) - 1
                     if int(d.m_rlast.value) != int(last):
                         self._merr(f'R ID {rid:#x} RLAST={int(d.m_rlast.value)} on beat '
@@ -272,6 +308,8 @@ class AxiStressPairTB(TBBase):
                     b['open'] = True
                     if last:
                         q.popleft()
+                        if axi5:
+                            uq_out['ar'][rid].pop(0)
                         if rd_order and rd_order[0] != b['seq']:
                             self.stats['r_ooo'] += 1
                         if b['seq'] in rd_order:
@@ -289,9 +327,22 @@ class AxiStressPairTB(TBBase):
                 if self._win_of(a) is None:
                     self._merr(f'AW {a:#x} in no window')
                 self.stats['max_len'] = max(self.stats['max_len'], ln)
+                uq = int(d.m_awidunq.value) if axi5 else 0
                 if axi5:
                     self._check_req_sb('aw', a)
-                b_q[int(d.m_awid.value)].append((a, self._win_of(a)))
+                    awid = int(d.m_awid.value)
+                    atop = int(d.m_awatop.value)
+                    if atop:
+                        why = M.atop_illegal(atop, ln, sz, bt, a, self.BUS_LG2)
+                        if why:
+                            self._merr(f'AW {a:#x} AWATOP {atop:#04x}: {why}')
+                        if uq_out['aw'][awid] or awid in rr_exp or rd_q.get(awid):
+                            self._merr(f'atomic AW {a:#x} on ID {awid:#x}, which is in use')
+                        self.stats[f'atom_{M.atop_class(atop)}'] += 1
+                        if atop & 0x20:
+                            rr_exp[awid] = (a, sz, self._win_of(a))
+                    self._check_uq('aw', uq_out['aw'][awid], uq, a)
+                b_q[int(d.m_awid.value)].append((a, self._win_of(a), uq))
                 wr_q.append(dict(addrs=M.beat_addrs(a, ln + 1, sz, bt), size=sz, n=0,
                                  id=int(d.m_awid.value), win=self._win_of(a)))
                 self.stats['aw'] += 1
@@ -338,10 +389,14 @@ class AxiStressPairTB(TBBase):
             if int(d.m_bvalid.value) and int(d.m_bready.value):
                 q = b_q.get(int(d.m_bid.value))
                 if q:
-                    a, w = q.popleft()
+                    a, w, uq = q.popleft()
                     e_tr = M.f_rsb(M.f_sb(a, self.hash_seed)) if (axi5 and w and w.sb) else 0
                     if axi5 and int(d.m_btrace.value) != e_tr:
                         self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BTRACE != {e_tr}')
+                    if axi5:
+                        if int(d.m_bidunq.value) != uq:
+                            self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BIDUNQ != {uq}')
+                        uq_out['aw'][int(d.m_bid.value)].pop(0)
                 self.stats['b'] += 1
                 if int(d.m_bresp.value) != M.OKAY:
                     self.stats['b_err'] += 1

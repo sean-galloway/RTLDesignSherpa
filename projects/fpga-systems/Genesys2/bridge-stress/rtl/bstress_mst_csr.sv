@@ -87,6 +87,7 @@ module bstress_mst_csr
         cfg_rd = '0;
         cfg_rd.enable        = ho.RD_CTRL.ENABLE.value;
         cfg_rd.qos_rand      = ho.RD_CTRL.QOS_RAND.value;
+        cfg_rd.idunq         = ho.RD_CTRL.IDUNQ.value;
         cfg_rd.timeout_lg2   = ho.RD_CTRL.TIMEOUT_LG2.value;
         cfg_rd.resp_throttle = ho.RD_CTRL.RESP_THROTTLE.value;
         cfg_rd.data_throttle = ho.RD_CTRL.DATA_THROTTLE.value;
@@ -100,6 +101,8 @@ module bstress_mst_csr
         cfg_wr = '0;
         cfg_wr.enable        = ho.WR_CTRL.ENABLE.value;
         cfg_wr.qos_rand      = ho.WR_CTRL.QOS_RAND.value;
+        cfg_wr.idunq         = ho.WR_CTRL.IDUNQ.value;
+        cfg_wr.atom_lg2      = ho.WR_ATOM.LG2.value;
         cfg_wr.timeout_lg2   = ho.WR_CTRL.TIMEOUT_LG2.value;
         cfg_wr.resp_throttle = ho.WR_CTRL.RESP_THROTTLE.value;
         cfg_wr.data_throttle = ho.WR_CTRL.DATA_THROTTLE.value;
@@ -124,6 +127,7 @@ module bstress_mst_csr
             cfg_win[i].strb_rand  = ho.WIN[i].CFG1.STRB_RAND.value;
             cfg_win[i].sb         = ho.WIN[i].CFG1.SB.value;
             cfg_win[i].poison_lg2 = ho.WIN[i].CFG1.POISON_LG2.value;
+            cfg_win[i].atomic     = ho.WIN[i].CFG1.ATOMIC.value;
             cfg_win[i].rd_en      = ho.WIN[i].CFG1.RD_EN.value && HAS_RD;
             cfg_win[i].wr_en      = ho.WIN[i].CFG1.WR_EN.value && HAS_WR;
         end

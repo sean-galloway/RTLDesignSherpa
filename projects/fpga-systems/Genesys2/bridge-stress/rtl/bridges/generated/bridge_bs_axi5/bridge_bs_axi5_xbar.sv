@@ -183,11 +183,14 @@ module bridge_bs_axi5_xbar
     output logic         mem0_axi_awtrace,
     output logic [10:0]  mem0_axi_awmpam,
     output logic [15:0]  mem0_axi_awmecid,
+    output logic         mem0_axi_awidunq,
+    output logic [5:0]  mem0_axi_awatop,
     output logic         mem0_axi_wpoison,
     output logic [3:0]  mem0_axi_arnsaid,
     output logic         mem0_axi_artrace,
     output logic [10:0]  mem0_axi_armpam,
     output logic [15:0]  mem0_axi_armecid,
+    output logic         mem0_axi_aridunq,
     input  logic         mem0_axi_btrace,
     input  logic         mem0_axi_rtrace,
     input  logic         mem0_axi_rpoison,
@@ -255,10 +258,12 @@ module bridge_bs_axi5_xbar
     output logic         mem1_axi_awtrace,
     output logic [10:0]  mem1_axi_awmpam,
     output logic [15:0]  mem1_axi_awmecid,
+    output logic         mem1_axi_awidunq,
     output logic [3:0]  mem1_axi_arnsaid,
     output logic         mem1_axi_artrace,
     output logic [10:0]  mem1_axi_armpam,
     output logic [15:0]  mem1_axi_armecid,
+    output logic         mem1_axi_aridunq,
     input  logic         mem1_axi_btrace,
     input  logic         mem1_axi_rtrace,
 
@@ -325,11 +330,14 @@ module bridge_bs_axi5_xbar
     output logic         mem2_axi_awtrace,
     output logic [10:0]  mem2_axi_awmpam,
     output logic [15:0]  mem2_axi_awmecid,
+    output logic         mem2_axi_awidunq,
+    output logic [5:0]  mem2_axi_awatop,
     output logic         mem2_axi_wpoison,
     output logic [3:0]  mem2_axi_arnsaid,
     output logic         mem2_axi_artrace,
     output logic [10:0]  mem2_axi_armpam,
     output logic [15:0]  mem2_axi_armecid,
+    output logic         mem2_axi_aridunq,
     input  logic         mem2_axi_btrace,
     input  logic         mem2_axi_rtrace,
     input  logic         mem2_axi_rpoison,
@@ -837,6 +845,8 @@ module bridge_bs_axi5_xbar
     assign mem0_axi_awtrace  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.trace : '0;  // AXI5 sideband
     assign mem0_axi_awmpam  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.mpam : '0;  // AXI5 sideband
     assign mem0_axi_awmecid  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.mecid : '0;  // AXI5 sideband
+    assign mem0_axi_awidunq  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.idunq : '0;  // AXI5 sideband
+    assign mem0_axi_awatop  = cpu_64b_aw_to_mem0 ? cpu_64b_aw.atop : '0;  // AXI5 sideband
     assign mem0_axi_awvalid  = cpu_64b_aw_gnt_mem0 && cpu_64b_awvalid;
 
     assign cpu_64b_w_sel_mem0 = cpu_64b_w_to_mem0;
@@ -874,6 +884,7 @@ module bridge_bs_axi5_xbar
     assign mem0_axi_artrace  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.trace : '0;  // AXI5 sideband
     assign mem0_axi_armpam  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.mpam : '0;  // AXI5 sideband
     assign mem0_axi_armecid  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.mecid : '0;  // AXI5 sideband
+    assign mem0_axi_aridunq  = cpu_64b_ar_to_mem0 ? cpu_64b_ar.idunq : '0;  // AXI5 sideband
     assign mem0_axi_arvalid  = cpu_64b_ar_to_mem0 && cpu_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays
@@ -1006,6 +1017,9 @@ module bridge_bs_axi5_xbar
     assign mem1_axi_awmecid = (dma_128b_aw_gnt_mem1 ? dma_128b_aw_slot_mem1.mecid : '0) |
         (acc_128b_aw_gnt_mem1 ? acc_128b_aw_slot_mem1.mecid : '0) |
         (io_128b_aw_gnt_mem1 ? io_128b_aw_slot_mem1.mecid : '0);
+    assign mem1_axi_awidunq = (dma_128b_aw_gnt_mem1 ? dma_128b_aw_slot_mem1.idunq : '0) |
+        (acc_128b_aw_gnt_mem1 ? acc_128b_aw_slot_mem1.idunq : '0) |
+        (io_128b_aw_gnt_mem1 ? io_128b_aw_slot_mem1.idunq : '0);
     assign mem1_axi_awvalid = dma_128b_aw_gnt_mem1 || acc_128b_aw_gnt_mem1 || io_128b_aw_gnt_mem1;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
@@ -1174,6 +1188,9 @@ module bridge_bs_axi5_xbar
     assign mem1_axi_armecid = (dma_128b_ar_gnt_mem1 ? dma_128b_ar_slot_mem1.mecid : '0) |
         (acc_128b_ar_gnt_mem1 ? acc_128b_ar_slot_mem1.mecid : '0) |
         (io_128b_ar_gnt_mem1 ? io_128b_ar_slot_mem1.mecid : '0);
+    assign mem1_axi_aridunq = (dma_128b_ar_gnt_mem1 ? dma_128b_ar_slot_mem1.idunq : '0) |
+        (acc_128b_ar_gnt_mem1 ? acc_128b_ar_slot_mem1.idunq : '0) |
+        (io_128b_ar_gnt_mem1 ? io_128b_ar_slot_mem1.idunq : '0);
     assign mem1_axi_arvalid = dma_128b_ar_gnt_mem1 || acc_128b_ar_gnt_mem1 || io_128b_ar_gnt_mem1;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -1212,6 +1229,8 @@ module bridge_bs_axi5_xbar
     assign mem2_axi_awtrace  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.trace : '0;  // AXI5 sideband
     assign mem2_axi_awmpam  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.mpam : '0;  // AXI5 sideband
     assign mem2_axi_awmecid  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.mecid : '0;  // AXI5 sideband
+    assign mem2_axi_awidunq  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.idunq : '0;  // AXI5 sideband
+    assign mem2_axi_awatop  = cpu_64b_aw_to_mem2 ? cpu_64b_aw.atop : '0;  // AXI5 sideband
     assign mem2_axi_awvalid  = cpu_64b_aw_gnt_mem2 && cpu_64b_awvalid;
 
     assign cpu_64b_w_sel_mem2 = cpu_64b_w_to_mem2;
@@ -1249,6 +1268,7 @@ module bridge_bs_axi5_xbar
     assign mem2_axi_artrace  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.trace : '0;  // AXI5 sideband
     assign mem2_axi_armpam  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.mpam : '0;  // AXI5 sideband
     assign mem2_axi_armecid  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.mecid : '0;  // AXI5 sideband
+    assign mem2_axi_aridunq  = cpu_64b_ar_to_mem2 ? cpu_64b_ar.idunq : '0;  // AXI5 sideband
     assign mem2_axi_arvalid  = cpu_64b_ar_to_mem2 && cpu_64b_arvalid;
 
     // Rready (master → slave) — gated on rid_valid so the path stays

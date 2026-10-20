@@ -4,7 +4,9 @@
 # The same 4 x 4 shape as bridge_bs_axi4 (remap, CDC, the DECERR hole), with
 # AXI5 on every port that does not cross a clock (the CDC crossing carries
 # the AXI4 set, config_validator.validate_cdc_constraints). Every AXI5 port
-# carries the same pass-through sideband (NSAID, TRACE, MPAM, MECID); poison
+# carries the same pass-through sideband (NSAID, TRACE, MPAM, MECID) and
+# IDUNQ (the master port regenerates BIDUNQ / RIDUNQ; each AXI5 slave checks
+# that the fabric still keeps the IDUNQ rule on its own IDs); poison
 # is legal only where every connected path is AXI5-both-ends and one width
 # (validate_axi5_poison_connectivity), so it lives on a 64-bit clique:
 #   poison clique   cpu (64) -> mem0 (64), mem2 (64): sideband and poison
@@ -16,7 +18,7 @@
 #                              BTRACE / RTRACE come back 0
 # mem1 so sees three kinds of request at once and must tell them apart by the
 # master index in the fabric ID.
-# Masters: cpu AXI5 64b, dma AXI5 128b, acc AXI4 32b (cdc), io AXI5 32b.
+# Masters: cpu AXI5 64b (IDs 4), dma AXI5 128b, acc AXI4 32b (cdc), io AXI5 32b.
 # Slaves:  mem0 AXI5 64b, mem1 AXI5 128b, mem2 AXI5 64b, mem3 AXI4 64b (cdc).
 # Slave id_width is the fabric's ({master index, slot}); the validator checks it.
 #============================================================================
@@ -34,9 +36,9 @@ frequency_mhz = 100
 name          = "cpu"
 prefix        = "cpu_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic"]
 channels      = "rw"
-id_width      = 8
+id_width      = 4
 addr_width    = 32
 data_width    = 64
 user_width    = 1
@@ -45,7 +47,7 @@ user_width    = 1
 name          = "dma"
 prefix        = "dma_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "unique"]
 channels      = "rw"
 id_width      = 4
 addr_width    = 32
@@ -67,7 +69,7 @@ cdc        = true
 name          = "io"
 prefix        = "io_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "unique"]
 channels      = "rw"
 id_width      = 8
 addr_width    = 32
@@ -78,7 +80,7 @@ user_width    = 1
 name          = "mem0"
 prefix        = "mem0_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic"]
 channels      = "rw"
 id_width      = 6
 addr_width    = 32
@@ -91,7 +93,7 @@ addr_range    = "0x10000000"
 name          = "mem1"
 prefix        = "mem1_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "unique"]
 channels      = "rw"
 id_width      = 6
 addr_width    = 32
@@ -104,7 +106,7 @@ addr_range    = "0x10000000"
 name          = "mem2"
 prefix        = "mem2_axi_"
 protocol      = "axi5"
-axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison"]
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison", "unique", "atomic"]
 channels      = "rw"
 id_width      = 6
 addr_width    = 32

@@ -82,6 +82,39 @@ def f_poison(addr: int, seed: int, lg2: int) -> bool:
     return lg2 != 0 and (f_sb(addr ^ 0x9E37_79B9, seed) & ((1 << lg2) - 1)) == 0
 
 
+# AXI5 atomics (axi_stress_pkg): AWATOP[5:4] 01 store, 10 load, 11 swap /
+# compare; [5] = read-return. The stress model issues one aligned INCR beat.
+ATOP_SWAP, ATOP_COMPARE = 0b110000, 0b110001
+
+
+def atop_class(atop: int) -> str:
+    return {1: 'store', 2: 'load'}.get(atop >> 4, 'compare' if atop == ATOP_COMPARE else 'swap')
+
+
+def atop_illegal(atop: int, axlen: int, size: int, burst: int, addr: int, bus_lg2: int) -> str:
+    """'' if this is an atomic the stress master would issue (or not one)."""
+    if atop == 0:
+        return ''
+    if (atop >> 4) == 0:
+        return 'reserved AWATOP class'
+    if axlen != 0 or burst != INCR:
+        return 'atomic not one INCR beat'
+    if size > bus_lg2:
+        return 'atomic wider than the bus'
+    if addr % (1 << size):
+        return 'atomic off its size grid'
+    if (atop >> 4) == 3:
+        if (atop >> 1) & 0x7:
+            return 'reserved swap/compare encoding'
+        if (atop & 1) and not 1 <= size <= 5:
+            return 'compare size not 2..32 bytes'
+        if not (atop & 1) and size > 3:
+            return 'swap larger than 8 bytes'
+    elif size > 3:
+        return 'store/load larger than 8 bytes'
+    return ''
+
+
 def f_byte(addr: int, seed: int, tag: int, rd: bool) -> int:
     return (f_word(addr, seed, tag, rd) >> (8 * (addr & 3))) & 0xFF
 
@@ -145,12 +178,12 @@ def burst_illegal(addr: int, axlen: int, size: int, burst: int, bus_lg2: int) ->
 WIN_FIELDS = (('base', 32), ('size_lg2', 6), ('tag', 8), ('resp', 2),
               ('len_mask', 8), ('size_min', 3), ('size_max', 3),
               ('burst_mask', 3), ('unaligned', 1), ('strb_rand', 1),
-              ('rd_en', 1), ('wr_en', 1), ('sb', 1), ('poison_lg2', 4))
+              ('rd_en', 1), ('wr_en', 1), ('sb', 1), ('poison_lg2', 4), ('atomic', 1))
 
 MCFG_FIELDS = (('enable', 1), ('txn_count', 32), ('seed', 32), ('id_base', 16),
                ('id_mask', 16), ('gap_mask', 8), ('resp_throttle', 4),
                ('data_throttle', 4), ('max_out', 8), ('timeout_lg2', 5),
-               ('qos_rand', 1))
+               ('qos_rand', 1), ('idunq', 1), ('atom_lg2', 4))
 
 MSTS_FIELDS = (('busy', 1), ('done', 1), ('runs', 8), ('issued', 32), ('completed', 32),
                ('beats', 32), ('err_mask', 16), ('err_cnt', 16), ('fe_valid', 1),
@@ -223,6 +256,7 @@ class Window:
     wr_en: int = 1
     sb: int = 0
     poison_lg2: int = 0
+    atomic: int = 0
 
     def fields(self) -> Dict[str, int]:
         return dict(self.__dict__)

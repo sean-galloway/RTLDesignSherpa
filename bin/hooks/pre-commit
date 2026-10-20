@@ -74,6 +74,19 @@ if [ -n "$STAGED_SV" ]; then
     fi
 fi
 
+# --- no select on a function call ---------------------------------------------
+# f(x)[0] is not IEEE 1800. Verilator takes it without a warning, so a block
+# passes every test and then stops Vivado at read time (axi_stress_mst_rd,
+# 2026-10-19; vault/handbook/design/select-on-function-call.md).
+if [ -n "$STAGED_SV" ]; then
+    echo "[pre-commit] Checking for selects on function calls in $(echo "$STAGED_SV" | wc -l) staged .sv file(s)..."
+    if ! "$PY" "$REPO_ROOT/bin/check_sv_call_select.py" --staged; then
+        echo "" >&2
+        echo "[pre-commit] BLOCKED: select on a function call (name the result, then select it)." >&2
+        fail=1
+    fi
+fi
+
 # --- a test must not elaborate another protocol family's RTL -----------------
 # test_axil5_master_rd.py drove axil4_master_rd for five days, green the whole
 # time, while axil5_master_rd was never simulated.

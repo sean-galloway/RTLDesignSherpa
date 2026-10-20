@@ -68,7 +68,7 @@ AR5_X = [('arnsaid', '4'), ('artrace', '1'), ('armpam', '11'), ('armecid', '16')
 R5_X = [('rtrace', '1'), ('ridunq', '1'), ('rpoison', '1'), ('rchunkv', '1'),
         ('rchunknum', '4'), ('rchunkstrb', 'NT'), ('rtag', 'TW')]
 # What the AXI5 stress shells model; any other feature on a DUT port is refused.
-AXI5_STRESS_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'poison')
+AXI5_STRESS_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'poison', 'unique', 'atomic')
 
 # protocol -> (AW, W, B, AR, R); the stress shells are <protocol>_{master,slave}_stress
 CHANNELS = {'axi4': (AW, W, B, AR, R), 'axi3': (AW3, W3, B, AR3, R),
@@ -139,7 +139,8 @@ class Port:
             return ''
         return (f", .EN_NSAID(1'b{self.en('nsaid')}), .EN_TRACE(1'b{self.en('trace')}),"
                 f" .EN_MPAM(1'b{self.en('mpam')}), .EN_MECID(1'b{self.en('mecid')}),"
-                f" .EN_POISON(1'b{self.en('poison')})")
+                f" .EN_POISON(1'b{self.en('poison')}), .EN_UNIQUE(1'b{self.en('unique')}),"
+                f" .EN_ATOMIC(1'b{self.en('atomic')})")
 
 
 def load(toml: Path):

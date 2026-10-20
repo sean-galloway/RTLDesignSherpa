@@ -211,7 +211,10 @@ port. Read-return classes (AtomicLoad `10xxxx`, AtomicSwap/Compare
   routes that beat back by ID (`axi5_atomic_rr_tracker` at the slave
   adapter, an extra AR->R tracking slot at the master adapter). Every
   connected atomic slave must be `rw` -- the validator rejects a
-  write-only one, since it could never return the data.
+  write-only one, since it could never return the data. **Limit:** a
+  slave port holds at most 8 read-return atomics in flight; the ninth
+  atomic AW waits (AWREADY low) until a slot frees. Any number of masters
+  may issue atomics.
 - On a **write-only** master port there is nowhere to deliver the R beat,
   so the boundary's `axi5_atomic_filter` answers those classes locally
   with **DECERR** -- no slave-side AW handshake, no memory side effect.

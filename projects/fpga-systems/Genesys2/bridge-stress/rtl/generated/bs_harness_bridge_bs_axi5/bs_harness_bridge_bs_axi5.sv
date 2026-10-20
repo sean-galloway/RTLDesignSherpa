@@ -316,13 +316,13 @@ module bs_harness_bridge_bs_axi5
     logic [NS-1:0] slv_err_raw, slv_err;
 
     // =========================================================================
-    // Master 0: cpu (axi5, rw, 64-bit, ID 8, aclk)
+    // Master 0: cpu (axi5, rw, 64-bit, ID 4, aclk)
     // =========================================================================
     stress_mdir_cfg_t m0_cfg_rd, m0_cfg_wr;
     stress_mdir_sts_t m0_sts_rd, m0_sts_wr;
     stress_win_t      m0_win [8];
 
-    logic [7:0]    cpu_axi_awid;
+    logic [3:0]    cpu_axi_awid;
     logic [31:0]   cpu_axi_awaddr;
     logic [7:0]    cpu_axi_awlen;
     logic [2:0]    cpu_axi_awsize;
@@ -338,6 +338,8 @@ module bs_harness_bridge_bs_axi5
     logic          cpu_axi_awtrace;
     logic [10:0]   cpu_axi_awmpam;
     logic [15:0]   cpu_axi_awmecid;
+    logic          cpu_axi_awidunq;
+    logic [5:0]    cpu_axi_awatop;
     logic [63:0]   cpu_axi_wdata;
     logic [7:0]    cpu_axi_wstrb;
     logic          cpu_axi_wlast;
@@ -345,13 +347,14 @@ module bs_harness_bridge_bs_axi5
     logic          cpu_axi_wvalid;
     logic          cpu_axi_wready;
     logic          cpu_axi_wpoison;
-    logic [7:0]    cpu_axi_bid;
+    logic [3:0]    cpu_axi_bid;
     logic [1:0]    cpu_axi_bresp;
     logic          cpu_axi_buser;
     logic          cpu_axi_bvalid;
     logic          cpu_axi_bready;
     logic          cpu_axi_btrace;
-    logic [7:0]    cpu_axi_arid;
+    logic          cpu_axi_bidunq;
+    logic [3:0]    cpu_axi_arid;
     logic [31:0]   cpu_axi_araddr;
     logic [7:0]    cpu_axi_arlen;
     logic [2:0]    cpu_axi_arsize;
@@ -367,7 +370,8 @@ module bs_harness_bridge_bs_axi5
     logic          cpu_axi_artrace;
     logic [10:0]   cpu_axi_armpam;
     logic [15:0]   cpu_axi_armecid;
-    logic [7:0]    cpu_axi_rid;
+    logic          cpu_axi_aridunq;
+    logic [3:0]    cpu_axi_rid;
     logic [63:0]   cpu_axi_rdata;
     logic [1:0]    cpu_axi_rresp;
     logic          cpu_axi_rlast;
@@ -375,10 +379,11 @@ module bs_harness_bridge_bs_axi5
     logic          cpu_axi_rvalid;
     logic          cpu_axi_rready;
     logic          cpu_axi_rtrace;
+    logic          cpu_axi_ridunq;
     logic          cpu_axi_rpoison;
 
     bstress_mst_csr #(
-        .INDEX(0), .PROTOCOL(2), .DW(64), .IW(8),
+        .INDEX(0), .PROTOCOL(2), .DW(64), .IW(4),
         .DEPTH(16), .NWIN(8), .HAS_RD(1'b1), .HAS_WR(1'b1)
     ) u_m0_csr (
         .aclk (aclk), .aresetn (aresetn), .pclk (aclk), .presetn (aresetn),
@@ -394,7 +399,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_master_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16), .NWIN(8),
-        .IW(8), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1)
+        .IW(4), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1)
     ) u_m0 (
         .aclk (aclk), .aresetn (aresetn), .go (go_a), .stop (stop_a),
         .cfg_rd (m0_cfg_rd), .cfg_wr (m0_cfg_wr), .cfg_win (m0_win),
@@ -413,12 +418,12 @@ module bs_harness_bridge_bs_axi5
         .m_axi_awuser    (cpu_axi_awuser),
         .m_axi_awvalid   (cpu_axi_awvalid),
         .m_axi_awready   (cpu_axi_awready),
-        .m_axi_awatop    (),
+        .m_axi_awatop    (cpu_axi_awatop),
         .m_axi_awnsaid   (cpu_axi_awnsaid),
         .m_axi_awtrace   (cpu_axi_awtrace),
         .m_axi_awmpam    (cpu_axi_awmpam),
         .m_axi_awmecid   (cpu_axi_awmecid),
-        .m_axi_awidunq   (),
+        .m_axi_awidunq   (cpu_axi_awidunq),
         .m_axi_awtagop   (),
         .m_axi_awakeup   (),
         .m_axi_wdata     (cpu_axi_wdata),
@@ -436,7 +441,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_bvalid    (cpu_axi_bvalid),
         .m_axi_bready    (cpu_axi_bready),
         .m_axi_btrace    (cpu_axi_btrace),
-        .m_axi_bidunq    ('0),
+        .m_axi_bidunq    (cpu_axi_bidunq),
         .m_axi_btagmatch ('0),
         .m_axi_arid      (cpu_axi_arid),
         .m_axi_araddr    (cpu_axi_araddr),
@@ -454,7 +459,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_artrace   (cpu_axi_artrace),
         .m_axi_armpam    (cpu_axi_armpam),
         .m_axi_armecid   (cpu_axi_armecid),
-        .m_axi_aridunq   (),
+        .m_axi_aridunq   (cpu_axi_aridunq),
         .m_axi_archunken (),
         .m_axi_artagop   (),
         .m_axi_rid       (cpu_axi_rid),
@@ -465,7 +470,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_rvalid    (cpu_axi_rvalid),
         .m_axi_rready    (cpu_axi_rready),
         .m_axi_rtrace    (cpu_axi_rtrace),
-        .m_axi_ridunq    ('0),
+        .m_axi_ridunq    (cpu_axi_ridunq),
         .m_axi_rpoison   (cpu_axi_rpoison),
         .m_axi_rchunkv   ('0),
         .m_axi_rchunknum ('0),
@@ -499,6 +504,7 @@ module bs_harness_bridge_bs_axi5
     logic          dma_axi_awtrace;
     logic [10:0]   dma_axi_awmpam;
     logic [15:0]   dma_axi_awmecid;
+    logic          dma_axi_awidunq;
     logic [127:0]  dma_axi_wdata;
     logic [15:0]   dma_axi_wstrb;
     logic          dma_axi_wlast;
@@ -511,6 +517,7 @@ module bs_harness_bridge_bs_axi5
     logic          dma_axi_bvalid;
     logic          dma_axi_bready;
     logic          dma_axi_btrace;
+    logic          dma_axi_bidunq;
     logic [3:0]    dma_axi_arid;
     logic [31:0]   dma_axi_araddr;
     logic [7:0]    dma_axi_arlen;
@@ -527,6 +534,7 @@ module bs_harness_bridge_bs_axi5
     logic          dma_axi_artrace;
     logic [10:0]   dma_axi_armpam;
     logic [15:0]   dma_axi_armecid;
+    logic          dma_axi_aridunq;
     logic [3:0]    dma_axi_rid;
     logic [127:0]  dma_axi_rdata;
     logic [1:0]    dma_axi_rresp;
@@ -535,6 +543,7 @@ module bs_harness_bridge_bs_axi5
     logic          dma_axi_rvalid;
     logic          dma_axi_rready;
     logic          dma_axi_rtrace;
+    logic          dma_axi_ridunq;
 
     bstress_mst_csr #(
         .INDEX(1), .PROTOCOL(2), .DW(128), .IW(4),
@@ -553,7 +562,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_master_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16), .NWIN(8),
-        .IW(4), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0)
+        .IW(4), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0)
     ) u_m1 (
         .aclk (aclk), .aresetn (aresetn), .go (go_a), .stop (stop_a),
         .cfg_rd (m1_cfg_rd), .cfg_wr (m1_cfg_wr), .cfg_win (m1_win),
@@ -577,7 +586,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_awtrace   (dma_axi_awtrace),
         .m_axi_awmpam    (dma_axi_awmpam),
         .m_axi_awmecid   (dma_axi_awmecid),
-        .m_axi_awidunq   (),
+        .m_axi_awidunq   (dma_axi_awidunq),
         .m_axi_awtagop   (),
         .m_axi_awakeup   (),
         .m_axi_wdata     (dma_axi_wdata),
@@ -595,7 +604,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_bvalid    (dma_axi_bvalid),
         .m_axi_bready    (dma_axi_bready),
         .m_axi_btrace    (dma_axi_btrace),
-        .m_axi_bidunq    ('0),
+        .m_axi_bidunq    (dma_axi_bidunq),
         .m_axi_btagmatch ('0),
         .m_axi_arid      (dma_axi_arid),
         .m_axi_araddr    (dma_axi_araddr),
@@ -613,7 +622,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_artrace   (dma_axi_artrace),
         .m_axi_armpam    (dma_axi_armpam),
         .m_axi_armecid   (dma_axi_armecid),
-        .m_axi_aridunq   (),
+        .m_axi_aridunq   (dma_axi_aridunq),
         .m_axi_archunken (),
         .m_axi_artagop   (),
         .m_axi_rid       (dma_axi_rid),
@@ -624,7 +633,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_rvalid    (dma_axi_rvalid),
         .m_axi_rready    (dma_axi_rready),
         .m_axi_rtrace    (dma_axi_rtrace),
-        .m_axi_ridunq    ('0),
+        .m_axi_ridunq    (dma_axi_ridunq),
         .m_axi_rpoison   ('0),
         .m_axi_rchunkv   ('0),
         .m_axi_rchunknum ('0),
@@ -783,6 +792,7 @@ module bs_harness_bridge_bs_axi5
     logic          io_axi_awtrace;
     logic [10:0]   io_axi_awmpam;
     logic [15:0]   io_axi_awmecid;
+    logic          io_axi_awidunq;
     logic [31:0]   io_axi_wdata;
     logic [3:0]    io_axi_wstrb;
     logic          io_axi_wlast;
@@ -795,6 +805,7 @@ module bs_harness_bridge_bs_axi5
     logic          io_axi_bvalid;
     logic          io_axi_bready;
     logic          io_axi_btrace;
+    logic          io_axi_bidunq;
     logic [7:0]    io_axi_arid;
     logic [31:0]   io_axi_araddr;
     logic [7:0]    io_axi_arlen;
@@ -811,6 +822,7 @@ module bs_harness_bridge_bs_axi5
     logic          io_axi_artrace;
     logic [10:0]   io_axi_armpam;
     logic [15:0]   io_axi_armecid;
+    logic          io_axi_aridunq;
     logic [7:0]    io_axi_rid;
     logic [31:0]   io_axi_rdata;
     logic [1:0]    io_axi_rresp;
@@ -819,6 +831,7 @@ module bs_harness_bridge_bs_axi5
     logic          io_axi_rvalid;
     logic          io_axi_rready;
     logic          io_axi_rtrace;
+    logic          io_axi_ridunq;
 
     bstress_mst_csr #(
         .INDEX(3), .PROTOCOL(2), .DW(32), .IW(8),
@@ -837,7 +850,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_master_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16), .NWIN(8),
-        .IW(8), .DW(32), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0)
+        .IW(8), .DW(32), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0)
     ) u_m3 (
         .aclk (aclk), .aresetn (aresetn), .go (go_a), .stop (stop_a),
         .cfg_rd (m3_cfg_rd), .cfg_wr (m3_cfg_wr), .cfg_win (m3_win),
@@ -861,7 +874,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_awtrace   (io_axi_awtrace),
         .m_axi_awmpam    (io_axi_awmpam),
         .m_axi_awmecid   (io_axi_awmecid),
-        .m_axi_awidunq   (),
+        .m_axi_awidunq   (io_axi_awidunq),
         .m_axi_awtagop   (),
         .m_axi_awakeup   (),
         .m_axi_wdata     (io_axi_wdata),
@@ -879,7 +892,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_bvalid    (io_axi_bvalid),
         .m_axi_bready    (io_axi_bready),
         .m_axi_btrace    (io_axi_btrace),
-        .m_axi_bidunq    ('0),
+        .m_axi_bidunq    (io_axi_bidunq),
         .m_axi_btagmatch ('0),
         .m_axi_arid      (io_axi_arid),
         .m_axi_araddr    (io_axi_araddr),
@@ -897,7 +910,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_artrace   (io_axi_artrace),
         .m_axi_armpam    (io_axi_armpam),
         .m_axi_armecid   (io_axi_armecid),
-        .m_axi_aridunq   (),
+        .m_axi_aridunq   (io_axi_aridunq),
         .m_axi_archunken (),
         .m_axi_artagop   (),
         .m_axi_rid       (io_axi_rid),
@@ -908,7 +921,7 @@ module bs_harness_bridge_bs_axi5
         .m_axi_rvalid    (io_axi_rvalid),
         .m_axi_rready    (io_axi_rready),
         .m_axi_rtrace    (io_axi_rtrace),
-        .m_axi_ridunq    ('0),
+        .m_axi_ridunq    (io_axi_ridunq),
         .m_axi_rpoison   ('0),
         .m_axi_rchunkv   ('0),
         .m_axi_rchunknum ('0),
@@ -942,6 +955,8 @@ module bs_harness_bridge_bs_axi5
     logic          mem0_axi_awtrace;
     logic [10:0]   mem0_axi_awmpam;
     logic [15:0]   mem0_axi_awmecid;
+    logic          mem0_axi_awidunq;
+    logic [5:0]    mem0_axi_awatop;
     logic [63:0]   mem0_axi_wdata;
     logic [7:0]    mem0_axi_wstrb;
     logic          mem0_axi_wlast;
@@ -955,6 +970,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem0_axi_bvalid;
     logic          mem0_axi_bready;
     logic          mem0_axi_btrace;
+    logic          mem0_axi_bidunq;
     logic [5:0]    mem0_axi_arid;
     logic [31:0]   mem0_axi_araddr;
     logic [7:0]    mem0_axi_arlen;
@@ -971,6 +987,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem0_axi_artrace;
     logic [10:0]   mem0_axi_armpam;
     logic [15:0]   mem0_axi_armecid;
+    logic          mem0_axi_aridunq;
     logic [5:0]    mem0_axi_rid;
     logic [63:0]   mem0_axi_rdata;
     logic [1:0]    mem0_axi_rresp;
@@ -979,6 +996,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem0_axi_rvalid;
     logic          mem0_axi_rready;
     logic          mem0_axi_rtrace;
+    logic          mem0_axi_ridunq;
     logic          mem0_axi_rpoison;
 
     bstress_slv_csr #(
@@ -998,7 +1016,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_slave_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16),
-        .IW(6), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .SRC_LSB(4), .SRC_W(2)
+        .IW(6), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .SRC_LSB(4), .SRC_W(2)
     ) u_s0 (
         .aclk (aclk), .aresetn (aresetn), .clear (go_a),
         .cfg_rd (s0_cfg_rd), .cfg_wr (s0_cfg_wr), .cfg_hash_seed (seed_a),
@@ -1016,12 +1034,12 @@ module bs_harness_bridge_bs_axi5
         .s_axi_awuser    (mem0_axi_awuser),
         .s_axi_awvalid   (mem0_axi_awvalid),
         .s_axi_awready   (mem0_axi_awready),
-        .s_axi_awatop    ('0),
+        .s_axi_awatop    (mem0_axi_awatop),
         .s_axi_awnsaid   (mem0_axi_awnsaid),
         .s_axi_awtrace   (mem0_axi_awtrace),
         .s_axi_awmpam    (mem0_axi_awmpam),
         .s_axi_awmecid   (mem0_axi_awmecid),
-        .s_axi_awidunq   ('0),
+        .s_axi_awidunq   (mem0_axi_awidunq),
         .s_axi_awtagop   ('0),
         .s_axi_awakeup   ('0),
         .s_axi_wdata     (mem0_axi_wdata),
@@ -1039,7 +1057,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_bvalid    (mem0_axi_bvalid),
         .s_axi_bready    (mem0_axi_bready),
         .s_axi_btrace    (mem0_axi_btrace),
-        .s_axi_bidunq    (),
+        .s_axi_bidunq    (mem0_axi_bidunq),
         .s_axi_btagmatch (),
         .s_axi_arid      (mem0_axi_arid),
         .s_axi_araddr    (mem0_axi_araddr),
@@ -1057,7 +1075,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_artrace   (mem0_axi_artrace),
         .s_axi_armpam    (mem0_axi_armpam),
         .s_axi_armecid   (mem0_axi_armecid),
-        .s_axi_aridunq   ('0),
+        .s_axi_aridunq   (mem0_axi_aridunq),
         .s_axi_archunken ('0),
         .s_axi_artagop   ('0),
         .s_axi_rid       (mem0_axi_rid),
@@ -1068,7 +1086,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_rvalid    (mem0_axi_rvalid),
         .s_axi_rready    (mem0_axi_rready),
         .s_axi_rtrace    (mem0_axi_rtrace),
-        .s_axi_ridunq    (),
+        .s_axi_ridunq    (mem0_axi_ridunq),
         .s_axi_rpoison   (mem0_axi_rpoison),
         .s_axi_rchunkv   (),
         .s_axi_rchunknum (),
@@ -1101,6 +1119,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem1_axi_awtrace;
     logic [10:0]   mem1_axi_awmpam;
     logic [15:0]   mem1_axi_awmecid;
+    logic          mem1_axi_awidunq;
     logic [127:0]  mem1_axi_wdata;
     logic [15:0]   mem1_axi_wstrb;
     logic          mem1_axi_wlast;
@@ -1113,6 +1132,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem1_axi_bvalid;
     logic          mem1_axi_bready;
     logic          mem1_axi_btrace;
+    logic          mem1_axi_bidunq;
     logic [5:0]    mem1_axi_arid;
     logic [31:0]   mem1_axi_araddr;
     logic [7:0]    mem1_axi_arlen;
@@ -1129,6 +1149,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem1_axi_artrace;
     logic [10:0]   mem1_axi_armpam;
     logic [15:0]   mem1_axi_armecid;
+    logic          mem1_axi_aridunq;
     logic [5:0]    mem1_axi_rid;
     logic [127:0]  mem1_axi_rdata;
     logic [1:0]    mem1_axi_rresp;
@@ -1137,6 +1158,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem1_axi_rvalid;
     logic          mem1_axi_rready;
     logic          mem1_axi_rtrace;
+    logic          mem1_axi_ridunq;
 
     bstress_slv_csr #(
         .INDEX(1), .PROTOCOL(2), .DW(128), .IW(6),
@@ -1155,7 +1177,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_slave_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16),
-        .IW(6), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .SRC_LSB(4), .SRC_W(2)
+        .IW(6), .DW(128), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b0), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b0), .SRC_LSB(4), .SRC_W(2)
     ) u_s1 (
         .aclk (aclk), .aresetn (aresetn), .clear (go_a),
         .cfg_rd (s1_cfg_rd), .cfg_wr (s1_cfg_wr), .cfg_hash_seed (seed_a),
@@ -1178,7 +1200,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_awtrace   (mem1_axi_awtrace),
         .s_axi_awmpam    (mem1_axi_awmpam),
         .s_axi_awmecid   (mem1_axi_awmecid),
-        .s_axi_awidunq   ('0),
+        .s_axi_awidunq   (mem1_axi_awidunq),
         .s_axi_awtagop   ('0),
         .s_axi_awakeup   ('0),
         .s_axi_wdata     (mem1_axi_wdata),
@@ -1196,7 +1218,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_bvalid    (mem1_axi_bvalid),
         .s_axi_bready    (mem1_axi_bready),
         .s_axi_btrace    (mem1_axi_btrace),
-        .s_axi_bidunq    (),
+        .s_axi_bidunq    (mem1_axi_bidunq),
         .s_axi_btagmatch (),
         .s_axi_arid      (mem1_axi_arid),
         .s_axi_araddr    (mem1_axi_araddr),
@@ -1214,7 +1236,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_artrace   (mem1_axi_artrace),
         .s_axi_armpam    (mem1_axi_armpam),
         .s_axi_armecid   (mem1_axi_armecid),
-        .s_axi_aridunq   ('0),
+        .s_axi_aridunq   (mem1_axi_aridunq),
         .s_axi_archunken ('0),
         .s_axi_artagop   ('0),
         .s_axi_rid       (mem1_axi_rid),
@@ -1225,7 +1247,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_rvalid    (mem1_axi_rvalid),
         .s_axi_rready    (mem1_axi_rready),
         .s_axi_rtrace    (mem1_axi_rtrace),
-        .s_axi_ridunq    (),
+        .s_axi_ridunq    (mem1_axi_ridunq),
         .s_axi_rpoison   (),
         .s_axi_rchunkv   (),
         .s_axi_rchunknum (),
@@ -1258,6 +1280,8 @@ module bs_harness_bridge_bs_axi5
     logic          mem2_axi_awtrace;
     logic [10:0]   mem2_axi_awmpam;
     logic [15:0]   mem2_axi_awmecid;
+    logic          mem2_axi_awidunq;
+    logic [5:0]    mem2_axi_awatop;
     logic [63:0]   mem2_axi_wdata;
     logic [7:0]    mem2_axi_wstrb;
     logic          mem2_axi_wlast;
@@ -1271,6 +1295,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem2_axi_bvalid;
     logic          mem2_axi_bready;
     logic          mem2_axi_btrace;
+    logic          mem2_axi_bidunq;
     logic [5:0]    mem2_axi_arid;
     logic [31:0]   mem2_axi_araddr;
     logic [7:0]    mem2_axi_arlen;
@@ -1287,6 +1312,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem2_axi_artrace;
     logic [10:0]   mem2_axi_armpam;
     logic [15:0]   mem2_axi_armecid;
+    logic          mem2_axi_aridunq;
     logic [5:0]    mem2_axi_rid;
     logic [63:0]   mem2_axi_rdata;
     logic [1:0]    mem2_axi_rresp;
@@ -1295,6 +1321,7 @@ module bs_harness_bridge_bs_axi5
     logic          mem2_axi_rvalid;
     logic          mem2_axi_rready;
     logic          mem2_axi_rtrace;
+    logic          mem2_axi_ridunq;
     logic          mem2_axi_rpoison;
 
     bstress_slv_csr #(
@@ -1314,7 +1341,7 @@ module bs_harness_bridge_bs_axi5
 
     axi5_slave_stress #(
         .EN_RD(1'b1), .EN_WR(1'b1), .DEPTH(16),
-        .IW(6), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .SRC_LSB(4), .SRC_W(2)
+        .IW(6), .DW(64), .UW(1), .EN_NSAID(1'b1), .EN_TRACE(1'b1), .EN_MPAM(1'b1), .EN_MECID(1'b1), .EN_POISON(1'b1), .EN_UNIQUE(1'b1), .EN_ATOMIC(1'b1), .SRC_LSB(4), .SRC_W(2)
     ) u_s2 (
         .aclk (aclk), .aresetn (aresetn), .clear (go_a),
         .cfg_rd (s2_cfg_rd), .cfg_wr (s2_cfg_wr), .cfg_hash_seed (seed_a),
@@ -1332,12 +1359,12 @@ module bs_harness_bridge_bs_axi5
         .s_axi_awuser    (mem2_axi_awuser),
         .s_axi_awvalid   (mem2_axi_awvalid),
         .s_axi_awready   (mem2_axi_awready),
-        .s_axi_awatop    ('0),
+        .s_axi_awatop    (mem2_axi_awatop),
         .s_axi_awnsaid   (mem2_axi_awnsaid),
         .s_axi_awtrace   (mem2_axi_awtrace),
         .s_axi_awmpam    (mem2_axi_awmpam),
         .s_axi_awmecid   (mem2_axi_awmecid),
-        .s_axi_awidunq   ('0),
+        .s_axi_awidunq   (mem2_axi_awidunq),
         .s_axi_awtagop   ('0),
         .s_axi_awakeup   ('0),
         .s_axi_wdata     (mem2_axi_wdata),
@@ -1355,7 +1382,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_bvalid    (mem2_axi_bvalid),
         .s_axi_bready    (mem2_axi_bready),
         .s_axi_btrace    (mem2_axi_btrace),
-        .s_axi_bidunq    (),
+        .s_axi_bidunq    (mem2_axi_bidunq),
         .s_axi_btagmatch (),
         .s_axi_arid      (mem2_axi_arid),
         .s_axi_araddr    (mem2_axi_araddr),
@@ -1373,7 +1400,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_artrace   (mem2_axi_artrace),
         .s_axi_armpam    (mem2_axi_armpam),
         .s_axi_armecid   (mem2_axi_armecid),
-        .s_axi_aridunq   ('0),
+        .s_axi_aridunq   (mem2_axi_aridunq),
         .s_axi_archunken ('0),
         .s_axi_artagop   ('0),
         .s_axi_rid       (mem2_axi_rid),
@@ -1384,7 +1411,7 @@ module bs_harness_bridge_bs_axi5
         .s_axi_rvalid    (mem2_axi_rvalid),
         .s_axi_rready    (mem2_axi_rready),
         .s_axi_rtrace    (mem2_axi_rtrace),
-        .s_axi_ridunq    (),
+        .s_axi_ridunq    (mem2_axi_ridunq),
         .s_axi_rpoison   (mem2_axi_rpoison),
         .s_axi_rchunkv   (),
         .s_axi_rchunknum (),
@@ -1544,6 +1571,8 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_awtrace,
         .cpu_axi_awmpam,
         .cpu_axi_awmecid,
+        .cpu_axi_awidunq,
+        .cpu_axi_awatop,
         .cpu_axi_wdata,
         .cpu_axi_wstrb,
         .cpu_axi_wlast,
@@ -1557,6 +1586,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_bvalid,
         .cpu_axi_bready,
         .cpu_axi_btrace,
+        .cpu_axi_bidunq,
         .cpu_axi_arid,
         .cpu_axi_araddr,
         .cpu_axi_arlen,
@@ -1573,6 +1603,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_artrace,
         .cpu_axi_armpam,
         .cpu_axi_armecid,
+        .cpu_axi_aridunq,
         .cpu_axi_rid,
         .cpu_axi_rdata,
         .cpu_axi_rresp,
@@ -1581,6 +1612,7 @@ module bs_harness_bridge_bs_axi5
         .cpu_axi_rvalid,
         .cpu_axi_rready,
         .cpu_axi_rtrace,
+        .cpu_axi_ridunq,
         .cpu_axi_rpoison,
         .dma_axi_awid,
         .dma_axi_awaddr,
@@ -1598,6 +1630,7 @@ module bs_harness_bridge_bs_axi5
         .dma_axi_awtrace,
         .dma_axi_awmpam,
         .dma_axi_awmecid,
+        .dma_axi_awidunq,
         .dma_axi_wdata,
         .dma_axi_wstrb,
         .dma_axi_wlast,
@@ -1610,6 +1643,7 @@ module bs_harness_bridge_bs_axi5
         .dma_axi_bvalid,
         .dma_axi_bready,
         .dma_axi_btrace,
+        .dma_axi_bidunq,
         .dma_axi_arid,
         .dma_axi_araddr,
         .dma_axi_arlen,
@@ -1626,6 +1660,7 @@ module bs_harness_bridge_bs_axi5
         .dma_axi_artrace,
         .dma_axi_armpam,
         .dma_axi_armecid,
+        .dma_axi_aridunq,
         .dma_axi_rid,
         .dma_axi_rdata,
         .dma_axi_rresp,
@@ -1634,6 +1669,7 @@ module bs_harness_bridge_bs_axi5
         .dma_axi_rvalid,
         .dma_axi_rready,
         .dma_axi_rtrace,
+        .dma_axi_ridunq,
         .acc_axi_awid,
         .acc_axi_awaddr,
         .acc_axi_awlen,
@@ -1694,6 +1730,7 @@ module bs_harness_bridge_bs_axi5
         .io_axi_awtrace,
         .io_axi_awmpam,
         .io_axi_awmecid,
+        .io_axi_awidunq,
         .io_axi_wdata,
         .io_axi_wstrb,
         .io_axi_wlast,
@@ -1706,6 +1743,7 @@ module bs_harness_bridge_bs_axi5
         .io_axi_bvalid,
         .io_axi_bready,
         .io_axi_btrace,
+        .io_axi_bidunq,
         .io_axi_arid,
         .io_axi_araddr,
         .io_axi_arlen,
@@ -1722,6 +1760,7 @@ module bs_harness_bridge_bs_axi5
         .io_axi_artrace,
         .io_axi_armpam,
         .io_axi_armecid,
+        .io_axi_aridunq,
         .io_axi_rid,
         .io_axi_rdata,
         .io_axi_rresp,
@@ -1730,6 +1769,7 @@ module bs_harness_bridge_bs_axi5
         .io_axi_rvalid,
         .io_axi_rready,
         .io_axi_rtrace,
+        .io_axi_ridunq,
         .mem0_axi_awid,
         .mem0_axi_awaddr,
         .mem0_axi_awlen,
@@ -1746,6 +1786,8 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_awtrace,
         .mem0_axi_awmpam,
         .mem0_axi_awmecid,
+        .mem0_axi_awidunq,
+        .mem0_axi_awatop,
         .mem0_axi_wdata,
         .mem0_axi_wstrb,
         .mem0_axi_wlast,
@@ -1759,6 +1801,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_bvalid,
         .mem0_axi_bready,
         .mem0_axi_btrace,
+        .mem0_axi_bidunq,
         .mem0_axi_arid,
         .mem0_axi_araddr,
         .mem0_axi_arlen,
@@ -1775,6 +1818,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_artrace,
         .mem0_axi_armpam,
         .mem0_axi_armecid,
+        .mem0_axi_aridunq,
         .mem0_axi_rid,
         .mem0_axi_rdata,
         .mem0_axi_rresp,
@@ -1783,6 +1827,7 @@ module bs_harness_bridge_bs_axi5
         .mem0_axi_rvalid,
         .mem0_axi_rready,
         .mem0_axi_rtrace,
+        .mem0_axi_ridunq,
         .mem0_axi_rpoison,
         .mem1_axi_awid,
         .mem1_axi_awaddr,
@@ -1800,6 +1845,7 @@ module bs_harness_bridge_bs_axi5
         .mem1_axi_awtrace,
         .mem1_axi_awmpam,
         .mem1_axi_awmecid,
+        .mem1_axi_awidunq,
         .mem1_axi_wdata,
         .mem1_axi_wstrb,
         .mem1_axi_wlast,
@@ -1812,6 +1858,7 @@ module bs_harness_bridge_bs_axi5
         .mem1_axi_bvalid,
         .mem1_axi_bready,
         .mem1_axi_btrace,
+        .mem1_axi_bidunq,
         .mem1_axi_arid,
         .mem1_axi_araddr,
         .mem1_axi_arlen,
@@ -1828,6 +1875,7 @@ module bs_harness_bridge_bs_axi5
         .mem1_axi_artrace,
         .mem1_axi_armpam,
         .mem1_axi_armecid,
+        .mem1_axi_aridunq,
         .mem1_axi_rid,
         .mem1_axi_rdata,
         .mem1_axi_rresp,
@@ -1836,6 +1884,7 @@ module bs_harness_bridge_bs_axi5
         .mem1_axi_rvalid,
         .mem1_axi_rready,
         .mem1_axi_rtrace,
+        .mem1_axi_ridunq,
         .mem2_axi_awid,
         .mem2_axi_awaddr,
         .mem2_axi_awlen,
@@ -1852,6 +1901,8 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_awtrace,
         .mem2_axi_awmpam,
         .mem2_axi_awmecid,
+        .mem2_axi_awidunq,
+        .mem2_axi_awatop,
         .mem2_axi_wdata,
         .mem2_axi_wstrb,
         .mem2_axi_wlast,
@@ -1865,6 +1916,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_bvalid,
         .mem2_axi_bready,
         .mem2_axi_btrace,
+        .mem2_axi_bidunq,
         .mem2_axi_arid,
         .mem2_axi_araddr,
         .mem2_axi_arlen,
@@ -1881,6 +1933,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_artrace,
         .mem2_axi_armpam,
         .mem2_axi_armecid,
+        .mem2_axi_aridunq,
         .mem2_axi_rid,
         .mem2_axi_rdata,
         .mem2_axi_rresp,
@@ -1889,6 +1942,7 @@ module bs_harness_bridge_bs_axi5
         .mem2_axi_rvalid,
         .mem2_axi_rready,
         .mem2_axi_rtrace,
+        .mem2_axi_ridunq,
         .mem2_axi_rpoison,
         .mem3_axi_awid,
         .mem3_axi_awaddr,

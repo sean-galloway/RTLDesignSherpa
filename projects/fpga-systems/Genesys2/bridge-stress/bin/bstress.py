@@ -24,7 +24,14 @@ Window plan, per master (8 windows):
 
 AXI5 (bridge TASK-019 phase 2b): a slave is told which masters' requests
 carry sideband natively (sb_native; its SB.SRC bitmap, by the fabric's
-master index) and expects 0 from the rest. A trace-capable master port echoes
+master index) and expects 0 from the rest. An IDUNQ master marks eligible
+bursts unique; its port regenerates BIDUNQ / RIDUNQ, and each IDUNQ slave
+checks the rule on the IDs it sees. An atomic master turns 1 write burst in
+2^atom_lg2 on an atomic path (both ends enable atomic; the DECERR hole too,
+which answers DECERR on B and R) into a one-beat atomic on an ID with the MSB
+set, so its read and write IDs are kept below the MSB. The bridge holds at
+most 8 read-return atomics in flight per slave port (bridge TASK-020) and
+stalls the ninth; that only slows the run. A trace-capable master port echoes
 the request's TRACE on BTRACE / RTRACE at the bridge boundary whatever the
 slave (bridge BUG-010), so every window of such a master, the DECERR hole
 included, expects the echo (window SB). A poison path (both ends enable
@@ -164,6 +171,16 @@ def sb_native(m: Port, s: Port) -> bool:
             and not m.cdc and not s.cdc)
 
 
+def is_atomic(p: Port) -> bool:
+    return p.protocol == 'axi5' and 'atomic' in p.features
+
+
+def atomic_path(m: Port, s: Port) -> bool:
+    """Both ends enable atomic (the validator then guarantees AXI5 both
+    ends, rw and one width)."""
+    return is_atomic(m) and is_atomic(s)
+
+
 def poison_path(m: Port, s: Port) -> bool:
     """Both ends enable poison (the bridge validator then guarantees the
     path carries it natively)."""
@@ -208,6 +225,7 @@ class Profile:
     qos_rand: bool = False
     timeout_lg2: int = 20
     poison_lg2: int = 3           # AXI5 poison paths: 1 beat in 8 poisoned
+    atom_lg2: int = 3             # AXI5 atomic masters: 1 write burst in 8 an atomic
     full_axi: bool = False        # ignore path_caps: drive every path with the full AXI4 set
 
 
@@ -293,6 +311,7 @@ class StressHarness:
         size_max = (m.dw // 8).bit_length() - 1
         size_min = 0 if prof.narrow else size_max
         common = dict(sb=int(m.protocol == 'axi5' and 'trace' in m.features),
+                      atomic=int(is_atomic(m)),
                       len_mask=prof.len_mask, size_min=size_min, size_max=size_max,
                       burst_mask=prof.bursts, unaligned=int(prof.unaligned),
                       strb_rand=int(prof.strb_rand), rd_en=int(m.rd and prof.rd),
@@ -300,7 +319,8 @@ class StressHarness:
         slaves = self.build.slaves_of(m)
 
         def limited(s: Port) -> dict:
-            c = dict(common, poison_lg2=prof.poison_lg2 if poison_path(m, s) else 0)
+            c = dict(common, poison_lg2=prof.poison_lg2 if poison_path(m, s) else 0,
+                     atomic=int(atomic_path(m, s)))
             caps = {} if prof.full_axi else path_caps(m, s)
             if 'bursts' in caps:
                 c['burst_mask'] = c['burst_mask'] & caps['bursts'] or caps['bursts']
@@ -341,18 +361,23 @@ class StressHarness:
                 d.write(f'WIN{i}_CFG1', size_min=w.size_min, size_max=w.size_max,
                         burst_mask=w.burst_mask, unaligned=w.unaligned,
                         strb_rand=w.strb_rand, rd_en=w.rd_en, wr_en=w.wr_en,
-                        sb=w.sb, poison_lg2=w.poison_lg2)
-            id_mask = 0 if prof.single_id else (1 << m.iw) - 1
+                        sb=w.sb, poison_lg2=w.poison_lg2, atomic=w.atomic)
+            # an atomic master's upper ID half belongs to its atomics
+            id_bits = m.iw - 1 if is_atomic(m) else m.iw
+            id_mask = 0 if prof.single_id else (1 << id_bits) - 1
             for dr, en in (('RD', m.rd and prof.rd), ('WR', m.wr and prof.wr)):
                 d.write(f'{dr}_CTRL', enable=int(en), qos_rand=int(prof.qos_rand),
+                        idunq=int(m.protocol == 'axi5' and 'unique' in m.features),
                         timeout_lg2=prof.timeout_lg2, resp_throttle=prof.m_resp_throttle,
                         data_throttle=prof.m_data_throttle, gap_mask=prof.gap_mask,
                         max_out=prof.max_out)
                 d.write_word(f'{dr}_TXN_COUNT', txns)
                 d.write_word(f'{dr}_SEED', (seed * 0x9E37_79B1 + m.index * 0x101 +
                                             (0 if dr == 'RD' else 0x5555)) & M.M32 or 1)
-                d.write(f'{dr}_ID_CFG', base=(0xA5 & ((1 << m.iw) - 1)) if prof.single_id else 0,
+                d.write(f'{dr}_ID_CFG', base=(0xA5 & ((1 << id_bits) - 1)) if prof.single_id else 0,
                         mask=id_mask)
+            if any(p.protocol == 'axi5' for p in b.masters + b.slaves):
+                d.write('WR_ATOM', lg2=prof.atom_lg2 if is_atomic(m) else 0)
         axi5 = any(p.protocol == 'axi5' for p in b.masters + b.slaves)
         for s, d in zip(b.slaves, self.slv):
             inorder = len(b.masters_of(s)) <= 1 and not s.ooo

@@ -72,7 +72,7 @@ handshake and answers the R beat's routing question from its ID.
 |---|---|---|
 | `AXI_ID_WIDTH` | 4 | Width of `alloc_id` / `lookup_id` |
 | `DATA_WIDTH` | 1 | Width of the routing tag stored per entry (the bridge stores its master index) |
-| `DEPTH` | 4 | Number of read-return atomics that may be outstanding at once |
+| `DEPTH` | 4 | Number of read-return atomics that may be outstanding at once. The bridge's slave adapter builds it with 8, so a bridge slave port holds at most 8 in flight and stalls the ninth AW |
 
 ### Derived Parameters (do not override)
 

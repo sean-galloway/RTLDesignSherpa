@@ -101,6 +101,7 @@ package axi_stress_pkg;
         logic        wr_en;
         logic        sb;           // AXI5: responses echo the request sideband
         logic [3:0]  poison_lg2;   // AXI5: beats poisoned 1 in 2^n; 0 = never
+        logic        atomic;       // AXI5: the path carries atomics
     } stress_win_t;
 
     // One direction of a master.
@@ -116,6 +117,8 @@ package axi_stress_pkg;
         logic [7:0]  max_out;      // bursts in flight; 0 = as built
         logic [4:0]  timeout_lg2;  // HANG after 2^n silent cycles; 0 = off
         logic        qos_rand;     // AxQOS random (else 0)
+        logic        idunq;        // AXI5: mark eligible bursts AxIDUNQ
+        logic [3:0]  atom_lg2;     // AXI5 writes: 1 burst in 2^n made atomic; 0 = none
     } stress_mdir_cfg_t;
 
     typedef struct packed {
@@ -232,6 +235,64 @@ package axi_stress_pkg;
         logic [31:0] h;
         h = f_sb(a ^ 32'h9E37_79B9, seed);
         return (lg2 != 4'd0) && ((h & ((32'd1 << lg2) - 32'd1)) == 32'd0);
+    endfunction
+
+    // ---- AXI5 atomics ---------------------------------------------------------
+    // AWATOP[5:4]: 01 AtomicStore, 10 AtomicLoad, 11 AtomicSwap (110000) /
+    // AtomicCompare (110001); [3] arithmetic endianness, [2:0] the operation
+    // of a store / load. [5] set = read-return: the slave answers on R, with
+    // the AW's ID, one beat holding the location's original value.
+    //
+    // The stress model keeps every atomic one beat (len 0, INCR, aligned to
+    // its size, inside the bus): 1..8 bytes for store / load / swap, 2..32
+    // for compare. Its operand is the ordinary write data, and the slave --
+    // stateless -- returns f_word(address, tag, RD) on the same byte lanes as
+    // the "original" value: the fabric never interprets either.
+    localparam logic [5:0] ATOP_SWAP    = 6'b110000;
+    localparam logic [5:0] ATOP_COMPARE = 6'b110001;
+
+    // {AWATOP, AWSIZE} of an atomic drawn from the hash h, for a bus of
+    // 2^bus_lg2 bytes (>= 4).
+    function automatic logic [8:0] f_atom_pick(input logic [31:0] h,
+                                               input logic [2:0]  bus_lg2);
+        logic [5:0] atop;
+        logic [2:0] sz, lim;
+        unique case (h[1:0])
+            2'b00:   atop = {2'b01, h[2], h[5:3]};   // AtomicStore
+            2'b01:   atop = {2'b10, h[2], h[5:3]};   // AtomicLoad
+            2'b10:   atop = ATOP_SWAP;
+            default: atop = ATOP_COMPARE;
+        endcase
+        if (atop == ATOP_COMPARE) begin
+            lim = (bus_lg2 < 3'd5) ? bus_lg2 : 3'd5;
+            sz  = 3'd1 + 3'(h[8:6] % 3'd5);         // 2..32 bytes
+        end else begin
+            lim = (bus_lg2 < 3'd3) ? bus_lg2 : 3'd3;
+            sz  = {1'b0, h[7:6]};                   // 1..8 bytes
+        end
+        if (sz > lim) sz = lim;
+        return {atop, sz};
+    endfunction
+
+    // An atomic this model would never issue (so the fabric changed it): not
+    // one aligned INCR beat inside the bus, a size its class does not allow,
+    // or a reserved AWATOP. 0 is not an atomic and always passes.
+    function automatic logic f_atop_illegal(input logic [5:0]  atop,
+                                            input logic [7:0]  len,
+                                            input logic [2:0]  size,
+                                            input logic [1:0]  burst,
+                                            input logic [31:0] a,
+                                            input logic [2:0]  bus_lg2);
+        if (atop == '0)                                    return 1'b0;
+        if (atop[5:4] == 2'b00)                            return 1'b1;
+        if (len != 8'd0 || burst != BURST_INCR)            return 1'b1;
+        if (size > bus_lg2)                                return 1'b1;
+        if ((a & ((32'd1 << size) - 32'd1)) != '0)         return 1'b1;
+        if (atop[5:4] == 2'b11) begin
+            if (atop[3:1] != 3'd0)                         return 1'b1;
+            if (atop[0] ? (size == 3'd0 || size > 3'd5) : (size > 3'd3)) return 1'b1;
+        end else if (size > 3'd3)                          return 1'b1;
+        return 1'b0;
     endfunction
 
     // The address of the beat after `a` in a burst (AXI4 A3.4.1). WRAP needs

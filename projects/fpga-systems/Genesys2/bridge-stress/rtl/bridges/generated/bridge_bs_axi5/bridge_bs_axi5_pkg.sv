@@ -35,6 +35,8 @@ package bridge_bs_axi5_pkg;
         logic         trace;   // AXI5 sideband (trace)
         logic [10:0]  mpam;    // AXI5 sideband (mpam)
         logic [15:0]  mecid;   // AXI5 sideband (mecid)
+        logic         idunq;   // AXI5 sideband (unique)
+        logic [5:0]  atop;    // AXI5 sideband (atomic)
     } axi4_aw_t;
 
     // AXI4 Read Address Channel (width-independent)
@@ -54,6 +56,7 @@ package bridge_bs_axi5_pkg;
         logic         trace;   // AXI5 sideband (trace)
         logic [10:0]  mpam;    // AXI5 sideband (mpam)
         logic [15:0]  mecid;   // AXI5 sideband (mecid)
+        logic         idunq;   // AXI5 sideband (unique)
     } axi4_ar_t;
 
     // AXI4 Write Data Channel - 32-bit data width

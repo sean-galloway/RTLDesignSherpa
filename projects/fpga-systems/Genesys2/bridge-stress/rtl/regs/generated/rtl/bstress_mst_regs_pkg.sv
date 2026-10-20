@@ -165,6 +165,10 @@ package bstress_mst_regs_pkg;
     } bstress_mst_regs__mcfg_ctrl_t__TIMEOUT_LG2__out_t;
 
     typedef struct {
+        logic value;
+    } bstress_mst_regs__mcfg_ctrl_t__IDUNQ__out_t;
+
+    typedef struct {
         logic [3:0] value;
     } bstress_mst_regs__mcfg_ctrl_t__RESP_THROTTLE__out_t;
 
@@ -184,6 +188,7 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__mcfg_ctrl_t__ENABLE__out_t ENABLE;
         bstress_mst_regs__mcfg_ctrl_t__QOS_RAND__out_t QOS_RAND;
         bstress_mst_regs__mcfg_ctrl_t__TIMEOUT_LG2__out_t TIMEOUT_LG2;
+        bstress_mst_regs__mcfg_ctrl_t__IDUNQ__out_t IDUNQ;
         bstress_mst_regs__mcfg_ctrl_t__RESP_THROTTLE__out_t RESP_THROTTLE;
         bstress_mst_regs__mcfg_ctrl_t__DATA_THROTTLE__out_t DATA_THROTTLE;
         bstress_mst_regs__mcfg_ctrl_t__GAP_MASK__out_t GAP_MASK;
@@ -218,6 +223,14 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__mcfg_id_t__BASE__out_t BASE;
         bstress_mst_regs__mcfg_id_t__MASK__out_t MASK;
     } bstress_mst_regs__mcfg_id_t__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } bstress_mst_regs__WR_ATOM__LG2__out_t;
+
+    typedef struct {
+        bstress_mst_regs__WR_ATOM__LG2__out_t LG2;
+    } bstress_mst_regs__WR_ATOM__out_t;
 
     typedef struct {
         logic [31:0] value;
@@ -287,6 +300,10 @@ package bstress_mst_regs_pkg;
     } bstress_mst_regs__win_t__CFG1__POISON_LG2__out_t;
 
     typedef struct {
+        logic value;
+    } bstress_mst_regs__win_t__CFG1__ATOMIC__out_t;
+
+    typedef struct {
         bstress_mst_regs__win_t__CFG1__SIZE_MIN__out_t SIZE_MIN;
         bstress_mst_regs__win_t__CFG1__SIZE_MAX__out_t SIZE_MAX;
         bstress_mst_regs__win_t__CFG1__BURST_MASK__out_t BURST_MASK;
@@ -296,6 +313,7 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__win_t__CFG1__WR_EN__out_t WR_EN;
         bstress_mst_regs__win_t__CFG1__SB__out_t SB;
         bstress_mst_regs__win_t__CFG1__POISON_LG2__out_t POISON_LG2;
+        bstress_mst_regs__win_t__CFG1__ATOMIC__out_t ATOMIC;
     } bstress_mst_regs__win_t__CFG1__out_t;
 
     typedef struct {
@@ -313,6 +331,7 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__mcfg_count_t__out_t WR_TXN_COUNT;
         bstress_mst_regs__mcfg_seed_t__out_t WR_SEED;
         bstress_mst_regs__mcfg_id_t__out_t WR_ID_CFG;
+        bstress_mst_regs__WR_ATOM__out_t WR_ATOM;
         bstress_mst_regs__win_t__out_t WIN[8];
     } bstress_mst_regs__out_t;
 endpackage

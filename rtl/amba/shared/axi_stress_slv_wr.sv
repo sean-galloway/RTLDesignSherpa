@@ -39,6 +39,19 @@
 // as ARSB is in axi_stress_slv_rd (ERR_S_SB); each W beat's WPOISON must be
 // f_poison(beat address, cfg.poison_lg2) (ERR_S_SB); B echoes the burst's
 // request sideband (f_rsb(AWSB) & RSB_MASK: BTRACE = AWTRACE).
+//
+// AXI5 IDUNQ (UNIQUE): as axi_stress_slv_rd, held = AW accepted to B made;
+// BIDUNQ echoes the burst's AWIDUNQ.
+//
+// AXI5 atomics (ATOMIC): an AWATOP the stress master would never issue (not
+// one aligned INCR beat inside the bus, a size its class does not allow, a
+// reserved encoding: axi_stress_pkg f_atop_illegal) is ERR_S_PROTO. The
+// operand is checked as ordinary write data. A read-return class answers,
+// once its W beat is in, with one R beat (fub_axi_atr_*, merged onto R by
+// axi_stress_r_merge in the shell): the AW's ID, the burst's response,
+// f_word(address, tag, RD) on every lane -- the "original" value of a
+// stateless slave -- RTRACE / RIDUNQ echoing the AW and RPOISON =
+// f_poison(address). Its W beat waits while that queue is full.
 //==============================================================================
 
 `timescale 1ns / 1ps
@@ -56,6 +69,8 @@ module axi_stress_slv_wr
     parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
     parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
     parameter bit POISON  = 1'b0,        // AXI5 WPOISON checked
+    parameter bit UNIQUE  = 1'b0,        // AXI5 AWIDUNQ checked, BIDUNQ echoed
+    parameter bit ATOMIC  = 1'b0,        // AXI5 atomics checked and answered
     parameter int SRC_LSB = 0,           // master-index field of the ID
     parameter int SRC_W   = 0,           //   (0: one master, index 0)
     parameter int XW      = $clog2(DEPTH),
@@ -83,6 +98,8 @@ module axi_stress_slv_wr
     input  logic [3:0]          fub_axi_awregion,
     input  logic [UW-1:0]       fub_axi_awuser,
     input  logic [31:0]      fub_axi_awsb,
+    input  logic                fub_axi_awidunq,
+    input  logic [5:0]          fub_axi_awatop,
     input  logic                fub_axi_awvalid,
     output logic                fub_axi_awready,
 
@@ -99,8 +116,19 @@ module axi_stress_slv_wr
     output logic [1:0]          fub_axi_bresp,
     output logic [UW-1:0]       fub_axi_buser,
     output logic [7:0]     fub_axi_bsb,
+    output logic                fub_axi_bidunq,
     output logic                fub_axi_bvalid,
-    input  logic                fub_axi_bready
+    input  logic                fub_axi_bready,
+
+    // AXI5: the R beat of each read-return atomic, to the shell's R merge
+    output logic                fub_axi_atr_valid,
+    input  logic                fub_axi_atr_ready,
+    output logic [IW-1:0]       fub_axi_atr_id,
+    output logic [DW-1:0]       fub_axi_atr_data,
+    output logic [1:0]          fub_axi_atr_resp,
+    output logic [7:0]          fub_axi_atr_rsb,
+    output logic                fub_axi_atr_poison,
+    output logic                fub_axi_atr_ridunq
 );
 
     logic [XW:0] w_max_out;
@@ -113,7 +141,7 @@ module axi_stress_slv_wr
     // =========================================================================
     // AW queue
     // =========================================================================
-    localparam int AQW = IW + 32 + 8 + 3 + 2 + 2 + 8;
+    localparam int AQW = IW + 32 + 8 + 3 + 2 + 2 + 8 + 1 + 1;
 
     logic           aq_wr_ready, aq_rd_valid, aq_rd_ready, w_aw_hs;
     logic [AQW-1:0] aq_rd_data;
@@ -145,7 +173,8 @@ module axi_stress_slv_wr
         .wr_valid    (w_aw_hs),
         .wr_ready    (aq_wr_ready),
         .wr_data     ({fub_axi_awid, w_faddr, fub_axi_awlen, fub_axi_awsize,
-                       fub_axi_awburst, w_aw_resp, f_rsb(fub_axi_awsb) & RSB_MASK}),
+                       fub_axi_awburst, w_aw_resp, f_rsb(fub_axi_awsb) & RSB_MASK,
+                       UNIQUE && fub_axi_awidunq, ATOMIC && fub_axi_awatop[5]}),
         .rd_ready    (aq_rd_ready),
         /* verilator lint_off PINCONNECTEMPTY */
         .count       (),
@@ -160,7 +189,8 @@ module axi_stress_slv_wr
     logic [2:0]    q_size;
     logic [1:0]    q_burst, q_resp;
     logic [7:0]    q_rsb;
-    assign {q_id, q_addr, q_len, q_size, q_burst, q_resp, q_rsb} = aq_rd_data;
+    logic          q_uq, q_rr;
+    assign {q_id, q_addr, q_len, q_size, q_burst, q_resp, q_rsb, q_uq, q_rr} = aq_rd_data;
 
     // registered request checks
     logic          r_q_valid, r_q_win;
@@ -169,6 +199,7 @@ module axi_stress_slv_wr
     logic [7:0]    r_q_len;
     logic [2:0]    r_q_size;
     logic [1:0]    r_q_burst;
+    logic [5:0]    r_q_atop;
     logic [31:0]   r_q_faddr;
     logic [31:0] r_q_sb;
 
@@ -188,6 +219,7 @@ module axi_stress_slv_wr
             r_q_len   <= fub_axi_awlen;
             r_q_size  <= fub_axi_awsize;
             r_q_burst <= fub_axi_awburst;
+            r_q_atop  <= ATOMIC ? fub_axi_awatop : 6'd0;
         end
     end
 
@@ -206,8 +238,10 @@ module axi_stress_slv_wr
 
     logic w_q_addr_err, w_q_proto_err;
     assign w_q_addr_err  = r_q_valid && !r_q_win;
-    assign w_q_proto_err = r_q_valid && f_burst_illegal(r_q_addr, r_q_len, r_q_size,
-                                                        r_q_burst, 3'(BUS_LG2));
+    assign w_q_proto_err = r_q_valid && (f_burst_illegal(r_q_addr, r_q_len, r_q_size,
+                                                         r_q_burst, 3'(BUS_LG2))
+                                      || f_atop_illegal(r_q_atop, r_q_len, r_q_size,
+                                                        r_q_burst, r_q_addr, 3'(BUS_LG2)));
 
     // =========================================================================
     // W
@@ -219,6 +253,8 @@ module axi_stress_slv_wr
     logic [2:0]    r_wa_size;
     logic [1:0]    r_wa_burst, r_wa_resp;
     logic [7:0]    r_wa_rsb;              // AXI5: the B sideband echo
+    logic          r_wa_uq;               // AXI5: AWIDUNQ, echoed on B
+    logic          r_wa_rr;               // AXI5: a read-return atomic
 
     logic          c_valid;
     logic [IW-1:0] c_id;
@@ -227,6 +263,7 @@ module axi_stress_slv_wr
     logic [2:0]    c_size;
     logic [1:0]    c_burst, c_resp;
     logic [7:0]    c_rsb;
+    logic          c_uq, c_rr;
     always_comb begin
         c_valid = r_wa || aq_rd_valid;
         c_id    = r_wa ? r_wa_id    : q_id;
@@ -237,10 +274,17 @@ module axi_stress_slv_wr
         c_burst = r_wa ? r_wa_burst : q_burst;
         c_resp  = r_wa ? r_wa_resp  : q_resp;
         c_rsb   = r_wa ? r_wa_rsb   : q_rsb;
+        c_uq    = r_wa ? r_wa_uq    : q_uq;
+        c_rr    = r_wa ? r_wa_rr    : q_rr;
     end
 
+    // AXI5 read-return atomics: answered after their (single) W beat
+    localparam int RQW = IW + 32 + 2 + 8 + 1;
+    logic           rq_wr_ready, rq_rd_valid, w_rq_push;
+    logic [RQW-1:0] rq_rd_data;
+
     logic tb_full, w_b_push;
-    assign fub_axi_wready = c_valid && r_wpass;
+    assign fub_axi_wready = c_valid && r_wpass && !(c_rr && (c_left == 8'd0) && !rq_wr_ready);
     wire   w_w_hs         = fub_axi_wvalid && fub_axi_wready;
     assign aq_rd_ready    = w_w_hs && !r_wa;
     assign w_b_push       = w_w_hs && (c_left == 8'd0);
@@ -255,8 +299,51 @@ module axi_stress_slv_wr
             r_wa_burst <= c_burst;
             r_wa_resp  <= c_resp;
             r_wa_rsb   <= c_rsb;
+            r_wa_uq    <= c_uq;
+            r_wa_rr    <= c_rr;
         end
     end
+
+    assign w_rq_push = ATOMIC && w_b_push && c_rr;
+
+    generate if (ATOMIC) begin : g_rr
+        gaxi_fifo_sync #(
+            .REGISTERED(0), .DATA_WIDTH(RQW), .DEPTH(DEPTH)
+        ) u_rq (
+            .axi_aclk    (aclk),
+            .axi_aresetn (aresetn),
+            .wr_valid    (w_rq_push),
+            .wr_ready    (rq_wr_ready),
+            .wr_data     ({c_id, c_addr, c_resp, c_rsb, c_uq}),
+            .rd_ready    (fub_axi_atr_ready),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .count       (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .rd_valid    (rq_rd_valid),
+            .rd_data     (rq_rd_data)
+        );
+
+        logic [31:0] w_rq_addr;
+        assign {fub_axi_atr_id, w_rq_addr, fub_axi_atr_resp, fub_axi_atr_rsb,
+                fub_axi_atr_ridunq} = rq_rd_data;
+        assign fub_axi_atr_valid  = rq_rd_valid;
+        assign fub_axi_atr_poison = POISON && f_poison(w_rq_addr, cfg_hash_seed, cfg.poison_lg2);
+        always_comb
+            for (int l = 0; l < NL; l++)
+                fub_axi_atr_data[l*32 +: 32] = f_word({w_rq_addr[31:BUS_LG2], BUS_LG2'(l * 4)},
+                                                      cfg_hash_seed, cfg.tag, 1'b1);
+    end else begin : g_no_rr
+        assign rq_wr_ready        = 1'b1;
+        assign rq_rd_valid        = 1'b0;
+        assign rq_rd_data         = '0;
+        assign fub_axi_atr_valid  = 1'b0;
+        assign fub_axi_atr_id     = '0;
+        assign fub_axi_atr_data   = '0;
+        assign fub_axi_atr_resp   = '0;
+        assign fub_axi_atr_rsb    = '0;
+        assign fub_axi_atr_poison = 1'b0;
+        assign fub_axi_atr_ridunq = 1'b0;
+    end endgenerate
 
     // check stage
     logic          r_c_valid, r_c_last, r_c_exp_last;
@@ -345,6 +432,9 @@ module axi_stress_slv_wr
         .alloc_valid  (w_b_push),
         .alloc_key    (cfg.inorder ? IW'(0) : c_id),
         .alloc_idx    (tb_alloc_idx),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .alloc_tail_vec (),
+        /* verilator lint_on PINCONNECTEMPTY */
         .full         (tb_full),
         .lk_key       ('0),
         /* verilator lint_off PINCONNECTEMPTY */
@@ -364,6 +454,7 @@ module axi_stress_slv_wr
     logic [1:0]    r_s_resp [DEPTH];
     logic [8:0]    r_s_dly  [DEPTH];
     logic [7:0] r_s_bsb [DEPTH];
+    logic [DEPTH-1:0] r_s_uq;              // AXI5: accepted with AWIDUNQ
 
     logic [8:0] w_dly;
     assign w_dly = 9'(cfg.lat_min) + 9'(r_rnd[7:0] & cfg.lat_mask);
@@ -377,8 +468,43 @@ module axi_stress_slv_wr
             r_s_resp[tb_alloc_idx] <= c_resp;
             r_s_dly [tb_alloc_idx] <= w_dly;
             r_s_bsb [tb_alloc_idx] <= c_rsb;
+            r_s_uq  [tb_alloc_idx] <= c_uq;
         end
     end
+
+    // AXI5 IDUNQ (A5.2): per ID, bursts held (AW accepted, B not yet made)
+    // and whether the held one is unique. A request breaks the rule
+    // when it is unique and its ID already has a burst held, or its ID's held
+    // burst is unique. The master sees its bursts outstanding for longer than
+    // this slave holds them, so a master that keeps the rule never trips it.
+    logic w_q_uq_err;
+    generate if (UNIQUE) begin : g_uq
+        localparam int NID = 1 << IW;
+        logic [XW:0]     r_cnt [NID];
+        logic [NID-1:0]  r_flag;
+        logic            r_q_uq_bad;
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_flag     <= '0;
+                r_q_uq_bad <= 1'b0;
+                for (int i = 0; i < NID; i++) r_cnt[i] <= '0;
+            end else begin
+                if (w_aw_hs)
+                    r_q_uq_bad <= fub_axi_awidunq ? (r_cnt[fub_axi_awid] != '0) : r_flag[fub_axi_awid];
+                for (int i = 0; i < NID; i++) begin
+                    r_cnt[i] <= r_cnt[i] + (XW+1)'(w_aw_hs && (fub_axi_awid == IW'(i)))
+                                         - (XW+1)'(tb_retire && (r_s_id[w_pick_idx] == IW'(i)));
+                    if (w_aw_hs && fub_axi_awidunq && (fub_axi_awid == IW'(i)))
+                        r_flag[i] <= 1'b1;
+                    else if (tb_retire && r_s_uq[w_pick_idx] && (r_s_id[w_pick_idx] == IW'(i)))
+                        r_flag[i] <= 1'b0;
+                end
+            end
+        )
+        assign w_q_uq_err = r_q_valid && r_q_uq_bad;
+    end else begin : g_no_uq
+        assign w_q_uq_err = 1'b0;
+    end endgenerate
 
     logic [DEPTH-1:0] w_elig;
     logic             w_have;
@@ -405,6 +531,7 @@ module axi_stress_slv_wr
             fub_axi_bid   <= r_s_id[w_pick_idx];
             fub_axi_bresp <= r_s_resp[w_pick_idx];
             fub_axi_bsb   <= r_s_bsb[w_pick_idx];
+            fub_axi_bidunq <= r_s_uq[w_pick_idx];
         end
     end
 
@@ -455,13 +582,14 @@ module axi_stress_slv_wr
             if (w_c_strb_err)  sts.err_mask[ERR_S_WSTRB] <= 1'b1;
             if (w_c_last_err)  sts.err_mask[ERR_S_WLAST] <= 1'b1;
             if (w_c_wid_err)   sts.err_mask[ERR_S_WID]   <= 1'b1;
-            if (w_q_sb_err || w_c_poison_err) sts.err_mask[ERR_S_SB] <= 1'b1;
+            if (w_q_sb_err || w_c_poison_err || w_q_uq_err) sts.err_mask[ERR_S_SB] <= 1'b1;
             if (w_q_addr_err || w_q_proto_err || w_c_data_err || w_c_strb_err || w_c_last_err
-                || w_c_wid_err || w_q_sb_err || w_c_poison_err)
-                sts.err_cnt <= (sts.err_cnt > 16'hFFF7) ? 16'hFFFF
+                || w_c_wid_err || w_q_sb_err || w_c_poison_err || w_q_uq_err)
+                sts.err_cnt <= (sts.err_cnt > 16'hFFF6) ? 16'hFFFF
                              : sts.err_cnt + 16'(w_q_addr_err) + 16'(w_q_proto_err)
                                + 16'(w_c_data_err) + 16'(w_c_strb_err) + 16'(w_c_last_err)
-                               + 16'(w_c_wid_err) + 16'(w_q_sb_err) + 16'(w_c_poison_err);
+                               + 16'(w_c_wid_err) + 16'(w_q_sb_err) + 16'(w_c_poison_err)
+                               + 16'(w_q_uq_err);
             if (!sts.fe_valid) begin
                 if (w_c_data_err || w_c_strb_err || w_c_last_err || w_c_wid_err) begin
                     sts.fe_valid <= 1'b1;
@@ -493,6 +621,13 @@ module axi_stress_slv_wr
                     sts.fe_addr  <= r_q_addr;
                     sts.fe_exp   <= 32'(w_q_sb_exp);
                     sts.fe_act   <= 32'(r_q_sb);
+                end else if (w_q_uq_err) begin
+                    sts.fe_valid <= 1'b1;
+                    sts.fe_kind  <= 4'(ERR_S_SB);
+                    sts.fe_id    <= 16'(r_q_id);
+                    sts.fe_addr  <= r_q_addr;
+                    sts.fe_exp   <= 32'h0;
+                    sts.fe_act   <= 32'h1D00_0000;     // IDUNQ rule
                 end
             end
             sts.out_now <= 8'(r_held);
@@ -501,6 +636,7 @@ module axi_stress_slv_wr
     )
 
     wire unused = ^{fub_axi_awlock, fub_axi_awcache, fub_axi_awprot, fub_axi_awqos,
-                    fub_axi_awregion, fub_axi_awuser, fub_axi_wuser, fub_axi_wid, tb_full};
+                    fub_axi_awregion, fub_axi_awuser, fub_axi_wuser, fub_axi_wid, tb_full,
+                    rq_rd_valid, rq_rd_data};
 
 endmodule : axi_stress_slv_wr

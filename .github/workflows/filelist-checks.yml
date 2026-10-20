@@ -59,6 +59,12 @@ jobs:
           | grep -v '_pkg\.sv$' | grep -v '/generated/' \
           | xargs python3 bin/check_sv_decl_order.py
 
+      # f(x)[0] is not IEEE 1800; Verilator accepts it silently and Vivado stops
+      # (vault/handbook/design/select-on-function-call.md). Every .sv,
+      # packages and generated code included: zero today, kept at zero.
+      - name: No select on a function call
+        run: python3 bin/check_sv_call_select.py --all
+
       - name: No NEW broken markdown link
         run: python3 bin/check_broken_links.py --ratchet
 

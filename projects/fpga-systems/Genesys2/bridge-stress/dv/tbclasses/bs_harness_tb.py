@@ -10,8 +10,16 @@ board gives: StressHarness.verdict() over the registers read back by name.
 
 aclk (the DUT clock) and cclk (the clock of every cdc port) are asynchronous:
 100 MHz and 75 MHz, as on the board.
+
+AXI5 coverage: a passing verdict is only worth something if the AXI5 features
+were exercised, and the verdict cannot see that (a host write that failed to
+enable atomics would pass every check). So every AXI5 master port's pins are
+counted per run -- atomics by class and their read-returns, AxIDUNQ, poisoned
+W / R beats -- and a run that should have produced one and did not fails.
 """
 from __future__ import annotations
+
+from collections import Counter
 
 import os
 
@@ -56,6 +64,10 @@ class BsHarnessTB(TBBase):
         self.go_c_count = 0
         cocotb.start_soon(self._watch_go_a())
         cocotb.start_soon(self._watch_go_c())
+        self.cov: dict[str, Counter] = {m.name: Counter() for m in self.build.masters}
+        for m in self.build.masters:
+            if m.protocol == 'axi5':
+                cocotb.start_soon(self._watch_axi5(m))
 
     # GO reaches cclk through a toggle synchronizer: a GO wider than one aclk
     # cycle toggles it twice and the cclk blocks never start. Every GO must be
@@ -74,6 +86,69 @@ class BsHarnessTB(TBBase):
         while True:
             await RisingEdge(self.dut.cclk)
             self.go_c_count += int(self.dut.go_c.value)
+
+    def _sig(self, name: str):
+        return getattr(self.dut, name)
+
+    async def _watch_axi5(self, m):
+        """Count what one AXI5 master port actually carried (aclk ports only:
+        an AXI5 port cannot be a cdc port)."""
+        p = f'{m.name}_axi_'
+        f = set(m.features)
+        c = self.cov[m.name]
+        s = {n: self._sig(p + n) for n in
+             ('awvalid', 'awready', 'arvalid', 'arready', 'wvalid', 'wready',
+              'rvalid', 'rready', 'rid')}
+        if 'atomic' in f:
+            s['awatop'] = self._sig(p + 'awatop')
+        if 'unique' in f:
+            s['awidunq'] = self._sig(p + 'awidunq')
+            s['aridunq'] = self._sig(p + 'aridunq')
+        if 'poison' in f:
+            s['wpoison'] = self._sig(p + 'wpoison')
+            s['rpoison'] = self._sig(p + 'rpoison')
+        msb = 1 << (m.iw - 1)
+        while True:
+            await RisingEdge(self.dut.aclk)
+            v = {k: int(x.value) for k, x in s.items()}
+            if v['awvalid'] and v['awready']:
+                atop = v.get('awatop', 0)
+                if atop:
+                    c['atomic'] += 1
+                    c['atomic_' + bstress.M.atop_class(atop)] += 1
+                    c['atomic_rr'] += (atop >> 5) & 1
+                c['awidunq'] += v.get('awidunq', 0)
+            if v['arvalid'] and v['arready']:
+                c['aridunq'] += v.get('aridunq', 0)
+            if v['wvalid'] and v['wready']:
+                c['wpoison'] += v.get('wpoison', 0)
+            if v['rvalid'] and v['rready']:
+                c['rpoison'] += v.get('rpoison', 0)
+                if 'atomic' in f and (v['rid'] & msb):
+                    c['atomic_r'] += 1
+
+    def check_cov(self, prof, label: str) -> None:
+        """Fail a run whose AXI5 features never reached the pins."""
+        for m in self.build.masters:
+            if m.protocol != 'axi5':
+                continue
+            c, f, miss = self.cov[m.name], set(m.features), []
+            if 'atomic' in f and prof.wr and prof.atom_lg2:
+                if not c['atomic']:
+                    miss.append('no atomic issued')
+                if c['atomic_r'] != c['atomic_rr']:
+                    miss.append(f"{c['atomic_rr']} read-return atomics, "
+                                f"{c['atomic_r']} R beats for them")
+            if 'unique' in f and not (c['awidunq'] if prof.wr else 0) + (c['aridunq'] if prof.rd else 0):
+                miss.append('no AxIDUNQ issued')
+            if 'poison' in f and prof.poison_lg2:
+                if prof.wr and not c['wpoison']:
+                    miss.append('no poisoned W beat')
+                if prof.rd and not c['rpoison']:
+                    miss.append('no poisoned R beat')
+            self.log.info(f'{label} {m.name} AXI5 coverage: {dict(c)}')
+            if miss:
+                self.failures.append(f'{label}: {m.name}: ' + '; '.join(miss))
 
     def check_go(self) -> None:
         bad = [w for w in self.go_widths if w != 1]
@@ -99,9 +174,17 @@ class BsHarnessTB(TBBase):
             prof = bstress.replace(prof, bursts=int(os.environ['BS_BURSTS'], 0))
         if os.environ.get('BS_FULL_AXI') == '1':  # lift path_caps (bridge BUG-018 repro)
             prof = bstress.replace(prof, full_axi=True)
+        for c in self.cov.values():
+            c.clear()
         res = await bridge(lambda: self.h.run(prof, seed, txns, timeout_s=self.timeout_s,
                                               sleep=lambda s: None))()
         ok, why = self.h.verdict(res)
+        n0 = len(self.failures)
+        self.check_cov(prof, f'{profile}/{seed}')
+        if len(self.failures) > n0:
+            ok = False
+            why = list(why) + self.failures[n0:]
+            del self.failures[n0:]
         self.log.info(f'GO pulses so far: widths {self.go_widths}, cclk arrivals {self.go_c_count}')
         self.log.info(self.h.summary(res, 1e12 / self.aclk_ps))
         if ok:

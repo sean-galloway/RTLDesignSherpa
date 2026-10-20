@@ -80,13 +80,41 @@ LUT levels at bus rate.
 | S_PROTO | slave | an illegal burst: size, WRAP shape, FIXED/WRAP length, 4 KB crossing |
 | S_WDATA / S_WSTRB / S_WLAST | slave | a strobed byte wrong, a strobe outside the beat, WLAST misplaced |
 | S_WID | AXI3 slave | a W beat whose WID is not the AWID of the burst it belongs to (interleaved or mis-stamped write data) |
-| S_SB | AXI5 slave | a request's NSAID / TRACE / MPAM / MECID is not `f_sb(address)` (from a master whose path carries sideband natively) or not 0 (from any other: the slave tells them apart by the master index in the fabric ID), or a W beat's WPOISON is not `f_poison(beat address)` |
-| M_SB | AXI5 master | BTRACE / RTRACE is not the request's TRACE (a trace-capable bridge port echoes it whatever the slave, bridge BUG-010), or an R beat's RPOISON is not `f_poison(beat address)` |
+| S_SB | AXI5 slave | a request's NSAID / TRACE / MPAM / MECID is not `f_sb(address)` (from a master whose path carries sideband natively) or not 0 (from any other: the slave tells them apart by the master index in the fabric ID), a W beat's WPOISON is not `f_poison(beat address)`, or a request breaks the IDUNQ rule on the IDs the slave sees (unique with another burst of its ID held, or any request on an ID whose held burst is unique) |
+| M_SB | AXI5 master | BTRACE / RTRACE is not the request's TRACE (a trace-capable bridge port echoes it whatever the slave, bridge BUG-010), an R beat's RPOISON is not `f_poison(beat address)`, or BIDUNQ / RIDUNQ is not the bit the burst was issued with |
+| S_PROTO (atomics) | AXI5 slave | an AWATOP the master would never issue: not one aligned INCR beat inside the bus, a size its class does not allow, a reserved encoding |
+| RD_* in a write block | AXI5 master | a read-return atomic's R beat: no atomic owed on its RID (RD_STRAY), RLAST low (RD_LAST), RRESP not the window's (RD_RESP), a lane not `f_word(address, tag, RD)` (RD_DATA) |
 
 AXI5 sideband and poison follow the data contract: every field is a hash of
 the address (`f_sb`, `f_poison` in `axi_stress_pkg`), so both ends compute it
 and nothing is stored. Poison is drawn 1 beat in 2^POISON_LG2 by address
 hash, on paths where both ends enable it.
+
+AXI5 IDUNQ: a master marks a burst unique (by address hash) only when its ID
+has nothing outstanding, and issues nothing more on that ID until it
+completes. The bridge's master port regenerates BIDUNQ / RIDUNQ; every IDUNQ
+slave checks that the fabric still keeps the rule on the IDs it sees.
+
+AXI5 atomics: 1 write burst in 2^WR_ATOM.LG2 on an atomic path becomes one
+legal beat -- AtomicStore / Load / Swap / Compare by address hash, 1..8
+bytes (2..32 for Compare), aligned INCR -- on an ID with the MSB set, issued
+only when that ID has nothing outstanding (the AXI5 atomic ID rule). The
+operand is ordinary write data. The slave is stateless, so a read-return
+atomic's "original value" is the read hash `f_word(address, tag, RD)` on the
+beat's lanes; it is sent after the W beat and merged onto R between read
+bursts.
+
+### Limits
+
+| Limit | Value | Why / effect |
+|---|---|---|
+| bridge: read-return atomics in flight per slave port | 8 | the slave adapter's `axi5_atomic_rr_tracker` is built `DEPTH(8)`; the ninth atomic AW stalls until a slot frees (bridge TASK-020 makes it a TOML key). Slows a run, never fails it |
+| bridge: atomic masters per fabric | none | every fabric ID carries its master's index, so atomics from different masters never alias at a slave |
+| model: atomic IDs | the upper half of each atomic master's ID space | atomics use ID MSB = 1; the host keeps that master's read and write IDs below it. An atomic master needs `id_width >= 2` |
+| model: atomics and IDUNQ bursts in flight | one per ID | the AXI5 rules; the master waits rather than violate them |
+| model: read-return atomics owed per master | 16 (`DEPTH`) | a full table holds the next atomic |
+| model: read-return atomics queued per slave | 16 (`DEPTH`) | a full queue holds the atomic's W beat |
+| model: atomic shapes | one beat, aligned INCR, 1..8 bytes (Compare 2..32), within the bus | a slave flags any other atomic as S_PROTO, so a fabric that changes an atomic is caught |
 
 Every check is shown to fire by the pair test's fault injector
 (`val/amba/test_axi_stress_pair.py`), and an independent Python monitor
@@ -99,7 +127,7 @@ checks the blocks themselves against the model.
 | `build-axi4` | `bridge_bs_axi4`: 4 AXI4 masters (64/128/32/64, IDs 8/4/6/8, one cdc) x 4 AXI4 slaves (64/128/32/64, one cdc), a 256 MB hole | WNS +0.081 ns at 100 / 75 MHz, 94.8k LUTs (47%), no BRAM/DSP; sim and board: every profile passes under the path limits |
 | `build-axi3` | `bridge_bs_axi3`: the same shape with AXI3 on every port that does not cross a clock (cpu, dma, io; mem0, mem1, mem2). The two CDC ports (acc, mem3) stay AXI4: the generator has no AXI3 CDC (`validate_axi3`, rule 3). Paths: AXI3 -> AXI3, AXI3 -> AXI4, and AXI4 -> AXI3 with bursts longer than 16 beats chopped | WNS +0.001 ns, WHS +0.013 ns at 100 / 75 MHz, 106.7k LUTs (52%); sim and board: every profile passes under the path limits |
 
-| `build-axi5` | `bridge_bs_axi5`: AXI5 on every port that does not cross a clock (cpu 64b, dma 128b, io 32b; mem0 64b, mem1 128b, mem2 64b), all with NSAID / TRACE / MPAM / MECID; the CDC ports (acc, mem3) stay AXI4. Poison on a 64-bit clique (cpu -> mem0, mem2): the validator allows it only where every connected path is AXI5 at both ends and one width. mem1 takes native (dma), width-converted (io: sideband dropped) and AXI4 (acc) requests at once and tells them apart by the fabric's master index | WNS +0.066 ns, WHS +0.036 ns at 100 / 75 MHz, 87.8k LUTs (43%); sim 9/9, board 27/27, soak 174/174 |
+| `build-axi5` | `bridge_bs_axi5`: AXI5 on every port that does not cross a clock (cpu 64b, dma 128b, io 32b; mem0 64b, mem1 128b, mem2 64b), all with NSAID / TRACE / MPAM / MECID; the CDC ports (acc, mem3) stay AXI4. Poison on a 64-bit clique (cpu -> mem0, mem2): the validator allows it only where every connected path is AXI5 at both ends and one width. mem1 takes native (dma), width-converted (io: sideband dropped) and AXI4 (acc) requests at once and tells them apart by the fabric's master index | with IDUNQ on every AXI5 port and atomics on the cpu clique (cpu IDs 4): WNS +0.298 ns, WHS +0.009 ns at 100 / 75 MHz, 92.1k LUTs (45%); sim 9/9 (with a pin-level count that atomics, IDUNQ and poison really ran), board 27/27, soak 172/172 |
 
 ## 5. Phases
 
@@ -108,7 +136,7 @@ checks the blocks themselves against the model.
 | 1 | the cores, AXI4, the Genesys 2 build | `axi4_{master,slave}_stress` |
 | 2a (done) | AXI3 ports, `build-axi3` | `axi3_{master,slave}_stress` (WID, 16-beat, 2-bit lock) |
 | 2b (sideband + poison) | AXI5 ports in a mixed DUT, `build-axi5` | `axi5_{master,slave}_stress`: NSAID, TRACE, MPAM, MECID, POISON |
-| 2c | atomics, IDUNQ, MTE | the same shells; see bridge TASK-019 |
+| 2c | IDUNQ, atomics (done in sim); MTE | the same shells; see bridge TASK-019 |
 | 3 | AXI4-Lite / AXI5-Lite, APB4 / APB5, WB4 | single-beat shells; slaves in offset mode where the bridge hands them a window offset |
 
 ## 6. Findings
@@ -138,6 +166,8 @@ checks the blocks themselves against the model.
 | AXI3 soak: chaos, a fresh seed per run, 8000 bursts per master direction, 15 min | 168/168 PASS (~10.7 M bursts) | `reports/board/bridge_bs_axi3_20261019_140943.csv` |
 | AXI5: every profile x seeds 1-3, 4000 bursts | 27/27 PASS | `reports/board/bridge_bs_axi5_20261019_181755.csv` |
 | AXI5 soak: chaos, a fresh seed per run, 8000 bursts per master direction, 15 min | 174/174 PASS (~11.1 M bursts) | `reports/board/bridge_bs_axi5_20261019_182057.csv` |
+| AXI5 + IDUNQ + atomics: every profile x seeds 1-3, 4000 bursts | 27/27 PASS | `reports/board/bridge_bs_axi5_20261019_214752.csv` |
+| AXI5 + IDUNQ + atomics soak: chaos, fresh seeds, 8000 bursts, 15 min | 172/172 PASS (~11.0 M bursts) | `reports/board/bridge_bs_axi5_20261019_215052.csv` |
 
 ## 8. Running
 

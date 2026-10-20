@@ -67,11 +67,14 @@ module bridge_bs_axi5_mem0_adapter
     input  logic         xbar_mem0_axi_awtrace,
     input  logic [10:0]  xbar_mem0_axi_awmpam,
     input  logic [15:0]  xbar_mem0_axi_awmecid,
+    input  logic         xbar_mem0_axi_awidunq,
+    input  logic [5:0]  xbar_mem0_axi_awatop,
     input  logic         xbar_mem0_axi_wpoison,
     input  logic [3:0]  xbar_mem0_axi_arnsaid,
     input  logic         xbar_mem0_axi_artrace,
     input  logic [10:0]  xbar_mem0_axi_armpam,
     input  logic [15:0]  xbar_mem0_axi_armecid,
+    input  logic         xbar_mem0_axi_aridunq,
     output logic         xbar_mem0_axi_btrace,
     output logic         xbar_mem0_axi_rtrace,
     output logic         xbar_mem0_axi_rpoison,
@@ -102,6 +105,8 @@ module bridge_bs_axi5_mem0_adapter
     output  logic         mem0_axi_awtrace,
     output  logic [10:0]  mem0_axi_awmpam,
     output  logic [15:0]  mem0_axi_awmecid,
+    output  logic         mem0_axi_awidunq,
+    output  logic [5:0]  mem0_axi_awatop,
     output  logic [63:0]  mem0_axi_wdata,
     output  logic [7:0]  mem0_axi_wstrb,
     output  logic         mem0_axi_wlast,
@@ -115,6 +120,7 @@ module bridge_bs_axi5_mem0_adapter
     input  logic         mem0_axi_bvalid,
     output  logic         mem0_axi_bready,
     input  logic         mem0_axi_btrace,
+    input  logic         mem0_axi_bidunq,
     output  logic [5:0]  mem0_axi_arid,
     output  logic [31:0]  mem0_axi_araddr,
     output  logic [7:0]  mem0_axi_arlen,
@@ -131,6 +137,7 @@ module bridge_bs_axi5_mem0_adapter
     output  logic         mem0_axi_artrace,
     output  logic [10:0]  mem0_axi_armpam,
     output  logic [15:0]  mem0_axi_armecid,
+    output  logic         mem0_axi_aridunq,
     input  logic [5:0]  mem0_axi_rid,
     input  logic [63:0]  mem0_axi_rdata,
     input  logic [1:0]  mem0_axi_rresp,
@@ -139,12 +146,19 @@ module bridge_bs_axi5_mem0_adapter
     input  logic         mem0_axi_rvalid,
     output  logic         mem0_axi_rready,
     input  logic         mem0_axi_rtrace,
+    input  logic         mem0_axi_ridunq,
     input  logic         mem0_axi_rpoison
 );
 
     // ================================================================
     // Internal Signals
     // ================================================================
+
+    // A5-3b read-return atomic tracking (u_atom_rd, read section)
+    logic atom_hit;
+    logic [BRIDGE_ID_WIDTH-1:0] atom_bridge_id;
+    logic atom_full;
+    logic aw_rr_blocked;
 
     // ================================================================
     // Bridge ID Tracking - By ID (any completion order)
@@ -160,7 +174,9 @@ module bridge_bs_axi5_mem0_adapter
     // reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
-    assign xbar_mem0_axi_awready = w_sub_awready && !wr_trk_full;
+    // A5-3b: hold a read-return atomic AW while its return tracker is full.
+    assign aw_rr_blocked = xbar_mem0_axi_awatop[5] && atom_full;
+    assign xbar_mem0_axi_awready = w_sub_awready && !wr_trk_full && !aw_rr_blocked;
     logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -182,10 +198,33 @@ module bridge_bs_axi5_mem0_adapter
         if (`RST_ASSERTED(aresetn)) begin
             rd_out_cnt <= '0;
         end else begin
-            rd_out_cnt <= rd_out_cnt + 5'(xbar_mem0_axi_arvalid && xbar_mem0_axi_arready) - 5'(xbar_mem0_axi_rvalid && xbar_mem0_axi_rready && xbar_mem0_axi_rlast);
+            rd_out_cnt <= rd_out_cnt + 5'(xbar_mem0_axi_arvalid && xbar_mem0_axi_arready) - 5'(xbar_mem0_axi_rvalid && xbar_mem0_axi_rready && xbar_mem0_axi_rlast && !atom_hit);
         end
     )
     assign rd_trk_full = (rd_out_cnt == 5'(16));
+
+    // A5-3b: read-return atomics answer on R with their AW's ID and no
+    // AR. Track them per ID from the AW handshake. An R beat whose RID
+    // hits here is routed by the tracker and leaves the read tracker
+    // untouched; every other beat routes as before.
+    axi5_atomic_rr_tracker #(
+        .AXI_ID_WIDTH(ID_WIDTH),
+        .DATA_WIDTH(BRIDGE_ID_WIDTH),
+        .DEPTH(8)
+    ) u_atom_rd (
+        .aclk(aclk),
+        .aresetn(aresetn),
+        .alloc(xbar_mem0_axi_awvalid && xbar_mem0_axi_awready && xbar_mem0_axi_awatop[5]),
+        .alloc_id(xbar_mem0_axi_awid),
+        .alloc_data(xbar_bridge_id_aw),
+        .full(atom_full),
+        .lookup_id(xbar_mem0_axi_rid),
+        .hit(atom_hit),
+        .hit_data(atom_bridge_id),
+        .release_beat(xbar_mem0_axi_rvalid && xbar_mem0_axi_rready && xbar_mem0_axi_rlast)
+    );
+
+    // An atomic's R carries its AW's ID, so it routes by ID like any other.
     assign rid_bridge_id = xbar_mem0_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign rid_valid     = 1'b1;
 
@@ -198,12 +237,12 @@ module bridge_bs_axi5_mem0_adapter
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
-        .ENABLE_ATOMIC(1'b0),
+        .ENABLE_ATOMIC(1'b1),
         .ENABLE_NSAID(1'b1),
         .ENABLE_TRACE(1'b1),
         .ENABLE_MPAM(1'b1),
         .ENABLE_MECID(1'b1),
-        .ENABLE_UNIQUE(1'b0),
+        .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b0),
         .ENABLE_POISON(1'b1),
         .ENABLE_WAKEUP(1'b0)
@@ -222,14 +261,14 @@ module bridge_bs_axi5_mem0_adapter
         .fub_axi_awprot(xbar_mem0_axi_awprot),
         .fub_axi_awqos(xbar_mem0_axi_awqos),
         .fub_axi_awuser(xbar_mem0_axi_awuser),
-        .fub_axi_awvalid(xbar_mem0_axi_awvalid && !wr_trk_full),
+        .fub_axi_awvalid(xbar_mem0_axi_awvalid && !wr_trk_full && !aw_rr_blocked),
         .fub_axi_awready(w_sub_awready),
-        .fub_axi_awatop('0),
+        .fub_axi_awatop(xbar_mem0_axi_awatop),
         .fub_axi_awnsaid(xbar_mem0_axi_awnsaid),
         .fub_axi_awtrace(xbar_mem0_axi_awtrace),
         .fub_axi_awmpam(xbar_mem0_axi_awmpam),
         .fub_axi_awmecid(xbar_mem0_axi_awmecid),
-        .fub_axi_awidunq('0),
+        .fub_axi_awidunq(xbar_mem0_axi_awidunq),
         .fub_axi_awtagop('0),
         .fub_axi_awakeup('0),
         .fub_axi_wdata(xbar_mem0_axi_wdata),
@@ -263,12 +302,12 @@ module bridge_bs_axi5_mem0_adapter
         .m_axi_awuser(mem0_axi_awuser),
         .m_axi_awvalid(mem0_axi_awvalid),
         .m_axi_awready(mem0_axi_awready),
-        .m_axi_awatop(),
+        .m_axi_awatop(mem0_axi_awatop),
         .m_axi_awnsaid(mem0_axi_awnsaid),
         .m_axi_awtrace(mem0_axi_awtrace),
         .m_axi_awmpam(mem0_axi_awmpam),
         .m_axi_awmecid(mem0_axi_awmecid),
-        .m_axi_awidunq(),
+        .m_axi_awidunq(mem0_axi_awidunq),
         .m_axi_awtagop(),
         .m_axi_awakeup(),
         .m_axi_wdata(mem0_axi_wdata),
@@ -286,7 +325,7 @@ module bridge_bs_axi5_mem0_adapter
         .m_axi_bvalid(mem0_axi_bvalid),
         .m_axi_bready(mem0_axi_bready),
         .m_axi_btrace(mem0_axi_btrace),
-        .m_axi_bidunq('0),
+        .m_axi_bidunq(mem0_axi_bidunq),
         .m_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
@@ -305,7 +344,7 @@ module bridge_bs_axi5_mem0_adapter
         .ENABLE_TRACE(1'b1),
         .ENABLE_MPAM(1'b1),
         .ENABLE_MECID(1'b1),
-        .ENABLE_UNIQUE(1'b0),
+        .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b0),
         .ENABLE_MTE(1'b0),
         .ENABLE_POISON(1'b1),
@@ -331,7 +370,7 @@ module bridge_bs_axi5_mem0_adapter
         .fub_axi_artrace(xbar_mem0_axi_artrace),
         .fub_axi_armpam(xbar_mem0_axi_armpam),
         .fub_axi_armecid(xbar_mem0_axi_armecid),
-        .fub_axi_aridunq('0),
+        .fub_axi_aridunq(xbar_mem0_axi_aridunq),
         .fub_axi_archunken('0),
         .fub_axi_artagop('0),
         .fub_axi_awakeup('0),
@@ -367,7 +406,7 @@ module bridge_bs_axi5_mem0_adapter
         .m_axi_artrace(mem0_axi_artrace),
         .m_axi_armpam(mem0_axi_armpam),
         .m_axi_armecid(mem0_axi_armecid),
-        .m_axi_aridunq(),
+        .m_axi_aridunq(mem0_axi_aridunq),
         .m_axi_archunken(),
         .m_axi_artagop(),
         .m_axi_awakeup(),
@@ -379,7 +418,7 @@ module bridge_bs_axi5_mem0_adapter
         .m_axi_rvalid(mem0_axi_rvalid),
         .m_axi_rready(mem0_axi_rready),
         .m_axi_rtrace(mem0_axi_rtrace),
-        .m_axi_ridunq('0),
+        .m_axi_ridunq(mem0_axi_ridunq),
         .m_axi_rpoison(mem0_axi_rpoison),
         .m_axi_rchunkv('0),
         .m_axi_rchunknum('0),

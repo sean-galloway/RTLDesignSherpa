@@ -22,7 +22,10 @@
 //
 //   alloc   writes a new entry into the lowest free slot (alloc_idx) at the
 //           tail of its key's list. alloc_idx is valid whenever !full; do not
-//           alloc while full.
+//           alloc while full. alloc_tail_vec names the slot that is alloc_key's
+//           tail now (one-hot, or 0 when the key has no live entry; a slot
+//           retiring this cycle does not count), so a user can ask about the
+//           newest entry of a key before adding to it.
 //   lookup  lk_key -> the head slot of that key (lk_hit, lk_idx), the only
 //           entry of the key a response may legally complete.
 //   retire  removes a head slot; the next entry of its key becomes the head.
@@ -54,6 +57,7 @@ module axi_stress_ord_table #(
     input  logic             alloc_valid,
     input  logic [KW-1:0]    alloc_key,
     output logic [XW-1:0]    alloc_idx,
+    output logic [DEPTH-1:0] alloc_tail_vec,
     output logic             full,
 
     input  logic [KW-1:0]    lk_key,
@@ -98,7 +102,8 @@ module axi_stress_ord_table #(
         w_tail_any = |w_tail_hit;
     end
 
-    assign alloc_idx = w_free_idx;
+    assign alloc_idx      = w_free_idx;
+    assign alloc_tail_vec = w_tail_hit;
     assign full      = !w_free_any;
 
     // ---- lookup: the head of a key ------------------------------------------

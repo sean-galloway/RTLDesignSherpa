@@ -102,6 +102,14 @@ FLAT_FILELIST    ?= $(SELF_DIR)/.flat_filelist.f
 DECL_ORDER_CHECK ?= $(RDS_ROOT)/bin/check_sv_decl_order.py
 DECL_FILES       ?= $(SELF_DIR)/.decl_order_files.txt
 
+# A select on a function call (f(x)[0]) is not IEEE 1800: Verilator lints and
+# simulates it without a word, Vivado stops reading the file
+# (vault/handbook/design/select-on-function-call.md). Checked over the whole
+# filelist closure, packages and generated code included -- a package function
+# is exactly where such a call is written.
+CALL_SELECT_CHECK ?= $(RDS_ROOT)/bin/check_sv_call_select.py
+CALL_SELECT_FILES ?= $(SELF_DIR)/.call_select_files.txt
+
 # Lint the configuration this build ACTUALLY SYNTHESIZES, not the RTL defaults.
 #
 # Vivado applies these as generics from the same env vars (see
@@ -123,7 +131,7 @@ LINT_GENERICS = \
     $(if $(OBS_NUM_BANKS),-GOBS_NUM_BANKS=$(OBS_NUM_BANKS)) \
     $(if $(OBS_USE_WDATA_ORDER_Q),-GOBS_USE_WDATA_ORDER_Q=$(OBS_USE_WDATA_ORDER_Q))
 
-lint: lint-decl-order flat-filelist  ## verilator --lint-only of the whole harness (fast, pre-Vivado)
+lint: lint-decl-order lint-call-select flat-filelist  ## verilator --lint-only of the whole harness (fast, pre-Vivado)
 	@[ -n "$(TOP)" ] || (echo "TOP is not set -- cannot lint." && false)
 	@echo "[lint] $(TOP) $(if $(strip $(LINT_GENERICS)),[$(strip $(LINT_GENERICS))],[RTL defaults])"
 	@$(VERILATOR) --lint-only --top-module $(TOP) -f $(FLAT_FILELIST) \
@@ -149,3 +157,13 @@ lint-decl-order:    ## signals must be declared before use (implicit 1-bit nets)
 	   print(chr(10).join(f for f in s if f.endswith('.sv') and not f.endswith('_pkg.sv')))" \
 	  > $(DECL_FILES) || (echo "could not resolve the filelist closure -- refusing to skip the check" && false)
 	@$(PYTHON) $(DECL_ORDER_CHECK) $$(cat $(DECL_FILES)) && rm -f $(DECL_FILES)
+
+lint-call-select:   ## no select on a function call (Verilator accepts it, Vivado does not)
+	@[ -f "$(CALL_SELECT_CHECK)" ] || (echo "missing $(CALL_SELECT_CHECK)" && false)
+	@echo "[lint] select on a function call ($(TOP))"
+	@RDS_ROOT_ENV="$(RDS_ROOT)" FL="$(FILELIST)" $(PYTHON) -c \
+	  "import os; from TBClasses.shared.filelist_utils import get_sources_from_filelist as G; \
+	   s,_ = G(repo_root=os.environ['RDS_ROOT_ENV'], filelist_path=os.environ['FL']); \
+	   print(chr(10).join(f for f in s if f.endswith('.sv')))" \
+	  > $(CALL_SELECT_FILES) || (echo "could not resolve the filelist closure -- refusing to skip the check" && false)
+	@$(PYTHON) $(CALL_SELECT_CHECK) $$(cat $(CALL_SELECT_FILES)) && rm -f $(CALL_SELECT_FILES)

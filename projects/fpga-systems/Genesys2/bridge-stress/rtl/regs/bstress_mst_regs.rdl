@@ -51,6 +51,7 @@ addrmap bstress_mst_regs {
     reg mcfg_ctrl_t {
         field { sw = rw; hw = r; desc = "This direction runs on GO."; } ENABLE[0:0] = 0;
         field { sw = rw; hw = r; desc = "AxQOS random (else 0)."; } QOS_RAND[1:1] = 0;
+        field { sw = rw; hw = r; desc = "AXI5: mark AxIDUNQ on bursts an address hash picks, when their ID has nothing outstanding; nothing else is issued on that ID until it completes."; } IDUNQ[7:7] = 0;
         field { sw = rw; hw = r; desc = "ERR_HANG after 2^n cycles with work outstanding and no response; 0 = off."; } TIMEOUT_LG2[6:2] = 0;
         field { sw = rw; hw = r; desc = "RREADY/BREADY low with probability n/16."; } RESP_THROTTLE[11:8] = 0;
         field { sw = rw; hw = r; desc = "Writes: a WVALID bubble between beats with probability n/16."; } DATA_THROTTLE[15:12] = 0;
@@ -72,6 +73,9 @@ addrmap bstress_mst_regs {
     mcfg_count_t WR_TXN_COUNT @ 0x034;
     mcfg_seed_t  WR_SEED      @ 0x038;
     mcfg_id_t    WR_ID_CFG    @ 0x03C;
+    reg {
+        field { sw = rw; hw = r; desc = "AXI5: 1 write burst in 2^n to an ATOMIC window becomes a one-beat atomic (Store / Load / Swap / Compare, by address hash) on an ID with the MSB set; 0 = none. Keep RD_ID_CFG and WR_ID_CFG below the ID MSB when this is set: those IDs belong to atomics."; } LG2[3:0] = 0;
+    } WR_ATOM @ 0x040;
 
     regfile win_t {
         reg {
@@ -93,6 +97,7 @@ addrmap bstress_mst_regs {
             field { sw = rw; hw = r; desc = "Writes target this window."; } WR_EN[15:15] = 0;
             field { sw = rw; hw = r; desc = "AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0."; } SB[16:16] = 0;
             field { sw = rw; hw = r; desc = "AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2."; } POISON_LG2[23:20] = 0;
+            field { sw = rw; hw = r; desc = "AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM)."; } ATOMIC[24:24] = 0;
         } CFG1 @ 0x8;
     };
 

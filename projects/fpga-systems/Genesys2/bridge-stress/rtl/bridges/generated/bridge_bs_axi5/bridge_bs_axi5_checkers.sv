@@ -4,7 +4,7 @@
 
 // master port cpu (axi5, rw) on aclk
 bind bridge_bs_axi5 axi4_protocol_checker #(
-    .ID_WIDTH(8),
+    .ID_WIDTH(4),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(64)
 ) u_chk_cpu (

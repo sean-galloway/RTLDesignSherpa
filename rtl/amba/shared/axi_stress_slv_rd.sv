@@ -42,6 +42,10 @@
 // SRC_W] -- and 0 from any other (ERR_S_SB). Each R beat echoes the
 // burst's request sideband (f_rsb(ARSB) & RSB_MASK: RTRACE = ARTRACE) and
 // carries RPOISON = f_poison(beat address, cfg.poison_lg2).
+//
+// AXI5 IDUNQ (UNIQUE): an ARIDUNQ request whose ID already has a burst held,
+// or any request on an ID whose held burst is unique, is ERR_S_SB; RIDUNQ
+// echoes the burst's ARIDUNQ.
 //==============================================================================
 
 `timescale 1ns / 1ps
@@ -58,6 +62,7 @@ module axi_stress_slv_rd
     parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
     parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
     parameter bit POISON  = 1'b0,        // AXI5 RPOISON driven
+    parameter bit UNIQUE  = 1'b0,        // AXI5 ARIDUNQ checked, RIDUNQ echoed
     parameter int SRC_LSB = 0,           // master-index field of the ID
     parameter int SRC_W   = 0,           //   (0: one master, index 0)
     parameter int XW      = $clog2(DEPTH),
@@ -85,6 +90,7 @@ module axi_stress_slv_rd
     input  logic [3:0]          fub_axi_arregion,
     input  logic [UW-1:0]       fub_axi_aruser,
     input  logic [31:0]      fub_axi_arsb,
+    input  logic                fub_axi_aridunq,
     input  logic                fub_axi_arvalid,
     output logic                fub_axi_arready,
 
@@ -95,6 +101,7 @@ module axi_stress_slv_rd
     output logic [UW-1:0]       fub_axi_ruser,
     output logic [7:0]     fub_axi_rsb,
     output logic                fub_axi_rpoison,
+    output logic                fub_axi_ridunq,
     output logic                fub_axi_rvalid,
     input  logic                fub_axi_rready
 );
@@ -118,6 +125,9 @@ module axi_stress_slv_rd
         .alloc_valid  (w_ar_hs),
         .alloc_key    (cfg.inorder ? IW'(0) : fub_axi_arid),
         .alloc_idx    (tb_alloc_idx),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .alloc_tail_vec (),
+        /* verilator lint_on PINCONNECTEMPTY */
         .full         (tb_full),
         .lk_key       ('0),
         /* verilator lint_off PINCONNECTEMPTY */
@@ -142,6 +152,7 @@ module axi_stress_slv_rd
     logic [1:0]    r_s_resp  [DEPTH];
     logic [8:0]    r_s_dly   [DEPTH];      // cycles until it may answer
     logic [7:0]    r_s_rsb   [DEPTH];      // AXI5: the response sideband echo
+    logic [DEPTH-1:0] r_s_uq;              // AXI5: accepted with ARIDUNQ
 
     // =========================================================================
     // AR accept
@@ -184,6 +195,7 @@ module axi_stress_slv_rd
                                        ? RESP_SLVERR : RESP_OKAY;
             r_s_dly  [tb_alloc_idx] <= w_dly;
             r_s_rsb  [tb_alloc_idx] <= f_rsb(fub_axi_arsb) & RSB_MASK;
+            r_s_uq   [tb_alloc_idx] <= UNIQUE && fub_axi_aridunq;
         end
         if (w_rmake) begin
             r_s_addr[w_pick_idx] <= f_next_addr(r_s_addr[w_pick_idx], r_s_size[w_pick_idx],
@@ -227,6 +239,40 @@ module axi_stress_slv_rd
         w_q_sb_exp = cfg.sb_src[w_q_src] ? (f_sb(r_q_faddr, cfg_hash_seed) & SB_MASK) : '0;
     end
     assign w_q_sb_err = (SB_MASK != '0) && r_q_valid && ((r_q_sb & SB_MASK) != w_q_sb_exp);
+
+    // AXI5 IDUNQ (A5.2): per ID, bursts held (request accepted, response not
+    // yet made) and whether the held one is unique. A request breaks the rule
+    // when it is unique and its ID already has a burst held, or its ID's held
+    // burst is unique. The master sees its bursts outstanding for longer than
+    // this slave holds them, so a master that keeps the rule never trips it.
+    logic w_q_uq_err;
+    generate if (UNIQUE) begin : g_uq
+        localparam int NID = 1 << IW;
+        logic [XW:0]     r_cnt [NID];
+        logic [NID-1:0]  r_flag;
+        logic            r_q_uq_bad;
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn)) begin
+                r_flag     <= '0;
+                r_q_uq_bad <= 1'b0;
+                for (int i = 0; i < NID; i++) r_cnt[i] <= '0;
+            end else begin
+                if (w_ar_hs)
+                    r_q_uq_bad <= fub_axi_aridunq ? (r_cnt[fub_axi_arid] != '0) : r_flag[fub_axi_arid];
+                for (int i = 0; i < NID; i++) begin
+                    r_cnt[i] <= r_cnt[i] + (XW+1)'(w_ar_hs && (fub_axi_arid == IW'(i)))
+                                         - (XW+1)'(tb_retire && (r_s_id[w_pick_idx] == IW'(i)));
+                    if (w_ar_hs && fub_axi_aridunq && (fub_axi_arid == IW'(i)))
+                        r_flag[i] <= 1'b1;
+                    else if (tb_retire && r_s_uq[w_pick_idx] && (r_s_id[w_pick_idx] == IW'(i)))
+                        r_flag[i] <= 1'b0;
+                end
+            end
+        )
+        assign w_q_uq_err = r_q_valid && r_q_uq_bad;
+    end else begin : g_no_uq
+        assign w_q_uq_err = 1'b0;
+    end endgenerate
 
     logic w_q_addr_err, w_q_proto_err;
     assign w_q_addr_err  = r_q_valid && !r_q_win;
@@ -306,6 +352,7 @@ module axi_stress_slv_rd
             fub_axi_rsb   <= r_s_rsb[w_pick_idx];
             fub_axi_rpoison <= POISON && f_poison(r_s_addr[w_pick_idx], cfg_hash_seed,
                                                   cfg.poison_lg2);
+            fub_axi_ridunq  <= r_s_uq[w_pick_idx];
         end
     end
 
@@ -326,11 +373,11 @@ module axi_stress_slv_rd
             if (r_rv && fub_axi_rready)     sts.beats  <= sts.beats + 32'd1;
             if (w_q_addr_err)  sts.err_mask[ERR_S_ADDR]  <= 1'b1;
             if (w_q_proto_err) sts.err_mask[ERR_S_PROTO] <= 1'b1;
-            if (w_q_sb_err)    sts.err_mask[ERR_S_SB]    <= 1'b1;
-            if (w_q_addr_err || w_q_proto_err || w_q_sb_err)
-                sts.err_cnt <= (sts.err_cnt > 16'hFFFC) ? 16'hFFFF
+            if (w_q_sb_err || w_q_uq_err) sts.err_mask[ERR_S_SB] <= 1'b1;
+            if (w_q_addr_err || w_q_proto_err || w_q_sb_err || w_q_uq_err)
+                sts.err_cnt <= (sts.err_cnt > 16'hFFFB) ? 16'hFFFF
                              : sts.err_cnt + 16'(w_q_addr_err) + 16'(w_q_proto_err)
-                               + 16'(w_q_sb_err);
+                               + 16'(w_q_sb_err) + 16'(w_q_uq_err);
             if (!sts.fe_valid && (w_q_addr_err || w_q_proto_err)) begin
                 sts.fe_valid <= 1'b1;
                 sts.fe_kind  <= w_q_addr_err ? 4'(ERR_S_ADDR) : 4'(ERR_S_PROTO);
@@ -345,6 +392,13 @@ module axi_stress_slv_rd
                 sts.fe_addr  <= r_q_addr;
                 sts.fe_exp   <= 32'(w_q_sb_exp);
                 sts.fe_act   <= 32'(r_q_sb);
+            end else if (!sts.fe_valid && w_q_uq_err) begin
+                sts.fe_valid <= 1'b1;
+                sts.fe_kind  <= 4'(ERR_S_SB);
+                sts.fe_id    <= 16'(r_q_id);
+                sts.fe_addr  <= r_q_addr;
+                sts.fe_exp   <= 32'h0;
+                sts.fe_act   <= 32'h1D00_0000;     // IDUNQ rule
             end
             sts.out_now <= 8'(tb_count);
             if (8'(tb_count) > sts.out_max) sts.out_max <= 8'(tb_count);

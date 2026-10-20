@@ -82,7 +82,8 @@ module axi_stress_txn_gen
     output logic [1:0]          txn_resp,      // the window's expected response
     output logic                txn_strb_rand,
     output logic                txn_sb,        // AXI5: the window expects responses to echo
-    output logic [3:0]          txn_plg2       // AXI5: the window's poison rate
+    output logic [3:0]          txn_plg2,      // AXI5: the window's poison rate
+    output logic                txn_atom       // AXI5: the window's path carries atomics
 );
 
     localparam int WSW = (NWIN > 1) ? $clog2(NWIN) : 1;
@@ -269,6 +270,7 @@ module axi_stress_txn_gen
             txn_strb_rand <= w_w.strb_rand;
             txn_sb        <= w_w.sb;
             txn_plg2      <= w_w.poison_lg2;
+            txn_atom      <= w_w.atomic;
         end
     end
 

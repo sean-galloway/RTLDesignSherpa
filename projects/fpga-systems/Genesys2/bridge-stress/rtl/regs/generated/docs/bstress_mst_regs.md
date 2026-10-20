@@ -24,6 +24,7 @@ Don't override. Generated from: $root
 | 0x034|WR_TXN_COUNT|  — |
 | 0x038|   WR_SEED  |  — |
 | 0x03C|  WR_ID_CFG |  — |
+| 0x040|   WR_ATOM  |  — |
 | 0x100|   WIN[0]   |  — |
 | 0x110|   WIN[1]   |  — |
 | 0x120|   WIN[2]   |  — |
@@ -133,6 +134,7 @@ Don't override. Generated from: $root
 |  0  |    ENABLE   |  rw  | 0x0 |  — |
 |  1  |   QOS_RAND  |  rw  | 0x0 |  — |
 | 6:2 | TIMEOUT_LG2 |  rw  | 0x0 |  — |
+|  7  |    IDUNQ    |  rw  | 0x0 |  — |
 | 11:8|RESP_THROTTLE|  rw  | 0x0 |  — |
 |15:12|DATA_THROTTLE|  rw  | 0x0 |  — |
 |23:16|   GAP_MASK  |  rw  | 0x0 |  — |
@@ -149,6 +151,10 @@ Don't override. Generated from: $root
 #### TIMEOUT_LG2 field
 
 <p>ERR_HANG after 2^n cycles with work outstanding and no response; 0 = off.</p>
+
+#### IDUNQ field
+
+<p>AXI5: mark AxIDUNQ on bursts an address hash picks, when their ID has nothing outstanding; nothing else is issued on that ID until it completes.</p>
 
 #### RESP_THROTTLE field
 
@@ -220,6 +226,7 @@ Don't override. Generated from: $root
 |  0  |    ENABLE   |  rw  | 0x0 |  — |
 |  1  |   QOS_RAND  |  rw  | 0x0 |  — |
 | 6:2 | TIMEOUT_LG2 |  rw  | 0x0 |  — |
+|  7  |    IDUNQ    |  rw  | 0x0 |  — |
 | 11:8|RESP_THROTTLE|  rw  | 0x0 |  — |
 |15:12|DATA_THROTTLE|  rw  | 0x0 |  — |
 |23:16|   GAP_MASK  |  rw  | 0x0 |  — |
@@ -236,6 +243,10 @@ Don't override. Generated from: $root
 #### TIMEOUT_LG2 field
 
 <p>ERR_HANG after 2^n cycles with work outstanding and no response; 0 = off.</p>
+
+#### IDUNQ field
+
+<p>AXI5: mark AxIDUNQ on bursts an address hash picks, when their ID has nothing outstanding; nothing else is issued on that ID until it completes.</p>
 
 #### RESP_THROTTLE field
 
@@ -295,6 +306,20 @@ Don't override. Generated from: $root
 #### BASE field
 
 <p>AxID = BASE ^ (random &amp; MASK).</p>
+
+### WR_ATOM register
+
+- Absolute Address: 0x40
+- Base Offset: 0x40
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 3:0|    LG2   |  rw  | 0x0 |  — |
+
+#### LG2 field
+
+<p>AXI5: 1 write burst in 2^n to an ATOMIC window becomes a one-beat atomic (Store / Load / Swap / Compare, by address hash) on an ID with the MSB set; 0 = none. Keep RD_ID_CFG and WR_ID_CFG below the ID MSB when this is set: those IDs belong to atomics.</p>
 
 ## WIN register file
 
@@ -371,6 +396,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -407,6 +433,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -483,6 +513,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -519,6 +550,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -595,6 +630,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -631,6 +667,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -707,6 +747,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -743,6 +784,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -819,6 +864,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -855,6 +901,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -931,6 +981,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -967,6 +1018,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -1043,6 +1098,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1079,6 +1135,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ## WIN register file
 
@@ -1155,6 +1215,7 @@ Don't override. Generated from: $root
 |  15 |   WR_EN  |  rw  | 0x0 |  — |
 |  16 |    SB    |  rw  | 0x0 |  — |
 |23:20|POISON_LG2|  rw  | 0x0 |  — |
+|  24 |  ATOMIC  |  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1191,6 +1252,10 @@ Don't override. Generated from: $root
 #### POISON_LG2 field
 
 <p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
+
+#### ATOMIC field
+
+<p>AXI5: the path to this window carries atomics (both ends AXI5 with atomic), so writes to it may become atomics (WR_ATOM).</p>
 
 ### RD_STATUS register
 

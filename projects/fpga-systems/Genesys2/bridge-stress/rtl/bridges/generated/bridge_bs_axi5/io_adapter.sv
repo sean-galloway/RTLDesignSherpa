@@ -40,6 +40,7 @@ module bridge_bs_axi5_io_adapter
     input  logic         io_axi_awtrace,
     input  logic [10:0]  io_axi_awmpam,
     input  logic [15:0]  io_axi_awmecid,
+    input  logic         io_axi_awidunq,
 
     input  logic [31:0]  io_axi_wdata,
     input  logic [3:0]  io_axi_wstrb,
@@ -54,6 +55,7 @@ module bridge_bs_axi5_io_adapter
     output  logic         io_axi_bvalid,
     input  logic         io_axi_bready,
     output  logic         io_axi_btrace,
+    output  logic         io_axi_bidunq,
 
     input  logic [7:0]  io_axi_arid,
     input  logic [31:0]  io_axi_araddr,
@@ -71,6 +73,7 @@ module bridge_bs_axi5_io_adapter
     input  logic         io_axi_artrace,
     input  logic [10:0]  io_axi_armpam,
     input  logic [15:0]  io_axi_armecid,
+    input  logic         io_axi_aridunq,
 
     output  logic [7:0]  io_axi_rid,
     output  logic [31:0]  io_axi_rdata,
@@ -80,6 +83,7 @@ module bridge_bs_axi5_io_adapter
     output  logic         io_axi_rvalid,
     input  logic         io_axi_rready,
     output  logic         io_axi_rtrace,
+    output  logic         io_axi_ridunq,
 
     // Address decode outputs (full width one-hot)
     output logic [NUM_SLAVES-1:0] slave_select_aw,
@@ -193,12 +197,18 @@ module bridge_bs_axi5_io_adapter
     logic         fub_axi_awtrace;  // AXI5 sideband (trace)
     logic [10:0]  fub_axi_awmpam;  // AXI5 sideband (mpam)
     logic [15:0]  fub_axi_awmecid;  // AXI5 sideband (mecid)
+    logic         fub_axi_awidunq;  // AXI5 sideband (unique)
     logic         fub_axi_btrace;  // AXI5 sideband (trace)
     logic [3:0]  fub_axi_arnsaid;  // AXI5 sideband (nsaid)
     logic         fub_axi_artrace;  // AXI5 sideband (trace)
     logic [10:0]  fub_axi_armpam;  // AXI5 sideband (mpam)
     logic [15:0]  fub_axi_armecid;  // AXI5 sideband (mecid)
+    logic         fub_axi_aridunq;  // AXI5 sideband (unique)
     logic         fub_axi_rtrace;  // AXI5 sideband (trace)
+
+    // AXI5 boundary-generated signals (GitHub #102 item 5)
+    logic         fub_axi_bidunq;  // regenerated (A5.2)
+    logic         fub_axi_ridunq;  // regenerated (A5.2)
 
     // Fabric IDs: {BRIDGE_ID, remap slot} (bridge_id_remap below). Responses
     // return with the slot, which restores the master's ID.
@@ -225,7 +235,7 @@ module bridge_bs_axi5_io_adapter
         .ENABLE_TRACE(1'b1),
         .ENABLE_MPAM(1'b1),
         .ENABLE_MECID(1'b1),
-        .ENABLE_UNIQUE(1'b0),
+        .ENABLE_UNIQUE(1'b1),
         .ENABLE_MTE(1'b0),
         .ENABLE_POISON(1'b0),
         .ENABLE_WAKEUP(1'b0)
@@ -251,7 +261,7 @@ module bridge_bs_axi5_io_adapter
         .s_axi_awtrace(io_axi_awtrace),
         .s_axi_awmpam(io_axi_awmpam),
         .s_axi_awmecid(io_axi_awmecid),
-        .s_axi_awidunq('0),
+        .s_axi_awidunq(io_axi_awidunq),
         .s_axi_awtagop('0),
         .s_axi_awakeup('0),
         .s_axi_wdata(io_axi_wdata),
@@ -269,7 +279,7 @@ module bridge_bs_axi5_io_adapter
         .s_axi_bvalid(io_axi_bvalid),
         .s_axi_bready(io_axi_bready),
         .s_axi_btrace(io_axi_btrace),
-        .s_axi_bidunq(),
+        .s_axi_bidunq(io_axi_bidunq),
         .s_axi_btagmatch(),
 
         // Bridge-internal side (fub_axi)
@@ -290,7 +300,7 @@ module bridge_bs_axi5_io_adapter
         .fub_axi_awtrace(fub_axi_awtrace),
         .fub_axi_awmpam(fub_axi_awmpam),
         .fub_axi_awmecid(fub_axi_awmecid),
-        .fub_axi_awidunq(),
+        .fub_axi_awidunq(fub_axi_awidunq),
         .fub_axi_awtagop(),
         .fub_axi_awakeup(),
         .fub_axi_wdata(fub_axi_wdata),
@@ -308,7 +318,7 @@ module bridge_bs_axi5_io_adapter
         .fub_axi_bvalid(fub_axi_bvalid),
         .fub_axi_bready(fub_axi_bready),
         .fub_axi_btrace(fub_axi_btrace),
-        .fub_axi_bidunq('0),
+        .fub_axi_bidunq(fub_axi_bidunq),
         .fub_axi_btagmatch('0),
 
         // Status (empty connector = unconnected tie-off)
@@ -329,7 +339,7 @@ module bridge_bs_axi5_io_adapter
         .ENABLE_TRACE(1'b1),
         .ENABLE_MPAM(1'b1),
         .ENABLE_MECID(1'b1),
-        .ENABLE_UNIQUE(1'b0),
+        .ENABLE_UNIQUE(1'b1),
         .ENABLE_CHUNKING(1'b0),
         .ENABLE_MTE(1'b0),
         .ENABLE_POISON(1'b0),
@@ -355,7 +365,7 @@ module bridge_bs_axi5_io_adapter
         .s_axi_artrace(io_axi_artrace),
         .s_axi_armpam(io_axi_armpam),
         .s_axi_armecid(io_axi_armecid),
-        .s_axi_aridunq('0),
+        .s_axi_aridunq(io_axi_aridunq),
         .s_axi_archunken('0),
         .s_axi_artagop('0),
         .s_axi_awakeup('0),
@@ -367,7 +377,7 @@ module bridge_bs_axi5_io_adapter
         .s_axi_rvalid(io_axi_rvalid),
         .s_axi_rready(io_axi_rready),
         .s_axi_rtrace(io_axi_rtrace),
-        .s_axi_ridunq(),
+        .s_axi_ridunq(io_axi_ridunq),
         .s_axi_rpoison(),
         .s_axi_rchunkv(),
         .s_axi_rchunknum(),
@@ -391,7 +401,7 @@ module bridge_bs_axi5_io_adapter
         .fub_axi_artrace(fub_axi_artrace),
         .fub_axi_armpam(fub_axi_armpam),
         .fub_axi_armecid(fub_axi_armecid),
-        .fub_axi_aridunq(),
+        .fub_axi_aridunq(fub_axi_aridunq),
         .fub_axi_archunken(),
         .fub_axi_artagop(),
         .fub_axi_awakeup(),
@@ -403,7 +413,7 @@ module bridge_bs_axi5_io_adapter
         .fub_axi_rvalid(fub_axi_rvalid),
         .fub_axi_rready(fub_axi_rready),
         .fub_axi_rtrace(fub_axi_rtrace),
-        .fub_axi_ridunq('0),
+        .fub_axi_ridunq(fub_axi_ridunq),
         .fub_axi_rpoison('0),
         .fub_axi_rchunkv('0),
         .fub_axi_rchunknum('0),
@@ -413,6 +423,31 @@ module bridge_bs_axi5_io_adapter
         // Status (empty connector = unconnected tie-off)
         .busy(wrapper_rd_busy)
     );
+
+
+    // ================================================================
+    // BIDUNQ / RIDUNQ regenerated per ID (IHI 0022L A5.2)
+    // ================================================================
+    localparam int IDUNQ_IDS = 1 << 8;
+    logic [IDUNQ_IDS-1:0] r_awidunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awidunq_by_id <= '0;
+        end else if (fub_axi_awvalid && fub_axi_awready) begin
+            r_awidunq_by_id[fub_axi_awid] <= fub_axi_awidunq;
+        end
+    )
+    assign fub_axi_bidunq = r_awidunq_by_id[fub_axi_bid];
+    logic [IDUNQ_IDS-1:0] r_aridunq_by_id;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aridunq_by_id <= '0;
+        end else begin
+            if (fub_axi_arvalid && fub_axi_arready)
+                r_aridunq_by_id[fub_axi_arid] <= fub_axi_aridunq;
+        end
+    )
+    assign fub_axi_ridunq = r_aridunq_by_id[fub_axi_rid];
 
     logic [NUM_SLAVES-1:0] b_slave_select;
     logic [NUM_SLAVES-1:0] w_slave_select;
@@ -514,11 +549,14 @@ module bridge_bs_axi5_io_adapter
     assign io_64b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_64b_ar.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_64b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
 
     // Write rate buffer (16 x 64b): the converter's wide side
     // feeds it, and a burst of up to 16 beats reaches the crossbar only once
@@ -719,11 +757,14 @@ module bridge_bs_axi5_io_adapter
     assign io_128b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_ar.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
 
     // Write rate buffer (16 x 128b): the converter's wide side
     // feeds it, and a burst of up to 16 beats reaches the crossbar only once

@@ -10,14 +10,15 @@ Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
       on both sides, and the scenario's feature (reordering, interleaving,
       partial strobes, error responses) was actually seen on the wire.
   cocotb_test_axi_stress_faults  each of the harness's one-shot faults (eight;
-      nine with AXI3, which adds a flipped WID; fourteen with AXI5, which adds
-      flipped ARTRACE, AWMECID, WPOISON, RTRACE, RPOISON and BTRACE) must raise
-      the error the blocks claim it raises.
+      nine with AXI3, which adds a flipped WID; nineteen with AXI5, which adds
+      flipped ARTRACE, AWMECID, WPOISON, RTRACE, RPOISON, BTRACE, RIDUNQ, BIDUNQ,
+      a forced ARIDUNQ on a busy ID, a corrupted atomic read-return and a
+      reserved AWATOP) must raise the error the blocks claim it raises.
 
 TEST_PROTO picks the shells (axi4 | axi3 | axi5); the cores and every check
 are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
 checks WID against the AWID of the burst each beat belongs to. With AXI5 both
-shells carry NSAID, TRACE, MPAM, MECID and POISON, every window is a sideband
+shells carry NSAID, TRACE, MPAM, MECID, POISON, UNIQUE and ATOMIC, every window is a sideband
 path and one beat in four is poisoned; the monitor checks every field, and a
 run must have poisoned beats in both directions.
 """
@@ -49,6 +50,7 @@ def _windows(tag, *, err=False, narrow=False, aligned=False):
 
 
 AXI5_POISON_LG2 = 2      # one beat in four
+AXI5_ATOM_LG2 = 2        # one write burst in four becomes an atomic
 
 
 def _scenario(name, n, tag, proto='axi4'):
@@ -79,8 +81,9 @@ def _scenario(name, n, tag, proto='axi4'):
         raise ValueError(f'unknown scenario {name}')
     if proto == 'axi5':
         for w in wins:
-            w.sb, w.poison_lg2 = 1, AXI5_POISON_LG2
+            w.sb, w.poison_lg2, w.atomic = 1, AXI5_POISON_LG2, 1
         s.update(sb_src=0x01, poison_lg2=AXI5_POISON_LG2)
+        m.update(idunq=1, atom_lg2=AXI5_ATOM_LG2)
     return wins, dict(m, seed=0x1111_0000 + n), dict(m, seed=0x2222_0000 + n), \
         dict(s, seed=0x3333), dict(s, seed=0x4444)
 
@@ -123,6 +126,13 @@ async def cocotb_test_axi_stress_clean(dut):
         assert tb.stats['r_poison'] > 0 and tb.stats['w_poison'] > 0, \
             'AXI5: no beat was poisoned in one direction'
         assert tb.stats['r_poison'] < tb.stats['r_beats'], 'AXI5: every R beat poisoned'
+        assert tb.stats['uq_ar'] > 0 and tb.stats['uq_aw'] > 0, \
+            'AXI5: no burst was issued with AxIDUNQ in one direction'
+        for c in ('store', 'load', 'swap', 'compare'):
+            assert tb.stats[f'atom_{c}'] > 0, f'AXI5: no Atomic{c.capitalize()} issued'
+        assert tb.stats['atom_rr'] == (tb.stats['atom_load'] + tb.stats['atom_swap']
+                                       + tb.stats['atom_compare']), \
+            'AXI5: a read-return atomic got no R beat (or one too many)'
 
     if name in ('ooo', 'interleave', 'narrow', 'errwin'):
         assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
@@ -157,7 +167,9 @@ FAULTS = [
 ]
 FAULTS_AXI3 = [(8, 'swr', {'S_WID'})]
 FAULTS_AXI5 = [(9, 'srd', {'S_SB'}), (10, 'swr', {'S_SB'}), (11, 'mrd', {'M_SB'}),
-               (12, 'mrd', {'M_SB'}), (13, 'mwr', {'M_SB'}), (14, 'swr', {'S_SB'})]
+               (12, 'mrd', {'M_SB'}), (13, 'mwr', {'M_SB'}), (14, 'swr', {'S_SB'}),
+               (15, 'mrd', {'M_SB'}), (16, 'mwr', {'M_SB'}), (17, 'srd', {'S_SB'}),
+               (18, 'mwr', {'RD_DATA'}), (19, 'swr', {'S_PROTO'})]
 FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5}
 
 

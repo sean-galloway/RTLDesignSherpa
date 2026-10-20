@@ -153,6 +153,7 @@ module axi3_master_stress
             .fub_axi_aruser    (f_aruser),
             /* verilator lint_off PINCONNECTEMPTY */
             .fub_axi_arsb      (),
+            .fub_axi_aridunq   (),
             /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_arvalid   (f_arvalid),
             .fub_axi_arready   (f_arready),
@@ -163,6 +164,7 @@ module axi3_master_stress
             .fub_axi_ruser     (f_ruser),
             .fub_axi_rsb       ('0),
             .fub_axi_rpoison   (1'b0),
+            .fub_axi_ridunq    (1'b0),
             .fub_axi_rvalid    (f_rvalid),
             .fub_axi_rready    (f_rready)
         );
@@ -277,6 +279,18 @@ module axi3_master_stress
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW), .LEN_MASK(A3_LEN_MASK)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_awatop    (),
+            .fub_axi_atr_ready (),
+            /* verilator lint_on PINCONNECTEMPTY */
+            .fub_axi_atr_valid (1'b0),
+            .fub_axi_atr_id    ('0),
+            .fub_axi_atr_data  ('0),
+            .fub_axi_atr_resp  (2'b00),
+            .fub_axi_atr_last  (1'b0),
+            .fub_axi_atr_rsb   (8'd0),
+            .fub_axi_atr_poison(1'b0),
+            .fub_axi_atr_ridunq(1'b0),
             .cfg (cfg_wr), .cfg_win, .cfg_hash_seed, .sts (sts_wr),
             .fub_axi_awid      (f_awid),
             .fub_axi_awaddr    (f_awaddr),
@@ -291,6 +305,7 @@ module axi3_master_stress
             .fub_axi_awuser    (f_awuser),
             /* verilator lint_off PINCONNECTEMPTY */
             .fub_axi_awsb      (),
+            .fub_axi_awidunq   (),
             /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_awvalid   (f_awvalid),
             .fub_axi_awready   (f_awready),
@@ -308,6 +323,7 @@ module axi3_master_stress
             .fub_axi_bresp     (f_bresp),
             .fub_axi_buser     (f_buser),
             .fub_axi_bsb       ('0),
+            .fub_axi_bidunq    (1'b0),
             .fub_axi_bvalid    (f_bvalid),
             .fub_axi_bready    (f_bready)
         );

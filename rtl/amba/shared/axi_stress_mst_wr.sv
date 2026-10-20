@@ -37,6 +37,22 @@
 // request's (f_rsb(AWSB) & RSB_MASK: BTRACE = AWTRACE) when the window says
 // responses echo (its sb), else 0 (ERR_M_SB). The slave checks AWSB and
 // WPOISON.
+//
+// AXI5 IDUNQ (UNIQUE, cfg.idunq): as axi_stress_mst_rd, AWIDUNQ on eligible
+// bursts, nothing else on a unique burst's ID until its B, and every BIDUNQ
+// must be the bit its burst was issued with (ERR_M_SB).
+//
+// AXI5 atomics (ATOMIC, cfg.atom_lg2, window atomic): an address hash makes 1
+// burst in 2^n to an atomic window an atomic, reshaped into one legal beat
+// (axi_stress_pkg f_atom_pick) on an ID from the upper half (ID MSB set; no
+// other write uses it, and the host keeps reads below it). An atomic waits
+// until its ID has nothing outstanding -- no burst, no read-return still
+// owed (the AXI5 atomic ID rule). Its operand is ordinary write data. A
+// read-return class (AWATOP[5]) also expects one R beat with its ID, which
+// the shell steers here (fub_axi_atr_*): RLAST, RRESP against the window,
+// the lanes against f_word(address, tag, RD), and RTRACE / RPOISON /
+// RIDUNQ as on a read. Misses use the read codes (ERR_RD_STRAY / LAST /
+// RESP / DATA) and ERR_M_SB in this block's status.
 //==============================================================================
 
 `timescale 1ns / 1ps
@@ -55,6 +71,8 @@ module axi_stress_mst_wr
     parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
     parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
     parameter bit POISON  = 1'b0,        // AXI5 WPOISON driven
+    parameter bit UNIQUE  = 1'b0,        // AXI5 AWIDUNQ driven, BIDUNQ checked
+    parameter bit ATOMIC  = 1'b0,        // AXI5 atomics issued (needs IW >= 2)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -83,6 +101,8 @@ module axi_stress_mst_wr
     output logic [3:0]          fub_axi_awregion,
     output logic [UW-1:0]       fub_axi_awuser,
     output logic [31:0]      fub_axi_awsb,
+    output logic                fub_axi_awidunq,
+    output logic [5:0]          fub_axi_awatop,
     output logic                fub_axi_awvalid,
     input  logic                fub_axi_awready,
 
@@ -99,8 +119,20 @@ module axi_stress_mst_wr
     input  logic [1:0]          fub_axi_bresp,
     input  logic [UW-1:0]       fub_axi_buser,
     input  logic [7:0]     fub_axi_bsb,
+    input  logic                fub_axi_bidunq,
     input  logic                fub_axi_bvalid,
-    output logic                fub_axi_bready
+    output logic                fub_axi_bready,
+
+    // AXI5: the R beats of read-return atomics (RID MSB set), from the shell
+    input  logic                fub_axi_atr_valid,
+    output logic                fub_axi_atr_ready,
+    input  logic [IW-1:0]       fub_axi_atr_id,
+    input  logic [DW-1:0]       fub_axi_atr_data,
+    input  logic [1:0]          fub_axi_atr_resp,
+    input  logic                fub_axi_atr_last,
+    input  logic [7:0]          fub_axi_atr_rsb,
+    input  logic                fub_axi_atr_poison,
+    input  logic                fub_axi_atr_ridunq
 );
 
     // =========================================================================
@@ -124,7 +156,7 @@ module axi_stress_mst_wr
     // =========================================================================
     // Generator
     // =========================================================================
-    logic          t_valid, t_ready, t_strb_rand, t_sb;
+    logic          t_valid, t_ready, t_strb_rand, t_sb, t_atom;
     logic [3:0]    t_plg2;
     logic [31:0]   t_addr;
     logic [7:0]    t_len, t_gap, t_tag;
@@ -160,8 +192,44 @@ module axi_stress_mst_wr
         .txn_resp     (t_resp),
         .txn_strb_rand(t_strb_rand),
         .txn_sb       (t_sb),
-        .txn_plg2     (t_plg2)
+        .txn_plg2     (t_plg2),
+        .txn_atom     (t_atom)
     );
+
+    // =========================================================================
+    // AXI5 atomics: the burst as issued (e_*)
+    // =========================================================================
+    logic [31:0]   w_ah;
+    logic [8:0]    w_apick;              // {AWATOP, AWSIZE}
+    logic          w_atom, w_atom_rr;
+    logic [31:0]   e_addr;
+    logic [7:0]    e_len;
+    logic [2:0]    e_size;
+    logic [1:0]    e_burst;
+    logic [IW-1:0] e_id;
+    logic          e_srand;
+
+    assign w_ah      = f_sb(t_addr ^ 32'hA70B_1C55, cfg_hash_seed);
+    assign w_apick   = f_atom_pick(f_xs32(w_ah), 3'(BUS_LG2));
+    assign w_atom    = ATOMIC && t_atom && (cfg.atom_lg2 != 4'd0)
+                    && ((w_ah[31:16] & ((16'd1 << cfg.atom_lg2) - 16'd1)) == 16'd0);
+    assign w_atom_rr = w_atom && w_apick[8];
+    always_comb begin
+        e_addr  = t_addr;
+        e_len   = t_len;
+        e_size  = t_size;
+        e_burst = t_burst;
+        e_srand = t_strb_rand;
+        e_id    = t_id;
+        if (ATOMIC) e_id[IW-1] = w_atom;
+        if (w_atom) begin
+            e_size  = w_apick[2:0];
+            e_addr  = t_addr & ~((32'd1 << w_apick[2:0]) - 32'd1);
+            e_len   = 8'd0;
+            e_burst = BURST_INCR;
+            e_srand = 1'b0;               // every operand byte strobed
+        end
+    end
 
     // =========================================================================
     // Outstanding table
@@ -169,19 +237,22 @@ module axi_stress_mst_wr
     logic          tb_full, tb_lk_hit, tb_retire;
     logic [XW-1:0] tb_alloc_idx, tb_lk_idx;
     logic [XW:0]   tb_count;
+    logic [DEPTH-1:0] tb_tail_vec;
     logic          w_issue;
 
     logic          r_b_valid;
     logic [IW-1:0] r_b_id;
     logic [1:0]    r_b_resp;
     logic [7:0] r_b_bsb;
+    logic          r_b_bidunq;
 
     axi_stress_ord_table #(.DEPTH(DEPTH), .KW(IW)) u_tbl (
         .aclk, .aresetn,
         .clear        (w_go),
         .alloc_valid  (w_issue),
-        .alloc_key    (t_id),
+        .alloc_key    (e_id),
         .alloc_idx    (tb_alloc_idx),
+        .alloc_tail_vec (tb_tail_vec),
         .full         (tb_full),
         .lk_key       (r_b_id),
         .lk_hit       (tb_lk_hit),
@@ -201,6 +272,19 @@ module axi_stress_mst_wr
     logic [15:0]      r_s_ts    [DEPTH];
     logic [DEPTH-1:0] r_s_wdone;           // the burst's last W has left
     logic [7:0]  r_s_bsb   [DEPTH];   // AXI5: the B sideband expected
+    logic [DEPTH-1:0] r_s_uq;         // AXI5: issued with AWIDUNQ
+    logic [DEPTH-1:0] r_s_ex;         // AXI5: unique or atomic -- its ID waits
+
+    // AXI5 IDUNQ, as axi_stress_mst_rd: blocked while the ID's newest burst
+    // is unique; unique only when nothing on the ID is outstanding. An atomic
+    // is held the same way, and also while its ID owes a read-return.
+    logic w_uq_blk, w_uq, w_rr_id_live, w_rr_full;
+    logic [31:0] w_uq_h;           // a named wire: IEEE 1800 has no select on a call
+    assign w_uq_h = f_sb(t_addr ^ 32'h7F4A_7C15, cfg_hash_seed);
+    assign w_uq_blk = ((UNIQUE || ATOMIC) && (|(tb_tail_vec & r_s_ex)))
+                   || (w_atom && ((|tb_tail_vec) || w_rr_id_live || w_rr_full));
+    assign w_uq     = UNIQUE && cfg.idunq && !(|tb_tail_vec)
+                   && w_uq_h[0];
 
     // =========================================================================
     // W queue: one entry per issued burst, in AW order
@@ -217,7 +301,7 @@ module axi_stress_mst_wr
         .axi_aresetn (aresetn),
         .wr_valid    (w_issue),
         .wr_ready    (wq_wr_ready),
-        .wr_data     ({tb_alloc_idx, t_id, t_addr, t_len, t_size, t_burst, t_tag, t_strb_rand,
+        .wr_data     ({tb_alloc_idx, e_id, e_addr, e_len, e_size, e_burst, t_tag, e_srand,
                        t_plg2}),
         .rd_ready    (wq_rd_ready),
         /* verilator lint_off PINCONNECTEMPTY */
@@ -245,7 +329,7 @@ module axi_stress_mst_wr
     logic [15:0] r_now;
 
     assign w_issue = r_run && t_valid && w_budget_left && (r_gap_cnt == '0)
-                  && !tb_full && (tb_count < w_max_out) && wq_wr_ready
+                  && !tb_full && (tb_count < w_max_out) && wq_wr_ready && !w_uq_blk
                   && (!r_aw_valid || fub_axi_awready);
     assign t_ready = w_issue;
 
@@ -265,15 +349,19 @@ module axi_stress_mst_wr
 
     always_ff @(posedge aclk) begin
         if (w_issue) begin
-            fub_axi_awid    <= t_id;
-            fub_axi_awaddr  <= t_addr;
-            fub_axi_awlen   <= t_len;
-            fub_axi_awsize  <= t_size;
-            fub_axi_awburst <= t_burst;
+            fub_axi_awid    <= e_id;
+            fub_axi_awaddr  <= e_addr;
+            fub_axi_awlen   <= e_len;
+            fub_axi_awsize  <= e_size;
+            fub_axi_awburst <= e_burst;
             fub_axi_awqos   <= t_qos;
-            fub_axi_awsb    <= (SB_MASK != '0) ? (f_sb(t_addr, cfg_hash_seed) & SB_MASK) : '0;
+            fub_axi_awsb    <= (SB_MASK != '0) ? (f_sb(e_addr, cfg_hash_seed) & SB_MASK) : '0;
+            fub_axi_awidunq <= w_uq;
+            fub_axi_awatop  <= w_atom ? w_apick[8:3] : 6'd0;
+            r_s_uq  [tb_alloc_idx] <= w_uq;
+            r_s_ex  [tb_alloc_idx] <= w_uq || w_atom;
             r_s_resp[tb_alloc_idx] <= t_resp;
-            r_s_bsb [tb_alloc_idx] <= t_sb ? (f_rsb(f_sb(t_addr, cfg_hash_seed) & SB_MASK)
+            r_s_bsb [tb_alloc_idx] <= t_sb ? (f_rsb(f_sb(e_addr, cfg_hash_seed) & SB_MASK)
                                               & RSB_MASK) : '0;
             r_s_ts  [tb_alloc_idx] <= r_now;
         end
@@ -434,6 +522,7 @@ module axi_stress_mst_wr
             r_b_id   <= fub_axi_bid;
             r_b_resp <= fub_axi_bresp;
             r_b_bsb  <= fub_axi_bsb;
+            r_b_bidunq <= fub_axi_bidunq;
         end
     end
 
@@ -466,8 +555,188 @@ module axi_stress_mst_wr
 
     // AXI5: the B response sideband
     logic w_bsb_err;
-    assign w_bsb_err = (RSB_MASK != '0) && r_b_valid && tb_lk_hit
-                    && ((r_b_bsb & RSB_MASK) != r_s_bsb[tb_lk_idx]);
+    assign w_bsb_err = r_b_valid && tb_lk_hit
+                    && (((RSB_MASK != '0) && ((r_b_bsb & RSB_MASK) != r_s_bsb[tb_lk_idx]))
+                        || (UNIQUE && (r_b_bidunq != r_s_uq[tb_lk_idx])));
+
+    // =========================================================================
+    // AXI5 read-return atomics: the R beats owed, and their checks
+    // =========================================================================
+    // One entry per read-return atomic issued, until its R beat arrives. A
+    // later atomic on the same ID waits for it (w_rr_id_live). Two stages
+    // after the registered handshake: B finds the entry by RID and checks
+    // RLAST / RRESP / sideband, C checks the lanes.
+    logic [DEPTH-1:0] r_rr_v;
+    logic [IW-1:0]    r_rr_id   [DEPTH];
+    logic [31:0]      r_rr_addr [DEPTH];
+    logic [2:0]       r_rr_size [DEPTH];
+    logic [7:0]       r_rr_tag  [DEPTH];
+    logic [1:0]       r_rr_resp [DEPTH];
+    logic [7:0]       r_rr_rsb  [DEPTH];
+    logic [3:0]       r_rr_plg2 [DEPTH];
+    logic [DEPTH-1:0] r_rr_uq;
+
+    logic [XW-1:0] w_rr_free;
+    logic          w_rr_alloc;
+    always_comb begin
+        w_rr_free    = '0;
+        w_rr_full    = 1'b1;
+        w_rr_id_live = 1'b0;
+        for (int i = DEPTH - 1; i >= 0; i--) begin
+            if (!r_rr_v[i]) begin
+                w_rr_free = XW'(i);
+                w_rr_full = 1'b0;
+            end
+            if (r_rr_v[i] && (r_rr_id[i] == e_id)) w_rr_id_live = 1'b1;
+        end
+        if (!ATOMIC) w_rr_full = 1'b0;
+    end
+    assign w_rr_alloc = w_issue && w_atom_rr;
+
+    // stage A: the handshake
+    logic          r_ra_valid, r_ra_last, r_ra_poison, r_ra_ridunq;
+    logic [IW-1:0] r_ra_id;
+    logic [DW-1:0] r_ra_data;
+    logic [1:0]    r_ra_resp;
+    logic [7:0]    r_ra_rsb;
+    wire           w_atr_hs = ATOMIC && fub_axi_atr_valid;
+    assign fub_axi_atr_ready = 1'b1;
+
+    always_ff @(posedge aclk) begin
+        if (w_atr_hs) begin
+            r_ra_id     <= fub_axi_atr_id;
+            r_ra_data   <= fub_axi_atr_data;
+            r_ra_resp   <= fub_axi_atr_resp;
+            r_ra_last   <= fub_axi_atr_last;
+            r_ra_rsb    <= fub_axi_atr_rsb;
+            r_ra_poison <= fub_axi_atr_poison;
+            r_ra_ridunq <= fub_axi_atr_ridunq;
+        end
+    end
+
+    // stage B: which atomic, and its control checks
+    logic          w_rb_hit;
+    logic [XW-1:0] w_rb_idx;
+    always_comb begin
+        w_rb_hit = 1'b0;
+        w_rb_idx = '0;
+        for (int i = 0; i < DEPTH; i++)
+            if (r_rr_v[i] && (r_rr_id[i] == r_ra_id)) begin
+                w_rb_hit = 1'b1;
+                w_rb_idx = XW'(i);
+            end
+    end
+
+    logic        w_rb_err, w_rb_sb_err;
+    logic [3:0]  w_rb_kind;
+    logic [31:0] w_rb_exp, w_rb_act;
+    logic        w_rb_p_exp;
+    assign w_rb_p_exp = POISON && f_poison(r_rr_addr[w_rb_idx], cfg_hash_seed, r_rr_plg2[w_rb_idx]);
+    always_comb begin
+        w_rb_err  = 1'b0;
+        w_rb_kind = 4'(ERR_RD_STRAY);
+        w_rb_exp  = '0;
+        w_rb_act  = '0;
+        if (r_ra_valid) begin
+            if (!w_rb_hit) begin
+                w_rb_err = 1'b1;
+                w_rb_act = r_ra_data[31:0];
+            end else if (!r_ra_last) begin
+                w_rb_err  = 1'b1;
+                w_rb_kind = 4'(ERR_RD_LAST);
+                w_rb_exp  = 32'd1;
+            end else if (r_ra_resp != r_rr_resp[w_rb_idx]) begin
+                w_rb_err  = 1'b1;
+                w_rb_kind = 4'(ERR_RD_RESP);
+                w_rb_exp  = {30'd0, r_rr_resp[w_rb_idx]};
+                w_rb_act  = {30'd0, r_ra_resp};
+            end
+        end
+    end
+    assign w_rb_sb_err = r_ra_valid && w_rb_hit
+                      && (((r_ra_rsb & RSB_MASK) != r_rr_rsb[w_rb_idx])
+                          || (POISON && (r_ra_poison != w_rb_p_exp))
+                          || (UNIQUE && (r_ra_ridunq != r_rr_uq[w_rb_idx])));
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_ra_valid <= 1'b0;
+            r_rr_v     <= '0;
+        end else begin
+            r_ra_valid <= w_atr_hs;
+            if (w_go) r_rr_v <= '0;
+            else begin
+                if (r_ra_valid && w_rb_hit) r_rr_v[w_rb_idx] <= 1'b0;
+                if (w_rr_alloc)             r_rr_v[w_rr_free] <= 1'b1;
+            end
+        end
+    )
+
+    always_ff @(posedge aclk) begin
+        if (w_rr_alloc) begin
+            r_rr_id  [w_rr_free] <= e_id;
+            r_rr_addr[w_rr_free] <= e_addr;
+            r_rr_size[w_rr_free] <= e_size;
+            r_rr_tag [w_rr_free] <= t_tag;
+            r_rr_resp[w_rr_free] <= t_resp;
+            r_rr_rsb [w_rr_free] <= t_sb ? (f_rsb(f_sb(e_addr, cfg_hash_seed) & SB_MASK)
+                                            & RSB_MASK) : '0;
+            r_rr_plg2[w_rr_free] <= t_plg2;
+            r_rr_uq  [w_rr_free] <= w_uq;
+        end
+    end
+
+    // stage C: the lanes
+    logic            r_rc_valid;
+    logic [31:0]     r_rc_addr;
+    logic [2:0]      r_rc_size;
+    logic [7:0]      r_rc_tag;
+    logic [IW-1:0]   r_rc_id;
+    logic [DW-1:0]   r_rc_data;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_rc_valid <= 1'b0;
+        else r_rc_valid <= r_ra_valid && w_rb_hit && r_ra_last
+                        && (r_rr_resp[w_rb_idx] == RESP_OKAY) && (r_ra_resp == RESP_OKAY);
+    )
+
+    always_ff @(posedge aclk) begin
+        if (r_ra_valid) begin
+            r_rc_addr <= r_rr_addr[w_rb_idx];
+            r_rc_size <= r_rr_size[w_rb_idx];
+            r_rc_tag  <= r_rr_tag[w_rb_idx];
+            r_rc_id   <= r_ra_id;
+            r_rc_data <= r_ra_data;
+        end
+    end
+
+    logic        w_rc_err;
+    logic [31:0] w_rc_exp_w, w_rc_act_w, w_rc_addr_w;
+    always_comb begin
+        logic [BUS_LG2:0] lo, hi;
+        logic [31:0]      bytes, word;
+        logic [NL-1:0]    bad;
+        bytes = 32'd1 << r_rc_size;
+        lo    = (BUS_LG2+1)'(r_rc_addr[BUS_LG2-1:0]);
+        hi    = lo + (BUS_LG2+1)'(bytes) - (BUS_LG2+1)'(1);   // aligned: one run of lanes
+        w_rc_exp_w  = '0;
+        w_rc_act_w  = '0;
+        w_rc_addr_w = '0;
+        for (int l = NL - 1; l >= 0; l--) begin
+            word   = f_word({r_rc_addr[31:BUS_LG2], BUS_LG2'(l * 4)}, cfg_hash_seed, r_rc_tag, 1'b1);
+            bad[l] = 1'b0;
+            for (int b = 0; b < 4; b++)
+                if (((BUS_LG2+1)'(l*4 + b) >= lo) && ((BUS_LG2+1)'(l*4 + b) <= hi)
+                    && (word[b*8 +: 8] != r_rc_data[l*32 + b*8 +: 8]))
+                    bad[l] = 1'b1;
+            if (bad[l]) begin
+                w_rc_exp_w  = word;
+                w_rc_act_w  = r_rc_data[l*32 +: 32];
+                w_rc_addr_w = {r_rc_addr[31:BUS_LG2], BUS_LG2'(l * 4)};
+            end
+        end
+        w_rc_err = r_rc_valid && (|bad);
+    end
 
     // =========================================================================
     // Hang detection and status
@@ -513,17 +782,44 @@ module axi_stress_mst_wr
                 if (tb_retire) r_completed <= r_completed + 32'd1;
                 if (w_w_hs)    r_beats     <= r_beats + 32'd1;
 
-                if (w_b_hs || w_w_hs || tb_count == '0) r_idle <= '0;
-                else if (!r_idle[31])                   r_idle <= r_idle + 32'd1;
+                if (w_b_hs || w_w_hs || w_atr_hs || (tb_count == '0 && r_rr_v == '0))
+                    r_idle <= '0;
+                else if (!r_idle[31])
+                    r_idle <= r_idle + 32'd1;
 
-                if (w_b_err)   sts.err_mask[w_b_kind] <= 1'b1;
-                if (w_bsb_err) sts.err_mask[ERR_M_SB] <= 1'b1;
-                if (w_hang)    sts.err_mask[ERR_HANG] <= 1'b1;
-                if (w_b_err || w_bsb_err || w_hang)
-                    sts.err_cnt <= (sts.err_cnt > 16'hFFFC) ? 16'hFFFF
-                                 : sts.err_cnt + 16'(w_b_err) + 16'(w_bsb_err) + 16'(w_hang);
+                if (w_b_err)     sts.err_mask[w_b_kind]    <= 1'b1;
+                if (w_bsb_err)   sts.err_mask[ERR_M_SB]    <= 1'b1;
+                if (w_rb_err)    sts.err_mask[w_rb_kind]   <= 1'b1;
+                if (w_rb_sb_err) sts.err_mask[ERR_M_SB]    <= 1'b1;
+                if (w_rc_err)    sts.err_mask[ERR_RD_DATA] <= 1'b1;
+                if (w_hang)      sts.err_mask[ERR_HANG]    <= 1'b1;
+                if (w_b_err || w_bsb_err || w_rb_err || w_rb_sb_err || w_rc_err || w_hang)
+                    sts.err_cnt <= (sts.err_cnt > 16'hFFF9) ? 16'hFFFF
+                                 : sts.err_cnt + 16'(w_b_err) + 16'(w_bsb_err) + 16'(w_rb_err)
+                                   + 16'(w_rb_sb_err) + 16'(w_rc_err) + 16'(w_hang);
                 if (!sts.fe_valid) begin
-                    if (w_b_err) begin
+                    if (w_rc_err) begin
+                        sts.fe_valid <= 1'b1;
+                        sts.fe_kind  <= 4'(ERR_RD_DATA);
+                        sts.fe_id    <= 16'(r_rc_id);
+                        sts.fe_addr  <= w_rc_addr_w;
+                        sts.fe_exp   <= w_rc_exp_w;
+                        sts.fe_act   <= w_rc_act_w;
+                    end else if (w_rb_err) begin
+                        sts.fe_valid <= 1'b1;
+                        sts.fe_kind  <= w_rb_kind;
+                        sts.fe_id    <= 16'(r_ra_id);
+                        sts.fe_addr  <= w_rb_hit ? r_rr_addr[w_rb_idx] : 32'd0;
+                        sts.fe_exp   <= w_rb_exp;
+                        sts.fe_act   <= w_rb_act;
+                    end else if (w_rb_sb_err) begin
+                        sts.fe_valid <= 1'b1;
+                        sts.fe_kind  <= 4'(ERR_M_SB);
+                        sts.fe_id    <= 16'(r_ra_id);
+                        sts.fe_addr  <= r_rr_addr[w_rb_idx];
+                        sts.fe_exp   <= {w_rb_p_exp,  r_rr_uq[w_rb_idx], 22'd0, r_rr_rsb[w_rb_idx]};
+                        sts.fe_act   <= {r_ra_poison, r_ra_ridunq, 22'd0, r_ra_rsb};
+                    end else if (w_b_err) begin
                         sts.fe_valid <= 1'b1;
                         sts.fe_kind  <= w_b_kind;
                         sts.fe_id    <= 16'(r_b_id);
@@ -535,8 +831,8 @@ module axi_stress_mst_wr
                         sts.fe_kind  <= 4'(ERR_M_SB);
                         sts.fe_id    <= 16'(r_b_id);
                         sts.fe_addr  <= '0;
-                        sts.fe_exp   <= 32'(r_s_bsb[tb_lk_idx]);
-                        sts.fe_act   <= 32'(r_b_bsb);
+                        sts.fe_exp   <= {r_s_uq[tb_lk_idx], 23'd0, r_s_bsb[tb_lk_idx]};
+                        sts.fe_act   <= {r_b_bidunq, 23'd0, r_b_bsb};
                     end else if (w_hang) begin
                         sts.fe_valid <= 1'b1;
                         sts.fe_kind  <= 4'(ERR_HANG);
@@ -564,7 +860,8 @@ module axi_stress_mst_wr
     )
 
     assign w_done_now = !r_run && (tb_count == '0) && !r_aw_valid && !r_wv && !r_wa
-                     && !wq_rd_valid && !r_b_valid;
+                     && !wq_rd_valid && !r_b_valid
+                     && (r_rr_v == '0) && !r_ra_valid && !r_rc_valid;
 
     wire unused = ^{fub_axi_buser};
 

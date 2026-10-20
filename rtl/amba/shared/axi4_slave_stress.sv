@@ -184,6 +184,7 @@ module axi4_slave_stress
             .fub_axi_arregion  (f_arregion),
             .fub_axi_aruser    (f_aruser),
             .fub_axi_arsb      ('0),
+            .fub_axi_aridunq   (1'b0),
             .fub_axi_arvalid   (f_arvalid),
             .fub_axi_arready   (f_arready),
             .fub_axi_rid       (f_rid),
@@ -194,6 +195,7 @@ module axi4_slave_stress
             /* verilator lint_off PINCONNECTEMPTY */
             .fub_axi_rsb       (),
             .fub_axi_rpoison   (),
+            .fub_axi_ridunq    (),
             /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_rvalid    (f_rvalid),
             .fub_axi_rready    (f_rready)
@@ -297,6 +299,17 @@ module axi4_slave_stress
             .DEPTH(DEPTH), .IW(IW), .DW(DW), .UW(UW)
         ) u_core (
             .aclk, .aresetn, .clear,
+            .fub_axi_awatop    (6'd0),
+            .fub_axi_atr_ready (1'b1),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_atr_valid (),
+            .fub_axi_atr_id    (),
+            .fub_axi_atr_data  (),
+            .fub_axi_atr_resp  (),
+            .fub_axi_atr_rsb   (),
+            .fub_axi_atr_poison(),
+            .fub_axi_atr_ridunq(),
+            /* verilator lint_on PINCONNECTEMPTY */
             .cfg (cfg_wr), .cfg_hash_seed, .sts (sts_wr),
             .fub_axi_awid      (f_awid),
             .fub_axi_awaddr    (f_awaddr),
@@ -310,6 +323,7 @@ module axi4_slave_stress
             .fub_axi_awregion  (f_awregion),
             .fub_axi_awuser    (f_awuser),
             .fub_axi_awsb      ('0),
+            .fub_axi_awidunq   (1'b0),
             .fub_axi_awvalid   (f_awvalid),
             .fub_axi_awready   (f_awready),
             .fub_axi_wdata     (f_wdata),
@@ -325,6 +339,7 @@ module axi4_slave_stress
             .fub_axi_buser     (f_buser),
             /* verilator lint_off PINCONNECTEMPTY */
             .fub_axi_bsb       (),
+            .fub_axi_bidunq    (),
             /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_bvalid    (f_bvalid),
             .fub_axi_bready    (f_bready)

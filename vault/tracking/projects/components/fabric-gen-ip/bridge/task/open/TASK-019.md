@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-19
 **Priority:** P2
-**Status:** OPEN (phase 1, AXI3 and AXI5 sideband/poison done; atomics / IDUNQ / MTE next)
+**Status:** OPEN (phases 1, 2a, 2b, 2c done on the board; MTE next)
 **Owner:** unassigned
 **Where:** `projects/fpga-systems/Genesys2/bridge-stress/` (PRD.md), cores in `rtl/amba/shared/axi_stress_*.sv`
 
@@ -59,10 +59,32 @@ both ends.
   trace-capable slave echoes it too; the stress slave now does.
 - Filed bridge BUG-019 (unaligned INCR steps in several converters).
 
+## Done (phase 2c, IDUNQ + atomics, 2026-10-19)
+
+- IDUNQ: masters mark a burst unique (address hash) only when its ID has
+  nothing outstanding and hold the ID until it completes; slaves check the
+  rule on the IDs they see; BIDUNQ / RIDUNQ checked. The ord table exposes
+  the key's tail (`alloc_tail_vec`) for this. Pair test faults: flipped
+  RIDUNQ / BIDUNQ, a forced ARIDUNQ on a busy ID. Harness sim through the
+  bridge 9/9.
+- Atomics: one-beat Store / Load / Swap / Compare by address hash on IDs
+  with the MSB set, held until the ID is free (incl. a read-return owed);
+  stateless "original value" = the read hash; the slave queues the R beat
+  behind its W beat and `axi_stress_r_merge` puts it on R between read
+  bursts; the master steers RID-MSB beats to its write core. Faults: a
+  corrupted read-return, a reserved AWATOP. DUT: atomics on the cpu ->
+  mem0 / mem2 clique (cpu IDs 4: an rw atomic master is not remapped).
+- Limits stated (stress PRD "Limits"): the bridge's 8 read-return atomics in
+  flight per slave port (now documented in the MAS / HAS / module doc; bridge
+  TASK-020 makes it a key), no limit on atomic masters, and the model's own.
+- Harness sim 9/9 on all three builds; the harness TB now counts atomics,
+  IDUNQ and poison at the pins and fails a run where they did not happen.
+  Board 27/27 and a 15-minute soak 172/172; WNS +0.298 ns, 92.1k LUTs.
+
 ## Remaining
 
 | Phase | Work |
 |---|---|
-| 2c | atomics (stateless: an atomic's original data is f_word, so Load/Swap/Compare return it on R; needs an atomic-only ID range shared by the rd and wr cores and R routing to the write core), AxIDUNQ (issue only when the ID has nothing outstanding), MTE (tags as an address hash; BTAGMATCH predicted) |
+| 2d | MTE (tags as an address hash; BTAGMATCH predicted) |
 | 3 | single-beat shells for `axil`/`axil5`, `apb`/`apb5` (slaves in offset mode -- the bridge hands an APB slave a window offset), `wb4`; DUT `bridge_bs_mixed_b.toml` |
 | any | re-run `--full-axi` once BUG-018 is fixed and drop the converted-path limits |

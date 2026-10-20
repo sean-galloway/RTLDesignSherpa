@@ -22,9 +22,15 @@
 //   BTRACE, RTRACE   (EN_TRACE) checked against the request's TRACE on a
 //            window with sb set (responses echo), else against 0.
 //   WPOISON, RPOISON (EN_POISON) f_poison(beat address, the window's rate).
-// No AxREGION (AXI5 removed it). Not driven yet, held at 0: AWATOP, AxIDUNQ,
-// AxTAGOP / WTAG / WTAGUPDATE, ARCHUNKEN, AWAKEUP; their response fields are
-// ignored. Every AXI5 pin is on the port whatever the build; a pin of a
+//   AxIDUNQ  (EN_UNIQUE, cfg idunq) only on a burst whose ID has nothing else
+//            outstanding, and nothing more on that ID until it completes;
+//            BIDUNQ / RIDUNQ must return the bit.
+//   AWATOP   (EN_ATOMIC, cfg atom_lg2, window atomic) one-beat atomics on
+//            IDs with the MSB set; R beats with RID MSB set are the
+//            read-return atomics' and go to the write core, every other R
+//            beat to the read core. The host keeps read IDs below the MSB.
+// No AxREGION (AXI5 removed it). Not driven yet, held at 0: AxTAGOP / WTAG /
+// WTAGUPDATE, ARCHUNKEN, AWAKEUP; their response fields are ignored. Every AXI5 pin is on the port whatever the build; a pin of a
 // disabled feature is tied off by the channel module.
 // A port built for one direction (EN_RD / EN_WR = 0) elaborates no logic for
 // the other; its outputs are tied idle and its status reads done, no errors.
@@ -44,6 +50,8 @@ module axi5_master_stress
     parameter bit EN_MPAM   = 1'b0,
     parameter bit EN_MECID  = 1'b0,
     parameter bit EN_POISON = 1'b0,
+    parameter bit EN_UNIQUE = 1'b0,
+    parameter bit EN_ATOMIC = 1'b0,      // needs EN_RD and EN_WR, IW >= 2
     parameter int DEPTH   = 16,
     parameter int NWIN    = 8,
     parameter int IW      = 8,
@@ -145,6 +153,14 @@ module axi5_master_stress
                                      | (EN_MPAM  ? SB_M_MPAM  : '0) | (EN_MECID ? SB_M_MECID : '0);
     localparam logic [7:0]  RSB_MASK = EN_TRACE ? RSB_M_TRACE : '0;
 
+    // AXI5 read-return atomics: R beats steered from the read side to the
+    // write core
+    logic          atr_valid, atr_ready, atr_last, atr_poison, atr_ridunq;
+    logic [IW-1:0] atr_id;
+    logic [DW-1:0] atr_data;
+    logic [1:0]    atr_resp;
+    logic [7:0]    atr_rsb;
+
     // =========================================================================
     // Read
     // =========================================================================
@@ -168,11 +184,18 @@ module axi5_master_stress
         logic              f_rlast;
         logic [UW-1:0]     f_ruser;
         logic              f_rvalid, f_rready;
-        logic              f_rtrace, f_rpoison;
+        logic              f_rtrace, f_rpoison, f_aridunq, f_ridunq;
+        // the channel module's R, before the atomic steering
+        logic [IW-1:0]     c_rid;
+        logic [DW-1:0]     c_rdata;
+        logic [1:0]        c_rresp;
+        logic              c_rlast, c_rvalid, c_rready, c_rtrace, c_rpoison, c_ridunq;
+        logic [UW-1:0]     c_ruser;
+        logic              w_is_atr;
 
         axi_stress_mst_rd #(
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW),
-            .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON)
+            .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON), .UNIQUE(EN_UNIQUE)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
             .cfg (cfg_rd), .cfg_win, .cfg_hash_seed, .sts (sts_rd),
@@ -188,6 +211,7 @@ module axi5_master_stress
             .fub_axi_arregion  (f_arregion),
             .fub_axi_aruser    (f_aruser),
             .fub_axi_arsb      (f_arsb),
+            .fub_axi_aridunq   (f_aridunq),
             .fub_axi_arvalid   (f_arvalid),
             .fub_axi_arready   (f_arready),
             .fub_axi_rid       (f_rid),
@@ -197,6 +221,7 @@ module axi5_master_stress
             .fub_axi_ruser     (f_ruser),
             .fub_axi_rsb       ({7'd0, f_rtrace}),
             .fub_axi_rpoison   (f_rpoison),
+            .fub_axi_ridunq    (f_ridunq),
             .fub_axi_rvalid    (f_rvalid),
             .fub_axi_rready    (f_rready)
         );
@@ -205,7 +230,7 @@ module axi5_master_stress
             .SKID_DEPTH_AR(SKID_DEPTH_AR), .SKID_DEPTH_R(SKID_DEPTH_R),
             .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
             .ENABLE_NSAID(EN_NSAID), .ENABLE_TRACE(EN_TRACE), .ENABLE_MPAM(EN_MPAM),
-            .ENABLE_MECID(EN_MECID), .ENABLE_UNIQUE(1'b0), .ENABLE_CHUNKING(1'b0),
+            .ENABLE_MECID(EN_MECID), .ENABLE_UNIQUE(EN_UNIQUE), .ENABLE_CHUNKING(1'b0),
             .ENABLE_MTE(1'b0), .ENABLE_POISON(EN_POISON), .ENABLE_WAKEUP(1'b0)
         ) u_chan (
             .aclk, .aresetn,
@@ -226,21 +251,19 @@ module axi5_master_stress
             .fub_axi_artrace   (f_arsb[4]),
             .fub_axi_armpam    (f_arsb[15:5]),
             .fub_axi_armecid   (f_arsb[31:16]),
-            .fub_axi_aridunq   (1'b0),
+            .fub_axi_aridunq   (f_aridunq),
             .fub_axi_archunken (1'b0),
             .fub_axi_artagop   (2'b00),
-            .fub_axi_rid       (f_rid),
-            .fub_axi_rdata     (f_rdata),
-            .fub_axi_rresp     (f_rresp),
-            .fub_axi_rlast     (f_rlast),
-            .fub_axi_ruser     (f_ruser),
-            .fub_axi_rvalid    (f_rvalid),
-            .fub_axi_rready    (f_rready),
-            .fub_axi_rtrace    (f_rtrace),
-            /* verilator lint_off PINCONNECTEMPTY */
-            .fub_axi_ridunq    (),
-            /* verilator lint_on PINCONNECTEMPTY */
-            .fub_axi_rpoison   (f_rpoison),
+            .fub_axi_rid       (c_rid),
+            .fub_axi_rdata     (c_rdata),
+            .fub_axi_rresp     (c_rresp),
+            .fub_axi_rlast     (c_rlast),
+            .fub_axi_ruser     (c_ruser),
+            .fub_axi_rvalid    (c_rvalid),
+            .fub_axi_rready    (c_rready),
+            .fub_axi_rtrace    (c_rtrace),
+            .fub_axi_ridunq    (c_ridunq),
+            .fub_axi_rpoison   (c_rpoison),
             /* verilator lint_off PINCONNECTEMPTY */
             .fub_axi_rchunkv   (),
             .fub_axi_rchunknum (),
@@ -288,8 +311,36 @@ module axi5_master_stress
             /* verilator lint_on PINCONNECTEMPTY */
         );
 
+        assign w_is_atr   = EN_ATOMIC && c_rid[IW-1];
+        assign f_rid      = c_rid;
+        assign f_rdata    = c_rdata;
+        assign f_rresp    = c_rresp;
+        assign f_rlast    = c_rlast;
+        assign f_ruser    = c_ruser;
+        assign f_rtrace   = c_rtrace;
+        assign f_ridunq   = c_ridunq;
+        assign f_rpoison  = c_rpoison;
+        assign f_rvalid   = c_rvalid && !w_is_atr;
+        assign atr_valid  = c_rvalid &&  w_is_atr;
+        assign c_rready   = w_is_atr ? atr_ready : f_rready;
+        assign atr_id     = c_rid;
+        assign atr_data   = c_rdata;
+        assign atr_resp   = c_rresp;
+        assign atr_last   = c_rlast;
+        assign atr_rsb    = {7'd0, c_rtrace};
+        assign atr_poison = c_rpoison;
+        assign atr_ridunq = c_ridunq;
+
         wire unused_rd = ^{f_arregion};
     end else begin : g_no_rd
+        assign atr_valid  = 1'b0;
+        assign atr_id     = '0;
+        assign atr_data   = '0;
+        assign atr_resp   = '0;
+        assign atr_last   = 1'b0;
+        assign atr_rsb    = '0;
+        assign atr_poison = 1'b0;
+        assign atr_ridunq = 1'b0;
         always_comb begin
             sts_rd      = '0;
             sts_rd.done = 1'b1;
@@ -341,11 +392,13 @@ module axi5_master_stress
         logic [IW-1:0]     f_bid;
         logic [1:0]        f_bresp;
         logic [UW-1:0]     f_buser;
-        logic              f_bvalid, f_bready, f_btrace;
+        logic              f_bvalid, f_bready, f_btrace, f_awidunq, f_bidunq;
+        logic [5:0]        f_awatop;
 
         axi_stress_mst_wr #(
             .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .UW(UW),
-            .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON)
+            .SB_MASK(SB_MASK), .RSB_MASK(RSB_MASK), .POISON(EN_POISON), .UNIQUE(EN_UNIQUE),
+            .ATOMIC(EN_ATOMIC)
         ) u_core (
             .aclk, .aresetn, .go, .stop,
             .cfg (cfg_wr), .cfg_win, .cfg_hash_seed, .sts (sts_wr),
@@ -361,6 +414,8 @@ module axi5_master_stress
             .fub_axi_awregion  (f_awregion),
             .fub_axi_awuser    (f_awuser),
             .fub_axi_awsb      (f_awsb),
+            .fub_axi_awidunq   (f_awidunq),
+            .fub_axi_awatop    (f_awatop),
             .fub_axi_awvalid   (f_awvalid),
             .fub_axi_awready   (f_awready),
             .fub_axi_wdata     (f_wdata),
@@ -375,15 +430,25 @@ module axi5_master_stress
             .fub_axi_bresp     (f_bresp),
             .fub_axi_buser     (f_buser),
             .fub_axi_bsb       ({7'd0, f_btrace}),
+            .fub_axi_bidunq    (f_bidunq),
             .fub_axi_bvalid    (f_bvalid),
-            .fub_axi_bready    (f_bready)
+            .fub_axi_bready    (f_bready),
+            .fub_axi_atr_valid (atr_valid),
+            .fub_axi_atr_ready (atr_ready),
+            .fub_axi_atr_id    (atr_id),
+            .fub_axi_atr_data  (atr_data),
+            .fub_axi_atr_resp  (atr_resp),
+            .fub_axi_atr_last  (atr_last),
+            .fub_axi_atr_rsb   (atr_rsb),
+            .fub_axi_atr_poison(atr_poison),
+            .fub_axi_atr_ridunq(atr_ridunq)
         );
 
         axi5_master_wr #(
             .SKID_DEPTH_AW(SKID_DEPTH_AW), .SKID_DEPTH_W(SKID_DEPTH_W), .SKID_DEPTH_B(SKID_DEPTH_B),
             .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(UW),
-            .ENABLE_ATOMIC(1'b0), .ENABLE_NSAID(EN_NSAID), .ENABLE_TRACE(EN_TRACE),
-            .ENABLE_MPAM(EN_MPAM), .ENABLE_MECID(EN_MECID), .ENABLE_UNIQUE(1'b0),
+            .ENABLE_ATOMIC(EN_ATOMIC), .ENABLE_NSAID(EN_NSAID), .ENABLE_TRACE(EN_TRACE),
+            .ENABLE_MPAM(EN_MPAM), .ENABLE_MECID(EN_MECID), .ENABLE_UNIQUE(EN_UNIQUE),
             .ENABLE_MTE(1'b0), .ENABLE_POISON(EN_POISON), .ENABLE_WAKEUP(1'b0)
         ) u_chan (
             .aclk, .aresetn,
@@ -400,12 +465,12 @@ module axi5_master_stress
             .fub_axi_awvalid   (f_awvalid),
             .fub_axi_awakeup   (1'b0),
             .fub_axi_awready   (f_awready),
-            .fub_axi_awatop    (6'd0),
+            .fub_axi_awatop    (f_awatop),
             .fub_axi_awnsaid   (f_awsb[3:0]),
             .fub_axi_awtrace   (f_awsb[4]),
             .fub_axi_awmpam    (f_awsb[15:5]),
             .fub_axi_awmecid   (f_awsb[31:16]),
-            .fub_axi_awidunq   (1'b0),
+            .fub_axi_awidunq   (f_awidunq),
             .fub_axi_awtagop   (2'b00),
             .fub_axi_wdata     (f_wdata),
             .fub_axi_wstrb     (f_wstrb),
@@ -422,8 +487,8 @@ module axi5_master_stress
             .fub_axi_bvalid    (f_bvalid),
             .fub_axi_bready    (f_bready),
             .fub_axi_btrace    (f_btrace),
+            .fub_axi_bidunq    (f_bidunq),
             /* verilator lint_off PINCONNECTEMPTY */
-            .fub_axi_bidunq    (),
             .fub_axi_btagmatch (),
             /* verilator lint_on PINCONNECTEMPTY */
             .m_axi_awid        (m_axi_awid),
@@ -470,6 +535,7 @@ module axi5_master_stress
 
         wire unused_wr = ^{f_awregion, f_wid};
     end else begin : g_no_wr
+        assign atr_ready = 1'b1;
         always_comb begin
             sts_wr      = '0;
             sts_wr.done = 1'b1;

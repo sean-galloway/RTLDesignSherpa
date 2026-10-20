@@ -202,8 +202,13 @@ and fails on the pre-L1b RTL.
 (AWID -> requester index) at every AW handshake with `AWATOP[5]` set, and
 answers combinationally from `RID`. An R beat it claims is routed by its
 tag and does **not** pop the in-order read FIFO; every other beat routes by
-FIFO position as before. The atomic AW's `awready` is held while the
-tracker is full. The bridge BUG-008 (was BRIDGE-010) in-order check skips tracked beats and
+FIFO position as before. The tracker holds **8** entries (`DEPTH(8)`,
+fixed in `slave_adapter_generator.py`; bridge TASK-020 makes it a TOML
+key), so a slave port has at most eight read-return atomics in flight; the
+ninth atomic AW's `awready` is held until an earlier one's last R beat
+frees a slot. The number of atomic masters is not limited: every fabric ID
+carries its master's index, so atomics from different masters never share
+an ID at the slave. The bridge BUG-008 (was BRIDGE-010) in-order check skips tracked beats and
 reports, in simulation, an R beat that matches both a tracked atomic and
 the FIFO head: that is two requesters aliasing one ID at this slave, which
 this fabric does not disambiguate.

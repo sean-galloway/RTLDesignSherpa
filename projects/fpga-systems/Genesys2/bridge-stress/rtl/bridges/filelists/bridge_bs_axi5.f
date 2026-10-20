@@ -42,6 +42,9 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/br
 -f $REPO_ROOT/rtl/amba/filelists/axi5_slave_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi5_slave_rd.f
 
+# AXI5 atomic read-return tracker (per-ID R routing for AtomicLoad/Swap/Compare, A5-3b)
+-f $REPO_ROOT/rtl/amba/filelists/axi5_atomic_rr_tracker.f
+
 # AXI5 boundary wrappers (slaves with protocol=axi5).
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi5_master_rd.f
