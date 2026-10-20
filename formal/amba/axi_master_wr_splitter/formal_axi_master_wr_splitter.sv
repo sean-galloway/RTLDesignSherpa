@@ -31,6 +31,19 @@ module formal_axi_master_wr_splitter #(
         if (f_past_valid >= 1) assume (rst_n);
     end
 
+    // The DUT's internal reset is a reset_sync (N=3, async assert, sync
+    // deassert; d661406b0): it releases THREE clock edges after rst_n. The
+    // harness cannot reach dut.w_aresetn in this flow (a plain-Verilog read
+    // makes a dotted reference a free implicit wire), so it mirrors the
+    // synchronizer and gates every environment assumption, model and check on
+    // the mirror. Gating them on raw rst_n modelled a bus the DUT was not yet
+    // answering for three cycles, and the proof failed at step 3.
+    reg [2:0] f_rs = 3'b0;
+    always @(posedge clk or negedge rst_n)
+        if (!rst_n) f_rs <= 3'b0;
+        else        f_rs <= {f_rs[1:0], 1'b1};
+    wire f_rst_n = f_rs[2];
+
     // =========================================================================
     // Free inputs
     // =========================================================================
@@ -169,22 +182,22 @@ module formal_axi_master_wr_splitter #(
     localparam int BYTES_PER_BEAT = DW / 8;
     localparam int LOG2_BPB = $clog2(BYTES_PER_BEAT);
 
-    always @(posedge clk) if (rst_n) assume (alignment_mask == 12'hFFF);
-    always @(posedge clk) if (rst_n) assume (fub_awburst == 2'b01);
-    always @(posedge clk) if (rst_n) assume (fub_awsize == LOG2_BPB[2:0]);
-    always @(posedge clk) if (rst_n) assume (fub_awlen <= 8'd3);
-    always @(posedge clk) if (rst_n) assume ((fub_awaddr & AW'(BYTES_PER_BEAT - 1)) == '0);
-    always @(posedge clk) if (rst_n) assume (!block_ready);
+    always @(posedge clk) if (f_rst_n) assume (alignment_mask == 12'hFFF);
+    always @(posedge clk) if (f_rst_n) assume (fub_awburst == 2'b01);
+    always @(posedge clk) if (f_rst_n) assume (fub_awsize == LOG2_BPB[2:0]);
+    always @(posedge clk) if (f_rst_n) assume (fub_awlen <= 8'd3);
+    always @(posedge clk) if (f_rst_n) assume ((fub_awaddr & AW'(BYTES_PER_BEAT - 1)) == '0);
+    always @(posedge clk) if (f_rst_n) assume (!block_ready);
 
     // AXI valid-stable on AW channel
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
+        if (f_past_valid > 0 && f_rst_n && $past(f_rst_n))
             if ($past(fub_awvalid) && !$past(fub_awready))
                 assume (fub_awvalid);
     end
 
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(rst_n))
+        if (f_past_valid > 0 && f_rst_n && $past(f_rst_n))
             if ($past(fub_awvalid) && !$past(fub_awready)) begin
                 assume (fub_awaddr == $past(fub_awaddr));
                 assume (fub_awlen  == $past(fub_awlen));
@@ -198,13 +211,13 @@ module formal_axi_master_wr_splitter #(
 
     // P1: After reset, m_axi_awvalid follows fub_awvalid (IDLE passthrough)
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n) && rst_n)
+        if (f_past_valid > 0 && $past(!f_rst_n) && f_rst_n)
             ap_reset_awvalid: assert (m_axi_awvalid == fub_awvalid);
     end
 
     // P2: Write data passthrough
     always @(posedge clk) begin
-        if (rst_n) begin
+        if (f_rst_n) begin
             ap_wdata_pass:  assert (m_axi_wdata  == fub_wdata);
             ap_wstrb_pass:  assert (m_axi_wstrb  == fub_wstrb);
             ap_wuser_pass:  assert (m_axi_wuser  == fub_wuser);
@@ -218,7 +231,7 @@ module formal_axi_master_wr_splitter #(
 
     // P3: fub_wready mirrors m_axi_wready
     always @(posedge clk) begin
-        if (rst_n)
+        if (f_rst_n)
             // Likewise fub_wready = m_axi_wready && r_aw_issued: the requester is never
             // told a beat was taken that the downstream did not take...
             ap_wready_no_invent: assert (!fub_wready || m_axi_wready);
@@ -229,19 +242,19 @@ module formal_axi_master_wr_splitter #(
 
     // P4: After reset with no valid fub request, fub_awready follows m_axi_awready
     always @(posedge clk) begin
-        if (f_past_valid > 0 && rst_n && $past(!rst_n) && !fub_awvalid)
+        if (f_past_valid > 0 && f_rst_n && $past(!f_rst_n) && !fub_awvalid)
             ap_reset_awready: assert (fub_awready == m_axi_awready);
     end
 
     // P5: m_axi_awlen never exceeds constraint
     always @(posedge clk) begin
-        if (rst_n && m_axi_awvalid)
+        if (f_rst_n && m_axi_awvalid)
             ap_len_bounded: assert (m_axi_awlen <= 8'd3);
     end
 
     // P6: After reset, no fub_bvalid (no response pending)
     always @(posedge clk) begin
-        if (f_past_valid > 0 && $past(!rst_n) && rst_n && !m_axi_bvalid)
+        if (f_past_valid > 0 && $past(!f_rst_n) && f_rst_n && !m_axi_bvalid)
             ap_reset_no_bresp: assert (!fub_bvalid);
     end
 
@@ -267,7 +280,7 @@ module formal_axi_master_wr_splitter #(
     // =========================================================================
     reg [8:0] f_split_beats;  // downstream beats issued for the in-flight original
     always @(posedge clk) begin
-        if (!rst_n)                               f_split_beats <= 9'd0;
+        if (!f_rst_n)                               f_split_beats <= 9'd0;
         else if (fub_awvalid && fub_awready)      f_split_beats <= 9'd0;
         else if (m_axi_awvalid && m_axi_awready)  f_split_beats <= f_split_beats
                                                                   + 9'(m_axi_awlen) + 9'd1;
@@ -278,7 +291,7 @@ module formal_axi_master_wr_splitter #(
     //     one-beat transaction wrongly split into two one-beat bursts makes the
     //     second handshake 1+1 > 1.
     always @(posedge clk)
-        if (rst_n && fub_awvalid && m_axi_awvalid && m_axi_awready)
+        if (f_rst_n && fub_awvalid && m_axi_awvalid && m_axi_awready)
             ap_split_beats_conserved:
                 assert (f_split_beats + 9'(m_axi_awlen) + 9'd1 <= 9'(fub_awlen) + 9'd1);
 
@@ -287,7 +300,7 @@ module formal_axi_master_wr_splitter #(
     // =========================================================================
 
     always @(posedge clk) begin
-        if (rst_n) cp_passthrough: cover (fub_awvalid && fub_awready);
+        if (f_rst_n) cp_passthrough: cover (fub_awvalid && fub_awready);
     end
 
     // TASK-097: the antecedent of ap_split_beats_conserved. Without this, a
@@ -295,24 +308,24 @@ module formal_axi_master_wr_splitter #(
     // the four axi4 *_mon covers sat unreachable at any depth (TASK-093). A
     // verdict needs a count behind it.
     always @(posedge clk) begin
-        if (rst_n) cp_split_beats_checked:
+        if (f_rst_n) cp_split_beats_checked:
             cover (fub_awvalid && m_axi_awvalid && m_axi_awready);
     end
 
     always @(posedge clk) begin
-        if (rst_n) cp_ready_suppressed: cover (fub_awvalid && !fub_awready);
+        if (f_rst_n) cp_ready_suppressed: cover (fub_awvalid && !fub_awready);
     end
 
     always @(posedge clk) begin
-        if (rst_n) cp_split_fifo: cover (fub_split_valid);
+        if (f_rst_n) cp_split_fifo: cover (fub_split_valid);
     end
 
     always @(posedge clk) begin
-        if (rst_n) cp_w_handshake: cover (m_axi_wvalid && m_axi_wready);
+        if (f_rst_n) cp_w_handshake: cover (m_axi_wvalid && m_axi_wready);
     end
 
     always @(posedge clk) begin
-        if (rst_n) cp_b_response: cover (fub_bvalid && fub_bready);
+        if (f_rst_n) cp_b_response: cover (fub_bvalid && fub_bready);
     end
 
 endmodule
