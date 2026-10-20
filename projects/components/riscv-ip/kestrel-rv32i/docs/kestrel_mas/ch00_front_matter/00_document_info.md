@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Micro-Architecture Specification
 
 **Document Number:** KESTREL-MAS-001
-**Version:** 0.3
+**Version:** 0.4
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -87,6 +87,7 @@ The external contract — ports as an integrator wires them, memory and halt beh
 | 0.1 | 2026-10-07 | seang | Initial MAS release; documents the as-built RTL (Tasks 1-11) including the Task-9 IALIGN halt and the Task-11 AXIL board loader |
 | 0.2 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.4 | 2026-10-20 | seang | `mem_wait` core input and `kestrel_mem_bram` (block RAM, registered read, CPI 2/3 for loads; registers for run/stop, status, cycles, instret, gp): new Ch. 2.7; core chapter notes the wait. rv32ui 42/42 through it with spike lockstep; riscv-formal 42/42 with a free `mem_wait`. |
 
 : Document Revision History
 

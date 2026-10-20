@@ -59,9 +59,24 @@ module rvfi_wrapper (
     (* keep *) wire       halt;
     (* keep *) wire [3:0] halt_cause;
 
+    // Memory wait (kestrel_mem_bram's registered-read wrapper): a free input,
+    // so every check holds under ANY wait-state pattern, bounded to at most
+    // two consecutive wait cycles -- the wrapper's worst case (fetch, then a
+    // load read) -- which keeps the liveness check meaningful.
+    (* keep *) `rvformal_rand_reg mem_wait_any;
+    reg  [1:0] wait_run;
+    wire       mem_wait = mem_wait_any && (wait_run < 2'd2);
+
+    always @(posedge clock) begin
+        if (reset)         wait_run <= 2'd0;
+        else if (mem_wait) wait_run <= wait_run + 2'd1;
+        else               wait_run <= 2'd0;
+    end
+
     kestrel_core u_kestrel_core (
         .clk            (clock       ),
         .rst_n          (~reset      ),
+        .mem_wait       (mem_wait    ),
         .imem_addr      (imem_addr   ),
         .imem_rdata     (imem_rdata  ),
         .dmem_req       (dmem_req    ),

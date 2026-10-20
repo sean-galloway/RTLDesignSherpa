@@ -23,7 +23,7 @@
 
 # KESTREL-RV32I Micro-Architecture Specification Index
 
-**Version:** 0.3
+**Version:** 0.4
 **Date:** 2026-10-20
 **Purpose:** Block-level micro-architecture specification for the kestrel-rv32i single-cycle RV32I core
 
@@ -49,6 +49,7 @@
 - [kestrel_alu](ch02_blocks/04_kestrel_alu.md)
 - [kestrel_regfile](ch02_blocks/05_kestrel_regfile.md)
 - [kestrel_mem_loader](ch02_blocks/06_kestrel_mem_loader.md)
+- [kestrel_mem_bram](ch02_blocks/07_kestrel_mem_bram.md)
 
 ### Chapter 3: Internal Interfaces
 

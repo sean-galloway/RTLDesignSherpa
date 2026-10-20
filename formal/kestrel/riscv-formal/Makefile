@@ -44,12 +44,14 @@ CHECKS_DIR := $(CURDIR)/checks
 RTL_V      := $(CHECKS_DIR)/rtl_v
 HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 
-RTL_SV := $(RTL)/includes/kestrel_pkg.sv \
-          $(RTL)/fub/kestrel_regfile.sv \
-          $(RTL)/fub/kestrel_alu.sv \
-          $(RTL)/fub/kestrel_imm_gen.sv \
-          $(RTL)/fub/kestrel_decode.sv \
-          $(RTL)/top/kestrel_core.sv
+# The core's compile closure comes from its own filelist via
+# bin/flatten_filelist.py -- never hand-listed.  The hand list this replaced
+# missed rtl/cdc/reset_sync.sv when the core gained its boundary reset
+# synchronizer, and every check then failed to elaborate.
+export KESTREL_ROOT := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i
+CORE_F := $(KESTREL_ROOT)/rtl/filelists/top/kestrel_core.f
+RTL_SV  = $(shell REPO_ROOT=$(REPO_ROOT) python3 $(REPO_ROOT)/bin/flatten_filelist.py \
+              $(CORE_F) --resolve-env --absolute-paths | grep -v -e '^\#' -e '^+' -e '^$$')
 
 .PHONY: checks clean
 
@@ -71,7 +73,7 @@ checks:
 	    $(RISCV_FORMAL)/checks/rvfi_macros.vh > $(REPO_ROOT)/formal/checks/rvfi_macros.vh
 	cd $(CURDIR) && python3 $(RISCV_FORMAL)/checks/genchecks.py checks
 	mkdir -p $(RTL_V)
-	sv2v -I $(INCLUDES) --write=$(RTL_V) $(RTL_SV)
+	sv2v -I $(INCLUDES) -w $(RTL_V)/kestrel_flat.v $(RTL_SV)
 	$(MAKE) --no-print-directory -C $(CHECKS_DIR) -j$$(nproc) -f makefile
 	@fails=0; total=0; \
 	for s in $(CHECKS_DIR)/*/status; do \

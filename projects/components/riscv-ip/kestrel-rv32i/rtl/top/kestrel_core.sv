@@ -39,6 +39,15 @@
 //          The riscv-formal insn_{beq,bne,blt,bge,bltu,bgeu,jal,jalr}
 //          checks prove it.
 //
+//          Memory wait (2026-10-20, owner: a registered-read wrapper for
+//          block RAM).  `mem_wait` high means the memories have not
+//          answered this cycle: every piece of architectural state holds
+//          (PC, regfile write, halt latch, retry bits, retire counter), RVFI
+//          reports no retirement, and the combinational halt term is masked
+//          (insn is not valid yet).  Tied low, the core is exactly the
+//          single-cycle core above; kestrel_mem_bram drives it to put
+//          synchronous-read memory behind the same ports.
+//
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
 //
@@ -54,6 +63,7 @@ module kestrel_core #(
 ) (
     input  logic        clk,
     input  logic        rst_n,
+    input  logic        mem_wait,       // 1: memories not ready -- hold all state
     output logic [31:0] imem_addr,
     input  logic [31:0] imem_rdata,
     output logic        dmem_req,
@@ -323,7 +333,7 @@ module kestrel_core #(
     // early, and whenever halt is raised or held (Task 9: the misaligned
     // control-flow halt has decode rd_wen set for JAL/JALR, so the gate is
     // the halt itself, not decode's rd_wen).
-    assign rd_wen_eff = rd_wen & ~ls_first & ~halt;
+    assign rd_wen_eff = rd_wen & ~ls_first & ~halt & ~mem_wait;
     assign rd_wdata   = csr_stub              ? 32'd0        :
                         (opcode == OPCODE_LUI) ? imm          :
                         ls_load                ? ls_load_data :
@@ -392,25 +402,25 @@ module kestrel_core #(
                            & (next_pc[1:0] != 2'b00);
     assign halt_cause_eff  = dec_halt_cause
                            | (misalign_target ? HALT_IALIGN : HALT_NONE);
-    assign halt_now        = |halt_cause_eff;
+    assign halt_now        = (|halt_cause_eff) & ~mem_wait;
 
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
             halt_q <= 1'b0;
         end else begin
-            halt_q <= halt_q | halt_now;
+            halt_q <= halt_q | halt_now;   // halt_now is masked by mem_wait
         end
     )
 
     assign halt       = halt_q | halt_now;
-    assign halt_cause = halt_cause_eff;
+    assign halt_cause = mem_wait ? 4'd0 : halt_cause_eff;
 
     // PC register: hold on halt or on the first cycle of a cross-word access.
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
             pc <= RESET_ADDR;
         end else begin
-            pc <= halt ? pc : (ls_first ? pc : next_pc);
+            pc <= (halt || mem_wait) ? pc : (ls_first ? pc : next_pc);
         end
     )
 
@@ -420,7 +430,7 @@ module kestrel_core #(
         if (`RST_ASSERTED(w_aresetn)) begin
             ls_retry <= 1'b0;
         end else begin
-            ls_retry <= ls_first;
+            if (!mem_wait) ls_retry <= ls_first;
         end
     )
 
@@ -429,7 +439,7 @@ module kestrel_core #(
         if (`RST_ASSERTED(w_aresetn)) begin
             ls_rdata_lo <= '0;
         end else begin
-            if (ls_first) begin
+            if (ls_first && !mem_wait) begin
                 ls_rdata_lo <= ls_rdata_shifted;
             end
         end
@@ -465,7 +475,7 @@ module kestrel_core #(
     logic rd_wb;
 
     assign rd_wb          = rd_wen & (insn[11:7] != 5'd0) & ~halt;
-    assign rvfi_valid     = w_aresetn & ~halt_q & ~ls_first;
+    assign rvfi_valid     = w_aresetn & ~halt_q & ~ls_first & ~mem_wait;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
     assign rvfi_pc_wdata  = next_pc;

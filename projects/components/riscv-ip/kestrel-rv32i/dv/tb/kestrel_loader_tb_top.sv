@@ -144,6 +144,7 @@ module kestrel_loader_tb_top #(
     ) u_kestrel_core (
         .clk            (clk),
         .rst_n          (core_rst_n),
+        .mem_wait       (1'b0),          // combinational memories: never wait
         .imem_addr      (imem_addr),
         .imem_rdata     (imem_rdata),
         .dmem_req       (dmem_req),

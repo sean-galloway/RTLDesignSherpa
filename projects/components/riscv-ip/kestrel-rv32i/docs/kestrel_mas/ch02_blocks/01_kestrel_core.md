@@ -35,7 +35,7 @@ Ports are specified exhaustively in the HAS (Chapter 4 there). Internally the to
 
 ### Fetch
 
-`imem_addr = pc` and `insn = imem_rdata` — fetch is a wire. The instruction is expected combinationally (the memory contract, HAS Ch. 4); `opcode = insn[6:0]` and `funct3 = insn[14:12]` fan out to decode and the L/S size/sign logic.
+`imem_addr = pc` and `insn = imem_rdata` — fetch is a wire. The instruction is expected combinationally (the memory contract, HAS Ch. 4), or in the first cycle `mem_wait` is low: while the memory system holds `mem_wait` high, every state update in this chapter (PC, register write, halt latch, retry bits, retire counter) is suppressed, `rvfi_valid` is low and the combinational halt is masked (Ch. 2.7); `opcode = insn[6:0]` and `funct3 = insn[14:12]` fan out to decode and the L/S size/sign logic.
 
 ### Source Muxes
 

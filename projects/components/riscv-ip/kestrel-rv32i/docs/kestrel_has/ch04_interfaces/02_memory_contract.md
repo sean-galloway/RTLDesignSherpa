@@ -25,16 +25,16 @@
 
 ## The Contract
 
-kestrel talks to memory through two ports that are deliberately minimal. There is no bus fabric, no wait states, no byte enables on the instruction side, and no burst machinery. At this rung the memory system is expected to keep up with the core, and the contract says so out loud. An integrator replacing the memories must preserve all three properties below; violating any of them breaks the single-cycle design.
+kestrel talks to memory through two ports that are deliberately minimal. There is no bus fabric, no wait states, no byte enables on the instruction side, and no burst machinery. At this rung the memory system is expected to keep up with the core, and the contract says so out loud. An integrator replacing the memories must preserve all three properties below, or use the one sanctioned exception: holding the core with `mem_wait` (property 2).
 
 1. **Harvard at the core.** Fetch and data access are separate ports backed by whatever the integrator provides. The core never issues a data access to the instruction memory or vice versa, and it never sees coherence between them.
-2. **Combinational reads.** Both memories answer in the same cycle the address is presented. This is the load-bearing simplification: an instruction's full path — fetch, decode, register read, ALU, data read, writeback — must fit in one clock, so the memories are forbidden from adding latency. Synchronous-read macros (e.g. block RAM) violate the contract; the loader honors it with `(* ram_style = "distributed" *)` arrays.
+2. **Combinational reads, or an explicit wait.** Both memories answer in the same cycle the address is presented. This is the load-bearing simplification: an instruction's full path — fetch, decode, register read, ALU, data read, writeback — must fit in one clock. `kestrel_mem_loader` honors it with `(* ram_style = "distributed" *)` arrays. A memory with registered reads (block RAM) may instead raise `mem_wait` until its data is valid (owner, 2026-10-20): the core holds every piece of state while `mem_wait` is high, so the ISA is unchanged and only the cycle count grows. `kestrel_mem_bram` is that memory system: CPI 2, or 3 for a load. riscv-formal proves the core under arbitrary wait patterns (formal/kestrel/riscv-formal drives `mem_wait` freely, at most two waits in a row).
 3. **Word-wide buses with byte strobes.** Data memory is 32 bits wide. Sub-word stores rotate data and strobe into the addressed byte lanes; sub-word loads rotate read data back before size/sign selection. The memory must merge `dmem_wstrb` per byte (write only the strobed bytes of `dmem_wdata`).
 
 ## Timing Rules
 
-- An instruction that touches memory completes in exactly one clock when its access lies within one word; a cross-word access takes two clocks via the documented retry (below). There are no other exceptions.
-- The PC holds only for the retry's first beat and for halts. Everything else advances every cycle.
+- An instruction that touches memory completes in exactly one clock when its access lies within one word; a cross-word access takes two clocks via the documented retry (below). With `mem_wait` low these are the only exceptions; each `mem_wait` cycle adds one clock and changes nothing else.
+- The PC holds only for the retry's first beat, for halts, and while `mem_wait` is high.
 - A store is visible to the very next cycle's load (a cross-word store immediately followed by the load of the same address returns the full assembled value — pinned by testplan scenario CORE-11).
 - `dmem_req` qualifies the access; `dmem_we` distinguishes store from load. Loads drive `dmem_addr` and sample `dmem_rdata` in the same cycle; stores drive `dmem_addr`, `dmem_wstrb`, `dmem_wdata` and commit on the clock edge.
 

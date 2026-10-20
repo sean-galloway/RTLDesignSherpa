@@ -15,4 +15,5 @@
 -f $KESTREL_ROOT/rtl/filelists/fub/kestrel_imm_gen.f
 -f $KESTREL_ROOT/rtl/filelists/fub/kestrel_decode.f
 -f $KESTREL_ROOT/rtl/filelists/fub/kestrel_mem_loader.f
+-f $KESTREL_ROOT/rtl/filelists/fub/kestrel_mem_bram.f
 -f $KESTREL_ROOT/rtl/filelists/top/kestrel_core.f

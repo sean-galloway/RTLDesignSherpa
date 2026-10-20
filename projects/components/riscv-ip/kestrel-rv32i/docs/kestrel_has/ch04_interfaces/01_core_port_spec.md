@@ -25,7 +25,7 @@
 
 ## Overview
 
-`kestrel_core` (`rtl/top/kestrel_core.sv`) is the deliverable top. All ports are single-clock (`clk`, active-low `rst_n`); there are no clock enables, no bus handshakes, and no wait-state inputs — the memory contract (next section) forbids them. One parameter, `RESET_ADDR`, selects the fetch address out of reset.
+`kestrel_core` (`rtl/top/kestrel_core.sv`) is the deliverable top. All ports are single-clock (`clk`, active-low `rst_n`); there are no clock enables and no bus handshakes. One input, `mem_wait`, lets a memory system with registered reads hold the core (2026-10-20, next section); tied low, the core is the single-cycle machine this chapter describes. One parameter, `RESET_ADDR`, selects the fetch address out of reset.
 
 ## Clock and Reset
 
@@ -33,6 +33,7 @@
 |------|-----------|-------|-------------|
 | `clk` | Input | 1 | System clock; the whole machine retires in one `clk` period |
 | `rst_n` | Input | 1 | Active-low reset (asynchronous assert, synchronous deassert via `ALWAYS_FF_RST`); PC → `RESET_ADDR`, halt/run state cleared, register file cleared |
+| `mem_wait` | Input | 1 | Memory not ready this cycle: every piece of architectural state holds (PC, register write, halt latch, retry bits, retire counter), `rvfi_valid` is low, and the combinational halt is masked. Tie low for combinational memories; `kestrel_mem_bram` drives it |
 
 : Clock and reset
 
@@ -41,7 +42,7 @@
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `imem_addr` | Output | 32 | Fetch address, driven directly by the PC; always 4-byte aligned in operation |
-| `imem_rdata` | Input | 32 | Combinational instruction word at `imem_addr`, valid in the same cycle |
+| `imem_rdata` | Input | 32 | Instruction word at `imem_addr`, valid in the same cycle (or in the first cycle `mem_wait` is low) |
 
 : Instruction memory port
 
@@ -73,7 +74,7 @@ The RVFI port implements the riscv-formal retire convention (`vendor/riscv-forma
 
 | Port | Direction | Width | Aggregation rule |
 |------|-----------|-------|------------------|
-| `rvfi_valid` | Output | 1 | `rst_n & ~halt_q & ~ls_first` — high exactly on retiring cycles |
+| `rvfi_valid` | Output | 1 | `rst_n & ~halt_q & ~ls_first & ~mem_wait` — high exactly on retiring cycles |
 | `rvfi_order` | Output | 64 | Retirement index: 0, 1, 2, ... in program order |
 | `rvfi_pc_rdata` | Output | 32 | PC of the retiring instruction |
 | `rvfi_pc_wdata` | Output | 32 | Architecturally next PC (`next_pc`); on a cause-`0x3` halt this is the misaligned target |

@@ -7,3 +7,4 @@
 -f $KESTREL_ROOT/rtl/filelists/kestrel_all.f
 $KESTREL_ROOT/dv/tb/kestrel_tb_top.sv
 $KESTREL_ROOT/dv/tb/kestrel_loader_tb_top.sv
+$KESTREL_ROOT/dv/tb/kestrel_bram_tb_top.sv
