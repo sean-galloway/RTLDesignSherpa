@@ -24,7 +24,7 @@ module apb_monitor_addr_check (
 	parameter signed [31:0] M = ADDR_WIDTH;
 	input wire clk;
 	input wire aresetn;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	input wire [M - 1:0] cmd_paddr;
 	input wire cmd_pwrite;
@@ -36,7 +36,7 @@ module apb_monitor_addr_check (
 	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
 	output wire addr_pkt_valid;
 	input wire addr_pkt_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] addr_pkt_data;
 	output wire [63:0] addr_pkt_timestamp;
 	wire cmd_fire;
@@ -164,8 +164,8 @@ module apb_monitor_addr_check (
 						r_pending[i] <= 1'b0;
 			end
 		end
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] PKT_TYPE_FIELD = monitor_common_pkg_PktTypeError;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] PKT_TYPE_FIELD = ocelus_common_pkg_PktTypeError;
 	localparam [3:0] PROTOCOL_FIELD = PROTOCOL;
 	localparam [7:0] EVENT_CODE = 8'h08;
 	reg [M - 1:0] emit_addr;
@@ -195,7 +195,7 @@ module apb_monitor_addr_check (
 		end
 	endgenerate
 	assign event_data_field = {emit_idx[3:0], emit_is_read, addr_payload};
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -203,9 +203,9 @@ module apb_monitor_addr_check (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign addr_pkt_data = monitor_common_pkg_create_monitor_packet(PKT_TYPE_FIELD, PROTOCOL_FIELD, EVENT_CODE, 9'h000, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_data = ocelus_common_pkg_create_monitor_packet(PKT_TYPE_FIELD, PROTOCOL_FIELD, EVENT_CODE, 9'h000, UNIT_ID, AGENT_ID, event_data_field);
 	assign addr_pkt_timestamp = i_mon_time;
 	initial _sv2v_0 = 0;
 endmodule
@@ -701,22 +701,22 @@ module wb4_monitor (
 	input wire [(N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) - 1:0] cfg_addr_range_enable;
 	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * AW) - 1:0] cfg_addr_range_low;
 	input wire [((N_ADDR_RANGES > 0 ? N_ADDR_RANGES : 1) * AW) - 1:0] cfg_addr_range_high;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire [7:0] active_count;
 	output wire [15:0] error_count;
 	output wire [31:0] transaction_count;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeDebug = 4'hf;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] monitor_common_pkg_PktTypePerf = 4'h4;
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -724,7 +724,7 @@ module wb4_monitor (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	function automatic [2:0] sv2v_cast_90DB4;
 		input reg [2:0] inp;
@@ -887,35 +887,35 @@ module wb4_monitor (
 				w_fifo_wr_data = 1'sb0;
 				if ((((cfg_error_enable && w_rsp_handshake) && w_is_err) && cfg_slverr_enable) && !w_q_empty) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeError, 8'h00, w_adr_head, w_aux_head};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeError, 8'h00, w_adr_head, w_aux_head};
 				end
 				else if ((cfg_error_enable && cfg_protocol_enable) && w_orphan) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeError, 8'h01, sv2v_cast_32(rsp_dat), 6'h00, rsp_status};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeError, 8'h01, sv2v_cast_32(rsp_dat), 6'h00, rsp_status};
 				end
 				else if (cfg_error_enable && w_track_lost) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeError, 8'h02, w_adr_cmd, w_aux_cmd};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeError, 8'h02, w_adr_cmd, w_aux_cmd};
 				end
 				else if (w_cmd_timeout_fire) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeTimeout, 8'h00, w_adr_cmd, r_cmd_stall_timer[7:0]};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeTimeout, 8'h00, w_adr_cmd, r_cmd_stall_timer[7:0]};
 				end
 				else if (w_rsp_timeout_fire) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeTimeout, 8'h01, w_adr_head, w_head_age[7:0]};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeTimeout, 8'h01, w_adr_head, w_head_age[7:0]};
 				end
 				else if (((cfg_perf_enable && cfg_latency_enable) && w_pop) && (w_latency > cfg_latency_threshold)) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypePerf, (w_head[1 + (AW + (4 + (CTW + 32)))] ? 8'h01 : 8'h00), w_latency, w_aux_head};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypePerf, (w_head[1 + (AW + (4 + (CTW + 32)))] ? 8'h01 : 8'h00), w_latency, w_aux_head};
 				end
 				else if ((cfg_debug_enable && cfg_trans_debug_enable) && (w_q_active_edge || w_q_idle_edge)) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeDebug, (w_q_active_edge ? 8'h00 : 8'h01), 24'h000000, sv2v_cast_8(r_count), 8'h00};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeDebug, (w_q_active_edge ? 8'h00 : 8'h01), 24'h000000, sv2v_cast_8(r_count), 8'h00};
 				end
 				else if (w_pop && (w_is_ack || w_is_rty)) begin
 					w_fifo_wr_valid = 1'b1;
-					w_fifo_wr_data = {monitor_common_pkg_PktTypeCompletion, (w_is_rty ? 8'h03 : (w_head[1 + (AW + (4 + (CTW + 32)))] ? 8'h02 : 8'h01)), w_adr_head, w_aux_head};
+					w_fifo_wr_data = {ocelus_common_pkg_PktTypeCompletion, (w_is_rty ? 8'h03 : (w_head[1 + (AW + (4 + (CTW + 32)))] ? 8'h02 : 8'h01)), w_adr_head, w_aux_head};
 				end
 			end
 			gaxi_fifo_sync #(
@@ -942,7 +942,7 @@ module wb4_monitor (
 			reg [127:0] w_monbus_pkt_data;
 			wire [127:0] w_fifo_pkt_data;
 			reg [63:0] w_monbus_pkt_ts;
-			assign w_fifo_pkt_data = monitor_common_pkg_create_monitor_packet(w_fifo_rd_data[51-:4], 4'h5, w_fifo_rd_data[47-:8], 9'h000, UNIT_ID, AGENT_ID, {24'h000000, w_fifo_rd_data[7-:8], w_fifo_rd_data[39-:32]});
+			assign w_fifo_pkt_data = ocelus_common_pkg_create_monitor_packet(w_fifo_rd_data[51-:4], 4'h5, w_fifo_rd_data[47-:8], 9'h000, UNIT_ID, AGENT_ID, {24'h000000, w_fifo_rd_data[7-:8], w_fifo_rd_data[39-:32]});
 			wire w_addr_pkt_valid;
 			wire w_addr_pkt_ready;
 			wire [127:0] w_addr_pkt_data;
@@ -1000,7 +1000,7 @@ module wb4_monitor (
 			end
 			assign w_fifo_rd_ready = w_monbus_pkt_ready && w_fifo_rd_valid;
 			assign w_addr_pkt_ready = w_monbus_pkt_ready && !w_fifo_rd_valid;
-			localparam signed [31:0] MONBUS_TOTAL_W = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;
+			localparam signed [31:0] MONBUS_TOTAL_W = ocelus_common_pkg_MONBUS_PKT_WIDTH + ocelus_common_pkg_MONBUS_TS_WIDTH;
 			wire [MONBUS_TOTAL_W - 1:0] w_skid_wr_data;
 			wire [MONBUS_TOTAL_W - 1:0] w_skid_rd_data;
 			assign w_skid_wr_data = {w_monbus_pkt_data, w_monbus_pkt_ts};
@@ -1019,7 +1019,7 @@ module wb4_monitor (
 				.count(),
 				.rd_count()
 			);
-			assign monbus_packet = w_skid_rd_data[MONBUS_TOTAL_W - 1-:monitor_common_pkg_MONBUS_PKT_WIDTH];
+			assign monbus_packet = w_skid_rd_data[MONBUS_TOTAL_W - 1-:ocelus_common_pkg_MONBUS_PKT_WIDTH];
 			assign monbus_timestamp = w_skid_rd_data[63:0];
 			wire w_unused;
 			assign w_unused = ^{cfg_throughput_enable, cfg_debug_level, cfg_throughput_threshold, cmd_dat, rsp_dat[DW - 1:1], cmd_cti};

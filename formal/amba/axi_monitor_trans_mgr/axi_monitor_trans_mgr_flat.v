@@ -258,7 +258,7 @@ module axi_monitor_trans_mgr (
 			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:231:9 - axi_monitor_trans_mgr.gen_ragged_banks\n msg: ", "axi_monitor_trans_mgr: MAX_TRANSACTIONS=%0d is not divisible by NUM_BANKS=%0d.", MAX_TRANSACTIONS, NUM_BANKS);
 		end
 		if (((NUM_BANKS > 1) && !IS_READ) && !USE_WDATA_ORDER_Q) begin : gen_banked_wr_needs_widq
-			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:247:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write monitor requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
+			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:247:9 - axi_monitor_trans_mgr.gen_banked_wr_needs_widq\n msg: ", "axi_monitor_trans_mgr: NUM_BANKS=%0d on a write ocelus requires USE_WDATA_ORDER_Q=1 (the WID-less fallback double-counts one W beat across banks).", NUM_BANKS);
 		end
 		if (ID_WIDTH > 8) begin : gen_id_width_unsupported
 			initial $display("Error [elaboration] /tmp/formal_axi_monitor_trans_mgr/axi_monitor_trans_mgr.sv:284:9 - axi_monitor_trans_mgr.gen_id_width_unsupported\n msg: ", "axi_monitor_trans_mgr: ID_WIDTH=%0d exceeds the 8-bit id field in bus_transaction_t; the table and the CAM key would disagree. Widen bus_transaction_t.id or reduce ID_WIDTH.", ID_WIDTH);
@@ -644,11 +644,11 @@ module axi_monitor_trans_mgr (
 	assign addr_hit_any = |wb_addr_pend_any;
 	assign resp_hit_any = |wb_resp_match_any;
 	assign data_hit_any = (IS_READ ? |wb_data_match_any : |wb_data_pred_any || |wb_data_bypass_any);
-	function automatic signed [31:0] monitor_common_pkg_cmd_entry_reserve;
+	function automatic signed [31:0] ocelus_common_pkg_cmd_entry_reserve;
 		input reg signed [31:0] max_transactions;
-		monitor_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
+		ocelus_common_pkg_cmd_entry_reserve = (max_transactions >= 16 ? 4 : 0);
 	endfunction
-	localparam signed [31:0] CMD_ENTRY_RESERVE = monitor_common_pkg_cmd_entry_reserve(N);
+	localparam signed [31:0] CMD_ENTRY_RESERVE = ocelus_common_pkg_cmd_entry_reserve(N);
 	reg [$clog2(N + 1) - 1:0] w_cmd_entry_count;
 	function automatic signed [$clog2(N + 1) - 1:0] sv2v_cast_54CAC_signed;
 		input reg signed [$clog2(N + 1) - 1:0] inp;
@@ -866,14 +866,14 @@ module axi_monitor_trans_mgr (
 		end
 	endgenerate
 	genvar _gv_gi_2;
-	localparam [7:0] monitor_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
-	localparam [7:0] monitor_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
-	localparam [7:0] monitor_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
-	localparam [7:0] monitor_amba4_pkg_EVT_PROTOCOL = 8'h04;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_DECERR = 8'h01;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
-	localparam [7:0] monitor_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
+	localparam [7:0] ocelus_amba4_pkg_EVT_CMD_TIMEOUT = 8'h00;
+	localparam [7:0] ocelus_amba4_pkg_EVT_DATA_ORPHAN = 8'h02;
+	localparam [7:0] ocelus_amba4_pkg_EVT_DATA_TIMEOUT = 8'h01;
+	localparam [7:0] ocelus_amba4_pkg_EVT_PROTOCOL = 8'h04;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_DECERR = 8'h01;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_ORPHAN = 8'h03;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_SLVERR = 8'h00;
+	localparam [7:0] ocelus_amba4_pkg_EVT_RESP_TIMEOUT = 8'h02;
 	function automatic [5:0] sv2v_cast_6;
 		input reg [5:0] inp;
 		sv2v_cast_6 = inp;
@@ -945,7 +945,7 @@ module axi_monitor_trans_mgr (
 							end
 							if (data_resp[1]) begin
 								next[277-:3] = 3'h4;
-								next[7-:8] = (data_resp[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+								next[7-:8] = (data_resp[0] ? ocelus_amba4_pkg_EVT_RESP_DECERR : ocelus_amba4_pkg_EVT_RESP_SLVERR);
 							end
 							else if (data_last)
 								next[277-:3] = 3'h3;
@@ -975,7 +975,7 @@ module axi_monitor_trans_mgr (
 						next[281] = data_last;
 						next[15-:8] = 8'h01;
 						next[87-:32] = timestamp;
-						next[7-:8] = monitor_amba4_pkg_EVT_DATA_ORPHAN;
+						next[7-:8] = ocelus_amba4_pkg_EVT_DATA_ORPHAN;
 						next_we = 1'b1;
 						next_id = (IS_AXI ? data_id : {IW {1'sb0}});
 					end
@@ -987,7 +987,7 @@ module axi_monitor_trans_mgr (
 						next[151-:32] = 1'sb0;
 						if (resp_code[1]) begin
 							next[277-:3] = 3'h4;
-							next[7-:8] = (resp_code[0] ? monitor_amba4_pkg_EVT_RESP_DECERR : monitor_amba4_pkg_EVT_RESP_SLVERR);
+							next[7-:8] = (resp_code[0] ? ocelus_amba4_pkg_EVT_RESP_DECERR : ocelus_amba4_pkg_EVT_RESP_SLVERR);
 						end
 						else if (cam_entry_payload[(((N - 1) - gi) * 285) + 281]) begin
 							if (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)
@@ -995,7 +995,7 @@ module axi_monitor_trans_mgr (
 						end
 						else begin
 							next[277-:3] = 3'h4;
-							next[7-:8] = monitor_amba4_pkg_EVT_PROTOCOL;
+							next[7-:8] = ocelus_amba4_pkg_EVT_PROTOCOL;
 						end
 						next_we = 1'b1;
 					end
@@ -1013,7 +1013,7 @@ module axi_monitor_trans_mgr (
 							next[221-:6] = 6'h00;
 						next[280] = 1'b1;
 						next[55-:32] = timestamp;
-						next[7-:8] = monitor_amba4_pkg_EVT_RESP_ORPHAN;
+						next[7-:8] = ocelus_amba4_pkg_EVT_RESP_ORPHAN;
 						next_we = 1'b1;
 						next_id = (IS_AXI ? resp_id : {IW {1'sb0}});
 					end
@@ -1021,11 +1021,11 @@ module axi_monitor_trans_mgr (
 				if ((((i_timeout_detected[gi] && cam_entry_valid[gi]) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h3)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h4)) && (cam_entry_payload[(((N - 1) - gi) * 285) + 277-:3] != 3'h5)) begin
 					next[277-:3] = 3'h4;
 					if (!cam_entry_payload[(((N - 1) - gi) * 285) + 283])
-						next[7-:8] = monitor_amba4_pkg_EVT_CMD_TIMEOUT;
+						next[7-:8] = ocelus_amba4_pkg_EVT_CMD_TIMEOUT;
 					else if (cam_entry_payload[(((N - 1) - gi) * 285) + 281] && !cam_entry_payload[(((N - 1) - gi) * 285) + 280])
-						next[7-:8] = monitor_amba4_pkg_EVT_RESP_TIMEOUT;
+						next[7-:8] = ocelus_amba4_pkg_EVT_RESP_TIMEOUT;
 					else
-						next[7-:8] = monitor_amba4_pkg_EVT_DATA_TIMEOUT;
+						next[7-:8] = ocelus_amba4_pkg_EVT_DATA_TIMEOUT;
 					next_we = 1'b1;
 				end
 				if (cam_entry_valid[gi] && w_can_cleanup[gi]) begin

@@ -1134,7 +1134,7 @@ module axi_write_engine_beats (
 			r_aw_channel_id <= 1'sb0;
 		end
 		else begin
-			if ((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) begin
+			if (((w_arb_grant_valid && !r_aw_valid) && w_arb_request[w_arb_grant_id]) && w_phase_txn_fifo_wr_ready) begin
 				r_aw_valid <= 1'b1;
 				r_aw_channel_id <= w_arb_grant_id;
 				r_aw_len <= w_transfer_size[w_arb_grant_id * 8+:8];

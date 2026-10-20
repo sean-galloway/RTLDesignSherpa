@@ -190,11 +190,11 @@ module ctrlwr_engine (
 	output wire b_ready;
 	input wire [AXI_ID_WIDTH - 1:0] b_id;
 	input wire [1:0] b_resp;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	output wire mon_valid;
 	input wire mon_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (AXI_ID_WIDTH < CHAN_WIDTH) begin
@@ -403,9 +403,9 @@ module ctrlwr_engine (
 	assign w_data = r_ctrlwr_data;
 	assign w_strb = 4'b1111;
 	assign w_last = 1'b1;
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -413,7 +413,7 @@ module ctrlwr_engine (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
 	function automatic [63:0] sv2v_cast_64;
 		input reg [63:0] inp;
@@ -432,18 +432,18 @@ module ctrlwr_engine (
 				3'b101:
 					if (w_address_error) begin
 						r_mon_valid <= 1'b1;
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h4, 8'h08, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, sv2v_cast_64(r_ctrlwr_addr));
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeError, 4'h4, 8'h08, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, sv2v_cast_64(r_ctrlwr_addr));
 						r_mon_timestamp <= i_mon_time;
 					end
 					else if (r_ctrlwr_error) begin
 						r_mon_valid <= 1'b1;
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeError, 4'h0, (r_write_resp == 2'b10 ? 8'h00 : 8'h01), MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {46'h000000000000, r_write_resp, 16'h0000});
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeError, 4'h0, (r_write_resp == 2'b10 ? 8'h00 : 8'h01), MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, {46'h000000000000, r_write_resp, 16'h0000});
 						r_mon_timestamp <= i_mon_time;
 					end
 				3'b100:
 					if (!w_null_address) begin
 						r_mon_valid <= 1'b1;
-						r_mon_packet <= monitor_common_pkg_create_monitor_packet(monitor_common_pkg_PktTypeCompletion, 4'h4, 8'h03, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, sv2v_cast_64(r_ctrlwr_addr));
+						r_mon_packet <= ocelus_common_pkg_create_monitor_packet(ocelus_common_pkg_PktTypeCompletion, 4'h4, 8'h03, MON_CHANNEL_ID, MON_UNIT_ID, MON_AGENT_ID, sv2v_cast_64(r_ctrlwr_addr));
 						r_mon_timestamp <= i_mon_time;
 					end
 				default:

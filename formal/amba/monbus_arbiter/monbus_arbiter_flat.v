@@ -524,74 +524,96 @@ module gaxi_skid_buffer (
 	input wire rd_ready;
 	output wire [3:0] rd_count;
 	output wire [DW - 1:0] rd_data;
-	reg [DW - 1:0] r_data [0:DEPTH - 1];
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
 	reg [3:0] r_data_count;
 	wire w_wr_xfer;
 	wire w_rd_xfer;
 	assign w_wr_xfer = wr_valid & wr_ready;
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
-		if ((DEPTH < 2) || (DEPTH > 8)) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:101:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive", DEPTH);
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
-	genvar _gv_gi_1;
-	generate
-		for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-			localparam gi = _gv_gi_1;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data[gi] <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10:
-							if (r_data_count == gi[3:0])
-								r_data[gi] <= wr_data;
-						2'b01:
-							if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						2'b11:
-							if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-								r_data[gi] <= wr_data;
-							else if (gi < (DEPTH - 1))
-								r_data[gi] <= r_data[gi + 1];
-							else
-								r_data[gi] <= 1'sb0;
-						default:
-							;
-					endcase
-		end
-	endgenerate
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn)
-			r_data_count <= 1'sb0;
-		else
-			(* full_case, parallel_case *)
-			case ({w_wr_xfer, w_rd_xfer})
-				2'b10: r_data_count <= r_data_count + 4'd1;
-				2'b01: r_data_count <= r_data_count - 4'd1;
-				default:
-					;
-			endcase
 	function automatic [31:0] sv2v_cast_32;
 		input reg [31:0] inp;
 		sv2v_cast_32 = inp;
 	endfunction
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn) begin
-			wr_ready <= 1'b0;
-			rd_valid <= 1'b0;
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
 		end
-		else begin
-			wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-			rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
 		end
-	assign rd_data = r_data[0];
-	assign rd_count = r_data_count;
-	assign count = r_data_count;
+	endgenerate
 endmodule
 module monbus_arbiter (
 	axi_aclk,
@@ -617,16 +639,16 @@ module monbus_arbiter (
 	parameter signed [31:0] INPUT_SKID_DEPTH = 2;
 	parameter signed [31:0] OUTPUT_SKID_DEPTH = 2;
 	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
-	parameter signed [31:0] SKID_DATA_WIDTH = monitor_common_pkg_MONBUS_PKT_WIDTH + monitor_common_pkg_MONBUS_TS_WIDTH;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
+	parameter signed [31:0] SKID_DATA_WIDTH = ocelus_common_pkg_MONBUS_PKT_WIDTH + ocelus_common_pkg_MONBUS_TS_WIDTH;
 	input wire axi_aclk;
 	input wire axi_aresetn;
 	input wire block_arb;
 	input wire [0:CLIENTS - 1] monbus_valid_in;
 	output wire [0:CLIENTS - 1] monbus_ready_in;
-	input wire [(CLIENTS * monitor_common_pkg_MONBUS_PKT_WIDTH) - 1:0] monbus_packet_in;
-	input wire [(CLIENTS * monitor_common_pkg_MONBUS_TS_WIDTH) - 1:0] monbus_timestamp_in;
+	input wire [(CLIENTS * ocelus_common_pkg_MONBUS_PKT_WIDTH) - 1:0] monbus_packet_in;
+	input wire [(CLIENTS * ocelus_common_pkg_MONBUS_TS_WIDTH) - 1:0] monbus_timestamp_in;
 	output wire monbus_valid;
 	input wire monbus_ready;
 	output wire [127:0] monbus_packet;
@@ -652,9 +674,9 @@ module monbus_arbiter (
 			if (INPUT_SKID_EN == 1'b1) begin : gen_input_skid_enabled
 				wire [SKID_DATA_WIDTH - 1:0] skid_wr_data;
 				wire [SKID_DATA_WIDTH - 1:0] skid_rd_data;
-				assign skid_wr_data = {monbus_timestamp_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_TS_WIDTH+:monitor_common_pkg_MONBUS_TS_WIDTH], monbus_packet_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_PKT_WIDTH+:monitor_common_pkg_MONBUS_PKT_WIDTH]};
+				assign skid_wr_data = {monbus_timestamp_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_TS_WIDTH+:ocelus_common_pkg_MONBUS_TS_WIDTH], monbus_packet_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_PKT_WIDTH+:ocelus_common_pkg_MONBUS_PKT_WIDTH]};
 				assign int_monbus_packet_in[i] = skid_rd_data[127:0];
-				assign int_monbus_timestamp_in[i] = skid_rd_data[SKID_DATA_WIDTH - 1:monitor_common_pkg_MONBUS_PKT_WIDTH];
+				assign int_monbus_timestamp_in[i] = skid_rd_data[SKID_DATA_WIDTH - 1:ocelus_common_pkg_MONBUS_PKT_WIDTH];
 				gaxi_skid_buffer #(
 					.DATA_WIDTH(SKID_DATA_WIDTH),
 					.DEPTH(INPUT_SKID_DEPTH)
@@ -674,8 +696,8 @@ module monbus_arbiter (
 			else begin : gen_input_skid_disabled
 				assign int_monbus_valid_in[i] = monbus_valid_in[i];
 				assign monbus_ready_in[i] = int_monbus_ready_in[i];
-				assign int_monbus_packet_in[i] = monbus_packet_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_PKT_WIDTH+:monitor_common_pkg_MONBUS_PKT_WIDTH];
-				assign int_monbus_timestamp_in[i] = monbus_timestamp_in[((CLIENTS - 1) - i) * monitor_common_pkg_MONBUS_TS_WIDTH+:monitor_common_pkg_MONBUS_TS_WIDTH];
+				assign int_monbus_packet_in[i] = monbus_packet_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_PKT_WIDTH+:ocelus_common_pkg_MONBUS_PKT_WIDTH];
+				assign int_monbus_timestamp_in[i] = monbus_timestamp_in[((CLIENTS - 1) - i) * ocelus_common_pkg_MONBUS_TS_WIDTH+:ocelus_common_pkg_MONBUS_TS_WIDTH];
 			end
 		end
 	endgenerate
@@ -739,7 +761,7 @@ module monbus_arbiter (
 			wire [SKID_DATA_WIDTH - 1:0] out_skid_rd_data;
 			assign out_skid_wr_data = {int_monbus_timestamp, int_monbus_packet};
 			assign monbus_packet = out_skid_rd_data[127:0];
-			assign monbus_timestamp = out_skid_rd_data[SKID_DATA_WIDTH - 1:monitor_common_pkg_MONBUS_PKT_WIDTH];
+			assign monbus_timestamp = out_skid_rd_data[SKID_DATA_WIDTH - 1:ocelus_common_pkg_MONBUS_PKT_WIDTH];
 			gaxi_skid_buffer #(
 				.DATA_WIDTH(SKID_DATA_WIDTH),
 				.DEPTH(OUTPUT_SKID_DEPTH)

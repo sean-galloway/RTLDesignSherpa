@@ -14,7 +14,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
@@ -403,7 +403,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -765,7 +765,7 @@ module gaxi_fifo_async (
 	localparam signed [31:0] PTRW = (USE_JOHNSON != 0 ? JCW : AW + 1);
 	generate
 		if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
 		end
 	endgenerate
 	wire [PTRW - 1:0] r_wr_ptr_gray;
@@ -1531,7 +1531,7 @@ module apb4_master_stub (
 	);
 	always @(posedge pclk)
 		if ((presetn && (cmd_valid && cmd_ready)) && !fl_in_ready)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/amba/apb4/apb4_master_stub.sv:142:13 - apb4_master_stub.<unnamed_block>.<unnamed_block>\n msg: ", $time, "apb4_master_stub: first/last side FIFO overflow -- framing record dropped");
 	assign rsp_data = {out_cmd_last, out_cmd_first, rsp_pslverr, rsp_prdata};
 	apb4_master #(
 		.ADDR_WIDTH(ADDR_WIDTH),

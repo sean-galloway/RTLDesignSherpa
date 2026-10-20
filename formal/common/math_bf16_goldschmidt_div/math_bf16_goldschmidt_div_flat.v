@@ -34,7 +34,6 @@ module math_adder_full (
 	ow_sum,
 	ow_carry
 );
-	parameter signed [31:0] N = 1;
 	input wire i_a;
 	input wire i_b;
 	input wire i_c;

@@ -820,7 +820,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -1467,7 +1467,7 @@ module descriptor_engine (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (AXI_ID_WIDTH < CHAN_WIDTH) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv:153:13 - descriptor_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
+		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv:153:13 - descriptor_engine.<unnamed_block>.<unnamed_block>\n msg: ", $time, "AXI_ID_WIDTH (%0d) must be >= CHAN_WIDTH (%0d)", AXI_ID_WIDTH, CHAN_WIDTH);
 		$finish(1);
 	end
 	reg [2:0] r_current_state;
@@ -2017,7 +2017,7 @@ module scheduler (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
-		$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
+		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
 		$finish(1);
 	end
 	localparam signed [31:0] DESC_SRC_ADDR_LO = 0;
@@ -2631,10 +2631,10 @@ module scheduler_group (
 	parameter signed [31:0] DATA_WIDTH = 512;
 	parameter signed [31:0] AXI_ID_WIDTH = 8;
 	parameter signed [31:0] USE_ROW_COL_MAJOR_ADDRESSING = 1;
-	parameter DESC_MON_AGENT_ID = 16;
-	parameter SCHED_MON_AGENT_ID = 48;
-	parameter MON_UNIT_ID = 1;
-	parameter MON_CHANNEL_ID = 0;
+	parameter signed [31:0] DESC_MON_AGENT_ID = 16;
+	parameter signed [31:0] SCHED_MON_AGENT_ID = 48;
+	parameter signed [31:0] MON_UNIT_ID = 1;
+	parameter signed [31:0] MON_CHANNEL_ID = 0;
 	input wire clk;
 	input wire rst_n;
 	input wire apb_valid;

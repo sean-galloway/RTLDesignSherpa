@@ -305,6 +305,8 @@ module perf_profiler (
 	parameter signed [31:0] TIMESTAMP_WIDTH = 32;
 	parameter signed [31:0] FIFO_DEPTH = 256;
 	parameter signed [31:0] FIFO_ADDR_WIDTH = $clog2(FIFO_DEPTH);
+	parameter signed [31:0] CHID_W = (CHANNEL_WIDTH > 3 ? CHANNEL_WIDTH : 3);
+	parameter signed [31:0] ENTRY_W = 33 + CHID_W;
 	input wire clk;
 	input wire rst_n;
 	input wire [NUM_CHANNELS - 1:0] channel_idle;
@@ -328,11 +330,11 @@ module perf_profiler (
 	reg [TIMESTAMP_WIDTH - 1:0] r_start_time [0:NUM_CHANNELS - 1];
 	reg [NUM_CHANNELS - 1:0] r_channel_active;
 	reg w_fifo_wr;
-	reg [35:0] w_fifo_wr_data;
+	reg [ENTRY_W - 1:0] w_fifo_wr_data;
 	wire w_fifo_wr_ready_internal;
 	wire w_fifo_full_internal;
 	wire w_fifo_rd_valid_internal;
-	wire [35:0] w_fifo_rd_data;
+	wire [ENTRY_W - 1:0] w_fifo_rd_data;
 	wire [FIFO_ADDR_WIDTH:0] w_fifo_count_internal;
 	reg [CHANNEL_WIDTH - 1:0] w_active_channel;
 	reg w_channel_event;
@@ -423,9 +425,9 @@ module perf_profiler (
 		end
 	end
 	assign w_elapsed_time = r_timestamp_counter - r_start_time[w_active_channel];
-	function automatic [2:0] sv2v_cast_3;
-		input reg [2:0] inp;
-		sv2v_cast_3 = inp;
+	function automatic [CHID_W - 1:0] sv2v_cast_E7F4D;
+		input reg [CHID_W - 1:0] inp;
+		sv2v_cast_E7F4D = inp;
 	endfunction
 	always @(*) begin
 		if (_sv2v_0)
@@ -435,13 +437,13 @@ module perf_profiler (
 		if ((cfg_enable && w_channel_event) && !w_fifo_full_internal) begin
 			w_fifo_wr = 1'b1;
 			if (cfg_mode == MODE_TIMESTAMP)
-				w_fifo_wr_data = {(w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START), sv2v_cast_3(w_active_channel), r_timestamp_counter};
+				w_fifo_wr_data = {(w_idle_rising[w_active_channel] ? EVENT_END : EVENT_START), sv2v_cast_E7F4D(w_active_channel), r_timestamp_counter};
 			else
-				w_fifo_wr_data = {EVENT_END, sv2v_cast_3(w_active_channel), w_elapsed_time};
+				w_fifo_wr_data = {EVENT_END, sv2v_cast_E7F4D(w_active_channel), w_elapsed_time};
 		end
 	end
 	gaxi_fifo_sync #(
-		.DATA_WIDTH(36),
+		.DATA_WIDTH(ENTRY_W),
 		.DEPTH(FIFO_DEPTH)
 	) u_perf_fifo(
 		.axi_aclk(clk),
@@ -459,6 +461,10 @@ module perf_profiler (
 	assign perf_fifo_full = w_fifo_full_internal;
 	assign perf_fifo_count = {{(16 - FIFO_ADDR_WIDTH) - 1 {1'b0}}, w_fifo_count_internal};
 	assign perf_fifo_data_low = (perf_fifo_empty ? 32'h00000000 : w_fifo_rd_data[31:0]);
-	assign perf_fifo_data_high = (perf_fifo_empty ? 32'h00000000 : {28'b0000000000000000000000000000, w_fifo_rd_data[35:32]});
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	assign perf_fifo_data_high = (perf_fifo_empty ? 32'h00000000 : sv2v_cast_32(w_fifo_rd_data[ENTRY_W - 1:32]));
 	initial _sv2v_0 = 0;
 endmodule

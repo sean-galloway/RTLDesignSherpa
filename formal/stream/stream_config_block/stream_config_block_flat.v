@@ -161,14 +161,15 @@ module stream_config_block (
 	obs_data1_to_regs
 );
 	parameter signed [31:0] NUM_CHANNELS = 8;
+	parameter signed [31:0] REG_NCH = 8;
 	parameter signed [31:0] ADDR_WIDTH = 64;
 	parameter [0:0] USE_MON_REGS = 1'b1;
 	input wire clk;
 	input wire rst_n;
 	input wire reg_global_ctrl_global_en;
 	input wire reg_global_ctrl_global_rst;
-	input wire [7:0] reg_channel_enable_ch_en;
-	input wire [7:0] reg_channel_reset_ch_rst;
+	input wire [REG_NCH - 1:0] reg_channel_enable_ch_en;
+	input wire [REG_NCH - 1:0] reg_channel_reset_ch_rst;
 	input wire [31:0] reg_sched_timeout_cycles_timeout_cycles;
 	input wire [7:0] reg_sched_timeout_limit_limit;
 	input wire reg_sched_config_sched_en;
@@ -240,7 +241,7 @@ module stream_config_block (
 	input wire reg_perf_config_perf_en;
 	input wire reg_perf_config_perf_mode;
 	input wire reg_perf_config_perf_clear;
-	input wire [2:0] reg_obs_ctrl_ch_sel;
+	input wire [(REG_NCH > 8 ? 4 : 3) - 1:0] reg_obs_ctrl_ch_sel;
 	input wire [1:0] reg_obs_ctrl_cat_sel;
 	input wire [31:0] i_obs_flags;
 	input wire [31:0] i_obs_data0;
@@ -318,7 +319,7 @@ module stream_config_block (
 	output wire cfg_perf_enable;
 	output wire cfg_perf_mode;
 	output wire cfg_perf_clear;
-	output wire [2:0] cfg_obs_ch_sel;
+	output wire [(REG_NCH > 8 ? 4 : 3) - 1:0] cfg_obs_ch_sel;
 	output wire [1:0] cfg_obs_cat_sel;
 	output wire [31:0] obs_flags_to_regs;
 	output wire [31:0] obs_data0_to_regs;
