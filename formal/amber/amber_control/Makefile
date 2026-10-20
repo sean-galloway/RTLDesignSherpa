@@ -35,6 +35,8 @@ cover: amber_control_flat.v
 amber_control_flat.v: $(PKGS) $(SRCS)
 	@mkdir -p $(TMPDIR)
 	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
+	# PF_GUARD (BUG-002, ab308d108) is pinned to its default 0: the classic
+	# pending-fill behavior this proof was written against.
 	# sv2v flattens the REAL RTL; specialize_params then pins the tiny formal
 	# geometry AND deletes the parameter declarations, so the DUT becomes a
 	# truly parameterless module: yosys's expose command (the
@@ -43,7 +45,7 @@ amber_control_flat.v: $(PKGS) $(SRCS)
 	# yosys build -- it silently never fires; see the Task 13 report.
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
 	    --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 \
-	    --param LINE_BYTES=64 --param BUS_WIDTH=64 \
+	    --param LINE_BYTES=64 --param BUS_WIDTH=64 --param PF_GUARD=0 \
 	    --module l1_control
 	@rm -rf $(TMPDIR)
 
@@ -72,6 +74,6 @@ check-flat: .check_flat_tmp
 	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
 	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
 	    --param ADDR_WIDTH=32 --param SETS=16 --param WAYS=2 \
-	    --param LINE_BYTES=64 --param BUS_WIDTH=64 \
+	    --param LINE_BYTES=64 --param BUS_WIDTH=64 --param PF_GUARD=0 \
 	    --module l1_control
 	@rm -rf $(TMPDIR)

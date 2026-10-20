@@ -199,6 +199,7 @@ module l1_control (
 	ctrl_req_class,
 	ctrl_fill_done,
 	ctrl_fill_pass_dirty,
+	ctrl_fill_inflight,
 	ctrl_fill_beat_valid,
 	ctrl_fill_beat_idx,
 	ctrl_drain_start,
@@ -277,6 +278,7 @@ module l1_control (
 	output wire [2:0] ctrl_req_class;
 	input wire ctrl_fill_done;
 	input wire ctrl_fill_pass_dirty;
+	input wire ctrl_fill_inflight;
 	input wire ctrl_fill_beat_valid;
 	input wire [BEAT_INDEX_WIDTH - 1:0] ctrl_fill_beat_idx;
 	output reg ctrl_drain_start;
@@ -297,15 +299,15 @@ module l1_control (
 	output reg [3:0] ctrl_state;
 	initial begin
 		if ((16 & (16 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:246:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:257:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 16 must be a power of two");
 		if ((64 & (64 - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:248:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:259:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:250:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:261:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 / 64*8 must be a power of two");
 		if ((64 % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:252:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:263:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 64 must be a multiple of 8");
 		if (2 < 2)
-			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:254:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
+			$display("Error [%0t] /tmp/formal_amber_control/l1_control.sv:265:13 - l1_control.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_control: 2 must be >= 2");
 	end
 	localparam signed [31:0] CTRL_BITS = 12;
 	localparam [11:0] OH_IDLE = 12'b000000000001;
@@ -499,7 +501,7 @@ module l1_control (
 		end
 	end
 	wire sn_pf_gnt_match;
-	assign sn_pf_gnt_match = pf_match && (state_q == OH_MISS_FILL);
+	assign sn_pf_gnt_match = (pf_match && (state_q == OH_MISS_FILL)) && (!0 || ctrl_fill_inflight);
 	wire sn_stale_gnt;
 	assign sn_stale_gnt = (((((state_q == OH_MISS_FILL) && !upgr_q) && sn_hit_any) && (sn_set_grant == req_set)) && (sn_hit_way == victim_way_q)) && (sn_hit_tag == victim_tag_q);
 	wire victim_match;

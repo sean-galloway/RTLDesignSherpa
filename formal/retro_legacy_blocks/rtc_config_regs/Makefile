@@ -15,6 +15,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 RLB := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc
 
 DEPS := $(RLB)/rtc_regs_pkg.sv \
+        $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
         $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv \
         $(RLB)/rtc_regs.sv
 
