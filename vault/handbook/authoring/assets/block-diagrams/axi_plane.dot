@@ -1,0 +1,67 @@
+// REFERENCE EXAMPLE for vault/handbook/authoring/block-diagrams.md (owner,
+// 2026-10-19: "a very good example ... it has most of the elements").
+// Source: projects/components/mem-ctrl-ip/debug/axi_plane_main.dot, brought
+// to the element key: fills by class from the RTL, registered = double border.
+// AXI4 plane standalone — legibility pass v2 (owner rule 10).
+// ortho + label = xlabel only (ortho ignores edge labels).
+// Return flows drawn downward with dir=back so ranks stay natural.
+digraph axi_plane {
+    rankdir=TB;
+    graph [splines=ortho, nodesep=0.35, ranksep=0.75, compound=true, fontname="Helvetica"];
+    node  [fontname="Helvetica", fontsize=11, style=filled, fillcolor="white", penwidth=1.2];
+    edge  [fontname="Helvetica", fontsize=10, color="#333333", arrowsize=0.8];
+
+    // ---- host channel row (order pinned by invisible edges) ---------------
+    aw  [label="AXI AW\nhost (flopped)", shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+    w   [label="AXI W\nhost (flopped)",  shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+    ar  [label="AXI AR\nhost (flopped)", shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+    b   [label="AXI B\nhost (flopped)",  shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+    r   [label="AXI R\nhost (flopped)",  shape=box, style="rounded,filled", fillcolor="#E2EFDA"];
+    { rank=same; aw; w; ar; b; r; }
+    aw -> w   [style=invis];
+    w  -> ar  [style=invis];
+    ar -> b   [style=invis];
+    b  -> r   [style=invis];
+
+    // ---- plane blocks ------------------------------------------------------
+    // Registered: outputs leave through gaxi_fifo_sync queues.
+    wr_intake [label="Write intake\nmc_wr_intake", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    // Combinational: the first beat passes fub_axvalid straight through.
+    chopper   [label="Burst chopper\nmc_axi_burst_chopper", shape=box];
+    rd_intake [label="Read intake\nmc_rd_intake", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    ret_ring  [label="Read return ring\nmc_rd_return_ring", shape=cylinder, fillcolor="#E8DFF5"];
+
+    bar [label="AXI plane boundary  (to storage / scheduler planes)\nall crossings flopped (skid / fifo)",
+         shape=box, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2,
+         width=14.5, height=0.5, fontsize=12];
+
+    // ---- write request flow (top-down, left) -------------------------------
+    aw -> wr_intake [xlabel="AW {awid, awaddr, awlen, awsize, awburst}"];
+    w  -> wr_intake [xlabel="W beats {wdata, wstrb, wlast}"];
+    wr_intake -> chopper [xlabel="addr + len, chop to bursts"];
+    chopper -> bar [xlabel="WR push {slot, row, col, id, last}"];
+
+    // ---- read request flow (top-down, right) -------------------------------
+    ar -> rd_intake [xlabel="AR {arid, araddr, arlen, arsize, arburst}"];
+    rd_intake -> bar [xlabel="RD push {slot, row, col, id}"];
+
+    // ---- read return flow (drawn down, dir=back => reads as data climbing) -
+    r -> ret_ring [dir=back, color="#1A7A1A",
+                   xlabel="R {rid, rdata, rlast, rresp}"];
+    ret_ring -> bar [dir=back, color="#1A7A1A", style=dashed,
+                     xlabel="read return {data, slot, last}"];
+
+    // ---- write response sideband (drawn down, dir=back) --------------------
+    b -> bar [dir=back, style=dashed, color="#777777",
+              xlabel="write done {id, resp}"];
+
+    // ---- snarf probe sideband ----------------------------------------------
+    snarf_tap [label="snarf\ntap", shape=box, style="filled,dashed",
+               fillcolor="#ffffff", fontsize=8, width=0.6, height=0.42,
+               color="#777777"];
+    rd_intake -> snarf_tap [style=dashed, color="#777777",
+                            xlabel="snarf probe\n{bank,row,col}\nhit + data"];
+    snarf_tap -> wr_intake [style=dashed, color="#777777"];
+
+
+}

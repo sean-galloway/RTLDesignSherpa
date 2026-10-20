@@ -10,7 +10,7 @@ block or microarchitecture diagram follows this note: HAS/MAS books,
 `docs/markdown` module pages, README figures, vault notes, FPGA system docs.
 It supersedes the older "diagrams are Mermaid" rule in [[spec-doc-standards]].
 
-**Status: v2 (element key added 2026-10-19), being refined.** The rules came from the memory-controller
+**Status: v3 (element key 2026-10-19; reference example, return colour and key rulings the same day), being refined.** The rules came from the memory-controller
 family and were proven there. Applying them to other block shapes (an
 arbiter, a CDC block, a FIFO, a bridge, a DMA engine) is in progress with the
 owner, one diagram at a time. When a diagram shows a rule needs restating for
@@ -27,7 +27,8 @@ is the one to mirror:
 - render: `.../common_has/assets/graphviz/01_whole_unit.png`
 
 **The owner values how clearly the flows read.** Flow clarity is the
-contract; the element key (below) makes each box's kind readable at a glance. The rules below are in
+contract; the element key (below) makes each box's kind readable at a glance,
+and the reference example under "Element key" shows all of it at once. The rules below are in
 priority order.
 
 ## Prime directive: every flow is traceable at a glance
@@ -154,73 +155,94 @@ A label answers "what does it do?" before "what is it called?".
 - **Use left-justified lines (`\l`) for a legend box,** with a hanging indent
   on wrapped lines, so each name heads its own line.
 
-## Element key: shape and fill name the element (v2, owner-approved 2026-10-19)
+## Element key: shape and fill name the element (v3, owner rulings 2026-10-19)
 
 **Owner, 2026-10-19:** "I can't tell what is what by looking at it." A box
 had to be read to learn whether it was a port, logic, a register or a
-memory. Every node now takes the shape and fill of its class. **Case:**
-`projects/components/dma-ip/rapids/docs/rapids_mas/assets/graphviz/06_axi_write_engine.dot`,
-which carries the key; the owner approved it on 2026-10-19 ("Perfect!!!!").
-It is the template for the key; new and redrawn diagrams follow it, and the
-existing set converts as each diagram is next touched.
+memory. Every node now takes the shape and fill of its class.
+
+**Reference example** (owner, 2026-10-19: "a very good example ... it has
+most of the elements"): the mem-ctrl AXI plane, stored with this note in
+`vault/handbook/authoring/assets/block-diagrams/` -- `axi_plane.dot` and the
+rendered `axi_plane.png` (its key is generated, see "The key"). Copy from it;
+do not retype. It is brought to the rulings
+below (its debug-directory original filled every block green and marked
+flops `[==]`). Open item: six of its edge labels still sit on a line
+(rule 10); the next legibility pass on it fixes them.
 
 | Class | Graphviz | Fill | What it marks |
 |---|---|---|---|
-| Interface / boundary | `shape=box, style="rounded,filled,bold"` | `#E2EFDA` green | A port of the drawn unit, and the boundary bar |
+| Interface / boundary | `shape=box, style="rounded,filled"` (bar: `penwidth=2.2`); comb crossing adds `dashed` | `#E2EFDA` green | A port of the drawn unit, and the boundary bar |
 | Combinational | `shape=box` | white | Logic with no state: masks, compares, muxes, decodes |
 | Registered | `shape=box, peripheries=2` | `#D6E4F0` blue | A block whose output is a flop: pipeline and issue registers, counters, sticky flags |
 | FSM | `shape=box, style="filled,diagonals", peripheries=2` | `#FCE4D6` peach | A sequencer with named states |
 | Storage | `shape=cylinder` | `#E8DFF5` lavender | FIFO, RAM, CAM, register file |
 | Arbiter / pick | `shape=invtrapezium` (rule 9) | `#FFF2CC` gold | A genuine many-to-one pick |
 | Optional | the class's shape, `style` plus `dashed` | the class's fill | Build-dependent (rule 8) |
-| Legend / note | `shape=note` | white | Parameters, notes, the key |
+| Legend / note | `shape=note` | white | Parameters, notes |
 
 : Element key
 
+| Edge | Graphviz | Carries |
+|---|---|---|
+| Flow | solid, `color="#333333"` | Request / forward data |
+| Return | solid, `color="#1A7A1A"` green (dashed where the hop is a sideband-style handoff, as in the example) | Return data (read data, responses back to the requester) |
+| Heavy | `penwidth=1.8` | The main path, or a pick's winner |
+| Sideband | `style=dashed, color="#777777"` | Grants, credits, probes, config, status |
+
+: Edge key
+
+- **Fill is by class, not by area** (owner, 2026-10-19). Green is ONLY for
+  interfaces and the bar. Inner blocks take their class fill: logic white,
+  registered blue, and so on. The example's original, which filled every
+  block green, was corrected.
+- **Registered is a double border plus blue** (owner, 2026-10-19), never a
+  text marker such as `[==]`. Shape carries the class so a black-and-white
+  copy still reads: double border, cylinder, rounded, trapezium, diagonals.
+- **Return data is green** (owner, 2026-10-19). Colour now carries one
+  meaning: green edges are return data. The geography rule still holds
+  (return climbs its own side lane); the colour repeats it.
 - **Classify from the RTL, not the name.** A block whose output is
   registered is Registered even if most of it is logic (the AW issue
-  register). A block that passes data straight through and holds a beat only
-  on an abort is Combinational, with the hold in its label (the W output).
+  register; the intakes, whose outputs leave through `gaxi_fifo_sync`). A
+  block that passes data straight through is Combinational, with any hold in
+  its label (the burst chopper's first beat passes `fub_axvalid` through).
   If a timing cut matters to the reader (a request register added for 100
   MHz), draw it as its own Registered box.
-- **The key is graphical samples, not prose** (owner, 2026-10-19). The Key
-  is a row of drawn samples: every shape next to its name, every line style
-  as a short drawn arrow (flow, heavy winner-exit, dashed sideband, and the
-  red failing-cone sample where a diagram carries one). A text-only legend
-  ("solid: flow | dashed: sideband") is meaningless — the reader must be
-  able to *see* the style once and match it everywhere. The sample arrows
-  are SHORT and the elements close together; the row is titled by a plain
-  `Key` label node and must be CENTERED on the graphics — more whitespace
-  beside the key than key content is a design failure (owner). Dot cannot
-  center a boxed cluster or an anchored row (every anchor variant leaves it
-  off-center), so the row is split-rendered as its own dot file and pasted
-  centered under the drawing by a small compositing script (recipe below).
 - **Interfaces state their timing class** (owner, 2026-10-19). Every
   interface node and plane crossing is annotated `flopped` or `comb`: in the
   node label ("AXI AW / host (flopped)") or on the edge ("(comb)", "(flopped
   at DFI cmd FIFO)", "(sampled at store)"). A combinational crossing is where
-  timing failures live — a diagram that hides them hides the one thing the
-  reader came to check. The Key carries both samples: interface (flopped)
-  and interface (comb, dashed border).
-- **Shape carries the class; fill repeats it.** A black-and-white copy must
-  still read: double border, cylinder, rounded, trapezium, diagonals. The
-  fills are fixed so every diagram in the repo reads the same.
-- **Every diagram carries the key** as a `cluster_key` row under the bar:
-  one sample node per class, plus a `shape=note` for the edge conventions
-  (solid flow, heavy main path or winner, dashed sideband). Keep all seven
-  samples even when a class is absent, so the key is identical everywhere.
-- **Center the key under the drawing** (owner, 2026-10-19), never hanging
-  off one side. Anchor it with one invisible edge from the bar to the key's
-  middle sample, `bar -> k_mem [style=invis, weight=10]` (Storage is the
-  middle by width), and keep the edge note to three short lines
-  (`solid: flow\l heavy: main path / winner\l dashed: sideband\l`). An
-  edge to the first sample, or a long one-line note, pushed the row a full
-  sample-width to one side. Copy the key block from the case file rather
-  than retyping it.
-- **Edges keep their meaning:** solid for flow, heavy (`penwidth=1.8`) for
-  the main path or a pick's winner, dashed for sideband and feedback.
-- This supersedes the old palette rule ("color never carries meaning";
-  white ports, `#D6E4F0` blocks). Geometry still carries the flows.
+  timing failures live -- a diagram that hides them hides the one thing the
+  reader came to check.
+
+### The key
+
+- **The key shows only what that drawing uses** (owner, 2026-10-19): the
+  line styles and the node classes present, nothing else. An absent class
+  is not sampled.
+- **The key is graphical samples, not prose** (owner, 2026-10-19): every
+  shape drawn next to its name, every line style as a short drawn arrow. A
+  text-only legend ("solid: flow | dashed: sideband") is meaningless -- the
+  reader must see the style once and match it everywhere. The row is titled
+  by a plain `Key` label node.
+- **The key is GENERATED, never drawn by hand** (2026-10-19). The renderer,
+  `bin/render_block_diagram.py`, reads the drawing's resolved attributes
+  (`dot -Tjson`), samples exactly the node classes and line styles it uses,
+  renders that row on its own and pastes it centered under the drawing.
+  A key cannot drift from its drawing or carry an absent class, and no
+  diagram carries a `cluster_key` (dot cannot center a multi-item row; every
+  anchor variant tried left it off-center). More whitespace beside the key
+  than key content is a design failure; the composite keeps it centered.
+- **The interface sample says "(flopped)" only when the drawing itself
+  annotates its interfaces "flopped"**; otherwise it reads "interface". A key
+  must not claim a timing class the drawing does not state.
+- **A figure in another vocabulary carries `// render: no-key`**: decision
+  trees and process flows (white questions, blue actions), and conceptual or
+  software figures (generator pipelines, layering, run matrices, build
+  fan-outs, topology maps). They keep their own vocabulary and get no key.
+  Cycle grids and address maps (HTML-table nodes) have nothing to sample and
+  get none automatically.
 
 ## Tool: graphviz dot
 
@@ -245,11 +267,13 @@ edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
   first 15 rtl-cdc diagrams. Check with
   `convert X.png -crop 1xH+(W-1)+0 -format '%[fx:minima.intensity]' info:`;
   anything well under 1 means a line.
-- **Render with the directory's `regenerate_all_graphviz.sh`.** It writes
-  PNGs at 150 dpi, palette-encodes them to PNG8, and excludes the `tIME`
-  chunk so an unchanged source re-renders byte-identical. A new
-  `assets/graphviz/` directory copies the one from
-  `common_has/assets/graphviz/`.
+- **Render with the directory's `regenerate_all_graphviz.sh`.** Every copy
+  is the same three lines: it hands the directory's `*.dot` to
+  `bin/render_block_diagram.py`, which draws each one, generates and
+  composites its key, writes 150 dpi PNGs palette-encoded to PNG8 (alpha
+  flattened first) and excludes the `tIME` chunk, so an unchanged source
+  re-renders byte-identical. A new `assets/graphviz/` directory copies the
+  script from any other.
 - **Assets for the RTL books live per area** (owner, 2026-10-12):
   `docs/markdown/assets/<area>/`, matching the book directory
   (`rtl-amba`, `rtl-amba-monitors`, `rtl-cdc`, `rtl-common`, `rtl-math`).
@@ -278,85 +302,15 @@ edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
   handle edge labels") — `xlabel` still renders, `label` vanishes. Sample
   arrows in a legend are the trap: a labeled sample edge must use `xlabel`
   or be drawn without `splines=ortho` (short legend arrows don't need ortho).
-- **A key row that must be exactly centered is split-rendered and
-  composited** (owner, 2026-10-19). Dot cannot center a multi-item row
-  under the graphics: a cluster is an anchored object, and a single anchor
-  edge pins one node's column while dot reorders the rest freely — a dozen
-  anchor variants all leave the row off-center. The working method: render
-  the drawing and the key as separate dot files, then paste the key PNG
-  centered under the drawing with a tiny PIL/Pillow script
-  (alpha-composite onto white). Deterministic, pixel-exact, and the key's
-  own spacing (short arrows, tight nodesep) stops fighting the main
-  graph's. The full recipe, copy-ready (case: `mem-ctrl-ip/debug`, owner
-  approved 2026-10-19):
-
-  1. Strip the `cluster_key` from the drawing's dot file; the drawing and
-     the key are now two independent files. The key file is a single
-     same-rank row — samples and short arrows only, no other structure:
-
-  ```dot
-  digraph key {
-      rankdir=TB;
-      graph [nodesep=0.14, ranksep=0.3, fontname="Helvetica", bgcolor=none];
-      node  [fontname="Helvetica", fontsize=8];
-      edge  [fontname="Helvetica", fontsize=8, arrowsize=0.7];
-      k_lbl [label="Key", shape=none, fontsize=11];
-      // one invisible-point pair per sample arrow: two tiny endpoints
-      // give the label guaranteed-empty space; nothing can overdraw it
-      k_s1a [shape=point, width=0.01, style=invis];
-      k_s1b [shape=point, width=0.01, style=invis];
-      k_s2a [shape=point, width=0.01, style=invis];
-      k_s2b [shape=point, width=0.01, style=invis];
-      k_s3a [shape=point, width=0.01, style=invis];
-      k_s3b [shape=point, width=0.01, style=invis];
-      // one node per class, fills per the element key table above
-      k_log  [label="logic", shape=box];
-      k_flop [label="registered", shape=box, peripheries=2,
-              style="filled", fillcolor="#D6E4F0"];
-      k_sto  [label="storage", shape=cylinder, style="filled",
-              fillcolor="#E8DFF5"];
-      k_arb  [label="arbiter / pick", shape=invtrapezium, style="filled",
-              fillcolor="#FFF2CC"];
-      k_if   [label="interface\n(flopped)", shape=box, style="rounded,filled",
-              fillcolor="#E2EFDA"];
-      k_ifc  [label="interface\n(comb)", shape=box, style="rounded,filled,dashed",
-              fillcolor="#E2EFDA"];
-      { rank=same; k_lbl; k_s1a; k_s1b; k_s2a; k_s2b; k_s3a; k_s3b;
-        k_log; k_flop; k_sto; k_arb; k_if; k_ifc; }
-      // NO splines=ortho in this file: ortho swallows plain edge labels
-      // (recipe above), and short horizontal samples don't need it
-      k_s1a -> k_s1b [label="flow"];
-      k_s2a -> k_s2b [label="heavy", penwidth=1.8];
-      k_s3a -> k_s3b [label="sideband", style=dashed, color="#777777"];
-  }
-  ```
-
-  2. Render both at the same dpi, then composite — main centered at the
-     top, key centered beneath it on a white canvas:
-
-  ```bash
-  dot -Tpng -Gdpi=150 -oX_main.png X_main.dot
-  dot -Tpng -Gdpi=150 -oX_key.png  X_key.dot
-  ```
-
-  ```python
-  # composite_key.py -- pixel-exact centering dot cannot do
-  from PIL import Image
-  main = Image.open("X_main.png").convert("RGBA")   # dot writes RGBA
-  key  = Image.open("X_key.png").convert("RGBA")    # bgcolor=none -> alpha
-  gap  = 25
-  canvas = Image.new("RGBA",
-                     (max(main.width, key.width),
-                      main.height + gap + key.height), "white")
-  canvas.paste(main, ((canvas.width - main.width) // 2, 0), main)
-  canvas.paste(key,  ((canvas.width - key.width)  // 2,
-                      main.height + gap), key)
-  canvas.convert("RGB").save("X.png")
-  ```
-
-  To change a diagram later, edit its `X_main.dot` / `X_key.dot`, re-run
-  both `dot` lines and the script; the composite reproduces byte-for-byte
-  apart from the edited region.
+- **A key row that must be exactly centered is rendered separately and
+  composited** (owner, 2026-10-19). Dot cannot center a multi-item row under
+  the graphics: a cluster is an anchored object, and a single anchor edge
+  pins one node's column while dot reorders the rest freely -- a dozen
+  anchor variants all left the row off-center (case: `mem-ctrl-ip/debug`).
+  `bin/render_block_diagram.py` does it for every diagram: the key row is
+  its own dot graph (same rank, short sample arrows, `nodesep=0.14`, NO
+  `splines=ortho`, which swallows plain edge labels), rendered at the same
+  dpi and pasted centered under the drawing with Pillow.
 - **Stack multi-field payloads as a multi-line `xlabel`.** "snarf probe /
   {bank,row,col} / hit + data" becomes `xlabel="snarf probe\n{bank,row,col}\nhit
   + data"` — three short lines centered on the segment read as one payload,
