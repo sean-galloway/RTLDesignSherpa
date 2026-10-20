@@ -37,12 +37,24 @@ import tempfile
 from PIL import Image
 
 GREEN = {"#1a7a1a"}
+
+
+def _is_red(color: str) -> bool:
+    """A red edge marks a timing-failing path (drawn from report_timing)."""
+    c = color.lower().lstrip("#")
+    try:
+        r, g, b = int(c[0:2], 16), int(c[2:4], 16), int(c[4:6], 16)
+    except (ValueError, IndexError):
+        return False
+    return r >= 0xC0 and g <= 0x60 and b <= 0x60
+
+
+EDGE_ORDER = ["flow", "heavy", "return", "sideband", "failing"]
 FILL = {"logic": "white", "registered": "#D6E4F0", "fsm": "#FCE4D6",
         "storage": "#E8DFF5", "pick": "#FFF2CC", "interface": "#E2EFDA",
         "note": "white"}
 NODE_ORDER = ["logic", "registered", "fsm", "storage", "pick", "optional",
               "interface_flopped", "interface_comb", "note"]
-EDGE_ORDER = ["flow", "heavy", "return", "sideband"]
 GAP_PX = 25
 
 
@@ -86,7 +98,9 @@ def classify(dot_json: dict) -> tuple[list[str], list[str]]:
         style = a.get("style", "")
         if "invis" in style:
             continue
-        if a.get("color", "").lower() in GREEN:
+        if _is_red(a.get("color", "")):
+            edges.add("failing")
+        elif a.get("color", "").lower() in GREEN:
             edges.add("return")
         elif "dashed" in style or "dotted" in style:
             edges.add("sideband")
@@ -110,7 +124,8 @@ def key_dot(node_classes: list[str], edge_styles: list[str],
     row = ["k_lbl"]
     edge_attr = {"flow": 'color="#333333"', "heavy": 'penwidth=1.8',
                  "return": 'color="#1A7A1A"',
-                 "sideband": 'style=dashed, color="#777777"'}
+                 "sideband": 'style=dashed, color="#777777"',
+                 "failing": 'color="#D00000", penwidth=2.2'}
     for i, e in enumerate(edge_styles):
         a, b = f"k_e{i}a", f"k_e{i}b"
         out.append(f'  {a} [shape=point, width=0.01, style=invis];')
