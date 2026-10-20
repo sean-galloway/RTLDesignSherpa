@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites>
-<testsuite timestamp="2026-10-19T18:22:43" hostname="amdtrp" package="scoria_cmd_arbiter" id="0" name="nofix" tests="13" errors="0" failures="0" time="79" skipped="9">
+<testsuite timestamp="2026-10-19T21:37:23" hostname="amdtrp" package="scoria_cmd_arbiter" id="0" name="nofix" tests="13" errors="0" failures="0" time="85" skipped="9">
 <properties>
 <property name="os" value="Linux"/>
 <property name="expect" value="PASS"/>
@@ -19,16 +19,16 @@
 <testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:326.9-326.40" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:326.9-326.40" id="c_act">
 <skipped />
 </testcase>
-<testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:330.9-330.74" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:330.9-330.74" id="c_act_diff_bank">
+<testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:340.9-340.87" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:340.9-340.87" id="c_act_after_zqcs">
 <skipped />
 </testcase>
-<testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:337.9-337.85" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:337.9-337.85" id="c_act_in_zqcs">
+<testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:330.9-330.74" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:330.9-330.74" id="c_act_diff_bank">
 <skipped />
 </testcase>
 <testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:331.9-331.51" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:331.9-331.51" id="c_col">
 <skipped />
 </testcase>
-<testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:338.9-339.57" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:338.9-339.57" id="c_col_in_zqcs">
+<testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:341.9-342.60" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:341.9-342.60" id="c_col_after_zqcs">
 <skipped />
 </testcase>
 <testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:329.9-329.57" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:329.9-329.57" id="c_fifth_act">
@@ -43,97 +43,97 @@
 <testcase classname="nofix" name="Property COVER in formal_scoria_cmd_arbiter at formal_scoria_cmd_arbiter.sv:332.9-332.41" time="0" type="COVER" location="formal_scoria_cmd_arbiter.sv:332.9-332.41" id="c_zq_grant">
 <skipped />
 </testcase>
-<system-out>SBY 18:21:24 [scoria_cmd_arbiter_nofix] Removing directory '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/scoria_cmd_arbiter_nofix'.
-SBY 18:21:24 [scoria_cmd_arbiter_nofix] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/formal_scoria_cmd_arbiter.sv' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/scoria_cmd_arbiter_nofix/src/formal_scoria_cmd_arbiter.sv'.
-SBY 18:21:24 [scoria_cmd_arbiter_nofix] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/arb_flat.v' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/scoria_cmd_arbiter_nofix/src/arb_flat.v'.
-SBY 18:21:24 [scoria_cmd_arbiter_nofix] engine_0: smtbmc bitwuzla
-SBY 18:21:24 [scoria_cmd_arbiter_nofix] base: starting process &quot;cd scoria_cmd_arbiter_nofix/src; yosys -ql ../model/design.log ../model/design.ys&quot;
-SBY 18:21:30 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \r_wr_xpop with list of registers. See arb_flat.v:1239
-SBY 18:21:30 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \r_rd_xpop with list of registers. See arb_flat.v:1238
-SBY 18:21:30 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \wr_xpop with list of registers. See arb_flat.v:1095, arb_flat.v:1068
-SBY 18:21:30 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \rd_xpop with list of registers. See arb_flat.v:1097, arb_flat.v:1067
-SBY 18:21:30 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \wr_pop with list of registers. See arb_flat.v:1089, arb_flat.v:1066
-SBY 18:21:30 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \rd_pop with list of registers. See arb_flat.v:1091, arb_flat.v:1065
-SBY 18:21:57 [scoria_cmd_arbiter_nofix] base: arb_flat.v:540: Warning: Range select out of bounds on signal `\ap_close_i': Setting result bit to undef.
-SBY 18:21:57 [scoria_cmd_arbiter_nofix] base: arb_flat.v:540: Warning: Range [-1:-1] select out of bounds on signal `\ap_close_i': Setting 1 LSB bits to undef.
-SBY 18:21:57 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \faw_age with list of registers. See formal_scoria_cmd_arbiter.sv:270
-SBY 18:22:31 [scoria_cmd_arbiter_nofix] base: Warning: Resizing cell port formal_scoria_cmd_arbiter.u_arb.cmd_op_o from 4 bits to 5 bits.
-SBY 18:22:31 [scoria_cmd_arbiter_nofix] base: Warning: Resizing cell port formal_scoria_cmd_arbiter.u_arb.init_cmd_op_i from 4 bits to 5 bits.
-SBY 18:22:31 [scoria_cmd_arbiter_nofix] base: finished (returncode=0)
-SBY 18:22:31 [scoria_cmd_arbiter_nofix] prep: starting process &quot;cd scoria_cmd_arbiter_nofix/model; yosys -ql design_prep.log design_prep.ys&quot;
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] prep: finished (returncode=0)
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] smt2: starting process &quot;cd scoria_cmd_arbiter_nofix/model; yosys -ql design_smt2.log design_smt2.ys&quot;
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] smt2: finished (returncode=0)
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: starting process &quot;cd scoria_cmd_arbiter_nofix; yosys-smtbmc -s bitwuzla --presat --unroll --noprogress -t 30  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Solver: bitwuzla
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 0..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 0..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 1..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 1..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 2..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 2..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 3..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 3..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 4..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 4..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 5..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 5..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 6..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 6..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 7..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 7..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 8..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 8..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 9..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 9..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 10..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 10..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 11..
-SBY 18:22:32 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 11..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 12..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 12..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 13..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 13..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 14..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 14..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 15..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 15..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 16..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 16..
-SBY 18:22:33 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 17..
-SBY 18:22:34 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 17..
-SBY 18:22:35 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:03  Checking assumptions in step 18..
-SBY 18:22:35 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:03  Checking assertions in step 18..
-SBY 18:22:35 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:03  Checking assumptions in step 19..
-SBY 18:22:36 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:03  Checking assertions in step 19..
-SBY 18:22:36 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assumptions in step 20..
-SBY 18:22:36 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assertions in step 20..
-SBY 18:22:36 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assumptions in step 21..
-SBY 18:22:36 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assertions in step 21..
-SBY 18:22:36 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assumptions in step 22..
-SBY 18:22:37 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:05  Checking assertions in step 22..
-SBY 18:22:38 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:06  Checking assumptions in step 23..
-SBY 18:22:39 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:06  Checking assertions in step 23..
-SBY 18:22:39 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:07  Checking assumptions in step 24..
-SBY 18:22:39 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:07  Checking assertions in step 24..
-SBY 18:22:40 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:07  Checking assumptions in step 25..
-SBY 18:22:40 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assertions in step 25..
-SBY 18:22:40 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assumptions in step 26..
-SBY 18:22:40 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assertions in step 26..
-SBY 18:22:41 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assumptions in step 27..
-SBY 18:22:41 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:09  Checking assertions in step 27..
-SBY 18:22:41 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:09  Checking assumptions in step 28..
-SBY 18:22:41 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:09  Checking assertions in step 28..
-SBY 18:22:42 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:10  Checking assumptions in step 29..
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:11  Checking assertions in step 29..
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:11  Status: passed
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] engine_0: finished (returncode=0)
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] engine_0: Status returned by engine: pass
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] summary: Elapsed clock time [H:MM:SS (secs)]: 0:01:19 (79)
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] summary: Elapsed process time [H:MM:SS (secs)]: 0:01:19 (79)
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] summary: engine_0 (smtbmc bitwuzla) returned pass
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] summary: engine_0 did not produce any traces
-SBY 18:22:43 [scoria_cmd_arbiter_nofix] DONE (PASS, rc=0)
+<system-out>SBY 21:35:59 [scoria_cmd_arbiter_nofix] Removing directory '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/scoria_cmd_arbiter_nofix'.
+SBY 21:35:59 [scoria_cmd_arbiter_nofix] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/formal_scoria_cmd_arbiter.sv' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/scoria_cmd_arbiter_nofix/src/formal_scoria_cmd_arbiter.sv'.
+SBY 21:35:59 [scoria_cmd_arbiter_nofix] Copy '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/arb_flat.v' to '/mnt/data/github/RTLDesignSherpa/formal/scoria/cmd_arbiter/scoria_cmd_arbiter_nofix/src/arb_flat.v'.
+SBY 21:35:59 [scoria_cmd_arbiter_nofix] engine_0: smtbmc bitwuzla
+SBY 21:35:59 [scoria_cmd_arbiter_nofix] base: starting process &quot;cd scoria_cmd_arbiter_nofix/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 21:36:06 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \r_wr_xpop with list of registers. See arb_flat.v:1239
+SBY 21:36:06 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \r_rd_xpop with list of registers. See arb_flat.v:1238
+SBY 21:36:06 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \wr_xpop with list of registers. See arb_flat.v:1095, arb_flat.v:1068
+SBY 21:36:06 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \rd_xpop with list of registers. See arb_flat.v:1097, arb_flat.v:1067
+SBY 21:36:06 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \wr_pop with list of registers. See arb_flat.v:1089, arb_flat.v:1066
+SBY 21:36:06 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \rd_pop with list of registers. See arb_flat.v:1091, arb_flat.v:1065
+SBY 21:36:34 [scoria_cmd_arbiter_nofix] base: arb_flat.v:540: Warning: Range select out of bounds on signal `\ap_close_i': Setting result bit to undef.
+SBY 21:36:34 [scoria_cmd_arbiter_nofix] base: arb_flat.v:540: Warning: Range [-1:-1] select out of bounds on signal `\ap_close_i': Setting 1 LSB bits to undef.
+SBY 21:36:34 [scoria_cmd_arbiter_nofix] base: Warning: Replacing memory \faw_age with list of registers. See formal_scoria_cmd_arbiter.sv:270
+SBY 21:37:08 [scoria_cmd_arbiter_nofix] base: Warning: Resizing cell port formal_scoria_cmd_arbiter.u_arb.cmd_op_o from 4 bits to 5 bits.
+SBY 21:37:08 [scoria_cmd_arbiter_nofix] base: Warning: Resizing cell port formal_scoria_cmd_arbiter.u_arb.init_cmd_op_i from 4 bits to 5 bits.
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] base: finished (returncode=0)
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] prep: starting process &quot;cd scoria_cmd_arbiter_nofix/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] prep: finished (returncode=0)
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] smt2: starting process &quot;cd scoria_cmd_arbiter_nofix/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] smt2: finished (returncode=0)
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: starting process &quot;cd scoria_cmd_arbiter_nofix; yosys-smtbmc -s bitwuzla --presat --unroll --noprogress -t 30  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Solver: bitwuzla
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY 21:37:09 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:00  Checking assumptions in step 12..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 12..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 13..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 13..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 14..
+SBY 21:37:10 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 14..
+SBY 21:37:11 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 15..
+SBY 21:37:11 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assertions in step 15..
+SBY 21:37:11 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:01  Checking assumptions in step 16..
+SBY 21:37:11 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:02  Checking assertions in step 16..
+SBY 21:37:11 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:02  Checking assumptions in step 17..
+SBY 21:37:11 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:02  Checking assertions in step 17..
+SBY 21:37:13 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assumptions in step 18..
+SBY 21:37:13 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assertions in step 18..
+SBY 21:37:14 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assumptions in step 19..
+SBY 21:37:14 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assertions in step 19..
+SBY 21:37:14 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:04  Checking assumptions in step 20..
+SBY 21:37:14 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:05  Checking assertions in step 20..
+SBY 21:37:14 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:05  Checking assumptions in step 21..
+SBY 21:37:14 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:05  Checking assertions in step 21..
+SBY 21:37:15 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:05  Checking assumptions in step 22..
+SBY 21:37:15 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:06  Checking assertions in step 22..
+SBY 21:37:17 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assumptions in step 23..
+SBY 21:37:17 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assertions in step 23..
+SBY 21:37:18 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:08  Checking assumptions in step 24..
+SBY 21:37:18 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:09  Checking assertions in step 24..
+SBY 21:37:19 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:09  Checking assumptions in step 25..
+SBY 21:37:19 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:10  Checking assertions in step 25..
+SBY 21:37:19 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:10  Checking assumptions in step 26..
+SBY 21:37:20 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:10  Checking assertions in step 26..
+SBY 21:37:20 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:10  Checking assumptions in step 27..
+SBY 21:37:20 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:11  Checking assertions in step 27..
+SBY 21:37:21 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:11  Checking assumptions in step 28..
+SBY 21:37:21 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:12  Checking assertions in step 28..
+SBY 21:37:22 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:13  Checking assumptions in step 29..
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:13  Checking assertions in step 29..
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] engine_0: ##   0:00:14  Status: passed
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] engine_0: finished (returncode=0)
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] engine_0: Status returned by engine: pass
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] summary: Elapsed clock time [H:MM:SS (secs)]: 0:01:24 (84)
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] summary: Elapsed process time [H:MM:SS (secs)]: 0:01:25 (85)
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] summary: engine_0 (smtbmc bitwuzla) returned pass
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] summary: engine_0 did not produce any traces
+SBY 21:37:23 [scoria_cmd_arbiter_nofix] DONE (PASS, rc=0)
 </system-out>
 <system-err>
 </system-err>

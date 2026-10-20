@@ -223,7 +223,7 @@ module formal_scoria_cmd_arbiter #(
     // produce, and a counterexample resting on one of those is not a finding.
     // The age-order matrix is a STRICT ORDER over valid entries (irreflexive,
     // antisymmetric), which is a theorem about the block driving this input --
-    // proved for the same CAM on pumice in formal/pumice/rd_cmd_cam -- not a
+    // proved for the same CAM on pumice in formal/mc_common/mc_rd_cmd_cam -- not a
     // convenience. scoria's CAMs are the pumice ones; when scoria gets its own
     // rd_cmd_cam proof this assumption should cite that instead.
     reg ok_rd_ord, ok_wr_ord;
@@ -330,13 +330,16 @@ module formal_scoria_cmd_arbiter #(
         c_act_diff_bank: cover (evt_act_o && seen_act && age_act < 10'd6);
         c_col:        cover (evt_rd_o || evt_wr_o);
         c_zq_grant:   cover (zq_grant_o);
-        // The REALISTIC shape of the tZQCS hole: an ACT, not a stray PRE.
-        // Traffic queues up behind a ZQCS (the arbiter precharges everything
-        // to issue one), so the instant it goes the pick cone is free to take
-        // a waiting ACT -- which fires a cycle later, inside the window.
-        c_act_in_zqcs: cover (seen_zq && age_zq <= {6'b0, t_zqcs[3:0]} && evt_act_o);
-        c_col_in_zqcs: cover (seen_zq && age_zq <= {6'b0, t_zqcs[3:0]}
-                              && (evt_rd_o || evt_wr_o));
+        // These two were scoria BUG-002's witnesses: an ACT or a column
+        // command INSIDE the tZQCS window (c_act_in_zqcs / c_col_in_zqcs,
+        // reached before the 2026-10-01 fix). With the fix a_zqcs_quiet holds,
+        // so a cover of the state it forbids is unreachable by construction and
+        // the task failed from then on. They are inverted: traffic that queued
+        // behind the ZQCS issues once the window CLOSES -- which is what makes
+        // a_zqcs_quiet's pass non-vacuous (the window ends; commands resume).
+        c_act_after_zqcs: cover (seen_zq && age_zq > {6'b0, t_zqcs[3:0]} && evt_act_o);
+        c_col_after_zqcs: cover (seen_zq && age_zq > {6'b0, t_zqcs[3:0]}
+                                 && (evt_rd_o || evt_wr_o));
     end
 
 endmodule

@@ -3,6 +3,12 @@
 *_prove_*/
 *_cover/
 *_cover_*/
+# sby names a run directory <sby>_<task>; these tasks are neither prove nor
+# cover, so the two globs above miss them (one was committed 2026-10-19).
+bridge_id_remap_bmc/
+cmd_arbiter_issue019/
+rd_return_ring_data/
+scoria_cmd_arbiter_nofix/
 # sby status databases (SQLite writes two sidecars beside the db in WAL mode;
 # these live in a bare <unit>/<unit>/ dir, which *_prove/ does not match)
 status.sqlite

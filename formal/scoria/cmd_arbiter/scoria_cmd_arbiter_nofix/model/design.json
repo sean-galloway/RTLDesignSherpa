@@ -19943,6 +19943,22 @@
                   }
                 },
                 {
+                  "name": "c_act_after_zqcs",
+                  "attributes": {
+                    "keep": "00000000000000000000000000000001",
+                    "src": "formal_scoria_cmd_arbiter.sv:340.9-340.87"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "cover",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111000",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
                   "name": "c_act_diff_bank",
                   "attributes": {
                     "keep": "00000000000000000000000000000001",
@@ -19953,22 +19969,6 @@
                     "FLAVOR": "cover",
                     "FORMAT": true,
                     "PRIORITY": "11111111111111111111111111111011",
-                    "TRG_ENABLE": "00000000000000000000000000000001",
-                    "TRG_POLARITY": "1",
-                    "TRG_WIDTH": "00000000000000000000000000000001"
-                  }
-                },
-                {
-                  "name": "c_act_in_zqcs",
-                  "attributes": {
-                    "keep": "00000000000000000000000000000001",
-                    "src": "formal_scoria_cmd_arbiter.sv:337.9-337.85"
-                  },
-                  "parameters": {
-                    "ARGS_WIDTH": "00000000000000000000000000000000",
-                    "FLAVOR": "cover",
-                    "FORMAT": true,
-                    "PRIORITY": "11111111111111111111111111111000",
                     "TRG_ENABLE": "00000000000000000000000000000001",
                     "TRG_POLARITY": "1",
                     "TRG_WIDTH": "00000000000000000000000000000001"
@@ -19991,10 +19991,10 @@
                   }
                 },
                 {
-                  "name": "c_col_in_zqcs",
+                  "name": "c_col_after_zqcs",
                   "attributes": {
                     "keep": "00000000000000000000000000000001",
-                    "src": "formal_scoria_cmd_arbiter.sv:338.9-339.57"
+                    "src": "formal_scoria_cmd_arbiter.sv:341.9-342.60"
                   },
                   "parameters": {
                     "ARGS_WIDTH": "00000000000000000000000000000000",
@@ -20254,9 +20254,9 @@
                   }
                 },
                 {
-                  "name": "$logic_or$formal_scoria_cmd_arbiter.sv:339$71417",
+                  "name": "$logic_or$formal_scoria_cmd_arbiter.sv:342$71417",
                   "attributes": {
-                    "src": "formal_scoria_cmd_arbiter.sv:339.35-339.55"
+                    "src": "formal_scoria_cmd_arbiter.sv:342.38-342.58"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -20467,6 +20467,19 @@
                   }
                 },
                 {
+                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:318$71398",
+                  "attributes": {
+                    "src": "formal_scoria_cmd_arbiter.sv:318.13-318.53"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
                   "name": "$logic_and$formal_scoria_cmd_arbiter.sv:329$71407",
                   "attributes": {
                     "src": "formal_scoria_cmd_arbiter.sv:329.30-329.56"
@@ -20506,9 +20519,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:337$71414",
+                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:340$71414",
                   "attributes": {
-                    "src": "formal_scoria_cmd_arbiter.sv:337.31-337.84"
+                    "src": "formal_scoria_cmd_arbiter.sv:340.34-340.86"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -20519,9 +20532,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:338$71416",
+                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:341$71416",
                   "attributes": {
-                    "src": "formal_scoria_cmd_arbiter.sv:338.31-338.71"
+                    "src": "formal_scoria_cmd_arbiter.sv:341.34-341.73"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -20532,9 +20545,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:338$71418",
+                  "name": "$logic_and$formal_scoria_cmd_arbiter.sv:341$71418",
                   "attributes": {
-                    "src": "formal_scoria_cmd_arbiter.sv:338.31-339.56"
+                    "src": "formal_scoria_cmd_arbiter.sv:341.34-342.59"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -20658,9 +20671,9 @@
                   }
                 },
                 {
-                  "name": "$le$formal_scoria_cmd_arbiter.sv:338$71415",
+                  "name": "$le$formal_scoria_cmd_arbiter.sv:318$71397",
                   "attributes": {
-                    "src": "formal_scoria_cmd_arbiter.sv:338.42-338.71"
+                    "src": "formal_scoria_cmd_arbiter.sv:318.24-318.53"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -20780,6 +20793,19 @@
                     "A_WIDTH": "00000000000000000000000000001000",
                     "B_SIGNED": "00000000000000000000000000000000",
                     "B_WIDTH": "00000000000000000000000000000010",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$gt$formal_scoria_cmd_arbiter.sv:341$71415",
+                  "attributes": {
+                    "src": "formal_scoria_cmd_arbiter.sv:341.45-341.73"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000001010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000100",
                     "Y_WIDTH": "00000000000000000000000000000001"
                   }
                 }
@@ -21583,7 +21609,7 @@
                 {
                   "name": "$procmux$75206",
                   "attributes": {
-                    "src": "formal_scoria_cmd_arbiter.sv:325.32-325.39|formal_scoria_cmd_arbiter.sv:325.28-340.8"
+                    "src": "formal_scoria_cmd_arbiter.sv:325.32-325.39|formal_scoria_cmd_arbiter.sv:325.28-343.8"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000001"
@@ -22873,7 +22899,7 @@
             "hdlname": "formal_scoria_cmd_arbiter",
             "dynports": "00000000000000000000000000000001",
             "top": "00000000000000000000000000000001",
-            "src": "formal_scoria_cmd_arbiter.sv:60.1-342.10"
+            "src": "formal_scoria_cmd_arbiter.sv:60.1-345.10"
         }
       }
   ]

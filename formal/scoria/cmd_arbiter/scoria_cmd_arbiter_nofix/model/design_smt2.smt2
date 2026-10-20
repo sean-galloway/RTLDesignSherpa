@@ -4139,275 +4139,275 @@
 ; yosys-smt2-module formal_scoria_cmd_arbiter
 (declare-sort |formal_scoria_cmd_arbiter_s| 0)
 (declare-fun |formal_scoria_cmd_arbiter_is| (|formal_scoria_cmd_arbiter_s|) Bool)
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:107:execute$83404"], "smtname": 0, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#0| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:107:execute$83404
-; yosys-smt2-register $auto$async2sync.cc:107:execute$83404 1
-(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:107:execute$83404| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#0| state)) #b1))
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:107:execute$83386"], "smtname": 1, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#1| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:107:execute$83386
-; yosys-smt2-register $auto$async2sync.cc:107:execute$83386 1
-(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:107:execute$83386| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#1| state)) #b1))
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83408"], "smtname": 2, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#2| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83408
-; yosys-smt2-register $auto$async2sync.cc:116:execute$83408 1
-(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83408| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#2| state)) #b1))
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83390"], "smtname": 3, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#3| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83390
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83390"], "smtname": 0, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#0| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83390
 ; yosys-smt2-register $auto$async2sync.cc:116:execute$83390 1
-(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83390| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#3| state)) #b1))
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83396"], "smtname": 4, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#4| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83396
-; yosys-smt2-register $auto$async2sync.cc:116:execute$83396 1
-(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83396| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#4| state)) #b1))
-; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83402"], "smtname": 5, "smtoffset": 0, "type": "reg", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#5| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83402
+(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83390| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#0| state)) #b1))
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83402"], "smtname": 1, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#1| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83402
 ; yosys-smt2-register $auto$async2sync.cc:116:execute$83402 1
-(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83402| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#5| state)) #b1))
-(declare-fun |formal_scoria_cmd_arbiter#6| (|formal_scoria_cmd_arbiter_s|) Bool) ; \aresetn
-; yosys-smt2-witness {"offset": 0, "path": ["\\f_past_valid"], "smtname": 7, "smtoffset": 0, "type": "reg", "width": 8}
-(declare-fun |formal_scoria_cmd_arbiter#7| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 8)) ; \f_past_valid
-(define-fun |formal_scoria_cmd_arbiter#8| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvugt (|formal_scoria_cmd_arbiter#7| state) #b00000010)) ; $gt$formal_scoria_cmd_arbiter.sv:299$71371_Y
-(define-fun |formal_scoria_cmd_arbiter#9| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (|formal_scoria_cmd_arbiter#6| state) false) (or  (|formal_scoria_cmd_arbiter#8| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:299$71372_Y
-(define-fun |formal_scoria_cmd_arbiter#10| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#9| state) #b1 #b0)) ; \a_single_issue_EN
+(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83402| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#1| state)) #b1))
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:107:execute$83404"], "smtname": 2, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#2| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:107:execute$83404
+; yosys-smt2-register $auto$async2sync.cc:107:execute$83404 1
+(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:107:execute$83404| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#2| state)) #b1))
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83408"], "smtname": 3, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#3| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83408
+; yosys-smt2-register $auto$async2sync.cc:116:execute$83408 1
+(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83408| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#3| state)) #b1))
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:107:execute$83386"], "smtname": 4, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#4| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:107:execute$83386
+; yosys-smt2-register $auto$async2sync.cc:107:execute$83386 1
+(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:107:execute$83386| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#4| state)) #b1))
+(declare-fun |formal_scoria_cmd_arbiter#5| (|formal_scoria_cmd_arbiter_s|) Bool) ; \aresetn
+; yosys-smt2-witness {"offset": 0, "path": ["\\f_past_valid"], "smtname": 6, "smtoffset": 0, "type": "reg", "width": 8}
+(declare-fun |formal_scoria_cmd_arbiter#6| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 8)) ; \f_past_valid
+(define-fun |formal_scoria_cmd_arbiter#7| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvugt (|formal_scoria_cmd_arbiter#6| state) #b00000010)) ; $gt$formal_scoria_cmd_arbiter.sv:299$71371_Y
+(define-fun |formal_scoria_cmd_arbiter#8| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (|formal_scoria_cmd_arbiter#5| state) false) (or  (|formal_scoria_cmd_arbiter#7| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:299$71372_Y
+(define-fun |formal_scoria_cmd_arbiter#9| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#8| state) #b1 #b0)) ; \a_single_issue_EN
 ; yosys-smt2-wire a_single_issue_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n a_single_issue_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#10| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n a_single_issue_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#9| state)) #b1))
 ; yosys-smt2-wire a_tfaw_window_EN 1
 (define-fun |formal_scoria_cmd_arbiter_n a_tfaw_window_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool false)
 ; yosys-smt2-wire a_trrd_spacing_EN 1
 (define-fun |formal_scoria_cmd_arbiter_n a_trrd_spacing_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool false)
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#11 1 formal_scoria_cmd_arbiter.sv:290.5-294.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\seen_zq"], "smtname": 11, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#11| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \seen_zq
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#12 10 formal_scoria_cmd_arbiter.sv:290.5-294.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\age_zq"], "smtname": 12, "smtoffset": 0, "type": "init", "width": 10}
-(declare-fun |formal_scoria_cmd_arbiter#12| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \age_zq
-; yosys-smt2-anyconst formal_scoria_cmd_arbiter#13 16 formal_scoria_cmd_arbiter.sv:83.31-83.37 t_zqcs
-; yosys-smt2-witness {"offset": 0, "path": ["\\t_zqcs"], "smtname": 13, "smtoffset": 0, "type": "init", "width": 16}
-(declare-fun |formal_scoria_cmd_arbiter#13| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 16)) ; \t_zqcs
-(define-fun |formal_scoria_cmd_arbiter#14| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#12| state) (concat #b000000 ((_ extract 3 0) (|formal_scoria_cmd_arbiter#13| state))))) ; $le$formal_scoria_cmd_arbiter.sv:318$71397_Y
-(define-fun |formal_scoria_cmd_arbiter#15| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#11| state)) #b1) false) (or  (|formal_scoria_cmd_arbiter#14| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:318$71398_Y
-(define-fun |formal_scoria_cmd_arbiter#16| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#15| state) #b1 #b0)) ; $procmux$75208_Y
-(define-fun |formal_scoria_cmd_arbiter#17| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#9| state) (|formal_scoria_cmd_arbiter#16| state) #b0)) ; \a_zqcs_quiet_EN
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#10 1 formal_scoria_cmd_arbiter.sv:290.5-294.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\seen_zq"], "smtname": 10, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#10| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \seen_zq
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#11 10 formal_scoria_cmd_arbiter.sv:290.5-294.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\age_zq"], "smtname": 11, "smtoffset": 0, "type": "init", "width": 10}
+(declare-fun |formal_scoria_cmd_arbiter#11| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \age_zq
+; yosys-smt2-anyconst formal_scoria_cmd_arbiter#12 16 formal_scoria_cmd_arbiter.sv:83.31-83.37 t_zqcs
+; yosys-smt2-witness {"offset": 0, "path": ["\\t_zqcs"], "smtname": 12, "smtoffset": 0, "type": "init", "width": 16}
+(declare-fun |formal_scoria_cmd_arbiter#12| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 16)) ; \t_zqcs
+(define-fun |formal_scoria_cmd_arbiter#13| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#11| state) (concat #b000000 ((_ extract 3 0) (|formal_scoria_cmd_arbiter#12| state))))) ; $le$formal_scoria_cmd_arbiter.sv:318$71397_Y
+(define-fun |formal_scoria_cmd_arbiter#14| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#10| state)) #b1) false) (or  (|formal_scoria_cmd_arbiter#13| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:318$71398_Y
+(define-fun |formal_scoria_cmd_arbiter#15| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#14| state) #b1 #b0)) ; $procmux$75208_Y
+(define-fun |formal_scoria_cmd_arbiter#16| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#8| state) (|formal_scoria_cmd_arbiter#15| state) #b0)) ; \a_zqcs_quiet_EN
 ; yosys-smt2-wire a_zqcs_quiet_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n a_zqcs_quiet_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#17| state)) #b1))
-(declare-fun |formal_scoria_cmd_arbiter#18| (|formal_scoria_cmd_arbiter_s|) Bool) ; \aclk
+(define-fun |formal_scoria_cmd_arbiter_n a_zqcs_quiet_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#16| state)) #b1))
+(declare-fun |formal_scoria_cmd_arbiter#17| (|formal_scoria_cmd_arbiter_s|) Bool) ; \aclk
 ; yosys-smt2-input aclk 1
 ; yosys-smt2-wire aclk 1
 ; yosys-smt2-clock aclk posedge
 ; yosys-smt2-witness {"offset": 0, "path": ["\\aclk"], "smtname": "aclk", "smtoffset": 0, "type": "posedge", "width": 1}
 ; yosys-smt2-witness {"offset": 0, "path": ["\\aclk"], "smtname": "aclk", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |formal_scoria_cmd_arbiter_n aclk| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#18| state))
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#19 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\age_act"], "smtname": 19, "smtoffset": 0, "type": "init", "width": 10}
-(declare-fun |formal_scoria_cmd_arbiter#19| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \age_act
+(define-fun |formal_scoria_cmd_arbiter_n aclk| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#17| state))
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#18 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\age_act"], "smtname": 18, "smtoffset": 0, "type": "init", "width": 10}
+(declare-fun |formal_scoria_cmd_arbiter#18| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \age_act
 ; yosys-smt2-register age_act 10
 ; yosys-smt2-wire age_act 10
-(define-fun |formal_scoria_cmd_arbiter_n age_act| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#19| state))
+(define-fun |formal_scoria_cmd_arbiter_n age_act| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#18| state))
 ; yosys-smt2-register age_zq 10
 ; yosys-smt2-wire age_zq 10
-(define-fun |formal_scoria_cmd_arbiter_n age_zq| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#12| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#20 4 formal_scoria_cmd_arbiter.sv:107.33-107.43 ap_close_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\ap_close_i"], "smtname": 20, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#20| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \ap_close_i
+(define-fun |formal_scoria_cmd_arbiter_n age_zq| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#11| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#19 4 formal_scoria_cmd_arbiter.sv:107.33-107.43 ap_close_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\ap_close_i"], "smtname": 19, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#19| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \ap_close_i
 ; yosys-smt2-wire ap_close_i 4
-(define-fun |formal_scoria_cmd_arbiter_n ap_close_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#20| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#21 1 formal_scoria_cmd_arbiter.sv:103.44-103.56 ap_mode_en_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\ap_mode_en_i"], "smtname": 21, "smtoffset": 0, "type": "seq", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#21| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \ap_mode_en_i
+(define-fun |formal_scoria_cmd_arbiter_n ap_close_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#19| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#20 1 formal_scoria_cmd_arbiter.sv:103.44-103.56 ap_mode_en_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\ap_mode_en_i"], "smtname": 20, "smtoffset": 0, "type": "seq", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#20| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \ap_mode_en_i
 ; yosys-smt2-wire ap_mode_en_i 1
-(define-fun |formal_scoria_cmd_arbiter_n ap_mode_en_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#21| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n ap_mode_en_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#20| state)) #b1))
 ; yosys-smt2-input aresetn 1
 ; yosys-smt2-wire aresetn 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\aresetn"], "smtname": "aresetn", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |formal_scoria_cmd_arbiter_n aresetn| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#6| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#22 4 formal_scoria_cmd_arbiter.sv:118.34-118.50 bank_act_ready_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_act_ready_i"], "smtname": 22, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#22| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_act_ready_i
+(define-fun |formal_scoria_cmd_arbiter_n aresetn| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#5| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#21 4 formal_scoria_cmd_arbiter.sv:118.34-118.50 bank_act_ready_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_act_ready_i"], "smtname": 21, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#21| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_act_ready_i
 ; yosys-smt2-wire bank_act_ready_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_act_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#22| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#23 4 formal_scoria_cmd_arbiter.sv:119.34-119.53 bank_act_ready_la_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_act_ready_la_i"], "smtname": 23, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#23| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_act_ready_la_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_act_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#21| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#22 4 formal_scoria_cmd_arbiter.sv:119.34-119.53 bank_act_ready_la_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_act_ready_la_i"], "smtname": 22, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#22| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_act_ready_la_i
 ; yosys-smt2-wire bank_act_ready_la_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_act_ready_la_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#23| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#24 16 formal_scoria_cmd_arbiter.sv:121.37-121.52 bank_open_row_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_open_row_i"], "smtname": 24, "smtoffset": 0, "type": "seq", "width": 16}
-(declare-fun |formal_scoria_cmd_arbiter#24| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 16)) ; \bank_open_row_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_act_ready_la_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#22| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#23 16 formal_scoria_cmd_arbiter.sv:121.37-121.52 bank_open_row_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_open_row_i"], "smtname": 23, "smtoffset": 0, "type": "seq", "width": 16}
+(declare-fun |formal_scoria_cmd_arbiter#23| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 16)) ; \bank_open_row_i
 ; yosys-smt2-wire bank_open_row_i 16
-(define-fun |formal_scoria_cmd_arbiter_n bank_open_row_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 16) (|formal_scoria_cmd_arbiter#24| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#25 4 formal_scoria_cmd_arbiter.sv:118.71-118.87 bank_pre_ready_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_pre_ready_i"], "smtname": 25, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#25| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_pre_ready_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_open_row_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 16) (|formal_scoria_cmd_arbiter#23| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#24 4 formal_scoria_cmd_arbiter.sv:118.71-118.87 bank_pre_ready_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_pre_ready_i"], "smtname": 24, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#24| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_pre_ready_i
 ; yosys-smt2-wire bank_pre_ready_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_pre_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#25| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#26 4 formal_scoria_cmd_arbiter.sv:119.77-119.96 bank_pre_ready_la_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_pre_ready_la_i"], "smtname": 26, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#26| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_pre_ready_la_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_pre_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#24| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#25 4 formal_scoria_cmd_arbiter.sv:119.77-119.96 bank_pre_ready_la_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_pre_ready_la_i"], "smtname": 25, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#25| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_pre_ready_la_i
 ; yosys-smt2-wire bank_pre_ready_la_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_pre_ready_la_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#26| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#27 4 formal_scoria_cmd_arbiter.sv:118.52-118.69 bank_rdwr_ready_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_rdwr_ready_i"], "smtname": 27, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#27| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_rdwr_ready_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_pre_ready_la_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#25| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#26 4 formal_scoria_cmd_arbiter.sv:118.52-118.69 bank_rdwr_ready_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_rdwr_ready_i"], "smtname": 26, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#26| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_rdwr_ready_i
 ; yosys-smt2-wire bank_rdwr_ready_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_rdwr_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#27| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#28 4 formal_scoria_cmd_arbiter.sv:119.55-119.75 bank_rdwr_ready_la_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_rdwr_ready_la_i"], "smtname": 28, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#28| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_rdwr_ready_la_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_rdwr_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#26| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#27 4 formal_scoria_cmd_arbiter.sv:119.55-119.75 bank_rdwr_ready_la_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_rdwr_ready_la_i"], "smtname": 27, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#27| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_rdwr_ready_la_i
 ; yosys-smt2-wire bank_rdwr_ready_la_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_rdwr_ready_la_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#28| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#29 4 formal_scoria_cmd_arbiter.sv:120.34-120.51 bank_row_active_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\bank_row_active_i"], "smtname": 29, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#29| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_row_active_i
+(define-fun |formal_scoria_cmd_arbiter_n bank_rdwr_ready_la_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#27| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#28 4 formal_scoria_cmd_arbiter.sv:120.34-120.51 bank_row_active_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\bank_row_active_i"], "smtname": 28, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#28| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \bank_row_active_i
 ; yosys-smt2-wire bank_row_active_i 4
-(define-fun |formal_scoria_cmd_arbiter_n bank_row_active_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#29| state))
-(define-fun |formal_scoria_cmd_arbiter#30| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#6| state) #b1 #b0)) ; \c_act_EN
+(define-fun |formal_scoria_cmd_arbiter_n bank_row_active_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#28| state))
+(define-fun |formal_scoria_cmd_arbiter#29| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#5| state) #b1 #b0)) ; \c_act_EN
 ; yosys-smt2-wire c_act_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_act_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_act_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
+; yosys-smt2-wire c_act_after_zqcs_EN 1
+(define-fun |formal_scoria_cmd_arbiter_n c_act_after_zqcs_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-wire c_act_diff_bank_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_act_diff_bank_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
-; yosys-smt2-wire c_act_in_zqcs_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_act_in_zqcs_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_act_diff_bank_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-wire c_col_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_col_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
-; yosys-smt2-wire c_col_in_zqcs_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_col_in_zqcs_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_col_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
+; yosys-smt2-wire c_col_after_zqcs_EN 1
+(define-fun |formal_scoria_cmd_arbiter_n c_col_after_zqcs_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-wire c_fifth_act_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_fifth_act_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_fifth_act_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-wire c_four_acts_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_four_acts_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_four_acts_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-wire c_two_acts_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_two_acts_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_two_acts_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-wire c_zq_grant_EN 1
-(define-fun |formal_scoria_cmd_arbiter_n c_zq_grant_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n c_zq_grant_EN| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1))
 ; yosys-smt2-cell $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter u_arb
 ; yosys-smt2-witness {"path": ["\\u_arb"], "smtname": "u_arb", "type": "cell"}
-(declare-fun |formal_scoria_cmd_arbiter#31| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \cmd_bank_o
-(declare-fun |formal_scoria_cmd_arbiter#32| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \cmd_col_o
-(declare-fun |formal_scoria_cmd_arbiter#33| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 5)) ; { $auto$hierarchy.cc:1522:execute$75189 \cmd_op_o }
-(declare-fun |formal_scoria_cmd_arbiter#34| (|formal_scoria_cmd_arbiter_s|) Bool) ; \cmd_rank_o
-(declare-fun |formal_scoria_cmd_arbiter#35| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \cmd_row_o
-(declare-fun |formal_scoria_cmd_arbiter#36| (|formal_scoria_cmd_arbiter_s|) Bool) ; \cmd_valid_o
-(declare-fun |formal_scoria_cmd_arbiter#37| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_act_o
-(declare-fun |formal_scoria_cmd_arbiter#38| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_ap_o
-(declare-fun |formal_scoria_cmd_arbiter#39| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \evt_bank_o
-(declare-fun |formal_scoria_cmd_arbiter#40| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_pre_o
-(declare-fun |formal_scoria_cmd_arbiter#41| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_rank_o
-(declare-fun |formal_scoria_cmd_arbiter#42| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_rd_o
-(declare-fun |formal_scoria_cmd_arbiter#43| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \evt_row_o
-(declare-fun |formal_scoria_cmd_arbiter#44| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_wr_o
-(declare-fun |formal_scoria_cmd_arbiter#45| (|formal_scoria_cmd_arbiter_s|) Bool) ; \rd_issue_slot_o
-(declare-fun |formal_scoria_cmd_arbiter#46| (|formal_scoria_cmd_arbiter_s|) Bool) ; \rd_issue_valid_o
-(declare-fun |formal_scoria_cmd_arbiter#47| (|formal_scoria_cmd_arbiter_s|) Bool) ; \refresh_grant_o
-(declare-fun |formal_scoria_cmd_arbiter#48| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 32)) ; \stall_zq_o
-(declare-fun |formal_scoria_cmd_arbiter#49| (|formal_scoria_cmd_arbiter_s|) Bool) ; \wr_commit_slot_o
-(declare-fun |formal_scoria_cmd_arbiter#50| (|formal_scoria_cmd_arbiter_s|) Bool) ; \wr_commit_valid_o
-(declare-fun |formal_scoria_cmd_arbiter#51| (|formal_scoria_cmd_arbiter_s|) Bool) ; \zq_grant_o
+(declare-fun |formal_scoria_cmd_arbiter#30| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \cmd_bank_o
+(declare-fun |formal_scoria_cmd_arbiter#31| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \cmd_col_o
+(declare-fun |formal_scoria_cmd_arbiter#32| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 5)) ; { $auto$hierarchy.cc:1522:execute$75189 \cmd_op_o }
+(declare-fun |formal_scoria_cmd_arbiter#33| (|formal_scoria_cmd_arbiter_s|) Bool) ; \cmd_rank_o
+(declare-fun |formal_scoria_cmd_arbiter#34| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \cmd_row_o
+(declare-fun |formal_scoria_cmd_arbiter#35| (|formal_scoria_cmd_arbiter_s|) Bool) ; \cmd_valid_o
+(declare-fun |formal_scoria_cmd_arbiter#36| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_act_o
+(declare-fun |formal_scoria_cmd_arbiter#37| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_ap_o
+(declare-fun |formal_scoria_cmd_arbiter#38| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \evt_bank_o
+(declare-fun |formal_scoria_cmd_arbiter#39| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_pre_o
+(declare-fun |formal_scoria_cmd_arbiter#40| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_rank_o
+(declare-fun |formal_scoria_cmd_arbiter#41| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_rd_o
+(declare-fun |formal_scoria_cmd_arbiter#42| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \evt_row_o
+(declare-fun |formal_scoria_cmd_arbiter#43| (|formal_scoria_cmd_arbiter_s|) Bool) ; \evt_wr_o
+(declare-fun |formal_scoria_cmd_arbiter#44| (|formal_scoria_cmd_arbiter_s|) Bool) ; \rd_issue_slot_o
+(declare-fun |formal_scoria_cmd_arbiter#45| (|formal_scoria_cmd_arbiter_s|) Bool) ; \rd_issue_valid_o
+(declare-fun |formal_scoria_cmd_arbiter#46| (|formal_scoria_cmd_arbiter_s|) Bool) ; \refresh_grant_o
+(declare-fun |formal_scoria_cmd_arbiter#47| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 32)) ; \stall_zq_o
+(declare-fun |formal_scoria_cmd_arbiter#48| (|formal_scoria_cmd_arbiter_s|) Bool) ; \wr_commit_slot_o
+(declare-fun |formal_scoria_cmd_arbiter#49| (|formal_scoria_cmd_arbiter_s|) Bool) ; \wr_commit_valid_o
+(declare-fun |formal_scoria_cmd_arbiter#50| (|formal_scoria_cmd_arbiter_s|) Bool) ; \zq_grant_o
 (declare-fun |formal_scoria_cmd_arbiter_h u_arb| (|formal_scoria_cmd_arbiter_s|) |$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_s|)
 ; yosys-smt2-wire cmd_bank_o 2
-(define-fun |formal_scoria_cmd_arbiter_n cmd_bank_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#31| state))
+(define-fun |formal_scoria_cmd_arbiter_n cmd_bank_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#30| state))
 ; yosys-smt2-wire cmd_col_o 4
-(define-fun |formal_scoria_cmd_arbiter_n cmd_col_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#32| state))
+(define-fun |formal_scoria_cmd_arbiter_n cmd_col_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#31| state))
 ; yosys-smt2-wire cmd_op_o 4
-(define-fun |formal_scoria_cmd_arbiter_n cmd_op_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) ((_ extract 3 0) (|formal_scoria_cmd_arbiter#33| state)))
+(define-fun |formal_scoria_cmd_arbiter_n cmd_op_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) ((_ extract 3 0) (|formal_scoria_cmd_arbiter#32| state)))
 ; yosys-smt2-wire cmd_rank_o 1
-(define-fun |formal_scoria_cmd_arbiter_n cmd_rank_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#34| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#52 1 formal_scoria_cmd_arbiter.sv:127.70-127.81 cmd_ready_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\cmd_ready_i"], "smtname": 52, "smtoffset": 0, "type": "seq", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#52| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \cmd_ready_i
+(define-fun |formal_scoria_cmd_arbiter_n cmd_rank_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#33| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#51 1 formal_scoria_cmd_arbiter.sv:127.70-127.81 cmd_ready_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\cmd_ready_i"], "smtname": 51, "smtoffset": 0, "type": "seq", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#51| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \cmd_ready_i
 ; yosys-smt2-wire cmd_ready_i 1
-(define-fun |formal_scoria_cmd_arbiter_n cmd_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#52| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n cmd_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#51| state)) #b1))
 ; yosys-smt2-wire cmd_row_o 4
-(define-fun |formal_scoria_cmd_arbiter_n cmd_row_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#35| state))
+(define-fun |formal_scoria_cmd_arbiter_n cmd_row_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#34| state))
 ; yosys-smt2-wire cmd_valid_o 1
-(define-fun |formal_scoria_cmd_arbiter_n cmd_valid_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#36| state))
+(define-fun |formal_scoria_cmd_arbiter_n cmd_valid_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#35| state))
 ; yosys-smt2-wire evt_act_o 1
-(define-fun |formal_scoria_cmd_arbiter_n evt_act_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#37| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_act_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#36| state))
 ; yosys-smt2-wire evt_ap_o 1
-(define-fun |formal_scoria_cmd_arbiter_n evt_ap_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#38| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_ap_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#37| state))
 ; yosys-smt2-wire evt_bank_o 2
-(define-fun |formal_scoria_cmd_arbiter_n evt_bank_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#39| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_bank_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#38| state))
 ; yosys-smt2-wire evt_pre_o 1
-(define-fun |formal_scoria_cmd_arbiter_n evt_pre_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#40| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_pre_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#39| state))
 ; yosys-smt2-wire evt_rank_o 1
-(define-fun |formal_scoria_cmd_arbiter_n evt_rank_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#41| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_rank_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#40| state))
 ; yosys-smt2-wire evt_rd_o 1
-(define-fun |formal_scoria_cmd_arbiter_n evt_rd_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#42| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_rd_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#41| state))
 ; yosys-smt2-wire evt_row_o 4
-(define-fun |formal_scoria_cmd_arbiter_n evt_row_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#43| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_row_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#42| state))
 ; yosys-smt2-wire evt_wr_o 1
-(define-fun |formal_scoria_cmd_arbiter_n evt_wr_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#44| state))
+(define-fun |formal_scoria_cmd_arbiter_n evt_wr_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#43| state))
 ; yosys-smt2-register f_past_valid 8
 ; yosys-smt2-wire f_past_valid 8
-(define-fun |formal_scoria_cmd_arbiter_n f_past_valid| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 8) (|formal_scoria_cmd_arbiter#7| state))
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#53 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[0]"], "smtname": 53, "smtoffset": 0, "type": "init", "width": 10}
-(declare-fun |formal_scoria_cmd_arbiter#53| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[0]
+(define-fun |formal_scoria_cmd_arbiter_n f_past_valid| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 8) (|formal_scoria_cmd_arbiter#6| state))
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#52 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[0]"], "smtname": 52, "smtoffset": 0, "type": "init", "width": 10}
+(declare-fun |formal_scoria_cmd_arbiter#52| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[0]
 ; yosys-smt2-register faw_age[0] 10
 ; yosys-smt2-wire faw_age[0] 10
-(define-fun |formal_scoria_cmd_arbiter_n faw_age[0]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#53| state))
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#54 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[1]"], "smtname": 54, "smtoffset": 0, "type": "init", "width": 10}
-(declare-fun |formal_scoria_cmd_arbiter#54| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[1]
+(define-fun |formal_scoria_cmd_arbiter_n faw_age[0]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#52| state))
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#53 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[1]"], "smtname": 53, "smtoffset": 0, "type": "init", "width": 10}
+(declare-fun |formal_scoria_cmd_arbiter#53| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[1]
 ; yosys-smt2-register faw_age[1] 10
 ; yosys-smt2-wire faw_age[1] 10
-(define-fun |formal_scoria_cmd_arbiter_n faw_age[1]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#54| state))
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#55 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[2]"], "smtname": 55, "smtoffset": 0, "type": "init", "width": 10}
-(declare-fun |formal_scoria_cmd_arbiter#55| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[2]
+(define-fun |formal_scoria_cmd_arbiter_n faw_age[1]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#53| state))
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#54 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[2]"], "smtname": 54, "smtoffset": 0, "type": "init", "width": 10}
+(declare-fun |formal_scoria_cmd_arbiter#54| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[2]
 ; yosys-smt2-register faw_age[2] 10
 ; yosys-smt2-wire faw_age[2] 10
-(define-fun |formal_scoria_cmd_arbiter_n faw_age[2]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#55| state))
-; yosys-smt2-anyinit formal_scoria_cmd_arbiter#56 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
-; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[3]"], "smtname": 56, "smtoffset": 0, "type": "init", "width": 10}
-(declare-fun |formal_scoria_cmd_arbiter#56| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[3]
+(define-fun |formal_scoria_cmd_arbiter_n faw_age[2]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#54| state))
+; yosys-smt2-anyinit formal_scoria_cmd_arbiter#55 10 formal_scoria_cmd_arbiter.sv:267.5-285.8
+; yosys-smt2-witness {"offset": 0, "path": ["\\faw_age[3]"], "smtname": 55, "smtoffset": 0, "type": "init", "width": 10}
+(declare-fun |formal_scoria_cmd_arbiter#55| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 10)) ; \faw_age[3]
 ; yosys-smt2-register faw_age[3] 10
 ; yosys-smt2-wire faw_age[3] 10
-(define-fun |formal_scoria_cmd_arbiter_n faw_age[3]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#56| state))
+(define-fun |formal_scoria_cmd_arbiter_n faw_age[3]| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (|formal_scoria_cmd_arbiter#55| state))
 ; yosys-smt2-cell $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers u_gt
 ; yosys-smt2-witness {"path": ["\\u_gt"], "smtname": "u_gt", "type": "cell"}
-(declare-fun |formal_scoria_cmd_arbiter#57| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_faw_nz
-(declare-fun |formal_scoria_cmd_arbiter#58| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_tccd_nz
-(declare-fun |formal_scoria_cmd_arbiter#59| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_trrd_nz
-(declare-fun |formal_scoria_cmd_arbiter#60| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_trtw_nz
-(declare-fun |formal_scoria_cmd_arbiter#61| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_twtr_nz
-(declare-fun |formal_scoria_cmd_arbiter#62| (|formal_scoria_cmd_arbiter_s|) Bool) ; \tccd_ok_i
-(declare-fun |formal_scoria_cmd_arbiter#63| (|formal_scoria_cmd_arbiter_s|) Bool) ; \tfaw_ok_i
-(declare-fun |formal_scoria_cmd_arbiter#64| (|formal_scoria_cmd_arbiter_s|) Bool) ; \trrd_ok_i
-(declare-fun |formal_scoria_cmd_arbiter#65| (|formal_scoria_cmd_arbiter_s|) Bool) ; \trtw_ok_i
-(declare-fun |formal_scoria_cmd_arbiter#66| (|formal_scoria_cmd_arbiter_s|) Bool) ; \twtr_ok_i
+(declare-fun |formal_scoria_cmd_arbiter#56| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_faw_nz
+(declare-fun |formal_scoria_cmd_arbiter#57| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_tccd_nz
+(declare-fun |formal_scoria_cmd_arbiter#58| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_trrd_nz
+(declare-fun |formal_scoria_cmd_arbiter#59| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_trtw_nz
+(declare-fun |formal_scoria_cmd_arbiter#60| (|formal_scoria_cmd_arbiter_s|) Bool) ; \gt_twtr_nz
+(declare-fun |formal_scoria_cmd_arbiter#61| (|formal_scoria_cmd_arbiter_s|) Bool) ; \tccd_ok_i
+(declare-fun |formal_scoria_cmd_arbiter#62| (|formal_scoria_cmd_arbiter_s|) Bool) ; \tfaw_ok_i
+(declare-fun |formal_scoria_cmd_arbiter#63| (|formal_scoria_cmd_arbiter_s|) Bool) ; \trrd_ok_i
+(declare-fun |formal_scoria_cmd_arbiter#64| (|formal_scoria_cmd_arbiter_s|) Bool) ; \trtw_ok_i
+(declare-fun |formal_scoria_cmd_arbiter#65| (|formal_scoria_cmd_arbiter_s|) Bool) ; \twtr_ok_i
 (declare-fun |formal_scoria_cmd_arbiter_h u_gt| (|formal_scoria_cmd_arbiter_s|) |$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_s|)
 ; yosys-smt2-wire gt_faw_nz 1
-(define-fun |formal_scoria_cmd_arbiter_n gt_faw_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#57| state))
+(define-fun |formal_scoria_cmd_arbiter_n gt_faw_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#56| state))
 ; yosys-smt2-wire gt_tccd_nz 1
-(define-fun |formal_scoria_cmd_arbiter_n gt_tccd_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#58| state))
+(define-fun |formal_scoria_cmd_arbiter_n gt_tccd_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#57| state))
 ; yosys-smt2-wire gt_trrd_nz 1
-(define-fun |formal_scoria_cmd_arbiter_n gt_trrd_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#59| state))
+(define-fun |formal_scoria_cmd_arbiter_n gt_trrd_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#58| state))
 ; yosys-smt2-wire gt_trtw_nz 1
-(define-fun |formal_scoria_cmd_arbiter_n gt_trtw_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#60| state))
+(define-fun |formal_scoria_cmd_arbiter_n gt_trtw_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#59| state))
 ; yosys-smt2-wire gt_twtr_nz 1
-(define-fun |formal_scoria_cmd_arbiter_n gt_twtr_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#61| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#67 2 formal_scoria_cmd_arbiter.sv:111.33-111.48 init_cmd_bank_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_bank_i"], "smtname": 67, "smtoffset": 0, "type": "seq", "width": 2}
-(declare-fun |formal_scoria_cmd_arbiter#67| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \init_cmd_bank_i
+(define-fun |formal_scoria_cmd_arbiter_n gt_twtr_nz| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#60| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#66 2 formal_scoria_cmd_arbiter.sv:111.33-111.48 init_cmd_bank_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_bank_i"], "smtname": 66, "smtoffset": 0, "type": "seq", "width": 2}
+(declare-fun |formal_scoria_cmd_arbiter#66| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \init_cmd_bank_i
 ; yosys-smt2-wire init_cmd_bank_i 2
-(define-fun |formal_scoria_cmd_arbiter_n init_cmd_bank_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#67| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#68 4 formal_scoria_cmd_arbiter.sv:110.33-110.46 init_cmd_op_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_op_i"], "smtname": 68, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#68| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \init_cmd_op_i
+(define-fun |formal_scoria_cmd_arbiter_n init_cmd_bank_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#66| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#67 4 formal_scoria_cmd_arbiter.sv:110.33-110.46 init_cmd_op_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_op_i"], "smtname": 67, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#67| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \init_cmd_op_i
 ; yosys-smt2-wire init_cmd_op_i 4
-(define-fun |formal_scoria_cmd_arbiter_n init_cmd_op_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#68| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#69 4 formal_scoria_cmd_arbiter.sv:112.33-112.47 init_cmd_row_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_row_i"], "smtname": 69, "smtoffset": 0, "type": "seq", "width": 4}
-(declare-fun |formal_scoria_cmd_arbiter#69| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \init_cmd_row_i
+(define-fun |formal_scoria_cmd_arbiter_n init_cmd_op_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#67| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#68 4 formal_scoria_cmd_arbiter.sv:112.33-112.47 init_cmd_row_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_row_i"], "smtname": 68, "smtoffset": 0, "type": "seq", "width": 4}
+(declare-fun |formal_scoria_cmd_arbiter#68| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 4)) ; \init_cmd_row_i
 ; yosys-smt2-wire init_cmd_row_i 4
-(define-fun |formal_scoria_cmd_arbiter_n init_cmd_row_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#69| state))
-; yosys-smt2-anyseq formal_scoria_cmd_arbiter#70 1 formal_scoria_cmd_arbiter.sv:109.33-109.49 init_cmd_valid_i
-; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_valid_i"], "smtname": 70, "smtoffset": 0, "type": "seq", "width": 1}
-(declare-fun |formal_scoria_cmd_arbiter#70| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \init_cmd_valid_i
+(define-fun |formal_scoria_cmd_arbiter_n init_cmd_row_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (|formal_scoria_cmd_arbiter#68| state))
+; yosys-smt2-anyseq formal_scoria_cmd_arbiter#69 1 formal_scoria_cmd_arbiter.sv:109.33-109.49 init_cmd_valid_i
+; yosys-smt2-witness {"offset": 0, "path": ["\\init_cmd_valid_i"], "smtname": 69, "smtoffset": 0, "type": "seq", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#69| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \init_cmd_valid_i
 ; yosys-smt2-wire init_cmd_valid_i 1
-(define-fun |formal_scoria_cmd_arbiter_n init_cmd_valid_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#70| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n init_cmd_valid_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#69| state)) #b1))
 ; yosys-smt2-wire init_done_i 1
 (define-fun |formal_scoria_cmd_arbiter_n init_done_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool true)
+; yosys-smt2-witness {"offset": 0, "path": ["$auto$async2sync.cc:116:execute$83396"], "smtname": 70, "smtoffset": 0, "type": "reg", "width": 1}
+(declare-fun |formal_scoria_cmd_arbiter#70| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; $auto$async2sync.cc:116:execute$83396
+; yosys-smt2-register $auto$async2sync.cc:116:execute$83396 1
+(define-fun |formal_scoria_cmd_arbiter_n $auto$async2sync.cc:116:execute$83396| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#70| state)) #b1))
 ; yosys-smt2-wire oi 32
 (define-fun |formal_scoria_cmd_arbiter_n oi| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 32) #b00000000000000000000000000000010)
 ; yosys-smt2-wire oj 32
@@ -4457,9 +4457,9 @@
 ; yosys-smt2-wire rd_issue_ready_i 1
 (define-fun |formal_scoria_cmd_arbiter_n rd_issue_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#94| state)) #b1))
 ; yosys-smt2-wire rd_issue_slot_o 1
-(define-fun |formal_scoria_cmd_arbiter_n rd_issue_slot_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#45| state))
+(define-fun |formal_scoria_cmd_arbiter_n rd_issue_slot_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#44| state))
 ; yosys-smt2-wire rd_issue_valid_o 1
-(define-fun |formal_scoria_cmd_arbiter_n rd_issue_valid_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#46| state))
+(define-fun |formal_scoria_cmd_arbiter_n rd_issue_valid_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#45| state))
 ; yosys-smt2-anyseq formal_scoria_cmd_arbiter#95 2 formal_scoria_cmd_arbiter.sv:105.33-105.52 rd_sch_age_exceed_i
 ; yosys-smt2-witness {"offset": 0, "path": ["\\rd_sch_age_exceed_i"], "smtname": 95, "smtoffset": 0, "type": "seq", "width": 2}
 (declare-fun |formal_scoria_cmd_arbiter#95| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \rd_sch_age_exceed_i
@@ -4505,7 +4505,7 @@
 ; yosys-smt2-wire refresh_drain_i 1
 (define-fun |formal_scoria_cmd_arbiter_n refresh_drain_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#102| state)) #b1))
 ; yosys-smt2-wire refresh_grant_o 1
-(define-fun |formal_scoria_cmd_arbiter_n refresh_grant_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#47| state))
+(define-fun |formal_scoria_cmd_arbiter_n refresh_grant_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#46| state))
 ; yosys-smt2-anyseq formal_scoria_cmd_arbiter#103 1 formal_scoria_cmd_arbiter.sv:113.65-113.79 refresh_kind_i
 ; yosys-smt2-witness {"offset": 0, "path": ["\\refresh_kind_i"], "smtname": 103, "smtoffset": 0, "type": "seq", "width": 1}
 (declare-fun |formal_scoria_cmd_arbiter#103| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \refresh_kind_i
@@ -4563,9 +4563,9 @@
 (define-fun |formal_scoria_cmd_arbiter_n sched_wr_low_wm_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 8) (|formal_scoria_cmd_arbiter#113| state))
 ; yosys-smt2-register seen_zq 1
 ; yosys-smt2-wire seen_zq 1
-(define-fun |formal_scoria_cmd_arbiter_n seen_zq| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#11| state)) #b1))
+(define-fun |formal_scoria_cmd_arbiter_n seen_zq| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#10| state)) #b1))
 ; yosys-smt2-wire stall_zq_o 32
-(define-fun |formal_scoria_cmd_arbiter_n stall_zq_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 32) (|formal_scoria_cmd_arbiter#48| state))
+(define-fun |formal_scoria_cmd_arbiter_n stall_zq_o| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 32) (|formal_scoria_cmd_arbiter#47| state))
 ; yosys-smt2-anyconst formal_scoria_cmd_arbiter#114 8 formal_scoria_cmd_arbiter.sv:82.58-82.63 t_ccd
 ; yosys-smt2-witness {"offset": 0, "path": ["\\t_ccd"], "smtname": 114, "smtoffset": 0, "type": "init", "width": 8}
 (declare-fun |formal_scoria_cmd_arbiter#114| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 8)) ; \t_ccd
@@ -4602,11 +4602,11 @@
 ; yosys-smt2-wire t_wtr 8
 (define-fun |formal_scoria_cmd_arbiter_n t_wtr| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 8) (|formal_scoria_cmd_arbiter#120| state))
 ; yosys-smt2-wire t_zqcs 16
-(define-fun |formal_scoria_cmd_arbiter_n t_zqcs| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 16) (|formal_scoria_cmd_arbiter#13| state))
+(define-fun |formal_scoria_cmd_arbiter_n t_zqcs| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 16) (|formal_scoria_cmd_arbiter#12| state))
 ; yosys-smt2-wire tccd_ok_i 1
-(define-fun |formal_scoria_cmd_arbiter_n tccd_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#62| state))
+(define-fun |formal_scoria_cmd_arbiter_n tccd_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#61| state))
 ; yosys-smt2-wire tfaw_ok_i 1
-(define-fun |formal_scoria_cmd_arbiter_n tfaw_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#63| state))
+(define-fun |formal_scoria_cmd_arbiter_n tfaw_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#62| state))
 ; yosys-smt2-anyseq formal_scoria_cmd_arbiter#121 2 formal_scoria_cmd_arbiter.sv:108.33-108.51 timeout_pre_bank_i
 ; yosys-smt2-witness {"offset": 0, "path": ["\\timeout_pre_bank_i"], "smtname": 121, "smtoffset": 0, "type": "seq", "width": 2}
 (declare-fun |formal_scoria_cmd_arbiter#121| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \timeout_pre_bank_i
@@ -4618,20 +4618,20 @@
 ; yosys-smt2-wire timeout_pre_req_i 1
 (define-fun |formal_scoria_cmd_arbiter_n timeout_pre_req_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#122| state)) #b1))
 ; yosys-smt2-wire trrd_ok_i 1
-(define-fun |formal_scoria_cmd_arbiter_n trrd_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#64| state))
+(define-fun |formal_scoria_cmd_arbiter_n trrd_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#63| state))
 ; yosys-smt2-wire trtw_ok_i 1
-(define-fun |formal_scoria_cmd_arbiter_n trtw_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#65| state))
+(define-fun |formal_scoria_cmd_arbiter_n trtw_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#64| state))
 ; yosys-smt2-wire twtr_ok_i 1
-(define-fun |formal_scoria_cmd_arbiter_n twtr_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#66| state))
+(define-fun |formal_scoria_cmd_arbiter_n twtr_ok_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#65| state))
 ; yosys-smt2-anyseq formal_scoria_cmd_arbiter#123 1 formal_scoria_cmd_arbiter.sv:127.33-127.50 wr_commit_ready_i
 ; yosys-smt2-witness {"offset": 0, "path": ["\\wr_commit_ready_i"], "smtname": 123, "smtoffset": 0, "type": "seq", "width": 1}
 (declare-fun |formal_scoria_cmd_arbiter#123| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \wr_commit_ready_i
 ; yosys-smt2-wire wr_commit_ready_i 1
 (define-fun |formal_scoria_cmd_arbiter_n wr_commit_ready_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#123| state)) #b1))
 ; yosys-smt2-wire wr_commit_slot_o 1
-(define-fun |formal_scoria_cmd_arbiter_n wr_commit_slot_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#49| state))
+(define-fun |formal_scoria_cmd_arbiter_n wr_commit_slot_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#48| state))
 ; yosys-smt2-wire wr_commit_valid_o 1
-(define-fun |formal_scoria_cmd_arbiter_n wr_commit_valid_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#50| state))
+(define-fun |formal_scoria_cmd_arbiter_n wr_commit_valid_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#49| state))
 ; yosys-smt2-anyseq formal_scoria_cmd_arbiter#124 2 formal_scoria_cmd_arbiter.sv:105.54-105.73 wr_sch_age_exceed_i
 ; yosys-smt2-witness {"offset": 0, "path": ["\\wr_sch_age_exceed_i"], "smtname": 124, "smtoffset": 0, "type": "seq", "width": 2}
 (declare-fun |formal_scoria_cmd_arbiter#124| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 2)) ; \wr_sch_age_exceed_i
@@ -4667,27 +4667,27 @@
 ; yosys-smt2-wire wr_sch_valid_i 2
 (define-fun |formal_scoria_cmd_arbiter_n wr_sch_valid_i| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 2) (|formal_scoria_cmd_arbiter#84| state))
 ; yosys-smt2-wire zq_grant_o 1
-(define-fun |formal_scoria_cmd_arbiter_n zq_grant_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#51| state))
+(define-fun |formal_scoria_cmd_arbiter_n zq_grant_o| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter#50| state))
 ; yosys-smt2-anyseq formal_scoria_cmd_arbiter#130 1 formal_scoria_cmd_arbiter.sv:117.33-117.41 zq_req_i
 ; yosys-smt2-witness {"offset": 0, "path": ["\\zq_req_i"], "smtname": 130, "smtoffset": 0, "type": "seq", "width": 1}
 (declare-fun |formal_scoria_cmd_arbiter#130| (|formal_scoria_cmd_arbiter_s|) (_ BitVec 1)) ; \zq_req_i
 ; yosys-smt2-wire zq_req_i 1
 (define-fun |formal_scoria_cmd_arbiter_n zq_req_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#130| state)) #b1))
-(define-fun |formal_scoria_cmd_arbiter#131| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (bvnot (ite (|formal_scoria_cmd_arbiter#18| state) #b1 #b0))) ; $auto$rtlil.cc:3339:Not$84040
+(define-fun |formal_scoria_cmd_arbiter#131| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (bvnot (ite (|formal_scoria_cmd_arbiter#17| state) #b1 #b0))) ; $auto$rtlil.cc:3339:Not$84040
 ; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$84041
 (define-fun |formal_scoria_cmd_arbiter_u 0| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#131| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$84041
 ; yosys-smt2-assume 1 _witness_.check_assume_formal_scoria_cmd_arbiter_sv_247_71335 formal_scoria_cmd_arbiter.sv:247.9-247.27
-(define-fun |formal_scoria_cmd_arbiter_u 1| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#81| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_247_71335
+(define-fun |formal_scoria_cmd_arbiter_u 1| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#81| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_247_71335
 ; yosys-smt2-assume 2 _witness_.check_assume_formal_scoria_cmd_arbiter_sv_248_71336 formal_scoria_cmd_arbiter.sv:248.9-248.27
-(define-fun |formal_scoria_cmd_arbiter_u 2| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#92| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#30| state)) #b1)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_248_71336
-(define-fun |formal_scoria_cmd_arbiter#132| ((state |formal_scoria_cmd_arbiter_s|)) Bool (not (or  (|formal_scoria_cmd_arbiter#6| state) false))) ; $logic_not$formal_scoria_cmd_arbiter.sv:254$71422_Y
+(define-fun |formal_scoria_cmd_arbiter_u 2| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#92| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#29| state)) #b1)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_248_71336
+(define-fun |formal_scoria_cmd_arbiter#132| ((state |formal_scoria_cmd_arbiter_s|)) Bool (not (or  (|formal_scoria_cmd_arbiter#5| state) false))) ; $logic_not$formal_scoria_cmd_arbiter.sv:254$71422_Y
 (define-fun |formal_scoria_cmd_arbiter#133| ((state |formal_scoria_cmd_arbiter_s|)) Bool (|formal_scoria_cmd_arbiter_is| state)) ; $auto$rtlil.cc:3386:And$83379
 ; yosys-smt2-assume 3 _witness_.check_assume_formal_scoria_cmd_arbiter_sv_254_71421 formal_scoria_cmd_arbiter.sv:254.13-254.30
 (define-fun |formal_scoria_cmd_arbiter_u 3| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (|formal_scoria_cmd_arbiter#132| state) (not (|formal_scoria_cmd_arbiter#133| state)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_254_71421
-(define-fun |formal_scoria_cmd_arbiter#134| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#7| state) #b00000010)) ; $ge$formal_scoria_cmd_arbiter.sv:255$71341_Y
+(define-fun |formal_scoria_cmd_arbiter#134| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#6| state) #b00000010)) ; $ge$formal_scoria_cmd_arbiter.sv:255$71341_Y
 (define-fun |formal_scoria_cmd_arbiter#135| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#134| state) #b1 #b0)) ; $assume$formal_scoria_cmd_arbiter.sv:255$71342_EN
 ; yosys-smt2-assume 4 _witness_.check_assume_formal_scoria_cmd_arbiter_sv_255_71342 formal_scoria_cmd_arbiter.sv:255.51-255.67
-(define-fun |formal_scoria_cmd_arbiter_u 4| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (|formal_scoria_cmd_arbiter#6| state) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#135| state)) #b1)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_255_71342
+(define-fun |formal_scoria_cmd_arbiter_u 4| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (|formal_scoria_cmd_arbiter#5| state) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#135| state)) #b1)))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_255_71342
 (define-fun |formal_scoria_cmd_arbiter#136| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#118| state) #b00000010)) ; $ge$formal_scoria_cmd_arbiter.sv:87$71226_Y
 (define-fun |formal_scoria_cmd_arbiter#137| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#118| state) #b00000100)) ; $le$formal_scoria_cmd_arbiter.sv:87$71227_Y
 (define-fun |formal_scoria_cmd_arbiter#138| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (|formal_scoria_cmd_arbiter#136| state) false) (or  (|formal_scoria_cmd_arbiter#137| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:87$71228_Y
@@ -4713,73 +4713,73 @@
 (define-fun |formal_scoria_cmd_arbiter#150| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (|formal_scoria_cmd_arbiter#148| state) false) (or  (|formal_scoria_cmd_arbiter#149| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:93$71244_Y
 ; yosys-smt2-assume 9 _witness_.check_assume_formal_scoria_cmd_arbiter_sv_93_71241 formal_scoria_cmd_arbiter.sv:93.9-93.42
 (define-fun |formal_scoria_cmd_arbiter_u 9| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (|formal_scoria_cmd_arbiter#150| state) (not true))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_93_71241
-(define-fun |formal_scoria_cmd_arbiter#151| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#13| state) #b0000000000000010)) ; $ge$formal_scoria_cmd_arbiter.sv:96$71246_Y
-(define-fun |formal_scoria_cmd_arbiter#152| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#13| state) #b0000000000000101)) ; $le$formal_scoria_cmd_arbiter.sv:96$71247_Y
+(define-fun |formal_scoria_cmd_arbiter#151| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#12| state) #b0000000000000010)) ; $ge$formal_scoria_cmd_arbiter.sv:96$71246_Y
+(define-fun |formal_scoria_cmd_arbiter#152| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#12| state) #b0000000000000101)) ; $le$formal_scoria_cmd_arbiter.sv:96$71247_Y
 (define-fun |formal_scoria_cmd_arbiter#153| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and (or  (|formal_scoria_cmd_arbiter#151| state) false) (or  (|formal_scoria_cmd_arbiter#152| state) false))) ; $logic_and$formal_scoria_cmd_arbiter.sv:96$71248_Y
 ; yosys-smt2-assume 10 _witness_.check_assume_formal_scoria_cmd_arbiter_sv_96_71245 formal_scoria_cmd_arbiter.sv:96.9-96.44
 (define-fun |formal_scoria_cmd_arbiter_u 10| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (|formal_scoria_cmd_arbiter#153| state) (not true))) ; _witness_.check_assume_formal_scoria_cmd_arbiter_sv_96_71245
 ; yosys-smt2-assert 0 a_single_issue
-(define-fun |formal_scoria_cmd_arbiter_a 0| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#3| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#1| state)) #b1)))) ; a_single_issue
+(define-fun |formal_scoria_cmd_arbiter_a 0| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#0| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#4| state)) #b1)))) ; a_single_issue
 ; yosys-smt2-assert 1 a_tfaw_window
-(define-fun |formal_scoria_cmd_arbiter_a 1| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#4| state)) #b1) (not false))) ; a_tfaw_window
+(define-fun |formal_scoria_cmd_arbiter_a 1| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#70| state)) #b1) (not false))) ; a_tfaw_window
 ; yosys-smt2-assert 2 a_trrd_spacing
-(define-fun |formal_scoria_cmd_arbiter_a 2| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#5| state)) #b1) (not false))) ; a_trrd_spacing
+(define-fun |formal_scoria_cmd_arbiter_a 2| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#1| state)) #b1) (not false))) ; a_trrd_spacing
 ; yosys-smt2-assert 3 a_zqcs_quiet
-(define-fun |formal_scoria_cmd_arbiter_a 3| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#2| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#0| state)) #b1)))) ; a_zqcs_quiet
-(define-fun |formal_scoria_cmd_arbiter#154| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#56| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71354_Y
-(define-fun |formal_scoria_cmd_arbiter#155| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#56| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71353_Y
-(define-fun |formal_scoria_cmd_arbiter#156| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#155| state) (|formal_scoria_cmd_arbiter#154| state) (|formal_scoria_cmd_arbiter#56| state))) ; $procmux$75238_Y
-(define-fun |formal_scoria_cmd_arbiter#157| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#55| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71352_Y
-(define-fun |formal_scoria_cmd_arbiter#158| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (|formal_scoria_cmd_arbiter#55| state) #b1111111111)) ; $eq$formal_scoria_cmd_arbiter.sv:278$71355_Y
-(define-fun |formal_scoria_cmd_arbiter#159| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#158| state) #b1111111111 (|formal_scoria_cmd_arbiter#157| state))) ; $ternary$formal_scoria_cmd_arbiter.sv:278$71357_Y
-(define-fun |formal_scoria_cmd_arbiter#160| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#37| state) (|formal_scoria_cmd_arbiter#159| state) (|formal_scoria_cmd_arbiter#156| state))) ; $procmux$75240_Y
-(define-fun |formal_scoria_cmd_arbiter#161| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#160| state) #b1111111111)) ; $0\faw_age[3][9:0]
-(define-fun |formal_scoria_cmd_arbiter#162| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#55| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71351_Y
-(define-fun |formal_scoria_cmd_arbiter#163| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#162| state) (|formal_scoria_cmd_arbiter#157| state) (|formal_scoria_cmd_arbiter#55| state))) ; $procmux$75245_Y
-(define-fun |formal_scoria_cmd_arbiter#164| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#54| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71350_Y
-(define-fun |formal_scoria_cmd_arbiter#165| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (|formal_scoria_cmd_arbiter#54| state) #b1111111111)) ; $eq$formal_scoria_cmd_arbiter.sv:279$71358_Y
-(define-fun |formal_scoria_cmd_arbiter#166| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#165| state) #b1111111111 (|formal_scoria_cmd_arbiter#164| state))) ; $ternary$formal_scoria_cmd_arbiter.sv:279$71360_Y
-(define-fun |formal_scoria_cmd_arbiter#167| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#37| state) (|formal_scoria_cmd_arbiter#166| state) (|formal_scoria_cmd_arbiter#163| state))) ; $procmux$75247_Y
-(define-fun |formal_scoria_cmd_arbiter#168| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#167| state) #b1111111111)) ; $0\faw_age[2][9:0]
-(define-fun |formal_scoria_cmd_arbiter#169| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#54| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71349_Y
-(define-fun |formal_scoria_cmd_arbiter#170| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#169| state) (|formal_scoria_cmd_arbiter#164| state) (|formal_scoria_cmd_arbiter#54| state))) ; $procmux$75252_Y
-(define-fun |formal_scoria_cmd_arbiter#171| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#53| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71348_Y
-(define-fun |formal_scoria_cmd_arbiter#172| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (|formal_scoria_cmd_arbiter#53| state) #b1111111111)) ; $eq$formal_scoria_cmd_arbiter.sv:280$71361_Y
-(define-fun |formal_scoria_cmd_arbiter#173| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#172| state) #b1111111111 (|formal_scoria_cmd_arbiter#171| state))) ; $ternary$formal_scoria_cmd_arbiter.sv:280$71363_Y
-(define-fun |formal_scoria_cmd_arbiter#174| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#37| state) (|formal_scoria_cmd_arbiter#173| state) (|formal_scoria_cmd_arbiter#170| state))) ; $procmux$75254_Y
-(define-fun |formal_scoria_cmd_arbiter#175| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#174| state) #b1111111111)) ; $0\faw_age[1][9:0]
-(define-fun |formal_scoria_cmd_arbiter#176| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#53| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71347_Y
-(define-fun |formal_scoria_cmd_arbiter#177| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#176| state) (|formal_scoria_cmd_arbiter#171| state) (|formal_scoria_cmd_arbiter#53| state))) ; $procmux$75259_Y
-(define-fun |formal_scoria_cmd_arbiter#178| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#37| state) #b0000000001 (|formal_scoria_cmd_arbiter#177| state))) ; $procmux$75261_Y
-(define-fun |formal_scoria_cmd_arbiter#179| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#178| state) #b1111111111)) ; $0\faw_age[0][9:0]
-(define-fun |formal_scoria_cmd_arbiter#180| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#19| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:273$71346_Y
-(define-fun |formal_scoria_cmd_arbiter#181| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#19| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:273$71345_Y
-(define-fun |formal_scoria_cmd_arbiter#182| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#181| state) (|formal_scoria_cmd_arbiter#180| state) (|formal_scoria_cmd_arbiter#19| state))) ; $procmux$75279_Y
-(define-fun |formal_scoria_cmd_arbiter#183| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#37| state) #b0000000001 (|formal_scoria_cmd_arbiter#182| state))) ; $procmux$75282_Y
-(define-fun |formal_scoria_cmd_arbiter#184| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#183| state) #b0000000000)) ; $0\age_act[9:0]
-(define-fun |formal_scoria_cmd_arbiter#185| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#12| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:293$71369_Y
-(define-fun |formal_scoria_cmd_arbiter#186| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#12| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:293$71368_Y
-(define-fun |formal_scoria_cmd_arbiter#187| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#186| state) (|formal_scoria_cmd_arbiter#185| state) (|formal_scoria_cmd_arbiter#12| state))) ; $procmux$75228_Y
-(define-fun |formal_scoria_cmd_arbiter#188| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#51| state) #b0000000001 (|formal_scoria_cmd_arbiter#187| state))) ; $procmux$75231_Y
-(define-fun |formal_scoria_cmd_arbiter#189| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#188| state) #b0000000000)) ; $0\age_zq[9:0]
-(define-fun |formal_scoria_cmd_arbiter#190| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#51| state) #b1 (|formal_scoria_cmd_arbiter#11| state))) ; $procmux$75223_Y
-(define-fun |formal_scoria_cmd_arbiter#191| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#6| state) (|formal_scoria_cmd_arbiter#190| state) #b0)) ; $0\seen_zq[0:0]
-(define-fun |formal_scoria_cmd_arbiter#192| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvult (|formal_scoria_cmd_arbiter#7| state) #b11111111)) ; $auto$wreduce.cc:514:run$83169 [0]
-(define-fun |formal_scoria_cmd_arbiter#193| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 8) (bvadd (|formal_scoria_cmd_arbiter#7| state) (concat #b0000000 (ite (|formal_scoria_cmd_arbiter#192| state) #b1 #b0)))) ; $0\f_past_valid[7:0]
-(define-fun |formal_scoria_cmd_arbiter#194| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#19| state) (concat #b00 (|formal_scoria_cmd_arbiter#118| state)))) ; $ge$formal_scoria_cmd_arbiter.sv:305$71375_Y
-(define-fun |formal_scoria_cmd_arbiter#195| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#56| state) (concat #b00 (|formal_scoria_cmd_arbiter#115| state)))) ; $ge$formal_scoria_cmd_arbiter.sv:310$71379_Y
-(define-fun |formal_scoria_cmd_arbiter#196| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#37| state) #b1 #b0) #b1)) ; $add$formal_scoria_cmd_arbiter.sv:313$71383_Y [0]
-(define-fun |formal_scoria_cmd_arbiter#197| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#42| state) #b1 #b0) #b1)) ; $auto$wreduce.cc:514:run$83166 [0]
-(define-fun |formal_scoria_cmd_arbiter#198| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 3) (bvadd (concat #b00 (ite (|formal_scoria_cmd_arbiter#196| state) #b1 #b0)) (concat #b00 (ite (|formal_scoria_cmd_arbiter#197| state) #b1 #b0)))) ; $add$formal_scoria_cmd_arbiter.sv:313$71387_Y
-(define-fun |formal_scoria_cmd_arbiter#199| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#44| state) #b1 #b0) #b1)) ; $auto$wreduce.cc:514:run$83164 [0]
-(define-fun |formal_scoria_cmd_arbiter#200| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (bvadd (concat #b0 (|formal_scoria_cmd_arbiter#198| state)) (concat #b000 (ite (|formal_scoria_cmd_arbiter#199| state) #b1 #b0)))) ; $add$formal_scoria_cmd_arbiter.sv:313$71391_Y
-(define-fun |formal_scoria_cmd_arbiter#201| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#40| state) #b1 #b0) #b1)) ; $auto$wreduce.cc:514:run$83162 [0]
-(define-fun |formal_scoria_cmd_arbiter#202| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 5) (bvadd (concat #b0 (|formal_scoria_cmd_arbiter#200| state)) (concat #b0000 (ite (|formal_scoria_cmd_arbiter#201| state) #b1 #b0)))) ; $add$formal_scoria_cmd_arbiter.sv:313$71395_Y
-(define-fun |formal_scoria_cmd_arbiter#203| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#202| state) #b00001)) ; $le$formal_scoria_cmd_arbiter.sv:313$71396_Y
-(define-fun |formal_scoria_cmd_arbiter#204| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or  (|formal_scoria_cmd_arbiter#37| state) false  (|formal_scoria_cmd_arbiter#42| state) false)) ; $logic_or$formal_scoria_cmd_arbiter.sv:319$71399_Y
-(define-fun |formal_scoria_cmd_arbiter#205| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or  (|formal_scoria_cmd_arbiter#204| state) false  (|formal_scoria_cmd_arbiter#44| state) false)) ; $logic_or$formal_scoria_cmd_arbiter.sv:319$71400_Y
-(define-fun |formal_scoria_cmd_arbiter#206| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or  (|formal_scoria_cmd_arbiter#205| state) false  (|formal_scoria_cmd_arbiter#40| state) false)) ; $logic_or$formal_scoria_cmd_arbiter.sv:319$71401_Y
-(define-fun |formal_scoria_cmd_arbiter#207| ((state |formal_scoria_cmd_arbiter_s|)) Bool (not (or  (|formal_scoria_cmd_arbiter#206| state) false))) ; $logic_not$formal_scoria_cmd_arbiter.sv:319$71402_Y
+(define-fun |formal_scoria_cmd_arbiter_a 3| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#3| state)) #b1) (not (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#2| state)) #b1)))) ; a_zqcs_quiet
+(define-fun |formal_scoria_cmd_arbiter#154| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#55| state) (concat #b00 (|formal_scoria_cmd_arbiter#115| state)))) ; $ge$formal_scoria_cmd_arbiter.sv:310$71379_Y
+(define-fun |formal_scoria_cmd_arbiter#155| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#55| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71354_Y
+(define-fun |formal_scoria_cmd_arbiter#156| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#55| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71353_Y
+(define-fun |formal_scoria_cmd_arbiter#157| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#156| state) (|formal_scoria_cmd_arbiter#155| state) (|formal_scoria_cmd_arbiter#55| state))) ; $procmux$75238_Y
+(define-fun |formal_scoria_cmd_arbiter#158| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#54| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71352_Y
+(define-fun |formal_scoria_cmd_arbiter#159| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (|formal_scoria_cmd_arbiter#54| state) #b1111111111)) ; $eq$formal_scoria_cmd_arbiter.sv:278$71355_Y
+(define-fun |formal_scoria_cmd_arbiter#160| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#159| state) #b1111111111 (|formal_scoria_cmd_arbiter#158| state))) ; $ternary$formal_scoria_cmd_arbiter.sv:278$71357_Y
+(define-fun |formal_scoria_cmd_arbiter#161| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#36| state) (|formal_scoria_cmd_arbiter#160| state) (|formal_scoria_cmd_arbiter#157| state))) ; $procmux$75240_Y
+(define-fun |formal_scoria_cmd_arbiter#162| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#161| state) #b1111111111)) ; $0\faw_age[3][9:0]
+(define-fun |formal_scoria_cmd_arbiter#163| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#54| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71351_Y
+(define-fun |formal_scoria_cmd_arbiter#164| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#163| state) (|formal_scoria_cmd_arbiter#158| state) (|formal_scoria_cmd_arbiter#54| state))) ; $procmux$75245_Y
+(define-fun |formal_scoria_cmd_arbiter#165| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#53| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71350_Y
+(define-fun |formal_scoria_cmd_arbiter#166| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (|formal_scoria_cmd_arbiter#53| state) #b1111111111)) ; $eq$formal_scoria_cmd_arbiter.sv:279$71358_Y
+(define-fun |formal_scoria_cmd_arbiter#167| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#166| state) #b1111111111 (|formal_scoria_cmd_arbiter#165| state))) ; $ternary$formal_scoria_cmd_arbiter.sv:279$71360_Y
+(define-fun |formal_scoria_cmd_arbiter#168| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#36| state) (|formal_scoria_cmd_arbiter#167| state) (|formal_scoria_cmd_arbiter#164| state))) ; $procmux$75247_Y
+(define-fun |formal_scoria_cmd_arbiter#169| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#168| state) #b1111111111)) ; $0\faw_age[2][9:0]
+(define-fun |formal_scoria_cmd_arbiter#170| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#53| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71349_Y
+(define-fun |formal_scoria_cmd_arbiter#171| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#170| state) (|formal_scoria_cmd_arbiter#165| state) (|formal_scoria_cmd_arbiter#53| state))) ; $procmux$75252_Y
+(define-fun |formal_scoria_cmd_arbiter#172| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#52| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:276$71348_Y
+(define-fun |formal_scoria_cmd_arbiter#173| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (|formal_scoria_cmd_arbiter#52| state) #b1111111111)) ; $eq$formal_scoria_cmd_arbiter.sv:280$71361_Y
+(define-fun |formal_scoria_cmd_arbiter#174| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#173| state) #b1111111111 (|formal_scoria_cmd_arbiter#172| state))) ; $ternary$formal_scoria_cmd_arbiter.sv:280$71363_Y
+(define-fun |formal_scoria_cmd_arbiter#175| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#36| state) (|formal_scoria_cmd_arbiter#174| state) (|formal_scoria_cmd_arbiter#171| state))) ; $procmux$75254_Y
+(define-fun |formal_scoria_cmd_arbiter#176| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#175| state) #b1111111111)) ; $0\faw_age[1][9:0]
+(define-fun |formal_scoria_cmd_arbiter#177| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#52| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:276$71347_Y
+(define-fun |formal_scoria_cmd_arbiter#178| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#177| state) (|formal_scoria_cmd_arbiter#172| state) (|formal_scoria_cmd_arbiter#52| state))) ; $procmux$75259_Y
+(define-fun |formal_scoria_cmd_arbiter#179| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#36| state) #b0000000001 (|formal_scoria_cmd_arbiter#178| state))) ; $procmux$75261_Y
+(define-fun |formal_scoria_cmd_arbiter#180| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#179| state) #b1111111111)) ; $0\faw_age[0][9:0]
+(define-fun |formal_scoria_cmd_arbiter#181| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#18| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:273$71346_Y
+(define-fun |formal_scoria_cmd_arbiter#182| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#18| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:273$71345_Y
+(define-fun |formal_scoria_cmd_arbiter#183| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#182| state) (|formal_scoria_cmd_arbiter#181| state) (|formal_scoria_cmd_arbiter#18| state))) ; $procmux$75279_Y
+(define-fun |formal_scoria_cmd_arbiter#184| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#36| state) #b0000000001 (|formal_scoria_cmd_arbiter#183| state))) ; $procmux$75282_Y
+(define-fun |formal_scoria_cmd_arbiter#185| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#184| state) #b0000000000)) ; $0\age_act[9:0]
+(define-fun |formal_scoria_cmd_arbiter#186| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (bvadd (|formal_scoria_cmd_arbiter#11| state) #b0000000001)) ; $add$formal_scoria_cmd_arbiter.sv:293$71369_Y
+(define-fun |formal_scoria_cmd_arbiter#187| ((state |formal_scoria_cmd_arbiter_s|)) Bool (distinct (|formal_scoria_cmd_arbiter#11| state) #b1111111111)) ; $ne$formal_scoria_cmd_arbiter.sv:293$71368_Y
+(define-fun |formal_scoria_cmd_arbiter#188| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#187| state) (|formal_scoria_cmd_arbiter#186| state) (|formal_scoria_cmd_arbiter#11| state))) ; $procmux$75228_Y
+(define-fun |formal_scoria_cmd_arbiter#189| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#50| state) #b0000000001 (|formal_scoria_cmd_arbiter#188| state))) ; $procmux$75231_Y
+(define-fun |formal_scoria_cmd_arbiter#190| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 10) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#189| state) #b0000000000)) ; $0\age_zq[9:0]
+(define-fun |formal_scoria_cmd_arbiter#191| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#50| state) #b1 (|formal_scoria_cmd_arbiter#10| state))) ; $procmux$75223_Y
+(define-fun |formal_scoria_cmd_arbiter#192| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 1) (ite (|formal_scoria_cmd_arbiter#5| state) (|formal_scoria_cmd_arbiter#191| state) #b0)) ; $0\seen_zq[0:0]
+(define-fun |formal_scoria_cmd_arbiter#193| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvult (|formal_scoria_cmd_arbiter#6| state) #b11111111)) ; $auto$wreduce.cc:514:run$83169 [0]
+(define-fun |formal_scoria_cmd_arbiter#194| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 8) (bvadd (|formal_scoria_cmd_arbiter#6| state) (concat #b0000000 (ite (|formal_scoria_cmd_arbiter#193| state) #b1 #b0)))) ; $0\f_past_valid[7:0]
+(define-fun |formal_scoria_cmd_arbiter#195| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or  (|formal_scoria_cmd_arbiter#36| state) false  (|formal_scoria_cmd_arbiter#41| state) false)) ; $logic_or$formal_scoria_cmd_arbiter.sv:319$71399_Y
+(define-fun |formal_scoria_cmd_arbiter#196| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or  (|formal_scoria_cmd_arbiter#195| state) false  (|formal_scoria_cmd_arbiter#43| state) false)) ; $logic_or$formal_scoria_cmd_arbiter.sv:319$71400_Y
+(define-fun |formal_scoria_cmd_arbiter#197| ((state |formal_scoria_cmd_arbiter_s|)) Bool (or  (|formal_scoria_cmd_arbiter#196| state) false  (|formal_scoria_cmd_arbiter#39| state) false)) ; $logic_or$formal_scoria_cmd_arbiter.sv:319$71401_Y
+(define-fun |formal_scoria_cmd_arbiter#198| ((state |formal_scoria_cmd_arbiter_s|)) Bool (not (or  (|formal_scoria_cmd_arbiter#197| state) false))) ; $logic_not$formal_scoria_cmd_arbiter.sv:319$71402_Y
+(define-fun |formal_scoria_cmd_arbiter#199| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvuge (|formal_scoria_cmd_arbiter#18| state) (concat #b00 (|formal_scoria_cmd_arbiter#118| state)))) ; $ge$formal_scoria_cmd_arbiter.sv:305$71375_Y
+(define-fun |formal_scoria_cmd_arbiter#200| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#36| state) #b1 #b0) #b1)) ; $add$formal_scoria_cmd_arbiter.sv:313$71383_Y [0]
+(define-fun |formal_scoria_cmd_arbiter#201| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#41| state) #b1 #b0) #b1)) ; $auto$wreduce.cc:514:run$83166 [0]
+(define-fun |formal_scoria_cmd_arbiter#202| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 3) (bvadd (concat #b00 (ite (|formal_scoria_cmd_arbiter#200| state) #b1 #b0)) (concat #b00 (ite (|formal_scoria_cmd_arbiter#201| state) #b1 #b0)))) ; $add$formal_scoria_cmd_arbiter.sv:313$71387_Y
+(define-fun |formal_scoria_cmd_arbiter#203| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#43| state) #b1 #b0) #b1)) ; $auto$wreduce.cc:514:run$83164 [0]
+(define-fun |formal_scoria_cmd_arbiter#204| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 4) (bvadd (concat #b0 (|formal_scoria_cmd_arbiter#202| state)) (concat #b000 (ite (|formal_scoria_cmd_arbiter#203| state) #b1 #b0)))) ; $add$formal_scoria_cmd_arbiter.sv:313$71391_Y
+(define-fun |formal_scoria_cmd_arbiter#205| ((state |formal_scoria_cmd_arbiter_s|)) Bool (= (ite (|formal_scoria_cmd_arbiter#39| state) #b1 #b0) #b1)) ; $auto$wreduce.cc:514:run$83162 [0]
+(define-fun |formal_scoria_cmd_arbiter#206| ((state |formal_scoria_cmd_arbiter_s|)) (_ BitVec 5) (bvadd (concat #b0 (|formal_scoria_cmd_arbiter#204| state)) (concat #b0000 (ite (|formal_scoria_cmd_arbiter#205| state) #b1 #b0)))) ; $add$formal_scoria_cmd_arbiter.sv:313$71395_Y
+(define-fun |formal_scoria_cmd_arbiter#207| ((state |formal_scoria_cmd_arbiter_s|)) Bool (bvule (|formal_scoria_cmd_arbiter#206| state) #b00001)) ; $le$formal_scoria_cmd_arbiter.sv:313$71396_Y
 (define-fun |formal_scoria_cmd_arbiter_a| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and
   (|formal_scoria_cmd_arbiter_a 0| state)
   (|formal_scoria_cmd_arbiter_a 1| state)
@@ -4804,13 +4804,13 @@
   (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_u| (|formal_scoria_cmd_arbiter_h u_arb| state))
 ))
 (define-fun |formal_scoria_cmd_arbiter_i| ((state |formal_scoria_cmd_arbiter_s|)) Bool (and
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#0| state)) #b1) false) ; $auto$async2sync.cc:107:execute$83404
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#1| state)) #b1) false) ; $auto$async2sync.cc:107:execute$83386
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#2| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83408
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#3| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83390
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#4| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83396
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#5| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83402
-  (= (|formal_scoria_cmd_arbiter#7| state) #b00000000) ; f_past_valid
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#0| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83390
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#1| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83402
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#2| state)) #b1) false) ; $auto$async2sync.cc:107:execute$83404
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#3| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83408
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#4| state)) #b1) false) ; $auto$async2sync.cc:107:execute$83386
+  (= (|formal_scoria_cmd_arbiter#6| state) #b00000000) ; f_past_valid
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#70| state)) #b1) true) ; $auto$async2sync.cc:116:execute$83396
   (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_i| (|formal_scoria_cmd_arbiter_h u_gt| state))
   (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_i| (|formal_scoria_cmd_arbiter_h u_arb| state))
 ))
@@ -4819,18 +4819,18 @@
   (= #b00 (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n cand_bg_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.cand_bg_i
   (= false (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n cand_rank_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.cand_rank_i
   (= #b00 (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_act_bg_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_act_bg_i
-  (= (|formal_scoria_cmd_arbiter#37| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_act_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_act_i
-  (= (|formal_scoria_cmd_arbiter#41| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_act_rank_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_act_rank_i
+  (= (|formal_scoria_cmd_arbiter#36| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_act_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_act_i
+  (= (|formal_scoria_cmd_arbiter#40| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_act_rank_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_act_rank_i
   (= #b00 (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_col_bg_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_col_bg_i
-  (= (|formal_scoria_cmd_arbiter#42| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_rd_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_rd_i
-  (= (|formal_scoria_cmd_arbiter#44| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_wr_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_wr_i
-  (= (|formal_scoria_cmd_arbiter#18| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n mc_clk| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.mc_clk
-  (= (|formal_scoria_cmd_arbiter#6| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n mc_rst_n| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.mc_rst_n
-  (= (|formal_scoria_cmd_arbiter#57| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_faw_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_faw_nz_o
-  (= (|formal_scoria_cmd_arbiter#58| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_tccd_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_tccd_nz_o
-  (= (|formal_scoria_cmd_arbiter#59| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_trrd_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_trrd_nz_o
-  (= (|formal_scoria_cmd_arbiter#60| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_trtw_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_trtw_nz_o
-  (= (|formal_scoria_cmd_arbiter#61| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_twtr_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_twtr_nz_o
+  (= (|formal_scoria_cmd_arbiter#41| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_rd_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_rd_i
+  (= (|formal_scoria_cmd_arbiter#43| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n evt_wr_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.evt_wr_i
+  (= (|formal_scoria_cmd_arbiter#17| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n mc_clk| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.mc_clk
+  (= (|formal_scoria_cmd_arbiter#5| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n mc_rst_n| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.mc_rst_n
+  (= (|formal_scoria_cmd_arbiter#56| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_faw_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_faw_nz_o
+  (= (|formal_scoria_cmd_arbiter#57| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_tccd_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_tccd_nz_o
+  (= (|formal_scoria_cmd_arbiter#58| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_trrd_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_trrd_nz_o
+  (= (|formal_scoria_cmd_arbiter#59| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_trtw_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_trtw_nz_o
+  (= (|formal_scoria_cmd_arbiter#60| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n obs_twtr_nz_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.obs_twtr_nz_o
   (= (|formal_scoria_cmd_arbiter#114| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n t_ccd_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.t_ccd_i
   (= #b00000000 (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n t_ccd_l_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.t_ccd_l_i
   (= #b00000000 (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n t_ccd_s_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.t_ccd_s_i
@@ -4840,48 +4840,48 @@
   (= #b00000000 (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n t_rrd_s_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.t_rrd_s_i
   (= (|formal_scoria_cmd_arbiter#119| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n t_rtw_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.t_rtw_i
   (= (|formal_scoria_cmd_arbiter#120| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n t_wtr_global_i| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.t_wtr_global_i
-  (= (|formal_scoria_cmd_arbiter#62| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n tccd_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.tccd_window_ok_o
-  (= (|formal_scoria_cmd_arbiter#63| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n tfaw_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.tfaw_window_ok_o
-  (= (|formal_scoria_cmd_arbiter#64| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n trrd_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.trrd_window_ok_o
-  (= (|formal_scoria_cmd_arbiter#65| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n trtw_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.trtw_window_ok_o
-  (= (|formal_scoria_cmd_arbiter#66| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n twtr_global_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.twtr_global_ok_o
+  (= (|formal_scoria_cmd_arbiter#61| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n tccd_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.tccd_window_ok_o
+  (= (|formal_scoria_cmd_arbiter#62| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n tfaw_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.tfaw_window_ok_o
+  (= (|formal_scoria_cmd_arbiter#63| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n trrd_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.trrd_window_ok_o
+  (= (|formal_scoria_cmd_arbiter#64| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n trtw_window_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.trtw_window_ok_o
+  (= (|formal_scoria_cmd_arbiter#65| state) (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_n twtr_global_ok_o| (|formal_scoria_cmd_arbiter_h u_gt| state))) ; $paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers.twtr_global_ok_o
   (= (|formal_scoria_cmd_arbiter_is| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_is| (|formal_scoria_cmd_arbiter_h u_arb| state)))
-  (= (|formal_scoria_cmd_arbiter#18| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n aclk| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.aclk
-  (= (|formal_scoria_cmd_arbiter#20| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n ap_close_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.ap_close_i
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#21| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n ap_mode_en_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.ap_mode_en_i
-  (= (|formal_scoria_cmd_arbiter#6| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n aresetn| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.aresetn
-  (= (|formal_scoria_cmd_arbiter#22| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_act_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_act_ready_i
-  (= (|formal_scoria_cmd_arbiter#23| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_act_ready_la_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_act_ready_la_i
-  (= (|formal_scoria_cmd_arbiter#24| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_open_row_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_open_row_i
-  (= (|formal_scoria_cmd_arbiter#25| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_pre_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_pre_ready_i
-  (= (|formal_scoria_cmd_arbiter#26| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_pre_ready_la_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_pre_ready_la_i
-  (= (|formal_scoria_cmd_arbiter#27| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_rdwr_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_rdwr_ready_i
-  (= (|formal_scoria_cmd_arbiter#28| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_rdwr_ready_la_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_rdwr_ready_la_i
-  (= (|formal_scoria_cmd_arbiter#29| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_row_active_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_row_active_i
-  (= (|formal_scoria_cmd_arbiter#31| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_bank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_bank_o
-  (= (|formal_scoria_cmd_arbiter#32| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_col_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_col_o
-  (= (|formal_scoria_cmd_arbiter#33| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_op_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_op_o
-  (= (|formal_scoria_cmd_arbiter#34| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_rank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_rank_o
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#52| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_ready_i
-  (= (|formal_scoria_cmd_arbiter#35| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_row_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_row_o
-  (= (|formal_scoria_cmd_arbiter#36| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_valid_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_valid_o
-  (= (|formal_scoria_cmd_arbiter#37| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_act_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_act_o
-  (= (|formal_scoria_cmd_arbiter#38| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_ap_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_ap_o
-  (= (|formal_scoria_cmd_arbiter#39| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_bank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_bank_o
-  (= (|formal_scoria_cmd_arbiter#40| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_pre_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_pre_o
-  (= (|formal_scoria_cmd_arbiter#41| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_rank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_rank_o
-  (= (|formal_scoria_cmd_arbiter#42| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_rd_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_rd_o
-  (= (|formal_scoria_cmd_arbiter#43| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_row_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_row_o
-  (= (|formal_scoria_cmd_arbiter#44| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_wr_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_wr_o
-  (= (|formal_scoria_cmd_arbiter#67| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_bank_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_bank_i
-  (= (concat #b0 (|formal_scoria_cmd_arbiter#68| state)) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_op_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_op_i
-  (= (|formal_scoria_cmd_arbiter#69| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_row_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_row_i
-  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#70| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_valid_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_valid_i
+  (= (|formal_scoria_cmd_arbiter#17| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n aclk| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.aclk
+  (= (|formal_scoria_cmd_arbiter#19| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n ap_close_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.ap_close_i
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#20| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n ap_mode_en_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.ap_mode_en_i
+  (= (|formal_scoria_cmd_arbiter#5| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n aresetn| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.aresetn
+  (= (|formal_scoria_cmd_arbiter#21| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_act_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_act_ready_i
+  (= (|formal_scoria_cmd_arbiter#22| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_act_ready_la_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_act_ready_la_i
+  (= (|formal_scoria_cmd_arbiter#23| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_open_row_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_open_row_i
+  (= (|formal_scoria_cmd_arbiter#24| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_pre_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_pre_ready_i
+  (= (|formal_scoria_cmd_arbiter#25| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_pre_ready_la_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_pre_ready_la_i
+  (= (|formal_scoria_cmd_arbiter#26| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_rdwr_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_rdwr_ready_i
+  (= (|formal_scoria_cmd_arbiter#27| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_rdwr_ready_la_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_rdwr_ready_la_i
+  (= (|formal_scoria_cmd_arbiter#28| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n bank_row_active_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.bank_row_active_i
+  (= (|formal_scoria_cmd_arbiter#30| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_bank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_bank_o
+  (= (|formal_scoria_cmd_arbiter#31| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_col_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_col_o
+  (= (|formal_scoria_cmd_arbiter#32| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_op_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_op_o
+  (= (|formal_scoria_cmd_arbiter#33| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_rank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_rank_o
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#51| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_ready_i
+  (= (|formal_scoria_cmd_arbiter#34| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_row_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_row_o
+  (= (|formal_scoria_cmd_arbiter#35| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n cmd_valid_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.cmd_valid_o
+  (= (|formal_scoria_cmd_arbiter#36| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_act_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_act_o
+  (= (|formal_scoria_cmd_arbiter#37| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_ap_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_ap_o
+  (= (|formal_scoria_cmd_arbiter#38| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_bank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_bank_o
+  (= (|formal_scoria_cmd_arbiter#39| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_pre_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_pre_o
+  (= (|formal_scoria_cmd_arbiter#40| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_rank_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_rank_o
+  (= (|formal_scoria_cmd_arbiter#41| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_rd_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_rd_o
+  (= (|formal_scoria_cmd_arbiter#42| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_row_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_row_o
+  (= (|formal_scoria_cmd_arbiter#43| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n evt_wr_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.evt_wr_o
+  (= (|formal_scoria_cmd_arbiter#66| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_bank_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_bank_i
+  (= (concat #b0 (|formal_scoria_cmd_arbiter#67| state)) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_op_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_op_i
+  (= (|formal_scoria_cmd_arbiter#68| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_row_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_row_i
+  (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#69| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_cmd_valid_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_cmd_valid_i
   (= true (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n init_done_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.init_done_i
   (= (|formal_scoria_cmd_arbiter#93| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n page_policy_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.page_policy_i
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#94| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_issue_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_issue_ready_i
-  (= (|formal_scoria_cmd_arbiter#45| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_issue_slot_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_issue_slot_o
-  (= (|formal_scoria_cmd_arbiter#46| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_issue_valid_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_issue_valid_o
+  (= (|formal_scoria_cmd_arbiter#44| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_issue_slot_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_issue_slot_o
+  (= (|formal_scoria_cmd_arbiter#45| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_issue_valid_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_issue_valid_o
   (= (|formal_scoria_cmd_arbiter#95| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_sch_age_exceed_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_sch_age_exceed_i
   (= (|formal_scoria_cmd_arbiter#96| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_sch_bank_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_sch_bank_i
   (= (|formal_scoria_cmd_arbiter#97| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_sch_col_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_sch_col_i
@@ -4892,7 +4892,7 @@
   (= (|formal_scoria_cmd_arbiter#73| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n rd_sch_valid_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.rd_sch_valid_i
   (= (|formal_scoria_cmd_arbiter#101| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n refresh_bank_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.refresh_bank_i
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#102| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n refresh_drain_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.refresh_drain_i
-  (= (|formal_scoria_cmd_arbiter#47| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n refresh_grant_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.refresh_grant_o
+  (= (|formal_scoria_cmd_arbiter#46| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n refresh_grant_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.refresh_grant_o
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#103| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n refresh_kind_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.refresh_kind_i
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#104| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n refresh_req_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.refresh_req_i
   (= (|formal_scoria_cmd_arbiter#105| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n sched_access_pref_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.sched_access_pref_i
@@ -4904,21 +4904,21 @@
   (= (|formal_scoria_cmd_arbiter#111| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n sched_wr_batch_max_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.sched_wr_batch_max_i
   (= (|formal_scoria_cmd_arbiter#112| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n sched_wr_high_wm_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.sched_wr_high_wm_i
   (= (|formal_scoria_cmd_arbiter#113| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n sched_wr_low_wm_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.sched_wr_low_wm_i
-  (= (|formal_scoria_cmd_arbiter#48| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n stall_zq_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.stall_zq_o
+  (= (|formal_scoria_cmd_arbiter#47| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n stall_zq_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.stall_zq_o
   (= (|formal_scoria_cmd_arbiter#114| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n t_ccd_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.t_ccd_i
   (= (|formal_scoria_cmd_arbiter#116| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n t_rfc_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.t_rfc_i
   (= (|formal_scoria_cmd_arbiter#117| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n t_rfc_pb_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.t_rfc_pb_i
-  (= (|formal_scoria_cmd_arbiter#13| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n t_zqcs_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.t_zqcs_i
-  (= (|formal_scoria_cmd_arbiter#62| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n tccd_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.tccd_ok_i
-  (= (|formal_scoria_cmd_arbiter#63| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n tfaw_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.tfaw_ok_i
+  (= (|formal_scoria_cmd_arbiter#12| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n t_zqcs_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.t_zqcs_i
+  (= (|formal_scoria_cmd_arbiter#61| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n tccd_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.tccd_ok_i
+  (= (|formal_scoria_cmd_arbiter#62| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n tfaw_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.tfaw_ok_i
   (= (|formal_scoria_cmd_arbiter#121| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n timeout_pre_bank_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.timeout_pre_bank_i
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#122| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n timeout_pre_req_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.timeout_pre_req_i
-  (= (|formal_scoria_cmd_arbiter#64| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n trrd_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.trrd_ok_i
-  (= (|formal_scoria_cmd_arbiter#65| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n trtw_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.trtw_ok_i
-  (= (|formal_scoria_cmd_arbiter#66| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n twtr_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.twtr_ok_i
+  (= (|formal_scoria_cmd_arbiter#63| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n trrd_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.trrd_ok_i
+  (= (|formal_scoria_cmd_arbiter#64| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n trtw_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.trtw_ok_i
+  (= (|formal_scoria_cmd_arbiter#65| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n twtr_ok_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.twtr_ok_i
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#123| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_commit_ready_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_commit_ready_i
-  (= (|formal_scoria_cmd_arbiter#49| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_commit_slot_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_commit_slot_o
-  (= (|formal_scoria_cmd_arbiter#50| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_commit_valid_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_commit_valid_o
+  (= (|formal_scoria_cmd_arbiter#48| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_commit_slot_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_commit_slot_o
+  (= (|formal_scoria_cmd_arbiter#49| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_commit_valid_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_commit_valid_o
   (= (|formal_scoria_cmd_arbiter#124| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_sch_age_exceed_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_sch_age_exceed_i
   (= (|formal_scoria_cmd_arbiter#125| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_sch_bank_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_sch_bank_i
   (= (|formal_scoria_cmd_arbiter#126| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_sch_col_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_sch_col_i
@@ -4927,7 +4927,7 @@
   (= (|formal_scoria_cmd_arbiter#128| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_sch_qos_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_sch_qos_i
   (= (|formal_scoria_cmd_arbiter#129| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_sch_row_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_sch_row_i
   (= (|formal_scoria_cmd_arbiter#84| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n wr_sch_valid_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.wr_sch_valid_i
-  (= (|formal_scoria_cmd_arbiter#51| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n zq_grant_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.zq_grant_o
+  (= (|formal_scoria_cmd_arbiter#50| state) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n zq_grant_o| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.zq_grant_o
   (= (= ((_ extract 0 0) (|formal_scoria_cmd_arbiter#130| state)) #b1) (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_n zq_req_i| (|formal_scoria_cmd_arbiter_h u_arb| state))) ; $paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter.zq_req_i
   (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_h| (|formal_scoria_cmd_arbiter_h u_gt| state))
   (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_h| (|formal_scoria_cmd_arbiter_h u_arb| state))
@@ -4938,21 +4938,21 @@
   (= (|formal_scoria_cmd_arbiter#118| state) (|formal_scoria_cmd_arbiter#118| next_state)) ; $anyconst$71219 \t_rrd
   (= (|formal_scoria_cmd_arbiter#115| state) (|formal_scoria_cmd_arbiter#115| next_state)) ; $anyconst$71218 \t_faw
   (= (|formal_scoria_cmd_arbiter#114| state) (|formal_scoria_cmd_arbiter#114| next_state)) ; $anyconst$71222 \t_ccd
-  (= (|formal_scoria_cmd_arbiter#161| state) (|formal_scoria_cmd_arbiter#56| next_state)) ; $procdff$82307 \faw_age[3]
-  (= (|formal_scoria_cmd_arbiter#168| state) (|formal_scoria_cmd_arbiter#55| next_state)) ; $procdff$82306 \faw_age[2]
-  (= (|formal_scoria_cmd_arbiter#175| state) (|formal_scoria_cmd_arbiter#54| next_state)) ; $procdff$82305 \faw_age[1]
-  (= (|formal_scoria_cmd_arbiter#179| state) (|formal_scoria_cmd_arbiter#53| next_state)) ; $procdff$82304 \faw_age[0]
-  (= (|formal_scoria_cmd_arbiter#184| state) (|formal_scoria_cmd_arbiter#19| next_state)) ; $procdff$82301 \age_act
-  (= (|formal_scoria_cmd_arbiter#13| state) (|formal_scoria_cmd_arbiter#13| next_state)) ; $anyconst$71223 \t_zqcs
-  (= (|formal_scoria_cmd_arbiter#189| state) (|formal_scoria_cmd_arbiter#12| next_state)) ; $procdff$82298 \age_zq
-  (= (|formal_scoria_cmd_arbiter#191| state) (|formal_scoria_cmd_arbiter#11| next_state)) ; $procdff$82299 \seen_zq
-  (= (|formal_scoria_cmd_arbiter#193| state) (|formal_scoria_cmd_arbiter#7| next_state)) ; $procdff$82308 \f_past_valid
-  (= (ite (|formal_scoria_cmd_arbiter#194| state) #b1 #b0) (|formal_scoria_cmd_arbiter#5| next_state)) ; $auto$async2sync.cc:118:execute$83403 $auto$async2sync.cc:116:execute$83402
-  (= (ite (|formal_scoria_cmd_arbiter#195| state) #b1 #b0) (|formal_scoria_cmd_arbiter#4| next_state)) ; $auto$async2sync.cc:118:execute$83397 $auto$async2sync.cc:116:execute$83396
-  (= (ite (|formal_scoria_cmd_arbiter#203| state) #b1 #b0) (|formal_scoria_cmd_arbiter#3| next_state)) ; $auto$async2sync.cc:118:execute$83391 $auto$async2sync.cc:116:execute$83390
-  (= (ite (|formal_scoria_cmd_arbiter#207| state) #b1 #b0) (|formal_scoria_cmd_arbiter#2| next_state)) ; $auto$async2sync.cc:118:execute$83409 $auto$async2sync.cc:116:execute$83408
-  (= (|formal_scoria_cmd_arbiter#10| state) (|formal_scoria_cmd_arbiter#1| next_state)) ; $auto$async2sync.cc:110:execute$83388 $auto$async2sync.cc:107:execute$83386
-  (= (|formal_scoria_cmd_arbiter#17| state) (|formal_scoria_cmd_arbiter#0| next_state)) ; $auto$async2sync.cc:110:execute$83406 $auto$async2sync.cc:107:execute$83404
+  (= (ite (|formal_scoria_cmd_arbiter#154| state) #b1 #b0) (|formal_scoria_cmd_arbiter#70| next_state)) ; $auto$async2sync.cc:118:execute$83397 $auto$async2sync.cc:116:execute$83396
+  (= (|formal_scoria_cmd_arbiter#162| state) (|formal_scoria_cmd_arbiter#55| next_state)) ; $procdff$82307 \faw_age[3]
+  (= (|formal_scoria_cmd_arbiter#169| state) (|formal_scoria_cmd_arbiter#54| next_state)) ; $procdff$82306 \faw_age[2]
+  (= (|formal_scoria_cmd_arbiter#176| state) (|formal_scoria_cmd_arbiter#53| next_state)) ; $procdff$82305 \faw_age[1]
+  (= (|formal_scoria_cmd_arbiter#180| state) (|formal_scoria_cmd_arbiter#52| next_state)) ; $procdff$82304 \faw_age[0]
+  (= (|formal_scoria_cmd_arbiter#185| state) (|formal_scoria_cmd_arbiter#18| next_state)) ; $procdff$82301 \age_act
+  (= (|formal_scoria_cmd_arbiter#12| state) (|formal_scoria_cmd_arbiter#12| next_state)) ; $anyconst$71223 \t_zqcs
+  (= (|formal_scoria_cmd_arbiter#190| state) (|formal_scoria_cmd_arbiter#11| next_state)) ; $procdff$82298 \age_zq
+  (= (|formal_scoria_cmd_arbiter#192| state) (|formal_scoria_cmd_arbiter#10| next_state)) ; $procdff$82299 \seen_zq
+  (= (|formal_scoria_cmd_arbiter#194| state) (|formal_scoria_cmd_arbiter#6| next_state)) ; $procdff$82308 \f_past_valid
+  (= (|formal_scoria_cmd_arbiter#9| state) (|formal_scoria_cmd_arbiter#4| next_state)) ; $auto$async2sync.cc:110:execute$83388 $auto$async2sync.cc:107:execute$83386
+  (= (ite (|formal_scoria_cmd_arbiter#198| state) #b1 #b0) (|formal_scoria_cmd_arbiter#3| next_state)) ; $auto$async2sync.cc:118:execute$83409 $auto$async2sync.cc:116:execute$83408
+  (= (|formal_scoria_cmd_arbiter#16| state) (|formal_scoria_cmd_arbiter#2| next_state)) ; $auto$async2sync.cc:110:execute$83406 $auto$async2sync.cc:107:execute$83404
+  (= (ite (|formal_scoria_cmd_arbiter#199| state) #b1 #b0) (|formal_scoria_cmd_arbiter#1| next_state)) ; $auto$async2sync.cc:118:execute$83403 $auto$async2sync.cc:116:execute$83402
+  (= (ite (|formal_scoria_cmd_arbiter#207| state) #b1 #b0) (|formal_scoria_cmd_arbiter#0| next_state)) ; $auto$async2sync.cc:118:execute$83391 $auto$async2sync.cc:116:execute$83390
   (|$paramod$63e2395b3949364e53e75bee1e24771884579418/mc_global_timers_t| (|formal_scoria_cmd_arbiter_h u_gt| state) (|formal_scoria_cmd_arbiter_h u_gt| next_state))
   (|$paramod$d31a09dc3dad48b9fd5fd21ab61de3fed82bfa69/scoria_cmd_arbiter_t| (|formal_scoria_cmd_arbiter_h u_arb| state) (|formal_scoria_cmd_arbiter_h u_arb| next_state))
 )) ; end of module formal_scoria_cmd_arbiter

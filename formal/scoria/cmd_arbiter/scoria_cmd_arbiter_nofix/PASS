@@ -1,4 +1,4 @@
-Elapsed clock time [H:MM:SS (secs)]: 0:01:19 (79)
-Elapsed process time [H:MM:SS (secs)]: 0:01:19 (79)
+Elapsed clock time [H:MM:SS (secs)]: 0:01:24 (84)
+Elapsed process time [H:MM:SS (secs)]: 0:01:25 (85)
 engine_0 (smtbmc bitwuzla) returned pass
 engine_0 did not produce any traces
