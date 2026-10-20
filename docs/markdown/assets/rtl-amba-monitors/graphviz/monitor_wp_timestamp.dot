@@ -4,14 +4,16 @@
 //           mon_time_out, reaches every wrapper as i_mon_time, rides beside each
 //           packet as the 64-bit monbus_timestamp_t, and the group writes its low
 //           60 bits into beat 0 of every three-beat record
-//   right - the tweak: the same 64-bit field, filled {global_us[47:0], local_cyc[15:0]}
+//   right - the chosen direction (rtl/amba/monitors TASK-005): one global usync
+//           time base (counter_freq_invariant) distributed on matched-depth arms,
+//           stamping every packet in the fabric from the same clock
 //   dashed - the other open direction: an external time source drives i_mon_time
 // Source of truth: rtl/amba/ocelus/monbus_group_core.sv (r_ts_counter,
 // mon_time_out, beat 0 = {tag[3:0]=4'h0, source_ts[59:0]}).
 digraph monitor_wp_timestamp {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
-           label="Timestamp policy: the group's local counter today, the hybrid time base as the tweak",
+           label="Timestamp policy: the group's local counter today, one global usync time base as the direction",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="white", color="black", margin="0.12,0.06"];
@@ -28,14 +30,14 @@ digraph monitor_wp_timestamp {
     // the other open direction, outside both regions: not built
     ext  [label="Open direction (not prototyped)\nexternal time source: PTP or a\nchip-level counter drives i_mon_time\ninstead of the group counter", style="filled,dashed", fillcolor="white", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
-    subgraph cluster_hyb {
-        label="Tweak: hybrid time base, same 64-bit field (not prototyped)"; labelloc=b; style=dashed; fontsize=10;
-        gus  [label="System microsecond count\n(shared across subsystems)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-        cyc  [label="Wrapper cycle count\n(per wrapper)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-        hyb  [label="monbus_timestamp_t\n{global_us[47:0], local_cyc[15:0]}\nnothing in the packet layout moves", width=5.2, style="filled", fillcolor="white"];
+    subgraph cluster_usy {
+        label="Chosen direction (TASK-005, not yet in the tree): one global usync time base"; labelloc=b; style=dashed; fontsize=10;
+        usrc [label="Global usync counter\ncounter_freq_invariant-based\none microsecond time base for the whole fabric", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        arms [label="Distribution tree\n~12 matched-depth arms, 2-4 flop stages each\n(a close pickup keeps spare stages, still in sync)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        hyb  [label="monbus_timestamp_t unchanged\nsame 64-bit stamp beside every packet\nno layout change, no host-side re-basing", width=5.2, style="filled", fillcolor="white"];
     }
 
-    note [label="Within one group every packet is on one clock; across groups there is no shared time base\n-- the hybrid's global upper bits give cross-subsystem correlation with no host-side re-basing",
+    note [label="Within one group every packet is on one clock; across groups there is no shared time base\n-- one usync time base puts every packet in the fabric on the same clock",
           fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     ctr -> wrp [xlabel="mon_time_out\n-> i_mon_time", penwidth=1.8];
@@ -43,13 +45,13 @@ digraph monitor_wp_timestamp {
     wrp -> pkt [label="timestamp per packet"];
     pkt -> rec [label="low 60 bits"];
 
-    gus -> hyb [label="ts[63:16]"];
-    cyc -> hyb [label="ts[15:0]"];
+    usrc -> arms [label="one tick everywhere"];
+    arms -> hyb [label="same stamp in every group"];
 
     rec -> note [style=invis];
     hyb -> note [style=invis];
 
-    { rank=same; ctr; ext; gus; cyc; }
-    ctr -> ext [style=invis]; ext -> gus [style=invis, minlen=2]; gus -> cyc [style=invis];
+    { rank=same; ctr; ext; usrc; arms; }
+    ctr -> ext [style=invis]; ext -> usrc [style=invis, minlen=2]; usrc -> arms [style=invis];
     { rank=max; note; }
 }

@@ -56,12 +56,3 @@ is the property a filtering strategy can be built on.
 > [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
 
 ![Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take](../../assets/rtl-amba-monitors/graphviz/monitor_wp_filtering.png)
-
-## References
-
-The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
-
-- Ciordas, C., Basten, T., Rădulescu, A., Goossens, K., van Meerbergen, J. "An Event-Based Monitoring Service for Networks on Chip." *ACM Trans. Design Automation of Electronic Systems*, 10(4):702-723, Oct. 2005. DOI: [10.1145/1109118.1109126](https://doi.org/10.1145/1109118.1109126). -- related work: reconfigurable probes with a run-time programming model.
-- Abramovici, M., Bradley, P., Dwarakanath, K., Levin, P., Memmi, G., Miller, D. "A Reconfigurable Design-for-Debug Infrastructure for SoCs." *Proc. 43rd Design Automation Conf. (DAC 2006)*, pp. 7-12, July 2006. DOI: [10.1145/1146909.1146916](https://doi.org/10.1145/1146909.1146916). -- related work: programmable triggers in a debug fabric.
-- IEEE-ISTO 5001-2003. *The Nexus 5001 Forum Standard for a Global Embedded Processor Debug Interface*, Version 2.0, IEEE Industry Standards and Technology Organization, Dec. 2003 (defining non-peer standard). -- §4.4.3 and §4.5.3: overrun reported to the tool, comparable to `Error/EVENT_DROPPED`.
-- Indexed in `rtl/amba/references/README.md` (local PDF: `DebugTraceInterfaceStandard__IeeeIsto2003.pdf`)

@@ -27,12 +27,12 @@
 RTL Design Sherpa monitor system -- branded Ocelus. **Not** a status snapshot of what is in the
 tree (that is [overview.md](../../rtl-amba/overview.md)) and not a port list (those are the
 per-module pages under [monitor/](../../rtl-amba/monitor/)). This paper sits one level up:
-here is the spine, here are the six axes the integrator owns, and here is
-what each choice costs.
+here is the fabric in five planes, here is a real implementation end to end,
+here are the six axes the integrator owns, and here is what each choice costs.
 
-**Version:** 1.4, 2026-10-20. Numbers are from the tree at 2026-10-12;
+**Version:** 1.5, 2026-10-20. Numbers are from the tree at 2026-10-12;
 each is cited to the page or report it comes from. Revision 1.1 makes the
 recommendation explicit: the lite monitor is the realistic choice on every
-port, and the full monitor is the exception you justify. Revision 1.2 (2026-10-12) brands the monitor system Ocelus and adds chapter 12, the standing comparison against Nexus (IEEE-ISTO 5001). Revision 1.3 (2026-10-20) redraws the block diagrams to the repo element key; no numbers or text changed. Revision 1.4 (2026-10-20) renames the PDF the Ocelus White Paper and starts every numbered section on its own page.
+port, and the full monitor is the exception you justify. Revision 1.2 (2026-10-12) brands the monitor system Ocelus and adds the standing comparison against Nexus (IEEE-ISTO 5001). Revision 1.3 (2026-10-20) redraws the block diagrams to the repo element key; no numbers or text changed. Revision 1.4 (2026-10-20) renames the PDF the Ocelus White Paper and starts every numbered section on its own page. Revision 1.5 (2026-10-20) reframes the paper around the five planes (protocol, error, debug, perf, output) with a new overview chapter and an end-to-end implementation figure, makes clear the fabric is not limited to simple interface tracking, and consolidates every citation into the closing references chapter.
 
 ---

@@ -43,11 +43,3 @@ and reads them one at a time.
 > [Ocelus plane map](../../rtl-amba/monitor/monitor_planes.md).
 
 ![Drain paths: error FIFO with interrupt, write FIFO into the memory ring](../../assets/rtl-amba-monitors/graphviz/monitor_wp_drains.png)
-
-## References
-
-The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
-
-- Hopkins, A.B.T., McDonald-Maier, K.D. "Debug Support for Complex Systems On-Chip: A Review." *IEE Proc. Computers and Digital Techniques*, 153(4):197-207, 2006. DOI: [10.1049/ip-cdt:20050194](https://doi.org/10.1049/ip-cdt:20050194). -- related work: on-chip trace buffers versus trace ports.
-- Yang, F.-C., Lin, Y., Kao, C.-F., Huang, I.-J. "An On-Chip AHB Bus Tracer With Real-Time Compression and Dynamic Multiresolution Supports for SoC." *IEEE Trans. VLSI Systems*, 19(4):571-584, Apr. 2011. DOI: [10.1109/TVLSI.2009.2039811](https://doi.org/10.1109/TVLSI.2009.2039811). -- related work: a bus tracer recording into an on-chip circular buffer.
-- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)

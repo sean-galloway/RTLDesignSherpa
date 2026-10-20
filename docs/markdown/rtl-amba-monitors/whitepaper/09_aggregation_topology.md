@@ -38,12 +38,3 @@ The group core is shared by every wrapper family (AXI4, AXI5, AXI-Lite,
 AXIS, Wishbone), so partitioning is a topology decision, not a new block.
 
 ![Aggregation topologies: round-robin tree, weighted, protocol-partitioned](../../assets/rtl-amba-monitors/graphviz/monitor_wp_aggregation.png)
-
-## References
-
-The Ocelus is an original design of this repository. The papers and standards below are related work for comparison, not sources of the design; protocol specifications define the rules the monitor observes.
-
-- Gupta, P., McKeown, N. "Designing and Implementing a Fast Crossbar Scheduler." *IEEE Micro*, 19(1):20-28, Jan./Feb. 1999. DOI: [10.1109/40.748793](https://doi.org/10.1109/40.748793). -- the round-robin arbiter core (indexed in `rtl/common/references/README.md`).
-- Katevenis, M., Sidiropoulos, S., Courcoubetis, C. "Weighted Round-Robin Cell Multiplexing in a General-Purpose ATM Switch Chip." *IEEE J. Selected Areas in Communications*, 9(8):1265-1279, Oct. 1991. DOI: [10.1109/49.105173](https://doi.org/10.1109/49.105173). -- interleaved weighted round robin, the weighted core.
-- Dally, W.J., Towles, B. *Principles and Practices of Interconnection Networks*, Morgan Kaufmann, 2004, ch. 18 "Arbitration", §18.4.2 "Round-Robin Arbiter" and §18.4.4 "Weighted Round-Robin Arbiter". -- textbook treatment (secondary source).
-- Indexed in `rtl/amba/references/README.md` (Monitor subsystem family; citation only)

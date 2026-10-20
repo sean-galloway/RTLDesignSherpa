@@ -2,7 +2,7 @@
 
 # rtl/amba/monitors — tasks
 
-**Next ID: TASK-005** — never recycle a number, even when its item closed.
+**Next ID: TASK-007** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,13 +12,16 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 4 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **TASK-005** — monitors accept a global usync timer so all packets share a unique stamp (timebase on `counter_freq_invariant`, central source + ~12 matched-depth distribution arms, whole Ocelus fabric: monitors/stream/rapids/bridge/delta; local timer kept as parameter fallback)
+- **TASK-006** — monbus_group drains everything to the fabric: single master-write output, per-class packet steering to different addresses/SRAMs, AXI-Lite read-back data path removed, `irq_out` still asserts on errors
 
 
 
