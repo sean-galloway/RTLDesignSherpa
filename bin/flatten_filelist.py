@@ -28,7 +28,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Set, List, Tuple
+from typing import Dict, List, Set, Tuple
 
 
 class FilelistFlattener:
@@ -56,7 +56,9 @@ class FilelistFlattener:
         self.seen_incdirs: Set[str] = set()
         self.seen_defines: Set[str] = set()
         # Filelists currently being expanded, to catch `-f` cycles.
-        self._active: Set[str] = set()
+        # The include stack, in order (a dict, not a set, so error messages can
+        # print the chain the way it was entered)
+        self._active: Dict[str, None] = {}
 
         # Track environment variable mappings for path restoration
         # Exclude generic env vars that would match too broadly
@@ -144,7 +146,7 @@ class FilelistFlattener:
                 return True
         return False
 
-    def _parse_filelist(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str]]:
+    def _parse_filelist(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str], List[str]]:
         """Cycle-guarded wrapper around the real parser.
 
         A filelist that `-f` includes itself (directly or through a ring) used
@@ -157,11 +159,11 @@ class FilelistFlattener:
             chain = " -> ".join(list(self._active) + [resolved])
             print(f"Error: filelist include cycle: {chain}", file=sys.stderr)
             sys.exit(2)
-        self._active.add(resolved)
+        self._active[resolved] = None
         try:
             return self._parse_filelist_inner(filepath, base_dir)
         finally:
-            self._active.discard(resolved)
+            self._active.pop(resolved, None)
 
     def _parse_filelist_inner(self, filepath: str, base_dir: Path) -> Tuple[List[str], List[str], List[str], List[str]]:
         """
@@ -185,14 +187,21 @@ class FilelistFlattener:
         if resolved_path.startswith('$'):
             # Can't resolve - keep as-is
             self._log(f"Cannot resolve path with env var: {resolved_path}")
-            return [], [resolved_path], []
+            return [], [resolved_path], [], []
 
         try:
             with open(resolved_path, 'r') as f:
                 lines = f.readlines()
         except FileNotFoundError:
-            print(f"Warning: Cannot find filelist: {resolved_path}", file=sys.stderr)
-            return [], [], [f"-f {filepath}"]
+            # A missing -f target is a broken build input, not a warning: going
+            # on would hand verilator / sv2v / Vivado a partial design that can
+            # still lint or prove green. (This path used to return a 3-tuple to
+            # a 4-way unpack and die with a bare ValueError that named nothing.)
+            chain = [f for f in self._active if f != resolved_path]
+            parent = " -> ".join(chain) if chain else "(top level)"
+            print(f"Error: cannot find filelist: {resolved_path}\n"
+                  f"  included as '-f {filepath}' from: {parent}", file=sys.stderr)
+            sys.exit(2)
 
         filelist_dir = Path(resolved_path).parent
 
