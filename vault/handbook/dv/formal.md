@@ -472,4 +472,4 @@ onto the sv2v flat's ports -- rerun on `smtbmc bitwuzla` for the
 counterexample. Every switched unit was mutation-checked first (one
 inverted property, which must FAIL). Not every proof yields: amber
 `amber_control` (depth 126) stalls near step 45 on yices and abc bmc3
-too (`abc pdr` needs the task in `mode prove`; it is a `mode bmc` task).*
+too, and `abc pdr` (run with the task in `mode prove`) found no proof in 2 h.*
