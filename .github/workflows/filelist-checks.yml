@@ -208,3 +208,11 @@ jobs:
 
       - name: Flat staleness checker has teeth (planted drift, current flat, side-effect recipe)
         run: python3 -m pytest bin/tests/test_formal_status.py -q
+
+      # Owner rule 2026-10-19: every formal flat's sources come from the DUT's
+      # filelist through make/formal_flat.mk, never a hand-listed SRCS/DEPS.
+      - name: Formal flats come from filelists (no hand-listed SRCS)
+        run: python3 bin/check_formal_flat_sources.py
+
+      - name: Formal flat source checker has teeth (planted hand-list fails)
+        run: python3 -m pytest bin/tests/test_check_formal_flat_sources.py -q

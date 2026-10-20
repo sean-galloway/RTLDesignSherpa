@@ -17,6 +17,8 @@ all get it. Unit-specific needs are knobs, not lists: FLAT_SV2V_FLAGS
 FLAT_SPLICE (props before one module's endmodule), FLAT_EXCLUDE (a
 sub-filelist the harness replaces, e.g. icg.f), FLAT_POST (a filter on
 sv2v's output). `make check-flat` regenerates and compares content.
+CI enforces the rule: `bin/check_formal_flat_sources.py` fails on any
+formal Makefile that builds a `*_flat.v` without the include.
 
 Rules - each guards against a proof that PASSES while checking nothing:
 - sv2v silently DELETES immediate assertions without --exclude=Assert.
