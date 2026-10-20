@@ -8,24 +8,24 @@ digraph multi_clock_cdc {
            nodesep="0.50", ranksep="0.60", splines=ortho, labelloc=t,
            label="Multi-clock systems - which crossings the bridge builds and which the integrator supplies\n(each solid edge: requests down, responses up; heavy edges run on a clock other than aclk)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
 
-    m1   [label="AXI4 Master\non clk_a", fillcolor="white"];
-    m2   [label="Other Master\non clk_d", fillcolor="white"];
+    m1   [label="AXI4 Master\non clk_a", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    m2   [label="Other Master\non clk_d", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; m1; m2; }
     m1 -> m2 [style=invis, dir=none];
-    xm1  [label="Built-in Crossing (inside the bridge)\n<master>_adapter, generated when cdc = true on an AXI4 master:\naxi4_cdc_wr / _rd, port on <master>_aclk"];
-    xm2  [label="External Clock Crossing (integrator-supplied)\nany other master on a foreign clock\n(APB, AXI4-Lite, WB4, AXI3, AXI5, or AXI4 without cdc)", style="filled,dashed"];
+    xm1  [label="Built-in Crossing (inside the bridge)\n<master>_adapter, generated when cdc = true on an AXI4 master:\naxi4_cdc_wr / _rd, port on <master>_aclk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    xm2  [label="External Clock Crossing (integrator-supplied)\nany other master on a foreign clock\n(APB, AXI4-Lite, WB4, AXI3, AXI5, or AXI4 without cdc)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
     { rank=same; xm1; xm2; }
     xm1 -> xm2 [style=invis, dir=none];
-    br   [label="Generated Bridge - <name>.sv\nthe whole fabric on aclk", width=6];
-    xs1  [label="Built-in Crossing (inside the bridge)\n<slave>_adapter, generated when cdc = true on an AXI4 slave:\naxi4_cdc_wr / _rd, port on <slave>_aclk"];
-    xs2  [label="External Clock Crossing (integrator-supplied)\nany other slave on a foreign clock\n(APB, AXI4-Lite, WB4, AXI5, or AXI4 without cdc)", style="filled,dashed"];
+    br   [label="Generated Bridge - <name>.sv\nthe whole fabric on aclk", width=6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    xs1  [label="Built-in Crossing (inside the bridge)\n<slave>_adapter, generated when cdc = true on an AXI4 slave:\naxi4_cdc_wr / _rd, port on <slave>_aclk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    xs2  [label="External Clock Crossing (integrator-supplied)\nany other slave on a foreign clock\n(APB, AXI4-Lite, WB4, AXI5, or AXI4 without cdc)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
     { rank=same; xs1; xs2; }
     xs1 -> xs2 [style=invis, dir=none];
-    s1   [label="AXI4 Slave\non clk_b", fillcolor="white"];
-    s2   [label="Other Slave\non clk_c", fillcolor="white"];
+    s1   [label="AXI4 Slave\non clk_b", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    s2   [label="Other Slave\non clk_c", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; s1; s2; }
     s1 -> s2 [style=invis, dir=none];
 

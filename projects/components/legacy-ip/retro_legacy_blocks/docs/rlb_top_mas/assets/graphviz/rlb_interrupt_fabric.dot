@@ -13,25 +13,25 @@ digraph rlb_interrupt_fabric {
            label="rlb_top interrupt fabric - block IRQs on PC/AT legacy lines, into both 8259s and the IOAPIC (combinational, pclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+           fillcolor="white", color="black", margin="0.10,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    src  [label="Block Interrupt Outputs  (each also leaves on its own pin)\npit_timer_irq[0], hpet_legacy_irq0, uart_irq, rtc_alarm_irq,\nrtc_second_irq, hpet_legacy_irq8, pm_interrupt, smb_interrupt, gpio_irq\n(hpet_timer_irq has no legacy line)", fillcolor="white"];
+    src  [label="Block Interrupt Outputs  (each also leaves on its own pin)\npit_timer_irq[0], hpet_legacy_irq0, uart_irq, rtc_alarm_irq,\nrtc_second_irq, hpet_legacy_irq8, pm_interrupt, smb_interrupt, gpio_irq\n(hpet_timer_irq has no legacy line)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    map  [label="Legacy Line Map (combinational)\nrlb_top always_comb - w_fabric_irq[15:0]\nIRQ0 = PIT ch0 | HPET legacy 0;  IRQ4 = UART;\nIRQ8 = RTC alarm | RTC second | HPET legacy 8;  IRQ9 = PM / ACPI;\nIRQ_SMBUS (10) = SMBus;  IRQ_GPIO (11) = GPIO;  IRQ2 never driven"];
-    agg  [group=X, label="Aggregate OR (combinational)\nrlb_irq_out = any block IRQ,\npic_int_out included\n(drives no internal logic)"];
+    map  [label="Legacy Line Map (combinational)\nrlb_top always_comb - w_fabric_irq[15:0]\nIRQ0 = PIT ch0 | HPET legacy 0;  IRQ4 = UART;\nIRQ8 = RTC alarm | RTC second | HPET legacy 8;  IRQ9 = PM / ACPI;\nIRQ_SMBUS (10) = SMBus;  IRQ_GPIO (11) = GPIO;  IRQ2 never driven", style="filled", fillcolor="white"];
+    agg  [group=X, label="Aggregate OR (combinational)\nrlb_irq_out = any block IRQ,\npic_int_out included\n(drives no internal logic)", style="filled", fillcolor="white"];
 
-    mmix [group=L, label="Master Input Mix (combinational)\n((pic_irq_in[7:0] | boot-INTx | lines 0-7)\n& 8'hFB) | slave INT on IR2"];
-    bix  [group=B, label="Boot-INTx Reroute (combinational)\nioapic_boot_intx\nmasked IOAPIC pin n -> master input n\n(n < 8) while BOOTINTX is enabled"];
-    smix [group=C, label="Slave Input OR (combinational)\npic_irq_in[15:8] | lines 8-15"];
-    imix [group=R, label="IOAPIC Input OR (combinational)\nioapic_irq_in | lines 0-15\n(zero-extended to IOAPIC_NUM_IRQS)"];
+    mmix [group=L, label="Master Input Mix (combinational)\n((pic_irq_in[7:0] | boot-INTx | lines 0-7)\n& 8'hFB) | slave INT on IR2", style="filled", fillcolor="white"];
+    bix  [group=B, label="Boot-INTx Reroute (combinational)\nioapic_boot_intx\nmasked IOAPIC pin n -> master input n\n(n < 8) while BOOTINTX is enabled", style="filled", fillcolor="white"];
+    smix [group=C, label="Slave Input OR (combinational)\npic_irq_in[15:8] | lines 8-15", style="filled", fillcolor="white"];
+    imix [group=R, label="IOAPIC Input OR (combinational)\nioapic_irq_in | lines 0-15\n(zero-extended to IOAPIC_NUM_IRQS)", style="filled", fillcolor="white"];
 
-    mpic [group=L, label="8259 PIC, master\napb4_pic_8259 - u_pic\nIR0-7"];
-    spic [group=C, label="8259 PIC, slave\napb4_pic_8259 - u_pic_slave\nIRQ8-15"];
-    ioa  [group=R, label="IOAPIC\napb4_ioapic - u_ioapic\npins 0-23"];
+    mpic [group=L, label="8259 PIC, master\napb4_pic_8259 - u_pic\nIR0-7", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    spic [group=C, label="8259 PIC, slave\napb4_pic_8259 - u_pic_slave\nIRQ8-15", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ioa  [group=R, label="IOAPIC\napb4_ioapic - u_ioapic\npins 0-23", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [label="Module Boundary\npic_irq_in[7:0] in, pic_int_out out   |   ioapic_irq_in in (boot-INTx)   |   pic_irq_in[15:8] in   |   ioapic_irq_in in, IOAPIC LAPIC delivery / EOI   |   rlb_irq_out out",
-          fillcolor="white", width=15.0];
+          fillcolor="white", width=15.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     src  -> map  [xlabel="block IRQs"];
     src  -> agg  [xlabel="block IRQs"];
@@ -51,7 +51,7 @@ digraph rlb_interrupt_fabric {
     imix -> bar  [dir=back, xlabel="ioapic_irq_in"];
     ioa  -> bar  [dir=both, xlabel="delivery / EOI"];
     agg  -> bar  [penwidth=1.8, xlabel="rlb_irq_out"];
-    ioa  -> bix  [style=dashed, constraint=false, xlabel="cfg_mask_vec,\nboot_intx_en"];
+    ioa  -> bix  [style=dashed, color="#777777", constraint=false, xlabel="cfg_mask_vec,\nboot_intx_en"];
 
     { rank=same; map; agg; }
     { rank=same; mmix; bix; smix; imix; }

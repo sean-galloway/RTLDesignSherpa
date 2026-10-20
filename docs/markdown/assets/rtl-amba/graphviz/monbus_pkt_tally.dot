@@ -9,51 +9,51 @@ digraph monbus_pkt_tally {
            label="monbus_pkt_tally - on-chip packet-coverage histogram (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lN_PROFILE: legal-set entries = dense bins\l    0 .. N_PROFILE-1; UNEXPECTED = bin N_PROFILE\lADDR_BITS: count SRAM is 2^ADDR_BITS words\lCOUNT_WIDTH: saturating count width\lNUM_LATCH: first-event capture slots\l", fillcolor="white"];
-    pin  [group=M, label="Packet In\nin_valid, in_packet, in_ts / in_ready", fillcolor="white"];
-    load [label="Legal-Set Load (runtime port)\lprofile_clear, profile_we,\lprofile_waddr, profile_wvalid,\lprofile_wkey: one {key, index}\lper entry\l", fillcolor="white"];
-    ctl  [group=L, label="Host Control\ni_freeze (hold counting), i_clear (zero all)\ni_flush (no-op) / o_flush_busy", fillcolor="white"];
-    rdp  [label="Readback Port\nrd_addr / rd_count", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lN_PROFILE: legal-set entries = dense bins\l    0 .. N_PROFILE-1; UNEXPECTED = bin N_PROFILE\lADDR_BITS: count SRAM is 2^ADDR_BITS words\lCOUNT_WIDTH: saturating count width\lNUM_LATCH: first-event capture slots\l", fillcolor="white", shape=note];
+    pin  [group=M, label="Packet In\nin_valid, in_packet, in_ts / in_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    load [label="Legal-Set Load (runtime port)\lprofile_clear, profile_we,\lprofile_waddr, profile_wvalid,\lprofile_wkey: one {key, index}\lper entry\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ctl  [group=L, label="Host Control\ni_freeze (hold counting), i_clear (zero all)\ni_flush (no-op) / o_flush_busy", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rdp  [label="Readback Port\nrd_addr / rd_count", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    key  [group=M, label="Key Extract (combinational)\n{agent[15:0], protocol[3:0],\npkt_type[3:0], event_code[7:0]}"];
-    cam  [group=M, label="Legal-Set Lookup\nmonbus_legal_cam - u_legal_cam\nN_PROFILE parallel compares (see its diagram)"];
-    bsel [group=M, label="Bin Select (combinational)\nhit: dense index (position in the legal set)\nmiss: UNEXPECTED bin (index N_PROFILE)"];
-    fsm  [group=L, label="Controller FSM (flops)\nST_RUN: accept, read the bin\nST_WR: write the increment back\nST_CLEAR: walk the SRAM to 0"];
-    pmux [group=M, label="SRAM Port Select (combinational)\nST_CLEAR: write 0 at the walk index\nST_WR: write sat_inc(old) at the held bin\naccept: read the bin  |  idle: read rd_addr"];
-    inc  [label="Saturating Increment\n(combinational)\ncount + 1, pegged at\nall-ones (never wraps)"];
-    lat  [group=R, label="First-Event Latch Bank (flops)\nNUM_LATCH slots of {packet, ts}\nlatches when armed and the pkt_type\nis watched OR the key missed the\nlegal set; latch_sel picks a slot", style="filled"];
-    latp [group=R, label="Watch Port\ni_watch_arm, i_watch_pkttype_mask,\nlatch_sel / latch_valid, latch_packet,\nlatch_ts, latch_fill", fillcolor="white"];
+    key  [group=M, label="Key Extract (combinational)\n{agent[15:0], protocol[3:0],\npkt_type[3:0], event_code[7:0]}", style="filled", fillcolor="white"];
+    cam  [group=M, label="Legal-Set Lookup\nmonbus_legal_cam - u_legal_cam\nN_PROFILE parallel compares (see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bsel [group=M, label="Bin Select (combinational)\nhit: dense index (position in the legal set)\nmiss: UNEXPECTED bin (index N_PROFILE)", style="filled", fillcolor="white"];
+    fsm  [group=L, label="Controller FSM (flops)\nST_RUN: accept, read the bin\nST_WR: write the increment back\nST_CLEAR: walk the SRAM to 0", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    pmux [group=M, label="SRAM Port Select (combinational)\nST_CLEAR: write 0 at the walk index\nST_WR: write sat_inc(old) at the held bin\naccept: read the bin  |  idle: read rd_addr", style="filled", fillcolor="white"];
+    inc  [label="Saturating Increment\n(combinational)\ncount + 1, pegged at\nall-ones (never wraps)", style="filled", fillcolor="white"];
+    lat  [group=R, label="First-Event Latch Bank (flops)\nNUM_LATCH slots of {packet, ts}\nlatches when armed and the pkt_type\nis watched OR the key missed the\nlegal set; latch_sel picks a slot", style="filled", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    latp [group=R, label="Watch Port\ni_watch_arm, i_watch_pkttype_mask,\nlatch_sel / latch_valid, latch_packet,\nlatch_ts, latch_fill", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     sram [label="Count SRAM  r_sram[2^ADDR_BITS] x COUNT_WIDTH  (single port, synchronous read + write)\nN_PROFILE+1 words used; read-old on a same-address read/write; r_sram_rdata registered",
-          width=11.0, height=0.8];
+          width=11.0, height=0.8, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // main flow
     pin  -> key  [label="accepted packet\n(in_valid & in_ready)", penwidth=1.8];
     key  -> cam  [label="lookup key", penwidth=1.8];
-    load -> cam  [style=dashed, xlabel="legal set"];
+    load -> cam  [style=dashed, color="#777777", xlabel="legal set"];
     cam  -> bsel [label="hit, hit index", penwidth=1.8];
     bsel -> pmux [label="bin address", penwidth=1.8];
     pmux -> sram [label="addr, we, wdata", penwidth=1.8];
 
     // control
-    ctl  -> fsm  [style=dashed, label="freeze, clear"];
-    fsm  -> pmux [style=dashed, label="state, clear index"];
+    ctl  -> fsm  [style=dashed, color="#777777", label="freeze, clear"];
+    fsm  -> pmux [style=dashed, color="#777777", label="state, clear index"];
 
     // RMW loop and readback: SRAM read data climbs the right edge
     p_rd [shape=point, width=0.01];
-    p_rd -> sram [dir=back, arrowtail=none, headclip=true, tailclip=false];
+    p_rd -> sram [color="#1A7A1A", dir=back, arrowtail=none, headclip=true, tailclip=false];
     p_rd -> inc  [dir=back, xlabel="old count"];
     inc  -> pmux [label="count + 1"];
-    p_rd -> rdp  [xlabel="rd_count", constraint=false];
-    rdp  -> pmux [style=dashed, label="rd_addr"];
+    p_rd -> rdp  [color="#1A7A1A", xlabel="rd_count", constraint=false];
+    rdp  -> pmux [style=dashed, color="#777777", label="rd_addr"];
 
     // latch bank beside the main column
-    key  -> lat  [style=dashed, label="packet, ts"];
-    bsel -> lat  [style=dashed, xlabel="miss"];
-    latp -> lat  [dir=both, style=dashed, label="arm, mask, sel /\nlatched packets"];
+    key  -> lat  [style=dashed, color="#777777", label="packet, ts"];
+    bsel -> lat  [style=dashed, color="#777777", xlabel="miss"];
+    latp -> lat  [dir=both, style=dashed, color="#777777", label="arm, mask, sel /\nlatched packets"];
 
     { rank=same; prm; ctl; load; pin; latp; rdp; }
     { rank=same; fsm; key; }

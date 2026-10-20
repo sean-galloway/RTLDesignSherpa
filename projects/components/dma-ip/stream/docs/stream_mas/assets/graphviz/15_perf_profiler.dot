@@ -6,23 +6,23 @@ digraph perf_profiler {
            nodesep="0.50", ranksep="0.50", splines=ortho,
            label="perf_profiler - per-channel activity capture (single clock: clk, rst_n; an observer, nothing driven back)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    idle  [label="Channel Idle Taps\nchannel_idle[NUM_CHANNELS] (observed)", fillcolor="white"];
-    cfg   [label="Configuration\ncfg_enable, cfg_mode (0 timestamp, 1 elapsed), cfg_clear", fillcolor="white"];
-    ts    [label="Timestamp Counter (flops)\nfree-running while enabled, wraps at 2^32"];
-    edge_ [label="Edge Detect (flops + combinational)\nidle -> active: start;  active -> idle: end"];
-    start [label="Start Times (flops, per channel)\nelapsed mode only"];
-    pick  [label="Channel Pick - priority encoder\nlowest channel with an event this cycle", shape=invtrapezium, width=4.5, fillcolor="#BFD7EE"];
-    fifo  [label="Event FIFO - gaxi_fifo_sync\n{event type, channel, timestamp or elapsed}"];
-    bar   [label="Register Read-Back\nperf_fifo_rd in  |  perf_fifo_data_low / _high, empty, full, count out", fillcolor="white", width=7.5];
+    idle  [label="Channel Idle Taps\nchannel_idle[NUM_CHANNELS] (observed)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [label="Configuration\ncfg_enable, cfg_mode (0 timestamp, 1 elapsed), cfg_clear", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ts    [label="Timestamp Counter (flops)\nfree-running while enabled, wraps at 2^32", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    edge_ [label="Edge Detect (flops + combinational)\nidle -> active: start;  active -> idle: end", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    start [label="Start Times (flops, per channel)\nelapsed mode only", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pick  [label="Channel Pick - priority encoder\nlowest channel with an event this cycle", shape=invtrapezium, width=4.5, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    fifo  [label="Event FIFO - gaxi_fifo_sync\n{event type, channel, timestamp or elapsed}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    bar   [label="Register Read-Back\nperf_fifo_rd in  |  perf_fifo_data_low / _high, empty, full, count out", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     idle  -> edge_ [label="idle bits"];
-    cfg   -> ts    [style=dashed, xlabel="enable, clear"];
+    cfg   -> ts    [style=dashed, color="#777777", xlabel="enable, clear"];
     edge_ -> pick  [xlabel="start / end\nevents"];
     ts    -> start [label="timestamp"];
-    edge_ -> start [style=dashed, label="capture on start"];
+    edge_ -> start [style=dashed, color="#777777", label="capture on start"];
     start -> pick  [label="elapsed = now - start"];
     pick  -> fifo  [label="one event per cycle", penwidth=1.8];
     fifo  -> bar   [dir=both, label="entry out; pop in"];

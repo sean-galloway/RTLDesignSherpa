@@ -9,25 +9,25 @@ digraph amba_clock_gate_ctrl {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="amba_clock_gate_ctrl - activity-driven clock gating for an AMBA block";
 
-    clk_in  [group=CK, label="Clock In\nclk_in, aresetn", fillcolor="white"];
-    act_in  [group=CT, label="Activity Inputs\nuser_valid (any user-side valid)\naxi_valid (any AXI-side valid)", fillcolor="white"];
-    cfg_in  [group=CF, label="Configuration\ncfg_cg_enable,\ncfg_cg_idle_count\n[CG_IDLE_COUNT_WIDTH-1:0]", fillcolor="white"];
+    clk_in  [group=CK, label="Clock In\nclk_in, aresetn", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    act_in  [group=CT, label="Activity Inputs\nuser_valid (any user-side valid)\naxi_valid (any AXI-side valid)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg_in  [group=CF, label="Configuration\ncfg_cg_enable,\ncfg_cg_idle_count\n[CG_IDLE_COUNT_WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wake    [group=CT, label="Wakeup Register (flop on clk_in)\nr_wakeup <= user_valid | axi_valid\nreset to 1: the block starts ungated"];
-    idleinv [group=CT, label="Idle Decode (combinational)\nidle = ~r_wakeup"];
-    base    [group=CK, label="Base Clock-Gate Controller\nclock_gate_ctrl - u_clock_gate_ctrl\n(see its diagram: idle countdown + ICG)\nIDLE_CNTR_WIDTH = CG_IDLE_COUNT_WIDTH"];
+    wake    [group=CT, label="Wakeup Register (flop on clk_in)\nr_wakeup <= user_valid | axi_valid\nreset to 1: the block starts ungated", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    idleinv [group=CT, label="Idle Decode (combinational)\nidle = ~r_wakeup", style="filled", fillcolor="white"];
+    base    [group=CK, label="Base Clock-Gate Controller\nclock_gate_ctrl - u_clock_gate_ctrl\n(see its diagram: idle countdown + ICG)\nIDLE_CNTR_WIDTH = CG_IDLE_COUNT_WIDTH", style="filled", fillcolor="white"];
 
     out     [label="Outputs\nclk_out (gated clock)   |   gating   |   idle (no activity last cycle)",
-             fillcolor="white", width=7.0];
+             fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     act_in -> wake    [xlabel="user_valid | axi_valid"];
     wake   -> base    [xlabel="r_wakeup (wakeup)"];
     wake   -> idleinv [xlabel="r_wakeup"];
-    cfg_in -> base    [style=dashed, xlabel="enable,\nidle count"];
+    cfg_in -> base    [style=dashed, color="#777777", xlabel="enable,\nidle count"];
 
     clk_in -> base [xlabel="clk_in", penwidth=1.8];
     base   -> out  [xlabel="clk_out, gating", penwidth=1.8];

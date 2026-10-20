@@ -6,45 +6,45 @@ digraph apbx_xbar_architecture {
            nodesep="0.40", ranksep="0.55", splines=ortho, labelloc=t,
            label="apbx_xbar_2to4 - masters m0 (CPU) and m1 (DMA), drawn for one slave s (s0 UART, s1 GPIO, s2 Timer, s3 SPI)\nsingle clock pclk / presetn; BASE_ADDR default 0x1000_0000, 64 KB windows"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    p0 [label="Master 0 (CPU)\nm0_apb_PSEL .. PPROT in", fillcolor="white"];
-    p1 [label="Master 1 (DMA)\nm1_apb_PSEL .. PPROT in", fillcolor="white"];
-    pr [label="Master Completions\nm0_ / m1_apb_PREADY, PRDATA,\nPSLVERR out", fillcolor="white", group=R];
+    p0 [label="Master 0 (CPU)\nm0_apb_PSEL .. PPROT in", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p1 [label="Master 1 (DMA)\nm1_apb_PSEL .. PPROT in", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="Master Completions\nm0_ / m1_apb_PREADY, PRDATA,\nPSLVERR out", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; p0; p1; pr; }
     p0 -> p1 -> pr [style=invis];
 
-    b0 [label="u_apb4_slave_m0 - apb4_slave\nAPB -> m0_cmd_*"];
-    b1 [label="u_apb4_slave_m1 - apb4_slave\nAPB -> m1_cmd_*"];
-    br [label="Master-Side Boundary (rsp side)\nm0_ / m1_rsp_* -> PREADY,\nPRDATA, PSLVERR", group=R];
+    b0 [label="u_apb4_slave_m0 - apb4_slave\nAPB -> m0_cmd_*", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    b1 [label="u_apb4_slave_m1 - apb4_slave\nAPB -> m1_cmd_*", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    br [label="Master-Side Boundary (rsp side)\nm0_ / m1_rsp_* -> PREADY,\nPRDATA, PSLVERR", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; b0; b1; br; }
     b0 -> b1 -> br [style=invis];
 
-    d0 [label="Address Decode - master 0\nm0_cmd_offset = m0_cmd_paddr - BASE_ADDR\nm0_slave_sel = offset[17:16]; m0_addr_in_range;\nr_m0_slave_sel loaded at cmd accept"];
-    d1 [label="Address Decode - master 1\nm1_cmd_offset = m1_cmd_paddr - BASE_ADDR\nm1_slave_sel = offset[17:16]; m1_addr_in_range;\nr_m1_slave_sel loaded at cmd accept"];
-    rs [label="Response Select (per master)\nm*_rsp_* = rsp of slave r_m*_slave_sel\nwhile that slave grants m*; a local\nPSLVERR while r_m*_decerr_pending", group=R];
+    d0 [label="Address Decode - master 0\nm0_cmd_offset = m0_cmd_paddr - BASE_ADDR\nm0_slave_sel = offset[17:16]; m0_addr_in_range;\nr_m0_slave_sel loaded at cmd accept", style="filled", fillcolor="white"];
+    d1 [label="Address Decode - master 1\nm1_cmd_offset = m1_cmd_paddr - BASE_ADDR\nm1_slave_sel = offset[17:16]; m1_addr_in_range;\nr_m1_slave_sel loaded at cmd accept", style="filled", fillcolor="white"];
+    rs [label="Response Select (per master)\nm*_rsp_* = rsp of slave r_m*_slave_sel\nwhile that slave grants m*; a local\nPSLVERR while r_m*_decerr_pending", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; d0; d1; rs; }
     d0 -> d1 -> rs [style=invis];
 
     arb [label="u_s<s>_arbiter - arbiter_round_robin (CLIENTS = 2, WAIT_GNT_ACK = 1)\ns<s>_arb_grant held until s<s>_arb_grant_ack (the rsp handshake)",
-         shape=invtrapezium, width=7.0, height=0.7];
+         shape=invtrapezium, width=7.0, height=0.7, style="filled", fillcolor="#FFF2CC"];
     pr3 [shape=point, width=0.01, label="", group=R];
     { rank=same; arb; pr3; }
     arb -> pr3 [style=invis];
 
-    mux [label="Command Mux\ns<s>_cmd_* = cmd of the master\nholding s<s>_arb_grant"];
-    rr [label="Response Return\ns<s>_rsp_ready from the granted master;\ns<s>_arb_grant_ack = grant && rsp handshake", group=R];
+    mux [label="Command Mux\ns<s>_cmd_* = cmd of the master\nholding s<s>_arb_grant", style="filled", fillcolor="white"];
+    rr [label="Response Return\ns<s>_rsp_ready from the granted master;\ns<s>_arb_grant_ack = grant && rsp handshake", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; mux; rr; }
     mux -> rr [style=invis];
 
-    sm [label="u_apb4_master_s<s> - apb4_master\ns<s>_cmd_* -> APB transfer"];
-    sr [label="u_apb4_master_s<s> (rsp side)\nPREADY / PRDATA / PSLVERR -> s<s>_rsp_*", group=R];
+    sm [label="u_apb4_master_s<s> - apb4_master\ns<s>_cmd_* -> APB transfer", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    sr [label="u_apb4_master_s<s> (rsp side)\nPREADY / PRDATA / PSLVERR -> s<s>_rsp_*", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; sm; sr; }
     sm -> sr [style=invis];
 
     bar [label="Slave s APB Port - s<s>_apb_PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT out; PREADY, PRDATA, PSLVERR in",
-         fillcolor="white", width=11];
+         fillcolor="white", width=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     p0 -> b0 [label="APB request"];
     p1 -> b1 [label="APB request"];
@@ -55,12 +55,12 @@ digraph apbx_xbar_architecture {
     arb -> mux [label="s<s>_arb_grant", penwidth=1.8];
     mux -> sm [label="s<s>_cmd_*", penwidth=1.8];
     sm -> bar [xlabel="APB transfer", penwidth=1.8];
-    d1 -> rs [style=dashed, xlabel="slave_sel / miss"];
+    d1 -> rs [style=dashed, color="#777777", xlabel="slave_sel / miss"];
 
-    pr -> br [dir=back, label="APB completion"];
-    br -> rs [dir=back, label="m*_rsp_*"];
-    rs -> pr3 [dir=back];
-    pr3 -> rr [dir=none, xlabel="s<s>_rsp_*"];
+    pr -> br [color="#1A7A1A", dir=back, label="APB completion"];
+    br -> rs [color="#1A7A1A", dir=back, label="m*_rsp_*"];
+    rs -> pr3 [color="#1A7A1A", dir=back];
+    pr3 -> rr [color="#1A7A1A", dir=none, xlabel="s<s>_rsp_*"];
     rr -> sr [dir=back, label="s<s>_rsp_*"];
     sr -> bar [dir=back, label="PREADY, PRDATA, PSLVERR"];
 }

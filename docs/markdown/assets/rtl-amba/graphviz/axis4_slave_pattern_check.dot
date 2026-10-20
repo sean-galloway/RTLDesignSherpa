@@ -8,24 +8,24 @@ digraph axis4_slave_pattern_check {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axis4_slave_pattern_check - per-channel LFSR pattern checker with actual CRCs (clk)";
 
-    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent contexts, channel = tid[CIW-1:0]\lBYTE_CRC: 1 = CRC the strobed bytes, four per cycle\l    (tready held while a beat is fed); the word compare\l    becomes a tstrb-contiguity check\lLFSR_* / CRC_*: matches axi4_slave_rd_injector bit for bit\l", fillcolor="white"];
-    port [group=A, label="AXIS Slave Port\ns_axis_tvalid, tdata, tstrb, tlast, tid in   |   s_axis_tready out", fillcolor="white"];
-    cfg  [group=C, label="Control\ncfg_start (seed every channel: seed ^ ch)\ncfg_lfsr_seed, ready_en (tready)", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent contexts, channel = tid[CIW-1:0]\lBYTE_CRC: 1 = CRC the strobed bytes, four per cycle\l    (tready held while a beat is fed); the word compare\l    becomes a tstrb-contiguity check\lLFSR_* / CRC_*: matches axi4_slave_rd_injector bit for bit\l", fillcolor="white", shape=note];
+    port [group=A, label="AXIS Slave Port\ns_axis_tvalid, tdata, tstrb, tlast, tid in   |   s_axis_tready out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [group=C, label="Control\ncfg_start (seed every channel: seed ^ ch)\ncfg_lfsr_seed, ready_en (tready)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    dmx  [group=A, label="Channel Demux (combinational)\naccepted beat -> channel tid[CIW-1:0]\ntready = ready_en (held while a BYTE_CRC feed runs)"];
-    lfsr [group=C, label="Per-Channel Expected Pattern (flops)\nNUM_CHANNELS x shifter_lfsr_fibonacci - u_lfsr\nonly the beat's channel advances"];
-    cmp  [group=A, label="Compare (combinational) + error flag (flop)\ntdata vs the 32-bit word replicated across the bus;\nany mismatch sets o_data_error (sticky)"];
-    crc  [group=C, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\nover the expected words (or strobed bytes)"];
+    dmx  [group=A, label="Channel Demux (combinational)\naccepted beat -> channel tid[CIW-1:0]\ntready = ready_en (held while a BYTE_CRC feed runs)", style="filled", fillcolor="white"];
+    lfsr [group=C, label="Per-Channel Expected Pattern (flops)\nNUM_CHANNELS x shifter_lfsr_fibonacci - u_lfsr\nonly the beat's channel advances", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmp  [group=A, label="Compare (combinational) + error flag (flop)\ntdata vs the 32-bit word replicated across the bus;\nany mismatch sets o_data_error (sticky)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    crc  [group=C, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\nover the expected words (or strobed bytes)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     out  [label="Outputs\no_actual_crc / _valid [ch]   |   o_data_error   |   o_beat_count [ch], o_beat_count_total, o_pkt_count",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> dmx  [dir=both, xlabel="AXIS beat  /  tready"];
-    cfg  -> lfsr [style=dashed, xlabel="cfg_start (seed)"];
+    cfg  -> lfsr [style=dashed, color="#777777", xlabel="cfg_start (seed)"];
     dmx  -> lfsr [xlabel="channel, accepted"];
     dmx  -> cmp  [xlabel="tdata"];
     lfsr -> cmp  [xlabel="expected word"];

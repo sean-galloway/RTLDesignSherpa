@@ -8,21 +8,21 @@ digraph math_subtractor_full_nbit {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_subtractor_full_nbit - N-bit ripple-borrow subtractor (combinational)";
 
-    ops  [group=L, label="Operands\ni_a[N-1:0] (minuend), i_b[N-1:0] (subtrahend)", fillcolor="white"];
-    bin  [group=C, label="Borrow In\ni_b_in", fillcolor="white"];
+    ops  [group=L, label="Operands\ni_a[N-1:0] (minuend), i_b[N-1:0] (subtrahend)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    bin  [group=C, label="Borrow In\ni_b_in", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     p0 [group=L, shape=point, width=0.01];
     p1 [group=L, shape=point, width=0.01];
     p2 [group=L, shape=point, width=0.01];
 
-    fs0 [group=C, label="Bit 0 Full Subtractor\nmath_subtractor_full\nd = a ^ b ^ bin;  bout = (~a & b) | (~(a ^ b) & bin)"];
-    fsm [group=C, label="Bits 1 .. N-2\n(N-2) x math_subtractor_full - gen_subtractor_loop"];
-    fsl [group=C, label="Bit N-1 Full Subtractor\nmath_subtractor_full"];
+    fs0 [group=C, label="Bit 0 Full Subtractor\nmath_subtractor_full\nd = a ^ b ^ bin;  bout = (~a & b) | (~(a ^ b) & bin)", style="filled", fillcolor="white"];
+    fsm [group=C, label="Bits 1 .. N-2\n(N-2) x math_subtractor_full - gen_subtractor_loop", style="filled", fillcolor="white"];
+    fsl [group=C, label="Bit N-1 Full Subtractor\nmath_subtractor_full", style="filled", fillcolor="white"];
 
-    outs [label="Outputs\now_d[N-1:0] (difference)   |   ow_b (borrow out: 1 = A < B unsigned)", fillcolor="white", width=6.5];
+    outs [label="Outputs\now_d[N-1:0] (difference)   |   ow_b (borrow out: 1 = A < B unsigned)", fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     ops -> p0 [arrowhead=none, headclip=false, xlabel="operand bits, LSB first"];
     p0  -> p1 [arrowhead=none, tailclip=false, headclip=false];

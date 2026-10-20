@@ -10,31 +10,31 @@ digraph wr_data_path {
            label="pumice write data path - mc_wr_data_cam movers + the DFI write serializer (no datapath FSM)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    p_w   [label="Write beats\nmc_wr_intake - u_wr_data_fifo\n(data, strb, last)", fillcolor="white"];
-    p_cm  [label="Commit slot\nmc_scheduler_plane\n(wr_commit_*)", fillcolor="white"];
-    p_sn  [label="Read Intake (mc_rd_intake)\nsnarf probe hit in / snarf data out", fillcolor="white"];
+    p_w   [label="Write beats\nmc_wr_intake - u_wr_data_fifo\n(data, strb, last)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_cm  [label="Commit slot\nmc_scheduler_plane\n(wr_commit_*)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_sn  [label="Read Intake (mc_rd_intake)\nsnarf probe hit in / snarf data out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fill  [label="Fill Mover\nmc_wr_data_cam - u_fill_q + r_fill_beat\n(one beat per cycle into the slot)"];
-    dq    [label="Commit Drain Queue\nmc_wr_data_cam - u_drain_q\n(up to WR_DRAIN_AHEAD bursts)"];
-    sq    [label="Snarf Queue\nmc_wr_data_cam - u_snarf_q\n(youngest matching slot)"];
+    fill  [label="Fill Mover\nmc_wr_data_cam - u_fill_q + r_fill_beat\n(one beat per cycle into the slot)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dq    [label="Commit Drain Queue\nmc_wr_data_cam - u_drain_q\n(up to WR_DRAIN_AHEAD bursts)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sq    [label="Snarf Queue\nmc_wr_data_cam - u_snarf_q\n(youngest matching slot)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     pick  [label="BRAM Read-Port Pick\ncommit first; a snarf preempted 16 cycles wins one fetch",
-           shape=polygon, sides=4, distortion=0.10, width=5.6, height=0.55, fillcolor="#BDD7EE"];
+           shape=polygon, sides=4, distortion=0.10, width=5.6, height=0.55, fillcolor="#BDD7EE", style="filled", fillcolor="#FFF2CC"];
 
     mem   [label="Write-Data BRAM\nmc_wr_data_cam - r_mem [N_SRAM_SLOTS x AXI_BEATS_PER_BURST] + r_sram_occ\none write port (fill), one read port (commit or snarf)",
-           width=8.5];
+           width=8.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    skid  [label="2-deep Prefetch Skid\nmc_wr_data_cam - r_sk_* (synchronous-read BRAM, 1 beat / cycle)\ncommit last beat evicts the slot and raises commit done (-> B)"];
+    skid  [label="2-deep Prefetch Skid\nmc_wr_data_cam - r_sk_* (synchronous-read BRAM, 1 beat / cycle)\ncommit last beat evicts the slot and raises commit done (-> B)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cdc   [label="Write Data CDC FIFO\nmc_dfi_cdc - u_wd_fifo (gaxi_fifo_async)\n(ctl_clk -> dfi_clk)"];
-    fire  [label="DFI Command Path\nmc_dfi_cmd_path\n(write fire)", fillcolor="white"];
-    ser   [label="Write Serializer\nmc_dfi_wr_serializer - FUB\non write fire wait t_phy_wrlat, then one DFI word / cycle"];
+    cdc   [label="Write Data CDC FIFO\nmc_dfi_cdc - u_wd_fifo (gaxi_fifo_async)\n(ctl_clk -> dfi_clk)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    fire  [label="DFI Command Path\nmc_dfi_cmd_path\n(write fire)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ser   [label="Write Serializer\nmc_dfi_wr_serializer - FUB\non write fire wait t_phy_wrlat, then one DFI word / cycle", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     phy   [label="DDR PHY - dfi_wrdata / dfi_wrdata_en / dfi_wrdata_mask (dfi_clk)",
-           fillcolor="white", width=8.5, height=0.5, fontsize=11];
+           fillcolor="white", width=8.5, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- data in ----
     p_w  -> fill [xlabel="write beats"];
@@ -52,9 +52,9 @@ digraph wr_data_path {
     skid -> cdc  [xlabel="commit stream\n(data, strb, last)"];
     cdc  -> ser  [xlabel="write data"];
     ser  -> phy  [xlabel="Write to DDR"];
-    fire -> ser  [style=dashed, xlabel="write fire"];
-    p_sn -> x_sn [dir=back, xlabel="snarf stream\n(data, last)"];
-    x_sn -> skid [dir=none];
+    fire -> ser  [style=dashed, color="#777777", xlabel="write fire"];
+    p_sn -> x_sn [color="#1A7A1A", dir=back, xlabel="snarf stream\n(data, last)"];
+    x_sn -> skid [color="#1A7A1A", dir=none];
 
     x_sn [shape=point, width=0.01, height=0.01, label="", style=invis];
 

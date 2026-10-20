@@ -11,21 +11,21 @@ digraph shifter_beat_pack {
            nodesep="0.35", ranksep="0.75", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="shifter_beat_pack - fixed-width chunks in, runtime-width beats out (one clock)";
 
-    push  [group=L, label="Push Port\npush_valid / push_ready,\npush_data[CHUNK_BITS-1:0]", fillcolor="white"];
-    cfg   [group=C, label="Beat Size (runtime input port)\lcfg_beat_bytes_m1: each popped beat is\l    (cfg_beat_bytes_m1 + 1) bytes,\l    up to MAX_BEAT_BYTES\l", fillcolor="white"];
-    pop   [group=R, label="Pop Port\npop_ready / pop_valid,\npop_data[MAX_BEAT_BITS-1:0]", fillcolor="white"];
-    stat  [label="Status Outputs\nempty, count_bits_o", fillcolor="white"];
-    clk   [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+    push  [group=L, label="Push Port\npush_valid / push_ready,\npush_data[CHUNK_BITS-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [group=C, label="Beat Size (runtime input port)\lcfg_beat_bytes_m1: each popped beat is\l    (cfg_beat_bytes_m1 + 1) bytes,\l    up to MAX_BEAT_BYTES\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pop   [group=R, label="Pop Port\npop_ready / pop_valid,\npop_data[MAX_BEAT_BITS-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    stat  [label="Status Outputs\nempty, count_bits_o", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk   [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    beat  [group=C, label="Beat Bits (combinational)\nw_beat_bits =\n(cfg_beat_bytes_m1 + 1) * 8"];
-    flags [group=C, label="Handshake Flags (combinational)\lpush_ready: room for a chunk\l    (r_count <= STORAGE_BITS - CHUNK_BITS)\lpop_valid: a whole beat buffered\l    (r_count >= w_beat_bits, r_count != 0)\lempty: r_count == 0\l"];
-    nxt   [group=L, label="Next-State Merge (combinational)\l1. on pop (pop_valid & pop_ready):\l    r_data >>= w_beat_bits,\l    r_count -= w_beat_bits\l2. then on push (push_valid & push_ready):\l    write push_data\l    at bit r_count,\l    r_count += CHUNK_BITS\l"];
+    beat  [group=C, label="Beat Bits (combinational)\nw_beat_bits =\n(cfg_beat_bytes_m1 + 1) * 8", style="filled", fillcolor="white"];
+    flags [group=C, label="Handshake Flags (combinational)\lpush_ready: room for a chunk\l    (r_count <= STORAGE_BITS - CHUNK_BITS)\lpop_valid: a whole beat buffered\l    (r_count >= w_beat_bits, r_count != 0)\lempty: r_count == 0\l", style="filled", fillcolor="white"];
+    nxt   [group=L, label="Next-State Merge (combinational)\l1. on pop (pop_valid & pop_ready):\l    r_data >>= w_beat_bits,\l    r_count -= w_beat_bits\l2. then on push (push_valid & push_ready):\l    write push_data\l    at bit r_count,\l    r_count += CHUNK_BITS\l", style="filled", fillcolor="white"];
     bar   [label="Bit Buffer (flops, reset 0)  r_data[STORAGE_BITS-1:0] + r_count\nSTORAGE_BITS = DEPTH_CHUNKS x CHUNK_BITS; oldest bits at bit 0\nchunks written at the left, beats read from the low bits at the right",
-           width=9.0, height=0.9];
+           width=9.0, height=0.9, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     p_pd  [shape=point, width=0.01, group=R];
 
@@ -33,16 +33,16 @@ digraph shifter_beat_pack {
     cfg  -> beat  [xlabel="cfg_beat_bytes_m1"];
     beat -> flags [xlabel="w_beat_bits"];
     beat -> nxt   [xlabel="w_beat_bits (shift)"];
-    flags -> push [style=dashed, constraint=false, xlabel="push_ready"];
-    flags -> pop  [style=dashed, constraint=false, xlabel="pop_valid"];
+    flags -> push [style=dashed, color="#777777", constraint=false, xlabel="push_ready"];
+    flags -> pop  [style=dashed, color="#777777", constraint=false, xlabel="pop_valid"];
     flags -> stat [constraint=false, xlabel="empty,\ncount_bits_o\n(= r_count)"];
     nxt  -> bar   [xlabel="next r_data, r_count"];
     nxt  -> bar   [dir=back, xlabel="current r_data, r_count"];
     flags -> bar  [dir=back, xlabel="r_count"];
-    clk  -> bar   [style=dashed, xlabel="clk, rst_n"];
+    clk  -> bar   [style=dashed, color="#777777", xlabel="clk, rst_n"];
 
-    p_pd -> bar   [dir=none, tailclip=false, xlabel="pop_data =\nr_data[MAX_BEAT_BITS-1:0]"];
-    p_pd -> pop   [tailclip=false, constraint=false];
+    p_pd -> bar   [color="#1A7A1A", dir=none, tailclip=false, xlabel="pop_data =\nr_data[MAX_BEAT_BITS-1:0]"];
+    p_pd -> pop   [color="#1A7A1A", tailclip=false, constraint=false];
 
     { rank=same; push; cfg; stat; pop; }
     { rank=same; clk; nxt; flags; p_pd; }

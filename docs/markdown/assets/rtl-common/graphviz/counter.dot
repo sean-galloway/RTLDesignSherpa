@@ -8,15 +8,15 @@ digraph counter {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="counter - free-running modulo-(MAX+1) counter, one tick per MAX+1 clocks";
 
-    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
-    nxt    [label="Increment / Wrap (combinational)\nr_count == MAX ? 0 : r_count + 1"];
-    creg   [label="Count Register\nr_count (flop, reset 0)\n$clog2(MAX+1) bits"];
-    cmp    [label="Terminal Compare (combinational)\ntick = (r_count == MAX)"];
-    out    [label="Output\ntick (high for one clock per wrap)", fillcolor="white", width=4.0];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    nxt    [label="Increment / Wrap (combinational)\nr_count == MAX ? 0 : r_count + 1", style="filled", fillcolor="white"];
+    creg   [label="Count Register\nr_count (flop, reset 0)\n$clog2(MAX+1) bits", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmp    [label="Terminal Compare (combinational)\ntick = (r_count == MAX)", style="filled", fillcolor="white"];
+    out    [label="Output\ntick (high for one clock per wrap)", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
     p_fb   [shape=point, width=0.01];
 
     nxt  -> creg [xlabel="next count"];
@@ -24,7 +24,7 @@ digraph counter {
     cmp  -> out  [xlabel="tick"];
     creg -> p_fb [arrowhead=none, headclip=false, constraint=false];
     p_fb -> nxt  [xlabel="r_count\n(current)", tailclip=false, constraint=false];
-    clk_in -> creg [style=dashed, xlabel="clk, rst_n"];
+    clk_in -> creg [style=dashed, color="#777777", xlabel="clk, rst_n"];
     { rank=same; clk_in; nxt; }
     clk_in -> nxt [style=invis, minlen=2];
 }

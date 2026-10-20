@@ -8,18 +8,18 @@ digraph rapids_beats_error_sources {
            label="Error sources for one channel - all converge on the channel's scheduler",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+           fillcolor="white", color="black", margin="0.10,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    de [label="Descriptor\nEngine\nfetch RRESP error,\naddress outside the\nDESCENG_ADDR0/1\nwindows, valid bit\nclear, address 0"];
-    rd [label="AXI Read\nEngine\n(source half)\nRRESP error"];
-    wr [label="AXI Write\nEngine\n(sink half)\nBRESP error"];
-    cr [label="Control Read\nEngine\nmax retries\nreached or\nRRESP error"];
-    cw [label="Control Write\nEngine\nBRESP error"];
-    to [label="Write-Progress\nWatchdog\n(in the scheduler)\nSCHED_TIMEOUT_\nLIMIT stalled\nwindows in a row"];
+    de [label="Descriptor\nEngine\nfetch RRESP error,\naddress outside the\nDESCENG_ADDR0/1\nwindows, valid bit\nclear, address 0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd [label="AXI Read\nEngine\n(source half)\nRRESP error", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wr [label="AXI Write\nEngine\n(sink half)\nBRESP error", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cr [label="Control Read\nEngine\nmax retries\nreached or\nRRESP error", style="filled", fillcolor="white"];
+    cw [label="Control Write\nEngine\nBRESP error", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    to [label="Write-Progress\nWatchdog\n(in the scheduler)\nSCHED_TIMEOUT_\nLIMIT stalled\nwindows in a row", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    sc [label="Scheduler - scheduler_beats\nlatches a sticky error and enters CH_ERROR\n(a soft timeout below the limit is reported, not fatal)", width=9.0, fillcolor="#BFD7EE"];
-    out [label="Reported as: SCHED_ERROR bit n (APB-readable)  |  one MonBus error packet\nchannel stays out of SCHEDULER_IDLE  |  cleared by CHANNEL_RESET bit n", fillcolor="white", width=9.0];
+    sc [label="Scheduler - scheduler_beats\nlatches a sticky error and enters CH_ERROR\n(a soft timeout below the limit is reported, not fatal)", width=9.0, fillcolor="#BFD7EE", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out [label="Reported as: SCHED_ERROR bit n (APB-readable)  |  one MonBus error packet\nchannel stays out of SCHEDULER_IDLE  |  cleared by CHANNEL_RESET bit n", fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     de -> sc [label="descriptor_error"];
     rd -> sc [label="sched_rd_error"];

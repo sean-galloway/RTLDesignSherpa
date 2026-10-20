@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // Software recovery from a channel error, in decision-tree form: white
 // question boxes, blue action boxes, every arrow labeled.
 digraph rapids_beats_error_recovery {

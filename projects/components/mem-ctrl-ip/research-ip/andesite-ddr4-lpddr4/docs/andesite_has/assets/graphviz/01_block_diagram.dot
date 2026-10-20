@@ -8,51 +8,51 @@ digraph andesite_whole_unit {
            nodesep="0.35", ranksep="0.55", splines=ortho,
            label="andesite DDR4 / LPDDR4 controller - whole unit, each block marked against scoria", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
-    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter + mc_wr_intake\n(address map: mc_addr_mapper)
-INHERITED (common-ip; HAS_BG=1 bank-group map)", group=W];
+INHERITED (common-ip; HAS_BG=1 bank-group map)", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     rd_pkt [label="Read Request Packetizer + R Return\nmc_axi4_plane - mc_axi_burst_chopper + mc_rd_intake\n(address map, snarf probe, R in AR order)
-INHERITED (common-ip; HAS_BG=1 bank-group map)", group=R];
+INHERITED (common-ip; HAS_BG=1 bank-group map)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     cfg    [label="Configuration Registers\nandesite_csr (PeakRDL)\nsideband config to all planes
-MODIFIED (contents grow)"];
+MODIFIED (contents grow)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     wr_pool [label="DDR Write Command Pool + Write Data Buffer\nmc_storage_plane - mc_wr_data_cam
-INHERITED (common-ip; HAS_BG=1 bank-group map)"];
+INHERITED (common-ip; HAS_BG=1 bank-group map)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam
-INHERITED (common-ip; HAS_BG=1 bank-group map)"];
+INHERITED (common-ip; HAS_BG=1 bank-group map)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     rbuf    [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring
-INHERITED", height=1.4];
+INHERITED", height=1.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     init  [label="Init Sequencer + Mode Register
 andesite_init_sequencer + andesite_mode_register
 MODIFIED (RESET#, MR0-MR6, gear-down, parity)
-RTL: not selected - see the dashed note"];
+RTL: not selected - see the dashed note", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     refc  [label="Refresh + ZQ Controllers
 andesite_refresh_ctrl (FGR 1x / 2x / 4x),
 andesite_zq_ctrl (+ LPDDR4 MPC path)
-MODIFIED; RTL: refresh not selected - see note"];
+MODIFIED; RTL: refresh not selected - see note", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     maint [label="DDR Maintenance Command Queue
 andesite_training_plane - wrlvl_ifc (MODIFIED),
 rdlvl_ifc + ca_train_ifc (NEW)
-interface only, no search loop"];
+interface only, no search loop", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     sched [label="DDR Command Scheduler\nandesite_scheduler_plane - mc_scheduler_plane core (FR-FCFS pick)
 page policy: andesite_page_policy; MODIFIED (tCCD_L / tCCD_S aware)",
            shape=polygon, sides=4, distortion=0.10, width=11, height=0.6,
-           fillcolor="#BDD7EE", fontsize=11];
-    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(MODIFIED: tRRD_L / S, tCCD_L / S)"];
-    orphan [label="In rtl/fub, not instantiated by andesite_core:\landesite_odt_ctrl, andesite_powerdown_ctrl,\landesite_dfi_signal_pack, andesite_addr_mapper,\landesite_cmd_arbiter\l\lRTL note: andesite_scheduler_plane leaves its mc_scheduler_plane\lHAS_INIT_SEQUENCER / HAS_MODE_REGISTER / HAS_REFRESH_CTRL /\lHAS_PAGE_POLICY at their default 1, so that core builds the\lcommon mc_xddr2_* / mc_page_policy children and ignores the\linit, refresh and page-policy inputs the andesite children drive\l(scoria sets all four to 0)\l", fillcolor="white", style="filled,dashed"];
+           fillcolor="#BDD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(MODIFIED: tRRD_L / S, tCCD_L / S)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    orphan [label="In rtl/fub, not instantiated by andesite_core:\landesite_odt_ctrl, andesite_powerdown_ctrl,\landesite_dfi_signal_pack, andesite_addr_mapper,\landesite_cmd_arbiter\l\lRTL note: andesite_scheduler_plane leaves its mc_scheduler_plane\lHAS_INIT_SEQUENCER / HAS_MODE_REGISTER / HAS_REFRESH_CTRL /\lHAS_PAGE_POLICY at their default 1, so that core builds the\lcommon mc_xddr2_* / mc_page_policy children and ignores the\linit, refresh and page-policy inputs the andesite children drive\l(scoria sets all four to 0)\l", fillcolor="white", style="filled,dashed", shape=note];
 
     dfi [label="DFI 4.0 data path - mc_dfi_4p0_plane   MODIFIED
 mc_dfi_cdc + mc_dfi_4p0_cmd_path (andesite_dfi_cmd_formatter: ACT_n, BG, parity)
-+ mc_dfi_wr_serializer / mc_dfi_rd_aligner (DBI)", width=9.5, height=1.1];
++ mc_dfi_wr_serializer / mc_dfi_rd_aligner (DBI)", width=9.5, height=1.1, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    phy [label="DDR PHY (DFI 4.0, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11];
+    phy [label="DDR PHY (DFI 4.0, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- point scaffolds: one per crossing ----
     node [shape=point, width=0.01, height=0.01, label="", style=invis];
@@ -74,15 +74,15 @@ mc_dfi_cdc + mc_dfi_4p0_cmd_path (andesite_dfi_cmd_formatter: ACT_n, BG, parity)
 
     // ---- read side ----
     rd_pkt  -> rd_pool [xlabel="RD push (miss)"];
-    rd_pkt  -> wr_pool [dir=both, style=dashed, xlabel="snarf probe /\nhit + data", constraint=false];
+    rd_pkt  -> wr_pool [dir=both, style=dashed, color="#777777", xlabel="snarf probe /\nhit + data", constraint=false];
     rd_pool -> sched   [xlabel="RD"];
-    rd_pool -> rbuf    [dir=both, style=dashed, xlabel="tickets", constraint=false];
+    rd_pool -> rbuf    [dir=both, style=dashed, color="#777777", xlabel="tickets", constraint=false];
 
     // ---- maintenance + timing into the pick ----
     init  -> sched [xlabel="INIT / MRS"];
     refc  -> sched [xlabel="REF"];
     maint -> sched [dir=both, xlabel="ZQ / training\n(grant back)"];
-    tctl  -> sched [style=dashed, xlabel="timer window"];
+    tctl  -> sched [style=dashed, color="#777777", xlabel="timer window"];
 
     // ---- the winner ----
     sched -> dfi [penwidth=1.8, xlabel="DDR Command"];

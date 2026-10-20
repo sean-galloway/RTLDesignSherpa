@@ -10,19 +10,19 @@ digraph axi4_master_wr {
            label="axi4_master_wr - AXI4 write master: one skid buffer per channel (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\l", fillcolor="white"];
-    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out", fillcolor="white", width=5.0];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\l", fillcolor="white", shape=note];
+    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out", fillcolor="white", width=5.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)"];
-    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)"];
-    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)"];
-    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving"];
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving", style="filled", fillcolor="white"];
 
     mport [label="Module Boundary\nm_axi_aw* / m_axi_w* out (to the interconnect)  |  busy (to the clock-gate wrapper)  |  m_axi_b* in",
-           fillcolor="white", width=9.0];
+           fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // write data: its own lane down the left
     fub -> w     [xlabel="W: data, strb, last\n(wvalid / wready)"];
@@ -31,13 +31,13 @@ digraph axi4_master_wr {
     fub -> aw    [xlabel="AW: id, addr, len, size,\nburst, ... (awvalid / awready)"];
     aw  -> mport [xlabel="AW"];
     // response: back up the right lane (dir=back keeps the ranks top-down)
-    b   -> mport [dir=back, xlabel="B: id, resp"];
-    fub -> b     [dir=back, xlabel="B (bvalid / bready)"];
+    b   -> mport [color="#1A7A1A", dir=back, xlabel="B: id, resp"];
+    fub -> b     [color="#1A7A1A", dir=back, xlabel="B (bvalid / bready)"];
     // sideband
-    w   -> busy  [style=dashed, xlabel="w count"];
-    aw  -> busy  [style=dashed, xlabel="aw count"];
-    b   -> busy  [style=dashed, xlabel="b count"];
-    busy -> mport [style=dashed, xlabel="busy"];
+    w   -> busy  [style=dashed, color="#777777", xlabel="w count"];
+    aw  -> busy  [style=dashed, color="#777777", xlabel="aw count"];
+    b   -> busy  [style=dashed, color="#777777", xlabel="b count"];
+    busy -> mport [style=dashed, color="#777777", xlabel="busy"];
 
     { rank=same; prm; fub; }
     { rank=same; w; aw; b; }

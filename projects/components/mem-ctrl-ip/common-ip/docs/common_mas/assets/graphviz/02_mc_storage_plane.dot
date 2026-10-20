@@ -10,23 +10,23 @@ digraph mc_storage_plane {
            label="mc_storage_plane - the schedulable-entry pools (aclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- upstream ports (mc_axi4_plane) ----
-    p_wr   [label="Write Intake\n(mc_axi4_plane)", fillcolor="white"];
-    p_rd   [label="Read Intake\n(mc_axi4_plane)", fillcolor="white"];
-    p_ring [label="Read Return Ring\n(mc_axi4_plane)", fillcolor="white"];
+    p_wr   [label="Write Intake\n(mc_axi4_plane)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_rd   [label="Read Intake\n(mc_axi4_plane)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_ring [label="Read Return Ring\n(mc_axi4_plane)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- the two pools ----
-    wr_cam [label="DDR Write Command Pool + Write Data Buffer\nmc_wr_data_cam - FUB\nentries keyed {bank,row,col} + age, data in SRAM slots;\nfill on insert, snarf stream (youngest match),\ncommit stream to DFI (in commit order)"];
-    rd_cam [label="DDR Read Command Pool\nmc_rd_cmd_cam - FUB\nentries keyed {bank,row,col} + age + ring ticket;\nentry lives insert -> issue only"];
+    wr_cam [label="DDR Write Command Pool + Write Data Buffer\nmc_wr_data_cam - FUB\nentries keyed {bank,row,col} + age, data in SRAM slots;\nfill on insert, snarf stream (youngest match),\ncommit stream to DFI (in commit order)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rd_cam [label="DDR Read Command Pool\nmc_rd_cmd_cam - FUB\nentries keyed {bank,row,col} + age + ring ticket;\nentry lives insert -> issue only", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cfg [label="sched_age_thresh_i\nage limit for both pools\n(sets age_exceed in each view)", fillcolor="white"];
+    cfg [label="sched_age_thresh_i\nage limit for both pools\n(sets age_exceed in each view)", fillcolor="white", shape=note];
 
     // ---- boundary bar ----
     bar [label="Plane edge - mc_scheduler_plane (schedulable-entry views, commit / issue picks) and the DFI write path",
-         fillcolor="white", width=10.5, height=0.5, fontsize=11];
+         fillcolor="white", width=10.5, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- crossing scaffolds ----
     node [shape=point, width=0.01, height=0.01, label="", style=invis];
@@ -39,27 +39,27 @@ digraph mc_storage_plane {
     t_wc -> wr_cam;
     p_wr -> t_wd   [dir=none, xlabel="write data beats"];
     t_wd -> wr_cam;
-    p_wr -> t_done [dir=back, style=dashed, xlabel="write done (-> B)"];
-    t_done -> wr_cam [dir=none, style=dashed];
+    p_wr -> t_done [dir=back, style=dashed, color="#777777", xlabel="write done (-> B)"];
+    t_done -> wr_cam [dir=none, style=dashed, color="#777777"];
 
     // ---- read-your-writes snarf ----
-    p_rd -> wr_cam [dir=both, style=dashed, xlabel="snarf probe /\nhit + data"];
+    p_rd -> wr_cam [dir=both, style=dashed, color="#777777", xlabel="snarf probe /\nhit + data"];
 
     // ---- read side ----
     p_rd   -> rd_cam [label="RD push (miss)\n(bank, row, col, id, QoS)"];
-    p_ring -> rd_cam [dir=both, style=dashed, xlabel="ticket at insert /\nissue ticket"];
+    p_ring -> rd_cam [dir=both, style=dashed, color="#777777", xlabel="ticket at insert /\nissue ticket"];
 
     // ---- to the scheduler and DFI ----
     wr_cam -> b_wd [dir=none, xlabel="Write data (commit)"];
     b_wd -> bar;
     wr_cam -> b_wv [dir=none, xlabel="WR entry view"];
     b_wv -> bar;
-    wr_cam -> b_wc [dir=back, style=dashed, xlabel="commit slot"];
-    b_wc -> bar   [dir=none, style=dashed];
+    wr_cam -> b_wc [dir=back, style=dashed, color="#777777", xlabel="commit slot"];
+    b_wc -> bar   [dir=none, style=dashed, color="#777777"];
     rd_cam -> b_rv [dir=none, xlabel="RD entry view"];
     b_rv -> bar;
-    rd_cam -> b_ri [dir=back, style=dashed, xlabel="issue slot"];
-    b_ri -> bar   [dir=none, style=dashed];
+    rd_cam -> b_ri [dir=back, style=dashed, color="#777777", xlabel="issue slot"];
+    b_ri -> bar   [dir=none, style=dashed, color="#777777"];
 
     // ---- ranks ----
     { rank=same; p_wr; p_rd; p_ring; cfg; }

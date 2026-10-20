@@ -9,25 +9,25 @@ digraph axi4_dma_slaves {
            nodesep="0.35", ranksep="1.0", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_dma_slaves - synthetic AXI4 slave pair for DMA characterization (aclk)";
 
-    prm  [label="Parameters (fixed at build)\lCRC_POLY / _INIT / _XOROUT / _REFIN / _REFOUT:\l    one CRC standard shared by both sides, so data the\l    master reads and writes back gives matching CRCs\lLFSR_TAPS / LFSR_SEED: read pattern only\lNUM_CHANNELS: independent contexts per side\l", fillcolor="white"];
-    wport [group=W, label="AXI4 Write Port (slave)\ns_axi_aw, s_axi_w in  |  s_axi_b out", fillcolor="white"];
-    rst   [group=M, label="Reset Pulses\nwrite_crc_reset   |   read_lfsr_reset\n(separate so one side can re-arm alone)", fillcolor="white"];
-    rport [group=R, label="AXI4 Read Port (slave)\ns_axi_ar in  |  s_axi_r out", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lCRC_POLY / _INIT / _XOROUT / _REFIN / _REFOUT:\l    one CRC standard shared by both sides, so data the\l    master reads and writes back gives matching CRCs\lLFSR_TAPS / LFSR_SEED: read pattern only\lNUM_CHANNELS: independent contexts per side\l", fillcolor="white", shape=note];
+    wport [group=W, label="AXI4 Write Port (slave)\ns_axi_aw, s_axi_w in  |  s_axi_b out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rst   [group=M, label="Reset Pulses\nwrite_crc_reset   |   read_lfsr_reset\n(separate so one side can re-arm alone)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rport [group=R, label="AXI4 Read Port (slave)\ns_axi_ar in  |  s_axi_r out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wr   [group=W, label="CRC-Checking Write Sink\naxi4_slave_wr_crc_check - u_wr_crc_check\n(see its diagram)\nERR_INJECT off: cfg_err_* tied low"];
-    rd   [group=R, label="Synthetic Read Source\naxi4_slave_rd_injector - u_rd_injector\n(see its diagram)\nERR_INJECT off: cfg_err_* tied low"];
+    wr   [group=W, label="CRC-Checking Write Sink\naxi4_slave_wr_crc_check - u_wr_crc_check\n(see its diagram)\nERR_INJECT off: cfg_err_* tied low", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd   [group=R, label="Synthetic Read Source\naxi4_slave_rd_injector - u_rd_injector\n(see its diagram)\nERR_INJECT off: cfg_err_* tied low", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
     out  [label="Outputs\nwrite_crc_value / _valid [ch], write_beat_count [ch], write_beat_count_total\nread_crc_value / _valid [ch], read_beat_count [ch], read_beat_count_total",
-          fillcolor="white", width=8.0];
+          fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     wport -> wr [dir=both, xlabel="AW, W  /  B"];
     rport -> rd [dir=both, xlabel="AR  /  R (LFSR data)"];
-    rst -> wr [style=dashed, headlabel="write_crc_reset", labelangle=-40, labeldistance=6];
-    rst -> rd [style=dashed, headlabel="read_lfsr_reset", labelangle=40, labeldistance=6];
+    rst -> wr [style=dashed, color="#777777", headlabel="write_crc_reset", labelangle=-40, labeldistance=6];
+    rst -> rd [style=dashed, color="#777777", headlabel="read_lfsr_reset", labelangle=40, labeldistance=6];
     wr -> out [xlabel="write CRC, beat counts"];
     rd -> out [xlabel="read CRC, beat counts"];
 

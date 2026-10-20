@@ -6,19 +6,19 @@ digraph address_decode_flow {
            nodesep="0.40", ranksep="0.55", splines=ortho, labelloc=t,
            label="Decode walk-through - master 0 writes PADDR = 0x1002_3456, BASE_ADDR = 0x1000_0000 (apbx_xbar_2to4)\nevery step is combinational until the arbiter's grant"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pa  [label="Master 0 Command\nm0_cmd_paddr = 0x1002_3456 (from u_apb4_slave_m0)", fillcolor="white"];
-    off [label="Offset\nm0_cmd_offset = 0x1002_3456 - 0x1000_0000 = 0x0002_3456"];
-    rng [label="Range Check + Window Select\nm0_addr_in_range: 0x1000_0000 <= PADDR < 0x1004_0000 -> 1\nm0_slave_sel = offset[17:16] = 2"];
-    req [label="Request Vectors (one bit per master in each slave's vector)\ns0_arb_request[0] = 0   s1_arb_request[0] = 0\ns2_arb_request[0] = 1   s3_arb_request[0] = 0"];
-    m1  [label="Master 1\n(idle in this example)", fillcolor="white"];
+    pa  [label="Master 0 Command\nm0_cmd_paddr = 0x1002_3456 (from u_apb4_slave_m0)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    off [label="Offset\nm0_cmd_offset = 0x1002_3456 - 0x1000_0000 = 0x0002_3456", style="filled", fillcolor="white"];
+    rng [label="Range Check + Window Select\nm0_addr_in_range: 0x1000_0000 <= PADDR < 0x1004_0000 -> 1\nm0_slave_sel = offset[17:16] = 2", style="filled", fillcolor="white"];
+    req [label="Request Vectors (one bit per master in each slave's vector)\ns0_arb_request[0] = 0   s1_arb_request[0] = 0\ns2_arb_request[0] = 1   s3_arb_request[0] = 0", style="filled", fillcolor="white"];
+    m1  [label="Master 1\n(idle in this example)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; req; m1; }
-    arb [label="u_s2_arbiter - arbiter_round_robin\ngrants master 0; held until slave 2's rsp handshake", shape=invtrapezium, width=5.4, height=0.6];
-    mux [label="Command Mux for Slave 2\ns2_cmd_* = m0_cmd_*; r_m0_slave_sel = 2 for the response"];
-    sm  [label="u_apb4_master_s2 - apb4_master\ns2_cmd_* -> APB SETUP + ACCESS"];
-    bar [label="Slave 2 APB Port (window 0x1002_0000 - 0x1002_FFFF) - s2_apb_PSEL = 1, PADDR = 0x1002_3456", fillcolor="white", width=8];
+    arb [label="u_s2_arbiter - arbiter_round_robin\ngrants master 0; held until slave 2's rsp handshake", shape=invtrapezium, width=5.4, height=0.6, style="filled", fillcolor="#FFF2CC"];
+    mux [label="Command Mux for Slave 2\ns2_cmd_* = m0_cmd_*; r_m0_slave_sel = 2 for the response", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sm  [label="u_apb4_master_s2 - apb4_master\ns2_cmd_* -> APB SETUP + ACCESS", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    bar [label="Slave 2 APB Port (window 0x1002_0000 - 0x1002_FFFF) - s2_apb_PSEL = 1, PADDR = 0x1002_3456", fillcolor="white", width=8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pa -> off [label="PADDR"];
     off -> rng [label="offset"];

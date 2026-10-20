@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // Figure 4.1 -- the program path. Replaces assets/mermaid/program_path.mmd.
 // A process flow with decisions, drawn in the handbook's decision-tree
 // vocabulary: white question boxes, blue action/outcome boxes, every arrow

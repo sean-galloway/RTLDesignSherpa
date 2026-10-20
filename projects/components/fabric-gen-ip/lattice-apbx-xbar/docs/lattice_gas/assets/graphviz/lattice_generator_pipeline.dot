@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Lattice generator pipeline. Labels from bin/apbx_xbar_generator.py
 // (generate_apbx_xbar) and bin/generate_xbars.py. House style:
 // vault/handbook/authoring/block-diagrams.md

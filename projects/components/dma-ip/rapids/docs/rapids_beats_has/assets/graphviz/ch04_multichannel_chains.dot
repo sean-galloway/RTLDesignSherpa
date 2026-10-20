@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Multi-channel chaining: each channel walks its own chain; chains never
 // cross because each channel has its own descriptor engine and scheduler.
 digraph rapids_beats_multichannel_chains {

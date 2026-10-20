@@ -10,25 +10,25 @@ digraph axi_monitor_addr_check {
            nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
            label="axi_monitor_addr_check - address-range MATCH / MISS packets for one AXI address channel (clk, aresetn)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    prm  [label="Parameters (fixed at build)\lN_ADDR_RANGES: ranges compared in parallel (<= 16)\lADDR_RANGE_IS_ERROR[i]: 1 = range i is an allowlist\l    entry (MISS when outside all of them),\l    0 = range i is a debug watch (MATCH when hit)\lIS_READ: AR (1) or AW (0) monitor\l", fillcolor="white"];
-    cmd  [group=C, label="Observed Command (from the base, ID-filtered)\ncmd_addr, cmd_id, cmd_valid, cmd_ready\n(fires on the accepted handshake)", fillcolor="white"];
-    cfg  [label="Runtime Configuration (input ports)\lcfg_addr_check_enable: 0 = fully quiet\lcfg_debug_enable: MATCH packets on\lcfg_error_enable: MISS packets on\lcfg_addr_range_enable / low / high[i]\l    (inclusive windows)\l", fillcolor="white"];
-    cmp  [group=C, label="Range Compare (combinational, N_ADDR_RANGES in parallel)\nraw_hit[i] = range enabled & low[i] <= addr <= high[i]\nMATCH set per debug range hit; MISS set when no error range hits"];
-    pend [group=C, label="Pending Slots (flops)\nper range: match pending + latched addr / id;\none miss slot; latest event wins (coalescing);\nshadow registers keep a presented packet stable"];
+    prm  [label="Parameters (fixed at build)\lN_ADDR_RANGES: ranges compared in parallel (<= 16)\lADDR_RANGE_IS_ERROR[i]: 1 = range i is an allowlist\l    entry (MISS when outside all of them),\l    0 = range i is a debug watch (MATCH when hit)\lIS_READ: AR (1) or AW (0) monitor\l", fillcolor="white", shape=note];
+    cmd  [group=C, label="Observed Command (from the base, ID-filtered)\ncmd_addr, cmd_id, cmd_valid, cmd_ready\n(fires on the accepted handshake)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_addr_check_enable: 0 = fully quiet\lcfg_debug_enable: MATCH packets on\lcfg_error_enable: MISS packets on\lcfg_addr_range_enable / low / high[i]\l    (inclusive windows)\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cmp  [group=C, label="Range Compare (combinational, N_ADDR_RANGES in parallel)\nraw_hit[i] = range enabled & low[i] <= addr <= high[i]\nMATCH set per debug range hit; MISS set when no error range hits", style="filled", fillcolor="white"];
+    pend [group=C, label="Pending Slots (flops)\nper range: match pending + latched addr / id;\none miss slot; latest event wins (coalescing);\nshadow registers keep a presented packet stable", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     pk   [group=C, label="Emit Pick\nMISS first, then lowest pending range;\nheld until the presented packet is accepted",
-          shape=invtrapezium, width=5.4, height=0.8, fixedsize=true, fillcolor="#BFD7EE"];
-    pkt  [group=C, label="Packet Build (combinational)\nMATCH: PktTypeAddrMatch, data = {range index, addr}\nMISS: PktTypeError, AXI_ERR_ADDR_RANGE, data = {4'hF, addr}\nUNIT_ID / AGENT_ID stamped; timestamp = i_mon_time"];
-    out  [group=C, label="Outputs (to the base's monitor-bus output pick)\naddr_pkt_valid, addr_pkt_data, addr_pkt_timestamp  (addr_pkt_ready in)", fillcolor="white", width=7.5];
+          shape=invtrapezium, width=5.4, height=0.8, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    pkt  [group=C, label="Packet Build (combinational)\nMATCH: PktTypeAddrMatch, data = {range index, addr}\nMISS: PktTypeError, AXI_ERR_ADDR_RANGE, data = {4'hF, addr}\nUNIT_ID / AGENT_ID stamped; timestamp = i_mon_time", style="filled", fillcolor="white"];
+    out  [group=C, label="Outputs (to the base's monitor-bus output pick)\naddr_pkt_valid, addr_pkt_data, addr_pkt_timestamp  (addr_pkt_ready in)", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     cmd  -> cmp  [xlabel="accepted address", penwidth=1.8];
-    cfg  -> cmp  [style=dashed, xlabel="ranges, enables"];
+    cfg  -> cmp  [style=dashed, color="#777777", xlabel="ranges, enables"];
     cmp  -> pend [xlabel="match / miss events", penwidth=1.8];
     pend -> pk   [xlabel="pending slots", penwidth=1.8];
     pk   -> pkt  [xlabel="emit one-hot", penwidth=1.8];
     pkt  -> out  [xlabel="address packet", penwidth=1.8];
-    out  -> pend [style=dashed, constraint=false, xlabel="addr_pkt_ready\n(clears the slot)"];
+    out  -> pend [style=dashed, color="#777777", constraint=false, xlabel="addr_pkt_ready\n(clears the slot)"];
     { rank=same; prm; cmd; cfg; }
     prm -> cmd [style=invis]; cmd -> cfg [style=invis];
 }

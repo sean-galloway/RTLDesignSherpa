@@ -7,12 +7,12 @@ digraph wb4_master_stub {
            label="wb4_master_stub - wb4_master with packed command / response words (single clock: clk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    top   [label="FUB Side (packed words)\ncmd_valid / cmd_ready, cmd_data = {we, adr, dat, sel, cti, bte}\nrsp_valid / rsp_ready, rsp_data = {status, dat}", fillcolor="white"];
-    pk    [label="Pack / Unpack (wiring)\nsplits cmd_data into fields,\njoins {rsp_status, rsp_dat} into rsp_data"];
-    child [label="wb4_master\nu_wb4_master\n(see its diagram)", width=3.2, height=0.9];
-    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4];
+    top   [label="FUB Side (packed words)\ncmd_valid / cmd_ready, cmd_data = {we, adr, dat, sel, cti, bte}\nrsp_valid / rsp_ready, rsp_data = {status, dat}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pk    [label="Pack / Unpack (wiring)\nsplits cmd_data into fields,\njoins {rsp_status, rsp_dat} into rsp_data", style="filled", fillcolor="white"];
+    child [label="wb4_master\nu_wb4_master\n(see its diagram)", width=3.2, height=0.9, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4, style="rounded,filled", fillcolor="#E2EFDA"];
     top -> pk    [dir=both, xlabel="cmd_data down /\nrsp_data up"];
     pk -> child  [dir=both, xlabel="cmd_* fields down /\nrsp_status, rsp_dat up"];
     child -> bot [dir=both, xlabel="CYC, STB, ... out /\nSTALL, ACK / ERR / RTY, DAT_R in", penwidth=1.8];

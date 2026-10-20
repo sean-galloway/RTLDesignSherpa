@@ -7,13 +7,13 @@ digraph axi_monitor_timer {
            nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
            label="axi_monitor_timer - cycle timestamp and timeout tick (single clock: aclk, aresetn)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    prm  [label="Parameters (fixed at build)\lCFI_MIN / MAX_FREQ_MHZ, CFI_NUM_FREQ_ENTRIES:\l    the clock range the tick table covers\lCFI_FREQ_STRATEGY: 0 = entries spaced linearly,\l    1 = doubling\l", fillcolor="white"];
-    sel  [label="Frequency Select (input port)\ncfg_freq_sel: which table entry\nmatches the running aclk", fillcolor="white"];
-    ts   [label="Timestamp Register (flops)\nr_timestamp + 1 every aclk (32-bit, wraps)"];
-    cfi  [label="Tick Generator\ncounter_freq_invariant - timer_counter\n(see its diagram)\none-cycle tick at a fixed real-time rate"];
-    out  [label="Outputs\ntimestamp[31:0] (to the transaction table)  |  timer_tick (to the timeout scanner)", fillcolor="white", width=7.0];
+    prm  [label="Parameters (fixed at build)\lCFI_MIN / MAX_FREQ_MHZ, CFI_NUM_FREQ_ENTRIES:\l    the clock range the tick table covers\lCFI_FREQ_STRATEGY: 0 = entries spaced linearly,\l    1 = doubling\l", fillcolor="white", shape=note];
+    sel  [label="Frequency Select (input port)\ncfg_freq_sel: which table entry\nmatches the running aclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ts   [label="Timestamp Register (flops)\nr_timestamp + 1 every aclk (32-bit, wraps)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cfi  [label="Tick Generator\ncounter_freq_invariant - timer_counter\n(see its diagram)\none-cycle tick at a fixed real-time rate", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out  [label="Outputs\ntimestamp[31:0] (to the transaction table)  |  timer_tick (to the timeout scanner)", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sel -> cfi [xlabel="cfg_freq_sel"];
     ts  -> out [xlabel="timestamp", penwidth=1.8];

@@ -10,20 +10,20 @@ digraph axi4_slave_wr_mon {
            label="axi4_slave_wr_mon - axi4_slave_wr with an optional transaction monitor (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lUSE_MONITOR: 0 = monitor omitted, outputs tied,\l    never stalls the bus\lMAX_TRANSACTIONS: outstanding writes tracked\lENABLE_*_LOGIC: which packet classes are built\lN_ADDR_RANGES: address-range checks (0 = none)\l", fillcolor="white"];
-    fub  [label="AXI4 Slave Port (s_axi_*)\ns_axi_aw* / s_axi_w* in  /  s_axi_b* out", fillcolor="white"];
-    cfg  [label="Monitor Configuration (runtime input ports)\lcfg_monitor_enable: master gate; 0 = monitor inert\lcfg_*_enable: per-class packet enables\lcfg_timeout_cycles: timeout in us (0 = never)\lcfg_axi_*_mask: per-event drop masks\laddress ranges, ID / address filters,\l    perf-window start / end events\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lUSE_MONITOR: 0 = monitor omitted, outputs tied,\l    never stalls the bus\lMAX_TRANSACTIONS: outstanding writes tracked\lENABLE_*_LOGIC: which packet classes are built\lN_ADDR_RANGES: address-range checks (0 = none)\l", fillcolor="white", shape=note];
+    fub  [label="AXI4 Slave Port (s_axi_*)\ns_axi_aw* / s_axi_w* in  /  s_axi_b* out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Monitor Configuration (runtime input ports)\lcfg_monitor_enable: master gate; 0 = monitor inert\lcfg_*_enable: per-class packet enables\lcfg_timeout_cycles: timeout in us (0 = never)\lcfg_axi_*_mask: per-event drop masks\laddress ranges, ID / address filters,\l    perf-window start / end events\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    gate [label="AW Stall Gate (combinational)\ns_axi awvalid and awready both ANDed with\nblock_ready (or monitor disabled)"];
-    base [label="AXI4 Write Slave\naxi4_slave_wr - axi4_slave_wr_inst\n(see its diagram)"];
-    taps [label="Bus Taps (combinational)\ncmd = fub_axi_awvalid, data = wvalid,\nresp = bvalid; each AND\ncfg_monitor_enable"];
-    mon  [label="Transaction Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntransaction table, timeouts, perf window,\npacket filter", style="filled,dashed"];
+    gate [label="AW Stall Gate (combinational)\ns_axi awvalid and awready both ANDed with\nblock_ready (or monitor disabled)", style="filled", fillcolor="white"];
+    base [label="AXI4 Write Slave\naxi4_slave_wr - axi4_slave_wr_inst\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    taps [label="Bus Taps (combinational)\ncmd = fub_axi_awvalid, data = wvalid,\nresp = bvalid; each AND\ncfg_monitor_enable", style="filled", fillcolor="white"];
+    mon  [label="Transaction Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntransaction table, timeouts, perf window,\npacket filter", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar  [label="Module Boundary\lfub_axi_aw* / fub_axi_w* out / fub_axi_b* in (to the backend)  |  monbus_valid, packet, timestamp (monbus_ready in)\lbusy, active_transactions, perf_* counters, cfg_conflict_error\l",
-          fillcolor="white", width=8.0];
+          fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // AXI path: down the left (requests down, responses back up on the same pair).
     // The tap point sits on the FUB (backend) side, below the base: the gate stalls
@@ -34,11 +34,11 @@ digraph axi4_slave_wr_mon {
     base -> p_ax [dir=back, headclip=false];
     p_ax -> bar  [dir=forward, tailclip=false, xlabel="AW, W down / B up"];
     // observation and packets
-    p_ax -> taps [style=dashed, tailclip=false, xlabel="tap: fub_axi valids,\nfields"];
+    p_ax -> taps [style=dashed, color="#777777", tailclip=false, xlabel="tap: fub_axi valids,\nfields"];
     taps -> mon  [minlen=2, xlabel="cmd / data / resp"];
     mon  -> bar  [penwidth=1.8, xlabel="monitor-bus packets,\ncounters"];
-    gate -> mon  [style=dashed, dir=back, constraint=false, xlabel="block_ready\n(table not full)"];
-    cfg  -> mon  [style=dashed, xlabel="config"];
+    gate -> mon  [style=dashed, color="#777777", dir=back, constraint=false, xlabel="block_ready\n(table not full)"];
+    cfg  -> mon  [style=dashed, color="#777777", xlabel="config"];
 
     { rank=same; prm; fub; cfg; }
     { rank=same; p_ax; taps; }

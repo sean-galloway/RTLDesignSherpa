@@ -7,14 +7,14 @@ digraph gpio_irq_latency_edge {
            nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
            labelloc=t, labeljust=c, label="Edge-triggered interrupt latency - SYNC_STAGES + 1 core-clock cycles (3 at the default)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    pin [label="External Event  (edge on gpio_in[i])", fillcolor="white"];
-    syn [label="Input Synchronizer (flop)\ngpio_core - adds SYNC_STAGES cycles"];
-    det [label="Edge Detect + Type Select (combinational)\ngpio_core - adds 0 cycles"];
-    sts [label="Interrupt Status, sticky (flop)\ngpio_regs GPIO_INT_STATUS - adds 1 cycle"];
-    agg [label="Effective Status + IRQ Gate (combinational)\ngpio_config_regs - adds 0 cycles"];
-    bar [label="irq  (CDC_ENABLE=1: + 2 pclk cycles in the irq synchronizer)", fillcolor="white", width=5.5];
+    pin [label="External Event  (edge on gpio_in[i])", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    syn [label="Input Synchronizer (flop)\ngpio_core - adds SYNC_STAGES cycles", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    det [label="Edge Detect + Type Select (combinational)\ngpio_core - adds 0 cycles", style="filled", fillcolor="white"];
+    sts [label="Interrupt Status, sticky (flop)\ngpio_regs GPIO_INT_STATUS - adds 1 cycle", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    agg [label="Effective Status + IRQ Gate (combinational)\ngpio_config_regs - adds 0 cycles", style="filled", fillcolor="white"];
+    bar [label="irq  (CDC_ENABLE=1: + 2 pclk cycles in the irq synchronizer)", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pin -> syn [xlabel="pin change"];
     syn -> det [xlabel="synchronized value"];
     det -> sts [xlabel="pending (one-cycle pulse)"];

@@ -8,27 +8,27 @@ digraph axi_read_engine {
            label="axi_read_engine - space-aware round-robin AXI read engine (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    sched [label="Scheduler Side (8 channels)\nsched_rd_valid / addr / beats in;\ndone strobe, beats done, error out", fillcolor="white", group=C];
-    sram  [label="SRAM Controller (fill side)\nalloc_req / size / id out, space_free in;\nsram_valid / id / data out", fillcolor="white", group=R];
+    sched [label="Scheduler Side (8 channels)\nsched_rd_valid / addr / beats in;\ndone strobe, beats done, error out", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    sram  [label="SRAM Controller (fill side)\nalloc_req / size / id out, space_free in;\nsram_valid / id / data out", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    mask  [label="Space-Aware Request Mask\nchannel requests only if space_free >= burst\nand below AR_MAX_OUTSTANDING (per-channel counters)", group=C];
-    arb   [label="Channel Arbiter - arbiter_round_robin\n(WAIT_GNT_ACK = 1)", shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", group=C];
-    ar    [label="AR Issue (flops)\nARADDR = channel address, ARLEN = min(beats,\ncfg_axi_rd_xfer_beats) - 1, ARID = channel;\nalloc_req to SRAM, done strobe to scheduler", group=C];
-    rr    [label="R Router\nRID -> channel, beats to the SRAM,\nRRESP != OKAY -> sticky sched_rd_error", group=R];
+    mask  [label="Space-Aware Request Mask\nchannel requests only if space_free >= burst\nand below AR_MAX_OUTSTANDING (per-channel counters)", group=C, style="filled", fillcolor="white"];
+    arb   [label="Channel Arbiter - arbiter_round_robin\n(WAIT_GNT_ACK = 1)", shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", group=C, style="filled", fillcolor="#FFF2CC"];
+    ar    [label="AR Issue (flops)\nARADDR = channel address, ARLEN = min(beats,\ncfg_axi_rd_xfer_beats) - 1, ARID = channel;\nalloc_req to SRAM, done strobe to scheduler", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rr    [label="R Router\nRID -> channel, beats to the SRAM,\nRRESP != OKAY -> sticky sched_rd_error", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar [label="Module Boundary - m_axi_rd\nAR out (to the interconnect)   |   R in (from memory)", fillcolor="white", width=8.5, group=C];
+    bar [label="Module Boundary - m_axi_rd\nAR out (to the interconnect)   |   R in (from memory)", fillcolor="white", width=8.5, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sched -> mask [label="read requests (8 ch)"];
-    sram  -> mask [style=dashed, xlabel="space_free\n(per channel)"];
+    sram  -> mask [style=dashed, color="#777777", xlabel="space_free\n(per channel)"];
     mask  -> arb  [label="eligible channels"];
     arb   -> ar   [label="grant (channel id)", penwidth=1.8];
-    ar    -> sched [style=dashed, constraint=false, xlabel="done strobe,\nbeats issued"];
+    ar    -> sched [style=dashed, color="#777777", constraint=false, xlabel="done strobe,\nbeats issued"];
     ar    -> bar  [label="AR: id, addr, len (arvalid / arready)", penwidth=1.8];
-    rr    -> bar  [dir=back, xlabel="R: id, data, resp, last"];
-    sram  -> rr   [dir=back, label="fill beats (valid / ready)"];
+    rr    -> bar  [color="#1A7A1A", dir=back, xlabel="R: id, data, resp, last"];
+    sram  -> rr   [color="#1A7A1A", dir=back, label="fill beats (valid / ready)"];
 
     { rank=same; mask; }
     { rank=same; ar; rr; }

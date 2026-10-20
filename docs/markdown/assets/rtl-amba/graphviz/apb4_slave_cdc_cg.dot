@@ -11,25 +11,25 @@ digraph apb4_slave_cdc_cg {
            label="apb4_slave_cdc_cg - apb4_slave_cdc with a clock gate in each domain (pclk, aclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cfg  [label="Clock-Gate Configuration (runtime input ports, both domains)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle clocks to wait before gating\l", fillcolor="white"];
-    mask [label="Gating Mask (combinational)\lwhile pclk is gated: s_apb_PREADY, the core's cmd ready\l    and rsp ready are forced to 0\lwhile aclk is gated: rsp_ready is forced to 0\lcg_gating / cg_idle = AND of both domains\l", fillcolor="white"];
+    cfg  [label="Clock-Gate Configuration (runtime input ports, both domains)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle clocks to wait before gating\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mask [label="Gating Mask (combinational)\lwhile pclk is gated: s_apb_PREADY, the core's cmd ready\l    and rsp ready are forced to 0\lwhile aclk is gated: rsp_ready is forced to 0\lcg_gating / cg_idle = AND of both domains\l", fillcolor="white", shape=note];
     bus [label="APB4 Completer Bus  s_apb_*  (pclk, presetn)\nin: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT\nout: PREADY, PRDATA, PSLVERR",
-         fillcolor="white"];
+         fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cgp [label="pclk Clock Gate\namba_clock_gate_ctrl - pclk_gate_ctrl\nwake: PSEL | response waiting | command queued"];
-    core [label="APB4 Slave Core  (gated pclk)\napb4_slave - u_apb4_slave (see its diagram)"];
+    cgp [label="pclk Clock Gate\namba_clock_gate_ctrl - pclk_gate_ctrl\nwake: PSEL | response waiting | command queued", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    core [label="APB4 Slave Core  (gated pclk)\napb4_slave - u_apb4_slave (see its diagram)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    cmdf [label="Command CDC FIFO  (pclk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nmax(DEPTH, 4) entries; write side gated_pclk, read side gated_aclk"];
-    rspf [label="Response CDC FIFO  (aclk -> pclk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nmax(DEPTH, 4) entries; write side gated_aclk, read side gated_pclk"];
-    cga [label="aclk Clock Gate\namba_clock_gate_ctrl - aclk_gate_ctrl\nwake: rsp_valid | cmd_valid | cmd_ready | PSEL\n(PSEL via a 2-flop sync on aclk)"];
+    cmdf [label="Command CDC FIFO  (pclk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nmax(DEPTH, 4) entries; write side gated_pclk, read side gated_aclk", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspf [label="Response CDC FIFO  (aclk -> pclk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nmax(DEPTH, 4) entries; write side gated_aclk, read side gated_pclk", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    cga [label="aclk Clock Gate\namba_clock_gate_ctrl - aclk_gate_ctrl\nwake: rsp_valid | cmd_valid | cmd_ready | PSEL\n(PSEL via a 2-flop sync on aclk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     be [label="Backend Interface  (aclk domain: aclk, aresetn)\ncmd_valid / cmd_ready + cmd_* fields   |   rsp_valid / rsp_ready, rsp_prdata, rsp_pslverr",
-        fillcolor="white", width=8.0];
+        fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    cfg -> cgp [style=dashed, xlabel="enable, idle count\n(both gates)"];
+    cfg -> cgp [style=dashed, color="#777777", xlabel="enable, idle count\n(both gates)"];
     cgp -> core [penwidth=1.8, xlabel="gated_pclk"];
     bus -> core [dir=both, xlabel="transfer / PREADY, PRDATA, PSLVERR"];
     core -> cmdf [dir=both, xlabel="command / ready"];

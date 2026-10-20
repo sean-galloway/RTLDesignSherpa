@@ -6,14 +6,14 @@ digraph snk_data_path_beats {
            label="snk_data_path_beats - fill interface to AXI write (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    fill  [label="Fill Interface (from the AXIS ingress)\nfill_alloc_req / size / id, fill_valid / id / data;\nfill_space_free[8] back", fillcolor="white", group=L];
-    sched [label="Scheduler Interface (8 channels)\nsched_wr_valid / addr / beats in;\nissue + commit strobes, errors out", fillcolor="white", group=C];
-    sram  [label="Sink SRAM Buffer\nsnk_sram_controller_beats\n(see its figure)", height=0.9, group=L];
-    eng   [label="AXI Write Engine\naxi_write_engine_beats\n(see its figure)", group=C];
-    bar   [label="Module Boundary - m_axi_wr\nAW + W out (to the interconnect)   |   B in", fillcolor="white", width=7.5];
+    fill  [label="Fill Interface (from the AXIS ingress)\nfill_alloc_req / size / id, fill_valid / id / data;\nfill_space_free[8] back", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    sched [label="Scheduler Interface (8 channels)\nsched_wr_valid / addr / beats in;\nissue + commit strobes, errors out", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    sram  [label="Sink SRAM Buffer\nsnk_sram_controller_beats\n(see its figure)", height=0.9, group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    eng   [label="AXI Write Engine\naxi_write_engine_beats\n(see its figure)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar   [label="Module Boundary - m_axi_wr\nAW + W out (to the interconnect)   |   B in", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     fill  -> sram [dir=both, label="alloc + fill beats in;\nspace_free back", penwidth=1.8];
     sram  -> eng  [label="drain beats (valid / ready);\ndata_avail, drain_req", penwidth=1.8];

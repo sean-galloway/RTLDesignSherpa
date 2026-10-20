@@ -18,22 +18,22 @@ digraph arbiter_round_robin_simple_ack {
            label="arbiter_round_robin_simple_ack - teaching round-robin, grant held until acknowledged",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    ack  [group=L, label="Grant Acknowledge\ngrant_ack[N]", fillcolor="white"];
-    req  [group=C, label="Requests\nrequest[N]", fillcolor="white"];
-    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+    ack  [group=L, label="Grant Acknowledge\ngrant_ack[N]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [group=C, label="Requests\nrequest[N]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    mask [group=C, label="Win-Mask (combinational)\nw_req_masked = request & mask[r_last_grant]\nonly agents above the last winner stay eligible"];
+    mask [group=C, label="Win-Mask (combinational)\nw_req_masked = request & mask[r_last_grant]\nonly agents above the last winner stay eligible", style="filled", fillcolor="white"];
     pick [group=C, label="Pick (combinational)\nmasked first, else all; keep the lowest set bit",
-          shape=invtrapezium, width=7.0, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
-    enc  [group=C, label="One-Hot to Index (combinational)\nw_nxt_grant_id = position of the set bit"];
-    hs   [group=L, label="Handshake Control (combinational)\nw_ack = grant_ack of the held agent\nw_other_req = anyone else requesting"];
-    greg [group=C, label="Grant Register (flop)\nr_grant, r_grant_valid, r_last_grant\nidle: load next | acked + others: load next\nacked, no others: clear | else: hold"];
+          shape=invtrapezium, width=7.0, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    enc  [group=C, label="One-Hot to Index (combinational)\nw_nxt_grant_id = position of the set bit", style="filled", fillcolor="white"];
+    hs   [group=L, label="Handshake Control (combinational)\nw_ack = grant_ack of the held agent\nw_other_req = anyone else requesting", style="filled", fillcolor="white"];
+    greg [group=C, label="Grant Register (flop)\nr_grant, r_grant_valid, r_last_grant\nidle: load next | acked + others: load next\nacked, no others: clear | else: hold", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     outs [group=C, label="Outputs (registered)\ngrant[N] (one-hot, held)   |   grant_valid   |   grant_id",
-          fillcolor="white", width=6.6];
+          fillcolor="white", width=6.6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     p_un [shape=point, width=0.01];
     req  -> mask [xlabel="request"];
@@ -48,9 +48,9 @@ digraph arbiter_round_robin_simple_ack {
     greg -> mask [xlabel="r_last_grant", constraint=false];
 
     // handshake (dashed return path)
-    ack  -> hs   [style=dashed, xlabel="grant_ack"];
-    hs   -> greg [style=dashed, xlabel="load / hold / clear"];
-    clk  -> greg [style=dashed, xlabel="clk, rst_n"];
+    ack  -> hs   [style=dashed, color="#777777", xlabel="grant_ack"];
+    hs   -> greg [style=dashed, color="#777777", xlabel="load / hold / clear"];
+    clk  -> greg [style=dashed, color="#777777", xlabel="clk, rst_n"];
 
     { rank=same; ack; req; }
     { rank=same; p_un; mask; }

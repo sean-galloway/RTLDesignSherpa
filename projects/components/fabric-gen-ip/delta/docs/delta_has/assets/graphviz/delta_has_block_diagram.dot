@@ -7,48 +7,48 @@ digraph delta_has_block_diagram {
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="delta_axis_flat_<M>x<N> - one slave s of the crossbar (every slave repeats it); single clock aclk / aresetn\npackets route by TDEST; a granted master owns the slave until its TLAST"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pwk [label="Master TWAKEUP\n(--amba5)", fillcolor="white", style="filled,dashed", group=W];
-    pp  [group=P, label="Master Payloads\nTDATA, TSTRB, TLAST,\nTID, TDEST, TUSER", fillcolor="white"];
-    p0  [label="Master 0\nTVALID + TDEST", fillcolor="white"];
-    pn  [label="Master M-1\nTVALID + TDEST", fillcolor="white"];
-    pr  [group=R, label="Master Ready\ns_axis_tready out", fillcolor="white"];
+    pwk [label="Master TWAKEUP\n(--amba5)", fillcolor="white", style="filled,dashed", group=W, style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    pp  [group=P, label="Master Payloads\nTDATA, TSTRB, TLAST,\nTID, TDEST, TUSER", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p0  [label="Master 0\nTVALID + TDEST", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pn  [label="Master M-1\nTVALID + TDEST", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pr  [group=R, label="Master Ready\ns_axis_tready out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pwk; pp; p0; pn; pr; }
     pwk -> pp -> p0 -> pn -> pr [style=invis];
 
-    wk  [group=W, label="TWAKEUP Steering (--amba5)\nOR of s_axis_twakeup over the\nmasters whose TDEST is s;\nno grant needed (may precede\nTVALID)", style="filled,dashed"];
-    chk [group=P, label="Ingress Checks (--amba5)\nodd parity on each master's\npayload *CHK while TVALID;\n*CHK then rides the mux;\nsticky s_parity_error", style="filled,dashed"];
-    d0  [label="TDEST Decode - master 0\nrequest_matrix[s][0] =\nTVALID && TDEST == s"];
-    dn  [label="TDEST Decode - master M-1\nrequest_matrix[s][M-1] =\nTVALID && TDEST == s"];
-    rdy [group=R, label="TREADY Steering\ns_axis_tready[m] = m_axis_tready[s]\nwhile m holds slave s's grant;\n0 for an ungranted master"];
+    wk  [group=W, label="TWAKEUP Steering (--amba5)\nOR of s_axis_twakeup over the\nmasters whose TDEST is s;\nno grant needed (may precede\nTVALID)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    chk [group=P, label="Ingress Checks (--amba5)\nodd parity on each master's\npayload *CHK while TVALID;\n*CHK then rides the mux;\nsticky s_parity_error", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    d0  [label="TDEST Decode - master 0\nrequest_matrix[s][0] =\nTVALID && TDEST == s", style="filled", fillcolor="white"];
+    dn  [label="TDEST Decode - master M-1\nrequest_matrix[s][M-1] =\nTVALID && TDEST == s", style="filled", fillcolor="white"];
+    rdy [group=R, label="TREADY Steering\ns_axis_tready[m] = m_axis_tready[s]\nwhile m holds slave s's grant;\n0 for an ungranted master", style="filled", fillcolor="white"];
     { rank=same; wk; chk; d0; dn; rdy; }
     wk -> chk -> d0 -> dn -> rdy [style=invis];
 
     pwk2 [shape=point, width=0.01, label="", group=W];
     pp2  [shape=point, width=0.01, label="", group=P];
     arb [label="Per-Slave Round-Robin Arbiter (flops)\ngrant_matrix[s]: first requester after last_grant[s];\nheld (packet_active) until the TLAST handshake",
-         shape=invtrapezium, width=6.2, height=0.7];
+         shape=invtrapezium, width=6.2, height=0.7, style="filled", fillcolor="#FFF2CC"];
     pr2  [shape=point, width=0.01, label="", group=R];
     { rank=same; pwk2; pp2; arb; pr2; }
     pwk2 -> pp2 -> arb -> pr2 [style=invis];
 
     pwk3 [shape=point, width=0.01, label="", group=W];
-    mux [label="Crossbar Mux (combinational)\nm_axis_*[s] = the granted master's TVALID and payload\n(+ *CHK with --amba5); all zero when none is granted", width=5.5];
+    mux [label="Crossbar Mux (combinational)\nm_axis_*[s] = the granted master's TVALID and payload\n(+ *CHK with --amba5); all zero when none is granted", width=5.5, style="filled", fillcolor="white"];
     pr3  [shape=point, width=0.01, label="", group=R];
     { rank=same; pwk3; mux; cnt; pr3; }
     pwk3 -> mux -> cnt -> pr3 [style=invis];
 
-    cnt [label="Packet Counters (unless --no-counters)\npkt_count_master / pkt_count_slave:\none per TLAST handshake", style="filled,dashed"];
+    cnt [label="Packet Counters (unless --no-counters)\npkt_count_master / pkt_count_slave:\none per TLAST handshake", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Slave Port s - m_axis_tdata, tstrb, tlast, tid, tdest, tuser, tvalid out; m_axis_tready in; m_axis_twakeup out (--amba5)",
-         fillcolor="white", width=17];
+         fillcolor="white", width=17, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    pwk -> wk [label="TWAKEUP", style=dashed];
-    wk -> pwk2 [dir=none, style=dashed];
-    pwk2 -> pwk3 [dir=none, style=dashed];
-    pwk3 -> bar [xlabel="m_axis_twakeup[s]", style=dashed];
+    pwk -> wk [label="TWAKEUP", style=dashed, color="#777777"];
+    wk -> pwk2 [dir=none, style=dashed, color="#777777"];
+    pwk2 -> pwk3 [dir=none, style=dashed, color="#777777"];
+    pwk3 -> bar [xlabel="m_axis_twakeup[s]", style=dashed, color="#777777"];
 
     pp -> chk [label="payload"];
     chk -> pp2 [dir=none];
@@ -60,11 +60,11 @@ digraph delta_has_block_diagram {
     dn -> arb [label="request (master M-1)"];
     arb -> mux [label="grant_matrix[s]", penwidth=1.8];
     mux -> bar [label="packet: TVALID + payload", penwidth=1.8];
-    mux -> cnt [style=dashed, xlabel="TLAST handshakes"];
+    mux -> cnt [style=dashed, color="#777777", xlabel="TLAST handshakes"];
 
-    pr -> rdy [dir=back, label="s_axis_tready"];
-    rdy -> pr2 [dir=back];
-    pr2 -> pr3 [dir=none];
+    pr -> rdy [color="#1A7A1A", dir=back, label="s_axis_tready"];
+    rdy -> pr2 [color="#1A7A1A", dir=back];
+    pr2 -> pr3 [color="#1A7A1A", dir=none];
     pr3 -> bar [dir=none, xlabel="m_axis_tready[s]"];
-    arb -> rdy [style=dashed, xlabel="grant_matrix"];
+    arb -> rdy [style=dashed, color="#777777", xlabel="grant_matrix"];
 }

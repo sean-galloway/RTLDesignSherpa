@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Delta generator pipeline. Labels from bin/delta_generator.py (main, DeltaConfig,
 // calculate_widths, DeltaFlatCrossbar.verilog, DeltaSplitter1to2) and
 // bin/complete_tree_generator.py. House style: vault/handbook/authoring/block-diagrams.md

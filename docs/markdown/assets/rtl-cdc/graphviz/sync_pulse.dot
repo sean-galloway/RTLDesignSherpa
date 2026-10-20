@@ -12,22 +12,22 @@ digraph sync_pulse {
            label="sync_pulse - toggle-based single-pulse crossing",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    src_port [group=SO, label="Pulse In\ni_src_clk domain", fillcolor="white"];
-    dst_port [group=DO, label="Pulse Out\ni_dst_clk domain", fillcolor="white"];
+    src_port [group=SO, label="Pulse In\ni_src_clk domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dst_port [group=DO, label="Pulse Out\ni_dst_clk domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_src {
         label="i_src_clk domain"; style=dashed; fontsize=10;
-        tog [group=SO, label="Toggle Register\nr_src_toggle\nflips on each i_pulse"];
+        tog [group=SO, label="Toggle Register\nr_src_toggle\nflips on each i_pulse", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     subgraph cluster_dst {
         label="i_dst_clk domain"; style=dashed; fontsize=10;
-        syn  [group=DI, label="Toggle Synchronizer\nr_sync[SYNC_STAGES]\n(2-4 flops on i_dst_clk)"];
-        edet [group=DO, label="Edge Detect\nr_sync_prev XOR\nlast sync stage"];
+        syn  [group=DI, label="Toggle Synchronizer\nr_sync[SYNC_STAGES]\n(2-4 flops on i_dst_clk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        edet [group=DO, label="Edge Detect\nr_sync_prev XOR\nlast sync stage", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     // ---- flows ----

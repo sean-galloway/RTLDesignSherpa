@@ -10,29 +10,29 @@ digraph apb5_master_cg {
            label="apb5_master_cg - apb5_master behind an idle-timeout clock gate",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    clk  [label="Clock In\npclk, presetn", fillcolor="white"];
-    cfg  [label="Clock-Gate Configuration (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle clocks to wait\l    before gating\l", fillcolor="white"];
-    cmd_port [label="Command Port\ncmd_valid / cmd_ready + cmd_* fields (incl. pauser, pwuser)", fillcolor="white"];
-    rsp_port [label="Response Port\nrsp_valid / rsp_ready, rsp_prdata, pslverr, pruser, pbuser\nparity_error_rdata, parity_error_ctrl", fillcolor="white"];
+    clk  [label="Clock In\npclk, presetn", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Clock-Gate Configuration (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle clocks to wait\l    before gating\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cmd_port [label="Command Port\ncmd_valid / cmd_ready + cmd_* fields (incl. pauser, pwuser)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rsp_port [label="Response Port\nrsp_valid / rsp_ready, rsp_prdata, pslverr, pruser, pbuser\nparity_error_rdata, parity_error_ctrl", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wake [label="Wakeup (flop on ungated pclk)\nr_wakeup <= cmd_valid | rsp_valid | PSEL | PENABLE\n| PWAKEUP\n(reset: 1, so the clock runs out of reset)"];
-    cgc  [label="Clock-Gate Controller\namba_clock_gate_ctrl - amba_clock_gate_ctrl\nidle countdown; gates when enabled and quiet"];
-    stat [label="Clock-Gate Status\ncg_gating, cg_idle", fillcolor="white"];
+    wake [label="Wakeup (flop on ungated pclk)\nr_wakeup <= cmd_valid | rsp_valid | PSEL | PENABLE\n| PWAKEUP\n(reset: 1, so the clock runs out of reset)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cgc  [label="Clock-Gate Controller\namba_clock_gate_ctrl - amba_clock_gate_ctrl\nidle countdown; gates when enabled and quiet", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    stat [label="Clock-Gate Status\ncg_gating, cg_idle", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     core [label="APB5 Master Core  apb5_master - u_apb5_master  (see its diagram)\nskids, transfer FSM, PWAKEUP, ENABLE_PARITY check bits; clocked by gated_pclk",
-          width=7.5];
+          width=7.5, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
     bus [label="APB5 Requester Bus  m_apb_*\nout: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT, PAUSER, PWUSER, PWAKEUP + *CHK\nin: PRDATA, PSLVERR, PREADY, PRUSER, PBUSER + *CHK",
-         fillcolor="white", width=10.0];
+         fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     clk -> wake [xlabel="pclk"];
     clk -> cgc [penwidth=1.8, xlabel="pclk"];
     wake -> cgc [xlabel="user_valid (wake)"];
-    cfg -> cgc [style=dashed, xlabel="enable, idle count"];
-    cgc -> stat [style=dashed];
+    cfg -> cgc [style=dashed, color="#777777", xlabel="enable, idle count"];
+    cgc -> stat [style=dashed, color="#777777"];
     cgc -> core [penwidth=1.8, xlabel="gated_pclk"];
     cmd_port -> core [dir=both, xlabel="cmd_valid + fields / cmd_ready"];
     rsp_port -> core [dir=both, xlabel="rsp_valid + prdata, pslverr / rsp_ready"];

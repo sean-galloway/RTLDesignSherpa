@@ -11,21 +11,21 @@ digraph math_multiplier_dadda_tree {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_multiplier_dadda_tree - Dadda-reduced N x N unsigned multiplier (combinational)";
 
     node [group=M];
-    ops  [label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white"];
-    pp   [label="Partial-Product Array (combinational)\nN x N ANDs: w_pp_i_j = i_multiplier[i] & i_multiplicand[j]\n2N-1 columns, heights 1, 2 .. N .. 2, 1"];
-    s1   [label="Dadda Stage 1 (combinational)\nreduce only columns taller than the target (8-bit: 6)\nmath_adder_carry_save (3:2) + math_adder_half"];
-    sr   [label="Dadda Stages 2 .. S (combinational)\ntargets follow 2, 3, 4, 6, 9, 13, 19, 28 downward\n(8-bit: 4 -> 3 -> 2); Dadda waits, spending the fewest cells"];
-    pack [label="Row Pack (wiring)\nw_cpa_row0, w_cpa_row1 [2N-1:0]\nthe two bits left in every column"];
-    cpa  [label="Final Carry-Propagate Adder (combinational)\nmath_adder_brent_kung_{2N} - u_final_cpa\nw_cpa_row0 + w_cpa_row1"];
-    bar  [label="Output\now_product[2N-1:0]", fillcolor="white", width=5.0];
+    ops  [label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pp   [label="Partial-Product Array (combinational)\nN x N ANDs: w_pp_i_j = i_multiplier[i] & i_multiplicand[j]\n2N-1 columns, heights 1, 2 .. N .. 2, 1", style="filled", fillcolor="white"];
+    s1   [label="Dadda Stage 1 (combinational)\nreduce only columns taller than the target (8-bit: 6)\nmath_adder_carry_save (3:2) + math_adder_half", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sr   [label="Dadda Stages 2 .. S (combinational)\ntargets follow 2, 3, 4, 6, 9, 13, 19, 28 downward\n(8-bit: 4 -> 3 -> 2); Dadda waits, spending the fewest cells", style="filled", fillcolor="white"];
+    pack [label="Row Pack (wiring)\nw_cpa_row0, w_cpa_row1 [2N-1:0]\nthe two bits left in every column", style="filled", fillcolor="white"];
+    cpa  [label="Final Carry-Propagate Adder (combinational)\nmath_adder_brent_kung_{2N} - u_final_cpa\nw_cpa_row0 + w_cpa_row1", style="filled", fillcolor="white"];
+    bar  [label="Output\now_product[2N-1:0]", fillcolor="white", width=5.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     node [group=""];
 
-    var  [label="Generated Variants (N fixed per file)\lmath_multiplier_dadda_tree_008: 4 stages,\l    35 carry-save + 7 half adders, brent_kung_016\lmath_multiplier_dadda_tree_016: 6 stages,\l    195 carry-save + 15 half adders, brent_kung_032\lmath_multiplier_dadda_tree_032: 8 stages,\l    899 carry-save + 31 half adders, brent_kung_064\l", fillcolor="white"];
+    var  [label="Generated Variants (N fixed per file)\lmath_multiplier_dadda_tree_008: 4 stages,\l    35 carry-save + 7 half adders, brent_kung_016\lmath_multiplier_dadda_tree_016: 6 stages,\l    195 carry-save + 15 half adders, brent_kung_032\lmath_multiplier_dadda_tree_032: 8 stages,\l    899 carry-save + 31 half adders, brent_kung_064\l", fillcolor="white", shape=note];
 
     ops  -> pp   [xlabel="operand bits"];
     pp   -> s1   [xlabel="N x N partial-product bits"];

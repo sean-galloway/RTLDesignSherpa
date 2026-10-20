@@ -8,13 +8,13 @@ digraph encoder {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="encoder - one-hot to binary index (combinational)";
 
-    din  [label="One-Hot Input\ndecoded[N-1:0]", fillcolor="white"];
-    enc  [label="One-Hot Encode\ndata = i for the set bit i\n(no bit set: 0; several set: the highest index)"];
-    dout [label="Binary Output\ndata[$clog2(N)-1:0]", fillcolor="white", width=4.0];
+    din  [label="One-Hot Input\ndecoded[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    enc  [label="One-Hot Encode\ndata = i for the set bit i\n(no bit set: 0; several set: the highest index)", style="filled", fillcolor="white"];
+    dout [label="Binary Output\ndata[$clog2(N)-1:0]", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
     din -> enc  [xlabel="decoded (one-hot)"];
     enc -> dout [xlabel="index"];

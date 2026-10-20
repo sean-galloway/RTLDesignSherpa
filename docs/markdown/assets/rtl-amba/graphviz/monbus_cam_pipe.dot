@@ -16,22 +16,22 @@ digraph monbus_cam_pipe {
            label="monbus_cam_pipe - monbus_cam split over two cycles: compare, then commit; one access per clock, result one clock later\n(single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- ports (white) ----
-    acc  [group=K, label="Access Port\naccess_en, access_key,\naccess_new_data, access_new_ts\nclear (empty the CAM, flush the pipe)", fillcolor="white"];
-    res  [group=R, label="Result Port (registered, one clock later)\nresult_valid, result_hit, result_idx,\nresult_old_data, result_old_ts\n|  cam_full, cam_count\n(combinational, from the array)", fillcolor="white"];
+    acc  [group=K, label="Access Port\naccess_en, access_key,\naccess_new_data, access_new_ts\nclear (empty the CAM, flush the pipe)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    res  [group=R, label="Result Port (registered, one clock later)\nresult_valid, result_hit, result_idx,\nresult_old_data, result_old_ts\n|  cam_full, cam_count\n(combinational, from the array)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    cmp  [group=K, label="Cycle T: DEPTH Parallel Compares\n(combinational, against the PRE-commit array)\nvalid[i] & key[i] == access_key"];
-    fwd  [group=K, label="Forward Adjust (combinational)\nsame key as the pending commit: hit at 0, its new data\nmatched the entry being evicted: miss\nmatched above the pending shift point: idx + 1\nelse unchanged"];
-    reg1 [group=K, label="Result Register + Pending Commit (flops)\nthe (forwarded) result for next cycle;\nthis access becomes the pending commit:\nTOUCH on a hit, else INSTALL"];
-    mtf  [group=K, label="Cycle T+1: Move-to-Front Commit (next clock edge)\nTOUCH: matched entry to position 0, entries above shift down\nINSTALL: new entry at 0, all shift down, LRU evicted when full"];
+    cmp  [group=K, label="Cycle T: DEPTH Parallel Compares\n(combinational, against the PRE-commit array)\nvalid[i] & key[i] == access_key", style="filled", fillcolor="white"];
+    fwd  [group=K, label="Forward Adjust (combinational)\nsame key as the pending commit: hit at 0, its new data\nmatched the entry being evicted: miss\nmatched above the pending shift point: idx + 1\nelse unchanged", style="filled", fillcolor="white"];
+    reg1 [group=K, label="Result Register + Pending Commit (flops)\nthe (forwarded) result for next cycle;\nthis access becomes the pending commit:\nTOUCH on a hit, else INSTALL", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mtf  [group=K, label="Cycle T+1: Move-to-Front Commit (next clock edge)\nTOUCH: matched entry to position 0, entries above shift down\nINSTALL: new entry at 0, all shift down, LRU evicted when full", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the storage bar ----
     arr  [label="Entry Array (flops), indexed by LRU position rank (as in monbus_cam)\nr_entry[0] = most recently used .. r_entry[count-1] = least recently used  |  key, data, ts, valid",
-          width=8.5];
+          width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- access flow ----
     acc  -> cmp  [xlabel="access_key"];
@@ -43,7 +43,7 @@ digraph monbus_cam_pipe {
     // ---- result up the right lane ----
     p_r1 [group=R, shape=point, width=0.01];
     reg1 -> p_r1 [arrowhead=none, headclip=false];
-    p_r1 -> res  [xlabel="result_* (registered)", tailclip=false];
+    p_r1 -> res  [color="#1A7A1A", xlabel="result_* (registered)", tailclip=false];
 
     // ---- compares read the array; forwarding reads the pending commit ----
     p_a1 [group=L, shape=point, width=0.01];

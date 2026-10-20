@@ -22,37 +22,37 @@ digraph pic_8259_whole_unit {
            label="apb4_pic_8259 - APB 8259A-compatible interrupt controller (single clock: pclk, presetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- ports (white, top) ----
-    apb  [group=B, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
-    casi [group=C, fillcolor="white", label="Cascade Acknowledge In\ncas_ack_in (from a master)"];
-    irqp [group=D, fillcolor="white", label="Interrupt Requests\nirq_in[7:0] (asynchronous)"];
+    apb  [group=B, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)", style="rounded,filled", fillcolor="#E2EFDA"];
+    casi [group=C, fillcolor="white", label="Cascade Acknowledge In\ncas_ack_in (from a master)", style="rounded,filled", fillcolor="#E2EFDA"];
+    irqp [group=D, fillcolor="white", label="Interrupt Requests\nirq_in[7:0] (asynchronous)", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- register access ----
-    slv  [group=B, label="APB Completer\napb4_slave"];
-    dec  [group=B, label="Adapter + Strict Decode\npic_8259_config_regs - peakrdl_to_cmdrsp\nonly 0x00 - 0x2C pass;\nanything else: read 0, PSLVERR"];
-    regs [group=B, label="Register Block (PeakRDL)\npic_8259_regs inside pic_8259_config_regs\nCONFIG, ICW1 - ICW4, OCW1 (IMR), OCW2, OCW3,\nIRR, ISR, STATUS, INTA\none-cycle ICW / OCW write strobes;\nPIC_INTA read -> one-cycle acknowledge"];
+    slv  [group=B, label="APB Completer\napb4_slave", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dec  [group=B, label="Adapter + Strict Decode\npic_8259_config_regs - peakrdl_to_cmdrsp\nonly 0x00 - 0x2C pass;\nanything else: read 0, PSLVERR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs [group=B, label="Register Block (PeakRDL)\npic_8259_regs inside pic_8259_config_regs\nCONFIG, ICW1 - ICW4, OCW1 (IMR), OCW2, OCW3,\nIRR, ISR, STATUS, INTA\none-cycle ICW / OCW write strobes;\nPIC_INTA read -> one-cycle acknowledge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- request input ----
-    sync [group=D, label="Input Synchronizer + Edge / Level Detect\npic_8259_core - SYNC_STAGES flops\nLTIM=1: level, else rising edge"];
+    sync [group=D, label="Input Synchronizer + Edge / Level Detect\npic_8259_core - SYNC_STAGES flops\nLTIM=1: level, else rising edge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- core state ----
-    init [group=A1, label="Init Sequencer (flop FSM)\npic_8259_core\nICW1 -> ICW2 -> ICW3 (cascaded)\n-> ICW4 (IC4) -> complete\nrunning = complete AND pic_enable"];
-    cmd  [group=A2, label="Command Decode + Priority State (flop)\npic_8259_core\nOCW2: EOI, rotate, set-priority,\nrotate-on-AEOI; OCW3: special mask\nICW1: base back to 7 (IRQ0 highest)"];
-    ack  [group=C, label="Acknowledge Strobe (combinational)\napb4_pic_8259\nPIC_INTA read OR cas_ack_in"];
+    init [group=A1, label="Init Sequencer (flop FSM)\npic_8259_core\nICW1 -> ICW2 -> ICW3 (cascaded)\n-> ICW4 (IC4) -> complete\nrunning = complete AND pic_enable", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cmd  [group=A2, label="Command Decode + Priority State (flop)\npic_8259_core\nOCW2: EOI, rotate, set-priority,\nrotate-on-AEOI; OCW3: special mask\nICW1: base back to 7 (IRQ0 highest)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ack  [group=C, label="Acknowledge Strobe (combinational)\napb4_pic_8259\nPIC_INTA read OR cas_ack_in", style="filled", fillcolor="white"];
 
-    isr  [group=C, width=4.6, label="In-Service Register  ISR (flop)\nset: the acknowledged level\nclear: EOI, or at once in AEOI mode"];
-    irr  [group=D, label="Interrupt Request Register  IRR (flop)\nset: trigger; level mode follows the pin\nclear: acknowledge (edge mode), ICW1"];
+    isr  [group=C, width=4.6, label="In-Service Register  ISR (flop)\nset: the acknowledged level\nclear: EOI, or at once in AEOI mode", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    irr  [group=D, label="Interrupt Request Register  IRR (flop)\nset: trigger; level mode follows the pin\nclear: acknowledge (edge mode), ICW1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     res  [group=C, shape=invtrapezium, width=7.5, fillcolor="#BFD7EE", fontsize=11,
-          label="Priority Resolver - pic_8259_core\nscan from base+1: in service blocks itself and below"];
+          label="Priority Resolver - pic_8259_core\nscan from base+1: in service blocks itself and below", style="filled", fillcolor="#FFF2CC"];
 
-    vec  [group=C, label="Vector + INT Output (combinational)\npic_8259_core\nint_out and the acknowledge need running;\nvector = {ICW2[7:3], level}; cascade level: the slave's vector;\nnothing eligible: spurious IRQ7 vector, valid 0;\ncas_ack = an acknowledge on an ICW3 cascade level"];
+    vec  [group=C, label="Vector + INT Output (combinational)\npic_8259_core\nint_out and the acknowledge need running;\nvector = {ICW2[7:3], level}; cascade level: the slave's vector;\nnothing eligible: spurious IRQ7 vector, valid 0;\ncas_ack = an acknowledge on an ICW3 cascade level", style="filled", fillcolor="white"];
 
     bar  [group=C, fillcolor="white", width=10.0,
-          label="Module Boundary\nint_out (to the CPU or a master's IR2)   |   cas_ack, inta_vector_o out (to a slave / master)   |   cas_vector in (from a slave)"];
+          label="Module Boundary\nint_out (to the CPU or a master's IR2)   |   cas_ack, inta_vector_o out (to a slave / master)   |   cas_vector in (from a slave)", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access ----
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
@@ -64,13 +64,13 @@ digraph pic_8259_whole_unit {
     regs -> cmd  [xlabel="OCW2 / OCW3 writes,\nIMR (OCW1)"];
     cmd  -> isr  [xlabel="EOI: clear level"];
     cmd  -> res  [xlabel="priority base,\nIMR, special mask"];
-    init -> vec  [style=dashed, xlabel="running"];
+    init -> vec  [style=dashed, color="#777777", xlabel="running"];
 
     // ---- acknowledge ----
     regs -> ack  [xlabel="PIC_INTA read"];
     casi -> ack  [xlabel="cas_ack_in"];
     ack  -> isr  [xlabel="acknowledge:\nset level"];
-    ack  -> irr  [style=dashed, xlabel="acknowledge"];
+    ack  -> irr  [style=dashed, color="#777777", xlabel="acknowledge"];
 
     // ---- interrupt requests ----
     irqp -> sync [xlabel="irq_in (pins)"];

@@ -17,29 +17,29 @@ digraph harness_blocks {
            nodesep="0.35", ranksep="0.50", splines=ortho, newrank=true,
            label="ddr2_char_harness: register path, generator traffic into pumice, and the DFI tail", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host [group=C, label="Host UART (Nexys A7 USB, 115200-8N1)\nASCII W addr data / R addr", fillcolor="white"];
-    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
-    brg  [group=C, label="Generated 1 -> 6 Bridge\nbridge_ddr2_char_axil - u_bridge\nddr2_apb 0x0, harness_csr 0x1_0000, debug_sram 0x4_0000,\ndfi_mon_ram 0x8_0000, obs_apb 0x9_0000 (unused), chargen_apb 0xA_0000", width=5.5];
+    host [group=C, label="Host UART (Nexys A7 USB, 115200-8N1)\nASCII W addr data / R addr", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    brg  [group=C, label="Generated 1 -> 6 Bridge\nbridge_ddr2_char_axil - u_bridge\nddr2_apb 0x0, harness_csr 0x1_0000, debug_sram 0x4_0000,\ndfi_mon_ram 0x8_0000, obs_apb 0x9_0000 (unused), chargen_apb 0xA_0000", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    csr  [group=L, label="Harness CSRs (window 0x1_0000)\nharness_csr - u_harness_csr\nCTRL: clear_stats, freeze_trace, soft_reset;\nSTATUS, BUILD_ID, CRCs, timer + beat stamps,\nCTRLR_CFG, DFI_TUNING, perf counts"];
-    regs [group=C, label="Generator Config (window 0xA_0000)\napb4_to_peakrdl + chargen_regs\nper-generator window, stride, burst,\nbank span, budget, GO; per-generator STATUS"];
-    mem  [group=R, label="Host-access memories (no writer on this build)\nsdpram_slave_axil_axil - u_debug_sram (0x4_0000)\nsdpram_slave_axil_axil - u_dfi_mon_ram (0x8_0000)", fillcolor="white", style="filled,dashed"];
+    csr  [group=L, label="Harness CSRs (window 0x1_0000)\nharness_csr - u_harness_csr\nCTRL: clear_stats, freeze_trace, soft_reset;\nSTATUS, BUILD_ID, CRCs, timer + beat stamps,\nCTRLR_CFG, DFI_TUNING, perf counts", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    regs [group=C, label="Generator Config (window 0xA_0000)\napb4_to_peakrdl + chargen_regs\nper-generator window, stride, burst,\nbank span, budget, GO; per-generator STATUS", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mem  [group=R, label="Host-access memories (no writer on this build)\nsdpram_slave_axil_axil - u_debug_sram (0x4_0000)\nsdpram_slave_axil_axil - u_dfi_mon_ram (0x8_0000)", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
-    meter [group=L, label="Perf Instruments\naxi_bus_meter x2 (wr, rd) +\naxi_perf_latency_hist x2\n(observed, nothing driven back)"];
-    gen  [group=C, label="Generator Array\nchar_gen_unit - u_gen_unit (in char_engine_block)\nNUM_GEN = 4 writers + 4 readers;\nchar_gen_axi_mux + char_gen_wr_order_q: N:1 onto one s_axi"];
+    meter [group=L, label="Perf Instruments\naxi_bus_meter x2 (wr, rd) +\naxi_perf_latency_hist x2\n(observed, nothing driven back)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gen  [group=C, label="Generator Array\nchar_gen_unit - u_gen_unit (in char_engine_block)\nNUM_GEN = 4 writers + 4 readers;\nchar_gen_axi_mux + char_gen_wr_order_q: N:1 onto one s_axi", style="filled", fillcolor="white"];
 
-    dut  [group=C, label="DUT - pumice_top_geared - u_ctrl (in ddr2_char_macro)\nAXI4 front-end -> scheduler -> DFI layer; PeakRDL CSR on APB (apb4_to_peakrdl shim)", width=6.5, penwidth=1.8];
+    dut  [group=C, label="DUT - pumice_top_geared - u_ctrl (in ddr2_char_macro)\nAXI4 front-end -> scheduler -> DFI layer; PeakRDL CSR on APB (apb4_to_peakrdl shim)", width=6.5, penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     pw   [group=L, shape=point, style=invis, width=0.01, label=""];
-    cdly [group=C, label="Command Alignment\ndfi_cmd_delay - u_dfi_cmd_delay\ndelays address / bank / RAS / CAS / WE /\nCS / CKE / ODT + rddata_en by DFI_TUNING"];
-    rdly [group=R, label="Read-Data Alignment\ndfi_rddata_delay\nu_dfi_rddata_delay\n(DFI_TUNING.rddata_delay)"];
+    cdly [group=C, label="Command Alignment\ndfi_cmd_delay - u_dfi_cmd_delay\ndelays address / bank / RAS / CAS / WE /\nCS / CKE / ODT + rddata_en by DFI_TUNING", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rdly [group=R, label="Read-Data Alignment\ndfi_rddata_delay\nu_dfi_rddata_delay\n(DFI_TUNING.rddata_delay)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    adap [group=C, label="DFI Flat to Per-Phase Ports\ndfi_v21_flat_to_a7ddrphy - u_dfi_adapter (in ddr2_char_top)", width=6.5];
+    adap [group=C, label="DFI Flat to Per-Phase Ports\ndfi_v21_flat_to_a7ddrphy - u_dfi_adapter (in ddr2_char_top)", width=6.5, style="filled", fillcolor="white"];
 
-    bar  [group=C, label="a7ddrphy - u_a7ddrphy (LiteDRAM-generated on the board; a7ddrphy_stub.sv in sim)  ->  DDR2 pads", fillcolor="white", width=8];
+    bar  [group=C, label="a7ddrphy - u_a7ddrphy (LiteDRAM-generated on the board; a7ddrphy_stub.sv in sim)  ->  DDR2 pads", fillcolor="white", width=8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; csr; regs; mem; }
     csr -> regs -> mem [style=invis];
@@ -52,13 +52,13 @@ digraph harness_blocks {
     uart -> brg  [dir=both, xlabel="AXI4-Lite access"];
     brg  -> csr  [xlabel="harness_csr"];
     brg  -> regs [xlabel="chargen_apb"];
-    brg  -> mem  [style=dashed, xlabel="debug_sram,\ndfi_mon_ram"];
+    brg  -> mem  [style=dashed, color="#777777", xlabel="debug_sram,\ndfi_mon_ram"];
     brg  -> dut  [xlabel="ddr2_apb: controller CSRs"];
 
-    regs -> gen  [style=dashed, xlabel="GO + per-generator config"];
+    regs -> gen  [style=dashed, color="#777777", xlabel="GO + per-generator config"];
     gen  -> dut  [dir=both, penwidth=1.8, xlabel="s_axi: AW + W, AR down;\nB, R up"];
-    gen -> meter [style=dashed, xlabel="tap on s_axi"];
-    meter -> csr [style=dashed, xlabel="perf counts"];
+    gen -> meter [style=dashed, color="#777777", xlabel="tap on s_axi"];
+    meter -> csr [style=dashed, color="#777777", xlabel="perf counts"];
 
     dut  -> pw   [dir=none];
     pw   -> adap [xlabel="write data\n(undelayed)"];

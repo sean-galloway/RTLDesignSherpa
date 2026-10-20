@@ -8,15 +8,15 @@ digraph rapids_beats_error_reporting {
            label="Error reporting - a sticky status bit and a MonBus packet; the packet raises mon_irq",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    sc  [label="Scheduler n - scheduler_beats\nenters CH_ERROR, latches sched_error", fillcolor="white"];
-    reg [label="Status Register\nSCHED_ERROR bit n (sticky,\nfrom hwif_in)", group=L];
-    arb [label="MonBus Arbiter Tree\n(group, array, half, core)", group=R];
-    flt [label="Packet Filter - monbus_axil4_axil4_group\nerr_select type -> error FIFO, else -> capture log", group=R];
-    fifo [label="Error FIFO\n(packet + timestamp records)", group=R];
-    cpu [label="Host CPU\nAPB reads (s_apb_*)   |   mon_irq + error-FIFO reads (s_axil_err)", fillcolor="white", width=7.5];
+    sc  [label="Scheduler n - scheduler_beats\nenters CH_ERROR, latches sched_error", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    reg [label="Status Register\nSCHED_ERROR bit n (sticky,\nfrom hwif_in)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    arb [label="MonBus Arbiter Tree\n(group, array, half, core)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    flt [label="Packet Filter - monbus_axil4_axil4_group\nerr_select type -> error FIFO, else -> capture log", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fifo [label="Error FIFO\n(packet + timestamp records)", group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    cpu [label="Host CPU\nAPB reads (s_apb_*)   |   mon_irq + error-FIFO reads (s_axil_err)", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sc  -> reg  [label="sched_error"];
     sc  -> arb  [label="one error packet\n(PktTypeError)"];

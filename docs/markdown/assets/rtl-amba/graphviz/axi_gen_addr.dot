@@ -8,22 +8,22 @@ digraph axi_gen_addr {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi_gen_addr - next beat address for FIXED / INCR / WRAP bursts (combinational)";
 
-    prm   [label="Parameters (fixed at build)\lODW: output data width; when DW != ODW the\l    increment is clamped to ODW/8 bytes and\l    next_addr_align is aligned to ODW\l", fillcolor="white"];
-    addr  [group=A, label="Current Address\ncurr_addr[AW-1:0]", fillcolor="white"];
-    beat  [group=B, label="Burst Fields\nsize[2:0], len[LEN-1:0], burst[1:0]", fillcolor="white"];
+    prm   [label="Parameters (fixed at build)\lODW: output data width; when DW != ODW the\l    increment is clamped to ODW/8 bytes and\l    next_addr_align is aligned to ODW\l", fillcolor="white", shape=note];
+    addr  [group=A, label="Current Address\ncurr_addr[AW-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    beat  [group=B, label="Burst Fields\nsize[2:0], len[LEN-1:0], burst[1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    incr  [group=A, label="Increment (combinational)\nincrement = 1 << size\n(clamped to ODW/8 bytes when DW != ODW)"];
-    mask  [group=B, label="Wrap Mask (combinational)\nlen_log2 = log2(len + 1)  (casez on the top bit)\nwrap_mask = (1 << (size + len_log2)) - 1"];
+    incr  [group=A, label="Increment (combinational)\nincrement = 1 << size\n(clamped to ODW/8 bytes when DW != ODW)", style="filled", fillcolor="white"];
+    mask  [group=B, label="Wrap Mask (combinational)\nlen_log2 = log2(len + 1)  (casez on the top bit)\nwrap_mask = (1 << (size + len_log2)) - 1", style="filled", fillcolor="white"];
 
-    cand  [group=A, label="Candidate Addresses (combinational)\nFIXED: curr_addr   |   INCR: curr_addr + increment\nWRAP: (curr_addr & ~wrap_mask) | (aligned & wrap_mask)\naligned = (curr_addr + increment) & ~(increment - 1)"];
-    sel   [group=A, label="Burst Select (combinational)\n00 FIXED   01 INCR   10 WRAP   11 INCR (default)"];
-    algn  [group=A, label="Output Alignment (combinational)\nnext_addr_align = next_addr & ~(ODW/8 - 1)"];
+    cand  [group=A, label="Candidate Addresses (combinational)\nFIXED: curr_addr   |   INCR: curr_addr + increment\nWRAP: (curr_addr & ~wrap_mask) | (aligned & wrap_mask)\naligned = (curr_addr + increment) & ~(increment - 1)", style="filled", fillcolor="white"];
+    sel   [group=A, label="Burst Select (combinational)\n00 FIXED   01 INCR   10 WRAP   11 INCR (default)", style="filled", fillcolor="white"];
+    algn  [group=A, label="Output Alignment (combinational)\nnext_addr_align = next_addr & ~(ODW/8 - 1)", style="filled", fillcolor="white"];
 
-    out   [label="Outputs\nnext_addr[AW-1:0]   |   next_addr_align[AW-1:0]", fillcolor="white", width=5.5];
+    out   [label="Outputs\nnext_addr[AW-1:0]   |   next_addr_align[AW-1:0]", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     addr -> incr [xlabel="curr_addr"];
     beat -> incr [xlabel="size"];
@@ -31,7 +31,7 @@ digraph axi_gen_addr {
     incr -> cand [xlabel="increment"];
     mask -> cand [xlabel="wrap_mask"];
     cand -> sel  [xlabel="three candidates"];
-    beat -> sel  [style=dashed, xlabel="burst"];
+    beat -> sel  [style=dashed, color="#777777", xlabel="burst"];
     sel  -> algn [xlabel="next_addr"];
     algn -> out  [xlabel="next_addr,\nnext_addr_align"];
 

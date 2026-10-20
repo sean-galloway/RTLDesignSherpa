@@ -8,26 +8,26 @@ digraph slave_router {
            nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
            label="Request routing for one master - decode in <master>_adapter, re-decode and W steering in <bridge>_xbar\n(subtractive decode: every address selects exactly one target, so nothing can hang)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pw [label="Master Write Data\nW beats (no address)", fillcolor="white", group=L];
-    pc [label="Master Requests\nAW / AR address", fillcolor="white", group=C];
+    pw [label="Master Write Data\nW beats (no address)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    pc [label="Master Requests\nAW / AR address", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pw; pc; }
     pw -> pc [style=invis];
 
     p1 [shape=point, width=0.01, label="", group=L];
-    dec [label="Window Compare - <master>_adapter\ncomb_slave_select_aw / _ar: if / else-if over each slave's\n[base_addr, base_addr + addr_range); the final else = catch-all", group=C];
+    dec [label="Window Compare - <master>_adapter\ncomb_slave_select_aw / _ar: if / else-if over each slave's\n[base_addr, base_addr + addr_range); the final else = catch-all", group=C, style="filled", fillcolor="white"];
     { rank=same; p1; dec; }
     p1 -> dec [style=invis];
 
-    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, max_outstanding deep) pushed with the\nAW's target at the master-side AW accept,\npopped at WLAST", group=L];
-    rdec [label="Re-decode on the Held Address - <bridge>_xbar\n<m>_aw_to_<s> / <m>_ar_to_<s>: the address is stable\nwhile valid, so the request gates into one slave's arbiter", group=C];
+    wdest [label="W Destination FIFO - <bridge>_xbar\n(per master path, max_outstanding deep) pushed with the\nAW's target at the master-side AW accept,\npopped at WLAST", group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rdec [label="Re-decode on the Held Address - <bridge>_xbar\n<m>_aw_to_<s> / <m>_ar_to_<s>: the address is stable\nwhile valid, so the request gates into one slave's arbiter", group=C, style="filled", fillcolor="white"];
     { rank=same; wdest; rdec; }
     wdest -> rdec [style=invis];
 
-    slv [label="Mapped Slave - <bridge>_xbar per-slave side\nAW / AR arbiter (one per slave), W owner FIFO", fillcolor="white", group=L];
-    cat [group=R, label="Catch-all - subtractive_adapter + axi4_subtractive_slave\nDECERR on every B and R; R data = READ_FILL (0xDEADBEEF);\none monbus error packet per hit, carrying the address", fillcolor="white"];
+    slv [label="Mapped Slave - <bridge>_xbar per-slave side\nAW / AR arbiter (one per slave), W owner FIFO", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    cat [group=R, label="Catch-all - subtractive_adapter + axi4_subtractive_slave\nDECERR on every B and R; R data = READ_FILL (0xDEADBEEF);\none monbus error packet per hit, carrying the address", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; slv; cat; }
     slv -> cat [style=invis];
 
@@ -35,7 +35,7 @@ digraph slave_router {
     p1 -> wdest [xlabel="W beats"];
     pc -> dec [label="AW / AR"];
     dec -> rdec [label="AW / AR + one-hot select", penwidth=1.8];
-    wdest -> rdec [style=dashed, dir=back, xlabel="AW target"];
+    wdest -> rdec [style=dashed, color="#777777", dir=back, xlabel="AW target"];
     wdest -> slv [xlabel="W of that AW (catch-all W\nis sunk the same way)"];
     rdec -> slv [xlabel="inside slave s's window"];
     rdec -> cat [label="no window hit", penwidth=1.8];

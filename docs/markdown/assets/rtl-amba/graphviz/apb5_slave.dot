@@ -10,38 +10,38 @@ digraph apb5_slave {
            label="apb5_slave - one APB5 completer to queued command / response ports (single clock: pclk, presetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm [label="Parameters (fixed at build)\lENABLE_PARITY: 1 = check the *CHK inputs and\l    generate the *CHK outputs; 0 = CHK tied 0\l", fillcolor="white"];
+    prm [label="Parameters (fixed at build)\lENABLE_PARITY: 1 = check the *CHK inputs and\l    generate the *CHK outputs; 0 = CHK tied 0\l", fillcolor="white", shape=note];
     bus [label="APB5 Completer Bus  s_apb_*\nin: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT,\nPAUSER, PWUSER, PWAKEUP + their *CHK\nout: PREADY, PRDATA, PSLVERR, PRUSER, PBUSER + their *CHK",
-         fillcolor="white"];
+         fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     pchk [label="Check-Bit Check
 (ENABLE_PARITY = 1)
 dataint_parity, odd,
 one bit per 8 bits of each
-APB input and PWAKEUP", style="filled,dashed"];
-    perr [label="Parity Status\nparity_error_wdata, parity_error_ctrl", fillcolor="white"];
+APB input and PWAKEUP", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    perr [label="Parity Status\nparity_error_wdata, parity_error_ctrl", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fsm  [label="APB Completer FSM (flop)\nIDLE > BUSY > WAIT\nIDLE: capture on the PENABLE rising edge;\ndrop an orphan response\nBUSY: on a response, drive PREADY, PRDATA,\nPSLVERR and user for one clock"];
+    fsm  [label="APB Completer FSM (flop)\nIDLE > BUSY > WAIT\nIDLE: capture on the PENABLE rising edge;\ndrop an orphan response\nBUSY: on a response, drive PREADY, PRDATA,\nPSLVERR and user for one clock", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     pgen [label="Check-Bit Generate
 (ENABLE_PARITY = 1)
 dataint_parity, odd:
 PRDATA, PRUSER, PBUSER,
-PREADY, PSLVERR", style="filled,dashed"];
+PREADY, PSLVERR", style="filled,dashed", style="filled,dashed", fillcolor="white"];
 
-    cmdq [label="Command Skid Buffer\ngaxi_skid_buffer - cmd_skid_buffer_inst\nDEPTH entries (APB4 fields + pauser, pwuser)"];
-    rspq [label="Response Skid Buffer\ngaxi_skid_buffer - resp_skid_buffer_inst\nDEPTH entries of {pslverr, prdata, pruser, pbuser}"];
+    cmdq [label="Command Skid Buffer\ngaxi_skid_buffer - cmd_skid_buffer_inst\nDEPTH entries (APB4 fields + pauser, pwuser)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspq [label="Response Skid Buffer\ngaxi_skid_buffer - resp_skid_buffer_inst\nDEPTH entries of {pslverr, prdata, pruser, pbuser}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     be [label="Backend Interface\ncmd_valid / cmd_ready, cmd_pwrite, paddr, pwdata, pstrb, pprot, pauser, pwuser\nrsp_valid / rsp_ready, rsp_prdata, pslverr, pruser, pbuser",
-        fillcolor="white"];
+        fillcolor="white", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     bus -> fsm [dir=both, penwidth=1.8, xlabel="transfer / PREADY, PRDATA,\nPSLVERR, user (registered)"];
-    bus -> pchk [style=dashed, xlabel="*CHK in"];
-    pchk -> perr [style=dashed];
-    fsm -> pgen [style=dashed];
-    pgen -> bus [style=dashed, xlabel="*CHK out", constraint=false];
+    bus -> pchk [style=dashed, color="#777777", xlabel="*CHK in"];
+    pchk -> perr [style=dashed, color="#777777"];
+    fsm -> pgen [style=dashed, color="#777777"];
+    pgen -> bus [style=dashed, color="#777777", xlabel="*CHK out", constraint=false];
     fsm -> cmdq [dir=both, xlabel="command / space"];
     cmdq -> be [dir=both, xlabel="cmd_valid + fields / cmd_ready"];
     rspq -> be [dir=both, xlabel="rsp_valid + fields / rsp_ready"];

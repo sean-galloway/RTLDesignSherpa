@@ -22,31 +22,31 @@ digraph harness_blocks {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            label="stream_harness: control down the center, write data left, read data back up the right", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host  [group=C, label="Host UART\nFT232R, 115200-8N1, ASCII W / R lines", fillcolor="white"];
-    uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
-    brg   [group=C, label="Generated 1 -> N Bridge\nbridge_stream_mon_axil - u_bridge (regen_bridges.sh)\nfixed map: stream_apb 0x0, harness_csr 0x1_0000, desc_ram 0x2_0000,\nerr drains, tallies + their CAM configs, observer APBs, comp_sram 0x1A_0000", width=6];
+    host  [group=C, label="Host UART\nFT232R, 115200-8N1, ASCII W / R lines", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    brg   [group=C, label="Generated 1 -> N Bridge\nbridge_stream_mon_axil - u_bridge (regen_bridges.sh)\nfixed map: stream_apb 0x0, harness_csr 0x1_0000, desc_ram 0x2_0000,\nerr drains, tallies + their CAM configs, observer APBs, comp_sram 0x1A_0000", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    csr   [group=L, label="Harness CSRs\nharness_csr - u_csr\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear; STATUS, RESP_DELAY;\nreads back the run timer, beat stamps,\nper-channel CRCs and the verdict"];
-    desc  [group=L2, label="Descriptor RAM\nsdpram_slave_axi4_axi4 - u_desc_ram\n256-bit; host preloads 32 B / descriptor"];
-    tally [group=R, label="Packet Tallies + Capture\nmonbus_tally_axil x2: u_stream_tally, u_slave_tally\n(CAM of legal {agent, protocol, type, event})\nsdpram_slave_axil_axil - u_comp_sram (MonBus capture)\nall read back through the bridge"];
+    csr   [group=L, label="Harness CSRs\nharness_csr - u_csr\nCTRL: start, clear_stats, freeze_trace,\nsoft_reset, cam_clear; STATUS, RESP_DELAY;\nreads back the run timer, beat stamps,\nper-channel CRCs and the verdict", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    desc  [group=L2, label="Descriptor RAM\nsdpram_slave_axi4_axi4 - u_desc_ram\n256-bit; host preloads 32 B / descriptor", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    tally [group=R, label="Packet Tallies + Capture\nmonbus_tally_axil x2: u_stream_tally, u_slave_tally\n(CAM of legal {agent, protocol, type, event})\nsdpram_slave_axil_axil - u_comp_sram (MonBus capture)\nall read back through the bridge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    tmr   [group=L, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in RAPIDS)\nstart: first m_axi_desc AR\nhandshake (tapped)\nstop: expected write beats\nPASS: every active channel's\nsink CRC == source CRC"];
-    dut   [group=C, label="DUT - stream_top_ch8 - u_stream\nscatter-gather DMA, 8 channels (4 on build-obs): m_axi_rd -> SRAM -> m_axi_wr\nin-core datapath meters (STREAM perf CSRs); in-core monitors when USE_AXI_MONITORS=1", width=7, penwidth=1.8];
+    tmr   [group=L, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in RAPIDS)\nstart: first m_axi_desc AR\nhandshake (tapped)\nstop: expected write beats\nPASS: every active channel's\nsink CRC == source CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dut   [group=C, label="DUT - stream_top_ch8 - u_stream\nscatter-gather DMA, 8 channels (4 on build-obs): m_axi_rd -> SRAM -> m_axi_wr\nin-core datapath meters (STREAM perf CSRs); in-core monitors when USE_AXI_MONITORS=1", width=7, penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    mobs  [group=R, label="Master-side Observer\naxi4_intf_master_observer - u_dma_observer\nsnoops STREAM's rd / wr port: bus meters +\nlatency histograms always (read through\nits own obs_apb window); MonBus taps\nonly with OBS_ENABLE_MON_TAPS=1"];
+    mobs  [group=R, label="Master-side Observer\naxi4_intf_master_observer - u_dma_observer\nsnoops STREAM's rd / wr port: bus meters +\nlatency histograms always (read through\nits own obs_apb window); MonBus taps\nonly with OBS_ENABLE_MON_TAPS=1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wdly  [group=L, label="Write-Response Delay\naxi_response_delay\nu_wr_resp_delay (on B)"];
-    rdly  [group=R2, label="Read-Data Delay\naxi_response_delay\nu_rd_resp_delay (on R)"];
-    sobs  [group=R, label="Slave-side Observer\naxi4_intf_slave_observer\nu_slave_observer: snoops\nthe slaves' port; records\n-> slave_tally"];
+    wdly  [group=L, label="Write-Response Delay\naxi_response_delay\nu_wr_resp_delay (on B)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rdly  [group=R2, label="Read-Data Delay\naxi_response_delay\nu_rd_resp_delay (on R)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sobs  [group=R, label="Slave-side Observer\naxi4_intf_slave_observer\nu_slave_observer: snoops\nthe slaves' port; records\n-> slave_tally", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     p_aw  [shape=point, style=invis, width=0.01, label=""];
     p_ar  [shape=point, style=invis, width=0.01, label=""];
 
     bar   [group=C, label="Memory model: axi4_dma_slaves - u_dma_slaves\nLFSR read source behind m_axi_rd  |  CRC write sink behind m_axi_wr (per-channel CRC + beat counts)",
-           fillcolor="white", width=9];
+           fillcolor="white", width=9, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     { rank=same; csr; desc; tally; }
     csr -> desc -> tally [style=invis];
@@ -61,9 +61,9 @@ digraph harness_blocks {
     brg  -> desc [xlabel="preload"];
     brg  -> tally [dir=back, xlabel="tally / capture readback"];
     brg  -> dut  [xlabel="stream_apb: config + kicks"];
-    csr  -> dut  [style=dashed, xlabel="start, soft_reset, cam_clear"];
-    csr  -> tmr  [style=dashed, dir=both, xlabel="clear, target /\nresult"];
-    tmr  -> bar  [style=dashed, dir=back, xlabel="per-channel CRCs\n+ beat counts"];
+    csr  -> dut  [style=dashed, color="#777777", xlabel="start, soft_reset, cam_clear"];
+    csr  -> tmr  [style=dashed, color="#777777", dir=both, xlabel="clear, target /\nresult"];
+    tmr  -> bar  [style=dashed, color="#777777", dir=back, xlabel="per-channel CRCs\n+ beat counts"];
     desc -> dut  [dir=both, xlabel="m_axi_desc: 256-bit fetch\n(AR up, descriptors down)"];
 
     dut  -> p_aw [dir=none];
@@ -75,7 +75,7 @@ digraph harness_blocks {
     dut  -> rdly [dir=back, penwidth=1.8, xlabel="R (delayed)"];
     rdly -> bar  [dir=back, penwidth=1.8, xlabel="R: LFSR data"];
 
-    dut  -> mobs [style=dashed, constraint=false, xlabel="snoop"];
-    sobs -> bar  [style=dashed, dir=back, xlabel="snoop"];
-    mobs -> tally [style=dashed, xlabel="MonBus records\n(+ in-core monitors)"];
+    dut  -> mobs [style=dashed, color="#777777", constraint=false, xlabel="snoop"];
+    sobs -> bar  [style=dashed, color="#777777", dir=back, xlabel="snoop"];
+    mobs -> tally [style=dashed, color="#777777", xlabel="MonBus records\n(+ in-core monitors)"];
 }

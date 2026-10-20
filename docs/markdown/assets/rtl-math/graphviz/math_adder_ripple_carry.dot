@@ -8,22 +8,22 @@ digraph math_adder_ripple_carry {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_adder_ripple_carry - N-bit ripple-carry adder (combinational)";
 
-    ops  [group=L, label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
-    cin  [group=C, label="Carry In\ni_c", fillcolor="white"];
+    ops  [group=L, label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cin  [group=C, label="Carry In\ni_c", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     p0 [group=L, shape=point, width=0.01];
     p1 [group=L, shape=point, width=0.01];
     p2 [group=L, shape=point, width=0.01];
 
-    fa0  [group=C, label="Bit 0 Full Adder\nmath_adder_full - fa0"];
-    fam  [group=C, label="Bits 1 .. N-2\n(N-2) x math_adder_full - gen_full_adders"];
-    fal  [group=C, label="Bit N-1 Full Adder\nmath_adder_full"];
+    fa0  [group=C, label="Bit 0 Full Adder\nmath_adder_full - fa0", style="filled", fillcolor="white"];
+    fam  [group=C, label="Bits 1 .. N-2\n(N-2) x math_adder_full - gen_full_adders", style="filled", fillcolor="white"];
+    fal  [group=C, label="Bit N-1 Full Adder\nmath_adder_full", style="filled", fillcolor="white"];
 
-    outs [label="Outputs\now_sum[N-1:0]   |   ow_carry", fillcolor="white", width=6.0];
+    outs [label="Outputs\now_sum[N-1:0]   |   ow_carry", fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     ops -> p0 [arrowhead=none, headclip=false, xlabel="operand bits, LSB first"];
     p0  -> p1 [arrowhead=none, tailclip=false, headclip=false];

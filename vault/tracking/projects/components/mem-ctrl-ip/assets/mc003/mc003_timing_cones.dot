@@ -7,23 +7,23 @@ digraph mc003_timing_cones {
            label="MC-003 residual timing cones - per-bank 0-stage pick core",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- storage side (above the boundary) ----
     entry_arrays [label="WR + RD entry arrays\nmc_xddr2_entry_store\n(r_wr_* / r_rd_*)",
-                  fillcolor="white", group=C, width=3.0];
+                  fillcolor="white", group=C, width=3.0, style="rounded,filled", fillcolor="#E2EFDA"];
     commit_reg [label="WR commit register\nu_entry_store r_wr_sched",
-                fillcolor="white", group=W, width=2.2];
+                fillcolor="white", group=W, width=2.2, style="rounded,filled", fillcolor="#E2EFDA"];
     axi_issue  [label="RD issue / return-ring\nu_axi_plane u_rd_ring",
-                fillcolor="white", group=R, width=2.2];
+                fillcolor="white", group=R, width=2.2, style="rounded,filled", fillcolor="#E2EFDA"];
 
     head_scan [label="Per-bank head scan\n(oldest + second-oldest)\nmc_xddr2_entry_store (combinational)",
-               group=C, width=3.0];
+               group=C, width=3.0, style="filled", fillcolor="white"];
 
     // ---- plane boundary bar ----
     plane_bar [label="Scheduler plane boundary\n(entry-store side ↔ scheduler side)",
-               fillcolor="white", width=7.5, fontsize=11, group=C];
+               fillcolor="white", width=7.5, fontsize=11, group=C, shape=note];
 
     // ---- boundary crossing scaffolds (sit on the bar) ----
     p_head [shape=point, width=0.01, group=C];
@@ -32,17 +32,17 @@ digraph mc003_timing_cones {
 
     // ---- scheduler side (below the boundary) ----
     pending [label="Seat-pending stage\nr_wp / r_rp\n(REGISTER — breaks cone)",
-             fillcolor="#E2F0D9", group=C, width=2.4];
-    skid [label="Head skid\nr_ws / r_rs", group=C, width=2.0];
-    op_decode [label="Per-bank op decode\nACT / PRE / RD / WR", group=C, width=2.4];
+             fillcolor="#E2F0D9", group=C, width=2.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    skid [label="Head skid\nr_ws / r_rs", group=C, width=2.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    op_decode [label="Per-bank op decode\nACT / PRE / RD / WR", group=C, width=2.4, style="filled", fillcolor="white"];
 
     // pick-core trapezium: rotor + fire combined
     pick_core [label="mc_bank_sched\nper-bank 0-stage pick core\n(rotor + fire)",
-               shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", fontsize=11, group=C];
+               shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", fontsize=11, group=C, style="filled", fillcolor="#FFF2CC"];
 
-    cmd_fifo [label="Output command FIFO\nu_cmd_fifo - gaxi_fifo_sync", group=C, width=2.6];
+    cmd_fifo [label="Output command FIFO\nu_cmd_fifo - gaxi_fifo_sync", group=C, width=2.6, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     bank_timers [label="Per-bank JEDEC timers\nu_bank_timers\nr_rc / r_rcd / r_rp / r_ras / r_preblk",
-                 group=C, width=2.6];
+                 group=C, width=2.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // class-input scaffold points on the wide edge of the trapezium
     p_wr_in [shape=point, width=0.01, group=W];
@@ -50,7 +50,7 @@ digraph mc003_timing_cones {
 
     // ---- Vivado corner note ----
     note [label="Vivado 75 MHz: WNS −0.730 ns after retime+directives;\nresidual cones ~17 logic levels, ~73% routing",
-          fillcolor="white", fontsize=9, group=C];
+          fillcolor="white", fontsize=9, group=C, shape=note];
 
     // ---- entry arrays -> head scan (red prefix) ----
     entry_arrays -> head_scan [color="red"];

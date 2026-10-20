@@ -8,17 +8,17 @@ digraph dataint_crc_xor_shift {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="dataint_crc_xor_shift - one CRC bit-step (combinational)";
 
-    st_in [label="CRC State In\nstage_input[CRC_WIDTH-1:0]", fillcolor="white"];
-    nb_in [label="Data Bit In\nnew_bit", fillcolor="white"];
-    poly  [label="Polynomial In\npoly[CRC_WIDTH-1:0]: generator polynomial,\nthe taps XORed in when feedback = 1", fillcolor="white"];
+    st_in [label="CRC State In\nstage_input[CRC_WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    nb_in [label="Data Bit In\nnew_bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    poly  [label="Polynomial In\npoly[CRC_WIDTH-1:0]: generator polynomial,\nthe taps XORed in when feedback = 1", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fb    [label="Feedback Bit (combinational)\nw_feedback_bit = new_bit ^ stage_input[MSB]"];
-    sx    [label="Shift and Conditional XOR (combinational)\nstage_output[0] = w_feedback_bit\nstage_output[N-1:1] = stage_input[N-2:0]\n    ^ (w_feedback_bit ? poly[N-1:1] : 0)"];
-    bar   [label="CRC State Out\nstage_output[CRC_WIDTH-1:0]", fillcolor="white", width=4.5];
+    fb    [label="Feedback Bit (combinational)\nw_feedback_bit = new_bit ^ stage_input[MSB]", style="filled", fillcolor="white"];
+    sx    [label="Shift and Conditional XOR (combinational)\nstage_output[0] = w_feedback_bit\nstage_output[N-1:1] = stage_input[N-2:0]\n    ^ (w_feedback_bit ? poly[N-1:1] : 0)", style="filled", fillcolor="white"];
+    bar   [label="CRC State Out\nstage_output[CRC_WIDTH-1:0]", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
     nb_in -> fb [xlabel="new_bit"];
     st_in -> fb [xlabel="stage_input[MSB]"];

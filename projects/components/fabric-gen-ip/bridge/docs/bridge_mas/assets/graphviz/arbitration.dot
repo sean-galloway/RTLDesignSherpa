@@ -7,34 +7,34 @@ digraph arbitration {
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="Per-slave AW arbiter <s>_aw_arb (the AR arbiter is identical) - single clock aclk\nW, B and R have no arbiter: W follows the AW grant through the W owner FIFO"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    m0 [label="Master 0 Path\n<m0>_aw_to_<s> && <m0>_awvalid", fillcolor="white"];
-    mn [label="Master M-1 Path\n<mN>_aw_to_<s> && <mN>_awvalid", fillcolor="white"];
-    legend [label="Parameters (TOML, fixed at generation)\larbitration = \"rr\" (default): round-robin pick\larbitration = \"qos\": effective priority = AWQOS + age\l    (age climbs one level per 2**qos_aging_shift waiting cycles,\l    saturates at 15, clears on grant); round-robin among equals\l", fillcolor="white"];
+    m0 [label="Master 0 Path\n<m0>_aw_to_<s> && <m0>_awvalid", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mn [label="Master M-1 Path\n<mN>_aw_to_<s> && <mN>_awvalid", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    legend [label="Parameters (TOML, fixed at generation)\larbitration = \"rr\" (default): round-robin pick\larbitration = \"qos\": effective priority = AWQOS + age\l    (age climbs one level per 2**qos_aging_shift waiting cycles,\l    saturates at 15, clears on grant); round-robin among equals\l", fillcolor="white", shape=note];
     { rank=same; m0; mn; legend; }
     m0 -> mn -> legend [style=invis];
 
-    req [label="Request Vector\n<s>_aw_arb_req: one bit per master whose AW\nis valid and re-decodes to slave s"];
-    qos [label="QoS Eligibility (arbitration = qos only)\nper requester AWQOS + age; only those at the\nbest effective priority stay eligible", style="filled,dashed"];
+    req [label="Request Vector\n<s>_aw_arb_req: one bit per master whose AW\nis valid and re-decodes to slave s", style="filled", fillcolor="white"];
+    qos [label="QoS Eligibility (arbitration = qos only)\nper requester AWQOS + age; only those at the\nbest effective priority stay eligible", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     { rank=same; rr; req; }
     rr -> req [style=invis];
 
-    pick [label="Round-Robin Pick\n<s>_aw_arb_pick: first requester at or after\n<s>_aw_arb_rr", shape=invtrapezium, width=5.2, height=0.7, group=C];
-    rr [label="Round-Robin Pointer (flop)\n<s>_aw_arb_rr: set one past\nthe winner at each AW handshake"];
+    pick [label="Round-Robin Pick\n<s>_aw_arb_pick: first requester at or after\n<s>_aw_arb_rr", shape=invtrapezium, width=5.2, height=0.7, group=C, style="filled", fillcolor="#FFF2CC"];
+    rr [label="Round-Robin Pointer (flop)\n<s>_aw_arb_rr: set one past\nthe winner at each AW handshake", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    lock [group=C, label="Grant Lock (flops)\n<s>_aw_arb_locked / _lock: once AWVALID is up\nthe grant is held until the AW handshake\n(AXI forbids changing a presented request)"];
+    lock [group=C, label="Grant Lock (flops)\n<s>_aw_arb_locked / _lock: once AWVALID is up\nthe grant is held until the AW handshake\n(AXI forbids changing a presented request)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar [label="Grant - <m>_aw_gnt_<s> (one-hot) to the AW mux, the W owner FIFO and each master's AWREADY", fillcolor="white", width=8.5, group=C];
+    bar [label="Grant - <m>_aw_gnt_<s> (one-hot) to the AW mux, the W owner FIFO and each master's AWREADY", fillcolor="white", width=8.5, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     m0 -> req [label="request (master 0)"];
     mn -> req [label="request (master M-1)"];
     req -> pick [label="requests"];
-    req -> qos [style=dashed, label="requests + AWQOS"];
-    qos -> pick [style=dashed, label="eligible set"];
-    rr -> pick [style=dashed, label="start position"];
+    req -> qos [style=dashed, color="#777777", label="requests + AWQOS"];
+    qos -> pick [style=dashed, color="#777777", label="eligible set"];
+    rr -> pick [style=dashed, color="#777777", label="start position"];
     pick -> lock [xlabel="winner", penwidth=1.8];
     lock -> bar [xlabel="held grant", penwidth=1.8];
-    rr -> lock [style=dashed, dir=back, xlabel="winner at handshake"];
+    rr -> lock [style=dashed, color="#777777", dir=back, xlabel="winner at handshake"];
 }

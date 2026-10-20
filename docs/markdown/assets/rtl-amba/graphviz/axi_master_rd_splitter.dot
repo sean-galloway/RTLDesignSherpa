@@ -10,32 +10,32 @@ digraph axi_master_rd_splitter {
            nodesep="0.35", ranksep="0.85", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi_master_rd_splitter - splits AXI read bursts at an alignment boundary (one clock: aclk)";
 
-    sinfo [group=S, label="Split Info Out\nfub_split_addr / _id / _cnt\n/ fub_split_ready\no_split_fifo_overflow (sticky)", fillcolor="white"];
-    fport [group=C, label="Upstream FUB Read Port\nfub_ar in   |   fub_r out", fillcolor="white"];
-    ctl   [group=K, label="Control Inputs\nalignment_mask[11:0]\n(0xFFF = 4 KB)\nblock_ready", fillcolor="white"];
+    sinfo [group=S, label="Split Info Out\nfub_split_addr / _id / _cnt\n/ fub_split_ready\no_split_fifo_overflow (sticky)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    fport [group=C, label="Upstream FUB Read Port\nfub_ar in   |   fub_r out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ctl   [group=K, label="Control Inputs\nalignment_mask[11:0]\n(0xFFF = 4 KB)\nblock_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fifo  [group=S, label="Split Info FIFO\ngaxi_fifo_sync -\ninst_split_info_fifo\none {addr, id, count}\nper original burst"];
-    fsm   [group=C, label="Split Control (flops)\nIDLE / SPLITTING; r_orig_* hold the original AR\nr_current_addr / len step through the pieces\nnew AR only when idle, unblocked, R drained"];
-    calc  [group=K, label="Split Calculator\naxi_split_combi -\ninst_axi_split_combi\n(see its diagram)"];
-    ardrv [group=C, label="AR Drive (combinational)\nIDLE: fub fields\nSPLITTING: held fields\narlen = split_len"];
-    rpath [group=R, label="R Return\nid, data, resp pass up;\nr_rbeats_remaining (flop):\nfub_rlast only on the\noriginal's last beat"];
+    fifo  [group=S, label="Split Info FIFO\ngaxi_fifo_sync -\ninst_split_info_fifo\none {addr, id, count}\nper original burst", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    fsm   [group=C, label="Split Control (flops)\nIDLE / SPLITTING; r_orig_* hold the original AR\nr_current_addr / len step through the pieces\nnew AR only when idle, unblocked, R drained", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    calc  [group=K, label="Split Calculator\naxi_split_combi -\ninst_axi_split_combi\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ardrv [group=C, label="AR Drive (combinational)\nIDLE: fub fields\nSPLITTING: held fields\narlen = split_len", style="filled", fillcolor="white"];
+    rpath [group=R, label="R Return\nid, data, resp pass up;\nr_rbeats_remaining (flop):\nfub_rlast only on the\noriginal's last beat", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar   [label="Downstream AXI Read Port (m_axi)\nm_axi_ar out: one AR per split piece   |   m_axi_r in",
-           fillcolor="white", width=8.5];
+           fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     fport -> fsm  [xlabel="AR (original burst)"];
-    ctl   -> fsm  [style=dashed, xlabel="block_ready"];
+    ctl   -> fsm  [style=dashed, color="#777777", xlabel="block_ready"];
     fsm   -> calc [dir=both, xlabel="addr, len /\nsplit_len, remaining"];
-    ctl   -> calc [style=dashed, xlabel="alignment_mask"];
+    ctl   -> calc [style=dashed, color="#777777", xlabel="alignment_mask"];
     fsm   -> ardrv [xlabel="current piece"];
     ardrv -> bar  [xlabel="AR (per piece)"];
-    rpath -> bar  [dir=back, xlabel="R beats"];
-    rpath -> fport [xlabel="R (rlast regenerated)"];
-    fsm   -> rpath [style=dashed, xlabel="beat count\nat admit"];
+    rpath -> bar  [color="#1A7A1A", dir=back, xlabel="R beats"];
+    rpath -> fport [color="#1A7A1A", xlabel="R (rlast regenerated)"];
+    fsm   -> rpath [style=dashed, color="#777777", xlabel="beat count\nat admit"];
     fsm -> fifo [xlabel="record at\nlast piece"];
     fifo  -> sinfo [xlabel="split info"];
 

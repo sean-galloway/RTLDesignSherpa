@@ -7,25 +7,25 @@ digraph rapids_beats_product_context {
            label="RAPIDS Beats in its system - three flows through one engine",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    net_in  [label="Network (ingress)\nAXIS stream or CXS link", fillcolor="white", group=L];
-    cpu     [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white", group=C];
-    net_out [label="Network (egress)\nAXIS stream or CXS link", fillcolor="white", group=R];
+    net_in  [label="Network (ingress)\nAXIS stream or CXS link", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    cpu     [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    net_out [label="Network (egress)\nAXIS stream or CXS link", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    sink  [label="Sink Data Path\nRX network plane (AXIS | CXS) -> SRAM -> AXI write engine", group=L];
-    sched [label="Scheduler Group Arrays (8 channels per half)\ndescriptor engines + schedulers", group=C];
-    src   [label="Source Data Path\nAXI read engine -> SRAM -> TX network plane (AXIS | CXS)", group=R];
+    sink  [label="Sink Data Path\nRX network plane (AXIS | CXS) -> SRAM -> AXI write engine", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sched [label="Scheduler Group Arrays (8 channels per half)\ndescriptor engines + schedulers", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    src   [label="Source Data Path\nAXI read engine -> SRAM -> TX network plane (AXIS | CXS)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     mem [label="System Memory (through the AXI interconnect)\ndata buffers and descriptor chains",
-         fillcolor="white", width=9.5, group=C];
+         fillcolor="white", width=9.5, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     net_in -> sink  [label="network packets"];
     cpu    -> sched [label="APB: config, kick"];
     sched  -> sink  [xlabel="write commands"];
     sched  -> src   [xlabel="read commands"];
-    net_out -> src  [dir=back, label="network packets"];
+    net_out -> src  [color="#1A7A1A", dir=back, label="network packets"];
 
     p_w  [shape=point, width=0.01, group=L];
     p_d  [shape=point, width=0.01, group=C];
@@ -41,8 +41,8 @@ digraph rapids_beats_product_context {
     p_d  -> mem  [xlabel="descriptor fetch\n(AR out, R back)", penwidth=1.8, tailclip=false];
     src  -> p_ar [arrowhead=none, headclip=false];
     p_ar -> mem  [xlabel="AXI read\nrequest (AR)", tailclip=false];
-    src  -> p_r  [dir=back, headclip=false];
-    p_r  -> mem  [dir=none, xlabel="read data (R)", tailclip=false];
+    src  -> p_r  [color="#1A7A1A", dir=back, headclip=false];
+    p_r  -> mem  [color="#1A7A1A", dir=none, xlabel="read data (R)", tailclip=false];
 
     { rank=same; net_in; cpu; net_out; }
     net_in -> cpu -> net_out [style=invis];

@@ -13,32 +13,32 @@ digraph rs_axi4_pipeline {
            labelloc=t, labeljust=c, pad="0.2",
            label="Reed-Solomon AXI4 datapath: memory-to-memory job chain"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    csr  [group=L, label="Host CSRs\nrs_loop_regs\nCTRL, GO, GEN_BLOCKS,\nINJ_CFG, GEN_SEED", fillcolor="white"];
-    gen  [group=C, label="Pattern Generator\naxis4_master_injector - u_gen\nseeded LFSR + CRC-32"];
+    csr  [group=L, label="Host CSRs\nrs_loop_regs\nCTRL, GO, GEN_BLOCKS,\nINJ_CFG, GEN_SEED", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    gen  [group=C, label="Pattern Generator\naxis4_master_injector - u_gen\nseeded LFSR + CRC-32", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    seed [group=C, label="Seed write engine\nrs_axi4_write_engine - u_seed\nwrites messages to M1"];
-    m1   [group=C, label="Memory 1 (messages)\nsdpram_slave_axi4_axi4 - u_mem1\n16 KB, blocks * k_beats words", fillcolor="white", width=4.5];
-    enc  [group=C, label="RS Encoder JOB engine\nrs_encoder_axi4 - u_enc\nreads M1, writes codewords to M2"];
-    m2   [group=C, label="Memory 2 (codewords)\nsdpram_slave_axi4_axi4 - u_mem2\n16 KB, blocks * n_beats words", fillcolor="white", width=4.5];
+    seed [group=C, label="Seed write engine\nrs_axi4_write_engine - u_seed\nwrites messages to M1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m1   [group=C, label="Memory 1 (messages)\nsdpram_slave_axi4_axi4 - u_mem1\n16 KB, blocks * k_beats words", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
+    enc  [group=C, label="RS Encoder JOB engine\nrs_encoder_axi4 - u_enc\nreads M1, writes codewords to M2", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m2   [group=C, label="Memory 2 (codewords)\nsdpram_slave_axi4_axi4 - u_mem2\n16 KB, blocks * n_beats words", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    inj  [group=C, label="Error Injector\nerror_injector - u_inj\nsits on decoder R channel\ncorrupts codewords in flight"];
-    dec  [group=C, label="RS Decoder JOB engine\nrs_decoder_axi4 - u_dec\nreads corrupted M2, writes recovered to M4"];
-    m4   [group=C, label="Memory 4 (recovered)\nsdpram_slave_axi4_axi4 - u_mem4\n16 KB, blocks * k_beats words", fillcolor="white", width=4.5];
-    drain [group=C, label="Drain read engine\nrs_axi4_read_engine - u_drain\nreads M4 back to checker"];
+    inj  [group=C, label="Error Injector\nerror_injector - u_inj\nsits on decoder R channel\ncorrupts codewords in flight", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec  [group=C, label="RS Decoder JOB engine\nrs_decoder_axi4 - u_dec\nreads corrupted M2, writes recovered to M4", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m4   [group=C, label="Memory 4 (recovered)\nsdpram_slave_axi4_axi4 - u_mem4\n16 KB, blocks * k_beats words", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
+    drain [group=C, label="Drain read engine\nrs_axi4_read_engine - u_drain\nreads M4 back to checker", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    obs  [group=R, label="AXI4 interface observer\naxi4_intf_master_observer - u_obs_axi4\n4 master ports: meters + latency hist\n(observed, nothing driven back)", fillcolor="white"];
+    obs  [group=R, label="AXI4 interface observer\naxi4_intf_master_observer - u_obs_axi4\n4 master ports: meters + latency hist\n(observed, nothing driven back)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    bar  [group=C, label="Pattern Checker\naxis4_slave_pattern_check - g_chk[0].u_chk\nregenerated LFSR; data_err, CRC, beat/packet counts", fillcolor="white", width=5.5];
+    bar  [group=C, label="Pattern Checker\naxis4_slave_pattern_check - g_chk[0].u_chk\nregenerated LFSR; data_err, CRC, beat/packet counts", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // control sideband from CSR -- short horizontal dashes to each stage
-    csr -> seed [style=dashed, xlabel="start"];
-    csr -> enc  [style=dashed, xlabel="enc_start"];
-    csr -> inj  [style=dashed, xlabel="mode / count /\nrate / seed"];
-    csr -> dec  [style=dashed, xlabel="dec_start"];
-    csr -> drain [style=dashed, xlabel="drain_start"];
+    csr -> seed [style=dashed, color="#777777", xlabel="start"];
+    csr -> enc  [style=dashed, color="#777777", xlabel="enc_start"];
+    csr -> inj  [style=dashed, color="#777777", xlabel="mode / count /\nrate / seed"];
+    csr -> dec  [style=dashed, color="#777777", xlabel="dec_start"];
+    csr -> drain [style=dashed, color="#777777", xlabel="drain_start"];
 
     // forward data / command top-down
     gen -> seed [penwidth=1.8, xlabel="message beats"];
@@ -48,13 +48,13 @@ digraph rs_axi4_pipeline {
     drain -> bar [penwidth=1.8, xlabel="message beats"];
 
     // read data climbs back up
-    m1 -> enc  [dir=back, penwidth=1.8, xlabel="AR / R messages"];
-    m2 -> inj  [dir=back, penwidth=1.8, xlabel="AR / R codewords"];
-    inj -> dec [dir=back, penwidth=1.8, xlabel="corrupted R beats"];
-    m4 -> drain [dir=back, penwidth=1.8, xlabel="AR / R recovered"];
+    m1 -> enc  [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="AR / R messages"];
+    m2 -> inj  [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="AR / R codewords"];
+    inj -> dec [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="corrupted R beats"];
+    m4 -> drain [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="AR / R recovered"];
 
     // observer taps (passive, dashed, short from the right)
-    enc  -> obs [style=dashed, constraint=false, xlabel="enc RD + WR"];
-    inj  -> obs [style=dashed, constraint=false, xlabel="dec RD (post-inject)"];
-    dec  -> obs [style=dashed, constraint=false, xlabel="dec WR"];
+    enc  -> obs [style=dashed, color="#777777", constraint=false, xlabel="enc RD + WR"];
+    inj  -> obs [style=dashed, color="#777777", constraint=false, xlabel="dec RD (post-inject)"];
+    dec  -> obs [style=dashed, color="#777777", constraint=false, xlabel="dec WR"];
 }

@@ -9,22 +9,22 @@ digraph axi4_dwidth_converter {
            label="axi4_dwidth_converter - PLANNED (no RTL): bidirectional AXI4 width converter, one mode per build",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    mode [label="Mode (planned parameters)\lupsize (narrow -> wide): pack WIDTH_RATIO\l    beats into one; AWLEN/ARLEN = ceil\l    over the lanes; WSTRB merged\ldownsize (wide -> narrow): unpack one beat\l    into WIDTH_RATIO; bursts split at 256\lWIDTH_RATIO = wide / narrow data width\l*_FIFO_DEPTH: per-channel FIFO depth\l", fillcolor="white"];
-    sp   [label="Slave Port  s_axi_*  (source width)\nAW, W, AR in  /  B, R out", fillcolor="white", width=9.0];
+    mode [label="Mode (planned parameters)\lupsize (narrow -> wide): pack WIDTH_RATIO\l    beats into one; AWLEN/ARLEN = ceil\l    over the lanes; WSTRB merged\ldownsize (wide -> narrow): unpack one beat\l    into WIDTH_RATIO; bursts split at 256\lWIDTH_RATIO = wide / narrow data width\l*_FIFO_DEPTH: per-channel FIFO depth\l", fillcolor="white", shape=note];
+    sp   [label="Slave Port  s_axi_*  (source width)\nAW, W, AR in  /  B, R out", fillcolor="white", width=9.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    awf  [label="AW FIFO"];
-    wf   [label="W FIFO"];
-    arf  [label="AR FIFO"];
-    bf   [label="B FIFO"];
-    rf   [label="R FIFO"];
+    awf  [label="AW FIFO", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    wf   [label="W FIFO", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    arf  [label="AR FIFO", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    bf   [label="B FIFO", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rf   [label="R FIFO", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    wcv  [label="Write Converter\nrecompute AWLEN / AWSIZE;\npack or unpack W beats, merge WSTRB"];
-    rcv  [label="Read Converter\nrecompute ARLEN / ARSIZE;\npack or unpack R beats"];
+    wcv  [label="Write Converter\nrecompute AWLEN / AWSIZE;\npack or unpack W beats, merge WSTRB", style="filled", fillcolor="white"];
+    rcv  [label="Read Converter\nrecompute ARLEN / ARSIZE;\npack or unpack R beats", style="filled", fillcolor="white"];
 
-    mp   [label="Master Port  m_axi_*  (destination width)\nAW, W, AR out  /  B, R in", fillcolor="white", width=9.0];
+    mp   [label="Master Port  m_axi_*  (destination width)\nAW, W, AR out  /  B, R in", fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // write: W left, AW center
     sp  -> wf  [xlabel="W"];
@@ -35,12 +35,12 @@ digraph axi4_dwidth_converter {
     // read request
     sp  -> arf [xlabel="AR"];
     arf -> rcv [label="AR"];
-    rcv -> mp  [xlabel="AR (converted) ", penwidth=1.8];
+    rcv -> mp  [color="#1A7A1A", xlabel="AR (converted) ", penwidth=1.8];
     // responses climb the right
-    bf  -> mp  [dir=back, label="B"];
-    sp  -> bf  [dir=back, label="B"];
-    rf  -> rcv [dir=back, label="R (source width)"];
-    sp  -> rf  [dir=back, label="R"];
+    bf  -> mp  [color="#1A7A1A", dir=back, label="B"];
+    sp  -> bf  [color="#1A7A1A", dir=back, label="B"];
+    rf  -> rcv [color="#1A7A1A", dir=back, label="R (source width)"];
+    sp  -> rf  [color="#1A7A1A", dir=back, label="R"];
     rcv -> mp  [dir=back, xlabel="R (destination width)"];
 
     { rank=same; mode; }

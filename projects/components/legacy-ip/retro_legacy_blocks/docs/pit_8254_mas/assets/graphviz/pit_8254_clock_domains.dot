@@ -11,25 +11,25 @@ digraph pit_8254_clock_domains {
            label="apb4_pit_8254 clocking - CDC_ENABLE=0: one clock (pclk);  CDC_ENABLE=1: APB on pclk, registers and counters on pit_clk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pclk  [group=L, fillcolor="white", label="APB Clock / Reset\npclk, presetn"];
-    tclk  [group=R, fillcolor="white", label="Timer Clock / Reset\npit_clk, pit_resetn"];
+    pclk  [group=L, fillcolor="white", label="APB Clock / Reset\npclk, presetn", style="rounded,filled", fillcolor="#E2EFDA"];
+    tclk  [group=R, fillcolor="white", label="Timer Clock / Reset\npit_clk, pit_resetn", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    sel   [group=C, label="Timer-Clock Select (build-time constant)\napb4_pit_8254\ntimer clock = CDC_ENABLE ? pit_clk : pclk\ntimer reset = CDC_ENABLE ? pit_resetn : presetn"];
+    sel   [group=C, label="Timer-Clock Select (build-time constant)\napb4_pit_8254\ntimer clock = CDC_ENABLE ? pit_clk : pclk\ntimer reset = CDC_ENABLE ? pit_resetn : presetn", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    slv   [group=L, width=6.6, label="APB Completer\nCDC_ENABLE=0: apb4_slave, all on pclk\nCDC_ENABLE=1: apb4_slave_cdc - APB side on pclk,\ncmd / rsp side on pit_clk (see its diagram)"];
+    slv   [group=L, width=6.6, label="APB Completer\nCDC_ENABLE=0: apb4_slave, all on pclk\nCDC_ENABLE=1: apb4_slave_cdc - APB side on pclk,\ncmd / rsp side on pit_clk (see its diagram)", style="filled", fillcolor="white"];
 
-    core  [group=R, label="Register Block + Counter Core (timer clock)\npit_config_regs, pit_core, 3 x pit_counter\nGATE synchronizer: SYNC_STAGES flops on the timer clock"];
+    core  [group=R, label="Register Block + Counter Core (timer clock)\npit_config_regs, pit_core, 3 x pit_counter\nGATE synchronizer: SYNC_STAGES flops on the timer clock", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar   [fillcolor="white", width=9.0,
-           label="Module Boundary\ngate_in[2:0] in (asynchronous to both clocks)   |   timer_irq[2:0] out (timer clock)"];
+           label="Module Boundary\ngate_in[2:0] in (asynchronous to both clocks)   |   timer_irq[2:0] out (timer clock)", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pclk -> slv  [penwidth=1.8, xlabel="pclk (APB side)"];
     pclk -> sel  [xlabel="pclk"];
     tclk -> sel  [penwidth=1.8, xlabel="pit_clk"];
-    sel  -> slv  [style=dashed, xlabel="pit_clk\n(CDC_ENABLE=1)"];
+    sel  -> slv  [style=dashed, color="#777777", xlabel="pit_clk\n(CDC_ENABLE=1)"];
     sel  -> core [penwidth=1.8, xlabel="timer clock + reset"];
     slv  -> core [dir=both, xlabel="cmd / rsp\n(on the timer clock)"];
     core -> bar  [dir=both, xlabel="timer_irq out\n/ gate_in in"];

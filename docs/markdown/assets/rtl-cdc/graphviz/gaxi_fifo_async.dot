@@ -21,30 +21,30 @@ digraph gaxi_fifo_async {
            label="gaxi_fifo_async - dual-clock valid/ready FIFO, pointer-synchronized",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    wr_port [group=WO, label="Write Port (valid/ready)\naxi_wr_aclk domain", fillcolor="white"];
-    rd_port [group=RO, label="Read Port (valid/ready)\naxi_rd_aclk domain", fillcolor="white"];
+    wr_port [group=WO, label="Write Port (valid/ready)\naxi_wr_aclk domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rd_port [group=RO, label="Read Port (valid/ready)\naxi_rd_aclk domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_wr {
         label="axi_wr_aclk domain"; style=dashed; fontsize=10;
-        wr_cnt  [group=WO, label="Write Pointer Counter\ncounter_bingray\n(Johnson: counter_johnson)"];
-        rd_sync [group=WI, label="Read Pointer Sync + Decode\nglitch_free_n_dff_arn on axi_wr_aclk\n+ gray2bin (Johnson: johnson2bin)"];
-        full    [group=WI, label="Full Flag\nfifo_control - write half"];
+        wr_cnt  [group=WO, label="Write Pointer Counter\ncounter_bingray\n(Johnson: counter_johnson)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        rd_sync [group=WI, label="Read Pointer Sync + Decode\nglitch_free_n_dff_arn on axi_wr_aclk\n+ gray2bin (Johnson: johnson2bin)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        full    [group=WI, label="Full Flag\nfifo_control - write half", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     subgraph cluster_rd {
         label="axi_rd_aclk domain"; style=dashed; fontsize=10;
-        rd_cnt  [group=RO, label="Read Pointer Counter\ncounter_bingray\n(Johnson: counter_johnson)"];
-        wr_sync [group=RI, label="Write Pointer Sync + Decode\nglitch_free_n_dff_arn on axi_rd_aclk\n+ gray2bin (Johnson: johnson2bin)"];
-        empty   [group=RI, label="Empty Flag\nfifo_control - read half"];
+        rd_cnt  [group=RO, label="Read Pointer Counter\ncounter_bingray\n(Johnson: counter_johnson)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        wr_sync [group=RI, label="Write Pointer Sync + Decode\nglitch_free_n_dff_arn on axi_rd_aclk\n+ gray2bin (Johnson: johnson2bin)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        empty   [group=RI, label="Empty Flag\nfifo_control - read half", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     // ---- the boundary bar: storage written on wr_clk, read on rd_clk ----
     mem [group=C, label="Dual-Port Storage  mem[DEPTH]  (MEM_STYLE: SRL / BRAM / AUTO)\nwritten on axi_wr_aclk at the left, read on axi_rd_aclk at the right\n(REGISTERED=1 or BRAM: rd_data flopped on axi_rd_aclk)",
-         width=17.4, height=0.9];
+         width=17.4, height=0.9, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- push / pop into the counters ----
     wr_port -> wr_cnt [label="wr_valid & wr_ready"];
@@ -61,8 +61,8 @@ digraph gaxi_fifo_async {
     wr_sync -> empty [label="wr ptr (binary)"];
 
     // ---- flags back to the ports (feedback: dashed) ----
-    full  -> wr_port [style=dashed, constraint=false, xlabel="wr_ready\n(= !full)"];
-    empty -> rd_port [style=dashed, constraint=false, xlabel="rd_valid\n(= !empty)"];
+    full  -> wr_port [style=dashed, color="#777777", constraint=false, xlabel="wr_ready\n(= !full)"];
+    empty -> rd_port [style=dashed, color="#777777", constraint=false, xlabel="rd_valid\n(= !empty)"];
 
     // ---- storage connections via point scaffolds (left to right: write
     //      data, write address, read address, read data) ----
@@ -77,8 +77,8 @@ digraph gaxi_fifo_async {
     p_wa -> mem [xlabel="write address", tailclip=false];
     rd_cnt -> p_ra [arrowhead=none, headclip=false];
     p_ra -> mem [xlabel="read address", tailclip=false];
-    p_rdd -> mem [dir=none, tailclip=false];
-    p_rdd -> rd_port [xlabel="rd_data", tailclip=false, constraint=false];
+    p_rdd -> mem [color="#1A7A1A", dir=none, tailclip=false];
+    p_rdd -> rd_port [color="#1A7A1A", xlabel="rd_data", tailclip=false, constraint=false];
 
     // ---- invisible center spine (group C): one tiny node per rank on the
     //      domain boundary, chained down to the bar, so the storage bar

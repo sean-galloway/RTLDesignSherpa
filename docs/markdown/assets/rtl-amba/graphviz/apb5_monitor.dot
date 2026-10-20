@@ -13,33 +13,33 @@ digraph apb5_monitor {
            label="apb5_monitor - APB5 command / response observer with wake-up and parity events (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lUSE_MONITOR: 0 = no monitor body; outputs tied off\lN_ADDR_RANGES: 0 = no address-range checker\lMAX_TRANSACTIONS: transaction-table entries\lUNIT_ID / AGENT_ID: stamped into every packet\lENABLE_PARITY_MON: 1 = parity-error events\l", fillcolor="white"];
-    taps [label="Observed Handshakes (inputs only)\ncmd_valid / cmd_ready + cmd_* (incl. pauser, pwuser)\nrsp_valid / rsp_ready + rsp_* (incl. pruser, pbuser)\napb5_pwakeup, parity_error_wdata / rdata / ctrl", fillcolor="white"];
-    cfg  [label="Runtime Configuration (input ports)\lcfg_*_enable: one enable per packet class\l    (error, timeout, protocol, slverr, perf,\l    latency, throughput, debug, trans_debug)\lcfg_cmd / rsp_timeout_cnt, latency and\l    throughput thresholds, debug level\lcfg_addr_*: range enables and bounds\lcfg_parity_enable, cfg_wakeup_enable,\l    cfg_wakeup_timeout_cnt, cfg_user_enable\l    (user events are never produced)\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lUSE_MONITOR: 0 = no monitor body; outputs tied off\lN_ADDR_RANGES: 0 = no address-range checker\lMAX_TRANSACTIONS: transaction-table entries\lUNIT_ID / AGENT_ID: stamped into every packet\lENABLE_PARITY_MON: 1 = parity-error events\l", fillcolor="white", shape=note];
+    taps [label="Observed Handshakes (inputs only)\ncmd_valid / cmd_ready + cmd_* (incl. pauser, pwuser)\nrsp_valid / rsp_ready + rsp_* (incl. pruser, pbuser)\napb5_pwakeup, parity_error_wdata / rdata / ctrl", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_*_enable: one enable per packet class\l    (error, timeout, protocol, slverr, perf,\l    latency, throughput, debug, trans_debug)\lcfg_cmd / rsp_timeout_cnt, latency and\l    throughput thresholds, debug level\lcfg_addr_*: range enables and bounds\lcfg_parity_enable, cfg_wakeup_enable,\l    cfg_wakeup_timeout_cnt, cfg_user_enable\l    (user events are never produced)\l", fillcolor="white", shape=note];
 
-    trk  [label="Transaction Tracker (flop)\nhandshake detect; r_trans_state: IDLE > CMD_SENT > COMPLETE\ntransaction table (MAX_TRANSACTIONS) with start timestamps"];
+    trk  [label="Transaction Tracker (flop)\nhandshake detect; r_trans_state: IDLE > CMD_SENT > COMPLETE\ntransaction table (MAX_TRANSACTIONS) with start timestamps", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    tmo  [label="Timeout Detect\ncmd / rsp waits vs\ncfg_*_timeout_cnt"];
-    err  [label="Error Detect\nPSLVERR, protocol\nviolations"];
-    perf [label="Performance\nlatency and throughput\nvs thresholds"];
-    wake [label="Wake-Up Detect (flop)\nPWAKEUP rise / fall,\nwake timeout vs\ncfg_wakeup_timeout_cnt"];
-    par  [label="Parity Monitor\nany parity_error_* input\n(ENABLE_PARITY_MON = 1\nand cfg_parity_enable)", style="filled,dashed"];
+    tmo  [label="Timeout Detect\ncmd / rsp waits vs\ncfg_*_timeout_cnt", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    err  [label="Error Detect\nPSLVERR, protocol\nviolations", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    perf [label="Performance\nlatency and throughput\nvs thresholds", style="filled", fillcolor="white"];
+    wake [label="Wake-Up Detect (flop)\nPWAKEUP rise / fall,\nwake timeout vs\ncfg_wakeup_timeout_cnt", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    par  [label="Parity Monitor\nany parity_error_* input\n(ENABLE_PARITY_MON = 1\nand cfg_parity_enable)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
 
-    evt  [label="Event Select (combinational, priority)\nerror > parity > timeout > wake-up > performance > completion\none packet per event, gated by its cfg enable"];
-    fifo [label="Packet FIFO\ngaxi_fifo_sync, MONITOR_FIFO_DEPTH entries\n(mux read)"];
-    addr [label="Address-Range Check  (N_ADDR_RANGES > 0 only)\napb_monitor_addr_check - addr_check\nreads the cmd handshake and cmd_paddr;\nrange-miss packets with their own timestamp", style="filled,dashed"];
+    evt  [label="Event Select (combinational, priority)\nerror > parity > timeout > wake-up > performance > completion\none packet per event, gated by its cfg enable", style="filled", fillcolor="white"];
+    fifo [label="Packet FIFO\ngaxi_fifo_sync, MONITOR_FIFO_DEPTH entries\n(mux read)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    addr [label="Address-Range Check  (N_ADDR_RANGES > 0 only)\napb_monitor_addr_check - addr_check\nreads the cmd handshake and cmd_paddr;\nrange-miss packets with their own timestamp", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    merge [label="Packet Merge (2:1 priority)\nevent FIFO first, then range misses", shape=invtrapezium, fillcolor="#BFD7EE", width=4.6, height=0.7, fixedsize=true];
-    skid [label="Output Skid Buffer\ngaxi_skid_buffer, DEPTH 2"];
+    merge [label="Packet Merge (2:1 priority)\nevent FIFO first, then range misses", shape=invtrapezium, fillcolor="#BFD7EE", width=4.6, height=0.7, fixedsize=true, style="filled", fillcolor="#FFF2CC"];
+    skid [label="Output Skid Buffer\ngaxi_skid_buffer, DEPTH 2", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     out  [label="Ocelus Monitor Bus   monbus_valid / monbus_ready, monbus_packet (128-bit), monbus_timestamp\nstatistics: active_count, error_count, transaction_count, wakeup_active",
-          fillcolor="white", width=10.0];
+          fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     taps -> trk [penwidth=1.8, xlabel="cmd / rsp handshakes"];
-    taps -> addr [style=dashed];
+    taps -> addr [style=dashed, color="#777777"];
     trk -> tmo [xlabel="open entries"];
     trk -> err [xlabel="completions"];
     trk -> perf [xlabel="start / end times"];
@@ -47,12 +47,12 @@ digraph apb5_monitor {
     err -> evt [xlabel="error"];
     perf -> evt [xlabel="perf"];
     taps -> wake [xlabel="apb5_pwakeup"];
-    taps -> par [style=dashed, xlabel="parity_error_*"];
+    taps -> par [style=dashed, color="#777777", xlabel="parity_error_*"];
     wake -> evt [xlabel="wake event"];
-    par -> evt [style=dashed, xlabel="parity"];
+    par -> evt [style=dashed, color="#777777", xlabel="parity"];
     evt -> fifo [penwidth=1.8, xlabel="packet"];
     fifo -> merge [xlabel="event packets\n(i_mon_time)"];
-    addr -> merge [style=dashed, xlabel="range-miss packets"];
+    addr -> merge [style=dashed, color="#777777", xlabel="range-miss packets"];
     merge -> skid [penwidth=1.8, xlabel="packet + timestamp"];
     skid -> out [penwidth=1.8, xlabel="monbus packet / ready"];
 

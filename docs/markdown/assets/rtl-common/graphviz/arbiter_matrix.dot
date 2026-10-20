@@ -15,26 +15,26 @@ digraph arbiter_matrix {
            label="arbiter_matrix - least-recently-granted pick from a priority matrix (CLIENTS=1: grant = gated request)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external inputs (white) ----
-    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack;\l    the matrix updates on the ack, and the next\l    grant is picked against the updated matrix\l    0 = a new pick and update every cycle\l", fillcolor="white"];
-    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
-    blk  [label="Block Input\nblock_arb", fillcolor="white"];
-    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack;\l    the matrix updates on the ack, and the next\l    grant is picked against the updated matrix\l    0 = a new pick and update every cycle\l", fillcolor="white", shape=note];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb"];
-    mreg [label="Priority Matrix\nr_matrix (flop), CLIENTS x (CLIENTS-1) / 2 bits\nbit [i][j] = 1: client i outranks client j\nreset all 1s (lower index first)"];
+    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb", style="filled", fillcolor="white"];
+    mreg [label="Priority Matrix\nr_matrix (flop), CLIENTS x (CLIENTS-1) / 2 bits\nbit [i][j] = 1: client i outranks client j\nreset all 1s (lower index first)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     pick [group=C, label="Matrix Pick (combinational)\nclient i wins if no requester outranks it",
-          shape=invtrapezium, width=7.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
-    greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid (flop)\nlast_grant = previous grant"];
-    mupd [group=M, label="Matrix Update (next state)\nwinner's row cleared, its column set:\nthe winner drops to lowest priority"];
+          shape=invtrapezium, width=7.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid (flop)\nlast_grant = previous grant", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mupd [group=M, label="Matrix Update (next state)\nwinner's row cleared, its column set:\nthe winner drops to lowest priority", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the boundary bar: outputs ----
     outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid   |   last_grant",
-          fillcolor="white", width=7.5];
+          fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     req  -> gate [xlabel="request"];
@@ -48,8 +48,8 @@ digraph arbiter_matrix {
     mupd -> mreg [xlabel="next matrix"];
 
     // ---- sideband (dashed) ----
-    blk -> gate [style=dashed, xlabel="block_arb"];
-    ack -> greg [style=dashed, xlabel="grant_ack (hold / release)"];
+    blk -> gate [style=dashed, color="#777777", xlabel="block_arb"];
+    ack -> greg [style=dashed, color="#777777", xlabel="grant_ack (hold / release)"];
 
     // ---- rank pinning ----
     { rank=same; prm; ack; blk; req; }

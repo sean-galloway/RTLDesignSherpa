@@ -6,20 +6,20 @@ digraph snk_data_path_axis_beats {
            label="snk_data_path_axis_beats - AXIS ingress over the sink data path (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axis  [label="Network In - s_axis_*\ntdata, tid (channel = tid[2:0]), tvalid / tready\n(tstrb, tdest, tuser, tlast not used by beats)", fillcolor="white", group=L];
-    sched [label="Scheduler Interface (8 channels)\nsched_wr_* in; strobes, errors out", fillcolor="white", group=C];
-    alloc [label="Segment Allocator (flops, per channel)\nreserve cfg_alloc_size beats (or what is left)\nwhen the channel holds none; count it down per beat", group=L];
-    gate  [label="Fill Gate (combinational)\nfill_valid = tvalid and reservation held;\ntready = fill_ready and reservation held", group=L];
-    dp    [label="Sink Data Path\nsnk_data_path_beats (see its figure)", width=4.0, group=C];
-    bar   [label="Module Boundary - m_axi_wr\nAW + W out   |   B in", fillcolor="white", width=7.5];
+    axis  [label="Network In - s_axis_*\ntdata, tid (channel = tid[2:0]), tvalid / tready\n(tstrb, tdest, tuser, tlast not used by beats)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    sched [label="Scheduler Interface (8 channels)\nsched_wr_* in; strobes, errors out", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    alloc [label="Segment Allocator (flops, per channel)\nreserve cfg_alloc_size beats (or what is left)\nwhen the channel holds none; count it down per beat", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gate  [label="Fill Gate (combinational)\nfill_valid = tvalid and reservation held;\ntready = fill_ready and reservation held", group=L, style="filled", fillcolor="white"];
+    dp    [label="Sink Data Path\nsnk_data_path_beats (see its figure)", width=4.0, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar   [label="Module Boundary - m_axi_wr\nAW + W out   |   B in", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     axis  -> alloc [label="beat, channel id"];
     alloc -> gate  [label="reservation held?"];
     gate  -> dp    [label="fill beats + fill_alloc_req / size / id", penwidth=1.8];
-    dp    -> alloc [style=dashed, constraint=false, xlabel="fill_space_free[8]"];
+    dp    -> alloc [style=dashed, color="#777777", constraint=false, xlabel="fill_space_free[8]"];
     sched -> dp    [dir=both, label="write commands in;\nstrobes, errors back"];
     dp    -> bar   [dir=both, label="AW + W out, B back", penwidth=1.8];
 

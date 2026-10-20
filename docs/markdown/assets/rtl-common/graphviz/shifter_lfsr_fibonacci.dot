@@ -11,21 +11,21 @@ digraph shifter_lfsr_fibonacci {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="shifter_lfsr_fibonacci - external XOR feedback into the MSB, shifts right";
 
-    taps  [label="Feedback Taps (runtime input port)\ltaps[TAP_COUNT*TAP_INDEX_WIDTH-1:0]:\l    TAP_COUNT tap positions, 1-based -- the\l    exponents of the feedback polynomial;\l    a 0 field is an unused slot\l", fillcolor="white"];
-    seed  [label="Seed Input\nseed_load, seed_data[WIDTH-1:0]", fillcolor="white"];
-    clk   [label="Clock / Reset / Enable\nclk, rst_n, enable", fillcolor="white"];
+    taps  [label="Feedback Taps (runtime input port)\ltaps[TAP_COUNT*TAP_INDEX_WIDTH-1:0]:\l    TAP_COUNT tap positions, 1-based -- the\l    exponents of the feedback polynomial;\l    a 0 field is an unused slot\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    seed  [label="Seed Input\nseed_load, seed_data[WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk   [label="Clock / Reset / Enable\nclk, rst_n, enable", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    tdec  [label="Tap Decode (combinational)\nw_taps[pos-1] = 1 for each nonzero tap\n(one-hot tap mask)"];
-    fb    [label="External XOR Feedback (combinational)\nw_feedback = ^(r_lfsr & w_taps)\none XOR tree over all tapped stages -> one bit"];
-    nxt   [label="Next State (combinational)\nseed_load: seed_data\nelse if r_lfsr != 0: shift right {w_feedback, r_lfsr[WIDTH-1:1]}\n(all-zero is the lock-up state: held, never shifted)"];
-    reg   [label="LFSR Register\nr_lfsr (WIDTH flops, reset 0 -- seed before use)\nloads only when enable = 1"];
-    done  [label="Wrap Detect (combinational)\nlfsr_done = (lfsr_out == seed_data)\n(compares with the seed_data input)"];
+    tdec  [label="Tap Decode (combinational)\nw_taps[pos-1] = 1 for each nonzero tap\n(one-hot tap mask)", style="filled", fillcolor="white"];
+    fb    [label="External XOR Feedback (combinational)\nw_feedback = ^(r_lfsr & w_taps)\none XOR tree over all tapped stages -> one bit", style="filled", fillcolor="white"];
+    nxt   [label="Next State (combinational)\nseed_load: seed_data\nelse if r_lfsr != 0: shift right {w_feedback, r_lfsr[WIDTH-1:1]}\n(all-zero is the lock-up state: held, never shifted)", style="filled", fillcolor="white"];
+    reg   [label="LFSR Register\nr_lfsr (WIDTH flops, reset 0 -- seed before use)\nloads only when enable = 1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    done  [label="Wrap Detect (combinational)\nlfsr_done = (lfsr_out == seed_data)\n(compares with the seed_data input)", style="filled", fillcolor="white"];
     p_fb  [shape=point, width=0.01];
-    out   [label="Outputs\nlfsr_out[WIDTH-1:0]   |   lfsr_done", fillcolor="white", width=5.5];
+    out   [label="Outputs\nlfsr_out[WIDTH-1:0]   |   lfsr_done", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
 
     taps -> tdec [xlabel="taps"];
@@ -40,7 +40,7 @@ digraph shifter_lfsr_fibonacci {
     reg  -> p_fb [arrowhead=none, headclip=false, constraint=false, xlabel="r_lfsr (current)"];
     p_fb -> fb   [tailclip=false, constraint=false];
 
-    clk  -> reg  [style=dashed, xlabel="clk, rst_n, enable"];
+    clk  -> reg  [style=dashed, color="#777777", xlabel="clk, rst_n, enable"];
 
     { rank=same; seed; taps; }
     { rank=same; clk; nxt; }

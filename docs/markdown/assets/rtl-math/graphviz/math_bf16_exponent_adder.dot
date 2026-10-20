@@ -11,32 +11,32 @@ digraph math_bf16_exponent_adder {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_bf16_exponent_adder - product exponent with bias, range check and saturation (combinational)";
 
     // ---- inputs (white) ----
-    e_in [label="Exponents\ni_exp_a[7:0], i_exp_b[7:0]", fillcolor="white"];
-    n_in [label="Normalize Adjust\ni_norm_adjust (product >= 2.0)", fillcolor="white"];
+    e_in [label="Exponents\ni_exp_a[7:0], i_exp_b[7:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    n_in [label="Normalize Adjust\ni_norm_adjust (product >= 2.0)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- parallel checks ----
-    spc  [group=S, label="Special Detect (combinational)\nexp == 0x00: zero class\nexp == 0xFF: inf / NaN class\n(the caller checks the mantissa)"];
-    sum  [group=M, label="Biased Sum (combinational, 10 bits)\nexp_a + exp_b + norm_adjust - 127"];
+    spc  [group=S, label="Special Detect (combinational)\nexp == 0x00: zero class\nexp == 0xFF: inf / NaN class\n(the caller checks the mantissa)", style="filled", fillcolor="white"];
+    sum  [group=M, label="Biased Sum (combinational, 10 bits)\nexp_a + exp_b + norm_adjust - 127", style="filled", fillcolor="white"];
 
     // ---- range check + saturation ----
-    rng  [group=M, label="Range Check (combinational)\nunderflow: sum <= 0 (bit 9 set or zero)\noverflow: sum > 254 (255 is reserved for inf / NaN)\nboth masked when either operand is special"];
-    sat  [group=M, label="Saturate (combinational)\noverflow -> 0xFF   |   underflow -> 0x00   |   else sum[7:0]"];
+    rng  [group=M, label="Range Check (combinational)\nunderflow: sum <= 0 (bit 9 set or zero)\noverflow: sum > 254 (255 is reserved for inf / NaN)\nboth masked when either operand is special", style="filled", fillcolor="white"];
+    sat  [group=M, label="Saturate (combinational)\noverflow -> 0xFF   |   underflow -> 0x00   |   else sum[7:0]", style="filled", fillcolor="white"];
 
     // ---- outputs ----
     bar  [label="Outputs\now_exp_out[7:0]   |   ow_overflow, ow_underflow   |   ow_a/b_is_zero, ow_a/b_is_inf, ow_a/b_is_nan",
-          fillcolor="white", width=8.5];
+          fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- flows ----
     e_in -> sum [xlabel="exp_a, exp_b"];
     n_in -> sum [xlabel="+1 if set"];
     e_in -> spc [xlabel="exp_a, exp_b"];
     sum  -> rng [xlabel="sum[9:0]", penwidth=1.8];
-    spc  -> rng [style=dashed, xlabel="either special\n(mask)"];
+    spc  -> rng [style=dashed, color="#777777", xlabel="either special\n(mask)"];
     rng  -> sat [xlabel="sum, overflow,\nunderflow", penwidth=1.8];
     sat  -> bar [xlabel="exp_out, overflow,\nunderflow", penwidth=1.8];
     p_sp [shape=point, width=0.01, group=S];

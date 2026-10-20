@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Whitepaper ch3 "Identity space allocation" - house style
 // (vault/handbook/authoring/block-diagrams.md). Not a datapath: a hierarchy
 // of build-time identity fields, so the vocabulary is white field/port boxes

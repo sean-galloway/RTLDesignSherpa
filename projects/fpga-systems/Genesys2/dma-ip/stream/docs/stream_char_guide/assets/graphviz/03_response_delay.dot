@@ -12,17 +12,17 @@ digraph response_delay {
            nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
            label="axi_response_delay (on aclk): every beat dwells i_delay_cycles; up to CAPACITY beats in flight", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    sin   [group=C, label="Slave-side Port (the memory model's R or B beat)\ns_data, s_valid, s_ready", fillcolor="white"];
-    cyc   [label="Cycle Counter (flop)\nr_cyc[31:0], free-running"];
-    admit [group=C, label="Admit (combinational)\nenqueue on s_valid & s_ready;\nstamp t_in = r_cyc"];
-    fifo  [group=C, label="Timestamp FIFO, CAPACITY slots (power of 2)\nr_data[] {payload} - block RAM  |  r_tin[] {t_in} - distributed RAM\nhead / tail pointers, r_count; full = (r_count == CAPACITY)", width=5.5];
-    dly   [label="Delay (runtime input)\ni_delay_cycles - from the\nRESP_DELAY CSR field"];
-    gate  [group=C, label="Drain Gate (combinational)\nhead_dwell = r_cyc - r_tin[head];\nrelease when head_dwell >= i_delay_cycles"];
-    oreg  [group=C, label="Output Register (flop)\nr_out_data, r_out_valid: loads when the head\nis ready and the stage is empty or consumed"];
-    bar   [group=C, label="Master-side Port (to the DUT): m_data, m_valid, m_ready", fillcolor="white", width=5.5];
+    sin   [group=C, label="Slave-side Port (the memory model's R or B beat)\ns_data, s_valid, s_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cyc   [label="Cycle Counter (flop)\nr_cyc[31:0], free-running", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    admit [group=C, label="Admit (combinational)\nenqueue on s_valid & s_ready;\nstamp t_in = r_cyc", style="filled", fillcolor="white"];
+    fifo  [group=C, label="Timestamp FIFO, CAPACITY slots (power of 2)\nr_data[] {payload} - block RAM  |  r_tin[] {t_in} - distributed RAM\nhead / tail pointers, r_count; full = (r_count == CAPACITY)", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dly   [label="Delay (runtime input)\ni_delay_cycles - from the\nRESP_DELAY CSR field", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gate  [group=C, label="Drain Gate (combinational)\nhead_dwell = r_cyc - r_tin[head];\nrelease when head_dwell >= i_delay_cycles", style="filled", fillcolor="white"];
+    oreg  [group=C, label="Output Register (flop)\nr_out_data, r_out_valid: loads when the head\nis ready and the stage is empty or consumed", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar   [group=C, label="Master-side Port (to the DUT): m_data, m_valid, m_ready", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; cyc; admit; pf; }
     cyc -> admit [style=invis, minlen=3];
@@ -37,9 +37,9 @@ digraph response_delay {
     gate  -> oreg  [penwidth=1.8, xlabel="dequeue (head advances)"];
     oreg  -> bar   [penwidth=1.8, xlabel="beat, after >= i_delay_cycles"];
 
-    cyc   -> admit [style=dashed, xlabel="t_in"];
-    cyc   -> gate  [style=dashed, xlabel="now"];
-    dly   -> gate  [style=dashed, xlabel="threshold"];
-    pf    -> fifo  [style=dashed, dir=none];
-    sin   -> pf    [style=dashed, dir=back, xlabel="s_ready = !full\n(back-pressure\nat CAPACITY)"];
+    cyc   -> admit [style=dashed, color="#777777", xlabel="t_in"];
+    cyc   -> gate  [style=dashed, color="#777777", xlabel="now"];
+    dly   -> gate  [style=dashed, color="#777777", xlabel="threshold"];
+    pf    -> fifo  [style=dashed, color="#777777", dir=none];
+    sin   -> pf    [style=dashed, color="#777777", dir=back, xlabel="s_ready = !full\n(back-pressure\nat CAPACITY)"];
 }

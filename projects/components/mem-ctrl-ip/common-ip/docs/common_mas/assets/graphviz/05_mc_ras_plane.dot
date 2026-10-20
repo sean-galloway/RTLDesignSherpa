@@ -9,18 +9,18 @@ digraph mc_ras_plane {
            label="mc_ras_plane - ECC transform pair on the two data seams\n(skeleton: a passthrough at every HAS_ECC today)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    up_w [label="Write data in\n(upstream write path)", fillcolor="white"];
-    up_r [label="Read return out\n(upstream read path)", fillcolor="white"];
-    csr  [label="Reserved CSR surface (sideband)\l  csr_ecc_en_i, csr_ecc_mode_i: ignored today\l  csr_ecc_stat_o: reads 0\l", fillcolor="white"];
+    up_w [label="Write data in\n(upstream write path)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    up_r [label="Read return out\n(upstream read path)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    csr  [label="Reserved CSR surface (sideband)\l  csr_ecc_en_i, csr_ecc_mode_i: ignored today\l  csr_ecc_stat_o: reads 0\l", fillcolor="white", shape=note];
 
-    enc [label="ECC Insert (reserved)\nwrite-data forward seam\nHAS_ECC = 1 / 2: still a passthrough", style="filled,dashed"];
-    dec [label="ECC Check + Correct (reserved)\nread-return backward seam\nHAS_ECC = 1 / 2: still a passthrough", style="filled,dashed"];
+    enc [label="ECC Insert (reserved)\nwrite-data forward seam\nHAS_ECC = 1 / 2: still a passthrough", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    dec [label="ECC Check + Correct (reserved)\nread-return backward seam\nHAS_ECC = 1 / 2: still a passthrough", style="filled,dashed", style="filled,dashed", fillcolor="white"];
 
     bar [label="Plane edge - downstream write data / read return (storage or DFI seam)",
-         fillcolor="white", width=6.5, height=0.5, fontsize=11];
+         fillcolor="white", width=6.5, height=0.5, fontsize=11, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     up_w -> enc [xlabel="write data + strb + last"];
     enc  -> bar [xlabel="Write data"];

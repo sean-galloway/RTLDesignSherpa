@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // Figure 4.1 -- from host command to a row of the CSV. A process flow in the
 // house vocabulary (vault/handbook/authoring/block-diagrams.md): six steps
 // top-down in one center column, every arrow labeled with what it carries,

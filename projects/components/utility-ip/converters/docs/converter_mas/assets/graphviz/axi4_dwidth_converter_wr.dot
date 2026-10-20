@@ -12,22 +12,22 @@ digraph axi4_dwidth_converter_wr {
            nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_dwidth_converter_wr - AXI4 write path, S_AXI_DATA_WIDTH -> M_AXI_DATA_WIDTH (on aclk)";
 
-    s   [label="Slave Port (s_axi_*, S_AXI_DATA_WIDTH)\nAW   |   W   |   B", fillcolor="white", width=8.0];
+    s   [label="Slave Port (s_axi_*, S_AXI_DATA_WIDTH)\nAW   |   W   |   B", fillcolor="white", width=8.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wsk [label="W Skid\ngaxi_skid_buffer - w_skid", group=W];
-    ask [label="AW Skid\ngaxi_skid_buffer - aw_skid", group=A];
-    bsk [label="B Skid\ngaxi_skid_buffer - b_skid", group=B];
+    wsk [label="W Skid\ngaxi_skid_buffer - w_skid", group=W, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    ask [label="AW Skid\ngaxi_skid_buffer - aw_skid", group=A, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    bsk [label="B Skid\ngaxi_skid_buffer - b_skid", group=B, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    aw  [label="AW Rewrite\nUPSIZE: awlen = ceil((len+1+lane) / ratio) - 1,\nawsize = master\nDOWNSIZE: split bursts over 256 master beats\n(r_split_*; last split waits for a CAM slot)", group=A];
-    q   [label="Framing Queue (16 entries)\nUPSIZE: start lane per AW\nDOWNSIZE: master-burst beat counts", group=Q];
-    w   [label="W Data Path\nUPSIZE: axi_data_upsize - u_w_upsize\n(WSTRB concatenated, start lane from the queue)\nDOWNSIZE: axi_data_dnsize - u_w_dnsize\n+ WLAST counter per master burst\nwuser held across the group", group=W];
-    cam [label="B Fold CAM (DOWNSIZE only)\none entry per split slave burst (AWID, count);\noldest matching AWID decrements, worst\nresponse kept, one B when the count hits 0", style="filled,dashed", group=B];
+    aw  [label="AW Rewrite\nUPSIZE: awlen = ceil((len+1+lane) / ratio) - 1,\nawsize = master\nDOWNSIZE: split bursts over 256 master beats\n(r_split_*; last split waits for a CAM slot)", group=A, style="filled", fillcolor="white"];
+    q   [label="Framing Queue (16 entries)\nUPSIZE: start lane per AW\nDOWNSIZE: master-burst beat counts", group=Q, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    w   [label="W Data Path\nUPSIZE: axi_data_upsize - u_w_upsize\n(WSTRB concatenated, start lane from the queue)\nDOWNSIZE: axi_data_dnsize - u_w_dnsize\n+ WLAST counter per master burst\nwuser held across the group", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cam [label="B Fold CAM (DOWNSIZE only)\none entry per split slave burst (AWID, count);\noldest matching AWID decrements, worst\nresponse kept, one B when the count hits 0", style="filled,dashed", group=B, shape=cylinder, style="filled,dashed", fillcolor="#E8DFF5"];
 
-    m   [label="Master Port (m_axi_*, M_AXI_DATA_WIDTH)\nAW   |   W   |   B", fillcolor="white", width=8.0];
+    m   [label="Master Port (m_axi_*, M_AXI_DATA_WIDTH)\nAW   |   W   |   B", fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     s   -> wsk [xlabel="W: data, strb, last, user"];
     wsk -> w   [xlabel="slave beats"];
@@ -36,13 +36,13 @@ digraph axi4_dwidth_converter_wr {
     s   -> ask [xlabel="AW: id, addr, len, size ..."];
     ask -> aw  [xlabel="slave burst"];
     aw  -> m   [xlabel="AW: rewritten / split bursts"];
-    aw  -> q   [style=dashed, xlabel="push per AW"];
-    q   -> w   [style=dashed, xlabel="lane / beats\n(W held until present)"];
+    aw  -> q   [style=dashed, color="#777777", xlabel="push per AW"];
+    q   -> w   [style=dashed, color="#777777", xlabel="lane / beats\n(W held until present)"];
 
-    s   -> bsk [dir=back, xlabel="B: id, resp"];
-    bsk -> cam [dir=back, xlabel="one B per slave burst"];
-    cam -> m   [dir=back, xlabel="B: one per master burst\n(UPSIZE: passes straight)"];
-    cam -> aw  [style=dashed, constraint=false, xlabel="slot free"];
+    s   -> bsk [color="#1A7A1A", dir=back, xlabel="B: id, resp"];
+    bsk -> cam [color="#1A7A1A", dir=back, xlabel="one B per slave burst"];
+    cam -> m   [color="#1A7A1A", dir=back, xlabel="B: one per master burst\n(UPSIZE: passes straight)"];
+    cam -> aw  [style=dashed, color="#777777", constraint=false, xlabel="slot free"];
 
     { rank=same; wsk; ask; bsk; }
     sp [label="", width=0.9, style=invis];

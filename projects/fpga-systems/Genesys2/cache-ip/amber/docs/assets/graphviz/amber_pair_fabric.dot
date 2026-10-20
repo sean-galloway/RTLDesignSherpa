@@ -9,25 +9,25 @@ digraph amber_pair_fabric {
            label="Amber pair-rig Genesys2 -- pair fabric (conceptual internals)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    c0 [label="Cache 0 AXI4 master\namber_top", fillcolor="white"];
-    c1 [label="Cache 1 AXI4 master\namber_top", fillcolor="white"];
+    c0 [label="Cache 0 AXI4 master\namber_top", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    c1 [label="Cache 1 AXI4 master\namber_top", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // snoop routing between caches (dashed sideband)
-    snoop [label="Snoop cross-connect\nAC/CR/CD + coh_req", style="filled,dashed", fillcolor="#E8E8E8"];
+    snoop [label="Snoop cross-connect\nAC/CR/CD + coh_req", style="filled,dashed", fillcolor="#E8E8E8", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // request buffers / pending tracking
-    buf0 [label="Pending tracker 0\nAR/AW/W buffer"];
-    buf1 [label="Pending tracker 1\nAR/AW/W buffer"];
+    buf0 [label="Pending tracker 0\nAR/AW/W buffer", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    buf1 [label="Pending tracker 1\nAR/AW/W buffer", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // the many-to-one grant pick
     arb [label="Round-robin grant pick\nover pending RD/WR\n(no-data AR for upgrades)",
-         shape=invtrapezium, width=5.0, fillcolor="#BFD7EE", fontsize=11];
+         shape=invtrapezium, width=5.0, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
 
     // boundary bar: shared memory
-    mem [label="Shared coherent memory\nsdpram_slave_axi4_axi4\n512 KB BRAM", width=6.5, height=0.8, fontsize=11];
+    mem [label="Shared coherent memory\nsdpram_slave_axi4_axi4\n512 KB BRAM", width=6.5, height=0.8, fontsize=11, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     c0 -> buf0 [label="RD/WR request"];
     c1 -> buf1 [label="RD/WR request"];
@@ -36,19 +36,19 @@ digraph amber_pair_fabric {
     buf1 -> arb [label="RD / WR / WB"];
 
     // snoop sideband
-    c0 -> snoop [style=dashed, constraint=false, label="coh_req / AC / CR / CD"];
-    c1 -> snoop [style=dashed, constraint=false, label="coh_req / AC / CR / CD"];
+    c0 -> snoop [style=dashed, color="#777777", constraint=false, label="coh_req / AC / CR / CD"];
+    c1 -> snoop [style=dashed, color="#777777", constraint=false, label="coh_req / AC / CR / CD"];
 
     // grant exit heavy into memory
     arb -> mem [label="mem AR + AW-W-B", penwidth=1.8];
 
     // return data climbs back up
-    mem -> arb [constraint=false, label="R beats"];
-    arb -> buf0 [constraint=false, label="R / B"];
-    arb -> buf1 [constraint=false, label="R / B"];
-    buf0 -> c0 [constraint=false, label="R / B"];
-    buf1 -> c1 [constraint=false, label="R / B"];
+    mem -> arb [color="#1A7A1A", constraint=false, label="R beats"];
+    arb -> buf0 [color="#1A7A1A", constraint=false, label="R / B"];
+    arb -> buf1 [color="#1A7A1A", constraint=false, label="R / B"];
+    buf0 -> c0 [color="#1A7A1A", constraint=false, label="R / B"];
+    buf1 -> c1 [color="#1A7A1A", constraint=false, label="R / B"];
 
-    dbg [label="Fabric debug\nstate, grant_dir", style="filled,dashed"];
-    arb -> dbg [style=dashed, constraint=false];
+    dbg [label="Fabric debug\nstate, grant_dir", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    arb -> dbg [style=dashed, color="#777777", constraint=false];
 }

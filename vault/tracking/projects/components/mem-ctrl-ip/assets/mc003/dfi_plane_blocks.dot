@@ -7,25 +7,25 @@ digraph dfi_plane_blocks {
            label="DFI 2.1 plane - mc_dfi_2p1_plane (granite DDR2/LPDDR2)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external ports (white) ----
-    cmd_in [label="Scheduler command stream\ncmd_valid / cmd_data\n(from u_sched_plane)", fillcolor="white", group=C];
-    wd_in  [label="Write data stream\n{last, strb, data}\n(from u_entry_store)", fillcolor="white", group=W];
-    rd_out [label="Read return stream\n{last, resp, data}\n(to u_axi_plane u_rd_ring)", fillcolor="white", group=R];
-    init_in [label="Init handshake\ninit_start / init_complete", fillcolor="white", group=I];
-    trn_in [label="Training cal sideband\ncal_expect / cal_data / cal_valid", fillcolor="white", group=T];
+    cmd_in [label="Scheduler command stream\ncmd_valid / cmd_data\n(from u_sched_plane)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    wd_in  [label="Write data stream\n{last, strb, data}\n(from u_entry_store)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+    rd_out [label="Read return stream\n{last, resp, data}\n(to u_axi_plane u_rd_ring)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    init_in [label="Init handshake\ninit_start / init_complete", fillcolor="white", group=I, style="rounded,filled", fillcolor="#E2EFDA"];
+    trn_in [label="Training cal sideband\ncal_expect / cal_data / cal_valid", fillcolor="white", group=T, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- DFI plane blocks ----
-    cdc [label="ctl_clk ↔ dfi_clk CDC\nu_cdc - mc_dfi_cdc\n(cmd/wd/rd async FIFOs)", group=C, width=2.6];
-    cmd [label="DFI command path\nu_cmd - mc_dfi_cmd_path", group=C, width=2.4];
-    wr  [label="Write serializer\nu_wr - mc_dfi_wr_serializer", group=W, width=2.4];
-    rd  [label="Read aligner\nu_rd - mc_dfi_rd_aligner", group=R, width=2.4];
+    cdc [label="ctl_clk ↔ dfi_clk CDC\nu_cdc - mc_dfi_cdc\n(cmd/wd/rd async FIFOs)", group=C, width=2.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmd [label="DFI command path\nu_cmd - mc_dfi_cmd_path", group=C, width=2.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wr  [label="Write serializer\nu_wr - mc_dfi_wr_serializer", group=W, width=2.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd  [label="Read aligner\nu_rd - mc_dfi_rd_aligner", group=R, width=2.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- boundary bar (DFI PHY) ----
     phy [label="DFI 2.1 PHY boundary\n(address, bank, ctrl / wrdata / rddata)",
-         fillcolor="white", rank=sink, width=7.5, fontsize=11, group=C];
+         fillcolor="white", rank=sink, width=7.5, fontsize=11, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- boundary crossing scaffolds ----
     p_cmd [shape=point, width=0.01, group=C];
@@ -47,17 +47,17 @@ digraph dfi_plane_blocks {
     p_wd -> phy [xlabel="Write to DDR", tailclip=false];
 
     // ---- read data flow (right, back up) ----
-    rd_out -> rd [dir=back, xlabel="Read data"];
+    rd_out -> rd [color="#1A7A1A", dir=back, xlabel="Read data"];
     rd -> cdc [dir=back, xlabel="prd_data"];
     cdc -> p_rd [dir=back, xlabel="Read from DDR", headclip=false];
     p_rd -> phy [dir=none, tailclip=false];
 
     // ---- init handshake (dashed sideband) ----
-    init_in -> cdc [style=dashed, xlabel="init_start"];
-    cdc -> cmd [style=dashed, xlabel="pinit_start"];
+    init_in -> cdc [style=dashed, color="#777777", xlabel="init_start"];
+    cdc -> cmd [style=dashed, color="#777777", xlabel="pinit_start"];
 
     // ---- training cal sideband (dashed) ----
-    trn_in -> rd [style=dashed, xlabel="cal_expect / cal_data"];
+    trn_in -> rd [style=dashed, color="#777777", xlabel="cal_expect / cal_data"];
 
     // ---- scaffold order at the boundary ----
     { rank=same; p_wd; sp1; p_cmd; sp2; p_rd; phy; }

@@ -4,24 +4,24 @@ digraph axi4_to_apb4_write {
            nodesep="0.45", ranksep="0.95", splines=ortho, labelloc=t,
            label="AXI4 write to APB - a 4-beat 32-bit burst\nthrough axi4_to_apb4_shim, one APB write per beat"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pl [label="W in\n4 beats: WDATA, WSTRB, WLAST", group=L, fillcolor="white"];
-    pc [label="AW in\nAWADDR, AWLEN = 3", group=C, fillcolor="white"];
-    pr [label="B out\none response", group=R, fillcolor="white"];
+    pl [label="W in\n4 beats: WDATA, WSTRB, WLAST", group=L, fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pc [label="AW in\nAWADDR, AWLEN = 3", group=C, fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="B out\none response", group=R, fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pl; pc; pr; }
     pl -> pc -> pr [style=invis];
-    bl [label="Write Data - axi4_to_apb4_convert\neach beat becomes PWDATA / PSTRB\nof one APB command", group=L];
-    bc [label="Burst Decomposition - axi_gen_addr\nAPB FSM in WRITE: one command per\nbeat, PADDR stepping with the burst", group=C];
-    br [label="B Generate - response FSM\none B after the last command's\nresponse; SLVERR if any PSLVERR", group=R];
+    bl [label="Write Data - axi4_to_apb4_convert\neach beat becomes PWDATA / PSTRB\nof one APB command", group=L, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    bc [label="Burst Decomposition - axi_gen_addr\nAPB FSM in WRITE: one command per\nbeat, PADDR stepping with the burst", group=C, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    br [label="B Generate - response FSM\none B after the last command's\nresponse; SLVERR if any PSLVERR", group=R, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     { rank=same; bl; bc; br; }
     bl -> bc -> br [style=invis];
-    bar [label="APB Port - 4 transfers, PWRITE = 1 (SETUP then ACCESS each)\nPREADY, PSLVERR back per transfer", fillcolor="white", width=7.5];
+    bar [label="APB Port - 4 transfers, PWRITE = 1 (SETUP then ACCESS each)\nPREADY, PSLVERR back per transfer", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pl -> bl [xlabel="W beats"];
     pc -> bc [xlabel="AW"];
-    pr -> br [dir=back, xlabel="B"];
+    pr -> br [color="#1A7A1A", dir=back, xlabel="B"];
     bl -> bar [xlabel="PWDATA, PSTRB"];
     bc -> bar [xlabel="PADDR, PWRITE", penwidth=1.8];
-    br -> bar [dir=back, xlabel="PSLVERR per transfer"];
+    br -> bar [color="#1A7A1A", dir=back, xlabel="PSLVERR per transfer"];
 }

@@ -11,19 +11,19 @@ digraph gaxi_regslice {
            label="gaxi_regslice - one-slot register slice, 1-cycle latency, 1 beat per clock\n(single clock: axi_aclk, axi_aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white"];
-    rd_port [group=RO, label="Read Port (valid/ready)\nrd_valid, rd_data / rd_ready", fillcolor="white"];
+    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rd_port [group=RO, label="Read Port (valid/ready)\nrd_valid, rd_data / rd_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    rdy [group=C, label="Ready Logic (combinational)\nwr_ready = !r_valid | rd_ready\n(empty, or the held beat leaves this cycle)"];
+    rdy [group=C, label="Ready Logic (combinational)\nwr_ready = !r_valid | rd_ready\n(empty, or the held beat leaves this cycle)", style="filled", fillcolor="white"];
 
     reg [group=C, label="Slice Register (flops)  r_valid, r_data\nwrite (with or without a read): load wr_data, r_valid = 1\nread only: r_valid = 0   |   idle: hold\nrd_valid = r_valid, rd_data = r_data;  count / rd_count = 0 or 1",
-         width=8.0, height=0.9];
+         width=8.0, height=0.9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     rd_port -> rdy [xlabel="rd_ready"];
-    rdy -> wr_port [style=dashed, constraint=false, xlabel="wr_ready"];
+    rdy -> wr_port [style=dashed, color="#777777", constraint=false, xlabel="wr_ready"];
     rdy -> reg [xlabel="wr xfer / rd xfer\n(load / clear select)"];
 
     aw    [group=WD, shape=point, width=0.01, style=invis];
@@ -32,8 +32,8 @@ digraph gaxi_regslice {
     p_rdd [group=RD, shape=point, width=0.01];
     wr_port -> p_wd [arrowhead=none, headclip=false];
     p_wd -> reg [xlabel="wr_valid, wr_data", tailclip=false];
-    p_rdd -> reg [dir=none, tailclip=false, xlabel="rd_valid, rd_data"];
-    p_rdd -> rd_port [tailclip=false, constraint=false];
+    p_rdd -> reg [color="#1A7A1A", dir=none, tailclip=false, xlabel="rd_valid, rd_data"];
+    p_rdd -> rd_port [color="#1A7A1A", tailclip=false, constraint=false];
     aw -> p_wd [style=invis, weight=10];
     ar -> p_rdd [style=invis, weight=10];
 

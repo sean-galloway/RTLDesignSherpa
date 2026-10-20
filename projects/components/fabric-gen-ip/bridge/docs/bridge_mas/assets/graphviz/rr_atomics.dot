@@ -7,32 +7,32 @@ digraph rr_atomics {
            nodesep="0.85", ranksep="0.60", splines=ortho, labelloc=t,
            label="Read-return atomics on an rw AXI5 port - AtomicLoad / Swap / Compare ride AW and answer on both B and R\n(the R beat carries the AW's ID and has no AR, so both R trackers learn about it at the AW)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pc [label="Master AW (AWATOP = read-return class)\nand AR", fillcolor="white", group=C];
-    pr [label="Master R out\noriginal data, RID = the AW's ID", fillcolor="white", group=R];
+    pc [label="Master AW (AWATOP = read-return class)\nand AR", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="Master R out\noriginal data, RID = the AW's ID", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pc; pr; }
     pc -> pr [style=invis];
 
-    gate [label="Atomic AW Gate - <master>_adapter\naw_rr_gate_ok: the AR per-ID rule under the AWID\n(idle, or same slave and trace) and a free AR slot;\nthe atomic AW is counted in the AR table (second\npush port); yields to a same-cycle AR on its ID", group=C];
-    rsel [label="R Path Arbiter - <master>_adapter\nround robin over the width paths and the local\nDECERR queue; an atomic to an unmapped address\nqueues its ID and gets one DECERR beat when\ngranted (r_local_head), every rready held off", group=R];
+    gate [label="Atomic AW Gate - <master>_adapter\naw_rr_gate_ok: the AR per-ID rule under the AWID\n(idle, or same slave and trace) and a free AR slot;\nthe atomic AW is counted in the AR table (second\npush port); yields to a same-cycle AR on its ID", group=C, style="filled", fillcolor="white"];
+    rsel [label="R Path Arbiter - <master>_adapter\nround robin over the width paths and the local\nDECERR queue; an atomic to an unmapped address\nqueues its ID and gets one DECERR beat when\ngranted (r_local_head), every rready held off", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; gate; rsel; }
-    gate -> rsel [style=dashed, xlabel="unmapped: ID into\nthe local queue"];
+    gate -> rsel [style=dashed, color="#777777", xlabel="unmapped: ID into\nthe local queue"];
 
-    xa [label="Crossbar - <bridge>_xbar\nthe atomic AW is arbitrated\nlike any write", group=C];
-    xr [label="R Response Arbiter - <bridge>_xbar\nR to the master named by\nrid_bridge_id, one slave at a time", group=R];
+    xa [label="Crossbar - <bridge>_xbar\nthe atomic AW is arbitrated\nlike any write", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    xr [label="R Response Arbiter - <bridge>_xbar\nR to the master named by\nrid_bridge_id, one slave at a time", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; xa; xr; }
     xa -> xr [style=invis];
 
     pc3 [shape=point, width=0.01, label="", group=C];
-    trk [label="Atomic Tracker - <slave>_adapter\naxi5_atomic_rr_tracker: one entry\nper ID, written at the atomic AW\nhandshake with its bridge_id"];
-    rret [label="Read Return Select - <slave>_adapter\nRID hits the atomic tracker: route it (FIFO mode),\nread FIFO / counter left untouched;\notherwise the read tracker as usual", group=R];
+    trk [label="Atomic Tracker - <slave>_adapter\naxi5_atomic_rr_tracker: one entry\nper ID, written at the atomic AW\nhandshake with its bridge_id", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rret [label="Read Return Select - <slave>_adapter\nRID hits the atomic tracker: route it (FIFO mode),\nread FIFO / counter left untouched;\notherwise the read tracker as usual", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; pc3; trk; rret; }
-    pc3 -> trk [style=dashed, xlabel="AWID + bridge_id"];
-    trk -> rret [style=dashed, xlabel="hit, bridge_id"];
+    pc3 -> trk [style=dashed, color="#777777", xlabel="AWID + bridge_id"];
+    trk -> rret [style=dashed, color="#777777", xlabel="hit, bridge_id"];
 
-    bar [label="Slave Port - the atomic AW and its W out; B, and R carrying the original data with RID = AWID, back", fillcolor="white", width=9];
+    bar [label="Slave Port - the atomic AW and its W out; B, and R carrying the original data with RID = AWID, back", fillcolor="white", width=9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pc -> gate [label="AW / AR"];
     gate -> xa [label="AW (atomic) / AR", penwidth=1.8];

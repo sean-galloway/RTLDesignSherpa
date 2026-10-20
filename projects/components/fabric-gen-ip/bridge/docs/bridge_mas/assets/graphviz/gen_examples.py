@@ -13,7 +13,7 @@ digraph {name} {{
            nodesep="0.45", ranksep="0.95", splines=ortho, labelloc=t,
            label="{title}"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 '''
 
@@ -58,6 +58,45 @@ def node(n, lab, g, white=False):
     return f'    {n} [label="{lab}", group={g}{f}];'
 
 
+# ---- element key v3 (vault/handbook/authoring/block-diagrams.md) ---------
+# Each node takes its class's shape and fill; return-data edges are green.
+# The key row is generated at render time (bin/render_block_diagram.py).
+V3_ATTRS = {
+    "interface": 'style="rounded,filled", fillcolor="#E2EFDA"',
+    "bar": 'style="rounded,filled,bold", fillcolor="#E2EFDA"',
+    "logic": 'style="filled", fillcolor="white"',
+    "registered": 'peripheries=2, style="filled", fillcolor="#D6E4F0"',
+    "fsm": 'peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"',
+    "storage": 'shape=cylinder, style="filled", fillcolor="#E8DFF5"',
+    "pick": 'style="filled", fillcolor="#FFF2CC"',
+    "note": 'shape=note',
+}
+
+
+def style_v3(text, classes, returns):
+    """Append class attrs to each `    nid [...]` line; colour return edges."""
+    import re
+    out = []
+    for line in text.split("\n"):
+        m = re.match(r"^\s+(\w+)\s+\[", line)
+        e = re.match(r"^\s+(\w+)\s*->\s*(\w+)\s*\[", line)
+        if e and (e.group(1), e.group(2)) in returns:
+            line = line.replace("[", '[color="#1A7A1A", ', 1)
+        elif m and not e and m.group(1) in classes and line.rstrip().endswith("];"):
+            line = line.rstrip()[:-2] + ", " + V3_ATTRS[classes[m.group(1)]] + "];"
+        out.append(line)
+    return "\n".join(out)
+
+PORTS = dict(pl="interface", pc="interface", pr="interface", bar="bar")
+CLASSES = {
+    "upsize_converter": dict(PORTS, bl="logic", bc="registered", br="logic"),
+    "downsize_converter": dict(PORTS, bl="logic", bc="logic", br="registered"),
+    "axi4_to_apb4_write": dict(PORTS, bl="fsm", bc="fsm", br="fsm"),
+    "axi4_to_apb4_read": dict(PORTS, bc="fsm", br="fsm"),
+}
+RETURNS = {("pr", "br"), ("br", "bar")}
+
+
 def build(d):
     o = [HEAD.format(name=d["name"], title=d["title"])]
     if d.get("p"):
@@ -85,7 +124,8 @@ def build(d):
               f'    bc -> bar [xlabel="{e[2]}", penwidth=1.8];',
               f'    br -> bar [dir=back, xlabel="{e[3]}"];']
     o.append("}")
-    open(d["name"] + ".dot", "w").write("\n".join(o) + "\n")
+    open(d["name"] + ".dot", "w").write(
+        style_v3("\n".join(o), CLASSES[d["name"]], RETURNS) + "\n")
 
 
 for d in EX:

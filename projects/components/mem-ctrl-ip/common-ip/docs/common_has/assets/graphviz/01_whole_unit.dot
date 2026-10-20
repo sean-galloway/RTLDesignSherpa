@@ -28,42 +28,42 @@ digraph whole_unit {
            label="mem-ctrl-ip whole unit - the family stack in the classic DDR-MC course diagram form",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
-    axi_rd [label="AXI Read Channel\n(AR in / R out)",  fillcolor="white", group=R];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)",  fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     phy    [label="DDR PHY  (DFI 2.1 / 3.1 / 4.0 - one revision per product)",
-            fillcolor="white", rank=sink, width=8.0, fontsize=11, group=C];
+            fillcolor="white", rank=sink, width=8.0, fontsize=11, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- host side: mc_axi4_plane ----
-    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter,\nmc_wr_intake (address map, B)", group=W];
-    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane - mc_axi_burst_chopper,\nmc_rd_intake (address map, R select)", group=R];
-    cfg    [label="Configuration Registers\npumice_csr / scoria_csr / granite_csr (PeakRDL)\nsideband config to all planes", group=C];
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter,\nmc_wr_intake (address map, B)", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_pkt [label="Read Request Packetizer\nmc_axi4_plane - mc_axi_burst_chopper,\nmc_rd_intake (address map, R select)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cfg    [label="Configuration Registers\npumice_csr / scoria_csr / granite_csr (PeakRDL)\nsideband config to all planes", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- storage: mc_storage_plane ----
-    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_plane - mc_wr_data_cam", group=W, width=3.6];
-    rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam"];
+    wr_pool [label="DDR Write Command Pool\n+ Write Data Buffer\nmc_storage_plane - mc_wr_data_cam", group=W, width=3.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- maintenance requesters ----
-    initref [label="Init — mc_init_plane\n(mc_xddr2_init_sequencer + mode_register,\nexternal-init port into the scheduler)\nRefresh — mc_scheduler_plane child\n(mc_xddr2_refresh_ctrl)"];
-    maint   [label="DDR Maintenance Requester\nmc_training_plane - ZQ cal, DQ cal,\nmaintenance slot select\n(cal sideband to the DFI read aligner)"];
+    initref [label="Init — mc_init_plane\n(mc_xddr2_init_sequencer + mode_register,\nexternal-init port into the scheduler)\nRefresh — mc_scheduler_plane child\n(mc_xddr2_refresh_ctrl)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    maint   [label="DDR Maintenance Requester\nmc_training_plane - ZQ cal, DQ cal,\nmaintenance slot select\n(cal sideband to the DFI read aligner)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- scheduler: mc_scheduler_plane ----
     sched  [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arbiter (FR-FCFS pick)",
-            shape=invtrapezium, width=10, fillcolor="#BFD7EE", fontsize=11, group=C];
-    tctl   [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/... next-state)"];
-    ppol   [label="Page Policy\nmc_scheduler_plane - mc_page_policy\n(auto-PRE / timeout PRE)"];
-    cmdq   [label="DDR Command Queue\nmc_scheduler_plane - gaxi_fifo_sync\n+ CMD_DELAY release (write data leads)", group=C];
+            shape=invtrapezium, width=10, fillcolor="#BFD7EE", fontsize=11, group=C, style="filled", fillcolor="#FFF2CC"];
+    tctl   [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD/tRP/tRAS/tFAW/tRRD/... next-state)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ppol   [label="Page Policy\nmc_scheduler_plane - mc_page_policy\n(auto-PRE / timeout PRE)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmdq   [label="DDR Command Queue\nmc_scheduler_plane - gaxi_fifo_sync\n+ CMD_DELAY release (write data leads)", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- the DFI plane as ONE container: command + write + read + CDC ----
     dfi [label="DFI plane - mc_dfi_2p1 / 3p1 / 4p0_plane (one per product)\nmc_dfi_cdc (ctl_clk <-> dfi_clk) + mc_dfi_cmd_path + mc_dfi_wr_serializer + mc_dfi_rd_aligner\nwrite data in at the left, read data out at the right, command through the center",
-         width=10.5, height=1.7, fontsize=10, group=C];
+         width=10.5, height=1.7, fontsize=10, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- return path: mc_axi4_plane ----
     ring [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring\n(fill in issue order,\ndrain in AR order)",
-          height=1.6, group=R];
+          height=1.6, group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- host channels ----
     axi_wr -> wr_pkt [dir=both];
@@ -80,8 +80,8 @@ digraph whole_unit {
     // ---- read flow: command down the center, data back up the right ----
     rd_pkt -> rd_pool [xlabel="RD push (snarf miss)"];
     rd_pool -> sched [dir=both, xlabel="RD (issue slot back)"];
-    rd_pool -> ring [style=dashed, dir=both, label="ticket at insert / issue"];
-    rd_pkt -> wr_pool [style=dashed, dir=both, xlabel="snarf probe / hit + data", constraint=false];
+    rd_pool -> ring [style=dashed, color="#777777", dir=both, label="ticket at insert / issue"];
+    rd_pkt -> wr_pool [style=dashed, color="#777777", dir=both, xlabel="snarf probe / hit + data", constraint=false];
     r4 [shape=point, style=invis, width=0.01, group=R];
     r5 [shape=point, style=invis, width=0.01, group=R];
     ring -> r4     [dir=back, xlabel="Read data (issue order)", headclip=false];
@@ -93,7 +93,7 @@ digraph whole_unit {
     initref -> sched [label="INIT / MRS / REF"];
     maint -> sched [dir=both, label="ZQ / MRR (grant back)"];
     tctl -> sched  [xlabel="timer window"];
-    sched -> ppol  [dir=back, style=dashed, xlabel="PRE request"];
+    sched -> ppol  [dir=back, style=dashed, color="#777777", xlabel="PRE request"];
 
     // ---- scheduler into the DFI plane ----
     sched -> cmdq [penwidth=1.8, label="DDR Command"];

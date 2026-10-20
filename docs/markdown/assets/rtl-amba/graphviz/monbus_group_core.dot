@@ -17,42 +17,42 @@ digraph monbus_group_core {
            label="monbus_group_core - ocelus capture core: filter, error FIFO read by the CPU, log written to memory\n(single clock: axi_aclk, axi_aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- inputs (white) ----
-    prm  [label="Parameters (fixed at build)\lUSE_COMPRESSION: 1 = the compressor is built and\l    cfg_compress_en picks compressed or raw;\l    0 = raw 3-beat records only\lHALF_BEAT_EN: 1 = half slots packed two per beat\lMAX_BURST_BEATS: master-write burst cap (1 on AXIL)\lFIFO_DEPTH_ERR: records; FIFO_DEPTH_WRITE: beats\l", fillcolor="white"];
-    fcfg [label="Filter Config (runtime input ports)\lper protocol (AXI, AXIS, CORE):\l  cfg_*_pkt_mask: drop a packet type\l  cfg_*_<type>_mask: drop single event codes\l  cfg_*_err_select: route a type to the\l      error FIFO instead of the log\l", fillcolor="white"];
-    min  [group=C, label="Monitor Bus In\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready", fillcolor="white"];
-    wcfg [label="Log Config (runtime input ports)\lcfg_base_addr .. cfg_limit_addr: log window\l    (wraps at the limit)\lcfg_flush_watermark: beats that trigger a burst\lcfg_compress_en; cam_clear (empty the CAM)\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lUSE_COMPRESSION: 1 = the compressor is built and\l    cfg_compress_en picks compressed or raw;\l    0 = raw 3-beat records only\lHALF_BEAT_EN: 1 = half slots packed two per beat\lMAX_BURST_BEATS: master-write burst cap (1 on AXIL)\lFIFO_DEPTH_ERR: records; FIFO_DEPTH_WRITE: beats\l", fillcolor="white", shape=note];
+    fcfg [label="Filter Config (runtime input ports)\lper protocol (AXI, AXIS, CORE):\l  cfg_*_pkt_mask: drop a packet type\l  cfg_*_<type>_mask: drop single event codes\l  cfg_*_err_select: route a type to the\l      error FIFO instead of the log\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    min  [group=C, label="Monitor Bus In\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    wcfg [label="Log Config (runtime input ports)\lcfg_base_addr .. cfg_limit_addr: log window\l    (wraps at the limit)\lcfg_flush_watermark: beats that trigger a burst\lcfg_compress_en; cam_clear (empty the CAM)\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- capture ----
-    flt  [group=C, label="Protocol Filter + Route (combinational)\nprotocol field picks AXI / AXIS / CORE masks;\ndropped: packet-type mask or event-code mask\nkept: err_select type -> error FIFO, else -> log path"];
+    flt  [group=C, label="Protocol Filter + Route (combinational)\nprotocol field picks AXI / AXIS / CORE masks;\ndropped: packet-type mask or event-code mask\nkept: err_select type -> error FIFO, else -> log path", style="filled", fillcolor="white"];
 
     // ---- error path (left) ----
-    efifo [group=E, label="Error FIFO\ngaxi_fifo_sync - u_err_fifo\nFIFO_DEPTH_ERR records of\n192 bits {packet, timestamp}"];
-    slc   [group=E, label="Record Slicer (flops)\neach record read as 3 x 64-bit beats;\nburst AR: arlen + 1 beats, rlast on the last;\npop the FIFO when a record's 3rd beat goes"];
+    efifo [group=E, label="Error FIFO\ngaxi_fifo_sync - u_err_fifo\nFIFO_DEPTH_ERR records of\n192 bits {packet, timestamp}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    slc   [group=E, label="Record Slicer (flops)\neach record read as 3 x 64-bit beats;\nburst AR: arlen + 1 beats, rlast on the last;\npop the FIFO when a record's 3rd beat goes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- log path (right) ----
-    raw   [group=W, label="Raw 3-Beat Expander\n{tag 0, timestamp}, packet high, packet low"];
-    cmp   [group=W2, label="Compressor (USE_COMPRESSION=1 only)\ngaxi_skid_buffer - u_comp_in_skid\n+ monbus_compressor - u_compressor\n+ monbus_halfbeat_packer - u_packer (HALF_BEAT_EN=1)\n(see their diagrams)", style="filled,dashed"];
-    psel  [group=W, label="Path Select (combinational)\ncfg_compress_en (USE_COMPRESSION=1):\ncompressed slots, else raw beats"];
-    wfifo [group=W, label="Write FIFO\ngaxi_fifo_sync - u_write_fifo\nFIFO_DEPTH_WRITE 64-bit beats"];
-    bw    [group=W, label="Burst Writer (flops, FSM-free)\nflush on watermark or FLUSH_TIMEOUT_CYCLES idle;\nburst = min(FIFO beats, MAX_BURST_BEATS, 4 KB,\nwindow room); raw bursts carry whole records;\npointer wraps from limit back to base"];
+    raw   [group=W, label="Raw 3-Beat Expander\n{tag 0, timestamp}, packet high, packet low", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmp   [group=W2, label="Compressor (USE_COMPRESSION=1 only)\ngaxi_skid_buffer - u_comp_in_skid\n+ monbus_compressor - u_compressor\n+ monbus_halfbeat_packer - u_packer (HALF_BEAT_EN=1)\n(see their diagrams)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    psel  [group=W, label="Path Select (combinational)\ncfg_compress_en (USE_COMPRESSION=1):\ncompressed slots, else raw beats", style="filled", fillcolor="white"];
+    wfifo [group=W, label="Write FIFO\ngaxi_fifo_sync - u_write_fifo\nFIFO_DEPTH_WRITE 64-bit beats", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    bw    [group=W, label="Burst Writer (flops, FSM-free)\nflush on watermark or FLUSH_TIMEOUT_CYCLES idle;\nburst = min(FIFO beats, MAX_BURST_BEATS, 4 KB,\nwindow room); raw bursts carry whole records;\npointer wraps from limit back to base", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
     // ---- status ----
-    sts   [group=C, label="Status + Timebase\nirq_out = error FIFO not empty; FIFO full / counts\nfree-running counter -> mon_time_out\ncompressor statistics (mon_compressor_stat_*)"];
+    sts   [group=C, label="Status + Timebase\nirq_out = error FIFO not empty; FIFO full / counts\nfree-running counter -> mon_time_out\ncompressor statistics (mon_compressor_stat_*)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the boundary bar: the two FUBs ----
     outs [group=C, label="Slave-Read FUB (fub_s_*: AR in / R out, burst)   |   status, irq_out, mon_time_out   |   Master-Write FUB (fub_m_*: AW, W out / B in)",
-          fillcolor="white", width=11.0];
+          fillcolor="white", width=11.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- capture flow ----
     min  -> flt  [xlabel="packet + timestamp\n(valid down, ready up)"];
     flt  -> efifo [xlabel="error-selected"];
     flt  -> raw  [xlabel="log packets"];
     flt  -> cmp  [xlabel="log packets\n(compressed mode)"];
-    fcfg -> flt  [style=dashed, xlabel="masks, err_select"];
+    fcfg -> flt  [style=dashed, color="#777777", xlabel="masks, err_select"];
 
     // ---- error path ----
     efifo -> slc [xlabel="record"];
@@ -64,10 +64,10 @@ digraph monbus_group_core {
     psel  -> wfifo [xlabel="64-bit beats"];
     wfifo -> bw   [xlabel="beats, count"];
     bw    -> outs [xlabel="AW + W bursts", penwidth=1.8];
-    wcfg  -> bw   [style=dashed, xlabel="window, watermark"];
+    wcfg  -> bw   [style=dashed, color="#777777", xlabel="window, watermark"];
 
     // ---- status ----
-    efifo -> sts  [style=dashed, xlabel="not empty, count", constraint=false];
+    efifo -> sts  [style=dashed, color="#777777", xlabel="not empty, count", constraint=false];
     sts   -> outs [xlabel="status"];
 
     // ---- rank pinning ----

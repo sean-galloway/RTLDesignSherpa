@@ -14,23 +14,23 @@ digraph pit_8254_register_paths {
            label="apb4_pit_8254 register paths - writes down the left, read-back up the right",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*"];
-    slv  [group=C, label="APB Completer\napb4_slave or apb4_slave_cdc"];
-    adp  [group=C, label="Command / Response Adapter\npit_config_regs - peakrdl_to_cmdrsp\nholds the request until the register block acks"];
-    dec  [group=C, label="Strict Decode (combinational)\npit_config_regs\nseven mapped registers pass;\nanything else: write ignored, read 0, PSLVERR"];
-    regs [group=C, width=7.5, label="Register Block (PeakRDL)  pit_regs\nwrite: field storage merged per byte strobe (hwif_out)\nread: COUNTERn_DATA and PIT_STATUS return hwif_in.next"];
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv  [group=C, label="APB Completer\napb4_slave or apb4_slave_cdc", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    adp  [group=C, label="Command / Response Adapter\npit_config_regs - peakrdl_to_cmdrsp\nholds the request until the register block acks", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec  [group=C, label="Strict Decode (combinational)\npit_config_regs\nseven mapped registers pass;\nanything else: write ignored, read 0, PSLVERR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs [group=C, width=7.5, label="Register Block (PeakRDL)  pit_regs\nwrite: field storage merged per byte strobe (hwif_out)\nread: COUNTERn_DATA and PIT_STATUS return hwif_in.next", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    stb  [group=L, label="Write Strobe Builder (flop)\npit_config_regs\nswmod rising edge, delayed one flop so the\nstrobe lines up with the stored field value;\na COUNTERn_DATA read strobe releases its latch"];
-    cwd  [group=L, label="Control-Word Decode + Load Routing\npit_core (combinational)\nSC picks the counter; RW != 00 program, RW = 00 latch;\nCOUNTERn_DATA strobe loads counter n"];
+    stb  [group=L, label="Write Strobe Builder (flop)\npit_config_regs\nswmod rising edge, delayed one flop so the\nstrobe lines up with the stored field value;\na COUNTERn_DATA read strobe releases its latch", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cwd  [group=L, label="Control-Word Decode + Load Routing\npit_core (combinational)\nSC picks the counter; RW != 00 program, RW = 00 latch;\nCOUNTERn_DATA strobe loads counter n", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    rb1  [group=R, label="Read-Back Wiring (combinational)\npit_config_regs\nCOUNTERn_DATA.next = counter n count\nPIT_STATUS.next = three status bytes"];
-    rb2  [group=R, label="Status Assembly + Read Source (combinational)\npit_core, pit_counter\nper counter {OUT, NULL_COUNT, RW, MODE, BCD};\ncount_reg_out: the latched copy while latched,\nelse the live count, on the RW byte lane"];
+    rb1  [group=R, label="Read-Back Wiring (combinational)\npit_config_regs\nCOUNTERn_DATA.next = counter n count\nPIT_STATUS.next = three status bytes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rb2  [group=R, label="Status Assembly + Read Source (combinational)\npit_core, pit_counter\nper counter {OUT, NULL_COUNT, RW, MODE, BCD};\ncount_reg_out: the latched copy while latched,\nelse the live count, on the RW byte lane", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [group=C, fillcolor="white", width=9.5,
-          label="Counters 0 - 2  (pit_counter x 3, see Figure 1.1)\nprogram / latch / load in   |   count, OUT, NULL_COUNT, mode out"];
+          label="Counters 0 - 2  (pit_counter x 3, see Figure 1.1)\nprogram / latch / load in   |   count, OUT, NULL_COUNT, mode out", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     slv  -> adp  [dir=both, xlabel="cmd: pwrite, paddr, pwdata, pstrb\n/ rsp: prdata, pslverr"];

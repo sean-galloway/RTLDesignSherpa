@@ -8,26 +8,26 @@ digraph rapids_beats_monbus_tree {
            label="MonBus arbitration - four monbus_arbiter levels (one tree per half) from the emitters to the egress\n(packet + timestamp travel together; every level is valid/ready)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    de  [label="Descriptor\nEngine", group=E1];
-    sc  [label="Scheduler", group=E2];
-    cr  [label="Control\nRead", group=E3];
-    cw  [label="Control\nWrite", group=E4];
-    t1  [label="Group Arbiter, 4:1\nscheduler_group_beats", shape=polygon, sides=4, distortion=0.25, width=5.0, group=C, fillcolor="#BFD7EE"];
+    de  [label="Descriptor\nEngine", group=E1, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sc  [label="Scheduler", group=E2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cr  [label="Control\nRead", group=E3, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cw  [label="Control\nWrite", group=E4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    t1  [label="Group Arbiter, 4:1\nscheduler_group_beats", shape=polygon, sides=4, distortion=0.25, width=5.0, group=C, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    g17 [label="Groups\n1 .. 7\n(same tree)"];
-    dam [label="Descriptor AXI\nMonitor-Lite\n(USE_AXI_\nMONITORS=1)", style="filled,dashed"];
-    t2  [label="Array Arbiter, 9:1\nscheduler_group_array_beats", shape=polygon, sides=4, distortion=0.25, width=8.6, group=C, fillcolor="#BFD7EE"];
+    g17 [label="Groups\n1 .. 7\n(same tree)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dam [label="Descriptor AXI\nMonitor-Lite\n(USE_AXI_\nMONITORS=1)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    t2  [label="Array Arbiter, 9:1\nscheduler_group_array_beats", shape=polygon, sides=4, distortion=0.25, width=8.6, group=C, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    axm [label="Network-Plane\nMonitor-Lite\n(AXIS or CXS\nplane, client 1)", style="filled,dashed"];
-    t3  [label="Half Arbiter, 3:1 (third input reserved, tied off)\nrapids_snk_beats / rapids_src_beats", shape=polygon, sides=4, distortion=0.25, width=11.0, group=C, fillcolor="#BFD7EE"];
+    axm [label="Network-Plane\nMonitor-Lite\n(AXIS or CXS\nplane, client 1)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    t3  [label="Half Arbiter, 3:1 (third input reserved, tied off)\nrapids_snk_beats / rapids_src_beats", shape=polygon, sides=4, distortion=0.25, width=11.0, group=C, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    oth [label="Other\nHalf\n(same tree)"];
-    t4  [label="Core Arbiter, 2:1\nrapids_core_beats", shape=polygon, sides=4, distortion=0.10, width=14.0, group=C, fillcolor="#BFD7EE"];
+    oth [label="Other\nHalf\n(same tree)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    t4  [label="Core Arbiter, 2:1\nrapids_core_beats", shape=polygon, sides=4, distortion=0.10, width=14.0, group=C, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    bar [label="Monitor Egress - monbus_axil4_axil4_group in rapids_beats_top\nerror FIFO (s_axil_err)  |  capture writer (m_axil_mon)  |  mon_irq", fillcolor="white", width=14.0, group=C];
+    bar [label="Monitor Egress - monbus_axil4_axil4_group in rapids_beats_top\nerror FIFO (s_axil_err)  |  capture writer (m_axil_mon)  |  mon_irq", fillcolor="white", width=14.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     de -> t1 [label="desc events"];
     sc -> t1 [label="sched events"];
@@ -35,9 +35,9 @@ digraph rapids_beats_monbus_tree {
     cw -> t1 [label="ctrlwr events"];
     t1  -> t2 [label="group 0 packets", penwidth=1.8];
     g17 -> t2 [xlabel="groups 1-7"];
-    dam -> t2 [xlabel="AXI monitor\npackets", style=dashed];
+    dam -> t2 [xlabel="AXI monitor\npackets", style=dashed, color="#777777"];
     t2  -> t3 [label="array packets", penwidth=1.8];
-    axm -> t3 [xlabel="plane monitor\npackets", style=dashed];
+    axm -> t3 [xlabel="plane monitor\npackets", style=dashed, color="#777777"];
     t3  -> t4 [label="this half", penwidth=1.8];
     oth -> t4 [xlabel="other half"];
     t4  -> bar [label="merged MonBus (core_mon_*)", penwidth=1.8];

@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Figure 1.1 -- layering of the host-side stack. Replaces assets/mermaid/layering.mmd.
 // House style (vault/handbook/authoring/block-diagrams.md): the entry point is the
 // white port on top, the board is the boundary bar at the bottom. The command

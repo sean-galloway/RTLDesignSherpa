@@ -18,25 +18,25 @@ digraph arbiter_round_robin {
            label="arbiter_round_robin - mask-based round-robin pick (CLIENTS=1: grant = gated request)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external inputs (white) ----
-    blk  [label="Block Input\nblock_arb", fillcolor="white"];
-    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
-    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- request path ----
-    gate [group=C, label="Request Gate\nw_requests_gated = block_arb ? 0 : request"];
-    mask [label="Round-Robin Mask Select\nwin-mask LUT indexed by the last winner\n(clients above it keep priority)"];
+    gate [group=C, label="Request Gate\nw_requests_gated = block_arb ? 0 : request", style="filled", fillcolor="white"];
+    mask [label="Round-Robin Mask Select\nwin-mask LUT indexed by the last winner\n(clients above it keep priority)", style="filled", fillcolor="white"];
     pick [group=C, label="Priority Encoder - arbiter_priority_encoder\nmasked first, else unmasked",
-          shape=invtrapezium, width=6.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
-    ackt [label="ACK Tracker  (WAIT_GNT_ACK=1 only)\nr_pending_ack, r_pending_client\nholds the grant until grant_ack", style="filled,dashed"];
-    greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid flopped together\nr_last_grant_id / r_last_valid kept for the mask"];
+          shape=invtrapezium, width=6.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    ackt [label="ACK Tracker  (WAIT_GNT_ACK=1 only)\nr_pending_ack, r_pending_client\nholds the grant until grant_ack", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    greg [group=C, label="Grant Register\ngrant, grant_id, grant_valid flopped together\nr_last_grant_id / r_last_valid kept for the mask", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the boundary bar: outputs ----
     outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid   |   last_grant",
-          fillcolor="white", width=7.5];
+          fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     req  -> gate [xlabel="request"];
@@ -52,9 +52,9 @@ digraph arbiter_round_robin {
     p_fb -> mask [xlabel="last grant_id", tailclip=false, constraint=false];
 
     // ---- sideband (dashed) ----
-    blk  -> gate [style=dashed, xlabel="block_arb (forces no requests)"];
-    ack  -> ackt [style=dashed, xlabel="grant_ack"];
-    ackt -> greg [style=dashed, xlabel="can grant / hold"];
+    blk  -> gate [style=dashed, color="#777777", xlabel="block_arb (forces no requests)"];
+    ack  -> ackt [style=dashed, color="#777777", xlabel="grant_ack"];
+    ackt -> greg [style=dashed, color="#777777", xlabel="can grant / hold"];
 
     // ---- rank pinning ----
     // Columns: left = sideband (block_arb, grant_ack, ACK tracker);

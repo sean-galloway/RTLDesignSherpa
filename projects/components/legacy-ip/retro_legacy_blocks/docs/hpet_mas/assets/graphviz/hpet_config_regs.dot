@@ -11,20 +11,20 @@ digraph hpet_config_regs {
            label="hpet_config_regs - PeakRDL register block and the strobes it hands hpet_core (core clock)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    port [label="Command / Response Port  (from apb4_slave or apb4_slave_cdc)\ncmd_valid / cmd_ready + pwrite, paddr, pwdata, pstrb   |   rsp_valid / rsp_ready, prdata, pslverr", fillcolor="white", width=8.0];
-    adp  [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp - u_adapter\nholds the request until acked (two cycles per access)"];
+    port [label="Command / Response Port  (from apb4_slave or apb4_slave_cdc)\ncmd_valid / cmd_ready + pwrite, paddr, pwdata, pstrb   |   rsp_valid / rsp_ready, prdata, pslverr", fillcolor="white", width=8.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    adp  [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp - u_adapter\nholds the request until acked (two cycles per access)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     regs [label="Register Block (PeakRDL)\nhpet_regs - published HPET map: HPET_ID, HPET_PERIOD, HPET_CONFIG,\nHPET_STATUS, HPET_COUNTER_LO / HI, TIMER[0..7] CONFIG / INT_ROUTE_CAP / COMPARATOR_LO / HI\nHPET_ID and HPET_PERIOD driven from VENDOR_ID, REVISION_ID, NUM_TIMERS, COUNTER_CLK_PERIOD_FS",
-          width=8.5];
+          width=8.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    w1c  [group=L, label="HPET_STATUS W1C Decode (flop edge detect)\nmirrors the regblock's write decode;\nmask = wr_data & wr_biten, one-cycle pulse"];
-    stb  [group=L, label="Write-Strobe Alignment (flop)\nswmod rising edge, delayed one clock:\ncounter LO / HI, comparator LO / HI\n(data read from the merged field)"];
-    map  [group=C, label="Field Mapping (combinational)\nhpet_enable, legacy_replacement,\nINT_ENB, TYPE, timer_size = ~32MODE\n(INT_TYPE, INT_ROUTE, FSB_EN, VAL_SET: storage only)"];
+    w1c  [group=L, label="HPET_STATUS W1C Decode (flop edge detect)\nmirrors the regblock's write decode;\nmask = wr_data & wr_biten, one-cycle pulse", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    stb  [group=L, label="Write-Strobe Alignment (flop)\nswmod rising edge, delayed one clock:\ncounter LO / HI, comparator LO / HI\n(data read from the merged field)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    map  [group=C, label="Field Mapping (combinational)\nhpet_enable, legacy_replacement,\nINT_ENB, TYPE, timer_size = ~32MODE\n(INT_TYPE, INT_ROUTE, FSB_EN, VAL_SET: storage only)", style="filled", fillcolor="white"];
 
     bar [label="hpet_core Interface\ntimer_int_clear   |   counter / comparator write strobes + data   |   hpet_enable, legacy_replacement, per-timer config   |   counter_rdata, timer_comp_rdata, timer_int_status",
-         fillcolor="white", width=13.0];
+         fillcolor="white", width=13.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> adp  [dir=both, penwidth=1.8, xlabel="cmd / rsp"];
     adp  -> regs [dir=both, xlabel="cpuif request\n/ ack, read data"];

@@ -6,15 +6,15 @@ digraph counter_ring {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="counter_ring - one-hot ring counter (WIDTH states)";
 
-    en_in  [label="Enable Input\nenable", fillcolor="white"];
-    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
-    rot    [label="Rotate Right (combinational)\n{ring_out[0], ring_out[WIDTH-1:1]}\nheld when enable = 0"];
-    rreg   [label="Ring Register\nring_out (WIDTH flops)\nreset to 1 (bit 0 set): exactly one bit high"];
-    out    [label="Output\nring_out[WIDTH-1:0] (one-hot)", fillcolor="white", width=4.0];
+    en_in  [label="Enable Input\nenable", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rot    [label="Rotate Right (combinational)\n{ring_out[0], ring_out[WIDTH-1:1]}\nheld when enable = 0", style="filled", fillcolor="white"];
+    rreg   [label="Ring Register\nring_out (WIDTH flops)\nreset to 1 (bit 0 set): exactly one bit high", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out    [label="Output\nring_out[WIDTH-1:0] (one-hot)", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
     p_fb   [shape=point, width=0.01];
 
     en_in -> rot  [xlabel="enable"];
@@ -22,7 +22,7 @@ digraph counter_ring {
     rreg  -> out  [xlabel="ring_out"];
     rreg -> p_fb [arrowhead=none, headclip=false, constraint=false];
     p_fb -> rot  [xlabel="ring_out\n(current)", tailclip=false, constraint=false];
-    clk_in -> rreg [style=dashed, xlabel="clk, rst_n"];
+    clk_in -> rreg [style=dashed, color="#777777", xlabel="clk, rst_n"];
     { rank=same; clk_in; rot; }
     clk_in -> rot [style=invis, minlen=2];
 }

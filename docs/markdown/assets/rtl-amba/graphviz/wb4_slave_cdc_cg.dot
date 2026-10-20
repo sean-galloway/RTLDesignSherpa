@@ -11,21 +11,21 @@ digraph wb4_slave_cdc_cg {
            label="wb4_slave_cdc_cg - wb4_slave_cdc with the Wishbone-side clock gated (wb_clk gated, aclk free-running)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    top   [label="Wishbone B4 Completer Bus (s_wb_*)", fillcolor="white", width=4.4];
-    clk   [label="Clock In\nwb_clk, wb_resetn", fillcolor="white"];
-    cfg   [label="Clock-Gate Config (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle cycles before the\l    clock stops (CG_IDLE_COUNT_WIDTH bits)\l", fillcolor="white"];
-    cgc   [label="Clock-Gate Controller  (wb_clk domain)\namba_clock_gate_ctrl - u_clock_gate_ctrl\nidle countdown on activity:\nuser_valid = child wb_busy (axi_valid tied 0)\nwhile gating: STALL forced high"];
-    child [label="wb4_slave_cdc\nu_wb4_slave_cdc\n(see its diagram: slave core + two async FIFOs)", width=3.8, height=1.0];
-    bot   [label="Backend Queues  (aclk, aresetn: not gated)\ncmd_* out  /  rsp_* in", fillcolor="white", width=4.4];
-    cgo   [label="Status Outputs\ncg_gating (clock stopped), cg_idle", fillcolor="white"];
+    top   [label="Wishbone B4 Completer Bus (s_wb_*)", fillcolor="white", width=4.4, style="rounded,filled", fillcolor="#E2EFDA"];
+    clk   [label="Clock In\nwb_clk, wb_resetn", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [label="Clock-Gate Config (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle cycles before the\l    clock stops (CG_IDLE_COUNT_WIDTH bits)\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cgc   [label="Clock-Gate Controller  (wb_clk domain)\namba_clock_gate_ctrl - u_clock_gate_ctrl\nidle countdown on activity:\nuser_valid = child wb_busy (axi_valid tied 0)\nwhile gating: STALL forced high", style="filled", fillcolor="white"];
+    child [label="wb4_slave_cdc\nu_wb4_slave_cdc\n(see its diagram: slave core + two async FIFOs)", width=3.8, height=1.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bot   [label="Backend Queues  (aclk, aresetn: not gated)\ncmd_* out  /  rsp_* in", fillcolor="white", width=4.4, style="rounded,filled", fillcolor="#E2EFDA"];
+    cgo   [label="Status Outputs\ncg_gating (clock stopped), cg_idle", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     clk -> cgc  [xlabel="wb_clk", penwidth=1.8];
-    cfg -> cgc  [style=dashed, xlabel="enable, idle count"];
+    cfg -> cgc  [style=dashed, color="#777777", xlabel="enable, idle count"];
     cgc -> child [xlabel="gated_wb_clk", penwidth=1.8];
-    cgc -> cgo  [style=dashed, xlabel="cg_gating, cg_idle"];
+    cgc -> cgo  [style=dashed, color="#777777", xlabel="cg_gating, cg_idle"];
     top   -> child [dir=both, xlabel="CYC, STB, ... in /\nSTALL, ACK / ERR / RTY, DAT_R out", penwidth=1.8];
     child -> bot   [dir=both, xlabel="command out /\nresponse in (aclk)", penwidth=1.8];
 

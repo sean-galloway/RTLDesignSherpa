@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // DE10-Standard fabric benchmark - the run matrix (PRD 4.1). PLANNED.
 // Each panel is one run: where stream reads from, where it writes to, and
 // what part of the system the run isolates. Every path crosses the fabric

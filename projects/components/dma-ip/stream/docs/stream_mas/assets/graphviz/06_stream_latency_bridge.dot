@@ -7,20 +7,20 @@ digraph stream_latency_bridge {
            label="stream_latency_bridge - one-cycle read latency into a skid buffer (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    src  [label="Registered-Read FIFO (upstream)\ns_valid, s_data (data valid one cycle after the pop)", fillcolor="white", group=C];
-    gate [label="Pop Gate (combinational)\ns_ready = room in skid (count + in-flight < SKID_DEPTH)\nor the consumer drains this cycle", group=L];
-    ip   [label="Pop In Flight (flop)\nr_drain_ip = pop this cycle", group=L];
-    skid [label="Skid Buffer - gaxi_fifo_sync\n(SKID_DEPTH = 4, REGISTERED = 0)", width=3.8, group=C];
-    bar  [label="Consumer\nm_valid, m_data out / m_ready in   |   occupancy = skid count", fillcolor="white", width=6.5, group=C];
+    src  [label="Registered-Read FIFO (upstream)\ns_valid, s_data (data valid one cycle after the pop)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    gate [label="Pop Gate (combinational)\ns_ready = room in skid (count + in-flight < SKID_DEPTH)\nor the consumer drains this cycle", group=L, style="filled", fillcolor="white"];
+    ip   [label="Pop In Flight (flop)\nr_drain_ip = pop this cycle", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    skid [label="Skid Buffer - gaxi_fifo_sync\n(SKID_DEPTH = 4, REGISTERED = 0)", width=3.8, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Consumer\nm_valid, m_data out / m_ready in   |   occupancy = skid count", fillcolor="white", width=6.5, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     src  -> skid [label="s_data (stable one cycle\nafter the pop)", penwidth=1.8];
-    gate -> src  [dir=both, style=dashed, xlabel="s_valid in,\ns_ready out"];
+    gate -> src  [dir=both, style=dashed, color="#777777", xlabel="s_valid in,\ns_ready out"];
     gate -> ip   [label="pop"];
     ip   -> skid [label="skid write valid\n(next cycle)"];
-    skid -> gate [style=dashed, constraint=false, xlabel="skid count"];
+    skid -> gate [style=dashed, color="#777777", constraint=false, xlabel="skid count"];
     skid -> bar  [label="m_valid, m_data (valid / ready)", penwidth=1.8];
     { rank=same; gate; }
     { rank=same; src; }

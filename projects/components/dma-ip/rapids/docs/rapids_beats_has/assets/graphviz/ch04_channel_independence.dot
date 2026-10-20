@@ -10,21 +10,21 @@ digraph rapids_beats_channel_independence {
            label="Independent channels - the example traffic mix\nchannels meet only at each half's round-robin data engine (no priority);\nsink ch 1, 3 and source ch 0, 2 are idle in this example",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+           fillcolor="white", color="black", margin="0.10,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    s0 [label="Sink ch 0\nvoice"];
-    s2 [label="Sink ch 2\nvideo"];
-    s4 [label="Sink ch 4-7\nbulk"];
-    r1 [label="Source ch 1\nvoice"];
-    r3 [label="Source ch 3\ncontrol"];
-    r4 [label="Source ch 4-7\nbulk"];
+    s0 [label="Sink ch 0\nvoice", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    s2 [label="Sink ch 2\nvideo", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    s4 [label="Sink ch 4-7\nbulk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    r1 [label="Source ch 1\nvoice", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    r3 [label="Source ch 3\ncontrol", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    r4 [label="Source ch 4-7\nbulk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    we [label="Sink: AXI Write Engine\naxi_write_engine_beats (round-robin)", shape=polygon, sides=4, distortion=0.2, width=3.8, fillcolor="#BFD7EE"];
-    re [label="Source: AXI Read Engine\naxi_read_engine_beats (round-robin)", shape=polygon, sides=4, distortion=0.2, width=3.8, fillcolor="#BFD7EE"];
+    we [label="Sink: AXI Write Engine\naxi_write_engine_beats (round-robin)", shape=polygon, sides=4, distortion=0.2, width=3.8, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    re [label="Source: AXI Read Engine\naxi_read_engine_beats (round-robin)", shape=polygon, sides=4, distortion=0.2, width=3.8, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
     bar [label="System Memory\nm_axi_wr: AW + W bursts of the granted sink channel   |   m_axi_rd: AR of the granted source channel\n(R data returns to the requesting channel's FIFO by RID)",
-         fillcolor="white", width=10.5];
+         fillcolor="white", width=10.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     s0 -> we [label="burst req"];
     s2 -> we [label="burst req"];

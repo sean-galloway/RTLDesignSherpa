@@ -8,17 +8,17 @@ digraph clock_divider {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="clock_divider - N divided clocks picked off one free-running counter";
 
-    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
-    cfg    [label="Pick-off Configuration (input port)\lpickoff_points[i]: counter bit index p for\l    output i; divided_clk[i] = clk / 2^(p+1);\l    p >= COUNTER_WIDTH clamps to the MSB\l", fillcolor="white"];
-    inc    [label="Increment (combinational)\nr_divider_counters + 1"];
-    creg   [label="Free-Running Counter\nr_divider_counters (flop, COUNTER_WIDTH bits)"];
-    pick   [label="Pick-off Select (combinational, N copies)\nbit pickoff_points[i] of the counter"];
-    oreg   [label="Output Flops\ndivided_clk[i] (flop, N copies)\nretimes the picked bit onto clk"];
-    out    [label="Output\ndivided_clk[N-1:0]", fillcolor="white", width=4.0];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg    [label="Pick-off Configuration (input port)\lpickoff_points[i]: counter bit index p for\l    output i; divided_clk[i] = clk / 2^(p+1);\l    p >= COUNTER_WIDTH clamps to the MSB\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    inc    [label="Increment (combinational)\nr_divider_counters + 1", style="filled", fillcolor="white"];
+    creg   [label="Free-Running Counter\nr_divider_counters (flop, COUNTER_WIDTH bits)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pick   [label="Pick-off Select (combinational, N copies)\nbit pickoff_points[i] of the counter", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    oreg   [label="Output Flops\ndivided_clk[i] (flop, N copies)\nretimes the picked bit onto clk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out    [label="Output\ndivided_clk[N-1:0]", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
     p_fb   [shape=point, width=0.01];
 
     inc  -> creg [xlabel="next count"];
@@ -27,8 +27,8 @@ digraph clock_divider {
     oreg -> out  [xlabel="divided_clk", penwidth=1.8];
     creg -> p_fb [arrowhead=none, headclip=false, constraint=false];
     p_fb -> inc  [xlabel="r_divider_counters\n(current)", tailclip=false, constraint=false];
-    cfg  -> pick [style=dashed, xlabel="bit index"];
-    clk_in -> creg [style=dashed, xlabel="clk, rst_n"];
+    cfg  -> pick [style=dashed, color="#777777", xlabel="bit index"];
+    clk_in -> creg [style=dashed, color="#777777", xlabel="clk, rst_n"];
     { rank=same; clk_in; inc; }
     clk_in -> inc [style=invis, minlen=2];
     { rank=same; cfg; pick; }

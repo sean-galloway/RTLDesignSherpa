@@ -12,36 +12,36 @@
 digraph de10_fabric_benchmark_planned {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.5", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
            label="DE10-Standard (Cyclone V 5CSX) fabric benchmark - control plane, data plane, return lane (planned)"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---------------- control plane ----------------
     subgraph cluster_ctl {
         label="Control plane - configuration and readout only, never measured, identical both legs"; fontsize=10; style=dashed;
-        jtag [label="Host debug master\nJTAG to Avalon Master Bridge (System Console)", fillcolor="white"];
-        av   [label="Avalon-MM to AXI4-Lite\navmm_to_axil4 (non-posted writes)"];
-        cbr  [label="Configuration bridge (generated) at 0xF000_0000\lstream_apb 0xF000_0000   harness_csr 0xF001_0000   desc_ram wr 0xF002_0000\lobs_slave 0xF018_0000   obs_master 0xF019_0000   obs_desc 0xF01C_0000   chargen 0xF01D_0000\l"];
-        hcsr [label="Harness control and CRC readout\lharness_csr: start, clear_stats, soft_reset,\lCRC_RD_EXPECTED / CRC_WR_EXPECTED / CRC_WR_COMPUTED\l(computed CRC read from the CRC sink)\l"];
+        jtag [label="Host debug master\nJTAG to Avalon Master Bridge (System Console)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        av   [label="Avalon-MM to AXI4-Lite\navmm_to_axil4 (non-posted writes)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        cbr  [label="Configuration bridge (generated) at 0xF000_0000\lstream_apb 0xF000_0000   harness_csr 0xF001_0000   desc_ram wr 0xF002_0000\lobs_slave 0xF018_0000   obs_master 0xF019_0000   obs_desc 0xF01C_0000   chargen 0xF01D_0000\l", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        hcsr [label="Harness control and CRC readout\lharness_csr: start, clear_stats, soft_reset,\lCRC_RD_EXPECTED / CRC_WR_EXPECTED / CRC_WR_COMPUTED\l(computed CRC read from the CRC sink)\l", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
         jtag -> av  [xlabel="config RD / WR (Avalon-MM)"];
         av   -> cbr [xlabel="config RD / WR (AXI4-Lite)"];
         cbr  -> hcsr [xlabel="config RD / WR"];
     }
 
     // ---------------- data plane: request direction, top-down ----------------
-    str  [label="DMA mover - stream_top_ch8\lm_axi_desc 256   m_axi_rd 128   m_axi_wr 128\l", group=C];
-    inj  [label="W3 write injector (contention run)\nchar_engine_block, NUM_GEN=1, 128-bit", style="filled,dashed"];
-    obm  [label="Master-side meters\nobs_master (rd, wr, injector wr) + obs_desc (desc rd)", fillcolor="#FFF2CC", group=C];
-    fab  [label="DATA FABRIC under test - AXI4 on every port, fabric clock\nLeg A: bridge-generated crossbar      Leg B: Platform Designer interconnect", penwidth=2.2, width=7.0, group=C];
-    obs  [label="Slave-side meters\nobs_slave (rd: DDR3, LFSR   wr: DDR3, CRC)", fillcolor="#FFF2CC", group=C];
-    dsc  [label="Descriptor store - desc_ram rd 0x8000_0000\nsdpram_slave_axi4_axi4 (host preloads at 0xF002_0000)"];
+    str  [label="DMA mover - stream_top_ch8\lm_axi_desc 256   m_axi_rd 128   m_axi_wr 128\l", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    inj  [label="W3 write injector (contention run)\nchar_engine_block, NUM_GEN=1, 128-bit", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    obm  [label="Master-side meters\nobs_master (rd, wr, injector wr) + obs_desc (desc rd)", fillcolor="#FFF2CC", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fab  [label="DATA FABRIC under test - AXI4 on every port, fabric clock\nLeg A: bridge-generated crossbar      Leg B: Platform Designer interconnect", penwidth=2.2, width=7.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    obs  [label="Slave-side meters\nobs_slave (rd: DDR3, LFSR   wr: DDR3, CRC)", fillcolor="#FFF2CC", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dsc  [label="Descriptor store - desc_ram rd 0x8000_0000\nsdpram_slave_axi4_axi4 (host preloads at 0xF002_0000)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    a2a  [label="AXI4 to AXI3 (outside both fabrics)\naxi4_to_axi3"];
-    cdr  [label="Read crossing\naxi4_cdc_rd"];
-    cdw  [label="Write crossing\naxi4_cdc_wr"];
+    a2a  [label="AXI4 to AXI3 (outside both fabrics)\naxi4_to_axi3", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cdr  [label="Read crossing\naxi4_cdc_rd", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cdw  [label="Write crossing\naxi4_cdc_wr", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    ddr  [label="DDR3 0x0000_0000 (1 GB; bench 0x2000_0000+)\lf2sdram AXI-3 128 -> HPS DDR3 controller\l", fillcolor="white"];
-    src  [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector (srcsnk_clk)"];
-    snk  [label="CRC sink 0xA000_0000\naxi4_slave_wr_crc_check (srcsnk_clk)"];
+    ddr  [label="DDR3 0x0000_0000 (1 GB; bench 0x2000_0000+)\lf2sdram AXI-3 128 -> HPS DDR3 controller\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    src  [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector (srcsnk_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    snk  [label="CRC sink 0xA000_0000\naxi4_slave_wr_crc_check (srcsnk_clk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     str -> obm [xlabel="desc RD, data RD, data WR", penwidth=1.6];
     inj -> obm [xlabel="W3 WR"];
@@ -78,11 +78,11 @@ digraph de10_fabric_benchmark_planned {
     r4 -> rm [dir=back, penwidth=1.6];
 
     // ---------------- configuration sideband (dashed) ----------------
-    cbr -> str [style=dashed, xlabel="config (APB)"];
-    cbr -> inj [style=dashed, xlabel="chargen (APB)"];
-    cbr -> obm [style=dashed, xlabel="meter config / readout"];
-    cbr -> obs [style=dashed, xlabel="meter config / readout"];
-    cbr -> dsc [style=dashed, xlabel="preload (AXI4)"];
+    cbr -> str [style=dashed, color="#777777", xlabel="config (APB)"];
+    cbr -> inj [style=dashed, color="#777777", xlabel="chargen (APB)"];
+    cbr -> obm [style=dashed, color="#777777", xlabel="meter config / readout"];
+    cbr -> obs [style=dashed, color="#777777", xlabel="meter config / readout"];
+    cbr -> dsc [style=dashed, color="#777777", xlabel="preload (AXI4)"];
 
     { rank=same; inj; str; hcsr; }
     { rank=same; obm; r0; }

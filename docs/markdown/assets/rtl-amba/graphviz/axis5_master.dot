@@ -14,18 +14,18 @@ digraph axis5_master {
            label="axis5_master - FUB stream to AXI5-Stream master, one skid buffer\n(single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH: slots in the T skid buffer (2 .. 8)\lAXIS_ID/DEST/USER_WIDTH: 0 drops the field\l    (the port stays 1 bit wide, driven 0)\lENABLE_WAKEUP: 1 = carry tWAKEUP (default 1)\lENABLE_PARITY: 1 = *CHK check signals, odd\l    parity per byte (IHI 0051B ch. 5; default 0)\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH: slots in the T skid buffer (2 .. 8)\lAXIS_ID/DEST/USER_WIDTH: 0 drops the field\l    (the port stays 1 bit wide, driven 0)\lENABLE_WAKEUP: 1 = carry tWAKEUP (default 1)\lENABLE_PARITY: 1 = *CHK check signals, odd\l    parity per byte (IHI 0051B ch. 5; default 0)\l", fillcolor="white", shape=note];
 
-    fub  [label="FUB Stream Port (upstream)\nfub_axis_tvalid, T fields, twakeup, payload *chk\n/ fub_axis_tready", fillcolor="white"];
-    pack [label="Pack (wiring)\n{T fields, twakeup, payload check bits}\none TSize-bit word per beat\n(fields present per ENABLE_WAKEUP / _PARITY)"];
-    skid [label="T Skid Buffer\ngaxi_skid_buffer - t_channel\nDEPTH = SKID_DEPTH, registered ready / valid"];
-    unp  [label="Unpack (wiring)\nper-field slices back to m_axis_t*,\nm_axis_twakeup, carried check bits"];
-    par  [style="filled,dashed", label="Parity Check / Generate (ENABLE_PARITY=1 only)\ndataint_parity, odd, one instance per byte piece\nchecks the carried payload *chk against the outgoing beat;\ngenerates m_axis_tvalidchk, twakeupchk; checks m_axis_treadychk\nany mismatch sets the sticky parity_error flop"];
+    fub  [label="FUB Stream Port (upstream)\nfub_axis_tvalid, T fields, twakeup, payload *chk\n/ fub_axis_tready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pack [label="Pack (wiring)\n{T fields, twakeup, payload check bits}\none TSize-bit word per beat\n(fields present per ENABLE_WAKEUP / _PARITY)", style="filled", fillcolor="white"];
+    skid [label="T Skid Buffer\ngaxi_skid_buffer - t_channel\nDEPTH = SKID_DEPTH, registered ready / valid", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    unp  [label="Unpack (wiring)\nper-field slices back to m_axis_t*,\nm_axis_twakeup, carried check bits", style="filled", fillcolor="white"];
+    par  [style="filled,dashed", label="Parity Check / Generate (ENABLE_PARITY=1 only)\ndataint_parity, odd, one instance per byte piece\nchecks the carried payload *chk against the outgoing beat;\ngenerates m_axis_tvalidchk, twakeupchk; checks m_axis_treadychk\nany mismatch sets the sticky parity_error flop", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     bus  [label="AXI5-Stream Master Bus\nm_axis_tvalid, T fields, twakeup, *chk  /  m_axis_tready, m_axis_treadychk\nbusy = (rd_count > 0) | fub_axis_tvalid   |   parity_error (sticky)",
-          fillcolor="white", width=6.5];
+          fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     fub  -> pack [xlabel="T beat (valid + payload)"];
     pack -> skid [xlabel="wr_valid, wr_data"];
@@ -33,13 +33,13 @@ digraph axis5_master {
     unp  -> bus  [xlabel="m_axis_tvalid + T fields"];
 
     p_rdy [shape=point, width=0.01];
-    p_rdy -> bus [style=dashed, dir=none, tailclip=false];
-    p_rdy -> skid [style=dashed, constraint=false, tailclip=false, xlabel="m_axis_tready\n(= rd_ready)"];
-    skid -> fub  [style=dashed, constraint=false, xlabel="fub_axis_tready\n(= wr_ready)"];
+    p_rdy -> bus [style=dashed, color="#777777", dir=none, tailclip=false];
+    p_rdy -> skid [style=dashed, color="#777777", constraint=false, tailclip=false, xlabel="m_axis_tready\n(= rd_ready)"];
+    skid -> fub  [style=dashed, color="#777777", constraint=false, xlabel="fub_axis_tready\n(= wr_ready)"];
 
-    unp  -> par [style=dashed, xlabel="beat\n+ *chk"];
-    par  -> bus [style=dashed, xlabel="tvalidchk, twakeupchk,\nparity_error"];
-    bus  -> par [style=dashed, constraint=false, xlabel="m_axis_treadychk"];
+    unp  -> par [style=dashed, color="#777777", xlabel="beat\n+ *chk"];
+    par  -> bus [style=dashed, color="#777777", xlabel="tvalidchk, twakeupchk,\nparity_error"];
+    bus  -> par [style=dashed, color="#777777", constraint=false, xlabel="m_axis_treadychk"];
     { rank=same; p_rdy; unp; par; }
     p_rdy -> unp [style=invis];
     unp -> par [style=invis, minlen=2];

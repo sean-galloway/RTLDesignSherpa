@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // "Choosing a technique" decision tree for docs/markdown/rtl-cdc/cdc.md.
 // Not a block diagram (no flows), but drawn in the house vocabulary:
 // questions are white boxes, answers are blue module boxes, every arrow

@@ -6,41 +6,41 @@ digraph master_adapter {
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="<master>_adapter - one per master port (single clock aclk)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pw [label="Master Write Data\nW in", fillcolor="white", group=L];
-    pc [label="Master Requests\nAW / AR in", fillcolor="white", group=C];
-    pr [label="Master Responses\nB / R out", fillcolor="white", group=R];
-    legend [label="Channel trimming (channels in the TOML)\lwr: no AR / R lanes (axi4_slave_wr only)\lrd: no AW / W / B lanes (axi4_slave_rd only)\lrw: all five channels\l", fillcolor="white"];
+    pw [label="Master Write Data\nW in", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    pc [label="Master Requests\nAW / AR in", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="Master Responses\nB / R out", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    legend [label="Channel trimming (channels in the TOML)\lwr: no AR / R lanes (axi4_slave_wr only)\lrd: no AW / W / B lanes (axi4_slave_rd only)\lrw: all five channels\l", fillcolor="white", shape=note];
     { rank=same; pw; pc; pr; legend; }
     pw -> pc -> pr -> legend [style=invis];
 
-    sw [label="W Skid Buffer\naxi4_slave_wr", group=L];
-    sc [label="AW / AR Skid Buffers\naxi4_slave_wr / axi4_slave_rd", group=C];
-    sr [label="B / R Skid Buffers\naxi4_slave_wr / axi4_slave_rd", group=R];
+    sw [label="W Skid Buffer\naxi4_slave_wr", group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sc [label="AW / AR Skid Buffers\naxi4_slave_wr / axi4_slave_rd", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sr [label="B / R Skid Buffers\naxi4_slave_wr / axi4_slave_rd", group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     { rank=same; sw; sc; sr; }
     sw -> sc -> sr [style=invis];
 
     p1l [shape=point, width=0.01, label="", group=L];
-    dec [label="Address Decode (combinational)\ncomb_slave_select_aw / _ar: one-hot from an if / else-if\nchain over each slave's window; the final else = catch-all", group=C];
+    dec [label="Address Decode (combinational)\ncomb_slave_select_aw / _ar: one-hot from an if / else-if\nchain over each slave's window; the final else = catch-all", group=C, style="filled", fillcolor="white"];
     p1r [shape=point, width=0.01, label="", group=R];
     { rank=same; p1l; dec; p1r; }
     p1l -> dec -> p1r [style=invis];
 
-    wsel [label="W Path Select\nw_trk FIFO: pushed with the AW's\nslave select, popped at WLAST", group=L];
-    gate [label="Per-ID Target Gate + Fabric ID\naw_gate_ok / ar_gate_ok: a new AW / AR waits only while\nits ID is in flight to a different slave (AW also while\nW is owed to one); ID leaves as {BRIDGE_ID, id}", group=C];
-    rmux [label="Response Mux + Path Arbiter\nround robin across the width paths\n(b_ / r_slave_select); held until taken,\nre-arbitrated every beat; each B / last R\ndecrements the gate's ID table", group=R];
+    wsel [label="W Path Select\nw_trk FIFO: pushed with the AW's\nslave select, popped at WLAST", group=L, style="filled", fillcolor="white"];
+    gate [label="Per-ID Target Gate + Fabric ID\naw_gate_ok / ar_gate_ok: a new AW / AR waits only while\nits ID is in flight to a different slave (AW also while\nW is owed to one); ID leaves as {BRIDGE_ID, id}", group=C, style="filled", fillcolor="white"];
+    rmux [label="Response Mux + Path Arbiter\nround robin across the width paths\n(b_ / r_slave_select); held until taken,\nre-arbitrated every beat; each B / last R\ndecrements the gate's ID table", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; wsel; gate; rmux; }
     wsel -> gate -> rmux [style=invis];
 
-    wl [label="W Width Paths\none per distinct slave width:\npassthrough, or axi4_dwidth_converter_wr", group=L];
-    cl [label="AW / AR Width Paths\npassthrough, or axi4_dwidth_converter_wr / _rd\n(len / size rewritten for the slave width)", group=C];
-    rl [label="B / R Width Paths\nR repacked by axi4_dwidth_converter_rd;\nB passes", group=R];
+    wl [label="W Width Paths\none per distinct slave width:\npassthrough, or axi4_dwidth_converter_wr", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cl [label="AW / AR Width Paths\npassthrough, or axi4_dwidth_converter_wr / _rd\n(len / size rewritten for the slave width)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rl [label="B / R Width Paths\nR repacked by axi4_dwidth_converter_rd;\nB passes", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; wl; cl; rl; }
     wl -> cl -> rl [style=invis];
 
-    bar [label="Crossbar Interface - <master>_<N>b_aw / w / b / ar / r: one channel set per distinct slave width", fillcolor="white", width=10, group=C];
+    bar [label="Crossbar Interface - <master>_<N>b_aw / w / b / ar / r: one channel set per distinct slave width", fillcolor="white", width=10, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pw -> sw [label="W beats"];
     sw -> p1l [dir=none];
@@ -54,11 +54,11 @@ digraph master_adapter {
     gate -> cl [label="AW / AR to the selected path", penwidth=1.8];
     cl -> bar [xlabel="AW / AR (slave width)", penwidth=1.8];
 
-    pr -> sr [dir=back, label="B / R"];
-    sr -> p1r [dir=back];
-    p1r -> rmux [dir=none, xlabel="B / R"];
+    pr -> sr [color="#1A7A1A", dir=back, label="B / R"];
+    sr -> p1r [color="#1A7A1A", dir=back];
+    p1r -> rmux [color="#1A7A1A", dir=none, xlabel="B / R"];
     rmux -> rl [dir=back, label="B / R of the granted path"];
     rl -> bar [dir=back, xlabel="B / R (slave width)"];
 
-    dec -> wsel [style=dashed, xlabel="AW slave select"];
+    dec -> wsel [style=dashed, color="#777777", xlabel="AW slave select"];
 }

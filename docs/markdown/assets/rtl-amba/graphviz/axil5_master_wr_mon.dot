@@ -9,26 +9,26 @@ digraph axil5_master_wr_mon {
            label="axil5_master_wr_mon - axil5_master_wr with an ocelus transaction monitor on the fub_axil (FUB) side\n(aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    top   [label="Write Requester (fub_axil_*)\nuser logic issuing writes", fillcolor="white", width=3.8];
-    child [label="axil5_master_wr\naxil5_master_wr_inst\n(see its diagram: one skid buffer per channel)", width=3.4, height=1.0];
-    bot   [label="AXI5-Lite Bus, master side (m_axil_*)", fillcolor="white", width=4.4];
+    top   [label="Write Requester (fub_axil_*)\nuser logic issuing writes", fillcolor="white", width=3.8, style="rounded,filled", fillcolor="#E2EFDA"];
+    child [label="axil5_master_wr\naxil5_master_wr_inst\n(see its diagram: one skid buffer per channel)", width=3.4, height=1.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bot   [label="AXI5-Lite Bus, master side (m_axil_*)", fillcolor="white", width=4.4, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    mcfg  [label="Monitor Config (runtime input ports)\lcfg_monitor_enable: 0 = taps off, never stalls\lcfg_*_enable: error / timeout / compl /\l    threshold / perf / debug packet classes\lcfg_axi_*_mask: per-event drop masks\lcfg_timeout_cycles (us), cfg_freq_sel,\l    cfg_latency_threshold, address ranges\li_mon_time (timestamp in), cam_clear\l", fillcolor="white"];
-    mon   [label="Ocelus Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntaps AW (cmd, ID), W (data), B (resp, ID) on the fub_axil (FUB) side\ntracks up to MAX_TRANSACTIONS (default 8)\nraises block_ready low when its table is full\nUSE_MONITOR=1 requires ID_WIDTH <= 8 (keys 8 ID bits;\nelaboration check -- use _monlite for wider IDs)", style="filled,dashed"];
-    gate  [label="AW Handshake Gate (combinational)\nfub_axil_awvalid AND fub_axil_awready\nboth masked by block_ready\n(unless cfg_monitor_enable = 0)"];
-    mout  [label="Monitor Outputs\lmonbus_packet / monbus_valid / monbus_ready,\l    monbus_timestamp (ocelus monitor bus)\lbusy, active_transactions, error_count,\l    transaction_count, perf_* window counters\l", fillcolor="white"];
-    mcfg -> mon [style=dashed, xlabel="config"];
-    mon  -> gate [style=dashed, dir=both, xlabel="block_ready down /\ntap (FUB handshake) up"];
+    mcfg  [label="Monitor Config (runtime input ports)\lcfg_monitor_enable: 0 = taps off, never stalls\lcfg_*_enable: error / timeout / compl /\l    threshold / perf / debug packet classes\lcfg_axi_*_mask: per-event drop masks\lcfg_timeout_cycles (us), cfg_freq_sel,\l    cfg_latency_threshold, address ranges\li_mon_time (timestamp in), cam_clear\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mon   [label="Ocelus Monitor (USE_MONITOR=1 only)\naxi_monitor_filtered - axi_monitor_inst\ntaps AW (cmd, ID), W (data), B (resp, ID) on the fub_axil (FUB) side\ntracks up to MAX_TRANSACTIONS (default 8)\nraises block_ready low when its table is full\nUSE_MONITOR=1 requires ID_WIDTH <= 8 (keys 8 ID bits;\nelaboration check -- use _monlite for wider IDs)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    gate  [label="AW Handshake Gate (combinational)\nfub_axil_awvalid AND fub_axil_awready\nboth masked by block_ready\n(unless cfg_monitor_enable = 0)", style="filled", fillcolor="white"];
+    mout  [label="Monitor Outputs\lmonbus_packet / monbus_valid / monbus_ready,\l    monbus_timestamp (ocelus monitor bus)\lbusy, active_transactions, error_count,\l    transaction_count, perf_* window counters\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mcfg -> mon [style=dashed, color="#777777", xlabel="config"];
+    mon  -> gate [style=dashed, color="#777777", dir=both, xlabel="block_ready down /\ntap (FUB handshake) up"];
     mon  -> mout [xlabel="ocelus packets", penwidth=1.8];
 
     top  -> gate  [xlabel="AW + W (awid, awaddr, ... / wdata, wstrb, ...)", penwidth=1.8];
     gate -> child [xlabel="gated valid", penwidth=1.8];
     child -> bot  [dir=both, xlabel="AW + W (awid, awaddr, ... / wdata, wstrb, ...) out /\nB (bid, bresp, ...) in", penwidth=1.8];
 
-    top -> child [dir=back, xlabel="B (bid, bresp, ...)", constraint=false];
+    top -> child [color="#1A7A1A", dir=back, xlabel="B (bid, bresp, ...)", constraint=false];
 
     { rank=same; gate; mcfg; }
     { rank=same; child; mon; }

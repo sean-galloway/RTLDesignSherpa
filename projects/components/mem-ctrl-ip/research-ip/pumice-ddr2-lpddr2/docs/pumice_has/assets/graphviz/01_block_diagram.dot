@@ -8,41 +8,41 @@ digraph pumice_whole_unit {
            nodesep="0.35", ranksep="0.55", splines=ortho,
            label="pumice DDR2 / LPDDR2 controller - whole unit (pumice_core: five common-ip planes + pumice_csr)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
-    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter + mc_wr_intake\n(address map: mc_addr_mapper)", group=W];
-    rd_pkt [label="Read Request Packetizer + R Return\nmc_axi4_plane - mc_axi_burst_chopper + mc_rd_intake\n(address map, snarf probe, R in AR order)", group=R];
-    cfg    [label="Configuration Registers\npumice_csr (PeakRDL)\nsideband config to all planes"];
+    wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter + mc_wr_intake\n(address map: mc_addr_mapper)", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_pkt [label="Read Request Packetizer + R Return\nmc_axi4_plane - mc_axi_burst_chopper + mc_rd_intake\n(address map, snarf probe, R in AR order)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cfg    [label="Configuration Registers\npumice_csr (PeakRDL)\nsideband config to all planes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wr_pool [label="DDR Write Command Pool + Write Data Buffer\nmc_storage_plane - mc_wr_data_cam"];
-    rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam"];
-    rbuf    [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring", height=1.4];
+    wr_pool [label="DDR Write Command Pool + Write Data Buffer\nmc_storage_plane - mc_wr_data_cam", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rbuf    [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring", height=1.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     init  [label="Init Sequencer + Mode Register
 mc_scheduler_plane - mc_xddr2_init_sequencer
-+ mc_xddr2_mode_register"];
++ mc_xddr2_mode_register", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     refc  [label="Refresh Controller
 mc_scheduler_plane -
-mc_xddr2_refresh_ctrl"];
+mc_xddr2_refresh_ctrl", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     maint [label="DDR Maintenance Command Queue
 mc_training_plane - mc_lpddr2_zq_ctrl,
-mc_lpddr2_dq_cal (MRR)"];
+mc_lpddr2_dq_cal (MRR)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     sched [label="DDR Command Scheduler\nmc_scheduler_plane - mc_cmd_arbiter (FR-FCFS pick)
 page policy: mc_page_policy",
            shape=polygon, sides=4, distortion=0.10, width=9.5, height=0.6,
-           fillcolor="#BDD7EE", fontsize=11];
-    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD / tRP / tRAS / tFAW / tRRD / tCCD next-state)"];
+           fillcolor="#BDD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(tRCD / tRP / tRAS / tFAW / tRRD / tCCD next-state)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     dfi [label="DFI 2.1 data path - mc_dfi_2p1_plane
 mc_dfi_cdc (the one ctl_clk / dfi_clk crossing) + mc_dfi_cmd_path
-+ mc_dfi_wr_serializer (left) + mc_dfi_rd_aligner (right)", width=9.5, height=1.1];
++ mc_dfi_wr_serializer (left) + mc_dfi_rd_aligner (right)", width=9.5, height=1.1, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    phy [label="DDR PHY (DFI 2.1, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11];
+    phy [label="DDR PHY (DFI 2.1, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- point scaffolds: one per crossing ----
     node [shape=point, width=0.01, height=0.01, label="", style=invis];
@@ -64,15 +64,15 @@ mc_dfi_cdc (the one ctl_clk / dfi_clk crossing) + mc_dfi_cmd_path
 
     // ---- read side ----
     rd_pkt  -> rd_pool [xlabel="RD push (miss)"];
-    rd_pkt  -> wr_pool [dir=both, style=dashed, xlabel="snarf probe /\nhit + data", constraint=false];
+    rd_pkt  -> wr_pool [dir=both, style=dashed, color="#777777", xlabel="snarf probe /\nhit + data", constraint=false];
     rd_pool -> sched   [xlabel="RD"];
-    rd_pool -> rbuf    [dir=both, style=dashed, xlabel="tickets", constraint=false];
+    rd_pool -> rbuf    [dir=both, style=dashed, color="#777777", xlabel="tickets", constraint=false];
 
     // ---- maintenance + timing into the pick ----
     init  -> sched [xlabel="INIT / MRS"];
     refc  -> sched [xlabel="REF"];
     maint -> sched [dir=both, xlabel="ZQ / training\n(grant back)"];
-    tctl  -> sched [style=dashed, xlabel="timer window"];
+    tctl  -> sched [style=dashed, color="#777777", xlabel="timer window"];
 
     // ---- the winner ----
     sched -> dfi [penwidth=1.8, xlabel="DDR Command"];

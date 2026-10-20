@@ -9,24 +9,24 @@ digraph axi4_master_rd_stub {
            label="axi4_master_rd_stub - AXI4 read master: packed-packet stub, one skid buffer per channel (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AR: AR entries buffered (default 2)\lSKID_DEPTH_R: R beats buffered (default 4)\l    deeper = more decoupling, more flops\l", fillcolor="white"];
-    fub  [label="FUB Side (packed packets)\nfub_axi_ar_pkt in  /  fub_axi_r_pkt out  /  fub_axi_ar_count out", fillcolor="white", width=4.0];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AR: AR entries buffered (default 2)\lSKID_DEPTH_R: R beats buffered (default 4)\l    deeper = more decoupling, more flops\l", fillcolor="white", shape=note];
+    fub  [label="FUB Side (packed packets)\nfub_axi_ar_pkt in  /  fub_axi_r_pkt out  /  fub_axi_ar_count out", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - inst_ar_phase\n(DEPTH = SKID_DEPTH_AR)\nrd_count drives fub_axi_ar_count"];
-    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - inst_r_phase\n(DEPTH = SKID_DEPTH_R)"];
+    ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - inst_ar_phase\n(DEPTH = SKID_DEPTH_AR)\nrd_count drives fub_axi_ar_count", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - inst_r_phase\n(DEPTH = SKID_DEPTH_R)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     mport [label="Module Boundary\nm_axi_ar* out (fields unpacked)  |  m_axi_r* in (fields packed)",
-           fillcolor="white", width=7.6];
+           fillcolor="white", width=7.6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // request: down the left lane
     fub -> ar    [xlabel="AR packet (arvalid / arready);\nar_count back up"];
     ar  -> mport [xlabel="AR"];
     // response: back up the right lane (dir=back keeps the ranks top-down)
-    r   -> mport [dir=back, xlabel="R: id, data,\nresp, last"];
-    fub -> r     [dir=back, xlabel="R packet\n(rvalid / rready)"];
+    r   -> mport [color="#1A7A1A", dir=back, xlabel="R: id, data,\nresp, last"];
+    fub -> r     [color="#1A7A1A", dir=back, xlabel="R packet\n(rvalid / rready)"];
 
     { rank=same; prm; fub; }
     { rank=same; ar; r; }

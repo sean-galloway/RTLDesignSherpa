@@ -7,30 +7,30 @@ digraph ingress_shifter {
            label="snk_data_path_axis ingress shifter - packed stream beats to beat-aligned memory beats with byte enables\n(single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axis  [label="Network In - s_axis_*\ntdata, tstrb, tid (channel), tlast", fillcolor="white", group=C];
-    rec   [label="Packet Records (from the scheduler)\nsched_wr_pkt_*: {bytes, dst offset} per channel", fillcolor="white", group=R];
-    pq    [label="Record Queue (flops, 4 per channel)\nhead[tid]: offset, bytes", group=R];
-    cnt   [label="Byte Counter (flops, per channel)\n+= popcount(tstrb); at tlast compare\nwith the record -> sticky sched_wr_error", group=L];
-    wide  [label="Wide Shift (combinational, 2 x DW)\n{tdata << offset*8} | hold[tid]\n{tstrb << offset} | hold_strb[tid]", width=4.2, group=C];
-    hold  [label="Spill Hold (flops, per channel)\nhold, hold_strb: lanes 0 .. offset-1\nof the next memory beat", group=R];
-    outr  [label="Output Register (flops)\nchannel id, data, strb;\nafter tlast a non-empty spill is\nflushed as one more beat", group=C];
-    fill  [label="Fill Logic (as in RAPIDS Beats)\nallocation, settle window, fill_valid / fill_ready", group=C];
-    bar   [label="Sink SRAM - snk_sram_controller (entry = {strb, data}, DW + DW/8 wide)", fillcolor="white", width=8.0, group=C];
+    axis  [label="Network In - s_axis_*\ntdata, tstrb, tid (channel), tlast", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    rec   [label="Packet Records (from the scheduler)\nsched_wr_pkt_*: {bytes, dst offset} per channel", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    pq    [label="Record Queue (flops, 4 per channel)\nhead[tid]: offset, bytes", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cnt   [label="Byte Counter (flops, per channel)\n+= popcount(tstrb); at tlast compare\nwith the record -> sticky sched_wr_error", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wide  [label="Wide Shift (combinational, 2 x DW)\n{tdata << offset*8} | hold[tid]\n{tstrb << offset} | hold_strb[tid]", width=4.2, group=C, style="filled", fillcolor="white"];
+    hold  [label="Spill Hold (flops, per channel)\nhold, hold_strb: lanes 0 .. offset-1\nof the next memory beat", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    outr  [label="Output Register (flops)\nchannel id, data, strb;\nafter tlast a non-empty spill is\nflushed as one more beat", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fill  [label="Fill Logic (as in RAPIDS Beats)\nallocation, settle window, fill_valid / fill_ready", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar   [label="Sink SRAM - snk_sram_controller (entry = {strb, data}, DW + DW/8 wide)", fillcolor="white", width=8.0, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     rec  -> pq   [label="record push"];
     axis -> wide [xlabel="stream beat", penwidth=1.8];
     pq   -> wide [xlabel="offset"];
     axis -> cnt  [xlabel="tstrb, tlast"];
-    pq   -> cnt  [style=dashed, constraint=false, label="record bytes"];
+    pq   -> cnt  [style=dashed, color="#777777", constraint=false, label="record bytes"];
     wide -> hold [dir=both, xlabel="high DW bits out;\nheld spill back in"];
     wide -> outr [label="low DW bits: this memory beat", penwidth=1.8];
     hold -> outr [xlabel="flush\n(after tlast)"];
     outr -> fill [label="placed beat + strobes", penwidth=1.8];
     fill -> bar  [label="fill beats {strb, data}", penwidth=1.8];
-    fill -> axis [style=dashed, constraint=false, xlabel="tready = output free, no flush\npending, record known"];
+    fill -> axis [style=dashed, color="#777777", constraint=false, xlabel="tready = output free, no flush\npending, record known"];
 
     { rank=same; axis; rec; }
     axis -> rec [style=invis];

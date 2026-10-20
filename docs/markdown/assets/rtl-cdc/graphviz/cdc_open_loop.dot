@@ -16,37 +16,37 @@ digraph cdc_open_loop {
            label="cdc_open_loop - stretched valid, one crossing, no acknowledge",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    src_port [group=SO, label="Source Port\nclk_src domain", fillcolor="white"];
-    dst_port [group=DO, label="Destination Port\nclk_dst domain", fillcolor="white"];
+    src_port [group=SO, label="Source Port\nclk_src domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dst_port [group=DO, label="Destination Port\nclk_dst domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_src {
         label="clk_src domain"; style=dashed; fontsize=10;
-        stretch [group=SO, label="Stretch Control\nr_stretch_count, r_src_valid_stretch\nSTRETCH_CYCLES or AUTO_STRETCH"];
+        stretch [group=SO, label="Stretch Control\nr_stretch_count, r_src_valid_stretch\nSTRETCH_CYCLES or AUTO_STRETCH", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     subgraph cluster_dst {
         label="clk_dst domain"; style=dashed; fontsize=10;
-        dst_ctl   [group=DO, label="Capture Control\ndst_valid = one-cycle pulse\non the synchronized rise"];
-        vsync     [group=DI, label="Valid Sync + Rise Detect\nglitch_free_n_dff_arn (SYNC_STAGES on clk_dst)\nrise = sync & !previous"];
+        dst_ctl   [group=DO, label="Capture Control\ndst_valid = one-cycle pulse\non the synchronized rise", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        vsync     [group=DI, label="Valid Sync + Rise Detect\nglitch_free_n_dff_arn (SYNC_STAGES on clk_dst)\nrise = sync & !previous", style="filled", fillcolor="white"];
     }
 
     // ---- the boundary bar: the held data bus both clocks touch ----
     bus [group=C, label="Held Data Bus  [DATA_WIDTH]  (crosses unsynchronized, stable for the stretch window)\nr_src_data loaded on clk_src at the left, captured into dst_data on clk_dst at the right",
-         width=13.0, height=0.8];
+         width=13.0, height=0.8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- port interfaces ----
     src_port -> stretch [dir=both, label="src_valid / src_busy"];
-    dst_port -> dst_ctl [dir=back, label="dst_valid"];
+    dst_port -> dst_ctl [color="#1A7A1A", dir=back, label="dst_valid"];
 
     // ---- the one crossing ----
     stretch -> vsync [headlabel="valid (stretched)", labelangle=-60, labeldistance=5, penwidth=1.8];
 
     // ---- rise back up to the capture control ----
-    dst_ctl -> vsync [dir=back, xlabel="valid rise"];
+    dst_ctl -> vsync [color="#1A7A1A", dir=back, xlabel="valid rise"];
 
     // ---- bar connections via point scaffolds ----
     p_sd  [shape=point, width=0.01];
@@ -60,8 +60,8 @@ digraph cdc_open_loop {
     p_ld -> bus [xlabel="load\n(accepted src_valid)", tailclip=false];
     dst_ctl -> p_cap [arrowhead=none, headclip=false];
     p_cap -> bus [xlabel="capture\n(valid rise)", tailclip=false];
-    p_dd -> bus [dir=none, tailclip=false];
-    p_dd -> dst_port [xlabel="dst_data", tailclip=false, constraint=false];
+    p_dd -> bus [color="#1A7A1A", dir=none, tailclip=false];
+    p_dd -> dst_port [color="#1A7A1A", xlabel="dst_data", tailclip=false, constraint=false];
 
     // ---- invisible center spine (group C) ----
     node [style=invis, shape=point, width=0.01, group=C];

@@ -11,7 +11,7 @@ digraph {name} {{
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="{title}"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 '''
 
@@ -59,6 +59,42 @@ READ = dict(
            a_c="granted AR + bridge_id", acc="ARID + bridge_id at accept",
            s_c="Read address", s_r="Read data", t_r="R + RID", r_r="R + bridge_id", m_r="R (master width)"),
 )
+
+
+# ---- element key v3 (vault/handbook/authoring/block-diagrams.md) ---------
+# Each node takes its class's shape and fill; return-data edges are green.
+# The key row is generated at render time (bin/render_block_diagram.py).
+V3_ATTRS = {
+    "interface": 'style="rounded,filled", fillcolor="#E2EFDA"',
+    "bar": 'style="rounded,filled,bold", fillcolor="#E2EFDA"',
+    "logic": 'style="filled", fillcolor="white"',
+    "registered": 'peripheries=2, style="filled", fillcolor="#D6E4F0"',
+    "fsm": 'peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"',
+    "storage": 'shape=cylinder, style="filled", fillcolor="#E8DFF5"',
+    "pick": 'style="filled", fillcolor="#FFF2CC"',
+    "note": 'shape=note',
+}
+
+
+def style_v3(text, classes, returns):
+    """Append class attrs to each `    nid [...]` line; colour return edges."""
+    import re
+    out = []
+    for line in text.split("\n"):
+        m = re.match(r"^\s+(\w+)\s+\[", line)
+        e = re.match(r"^\s+(\w+)\s*->\s*(\w+)\s*\[", line)
+        if e and (e.group(1), e.group(2)) in returns:
+            line = line.replace("[", '[color="#1A7A1A", ', 1)
+        elif m and not e and m.group(1) in classes and line.rstrip().endswith("];"):
+            line = line.rstrip()[:-2] + ", " + V3_ATTRS[classes[m.group(1)]] + "];"
+        out.append(line)
+    return "\n".join(out)
+
+CLASSES = dict(pw="interface", pc="interface", pr="interface", others="interface",
+               mW="storage", mC="logic", mR="storage", wdest="logic", arb="pick",
+               rmux="logic", wown="logic", trk="registered", sW="storage",
+               sC="storage", sR="storage", bar="bar")
+RETURNS = {("pr", "mR"), ("mR", "rmux"), ("rmux", "trk"), ("trk", "sR"), ("sR", "bar")}
 
 
 def build(d):
@@ -120,7 +156,7 @@ def build(d):
           f'    sR -> bar [dir=back, xlabel="{e["s_r"]}"];',
           f'    pc3 -> trk [style=dashed, xlabel="{e["acc"]}"];',
           "}"]
-    open(d["name"] + ".dot", "w").write("\n".join(o) + "\n")
+    open(d["name"] + ".dot", "w").write(style_v3("\n".join(o), CLASSES, RETURNS) + "\n")
 
 
 for spec in (WRITE, READ):

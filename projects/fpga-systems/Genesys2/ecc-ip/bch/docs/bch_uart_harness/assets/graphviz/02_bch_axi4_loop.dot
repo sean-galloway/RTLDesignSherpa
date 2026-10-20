@@ -13,22 +13,22 @@ digraph bch_axi4_loop {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            label="BCH loop, AXI4 flavour: four sequential jobs over three memories (bch_axi4_pipeline)", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    gen   [label="Pattern Generator\naxis4_master_injector\n(the same block as AXIS)", fillcolor="white"];
-    obs   [label="AXI4 Observer (window 0x0001_0000)\naxi4_intf_master_observer - u_obs_axi4\non the codec's 2 read + 2 write masters\n(observed, nothing driven back)"];
+    gen   [label="Pattern Generator\naxis4_master_injector\n(the same block as AXIS)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    obs   [label="AXI4 Observer (window 0x0001_0000)\naxi4_intf_master_observer - u_obs_axi4\non the codec's 2 read + 2 write masters\n(observed, nothing driven back)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    seed  [label="Job 1: Seed Write\nrs_axi4_write_engine\nu_seed"];
-    enc   [label="Job 2: Encode\nbch_encoder_axi4 - u_enc\n(includes the beat packer)"];
-    dec   [label="Job 3: Decode (riBM)\nbch_decoder_axi4 - u_dec\nerror_injector - u_inj on its R channel"];
-    drain [label="Job 4: Drain Read\nrs_axi4_read_engine\nu_drain"];
+    seed  [label="Job 1: Seed Write\nrs_axi4_write_engine\nu_seed", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    enc   [label="Job 2: Encode\nbch_encoder_axi4 - u_enc\n(includes the beat packer)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec   [label="Job 3: Decode (riBM)\nbch_decoder_axi4 - u_dec\nerror_injector - u_inj on its R channel", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    drain [label="Job 4: Drain Read\nrs_axi4_read_engine\nu_drain", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    m1 [label="M1 Seed Memory\nsdpram_slave_axi4_axi4\nu_mem1"];
-    m2 [label="M2 Codeword Memory\nsdpram_slave_axi4_axi4\nu_mem2 (packed codewords)"];
-    m4 [label="M4 Recovered-Message Memory\nsdpram_slave_axi4_axi4\nu_mem4"];
+    m1 [label="M1 Seed Memory\nsdpram_slave_axi4_axi4\nu_mem1", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    m2 [label="M2 Codeword Memory\nsdpram_slave_axi4_axi4\nu_mem2 (packed codewords)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    m4 [label="M4 Recovered-Message Memory\nsdpram_slave_axi4_axi4\nu_mem4", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    bar [label="Pattern Check: axis4_slave_pattern_check\n(the same checker as AXIS) -> status CSRs", fillcolor="white", width=6];
+    bar [label="Pattern Check: axis4_slave_pattern_check\n(the same checker as AXIS) -> status CSRs", fillcolor="white", width=6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     gen [group=C]; seed [group=C]; enc [group=C]; dec [group=C]; drain [group=C]; bar [group=C];
     m1 [group=L]; m4 [group=L]; m2 [group=R];
@@ -45,6 +45,6 @@ digraph bch_axi4_loop {
     drain -> bar   [penwidth=1.8, xlabel="recovered message"];
     seed -> enc -> dec -> drain [style=invis];
 
-    enc   -> obs   [style=dashed, xlabel="taps"];
-    obs   -> dec   [style=dashed, dir=back, xlabel="taps"];
+    enc   -> obs   [style=dashed, color="#777777", xlabel="taps"];
+    obs   -> dec   [style=dashed, color="#777777", dir=back, xlabel="taps"];
 }

@@ -16,42 +16,42 @@ digraph rapids_core_beats {
            label="rapids_core_beats - sink half (rapids_snk_beats) and source half (rapids_src_beats); they share no logic (single clock: clk, rst_n)\nsink: AXIS -> memory down the left; source: memory -> AXIS up the right; descriptors and control down the center",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external ports (white) ----
     s_axis [label="Network In - s_axis_*, from the sink RX plane
 (AXIS, tid = channel; the plane is
-AXIS or CXS, see the network-planes figure)", fillcolor="white", group=L];
-    s_apb  [label="Configuration In (from rapids_config_block x 2)\nsrc_ / snk_ cfg_*, per-channel kick (apb_valid / apb_addr)", fillcolor="white", group=C];
+AXIS or CXS, see the network-planes figure)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    s_apb  [label="Configuration In (from rapids_config_block x 2)\nsrc_ / snk_ cfg_*, per-channel kick (apb_valid / apb_addr)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
     m_axis [label="Network Out - m_axis_*, to the source TX plane
 (AXIS, tid = channel; the plane is
-AXIS or CXS, see the network-planes figure)", fillcolor="white", group=R];
+AXIS or CXS, see the network-planes figure)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- rank 1 ----
-    ingress [label="Sink Ingress\nsnk_data_path_axis_beats\n(tid picks the channel FIFO)", group=L];
+    ingress [label="Sink Ingress\nsnk_data_path_axis_beats\n(tid picks the channel FIFO)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     egress  [label="Source Egress (round-robin channel pick)\nsrc_data_path_axis_beats",
-             shape=trapezium, width=3.4, height=0.6, group=R];
+             shape=trapezium, width=3.4, height=0.6, group=R, style="filled", fillcolor="#FFF2CC"];
 
     // ---- rank 2 ----
-    snk_sram [label="Sink SRAM Buffer\nsnk_sram_controller_beats\n(8 per-channel FIFOs)", height=0.9, group=L];
-    sga      [label="Scheduler Group Arrays\nscheduler_group_array_beats x 2 (sink, source)\neach 8 x scheduler_group_beats:\ndescriptor_engine_beats + scheduler_beats\n+ ctrlrd_engine + ctrlwr_engine", group=C];
-    src_sram [label="Source SRAM Buffer\nsrc_sram_controller_beats\n(8 per-channel FIFOs)", height=0.9, group=R];
+    snk_sram [label="Sink SRAM Buffer\nsnk_sram_controller_beats\n(8 per-channel FIFOs)", height=0.9, group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sga      [label="Scheduler Group Arrays\nscheduler_group_array_beats x 2 (sink, source)\neach 8 x scheduler_group_beats:\ndescriptor_engine_beats + scheduler_beats\n+ ctrlrd_engine + ctrlwr_engine", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    src_sram [label="Source SRAM Buffer\nsrc_sram_controller_beats\n(8 per-channel FIFOs)", height=0.9, group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- rank 3 ----
-    wr_eng [label="AXI Write Engine\naxi_write_engine_beats\n(round-robin over channels)", group=L];
+    wr_eng [label="AXI Write Engine\naxi_write_engine_beats\n(round-robin over channels)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     arb    [label="Descriptor / Control Arbiters\narbiter_round_robin x 3 per half",
-            shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", group=C];
+            shape=invtrapezium, width=4.2, fillcolor="#BFD7EE", group=C, style="filled", fillcolor="#FFF2CC"];
     mon    [label="MonBus
 half 3:1 arbiters (client 1 = the
 network plane's monitor packets,
 src_/snk_plane_mon_*) ->
-core 2:1 monbus_arbiter", style="filled,dashed"];
-    rd_eng [label="AXI Read Engine\naxi_read_engine_beats\n(round-robin over channels)", group=R];
+core 2:1 monbus_arbiter", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    rd_eng [label="AXI Read Engine\naxi_read_engine_beats\n(round-robin over channels)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- boundary bar ----
     mem [label="Core Boundary (to rapids_beats_top)\nm_axi_wr (AW, W / B)  |  mon_*  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)",
-         fillcolor="white", width=17.0, fontsize=11, group=C];
+         fillcolor="white", width=17.0, fontsize=11, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- sink write data, down the left ----
     s_axis   -> ingress  [label="packet beats"];
@@ -63,7 +63,7 @@ core 2:1 monbus_arbiter", style="filled,dashed"];
     sga   -> arb  [label="desc fetch / ctrl RD / ctrl WR\n(8 channels)"];
     sga   -> wr_eng [xlabel="write cmd: addr,\nbeats (sink half)"];
     sga   -> rd_eng [xlabel="read cmd: addr,\nbeats (source half)"];
-    sga   -> mon    [style=dashed, xlabel="monitor\npackets"];
+    sga   -> mon    [style=dashed, color="#777777", xlabel="monitor\npackets"];
 
     // ---- source read data, up the right ----
     m_axis   -> egress   [dir=back, label="packet beats, tlast"];
@@ -88,7 +88,7 @@ core 2:1 monbus_arbiter", style="filled,dashed"];
     p_cmd  -> mem   [xlabel="descriptor fetch, control\nread / write (AR, AW, W)", penwidth=1.8, tailclip=false];
     sga    -> p_dr  [dir=back, xlabel="descriptors, ctrl\nread data (R), B", headclip=false];
     p_dr   -> mem   [dir=none, tailclip=false];
-    mon    -> mem   [style=dashed, xlabel="mon_* (merged\nstream)"];
+    mon    -> mem   [style=dashed, color="#777777", xlabel="mon_* (merged\nstream)"];
     rd_eng -> p_ar  [arrowhead=none, headclip=false];
     p_ar   -> mem   [xlabel="Read request (AR)", tailclip=false];
     rd_eng -> p_rd  [dir=back, headclip=false];

@@ -9,13 +9,13 @@ digraph uart_apb_interface {
            nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
            label="apb4_uart_16550 APB interface - APB4 transfer to the register block", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    apb [label="APB4 Completer Port  s_apb_*\nin: PSEL, PENABLE, PADDR[11:0], PWRITE, PWDATA, PSTRB, PPROT   |   out: PREADY, PRDATA, PSLVERR", fillcolor="white"];
-    slv [label="APB Completer (see its diagram)\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1)\nPREADY held low until the access is answered", width=6.5];
-    adp [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp\nPSTRB -> per-bit write enables; holds the request until acked", width=6.5];
-    dec [label="Strict Decode + DLAB Remap (combinational)\nuart_16550_config_regs\nonly the eleven mapped offsets (PADDR[11:6] = 0) pass;\nanything else: read 0, PSLVERR, acked here;  LCR.DLAB=1: 0x00 / 0x04 -> DLL / DLM", width=6.5];
-    bar [label="Register Block cpuif  (uart_16550_regs, address bits [5:0])\nreq, req_is_wr, addr, wr_data, wr_biten   |   rd_ack, rd_data, rd_err, wr_ack, wr_err", fillcolor="white", width=8.5];
+    apb [label="APB4 Completer Port  s_apb_*\nin: PSEL, PENABLE, PADDR[11:0], PWRITE, PWDATA, PSTRB, PPROT   |   out: PREADY, PRDATA, PSLVERR", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv [label="APB Completer (see its diagram)\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1)\nPREADY held low until the access is answered", width=6.5, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    adp [label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp\nPSTRB -> per-bit write enables; holds the request until acked", width=6.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec [label="Strict Decode + DLAB Remap (combinational)\nuart_16550_config_regs\nonly the eleven mapped offsets (PADDR[11:6] = 0) pass;\nanything else: read 0, PSLVERR, acked here;  LCR.DLAB=1: 0x00 / 0x04 -> DLL / DLM", width=6.5, style="filled", fillcolor="white"];
+    bar [label="Register Block cpuif  (uart_16550_regs, address bits [5:0])\nreq, req_is_wr, addr, wr_data, wr_biten   |   rd_ack, rd_data, rd_err, wr_ack, wr_err", fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     apb -> slv [dir=both, penwidth=1.8, xlabel="transfer (PSEL, PENABLE, address, data)\n/ PREADY, PRDATA, PSLVERR"];
     slv -> adp [dir=both, xlabel="cmd_valid + pwrite, paddr, pwdata, pstrb\n/ rsp_valid + prdata, pslverr"];
     adp -> dec [dir=both, xlabel="register request\n/ ack, read data, err"];

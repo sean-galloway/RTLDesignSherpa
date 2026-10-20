@@ -6,22 +6,22 @@
 digraph de10_clocks {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.4", ranksep="0.45", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
            label="Clock domains - one fabric clock, every crossing outside the fabric under test (planned)"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     subgraph cluster_tck {
         label="JTAG TCK"; fontsize=10; style=dashed; labeljust=l;
-        jtg [label="JTAG to Avalon Master Bridge\nIntel IP - crosses TCK to its Avalon clock inside"];
+        jtg [label="JTAG to Avalon Master Bridge\nIntel IP - crosses TCK to its Avalon clock inside", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
     subgraph cluster_fab {
         label="fabric_clk - one frequency, both legs"; fontsize=10; labeljust=l;
-        cfg [label="Configuration path\navmm_to_axil4, config bridge, harness_csr"];
-        mas [label="Masters + master-side observers\nstream, char_engine_block, obs_master, obs_desc"];
-        fab [label="FABRIC under test\nLeg A bridge / Leg B Platform Designer", penwidth=1.8];
-        slv [label="Slave-side observer + local slaves\nobs_slave, desc_ram, axi4_to_axi3"];
-        cdc [label="AXI4 clock crossings\naxi4_cdc_rd, axi4_cdc_wr"];
-        f2s [label="f2sdram port, FPGA side\nclocked by fabric_clk"];
-        cfg -> mas [style=dashed, xlabel="config"];
+        cfg [label="Configuration path\navmm_to_axil4, config bridge, harness_csr", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        mas [label="Masters + master-side observers\nstream, char_engine_block, obs_master, obs_desc", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        fab [label="FABRIC under test\nLeg A bridge / Leg B Platform Designer", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        slv [label="Slave-side observer + local slaves\nobs_slave, desc_ram, axi4_to_axi3", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        cdc [label="AXI4 clock crossings\naxi4_cdc_rd, axi4_cdc_wr", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        f2s [label="f2sdram port, FPGA side\nclocked by fabric_clk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        cfg -> mas [style=dashed, color="#777777", xlabel="config"];
         mas -> fab [xlabel="RD / WR"];
         fab -> slv [xlabel="RD / WR"];
         slv -> cdc [xlabel="to source / sink"];
@@ -29,15 +29,15 @@ digraph de10_clocks {
     }
     subgraph cluster_src {
         label="srcsnk_clk - faster than fabric_clk,\nso the endpoints never limit"; fontsize=10; labelloc=b;
-        src [label="Synthetic endpoints\nLFSR source, CRC sink"];
+        src [label="Synthetic endpoints\nLFSR source, CRC sink", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
     subgraph cluster_hps {
         label="HPS clocks"; fontsize=10; labelloc=b;
-        mc [label="HPS SDRAM controller\nhard IP - its own crossing from the port clock", fillcolor="white"];
-        ddr [label="DDR3 device\non the board", fillcolor="white"];
+        mc [label="HPS SDRAM controller\nhard IP - its own crossing from the port clock", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        ddr [label="DDR3 device\non the board", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
         mc -> ddr [xlabel="DDR3 commands / data"];
     }
-    pll [label="Board oscillator 50 MHz -> Cyclone V PLL\nfabric_clk and srcsnk_clk", fillcolor="white"];
+    pll [label="Board oscillator 50 MHz -> Cyclone V PLL\nfabric_clk and srcsnk_clk", fillcolor="white", shape=note];
 
     jtg -> cfg [xlabel="config reads / writes", minlen=2];
     cdc -> src [xlabel="AXI4 crossing", minlen=2];

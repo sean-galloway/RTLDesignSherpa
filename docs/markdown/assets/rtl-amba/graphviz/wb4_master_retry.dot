@@ -7,19 +7,19 @@ digraph wb4_master_retry {
            label="wb4_master_retry - wb4_master with RTY retry on its FUB side (single clock: clk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    top   [label="FUB Queues\ncmd_* in  /  rsp_* out (RTY only once the budget is spent)", fillcolor="white"];
-    cfg   [label="Retry Config (runtime input ports)\lcfg_max_retries: re-issues per command;\l    0 = pass every RTY through\lcfg_retry_delay: clocks from RTY to re-issue\l", fillcolor="white"];
-    rty   [label="Retry Block\nwb4_retry - u_retry\n(see its diagram: in-order completion buffer of INFLIGHT entries)", width=4.2, height=0.9];
-    child [label="wb4_master\nu_master\n(see its diagram)", width=3.2, height=0.9];
-    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4];
-    sts   [label="Status Outputs\nretry_count (re-issues since reset), active_count", fillcolor="white"];
+    top   [label="FUB Queues\ncmd_* in  /  rsp_* out (RTY only once the budget is spent)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [label="Retry Config (runtime input ports)\lcfg_max_retries: re-issues per command;\l    0 = pass every RTY through\lcfg_retry_delay: clocks from RTY to re-issue\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rty   [label="Retry Block\nwb4_retry - u_retry\n(see its diagram: in-order completion buffer of INFLIGHT entries)", width=4.2, height=0.9, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    child [label="wb4_master\nu_master\n(see its diagram)", width=3.2, height=0.9, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4, style="rounded,filled", fillcolor="#E2EFDA"];
+    sts   [label="Status Outputs\nretry_count (re-issues since reset), active_count", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     top -> rty   [dir=both, xlabel="command down /\nresponse up"];
-    cfg -> rty   [style=dashed, xlabel="max retries, delay"];
+    cfg -> rty   [style=dashed, color="#777777", xlabel="max retries, delay"];
     rty -> child [dir=both, xlabel="command or re-issue down /\nACK / ERR / RTY response up", penwidth=1.8];
     child -> bot [dir=both, xlabel="CYC, STB, ... out /\nSTALL, ACK / ERR / RTY, DAT_R in", penwidth=1.8];
-    rty -> sts   [style=dashed, xlabel="counts"];
+    rty -> sts   [style=dashed, color="#777777", xlabel="counts"];
     { rank=same; cfg; top; }
     cfg -> top [style=invis];
     { rank=same; bot; sts; }

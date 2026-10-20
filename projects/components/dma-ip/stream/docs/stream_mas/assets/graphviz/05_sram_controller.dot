@@ -7,26 +7,26 @@ digraph sram_controller {
            nodesep="0.50", ranksep="0.55", splines=ortho,
            label="sram_controller - 8 per-channel units behind an ID decode and an ID mux (single clock: clk, rst_n)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    fill  [label="Fill Side - AXI read engine (axi_read_engine)\naxi_rd_alloc_req / size / id; axi_rd_sram_valid / id / data", fillcolor="white", group=C];
-    dec   [label="Fill Decode (combinational)\nalloc_id and sram_id select the channel;\nready muxed back from that channel", group=C];
-    units [label="Per-Channel Units - 8 x sram_controller_unit\neach: stream_alloc_ctrl (space) + gaxi_fifo_sync (SRAM_DEPTH beats)\n+ stream_drain_ctrl (data) + stream_latency_bridge (see its figure)", width=6.5, height=0.9, group=C];
-    mux   [label="Drain Mux (combinational)\nsram_id selects the channel's data", group=C];
-    stat  [label="Availability Registers (flops)\nspace_free[8], data_avail[8], valid[8]\n(one cycle late, for timing)", group=R];
-    drain [label="Drain Side - AXI write engine (axi_write_engine)\ndrain_req / size per channel  |  drain_data_avail, valid per channel  |  drain + id -> data", fillcolor="white", width=8.0, group=C];
+    fill  [label="Fill Side - AXI read engine (axi_read_engine)\naxi_rd_alloc_req / size / id; axi_rd_sram_valid / id / data", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    dec   [label="Fill Decode (combinational)\nalloc_id and sram_id select the channel;\nready muxed back from that channel", group=C, style="filled", fillcolor="white"];
+    units [label="Per-Channel Units - 8 x sram_controller_unit\neach: stream_alloc_ctrl (space) + gaxi_fifo_sync (SRAM_DEPTH beats)\n+ stream_drain_ctrl (data) + stream_latency_bridge (see its figure)", width=6.5, height=0.9, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mux   [label="Drain Mux (combinational)\nsram_id selects the channel's data", group=C, style="filled", fillcolor="white"];
+    stat  [label="Availability Registers (flops)\nspace_free[8], data_avail[8], valid[8]\n(one cycle late, for timing)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    drain [label="Drain Side - AXI write engine (axi_write_engine)\ndrain_req / size per channel  |  drain_data_avail, valid per channel  |  drain + id -> data", fillcolor="white", width=8.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     fill  -> dec   [label="alloc request; fill beats (one bus)", penwidth=1.8];
     dec   -> units [label="per-channel alloc + write enable", penwidth=1.8];
     units -> mux   [label="per-channel beats", penwidth=1.8];
     mux   -> drain [label="selected channel's beats", penwidth=1.8];
-    units -> stat  [style=dashed, xlabel="space, data counts"];
-    stat  -> drain [style=dashed, xlabel="data_avail[8],\nvalid[8]"];
-    fill  -> stat  [dir=back, style=dashed, constraint=false, xlabel="space_free[8]"];
+    units -> stat  [style=dashed, color="#777777", xlabel="space, data counts"];
+    stat  -> drain [style=dashed, color="#777777", xlabel="data_avail[8],\nvalid[8]"];
+    fill  -> stat  [dir=back, style=dashed, color="#777777", constraint=false, xlabel="space_free[8]"];
     p_dr  [shape=point, width=0.01, group=L];
     { rank=same; p_dr; mux; }
     p_dr -> mux [style=invis];
-    units -> p_dr [dir=back, style=dashed, xlabel="drain_req + size\n(per channel)"];
-    p_dr -> drain [dir=none, style=dashed];
+    units -> p_dr [dir=back, style=dashed, color="#777777", xlabel="drain_req + size\n(per channel)"];
+    p_dr -> drain [dir=none, style=dashed, color="#777777"];
 }

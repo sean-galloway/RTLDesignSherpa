@@ -7,22 +7,22 @@ digraph axi_split_combi {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi_split_combi - boundary split calculation for one AXI burst (combinational)";
 
-    txn   [group=A, label="Current Burst\ncurrent_addr, current_len, ax_size", fillcolor="white"];
-    bnd   [group=B, label="Boundary\nalignment_mask[11:0]\n(e.g. 0xFFF = 4 KB)", fillcolor="white"];
-    st    [group=C, label="State\nis_idle_state, transaction_valid", fillcolor="white"];
+    txn   [group=A, label="Current Burst\ncurrent_addr, current_len, ax_size", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    bnd   [group=B, label="Boundary\nalignment_mask[11:0]\n(e.g. 0xFFF = 4 KB)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    st    [group=C, label="State\nis_idle_state, transaction_valid", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ext   [group=A, label="Burst Extent (combinational)\ntotal_bytes = (len + 1) << size\nend_addr = addr + total_bytes - 1"];
-    nxt   [group=B, label="Next Boundary (combinational)\nnext = (addr | alignment_mask) + 1\nbeats_to_boundary = (next - addr) >> size"];
-    dec   [group=A, label="Split Decision (combinational)\nsplit_required = end_addr crosses next\n& beats before it > 0 & they fit in the burst"];
-    lens  [group=A, label="Length Split (combinational)\nsplit: split_len = beats_to_boundary - 1,\nremaining = the rest (AXI len encoding)\nno split: split_len = current_len, remaining = 0"];
-    first [group=C, label="First-Split Flag (combinational)\nnew_split_needed = split_required\n& is_idle_state & transaction_valid"];
+    ext   [group=A, label="Burst Extent (combinational)\ntotal_bytes = (len + 1) << size\nend_addr = addr + total_bytes - 1", style="filled", fillcolor="white"];
+    nxt   [group=B, label="Next Boundary (combinational)\nnext = (addr | alignment_mask) + 1\nbeats_to_boundary = (next - addr) >> size", style="filled", fillcolor="white"];
+    dec   [group=A, label="Split Decision (combinational)\nsplit_required = end_addr crosses next\n& beats before it > 0 & they fit in the burst", style="filled", fillcolor="white"];
+    lens  [group=A, label="Length Split (combinational)\nsplit: split_len = beats_to_boundary - 1,\nremaining = the rest (AXI len encoding)\nno split: split_len = current_len, remaining = 0", style="filled", fillcolor="white"];
+    first [group=C, label="First-Split Flag (combinational)\nnew_split_needed = split_required\n& is_idle_state & transaction_valid", style="filled", fillcolor="white"];
 
     out   [label="Outputs\nsplit_required   |   split_len   |   remaining_len_after_split   |   next_boundary_addr   |   new_split_needed",
-           fillcolor="white", width=9.0];
+           fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     txn -> ext  [xlabel="addr, len, size"];
     txn -> nxt  [xlabel="addr, size"];

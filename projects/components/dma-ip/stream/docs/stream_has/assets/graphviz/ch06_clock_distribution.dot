@@ -6,18 +6,18 @@ digraph stream_clock_distribution {
            nodesep="0.50", ranksep="0.55", splines=ortho,
            label="Clock domains - aclk for the engine; pclk for APB when CDC_ENABLE = 1", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    pclk [label="pclk, presetn\n(APB clock)", fillcolor="white"];
-    aclk [label="aclk, aresetn\n(engine clock)", fillcolor="white"];
-    cdc  [label="APB Slave - apb4_slave_cdc (CDC_ENABLE = 1)\nAPB side on pclk, command / response side on aclk\n(CDC_ENABLE = 0: apb4_slave, pclk tied to aclk)", width=5.5];
-    eng  [label="Engine (all on aclk)\nregisters, scheduler groups, AXI engines, SRAM,\nmonitors, AXI masters, MonBus group", width=5.5];
-    bar  [label="Interfaces\ns_apb_* (pclk)   |   m_axi_desc / rd / wr, m_axil_mon, s_axil_err, stream_irq (aclk)", fillcolor="white", width=8.5];
+    pclk [label="pclk, presetn\n(APB clock)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    aclk [label="aclk, aresetn\n(engine clock)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cdc  [label="APB Slave - apb4_slave_cdc (CDC_ENABLE = 1)\nAPB side on pclk, command / response side on aclk\n(CDC_ENABLE = 0: apb4_slave, pclk tied to aclk)", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    eng  [label="Engine (all on aclk)\nregisters, scheduler groups, AXI engines, SRAM,\nmonitors, AXI masters, MonBus group", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Interfaces\ns_apb_* (pclk)   |   m_axi_desc / rd / wr, m_axil_mon, s_axil_err, stream_irq (aclk)", fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pclk -> cdc [label="APB side"];
     aclk -> cdc [label="cmd / rsp side"];
     aclk -> eng [xlabel="clock"];
     cdc -> eng [label="register commands (aclk)", penwidth=1.8];
     eng -> bar [label="AXI, MonBus"];
-    cdc -> bar [style=dashed, xlabel="s_apb_*"];
+    cdc -> bar [style=dashed, color="#777777", xlabel="s_apb_*"];
     { rank=same; pclk; aclk; }
 }

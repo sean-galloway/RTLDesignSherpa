@@ -12,21 +12,21 @@ digraph rs_chien_search {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="chien_search - Lambda(x) evaluated at S positions per step (on aclk)";
 
-    in    [label="Locator Input\ni_lambda: Lambda_0 .. Lambda_t", fillcolor="white", group=C];
-    ctl   [label="Walk Control (from the caller)\ni_load: start a block at position 0\ni_step: advance one beat", fillcolor="white", group=L];
+    in    [label="Locator Input\ni_lambda: Lambda_0 .. Lambda_t", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    ctl   [label="Walk Control (from the caller)\ni_load: start a block at position 0\ni_step: advance one beat", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    init  [label="Load Multipliers (combinational)\n(t+1) x gf_mul_const - u_init\nLambda_i * alpha^(-i(n-1)): position 0", group=C];
-    step  [label="Step Multipliers (combinational)\n(t+1) x gf_mul_const - u_step\nc_i * alpha^(iS): next beat", group=R];
-    cells [label="Chien Cell Registers\nr_c[0 .. t] (flops)\ni_load: from u_init | i_step: from u_step", group=C];
-    lanes [label="Lane Evaluation (combinational)\nlane u = 0 .. S-1: sum_i c_i * alpha^(iu)\nall i -> Lambda(X^-1);  odd i -> X^-1 Lambda'(X^-1)", group=C];
-    root  [label="Root Detect (combinational)\no_root[u] = (full sum == 0)", group=C];
+    init  [label="Load Multipliers (combinational)\n(t+1) x gf_mul_const - u_init\nLambda_i * alpha^(-i(n-1)): position 0", group=C, style="filled", fillcolor="white"];
+    step  [label="Step Multipliers (combinational)\n(t+1) x gf_mul_const - u_step\nc_i * alpha^(iS): next beat", group=R, style="filled", fillcolor="white"];
+    cells [label="Chien Cell Registers\nr_c[0 .. t] (flops)\ni_load: from u_init | i_step: from u_step", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    lanes [label="Lane Evaluation (combinational)\nlane u = 0 .. S-1: sum_i c_i * alpha^(iu)\nall i -> Lambda(X^-1);  odd i -> X^-1 Lambda'(X^-1)", group=C, style="filled", fillcolor="white"];
+    root  [label="Root Detect (combinational)\no_root[u] = (full sum == 0)", group=C, style="filled", fillcolor="white"];
 
     bar   [label="Outputs (describe the beat the cells hold)\no_root[S-1:0]   |   o_odd_sum[S x m] (to forney_evaluator)",
-           fillcolor="white", width=7.0];
+           fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     in    -> init  [xlabel="Lambda_0 .. Lambda_t"];
     init  -> cells [xlabel="position-0 terms"];
@@ -45,7 +45,7 @@ digraph rs_chien_search {
     p_f1  -> step [tailclip=false];
     step  -> cells [xlabel="stepped terms"];
 
-    ctl   -> cells [style=dashed, xlabel="load / step"];
+    ctl   -> cells [style=dashed, color="#777777", xlabel="load / step"];
 
     { rank=same; in; ctl; }
     { rank=same; init; step; p_f1; }

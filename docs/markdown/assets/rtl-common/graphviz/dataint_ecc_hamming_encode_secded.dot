@@ -9,15 +9,15 @@ digraph dataint_ecc_hamming_encode_secded {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="dataint_ecc_hamming_encode_secded - SECDED encode (combinational)";
 
-    din  [label="Data Input\ndata[WIDTH-1:0]", fillcolor="white"];
-    plc  [group=C, label="Data Placement (combinational)\ndata[k] -> position bit_position(k):\nevery position that is not a power of two\n(power-of-two positions held for check bits)"];
-    chk  [group=C, label="Hamming Check Bits (combinational)\nParityBits check bits; bit at position 2^i - 1 =\nXOR of every position whose (index+1) has bit i set"];
-    ovp  [group=C, label="Overall Parity (combinational)\nencoded_data[TotalWidth-1] =\nXOR of all lower TotalWidth-1 bits (the SECDED bit)"];
-    bar  [label="Codeword Output\nencoded_data[TotalWidth-1:0] = { overall parity, Hamming word }\nTotalWidth = WIDTH + ParityBits + 1", fillcolor="white", width=6.5];
+    din  [label="Data Input\ndata[WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    plc  [group=C, label="Data Placement (combinational)\ndata[k] -> position bit_position(k):\nevery position that is not a power of two\n(power-of-two positions held for check bits)", style="filled", fillcolor="white"];
+    chk  [group=C, label="Hamming Check Bits (combinational)\nParityBits check bits; bit at position 2^i - 1 =\nXOR of every position whose (index+1) has bit i set", style="filled", fillcolor="white"];
+    ovp  [group=C, label="Overall Parity (combinational)\nencoded_data[TotalWidth-1] =\nXOR of all lower TotalWidth-1 bits (the SECDED bit)", style="filled", fillcolor="white"];
+    bar  [label="Codeword Output\nencoded_data[TotalWidth-1:0] = { overall parity, Hamming word }\nTotalWidth = WIDTH + ParityBits + 1", fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     din -> plc [xlabel="data"];
     plc -> chk [xlabel="positioned word\n(check positions 0)"];

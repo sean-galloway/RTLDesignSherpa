@@ -7,38 +7,38 @@ digraph crossbar_core {
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="<bridge>_xbar - the per-slave side for one slave s (every slave repeats it); single clock aclk"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pw [label="Master Paths\nW (each master)", fillcolor="white", group=L];
-    p0 [label="Master 0 Path\nAW / AR", fillcolor="white"];
-    pn [label="Master M-1 Path\nAW / AR", fillcolor="white"];
-    pr [label="Master Paths\nB / R (each master)", fillcolor="white", group=R];
+    pw [label="Master Paths\nW (each master)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    p0 [label="Master 0 Path\nAW / AR", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pn [label="Master M-1 Path\nAW / AR", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="Master Paths\nB / R (each master)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pw; p0; pn; pr; }
     pw -> p0 -> pn -> pr [style=invis];
 
-    wdest [label="W Destination FIFO\n(one per master path, max_outstanding deep)\nholds each AW's target slave;\npopped at WLAST", group=L];
-    d0 [label="Re-decode - master 0\n<m0>_aw_to_<s> / _ar_to_<s>\non the held address"];
-    dn [label="Re-decode - master M-1\n<mN>_aw_to_<s> / _ar_to_<s>\non the held address"];
-    rmux [label="Response OR-Mux (per master path)\nslave s's B / R pass where the\nreturned bridge_id names this master;\nready routed back the same way", group=R];
+    wdest [label="W Destination FIFO\n(one per master path, max_outstanding deep)\nholds each AW's target slave;\npopped at WLAST", group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    d0 [label="Re-decode - master 0\n<m0>_aw_to_<s> / _ar_to_<s>\non the held address", style="filled", fillcolor="white"];
+    dn [label="Re-decode - master M-1\n<mN>_aw_to_<s> / _ar_to_<s>\non the held address", style="filled", fillcolor="white"];
+    rmux [label="Response OR-Mux (per master path)\nslave s's B / R pass where the\nreturned bridge_id names this master;\nready routed back the same way", group=R, style="filled", fillcolor="white"];
     { rank=same; wdest; d0; dn; rmux; }
     wdest -> d0 -> dn -> rmux [style=invis];
 
-    wown [label="W Owner FIFO + W Mux\n(per slave, max_outstanding deep) pushed with the\ngrant at slave-side AW accept;\nonly the head master's W passes", group=L];
+    wown [label="W Owner FIFO + W Mux\n(per slave, max_outstanding deep) pushed with the\ngrant at slave-side AW accept;\nonly the head master's W passes", group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     arb [label="AW Arbiter and AR Arbiter for slave s\nround-robin (or qos); grant locked from valid to the address handshake",
-         shape=invtrapezium, width=6.0, height=0.7];
+         shape=invtrapezium, width=6.0, height=0.7, style="filled", fillcolor="#FFF2CC"];
     pr2 [shape=point, width=0.01, label="", group=R];
     { rank=same; wown; arb; pr2; }
     wown -> arb [style=invis];
 
     pl3 [shape=point, width=0.01, label="", group=L];
-    amux [label="AW / AR Mux\ngrant-selected OR mux of the payloads;\n+ the granted master's bridge_id"];
+    amux [label="AW / AR Mux\ngrant-selected OR mux of the payloads;\n+ the granted master's bridge_id", style="filled", fillcolor="white"];
     pr3 [shape=point, width=0.01, label="", group=R];
     { rank=same; pl3; amux; pr3; }
     pl3 -> amux -> pr3 [style=invis];
 
     bar [label="To / from <slave>_adapter - xbar_<s>_axi_aw / w / ar out, b / r in, + xbar_bridge_id_aw / _ar out, bid / rid_bridge_id in",
-         fillcolor="white", width=13.6];
+         fillcolor="white", width=13.6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pw -> wdest [label="W beats"];
     wdest -> wown [label="W + its target"];
@@ -51,10 +51,10 @@ digraph crossbar_core {
     dn -> arb [label="AW / AR for s (master M-1)"];
     arb -> amux [label="grant", penwidth=1.8];
     amux -> bar [label="granted AW / AR + bridge_id", penwidth=1.8];
-    arb -> wown [style=dashed, xlabel="AW grant at accept"];
+    arb -> wown [style=dashed, color="#777777", xlabel="AW grant at accept"];
 
-    pr -> rmux [dir=back, label="B / R"];
-    rmux -> pr2 [dir=back];
-    pr2 -> pr3 [dir=none];
+    pr -> rmux [color="#1A7A1A", dir=back, label="B / R"];
+    rmux -> pr2 [color="#1A7A1A", dir=back];
+    pr2 -> pr3 [color="#1A7A1A", dir=none];
     pr3 -> bar [dir=none, xlabel="B / R + bridge_id"];
 }

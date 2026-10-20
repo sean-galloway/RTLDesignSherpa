@@ -11,22 +11,22 @@ digraph bch_encoder_core {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="bch_encoder_core - systematic BCH encoder, B bits per beat (on aclk)";
 
-    in   [label="Input Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep (low-aligned), in_last", fillcolor="white", group=C];
+    in   [label="Input Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep (low-aligned), in_last", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ctl  [label="Phase Counters (flops)\nr_drain, r_data_count, r_parity_count\nin_ready = !r_drain and skid ready\nframe_err = in_last and data bits != K_BITS", group=L];
+    ctl  [label="Phase Counters (flops)\nr_drain, r_data_count, r_parity_count\nin_ready = !r_drain and skid ready\nframe_err = in_last and data bits != K_BITS", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     p_in [shape=point, width=0.01, group=C];
     p_l  [shape=point, width=0.01, group=R];
-    nxt  [label="LFSR Next-State (combinational)\nB chained lfsr_step() of g(x),\nselect step [keep count]", group=R];
-    reg  [label="Parity Register\nr_lfsr (flop, loads on input fire;\nshifts B lanes per parity beat)", group=R];
-    sel  [label="Output Select (combinational)\nDATA: input beat, out_last = 0\nDRAIN: parity bits from the top lanes,\nlast parity beat sets out_last", group=C];
-    skid [label="Output Skid\ngaxi_skid_buffer - u_out_skid\n{last, keep, data}, SKID_DEPTH", group=C];
+    nxt  [label="LFSR Next-State (combinational)\nB chained lfsr_step() of g(x),\nselect step [keep count]", group=R, style="filled", fillcolor="white"];
+    reg  [label="Parity Register\nr_lfsr (flop, loads on input fire;\nshifts B lanes per parity beat)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sel  [label="Output Select (combinational)\nDATA: input beat, out_last = 0\nDRAIN: parity bits from the top lanes,\nlast parity beat sets out_last", group=C, style="filled", fillcolor="white"];
+    skid [label="Output Skid\ngaxi_skid_buffer - u_out_skid\n{last, keep, data}, SKID_DEPTH", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     bar  [label="Outputs (registered through the skid)\nout_valid / out_ready, out_data, out_keep, out_last   |   frame_err (pulse)",
-          fillcolor="white", width=8.0];
+          fillcolor="white", width=8.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- main flow ----
     in   -> p_in [arrowhead=none, headclip=false];
@@ -46,9 +46,9 @@ digraph bch_encoder_core {
     p_f1 -> nxt  [tailclip=false];
 
     // ---- control ----
-    in   -> ctl  [style=dashed, xlabel="keep, last"];
-    ctl  -> sel  [style=dashed, xlabel="phase\n(DATA / DRAIN)"];
-    skid -> ctl  [style=dashed, constraint=false, xlabel="skid ready"];
+    in   -> ctl  [style=dashed, color="#777777", xlabel="keep, last"];
+    ctl  -> sel  [style=dashed, color="#777777", xlabel="phase\n(DATA / DRAIN)"];
+    skid -> ctl  [style=dashed, color="#777777", constraint=false, xlabel="skid ready"];
     ctl  -> bar  [xlabel="frame_err"];
 
     { rank=same; ctl; p_in; p_l; }

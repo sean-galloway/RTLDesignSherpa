@@ -11,21 +11,21 @@ digraph math_mod_3_compress {
            nodesep="0.35", ranksep="0.55", splines=line, newrank=true,  // ortho asserts (trapezoid overflow) on this chain; every edge is vertical
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_mod_3_compress - 16-bit d_in mod 3 by base-4 digit sum (combinational)";
 
     node [group=M];
-    din  [label="Operand In\nd_in[15:0]", fillcolor="white"];
+    din  [label="Operand In\nd_in[15:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    split [label="Base-4 Digit Split (wiring)\nw_g0 .. w_g7 = d_in[1:0], d_in[3:2], ... d_in[15:14]\neach zero-extended to 6 bits (4 = 1 mod 3, so digits add)"];
-    l1   [label="Level 1 - three 3:2 compressors\nmath_adder_carry_save_nbit #(N=6) - comp1, comp2, comp3\n(comp3 takes w_g6, w_g7 and zero)"];
-    l24  [label="Levels 2 .. 4 - four more 3:2 compressors\ncomp4, comp5 (level 2), comp6 (level 3), comp7 (level 4)\ncarries shifted left one place before each level"];
-    cpa  [label="Carry-Propagate Add (combinational)\nw_grp_sum = w_sumG4 + (w_carryG4 << 1)\ndigit sum of d_in, 0 .. 24"];
-    fold [label="Base-4 Fold (combinational)\nw_fold = w_grp_sum[1:0] + w_grp_sum[3:2] + w_grp_sum[4]\n0 .. 7, same value mod 3"];
-    sub  [label="Conditional Subtract (combinational)\nw_fold >= 6: - 6   |   >= 3: - 3   |   else pass"];
+    split [label="Base-4 Digit Split (wiring)\nw_g0 .. w_g7 = d_in[1:0], d_in[3:2], ... d_in[15:14]\neach zero-extended to 6 bits (4 = 1 mod 3, so digits add)", style="filled", fillcolor="white"];
+    l1   [label="Level 1 - three 3:2 compressors\nmath_adder_carry_save_nbit #(N=6) - comp1, comp2, comp3\n(comp3 takes w_g6, w_g7 and zero)", style="filled", fillcolor="white"];
+    l24  [label="Levels 2 .. 4 - four more 3:2 compressors\ncomp4, comp5 (level 2), comp6 (level 3), comp7 (level 4)\ncarries shifted left one place before each level", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cpa  [label="Carry-Propagate Add (combinational)\nw_grp_sum = w_sumG4 + (w_carryG4 << 1)\ndigit sum of d_in, 0 .. 24", style="filled", fillcolor="white"];
+    fold [label="Base-4 Fold (combinational)\nw_fold = w_grp_sum[1:0] + w_grp_sum[3:2] + w_grp_sum[4]\n0 .. 7, same value mod 3", style="filled", fillcolor="white"];
+    sub  [label="Conditional Subtract (combinational)\nw_fold >= 6: - 6   |   >= 3: - 3   |   else pass", style="filled", fillcolor="white"];
 
-    bar  [label="Output\nrem_out[1:0] = d_in mod 3  (0 .. 2)", fillcolor="white", width=4.5];
+    bar  [label="Output\nrem_out[1:0] = d_in mod 3  (0 .. 2)", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
     din   -> split [xlabel="d_in[15:0]"];
     split -> l1    [xlabel="eight 2-bit digits"];

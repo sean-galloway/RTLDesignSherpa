@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // HPET timer mode change - a procedure in the house decision-tree vocabulary.
 // The published map has NO per-timer run enable (TN_CONF has none), so a mode
 // change halts the whole counter: a comparator write re-arms only while

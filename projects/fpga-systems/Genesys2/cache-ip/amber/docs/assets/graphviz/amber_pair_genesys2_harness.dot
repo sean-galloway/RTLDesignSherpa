@@ -14,39 +14,39 @@ digraph amber_pair_genesys2_harness {
            label="amber pair-rig Genesys2 bring-up - two MESI L1 caches + snoop fabric + BRAM memory, host-driven over UART",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interface (white) ----
-    host [label="Host PC\npyserial - amber_board.py\n(reg dump / smoke / blind run)", fillcolor="white"];
+    host [label="Host PC\npyserial - amber_board.py\n(reg dump / smoke / blind run)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- host link ----
-    ubridge [label="UART to AXIL Bridge\nuart_axil_bridge\n(text W/R cmds -> AXIL master, 115200 8N1)"];
-    xbar    [label="AXIL Address Decode\nbridge_amber_axil - 1 master x 6 slaves\n(ci cfg x2, tally cnt/cfgw/cfgr, harness CSR)"];
+    ubridge [label="UART to AXIL Bridge\nuart_axil_bridge\n(text W/R cmds -> AXIL master, 115200 8N1)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    xbar    [label="AXIL Address Decode\nbridge_amber_axil - 1 master x 6 slaves\n(ci cfg x2, tally cnt/cfgw/cfgr, harness CSR)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- per-core request channels ----
-    ci0 [label="Cycle Injector 0\namber_cycle_injector\nLFSR addr/we, count-limited, rsp/wdata CRC-32", group="L"];
-    ci1 [label="Cycle Injector 1\namber_cycle_injector\n(seed cfg makes the stream deterministic)", group="R"];
+    ci0 [label="Cycle Injector 0\namber_cycle_injector\nLFSR addr/we, count-limited, rsp/wdata CRC-32", group="L", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    ci1 [label="Cycle Injector 1\namber_cycle_injector\n(seed cfg makes the stream deterministic)", group="R", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    top0 [label="Cache 0 (MESI L1)\namber_top - l1_core + axi4_master_rd/wr\n+ monbus_arbiter observer, s128w4l64b64", group="L"];
-    top1 [label="Cache 1 (MESI L1)\namber_top - l1_core + axi4_master_rd/wr\n+ monbus_arbiter observer, s128w4l64b64", group="R"];
+    top0 [label="Cache 0 (MESI L1)\namber_top - l1_core + axi4_master_rd/wr\n+ monbus_arbiter observer, s128w4l64b64", group="L", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    top1 [label="Cache 1 (MESI L1)\namber_top - l1_core + axi4_master_rd/wr\n+ monbus_arbiter observer, s128w4l64b64", group="R", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the many-to-one decision ----
     fabric [label="Coherence Grant Pick\namber_pair_fabric - round-robin over pending,\nsnoop-managed (D-8 sideband, no-data AR for upgrades)",
-            shape=invtrapezium, width=6.4, fillcolor="#BFD7EE", fontsize=11];
+            shape=invtrapezium, width=6.4, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
 
     // ---- boundary bar ----
     bar [label="Shared Coherent Memory - 512 KB on-chip BRAM\nsdpram_slave_axi4_axi4 (single AXI4 slave, USE_WSTRB=0)",
-         width=9.5, height=0.9, fontsize=11, fillcolor="#D6E4F0"];
+         width=9.5, height=0.9, fontsize=11, fillcolor="#D6E4F0", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- sideband blocks ----
-    csr    [label="Harness CSR\nharness status: busy/done/error + cycle counter\n(config aperture 0x0001_0000)"];
+    csr    [label="Harness CSR\nharness status: busy/done/error + cycle counter\n(config aperture 0x0001_0000)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     mmerge [label="Observer Merge\nmonbus_arbiter\n(one observer stream)", shape=invtrapezium, width=2.6,
-            style="filled,dashed", fillcolor="#BFD7EE"];
+            style="filled,dashed", fillcolor="#BFD7EE", style="filled,dashed", fillcolor="#FFF2CC"];
     mgrp   [label="AXIL Record Ingest\nmonbus_axil4_axil4_group\n(packets -> tally record writes)",
-            style="filled,dashed"];
+            style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     tally  [label="MonBus Tally\nmonbus_tally_axil\nbin counts + legal-set CAM (read by host)",
-            style="filled,dashed"];
+            style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // ---- parameters legend (no edges) ----
     legend [shape=box, style=filled, fillcolor="white", color="black",
@@ -55,7 +55,7 @@ geometry: s128w4l64b64 (128 sets, 4 ways, 64B line, 64b bus)\l\
 clk: 90 MHz (200 MHz LVDS osc -> IBUFDS -> MMCM)\l\
 memory: 512 KB BRAM\l\
 AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
-            fontsize=9, align=left];
+            fontsize=9, align=left, shape=note];
 
     // ---- host link ----
     host -> ubridge [dir=both, label="UART 115200: W/R cmds, OK / 0x resp"];
@@ -72,7 +72,7 @@ AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
     top1 -> fabric [label="RD miss / upgrade + WR/WB victim"];
 
     // ---- coherence sideband (dashed, separate channel on the wide edge) ----
-    top0 -> top1 [style=dashed, constraint=false, xlabel="coh_req (D-8)"];
+    top0 -> top1 [style=dashed, color="#777777", constraint=false, xlabel="coh_req (D-8)"];
 
     // ---- grant exit: heavy pen into the bar ----
     fabric -> bar [label="mem RD (AR) + WR/WB (AW-W-B)", penwidth=1.8];
@@ -85,15 +85,15 @@ AXCACHE: 4'b1111 cacheable write-back (post #106)\l",
     top1 -> ci1 [constraint=false, label="cpu_rsp rdata"];
 
     // ---- config sideband (dashed) ----
-    xbar -> ci0   [style=dashed, xlabel="cfg seed/base/mask/count 0x0002_0000"];
-    xbar -> ci1   [style=dashed, xlabel="cfg seed/base/mask/count 0x0003_0000"];
-    xbar -> csr    [style=dashed, label="status 0x0001_0000"];
+    xbar -> ci0   [style=dashed, color="#777777", xlabel="cfg seed/base/mask/count 0x0002_0000"];
+    xbar -> ci1   [style=dashed, color="#777777", xlabel="cfg seed/base/mask/count 0x0003_0000"];
+    xbar -> csr    [style=dashed, color="#777777", label="status 0x0001_0000"];
 
     // ---- observation sideband: merges off-flow, readback climbs to host ----
-    top0 -> mmerge [style=dashed, constraint=false, xlabel="monbus 0"];
-    top1 -> mmerge [style=dashed, constraint=false, xlabel="monbus 1"];
+    top0 -> mmerge [style=dashed, color="#777777", constraint=false, xlabel="monbus 0"];
+    top1 -> mmerge [style=dashed, color="#777777", constraint=false, xlabel="monbus 1"];
     fabric -> mmerge [style=invis];
-    mmerge -> mgrp [style=dashed];
-    mgrp -> tally  [style=dashed];
-    xbar -> tally  [style=dashed, constraint=false, dir=both, label="cnt/cfgw/cfgr apertures + bin-count readback (0x0004-0x0006_0000)"];
+    mmerge -> mgrp [style=dashed, color="#777777"];
+    mgrp -> tally  [style=dashed, color="#777777"];
+    xbar -> tally  [style=dashed, color="#777777", constraint=false, dir=both, label="cnt/cfgw/cfgr apertures + bin-count readback (0x0004-0x0006_0000)"];
 }

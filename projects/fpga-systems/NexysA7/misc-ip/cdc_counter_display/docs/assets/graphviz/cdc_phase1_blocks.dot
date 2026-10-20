@@ -5,21 +5,21 @@
 // build-phase1/rtl/cdc_counter_display_top.sv.
 digraph cdc_phase1_blocks {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="build-phase1: one counter, one 4-phase handshake from btn_clk to disp_clk"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    pins [label="CLK100MHZ (sys_clk)   BTNC", fillcolor="white", width=5];
-    div  [label="clock_divider  (sys_clk)\nbtn_clk 10 Hz, disp_clk 1 kHz, tick 100 Hz"];
-    deb  [label="debounce  (sys_clk, sampled on the 100 Hz tick)\n4 ticks stable = 40 ms"];
-    cnt  [label="Edge detect + counter  (btn_clk)\nr_count_value[7:0]; heartbeat LED0"];
-    hs   [label="cdc_4_phase_handshake\nsrc: btn_clk   dst: disp_clk (dst_ready tied 1)", penwidth=1.8];
-    cap  [label="Capture  (disp_clk)\nr_display_count on dst_valid; heartbeat LED1"];
-    bar  [label="Board\nhex_to_7seg x2 -> 7-segment (two hex digits)   LED0 / LED1", fillcolor="white", width=6];
+    pins [label="CLK100MHZ (sys_clk)   BTNC", fillcolor="white", width=5, style="rounded,filled", fillcolor="#E2EFDA"];
+    div  [label="clock_divider  (sys_clk)\nbtn_clk 10 Hz, disp_clk 1 kHz, tick 100 Hz", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    deb  [label="debounce  (sys_clk, sampled on the 100 Hz tick)\n4 ticks stable = 40 ms", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cnt  [label="Edge detect + counter  (btn_clk)\nr_count_value[7:0]; heartbeat LED0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hs   [label="cdc_4_phase_handshake\nsrc: btn_clk   dst: disp_clk (dst_ready tied 1)", penwidth=1.8, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cap  [label="Capture  (disp_clk)\nr_display_count on dst_valid; heartbeat LED1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Board\nhex_to_7seg x2 -> 7-segment (two hex digits)   LED0 / LED1", fillcolor="white", width=6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pins -> div  [xlabel="sys_clk"];
     pins -> deb  [xlabel="BTNC"];
-    div  -> cnt  [style=dashed, xlabel="btn_clk"];
+    div  -> cnt  [style=dashed, color="#777777", xlabel="btn_clk"];
     deb  -> cnt  [xlabel="debounced"];
     cnt  -> hs   [xlabel="src_valid, r_count_value\n/ src_ready", dir=both];
-    div  -> hs   [style=dashed, xlabel="disp_clk"];
+    div  -> hs   [style=dashed, color="#777777", xlabel="disp_clk"];
     hs   -> cap  [xlabel="dst_valid, dst_data"];
     cap  -> bar  [xlabel="digits, LEDs"];
     { rank=same; div; deb; }

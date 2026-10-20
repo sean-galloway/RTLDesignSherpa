@@ -10,23 +10,23 @@ digraph axi_data_dnsize {
            nodesep="0.40", ranksep="0.85", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi_data_dnsize - one wide beat into WIDTH_RATIO narrow beats, single buffer (on aclk)";
 
-    burst [label="Burst Context (TRACK_BURSTS=1)\nburst_start, burst_len (AxLEN),\nstart_lane", fillcolor="white", group=L];
-    win   [label="Wide Input\nwide_valid / wide_ready,\nwide_data, wide_last", fillcolor="white", group=C];
-    sbin  [label="Wide Sideband\nwide_sideband\n(RRESP or WSTRB)", fillcolor="white", group=R];
-    leg   [label="Parameters (fixed at build)\lSB_BROADCAST: 1 = every narrow beat gets the\l    whole sideband (RRESP); 0 = slice (WSTRB)\lTRACK_BURSTS: 1 = narrow_last from the burst\l    count; 0 = from wide_last on the last slice\l", fillcolor="white", group=X];
+    burst [label="Burst Context (TRACK_BURSTS=1)\nburst_start, burst_len (AxLEN),\nstart_lane", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    win   [label="Wide Input\nwide_valid / wide_ready,\nwide_data, wide_last", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    sbin  [label="Wide Sideband\nwide_sideband\n(RRESP or WSTRB)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    leg   [label="Parameters (fixed at build)\lSB_BROADCAST: 1 = every narrow beat gets the\l    whole sideband (RRESP); 0 = slice (WSTRB)\lTRACK_BURSTS: 1 = narrow_last from the burst\l    count; 0 = from wide_last on the last slice\l", fillcolor="white", group=X, shape=note];
 
-    ctl   [label="Beat Pointer + Burst Tracker (flops)\nr_beat_ptr: first wide of a burst -> start_lane\nr_slave_beat_count / r_slave_total_beats,\nr_burst_active (TRACK_BURSTS=1 only)\nwide_ready = empty, or last slice going out\n(mid-burst only when tracking)", group=L];
-    dbuf  [label="Data Buffer\nr_data_buffer, r_wide_buffered,\nr_last_buffered (flops)", group=C];
-    sbuf  [label="Sideband Buffer\nr_sideband_buffer (flop)", group=R];
-    dmux  [label="Slice Mux (combinational)\nnarrow_data = buffer[ptr]", group=C];
-    smux  [label="Sideband Select (combinational)\nbroadcast: whole sideband\nslice: sideband[ptr]", group=R];
+    ctl   [label="Beat Pointer + Burst Tracker (flops)\nr_beat_ptr: first wide of a burst -> start_lane\nr_slave_beat_count / r_slave_total_beats,\nr_burst_active (TRACK_BURSTS=1 only)\nwide_ready = empty, or last slice going out\n(mid-burst only when tracking)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dbuf  [label="Data Buffer\nr_data_buffer, r_wide_buffered,\nr_last_buffered (flops)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sbuf  [label="Sideband Buffer\nr_sideband_buffer (flop)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dmux  [label="Slice Mux (combinational)\nnarrow_data = buffer[ptr]", group=C, style="filled", fillcolor="white"];
+    smux  [label="Sideband Select (combinational)\nbroadcast: whole sideband\nslice: sideband[ptr]", group=R, style="filled", fillcolor="white"];
 
     bar   [label="Narrow Output\nnarrow_valid / narrow_ready, narrow_last   |   narrow_data   |   narrow_sideband",
-           fillcolor="white", width=8.0];
+           fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     win   -> dbuf [xlabel="wide beat"];
     sbin  -> sbuf [xlabel="wide sideband"];
@@ -36,8 +36,8 @@ digraph axi_data_dnsize {
     smux  -> bar  [xlabel="narrow sideband"];
 
     burst -> ctl  [xlabel="burst length,\nfirst lane"];
-    win   -> ctl  [style=dashed, dir=both, xlabel="fire, last /\nready "];
-    ctl   -> dmux [style=dashed, xlabel="slice pointer"];
+    win   -> ctl  [style=dashed, color="#777777", dir=both, xlabel="fire, last /\nready "];
+    ctl   -> dmux [style=dashed, color="#777777", xlabel="slice pointer"];
     ctl   -> bar  [xlabel="narrow_valid,\nnarrow_last"];
 
     { rank=same; burst; win; sbin; leg; }

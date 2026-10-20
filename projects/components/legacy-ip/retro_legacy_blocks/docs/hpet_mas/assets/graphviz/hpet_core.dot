@@ -13,25 +13,25 @@ digraph hpet_core {
            label="hpet_core - main counter and NUM_TIMERS comparators (one timer drawn; core clock)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     port [label="Register-Side Interface  (hpet_config_regs, one-cycle write strobes)\nin: hpet_enable, legacy_replacement, counter_write_lo / hi + data, timer_comp_write_lo / hi + data,\ntimer_int_enable, timer_type, timer_size (= ~32MODE), timer_int_clear\nout: counter_rdata, timer_comp_rdata, timer_int_status",
-          fillcolor="white", width=10.0];
+          fillcolor="white", width=10.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cnt  [group=C, label="Main Counter (flop)\nr_main_counter[63:0]\n+1 per clock while hpet_enable;\na write strobe loads its own 32-bit half"];
-    comp [group=R, label="Comparator + Period (flop)\nr_timer_comparator[i], r_timer_period[i]\na write loads both (the period mirrors\nthe last value software wrote)"];
+    cnt  [group=C, label="Main Counter (flop)\nr_main_counter[63:0]\n+1 per clock while hpet_enable;\na write strobe loads its own 32-bit half", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    comp [group=R, label="Comparator + Period (flop)\nr_timer_comparator[i], r_timer_period[i]\na write loads both (the period mirrors\nthe last value software wrote)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    mat  [group=C, label="Match Compare (combinational)\ncounter >= comparator at the compare width\n(timer_size: 64 or 32 bits), gated by the epoch bit"];
-    adv  [group=R, label="Periodic Advance (combinational)\ncomparator + period (catch-up: one\nboundary per cycle until ahead; period 1:\ncounter + 1), epoch bit on carry"];
+    mat  [group=C, label="Match Compare (combinational)\ncounter >= comparator at the compare width\n(timer_size: 64 or 32 bits), gated by the epoch bit", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    adv  [group=R, label="Periodic Advance (combinational)\ncomparator + period (catch-up: one\nboundary per cycle until ahead; period 1:\ncounter + 1), epoch bit on carry", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    arm  [group=C, label="Armed Latch + Fire (flop)\nr_timer_armed[i]: one interrupt owed per comparator value\nfire = match & armed & hpet_enable\nre-armed when match falls, on catch-up, or on a write while halted"];
+    arm  [group=C, label="Armed Latch + Fire (flop)\nr_timer_armed[i]: one interrupt owed per comparator value\nfire = match & armed & hpet_enable\nre-armed when match falls, on catch-up, or on a write while halted", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    sts  [group=C, label="Interrupt Status + Output (flop)\nstatus: set on fire (fire beats a clear), cleared by timer_int_clear\noutput: set on fire & timer_int_enable, follows status down"];
+    sts  [group=C, label="Interrupt Status + Output (flop)\nstatus: set on fire (fire beats a clear), cleared by timer_int_clear\noutput: set on fire & timer_int_enable, follows status down", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    leg  [group=C, label="Legacy Replacement Route (combinational)\nlegacy_replacement=1: timer 0 -> legacy_irq0, timer 1 -> legacy_irq8,\nboth masked off timer_irq; status unaffected"];
+    leg  [group=C, label="Legacy Replacement Route (combinational)\nlegacy_replacement=1: timer 0 -> legacy_irq0, timer 1 -> legacy_irq8,\nboth masked off timer_irq; status unaffected", style="filled", fillcolor="white"];
 
-    bar [group=C, label="Module Boundary\ntimer_irq[NUM_TIMERS-1:0]   |   legacy_irq0 (IRQ0)   |   legacy_irq8 (IRQ8)", fillcolor="white", width=8.0];
+    bar [group=C, label="Module Boundary\ntimer_irq[NUM_TIMERS-1:0]   |   legacy_irq0 (IRQ0)   |   legacy_irq8 (IRQ8)", fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> cnt  [dir=both, xlabel="counter write LO / HI + data\n/ counter_rdata"];
     port -> comp [dir=both, xlabel="comparator write LO / HI + data\n/ timer_comp_rdata (live)"];
@@ -43,10 +43,10 @@ digraph hpet_core {
     leg  -> bar  [xlabel="timer_irq, legacy_irq0 / 8"];
 
     comp -> adv  [dir=back, xlabel="advanced value\n(periodic, on fire or catch-up)"];
-    arm  -> adv  [style=dashed, constraint=false, xlabel="fire / catch-up"];
+    arm  -> adv  [style=dashed, color="#777777", constraint=false, xlabel="fire / catch-up"];
 
     p_st [shape=point, width=0.01, group=L];
-    port -> p_st [dir=back, headclip=false, xlabel="timer_int_clear (W1C, per bit)\n/ timer_int_status"];
+    port -> p_st [color="#1A7A1A", dir=back, headclip=false, xlabel="timer_int_clear (W1C, per bit)\n/ timer_int_status"];
     p_st -> sts  [tailclip=false];
 
     { rank=same; cnt; comp; }

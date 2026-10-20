@@ -13,24 +13,24 @@ digraph rapids_network_planes {
            label="RAPIDS network planes - every top is the tree's base plus one RX and one TX plane\nAXIS tops: rapids_top, rapids_beats_top  |  CXS tops: rapids_cxs_top, rapids_beats_cxs_top (generated, never hand-edited)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external ports (white) ----
-    net_in  [label="Network In\nAXIS top: s_axis_* (tid = channel)\nCXS top: s_cxs_* (CXSSRCID = channel)", fillcolor="white", group=L];
-    apb     [label="Host CPU\ns_apb_* config + kick", fillcolor="white", group=C];
-    net_out [label="Network Out\nAXIS top: m_axis_* (tid = channel)\nCXS top: m_cxs_* (CXSSRCID = channel)", fillcolor="white", group=R];
+    net_in  [label="Network In\nAXIS top: s_axis_* (tid = channel)\nCXS top: s_cxs_* (CXSSRCID = channel)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    apb     [label="Host CPU\ns_apb_* config + kick", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    net_out [label="Network Out\nAXIS top: m_axis_* (tid = channel)\nCXS top: m_cxs_* (CXSSRCID = channel)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- planes ----
-    rx [label="RX Plane (pick one by module name)\nrapids_plane_axis_rx: axis4_slave_monlite\nrapids_plane_cxs_rx: cxs_slave_monlite + cxs_to_axis", group=L];
-    tx [label="TX Plane (pick one by module name)\nrapids_plane_axis_tx: axis4_master_monlite\nrapids_plane_cxs_tx: axis_to_cxs + cxs_master_monlite", group=R];
+    rx [label="RX Plane (pick one by module name)\nrapids_plane_axis_rx: axis4_slave_monlite\nrapids_plane_cxs_rx: cxs_slave_monlite + cxs_to_axis", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tx [label="TX Plane (pick one by module name)\nrapids_plane_axis_tx: axis4_master_monlite\nrapids_plane_cxs_tx: axis_to_cxs + cxs_master_monlite", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- base ----
-    base [label="Tree Base - rapids_top_base (byte) / rapids_beats_top_base (beats)\ncore (sink half | scheduler groups | source half), rapids_regs + rapids_config_block, monbus group\nidentical in the AXIS and CXS tops", width=10.5, group=C];
+    base [label="Tree Base - rapids_top_base (byte) / rapids_beats_top_base (beats)\ncore (sink half | scheduler groups | source half), rapids_regs + rapids_config_block, monbus group\nidentical in the AXIS and CXS tops", width=10.5, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- boundary bar ----
     mem [label="Top Boundary - AXI masters to memory\nm_axi_wr  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axil_mon, s_axil_err, mon_irq  |  m_axi_rd",
-         fillcolor="white", width=12.0, fontsize=11, group=C];
+         fillcolor="white", width=12.0, fontsize=11, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- network in, down the left ----
     net_in -> rx   [label="packets in"];

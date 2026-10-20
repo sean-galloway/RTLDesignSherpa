@@ -16,29 +16,29 @@ digraph arbiter_deficit_round_robin {
            label="arbiter_deficit_round_robin - deficit round robin (DRR) over the base round-robin pick",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external inputs (white) ----
-    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack,\l    and the deficit is debited on the ack;\l    0 = every grant completes in its cycle\l", fillcolor="white"];
-    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white"];
-    blk  [label="Block Input\nblock_arb", fillcolor="white"];
-    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white"];
-    cost [group=K, label="Request Cost\nreq_cost per client: size of the\nhead request (0 is served as 1)", fillcolor="white"];
-    qprt [group=Q, label="Quantum (runtime port)\nquantum per client: deficit added\neach replenish round; 0 disables", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = a grant holds until grant_ack,\l    and the deficit is debited on the ack;\l    0 = every grant completes in its cycle\l", fillcolor="white", shape=note];
+    ack  [label="Grant Acknowledge\ngrant_ack[CLIENTS]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [group=C, label="Requests\nrequest[CLIENTS]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cost [group=K, label="Request Cost\nreq_cost per client: size of the\nhead request (0 is served as 1)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    qprt [group=Q, label="Quantum (runtime port)\nquantum per client: deficit added\neach replenish round; 0 disables", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb"];
-    cpip [group=K, label="Cost Pipeline\nr_cost_arb (flop)\ncost from the arbitration cycle"];
-    seq  [group=Q, label="Quantum Change Sequencer (FSM)\nIDLE > BLOCK > DRAIN > UPDATE > STABILIZE\nloads r_safe_quantum; clears deficits"];
-    defc [group=Q, label="Deficit Counters\nr_deficit per client (flop)\nrequest gone: clear | completed: - cost\nnobody affordable: + quantum (replenish)"];
-    elig [group=C, label="Eligibility + Fairness Mask\neligible = request & quantum > 0 & deficit >= cost\nseveral eligible: current holder excluded\none eligible: kept while deficit >= 2 x cost"];
+    gate [group=C, label="Request Gate\nrequests forced to 0 while block_arb", style="filled", fillcolor="white"];
+    cpip [group=K, label="Cost Pipeline\nr_cost_arb (flop)\ncost from the arbitration cycle", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    seq  [group=Q, label="Quantum Change Sequencer (FSM)\nIDLE > BLOCK > DRAIN > UPDATE > STABILIZE\nloads r_safe_quantum; clears deficits", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    defc [group=Q, label="Deficit Counters\nr_deficit per client (flop)\nrequest gone: clear | completed: - cost\nnobody affordable: + quantum (replenish)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    elig [group=C, label="Eligibility + Fairness Mask\neligible = request & quantum > 0 & deficit >= cost\nseveral eligible: current holder excluded\none eligible: kept while deficit >= 2 x cost", style="filled", fillcolor="white"];
     pick [group=C, label="Base Round-Robin Pick\narbiter_round_robin - u_base_arbiter",
-          shape=invtrapezium, width=7.2, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
+          shape=invtrapezium, width=7.2, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
 
     // ---- the boundary bar: outputs ----
     outs [group=C, label="Grant Outputs\ngrant[CLIENTS] (one-hot)   |   grant_id   |   grant_valid",
-          fillcolor="white", width=7.0];
+          fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     req  -> gate [xlabel="request"];
@@ -53,7 +53,7 @@ digraph arbiter_deficit_round_robin {
 
     // ---- quantum ----
     qprt -> seq  [xlabel="quantum"];
-    seq  -> defc [style=dashed, xlabel="active quanta"];
+    seq  -> defc [style=dashed, color="#777777", xlabel="active quanta"];
     defc -> elig [xlabel="deficit"];
 
     // ---- completed-grant feedback up the right edge ----
@@ -62,9 +62,9 @@ digraph arbiter_deficit_round_robin {
     p_fb -> defc [xlabel="completed grant (debit)", tailclip=false, constraint=false];
 
     // ---- sideband (dashed) ----
-    blk -> gate [style=dashed, xlabel="block_arb"];
-    ack -> pick [style=dashed, xlabel="grant_ack"];
-    seq -> pick [style=dashed, xlabel="hold while not IDLE"];
+    blk -> gate [style=dashed, color="#777777", xlabel="block_arb"];
+    ack -> pick [style=dashed, color="#777777", xlabel="grant_ack"];
+    seq -> pick [style=dashed, color="#777777", xlabel="hold while not IDLE"];
 
     // ---- rank pinning ----
     { rank=same; prm; ack; blk; req; cost; qprt; }

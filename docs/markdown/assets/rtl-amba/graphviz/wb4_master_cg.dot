@@ -7,19 +7,19 @@ digraph wb4_master_cg {
            label="wb4_master_cg - wb4_master on a gated clock (idle-timeout clock gating)\n(clk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    top   [label="FUB Queues\ncmd_* in  /  rsp_* out", fillcolor="white", width=3.8];
-    child [label="wb4_master\nu_wb4_master\n(see its diagram: command / response skids, issue credit)", width=3.6, height=1.0];
-    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4];
-    cgc   [label="Clock-Gate Controller\namba_clock_gate_ctrl - u_clock_gate_ctrl\nidle countdown on activity:\nuser_valid = cmd_valid | child rsp_valid | m_wb_CYC\n(axi_valid tied 0)\nwhile gating, forces low: cmd_ready, rsp_valid"];
-    clk   [label="Clock In\nclk, aresetn", fillcolor="white"];
-    cfg   [label="Clock-Gate Config (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle cycles before the\l    clock stops (CG_IDLE_COUNT_WIDTH bits)\l", fillcolor="white"];
-    cgo   [label="Status Outputs\ncg_gating (clock stopped), cg_idle", fillcolor="white"];
+    top   [label="FUB Queues\ncmd_* in  /  rsp_* out", fillcolor="white", width=3.8, style="rounded,filled", fillcolor="#E2EFDA"];
+    child [label="wb4_master\nu_wb4_master\n(see its diagram: command / response skids, issue credit)", width=3.6, height=1.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bot   [label="Wishbone B4 Requester Bus (m_wb_*)", fillcolor="white", width=4.4, style="rounded,filled", fillcolor="#E2EFDA"];
+    cgc   [label="Clock-Gate Controller\namba_clock_gate_ctrl - u_clock_gate_ctrl\nidle countdown on activity:\nuser_valid = cmd_valid | child rsp_valid | m_wb_CYC\n(axi_valid tied 0)\nwhile gating, forces low: cmd_ready, rsp_valid", style="filled", fillcolor="white"];
+    clk   [label="Clock In\nclk, aresetn", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [label="Clock-Gate Config (runtime input ports)\lcfg_cg_enable: 1 = allow gating\lcfg_cg_idle_count: idle cycles before the\l    clock stops (CG_IDLE_COUNT_WIDTH bits)\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cgo   [label="Status Outputs\ncg_gating (clock stopped), cg_idle", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     clk -> cgc  [xlabel="clk", penwidth=1.8];
-    cfg -> cgc  [style=dashed, xlabel="enable, idle count"];
+    cfg -> cgc  [style=dashed, color="#777777", xlabel="enable, idle count"];
     cgc -> child [xlabel="gated_clk", penwidth=1.8];
-    cgc -> cgo  [style=dashed, xlabel="cg_gating, cg_idle"];
+    cgc -> cgo  [style=dashed, color="#777777", xlabel="cg_gating, cg_idle"];
     top   -> child [dir=both, xlabel="command down /\nresponse up", penwidth=1.8];
     child -> bot   [dir=both, xlabel="CYC, STB, ... out /\nSTALL, ACK / ERR / RTY, DAT_R in", penwidth=1.8];
     { rank=same; clk; cfg; top; }

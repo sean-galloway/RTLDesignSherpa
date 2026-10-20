@@ -10,22 +10,22 @@ digraph math_compressor_4to2 {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_compressor_4to2 - five bits of one column in, sum + two carries out (combinational)";
 
     // ---- inputs (white) ----
-    xin  [label="Three Column Bits\ni_x1, i_x2, i_x3", fillcolor="white"];
-    x4   [label="Fourth Column Bit\ni_x4", fillcolor="white"];
-    cin  [label="Carry In (from the column to the right)\ni_cin", fillcolor="white"];
+    xin  [label="Three Column Bits\ni_x1, i_x2, i_x3", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    x4   [label="Fourth Column Bit\ni_x4", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cin  [label="Carry In (from the column to the right)\ni_cin", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- the two full adders ----
-    fa1  [label="FA1 (combinational)\nmath_adder_full - u_fa1\nadds i_x1 + i_x2 + i_x3"];
-    fa2  [label="FA2 (combinational)\nmath_adder_full - u_fa2\nadds int_sum + i_x4 + i_cin"];
+    fa1  [label="FA1 (combinational)\nmath_adder_full - u_fa1\nadds i_x1 + i_x2 + i_x3", style="filled", fillcolor="white"];
+    fa2  [label="FA2 (combinational)\nmath_adder_full - u_fa2\nadds int_sum + i_x4 + i_cin", style="filled", fillcolor="white"];
 
     // ---- outputs (white bar) ----
     bar  [label="Outputs  (i_x1 + i_x2 + i_x3 + i_x4 + i_cin = ow_sum + 2 x (ow_carry + ow_cout))\now_sum (this column)   |   ow_carry (next column)   |   ow_cout (next column's i_cin, independent of i_cin)",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     xin -> fa1 [xlabel="i_x1, i_x2, i_x3"];
     fa1 -> fa2 [xlabel="w_int_sum"];

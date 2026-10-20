@@ -10,39 +10,39 @@ digraph rd_data_path {
            label="pumice read data path - DFI aligner, CDC, ticketed return ring, AR-order R",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    p_r   [group=C, label="AXI R channel (s_axi_r*)\none RLAST per host burst", fillcolor="white"];
+    p_r   [group=C, label="AXI R channel (s_axi_r*)\none RLAST per host burst", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    rin   [group=C, label="R Source Select + R FIFO\nmc_rd_intake - u_order_fifo head picks snarf or DRAM,\nu_rd_data_fifo -> R (AR order)"];
-    p_sn  [label="Snarf stream\nmc_wr_data_cam (read-your-writes)", fillcolor="white"];
+    rin   [group=C, label="R Source Select + R FIFO\nmc_rd_intake - u_order_fifo head picks snarf or DRAM,\nu_rd_data_fifo -> R (AR order)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    p_sn  [label="Snarf stream\nmc_wr_data_cam (read-your-writes)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    drain [group=C, label="Head Drain (AR order)\nmc_rd_return_ring - r_head + 2-deep prefetch skid\n(pops the head once r_ready[head] is set)"];
-    ring  [group=C, label="Return Ring Storage\nmc_rd_return_ring - BRAM, one slot per ticket (RD_RET_DEPTH) + r_ready[ ]\nticket handed out at insert from r_tail, in AR order", width=7.5];
-    fill  [group=C, label="Fill by Ticket (issue order)\nmc_rd_return_ring - u_issue_q ticket FIFO\nnext returned burst lands in the head ticket's slot"];
-    p_tk  [label="Ticket ports\nalloc at insert -> mc_rd_cmd_cam\nissue ticket <- mc_rd_cmd_cam at issue", fillcolor="white"];
+    drain [group=C, label="Head Drain (AR order)\nmc_rd_return_ring - r_head + 2-deep prefetch skid\n(pops the head once r_ready[head] is set)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ring  [group=C, label="Return Ring Storage\nmc_rd_return_ring - BRAM, one slot per ticket (RD_RET_DEPTH) + r_ready[ ]\nticket handed out at insert from r_tail, in AR order", width=7.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fill  [group=C, label="Fill by Ticket (issue order)\nmc_rd_return_ring - u_issue_q ticket FIFO\nnext returned burst lands in the head ticket's slot", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    p_tk  [label="Ticket ports\nalloc at insert -> mc_rd_cmd_cam\nissue ticket <- mc_rd_cmd_cam at issue", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cdc   [group=C, label="Read Data CDC FIFO\nmc_dfi_cdc - u_rd_fifo (gaxi_fifo_async)\n(dfi_clk -> ctl_clk)"];
-    al    [group=C, label="Read Aligner\nmc_dfi_rd_aligner - FUB\ndfi_rddata_en t_rddata_en after the read; captures BL_WORDS words"];
-    fire  [label="DFI Command Path\nmc_dfi_cmd_path\n(read fire)", fillcolor="white"];
+    cdc   [group=C, label="Read Data CDC FIFO\nmc_dfi_cdc - u_rd_fifo (gaxi_fifo_async)\n(dfi_clk -> ctl_clk)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    al    [group=C, label="Read Aligner\nmc_dfi_rd_aligner - FUB\ndfi_rddata_en t_rddata_en after the read; captures BL_WORDS words", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fire  [label="DFI Command Path\nmc_dfi_cmd_path\n(read fire)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     phy   [group=C, label="DDR PHY - dfi_rddata / dfi_rddata_valid in, dfi_rddata_en out (dfi_clk)",
-           fillcolor="white", width=7.5, height=0.5, fontsize=11];
+           fillcolor="white", width=7.5, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- the return climb ----
-    p_r   -> rin   [dir=back, xlabel="R (id, data, resp, last)"];
-    rin   -> drain [dir=back, xlabel="drain (data, resp, last)"];
-    drain -> ring  [dir=back, xlabel="slot read"];
-    ring  -> fill  [dir=back, xlabel="slot write"];
-    fill  -> cdc   [dir=back, xlabel="read data (issue order)"];
-    cdc   -> al    [dir=back, xlabel="read data"];
-    al    -> phy   [dir=back, xlabel="Read from DDR"];
+    p_r   -> rin   [color="#1A7A1A", dir=back, xlabel="R (id, data, resp, last)"];
+    rin   -> drain [color="#1A7A1A", dir=back, xlabel="drain (data, resp, last)"];
+    drain -> ring  [color="#1A7A1A", dir=back, xlabel="slot read"];
+    ring  -> fill  [color="#1A7A1A", dir=back, xlabel="slot write"];
+    fill  -> cdc   [color="#1A7A1A", dir=back, xlabel="read data (issue order)"];
+    cdc   -> al    [color="#1A7A1A", dir=back, xlabel="read data"];
+    al    -> phy   [color="#1A7A1A", dir=back, xlabel="Read from DDR"];
 
     // ---- joins and sideband ----
     p_sn  -> rin   [xlabel="snarf data"];
-    p_tk  -> fill  [dir=both, style=dashed, xlabel="tickets"];
-    fire  -> al    [style=dashed, xlabel="read fire"];
+    p_tk  -> fill  [dir=both, style=dashed, color="#777777", xlabel="tickets"];
+    fire  -> al    [style=dashed, color="#777777", xlabel="read fire"];
 
     { rank=same; p_r; p_sn; }
     { rank=same; ring; p_tk; }

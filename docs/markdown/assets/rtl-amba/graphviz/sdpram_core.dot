@@ -11,27 +11,27 @@ digraph sdpram_core {
            nodesep="0.35", ranksep="0.95", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="sdpram_core - protocol-agnostic simple dual-port BRAM slave (one clock: aclk)";
 
-    prm [label="Parameters (fixed at build)\lUSE_WSTRB: 1 = byte-granular writes from wstrb;\l    0 = whole-word writes\lBURST_Q_DEPTH: commands queued per direction\l    (default 2); the tracker reloads the cycle the\l    active burst ends, so bursts run back to back\l", fillcolor="white"];
-    wport [group=WA, label="Write Side (FUB)\nfub_aw: id, addr, len, size, burst\nfub_w: data, strb   |   fub_b: id, resp", fillcolor="white"];
-    clrin [label="Bulk Clear\ni_cfg_start_clear\n/ o_cfg_done_clear", fillcolor="white"];
-    rport [group=RA, label="Read Side (FUB)\nfub_ar: id, addr, len, size, burst\nfub_r: id, data, resp, last", fillcolor="white"];
+    prm [label="Parameters (fixed at build)\lUSE_WSTRB: 1 = byte-granular writes from wstrb;\l    0 = whole-word writes\lBURST_Q_DEPTH: commands queued per direction\l    (default 2); the tracker reloads the cycle the\l    active burst ends, so bursts run back to back\l", fillcolor="white", shape=note];
+    wport [group=WA, label="Write Side (FUB)\nfub_aw: id, addr, len, size, burst\nfub_w: data, strb   |   fub_b: id, resp", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clrin [label="Bulk Clear\ni_cfg_start_clear\n/ o_cfg_done_clear", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rport [group=RA, label="Read Side (FUB)\nfub_ar: id, addr, len, size, burst\nfub_r: id, data, resp, last", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    awq  [group=WA, label="AW Queue\ngaxi_fifo_sync - u_awq\nBURST_Q_DEPTH commands"];
-    wtrk [group=WA, label="Write Tracker (flops)\nr_wr_active, latched len / id\n+ axi_gen_addr - u_wr_addr_gen\nwready = r_wr_active (+ B slot on last)"];
-    bq   [group=WB, label="B Queue\ngaxi_fifo_sync - u_bq\n{id, resp = OKAY}, in burst order"];
+    awq  [group=WA, label="AW Queue\ngaxi_fifo_sync - u_awq\nBURST_Q_DEPTH commands", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    wtrk [group=WA, label="Write Tracker (flops)\nr_wr_active, latched len / id\n+ axi_gen_addr - u_wr_addr_gen\nwready = r_wr_active (+ B slot on last)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bq   [group=WB, label="B Queue\ngaxi_fifo_sync - u_bq\n{id, resp = OKAY}, in burst order", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    clr  [label="Clear FSM (flops)\nCLR_IDLE / CLR_BUSY\nstarts only when every\nqueue and tracker is idle"];
+    clr  [label="Clear FSM (flops)\nCLR_IDLE / CLR_BUSY\nstarts only when every\nqueue and tracker is idle", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    arq  [group=RA, label="AR Queue\ngaxi_fifo_sync - u_arq\nBURST_Q_DEPTH commands"];
-    rtrk [group=RA, label="Read Tracker (flops)\nr_rd_active, latched len / id\n+ axi_gen_addr - u_rd_addr_gen"];
-    infl [group=RR, label="Inflight Register (flops)\nr_inflight: rid, rresp, rlast\nBRAM read takes 1 cycle"];
+    arq  [group=RA, label="AR Queue\ngaxi_fifo_sync - u_arq\nBURST_Q_DEPTH commands", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rtrk [group=RA, label="Read Tracker (flops)\nr_rd_active, latched len / id\n+ axi_gen_addr - u_rd_addr_gen", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    infl [group=RR, label="Inflight Register (flops)\nr_inflight: rid, rresp, rlast\nBRAM read takes 1 cycle", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     mem  [label="BRAM  r_mem[MEM_DEPTH]  (one clock: aclk)\nport A (left): write, byte-enabled when USE_WSTRB, or the clear zero fill\nport B (right): synchronous read into r_bram_rdata",
-          width=11.0, height=0.9];
+          width=11.0, height=0.9, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // write command flow
     wport -> awq  [xlabel="AW (id, addr, len)"];
@@ -42,20 +42,20 @@ digraph sdpram_core {
     p_wd -> mem [xlabel="W data, strb", tailclip=false];
     wtrk -> mem [xlabel="write address (port A)"];
     // B response returns UP through the B queue
-    bq -> wtrk [dir=back, xlabel="burst done"];
-    bq -> wport [xlabel="B (id, resp)"];
+    bq -> wtrk [color="#1A7A1A", dir=back, xlabel="burst done"];
+    bq -> wport [color="#1A7A1A", xlabel="B (id, resp)"];
 
     // read command flow
     rport -> arq  [xlabel="AR (id, addr, len)"];
     arq   -> rtrk [xlabel="next burst"];
     rtrk  -> mem  [xlabel="read address (port B)"];
     // read data returns UP the far-right lane through the inflight register
-    infl -> mem  [dir=back, xlabel="r_bram_rdata"];
-    infl -> rport [xlabel="R (data, id, resp, last)"];
+    infl -> mem  [color="#1A7A1A", dir=back, xlabel="r_bram_rdata"];
+    infl -> rport [color="#1A7A1A", xlabel="R (data, id, resp, last)"];
 
     // clear
-    clrin -> clr [style=dashed, xlabel="start / done"];
-    clr -> mem [style=dashed, xlabel="zero fill (owns port A)"];
+    clrin -> clr [style=dashed, color="#777777", xlabel="start / done"];
+    clr -> mem [style=dashed, color="#777777", xlabel="zero fill (owns port A)"];
 
     { rank=same; prm; wport; clrin; rport; }
     prm -> wport [style=invis];

@@ -9,17 +9,17 @@ digraph hive_system_flow {
            label="HIVE in the RAPIDS / Delta / HIVE system - descriptor, data and status flows",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host  [label="Host system\n(x86 CPU, ARM SoC, ...)", fillcolor="white"];
-    hivec [label="HIVE-C Controller (virtual tile 17)\nVexRiscv firmware: parse host commands, build RAPIDS descriptors,\ninject CDA packets, aggregate SERV statistics, manage reconfiguration"];
-    serv  [label="SERV Monitors (x16)\ntraffic counters, congestion detection,\npacket injection"];
-    delta [label="Delta Network (external)\nroutes every AXIS packet by TUSER / TDEST", width=6];
-    rapids [label="RAPIDS DMA Engine (virtual tile 16, external)\ndescriptor engine: parses 256-bit CDA descriptors,\nruns MM2S / S2MM transfers;\ncompletion interrupt to HIVE-C"];
-    tiles [label="Compute Tiles 0-15 (Delta, external)\nDSP MACs, local BRAM", fillcolor="white"];
+    host  [label="Host system\n(x86 CPU, ARM SoC, ...)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    hivec [label="HIVE-C Controller (virtual tile 17)\nVexRiscv firmware: parse host commands, build RAPIDS descriptors,\ninject CDA packets, aggregate SERV statistics, manage reconfiguration", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    serv  [label="SERV Monitors (x16)\ntraffic counters, congestion detection,\npacket injection", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    delta [label="Delta Network (external)\nroutes every AXIS packet by TUSER / TDEST", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rapids [label="RAPIDS DMA Engine (virtual tile 16, external)\ndescriptor engine: parses 256-bit CDA descriptors,\nruns MM2S / S2MM transfers;\ncompletion interrupt to HIVE-C", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tiles [label="Compute Tiles 0-15 (Delta, external)\nDSP MACs, local BRAM", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    bar   [label="DDR memory (AXI4) - activations, weights, results", fillcolor="white", width=6, height=0.5, fontsize=11];
+    bar   [label="DDR memory (AXI4) - activations, weights, results", fillcolor="white", width=6, height=0.5, fontsize=11, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     x_st [shape=point, width=0.01, height=0.01, label="", style=invis];
 

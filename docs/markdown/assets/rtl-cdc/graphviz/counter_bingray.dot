@@ -9,19 +9,19 @@ digraph counter_bingray {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="counter_bingray - binary counter with registered Gray output";
 
-    en_in  [label="Enable Input\nenable", fillcolor="white"];
-    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+    en_in  [label="Enable Input\nenable", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    inc    [label="Increment (next state)\nw_counter_bin = enable ? counter_bin + 1 : counter_bin"];
-    b2g    [label="Binary-to-Gray (inline)\nw_counter_gray = w_counter_bin ^ (w_counter_bin >> 1)"];
-    breg   [label="Binary Register\ncounter_bin (flop, reset 0)"];
-    greg   [label="Gray Register\ncounter_gray (flop, reset 0)"];
+    inc    [label="Increment (next state)\nw_counter_bin = enable ? counter_bin + 1 : counter_bin", style="filled", fillcolor="white"];
+    b2g    [label="Binary-to-Gray (inline)\nw_counter_gray = w_counter_bin ^ (w_counter_bin >> 1)", style="filled", fillcolor="white"];
+    breg   [label="Binary Register\ncounter_bin (flop, reset 0)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    greg   [label="Gray Register\ncounter_gray (flop, reset 0)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     out    [label="Outputs\ncounter_bin_next (combinational)   |   counter_gray   |   counter_bin",
-            fillcolor="white", width=8.5];
+            fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     p_nx   [shape=point, width=0.01];
     p_fb   [shape=point, width=0.01];
@@ -43,8 +43,8 @@ digraph counter_bingray {
 
     // sideband: clock/reset between the Gray path and the feedback lane,
     // one rank above the registers
-    clk_in -> greg [style=dashed, xlabel="clk, rst_n"];
-    clk_in -> breg [style=dashed];
+    clk_in -> greg [style=dashed, color="#777777", xlabel="clk, rst_n"];
+    clk_in -> breg [style=dashed, color="#777777"];
 
     { rank=same; breg; greg; }
     { rank=same; p_nx; b2g; clk_in; }

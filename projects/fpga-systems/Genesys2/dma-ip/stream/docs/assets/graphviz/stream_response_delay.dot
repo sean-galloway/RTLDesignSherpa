@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // axi_response_delay internals (Figure 3.3 of characterization_v1_findings.md;
 // also used by stream_char_guide ch03). Replaces assets/mmd/03_response_delay.mmd.
 // Decision-tree vocabulary (vault/handbook/authoring/block-diagrams.md): white

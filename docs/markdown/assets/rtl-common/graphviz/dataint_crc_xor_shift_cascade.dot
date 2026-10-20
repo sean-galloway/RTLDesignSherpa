@@ -9,18 +9,18 @@ digraph dataint_crc_xor_shift_cascade {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="dataint_crc_xor_shift_cascade - one byte into the CRC (combinational)";
 
-    bi   [label="CRC State In\nblock_input[CRC_WIDTH-1:0]", fillcolor="white"];
-    di   [label="Data Byte In\ndata_input[7:0]", fillcolor="white"];
-    leg  [label="Polynomial (input port)\lpoly[CRC_WIDTH-1:0]: generator polynomial -\l    the feedback taps; broadcast unchanged\l    to all eight stages\l", fillcolor="white"];
+    bi   [label="CRC State In\nblock_input[CRC_WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    di   [label="Data Byte In\ndata_input[7:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    leg  [label="Polynomial (input port)\lpoly[CRC_WIDTH-1:0]: generator polynomial -\l    the feedback taps; broadcast unchanged\l    to all eight stages\l", fillcolor="white", shape=note];
 
-    s0   [group=M, label="Stage 0\ndataint_crc_xor_shift\nfolds data_input[7] (MSB first)"];
-    s16  [group=M, label="Stages 1 .. 6\n6 x dataint_crc_xor_shift\nstage i folds data_input[7-i]"];
-    s7   [group=M, label="Stage 7\ndataint_crc_xor_shift\nfolds data_input[0]"];
-    bar  [label="CRC State Out\nblock_output = w_cascade[7]", fillcolor="white", width=4.5];
+    s0   [group=M, label="Stage 0\ndataint_crc_xor_shift\nfolds data_input[7] (MSB first)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    s16  [group=M, label="Stages 1 .. 6\n6 x dataint_crc_xor_shift\nstage i folds data_input[7-i]", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    s7   [group=M, label="Stage 7\ndataint_crc_xor_shift\nfolds data_input[0]", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="CRC State Out\nblock_output = w_cascade[7]", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
     bi  -> s0  [xlabel="block_input", penwidth=1.8];
     s0  -> s16 [xlabel="w_cascade[0]", penwidth=1.8];

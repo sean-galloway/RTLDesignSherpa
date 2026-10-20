@@ -8,20 +8,20 @@ digraph axi_monitor_reporter_debug {
            nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c,
            label="axi_monitor_reporter_debug - transaction state-change packets (single clock: aclk, aresetn)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    tin  [group=C, label="From the Reporter\ntrans_table[MAX_TRANSACTIONS] (snapshot)\noutput_busy", fillcolor="white"];
-    cfg  [label="Enable (input port)\ncfg_debug_enable: 0 = no debug packets", fillcolor="white"];
-    prev [label="Previous State (flops)\nr_prev_state[i] <= entry state\n(IDLE when the entry is invalid)"];
-    chg  [group=C, label="Change Detect (combinational, MAX_TRANSACTIONS in parallel)\nw_changed[i] = valid & state != r_prev_state[i]"];
-    pk   [group=C, label="First-Change Pick\nlowest changed entry (w_sel)", shape=invtrapezium, width=4.4, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
-    pkt  [group=C, label="Packet Build (combinational, only when the output is idle)\nAXI_DEBUG_STATE_CHANGE; channel = entry channel[5:0];\ndata = {previous state, new state, address}"];
-    out  [group=C, label="Outputs (to the reporter's output pick)\npkt_valid, pkt_type = PktTypeDebug, pkt_event_code, pkt_channel, pkt_data", fillcolor="white", width=7.5];
+    tin  [group=C, label="From the Reporter\ntrans_table[MAX_TRANSACTIONS] (snapshot)\noutput_busy", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Enable (input port)\ncfg_debug_enable: 0 = no debug packets", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    prev [label="Previous State (flops)\nr_prev_state[i] <= entry state\n(IDLE when the entry is invalid)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    chg  [group=C, label="Change Detect (combinational, MAX_TRANSACTIONS in parallel)\nw_changed[i] = valid & state != r_prev_state[i]", style="filled", fillcolor="white"];
+    pk   [group=C, label="First-Change Pick\nlowest changed entry (w_sel)", shape=invtrapezium, width=4.4, height=0.7, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    pkt  [group=C, label="Packet Build (combinational, only when the output is idle)\nAXI_DEBUG_STATE_CHANGE; channel = entry channel[5:0];\ndata = {previous state, new state, address}", style="filled", fillcolor="white"];
+    out  [group=C, label="Outputs (to the reporter's output pick)\npkt_valid, pkt_type = PktTypeDebug, pkt_event_code, pkt_channel, pkt_data", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     tin  -> chg [xlabel="entry states", penwidth=1.8];
     tin  -> prev [xlabel="entry states"];
     prev -> chg [xlabel="r_prev_state"];
-    cfg  -> chg [style=dashed, xlabel="enable"];
+    cfg  -> chg [style=dashed, color="#777777", xlabel="enable"];
     chg  -> pk  [xlabel="w_changed", penwidth=1.8];
     pk   -> pkt [xlabel="w_sel", penwidth=1.8];
     pkt  -> out [xlabel="debug packet", penwidth=1.8];

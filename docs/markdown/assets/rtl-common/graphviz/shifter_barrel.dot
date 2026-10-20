@@ -10,23 +10,23 @@ digraph shifter_barrel {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="shifter_barrel - shift / rotate by a runtime amount (combinational)";
 
-    din   [label="Data Input\ndata[WIDTH-1:0]", fillcolor="white"];
-    amt   [label="Shift Amount\nshift_amount[$clog2(WIDTH):0]", fillcolor="white"];
-    ctrl  [label="Operation (runtime input port)\lctrl[2:0]:\l    000 = pass data through\l    001 = logical right (zeros in)\l    011 = rotate right (bits wrap)\l    010 = arithmetic right (sign fills;\l              amount >= WIDTH: all sign)\l    100 = logical left (zeros in)\l    110 = rotate left (bits wrap)\l    other = pass data through\l", fillcolor="white"];
+    din   [label="Data Input\ndata[WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    amt   [label="Shift Amount\nshift_amount[$clog2(WIDTH):0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ctrl  [label="Operation (runtime input port)\lctrl[2:0]:\l    000 = pass data through\l    001 = logical right (zeros in)\l    011 = rotate right (bits wrap)\l    010 = arithmetic right (sign fills;\l              amount >= WIDTH: all sign)\l    100 = logical left (zeros in)\l    110 = rotate left (bits wrap)\l    other = pass data through\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    net   [label="Candidate Network (combinational) - every result at once\lrotates: {data, data} doubled word; w_array_rs[k] / w_array_ls[k]\l    = rotate by k, k = shift_amount mod WIDTH\lshifts: data >> amount,  data << amount,  $signed(data) >>> amount\l"];
-    mux   [label="Mode Select (combinational, case on ctrl)\npicks one candidate"];
-    out   [label="Output\ndata_out[WIDTH-1:0]", fillcolor="white", width=4.5];
+    net   [label="Candidate Network (combinational) - every result at once\lrotates: {data, data} doubled word; w_array_rs[k] / w_array_ls[k]\l    = rotate by k, k = shift_amount mod WIDTH\lshifts: data >> amount,  data << amount,  $signed(data) >>> amount\l", style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    mux   [label="Mode Select (combinational, case on ctrl)\npicks one candidate", style="filled", fillcolor="white"];
+    out   [label="Output\ndata_out[WIDTH-1:0]", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
     amt  -> net  [xlabel="shift_amount"];
     din  -> net  [xlabel="data"];
     net  -> mux  [xlabel="6 candidates"];
     din  -> mux  [xlabel="data (pass)"];
-    ctrl -> mux  [style=dashed, xlabel="ctrl"];
+    ctrl -> mux  [style=dashed, color="#777777", xlabel="ctrl"];
     mux  -> out  [xlabel="data_out"];
 
     { rank=same; amt; din; ctrl; }

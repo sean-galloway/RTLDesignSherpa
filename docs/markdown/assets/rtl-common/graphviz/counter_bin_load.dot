@@ -8,17 +8,17 @@ digraph counter_bin_load {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="counter_bin_load - modulo counter with load and add-by-value";
 
-    ld_in  [label="Load Input\nload, load_value", fillcolor="white"];
-    add_in [label="Add Input\nadd_enable, add_value", fillcolor="white"];
-    en_in  [label="Enable Input\nenable", fillcolor="white"];
-    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
-    nxt    [label="Next-State Select (combinational), first match wins\lload: load_value\ladd_enable: curr + add_value, minus 2*MAX if it reaches 2*MAX\lenable: curr + 1 (low bits wrap at MAX, MSB inverted)\lelse: hold\l"];
-    creg   [label="Counter Register\ncounter_bin_curr (flop, reset 0)"];
-    out    [label="Outputs\ncounter_bin_curr   |   counter_bin_next (combinational)", fillcolor="white", width=5.5];
+    ld_in  [label="Load Input\nload, load_value", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    add_in [label="Add Input\nadd_enable, add_value", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    en_in  [label="Enable Input\nenable", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    nxt    [label="Next-State Select (combinational), first match wins\lload: load_value\ladd_enable: curr + add_value, minus 2*MAX if it reaches 2*MAX\lenable: curr + 1 (low bits wrap at MAX, MSB inverted)\lelse: hold\l", style="filled", fillcolor="white"];
+    creg   [label="Counter Register\ncounter_bin_curr (flop, reset 0)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out    [label="Outputs\ncounter_bin_curr   |   counter_bin_next (combinational)", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     p_fb   [shape=point, width=0.01];
     p_nx   [shape=point, width=0.01];
 
@@ -35,7 +35,7 @@ digraph counter_bin_load {
     p_b  -> nxt  [xlabel="counter_bin_curr (current)", tailclip=false];
     { rank=same; nxt; p_b; }
     nxt -> p_b [style=invis];
-    clk_in -> creg [style=dashed, constraint=false];
+    clk_in -> creg [style=dashed, color="#777777", constraint=false];
     { rank=same; ld_in; add_in; en_in; }
     { rank=same; p_nx; clk_in; creg; p_fb; }
     p_nx -> clk_in [style=invis];

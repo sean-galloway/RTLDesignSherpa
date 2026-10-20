@@ -16,20 +16,20 @@ digraph arbiter_round_robin_simple {
            label="arbiter_round_robin_simple - teaching round-robin (combinational grant, one state register)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    req  [group=C, label="Requests\nrequest[N]", fillcolor="white"];
-    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+    req  [group=C, label="Requests\nrequest[N]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    mask [group=C, label="Win-Mask (combinational)\nw_req_masked = request & mask[r_last_grant]\nonly agents above the last winner stay eligible"];
+    mask [group=C, label="Win-Mask (combinational)\nw_req_masked = request & mask[r_last_grant]\nonly agents above the last winner stay eligible", style="filled", fillcolor="white"];
     pick [group=C, label="Pick (combinational)\nmasked first, else all; keep the lowest set bit",
-          shape=invtrapezium, width=7.0, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
-    enc  [label="One-Hot to Index (combinational)\ngrant_id = position of the set bit"];
-    last [group=R, label="Last-Winner Register (flop)\nr_last_grant <= grant_id when grant_valid\n(reset N-1: first pass starts at agent 0)"];
+          shape=invtrapezium, width=7.0, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    enc  [label="One-Hot to Index (combinational)\ngrant_id = position of the set bit", style="filled", fillcolor="white"];
+    last [group=R, label="Last-Winner Register (flop)\nr_last_grant <= grant_id when grant_valid\n(reset N-1: first pass starts at agent 0)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     outs [group=C, label="Outputs (same cycle as request)\ngrant[N] (one-hot)   |   grant_valid   |   grant_id",
-          fillcolor="white", width=6.4];
+          fillcolor="white", width=6.4, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     p_un [shape=point, width=0.01];
     req  -> p_un [arrowhead=none, headclip=false];
@@ -44,7 +44,7 @@ digraph arbiter_round_robin_simple {
     // the only state climbs the right edge back into the mask
     last -> mask [xlabel="r_last_grant", constraint=false];
 
-    clk -> last [style=dashed, xlabel="clk, rst_n"];
+    clk -> last [style=dashed, color="#777777", xlabel="clk, rst_n"];
 
     { rank=same; req; }
     { rank=same; p_un; mask; }

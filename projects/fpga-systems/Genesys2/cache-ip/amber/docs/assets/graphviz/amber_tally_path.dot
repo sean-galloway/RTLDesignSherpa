@@ -10,33 +10,33 @@ digraph amber_tally_path {
            label="Amber pair-rig Genesys2 -- MonBus tally observation path",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    c0 [label="Cache 0 monitor\namber_top monbus", fillcolor="white"];
-    c1 [label="Cache 1 monitor\namber_top monbus", fillcolor="white"];
+    c0 [label="Cache 0 monitor\namber_top monbus", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    c1 [label="Cache 1 monitor\namber_top monbus", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     merge [label="Observer merge\nmonbus_arbiter\n2 clients -> 1 stream",
-           shape=invtrapezium, width=3.0, fillcolor="#BFD7EE"];
+           shape=invtrapezium, width=3.0, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    group [label="AXIL record ingest\nmonbus_axil4_axil4_group\npackets -> AXIL writes"];
+    group [label="AXIL record ingest\nmonbus_axil4_axil4_group\npackets -> AXIL writes", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    tally [label="MonBus tally\nmonbus_tally_axil\n33 bins (32 legal + UNEXPECTED)"];
+    tally [label="MonBus tally\nmonbus_tally_axil\n33 bins (32 legal + UNEXPECTED)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    host [label="Host read-back\ncnt/cfgw/cfgr apertures", fillcolor="white"];
+    host [label="Host read-back\ncnt/cfgw/cfgr apertures", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    c0 -> merge [style=dashed, label="monbus 0"];
-    c1 -> merge [style=dashed, label="monbus 1"];
-    merge -> group [style=dashed, label="merged stream"];
+    c0 -> merge [style=dashed, color="#777777", label="monbus 0"];
+    c1 -> merge [style=dashed, color="#777777", label="monbus 1"];
+    merge -> group [style=dashed, color="#777777", label="merged stream"];
     group -> tally [label="rec_aw/w/b (AXIL 64b)"];
-    tally -> host [constraint=false, label="cnt_ar/r (AXIL 64b, host reads low 32b)"];
+    tally -> host [color="#1A7A1A", constraint=false, label="cnt_ar/r (AXIL 64b, host reads low 32b)"];
 
-    cfg [label="Legal-set CAM load\ntally_cfgw/cfgr", fillcolor="white", style="filled,dashed"];
-    cfg -> tally [style=dashed, label="CAM_CLEAR/KEY/LOAD"];
+    cfg [label="Legal-set CAM load\ntally_cfgw/cfgr", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    cfg -> tally [style=dashed, color="#777777", label="CAM_CLEAR/KEY/LOAD"];
 
     legend [shape=box, style=filled, fillcolor="white", color="black",
             label="Record layout\l\
 {packet[127:0], timestamp[63:0]}\l\
 N_PROFILE=32 legal-set bins + 1 catch-all\l",
-            fontsize=9, align=left];
+            fontsize=9, align=left, shape=note];
 }

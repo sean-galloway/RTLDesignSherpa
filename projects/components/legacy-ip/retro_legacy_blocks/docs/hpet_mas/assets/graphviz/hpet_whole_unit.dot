@@ -14,19 +14,19 @@ digraph hpet_whole_unit {
            label="apb4_hpet - High Precision Event Timer, published HPET register map (CDC_ENABLE=1: registers and core on hpet_clk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white"];
-    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> hpet_clk)"];
-    cfg  [group=C, label="Register Block + Strobes\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs (PeakRDL)\nHPET_ID / PERIOD / CONFIG / STATUS / COUNTER, TIMER[N] CONFIG / COMPARATOR\none-cycle write strobes, W1C clear pulse, timer_size = ~32MODE", width=8.0];
+    apb  [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> hpet_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cfg  [group=C, label="Register Block + Strobes\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs (PeakRDL)\nHPET_ID / PERIOD / CONFIG / STATUS / COUNTER, TIMER[N] CONFIG / COMPARATOR\none-cycle write strobes, W1C clear pulse, timer_size = ~32MODE", width=8.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cnt  [group=L2, label="Main Counter (flop)\nhpet_core - r_main_counter[63:0]\n+1 per core clock while HPET_CONFIG.enable"];
-    tmr  [group=R, label="Timer Comparators (flop), NUM_TIMERS x\nhpet_core - comparator, period, armed latch\nfire = counter >= comparator (32 / 64 bit) & armed;\nperiodic: comparator += period"];
-    irq  [group=C, label="Interrupt Status + Output (flop)\nhpet_core - sticky status set on fire;\noutput needs TN_CONF.INT_ENB"];
-    leg  [group=C, label="Legacy Replacement Route (combinational)\nhpet_core - HPET_CONFIG.legacy_replacement:\ntimer 0 -> IRQ0, timer 1 -> IRQ8 (off timer_irq)"];
+    cnt  [group=L2, label="Main Counter (flop)\nhpet_core - r_main_counter[63:0]\n+1 per core clock while HPET_CONFIG.enable", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tmr  [group=R, label="Timer Comparators (flop), NUM_TIMERS x\nhpet_core - comparator, period, armed latch\nfire = counter >= comparator (32 / 64 bit) & armed;\nperiodic: comparator += period", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    irq  [group=C, label="Interrupt Status + Output (flop)\nhpet_core - sticky status set on fire;\noutput needs TN_CONF.INT_ENB", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    leg  [group=C, label="Legacy Replacement Route (combinational)\nhpet_core - HPET_CONFIG.legacy_replacement:\ntimer 0 -> IRQ0, timer 1 -> IRQ8 (off timer_irq)", style="filled", fillcolor="white"];
 
-    bar  [group=C, label="Module Boundary\ntimer_irq[NUM_TIMERS-1:0]   |   legacy_irq0   |   legacy_irq8", fillcolor="white", width=8.0];
+    bar  [group=C, label="Module Boundary\ntimer_irq[NUM_TIMERS-1:0]   |   legacy_irq0   |   legacy_irq8", fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     apb -> slv [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     slv -> cfg [dir=both, xlabel="cmd / rsp"];

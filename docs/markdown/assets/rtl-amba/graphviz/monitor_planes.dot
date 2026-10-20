@@ -6,37 +6,37 @@ digraph ocelus_planes {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.50", ranksep="0.70", splines=ortho];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.14,0.07"];
+           fillcolor="white", color="black", margin="0.14,0.07"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // External observed bus
     observed_bus [label="Observed bus\n(AXI / AXIS / APB / ARB / CORE)",
-                  shape=box, style=filled, fillcolor="white", color="black"];
+                  shape=box, style=filled, fillcolor="white", color="black", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // Protocol plane: the sensor
     protocol_plane [label="Protocol plane\naxi_monitor_lite / _base, axis_, cxs_,\naxi4ace_snoop_, trans_mgr, trans_cam,\naddr_check, timeout, timer, filtered",
-                    fillcolor="#D6E4F0"];
+                    fillcolor="#D6E4F0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // Reporter planes
     error_plane [label="Error plane\nreporter_error, reporter_timeout,\nreporter_threshold",
-                 fillcolor="#D6E4F0"];
+                 fillcolor="#D6E4F0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     debug_plane [label="Debug plane\nreporter_debug, reporter_compl",
-                 fillcolor="#D6E4F0"];
+                 fillcolor="#D6E4F0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     perf_plane [label="Perf plane\nreporter_perf",
-                fillcolor="#D6E4F0"];
+                fillcolor="#D6E4F0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // Output plane internal chain
     monbus_arbiter [label="monbus_arbiter\n(N:1 merge, packet + timestamp)",
-                    shape=invtrapezium, fillcolor="#D6E4F0", width=2.4, height=0.45];
+                    shape=invtrapezium, fillcolor="#D6E4F0", width=2.4, height=0.45, style="filled", fillcolor="#FFF2CC"];
     monbus_group [label="monbus_group_core\n+ filters + group wrappers",
-                  fillcolor="#D6E4F0"];
+                  fillcolor="#D6E4F0", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     compress_pack [label="monbus_compressor\n+ halfbeat_packer",
                    shape=box, style="dashed,filled", fillcolor="#E8F0E8",
-                   color="black", margin="0.12,0.06"];
+                   color="black", margin="0.12,0.06", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // Boundary bar: the off-chip capture interface
     boundary [label="Off-chip capture interface\nAXI4 / AXI-Lite / Wishbone slave-read (IRQ)\n+ master-write ring",
-              shape=box, style=filled, fillcolor="white", color="black"];
+              shape=box, style=filled, fillcolor="white", color="black", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // Main flows
     observed_bus -> protocol_plane [label="observed bus signals\n(nothing driven back)"];
@@ -51,7 +51,7 @@ digraph ocelus_planes {
 
     monbus_arbiter -> monbus_group [label="merged monbus stream\n(packet + timestamp)", penwidth=1.8];
     monbus_group -> boundary [label="error FIFO + write\nFIFO drains"];
-    monbus_group -> compress_pack [label="write path\n(USE_COMPRESSION)", style=dashed];
+    monbus_group -> compress_pack [label="write path\n(USE_COMPRESSION)", style=dashed, color="#777777"];
     compress_pack -> boundary [label="compressed / packed\nwrite FIFO drain"];
 
     // Rank pins to keep the diagram readable

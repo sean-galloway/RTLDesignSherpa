@@ -18,28 +18,28 @@ digraph cdc_2_phase_handshake {
            label="cdc_2_phase_handshake - toggle (NRZ) req/ack, one crossing each way per transfer",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    src_port [group=SO, label="Source Port\nclk_src domain", fillcolor="white"];
-    dst_port [group=DO, label="Destination Port\nclk_dst domain", fillcolor="white"];
+    src_port [group=SO, label="Source Port\nclk_src domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dst_port [group=DO, label="Destination Port\nclk_dst domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_src {
         label="clk_src domain"; style=dashed; fontsize=10;
-        src_ctl  [group=SO, label="Source Control\nS_IDLE / S_WAIT_ACK\nflips r_req_tog per transfer"];
-        ack_sync [group=SI, label="Ack Sync + Edge Detect\nr_ack_sync (SYNC_STAGES on clk_src)\nevent = sync ^ previous"];
+        src_ctl  [group=SO, label="Source Control\nS_IDLE / S_WAIT_ACK\nflips r_req_tog per transfer", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        ack_sync [group=SI, label="Ack Sync + Edge Detect\nr_ack_sync (SYNC_STAGES on clk_src)\nevent = sync ^ previous", style="filled", fillcolor="white"];
     }
 
     subgraph cluster_dst {
         label="clk_dst domain"; style=dashed; fontsize=10;
-        dst_ctl  [group=DO, label="Destination Control\nD_IDLE / D_WAIT_READY\nflips r_ack_tog on accept"];
-        req_sync [group=DI, label="Req Sync + Edge Detect\nr_req_sync (SYNC_STAGES on clk_dst)\nevent = sync ^ previous"];
+        dst_ctl  [group=DO, label="Destination Control\nD_IDLE / D_WAIT_READY\nflips r_ack_tog on accept", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        req_sync [group=DI, label="Req Sync + Edge Detect\nr_req_sync (SYNC_STAGES on clk_dst)\nevent = sync ^ previous", style="filled", fillcolor="white"];
     }
 
     // ---- the boundary bar: the held data bus both clocks touch ----
     bus [group=C, label="Held Data Bus  [DATA_WIDTH]  (crosses unsynchronized, stable for the whole handshake)\nr_src_data_hold loaded on clk_src at the left, captured into r_dst_data on clk_dst at the right",
-         width=13.0, height=0.8];
+         width=13.0, height=0.8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- port handshakes (one edge per pair, combined label) ----
     src_port -> src_ctl [dir=both, label="src_valid / src_ready,\nsrc_timeout"];
@@ -66,8 +66,8 @@ digraph cdc_2_phase_handshake {
     p_ld -> bus [xlabel="load hold\n(src_valid)", tailclip=false];
     dst_ctl -> p_cap [arrowhead=none, headclip=false];
     p_cap -> bus [xlabel="capture\n(req event)", tailclip=false];
-    p_dd -> bus [dir=none, tailclip=false];
-    p_dd -> dst_port [xlabel="dst_data", tailclip=false, constraint=false];
+    p_dd -> bus [color="#1A7A1A", dir=none, tailclip=false];
+    p_dd -> dst_port [color="#1A7A1A", xlabel="dst_data", tailclip=false, constraint=false];
 
     // ---- invisible center spine (group C) ----
     node [style=invis, shape=point, width=0.01, group=C];

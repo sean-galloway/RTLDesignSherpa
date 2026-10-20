@@ -10,32 +10,32 @@ digraph mc_scheduler_plane {
            label="mc_scheduler_plane - the command pick (aclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- inputs (white) ----
-    p_wr    [label="WR entry view\n(storage plane - wr CAM)", fillcolor="white"];
-    p_rd    [label="RD entry view\n(storage plane - rd CAM)", fillcolor="white"];
-    p_maint [label="Maintenance / ZQ request\n(training plane slot)", fillcolor="white"];
+    p_wr    [label="WR entry view\n(storage plane - wr CAM)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_rd    [label="RD entry view\n(storage plane - rd CAM)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_maint [label="Maintenance / ZQ request\n(training plane slot)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     cfg     [label="Configuration (sideband, CSR-driven)\l  scheduler policy: order mode, row / col\l    select, write watermarks, QoS enable\l  page-policy mode, JEDEC timings t_*,\l  refresh controls, MR0-MR3\l",
-             fillcolor="white"];
+             fillcolor="white", shape=note];
 
     // ---- request sources inside the plane (build-dependent) ----
-    init [label="Init Sequencer\nmc_xddr2_init_sequencer\n(HAS_INIT_SEQUENCER=1)", style="filled,dashed"];
-    refc [label="Refresh Controller\nmc_xddr2_refresh_ctrl\n(HAS_REFRESH_CTRL=1)", style="filled,dashed"];
-    timers [label="DDR Timing Control\nmc_bank_timers + mc_global_timers - FUB\n(tRCD / tRP / tRAS / tFAW / tRRD /\ntCCD / tWTR / tRTW next-state)"];
+    init [label="Init Sequencer\nmc_xddr2_init_sequencer\n(HAS_INIT_SEQUENCER=1)", style="filled,dashed", peripheries=2, style="filled,diagonals,dashed", fillcolor="#FCE4D6"];
+    refc [label="Refresh Controller\nmc_xddr2_refresh_ctrl\n(HAS_REFRESH_CTRL=1)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    timers [label="DDR Timing Control\nmc_bank_timers + mc_global_timers - FUB\n(tRCD / tRP / tRAS / tFAW / tRRD /\ntCCD / tWTR / tRTW next-state)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the pick ----
     sched [label="DDR Command Scheduler\nmc_cmd_arbiter - FUB (FR-FCFS pick)",
-           shape=polygon, sides=4, distortion=0.10, width=12, height=0.6, fillcolor="#BDD7EE", fontsize=11];
+           shape=polygon, sides=4, distortion=0.10, width=12, height=0.6, fillcolor="#BDD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
 
-    mreg [label="Mode Register Shadow\nmc_xddr2_mode_register - FUB\n(HAS_MODE_REGISTER=1;\nloaded by the init MR writes)", style="filled,dashed"];
-    fifo [label="Command FIFO + fixed-delay release\ngaxi_fifo_sync (CMD_FIFO_DEPTH)\n+ CMD_DELAY token count"];
-    pp   [label="Page Policy\nmc_page_policy - FUB\n(HAS_PAGE_POLICY=1;\nwatches issued commands)", style="filled,dashed"];
-    hist [label="Command History Checker\nmc_cmd_history_checker - FUB\n(HAS_CMD_HISTORY=1, scoreboard)", style="filled,dashed"];
+    mreg [label="Mode Register Shadow\nmc_xddr2_mode_register - FUB\n(HAS_MODE_REGISTER=1;\nloaded by the init MR writes)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    fifo [label="Command FIFO + fixed-delay release\ngaxi_fifo_sync (CMD_FIFO_DEPTH)\n+ CMD_DELAY token count", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    pp   [label="Page Policy\nmc_page_policy - FUB\n(HAS_PAGE_POLICY=1;\nwatches issued commands)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    hist [label="Command History Checker\nmc_cmd_history_checker - FUB\n(HAS_CMD_HISTORY=1, scoreboard)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Plane edge - DFI plane (DDR command, CL / CWL / BL)",
-         fillcolor="white", width=6, height=0.5, fontsize=11];
+         fillcolor="white", width=6, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- contenders onto the wide edge (pick result rides back) ----
     p_wr    -> sched [dir=both, xlabel="WR\n(commit slot back)"];
@@ -43,16 +43,16 @@ digraph mc_scheduler_plane {
     init    -> sched [xlabel="INIT / MRS"];
     refc    -> sched [xlabel="REF / REFpb"];
     p_maint -> sched [dir=both, xlabel="ZQ / training\n(grant back)"];
-    sched -> timers [dir=back, style=dashed, xlabel="timer window"];
+    sched -> timers [dir=back, style=dashed, color="#777777", xlabel="timer window"];
 
     // ---- the winner ----
     sched -> fifo [penwidth=1.8, label="DDR Command"];
     fifo  -> bar  [penwidth=1.8, xlabel="DDR Command"];
-    sched -> pp   [dir=back, style=dashed, xlabel="auto-PRE /\ntimeout PRE"];
-    fifo  -> hist [style=dashed, xlabel="issued commands"];
+    sched -> pp   [dir=back, style=dashed, color="#777777", xlabel="auto-PRE /\ntimeout PRE"];
+    fifo  -> hist [style=dashed, color="#777777", xlabel="issued commands"];
 
     // ---- init loads the mode-register shadow ----
-    mreg -> bar  [style=dashed, xlabel="CL / CWL / BL"];
+    mreg -> bar  [style=dashed, color="#777777", xlabel="CL / CWL / BL"];
 
     // ---- ranks ----
     { rank=same; init; refc; p_wr; p_rd; p_maint; }

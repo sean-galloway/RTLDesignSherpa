@@ -8,36 +8,36 @@ digraph w_tracking {
            nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
            label="W data tracking in <bridge>_xbar - two FIFOs, no state machine\n(shown for one slave; every master path and every slave has its own FIFO)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // rank 0: intakes
-    pw [label="Master Write Data\nW beats from each master path (no address)", fillcolor="white", group=L];
-    pc [label="Master Write Requests\nAW from each master path", fillcolor="white", group=C];
+    pw [label="Master Write Data\nW beats from each master path (no address)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    pc [label="Master Write Requests\nAW from each master path", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pw; pc; }
     pw -> pc [style=invis];
 
     // rank 1
-    wdest [label="W Destination FIFO - <bridge>_xbar\n<m>_<w>b_wdest_* (one per master path, max_outstanding deep)\npush: target slave, at the master-side AW accept\npop: the W beat carrying WLAST\nhead = slave this master's current W burst goes to", group=L];
-    arb [shape=invtrapezium, width=3.2, label="Per-slave AW Arbiter\n<s>_aw_arb (round robin)", group=C];
+    wdest [label="W Destination FIFO - <bridge>_xbar\n<m>_<w>b_wdest_* (one per master path, max_outstanding deep)\npush: target slave, at the master-side AW accept\npop: the W beat carrying WLAST\nhead = slave this master's current W burst goes to", group=L, style="filled", fillcolor="white"];
+    arb [shape=invtrapezium, width=3.2, label="Per-slave AW Arbiter\n<s>_aw_arb (round robin)", group=C, style="filled", fillcolor="#FFF2CC"];
     { rank=same; wdest; arb; }
     wdest -> arb [style=invis];
 
     // rank 2
     pl2 [shape=point, width=0.01, label="", group=L];
-    wown [label="W Owner FIFO - <bridge>_xbar\n<s>_wowner_* (one per slave, max_outstanding deep)\npush: granted master, at the slave-side AW accept\npop: the slave's W beat carrying WLAST\nhead = master that owns this slave's W channel", group=M];
+    wown [label="W Owner FIFO - <bridge>_xbar\n<s>_wowner_* (one per slave, max_outstanding deep)\npush: granted master, at the slave-side AW accept\npop: the slave's W beat carrying WLAST\nhead = master that owns this slave's W channel", group=M, style="filled", fillcolor="white"];
     pc2 [shape=point, width=0.01, label="", group=C];
     { rank=same; pl2; wown; pc2; }
     pl2 -> wown -> pc2 [style=invis];
 
     // rank 3
-    wmux [label="Slave W Mux - <bridge>_xbar\nORs the W of the one master path whose\nW-destination head is this slave AND which\nis the W-owner head (<m>_w_sel_<s>)", group=L];
+    wmux [label="Slave W Mux - <bridge>_xbar\nORs the W of the one master path whose\nW-destination head is this slave AND which\nis the W-owner head (<m>_w_sel_<s>)", group=L, style="filled", fillcolor="white"];
     pc3 [shape=point, width=0.01, label="", group=C];
     { rank=same; wmux; pc3; }
     wmux -> pc3 [style=invis];
 
     // rank 4: boundary bar
-    bar [label="Slave Port  -  <slave>_adapter / <s>_axi_*", fillcolor="white", width=7.5, group=M];
+    bar [label="Slave Port  -  <slave>_adapter / <s>_axi_*", fillcolor="white", width=7.5, group=M, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // forward data flow (left column)
     pw -> wdest [label="W beats"];
@@ -52,7 +52,7 @@ digraph w_tracking {
     pc3 -> bar [label="AW to slave", penwidth=1.8];
 
     // sideband: pushes and the owner select
-    pc -> wdest [style=dashed, label="target slave\n(push)"];
-    arb -> wown [style=dashed, label="grant\n(push)"];
-    wown -> wmux [style=dashed, label="owner\n(head)"];
+    pc -> wdest [style=dashed, color="#777777", label="target slave\n(push)"];
+    arb -> wown [style=dashed, color="#777777", label="grant\n(push)"];
+    wown -> wmux [style=dashed, color="#777777", label="owner\n(head)"];
 }

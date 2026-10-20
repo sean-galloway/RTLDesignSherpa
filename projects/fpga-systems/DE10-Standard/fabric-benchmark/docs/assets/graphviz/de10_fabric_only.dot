@@ -9,18 +9,18 @@
 digraph de10_fabric_only {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.45", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
            label="Fabric-only mode (W2) - stream to the CRC endpoints, nothing but the fabric between (planned)"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    str [label="DMA mover\nstream - m_axi_desc, m_axi_rd, m_axi_wr"];
-    om  [label="Master-side meters\nobs_master, obs_desc"];
-    fab [label="FABRIC under test\nthe only thing measured", penwidth=2.2, width=5.5];
-    os  [label="Slave-side meters\nobs_slave (rd: LFSR source, wr: CRC sink)"];
-    dsc [label="Descriptor store\ndesc_ram rd 0x8000_0000"];
-    cr  [label="Read crossing\naxi4_cdc_rd"];
-    cw  [label="Write crossing\naxi4_cdc_wr"];
-    src [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector - never stalls"];
-    snk [label="CRC sink 0xA000_0000\naxi4_slave_wr_crc_check - never stalls"];
+    str [label="DMA mover\nstream - m_axi_desc, m_axi_rd, m_axi_wr", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    om  [label="Master-side meters\nobs_master, obs_desc", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fab [label="FABRIC under test\nthe only thing measured", penwidth=2.2, width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    os  [label="Slave-side meters\nobs_slave (rd: LFSR source, wr: CRC sink)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dsc [label="Descriptor store\ndesc_ram rd 0x8000_0000", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cr  [label="Read crossing\naxi4_cdc_rd", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cw  [label="Write crossing\naxi4_cdc_wr", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    src [label="LFSR source 0x9000_0000\naxi4_slave_rd_injector - never stalls", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    snk [label="CRC sink 0xA000_0000\naxi4_slave_wr_crc_check - never stalls", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     str -> om  [xlabel="desc RD, data RD, data WR"];
     om  -> fab [xlabel="desc RD, data RD, data WR", penwidth=1.6];
@@ -34,6 +34,6 @@ digraph de10_fabric_only {
     { rank=same; cr; cw; }
     { rank=same; src; snk; }
 
-    note [label="Fabric = master-side meters minus slave-side meters;\lthe slave-side meters sit before the crossings, so the\lsubtraction removes the crossings and endpoints too.\l\lNot in this path:\l- DDR3 controller, f2sdram, axi4_to_axi3, HPS\l- the configuration path (quiet during the window)\lIn the path, identical both legs:\l- stream, the meters, desc_ram, the crossings, the endpoints\l", fillcolor="white"];
+    note [label="Fabric = master-side meters minus slave-side meters;\lthe slave-side meters sit before the crossings, so the\lsubtraction removes the crossings and endpoints too.\l\lNot in this path:\l- DDR3 controller, f2sdram, axi4_to_axi3, HPS\l- the configuration path (quiet during the window)\lIn the path, identical both legs:\l- stream, the meters, desc_ram, the crossings, the endpoints\l", fillcolor="white", shape=note];
     { rank=same; str; note; }
 }

@@ -11,28 +11,28 @@ digraph axi_monitor_reporter {
            label="axi_monitor_reporter - turns transaction-table state into monitor-bus packets (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lENABLE_ERROR / TIMEOUT / COMPL /\l    THRESHOLD / PERF / DEBUG_LOGIC:\l    0 omits that emitter (its packets never occur)\lINTR_FIFO_DEPTH: event FIFO entries\lUNIT_ID, AGENT_ID: stamped into every packet\l", fillcolor="white"];
-    tin  [label="From the Transaction Manager\ntrans_table[MAX_TRANSACTIONS], filtered_mask\n+ timeout_detected (timeout scanner)", fillcolor="white"];
-    cfg  [label="Runtime Configuration (input ports)\lcfg_error / timeout / compl / threshold /\l    perf / debug_enable: per-class gates\lactive_trans_threshold, latency_threshold\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lENABLE_ERROR / TIMEOUT / COMPL /\l    THRESHOLD / PERF / DEBUG_LOGIC:\l    0 omits that emitter (its packets never occur)\lINTR_FIFO_DEPTH: event FIFO entries\lUNIT_ID, AGENT_ID: stamped into every packet\l", fillcolor="white", shape=note];
+    tin  [label="From the Transaction Manager\ntrans_table[MAX_TRANSACTIONS], filtered_mask\n+ timeout_detected (timeout scanner)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_error / timeout / compl / threshold /\l    perf / debug_enable: per-class gates\lactive_trans_threshold, latency_threshold\l", fillcolor="white", shape=note];
 
-    snap [group=C, label="Table Snapshot (flops)\nr_trans_table_local: one-cycle copy\nthe emitters scan"];
-    err  [label="Error Emitter\naxi_monitor_reporter_error - u_err\n(ENABLE_ERROR_LOGIC)", style="filled,dashed"];
-    to   [group=C, label="Timeout Emitter\naxi_monitor_reporter_timeout - u_to\n(ENABLE_TIMEOUT_LOGIC)", style="filled,dashed"];
-    cmpl [label="Completion Emitter\naxi_monitor_reporter_compl - u_compl\n(ENABLE_COMPL_LOGIC)", style="filled,dashed"];
+    snap [group=C, label="Table Snapshot (flops)\nr_trans_table_local: one-cycle copy\nthe emitters scan", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    err  [label="Error Emitter\naxi_monitor_reporter_error - u_err\n(ENABLE_ERROR_LOGIC)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    to   [group=C, label="Timeout Emitter\naxi_monitor_reporter_timeout - u_to\n(ENABLE_TIMEOUT_LOGIC)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    cmpl [label="Completion Emitter\naxi_monitor_reporter_compl - u_compl\n(ENABLE_COMPL_LOGIC)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
     cls  [group=C, label="Class Pick\nround-robin over error / timeout / completion\n(rotating r_grant_ptr)",
-          shape=invtrapezium, width=6.6, height=0.8, fixedsize=true, fillcolor="#BFD7EE"];
-    fifo [group=C, label="Event FIFO\ngaxi_fifo_sync - intr_fifo\nINTR_FIFO_DEPTH, mux read"];
-    flag [label="Reported Flags (flops)\nr_event_reported[MAX_TRANSACTIONS]: set on an\naccepted FIFO write (or auto-retire), cleared when\nthe entry frees; emitters skip reported entries"];
-    thr  [label="Threshold Emitter\nreporter_threshold - u_thresh\nactive-count / latency\n(ENABLE_THRESHOLD_LOGIC)", style="filled,dashed"];
-    prf  [label="Perf Emitter\nreporter_perf - u_perf\ncompleted / error counts\n(ENABLE_PERF_LOGIC)", style="filled,dashed"];
-    dbg  [label="Debug Emitter\nreporter_debug - u_debug\n(ENABLE_DEBUG_LOGIC)", style="filled,dashed"];
+          shape=invtrapezium, width=6.6, height=0.8, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    fifo [group=C, label="Event FIFO\ngaxi_fifo_sync - intr_fifo\nINTR_FIFO_DEPTH, mux read", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    flag [label="Reported Flags (flops)\nr_event_reported[MAX_TRANSACTIONS]: set on an\naccepted FIFO write (or auto-retire), cleared when\nthe entry frees; emitters skip reported entries", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    thr  [label="Threshold Emitter\nreporter_threshold - u_thresh\nactive-count / latency\n(ENABLE_THRESHOLD_LOGIC)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    prf  [label="Perf Emitter\nreporter_perf - u_perf\ncompleted / error counts\n(ENABLE_PERF_LOGIC)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    dbg  [label="Debug Emitter\nreporter_debug - u_debug\n(ENABLE_DEBUG_LOGIC)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     opk  [group=C, label="Output Pick\nevent FIFO first, then threshold, perf, debug",
-          shape=invtrapezium, width=10.6, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
-    oreg [group=C, label="Output Register (flops)\nmonbus_valid + type / code / channel / data;\nmonbus_packet = create_monitor_packet(..., UNIT_ID, AGENT_ID)"];
-    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet (monbus_ready in)  |  event_reported_flags (to the transaction manager)\nevent_count, perf_completed_count, perf_error_count", fillcolor="white", width=10.0];
+          shape=invtrapezium, width=10.6, height=0.7, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    oreg [group=C, label="Output Register (flops)\nmonbus_valid + type / code / channel / data;\nmonbus_packet = create_monitor_packet(..., UNIT_ID, AGENT_ID)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet (monbus_ready in)  |  event_reported_flags (to the transaction manager)\nevent_count, perf_completed_count, perf_error_count", fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     tin  -> snap [xlabel="trans_table", penwidth=1.8];
     snap -> err  [xlabel="table"];

@@ -16,29 +16,29 @@ digraph uart_whole_unit {
            label="apb4_uart_16550 - 16550-compatible UART (CDC_ENABLE=0: all on pclk; CDC_ENABLE=1: decode, registers and core on uart_clk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white"];
-    slv [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> uart_clk)"];
-    adp [group=C, label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp"];
-    dec [group=C, label="Address Decode + Access Strobes\nuart_16550_config_regs\nunmapped offset: read 0 + PSLVERR, answered locally;  LCR.DLAB remaps 0x00 / 0x04 to DLL / DLM\nTHR push, RBR pop, LSR / MSR / IIR read events"];
-    regs [group=C, label="Register Block (PeakRDL)\nuart_16550_regs\nRBR / THR, IER, IIR, FCR, LCR, MCR, LSR, MSR, SCR, DLL, DLM\nhwif_out configures every core block (divisor, LCR, FCR, MCR, IER)", width=8.0];
+    apb [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> uart_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    adp [group=C, label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec [group=C, label="Address Decode + Access Strobes\nuart_16550_config_regs\nunmapped offset: read 0 + PSLVERR, answered locally;  LCR.DLAB remaps 0x00 / 0x04 to DLL / DLM\nTHR push, RBR pop, LSR / MSR / IIR read events", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs [group=C, label="Register Block (PeakRDL)\nuart_16550_regs\nRBR / THR, IER, IIR, FCR, LCR, MCR, LSR, MSR, SCR, DLL, DLM\nhwif_out configures every core block (divisor, LCR, FCR, MCR, IER)", width=8.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    txf  [group=L, label="TX FIFO / THR (flop array)\nuart_16550_core - r_tx_fifo\nFIFO_DEPTH bytes (FCR[0]=0: one byte)"];
-    baud [group=C, label="Baud Generator (flop)\nuart_16550_core - r_baud_count\none tick every {DLM, DLL} clocks\n(16 ticks per bit)"];
-    rxf  [group=R, label="RX FIFO / RBR (flop array)\nuart_16550_core - r_rx_fifo\nFIFO_DEPTH x {BI, FE, PE, byte}\n(FCR[0]=0: one entry)"];
-    intr [group=X1, label="Interrupt Logic (combinational)\nuart_16550_intr\nRX data / timeout, THR empty,\nline status, MSR deltas;\nIER gating, IIR priority,\nirq = pending & MCR.OUT2"];
+    txf  [group=L, label="TX FIFO / THR (flop array)\nuart_16550_core - r_tx_fifo\nFIFO_DEPTH bytes (FCR[0]=0: one byte)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    baud [group=C, label="Baud Generator (flop)\nuart_16550_core - r_baud_count\none tick every {DLM, DLL} clocks\n(16 ticks per bit)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rxf  [group=R, label="RX FIFO / RBR (flop array)\nuart_16550_core - r_rx_fifo\nFIFO_DEPTH x {BI, FE, PE, byte}\n(FCR[0]=0: one entry)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    intr [group=X1, label="Interrupt Logic (combinational)\nuart_16550_intr\nRX data / timeout, THR empty,\nline status, MSR deltas;\nIER gating, IIR priority,\nirq = pending & MCR.OUT2", style="filled", fillcolor="white"];
 
-    txs  [group=L, label="Transmitter (flop FSM)\nuart_16550_core - r_tx_state\nstart, 5-8 data LSB first, parity,\n1 / 1.5 / 2 stop; LCR.break forces low"];
-    rxd  [group=R, label="Receiver (flop FSM)\nuart_16550_core - r_rx_state\nmid-bit sample, PE / FE / BI\nper character, character timeout"];
-    mdm  [group=X2, label="Modem Control (flop)\nuart_16550_modem\ninput synchronizers, MSR deltas,\nloopback substitution, AFE RTS"];
+    txs  [group=L, label="Transmitter (flop FSM)\nuart_16550_core - r_tx_state\nstart, 5-8 data LSB first, parity,\n1 / 1.5 / 2 stop; LCR.break forces low", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    rxd  [group=R, label="Receiver (flop FSM)\nuart_16550_core - r_rx_state\nmid-bit sample, PE / FE / BI\nper character, character timeout", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    mdm  [group=X2, label="Modem Control (flop)\nuart_16550_modem\ninput synchronizers, MSR deltas,\nloopback substitution, AFE RTS", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    dma  [group=C, label="DMA Request Logic (combinational)\nuart_16550_core\nFCR[3] mode, FIFO levels"];
-    rxs  [group=R, label="RX Input Synchronizer (flop)\nuart_16550_core - SYNC_STAGES flops\n(MCR.loopback: TX bit replaces uart_rx)"];
+    dma  [group=C, label="DMA Request Logic (combinational)\nuart_16550_core\nFCR[3] mode, FIFO levels", style="filled", fillcolor="white"];
+    rxs  [group=R, label="RX Input Synchronizer (flop)\nuart_16550_core - SYNC_STAGES flops\n(MCR.loopback: TX bit replaces uart_rx)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [group=C, label="Module Boundary\nuart_tx out   |   rxrdy_n, txrdy_n out   |   uart_rx in   |   irq out   |   dtr_n, rts_n, out1_n, out2_n out / cts_n, dsr_n, ri_n, dcd_n in",
-         fillcolor="white", width=14.0];
+         fillcolor="white", width=14.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access (center) ----
     apb -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
@@ -52,9 +52,9 @@ digraph uart_whole_unit {
     txs  -> bar [xlabel="uart_tx\n(marking in loopback)"];
 
     // ---- baud ticks (sideband, center) ----
-    regs -> baud [style=dashed, xlabel="divisor"];
-    baud -> txs [style=dashed, xlabel="tick"];
-    baud -> rxd [style=dashed, xlabel="tick"];
+    regs -> baud [style=dashed, color="#777777", xlabel="divisor"];
+    baud -> txs [style=dashed, color="#777777", xlabel="tick"];
+    baud -> rxd [style=dashed, color="#777777", xlabel="tick"];
     baud -> dma [style=invis];
     dma  -> bar [xlabel="rxrdy_n, txrdy_n"];
 

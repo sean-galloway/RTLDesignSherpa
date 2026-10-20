@@ -11,15 +11,15 @@ digraph hpet_cdc_crossings {
            nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
            label="apb4_hpet, CDC_ENABLE=1 - the APB traffic crosses; registers, core and interrupts stay on hpet_clk", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white"];
-    core [label="APB Completer  (pclk)\napb4_slave inside apb4_slave_cdc\ncompleter FSM, command and response skids"];
-    cmdf [label="Command CDC FIFO  (pclk -> hpet_clk)\ngaxi_fifo_async inside apb4_slave_cdc\nDEPTH = 2 -> 4 entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
-    rspf [label="Response CDC FIFO  (hpet_clk -> pclk)\ngaxi_fifo_async inside apb4_slave_cdc\nDEPTH = 2 -> 4 entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
-    cfg  [label="Register Block + Strobes  (hpet_clk, hpet_resetn)\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs"];
-    hc   [label="Timer Core  (hpet_clk, hpet_resetn)\nhpet_core - main counter ticks on hpet_clk\n(HPET_PERIOD must state hpet_clk's period)"];
-    bar  [label="Module Boundary\ntimer_irq, legacy_irq0, legacy_irq8 out - on hpet_clk, NOT synchronized to pclk", fillcolor="white", width=7.5];
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    core [label="APB Completer  (pclk)\napb4_slave inside apb4_slave_cdc\ncompleter FSM, command and response skids", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cmdf [label="Command CDC FIFO  (pclk -> hpet_clk)\ngaxi_fifo_async inside apb4_slave_cdc\nDEPTH = 2 -> 4 entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)", style="filled", fillcolor="white"];
+    rspf [label="Response CDC FIFO  (hpet_clk -> pclk)\ngaxi_fifo_async inside apb4_slave_cdc\nDEPTH = 2 -> 4 entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)", style="filled", fillcolor="white"];
+    cfg  [label="Register Block + Strobes  (hpet_clk, hpet_resetn)\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hc   [label="Timer Core  (hpet_clk, hpet_resetn)\nhpet_core - main counter ticks on hpet_clk\n(HPET_PERIOD must state hpet_clk's period)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Module Boundary\ntimer_irq, legacy_irq0, legacy_irq8 out - on hpet_clk, NOT synchronized to pclk", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     apb  -> core [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     core -> cmdf [penwidth=1.8, xlabel="command\n(write, addr, data, strb)"];

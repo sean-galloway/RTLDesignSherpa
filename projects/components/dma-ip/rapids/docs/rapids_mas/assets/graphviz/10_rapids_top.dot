@@ -15,24 +15,24 @@ digraph rapids_top_integration {
            label="rapids_top / rapids_cxs_top - network planes, registers, configuration and monitor egress around rapids_core (byte-granular)\n(single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    s_axis [label="Network In\ns_axis_* (AXIS top) or\ns_cxs_* (CXS top, credits granted)", fillcolor="white", group=L];
-    s_apb  [label="Host Configuration - s_apb_*\n(APB4 slave)", fillcolor="white", group=C];
-    m_axis [label="Network Out\nm_axis_* (AXIS top) or\nm_cxs_* (CXS top, credits received)", fillcolor="white", group=R];
+    s_axis [label="Network In\ns_axis_* (AXIS top) or\ns_cxs_* (CXS top, credits granted)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    s_apb  [label="Host Configuration - s_apb_*\n(APB4 slave)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    m_axis [label="Network Out\nm_axis_* (AXIS top) or\nm_cxs_* (CXS top, credits received)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    plane_rx [label="Sink Network Plane (RX)\nrapids_plane_axis_rx | rapids_plane_cxs_rx\nendpoint + monitor-lite; its packets\njoin the core MonBus (client 1)", group=L];
-    plane_tx [label="Source Network Plane (TX)\nrapids_plane_axis_tx | rapids_plane_cxs_tx\nendpoint + monitor-lite; its packets\njoin the core MonBus (client 1)", group=R];
-    apb    [label="APB Slave + Register Adapter\napb4_slave -> peakrdl_to_cmdrsp", group=C];
-    regs   [label="Register Block - rapids_regs (PeakRDL)\nSRC block 0x0000, SNK block 0x1000;\neach: kick 0x000-0x040, engine config 0x100+,\nMON regfile", group=C];
-    meters [label="Data-Master Bus Meters (sideband)\naxi_bus_meter x 2 (u_rd_bus_meter,\nu_wr_bus_meter): observe m_axi_rd R\nand m_axi_wr W, nothing driven back;\nperf counts read back through rapids_regs", style="filled,dashed"];
-    cfg    [label="Configuration Mapping\nrapids_config_block x 2 (u_cfg_src, u_cfg_snk)\nhwif_out -> cfg_* per half", group=C];
-    core   [label="RAPIDS Core - rapids_core (u_core)\nsource half + sink half (see the core figure)", width=6.5, height=0.8, group=C];
-    mon    [label="Monitor Egress (USE_AXI_MONITORS=1 only)\nmonbus_axil4_axil4_group:\nerror FIFO + capture writer + irq", style="filled,dashed"];
+    plane_rx [label="Sink Network Plane (RX)\nrapids_plane_axis_rx | rapids_plane_cxs_rx\nendpoint + monitor-lite; its packets\njoin the core MonBus (client 1)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    plane_tx [label="Source Network Plane (TX)\nrapids_plane_axis_tx | rapids_plane_cxs_tx\nendpoint + monitor-lite; its packets\njoin the core MonBus (client 1)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    apb    [label="APB Slave + Register Adapter\napb4_slave -> peakrdl_to_cmdrsp", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs   [label="Register Block - rapids_regs (PeakRDL)\nSRC block 0x0000, SNK block 0x1000;\neach: kick 0x000-0x040, engine config 0x100+,\nMON regfile", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    meters [label="Data-Master Bus Meters (sideband)\naxi_bus_meter x 2 (u_rd_bus_meter,\nu_wr_bus_meter): observe m_axi_rd R\nand m_axi_wr W, nothing driven back;\nperf counts read back through rapids_regs", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    cfg    [label="Configuration Mapping\nrapids_config_block x 2 (u_cfg_src, u_cfg_snk)\nhwif_out -> cfg_* per half", group=C, style="filled", fillcolor="white"];
+    core   [label="RAPIDS Core - rapids_core (u_core)\nsource half + sink half (see the core figure)", width=6.5, height=0.8, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mon    [label="Monitor Egress (USE_AXI_MONITORS=1 only)\nmonbus_axil4_axil4_group:\nerror FIFO + capture writer + irq", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Module Boundary\ns_axil_err, m_axil_mon, mon_irq  |  m_axi_wr (AW, W / B)  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)\nCXS top only: src_/snk_cxs_link_state, *_cxs_protocol_error, snk_cxs_unsupported (from the planes)",
-         fillcolor="white", width=13.0, fontsize=11, group=C];
+         fillcolor="white", width=13.0, fontsize=11, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register path, down the center ----
     s_apb -> apb  [label="APB transfer"];
@@ -47,10 +47,10 @@ digraph rapids_top_integration {
     plane_tx -> core     [dir=back, xlabel="packet beats\n(AXIS, tid = channel)"];
 
     // ---- core status back up to the registers ----
-    regs -> core [dir=back, style=dashed, constraint=false, xlabel="status:\nidle, state,\nerrors"];
+    regs -> core [dir=back, style=dashed, color="#777777", constraint=false, xlabel="status:\nidle, state,\nerrors"];
 
     // ---- monitor egress ----
-    core -> mon [style=dashed, xlabel="merged MonBus\n(core_mon_*)"];
+    core -> mon [style=dashed, color="#777777", xlabel="merged MonBus\n(core_mon_*)"];
 
     // ---- boundary crossings (one scaffold per crossing) ----
     p_wr  [shape=point, width=0.01, group=L];
@@ -70,7 +70,7 @@ digraph rapids_top_integration {
     p_ar -> bar   [xlabel="Read request (AR)", tailclip=false];
     core -> p_r   [dir=back, headclip=false];
     p_r  -> bar   [dir=none, xlabel="Read from\nmemory (R)", tailclip=false];
-    mon  -> bar   [style=dashed, xlabel="error drain, capture\nwrites, mon_irq"];
+    mon  -> bar   [style=dashed, color="#777777", xlabel="error drain, capture\nwrites, mon_irq"];
 
     { rank=same; s_axis; s_apb; m_axis; }
     s_axis -> s_apb -> m_axis [style=invis];

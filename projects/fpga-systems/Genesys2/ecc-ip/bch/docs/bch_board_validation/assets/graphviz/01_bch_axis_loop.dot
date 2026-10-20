@@ -13,24 +13,24 @@ digraph bch_axis_loop {
            nodesep="0.40", ranksep="0.45", splines=ortho, newrank=true,
            label="BCH(4224,4120) t=8 loop, AXIS flavour: register path and codec datapath", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host [group=C, label="Host: python3 bin/run_smoke.py\nBchLoopDriver (registers by name) over UARTAxiBridge", fillcolor="white"];
-    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge (in bch_loop_genesys2_top)"];
-    fab  [group=C, label="Generated 1 x 3 AXI4-Lite to APB Fabric\nbridge_bch_loop_axil - u_bridge"];
+    host [group=C, label="Host: python3 bin/run_smoke.py\nBchLoopDriver (registers by name) over UARTAxiBridge", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge (in bch_loop_genesys2_top)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    fab  [group=C, label="Generated 1 x 3 AXI4-Lite to APB Fabric\nbridge_bch_loop_axil - u_bridge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    regs [group=L, label="Loop CSRs (window 0x0000_0000)\napb4_to_peakrdl + bch_loop_regs\nCTRL, GO, GEN_BLOCKS, GEN_SEED, INJ_CFG;\nBUILD_ID, SCRATCH, PROFILE, TOPOLOGY;\nblock verdict tallies"];
-    w1   [label="Window 0x0001_0000 (bch_regs_apb)\nAXI4 flavour: the pipeline's\naxi4_intf_master_observer;\nAXIS flavour: read-0 stub", fillcolor="white", style="filled,dashed"];
-    obs  [group=R, label="AXIS Observer (window 0x0002_0000)\naxis4_intf_observer - u_obs\n4 seams: msg in, cw out, cw in, msg out\n(observed, nothing driven back)"];
+    regs [group=L, label="Loop CSRs (window 0x0000_0000)\napb4_to_peakrdl + bch_loop_regs\nCTRL, GO, GEN_BLOCKS, GEN_SEED, INJ_CFG;\nBUILD_ID, SCRATCH, PROFILE, TOPOLOGY;\nblock verdict tallies", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    w1   [label="Window 0x0001_0000 (bch_regs_apb)\nAXI4 flavour: the pipeline's\naxi4_intf_master_observer;\nAXIS flavour: read-0 stub", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    obs  [group=R, label="AXIS Observer (window 0x0002_0000)\naxis4_intf_observer - u_obs\n4 seams: msg in, cw out, cw in, msg out\n(observed, nothing driven back)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    gen  [group=C, label="Pattern Generator\naxis4_master_injector - u_gen\nseeded LFSR + CRC-32, GEN_BLOCKS blocks"];
-    enc  [group=C, label="BCH Encoder\nbch_encoder_axis4 - u_enc"];
-    pack [group=C, label="Beat Packer\nbch_beat_packer - u_packer"];
-    inj  [group=C, label="Error Injector (after the encoder)\nerror_injector - u_inj, SYMBOL_WIDTH=1 (bit errors)"];
-    dec  [group=C, label="BCH Decoder (riBM)\nbch_decoder_axis4 - u_dec\nok / corrected / uncorrectable / frame verdict"];
+    gen  [group=C, label="Pattern Generator\naxis4_master_injector - u_gen\nseeded LFSR + CRC-32, GEN_BLOCKS blocks", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    enc  [group=C, label="BCH Encoder\nbch_encoder_axis4 - u_enc", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pack [group=C, label="Beat Packer\nbch_beat_packer - u_packer", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    inj  [group=C, label="Error Injector (after the encoder)\nerror_injector - u_inj, SYMBOL_WIDTH=1 (bit errors)", style="filled", fillcolor="white"];
+    dec  [group=C, label="BCH Decoder (riBM)\nbch_decoder_axis4 - u_dec\nok / corrected / uncorrectable / frame verdict", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar  [group=C, label="Pattern Check: axis4_slave_pattern_check - u_chk\nregenerated LFSR pattern; data_err, CRC, beat and packet counts -> status CSRs", fillcolor="white", width=6.5];
+    bar  [group=C, label="Pattern Check: axis4_slave_pattern_check - u_chk\nregenerated LFSR pattern; data_err, CRC, beat and packet counts -> status CSRs", fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pb [group=B, shape=point, style=invis, width=0.01, label=""];
     pb2 [group=B, shape=point, style=invis, width=0.01, label=""];
@@ -44,11 +44,11 @@ digraph bch_axis_loop {
     host -> uart [dir=both, penwidth=1.8, xlabel="/dev/ttyUSB* 115200: W / R lines"];
     uart -> fab  [dir=both, xlabel="AXI4-Lite access"];
     fab  -> regs [xlabel="window 0"];
-    fab  -> w1   [style=dashed, xlabel="window 1"];
+    fab  -> w1   [style=dashed, color="#777777", xlabel="window 1"];
     fab  -> obs  [xlabel="window 2"];
 
-    regs -> gen  [style=dashed, xlabel="GO, GEN_BLOCKS,\nGEN_SEED"];
-    regs -> inj  [style=dashed, xlabel="INJ_CFG: mode,\nerrors, rate"];
+    regs -> gen  [style=dashed, color="#777777", xlabel="GO, GEN_BLOCKS,\nGEN_SEED"];
+    regs -> inj  [style=dashed, color="#777777", xlabel="INJ_CFG: mode,\nerrors, rate"];
 
     gen  -> enc  [penwidth=1.8, xlabel="message beats"];
     enc  -> pack [penwidth=1.8, xlabel="codeword"];
@@ -56,10 +56,10 @@ digraph bch_axis_loop {
     inj  -> dec  [penwidth=1.8, xlabel="corrupted codeword"];
     dec  -> bar  [penwidth=1.8, xlabel="recovered message"];
 
-    gen  -> pb   [style=dashed, dir=none];
-    pb   -> pb2  [style=dashed, dir=none, xlabel="CTRL.bypass:\ngenerator straight\nto the checker"];
-    pb2  -> bar  [style=dashed];
+    gen  -> pb   [style=dashed, color="#777777", dir=none];
+    pb   -> pb2  [style=dashed, color="#777777", dir=none, xlabel="CTRL.bypass:\ngenerator straight\nto the checker"];
+    pb2  -> bar  [style=dashed, color="#777777"];
 
-    obs  -> enc  [style=dashed, dir=back, constraint=false, xlabel="taps: msg in, cw out"];
-    obs  -> dec  [style=dashed, dir=back, constraint=false, xlabel="taps: cw in, msg out"];
+    obs  -> enc  [style=dashed, color="#777777", dir=back, constraint=false, xlabel="taps: msg in, cw out"];
+    obs  -> dec  [style=dashed, color="#777777", dir=back, constraint=false, xlabel="taps: cw in, msg out"];
 }

@@ -5,13 +5,13 @@ digraph stream_channel_architecture {
            nodesep="0.7", ranksep="1.1", splines=ortho,
            label="Independent channels, shared masters - every shared resource is a plain round-robin pick", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    grp [label="NUM_CHANNELS Independent Channels (8 or 16)\neach: scheduler (own state) + own SRAM FIFO (SRAM_DEPTH entries)", width=10.5];
-    darb [label="Shared Descriptor Engine\nround-robin pick,\nARID = channel", shape=invtrapezium, width=2.4, fillcolor="#BFD7EE"];
-    rarb [label="Read Pick\nround-robin,\nSRAM space", shape=invtrapezium, width=2.4, fillcolor="#BFD7EE"];
-    warb [label="Write Pick\nround-robin,\nSRAM data", shape=invtrapezium, width=2.4, fillcolor="#BFD7EE"];
-    bar  [label="Shared Masters\nm_axi_desc (AR / R)   |   m_axi_rd (AR / R)   |   m_axi_wr (AW, W / B)", fillcolor="white", width=11.0];
+    grp [label="NUM_CHANNELS Independent Channels (8 or 16)\neach: scheduler (own state) + own SRAM FIFO (SRAM_DEPTH entries)", width=10.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    darb [label="Shared Descriptor Engine\nround-robin pick,\nARID = channel", shape=invtrapezium, width=2.4, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    rarb [label="Read Pick\nround-robin,\nSRAM space", shape=invtrapezium, width=2.4, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    warb [label="Write Pick\nround-robin,\nSRAM data", shape=invtrapezium, width=2.4, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    bar  [label="Shared Masters\nm_axi_desc (AR / R)   |   m_axi_rd (AR / R)   |   m_axi_wr (AW, W / B)", fillcolor="white", width=11.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     grp -> darb [xlabel="kick address (NC)"];
     grp -> rarb [xlabel="read requests (NC)"];

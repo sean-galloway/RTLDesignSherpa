@@ -19,24 +19,24 @@ digraph pit_8254_whole_unit {
            label="apb4_pit_8254 - APB 8254-compatible interval timer, Mode 0 (one of three identical counters drawn)\nCDC_ENABLE=0: all on pclk;  CDC_ENABLE=1: register block and counters on pit_clk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
-    gatep [group=R, fillcolor="white", label="Counter Gates\ngate_in[2:0] (asynchronous)"];
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)", style="rounded,filled", fillcolor="#E2EFDA"];
+    gatep [group=R, fillcolor="white", label="Counter Gates\ngate_in[2:0] (asynchronous)", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> pit_clk)"];
-    dec  [group=C, label="Adapter + Strict Decode\npit_config_regs - peakrdl_to_cmdrsp\nonly the seven mapped registers pass;\nanything else: read 0, PSLVERR"];
-    regs [group=C, label="Register Block (PeakRDL)\npit_regs inside pit_config_regs\nPIT_CONFIG, PIT_CONTROL, PIT_STATUS,\nCOUNTER0_DATA .. COUNTER2_DATA"];
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> pit_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dec  [group=C, label="Adapter + Strict Decode\npit_config_regs - peakrdl_to_cmdrsp\nonly the seven mapped registers pass;\nanything else: read 0, PSLVERR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs [group=C, label="Register Block (PeakRDL)\npit_regs inside pit_config_regs\nPIT_CONFIG, PIT_CONTROL, PIT_STATUS,\nCOUNTER0_DATA .. COUNTER2_DATA", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    stb  [group=C, label="Write / Read Strobe Builder (flop)\npit_config_regs\none-cycle strobe per write, delayed to the stored field;\none data-read strobe per counter (releases the latch)"];
-    cwd  [group=C, label="Control-Word Decode (combinational)\npit_core\nSC selects the counter;  RW != 00: program;  RW = 00: latch\nSC = 11 (read-back command): ignored\npit_enable -> count enable to all three"];
-    sync [group=R, label="GATE Synchronizer (flop)\npit_core - SYNC_STAGES flops per counter\n(unconditional, both clock configurations)"];
+    stb  [group=C, label="Write / Read Strobe Builder (flop)\npit_config_regs\none-cycle strobe per write, delayed to the stored field;\none data-read strobe per counter (releases the latch)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cwd  [group=C, label="Control-Word Decode (combinational)\npit_core\nSC selects the counter;  RW != 00: program;  RW = 00: latch\nSC = 11 (read-back command): ignored\npit_enable -> count enable to all three", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sync [group=R, label="GATE Synchronizer (flop)\npit_core - SYNC_STAGES flops per counter\n(unconditional, both clock configurations)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cnt  [group=C, width=6.0, label="Counter n - pit_counter (u_counter0 / u_counter1 / u_counter2)\n16-bit down-counter, binary or BCD; a load of 0 counts 65536\nMode 0 only: OUT low on load, high at terminal count, then parks\ncounts while enabled AND GATE high; latch freezes a copy for the read"];
+    cnt  [group=C, width=6.0, label="Counter n - pit_counter (u_counter0 / u_counter1 / u_counter2)\n16-bit down-counter, binary or BCD; a load of 0 counts 65536\nMode 0 only: OUT low on load, high at terminal count, then parks\ncounts while enabled AND GATE high; latch freezes a copy for the read", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [group=C, fillcolor="white", width=9.0,
-          label="Module Boundary\ntimer_irq[2:0] out (= OUT0 .. OUT2, level, counting clock)"];
+          label="Module Boundary\ntimer_irq[2:0] out (= OUT0 .. OUT2, level, counting clock)", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access ----
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];

@@ -13,20 +13,20 @@ digraph two_axis_links {
            nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
            label="rapids-beats: the two AXIS4 links and what stands on them", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    gen [group=L, label="AXIS Stimulus (AXIS master)\naxis4_master_injector - u_axis_gen\nper-channel LFSR (seed ^ ch) + CRC-32;\nsequential or interleaved schedule;\nseed, beats / ch, beats / pkt (tlast), mask, tdest", fillcolor="white"];
-    chk [group=R, label="AXIS Egress Check (AXIS slave)\naxis4_slave_pattern_check - u_axis_chk\ntready = chk_ready_en (backpressure knob);\ndemux on tid into per-channel LFSR + CRC-32;\nsticky data_error, beats and packets", fillcolor="white"];
+    gen [group=L, label="AXIS Stimulus (AXIS master)\naxis4_master_injector - u_axis_gen\nper-channel LFSR (seed ^ ch) + CRC-32;\nsequential or interleaved schedule;\nseed, beats / ch, beats / pkt (tlast), mask, tdest", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    chk [group=R, label="AXIS Egress Check (AXIS slave)\naxis4_slave_pattern_check - u_axis_chk\ntready = chk_ready_en (backpressure knob);\ndemux on tid into per-channel LFSR + CRC-32;\nsticky data_error, beats and packets", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    msin  [label="AXIS Meter - ingress\naxis_bus_meter\nu_meter_sin; own window:\nfirst offered beat to the\ntarget-th accepted beat"];
-    snk [group=L, label="SINK Engine\nrapids_snk_beats\nsnk_data_path_axis_beats: tid -> channel,\ntlast -> fill_last, segment allocation;\nSRAM; axi_write_engine_beats\n(+ AXIS slave monitor-lite, USE_AXI_MONITORS=1)", penwidth=1.8];
-    src [group=R, label="SOURCE Engine\nrapids_src_beats\naxi_read_engine_beats; SRAM;\nsrc_data_path_axis_beats: tid = channel,\ntlast on the packet boundary\n(+ AXIS master monitor-lite, USE_AXI_MONITORS=1)", penwidth=1.8];
-    msout [label="AXIS Meter - egress\naxis_bus_meter\nu_meter_sout\nshared window"];
-    obs   [label="AXIS Observer (USE_OBSERVERS=1)\naxis4_intf_observer - u_obs_axis\nport 0 = s_axis, port 1 = m_axis;\nper-tid utilization, bytes (tstrb),\npackets (tlast), MonBus taps", style="filled,dashed"];
+    msin  [label="AXIS Meter - ingress\naxis_bus_meter\nu_meter_sin; own window:\nfirst offered beat to the\ntarget-th accepted beat", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    snk [group=L, label="SINK Engine\nrapids_snk_beats\nsnk_data_path_axis_beats: tid -> channel,\ntlast -> fill_last, segment allocation;\nSRAM; axi_write_engine_beats\n(+ AXIS slave monitor-lite, USE_AXI_MONITORS=1)", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    src [group=R, label="SOURCE Engine\nrapids_src_beats\naxi_read_engine_beats; SRAM;\nsrc_data_path_axis_beats: tid = channel,\ntlast on the packet boundary\n(+ AXIS master monitor-lite, USE_AXI_MONITORS=1)", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    msout [label="AXIS Meter - egress\naxis_bus_meter\nu_meter_sout\nshared window", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    obs   [label="AXIS Observer (USE_OBSERVERS=1)\naxis4_intf_observer - u_obs_axis\nport 0 = s_axis, port 1 = m_axis;\nper-tid utilization, bytes (tstrb),\npackets (tlast), MonBus taps", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Harness memory models:  axi_response_delay (B) + axi4_slave_wr_crc_check  |  axi4_slave_rd_injector + axi_response_delay (R)",
-         fillcolor="white", width=9.5];
+         fillcolor="white", width=9.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     { rank=same; gen; chk; }
     gen -> chk [style=invis, minlen=3];
@@ -40,12 +40,12 @@ digraph two_axis_links {
     gen -> snk [penwidth=1.8, xlabel="s_axis: 256-bit tdata, tstrb,\ntid[7:0], tdest[3:0], tuser, tlast"];
     snk -> ps [dir=none];
     ps -> bar [xlabel="m_axi_wr: AW + W down,\nB (delayed) back"];
-    src -> pr [dir=back];
+    src -> pr [color="#1A7A1A", dir=back];
     pr -> bar [xlabel="m_axi_rd: AR down,\nR (delayed) up"];
-    chk -> src [dir=back, penwidth=1.8, xlabel="m_axis: 256-bit,\ntid = channel, tlast"];
+    chk -> src [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="m_axis: 256-bit,\ntid = channel, tlast"];
 
-    snk -> msin [style=dashed, xlabel="tap on s_axis\n(observed)"];
-    src -> msout [style=dashed, xlabel="tap on m_axis\n(observed)"];
-    snk -> obs [style=dashed, xlabel="port 0: s_axis"];
-    src -> obs [style=dashed, xlabel="port 1: m_axis"];
+    snk -> msin [style=dashed, color="#777777", xlabel="tap on s_axis\n(observed)"];
+    src -> msout [style=dashed, color="#777777", xlabel="tap on m_axis\n(observed)"];
+    snk -> obs [style=dashed, color="#777777", xlabel="port 0: s_axis"];
+    src -> obs [style=dashed, color="#777777", xlabel="port 1: m_axis"];
 }

@@ -13,30 +13,30 @@ digraph monitor_wp_spine {
            label="The Ocelus spine: every monitored port's packets merge onto one monbus and sink into two drains",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- monitored ports (white: the design being watched) ----
-    pa [label="Port A\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white"];
-    pb [label="Port B\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white"];
-    pc [label="Port C\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white"];
+    pa [label="Port A\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pb [label="Port B\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pc [label="Port C\n*_monlite wrapper\n(axi_monitor_lite)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- aggregation: the many-to-one pick ----
     arb [label="Arbiter Tree\nmonbus_arbiter (round robin, any fan-in)",
          shape=invtrapezium, width=8.2, height=0.75, fixedsize=true,
-         fillcolor="#BFD7EE", fontsize=11];
+         fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
 
     // ---- the group ----
-    grp [label="Monbus Group\nmonbus_group_core\nfilter: cfg_<proto>_pkt_mask, per-class event masks\nsteer: cfg_<proto>_err_select[type]", width=4.6];
+    grp [label="Monbus Group\nmonbus_group_core\nfilter: cfg_<proto>_pkt_mask, per-class event masks\nsteer: cfg_<proto>_err_select[type]", width=4.6, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
     // ---- two drains ----
-    efifo [group=L, label="Error FIFO\n192-bit {timestamp, packet} records\nirq_out while non-empty"];
-    wfifo [group=R, label="Write FIFO\n3-beat records (raw)\nor 1 beat (compressed)"];
-    flush [group=R, label="Flush\nAXI write bursts when cfg_flush_watermark\nbeats are queued or the flush timeout elapses"];
+    efifo [group=L, label="Error FIFO\n192-bit {timestamp, packet} records\nirq_out while non-empty", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    wfifo [group=R, label="Write FIFO\n3-beat records (raw)\nor 1 beat (compressed)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    flush [group=R, label="Flush\nAXI write bursts when cfg_flush_watermark\nbeats are queued or the flush timeout elapses", style="filled", fillcolor="white"];
 
     // ---- boundary bar: outside the monitor system ----
     bar [label="Outside the monitor system\nhost: reads each record as 3 x 64-bit beats over the AXI-Lite slave, irq_out   |   memory ring [cfg_base_addr, cfg_limit_addr]",
-         fillcolor="white", width=9.0];
+         fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- packets down the center ----
     pa -> arb [xlabel="monbus packets"];

@@ -9,23 +9,23 @@ digraph jet_planned {
            label="jet non-blocking MESI L1 - whole unit (planned; shape per HAS 2.4, depths open until J1 / J5)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cpu  [label="CPU / STREAM\nGAXI master", fillcolor="white"];
-    peer [label="Peer cache (pair rig) or onyx CCU (ACE rig)\nACE snoop master", fillcolor="white"];
+    cpu  [label="CPU / STREAM\nGAXI master", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    peer [label="Peer cache (pair rig) or onyx CCU (ACE rig)\nACE snoop master", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    core [label="Cache Core (inherited unchanged from amber)\nl1_core: GAXI front end, control, tag / data arrays,\nreplacement engine"];
-    snp  [label="Snoop Responder (inherited from amber)\nAC in, CR / CD out\nnew: also inspects the MSHR file and victim buffer (J4)"];
+    core [label="Cache Core (inherited unchanged from amber)\nl1_core: GAXI front end, control, tag / data arrays,\nreplacement engine", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    snp  [label="Snoop Responder (inherited from amber)\nAC in, CR / CD out\nnew: also inspects the MSHR file and victim buffer (J4)", style="filled", fillcolor="white"];
 
-    mshr [label="MSHR File (planned, J1 / J2)\noutstanding-miss table, merge logic, hazard logic"];
-    vic  [label="Victim Buffer (planned, J5)\ndeeper than amber's depth 1: holds dirty victims\nwhose fills have not returned"];
-    mon  [label="Cache-Event Observer (inherited from amber)\nl1_monlite, extended with the J7 measurement classes\n(observed, nothing driven back)", style="filled,dashed"];
+    mshr [label="MSHR File (planned, J1 / J2)\noutstanding-miss table, merge logic, hazard logic", style="filled", fillcolor="white"];
+    vic  [label="Victim Buffer (planned, J5)\ndeeper than amber's depth 1: holds dirty victims\nwhose fills have not returned", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    mon  [label="Cache-Event Observer (inherited from amber)\nl1_monlite, extended with the J7 measurement classes\n(observed, nothing driven back)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    fab  [label="Fabric Master Stack\nAXI4 (pair rig) / ACE (onyx rig)\nmultiple outstanding transactions"];
+    fab  [label="Fabric Master Stack\nAXI4 (pair rig) / ACE (onyx rig)\nmultiple outstanding transactions", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [label="Rig edge - memory (pair rig) or onyx CCU (ACE rig)  |  MonBus out",
-          fillcolor="white", width=8, height=0.5, fontsize=11];
+          fillcolor="white", width=8, height=0.5, fontsize=11, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     cpu  -> core [dir=both, xlabel="request / response"];
     core -> mshr [dir=both, xlabel="misses out /\nfill data in"];
@@ -35,10 +35,10 @@ digraph jet_planned {
     fab  -> bar  [dir=both, xlabel="AXI4 / ACE"];
 
     peer -> snp  [dir=both, xlabel="AC / CR, CD"];
-    core -> snp  [dir=both, style=dashed, xlabel="port B"];
-    snp  -> mshr [style=dashed, xlabel="inspect (J4)"];
-    snp  -> vic  [style=dashed, xlabel="inspect (J4)"];
-    core -> mon  [style=dashed, xlabel="cache events"];
+    core -> snp  [dir=both, style=dashed, color="#777777", xlabel="port B"];
+    snp  -> mshr [style=dashed, color="#777777", xlabel="inspect (J4)"];
+    snp  -> vic  [style=dashed, color="#777777", xlabel="inspect (J4)"];
+    core -> mon  [style=dashed, color="#777777", xlabel="cache events"];
     mon  -> bar  [xlabel="MonBus packets"];
 
     { rank=same; cpu; peer; }

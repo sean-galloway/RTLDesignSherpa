@@ -15,25 +15,25 @@ digraph monbus_arbiter {
            label="monbus_arbiter - CLIENTS ocelus monitor buses merged onto one, round robin, grant held until the beat is consumed\n(single clock: axi_aclk, axi_aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external inputs (white) ----
-    prm  [label="Parameters (fixed at build)\lINPUT_SKID_ENABLE: 1 = a gaxi_skid_buffer on every\l    client input; 0 = wired straight through\lOUTPUT_SKID_ENABLE: 1 = a skid buffer on the merged\l    output; 0 = the mux drives the port directly\lINPUT_ / OUTPUT_SKID_DEPTH: 2 .. 8 slots\l", fillcolor="white"];
-    cli  [group=C, label="Client Monitor Buses [CLIENTS]\nmonbus_valid_in, monbus_packet_in, monbus_timestamp_in\n/ monbus_ready_in", fillcolor="white"];
-    blk  [label="Block Input\nblock_arb", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lINPUT_SKID_ENABLE: 1 = a gaxi_skid_buffer on every\l    client input; 0 = wired straight through\lOUTPUT_SKID_ENABLE: 1 = a skid buffer on the merged\l    output; 0 = the mux drives the port directly\lINPUT_ / OUTPUT_SKID_DEPTH: 2 .. 8 slots\l", fillcolor="white", shape=note];
+    cli  [group=C, label="Client Monitor Buses [CLIENTS]\nmonbus_valid_in, monbus_packet_in, monbus_timestamp_in\n/ monbus_ready_in", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    iskd [group=C, label="Input Skid Buffers (INPUT_SKID_ENABLE=1)\nCLIENTS x gaxi_skid_buffer - u_input_skid\n{timestamp, packet} packed into one beat", style="filled,dashed"];
+    iskd [group=C, label="Input Skid Buffers (INPUT_SKID_ENABLE=1)\nCLIENTS x gaxi_skid_buffer - u_input_skid\n{timestamp, packet} packed into one beat", style="filled,dashed", shape=cylinder, style="filled,dashed", fillcolor="#E8DFF5"];
     pick [group=C, label="Round-Robin Pick\narbiter_round_robin - u_arbiter (WAIT_GNT_ACK=1)",
-          shape=invtrapezium, width=6.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11];
-    ackl [group=R, label="Ack / Ready Logic (combinational)\ngrant_ack[i] = grant[i] & valid[i] & downstream ready\nmonbus_ready_in[i] = grant[i] & downstream ready\n(the grant holds until the beat is consumed)\ndownstream ready = output skid wr_ready,\nor monbus_ready when the skid is off"];
-    omux [group=C, label="Output Mux (combinational)\nselects the granted client's packet + timestamp\nvalid = grant_valid"];
-    oskd [group=C, label="Output Skid Buffer (OUTPUT_SKID_ENABLE=1)\ngaxi_skid_buffer - u_output_skid", style="filled,dashed"];
+          shape=invtrapezium, width=6.4, height=0.75, fixedsize=true, fillcolor="#BFD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    ackl [group=R, label="Ack / Ready Logic (combinational)\ngrant_ack[i] = grant[i] & valid[i] & downstream ready\nmonbus_ready_in[i] = grant[i] & downstream ready\n(the grant holds until the beat is consumed)\ndownstream ready = output skid wr_ready,\nor monbus_ready when the skid is off", style="filled", fillcolor="white"];
+    omux [group=C, label="Output Mux (combinational)\nselects the granted client's packet + timestamp\nvalid = grant_valid", style="filled", fillcolor="white"];
+    oskd [group=C, label="Output Skid Buffer (OUTPUT_SKID_ENABLE=1)\ngaxi_skid_buffer - u_output_skid", style="filled,dashed", shape=cylinder, style="filled,dashed", fillcolor="#E8DFF5"];
 
     // ---- the boundary bar ----
     outs [group=C, label="Merged Monitor Bus + Grant Status\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready   |   grant_valid, grant, grant_id, last_grant",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     cli  -> iskd [xlabel="client beats\n(valid down, ready up)"];
@@ -48,10 +48,10 @@ digraph monbus_arbiter {
     p_d1 -> omux [xlabel="packet + timestamp [CLIENTS]", tailclip=false];
 
     // ---- handshake (dashed) ----
-    oskd -> ackl [style=dashed, headlabel="downstream ready", labelangle=-70, labeldistance=6, constraint=false];
-    ackl -> pick [style=dashed, xlabel="grant_ack"];
-    ackl -> iskd [style=dashed, xlabel="monbus_ready_in[i]", constraint=false];
-    blk  -> pick [style=dashed, xlabel="block_arb"];
+    oskd -> ackl [style=dashed, color="#777777", headlabel="downstream ready", labelangle=-70, labeldistance=6, constraint=false];
+    ackl -> pick [style=dashed, color="#777777", xlabel="grant_ack"];
+    ackl -> iskd [style=dashed, color="#777777", xlabel="monbus_ready_in[i]", constraint=false];
+    blk  -> pick [style=dashed, color="#777777", xlabel="block_arb"];
 
     // ---- grant status straight down to the bar ----
     p_g1 [group=G, shape=point, width=0.01];

@@ -13,22 +13,22 @@ digraph axis_measurement {
            nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
            label="Measuring the streams: meters, windows, the AXIS observer", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    l_sin  [group=A, label="s_axis (SINK ingress)\nobserved, nothing driven back", fillcolor="white"];
-    l_sout [group=Cc, label="m_axis (SOURCE egress)\nobserved, nothing driven back", fillcolor="white"];
-    l_ax   [group=D, label="m_axi_wr W, m_axi_rd R\nobserved, nothing driven back", fillcolor="white"];
+    l_sin  [group=A, label="s_axis (SINK ingress)\nobserved, nothing driven back", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    l_sout [group=Cc, label="m_axis (SOURCE egress)\nobserved, nothing driven back", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    l_ax   [group=D, label="m_axi_wr W, m_axi_rd R\nobserved, nothing driven back", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    win [label="Windows (armed by GO)\lsin window: opens on the first offered\l    beat, closes after the target-th\l    accepted beat (rapids ISSUE-001)\lshared window: open from GO, closes\l    when wr_prod reaches the target\l", fillcolor="white"];
+    win [label="Windows (armed by GO)\lsin window: opens on the first offered\l    beat, closes after the target-th\l    accepted beat (rapids ISSUE-001)\lshared window: open from GO, closes\l    when wr_prod reaches the target\l", fillcolor="white", shape=note];
 
-    m_sin  [group=A, label="AXIS Meter - ingress\naxis_bus_meter\nu_meter_sin; buckets +\nbytes (tstrb) + packets\n(tlast); window: sin"];
-    obs    [label="AXIS Observer (USE_OBSERVERS=1)\naxis4_intf_observer - u_obs_axis\nper-tid meters; event tap ->\nPROTOCOL_AXIS MonBus (dropped\nand counted, never stalling);\nport 0: sin window, port 1: shared", style="filled,dashed"];
-    m_sout [group=Cc, label="AXIS Meter - egress\naxis_bus_meter\nu_meter_sout; buckets +\nbytes + packets;\nwindow: shared"];
-    m_ax   [group=D, label="AXI Meters - write, read\naxi_bus_meter\nu_meter_wr, u_meter_rd\nbuckets; window: shared"];
+    m_sin  [group=A, label="AXIS Meter - ingress\naxis_bus_meter\nu_meter_sin; buckets +\nbytes (tstrb) + packets\n(tlast); window: sin", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    obs    [label="AXIS Observer (USE_OBSERVERS=1)\naxis4_intf_observer - u_obs_axis\nper-tid meters; event tap ->\nPROTOCOL_AXIS MonBus (dropped\nand counted, never stalling);\nport 0: sin window, port 1: shared", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    m_sout [group=Cc, label="AXIS Meter - egress\naxis_bus_meter\nu_meter_sout; buckets +\nbytes + packets;\nwindow: shared", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m_ax   [group=D, label="AXI Meters - write, read\naxi_bus_meter\nu_meter_wr, u_meter_rd\nbuckets; window: shared", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [label="Harness CSR readback\nOBS_SIN_*  |  observer APB window  |  OBS_SOUT_*  |  OBS_WR_*, OBS_RD_*\n-> results JSON -> report columns\nAXIS-in | AXIS-out | AXI4-wr | AXI4-rd",
-         fillcolor="white", width=7];
+         fillcolor="white", width=7, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; l_sin; l_sout; l_ax; }
     l_sin -> l_sout -> l_ax [style=invis];
@@ -36,14 +36,14 @@ digraph axis_measurement {
     m_sin -> obs -> m_sout -> m_ax [style=invis];
     bar -> win [style=invis];
 
-    l_sin  -> m_sin  [style=dashed, xlabel="tap"];
-    l_sin  -> obs    [style=dashed, xlabel="port 0"];
-    l_sout -> obs    [style=dashed, xlabel="port 1"];
-    l_sout -> m_sout [style=dashed, xlabel="tap"];
-    l_ax   -> m_ax   [style=dashed, xlabel="taps"];
+    l_sin  -> m_sin  [style=dashed, color="#777777", xlabel="tap"];
+    l_sin  -> obs    [style=dashed, color="#777777", xlabel="port 0"];
+    l_sout -> obs    [style=dashed, color="#777777", xlabel="port 1"];
+    l_sout -> m_sout [style=dashed, color="#777777", xlabel="tap"];
+    l_ax   -> m_ax   [style=dashed, color="#777777", xlabel="taps"];
 
     m_sin  -> bar [xlabel="counts"];
-    obs    -> bar [style=dashed, xlabel="per-tid stats"];
+    obs    -> bar [style=dashed, color="#777777", xlabel="per-tid stats"];
     m_sout -> bar [xlabel="counts"];
     m_ax   -> bar [xlabel="counts"];
 }

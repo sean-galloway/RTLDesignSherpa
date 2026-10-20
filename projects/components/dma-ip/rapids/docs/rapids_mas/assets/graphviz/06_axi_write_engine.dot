@@ -22,26 +22,26 @@ digraph axi_write_engine {
     //   pick      : shape=invtrapezium, fill #FFF2CC
     //   child     : shape=box3d (fill of its class)
 
-    sram  [label="SRAM Controller (drain side)\ndata_avail, {strb, data} in; drain_req out", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", group=L];
-    sched [label="Scheduler Side (8 channels)\nwrite requests in; issue, commit, error out", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", group=C];
+    sram  [label="SRAM Controller (drain side)\ndata_avail, {strb, data} in; drain_req out", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", group=L, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    sched [label="Scheduler Side (8 channels)\nwrite requests in; issue, commit, error out", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    effav [label="Effective Data Available\nSRAM avail - drains still in flight\n(the last 2 cycles' AW sizes)", group=M];
-    outst [label="Outstanding Counters\n+1 at AW, -1 at B, per channel", peripheries=2, fillcolor="#D6E4F0", group=R];
+    effav [label="Effective Data Available\nSRAM avail - drains still in flight\n(the last 2 cycles' AW sizes)", group=M, style="filled", fillcolor="white"];
+    outst [label="Outstanding Counters\n+1 at AW, -1 at B, per channel", peripheries=2, fillcolor="#D6E4F0", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    mask  [label="Data-Aware Request Mask\nvalid && avail >= burst &&\nbelow AW_MAX_OUTSTANDING", group=C];
-    rreq  [label="Request Register\nr_arb_request (timing cut)", peripheries=2, fillcolor="#D6E4F0", group=C];
-    arb   [label="Channel Arbiter\narbiter_round_robin (WAIT_GNT_ACK = 1)", shape=invtrapezium, width=3.8, height=0.5, fillcolor="#FFF2CC", group=C];
-    aw    [label="AW Issue Register\nchannel, AWLEN (capped at 4 KB);\ndrain_req, issue strobe", peripheries=2, fillcolor="#D6E4F0", group=C];
+    mask  [label="Data-Aware Request Mask\nvalid && avail >= burst &&\nbelow AW_MAX_OUTSTANDING", group=C, style="filled", fillcolor="white"];
+    rreq  [label="Request Register\nr_arb_request (timing cut)", peripheries=2, fillcolor="#D6E4F0", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    arb   [label="Channel Arbiter\narbiter_round_robin (WAIT_GNT_ACK = 1)", shape=invtrapezium, width=3.8, height=0.5, fillcolor="#FFF2CC", group=C, style="filled", fillcolor="#FFF2CC"];
+    aw    [label="AW Issue Register\nchannel, AWLEN (capped at 4 KB);\ndrain_req, issue strobe", peripheries=2, fillcolor="#D6E4F0", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wph   [label="W-Phase Queue\ngaxi_fifo_sync, {channel, beats} in AW order", shape=cylinder, fillcolor="#E8DFF5", group=M];
-    bph   [label="B-Phase Queues\ngaxi_fifo_sync x 8, per channel", shape=cylinder, fillcolor="#E8DFF5", group=R];
+    wph   [label="W-Phase Queue\ngaxi_fifo_sync, {channel, beats} in AW order", shape=cylinder, fillcolor="#E8DFF5", group=M, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    bph   [label="B-Phase Queues\ngaxi_fifo_sync x 8, per channel", shape=cylinder, fillcolor="#E8DFF5", group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    wseq  [label="W Sequencer\nchannel, beats remaining\n(WLAST at 1)", peripheries=2, fillcolor="#D6E4F0", group=M];
-    cmt   [label="Commit Register\ncommit strobe, beats; BRESP != OKAY\n-> sticky sched_wr_error", peripheries=2, fillcolor="#D6E4F0", group=R];
+    wseq  [label="W Sequencer\nchannel, beats remaining\n(WLAST at 1)", peripheries=2, fillcolor="#D6E4F0", group=M, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmt   [label="Commit Register\ncommit strobe, beats; BRESP != OKAY\n-> sticky sched_wr_error", peripheries=2, fillcolor="#D6E4F0", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wmux  [label="W Output\nSRAM beat, or the beat held\n(flops) on a channel-reset abort", group=L];
+    wmux  [label="W Output\nSRAM beat, or the beat held\n(flops) on a channel-reset abort", group=L, style="filled", fillcolor="white"];
 
-    bar [label="Module Boundary - m_axi_wr\nW out   |   AW out (to the interconnect)   |   B in (from memory)", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", width=10.0, group=C];
+    bar [label="Module Boundary - m_axi_wr\nW out   |   AW out (to the interconnect)   |   B in (from memory)", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", width=10.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sched -> mask [label="write requests (8 ch)"];
     sram  -> effav [style=dashed, xlabel="data_avail"];
@@ -69,18 +69,4 @@ digraph axi_write_engine {
     { rank=same; wseq; cmt; }
 
     // ---- key ----------------------------------------------------------------
-    subgraph cluster_key {
-        label="Key"; style=solid; color="#808080"; fontsize=10;
-        k_if   [label="Interface /\nboundary", shape=box, style="rounded,filled,bold", fillcolor="#E2EFDA", fontsize=9];
-        k_comb [label="Combinational", fontsize=9];
-        k_reg  [label="Registered\n(flops)", peripheries=2, fillcolor="#D6E4F0", fontsize=9];
-        k_fsm  [label="FSM", shape=box, style="filled,diagonals", peripheries=2, fillcolor="#FCE4D6", fontsize=9];
-        k_mem  [label="Storage\n(FIFO / RAM / CAM)", shape=cylinder, fillcolor="#E8DFF5", fontsize=9];
-        k_pick [label="Arbiter /\npick", shape=invtrapezium, fillcolor="#FFF2CC", fontsize=9];
-        k_opt  [label="Optional\n(build-dependent)", style="filled,dashed", fontsize=9];
-        k_edge [label="solid: flow\lheavy: main path / winner\ldashed: sideband\l", shape=note, fontsize=9];
-        { rank=same; k_if; k_comb; k_reg; k_fsm; k_mem; k_pick; k_opt; k_edge; }
-        k_if -> k_comb -> k_reg -> k_fsm -> k_mem -> k_pick -> k_opt -> k_edge [style=invis];
-    }
-    bar -> k_mem [style=invis, weight=10];
 }

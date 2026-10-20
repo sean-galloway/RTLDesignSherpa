@@ -9,40 +9,40 @@ digraph cell_top {
          label="Cell — top-level block plan (slice 1 landed; slices 2–3 planned)",
          labelloc=t];
   node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+         fillcolor="white", color="black", margin="0.12,0.06"];
   edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
   // ---- Boundary bar: the delta node is the cell's network boundary ----
   mesh  [group="C", fillcolor="white",
-         label="Mesh ports x8 — pass through to cell boundary\n(±X  ±Y  ±Z  P_DIA  P_DIA2)"];
+         label="Mesh ports x8 — pass through to cell boundary\n(±X  ±Y  ±Z  P_DIA  P_DIA2)", style="rounded,filled", fillcolor="#E2EFDA"];
   nodeb [group="C", width=5.6, height=0.55,
-         label="Delta Mesh Node — the cell's network boundary\ndelta_mesh_cell — fabric-gen-ip/delta (landed)"];
+         label="Delta Mesh Node — the cell's network boundary\ndelta_mesh_cell — fabric-gen-ip/delta (landed)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
   // ---- Cell's own design (PRD §1) ----
-  demux  [group="C", label="Rx Header Demux — cfg / mem / credit route\ncell_rx (landed)"];
-  inmem  [label="Input Memory — operand buffer, IP auto-increments\ncell_mem_in (landed) — each line carries a source tag"];
-  cfgregs [group="C", label="Config Registers — §7 map (incl. A·B·C·D·T)\ncell_cfg_regs (landed) — CTRL · STATUS · FUNC_SEL · OP_SRC · DEST …"];
-  credit [label="Credit Logic — per-source owed, batch N + timeout\ncell_credit (slice 2)"];
-  fsm    [group="C", label="Execution FSM — pop → issue → push loop\ncell_exec_fsm (slice 3)"];
-  aluregs [label="ALU Registers — A · B · C · D + T\nin cell_cfg_regs (§7 window) — persistent operands + threshold"];
-  alu    [group="C", label="Inference ALU — bf16 rows, fp32 MAC, elastic valid/ready pipe\ncell_alu_infer — alu_infer_top (landed)"];
-  outmem [group="C", label="Result Memory — output buffer, OP auto-increments\ncell_mem_out (landed)"];
-  pktz   [group="C", label="Tx Packetizer — batch X flits + §11.5 header, strap-gated\ncell_packetizer (slice 2)"];
+  demux  [group="C", label="Rx Header Demux — cfg / mem / credit route\ncell_rx (landed)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  inmem  [label="Input Memory — operand buffer, IP auto-increments\ncell_mem_in (landed) — each line carries a source tag", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+  cfgregs [group="C", label="Config Registers — §7 map (incl. A·B·C·D·T)\ncell_cfg_regs (landed) — CTRL · STATUS · FUNC_SEL · OP_SRC · DEST …", style="rounded,filled,bold", fillcolor="#E2EFDA"];
+  credit [label="Credit Logic — per-source owed, batch N + timeout\ncell_credit (slice 2)", style="filled", fillcolor="white"];
+  fsm    [group="C", label="Execution FSM — pop → issue → push loop\ncell_exec_fsm (slice 3)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+  aluregs [label="ALU Registers — A · B · C · D + T\nin cell_cfg_regs (§7 window) — persistent operands + threshold", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  alu    [group="C", label="Inference ALU — bf16 rows, fp32 MAC, elastic valid/ready pipe\ncell_alu_infer — alu_infer_top (landed)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  outmem [group="C", label="Result Memory — output buffer, OP auto-increments\ncell_mem_out (landed)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+  pktz   [group="C", label="Tx Packetizer — batch X flits + §11.5 header, strap-gated\ncell_packetizer (slice 2)", style="filled", fillcolor="white"];
 
   // ---- Boundary crossings (visible nodes only) ----
-  mesh -> nodeb [dir=back, label="mesh traffic — 8 ports, pass-through"];
+  mesh -> nodeb [color="#1A7A1A", dir=back, label="mesh traffic — 8 ports, pass-through"];
   nodeb -> demux [label="local port rx — flits + header (TUSER / first flit)"];
 
   // ---- Programming flow: demux fans cfg to the register files (dashed) ----
   demux -> inmem   [label="mem payload — operand lines"];
-  demux -> cfgregs [style=dashed, label="cfg writes — §7 map"];
-  demux -> credit  [style=dashed, label="credit pkts — add / set (§6.2 · strap returns §6.3)"];
-  cfgregs -> fsm   [style=dashed, label="func / op_lines / dest config"];
-  cfgregs -> aluregs [style=dashed, label="cfg write fan — A B C D T window"];
+  demux -> cfgregs [style=dashed, color="#777777", label="cfg writes — §7 map"];
+  demux -> credit  [style=dashed, color="#777777", label="credit pkts — add / set (§6.2 · strap returns §6.3)"];
+  cfgregs -> fsm   [style=dashed, color="#777777", label="func / op_lines / dest config"];
+  cfgregs -> aluregs [style=dashed, color="#777777", label="cfg write fan — A B C D T window"];
 
   // ---- Operand fill: forward data, down the left into the FSM ----
   inmem -> fsm [label="operand lines — pop (IP++)"];
-  fsm -> credit [style=dashed, xlabel="consumed-line strobe (per-source counts)"];
+  fsm -> credit [style=dashed, color="#777777", xlabel="consumed-line strobe (per-source counts)"];
 
   // ---- Issue: the cell's command output, heavy pen ----
   fsm -> alu [penwidth=1.8, label="issue — valid/ready elastic, II=1"];
@@ -53,8 +53,8 @@ digraph cell_top {
   outmem -> pktz [label="result lines buffered"];
 
   // ---- Return lanes: direct edges into the boundary bar (no scaffolds) ----
-  pktz   -> nodeb [constraint=false, xlabel="result packets — §11.5 header (strap-gated, §6.3)"];
-  credit -> nodeb [constraint=false, style=dashed, xlabel="credit packets — add → recorded source (§6.2)"];
+  pktz   -> nodeb [color="#1A7A1A", constraint=false, xlabel="result packets — §11.5 header (strap-gated, §6.3)"];
+  credit -> nodeb [constraint=false, style=dashed, color="#777777", xlabel="credit packets — add → recorded source (§6.2)"];
 
   // ---- Rank pinning (visible nodes only) ----
   { rank=same; mesh }

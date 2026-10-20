@@ -7,13 +7,13 @@ digraph gpio_irq_latency_level {
            nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
            labelloc=t, labeljust=c, label="Level-sensitive interrupt latency - SYNC_STAGES core-clock cycles (2 at the default)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    pin [label="External Level  (gpio_in[i] at the active level)", fillcolor="white"];
-    syn [label="Input Synchronizer (flop)\ngpio_core - adds SYNC_STAGES cycles"];
-    det [label="Level Compare + Type Select (combinational)\ngpio_core - adds 0 cycles"];
-    agg [label="Effective Status + IRQ Gate (combinational)\ngpio_config_regs - live raw & INT_ENABLE, adds 0 cycles"];
-    bar [label="irq  (CDC_ENABLE=1: + 2 pclk cycles in the irq synchronizer)", fillcolor="white", width=5.5];
+    pin [label="External Level  (gpio_in[i] at the active level)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    syn [label="Input Synchronizer (flop)\ngpio_core - adds SYNC_STAGES cycles", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    det [label="Level Compare + Type Select (combinational)\ngpio_core - adds 0 cycles", style="filled", fillcolor="white"];
+    agg [label="Effective Status + IRQ Gate (combinational)\ngpio_config_regs - live raw & INT_ENABLE, adds 0 cycles", style="filled", fillcolor="white"];
+    bar [label="irq  (CDC_ENABLE=1: + 2 pclk cycles in the irq synchronizer)", fillcolor="white", width=5.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pin -> syn [xlabel="pin level"];
     syn -> det [xlabel="synchronized value"];
     det -> agg [xlabel="raw, live (bypasses INT_STATUS)"];

@@ -9,34 +9,34 @@ digraph axi_write_engine {
            label="axi_write_engine - data-aware round-robin AXI write engine (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    sram  [label="SRAM Controller (drain side)\ndrain_data_avail in; drain_req / size out;\nsram_valid / data in", fillcolor="white", group=L];
-    sched [label="Scheduler Side (NUM_CHANNELS)\nsched_wr_valid / addr / beats in; issue strobe,\ncommit strobe, error out", fillcolor="white", group=C];
+    sram  [label="SRAM Controller (drain side)\ndrain_data_avail in; drain_req / size out;\nsram_valid / data in", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    sched [label="Scheduler Side (NUM_CHANNELS)\nsched_wr_valid / addr / beats in; issue strobe,\ncommit strobe, error out", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    mask  [label="Data-Aware Request Mask\nchannel requests only if data_avail >= burst\nand below AW_MAX_OUTSTANDING", group=C];
-    arb   [label="Channel Arbiter - arbiter_round_robin\n(WAIT_GNT_ACK = 1)", shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", group=C];
-    aw    [label="AW Issue (flops)\ncaptured only with room in the W-phase queue;\nAWADDR, AWLEN, AWID = channel;\ndrain_req to SRAM, issue strobe to scheduler", group=C];
-    wph   [label="W-Phase Queue - gaxi_fifo_sync\n(W_PHASE_FIFO_DEPTH, in AW order)\n{channel, beats}", group=M];
-    wgen  [label="W Streamer\nbeats from the SRAM, WSTRB all ones,\nWLAST on the burst's last beat", group=L];
-    bph   [label="B-Phase Queues - gaxi_fifo_sync x NUM_CHANNELS\n(B_PHASE_FIFO_DEPTH per channel)\nBID -> channel, commit strobe;\nBRESP != OKAY -> sticky sched_wr_error", group=R];
+    mask  [label="Data-Aware Request Mask\nchannel requests only if data_avail >= burst\nand below AW_MAX_OUTSTANDING", group=C, style="filled", fillcolor="white"];
+    arb   [label="Channel Arbiter - arbiter_round_robin\n(WAIT_GNT_ACK = 1)", shape=invtrapezium, width=4.6, fillcolor="#BFD7EE", group=C, style="filled", fillcolor="#FFF2CC"];
+    aw    [label="AW Issue (flops)\ncaptured only with room in the W-phase queue;\nAWADDR, AWLEN, AWID = channel;\ndrain_req to SRAM, issue strobe to scheduler", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wph   [label="W-Phase Queue - gaxi_fifo_sync\n(W_PHASE_FIFO_DEPTH, in AW order)\n{channel, beats}", group=M, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    wgen  [label="W Streamer\nbeats from the SRAM, WSTRB all ones,\nWLAST on the burst's last beat", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bph   [label="B-Phase Queues - gaxi_fifo_sync x NUM_CHANNELS\n(B_PHASE_FIFO_DEPTH per channel)\nBID -> channel, commit strobe;\nBRESP != OKAY -> sticky sched_wr_error", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar [label="Module Boundary - m_axi_wr\nW out   |   AW out (to the interconnect)   |   B in (from memory)", fillcolor="white", width=10.0, group=C];
+    bar [label="Module Boundary - m_axi_wr\nW out   |   AW out (to the interconnect)   |   B in (from memory)", fillcolor="white", width=10.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sched -> mask [label="write requests (per channel)"];
-    sram  -> mask [style=dashed, xlabel="data_avail\n(per channel)"];
+    sram  -> mask [style=dashed, color="#777777", xlabel="data_avail\n(per channel)"];
     mask  -> arb  [label="eligible channels"];
     arb   -> aw   [label="grant (channel id)", penwidth=1.8];
     aw    -> wph  [xlabel="burst record"];
-    wph   -> aw   [style=dashed, constraint=false, xlabel="room (wr_ready)"];
+    wph   -> aw   [style=dashed, color="#777777", constraint=false, xlabel="room (wr_ready)"];
     aw    -> bph  [xlabel="expected B"];
     wph   -> wgen [xlabel="next burst"];
     sram  -> wgen [label="drain beats"];
     wgen  -> bar  [label="W: data, strb, last"];
     aw    -> bar  [label="AW: id, addr, len", penwidth=1.8];
     bph   -> bar  [dir=back, label="B: id, resp"];
-    sched -> bph  [dir=back, style=dashed, constraint=false, xlabel="commit strobe,\nbeats committed"];
+    sched -> bph  [dir=back, style=dashed, color="#777777", constraint=false, xlabel="commit strobe,\nbeats committed"];
 
     { rank=same; sram; sched; }
     sram -> sched [style=invis];

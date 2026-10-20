@@ -8,17 +8,17 @@ digraph egress_shifter {
            label="src_data_path_axis egress re-packer - memory beats to packed stream beats with a partial last beat\n(single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axis  [label="Network Out - m_axis_*\ntdata, tstrb, tlast, tid = channel", fillcolor="white", group=C];
-    rec   [label="Packet Records (from the scheduler)\nsched_rd_pkt_*: {bytes, src offset} per channel", fillcolor="white", group=R];
-    outr  [label="Output Register (flops)\ntstrb = low min(bytes_left, lanes) lanes;\ntlast when bytes_left reaches 0", group=C];
-    pq    [label="Record Queue (flops, 4 per channel)\nhead: offset, bytes; mem beats =\nceil((offset + bytes) / lanes); popped on\nthe packet's last stream beat", group=R];
-    form  [label="Re-Pack (combinational)\nfirst pop (offset != 0): hold = beat >> offset*8, no output\nlater pops: out = hold | beat << (lanes - offset)*8\nflush: last beat popped, bytes left -> out = hold", width=5.0, group=C];
-    hold  [label="Hold (flops, per channel)\nbytes above the offset\nof the last popped beat", group=L];
-    drain [label="Drain Stage (as in RAPIDS Beats)\nround-robin reservations of cfg_drain_size beats;\npops when output free, no flush, record known", group=C];
-    bar   [label="Source SRAM - src_sram_controller (drain_data, DW wide)", fillcolor="white", width=7.5, group=C];
+    axis  [label="Network Out - m_axis_*\ntdata, tstrb, tlast, tid = channel", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    rec   [label="Packet Records (from the scheduler)\nsched_rd_pkt_*: {bytes, src offset} per channel", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    outr  [label="Output Register (flops)\ntstrb = low min(bytes_left, lanes) lanes;\ntlast when bytes_left reaches 0", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pq    [label="Record Queue (flops, 4 per channel)\nhead: offset, bytes; mem beats =\nceil((offset + bytes) / lanes); popped on\nthe packet's last stream beat", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    form  [label="Re-Pack (combinational)\nfirst pop (offset != 0): hold = beat >> offset*8, no output\nlater pops: out = hold | beat << (lanes - offset)*8\nflush: last beat popped, bytes left -> out = hold", width=5.0, group=C, style="filled", fillcolor="white"];
+    hold  [label="Hold (flops, per channel)\nbytes above the offset\nof the last popped beat", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    drain [label="Drain Stage (as in RAPIDS Beats)\nround-robin reservations of cfg_drain_size beats;\npops when output free, no flush, record known", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar   [label="Source SRAM - src_sram_controller (drain_data, DW wide)", fillcolor="white", width=7.5, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     rec   -> pq    [label="record push"];
     axis  -> outr  [dir=back, label="packed stream beat", penwidth=1.8];

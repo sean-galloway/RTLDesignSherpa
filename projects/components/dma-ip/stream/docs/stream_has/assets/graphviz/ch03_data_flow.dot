@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // One STREAM descriptor chain, step by step (scheduler CH_* states in parentheses).
 // Decision-tree vocabulary: white question boxes, blue action boxes.
 digraph stream_data_flow {

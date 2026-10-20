@@ -14,25 +14,25 @@ digraph gpio_whole_unit {
            label="apb4_gpio - APB4 GPIO controller (CDC_ENABLE=0: all on pclk; CDC_ENABLE=1: register block and core on gpio_clk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white"];
+    apb [group=C, label="APB4 Completer Port  s_apb_*  (12-bit address, 32-bit data)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    slv [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> gpio_clk)"];
-    adp [group=C, label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp"];
+    slv [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or apb4_slave_cdc (CDC_ENABLE=1, pclk -> gpio_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    adp [group=C, label="Command / Response to Register-Block Adapter\npeakrdl_to_cmdrsp", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     regs [group=C, label="Register Block (PeakRDL)\ngpio_regs inside gpio_config_regs\nCONTROL, DIRECTION, OUTPUT, OUTPUT_SET / CLR / TGL, INPUT, INT_ENABLE / TYPE / POLARITY / BOTH, INT_STATUS (W1C), RAW_INT",
-          width=9.0];
+          width=9.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    stb [group=L, label="Write-Strobe Builder (flop)\ngpio_config_regs\nswmod rising edge -> one-cycle strobe per write;\nlive output written back into GPIO_OUTPUT after SET / CLR / TGL"];
-    agg [group=M, label="IRQ Aggregation (combinational)\ngpio_config_regs\nedge pin: sticky INT_STATUS & enable\nlevel pin: live raw & enable\nOR of all pins, AND CONTROL.int_enable"];
+    stb [group=L, label="Write-Strobe Builder (flop)\ngpio_config_regs\nswmod rising edge -> one-cycle strobe per write;\nlive output written back into GPIO_OUTPUT after SET / CLR / TGL", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    agg [group=M, label="IRQ Aggregation (combinational)\ngpio_config_regs\nedge pin: sticky INT_STATUS & enable\nlevel pin: live raw & enable\nOR of all pins, AND CONTROL.int_enable", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    lat [group=L, label="Output Latch + Direction (flop)\ngpio_core - r_output_data\npriority: direct write > toggle > set > clear\ngpio_oe = gpio_enable ? DIRECTION : 0"];
-    isy [group=M, style="filled,dashed", label="IRQ Synchronizer to pclk\nglitch_free_n_dff_arn, 2 flops\n(CDC_ENABLE=1 only; else a wire)"];
-    syn [group=R, label="Input Synchronizer + Edge / Level Detect\ngpio_core - SYNC_STAGES flops, previous-value flop\nrising / falling / both edge, high / low level"];
+    lat [group=L, label="Output Latch + Direction (flop)\ngpio_core - r_output_data\npriority: direct write > toggle > set > clear\ngpio_oe = gpio_enable ? DIRECTION : 0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    isy [group=M, style="filled,dashed", label="IRQ Synchronizer to pclk\nglitch_free_n_dff_arn, 2 flops\n(CDC_ENABLE=1 only; else a wire)", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    syn [group=R, label="Input Synchronizer + Edge / Level Detect\ngpio_core - SYNC_STAGES flops, previous-value flop\nrising / falling / both edge, high / low level", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [group=C, label="Module Boundary\ngpio_out[GPIO_WIDTH-1:0], gpio_oe[GPIO_WIDTH-1:0] out (to the pad buffers)   |   irq out (to the interrupt controller)   |   gpio_in[GPIO_WIDTH-1:0] in (asynchronous)",
-         fillcolor="white", width=13.0];
+         fillcolor="white", width=13.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access (center) ----
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
@@ -42,7 +42,7 @@ digraph gpio_whole_unit {
     // ---- output drive (left) ----
     regs -> stb [xlabel="GPIO_OUTPUT, SET / CLR / TGL\nwrites (value + swmod)"];
     stb  -> lat [xlabel="direct-write strobe,\nset / clr / tgl masks"];
-    regs -> lat [style=dashed, constraint=false, xlabel="DIRECTION,\ngpio_enable"];
+    regs -> lat [style=dashed, color="#777777", constraint=false, xlabel="DIRECTION,\ngpio_enable"];
     lat  -> bar [xlabel="gpio_out, gpio_oe\n(drive pins)"];
 
     // ---- irq ----

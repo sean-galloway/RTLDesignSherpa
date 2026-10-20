@@ -12,19 +12,19 @@ digraph apb5_slave_cdc {
            label="apb5_slave_cdc - APB5 completer on pclk, command / response ports on aclk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     bus [label="APB5 Completer Bus  s_apb_*  (pclk, presetn)\nin: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT, PAUSER, PWUSER, PWAKEUP + *CHK\nout: PREADY, PRDATA, PSLVERR, PRUSER, PBUSER + *CHK",
-         fillcolor="white"];
+         fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    core [label="APB5 Slave Core  (pclk domain)\napb5_slave - u_apb5_slave (see its diagram)\ncompleter FSM, skids, ENABLE_PARITY check bits;\nparity_error_wdata / ctrl out"];
+    core [label="APB5 Slave Core  (pclk domain)\napb5_slave - u_apb5_slave (see its diagram)\ncompleter FSM, skids, ENABLE_PARITY check bits;\nparity_error_wdata / ctrl out", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    cmdf [label="Command CDC FIFO  (pclk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)"];
-    rspf [label="Response CDC FIFO  (aclk -> pclk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)"];
+    cmdf [label="Command CDC FIFO  (pclk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)", style="filled", fillcolor="white"];
+    rspf [label="Response CDC FIFO  (aclk -> pclk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)", style="filled", fillcolor="white"];
 
     be [label="Backend Interface  (aclk domain: aclk, aresetn)\ncmd_valid / cmd_ready + cmd_* fields (incl. user)   |   rsp_valid / rsp_ready + rsp_* fields (incl. user)",
-        fillcolor="white", width=10.5];
+        fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     bus -> core [dir=both, xlabel="transfer / PREADY, PRDATA, PSLVERR"];
     core -> cmdf [dir=both, penwidth=1.8, xlabel="command (pclk side)\n/ ready"];

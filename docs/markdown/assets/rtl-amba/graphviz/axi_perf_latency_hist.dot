@@ -9,22 +9,22 @@ digraph axi_perf_latency_hist {
            nodesep="0.35", ranksep="0.65", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi_perf_latency_hist - per-transaction AXI latency histogram (snoop, one clock: aclk)";
 
-    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = read: metric 0 = AR -> first R,\l    metric 1 = AR -> RLAST; 0 = write:\l    metric 0 = AW -> B (one metric)\lNUM_BINS: log2 bins, bin b counts [2^b, 2^(b+1))\lMAX_OUTSTANDING: timestamps held per channel\l", fillcolor="white"];
-    cmd  [group=A, label="Command Snoop\ncmd_valid, cmd_ready, cmd_id\n(AR or AW)", fillcolor="white"];
-    done [group=B, label="Completion Snoop\ndata_valid/ready/last/id (R)\nresp_valid/ready/id (B)", fillcolor="white"];
-    win  [group=W, label="Window + Readout Select\ni_clear, i_freeze\ni_hist_metric, i_hist_bin", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = read: metric 0 = AR -> first R,\l    metric 1 = AR -> RLAST; 0 = write:\l    metric 0 = AW -> B (one metric)\lNUM_BINS: log2 bins, bin b counts [2^b, 2^(b+1))\lMAX_OUTSTANDING: timestamps held per channel\l", fillcolor="white", shape=note];
+    cmd  [group=A, label="Command Snoop\ncmd_valid, cmd_ready, cmd_id\n(AR or AW)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    done [group=B, label="Completion Snoop\ndata_valid/ready/last/id (R)\nresp_valid/ready/id (B)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    win  [group=W, label="Window + Readout Select\ni_clear, i_freeze\ni_hist_metric, i_hist_bin", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    tick [group=W, label="Timestamp Counter (flop)\nr_time, free-running\n(not frozen, so open\nlatencies stay correct)"];
-    fifo [group=A, label="Per-Channel Timestamp FIFOs (flops)\nchannel = id[CW-1:0]; r_ts[NUM_CHANNELS][MAX_OUTSTANDING]\npush on command handshake, pop on the\ncompletion; o_cmd_block when the channel is full"];
-    pipe [group=A, label="Latency Pipeline (flops, 4 stages)\ns0 capture start + now  ->  s1 latency = now - start\n->  s2 log2 bin  ->  s3 increment r_hist[metric][bin]\nand r_total[metric] (skipped while frozen)"];
-    rd   [group=B, label="Readout (combinational)\no_hist_count = r_hist[metric][bin]\no_hist_total = r_total[metric]"];
+    tick [group=W, label="Timestamp Counter (flop)\nr_time, free-running\n(not frozen, so open\nlatencies stay correct)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fifo [group=A, label="Per-Channel Timestamp FIFOs (flops)\nchannel = id[CW-1:0]; r_ts[NUM_CHANNELS][MAX_OUTSTANDING]\npush on command handshake, pop on the\ncompletion; o_cmd_block when the channel is full", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pipe [group=A, label="Latency Pipeline (flops, 4 stages)\ns0 capture start + now  ->  s1 latency = now - start\n->  s2 log2 bin  ->  s3 increment r_hist[metric][bin]\nand r_total[metric] (skipped while frozen)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd   [group=B, label="Readout (combinational)\no_hist_count = r_hist[metric][bin]\no_hist_total = r_total[metric]", style="filled", fillcolor="white"];
 
     out  [label="Outputs\no_hist_count   |   o_hist_total   |   o_cmd_block (hold the command channel)",
-          fillcolor="white", width=7.5];
+          fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     cmd  -> fifo [xlabel="push timestamp"];
     done -> fifo [xlabel="pop on completion"];
@@ -32,8 +32,8 @@ digraph axi_perf_latency_hist {
     fifo -> pipe [xlabel="start time, metric flags"];
     tick -> pipe [xlabel="now"];
     pipe -> rd   [xlabel="r_hist, r_total"];
-    win  -> rd   [style=dashed, xlabel="metric, bin"];
-    win  -> pipe [style=dashed, xlabel="clear / freeze"];
+    win  -> rd   [style=dashed, color="#777777", xlabel="metric, bin"];
+    win  -> pipe [style=dashed, color="#777777", xlabel="clear / freeze"];
     rd   -> out  [xlabel="count, total"];
     fifo -> out  [xlabel="o_cmd_block"];
 

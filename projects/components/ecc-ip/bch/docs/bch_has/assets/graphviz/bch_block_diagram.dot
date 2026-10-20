@@ -13,44 +13,44 @@ digraph bch_block_diagram {
            nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="Binary BCH codec - encoder core and decoder core, with the optional adapters";
 
     // ---------------- inputs ----------------
-    e_in [label="Encoder Input\nk data bits per block\n(valid / ready, keep, last)", fillcolor="white", group=E];
-    d_in [label="Decoder Input\nn received bits per block\n(valid / ready, keep, last)", fillcolor="white", group=S];
+    e_in [label="Encoder Input\nk data bits per block\n(valid / ready, keep, last)", fillcolor="white", group=E, style="rounded,filled", fillcolor="#E2EFDA"];
+    d_in [label="Decoder Input\nn received bits per block\n(valid / ready, keep, last)", fillcolor="white", group=S, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---------------- intake adapters (build-dependent) ----------------
-    e_ai [label="Intake Adapter (top-dependent)\naxis4_slave (bch_encoder_axis4) or\nrs_axi4_read_engine (bch_encoder_axi4)", style="filled,dashed", group=E];
-    d_ai [label="Intake Adapter (top-dependent)\naxis4_slave (bch_decoder_axis4) or\nrs_axi4_read_engine (bch_decoder_axi4)", style="filled,dashed", group=S];
+    e_ai [label="Intake Adapter (top-dependent)\naxis4_slave (bch_encoder_axis4) or\nrs_axi4_read_engine (bch_encoder_axi4)", style="filled,dashed", group=E, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    d_ai [label="Intake Adapter (top-dependent)\naxis4_slave (bch_decoder_axis4) or\nrs_axi4_read_engine (bch_decoder_axi4)", style="filled,dashed", group=S, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // ---------------- encoder core ----------------
     p_e  [shape=point, width=0.01, group=E];
     p_l  [shape=point, width=0.01, group=L];
-    lfsr [group=L, label="Parity LFSR\nbch_encoder_core - r_lfsr\nB steps of g(x) per beat (flop)"];
-    esel [label="Data / Parity Select\nbch_encoder_core\nDATA: beat passes through\nDRAIN: parity beats, in_ready low", group=E];
-    eskd [label="Output Skid\ngaxi_skid_buffer - u_out_skid", group=E];
-    epk  [label="Beat Packer\nbch_beat_packer\n(bch_encoder_axi4, k mod B != 0 only)", style="filled,dashed", group=E];
-    e_ao [label="Outlet Adapter (top-dependent)\naxis4_master or\nrs_axi4_write_engine", style="filled,dashed", group=E];
+    lfsr [group=L, label="Parity LFSR\nbch_encoder_core - r_lfsr\nB steps of g(x) per beat (flop)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    esel [label="Data / Parity Select\nbch_encoder_core\nDATA: beat passes through\nDRAIN: parity beats, in_ready low", group=E, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    eskd [label="Output Skid\ngaxi_skid_buffer - u_out_skid", group=E, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    epk  [label="Beat Packer\nbch_beat_packer\n(bch_encoder_axi4, k mod B != 0 only)", style="filled,dashed", group=E, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    e_ao [label="Outlet Adapter (top-dependent)\naxis4_master or\nrs_axi4_write_engine", style="filled,dashed", group=E, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // ---------------- decoder core ----------------
     p_d  [shape=point, width=0.01, group=S];
-    synd [label="Syndrome Unit\nbch_syndrome_unit - u_synd\nt odd syndromes S1, S3, ...", group=S];
-    kes  [label="Key-Equation Solver\nbch_key_equation_solver - u_kes\nriBM, 2t iterations -> Lambda(x)", group=S];
-    chien[label="Chien Search\nbch_chien_search - u_chien\nB positions per cycle", group=S];
-    buf  [label="Block Buffer\nbch_decoder_core - r_buf, r_flip\nreceived beats + flip masks", group=B];
-    rchk [label="Re-check Syndrome Unit\nbch_syndrome_unit - u_rechk\n(ENABLE_RECHECK=1 only)", style="filled,dashed", group=V];
-    seq  [label="Verdict + Block Sequencer (FSM)\nbch_decoder_core\nIDLE / SYND / SOLVE / CHIEN / RECHECK / RELEASE\ncorrectable = deg <= t, roots = deg,\nre-check zero; all-zero syndromes skip to RELEASE", group=V];
-    rel  [label="Release + Correct\nbch_decoder_core\nbeat XOR flip mask, only if correctable", group=B];
-    d_ao [label="Outlet Adapter (top-dependent)\naxis4_master or\nrs_axi4_write_engine", style="filled,dashed", group=B];
+    synd [label="Syndrome Unit\nbch_syndrome_unit - u_synd\nt odd syndromes S1, S3, ...", group=S, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    kes  [label="Key-Equation Solver\nbch_key_equation_solver - u_kes\nriBM, 2t iterations -> Lambda(x)", group=S, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    chien[label="Chien Search\nbch_chien_search - u_chien\nB positions per cycle", group=S, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    buf  [label="Block Buffer\nbch_decoder_core - r_buf, r_flip\nreceived beats + flip masks", group=B, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rchk [label="Re-check Syndrome Unit\nbch_syndrome_unit - u_rechk\n(ENABLE_RECHECK=1 only)", style="filled,dashed", group=V, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    seq  [label="Verdict + Block Sequencer (FSM)\nbch_decoder_core\nIDLE / SYND / SOLVE / CHIEN / RECHECK / RELEASE\ncorrectable = deg <= t, roots = deg,\nre-check zero; all-zero syndromes skip to RELEASE", group=V, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    rel  [label="Release + Correct\nbch_decoder_core\nbeat XOR flip mask, only if correctable", group=B, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    d_ao [label="Outlet Adapter (top-dependent)\naxis4_master or\nrs_axi4_write_engine", style="filled,dashed", group=B, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // ---------------- sideband legend ----------------
-    gf [label="Shared GF(2^m) layer (sideband, every block)\nimported from reed-solomon rtl/fub/gf:\ngf_pkg (field, generator, gf_mul_fn),\ngf_mul_const, gf_syndrome_cell,\nkey_equation_solver_ribm", fillcolor="white"];
+    gf [label="Shared GF(2^m) layer (sideband, every block)\nimported from reed-solomon rtl/fub/gf:\ngf_pkg (field, generator, gf_mul_fn),\ngf_mul_const, gf_syndrome_cell,\nkey_equation_solver_ribm", fillcolor="white", shape=note];
 
     // ---------------- output bar ----------------
     bar [label="Outputs\ncoded stream: n bits per block   |   corrected stream: k bits per block + verdict (ok / corrected / uncorrectable / frame_err)",
-         fillcolor="white", width=11.0];
+         fillcolor="white", width=11.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- encoder flow ----
     e_in -> e_ai [xlabel="data beats"];
@@ -73,10 +73,10 @@ digraph bch_block_diagram {
     kes  -> chien[xlabel="Lambda(x)"];
     chien-> buf  [xlabel="flip mask"];
     chien-> rchk [xlabel="corrected beat"];
-    rchk -> seq  [style=dashed, xlabel="re-check zero"];
-    chien-> seq  [style=dashed, xlabel="root count,\nlocator degree"];
+    rchk -> seq  [style=dashed, color="#777777", xlabel="re-check zero"];
+    chien-> seq  [style=dashed, color="#777777", xlabel="root count,\nlocator degree"];
     buf  -> rel  [xlabel="beat + flip mask"];
-    seq  -> rel  [style=dashed, xlabel="apply / status"];
+    seq  -> rel  [style=dashed, color="#777777", xlabel="apply / status"];
     rel  -> d_ao [xlabel="k bits + verdict"];
     d_ao -> bar  [xlabel="corrected block", penwidth=1.8];
 

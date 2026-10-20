@@ -10,12 +10,12 @@ digraph gpio_register_file {
            label="gpio_regs - PeakRDL register block (core clock; synchronous reset inside the block)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cpu [label="CPU Interface  s_cpuif_*  (from peakrdl_to_cmdrsp)\nreq, req_is_wr, addr[5:0], wr_data, wr_biten   |   rd_ack, rd_data, wr_ack, err", fillcolor="white"];
-    rf  [label="Register Block (PeakRDL)\ngpio_regs\nRW: CONTROL, DIRECTION, OUTPUT, INT_ENABLE, INT_TYPE, INT_POLARITY, INT_BOTH\nWO: OUTPUT_SET / CLR / TGL      RO: INPUT, RAW_INT      W1C, sticky: INT_STATUS", width=8.0];
-    bar [label="Hardware Side  (gpio_config_regs glue and gpio_core)\nhwif_out: field values + swmod write strobes   |   hwif_in: next values (+ we for GPIO_OUTPUT)", fillcolor="white", width=9.0];
+    cpu [label="CPU Interface  s_cpuif_*  (from peakrdl_to_cmdrsp)\nreq, req_is_wr, addr[5:0], wr_data, wr_biten   |   rd_ack, rd_data, wr_ack, err", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rf  [label="Register Block (PeakRDL)\ngpio_regs\nRW: CONTROL, DIRECTION, OUTPUT, INT_ENABLE, INT_TYPE, INT_POLARITY, INT_BOTH\nWO: OUTPUT_SET / CLR / TGL      RO: INPUT, RAW_INT      W1C, sticky: INT_STATUS", width=8.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar [label="Hardware Side  (gpio_config_regs glue and gpio_core)\nhwif_out: field values + swmod write strobes   |   hwif_in: next values (+ we for GPIO_OUTPUT)", fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     cpu -> rf [dir=both, penwidth=1.8, xlabel="register read / write\n/ ack, read data"];
 

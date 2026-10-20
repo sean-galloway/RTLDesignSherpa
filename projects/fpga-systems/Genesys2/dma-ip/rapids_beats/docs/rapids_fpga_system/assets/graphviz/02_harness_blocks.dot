@@ -19,27 +19,27 @@ digraph harness_blocks {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            label="rapids_char_harness: control down the center, SINK data left, SOURCE return right", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host  [group=C, label="Host UART\nFT232R, 115200-8N1, ASCII W / R lines", fillcolor="white"];
-    uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart"];
-    dec   [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness\n0 DUT-REG, 1 DESC-LOAD, 2 HARNESS CSR, 3 OBS"];
+    host  [group=C, label="Host UART\nFT232R, 115200-8N1, ASCII W / R lines", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart  [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dec   [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness\n0 DUT-REG, 1 DESC-LOAD, 2 HARNESS CSR, 3 OBS", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    csr   [group=L, label="Harness CSRs + Kick Sequencer\ninline: GEN_* CHK_* RESP_DELAY OBS_TARGET\nBUILD, ID; GO = arm window, start gen,\nreplay staged kicks at aclk;\nTIMER_* / CRC_*_MASK read back"];
-    apbm  [group=C, label="APB Master\napb4_master - u_apb\nDUT window + every staged kick"];
-    dload [group=RR, label="Descriptor Loader (DESC-LOAD)\ninline holding regs: 8 x 32 bits\nDESC_KICK = one 256-bit AXI4 write"];
+    csr   [group=L, label="Harness CSRs + Kick Sequencer\ninline: GEN_* CHK_* RESP_DELAY OBS_TARGET\nBUILD, ID; GO = arm window, start gen,\nreplay staged kicks at aclk;\nTIMER_* / CRC_*_MASK read back", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    apbm  [group=C, label="APB Master\napb4_master - u_apb\nDUT window + every staged kick", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dload [group=RR, label="Descriptor Loader (DESC-LOAD)\ninline holding regs: 8 x 32 bits\nDESC_KICK = one 256-bit AXI4 write", style="filled", fillcolor="white"];
 
-    meter [group=LL, label="Bus Meters (always built)\naxi_bus_meter on m_axi_rd, m_axi_wr\naxis_bus_meter on s_axis, m_axis\nproductive / backpressure /\nstarvation / idle per cycle;\nfreeze at OBS_TARGET"];
-    gen   [group=L, label="AXIS Stimulus\naxis4_master_injector - u_axis_gen\nseeded LFSR, GEN_MODE interleave"];
+    meter [group=LL, label="Bus Meters (always built)\naxi_bus_meter on m_axi_rd, m_axi_wr\naxis_bus_meter on s_axis, m_axis\nproductive / backpressure /\nstarvation / idle per cycle;\nfreeze at OBS_TARGET", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gen   [group=L, label="AXIS Stimulus\naxis4_master_injector - u_axis_gen\nseeded LFSR, GEN_MODE interleave", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    tmr   [group=LL, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in STREAM)\nGO clears, then starts; stop at OBS_TARGET\nSOURCE: RD_CRC vs u_axis_chk CRC\nSINK: u_axis_gen CRC vs WR_CRC\nPASS: every active channel equal"];
-    obs   [group=LL, label="Interface Observers\n(USE_OBSERVERS=1)\naxi4_intf_master_observer\naxis4_intf_observer\nlatency histograms\nAPB: the OBS region\nthrough apb4_master", style="filled,dashed"];
-    dut   [group=C, label="DUT - rapids_beats_top - u_dut\nSINK: s_axis -> SRAM -> m_axi_wr      SOURCE: m_axi_rd -> SRAM -> m_axis\ndescriptor + control-semaphore AXI4 masters per half; MonBus egress m_axil_mon", width=8.5, penwidth=1.8];
+    tmr   [group=LL, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in STREAM)\nGO clears, then starts; stop at OBS_TARGET\nSOURCE: RD_CRC vs u_axis_chk CRC\nSINK: u_axis_gen CRC vs WR_CRC\nPASS: every active channel equal", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    obs   [group=LL, label="Interface Observers\n(USE_OBSERVERS=1)\naxi4_intf_master_observer\naxis4_intf_observer\nlatency histograms\nAPB: the OBS region\nthrough apb4_master", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    dut   [group=C, label="DUT - rapids_beats_top - u_dut\nSINK: s_axis -> SRAM -> m_axi_wr      SOURCE: m_axi_rd -> SRAM -> m_axis\ndescriptor + control-semaphore AXI4 masters per half; MonBus egress m_axil_mon", width=8.5, penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wdly  [group=L, label="Write-Response Delay\naxi_response_delay\nu_wr_resp_delay\nRESP_DELAY[31:16] on B"];
-    rdly  [group=R, label="Read-Data Delay\naxi_response_delay\nu_rd_resp_delay\nRESP_DELAY[15:0] on R"];
-    chk   [group=RR, label="AXIS Egress Check\naxis4_slave_pattern_check\nu_axis_chk: CRC per channel;\nchk_ready_en = backpressure", fillcolor="white"];
+    wdly  [group=L, label="Write-Response Delay\naxi_response_delay\nu_wr_resp_delay\nRESP_DELAY[31:16] on B", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rdly  [group=R, label="Read-Data Delay\naxi_response_delay\nu_rd_resp_delay\nRESP_DELAY[15:0] on R", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    chk   [group=RR, label="AXIS Egress Check\naxis4_slave_pattern_check\nu_axis_chk: CRC per channel;\nchk_ready_en = backpressure", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     p_aw [shape=point, style=invis, width=0.01, label=""];
     p_ar [shape=point, style=invis, width=0.01, label=""];
@@ -47,7 +47,7 @@ digraph harness_blocks {
     p_mon [shape=point, style=invis, width=0.01, label=""];
 
     bar   [group=C, label="Harness memory models (stand in for system memory)\ndescriptor RAM x2 + control RAM x2 (sdpram_slave_axi4_axi4)  |  axi4_slave_wr_crc_check - u_wr_mem  |  axi4_slave_rd_injector - u_rd_mem  |  always-accept AXI4-Lite responder",
-           fillcolor="white", width=11.5, height=0.5];
+           fillcolor="white", width=11.5, height=0.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     { rank=same; csr; apbm; dload; }
     { rank=same; tmr; obs; meter; gen; }
@@ -69,7 +69,7 @@ digraph harness_blocks {
     dec  -> apbm  [xlabel="DUT-REG + OBS"];
     dec  -> dload [xlabel="DESC-LOAD"];
     apbm -> dut   [xlabel="s_apb: CSRs, kicks"];
-    csr  -> gen   [style=dashed, xlabel="GO: start"];
+    csr  -> gen   [style=dashed, color="#777777", xlabel="GO: start"];
 
     // ---- SINK forward data, left ----
     gen  -> dut   [penwidth=1.8, xlabel="s_axis: LFSR beats"];
@@ -83,8 +83,8 @@ digraph harness_blocks {
     p_ar -> bar   [xlabel="m_axi_rd:\nAR"];
     dut  -> p_fe  [dir=none];
     p_fe -> bar   [dir=both, xlabel="descriptor +\nsemaphore fetch\n(AXI4, both ways)"];
-    dut  -> p_mon [dir=none, style=dashed];
-    p_mon -> bar  [style=dashed, xlabel="MonBus m_axil_mon\n(USE_AXI_MONITORS=1)"];
+    dut  -> p_mon [dir=none, style=dashed, color="#777777"];
+    p_mon -> bar  [style=dashed, color="#777777", xlabel="MonBus m_axil_mon\n(USE_AXI_MONITORS=1)"];
 
     // ---- SOURCE return, right ----
     dut  -> rdly  [dir=back, penwidth=1.8, xlabel="R (delayed)"];
@@ -93,9 +93,9 @@ digraph harness_blocks {
     dload -> bar  [xlabel="descriptor write\n(RAM port B)"];
 
     // ---- measurement (passive) ----
-    meter -> csr  [style=dashed, dir=back, xlabel="GO arms the window"];
-    csr  -> tmr   [style=dashed, dir=both, xlabel="GO, OBS_TARGET /\nresult"];
-    tmr  -> bar   [style=dashed, dir=back, xlabel="RD / WR CRCs\n+ beat counts"];
-    meter -> dut  [style=dashed, dir=back, xlabel="taps (observed,\nnothing driven back)"];
-    obs  -> dut   [style=dashed, dir=back, xlabel="same\ntaps"];
+    meter -> csr  [style=dashed, color="#777777", dir=back, xlabel="GO arms the window"];
+    csr  -> tmr   [style=dashed, color="#777777", dir=both, xlabel="GO, OBS_TARGET /\nresult"];
+    tmr  -> bar   [style=dashed, color="#777777", dir=back, xlabel="RD / WR CRCs\n+ beat counts"];
+    meter -> dut  [style=dashed, color="#777777", dir=back, xlabel="taps (observed,\nnothing driven back)"];
+    obs  -> dut   [style=dashed, color="#777777", dir=back, xlabel="same\ntaps"];
 }

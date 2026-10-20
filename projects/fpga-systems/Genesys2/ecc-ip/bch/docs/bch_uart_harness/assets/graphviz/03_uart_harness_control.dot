@@ -10,21 +10,21 @@ digraph bch_uart_harness_control {
            nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
            label="BCH UART harness control path", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host [group=C, label="Host Python\nbin/run_smoke.py\nBchLoopDriver", fillcolor="white"];
-    uart [group=C, label="UART 115200 8N1\n/dev/ttyUSB*"];
-    bridge [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge"];
-    fabric [group=C, label="Generated 1 x 3 AXIL/APB Fabric\nbridge_bch_loop_axil - u_bridge"];
+    host [group=C, label="Host Python\nbin/run_smoke.py\nBchLoopDriver", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [group=C, label="UART 115200 8N1\n/dev/ttyUSB*", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bridge [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    fabric [group=C, label="Generated 1 x 3 AXIL/APB Fabric\nbridge_bch_loop_axil - u_bridge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    apb [group=C, label="APB4 Slave Window (0x0000_0000)\napb4_to_peakrdl - u_apb2cpuif"];
-    regs [group=C, label="PeakRDL CSR Block\nbch_loop_regs - u_regs\n(CTRL, GO, GEN_BLOCKS, INJ_CFG, ...)"];
+    apb [group=C, label="APB4 Slave Window (0x0000_0000)\napb4_to_peakrdl - u_apb2cpuif", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs [group=C, label="PeakRDL CSR Block\nbch_loop_regs - u_regs\n(CTRL, GO, GEN_BLOCKS, INJ_CFG, ...)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    ctrl [group=C, label="DUT Control/Status\nbch_loop_harness datapath\nGO/start, INJ_CFG, STATUS -> CSRs"];
+    ctrl [group=C, label="DUT Control/Status\nbch_loop_harness datapath\nGO/start, INJ_CFG, STATUS -> CSRs", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    obs [group=R, label="obs_apb window (0x0002_0000)\naxis4_intf_observer status\n(passive read taps)", fillcolor="white", style="filled,dashed"];
-    obs4 [group=L, label="bch_regs_apb window (0x0001_0000)\nAXI4: axi4_intf_master_observer\nAXIS: read-0 stub", fillcolor="white", style="filled,dashed"];
+    obs [group=R, label="obs_apb window (0x0002_0000)\naxis4_intf_observer status\n(passive read taps)", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    obs4 [group=L, label="bch_regs_apb window (0x0001_0000)\nAXI4: axi4_intf_master_observer\nAXIS: read-0 stub", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
     host -> uart [dir=both, penwidth=1.8, xlabel="ASCII W/R bytes"];
     uart -> bridge [dir=both, xlabel="RX / TX"];
@@ -33,6 +33,6 @@ digraph bch_uart_harness_control {
     apb -> regs [xlabel="PeakRDL cpuif req/ack"];
     regs -> ctrl [dir=both, xlabel="decoded fields / sampled status"];
 
-    fabric -> obs4 [style=dashed, xlabel="window 1"];
-    fabric -> obs [style=dashed, xlabel="window 2"];
+    fabric -> obs4 [style=dashed, color="#777777", xlabel="window 1"];
+    fabric -> obs [style=dashed, color="#777777", xlabel="window 2"];
 }

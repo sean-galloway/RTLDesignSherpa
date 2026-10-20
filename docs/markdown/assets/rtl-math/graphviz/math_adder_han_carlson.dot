@@ -10,19 +10,19 @@ digraph math_adder_han_carlson {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_adder_han_carlson_<N> - Han-Carlson prefix adder, N = 16 / 22 / 32 / 44 / 48 / 72 (combinational)";
 
-    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
-    cin  [label="Carry In\ni_cin", fillcolor="white"];
-    cells [label="Prefix cell types\l  black cell: G = Ghi | (Phi & Glo),  P = Phi & Plo\l      merges two spans; the group P is still needed later\l  gray cell: G only\l      used where the merged span reaches bit 0, so its G\l      is a finished carry and no group P is needed\l", fillcolor="white"];
-    pg   [label="Bitwise PG (combinational, inline)\np0[i] = a[i] ^ b[i],  g0[i] = a[i] & b[i]"];
-    s1   [label="Stage 1 - Pair Even Bits (combinational)\nmath_prefix_cell (black) at each even bit i: spans (i, i-1)\nbit 0 folds the carry in: g = g0 | (p0 & i_cin)"];
-    ks   [label="Stages 2 .. ceil(log2 N) - Kogge-Stone on Even Bits\nmath_prefix_cell (black), spans 2, 4, 8 ..\nodd bits pass straight through"];
-    fin  [label="Final Stage - Odd Bits (combinational)\nmath_prefix_cell_gray at each odd bit i: (i, i-1)\none level more than Kogge-Stone, about half the cells"];
-    sum  [label="Sum (combinational, inline)\now_sum[0] = p0[0] ^ i_cin\now_sum[i] = p0[i] ^ g[i-1],  ow_cout = g[N-1]"];
-    out  [label="Outputs\now_sum[N-1:0]   |   ow_cout", fillcolor="white", width=4.5];
+    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cin  [label="Carry In\ni_cin", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cells [label="Prefix cell types\l  black cell: G = Ghi | (Phi & Glo),  P = Phi & Plo\l      merges two spans; the group P is still needed later\l  gray cell: G only\l      used where the merged span reaches bit 0, so its G\l      is a finished carry and no group P is needed\l", fillcolor="white", shape=note];
+    pg   [label="Bitwise PG (combinational, inline)\np0[i] = a[i] ^ b[i],  g0[i] = a[i] & b[i]", style="filled", fillcolor="white"];
+    s1   [label="Stage 1 - Pair Even Bits (combinational)\nmath_prefix_cell (black) at each even bit i: spans (i, i-1)\nbit 0 folds the carry in: g = g0 | (p0 & i_cin)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ks   [label="Stages 2 .. ceil(log2 N) - Kogge-Stone on Even Bits\nmath_prefix_cell (black), spans 2, 4, 8 ..\nodd bits pass straight through", style="filled", fillcolor="white"];
+    fin  [label="Final Stage - Odd Bits (combinational)\nmath_prefix_cell_gray at each odd bit i: (i, i-1)\none level more than Kogge-Stone, about half the cells", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sum  [label="Sum (combinational, inline)\now_sum[0] = p0[0] ^ i_cin\now_sum[i] = p0[i] ^ g[i-1],  ow_cout = g[N-1]", style="filled", fillcolor="white"];
+    out  [label="Outputs\now_sum[N-1:0]   |   ow_cout", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
     p_b1 [shape=point, width=0.01];
     p_b2 [shape=point, width=0.01];

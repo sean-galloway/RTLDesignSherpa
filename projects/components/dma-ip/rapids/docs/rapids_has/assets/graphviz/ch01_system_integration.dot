@@ -6,22 +6,22 @@ digraph rapids_byte_system_integration {
            label="RAPIDS system integration - rapids_top ports (same names as rapids_beats_top)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    nic_in  [label="Network (receive side)\nAXIS stream (rapids_top) or\nCXS link (rapids_cxs_top)", fillcolor="white", group=L];
-    cpu     [label="Host CPU\n(also a master on the interconnect)", fillcolor="white", group=C];
-    nic_out [label="Network (transmit side)\nAXIS stream (rapids_top) or\nCXS link (rapids_cxs_top)", fillcolor="white", group=R];
+    nic_in  [label="Network (receive side)\nAXIS stream (rapids_top) or\nCXS link (rapids_cxs_top)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    cpu     [label="Host CPU\n(also a master on the interconnect)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    nic_out [label="Network (transmit side)\nAXIS stream (rapids_top) or\nCXS link (rapids_cxs_top)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     rapids [label="RAPIDS - rapids_top / rapids_cxs_top (byte-granular)\nsink half (network -> memory)  |  registers + monitor egress  |  source half (memory -> network)\nsingle clock domain (aclk, aresetn)",
-            width=9.0, height=0.9, group=C];
+            width=9.0, height=0.9, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    xbar [label="AXI Interconnect\n(the RAPIDS masters may share one physical port)", width=10.8, group=C];
-    ddr  [label="DDR Memory - data buffers, descriptor chains, monitor log", fillcolor="white", width=10.8, group=C];
+    xbar [label="AXI Interconnect\n(the RAPIDS masters may share one physical port)", width=10.8, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ddr  [label="DDR Memory - data buffers, descriptor chains, monitor log", fillcolor="white", width=10.8, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     nic_in  -> rapids [xlabel="s_axis_* or s_cxs_*\n(packed bytes in, tstrb)"];
     cpu     -> rapids [dir=both, label="s_apb_* config + kick, s_axil_err reads;\nmon_irq back", penwidth=1.8];
-    nic_out -> rapids [dir=back, xlabel="m_axis_* or m_cxs_*\n(packed bytes out, tstrb)"];
+    nic_out -> rapids [color="#1A7A1A", dir=back, xlabel="m_axis_* or m_cxs_*\n(packed bytes out, tstrb)"];
 
     p_wr  [shape=point, width=0.01, group=L];
     p_ctl [shape=point, width=0.01];
@@ -37,8 +37,8 @@ digraph rapids_byte_system_integration {
     p_wr   -> xbar  [xlabel="m_axi_wr: sink data\nwrites (WSTRB)", tailclip=false];
     rapids -> p_ctl [arrowhead=none, headclip=false];
     p_ctl  -> xbar  [xlabel="src_/snk_ m_axi_desc,\nm_axi_ctrlrd, m_axi_ctrlwr", tailclip=false];
-    rapids -> p_mon [arrowhead=none, headclip=false, style=dashed];
-    p_mon  -> xbar  [style=dashed, xlabel="m_axil_mon: monitor\nlog writes", tailclip=false];
+    rapids -> p_mon [arrowhead=none, headclip=false, style=dashed, color="#777777"];
+    p_mon  -> xbar  [style=dashed, color="#777777", xlabel="m_axil_mon: monitor\nlog writes", tailclip=false];
     rapids -> p_rd  [dir=both, arrowhead=none, headclip=false];
     p_rd   -> xbar  [xlabel="m_axi_rd: source\ndata reads (AR / R)", tailclip=false];
     xbar   -> ddr   [dir=both, label="AXI reads and writes"];

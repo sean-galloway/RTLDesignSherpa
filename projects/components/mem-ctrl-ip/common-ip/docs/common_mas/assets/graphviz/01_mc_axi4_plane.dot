@@ -12,25 +12,25 @@ digraph mc_axi4_plane {
            label="mc_axi4_plane - AXI4 host interface, intakes and read-return ring (aclk)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- host channels (white) ----
-    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
-    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- request side ----
-    wr_split [label="Write Burst Splitter\nmc_wr_splitter - FUB\n(one sub-burst per DRAM burst)", group=W];
-    rd_chop  [label="Read Burst Chopper\nmc_axi_burst_chopper - FUB\n(one sub-burst per DRAM burst)", group=R];
+    wr_split [label="Write Burst Splitter\nmc_wr_splitter - FUB\n(one sub-burst per DRAM burst)", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_chop  [label="Read Burst Chopper\nmc_axi_burst_chopper - FUB\n(one sub-burst per DRAM burst)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wr_intake [label="Write Intake\nmc_wr_intake - FUB\naddress map (mc_addr_mapper), AW-meta + W FIFOs,\none B per host burst on write done", group=W];
-    rd_intake [label="Read Intake\nmc_rd_intake - FUB\naddress map, snarf probe, AR-order FIFO,\nR source select (snarf or DRAM)", group=R];
+    wr_intake [label="Write Intake\nmc_wr_intake - FUB\naddress map (mc_addr_mapper), AW-meta + W FIFOs,\none B per host burst on write done", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_intake [label="Read Intake\nmc_rd_intake - FUB\naddress map, snarf probe, AR-order FIFO,\nR source select (snarf or DRAM)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    ring [label="Read Return Ring\nmc_rd_return_ring - FUB\nticket per read in AR order,\nfilled in issue order, drained in AR order"];
+    ring [label="Read Return Ring\nmc_rd_return_ring - FUB\nticket per read in AR order,\nfilled in issue order, drained in AR order", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- boundary bar: the plane edge ----
     bar [label="Plane edge - mc_storage_plane (wr / rd CAMs), mc_scheduler_plane (issue), DFI plane (read return)",
-         fillcolor="white", width=13, height=0.5, fontsize=11];
+         fillcolor="white", width=13, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- host channel hops: request down, response up on the same hop ----
     axi_wr   -> wr_split  [dir=both, xlabel="AW / W · B"];
@@ -43,7 +43,7 @@ digraph mc_axi4_plane {
 
     // ---- read request: down the right column (snarf probe on a parallel dashed lane) ----
     rd_intake -> bar [xlabel="RD push"];
-    rd_intake -> bar [dir=both, style=dashed, xlabel="snarf probe / hit + data"];
+    rd_intake -> bar [dir=both, style=dashed, color="#777777", xlabel="snarf probe / hit + data"];
 
     // ---- read return: up the center lane into the ring (parked at the
     //      intake rank, between the columns), drained across to the intake.
@@ -51,8 +51,8 @@ digraph mc_axi4_plane {
     //      would cycle (bar -> ring -> intake -> bar); the rank=same pin
     //      below is the single source of truth for the ring's rank.
     bar  -> ring [constraint=false, xlabel="read data (issue order)"];
-    ring -> bar  [dir=both, constraint=false, style=dashed, xlabel="tickets"];
-    ring -> rd_intake [constraint=false, style=dashed, xlabel="drain"];
+    ring -> bar  [dir=both, constraint=false, style=dashed, color="#777777", xlabel="tickets"];
+    ring -> rd_intake [constraint=false, style=dashed, color="#777777", xlabel="drain"];
 
     // ---- rank pinning (write column left, read column right, ring center) ----
     { rank=same; axi_wr; axi_rd; }

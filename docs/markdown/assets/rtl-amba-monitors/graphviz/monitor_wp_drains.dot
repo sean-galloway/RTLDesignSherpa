@@ -16,21 +16,21 @@ digraph monitor_wp_drains {
            label="Drain paths: error FIFO with interrupt, write FIFO into the memory ring (monbus_group_core)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    in   [label="Accepted Packet\n{timestamp, packet} -- not dropped by the masks", fillcolor="white"];
-    sel  [label="Per-Type Steer (runtime mask)\ncfg_<proto>_err_select[type]\n1 -> error FIFO, 0 -> write FIFO"];
+    in   [label="Accepted Packet\n{timestamp, packet} -- not dropped by the masks", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sel  [label="Per-Type Steer (runtime mask)\ncfg_<proto>_err_select[type]\n1 -> error FIFO, 0 -> write FIFO", style="filled", fillcolor="white"];
 
-    efifo [group=L, label="Error FIFO\nrecord-granular: 192-bit {timestamp, packet}\nirq_out while non-empty"];
-    rd    [group=L, label="AXI-Lite Slave Read\neach record as three 64-bit beats:\ntimestamp, packet hi, packet lo"];
+    efifo [group=L, label="Error FIFO\nrecord-granular: 192-bit {timestamp, packet}\nirq_out while non-empty", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rd    [group=L, label="AXI-Lite Slave Read\neach record as three 64-bit beats:\ntimestamp, packet hi, packet lo", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    wfifo [group=R, label="Write FIFO\nbeat-granular: raw 3 beats per record,\nor 1 beat when compressed"];
-    fl    [group=R, label="Flush Trigger\nbeats >= cfg_flush_watermark,\nor FLUSH_TIMEOUT_CYCLES with no new beat"];
-    aw    [group=R, label="AXI Write Burst\nwhole records only, never across a 4 KB boundary"];
+    wfifo [group=R, label="Write FIFO\nbeat-granular: raw 3 beats per record,\nor 1 beat when compressed", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    fl    [group=R, label="Flush Trigger\nbeats >= cfg_flush_watermark,\nor FLUSH_TIMEOUT_CYCLES with no new beat", style="filled", fillcolor="white"];
+    aw    [group=R, label="AXI Write Burst\nwhole records only, never across a 4 KB boundary", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [label="Outside the group\nhost: services irq_out and reads the error FIFO   |   ring in memory [cfg_base_addr, cfg_limit_addr], wraps to base",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     in -> sel [label="packet + timestamp", penwidth=1.8];
     sel -> efifo [xlabel="err_select = 1\n(errors, timeouts)"];

@@ -11,20 +11,20 @@ digraph gpio_pin_io {
            label="One GPIO pin i - output drive and input capture",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    regs [label="Register Block  (gpio_regs)\nGPIO_OUTPUT[i], GPIO_DIRECTION[i], CONTROL.gpio_enable   |   GPIO_INPUT[i]", fillcolor="white", width=7.0];
-    lat  [label="Output Latch + Direction Gate\ngpio_core - r_output_data[i]\ngpio_oe[i] = gpio_enable & DIRECTION[i]"];
-    syn  [label="Input Synchronizer (flop)\ngpio_core - SYNC_STAGES flops\non the core clock"];
-    buf  [style="filled,dashed", label="Tristate Pad Buffer  (not in apb4_gpio)\nIOBUF / OBUFT + IBUF in the wrapper or FPGA top\ngpio_oe[i] = 1: drive gpio_out[i]   |   gpio_oe[i] = 0: Hi-Z", width=7.0];
-    bar  [label="External Pin i", fillcolor="white", width=7.0];
+    regs [label="Register Block  (gpio_regs)\nGPIO_OUTPUT[i], GPIO_DIRECTION[i], CONTROL.gpio_enable   |   GPIO_INPUT[i]", fillcolor="white", width=7.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    lat  [label="Output Latch + Direction Gate\ngpio_core - r_output_data[i]\ngpio_oe[i] = gpio_enable & DIRECTION[i]", style="filled", fillcolor="white"];
+    syn  [label="Input Synchronizer (flop)\ngpio_core - SYNC_STAGES flops\non the core clock", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    buf  [style="filled,dashed", label="Tristate Pad Buffer  (not in apb4_gpio)\nIOBUF / OBUFT + IBUF in the wrapper or FPGA top\ngpio_oe[i] = 1: drive gpio_out[i]   |   gpio_oe[i] = 0: Hi-Z", width=7.0, style="filled,dashed", fillcolor="white"];
+    bar  [label="External Pin i", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     regs -> lat [xlabel="output value,\ndirection"];
     lat  -> buf [xlabel="gpio_out[i],\ngpio_oe[i]"];
     buf  -> bar [dir=both, penwidth=1.8, xlabel="driven when gpio_oe[i] = 1\n/ pin level (always read)"];
-    syn  -> buf [dir=back, xlabel="gpio_in[i]\n(asynchronous)"];
-    regs -> syn [dir=back, xlabel="synchronized\nvalue"];
+    syn  -> buf [color="#1A7A1A", dir=back, xlabel="gpio_in[i]\n(asynchronous)"];
+    regs -> syn [color="#1A7A1A", dir=back, xlabel="synchronized\nvalue"];
 
     { rank=same; lat; syn; }
     lat -> syn [style=invis, minlen=4];

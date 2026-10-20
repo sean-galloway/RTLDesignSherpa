@@ -8,43 +8,43 @@ digraph lattice_block_diagram {
            nodesep="0.45", ranksep="0.55", splines=ortho, labelloc=t,
            label="apbx_xbar_<M>to<N> - one master's path to one slave s (every master and slave repeats it); single clock pclk / presetn\nN = 1 builds no decode, M = 1 builds no arbiter"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pc [label="Master m APB Request\nPSEL, PENABLE, PADDR, PWRITE,\nPWDATA, PSTRB, PPROT in", fillcolor="white", group=C];
-    pr [label="Master m APB Completion\nPREADY, PRDATA, PSLVERR out", fillcolor="white", group=R];
+    pc [label="Master m APB Request\nPSEL, PENABLE, PADDR, PWRITE,\nPWDATA, PSTRB, PPROT in", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="Master m APB Completion\nPREADY, PRDATA, PSLVERR out", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pc; pr; }
     pc -> pr [style=invis];
 
-    bc [label="Master-Side Boundary - apb4_slave / apb5_slave\nAPB transfer -> cmd packet", group=C];
-    br [label="Master-Side Boundary - same instance\nrsp packet -> PREADY / PRDATA / PSLVERR", group=R];
+    bc [label="Master-Side Boundary - apb4_slave / apb5_slave\nAPB transfer -> cmd packet", group=C, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    br [label="Master-Side Boundary - same instance\nrsp packet -> PREADY / PRDATA / PSLVERR", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; bc; br; }
     bc -> br [style=invis];
 
-    others [label="Other Masters\n(same boundary + decode)", fillcolor="white"];
-    dec [label="Address Decode (N > 1)\noffset = PADDR - BASE_ADDR; slave_sel = the offset's\nwindow bits; outside every window = decode miss", group=C];
-    rsel [label="Response Select\nthe rsp of the slave registered at cmd accept,\nor a local PSLVERR completion on a miss", group=R];
+    others [label="Other Masters\n(same boundary + decode)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dec [label="Address Decode (N > 1)\noffset = PADDR - BASE_ADDR; slave_sel = the offset's\nwindow bits; outside every window = decode miss", group=C, style="filled", fillcolor="white"];
+    rsel [label="Response Select\nthe rsp of the slave registered at cmd accept,\nor a local PSLVERR completion on a miss", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; others; dec; rsel; }
     others -> dec -> rsel [style=invis];
 
     arb [label="Per-Slave Arbiter (M > 1) - arbiter_round_robin\nWAIT_GNT_ACK = 1: the grant is held until the slave's rsp handshake",
-         shape=invtrapezium, width=6.0, height=0.7, group=C];
+         shape=invtrapezium, width=6.0, height=0.7, group=C, style="filled", fillcolor="#FFF2CC"];
     pr3 [shape=point, width=0.01, label="", group=R];
     { rank=same; arb; pr3; }
     arb -> pr3 [style=invis];
 
-    mux [label="Command Mux\nthe granted master's cmd to slave s", group=C];
-    rrdy [label="Response Return\nslave s's rsp_ready from the granted master;\nthe rsp handshake is the arbiter's grant_ack", group=R];
+    mux [label="Command Mux\nthe granted master's cmd to slave s", group=C, style="filled", fillcolor="white"];
+    rrdy [label="Response Return\nslave s's rsp_ready from the granted master;\nthe rsp handshake is the arbiter's grant_ack", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; mux; rrdy; }
     mux -> rrdy [style=invis];
 
-    sc [label="Slave-Side Boundary - apb4_master / apb5_master\ncmd packet -> APB transfer", group=C];
-    sr [label="Slave-Side Boundary - same instance\nPREADY / PRDATA / PSLVERR -> rsp packet", group=R];
+    sc [label="Slave-Side Boundary - apb4_master / apb5_master\ncmd packet -> APB transfer", group=C, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    sr [label="Slave-Side Boundary - same instance\nPREADY / PRDATA / PSLVERR -> rsp packet", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; sc; sr; }
     sc -> sr [style=invis];
 
     bar [label="Slave s APB Port - PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT out; PREADY, PRDATA, PSLVERR in",
-         fillcolor="white", width=10.5];
+         fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pc -> bc [label="APB request"];
     bc -> dec [label="cmd: addr, write, data, strb, prot"];
@@ -53,12 +53,12 @@ digraph lattice_block_diagram {
     arb -> mux [label="grant", penwidth=1.8];
     mux -> sc [label="cmd", penwidth=1.8];
     sc -> bar [xlabel="APB transfer", penwidth=1.8];
-    dec -> rsel [style=dashed, xlabel="slave_sel / miss"];
+    dec -> rsel [style=dashed, color="#777777", xlabel="slave_sel / miss"];
 
-    pr -> br [dir=back, label="APB completion"];
-    br -> rsel [dir=back, label="rsp: prdata, pslverr"];
-    rsel -> pr3 [dir=back];
-    pr3 -> rrdy [dir=none, xlabel="rsp"];
+    pr -> br [color="#1A7A1A", dir=back, label="APB completion"];
+    br -> rsel [color="#1A7A1A", dir=back, label="rsp: prdata, pslverr"];
+    rsel -> pr3 [color="#1A7A1A", dir=back];
+    pr3 -> rrdy [color="#1A7A1A", dir=none, xlabel="rsp"];
     rrdy -> sr [dir=back, label="rsp"];
     sr -> bar [dir=back, label="PREADY, PRDATA, PSLVERR"];
 }

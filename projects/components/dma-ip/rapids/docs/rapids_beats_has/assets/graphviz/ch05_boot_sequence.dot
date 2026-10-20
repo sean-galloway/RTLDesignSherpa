@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // RAPIDS Beats bring-up sequence, by register name (rtl/macro_beats/rapids_engine_regs.rdl).
 // Each half (SRC block at 0x0000, SNK block at 0x1000) is programmed the same way.
 digraph rapids_beats_boot_sequence {

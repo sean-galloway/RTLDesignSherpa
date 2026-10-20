@@ -9,19 +9,19 @@ digraph apb5_master_stub {
            label="apb5_master_stub - packed command / response ports with first / last framing (single clock: pclk, presetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cmd_port [label="Command Port (packed)\ncmd_valid / cmd_ready\ncmd_data = {last, first, pwrite, pprot,\npstrb, paddr, pwdata, pauser, pwuser}", fillcolor="white"];
-    rsp_port [label="Response Port (packed)\nrsp_valid / rsp_ready\nrsp_data = {last, first, pslverr,\nprdata, pruser, pbuser}", fillcolor="white"];
+    cmd_port [label="Command Port (packed)\ncmd_valid / cmd_ready\ncmd_data = {last, first, pwrite, pprot,\npstrb, paddr, pwdata, pauser, pwuser}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rsp_port [label="Response Port (packed)\nrsp_valid / rsp_ready\nrsp_data = {last, first, pslverr,\nprdata, pruser, pbuser}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} to the side FIFO"];
-    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake"];
-    core [label="APB5 Master Core\napb5_master - u_apb5_master (see its diagram)\nskids, transfer FSM, PWAKEUP, check bits"];
-    pack [label="Pack (wiring)\n{fifo last, first, core pslverr,\nprdata, pruser, pbuser}"];
+    unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} to the side FIFO", style="filled", fillcolor="white"];
+    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake", style="filled", fillcolor="white"];
+    core [label="APB5 Master Core\napb5_master - u_apb5_master (see its diagram)\nskids, transfer FSM, PWAKEUP, check bits", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    pack [label="Pack (wiring)\n{fifo last, first, core pslverr,\nprdata, pruser, pbuser}", style="filled", fillcolor="white"];
 
     bus [label="APB5 Requester Bus  m_apb_* (+ *CHK)\nout: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB,\nPPROT, PAUSER, PWUSER, PWAKEUP\nin: PRDATA, PSLVERR, PREADY, PRUSER, PBUSER",
-         fillcolor="white"];
+         fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     cmd_port -> unpk [dir=both, xlabel="cmd_valid + cmd_data / cmd_ready"];
     unpk -> core [penwidth=1.8, xlabel="APB fields\n(incl. pauser, pwuser)"];

@@ -10,21 +10,21 @@ digraph reset_sync {
            label="reset_sync - asynchronous assert, synchronous deassert",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    rst_port [label="Asynchronous Reset In\nrst_n", fillcolor="white"];
-    clk_port [label="clk", fillcolor="white"];
-    out_port [label="Synchronized Reset Out\nsync_rst_n on clk", fillcolor="white"];
+    rst_port [label="Asynchronous Reset In\nrst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk_port [label="clk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    out_port [label="Synchronized Reset Out\nsync_rst_n on clk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- input polarity (asynchronous, outside the domain) ----
-    pin [label="Input Polarity\nIN_ACTIVE_LOW: rst_in_h = ~rst_n"];
+    pin [label="Input Polarity\nIN_ACTIVE_LOW: rst_in_h = ~rst_n", style="filled", fillcolor="white"];
 
     subgraph cluster_clk {
         label="clk domain"; style=dashed; fontsize=10;
-        chain [label="Synchronizer Chain\nr_sync_reg[N]  (N >= 2)\nset to all 1s on reset; shifts in 0 on clk\n(ASYNC_ASSERT=0: set on clk too)"];
-        pout  [label="Output Polarity\nOUT_ACTIVE_LOW: sync_rst_n =\n~r_sync_reg[N-1]"];
+        chain [label="Synchronizer Chain\nr_sync_reg[N]  (N >= 2)\nset to all 1s on reset; shifts in 0 on clk\n(ASYNC_ASSERT=0: set on clk too)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        pout  [label="Output Polarity\nOUT_ACTIVE_LOW: sync_rst_n =\n~r_sync_reg[N-1]", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     // ---- flows ----

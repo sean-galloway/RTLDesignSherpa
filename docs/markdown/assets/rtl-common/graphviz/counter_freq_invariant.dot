@@ -10,19 +10,19 @@ digraph counter_freq_invariant {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="counter_freq_invariant - microsecond counter for a selectable clock frequency";
 
-    sel_in [label="Frequency Select\nfreq_sel", fillcolor="white"];
-    rst_in [label="Sync Reset\nsync_reset_n", fillcolor="white"];
-    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
-    prm    [label="Parameters (fixed at build)\lMIN_FREQ_MHZ .. MAX_FREQ_MHZ, NUM_FREQ_ENTRIES:\l    the clock range the LUT covers, and its size\lFREQ_STRATEGY: 0 = entries spaced linearly\l    from MIN to MAX; 1 = doubling from MIN,\l    capped at MAX\lDEBUG_LUT: 1 = print the LUT at time 0\l", fillcolor="white"];
-    lut    [label="Divide-Factor LUT (combinational, built at elaboration)\nw_div_table[freq_sel] = clock MHz = cycles per microsecond"];
-    chg    [label="Change Detect\nr_prev_freq_sel, r_clear_pulse (flops)\nclear = freq_sel changed or !sync_reset_n"];
-    pre    [label="Prescaler\ncounter_load_clear - prescaler_counter\ncounts 0 .. factor-1 every clk; done each microsecond"];
-    ucnt   [label="Microsecond Counter\no_counter, tick (flops)\n+1 and tick on prescaler done (if sync_reset_n)"];
-    out    [label="Outputs\no_counter (microseconds)   |   tick (one clock per microsecond)", fillcolor="white", width=6.0];
+    sel_in [label="Frequency Select\nfreq_sel", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rst_in [label="Sync Reset\nsync_reset_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk_in [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    prm    [label="Parameters (fixed at build)\lMIN_FREQ_MHZ .. MAX_FREQ_MHZ, NUM_FREQ_ENTRIES:\l    the clock range the LUT covers, and its size\lFREQ_STRATEGY: 0 = entries spaced linearly\l    from MIN to MAX; 1 = doubling from MIN,\l    capped at MAX\lDEBUG_LUT: 1 = print the LUT at time 0\l", fillcolor="white", shape=note];
+    lut    [label="Divide-Factor LUT (combinational, built at elaboration)\nw_div_table[freq_sel] = clock MHz = cycles per microsecond", style="filled", fillcolor="white"];
+    chg    [label="Change Detect\nr_prev_freq_sel, r_clear_pulse (flops)\nclear = freq_sel changed or !sync_reset_n", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pre    [label="Prescaler\ncounter_load_clear - prescaler_counter\ncounts 0 .. factor-1 every clk; done each microsecond", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ucnt   [label="Microsecond Counter\no_counter, tick (flops)\n+1 and tick on prescaler done (if sync_reset_n)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    out    [label="Outputs\no_counter (microseconds)   |   tick (one clock per microsecond)", fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     p_s    [shape=point, width=0.01];
     sel_in -> p_s  [arrowhead=none, headclip=false, xlabel="freq_sel"];
@@ -32,9 +32,9 @@ digraph counter_freq_invariant {
     ucnt   -> out  [xlabel="o_counter, tick"];
     p_s    -> chg  [tailclip=false, xlabel="freq_sel (compare to last)"];
     rst_in -> chg  [xlabel="sync_reset_n"];
-    chg    -> pre  [style=dashed, xlabel="clear"];
-    chg    -> ucnt [style=dashed, xlabel="clear"];
-    clk_in -> chg  [style=dashed, xlabel="clk, rst_n"];
+    chg    -> pre  [style=dashed, color="#777777", xlabel="clear"];
+    chg    -> ucnt [style=dashed, color="#777777", xlabel="clear"];
+    clk_in -> chg  [style=dashed, color="#777777", xlabel="clk, rst_n"];
     { rank=same; prm; sel_in; rst_in; clk_in; }
     prm -> sel_in [style=invis, minlen=2];
     sel_in -> rst_in [style=invis, minlen=2];

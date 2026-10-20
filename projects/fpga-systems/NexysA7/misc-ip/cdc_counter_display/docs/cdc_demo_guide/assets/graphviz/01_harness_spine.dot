@@ -17,34 +17,34 @@ digraph harness_blocks {
            nodesep="0.30", ranksep="0.50", splines=ortho, newrank=true,
            label="cdc_demo_harness: one of four identical counter domains, five value-out CDC modes", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.06"];
+           fillcolor="white", color="black", margin="0.10,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host [group=C, label="Host UART (Nexys A7 USB, 115200-8N1)\nhost_cdc_demo.py / CdcDemoDriver", fillcolor="white"];
-    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge (in cdc_demo_top)"];
-    csr  [group=C, label="CSR Decode (sys_clk) - cdc_demo_harness, inline\nBUILD_ID \"CDC1\", STATUS, CTRL, DISP_SELECT, SCRATCH;\nper counter: INIT, STEP, CLOCK_SELECT / DIV_PICKOFF, CDC_MODE, loads, presses;\nalso the board buttons (BTNC press, BTNU / BTND clock, BTNL mode),\ndebounced on sys_clk in cdc_demo_top", width=6];
+    host [group=C, label="Host UART (Nexys A7 USB, 115200-8N1)\nhost_cdc_demo.py / CdcDemoDriver", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge - u_uart_bridge (in cdc_demo_top)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    csr  [group=C, label="CSR Decode (sys_clk) - cdc_demo_harness, inline\nBUILD_ID \"CDC1\", STATUS, CTRL, DISP_SELECT, SCRATCH;\nper counter: INIT, STEP, CLOCK_SELECT / DIV_PICKOFF, CDC_MODE, loads, presses;\nalso the board buttons (BTNC press, BTNU / BTND clock, BTNL mode),\ndebounced on sys_clk in cdc_demo_top", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    clk  [label="Counter Clock (cdc_demo_top)\nMMCM 72.73 / 27.59 / 11.94 / 6.25 MHz\nor clock_divider (DIV_PICKOFF);\nBUFGMUX_CTRL tree, glitchless switch\non CLOCK_SELECT", fillcolor="white"];
+    clk  [label="Counter Clock (cdc_demo_top)\nMMCM 72.73 / 27.59 / 11.94 / 6.25 MHz\nor clock_divider (DIV_PICKOFF);\nBUFGMUX_CTRL tree, glitchless switch\non CLOCK_SELECT", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_ctr {
         label="ctr_clk domain (one per counter)"; style=dashed; fontsize=10;
-        cin  [label="Config In (sys_clk -> ctr_clk)\n2-FF per bit: INIT, STEP, freeze;\nsync_pulse: CFG_LOAD, press"];
-        ctr  [label="Counter (flop on ctr_clk)\n+STEP per press (host or BTNC)\nor auto-increment"];
+        cin  [label="Config In (sys_clk -> ctr_clk)\n2-FF per bit: INIT, STEP, freeze;\nsync_pulse: CFG_LOAD, press", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        ctr  [label="Counter (flop on ctr_clk)\n+STEP per press (host or BTNC)\nor auto-increment", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
-    m0 [label="Mode 0 NO_CDC\nraw flop per bit\n(broken on purpose)", style="filled,dashed"];
-    m1 [label="Mode 1 STRETCH\ncdc_open_loop\nu_stretch"];
-    m2 [label="Mode 2 SYNC_FIFO\nfifo_async\nu_fifo"];
-    m3 [label="Mode 3 TWO_PHASE\ncdc_2_phase_\nhandshake - u_hs2p"];
-    m4 [label="Mode 4 FOUR_PHASE\ncdc_4_phase_\nhandshake - u_hs4p"];
-    gray [label="PRESS_COUNT, ticks\nbin2gray -> 2-FF\n-> gray2bin"];
+    m0 [label="Mode 0 NO_CDC\nraw flop per bit\n(broken on purpose)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    m1 [label="Mode 1 STRETCH\ncdc_open_loop\nu_stretch", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m2 [label="Mode 2 SYNC_FIFO\nfifo_async\nu_fifo", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m3 [label="Mode 3 TWO_PHASE\ncdc_2_phase_\nhandshake - u_hs2p", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    m4 [label="Mode 4 FOUR_PHASE\ncdc_4_phase_\nhandshake - u_hs4p", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gray [label="PRESS_COUNT, ticks\nbin2gray -> 2-FF\n-> gray2bin", style="filled", fillcolor="white"];
 
     subgraph cluster_sys {
         label="sys_clk domain"; style=dashed; fontsize=10;
-        sel [label="Mode Select (sys_clk)\nCDC_MODE picks which path drives VALUE\n(5..7 fall back to NO_CDC)", width=4];
+        sel [label="Mode Select (sys_clk)\nCDC_MODE picks which path drives VALUE\n(5..7 fall back to NO_CDC)", width=4, style="filled", fillcolor="white"];
     }
 
-    bar [group=C, label="sys_clk readback: VALUE, PRESS_COUNT, CLK_TICKS -> CSRs (over UART)  and  DISP_SELECT -> 7-segment + LEDs (u_seg7)", fillcolor="white", width=9];
+    bar [group=C, label="sys_clk readback: VALUE, PRESS_COUNT, CLK_TICKS -> CSRs (over UART)  and  DISP_SELECT -> 7-segment + LEDs (u_seg7)", fillcolor="white", width=9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
 
     { rank=same; clk; csr; }
@@ -55,7 +55,7 @@ digraph harness_blocks {
     host -> uart [dir=both, penwidth=1.8, xlabel="UART bytes"];
     uart -> csr  [dir=both, xlabel="AXI4-Lite access"];
     csr  -> cin;
-    clk  -> ctr  [style=dashed, xlabel="ctr_clk"];
+    clk  -> ctr  [style=dashed, color="#777777", xlabel="ctr_clk"];
     cin  -> ctr  [xlabel="init, step, load"];
 
     ctr -> m0 [penwidth=1.8, xlabel="counter value (all five paths)"];

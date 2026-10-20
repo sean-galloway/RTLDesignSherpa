@@ -8,20 +8,20 @@ digraph rapids_beats_channel_resources {
            label="One sink-half channel: per-channel and shared resources (8 channels per half)\nthe source half mirrors it: the read engine fills the channel FIFO and the network egress drains it",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    data_in [label="Network In - s_axis_* beats with tid = n\n(CXS top: flits with CXSSRCID = n, via the RX plane)", fillcolor="white", group=L];
-    kick    [label="Kick - CHn_DESC_ADDR + KICK_ENABLE\n(from rapids_regs)", fillcolor="white", group=C];
+    data_in [label="Network In - s_axis_* beats with tid = n\n(CXS top: flits with CXSSRCID = n, via the RX plane)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    kick    [label="Kick - CHn_DESC_ADDR + KICK_ENABLE\n(from rapids_regs)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    desc  [label="Descriptor Engine (per channel)\ndescriptor_engine_beats", group=C];
-    fifo  [label="Channel SRAM FIFO (per channel)\nsram_controller_unit in\nsnk_sram_controller_beats", group=L];
-    sched [label="Scheduler (per channel)\nscheduler_beats", group=M];
-    eng   [label="AXI Write Engine (shared)\naxi_write_engine_beats\nround-robin over 8 channels", group=L];
-    mon   [label="MonBus Arbiter (shared)\nmonbus_arbiter: 8 groups\n+ descriptor AXI monitor", style="filled,dashed", group=M];
-    darb  [label="Descriptor AR Arbiter (shared)\narbiter_round_robin, 8 -> 1", shape=invtrapezium, width=3.4, fillcolor="#BFD7EE", group=C];
+    desc  [label="Descriptor Engine (per channel)\ndescriptor_engine_beats", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fifo  [label="Channel SRAM FIFO (per channel)\nsram_controller_unit in\nsnk_sram_controller_beats", group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sched [label="Scheduler (per channel)\nscheduler_beats", group=M, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    eng   [label="AXI Write Engine (shared)\naxi_write_engine_beats\nround-robin over 8 channels", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mon   [label="MonBus Arbiter (shared)\nmonbus_arbiter: 8 groups\n+ descriptor AXI monitor", style="filled,dashed", group=M, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    darb  [label="Descriptor AR Arbiter (shared)\narbiter_round_robin, 8 -> 1", shape=invtrapezium, width=3.4, fillcolor="#BFD7EE", group=C, style="filled", fillcolor="#FFF2CC"];
 
-    mem [label="System Memory\nm_axi_wr (channel data)   |   snk_m_axi_desc (descriptors)", fillcolor="white", width=13.0, group=S];
+    mem [label="System Memory\nm_axi_wr (channel data)   |   snk_m_axi_desc (descriptors)", fillcolor="white", width=13.0, group=S, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     data_in -> fifo  [label="channel n beats"];
     kick    -> desc  [label="descriptor address"];
@@ -29,7 +29,7 @@ digraph rapids_beats_channel_resources {
     desc    -> sched [xlabel="parsed descriptor"];
     sched   -> eng   [xlabel="write cmd:\naddr, beats"];
     fifo    -> eng   [label="buffered beats"];
-    sched   -> mon   [style=dashed, label="events"];
+    sched   -> mon   [style=dashed, color="#777777", label="events"];
 
     p_e  [shape=point, width=0.01, group=L];
     p_d  [shape=point, width=0.01, group=C];

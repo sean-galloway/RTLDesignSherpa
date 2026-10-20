@@ -12,28 +12,28 @@ digraph harness_spine {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            label="rapids_char_harness: the spine", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    usb  [group=C, label="Host link: USB / FTDI UART\nASCII W addr data / R addr, 115200-8N1", fillcolor="white"];
-    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge"];
-    dec  [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness"];
+    usb  [group=C, label="Host link: USB / FTDI UART\nASCII W addr data / R addr, 115200-8N1", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dec  [group=C, label="Region Decode on addr[19:16]\ninline in rapids_char_harness", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    csr  [group=L, label="Harness CSRs + Kick Sequencer\ngen / chk / mem / mon / obs, GO"];
-    apbm [group=C, label="APB Master\napb4_master"];
-    desc [group=RR, label="Descriptor Loader\n256-bit assembly + one AXI4 write"];
+    csr  [group=L, label="Harness CSRs + Kick Sequencer\ngen / chk / mem / mon / obs, GO", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    apbm [group=C, label="APB Master\napb4_master", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    desc [group=RR, label="Descriptor Loader\n256-bit assembly + one AXI4 write", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    gen  [group=L, label="AXIS Stimulus\naxis4_master_injector", fillcolor="white"];
-    chk  [group=R, label="AXIS Egress Check\naxis4_slave_pattern_check", fillcolor="white"];
+    gen  [group=L, label="AXIS Stimulus\naxis4_master_injector", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    chk  [group=R, label="AXIS Egress Check\naxis4_slave_pattern_check", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    dut  [group=C, label="DUT - rapids_beats_top\nSINK (s_axis -> m_axi_wr)   +   SOURCE (m_axi_rd -> m_axis)", width=7, penwidth=1.8];
+    dut  [group=C, label="DUT - rapids_beats_top\nSINK (s_axis -> m_axi_wr)   +   SOURCE (m_axi_rd -> m_axis)", width=7, penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     pw [group=L, shape=point, style=invis, width=0.01, label=""];
     pd [group=C, shape=point, style=invis, width=0.01, label=""];
     pr [group=R, shape=point, style=invis, width=0.01, label=""];
 
     bar  [group=C, label="Harness memory models:  descriptor RAM (sdpram_slave_axi4_axi4)  |  axi4_slave_wr_crc_check  |  axi4_slave_rd_injector",
-          fillcolor="white", width=8];
+          fillcolor="white", width=8, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     { rank=same; csr; apbm; desc; }
     csr -> apbm -> desc [style=invis];
@@ -48,16 +48,16 @@ digraph harness_spine {
     dec  -> apbm [xlabel="region 0: DUT-REG\n(3: observers)"];
     dec  -> desc [xlabel="region 1: DESC-LOAD"];
     apbm -> dut  [xlabel="APB: SRC 0x0000, SNK 0x1000;\nstaged kicks on GO"];
-    csr  -> gen  [style=dashed, xlabel="GO: start"];
+    csr  -> gen  [style=dashed, color="#777777", xlabel="GO: start"];
 
     gen  -> dut  [penwidth=1.8, xlabel="s_axis"];
-    chk  -> dut  [dir=back, penwidth=1.8, xlabel="m_axis"];
+    chk  -> dut  [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="m_axis"];
 
-    dut  -> pw   [dir=none];
+    dut  -> pw   [color="#1A7A1A", dir=none];
     pw   -> bar  [xlabel="m_axi_wr: AW + W\n(CRC checked)"];
-    dut  -> pd   [dir=none];
+    dut  -> pd   [color="#1A7A1A", dir=none];
     pd   -> bar  [dir=both, xlabel="descriptor reads\n(m_axi_desc)"];
-    dut  -> pr   [dir=back, penwidth=1.8];
+    dut  -> pr   [color="#1A7A1A", dir=back, penwidth=1.8];
     pr   -> bar  [xlabel="m_axi_rd: AR down,\nLFSR data up"];
     desc -> bar  [xlabel="descriptor write"];
 }

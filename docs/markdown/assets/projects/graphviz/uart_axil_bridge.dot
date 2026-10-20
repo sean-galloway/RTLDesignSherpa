@@ -9,21 +9,21 @@ digraph uart_axil_bridge {
            label="uart_axil_bridge - ASCII UART command line to an AXI4-Lite master (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lCLKS_PER_BIT: aclk cycles per UART bit\l    (868 = 115200 baud at 100 MHz)\lSKID_DEPTH_*: per-channel skid entries\l", fillcolor="white"];
-    rxp  [label="UART In\ni_uart_rx", fillcolor="white"];
-    txp  [label="UART Out\no_uart_tx", fillcolor="white"];
-    fmt  [label="Command Format\lW <addr_hex> <data_hex>\\n  ->  \"OK\\n\"\lR <addr_hex>\\n             ->  \"0x<data>\\n\"\lbus error                  ->  \"ERR\\n\"\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lCLKS_PER_BIT: aclk cycles per UART bit\l    (868 = 115200 baud at 100 MHz)\lSKID_DEPTH_*: per-channel skid entries\l", fillcolor="white", shape=note];
+    rxp  [label="UART In\ni_uart_rx", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    txp  [label="UART Out\no_uart_tx", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    fmt  [label="Command Format\lW <addr_hex> <data_hex>\\n  ->  \"OK\\n\"\lR <addr_hex>\\n             ->  \"0x<data>\\n\"\lbus error                  ->  \"ERR\\n\"\l", fillcolor="white", shape=note];
 
-    rx   [label="UART Receiver\nuart_rx - u_uart_rx\n8N1, one byte per frame"];
-    fsm  [label="Command Parser FSM (flops)\nCMD_IDLE > READ_CMD > READ_ADDR > READ_DATA > EXECUTE\n> AXIL_WRITE_ADDR / _DATA / _RESP  or  AXIL_READ_ADDR / _DATA\n> SEND_RESPONSE; hex digits to address / data"];
-    wr   [label="AXI4-Lite Write Master\naxil4_master_wr - u_axil_wr_timing\n(see its diagram)"];
-    rd   [label="AXI4-Lite Read Master\naxil4_master_rd - u_axil_rd_timing\n(see its diagram)"];
-    tx   [label="UART Transmitter\nuart_tx - u_uart_tx\nresponse text, one byte per frame"];
+    rx   [label="UART Receiver\nuart_rx - u_uart_rx\n8N1, one byte per frame", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    fsm  [label="Command Parser FSM (flops)\nCMD_IDLE > READ_CMD > READ_ADDR > READ_DATA > EXECUTE\n> AXIL_WRITE_ADDR / _DATA / _RESP  or  AXIL_READ_ADDR / _DATA\n> SEND_RESPONSE; hex digits to address / data", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    wr   [label="AXI4-Lite Write Master\naxil4_master_wr - u_axil_wr_timing\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd   [label="AXI4-Lite Read Master\naxil4_master_rd - u_axil_rd_timing\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tx   [label="UART Transmitter\nuart_tx - u_uart_tx\nresponse text, one byte per frame", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    bar  [label="AXI4-Lite Master Bus  m_axil_*\nAW, W out / B in  |  AR out / R in", fillcolor="white", width=8.0];
+    bar  [label="AXI4-Lite Master Bus  m_axil_*\nAW, W out / B in  |  AR out / R in", fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     rxp -> rx  [xlabel="serial bits", penwidth=1.8];
     rx  -> fsm [xlabel="received byte", penwidth=1.8];

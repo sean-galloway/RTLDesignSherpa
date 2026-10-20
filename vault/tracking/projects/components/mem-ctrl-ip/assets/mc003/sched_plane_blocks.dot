@@ -7,28 +7,28 @@ digraph sched_plane_blocks {
            label="Scheduler plane - mc_scheduler_plane / mc_bank_sched (granite DDR2/LPDDR2)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external ports / adjacent planes (white) ----
-    entry_store [label="Entry store\nu_entry_store (mc_xddr2_entry_store)", fillcolor="white", group=C];
-    axi_return  [label="AXI return ring\nu_axi_plane u_rd_ring", fillcolor="white", group=R];
+    entry_store [label="Entry store\nu_entry_store (mc_xddr2_entry_store)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    axi_return  [label="AXI return ring\nu_axi_plane u_rd_ring", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- scheduler plane blocks ----
-    init [label="Init / refresh / page policy\nu_init / u_refresh / u_page_policy", group=C, width=2.6];
-    bank_timers [label="Per-bank JEDEC timers\nu_bank_timers\n(r_rc / r_rcd / r_rp / r_ras / r_preblk)", group=C, width=2.5];
-    global_timers [label="Global rank timers\nu_global_timers\n(tFAW / tRRD / tWTR / tRTW / tCCD)", group=C, width=2.5];
+    init [label="Init / refresh / page policy\nu_init / u_refresh / u_page_policy", group=C, width=2.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bank_timers [label="Per-bank JEDEC timers\nu_bank_timers\n(r_rc / r_rcd / r_rp / r_ras / r_preblk)", group=C, width=2.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    global_timers [label="Global rank timers\nu_global_timers\n(tFAW / tRRD / tWTR / tRTW / tCCD)", group=C, width=2.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     sched_core [label="Per-bank pick core\nu_bank_sched - mc_bank_sched",
-                shape=invtrapezium, width=4.8, fillcolor="#BFD7EE", fontsize=11, group=C];
-    cmd_fifo [label="Output command FIFO\nu_cmd_fifo - gaxi_fifo_sync", group=C, width=2.6];
+                shape=invtrapezium, width=4.8, fillcolor="#BFD7EE", fontsize=11, group=C, style="filled", fillcolor="#FFF2CC"];
+    cmd_fifo [label="Output command FIFO\nu_cmd_fifo - gaxi_fifo_sync", group=C, width=2.6, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- return-path intermediate blocks ----
-    wr_commit [label="WR commit register\nu_entry_store r_wr_sched", group=W, width=2.1];
-    rd_issue  [label="RD issue / return-ring ticket\nu_entry_store → u_rd_ring", group=R, width=2.3];
+    wr_commit [label="WR commit register\nu_entry_store r_wr_sched", group=W, width=2.1, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_issue  [label="RD issue / return-ring ticket\nu_entry_store → u_rd_ring", group=R, width=2.3, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- boundary bar (to DFI plane) ----
     bar [label="Scheduler plane boundary\n(to DFI plane cmd_valid / cmd_data)",
-         fillcolor="white", rank=sink, width=6.5, fontsize=11, group=C];
+         fillcolor="white", rank=sink, width=6.5, fontsize=11, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- boundary crossing scaffold ----
     p_cmd [shape=point, width=0.01, group=C];
@@ -44,11 +44,11 @@ digraph sched_plane_blocks {
 
     // ---- write commit returns up the left ----
     sched_core -> wr_commit [dir=back, xlabel="WR commit slot"];
-    entry_store -> wr_commit [dir=back];
+    entry_store -> wr_commit [color="#1A7A1A", dir=back];
 
     // ---- read issue returns up the right ----
     sched_core -> rd_issue [dir=back, xlabel="RD issue slot"];
-    axi_return -> rd_issue [dir=back];
+    axi_return -> rd_issue [color="#1A7A1A", dir=back];
 
     // ---- rank pinning ----
     { rank=same; entry_store; axi_return; }

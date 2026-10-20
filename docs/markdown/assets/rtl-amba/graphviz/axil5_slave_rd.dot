@@ -11,20 +11,20 @@ digraph axil5_slave_rd {
            label="axil5_slave_rd - AXI5-Lite read slave, one skid buffer per channel\n(single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lID_WIDTH: 0 = no ID (ID outputs driven 0,\l    ID inputs ignored); IDs carried, not remapped\lENABLE_USER / _TRACE / _POISON: 0 = that\l    group leaves the skid payload and its\l    outputs are driven 0\lPOISON: carried only, never generated or checked\l", fillcolor="white"];
-    top  [label="AXI5-Lite Bus, slave side (s_axil_*)\nfrom the interconnect / master", fillcolor="white", width=4.2];
-    ar   [label="AR Skid Buffer\ngaxi_skid_buffer - ar_channel\nSKID_DEPTH_AR (default 2)"];
-    r    [label="R Skid Buffer\ngaxi_skid_buffer - r_channel\nSKID_DEPTH_R (default 4)"];
-    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor s_axil_arvalid / fub_rvalid arriving", fillcolor="white"];
-    bot  [label="Read Completer (fub_*)\nbackend serving reads: AR in at the left, R out at the right", fillcolor="white", width=5.2];
+    prm  [label="Parameters (fixed at build)\lID_WIDTH: 0 = no ID (ID outputs driven 0,\l    ID inputs ignored); IDs carried, not remapped\lENABLE_USER / _TRACE / _POISON: 0 = that\l    group leaves the skid payload and its\l    outputs are driven 0\lPOISON: carried only, never generated or checked\l", fillcolor="white", shape=note];
+    top  [label="AXI5-Lite Bus, slave side (s_axil_*)\nfrom the interconnect / master", fillcolor="white", width=4.2, style="rounded,filled", fillcolor="#E2EFDA"];
+    ar   [label="AR Skid Buffer\ngaxi_skid_buffer - ar_channel\nSKID_DEPTH_AR (default 2)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    r    [label="R Skid Buffer\ngaxi_skid_buffer - r_channel\nSKID_DEPTH_R (default 4)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor s_axil_arvalid / fub_rvalid arriving", fillcolor="white", shape=note];
+    bot  [label="Read Completer (fub_*)\nbackend serving reads: AR in at the left, R out at the right", fillcolor="white", width=5.2, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     top -> ar  [xlabel="AR: arid, araddr, arprot,\naruser, artrace\n(valid down, ready up)", penwidth=1.8];
     ar  -> bot [xlabel="fub_ar*", penwidth=1.8];
-    r   -> bot [dir=back, xlabel="R: rid, rdata, rresp,\nruser, rtrace, rpoison\n(valid up, ready down)"];
-    top -> r   [dir=back, xlabel="s_axil_r*"];
+    r   -> bot [color="#1A7A1A", dir=back, xlabel="R: rid, rdata, rresp,\nruser, rtrace, rpoison\n(valid up, ready down)"];
+    top -> r   [color="#1A7A1A", dir=back, xlabel="s_axil_r*"];
 
     { rank=same; ar; r; }
     ar -> r [style=invis, minlen=2];

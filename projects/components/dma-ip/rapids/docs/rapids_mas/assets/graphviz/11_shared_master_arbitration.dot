@@ -7,14 +7,14 @@ digraph shared_master_arbitration {
            label="Shared-master arbitration (desc AR, ctrlrd AR, ctrlwr AW) - round-robin in acknowledge mode",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    g0 [label="Group 0"]; g1 [label="Groups 1 .. NC-2"]; gn [label="Group NC-1"];
-    arb [label="Round-Robin Arbiter - arbiter_round_robin (WAIT_GNT_ACK = 1)\ngrant held until grant_ack = grant and valid and ready", shape=invtrapezium, width=7.0, height=0.8, fillcolor="#BFD7EE"];
-    mux [label="Request Mux (combinational)\nthe granted channel's AR / AW drives the shared master;\nits ready is the downstream ready gated by the grant"];
-    rsp [label="Response Router\nR / B back to the channel named by the ID", group=R];
-    bar [label="Shared AXI Master\nAR or AW out (ID = channel)   |   R or B in", fillcolor="white", width=7.0];
+    g0 [label="Group 0", peripheries=2, style="filled", fillcolor="#D6E4F0"]; g1 [label="Groups 1 .. NC-2", peripheries=2, style="filled", fillcolor="#D6E4F0"]; gn [label="Group NC-1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    arb [label="Round-Robin Arbiter - arbiter_round_robin (WAIT_GNT_ACK = 1)\ngrant held until grant_ack = grant and valid and ready", shape=invtrapezium, width=7.0, height=0.8, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    mux [label="Request Mux (combinational)\nthe granted channel's AR / AW drives the shared master;\nits ready is the downstream ready gated by the grant", style="filled", fillcolor="white"];
+    rsp [label="Response Router\nR / B back to the channel named by the ID", group=R, style="filled", fillcolor="white"];
+    bar [label="Shared AXI Master\nAR or AW out (ID = channel)   |   R or B in", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     g0 -> arb [label="valid (ch 0)"];
     g1 -> arb [label="valid (ch 1 .. NC-2)"];

@@ -11,21 +11,21 @@ digraph wb4_slave_cdc {
            label="wb4_slave_cdc - Wishbone B4 completer on wb_clk, command / response queues on aclk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     bus [label="Wishbone B4 Completer Bus  s_wb_*  (wb_clk, wb_resetn)\nin: CYC, STB, WE, ADR, DAT_W, SEL, CTI, BTE\nout: STALL, ACK, ERR, RTY, DAT_R",
-         fillcolor="white"];
-    busy [label="Status Output  (wb_clk domain, combinational)\nwb_busy = s_wb_CYC | a command waiting to cross\n| a crossed response not yet driven\n(the wake term for wb4_slave_cdc_cg)", fillcolor="white"];
-    rst [label="Reset caution\lone-sided reset while transfers sit in the\lFIFOs is not safe: quiesce the bus first\l", fillcolor="white"];
+         fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    busy [label="Status Output  (wb_clk domain, combinational)\nwb_busy = s_wb_CYC | a command waiting to cross\n| a crossed response not yet driven\n(the wake term for wb4_slave_cdc_cg)", fillcolor="white", shape=note];
+    rst [label="Reset caution\lone-sided reset while transfers sit in the\lFIFOs is not safe: quiesce the bus first\l", fillcolor="white", shape=note];
 
-    core [label="Wishbone B4 Slave Core  (wb_clk domain)\nwb4_slave - u_wb4_slave (see its diagram)\naccept gate, skids, in-order termination"];
+    core [label="Wishbone B4 Slave Core  (wb_clk domain)\nwb4_slave - u_wb4_slave (see its diagram)\naccept gate, skids, in-order termination", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cmdf [label="Command CDC FIFO  (wb_clk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_DEPTH entries (default 4), Gray pointers\n(USE_JOHNSON = 1: Johnson, any depth)"];
-    rspf [label="Response CDC FIFO  (aclk -> wb_clk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_DEPTH entries (default 4), Gray pointers\n(USE_JOHNSON = 1: Johnson, any depth)"];
+    cmdf [label="Command CDC FIFO  (wb_clk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_DEPTH entries (default 4), Gray pointers\n(USE_JOHNSON = 1: Johnson, any depth)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspf [label="Response CDC FIFO  (aclk -> wb_clk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_DEPTH entries (default 4), Gray pointers\n(USE_JOHNSON = 1: Johnson, any depth)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     be [label="Backend Interface  (aclk domain: aclk, aresetn)\ncmd_valid / cmd_ready + cmd_* fields\nrsp_valid / rsp_ready, rsp_status, rsp_dat",
-        fillcolor="white"];
+        fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     bus -> core [dir=both, xlabel="request / STALL,\nACK / ERR / RTY, DAT_R"];
     core -> cmdf [dir=both, penwidth=1.8, xlabel="command (wb_clk side)\n/ ready"];

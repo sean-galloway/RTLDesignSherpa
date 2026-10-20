@@ -8,28 +8,28 @@ digraph onyx_planned {
            label="onyx ACE CCU - manager shape (planned; per HAS 2.4, open until D1 / D3 / D4 / D5)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    req   [label="Requesting cache\n(one cache-side ACE port, D2 subset)", fillcolor="white", group=C];
-    peers [label="Peer caches\n(snoop targets)", fillcolor="white"];
+    req   [label="Requesting cache\n(one cache-side ACE port, D2 subset)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    peers [label="Peer caches\n(snoop targets)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fe   [label="Front-End Decode (one per cache-side port)\nread-side vs write-side, uniform internal request\n(split and buffering: D1, D2)", group=C];
-    dec  [label="Coherence Decision Layer\nwhich snoops to send, CRRESP interpretation,\nmemory-read elision (D6), directory-lite state (D3)", group=C];
-    ser  [label="Serializer / PoS\norders same-address transactions\n(scoreboard vs in-order: D5; sizing: D10.8)", group=C];
-    fan  [label="Fanout / Gather Engine\nAC out, CR / CD in, completion tracking\n(D4, N3, N4)"];
-    mem  [label="Memory-Side AXI4 Master\nreads / writes when adjudication needs memory,\nWriteBack / Evict drains (AWID policy: D5)", group=C];
-    tap  [label="MonBus Taps (*_monlite, D9)\ncache-side, snoop and memory-side paths\n(observed, nothing driven back)", style="filled,dashed"];
+    fe   [label="Front-End Decode (one per cache-side port)\nread-side vs write-side, uniform internal request\n(split and buffering: D1, D2)", group=C, style="filled", fillcolor="white"];
+    dec  [label="Coherence Decision Layer\nwhich snoops to send, CRRESP interpretation,\nmemory-read elision (D6), directory-lite state (D3)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ser  [label="Serializer / PoS\norders same-address transactions\n(scoreboard vs in-order: D5; sizing: D10.8)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fan  [label="Fanout / Gather Engine\nAC out, CR / CD in, completion tracking\n(D4, N3, N4)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mem  [label="Memory-Side AXI4 Master\nreads / writes when adjudication needs memory,\nWriteBack / Evict drains (AWID policy: D5)", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    tap  [label="MonBus Taps (*_monlite, D9)\ncache-side, snoop and memory-side paths\n(observed, nothing driven back)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
 
     bar  [label="Fabric edge - memory (AXI4; one master, or a striped set per D1)  |  MonBus out",
-          fillcolor="white", width=8, height=0.5, fontsize=11, group=C];
+          fillcolor="white", width=8, height=0.5, fontsize=11, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     req  -> fe   [dir=both, xlabel="AR / AW / W in,\nR / B out"];
     fe   -> dec  [xlabel="request"];
     dec  -> ser  [xlabel="request + snoop decision"];
     ser  -> fan  [xlabel="snoop job"];
     ser  -> mem  [xlabel="memory read / write"];
-    fan  -> peers [dir=both, xlabel="AC / CR, CD"];
+    fan  -> peers [color="#1A7A1A", dir=both, xlabel="AC / CR, CD"];
     fan  -> mem  [dir=both, xlabel="CD drain /\nmemory read data"];
     fe   -> fan  [dir=back, xlabel="chosen data -> requester", constraint=false];
     mem  -> bar  [dir=both, xlabel="AXI4 read / write"];

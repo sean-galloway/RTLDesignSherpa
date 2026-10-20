@@ -12,17 +12,17 @@ digraph board_and_host {
            nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
            label="pumice on the Nexys A7: the bench", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host   [group=C, label="Host PC - measurement programs\npumice_char.py, ddr2_char.py, host_bringup_*.py\nCSRs by name through the generated regmaps;\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white"];
-    vivado [label="Host PC - Vivado\nmake bitstream / make program\nILA captures", fillcolor="white"];
+    host   [group=C, label="Host PC - measurement programs\npumice_char.py, ddr2_char.py, host_bringup_*.py\nCSRs by name through the generated regmaps;\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    vivado [label="Host PC - Vivado\nmake bitstream / make program\nILA captures", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    usb    [group=C, label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (numbering drifts: the host resolves the port)\nJTAG serial 210292BFA3EE (a second board may share the chain)", width=6];
+    usb    [group=C, label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (numbering drifts: the host resolves the port)\nJTAG serial 210292BFA3EE (a second board may share the chain)", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    top    [group=C, label="Board Top - ddr2_char_top\nMMCM from the 100 MHz oscillator: sys 75 MHz (PUMICE_SYS_75, the design point;\notherwise 66.67), sys2x = DRAM CK 150 MHz (DDR2-300), idelay 200 MHz; reset sync", width=6];
-    harn   [group=C, label="Characterization Harness - ddr2_char_harness - u_harness (Figure 2.1)\nUART bridge, harness_csr, generator array, perf instruments, DFI alignment;\nDUT: pumice_top_geared (in ddr2_char_macro)", width=6];
-    adap   [group=C, label="DFI to PHY - dfi_v21_flat_to_a7ddrphy - u_dfi_adapter\n+ a7ddrphy - u_a7ddrphy (LiteDRAM-generated; substituted for a7ddrphy_stub at build)", width=6];
+    top    [group=C, label="Board Top - ddr2_char_top\nMMCM from the 100 MHz oscillator: sys 75 MHz (PUMICE_SYS_75, the design point;\notherwise 66.67), sys2x = DRAM CK 150 MHz (DDR2-300), idelay 200 MHz; reset sync", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    harn   [group=C, label="Characterization Harness - ddr2_char_harness - u_harness (Figure 2.1)\nUART bridge, harness_csr, generator array, perf instruments, DFI alignment;\nDUT: pumice_top_geared (in ddr2_char_macro)", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    adap   [group=C, label="DFI to PHY - dfi_v21_flat_to_a7ddrphy - u_dfi_adapter\n+ a7ddrphy - u_a7ddrphy (LiteDRAM-generated; substituted for a7ddrphy_stub at build)", width=6, style="filled", fillcolor="white"];
 
     p1 [shape=point, style=invis, width=0.01, label=""];
     p2 [shape=point, style=invis, width=0.01, label=""];
@@ -33,7 +33,7 @@ digraph board_and_host {
     g2 [shape=box, style=invis, width=0.9, label=""];
 
     bar    [group=C, label="Nexys A7-100T board parts:  Micron MT47H64M16HR-25E DDR2 (x16, 128 MiB; 600 MB/s peak at 300 MT/s)  |  100 MHz oscillator  |  CPU reset  |  16 LEDs + 7-segment  |  XC7A100T configuration",
-            fillcolor="white", width=10];
+            fillcolor="white", width=10, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; host; vivado; }
     host -> vivado [style=invis, minlen=2];

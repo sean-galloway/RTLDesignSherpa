@@ -11,25 +11,25 @@ digraph math_ieee754_2008_fp32_fma {
            label="math_ieee754_2008_fp32_fma - a x b + c, one rounding, IEEE 754-2008 FP32 (combinational)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSUBNORMAL_SUPPORT: 0 = flush subnormals to zero\l    (FTZ), with a truncated product-only path\l    when c is zero; 1 = IEEE gradual underflow,\l    true sticky through every shift\l", fillcolor="white"];
-    opa  [label="Multiplicands\ni_a[31:0], i_b[31:0]", fillcolor="white"];
-    opc  [label="Addend\ni_c[31:0]", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lSUBNORMAL_SUPPORT: 0 = flush subnormals to zero\l    (FTZ), with a truncated product-only path\l    when c is zero; 1 = IEEE gradual underflow,\l    true sticky through every shift\l", fillcolor="white", shape=note];
+    opa  [label="Multiplicands\ni_a[31:0], i_b[31:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    opc  [label="Addend\ni_c[31:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    unp  [label="Field Extract + Classify (combinational)\nsign / exp / mant for a, b and c\nzero, subnormal, infinity, NaN flags; hidden bits"];
-    mul  [label="Product\nmath_multiplier_dadda_4to2_024 - u_mant_mult\n24 x 24 -> 48-bit; exp_a + exp_b - 127"];
-    aln  [label="Align (combinational)\ncompare exponents; right-shift the smaller\noperand in a 72-bit frame (align sticky)"];
-    add  [label="Wide Add / Subtract\nmath_adder_han_carlson_072 - u_wide_adder\neffective subtract: ~smaller + carry-in"];
-    neg  [label="Absolute Value\nmath_adder_han_carlson_072 - u_negate_adder\nnegate when the difference went negative"];
-    nrm  [label="Normalize\ncount_leading_zeros - u_clz (72-bit)\nleft-shift, exponent minus the count"];
+    unp  [label="Field Extract + Classify (combinational)\nsign / exp / mant for a, b and c\nzero, subnormal, infinity, NaN flags; hidden bits", style="filled", fillcolor="white"];
+    mul  [label="Product\nmath_multiplier_dadda_4to2_024 - u_mant_mult\n24 x 24 -> 48-bit; exp_a + exp_b - 127", style="filled", fillcolor="white"];
+    aln  [label="Align (combinational)\ncompare exponents; right-shift the smaller\noperand in a 72-bit frame (align sticky)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    add  [label="Wide Add / Subtract\nmath_adder_han_carlson_072 - u_wide_adder\neffective subtract: ~smaller + carry-in", style="filled", fillcolor="white"];
+    neg  [label="Absolute Value\nmath_adder_han_carlson_072 - u_negate_adder\nnegate when the difference went negative", style="filled", fillcolor="white"];
+    nrm  [label="Normalize\ncount_leading_zeros - u_clz (72-bit)\nleft-shift, exponent minus the count", style="filled", fillcolor="white"];
     sub  [label="Gradual-Underflow Path (SUBNORMAL_SUPPORT=1 only)\nright-shift onto the subnormal grid, true sticky",
-          style="filled,dashed"];
-    rne  [label="RNE Round\nguard & (round | sticky | LSB); a dropped align\nsticky on an effective subtract rounds a tie down"];
-    spc  [label="Result Select (combinational), priority order:\nNaN or invalid (0 x inf, inf - inf) > product inf\n> addend inf > zeros (0 x b + c = c)\n> overflow / underflow > normal"];
+          style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    rne  [label="RNE Round\nguard & (round | sticky | LSB); a dropped align\nsticky on an effective subtract rounds a tie down", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    spc  [label="Result Select (combinational), priority order:\nNaN or invalid (0 x inf, inf - inf) > product inf\n> addend inf > zeros (0 x b + c = c)\n> overflow / underflow > normal", style="filled", fillcolor="white"];
     outs [label="Outputs\now_result[31:0]   |   ow_overflow   |   ow_underflow   |   ow_invalid",
-          fillcolor="white", width=7.0];
+          fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     opa -> unp [xlabel="i_a, i_b"];
     opc -> unp [xlabel="i_c"];
@@ -42,7 +42,7 @@ digraph math_ieee754_2008_fp32_fma {
     nrm -> sub [xlabel="normalized 72-bit, exponent"];
     sub -> rne [xlabel="significand, G/R/S"];
     rne -> spc [xlabel="rounded mant + exp"];
-    unp -> spc [style=dashed, xlabel="zero / inf / NaN flags, signs"];
+    unp -> spc [style=dashed, color="#777777", xlabel="zero / inf / NaN flags, signs"];
     spc -> outs [penwidth=1.8, xlabel="result, flags"];
 
     { rank=same; prm; opa; opc; }

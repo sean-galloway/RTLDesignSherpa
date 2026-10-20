@@ -12,22 +12,22 @@ digraph board_and_host {
            nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
            label="STREAM on the Genesys 2: the bench", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host   [group=C, label="Host PC - host programs\ncomponent bin/ (stream_device, harness_kick, tally, ...)\n+ build-<x>/host/ entry points; stream_env picks the layer", fillcolor="white"];
-    vivado [group=J, label="Host PC - Vivado\nmake bitstream BUILD=<x> / make program\nbitstream-ila; keep -> stable/", fillcolor="white"];
+    host   [group=C, label="Host PC - host programs\ncomponent bin/ (stream_device, harness_kick, tally, ...)\n+ build-<x>/host/ entry points; stream_env picks the layer", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    vivado [group=J, label="Host PC - Vivado\nmake bitstream BUILD=<x> / make program\nbitstream-ila; keep -> stable/", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ft232  [group=C, label="UART Bridge Chip\nFT232R - its own /dev/ttyUSB*\n(plug-order dependent: the host probes for it)"];
-    ft2232 [group=J, label="JTAG Bridge Chip\nFT2232 - serial 200300B818A0\n(FPGA_JTAG_SERIAL picks it on a shared chain)"];
+    ft232  [group=C, label="UART Bridge Chip\nFT232R - its own /dev/ttyUSB*\n(plug-order dependent: the host probes for it)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ft2232 [group=J, label="JTAG Bridge Chip\nFT2232 - serial 200300B818A0\n(FPGA_JTAG_SERIAL picks it on a shared chain)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    ptop   [group=C, label="Board Top\nstream_genesys2_top\nIBUFDS + MMCM (VCO 1200 MHz): aclk = 1200 / CLKOUT0_DIVIDE\n12 -> 100, 15 -> 80 (default), 20 -> 60 MHz; reset sync"];
-    ctop   [label="LED Status\nled_status_driver - u_led_status_driver\nheartbeat, PASS / FAIL byte"];
-    harn   [group=C, label="Characterization Harness\nstream_harness (Figure 2.1)\nUART bridge, generated 1 -> N bridge, harness_csr,\ndesc_ram, tallies, capture SRAM, DMA slaves,\nlatency model, observers"];
-    dut    [group=C, label="DUT\nstream_top_ch8 - scatter-gather DMA\n8 channels (4 on build-obs)", penwidth=1.8];
+    ptop   [group=C, label="Board Top\nstream_genesys2_top\nIBUFDS + MMCM (VCO 1200 MHz): aclk = 1200 / CLKOUT0_DIVIDE\n12 -> 100, 15 -> 80 (default), 20 -> 60 MHz; reset sync", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ctop   [label="LED Status\nled_status_driver - u_led_status_driver\nheartbeat, PASS / FAIL byte", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    harn   [group=C, label="Characterization Harness\nstream_harness (Figure 2.1)\nUART bridge, generated 1 -> N bridge, harness_csr,\ndesc_ram, tallies, capture SRAM, DMA slaves,\nlatency model, observers", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dut    [group=C, label="DUT\nstream_top_ch8 - scatter-gather DMA\n8 channels (4 on build-obs)", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar    [group=C, label="Genesys 2 board parts:  200 MHz LVDS oscillator  |  CPU reset button (active low)  |  8 user LEDs  |  Kintex-7 XC7K325T-2 configuration (JTAG)",
-            fillcolor="white", width=9.5, height=0.45];
+            fillcolor="white", width=9.5, height=0.45, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; host; vivado; }
     { rank=same; ft232; ft2232; }
@@ -41,7 +41,7 @@ digraph board_and_host {
     ft232 -> ptop  [dir=both, penwidth=1.8, xlabel="UART 115200-8N1\nuart_tx_in / uart_rx_out"];
     ptop  -> harn  [dir=both, penwidth=1.8, xlabel="UART bytes + aclk / aresetn"];
     harn  -> dut   [dir=both, xlabel="APB config + kicks, descriptors;\nAXI4 rd / wr masters (Figure 2.1)"];
-    harn  -> ctop  [style=dashed, xlabel="timer done / pass"];
+    harn  -> ctop  [style=dashed, color="#777777", xlabel="timer done / pass"];
 
     // JTAG, right column
     vivado -> ft2232 [xlabel="USB"];

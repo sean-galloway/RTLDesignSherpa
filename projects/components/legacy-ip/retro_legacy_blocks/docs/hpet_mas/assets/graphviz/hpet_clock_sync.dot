@@ -12,15 +12,15 @@ digraph hpet_clock_sync {
            nodesep="0.45", ranksep="0.75", splines=ortho, newrank=true,
            label="apb4_hpet, CDC_ENABLE=0 - one clock domain: every block runs on pclk / presetn", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white"];
-    core [label="APB Completer  (pclk, presetn)\napb4_slave - no CDC FIFOs\ncompleter FSM, command and response skids"];
-    cfg  [label="Register Block + Strobes  (pclk, presetn)\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs"];
-    hc   [label="Timer Core  (pclk, presetn)\nhpet_core - main counter ticks on pclk\n(HPET_PERIOD must state pclk's period)"];
-    bar  [label="Module Boundary\ntimer_irq, legacy_irq0, legacy_irq8 out - on pclk", fillcolor="white", width=7.5];
-    nc   [label="hpet_clk, hpet_resetn\nunused in this build\n(no connection inside apb4_hpet)", fillcolor="white", style="filled,dashed"];
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    core [label="APB Completer  (pclk, presetn)\napb4_slave - no CDC FIFOs\ncompleter FSM, command and response skids", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cfg  [label="Register Block + Strobes  (pclk, presetn)\nhpet_config_regs: peakrdl_to_cmdrsp + hpet_regs", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hc   [label="Timer Core  (pclk, presetn)\nhpet_core - main counter ticks on pclk\n(HPET_PERIOD must state pclk's period)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Module Boundary\ntimer_irq, legacy_irq0, legacy_irq8 out - on pclk", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    nc   [label="hpet_clk, hpet_resetn\nunused in this build\n(no connection inside apb4_hpet)", fillcolor="white", style="filled,dashed", shape=note];
 
     apb  -> core [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     core -> cfg  [dir=both, penwidth=1.8, xlabel="cmd (write, addr, data, strb)\n/ rsp (prdata, pslverr)"];

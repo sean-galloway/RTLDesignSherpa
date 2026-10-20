@@ -1,5 +1,6 @@
 // apb4_smbus whole-unit diagram - house style
 // (vault/handbook/authoring/block-diagrams.md).
+// nodesep 0.45 -> 0.40: the element-key double borders tripped graphviz's ortho maze.c chkSgraph assertion (block-diagrams.md recipe).
 // Geography: APB port and the PeakRDL register block at the top, the
 // smbus_core sequencer and its helpers in the middle, the open-drain pads and
 // the interrupt at the boundary bar.
@@ -17,32 +18,32 @@
 // smbus_core.sv and its children.
 digraph smbus_whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
+           nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            label="apb4_smbus - APB SMBus 2.0 controller, master and target\nCDC_ENABLE=0: all on pclk;  CDC_ENABLE=1: register block and engines on smbus_clk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
-    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> smbus_clk)"];
-    regs [group=C, label="Register Block + Strict Decode\nsmbus_config_regs - peakrdl_to_cmdrsp + smbus_regs (PeakRDL)\nseventeen registers, PSLVERR elsewhere;\nW1C decode for INT_STATUS; TX / RX FIFO ports"];
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> smbus_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    regs [group=C, label="Register Block + Strict Decode\nsmbus_config_regs - peakrdl_to_cmdrsp + smbus_regs (PeakRDL)\nseventeen registers, PSLVERR elsewhere;\nW1C decode for INT_STATUS; TX / RX FIFO ports", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    tdec [group=L, label="Transaction Decode (combinational)\nsmbus_trans_decode\nSMBus 2.0 table: command byte, direction,\nrepeated START, data source, byte counts"];
-    fifo [group=C, label="TX / RX Byte FIFOs (flop)\nsmbus_byte_fifos - simple_fifo x 2\nresets: rst_n, soft_reset, fifo_reset"];
+    tdec [group=L, label="Transaction Decode (combinational)\nsmbus_trans_decode\nSMBus 2.0 table: command byte, direction,\nrepeated START, data source, byte counts", style="filled", fillcolor="white"];
+    fifo [group=C, label="TX / RX Byte FIFOs (flop)\nsmbus_byte_fifos - simple_fifo x 2\nresets: rst_n, soft_reset, fifo_reset", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    seq  [group=L, label="Transaction Sequencer (flop FSM)\nsmbus_core + smbus_flow_rules + smbus_abort_track\nbyte order, R/W bit, repeated START, ACK policy,\nTX load / pop, abort's own STOP"];
-    tgt  [group=R, label="Target Engine (flop)\nsmbus_slave_engine + its own smbus_pec\nSTART / STOP on another master's clock, address\nmatch (+ general call), ACK policy, stretching"];
+    seq  [group=L, label="Transaction Sequencer (flop FSM)\nsmbus_core + smbus_flow_rules + smbus_abort_track\nbyte order, R/W bit, repeated START, ACK policy,\nTX load / pop, abort's own STOP", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    tgt  [group=R, label="Target Engine (flop)\nsmbus_slave_engine + its own smbus_pec\nSTART / STOP on another master's clock, address\nmatch (+ general call), ACK policy, stretching", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    pec  [group=LL, label="PEC (flop)\nsmbus_pec\nCRC-8, x^8 + x^2 + x + 1"];
-    phy  [group=L, label="Bit PHY (flop)\nsmbus_bit_phy - the master's only wire access\nSTART, Sr, STOP, tx bit, rx bit, recovery;\nstretching, arbitration, SCL-low timeout;\n2-flop pad synchronizers"];
-    ist  [group=RR, label="Interrupt Status (flop)\nsmbus_int_status\neight sticky bits: set on the rising edge,\nW1C clears, set wins"];
+    pec  [group=LL, label="PEC (flop)\nsmbus_pec\nCRC-8, x^8 + x^2 + x + 1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    phy  [group=L, label="Bit PHY (flop)\nsmbus_bit_phy - the master's only wire access\nSTART, Sr, STOP, tx bit, rx bit, recovery;\nstretching, arbitration, SCL-low timeout;\n2-flop pad synchronizers", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ist  [group=RR, label="Interrupt Status (flop)\nsmbus_int_status\neight sticky bits: set on the rising edge,\nW1C clears, set wins", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    mrg  [group=L, label="Pad Wiring + Wired-AND Merge (combinational)\nsmbus_core\na line is released only if both engines release it;\nsmb_scl_i / smb_sda_i fan out to both engines"];
-    ipin [group=RR, label="Interrupt Pin (flop)\napb4_smbus\n|(INT_STATUS & INT_ENABLE); CDC_ENABLE=1:\nglitch_free_n_dff_arn to pclk; registered on pclk"];
+    mrg  [group=L, label="Pad Wiring + Wired-AND Merge (combinational)\nsmbus_core\na line is released only if both engines release it;\nsmb_scl_i / smb_sda_i fan out to both engines", style="filled", fillcolor="white"];
+    ipin [group=RR, label="Interrupt Pin (flop)\napb4_smbus\n|(INT_STATUS & INT_ENABLE); CDC_ENABLE=1:\nglitch_free_n_dff_arn to pclk; registered on pclk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [group=C, fillcolor="white", width=13.0,
-          label="Module Boundary\nsmb_scl_o / _t, smb_sda_o / _t out (open-drain: o == t)   |   smb_scl_i, smb_sda_i in (asynchronous pads)   |   smb_interrupt out"];
+          label="Module Boundary\nsmb_scl_o / _t, smb_sda_o / _t out (open-drain: o == t)   |   smb_scl_i, smb_sda_i in (asynchronous pads)   |   smb_interrupt out", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access ----
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
@@ -62,13 +63,13 @@ digraph smbus_whole_unit {
     fifo -> tgt  [dir=both, xlabel="TX byte\n/ RX byte"];
 
     // ---- target ----
-    regs -> tgt  [style=dashed, xlabel="own address, gc_en,\nnack_all, stretch_en"];
+    regs -> tgt  [style=dashed, color="#777777", xlabel="own address, gc_en,\nnack_all, stretch_en"];
     tgt  -> mrg  [dir=both, xlabel="target pull-downs\n/ pad inputs"];
 
     // ---- interrupt ----
     seq  -> ist  [xlabel="master events"];
     tgt  -> ist  [xlabel="target events"];
-    regs -> ist  [dir=both, style=dashed, constraint=false, xlabel="W1C / status"];
+    regs -> ist  [dir=both, style=dashed, color="#777777", constraint=false, xlabel="W1C / status"];
     ist  -> ipin [xlabel="status"];
     ipin -> bar  [penwidth=1.8, xlabel="smb_interrupt"];
 

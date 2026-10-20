@@ -12,25 +12,25 @@ digraph clock_gate_ctrl {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="clock_gate_ctrl - idle-timeout clock gating";
 
     // ---- inputs (white) ----
-    wake_in [group=CT, label="Wakeup Input\nwakeup (activity)", fillcolor="white"];
-    clk_in  [group=CK, label="Clock In\nclk_in, aresetn", fillcolor="white"];
-    cfg_in  [group=CF, label="Configuration\ncfg_cg_enable,\ncfg_cg_idle_count[N-1:0]", fillcolor="white"];
+    wake_in [group=CT, label="Wakeup Input\nwakeup (activity)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk_in  [group=CK, label="Clock In\nclk_in, aresetn", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg_in  [group=CF, label="Configuration\ncfg_cg_enable,\ncfg_cg_idle_count[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- control path ----
-    idle    [group=CT, label="Idle Countdown (on clk_in)\nr_idle_counter (N = IDLE_CNTR_WIDTH)\nreload on wakeup or !cfg_cg_enable,\nelse count down to 0 and hold"];
-    decide  [group=CT, label="Gate Decision\nw_gate_enable = cfg_cg_enable\n& !wakeup & (r_idle_counter == 0)"];
+    idle    [group=CT, label="Idle Countdown (on clk_in)\nr_idle_counter (N = IDLE_CNTR_WIDTH)\nreload on wakeup or !cfg_cg_enable,\nelse count down to 0 and hold", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    decide  [group=CT, label="Gate Decision\nw_gate_enable = cfg_cg_enable\n& !wakeup & (r_idle_counter == 0)", style="filled", fillcolor="white"];
 
     // ---- clock path ----
-    icg     [group=CK, label="Integrated Clock Gate\nicg - u_icg\nlatch en while clk low, gclk = en & clk"];
+    icg     [group=CK, label="Integrated Clock Gate\nicg - u_icg\nlatch en while clk low, gclk = en & clk", style="filled", fillcolor="white"];
 
     // ---- outputs (the boundary bar) ----
     out     [label="Outputs\nclk_out (gated clock)   |   gating (= w_gate_enable)",
-             fillcolor="white", width=6.5];
+             fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // control flow
     wake_in -> idle   [xlabel="wakeup (reload)"];
@@ -43,8 +43,8 @@ digraph clock_gate_ctrl {
     icg    -> out [xlabel="clk_out", penwidth=1.8];
 
     // config sideband
-    cfg_in -> idle   [style=dashed, xlabel="idle count,\nenable", constraint=false];
-    cfg_in -> decide [style=dashed, xlabel="cfg_cg_enable"];
+    cfg_in -> idle   [style=dashed, color="#777777", xlabel="idle count,\nenable", constraint=false];
+    cfg_in -> decide [style=dashed, color="#777777", xlabel="cfg_cg_enable"];
 
     p_g [shape=point, width=0.01, group=CT];
     decide -> p_g [arrowhead=none, headclip=false];

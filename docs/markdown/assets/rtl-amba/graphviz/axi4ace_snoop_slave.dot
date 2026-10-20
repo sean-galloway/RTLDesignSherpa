@@ -10,33 +10,33 @@ digraph axi4ace_snoop_slave {
            label="axi4ace_snoop_slave - ACE snoop responder transport, cache side: receives snoops, returns responses (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AC / _CR / _CD: entries\l    per skid (default 2 / 4 / 4)\l", fillcolor="white"];
-    top  [label="Snoop Port (m_axi_ac* / cr* / cd* - from the interconnect)\nm_axi_ac* in  /  m_axi_cr*, m_axi_cd* out\nAC: acaddr, acsnoop[3:0], acprot", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AC / _CR / _CD: entries\l    per skid (default 2 / 4 / 4)\l", fillcolor="white", shape=note];
+    top  [label="Snoop Port (m_axi_ac* / cr* / cd* - from the interconnect)\nm_axi_ac* in  /  m_axi_cr*, m_axi_cd* out\nAC: acaddr, acsnoop[3:0], acprot", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ac   [group=A, label="AC Skid Buffer\ngaxi_skid_buffer - ac_channel\n(DEPTH = SKID_DEPTH_AC)"];
-    cr   [group=R, label="CR Skid Buffer\ngaxi_skid_buffer - cr_channel\n(DEPTH = SKID_DEPTH_CR)"];
-    cd   [group=D, label="CD Skid Buffer\ngaxi_skid_buffer - cd_channel\n(DEPTH = SKID_DEPTH_CD)"];
-    busy [label="Busy Detect (combinational)\nany AC, CR or CD entry held, or\nm_axi_acvalid / fub_crvalid / fub_cdvalid arriving"];
+    ac   [group=A, label="AC Skid Buffer\ngaxi_skid_buffer - ac_channel\n(DEPTH = SKID_DEPTH_AC)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    cr   [group=R, label="CR Skid Buffer\ngaxi_skid_buffer - cr_channel\n(DEPTH = SKID_DEPTH_CR)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    cd   [group=D, label="CD Skid Buffer\ngaxi_skid_buffer - cd_channel\n(DEPTH = SKID_DEPTH_CD)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busy [label="Busy Detect (combinational)\nany AC, CR or CD entry held, or\nm_axi_acvalid / fub_crvalid / fub_cdvalid arriving", style="filled", fillcolor="white"];
 
-    bot  [label="Module Boundary (to the cache controller)\nfub_ac* out  |  busy (to the clock-gate wrapper)  |  fub_cr*, fub_cd* in", fillcolor="white", width=8.4];
+    bot  [label="Module Boundary (to the cache controller)\nfub_ac* out  |  busy (to the clock-gate wrapper)  |  fub_cr*, fub_cd* in", fillcolor="white", width=8.4, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     top -> ac  [xlabel="AC\n(acvalid / acready)"];
     ac  -> bot [xlabel="AC"];
     p_cr [group=R, shape=point, width=0.01];
     p_cd [group=D, shape=point, width=0.01];
-    p_cr -> bot [dir=none, tailclip=false];
-    cr  -> p_cr [dir=back, headclip=false, xlabel="CR: crresp[4:0]"];
-    top -> cr  [dir=back, xlabel="CR (crvalid / crready)"];
-    p_cd -> bot [dir=none, tailclip=false];
-    cd  -> p_cd [dir=back, headclip=false, xlabel="CD: cddata, cdlast"];
-    top -> cd  [dir=back, xlabel="CD (cdvalid / cdready)"];
-    ac  -> busy [style=dashed, xlabel="ac count"];
-    cr  -> busy [style=dashed, xlabel="cr count"];
-    cd  -> busy [style=dashed, xlabel="cd count"];
-    busy -> bot [style=dashed, xlabel="busy"];
+    p_cr -> bot [color="#1A7A1A", dir=none, tailclip=false];
+    cr  -> p_cr [color="#1A7A1A", dir=back, headclip=false, xlabel="CR: crresp[4:0]"];
+    top -> cr  [color="#1A7A1A", dir=back, xlabel="CR (crvalid / crready)"];
+    p_cd -> bot [color="#1A7A1A", dir=none, tailclip=false];
+    cd  -> p_cd [color="#1A7A1A", dir=back, headclip=false, xlabel="CD: cddata, cdlast"];
+    top -> cd  [color="#1A7A1A", dir=back, xlabel="CD (cdvalid / cdready)"];
+    ac  -> busy [style=dashed, color="#777777", xlabel="ac count"];
+    cr  -> busy [style=dashed, color="#777777", xlabel="cr count"];
+    cd  -> busy [style=dashed, color="#777777", xlabel="cd count"];
+    busy -> bot [style=dashed, color="#777777", xlabel="busy"];
 
     { rank=same; prm; top; }
     { rank=same; ac; cr; cd; }

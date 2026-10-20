@@ -8,49 +8,49 @@ digraph scoria_whole_unit {
            nodesep="0.35", ranksep="0.55", splines=ortho,
            label="scoria DDR3 / LPDDR3 controller - whole unit, each block marked against pumice", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W];
-    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R];
+    axi_wr [label="AXI Write Channel\n(AW, W in / B out)", fillcolor="white", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+    axi_rd [label="AXI Read Channel\n(AR in / R out)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
     wr_pkt [label="Write Request Packetizer\nmc_axi4_plane - mc_wr_splitter + mc_wr_intake\n(address map: mc_addr_mapper)
-INHERITED (common-ip)", group=W];
+INHERITED (common-ip)", group=W, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     rd_pkt [label="Read Request Packetizer + R Return\nmc_axi4_plane - mc_axi_burst_chopper + mc_rd_intake\n(address map, snarf probe, R in AR order)
-INHERITED (common-ip)", group=R];
+INHERITED (common-ip)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     cfg    [label="Configuration Registers\nscoria_csr (PeakRDL)\nsideband config to all planes
-MODIFIED (ZQ, leveling, refresh modes)"];
+MODIFIED (ZQ, leveling, refresh modes)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     wr_pool [label="DDR Write Command Pool + Write Data Buffer\nmc_storage_plane - mc_wr_data_cam
-INHERITED (common-ip)"];
+INHERITED (common-ip)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     rd_pool [label="DDR Read Command Pool\nmc_storage_plane - mc_rd_cmd_cam
-INHERITED (common-ip)"];
+INHERITED (common-ip)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     rbuf    [label="Read Data\nReorder Buffer\nmc_axi4_plane -\nmc_rd_return_ring
-INHERITED", height=1.4];
+INHERITED", height=1.4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     init  [label="Init Sequencer + Mode Register
 scoria_init_sequencer + scoria_mode_register
-MODIFIED (RESET#, MR0-MR3, tZQinit)"];
+MODIFIED (RESET#, MR0-MR3, tZQinit)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     refc  [label="Refresh Controller
 scoria_refresh_ctrl
-MODIFIED (elastic refresh, TCR derate)"];
+MODIFIED (elastic refresh, TCR derate)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     maint [label="DDR Maintenance Command Queue
 scoria_training_plane - scoria_zq_ctrl,
 scoria_wrlvl_ifc (interface only)
-NEW"];
+NEW", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     sched [label="DDR Command Scheduler\nscoria_scheduler_plane - mc_scheduler_plane core (FR-FCFS pick)
 page policy: scoria_page_policy; INHERITED structure",
            shape=polygon, sides=4, distortion=0.10, width=10.5, height=0.6,
-           fillcolor="#BDD7EE", fontsize=11];
-    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(DDR3 values; INHERITED incl. the ISSUE-018 fix)"];
-    orphan [label="In rtl/fub, not instantiated by scoria_core:\lscoria_powerdown_ctrl, scoria_dfi_signal_pack,\lscoria_addr_mapper, scoria_cmd_arbiter\l", fillcolor="white", style="filled,dashed"];
+           fillcolor="#BDD7EE", fontsize=11, style="filled", fillcolor="#FFF2CC"];
+    tctl  [label="DDR Timing Control\nmc_bank_timers + mc_global_timers\n(DDR3 values; INHERITED incl. the ISSUE-018 fix)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    orphan [label="In rtl/fub, not instantiated by scoria_core:\lscoria_powerdown_ctrl, scoria_dfi_signal_pack,\lscoria_addr_mapper, scoria_cmd_arbiter\l", fillcolor="white", style="filled,dashed", shape=note];
 
     dfi [label="DFI 3.1 data path - mc_dfi_3p1_plane   MODIFIED
 mc_dfi_cdc + mc_dfi_3p1_cmd_path (scoria_dfi_cmd_formatter)
-+ mc_dfi_wr_serializer + mc_dfi_rd_aligner + write-leveling crossing", width=9.5, height=1.1];
++ mc_dfi_wr_serializer + mc_dfi_rd_aligner + write-leveling crossing", width=9.5, height=1.1, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    phy [label="DDR PHY (DFI 3.1, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11];
+    phy [label="DDR PHY (DFI 3.1, dfi_clk)", fillcolor="white", width=9.5, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- point scaffolds: one per crossing ----
     node [shape=point, width=0.01, height=0.01, label="", style=invis];
@@ -72,15 +72,15 @@ mc_dfi_cdc + mc_dfi_3p1_cmd_path (scoria_dfi_cmd_formatter)
 
     // ---- read side ----
     rd_pkt  -> rd_pool [xlabel="RD push (miss)"];
-    rd_pkt  -> wr_pool [dir=both, style=dashed, xlabel="snarf probe /\nhit + data", constraint=false];
+    rd_pkt  -> wr_pool [dir=both, style=dashed, color="#777777", xlabel="snarf probe /\nhit + data", constraint=false];
     rd_pool -> sched   [xlabel="RD"];
-    rd_pool -> rbuf    [dir=both, style=dashed, xlabel="tickets", constraint=false];
+    rd_pool -> rbuf    [dir=both, style=dashed, color="#777777", xlabel="tickets", constraint=false];
 
     // ---- maintenance + timing into the pick ----
     init  -> sched [xlabel="INIT / MRS"];
     refc  -> sched [xlabel="REF"];
     maint -> sched [dir=both, xlabel="ZQ / training\n(grant back)"];
-    tctl  -> sched [style=dashed, xlabel="timer window"];
+    tctl  -> sched [style=dashed, color="#777777", xlabel="timer window"];
 
     // ---- the winner ----
     sched -> dfi [penwidth=1.8, xlabel="DDR Command"];

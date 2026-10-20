@@ -10,23 +10,23 @@ digraph dfx_access_planes {
            label="DFX-IP access model (planned) - config plane, override plane, observation plane",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    jtag [label="JTAG pins\n(TCK domain)", fillcolor="white"];
-    tap  [label="JTAG TAP (planned)\njtag-tap - shared transport (TCK)"];
+    jtag [label="JTAG pins\n(TCK domain)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    tap  [label="JTAG TAP (planned)\njtag-tap - shared transport (TCK)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    agent [label="Config Plane (planned)\njtag-axil-agent: ADDR / WDATA / RDATA / CTRL\ncommand registers behind a USER DR (TCK)"];
-    dm    [label="Override Plane (planned)\nriscv-debug: DTM + Debug Module,\nabstract commands, program buffer (TCK side)"];
+    agent [label="Config Plane (planned)\njtag-axil-agent: ADDR / WDATA / RDATA / CTRL\ncommand registers behind a USER DR (TCK)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dm    [label="Override Plane (planned)\nriscv-debug: DTM + Debug Module,\nabstract commands, program buffer (TCK side)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cdc_a [label="TCK -> fabric crossing\nreq / ack handshake (rtl/cdc primitives)\n+ AXIL4 master FSM, one access per command (fabric)"];
-    cdc_d [label="TCK -> fabric crossing\nreq / ack handshake (rtl/cdc primitives)\ncore-side halt req / ack, resume ack (fabric)"];
+    cdc_a [label="TCK -> fabric crossing\nreq / ack handshake (rtl/cdc primitives)\n+ AXIL4 master FSM, one access per command (fabric)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cdc_d [label="TCK -> fabric crossing\nreq / ack handshake (rtl/cdc primitives)\ncore-side halt req / ack, resume ack (fabric)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     obs [label="Observation Plane (existing)\n*_monlite drop-and-count monitors\nsee both planes' traffic (observed, nothing driven back)",
-         style="filled,dashed"];
+         style="filled,dashed", style="filled,dashed", fillcolor="white"];
 
     bar [label="Fabric clock domain - every component's CSRs over AXIL4 (amber, jet, mem-ctrl, dma, ecc, ...)  |  RISC-V cores with debug mode (falcon rungs, hive-serv)",
-         fillcolor="white", width=10, height=0.5, fontsize=11];
+         fillcolor="white", width=10, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     jtag  -> tap   [dir=both, xlabel="TDI / TMS in, TDO out"];
     tap   -> agent [dir=both, xlabel="DR chain\n(config registers)"];
@@ -35,7 +35,7 @@ digraph dfx_access_planes {
     dm    -> cdc_d [dir=both, xlabel="halt / resume, step,\nregister access"];
     cdc_a -> bar   [dir=both, xlabel="AXIL4 read / write\n(config poke)"];
     cdc_d -> bar   [dir=both, xlabel="core debug interface\n(override)"];
-    obs   -> bar   [dir=back, style=dashed, xlabel="monlite taps"];
+    obs   -> bar   [dir=back, style=dashed, color="#777777", xlabel="monlite taps"];
 
     { rank=same; agent; dm; }
     { rank=same; cdc_a; obs; cdc_d; }

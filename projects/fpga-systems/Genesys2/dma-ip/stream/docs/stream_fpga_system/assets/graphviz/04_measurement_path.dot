@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // Figure 4.1 -- what each build measures, end to end. A process flow in the
 // house vocabulary (vault/handbook/authoring/block-diagrams.md): the shared
 // steps run down the center, the transfer fans out to one result path per

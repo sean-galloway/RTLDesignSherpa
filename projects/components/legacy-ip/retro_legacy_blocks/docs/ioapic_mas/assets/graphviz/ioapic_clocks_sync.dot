@@ -9,13 +9,13 @@ digraph ioapic_clocks_sync {
            label="apb4_ioapic, CDC_ENABLE=0 - every block on pclk, presetn (ioapic_clk, ioapic_resetn unused)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    apb  [label="APB4 Completer Port  s_apb_*  (pclk)", fillcolor="white"];
-    slv  [label="APB Completer\napb4_slave  (pclk)", width=6.0];
-    cfg  [label="Register Block  (pclk)\nioapic_config_regs: peakrdl_to_cmdrsp + IOREGSEL / IOWIN + ioapic_regs", width=6.0];
-    core [label="Interrupt Core  (pclk)\nioapic_core - irq_in still passes 3 synchronizer flops", width=6.0];
-    bar  [label="Module Boundary\nirq_in in (asynchronous)   |   irq_out_* handshake, eoi_in / eoi_vector  (pclk, wired to the core)", fillcolor="white", width=8.5];
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv  [label="APB Completer\napb4_slave  (pclk)", width=6.0, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cfg  [label="Register Block  (pclk)\nioapic_config_regs: peakrdl_to_cmdrsp + IOREGSEL / IOWIN + ioapic_regs", width=6.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    core [label="Interrupt Core  (pclk)\nioapic_core - irq_in still passes 3 synchronizer flops", width=6.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Module Boundary\nirq_in in (asynchronous)   |   irq_out_* handshake, eoi_in / eoi_vector  (pclk, wired to the core)", fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     slv  -> cfg  [dir=both, xlabel="cmd / rsp"];

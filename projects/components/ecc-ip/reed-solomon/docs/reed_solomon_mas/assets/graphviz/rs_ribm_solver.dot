@@ -12,20 +12,20 @@ digraph rs_ribm_solver {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="key_equation_solver_ribm - reformulated inversionless Berlekamp-Massey, 2t iterations (on aclk)";
 
-    in    [label="Solver Input\ni_start (load and run)\ni_synd: S_0 .. S_2t-1", fillcolor="white", group=C];
-    er    [label="Erasure Count\ni_erasure_count f\n(ERASURE_SUPPORT=1 only)", fillcolor="white", style="filled,dashed", group=R];
+    in    [label="Solver Input\ni_start (load and run)\ni_synd: S_0 .. S_2t-1", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    er    [label="Erasure Count\ni_erasure_count f\n(ERASURE_SUPPORT=1 only)", fillcolor="white", style="filled,dashed", group=R, style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
-    init  [label="Initial Values (combinational)\ncell i < 2t: S_i  |  2t <= i < 3t: 0  |  cell 3t: 1", group=C];
-    ctl   [label="Iteration Control (flops)\nr_iter 0 .. 2t-1, r_gamma, r_k\nswap = (delta != 0) and (k >= 0)\nkill: delta = 0 for the last f iterations", group=R];
-    arr   [label="PE Array (flops)\n(3t+1) x ribm_pe - g_pe[i].u_pe\nDelta_i <- gamma * Delta_i+1 ^ delta * Theta_i\nTheta_i <- swap ? Delta_i+1 : Theta_i\n(two gf_mul per PE, no carry across the array)", group=C, width=4.6];
-    rd    [label="Readout + Degree Scan (combinational)\nLambda = cells t .. 3t,  Omega = cells 0 .. t-1\ndegree = highest nonzero Lambda_j;  deg_err = any of Lambda_t+1 .. 2t", group=C];
+    init  [label="Initial Values (combinational)\ncell i < 2t: S_i  |  2t <= i < 3t: 0  |  cell 3t: 1", group=C, style="filled", fillcolor="white"];
+    ctl   [label="Iteration Control (flops)\nr_iter 0 .. 2t-1, r_gamma, r_k\nswap = (delta != 0) and (k >= 0)\nkill: delta = 0 for the last f iterations", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    arr   [label="PE Array (flops)\n(3t+1) x ribm_pe - g_pe[i].u_pe\nDelta_i <- gamma * Delta_i+1 ^ delta * Theta_i\nTheta_i <- swap ? Delta_i+1 : Theta_i\n(two gf_mul per PE, no carry across the array)", group=C, width=4.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd    [label="Readout + Degree Scan (combinational)\nLambda = cells t .. 3t,  Omega = cells 0 .. t-1\ndegree = highest nonzero Lambda_j;  deg_err = any of Lambda_t+1 .. 2t", group=C, style="filled", fillcolor="white"];
 
     bar   [label="Outputs (hold until the next i_start)\no_lambda (2t+1 coefficients)   |   o_omega (t, the HIGH half of S*Lambda)   |   o_deg, o_deg_err   |   o_done, o_busy",
-           fillcolor="white", width=10.0];
+           fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     in    -> init  [xlabel="syndromes"];
     init  -> arr   [xlabel="i_start: load\nDelta~ = Theta~ = init"];
@@ -39,8 +39,8 @@ digraph rs_ribm_solver {
     p_f1  -> p_f2 [dir=none, tailclip=false, headclip=false, xlabel="Delta~_0\n(discrepancy)"];
     p_f1  -> ctl  [tailclip=false];
 
-    ctl   -> arr   [style=dashed, xlabel="gamma, delta, swap\n(broadcast, every cycle)"];
-    er    -> ctl   [style=dashed, xlabel="f"];
+    ctl   -> arr   [style=dashed, color="#777777", xlabel="gamma, delta, swap\n(broadcast, every cycle)"];
+    er    -> ctl   [style=dashed, color="#777777", xlabel="f"];
     ctl   -> bar   [xlabel="o_done after 2t"];
 
     { rank=same; in; er; }

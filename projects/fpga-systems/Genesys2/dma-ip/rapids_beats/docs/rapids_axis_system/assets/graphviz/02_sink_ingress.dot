@@ -14,20 +14,20 @@ digraph sink_ingress {
            nodesep="0.45", ranksep="0.50", splines=ortho, newrank=true,
            label="Sink ingress: an AXIS beat becomes a write burst", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    beat [group=C, label="s_axis (from the AXIS stimulus)\ntvalid, tdata, tstrb, tid = channel, tlast", fillcolor="white"];
+    beat [group=C, label="s_axis (from the AXIS stimulus)\ntvalid, tdata, tstrb, tid = channel, tlast", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ing  [group=C, label="Ingress + Segment Allocation\nsnk_data_path_axis_beats\ntready = fill_ready AND (allocation pending OR allocating now);\nallocate cfg_alloc_size (16) beats when none is pending,\nthe remainder when less than a segment is free;\nthen settle 3 cycles (the free-space view lags)"];
-    sram [group=C, label="Per-channel SRAM FIFO\nsnk_sram_controller_beats (wraps STREAM's sram_controller)\n128 beats (4 KB) per channel; alloc_ctrl = allocated - drained;\ndrain_ctrl = written - reserved; latency bridge (up to 5 beats)"];
-    eng  [group=C, label="AXI Write Engine\naxi_write_engine_beats\nhas_data: available >= burst (clamped to the depth);\nAW, then drain reservation, then W from the bridge;\nAW_MAX_OUTSTANDING = 8 per channel"];
+    ing  [group=C, label="Ingress + Segment Allocation\nsnk_data_path_axis_beats\ntready = fill_ready AND (allocation pending OR allocating now);\nallocate cfg_alloc_size (16) beats when none is pending,\nthe remainder when less than a segment is free;\nthen settle 3 cycles (the free-space view lags)", style="filled", fillcolor="white"];
+    sram [group=C, label="Per-channel SRAM FIFO\nsnk_sram_controller_beats (wraps STREAM's sram_controller)\n128 beats (4 KB) per channel; alloc_ctrl = allocated - drained;\ndrain_ctrl = written - reserved; latency bridge (up to 5 beats)", style="filled", fillcolor="white"];
+    eng  [group=C, label="AXI Write Engine\naxi_write_engine_beats\nhas_data: available >= burst (clamped to the depth);\nAW, then drain reservation, then W from the bridge;\nAW_MAX_OUTSTANDING = 8 per channel", style="filled", fillcolor="white"];
 
-    bar  [group=C, label="m_axi_wr  ->  axi4_slave_wr_crc_check (harness memory model)\nbursts of AXI_XFER_CONFIG.WR_XFER_BEATS + 1 (default 8; 128 = one buffer)", fillcolor="white", width=6.5];
+    bar  [group=C, label="m_axi_wr  ->  axi4_slave_wr_crc_check (harness memory model)\nbursts of AXI_XFER_CONFIG.WR_XFER_BEATS + 1 (default 8; 128 = one buffer)", fillcolor="white", width=6.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    msin [label="AXIS-in Window (meter sin)\narmed at GO, opens on the first tvalid,\ncloses after the target-th accepted beat:\ningress utilization, first beat to last"];
-    mwr  [label="AXI4-wr Window (meter wr, shared)\narmed at GO, closes when wr_prod\nreaches the target: the datapath rate"];
-    stall [label="Fixed 82-cycle fill stall (4 KB build)\nthe first channel's 128 beats land before\nthe engine starts draining: once per run,\nbackpressure on sin, invisible to wr", fillcolor="white", style="filled,dashed"];
+    msin [label="AXIS-in Window (meter sin)\narmed at GO, opens on the first tvalid,\ncloses after the target-th accepted beat:\ningress utilization, first beat to last", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mwr  [label="AXI4-wr Window (meter wr, shared)\narmed at GO, closes when wr_prod\nreaches the target: the datapath rate", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    stall [label="Fixed 82-cycle fill stall (4 KB build)\nthe first channel's 128 beats land before\nthe engine starts draining: once per run,\nbackpressure on sin, invisible to wr", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
     { rank=same; ing; msin; }
     { rank=same; stall; sram; }
@@ -41,7 +41,7 @@ digraph sink_ingress {
     sram -> eng  [penwidth=1.8, xlabel="drain: beats available"];
     eng  -> bar  [penwidth=1.8, dir=both, xlabel="AW + W burst down; B back up"];
 
-    beat -> msin [style=dashed, xlabel="tap on s_axis (observed)"];
-    eng  -> mwr  [style=dashed, xlabel="tap on m_axi_wr\n(observed)"];
-    sram -> stall [style=dashed, xlabel="where it\nhappens"];
+    beat -> msin [style=dashed, color="#777777", xlabel="tap on s_axis (observed)"];
+    eng  -> mwr  [style=dashed, color="#777777", xlabel="tap on m_axi_wr\n(observed)"];
+    sram -> stall [style=dashed, color="#777777", xlabel="where it\nhappens"];
 }

@@ -11,22 +11,22 @@ digraph gpio_interrupt {
            label="apb4_gpio interrupt path - per-pin detect, sticky status, one aggregate irq (core clock)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pin [group=C, label="GPIO Input Pins  gpio_in[GPIO_WIDTH-1:0]\n(asynchronous)", fillcolor="white"];
-    leg [fillcolor="white", label="Configuration (gpio_regs fields, per pin unless noted)\lINT_POLARITY: 1 = rising / high, 0 = falling / low\lINT_BOTH: 1 = either edge (edge pins; overrides POLARITY)\lINT_TYPE: 1 = level, 0 = edge\lINT_ENABLE: 1 = pin may set status and drive irq\lCONTROL.int_enable (global): 1 = irq may assert (resets 0)\l"];
-    sw  [fillcolor="white", label="Software  (APB)\nread INT_STATUS, write 1 to clear"];
+    pin [group=C, label="GPIO Input Pins  gpio_in[GPIO_WIDTH-1:0]\n(asynchronous)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    leg [fillcolor="white", label="Configuration (gpio_regs fields, per pin unless noted)\lINT_POLARITY: 1 = rising / high, 0 = falling / low\lINT_BOTH: 1 = either edge (edge pins; overrides POLARITY)\lINT_TYPE: 1 = level, 0 = edge\lINT_ENABLE: 1 = pin may set status and drive irq\lCONTROL.int_enable (global): 1 = irq may assert (resets 0)\l", shape=note];
+    sw  [fillcolor="white", label="Software  (APB)\nread INT_STATUS, write 1 to clear", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    syn [group=C, label="Input Synchronizer (flop)\ngpio_core - SYNC_STAGES flops"];
-    det [group=C, label="Edge Detect + Level Compare (combinational)\ngpio_core - previous-value flop r_gpio_prev\nreads INT_POLARITY, INT_BOTH"];
-    sel [group=C, label="Type Select + Pin Enable (combinational)\ngpio_core - raw = INT_TYPE ? level : edge\npending = raw & INT_ENABLE"];
-    sts [group=L, label="Interrupt Status, sticky (flop)\ngpio_regs GPIO_INT_STATUS, set by gpio_config_regs\nnext = (status | pending | deferred) & ~W1C mask"];
-    eff [group=C, label="Effective Status (combinational)\ngpio_config_regs\nedge pin: INT_STATUS & INT_ENABLE\nlevel pin: live raw & INT_ENABLE"];
-    agg [group=C, label="IRQ Gate (combinational)\ngpio_config_regs\nirq = CONTROL.int_enable & OR of all pins"];
+    syn [group=C, label="Input Synchronizer (flop)\ngpio_core - SYNC_STAGES flops", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    det [group=C, label="Edge Detect + Level Compare (combinational)\ngpio_core - previous-value flop r_gpio_prev\nreads INT_POLARITY, INT_BOTH", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sel [group=C, label="Type Select + Pin Enable (combinational)\ngpio_core - raw = INT_TYPE ? level : edge\npending = raw & INT_ENABLE", style="filled", fillcolor="white"];
+    sts [group=L, label="Interrupt Status, sticky (flop)\ngpio_regs GPIO_INT_STATUS, set by gpio_config_regs\nnext = (status | pending | deferred) & ~W1C mask", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    eff [group=C, label="Effective Status (combinational)\ngpio_config_regs\nedge pin: INT_STATUS & INT_ENABLE\nlevel pin: live raw & INT_ENABLE", style="filled", fillcolor="white"];
+    agg [group=C, label="IRQ Gate (combinational)\ngpio_config_regs\nirq = CONTROL.int_enable & OR of all pins", style="filled", fillcolor="white"];
 
     bar [group=C, label="Module Boundary\nirq out  (through a 2-flop pclk synchronizer when CDC_ENABLE=1)",
-         fillcolor="white", width=7.0];
+         fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pin -> syn [xlabel="pin levels"];
     syn -> det [xlabel="synchronized value"];
@@ -39,7 +39,7 @@ digraph gpio_interrupt {
     eff -> agg [xlabel="per-pin effective status"];
     agg -> bar [penwidth=1.8, xlabel="irq"];
 
-    sw -> sts [style=dashed, dir=both, xlabel="read / W1C"];
+    sw -> sts [style=dashed, color="#777777", dir=both, xlabel="read / W1C"];
 
     { rank=same; pin; leg; }
     pin -> leg [style=invis, minlen=3];

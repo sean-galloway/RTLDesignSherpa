@@ -12,23 +12,23 @@ digraph axi_monitor_base {
            label="axi_monitor_base - transaction monitor core, one AXI / AXI-Lite direction (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = read monitor (data = R), 0 = write (W + B)\lIS_AXI: 0 = AXI-Lite (no len / size / burst)\lMAX_TRANSACTIONS: table entries tracked at once\lENABLE_*_LOGIC: which packet classes are built\lN_ADDR_RANGES: 0 omits the address checker\lID_FILTER_ENABLE / ID_MATCH_*: own an ID slice\l    of a shared bus (default off)\l", fillcolor="white"];
-    taps [group=C, label="Observed Channels (taps, nothing driven back)\ncmd: AR or AW (valid, ready, id, addr, len, size, burst)\ndata: R or W (valid, ready, id, last, resp)  |  resp: B (write only)", fillcolor="white"];
-    cfg  [label="Runtime Configuration (input ports)\lcfg_*_enable: per-class packet enables\lcfg_freq_sel: timer tick rate\lcfg_addr / data / resp_cnt: timeout limits\lcfg_active_trans / latency_threshold\lcfg_id_* / cfg_addr_filter_*: what is tracked\lcfg_addr_range_*: address-check windows\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = read monitor (data = R), 0 = write (W + B)\lIS_AXI: 0 = AXI-Lite (no len / size / burst)\lMAX_TRANSACTIONS: table entries tracked at once\lENABLE_*_LOGIC: which packet classes are built\lN_ADDR_RANGES: 0 omits the address checker\lID_FILTER_ENABLE / ID_MATCH_*: own an ID slice\l    of a shared bus (default off)\l", fillcolor="white", shape=note];
+    taps [group=C, label="Observed Channels (taps, nothing driven back)\ncmd: AR or AW (valid, ready, id, addr, len, size, burst)\ndata: R or W (valid, ready, id, last, resp)  |  resp: B (write only)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Runtime Configuration (input ports)\lcfg_*_enable: per-class packet enables\lcfg_freq_sel: timer tick rate\lcfg_addr / data / resp_cnt: timeout limits\lcfg_active_trans / latency_threshold\lcfg_id_* / cfg_addr_filter_*: what is tracked\lcfg_addr_range_*: address-check windows\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    filt [group=C, label="ID Filter (combinational)\nid_owned(id): keeps only the owned ID slice\n(all IDs when filtering is off); gates the three valids"];
-    tmr  [group=R, label="Timer\naxi_monitor_timer - timer_inst\ntimer_tick at cfg_freq_sel, r_timestamp"];
-    tm   [group=C, label="Transaction Manager (flops)\naxi_monitor_trans_mgr - trans_mgr_inst\ntrans_table[MAX_TRANSACTIONS]: one entry per\noutstanding transaction (id, addr, beats, state, times)\nactive_count (to busy, block_ready); address-filter mask", height=1.0];
-    tmo  [group=R, label="Timeout Scanner (ENABLE_TIMEOUT_LOGIC=1 only)\naxi_monitor_timeout - timeout_inst\nper-entry addr / data / resp counters on timer_tick", style="filled,dashed"];
-    rep  [group=C, label="Reporter\naxi_monitor_reporter - reporter_inst\nscans the table for error, completion, timeout,\nthreshold and perf events; formats 128-bit packets\n(internal event FIFO, INTR_FIFO_DEPTH)"];
-    adc  [group=L, label="Address Checker (N_ADDR_RANGES > 0 only)\naxi_monitor_addr_check - addr_check_inst\nMATCH packet: hit in a debug watch range;\nMISS (error) packet: outside every error-allowlist range", style="filled,dashed"];
+    filt [group=C, label="ID Filter (combinational)\nid_owned(id): keeps only the owned ID slice\n(all IDs when filtering is off); gates the three valids", style="filled", fillcolor="white"];
+    tmr  [group=R, label="Timer\naxi_monitor_timer - timer_inst\ntimer_tick at cfg_freq_sel, r_timestamp", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tm   [group=C, label="Transaction Manager (flops)\naxi_monitor_trans_mgr - trans_mgr_inst\ntrans_table[MAX_TRANSACTIONS]: one entry per\noutstanding transaction (id, addr, beats, state, times)\nactive_count (to busy, block_ready); address-filter mask", height=1.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tmo  [group=R, label="Timeout Scanner (ENABLE_TIMEOUT_LOGIC=1 only)\naxi_monitor_timeout - timeout_inst\nper-entry addr / data / resp counters on timer_tick", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    rep  [group=C, label="Reporter\naxi_monitor_reporter - reporter_inst\nscans the table for error, completion, timeout,\nthreshold and perf events; formats 128-bit packets\n(internal event FIFO, INTR_FIFO_DEPTH)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    adc  [group=L, label="Address Checker (N_ADDR_RANGES > 0 only)\naxi_monitor_addr_check - addr_check_inst\nMATCH packet: hit in a debug watch range;\nMISS (error) packet: outside every error-allowlist range", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     pick [group=C, label="Monitor-Bus Output Pick\nreporter first; an address packet\nthat stalled holds the bus until accepted",
-          shape=invtrapezium, width=8.2, height=0.8, fixedsize=true, fillcolor="#BFD7EE"];
-    perf [group=L, label="Perf Window + Counters (flops)\nwindow FSM on start / end events;\nproductive / backpressure / starvation / idle\ncycles, beats, bytes, bursts while open"];
-    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet, monbus_timestamp (monbus_ready in)  |  block_ready (table nearly full), busy, active_count\nwindow_active, window_cycles, perf_* counters", fillcolor="white", width=11.0];
+          shape=invtrapezium, width=8.2, height=0.8, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    perf [group=L, label="Perf Window + Counters (flops)\nwindow FSM on start / end events;\nproductive / backpressure / starvation / idle\ncycles, beats, bytes, bursts while open", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet, monbus_timestamp (monbus_ready in)  |  block_ready (table nearly full), busy, active_count\nwindow_active, window_cycles, perf_* counters", fillcolor="white", width=11.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     taps -> filt [label="cmd / data / resp\nvalids + fields"];
     filt -> tm   [xlabel="owned cmd, data, resp", penwidth=1.8];
@@ -43,7 +43,7 @@ digraph axi_monitor_base {
     pick -> out  [xlabel="monbus packet", penwidth=1.8];
     taps -> perf [xlabel="data valid / ready,\ncmd handshake"];
     perf -> out  [xlabel="window + perf counts"];
-    cfg  -> tmr  [style=dashed, xlabel="cfg_freq_sel"];
+    cfg  -> tmr  [style=dashed, color="#777777", xlabel="cfg_freq_sel"];
 
     { rank=same; prm; taps; cfg; }
     prm -> taps [style=invis]; taps -> cfg [style=invis];

@@ -9,27 +9,27 @@ digraph mc_training_plane {
            label="mc_training_plane - LPDDR2 training clients, maintenance slot select, calibration CDC",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    csr_zq [label="ZQ CSR controls (mc_clk)\nzq_en, interval, t_zqcs / t_zqcl,\ndefer enable, overdue limit", fillcolor="white"];
-    csr_cal [label="DQ-cal CSR controls (mc_clk)\ncal_start / cal_abort, t_mrr, t_readout", fillcolor="white"];
+    csr_zq [label="ZQ CSR controls (mc_clk)\nzq_en, interval, t_zqcs / t_zqcl,\ndefer enable, overdue limit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    csr_cal [label="DQ-cal CSR controls (mc_clk)\ncal_start / cal_abort, t_mrr, t_readout", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    zq  [label="ZQ Calibration Controller\nmc_lpddr2_zq_ctrl - FUB\n(HAS_LP_ZQ=1; slot 0)", style="filled,dashed"];
-    dqc [label="DQ Calibration Sequencer\nmc_lpddr2_dq_cal - FUB\n(HAS_LP_DQ_CAL=1; slot 1)", style="filled,dashed"];
+    zq  [label="ZQ Calibration Controller\nmc_lpddr2_zq_ctrl - FUB\n(HAS_LP_ZQ=1; slot 0)", style="filled,dashed", peripheries=2, style="filled,diagonals,dashed", fillcolor="#FCE4D6"];
+    dqc [label="DQ Calibration Sequencer\nmc_lpddr2_dq_cal - FUB\n(HAS_LP_DQ_CAL=1; slot 1)", style="filled,dashed", peripheries=2, style="filled,diagonals,dashed", fillcolor="#FCE4D6"];
 
     sel [label="Maintenance Slot Select\nmc_training_shell (fixed priority: slot 0 > slot 1)",
-         shape=polygon, sides=4, distortion=0.10, width=5.2, height=0.6, fillcolor="#BDD7EE"];
+         shape=polygon, sides=4, distortion=0.10, width=5.2, height=0.6, fillcolor="#BDD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    exp_sync [label="Calibration Expect Sync\nsync_pulse (mc_clk -> dfi_clk)\nin mc_training_shell"];
-    dat_sync [label="Calibration Data Sync\ncdc_synchronizer + sync_pulse\n(dfi_clk -> mc_clk)\nin mc_training_shell"];
+    exp_sync [label="Calibration Expect Sync\nsync_pulse (mc_clk -> dfi_clk)\nin mc_training_shell", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dat_sync [label="Calibration Data Sync\ncdc_synchronizer + sync_pulse\n(dfi_clk -> mc_clk)\nin mc_training_shell", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [label="Plane edge - scheduler maintenance port (mc_clk)  |  DFI read aligner (dfi_clk)",
-         fillcolor="white", width=8, height=0.5, fontsize=11];
+         fillcolor="white", width=8, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- control in, status back ----
-    csr_zq  -> zq  [dir=both, style=dashed, xlabel="enable, timing /\nbusy, overdue, ZQCS count"];
-    csr_cal -> dqc [dir=both, style=dashed, xlabel="start, abort /\nbusy, done, err, MR32 / MR40"];
+    csr_zq  -> zq  [dir=both, style=dashed, color="#777777", xlabel="enable, timing /\nbusy, overdue, ZQCS count"];
+    csr_cal -> dqc [dir=both, style=dashed, color="#777777", xlabel="start, abort /\nbusy, done, err, MR32 / MR40"];
 
     // ---- request flow: the slot pick ----
     zq  -> sel [xlabel="slot 0: ZQ (MRW MR10)"];

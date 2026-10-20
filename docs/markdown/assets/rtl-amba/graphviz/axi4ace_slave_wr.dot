@@ -11,19 +11,19 @@ digraph axi4ace_slave_wr {
            label="axi4ace_slave_wr - ACE write slave: AXI4 write + ACE fields, WACK forwarded (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\l", fillcolor="white"];
-    fub  [label="AXI4 Slave Port (s_axi_*) - from the interconnect / master\ns_axi_aw* / s_axi_w* in  /  s_axi_b* out  /  s_axi_wack in\nACE on AW: awsnoop[2:0], awdomain, awbar", fillcolor="white", width=5.0];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\l", fillcolor="white", shape=note];
+    fub  [label="AXI4 Slave Port (s_axi_*) - from the interconnect / master\ns_axi_aw* / s_axi_w* in  /  s_axi_b* out  /  s_axi_wack in\nACE on AW: awsnoop[2:0], awdomain, awbar", fillcolor="white", width=5.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    w    [label="W Skid Buffer\ngaxi_skid_buffer - i_w_channel\n(DEPTH = SKID_DEPTH_W)"];
-    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - i_aw_channel\n(DEPTH = SKID_DEPTH_AW)"];
-    b    [label="B Skid Buffer\ngaxi_skid_buffer - i_b_channel\n(DEPTH = SKID_DEPTH_B)"];
-    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving"];
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - i_w_channel\n(DEPTH = SKID_DEPTH_W)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - i_aw_channel\n(DEPTH = SKID_DEPTH_AW)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - i_b_channel\n(DEPTH = SKID_DEPTH_B)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving", style="filled", fillcolor="white"];
 
     mport [label="Module Boundary\nfub_axi_aw* / fub_axi_w* out (to the backend)  |  busy (to the clock-gate wrapper)  |  fub_axi_b* in, fub_axi_wack out",
-           fillcolor="white", width=9.0];
+           fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // write data: its own lane down the left
     fub -> w     [xlabel="W: data, strb, last\n(wvalid / wready)"];
@@ -32,21 +32,21 @@ digraph axi4ace_slave_wr {
     fub -> aw    [xlabel="AW + ACE fields\n(awvalid / awready)"];
     aw  -> mport [xlabel="AW"];
     // response: back up the right lane (dir=back keeps the ranks top-down)
-    b   -> mport [dir=back, xlabel="B: id, resp"];
-    fub -> b     [dir=back, xlabel="B (bvalid / bready)"];
+    b   -> mport [color="#1A7A1A", dir=back, xlabel="B: id, resp"];
+    fub -> b     [color="#1A7A1A", dir=back, xlabel="B (bvalid / bready)"];
     // sideband
-    w   -> busy  [style=dashed, xlabel="w count"];
-    aw  -> busy  [style=dashed, xlabel="aw count"];
-    b   -> busy  [style=dashed, xlabel="b count"];
-    busy -> mport [style=dashed, xlabel="busy"];
+    w   -> busy  [style=dashed, color="#777777", xlabel="w count"];
+    aw  -> busy  [style=dashed, color="#777777", xlabel="aw count"];
+    b   -> busy  [style=dashed, color="#777777", xlabel="b count"];
+    busy -> mport [style=dashed, color="#777777", xlabel="busy"];
 
     { rank=same; prm; fub; }
     { rank=same; w; aw; b; }
     prm -> fub [style=invis];
     w -> aw [style=invis]; aw -> b [style=invis, minlen=4];
     p_wk [shape=point, width=0.01];
-    fub -> p_wk [dir=none, style=dashed, headclip=false, xlabel="WACK (a wire:\ns_axi_wack ->\nfub_axi_wack)"];
-    p_wk -> mport [style=dashed, tailclip=false];
+    fub -> p_wk [dir=none, style=dashed, color="#777777", headclip=false, xlabel="WACK (a wire:\ns_axi_wack ->\nfub_axi_wack)"];
+    p_wk -> mport [style=dashed, color="#777777", tailclip=false];
     { rank=same; w; aw; b; p_wk; }
     b -> p_wk [style=invis];
 }

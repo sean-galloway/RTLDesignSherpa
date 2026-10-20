@@ -14,35 +14,35 @@ digraph cell_whole {
          label="CELL — whole-cell datapath (MAS v0.12)",
          labelloc=t];
   node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+         fillcolor="white", color="black", margin="0.12,0.06"];
   edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
   // ---- Top boundary: mesh pass-through ----
   mesh  [group="C", fillcolor="white",
-         label="Mesh ports x8 — pass through to cell boundary\n(±X  ±Y  ±Z  P_DIA  P_DIA2)"];
+         label="Mesh ports x8 — pass through to cell boundary\n(±X  ±Y  ±Z  P_DIA  P_DIA2)", style="rounded,filled", fillcolor="#E2EFDA"];
   nodeb [group="C", width=5.8, height=0.55,
-         label="Delta Mesh Node — the cell boundary\ndelta_mesh_cell — fabric-gen-ip/delta"];
+         label="Delta Mesh Node — the cell boundary\ndelta_mesh_cell — fabric-gen-ip/delta", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
   // ---- Cell blocks ----
-  rx     [group="C", label="Rx Header Demux\ncell_rx — cfg / mem / credit route"];
-  inmem  [label="Input Memory\ncell_mem_in — operand buffer, IP++\neach line carries source tag"];
-  cfgregs [group="C", label="Config Registers\ncell_cfg_regs — §7 map\nincl. A·B·C·D·T window"];
-  credit [label="Credit Logic\ncell_credit — per-source batching + timeout"];
+  rx     [group="C", label="Rx Header Demux\ncell_rx — cfg / mem / credit route", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  inmem  [label="Input Memory\ncell_mem_in — operand buffer, IP++\neach line carries source tag", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+  cfgregs [group="C", label="Config Registers\ncell_cfg_regs — §7 map\nincl. A·B·C·D·T window", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  credit [label="Credit Logic\ncell_credit — per-source batching + timeout", peripheries=2, style="filled", fillcolor="#D6E4F0"];
   fsm    [group="C", shape=invtrapezium, width=1.8, height=0.45,
-          label="Execution FSM\ncell_exec_fsm — scheduler"];
-  aluregs [label="ALU Registers\nA · B · C · D + T\npersistent operands + threshold"];
-  alu    [group="C", label="Inference ALU\nalu-infer — bf16 rows, fp32 MAC\nvalid/ready elastic pipe"];
-  outmem [group="C", label="Result Memory\ncell_mem_out — output buffer, OP++"];
-  pktz   [group="C", label="Tx Packetizer\ncell_packetizer — batch X + §11.5 header\nconfig from §7: batch X · flush dest/tag"];
+          label="Execution FSM\ncell_exec_fsm — scheduler", style="filled", fillcolor="#FFF2CC"];
+  aluregs [label="ALU Registers\nA · B · C · D + T\npersistent operands + threshold", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  alu    [group="C", label="Inference ALU\nalu-infer — bf16 rows, fp32 MAC\nvalid/ready elastic pipe", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  outmem [group="C", label="Result Memory\ncell_mem_out — output buffer, OP++", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+  pktz   [group="C", label="Tx Packetizer\ncell_packetizer — batch X + §11.5 header\nconfig from §7: batch X · flush dest/tag", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
   // ---- Boundary crossings (visible nodes only) ----
-  mesh -> nodeb [dir=back, label="mesh traffic — 8 pass-through ports"];
+  mesh -> nodeb [color="#1A7A1A", dir=back, label="mesh traffic — 8 pass-through ports"];
   nodeb -> rx [label="local port rx — flits + delta route header (TUSER)"];
 
   // ---- Programming/config flow: center column, dashed ----
-  rx -> cfgregs [style=dashed, label="cfg writes — §7 map"];
-  cfgregs -> fsm [style=dashed, label="func / op_lines / op_src config"];
-  cfgregs -> aluregs [style=dashed, label="cfg write fan — A B C D T"];
+  rx -> cfgregs [style=dashed, color="#777777", label="cfg writes — §7 map"];
+  cfgregs -> fsm [style=dashed, color="#777777", label="func / op_lines / op_src config"];
+  cfgregs -> aluregs [style=dashed, color="#777777", label="cfg write fan — A B C D T"];
 
   // ---- Operand fill flow: left column ----
   rx -> inmem [label="mem payload — operand lines"];
@@ -57,9 +57,9 @@ digraph cell_whole {
   outmem -> pktz [label="result lines buffered"];
 
   // ---- Return lanes: direct edges into the boundary bar (no scaffolds) ----
-  pktz  -> nodeb [constraint=false, xlabel="result packets — §11.5 header (strap-gated)"];
-  credit -> nodeb [constraint=false, style=dashed, xlabel="credit packets — add → recorded source"];
-  fsm -> credit [style=dashed, xlabel="consumed-line strobe (per-source)"];
+  pktz  -> nodeb [color="#1A7A1A", constraint=false, xlabel="result packets — §11.5 header (strap-gated)"];
+  credit -> nodeb [constraint=false, style=dashed, color="#777777", xlabel="credit packets — add → recorded source"];
+  fsm -> credit [style=dashed, color="#777777", xlabel="consumed-line strobe (per-source)"];
 
   // ---- Rank pinning (visible nodes only) ----
   { rank=same; mesh }

@@ -11,31 +11,31 @@ digraph wb4_retry {
            label="wb4_retry - re-issue RTY terminations on the FUB side of wb4_master (single clock: clk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cfg  [label="Retry Config (runtime input ports)\lcfg_max_retries: re-issues per command;\l    0 = pass-through (every RTY to the FUB)\lcfg_retry_delay: clocks from RTY to re-issue\lINFLIGHT (parameter): buffer entries;\l    1 = strict program order\l", fillcolor="white"];
-    cmd_port [group=L, label="FUB Command Port\ncmd_valid / cmd_ready\ncmd_we, adr, dat, sel, cti, bte", fillcolor="white"];
-    rsp_port [group=R, label="FUB Response Port\nrsp_valid / rsp_ready\nrsp_status, rsp_dat (in command order)", fillcolor="white"];
+    cfg  [label="Retry Config (runtime input ports)\lcfg_max_retries: re-issues per command;\l    0 = pass-through (every RTY to the FUB)\lcfg_retry_delay: clocks from RTY to re-issue\lINFLIGHT (parameter): buffer entries;\l    1 = strict program order\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cmd_port [group=L, label="FUB Command Port\ncmd_valid / cmd_ready\ncmd_we, adr, dat, sel, cti, bte", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rsp_port [group=R, label="FUB Response Port\nrsp_valid / rsp_ready\nrsp_status, rsp_dat (in command order)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    buf  [group=C, label="In-Order Completion Buffer (flops, INFLIGHT entries)\nper entry: command fields, state EMPTY > ISSUED > WAIT > DONE,\nretry count, delay timer, returned status / data\nissue log: which entry each bus transfer belongs to", width=5.6];
+    buf  [group=C, label="In-Order Completion Buffer (flops, INFLIGHT entries)\nper entry: command fields, state EMPTY > ISSUED > WAIT > DONE,\nretry count, delay timer, returned status / data\nissue log: which entry each bus transfer belongs to", width=5.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    pick [group=C, label="Retry Pick (combinational)\noldest WAIT entry, timer at 0", shape=invtrapezium, fixedsize=true, width=3.6, height=0.75, fillcolor="#BFD7EE"];
-    steer [group=R, label="Response Steer (combinational)\nterm belongs to the issue-log head entry\nACK / ERR, or RTY with budget spent: DONE\nRTY under budget: WAIT, load cfg_retry_delay"];
-    isel [group=C, label="Issue Select (combinational)\nre-issue first, else a new command\n(new command only with a free entry)"];
+    pick [group=C, label="Retry Pick (combinational)\noldest WAIT entry, timer at 0", shape=invtrapezium, fixedsize=true, width=3.6, height=0.75, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    steer [group=R, label="Response Steer (combinational)\nterm belongs to the issue-log head entry\nACK / ERR, or RTY with budget spent: DONE\nRTY under budget: WAIT, load cfg_retry_delay", style="filled", fillcolor="white"];
+    isel [group=C, label="Issue Select (combinational)\nre-issue first, else a new command\n(new command only with a free entry)", style="filled", fillcolor="white"];
 
     bar [label="wb4_master Command / Response Queues\nout: mst_cmd_valid + fields / in: mst_cmd_ready   |   in: mst_rsp_valid, mst_rsp_status, mst_rsp_dat / out: mst_rsp_ready\nstatus out: retry_count (re-issues since reset), active_count (entries in use)",
-         fillcolor="white", width=9.5];
+         fillcolor="white", width=9.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     cmd_port -> isel [xlabel="new command\n(allocate an entry)"];
     buf -> pick [xlabel="WAIT entries"];
     pick -> isel [penwidth=1.8, xlabel="re-issue entry"];
     isel -> bar [penwidth=1.8, xlabel="mst_cmd (retry or new)"];
-    isel -> buf [style=dashed, constraint=false, xlabel="issued: mark ISSUED,\nappend to issue log"];
-    bar -> steer [xlabel="termination\n(ACK / ERR / RTY + dat)"];
-    steer -> buf [headlabel="update\nhead entry", labelangle=60, labeldistance=4];
-    buf -> rsp_port [xlabel="head entry when DONE"];
-    cfg -> buf [style=dashed, xlabel="max retries, delay"];
+    isel -> buf [style=dashed, color="#777777", constraint=false, xlabel="issued: mark ISSUED,\nappend to issue log"];
+    bar -> steer [color="#1A7A1A", xlabel="termination\n(ACK / ERR / RTY + dat)"];
+    steer -> buf [color="#1A7A1A", headlabel="update\nhead entry", labelangle=60, labeldistance=4];
+    buf -> rsp_port [color="#1A7A1A", xlabel="head entry when DONE"];
+    cfg -> buf [style=dashed, color="#777777", xlabel="max retries, delay"];
 
     { rank=same; cmd_port; rsp_port; cfg; }
     cmd_port -> rsp_port [style=invis, minlen=4]; rsp_port -> cfg [style=invis];

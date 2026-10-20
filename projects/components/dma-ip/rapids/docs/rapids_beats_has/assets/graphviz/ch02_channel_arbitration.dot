@@ -4,14 +4,14 @@ digraph rapids_beats_channel_arbitration {
            nodesep="0.35", ranksep="0.55", splines=ortho,
            label="Channel arbitration onto a shared AXI port\nplain round-robin, no priority; one arbiter per shared port, per half", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    c0 [label="Channel 0"];
-    c1 [label="Channels 1 .. 6"];
-    c7 [label="Channel 7"];
-    arb [label="Round-Robin Arbiter - arbiter_round_robin (CLIENTS = 8)\nwinner = next requester after the last grant; grant held until acked", shape=invtrapezium, width=6.4, height=0.8, fillcolor="#BFD7EE"];
-    bar [label="Shared AXI address channel\ndescriptor AR (u_desc_ar_arbiter), ctrl-read AR, ctrl-write AW,\nread-engine AR, write-engine AW", fillcolor="white", width=6.4];
+    c0 [label="Channel 0", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c1 [label="Channels 1 .. 6", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c7 [label="Channel 7", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    arb [label="Round-Robin Arbiter - arbiter_round_robin (CLIENTS = 8)\nwinner = next requester after the last grant; grant held until acked", shape=invtrapezium, width=6.4, height=0.8, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    bar [label="Shared AXI address channel\ndescriptor AR (u_desc_ar_arbiter), ctrl-read AR, ctrl-write AW,\nread-engine AR, write-engine AW", fillcolor="white", width=6.4, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     c0 -> arb [label="request (ch 0)"];
     c1 -> arb [label="request (ch 1-6)"];

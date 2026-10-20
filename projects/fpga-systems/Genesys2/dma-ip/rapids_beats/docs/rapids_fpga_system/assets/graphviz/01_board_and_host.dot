@@ -12,22 +12,22 @@ digraph board_and_host {
            nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true,
            label="rapids-beats on the Genesys 2: the bench", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host   [group=C, label="Host PC - characterization program\nhost/run_characterization.py: smoke | single run | --suite\nresults JSON carries the BUILD record", fillcolor="white"];
-    vivado [group=J, label="Host PC - Vivado\nmake bitstream / make program\ntcl/build_ila.tcl, capture_ila_*.tcl", fillcolor="white"];
+    host   [group=C, label="Host PC - characterization program\nhost/run_characterization.py: smoke | single run | --suite\nresults JSON carries the BUILD record", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    vivado [group=J, label="Host PC - Vivado\nmake bitstream / make program\ntcl/build_ila.tcl, capture_ila_*.tcl", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ft232  [group=C, label="UART Bridge Chip\nFT232R - its own /dev/ttyUSB*\n(plug-order dependent: host uses --port auto)"];
-    ft2232 [group=J, label="JTAG Bridge Chip\nFT2232 - serial 200300B818A0\n(FPGA_JTAG_SERIAL picks it on a shared chain)"];
+    ft232  [group=C, label="UART Bridge Chip\nFT232R - its own /dev/ttyUSB*\n(plug-order dependent: host uses --port auto)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ft2232 [group=J, label="JTAG Bridge Chip\nFT2232 - serial 200300B818A0\n(FPGA_JTAG_SERIAL picks it on a shared chain)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    ptop   [group=C, label="Board Pin Top\nrapids_char_genesys2_top\nIBUFDS + MMCM: 200 MHz LVDS -> 100 MHz aclk; reset sync"];
-    ctop   [group=C, label="Pin-level Top\nrapids_char_top\npins to harness ports, status rollup"];
-    harn   [group=C, label="Characterization Harness\nrapids_char_harness - u_harness (Figure 2.1)\nUART bridge, decode, CSRs, kick sequencer,\nstimulus, checkers, memory models, meters"];
-    dut    [group=C, label="DUT\nrapids_beats_top - split SOURCE + SINK beats DMA\n8 ch, 256-bit AXI4 + AXIS, 4 KB SRAM per channel", penwidth=1.8];
+    ptop   [group=C, label="Board Pin Top\nrapids_char_genesys2_top\nIBUFDS + MMCM: 200 MHz LVDS -> 100 MHz aclk; reset sync", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ctop   [group=C, label="Pin-level Top\nrapids_char_top\npins to harness ports, status rollup", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    harn   [group=C, label="Characterization Harness\nrapids_char_harness - u_harness (Figure 2.1)\nUART bridge, decode, CSRs, kick sequencer,\nstimulus, checkers, memory models, meters", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dut    [group=C, label="DUT\nrapids_beats_top - split SOURCE + SINK beats DMA\n8 ch, 256-bit AXI4 + AXIS, 4 KB SRAM per channel", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar    [group=C, label="Genesys 2 board parts:  200 MHz LVDS oscillator  |  CPU reset button (active low)  |  8 user LEDs  |  Kintex-7 XC7K325T-2 configuration (JTAG)",
-            fillcolor="white", width=9.5, height=0.45];
+            fillcolor="white", width=9.5, height=0.45, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; host; vivado; }
     { rank=same; ft232; ft2232; }

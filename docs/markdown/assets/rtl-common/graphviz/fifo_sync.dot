@@ -19,20 +19,20 @@ digraph fifo_sync {
            label="fifo_sync - single-clock FIFO (everything on clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    wr_port [group=WO, label="Write Port\nwrite, wr_data", fillcolor="white"];
-    rd_port [group=RO, label="Read Port\nread, rd_data", fillcolor="white"];
+    wr_port [group=WO, label="Write Port\nwrite, wr_data", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rd_port [group=RO, label="Read Port\nread, rd_data", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wr_cnt [group=WO, label="Write Pointer Counter\ncounter_bin - write_pointer_inst\n(AW+1 bits, wraps at DEPTH)"];
-    rd_cnt [group=RO, label="Read Pointer Counter\ncounter_bin - read_pointer_inst\n(AW+1 bits, wraps at DEPTH)"];
-    flags  [group=C, label="Full / Empty Flags\nfifo_control - fifo_control_inst\n(REGISTERED=1: flags flopped)"];
+    wr_cnt [group=WO, label="Write Pointer Counter\ncounter_bin - write_pointer_inst\n(AW+1 bits, wraps at DEPTH)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_cnt [group=RO, label="Read Pointer Counter\ncounter_bin - read_pointer_inst\n(AW+1 bits, wraps at DEPTH)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    flags  [group=C, label="Full / Empty Flags\nfifo_control - fifo_control_inst\n(REGISTERED=1: flags flopped)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the boundary bar: storage, written and read on clk ----
     mem [group=C, label="Storage  mem[DEPTH]  (MEM_STYLE: SRL / BRAM / AUTO)\nwritten at the left, read at the right, both on clk\n(REGISTERED=0: rd_data muxed off the array; REGISTERED=1: rd_data flopped)",
-         width=12.5, height=0.9];
+         width=12.5, height=0.9, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- push / pop into the counters ----
     wr_port -> wr_cnt [xlabel="write & !wr_full"];
@@ -60,8 +60,8 @@ digraph fifo_sync {
     p_wa -> mem [xlabel="write address", tailclip=false];
     rd_cnt -> p_ra [arrowhead=none, headclip=false];
     p_ra -> mem [xlabel="read address", tailclip=false];
-    p_rdd -> mem [dir=none, tailclip=false];
-    p_rdd -> rd_port [xlabel="rd_data", tailclip=false, constraint=false];
+    p_rdd -> mem [color="#1A7A1A", dir=none, tailclip=false];
+    p_rdd -> rd_port [color="#1A7A1A", xlabel="rd_data", tailclip=false, constraint=false];
     aw -> p_wd [style=invis, weight=10];
     ar -> p_rdd [style=invis, weight=10];
 

@@ -10,34 +10,34 @@ digraph axi4ace_master_wr {
            label="axi4ace_master_wr - ACE write master: AXI4 write + ACE fields and WACK (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW / _W / _B: entries\l    per skid (default 2 / 4 / 2);\l    deeper = more decoupling\l", fillcolor="white"];
-    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out\nACE on AW: awsnoop[2:0], awdomain, awbar", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW / _W / _B: entries\l    per skid (default 2 / 4 / 2);\l    deeper = more decoupling\l", fillcolor="white", shape=note];
+    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out\nACE on AW: awsnoop[2:0], awdomain, awbar", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    w    [group=W, label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)"];
-    aw   [group=A, label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)"];
-    b    [group=B, label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)"];
-    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving"];
+    w    [group=W, label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    aw   [group=A, label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    b    [group=B, label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving", style="filled", fillcolor="white"];
     p_b  [group=B, shape=point, width=0.01];
-    wack [label="WACK Pulse (flop) r_wack\none clock after the B handshake\n(m_axi_bvalid & bready)"];
+    wack [label="WACK Pulse (flop) r_wack\none clock after the B handshake\n(m_axi_bvalid & bready)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     mport [label="Module Boundary\nm_axi_aw* / m_axi_w* out (to the interconnect)   |   busy (to the clock-gate wrapper)\nm_axi_b* in, m_axi_wack out",
-           fillcolor="white", width=9.6];
+           fillcolor="white", width=9.6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     fub -> w     [xlabel="W: data, strb, last\n(wvalid / wready)"];
     w   -> mport [xlabel="W"];
     fub -> aw    [xlabel="AW + ACE fields\n(awvalid / awready)"];
     aw  -> mport [xlabel="AW"];
-    p_b -> mport [dir=none, tailclip=false];
-    b   -> p_b   [dir=back, headclip=false, xlabel="B: id, resp"];
-    fub -> b     [dir=back, xlabel="B (bvalid / bready)"];
-    w   -> busy  [style=dashed, xlabel="w count"];
-    aw  -> busy  [style=dashed, xlabel="aw count"];
-    b   -> busy  [style=dashed, xlabel="b count"];
-    busy -> mport [style=dashed, xlabel="busy"];
-    b   -> wack  [style=dashed, headlabel="trigger", labelangle=-30, labeldistance=3];
+    p_b -> mport [color="#1A7A1A", dir=none, tailclip=false];
+    b   -> p_b   [color="#1A7A1A", dir=back, headclip=false, xlabel="B: id, resp"];
+    fub -> b     [color="#1A7A1A", dir=back, xlabel="B (bvalid / bready)"];
+    w   -> busy  [style=dashed, color="#777777", xlabel="w count"];
+    aw  -> busy  [style=dashed, color="#777777", xlabel="aw count"];
+    b   -> busy  [style=dashed, color="#777777", xlabel="b count"];
+    busy -> mport [style=dashed, color="#777777", xlabel="busy"];
+    b   -> wack  [style=dashed, color="#777777", headlabel="trigger", labelangle=-30, labeldistance=3];
     wack -> mport [xlabel="m_axi_wack"];
 
     { rank=same; prm; fub; }

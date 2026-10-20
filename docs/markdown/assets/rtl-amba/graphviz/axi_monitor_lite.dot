@@ -18,35 +18,35 @@ digraph axi_monitor_lite {
            label="axi_monitor_lite - one-direction AXI transaction monitor: errors, completions, timeouts, thresholds on the ocelus bus\n(single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- inputs (white) ----
-    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = AR / R monitor; 0 = AW / W / B\lIS_AXI: 0 = AXI-Lite (single beat, no ID)\lMAX_TRANSACTIONS: table slots\lOUT_DEPTH: event queue entries (power of two)\lN_ADDR_RANGES: > 0 builds the address checker\l", fillcolor="white"];
-    cmdt [group=L0, label="Command Tap (AR or AW)\ncmd_addr, cmd_id, cmd_len,\ncmd_valid & cmd_ready (observed)", fillcolor="white"];
-    dtt  [group=D, label="Data + Response Taps\ndata_id, data_last, data_resp, data_valid & ready\nresp_id, resp_code, resp_valid & ready (writes)\n(observed, nothing driven back)", fillcolor="white"];
-    cfg  [label="Config (runtime input ports)\lcfg_*_enable: error / completion / timeout /\l    threshold packet classes\lcfg_timeout_cnt (us), cfg_freq_sel (clock MHz)\lcfg_active_trans_threshold, cfg_latency_threshold\lcfg_axi_pkt_mask; cfg_addr_*: ranges\li_mon_time; clear (only while idle)\l", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lIS_READ: 1 = AR / R monitor; 0 = AW / W / B\lIS_AXI: 0 = AXI-Lite (single beat, no ID)\lMAX_TRANSACTIONS: table slots\lOUT_DEPTH: event queue entries (power of two)\lN_ADDR_RANGES: > 0 builds the address checker\l", fillcolor="white", shape=note];
+    cmdt [group=L0, label="Command Tap (AR or AW)\ncmd_addr, cmd_id, cmd_len,\ncmd_valid & cmd_ready (observed)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dtt  [group=D, label="Data + Response Taps\ndata_id, data_last, data_resp, data_valid & ready\nresp_id, resp_code, resp_valid & ready (writes)\n(observed, nothing driven back)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Config (runtime input ports)\lcfg_*_enable: error / completion / timeout /\l    threshold packet classes\lcfg_timeout_cnt (us), cfg_freq_sel (clock MHz)\lcfg_active_trans_threshold, cfg_latency_threshold\lcfg_axi_pkt_mask; cfg_addr_*: ranges\li_mon_time; clear (only while idle)\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- allocate ----
     pick [group=A, label="Free-Slot Pick\nlowest free table index",
-          shape=invtrapezium, width=3.6, height=0.65, fixedsize=true, fillcolor="#BFD7EE"];
-    tick [group=R, label="Stamp Counters\ncycle counter (latency)\ncounter_freq_invariant - u_tick\n(microsecond tick, timeout)"];
-    tbl  [group=A, label="Transaction Table (flops), MAX_TRANSACTIONS slots\naddress, ID, length, cycle stamp, microsecond stamp\nsame-ID entries linked in allocation order (head flag, next);\nno free slot: the command is refused and counted"];
-    wq   [group=D, label="AW-Order FIFO (IS_READ=0 only)\nslot index per accepted AW, so W beats\nneed no lookup; one early W burst\nbuffered as a beat count", style="filled,dashed"];
-    attr [group=D, label="Attribution (combinational, one-hot)\ndata / response go to the head of their\nID's list; beat count, response error,\norphan beats; the last beat or B frees the slot"];
-    scan [group=R, label="Timeout Scan + Thresholds\nrotating scan reads one table entry\nper cycle: its age vs cfg_timeout_cnt;\nlive count and latency compared\na cycle later"];
+          shape=invtrapezium, width=3.6, height=0.65, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    tick [group=R, label="Stamp Counters\ncycle counter (latency)\ncounter_freq_invariant - u_tick\n(microsecond tick, timeout)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    tbl  [group=A, label="Transaction Table (flops), MAX_TRANSACTIONS slots\naddress, ID, length, cycle stamp, microsecond stamp\nsame-ID entries linked in allocation order (head flag, next);\nno free slot: the command is refused and counted", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wq   [group=D, label="AW-Order FIFO (IS_READ=0 only)\nslot index per accepted AW, so W beats\nneed no lookup; one early W burst\nbuffered as a beat count", style="filled,dashed", shape=cylinder, style="filled,dashed", fillcolor="#E8DFF5"];
+    attr [group=D, label="Attribution (combinational, one-hot)\ndata / response go to the head of their\nID's list; beat count, response error,\norphan beats; the last beat or B frees the slot", style="filled", fillcolor="white"];
+    scan [group=R, label="Timeout Scan + Thresholds\nrotating scan reads one table entry\nper cycle: its age vs cfg_timeout_cnt;\nlive count and latency compared\na cycle later", style="filled", fillcolor="white"];
 
     // ---- events ----
-    evr  [group=A, label="Event Register (flops)\nthis cycle's error / completion / timeout /\nthreshold events, with held latency and\ntimeout events waiting their turn"];
+    evr  [group=A, label="Event Register (flops)\nthis cycle's error / completion / timeout /\nthreshold events, with held latency and\ntimeout events waiting their turn", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     epk  [group=A, label="Event Pick\none event per cycle, error first",
-          shape=invtrapezium, width=3.8, height=0.65, fixedsize=true, fillcolor="#BFD7EE"];
-    oq   [group=A, label="Output Queue (unreset array, OUT_DEPTH entries)\n66-bit event entries; full: event dropped and counted\nformatted into the 128-bit packet on the way out"];
-    adc  [group=L, label="Address Checker (N_ADDR_RANGES > 0)\naxi_monitor_addr_check - u_addr_check\nError/ADDR_RANGE and AddrMatch packets", style="filled,dashed"];
-    mux  [group=A, label="Monbus Hold Mux\nwhichever source is presented first\nholds the bus until it is taken"];
+          shape=invtrapezium, width=3.8, height=0.65, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    oq   [group=A, label="Output Queue (unreset array, OUT_DEPTH entries)\n66-bit event entries; full: event dropped and counted\nformatted into the 128-bit packet on the way out", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    adc  [group=L, label="Address Checker (N_ADDR_RANGES > 0)\naxi_monitor_addr_check - u_addr_check\nError/ADDR_RANGE and AddrMatch packets", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    mux  [group=A, label="Monbus Hold Mux\nwhichever source is presented first\nholds the bus until it is taken", style="filled", fillcolor="white"];
 
     // ---- the bar ----
     outs [group=A, label="Ocelus Bus + Status\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready   |   active_count, busy,\nperf_completed_count, perf_error_count, dropped_count, refused_count",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- allocate flow ----
     cmdt -> pick [xlabel="command handshake"];
@@ -66,10 +66,10 @@ digraph axi_monitor_lite {
     evr  -> epk  [xlabel="events"];
     epk  -> oq   [xlabel="one entry per cycle", penwidth=1.8];
     oq   -> mux  [xlabel="packet"];
-    cmdt -> adc  [style=dashed, xlabel="command tap", constraint=false];
+    cmdt -> adc  [style=dashed, color="#777777", xlabel="command tap", constraint=false];
     adc  -> mux  [xlabel="addr packets"];
     mux  -> outs [xlabel="monbus_*", penwidth=1.8];
-    cfg  -> scan [style=dashed, xlabel="limits, enables"];
+    cfg  -> scan [style=dashed, color="#777777", xlabel="limits, enables"];
 
     // ---- rank pinning ----
     { rank=same; cmdt; dtt; cfg; }

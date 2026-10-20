@@ -4,25 +4,25 @@ digraph delta_system_context {
            nodesep="0.45", ranksep="0.70", splines=ortho, labelloc=t,
            label="Delta between AXI4-Stream sources and sinks - routes by TDEST, no addresses\n(each edge: TVALID and payload down, TREADY up)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
 
-    m0  [label="Master 0 (source)\ndrives s_axis_*[0]", fillcolor="white"];
-    mn  [label="Master M-1 (source)\ndrives s_axis_*[M-1]", fillcolor="white"];
-    clk [label="Clock / Reset\naclk, aresetn (active-low, async)", fillcolor="white"];
+    m0  [label="Master 0 (source)\ndrives s_axis_*[0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mn  [label="Master M-1 (source)\ndrives s_axis_*[M-1]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk [label="Clock / Reset\naclk, aresetn (active-low, async)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; m0; mn; clk; }
     m0 -> mn -> clk [style=invis, dir=none];
 
-    d [label="Delta Crossbar - delta_axis_flat_<M>x<N>\nTDEST picks the slave; per-slave round-robin,\npacket-atomic until TLAST; TREADY steered back", width=5];
+    d [label="Delta Crossbar - delta_axis_flat_<M>x<N>\nTDEST picks the slave; per-slave round-robin,\npacket-atomic until TLAST; TREADY steered back", width=5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    s0 [label="Slave 0 (sink)\nreceives m_axis_*[0]", fillcolor="white"];
-    sn [label="Slave N-1 (sink)\nreceives m_axis_*[N-1]", fillcolor="white"];
+    s0 [label="Slave 0 (sink)\nreceives m_axis_*[0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sn [label="Slave N-1 (sink)\nreceives m_axis_*[N-1]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; s0; sn; }
     s0 -> sn [style=invis, dir=none];
 
     m0 -> d [xlabel="s_axis (TDEST < N)"];
     mn -> d [xlabel="s_axis"];
-    clk -> d [style=dashed, dir=forward, xlabel="aclk / aresetn"];
+    clk -> d [style=dashed, color="#777777", dir=forward, xlabel="aclk / aresetn"];
     d -> s0 [xlabel="m_axis"];
     d -> sn [xlabel="m_axis"];
 }

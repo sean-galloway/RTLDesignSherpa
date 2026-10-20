@@ -10,30 +10,30 @@ digraph uart_tx_engine {
            nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
            label="uart_16550_core transmit path (core clock)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    port [label="Register Side  (uart_16550_config_regs)\nin: THR byte + push, LCR, FCR[0] / FCR[2], MCR.loopback / AFE\nout: LSR.THRE, LSR.TEMT", fillcolor="white", width=6.0];
-    tick [label="Baud Tick\n(baud generator,\n16 per bit)", fillcolor="white"];
-    cts  [label="CTS (synchronized)\n(uart_16550_modem)", fillcolor="white"];
+    port [label="Register Side  (uart_16550_config_regs)\nin: THR byte + push, LCR, FCR[0] / FCR[2], MCR.loopback / AFE\nout: LSR.THRE, LSR.TEMT", fillcolor="white", width=6.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    tick [label="Baud Tick\n(baud generator,\n16 per bit)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cts  [label="CTS (synchronized)\n(uart_16550_modem)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    txf [group=L, label="TX FIFO / THR (flop array)\nr_tx_fifo, r_tx_wr_ptr / r_tx_rd_ptr\nFIFO_DEPTH bytes\nFCR[0]=0: one byte (a second write overwrites)\nFCR[2]: pointer reset (shifter not stopped)"];
-    fsm [group=L, label="Transmitter (flop FSM)\nr_tx_state: IDLE > START > DATA >\nPARITY > STOP1 > STOP2; data LSB first\nLCR: 5-8 bits, parity, 1 / 1.5 / 2 stop"];
-    mux [group=L, label="TX Output Select (combinational)\nLCR.break: 0;  else the FSM's bit\nMCR.loopback: uart_tx held 1,\nthe bit goes to the receiver"];
-    sts [group=R, label="TX Status (combinational)\nTHRE = TX FIFO empty\nTEMT = FIFO empty and FSM idle"];
+    txf [group=L, label="TX FIFO / THR (flop array)\nr_tx_fifo, r_tx_wr_ptr / r_tx_rd_ptr\nFIFO_DEPTH bytes\nFCR[0]=0: one byte (a second write overwrites)\nFCR[2]: pointer reset (shifter not stopped)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm [group=L, label="Transmitter (flop FSM)\nr_tx_state: IDLE > START > DATA >\nPARITY > STOP1 > STOP2; data LSB first\nLCR: 5-8 bits, parity, 1 / 1.5 / 2 stop", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    mux [group=L, label="TX Output Select (combinational)\nLCR.break: 0;  else the FSM's bit\nMCR.loopback: uart_tx held 1,\nthe bit goes to the receiver", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    sts [group=R, label="TX Status (combinational)\nTHRE = TX FIFO empty\nTEMT = FIFO empty and FSM idle", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    bar [label="Module Boundary\nuart_tx out (idle high)   |   TX bit to the receiver (loopback only)", fillcolor="white", width=7.0];
+    bar [label="Module Boundary\nuart_tx out (idle high)   |   TX bit to the receiver (loopback only)", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> txf [xlabel="THR byte + push"];
     txf  -> fsm [xlabel="head byte (pop at START)"];
     fsm  -> mux [xlabel="current bit"];
     mux  -> bar [penwidth=1.8, xlabel="serial out"];
 
-    port -> sts [dir=back, xlabel="LSR.THRE, LSR.TEMT"];
+    port -> sts [color="#1A7A1A", dir=back, xlabel="LSR.THRE, LSR.TEMT"];
     txf  -> sts [xlabel="FIFO empty"];
-    sts  -> fsm [dir=back, constraint=false, xlabel="FSM idle"];
+    sts  -> fsm [color="#1A7A1A", dir=back, constraint=false, xlabel="FSM idle"];
 
-    tick -> fsm [style=dashed, xlabel="tick"];
-    cts  -> fsm [style=dashed, xlabel="AFE=1: start\nonly while CTS"];
+    tick -> fsm [style=dashed, color="#777777", xlabel="tick"];
+    cts  -> fsm [style=dashed, color="#777777", xlabel="AFE=1: start\nonly while CTS"];
 
     { rank=same; txf; sts; tick; cts; }
     tick -> cts -> txf [style=invis, minlen=2];

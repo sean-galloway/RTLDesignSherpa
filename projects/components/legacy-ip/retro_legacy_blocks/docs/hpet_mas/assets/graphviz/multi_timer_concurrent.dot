@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // HPET multi-timer example - a procedure plus a timeline, in the house
 // decision-tree vocabulary (white milestones, blue actions, every arrow
 // labeled). Setup on the left, the counter timeline on the right, so the

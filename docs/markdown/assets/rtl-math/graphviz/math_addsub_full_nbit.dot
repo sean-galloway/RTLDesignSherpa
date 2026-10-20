@@ -9,23 +9,23 @@ digraph math_addsub_full_nbit {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_addsub_full_nbit - N-bit add / subtract on one adder (combinational)";
 
-    opa  [label="Operand A\ni_a[N-1:0]", fillcolor="white"];
-    opb  [label="Operand B\ni_b[N-1:0]", fillcolor="white"];
-    mode [label="Mode\ni_c: 0 = add (A + B)\n1 = subtract (A - B)", fillcolor="white"];
+    opa  [label="Operand A\ni_a[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    opb  [label="Operand B\ni_b[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mode [label="Mode\ni_c: 0 = add (A + B)\n1 = subtract (A - B)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     p_m  [shape=point, width=0.01];
 
-    inv  [label="Conditional Invert (combinational)\nw_ip[i] = i_b[i] ^ i_c  (N XORs)\ni_c = 1: one's complement of B"];
-    add  [label="Ripple-Carry Adder (combinational)\nN x math_adder_full - gen_full_adders\nw_c[0] = i_c supplies the +1"];
+    inv  [label="Conditional Invert (combinational)\nw_ip[i] = i_b[i] ^ i_c  (N XORs)\ni_c = 1: one's complement of B", style="filled", fillcolor="white"];
+    add  [label="Ripple-Carry Adder (combinational)\nN x math_adder_full - gen_full_adders\nw_c[0] = i_c supplies the +1", style="filled", fillcolor="white"];
 
-    outs [label="Outputs\now_sum[N-1:0] (A + B or A - B)   |   ow_carry (add: carry out;  subtract: 1 = no borrow, A >= B)", fillcolor="white", width=7.5];
+    outs [label="Outputs\now_sum[N-1:0] (A + B or A - B)   |   ow_carry (add: carry out;  subtract: 1 = no borrow, A >= B)", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     opb  -> inv [xlabel="i_b"];
     mode -> p_m [arrowhead=none, headclip=false, xlabel="i_c"];
-    p_m  -> inv [tailclip=false, style=dashed, xlabel="invert B"];
+    p_m  -> inv [tailclip=false, style=dashed, color="#777777", xlabel="invert B"];
     p_m  -> add [tailclip=false, xlabel="carry in (+1)"];
     opa  -> add [xlabel="i_a"];
     inv  -> add [xlabel="w_ip (B or ~B)"];

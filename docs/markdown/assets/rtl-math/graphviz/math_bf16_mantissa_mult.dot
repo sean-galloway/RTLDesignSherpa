@@ -12,23 +12,23 @@ digraph math_bf16_mantissa_mult {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_bf16_mantissa_mult - 8x8 mantissa product with RNE bits (combinational)";
 
     // ---- inputs (white) ----
-    m_in [label="Mantissas\ni_mant_a[6:0], i_mant_b[6:0]", fillcolor="white"];
-    n_in [label="Operand Class\ni_a_is_normal, i_b_is_normal", fillcolor="white"];
+    m_in [label="Mantissas\ni_mant_a[6:0], i_mant_b[6:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    n_in [label="Operand Class\ni_a_is_normal, i_b_is_normal", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- datapath ----
-    ext  [group=M, label="Hidden-Bit Extend (combinational)\n{is_normal, mant}: 1.mmmmmmm for a normal operand,\n0 for a zero / flushed subnormal"];
-    mul  [group=M, label="8x8 Multiply\nmath_multiplier_dadda_4to2_008 - u_mult\nDadda tree with 4:2 compressors\nproduct in [0, 4): 16 bits"];
-    nrm  [group=N, label="Normalize Detect (combinational)\nneeds_norm = product[15]\n(product >= 2.0)"];
-    sel  [group=M, label="Window Select (combinational)\nneeds_norm = 1: mant = [14:8], G = [7], R = [6], S = |[5:0]\nneeds_norm = 0: mant = [13:7], G = [6], R = [5], S = |[4:0]\nS is the true sticky (not folded with G)"];
+    ext  [group=M, label="Hidden-Bit Extend (combinational)\n{is_normal, mant}: 1.mmmmmmm for a normal operand,\n0 for a zero / flushed subnormal", style="filled", fillcolor="white"];
+    mul  [group=M, label="8x8 Multiply\nmath_multiplier_dadda_4to2_008 - u_mult\nDadda tree with 4:2 compressors\nproduct in [0, 4): 16 bits", style="filled", fillcolor="white"];
+    nrm  [group=N, label="Normalize Detect (combinational)\nneeds_norm = product[15]\n(product >= 2.0)", style="filled", fillcolor="white"];
+    sel  [group=M, label="Window Select (combinational)\nneeds_norm = 1: mant = [14:8], G = [7], R = [6], S = |[5:0]\nneeds_norm = 0: mant = [13:7], G = [6], R = [5], S = |[4:0]\nS is the true sticky (not folded with G)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- outputs ----
     bar  [label="Outputs\now_product[15:0]   |   ow_needs_norm   |   ow_mant_out[6:0]   |   ow_guard_bit, ow_round_bit, ow_sticky_bit",
-          fillcolor="white", width=8.5];
+          fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- flows ----
     m_in -> ext [xlabel="mant_a, mant_b"];

@@ -11,19 +11,19 @@ digraph monitor_wp_aggregation {
            label="Aggregation topologies: round-robin tree (default), weighted, protocol-partitioned",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.05"];
+           fillcolor="white", color="black", margin="0.10,0.05"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---------------- round-robin tree ----------------
     subgraph cluster_tree {
         label="Tree of round-robin arbiters (default)\nports of similar rate; simplest, fair\nmonbus_arbiter: any fan-in, ACK-mode grants";
         labelloc=b; style=dashed; fontsize=10;
-        t1 [label="mon", fillcolor="white"]; t2 [label="mon", fillcolor="white"];
-        t3 [label="mon", fillcolor="white"]; t4 [label="mon", fillcolor="white"];
-        ta1 [label="monbus_arbiter", shape=invtrapezium, width=1.9, height=0.5, fixedsize=true, fillcolor="#BFD7EE"];
-        ta2 [label="monbus_arbiter", shape=invtrapezium, width=1.9, height=0.5, fixedsize=true, fillcolor="#BFD7EE"];
-        tr  [label="monbus_arbiter", shape=invtrapezium, width=3.6, height=0.5, fixedsize=true, fillcolor="#BFD7EE"];
-        tg  [label="monbus_group_core", width=3.0];
+        t1 [label="mon", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"]; t2 [label="mon", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        t3 [label="mon", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"]; t4 [label="mon", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        ta1 [label="monbus_arbiter", shape=invtrapezium, width=1.9, height=0.5, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+        ta2 [label="monbus_arbiter", shape=invtrapezium, width=1.9, height=0.5, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+        tr  [label="monbus_arbiter", shape=invtrapezium, width=3.6, height=0.5, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+        tg  [label="monbus_group_core", width=3.0, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
         t1 -> ta1; t2 -> ta1; t3 -> ta2; t4 -> ta2;
         ta1 -> tr [label="merged", penwidth=1.8]; ta2 -> tr [penwidth=1.8];
         tr -> tg [label="one stream", penwidth=1.8];
@@ -33,11 +33,11 @@ digraph monitor_wp_aggregation {
     subgraph cluster_wtd {
         label="Weighted\none port far busier than the others: its packets\nwin proportionally, not equally\n(arbiter_rr_pwm_monbus is the unweighted sibling)";
         labelloc=b; style=dashed; fontsize=10;
-        w1 [label="busy port", fillcolor="white"];
-        w2 [label="quiet port", fillcolor="white"];
-        w3 [label="quiet port", fillcolor="white"];
-        wa [label="arbiter_wrr_pwm_monbus\nweights per client, PWM flow control", shape=invtrapezium, width=3.8, height=0.7, fixedsize=true, fillcolor="#BFD7EE"];
-        wg [label="monbus_group_core", width=3.0];
+        w1 [label="busy port", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        w2 [label="quiet port", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        w3 [label="quiet port", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        wa [label="arbiter_wrr_pwm_monbus\nweights per client, PWM flow control", shape=invtrapezium, width=3.8, height=0.7, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+        wg [label="monbus_group_core", width=3.0, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
         w1 -> wa [label="weight 4"]; w2 -> wa [label="weight 1"]; w3 -> wa [label="weight 1"];
         wa -> wg [label="one stream", penwidth=1.8];
     }
@@ -46,10 +46,10 @@ digraph monitor_wp_aggregation {
     subgraph cluster_part {
         label="Protocol-partitioned groups\nfamilies needing different rings, interrupt\nhandlers or flush policies; one monbus_group_core\nper family -- a topology choice, not a new block";
         labelloc=b; style=dashed; fontsize=10;
-        pa [label="AXI monitors", fillcolor="white"];
-        ps [label="AXIS monitors", fillcolor="white"];
-        pga [label="monbus_group_core\nAXI ring, IRQ A"];
-        pgs [label="monbus_group_core\nAXIS ring, IRQ B"];
+        pa [label="AXI monitors", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        ps [label="AXIS monitors", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        pga [label="monbus_group_core\nAXI ring, IRQ A", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        pgs [label="monbus_group_core\nAXIS ring, IRQ B", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
         pa -> pga [label="AXI packets"];
         ps -> pgs [label="AXIS packets"];
     }

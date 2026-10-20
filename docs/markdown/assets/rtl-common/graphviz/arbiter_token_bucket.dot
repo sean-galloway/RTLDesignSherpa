@@ -19,26 +19,26 @@ digraph arbiter_token_bucket {
            label="arbiter_token_bucket - per-client token-bucket request shaper (in front of any arbiter)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    grt  [group=L, label="Downstream Grant (from the arbiter)\ngrant[C], grant_valid, grant_ack[C]", fillcolor="white"];
-    req  [group=C, label="Raw Requests\nrequest_in[C]", fillcolor="white"];
-    cfg  [group=R, label="Refill Control (runtime input ports)\lrefill_tick: one-cycle pulse that adds tokens;\l    pace it with counter_freq_invariant\lrate: tokens each client gains per tick\lbucket_cap: most tokens a client may bank\l    (its burst); cap 0 = unshaped bypass\l", fillcolor="white"];
-    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: must match the downstream arbiter\l    1 = a grant spends a token on grant_ack\l    0 = a grant spends as soon as it is granted\l", fillcolor="white"];
+    grt  [group=L, label="Downstream Grant (from the arbiter)\ngrant[C], grant_valid, grant_ack[C]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [group=C, label="Raw Requests\nrequest_in[C]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [group=R, label="Refill Control (runtime input ports)\lrefill_tick: one-cycle pulse that adds tokens;\l    pace it with counter_freq_invariant\lrate: tokens each client gains per tick\lbucket_cap: most tokens a client may bank\l    (its burst); cap 0 = unshaped bypass\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: must match the downstream arbiter\l    1 = a grant spends a token on grant_ack\l    0 = a grant spends as soon as it is granted\l", fillcolor="white", shape=note];
 
-    spend [group=L, label="Spend Detect (combinational)\nw_spend[i] = completed grant to client i"];
-    upd   [group=R, label="Bucket Update (combinational)\nadd rate on refill_tick, clamp to cap,\nthen subtract 1 on spend"];
-    tok   [group=R, label="Token Buckets (flop on clk)\nr_tokens[C], reset to 0 on rst_n"];
-    gate  [group=C, label="Pass Gate (combinational)\nrequest_out[i] = request_in[i] &\n(cap 0 | tokens left after this cycle's spend)"];
+    spend [group=L, label="Spend Detect (combinational)\nw_spend[i] = completed grant to client i", style="filled", fillcolor="white"];
+    upd   [group=R, label="Bucket Update (combinational)\nadd rate on refill_tick, clamp to cap,\nthen subtract 1 on spend", style="filled", fillcolor="white"];
+    tok   [group=R, label="Token Buckets (flop on clk)\nr_tokens[C], reset to 0 on rst_n", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gate  [group=C, label="Pass Gate (combinational)\nrequest_out[i] = request_in[i] &\n(cap 0 | tokens left after this cycle's spend)", style="filled", fillcolor="white"];
 
     outs  [group=C, label="Outputs\nrequest_out[C] (to the arbiter)   |   tokens[C] (balances)",
-           fillcolor="white", width=10.5];
+           fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     req   -> gate  [xlabel="request_in", penwidth=1.8];
     gate  -> outs  [xlabel="request_out", penwidth=1.8];
 
-    grt   -> spend [style=dashed, xlabel="grant, grant_ack"];
+    grt   -> spend [style=dashed, color="#777777", xlabel="grant, grant_ack"];
     spend -> upd   [xlabel="spend"];
     spend -> gate  [xlabel="spend (net)"];
     cfg   -> upd   [xlabel="refill_tick, rate, cap"];

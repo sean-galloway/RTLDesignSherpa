@@ -8,13 +8,13 @@ digraph axi4_slave_stub {
            label="axi4_slave_stub - full AXI4 slave stub: write stub + read stub (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    top  [label="AXI4 Slave Port (s_axi_*)\ns_axi_aw* / w* / ar* in  /  s_axi_b* / r* out", fillcolor="white", width=6.0];
-    wr   [label="Write Stub\naxi4_slave_wr_stub - inst_wr_stub\n(see its diagram)"];
-    rd   [label="Read Stub\naxi4_slave_rd_stub - inst_rd_stub\n(see its diagram)"];
-    bar  [label="Module Boundary (packed packets to the backend)\nfub_axi_aw_pkt, w_pkt, ar_pkt, aw_count, ar_count out  |  b_pkt, r_pkt in", fillcolor="white", width=6.0];
+    top  [label="AXI4 Slave Port (s_axi_*)\ns_axi_aw* / w* / ar* in  /  s_axi_b* / r* out", fillcolor="white", width=6.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    wr   [label="Write Stub\naxi4_slave_wr_stub - inst_wr_stub\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd   [label="Read Stub\naxi4_slave_rd_stub - inst_rd_stub\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Module Boundary (packed packets to the backend)\nfub_axi_aw_pkt, w_pkt, ar_pkt, aw_count, ar_count out  |  b_pkt, r_pkt in", fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     top -> wr  [dir=both, xlabel="AW, W down;\nB up"];
     top -> rd  [dir=both, xlabel="AR down;\nR up"];

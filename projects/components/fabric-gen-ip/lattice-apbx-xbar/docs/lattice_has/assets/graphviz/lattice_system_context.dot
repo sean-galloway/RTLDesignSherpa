@@ -5,20 +5,20 @@ digraph lattice_system_context {
            nodesep="0.40", ranksep="1.0", splines=ortho, labelloc=t,
            label="Lattice in a typical SoC - apbx_xbar_2to4 between two APB masters and four peripherals\n(each edge: request down, PREADY / PRDATA / PSLVERR up)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
 
-    cpu [label="CPU\nAPB master 0 (m0_apb_*)", fillcolor="white"];
-    dma [label="DMA\nAPB master 1 (m1_apb_*)", fillcolor="white"];
+    cpu [label="CPU\nAPB master 0 (m0_apb_*)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dma [label="DMA\nAPB master 1 (m1_apb_*)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; cpu; dma; }
     cpu -> dma [style=invis, dir=none];
 
-    x [label="Lattice - apbx_xbar_2to4 (pclk / presetn)\naddress decode per master (BASE_ADDR + 64 KB windows),\none round-robin arbiter per slave, response routing", width=6];
+    x [label="Lattice - apbx_xbar_2to4 (pclk / presetn)\naddress decode per master (BASE_ADDR + 64 KB windows),\none round-robin arbiter per slave, response routing", width=6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    u [label="UART\nslave 0 at\nBASE + 0x0_0000", fillcolor="white"];
-    g [label="GPIO\nslave 1 at\nBASE + 0x1_0000", fillcolor="white"];
-    t [label="Timer\nslave 2 at\nBASE + 0x2_0000", fillcolor="white"];
-    p [label="SPI\nslave 3 at\nBASE + 0x3_0000", fillcolor="white"];
+    u [label="UART\nslave 0 at\nBASE + 0x0_0000", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    g [label="GPIO\nslave 1 at\nBASE + 0x1_0000", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    t [label="Timer\nslave 2 at\nBASE + 0x2_0000", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p [label="SPI\nslave 3 at\nBASE + 0x3_0000", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; u; g; t; p; }
     u -> g -> t -> p [style=invis, dir=none];
 

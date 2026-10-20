@@ -10,27 +10,27 @@ digraph k7_harness {
            label="Genesys 2 fabric benchmark - UART harness and control plane (planned)",
            labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host [group=C, label="Host PC / cocotb UART master\nASCII W addr data / R addr", fillcolor="white"];
-    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge"];
-    brg  [group=C, label="Generated 1 -> N Config Bridge\nbridge_stream_mon_axil\nbase 0xF000_0000 (reused from stream harness)", width=6];
+    host [group=C, label="Host PC / cocotb UART master\nASCII W addr data / R addr", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    uart [group=C, label="UART to AXI4-Lite Master\nuart_axil_bridge", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    brg  [group=C, label="Generated 1 -> N Config Bridge\nbridge_stream_mon_axil\nbase 0xF000_0000 (reused from stream harness)", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    sapb [group=L, label="stream_apb\n0xF000_0000 (8 KB)\nSTREAM config + kicks"];
-    hcsr [group=L2, label="harness_csr\n0xF001_0000 (4 KB)\nCTRL / STATUS / CRCs"];
-    dwr  [group=L, label="desc_ram write port\n0xF002_0000 (64 KB)\nhost preload"];
+    sapb [group=L, label="stream_apb\n0xF000_0000 (8 KB)\nSTREAM config + kicks", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hcsr [group=L2, label="harness_csr\n0xF001_0000 (4 KB)\nCTRL / STATUS / CRCs", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dwr  [group=L, label="desc_ram write port\n0xF002_0000 (64 KB)\nhost preload", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    obs_s [group=R, label="obs_slave\n0xF018_0000 (4 KB)"];
-    obs_m [group=R, label="obs_master\n0xF019_0000 (4 KB)"];
-    obs_d [group=R, label="obs_desc\n0xF01C_0000 (4 KB)"];
-    chg   [group=R2, label="chargen\n0xF01D_0000 (4 KB)\nW3 injector config"];
+    obs_s [group=R, label="obs_slave\n0xF018_0000 (4 KB)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    obs_m [group=R, label="obs_master\n0xF019_0000 (4 KB)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    obs_d [group=R, label="obs_desc\n0xF01C_0000 (4 KB)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    chg   [group=R2, label="chargen\n0xF01D_0000 (4 KB)\nW3 injector config", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     dut [group=C, label="DUT fabric under test\n4 masters x 4 slaves, 128-bit AXI4\nLeg A: bridge_fb_data  |  Leg B1: axi_crossbar_v2_1  |  Leg B2: smartconnect_v1_0",
-         width=7, penwidth=2];
+         width=7, penwidth=2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [group=C, label="Data endpoints (same in every leg)\nMIG DDR3 0x0000_0000  |  desc_ram 0x8000_0000  |  LFSR source 0x9000_0000  |  CRC sink 0xA000_0000",
-         fillcolor="white", width=8];
+         fillcolor="white", width=8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; sapb; hcsr; dwr; }
     sapb -> hcsr -> dwr [style=invis];
@@ -43,13 +43,13 @@ digraph k7_harness {
     brg -> sapb [xlabel="APB config"];
     brg -> hcsr [xlabel="CSR access"];
     brg -> dwr  [xlabel="preload"];
-    brg -> obs_s [style=dashed, xlabel="config / readback"];
-    brg -> obs_m [style=dashed, xlabel="config / readback"];
-    brg -> obs_d [style=dashed, xlabel="config / readback"];
-    brg -> chg   [style=dashed, xlabel="config"];
+    brg -> obs_s [style=dashed, color="#777777", xlabel="config / readback"];
+    brg -> obs_m [style=dashed, color="#777777", xlabel="config / readback"];
+    brg -> obs_d [style=dashed, color="#777777", xlabel="config / readback"];
+    brg -> chg   [style=dashed, color="#777777", xlabel="config"];
 
     sapb -> dut [xlabel="stream config + kicks"];
-    hcsr -> dut [style=dashed, xlabel="start, soft_reset, clear_stats"];
+    hcsr -> dut [style=dashed, color="#777777", xlabel="start, soft_reset, clear_stats"];
     dwr  -> dut [dir=both, xlabel="m_axi_desc fetch\n256 -> 128 converter outside fabric"];
 
     dut -> bar [penwidth=1.8, xlabel="RD / WR"];

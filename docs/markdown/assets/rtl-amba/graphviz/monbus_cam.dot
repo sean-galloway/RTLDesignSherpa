@@ -16,29 +16,29 @@ digraph monbus_cam {
            label="monbus_cam - DEPTH-entry true-LRU template CAM for the compressor, one access per clock\n(single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- ports (white) ----
-    act  [group=A, label="Commit Inputs\naccess_action:\nNONE / TOUCH / INSTALL\naccess_new_data, access_new_ts\nsoft_clear (all entries invalid)", fillcolor="white"];
-    key  [group=K, label="Access Key\naccess_key[KEY_WIDTH]", fillcolor="white"];
-    res  [label="Access Result (same cycle)\naccess_hit, access_idx\n(LRU position rank),\naccess_old_data, access_old_ts", fillcolor="white"];
-    dmp  [group=D, label="Dump + Status Port\ndump_idx in /\ndump_valid, dump_key, dump_data,\ncam_full, cam_count, evicted,\nevict_key, evict_data out", fillcolor="white"];
+    act  [group=A, label="Commit Inputs\naccess_action:\nNONE / TOUCH / INSTALL\naccess_new_data, access_new_ts\nsoft_clear (all entries invalid)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    key  [group=K, label="Access Key\naccess_key[KEY_WIDTH]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    res  [label="Access Result (same cycle)\naccess_hit, access_idx\n(LRU position rank),\naccess_old_data, access_old_ts", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dmp  [group=D, label="Dump + Status Port\ndump_idx in /\ndump_valid, dump_key, dump_data,\ncam_full, cam_count, evicted,\nevict_key, evict_data out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    cmp  [group=K, label="DEPTH Parallel Compares\n(combinational)\nvalid[i] & key[i] == access_key"];
-    enc  [group=K, label="Hit + Position Encode\n(combinational)\nkeys are unique: at most one\nmatch; idx = its LRU position,\nold data / ts read out"];
-    mtf  [group=A, label="Move-to-Front Commit\n(next clock edge)\lTOUCH: matched entry to position 0\l    with new data / ts; entries\l    above it shift down one\lINSTALL: new entry at position 0,\l    all shift down; when full the\l    LRU entry (DEPTH-1) is evicted\lNONE: no change\l"];
-    sts  [group=D, label="Dump Read + Status\n(combinational)\nentry at dump_idx;\ncam_full = count == DEPTH;\nevicted on a full INSTALL"];
+    cmp  [group=K, label="DEPTH Parallel Compares\n(combinational)\nvalid[i] & key[i] == access_key", style="filled", fillcolor="white"];
+    enc  [group=K, label="Hit + Position Encode\n(combinational)\nkeys are unique: at most one\nmatch; idx = its LRU position,\nold data / ts read out", style="filled", fillcolor="white"];
+    mtf  [group=A, label="Move-to-Front Commit\n(next clock edge)\lTOUCH: matched entry to position 0\l    with new data / ts; entries\l    above it shift down one\lINSTALL: new entry at position 0,\l    all shift down; when full the\l    LRU entry (DEPTH-1) is evicted\lNONE: no change\l", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sts  [group=D, label="Dump Read + Status\n(combinational)\nentry at dump_idx;\ncam_full = count == DEPTH;\nevicted on a full INSTALL", style="filled", fillcolor="white"];
 
     // ---- the storage bar ----
     arr  [label="Entry Array (flops), indexed by LRU position rank\nr_entry[0] = most recently used .. r_entry[count-1] = least recently used;\nr_entry[count .. DEPTH-1] invalid  |  key, data (last event), ts (last timestamp), valid",
-          width=8.5];
+          width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- access flow ----
     key  -> cmp [xlabel="access_key"];
     cmp  -> enc [xlabel="match vector [DEPTH]"];
-    enc  -> res [xlabel="hit, idx, old data / ts", constraint=false];
+    enc  -> res [color="#1A7A1A", xlabel="hit, idx, old data / ts", constraint=false];
     cmp  -> arr [dir=back, xlabel="keys + valids"];
 
     // ---- commit flow ----

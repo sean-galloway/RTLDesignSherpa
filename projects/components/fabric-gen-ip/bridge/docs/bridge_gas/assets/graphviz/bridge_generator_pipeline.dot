@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Bridge generator pipeline: configuration in, generator stages, emitted RTL /
 // filelist / tests out. House style: vault/handbook/authoring/block-diagrams.md
 // Labels from bin/bridge_generator.py, bin/bridge_pkg/config_loader.py,

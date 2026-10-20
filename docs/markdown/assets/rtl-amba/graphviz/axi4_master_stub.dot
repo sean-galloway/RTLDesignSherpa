@@ -8,13 +8,13 @@ digraph axi4_master_stub {
            label="axi4_master_stub - full AXI4 master stub: write stub + read stub (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    top  [label="FUB Side (packed packets)\nfub_axi_aw_pkt, w_pkt, ar_pkt in  /  b_pkt, r_pkt, aw_count, ar_count out", fillcolor="white", width=6.0];
-    wr   [label="Write Stub\naxi4_master_wr_stub - inst_wr_stub\n(see its diagram)"];
-    rd   [label="Read Stub\naxi4_master_rd_stub - inst_rd_stub\n(see its diagram)"];
-    bar  [label="Module Boundary\nm_axi_aw* / w* / ar* out  |  m_axi_b* / r* in", fillcolor="white", width=6.0];
+    top  [label="FUB Side (packed packets)\nfub_axi_aw_pkt, w_pkt, ar_pkt in  /  b_pkt, r_pkt, aw_count, ar_count out", fillcolor="white", width=6.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    wr   [label="Write Stub\naxi4_master_wr_stub - inst_wr_stub\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd   [label="Read Stub\naxi4_master_rd_stub - inst_rd_stub\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Module Boundary\nm_axi_aw* / w* / ar* out  |  m_axi_b* / r* in", fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     top -> wr  [dir=both, xlabel="AW, W packets down;\nB packet up"];
     top -> rd  [dir=both, xlabel="AR packet down;\nR packet up"];

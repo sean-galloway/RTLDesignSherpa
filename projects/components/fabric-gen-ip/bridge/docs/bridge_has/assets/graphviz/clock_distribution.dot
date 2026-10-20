@@ -11,37 +11,37 @@ digraph clock_distribution {
            nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
            label="Bridge clocking - one fabric clock; a cdc = true AXI4 port, master or slave, runs on its own clock\n(each solid edge: requests down, responses up; heavy edges run on a port clock)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- master side (top) ----
-    mp0   [label="AXI4 Master Port\non aclk", fillcolor="white"];
-    mp1   [label="AXI4 Master Port\non <master>_aclk", fillcolor="white"];
-    mclk  [label="Master Clock / Reset\n<master>_aclk, <master>_aresetn\n(release with aresetn)", fillcolor="white"];
-    clk   [label="Fabric Clock / Reset\naclk, aresetn", fillcolor="white"];
+    mp0   [label="AXI4 Master Port\non aclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mp1   [label="AXI4 Master Port\non <master>_aclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    mclk  [label="Master Clock / Reset\n<master>_aclk, <master>_aresetn\n(release with aresetn)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk   [label="Fabric Clock / Reset\naclk, aresetn", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; mp0; mp1; mclk; clk; }
     mp0 -> mp1 -> mclk -> clk [style=invis];
 
-    mcdc  [label="Clock Crossing - <master>_adapter\naxi4_cdc_wr / axi4_cdc_rd, one async FIFO per channel\n(write side on <master>_aclk, read side on aclk)"];
-    madp0 [label="Master Adapter (same clock)\naxi4_slave_wr / _rd, decode, width paths"];
-    madp1 [label="Master Adapter (cdc = true)\naxi4_slave_wr / _rd, decode, width paths, on aclk"];
+    mcdc  [label="Clock Crossing - <master>_adapter\naxi4_cdc_wr / axi4_cdc_rd, one async FIFO per channel\n(write side on <master>_aclk, read side on aclk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    madp0 [label="Master Adapter (same clock)\naxi4_slave_wr / _rd, decode, width paths", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    madp1 [label="Master Adapter (cdc = true)\naxi4_slave_wr / _rd, decode, width paths, on aclk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; madp0; madp1; }
     madp0 -> madp1 [style=invis];
 
-    xbar [label="Crossbar (aclk)\n<bridge>_xbar: per-slave arbiters, W steering, response muxes", width=6];
+    xbar [label="Crossbar (aclk)\n<bridge>_xbar: per-slave arbiters, W steering, response muxes", width=6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    sa0  [label="Slave Adapter (same clock)\naxi4_master_wr / _rd\n+ bridge_id tracker"];
-    sa1  [label="Slave Adapter (cdc = true)\naxi4_master_wr / _rd\n+ bridge_id tracker, on aclk"];
-    sa2  [label="Slave Adapter (apb / apb5)\naxi4_to_apb4_shim\n(pclk tied to aclk)"];
+    sa0  [label="Slave Adapter (same clock)\naxi4_master_wr / _rd\n+ bridge_id tracker", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sa1  [label="Slave Adapter (cdc = true)\naxi4_master_wr / _rd\n+ bridge_id tracker, on aclk", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sa2  [label="Slave Adapter (apb / apb5)\naxi4_to_apb4_shim\n(pclk tied to aclk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; sa0; sa1; sa2; }
     sa0 -> sa1 -> sa2 [style=invis];
 
-    scdc [label="Clock Crossing - <slave>_adapter\naxi4_cdc_wr / axi4_cdc_rd, one async FIFO per channel\n(write side on aclk, read side on <slave>_aclk)"];
+    scdc [label="Clock Crossing - <slave>_adapter\naxi4_cdc_wr / axi4_cdc_rd, one async FIFO per channel\n(write side on aclk, read side on <slave>_aclk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    sp0  [label="AXI4 Slave Port\non aclk", fillcolor="white"];
-    sp1  [label="AXI4 Slave Port\non <slave>_aclk", fillcolor="white"];
-    sclk [label="Slave Clock / Reset\n<slave>_aclk, <slave>_aresetn\n(release with aresetn)", fillcolor="white"];
-    sp2  [label="APB Slave Port\non aclk", fillcolor="white"];
+    sp0  [label="AXI4 Slave Port\non aclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sp1  [label="AXI4 Slave Port\non <slave>_aclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sclk [label="Slave Clock / Reset\n<slave>_aclk, <slave>_aresetn\n(release with aresetn)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sp2  [label="APB Slave Port\non aclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; sp0; sp1; sclk; sp2; }
     sp0 -> sp1 -> sclk -> sp2 [style=invis];
 
@@ -60,7 +60,7 @@ digraph clock_distribution {
     sa2   -> sp2   [dir=both, xlabel="APB (aclk)"];
 
     // clocks: dashed, short
-    mclk  -> mcdc  [style=dashed, xlabel="write-side clock"];
-    clk   -> madp1 [style=dashed, xlabel="clocks every fabric block"];
-    scdc  -> sclk  [style=dashed, dir=back, xlabel="read-side clock"];
+    mclk  -> mcdc  [style=dashed, color="#777777", xlabel="write-side clock"];
+    clk   -> madp1 [style=dashed, color="#777777", xlabel="clocks every fabric block"];
+    scdc  -> sclk  [style=dashed, color="#777777", dir=back, xlabel="read-side clock"];
 }

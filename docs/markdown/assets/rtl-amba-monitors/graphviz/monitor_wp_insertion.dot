@@ -15,19 +15,19 @@ digraph monitor_wp_insertion {
            label="Insertion points: resolution against area -- per port (default), mid-fabric, root of tree",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.05"];
+           fillcolor="white", color="black", margin="0.10,0.05"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---------------- per port ----------------
     subgraph cluster_port {
         label="Per port (default)\nevery transaction, by ID, with latency\n~1,100 LUTs per port (677 in bridge)";
         labelloc=b; style=dashed; fontsize=10;
-        am1 [label="Master 1", fillcolor="white"];
-        am2 [label="Master 2", fillcolor="white"];
-        amon1 [label="*_monlite\non port 1\n(emits monbus\npackets)"];
-        amon2 [label="*_monlite\non port 2\n(emits monbus\npackets)"];
-        afab [label="Fabric"];
-        aslv [label="Slaves", fillcolor="white", width=2.0];
+        am1 [label="Master 1", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        am2 [label="Master 2", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        amon1 [label="*_monlite\non port 1\n(emits monbus\npackets)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        amon2 [label="*_monlite\non port 2\n(emits monbus\npackets)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        afab [label="Fabric", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        aslv [label="Slaves", fillcolor="white", width=2.0, style="rounded,filled", fillcolor="#E2EFDA"];
         am1 -> amon1 [label="requests"];
         am2 -> amon2 [label="requests"];
         amon1 -> afab; amon2 -> afab;
@@ -38,11 +38,11 @@ digraph monitor_wp_insertion {
     subgraph cluster_mid {
         label="Mid-fabric\nthe traffic on one internal link\nlocalizes fabric-made ordering /\nID collisions; one observer per link";
         labelloc=b; style=dashed; fontsize=10;
-        bm1 [label="Master 1", fillcolor="white"];
-        bm2 [label="Master 2", fillcolor="white"];
-        bfab [label="Fabric"];
-        bobs [label="Pass-through observer\naxi4_intf_master_\nobserver (own APB)\n(emits monbus packets)"];
-        bslv [label="Slaves", fillcolor="white", width=2.0];
+        bm1 [label="Master 1", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        bm2 [label="Master 2", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        bfab [label="Fabric", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        bobs [label="Pass-through observer\naxi4_intf_master_\nobserver (own APB)\n(emits monbus packets)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        bslv [label="Slaves", fillcolor="white", width=2.0, style="rounded,filled", fillcolor="#E2EFDA"];
         bm1 -> bfab [label="requests"]; bm2 -> bfab;
         bfab -> bobs [label="one internal link"];
         bobs -> bslv [label="passed through"];
@@ -52,11 +52,11 @@ digraph monitor_wp_insertion {
     subgraph cluster_root {
         label="Root of tree\nthe aggregate once; ports not told apart\n677 LUTs vs ~2,000 per port\n(3-port bridge)";
         labelloc=b; style=dashed; fontsize=10;
-        cm1 [label="Master 1", fillcolor="white"];
-        cm2 [label="Master 2", fillcolor="white"];
-        cfab [label="Fabric"];
-        cmon [label="One monitor\non the aggregate\n(emits monbus packets)"];
-        cslv [label="Slaves", fillcolor="white", width=2.0];
+        cm1 [label="Master 1", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        cm2 [label="Master 2", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        cfab [label="Fabric", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        cmon [label="One monitor\non the aggregate\n(emits monbus packets)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        cslv [label="Slaves", fillcolor="white", width=2.0, style="rounded,filled", fillcolor="#E2EFDA"];
         cm1 -> cfab [label="requests"]; cm2 -> cfab;
         cfab -> cmon [label="aggregate"];
         cmon -> cslv [label="to the slaves"];

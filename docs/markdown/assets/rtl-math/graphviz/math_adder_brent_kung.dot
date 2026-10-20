@@ -9,18 +9,18 @@ digraph math_adder_brent_kung {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_adder_brent_kung_<N> - Brent-Kung prefix adder, N = 8 / 16 / 32 / 64 (combinational)";
 
-    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white"];
-    cin  [label="Carry In\ni_c", fillcolor="white"];
-    cells [label="Prefix cell types\l  black cell: G = Ghi | (Phi & Glo),  P = Phi & Plo\l      merges two spans; the group P is still needed later\l  gray cell: G only\l      used where the merged span reaches bit 0, so its G\l      is a finished carry and no group P is needed\l", fillcolor="white"];
-    pg   [label="Bitwise PG (combinational)\nmath_adder_brent_kung_bitwisepg: N x math_adder_brent_kung_pg\ng[k+1] = a[k] & b[k],  p[k+1] = a[k] ^ b[k]\ncarry in enters as g[0] (p[0] = 0)"];
-    up   [label="Up-Sweep (combinational)\nmath_adder_brent_kung_grouppg_<N>\nmerges spans of 2, 4, 8 .. bits (log2 N levels)\nblack cells, gray cells where a span reaches bit 0"];
-    down [label="Down-Sweep (combinational)\nsame grouppg module, gray cells\nfills in every carry the up-sweep skipped:\none finished carry gg[k] per bit"];
-    sum  [label="Sum (combinational)\nmath_adder_brent_kung_sum\now_sum[k] = gg[k] ^ p[k+1],  ow_carry = gg[N]"];
-    out  [label="Outputs\now_sum[N-1:0]   |   ow_carry", fillcolor="white", width=4.5];
+    ops  [label="Operands\ni_a[N-1:0], i_b[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cin  [label="Carry In\ni_c", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cells [label="Prefix cell types\l  black cell: G = Ghi | (Phi & Glo),  P = Phi & Plo\l      merges two spans; the group P is still needed later\l  gray cell: G only\l      used where the merged span reaches bit 0, so its G\l      is a finished carry and no group P is needed\l", fillcolor="white", shape=note];
+    pg   [label="Bitwise PG (combinational)\nmath_adder_brent_kung_bitwisepg: N x math_adder_brent_kung_pg\ng[k+1] = a[k] & b[k],  p[k+1] = a[k] ^ b[k]\ncarry in enters as g[0] (p[0] = 0)", style="filled", fillcolor="white"];
+    up   [label="Up-Sweep (combinational)\nmath_adder_brent_kung_grouppg_<N>\nmerges spans of 2, 4, 8 .. bits (log2 N levels)\nblack cells, gray cells where a span reaches bit 0", style="filled", fillcolor="white"];
+    down [label="Down-Sweep (combinational)\nsame grouppg module, gray cells\nfills in every carry the up-sweep skipped:\none finished carry gg[k] per bit", style="filled", fillcolor="white"];
+    sum  [label="Sum (combinational)\nmath_adder_brent_kung_sum\now_sum[k] = gg[k] ^ p[k+1],  ow_carry = gg[N]", style="filled", fillcolor="white"];
+    out  [label="Outputs\now_sum[N-1:0]   |   ow_carry", fillcolor="white", width=4.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
     p_byp [shape=point, width=0.01];
     p_b2  [shape=point, width=0.01];

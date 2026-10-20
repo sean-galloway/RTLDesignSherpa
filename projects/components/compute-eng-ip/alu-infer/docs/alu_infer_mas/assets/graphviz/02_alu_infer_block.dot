@@ -11,42 +11,42 @@ digraph alu_infer_block {
     graph [bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.30", ranksep="0.55", splines=ortho];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize="0.7"];
 
     // ---- Ports (white), pinned to the top rank so sideband ports never
     // sit inside the function-row rank ----
     { rank=same; pa; pb; timm; fsel; actl; clk; }
-    pa  [label="op_line_a (32b)\nsame-clock capture", fillcolor="white"];
-    pb  [label="op_line_b (32b)\nsame-clock capture", fillcolor="white"];
-    timm [label="threshold_imm\n(bf16)", fillcolor="white"];
-    fsel [label="func_sel (9b)\nopcode + sub-op + reserved", fillcolor="white"];
-    actl [label="acc_ctrl\nclear / hold / accumulate", fillcolor="white"];
-    clk  [label="clk, rst_n", fillcolor="white"];
+    pa  [label="op_line_a (32b)\nsame-clock capture", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pb  [label="op_line_b (32b)\nsame-clock capture", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    timm [label="threshold_imm\n(bf16)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    fsel [label="func_sel (9b)\nopcode + sub-op + reserved", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    actl [label="acc_ctrl\nclear / hold / accumulate", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk  [label="clk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- Element decompose (one block, both operands) ----
-    da [label="Element decompose\n2xbf16 lanes per 32-bit line (A, B)"];
+    da [label="Element decompose\n2xbf16 lanes per 32-bit line (A, B)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     p  [shape=point, style=invis, label="", width="0.05", fixedsize=true];
 
     // ---- Function rows (one rank; rtl/math block on the second line) ----
-    fcopy [label="Copy / passthrough\n(bypass lane)"];
-    fadd  [label="Add / Subtract\nmath_bf16_adder"];
-    fmul  [label="Multiply\nmath_bf16_multiplier"];
-    fmac  [label="FMA / MAC\nmath_bf16_fma"];
-    fmm   [label="Min / Max\nmath_bf16_min/max"];
-    fcmp  [label="Compare / threshold\nmath_bf16_comparator"];
-    frelu [label="ReLU\nmath_bf16_relu"];
+    fcopy [label="Copy / passthrough\n(bypass lane)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fadd  [label="Add / Subtract\nmath_bf16_adder", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fmul  [label="Multiply\nmath_bf16_multiplier", style="filled", fillcolor="white"];
+    fmac  [label="FMA / MAC\nmath_bf16_fma", style="filled", fillcolor="white"];
+    fmm   [label="Min / Max\nmath_bf16_min/max", style="filled", fillcolor="white"];
+    fcmp  [label="Compare / threshold\nmath_bf16_comparator", style="filled", fillcolor="white"];
+    frelu [label="ReLU\nmath_bf16_relu", style="filled", fillcolor="white"];
 
     // ---- Post paths ----
-    sel  [label="Result select (mode mux)\ny = row[func_sel.opcode]"];
-    comp [label="Line composer\npack 2xbf16 -> 32b line\n(MAC: fp32 -> bf16 RNE at drain)"];
+    sel  [label="Result select (mode mux)\ny = row[func_sel.opcode]", style="filled", fillcolor="white"];
+    comp [label="Line composer\npack 2xbf16 -> 32b line\n(MAC: fp32 -> bf16 RNE at drain)", style="filled", fillcolor="white"];
 
     // ---- Outputs (white bar) ----
-    out  [label="result_line (32b)\nto FSM / result-memory push", fillcolor="white"];
-    flg  [label="result_flags\nmask / flags (opcode 6)", fillcolor="white"];
+    out  [label="result_line (32b)\nto FSM / result-memory push", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    flg  [label="result_flags\nmask / flags (opcode 6)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- State (dashed sideband) ----
-    acc  [label="fp32 MAC accumulator\n(per lane)", style="filled,dashed"];
+    acc  [label="fp32 MAC accumulator\n(per lane)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     // ---- Operand trunk ----
     pa -> da [label="operand line A"];
@@ -76,9 +76,9 @@ digraph alu_infer_block {
     fcmp -> flg  [label="mask / flags"];
 
     // ---- Sideband: config, accumulator, clock ----
-    fsel -> sel  [style=dashed, label="row + sub-op select"];
-    actl -> acc  [style=dashed, label="acc control"];
-    acc  -> fmac [dir=both, style=dashed, label="acc read / update"];
-    clk  -> acc  [style=dashed, label="clk"];
-    clk  -> comp [style=dashed, label="clk"];
+    fsel -> sel  [style=dashed, color="#777777", label="row + sub-op select"];
+    actl -> acc  [style=dashed, color="#777777", label="acc control"];
+    acc  -> fmac [dir=both, style=dashed, color="#777777", label="acc read / update"];
+    clk  -> acc  [style=dashed, color="#777777", label="clk"];
+    clk  -> comp [style=dashed, color="#777777", label="clk"];
 }

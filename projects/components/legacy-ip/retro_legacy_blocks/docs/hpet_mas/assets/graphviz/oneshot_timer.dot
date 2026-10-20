@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // HPET one-shot timer operation - a procedure in the house decision-tree
 // vocabulary (white questions, blue actions, every arrow labeled).
 // Behavior per rtl/hpet/hpet_core.sv: the status bit sets on every fire,

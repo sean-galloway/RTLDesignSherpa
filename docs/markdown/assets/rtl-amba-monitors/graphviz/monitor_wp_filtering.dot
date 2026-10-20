@@ -16,25 +16,25 @@ digraph monitor_wp_filtering {
            label="Packet-type filtering: enable pins, type mask, event mask, then drain steering; the lite counts what its queue could not take",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    ev [group=C, label="Event fires in the monitor\n(error, timeout, completion, threshold, ...)", fillcolor="white"];
+    ev [group=C, label="Event fires in the monitor\n(error, timeout, completion, threshold, ...)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-        en  [group=C, label="1. Enable Pins (wrapper)\ncfg_error_enable, cfg_compl_enable,\ncfg_timeout_enable, cfg_threshold_enable"];
-        tmw [group=C, label="2a. Type Mask (lite wrapper)\ncfg_axi_pkt_mask[type]: 1 drops the type"];
-        q   [label="Lite output queue full (wrapper)\nlost events are counted"];
-        drp [label="One Error/EVENT_DROPPED\npacket carries the count,\nsent when the bus is free"];
+        en  [group=C, label="1. Enable Pins (wrapper)\ncfg_error_enable, cfg_compl_enable,\ncfg_timeout_enable, cfg_threshold_enable", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        tmw [group=C, label="2a. Type Mask (lite wrapper)\ncfg_axi_pkt_mask[type]: 1 drops the type", style="filled", fillcolor="white"];
+        q   [label="Lite output queue full (wrapper)\nlost events are counted", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+        drp [label="One Error/EVENT_DROPPED\npacket carries the count,\nsent when the bus is free", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-        tmg [group=C, label="2b. Type Mask (group: monbus_group_core)\ncfg_<proto>_pkt_mask[type]: 1 drops the type"];
-        emk [group=C, label="3. Event Mask (group: monbus_group_core)\ncfg_<proto>_<class>_mask[event_code[3:0]]\n1 drops one event within a type\n(e.g. RESP_SLVERR but not RESP_DECERR)"];
+        tmg [group=C, label="2b. Type Mask (group: monbus_group_core)\ncfg_<proto>_pkt_mask[type]: 1 drops the type", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        emk [group=C, label="3. Event Mask (group: monbus_group_core)\ncfg_<proto>_<class>_mask[event_code[3:0]]\n1 drops one event within a type\n(e.g. RESP_SLVERR but not RESP_DECERR)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    x1 [label="enable = 0: class off,\nnever generated,\nno monbus bandwidth", fillcolor="white", style="filled,dashed"];
-    x2 [label="mask = 1: type dropped\nat the port, never\nleaves it", fillcolor="white", style="filled,dashed"];
-    x3 [label="mask = 1: type\ndropped at the group", fillcolor="white", style="filled,dashed"];
-    x4 [label="mask = 1: event\ncode dropped", fillcolor="white", style="filled,dashed"];
+    x1 [label="enable = 0: class off,\nnever generated,\nno monbus bandwidth", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    x2 [label="mask = 1: type dropped\nat the port, never\nleaves it", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    x3 [label="mask = 1: type\ndropped at the group", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    x4 [label="mask = 1: event\ncode dropped", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
-    st [group=C, label="Drain steering (cfg_<proto>_err_select) -- see the drains figure", fillcolor="white", width=6.0];
+    st [group=C, label="Drain steering (cfg_<proto>_err_select) -- see the drains figure", fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     ev  -> en  [label="event"];
     en  -> tmw [xlabel="class enabled", penwidth=1.8];
@@ -43,10 +43,10 @@ digraph monitor_wp_filtering {
     emk -> st  [label="event kept", penwidth=1.8];
 
     // drops leave LEFT (dir=back keeps the sink left of its stage)
-    x1 -> en  [style=dashed, dir=back];
-    x2 -> tmw [style=dashed, dir=back];
-    x3 -> tmg [style=dashed, dir=back];
-    x4 -> emk [style=dashed, dir=back];
+    x1 -> en  [style=dashed, color="#777777", dir=back];
+    x2 -> tmw [style=dashed, color="#777777", dir=back];
+    x3 -> tmg [style=dashed, color="#777777", dir=back];
+    x4 -> emk [style=dashed, color="#777777", dir=back];
 
     q   -> drp [label="count"];
     drp -> tmw [label="Error/EVENT_DROPPED"];

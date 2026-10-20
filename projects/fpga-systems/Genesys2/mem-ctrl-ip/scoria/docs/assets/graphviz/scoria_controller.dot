@@ -16,31 +16,31 @@ digraph scoria_controller {
            labelloc=t, labeljust=c, pad="0.2",
            label="scoria controller stack in the Genesys 2 build"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host_axi [label="Host AXI4 masters\n(4 WR + 4 RD generators)\n64-bit", fillcolor="white"];
+    host_axi [label="Host AXI4 masters\n(4 WR + 4 RD generators)\n64-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wr_conv [label="axi4_dwidth_converter_wr\n64 -> 256 bit", style="filled,dashed"];
-    rd_conv [label="axi4_dwidth_converter_rd\n256 -> 64 bit", style="filled,dashed"];
+    wr_conv [label="axi4_dwidth_converter_wr\n64 -> 256 bit", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    rd_conv [label="axi4_dwidth_converter_rd\n256 -> 64 bit", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    csr  [label="scoria_csr\nPeakRDL register block\n(timings, mode regs,\nZQ, wrlvl, stall stats)", width=3.2];
+    csr  [label="scoria_csr\nPeakRDL register block\n(timings, mode regs,\nZQ, wrlvl, stall stats)", width=3.2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    core [label="scoria_core\nscheduler + training + DFI planes\n(init_sequencer, cmd_arbiter,\naddr_mapper, bank_timers,\nrefresh_ctrl, zq_ctrl,\ndfi_wr_serializer,\ndfi_rd_aligner)", width=4.5];
+    core [label="scoria_core\nscheduler + training + DFI planes\n(init_sequencer, cmd_arbiter,\naddr_mapper, bank_timers,\nrefresh_ctrl, zq_ctrl,\ndfi_wr_serializer,\ndfi_rd_aligner)", width=4.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar  [label="DFI 2.1 boundary\n(command + write data down,\nread data up)", fillcolor="white", width=7];
+    bar  [label="DFI 2.1 boundary\n(command + write data down,\nread data up)", fillcolor="white", width=7, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // Host AXI in
     host_axi -> wr_conv [penwidth=1.8, xlabel="AW/W"];
-    host_axi -> rd_conv [dir=back, penwidth=1.8, xlabel="AR/R"];
+    host_axi -> rd_conv [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="AR/R"];
 
     // Converters to core
     wr_conv -> core [penwidth=1.8, xlabel="256-bit write"];
     core -> rd_conv [dir=back, penwidth=1.8, xlabel="256-bit read"];
 
     // CSR config
-    csr -> core [style=dashed, xlabel="hwif_out config"];
-    core -> csr [style=dashed, xlabel="hwif_in telemetry"];
+    csr -> core [style=dashed, color="#777777", xlabel="hwif_out config"];
+    core -> csr [style=dashed, color="#777777", xlabel="hwif_in telemetry"];
 
     // DFI boundary
     core -> bar [penwidth=1.8, xlabel="DFI command / write data"];

@@ -7,26 +7,26 @@
 digraph de10_measurement {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.5", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
            label="Measurement points - the same traffic metered on both sides of the fabric (planned)"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    m   [label="Masters\nstream rd / wr / desc, W3 injector", fillcolor="white"];
-    om  [label="Master-side meters\nobs_master, obs_desc - axi4_intf_master_observer"];
-    fab [label="FABRIC under test", penwidth=1.8, width=4];
-    os  [label="Slave-side meters\nobs_slave - axi4_intf_slave_observer"];
-    s   [label="Slaves\nDDR3, desc_ram, LFSR source, CRC sink", fillcolor="white"];
+    m   [label="Masters\nstream rd / wr / desc, W3 injector", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    om  [label="Master-side meters\nobs_master, obs_desc - axi4_intf_master_observer", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fab [label="FABRIC under test", penwidth=1.8, width=4, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    os  [label="Slave-side meters\nobs_slave - axi4_intf_slave_observer", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    s   [label="Slaves\nDDR3, desc_ram, LFSR source, CRC sink", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     m -> om [xlabel="RD / WR requests"];
     om -> fab [xlabel="RD / WR requests"];
     fab -> os [xlabel="RD / WR requests"];
     os -> s [xlabel="RD / WR requests"];
 
-    lm [label="Per master port (read out over the config path):\l- bus meter: every cycle is productive, backpressure,\l  starvation or idle\l- latency histogram: request to response, as the master sees it\l  (= fabric + slave + return)\l- bytes moved in the window -> delivered bandwidth\l", fillcolor="white"];
-    ls [label="Per slave port (read out over the config path):\l- bus meter: same four classes\l- latency histogram: request to response at the slave\l  (= slave only)\l- bytes moved in the window\l", fillcolor="white"];
-    res [label="Derived per run, per leg:\l- delivered bandwidth (master side) vs the path's peak\l- fabric latency = master-side minus slave-side distribution\l- fabric loss = master-side backpressure not explained by the slave side\l- W3: per-master share of the contended write port\l", fillcolor="white"];
+    lm [label="Per master port (read out over the config path):\l- bus meter: every cycle is productive, backpressure,\l  starvation or idle\l- latency histogram: request to response, as the master sees it\l  (= fabric + slave + return)\l- bytes moved in the window -> delivered bandwidth\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ls [label="Per slave port (read out over the config path):\l- bus meter: same four classes\l- latency histogram: request to response at the slave\l  (= slave only)\l- bytes moved in the window\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    res [label="Derived per run, per leg:\l- delivered bandwidth (master side) vs the path's peak\l- fabric latency = master-side minus slave-side distribution\l- fabric loss = master-side backpressure not explained by the slave side\l- W3: per-master share of the contended write port\l", fillcolor="white", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    om -> lm [style=dashed];
-    os -> ls [style=dashed];
+    om -> lm [style=dashed, color="#777777"];
+    os -> ls [style=dashed, color="#777777"];
     { rank=same; om; lm; }
     { rank=same; os; ls; }
     s -> res [style=invis];

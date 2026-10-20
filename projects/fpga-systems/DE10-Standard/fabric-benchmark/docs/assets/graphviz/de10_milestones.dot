@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // DE10-Standard fabric benchmark - milestones (PRD 7). PLANNED.
 // Each step passes the sim harness with the board's sequence files before
 // its bitstream; the Intel leg goes first because the PD flow is the unknown.

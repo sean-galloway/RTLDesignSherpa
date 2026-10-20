@@ -6,22 +6,22 @@ digraph rapids_system_topology {
            nodesep="0.45", ranksep="0.80", splines=ortho, labelloc=t,
            label="bridge_rapids - four channel-trimmed masters, three slaves of mixed protocol and width\n(each edge: requests down, responses up)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
 
-    descr [label="Descriptor Write Master\nrapids_descr_wr\nchannels = wr, 512-bit", fillcolor="white"];
-    sink  [label="Sink Write Master\nrapids_sink_wr\nchannels = wr, 512-bit", fillcolor="white"];
-    src   [label="Source Read Master\nrapids_src_rd\nchannels = rd, 512-bit", fillcolor="white"];
-    cpu   [label="CPU Master\ncpu\nchannels = rw, 64-bit", fillcolor="white"];
+    descr [label="Descriptor Write Master\nrapids_descr_wr\nchannels = wr, 512-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sink  [label="Sink Write Master\nrapids_sink_wr\nchannels = wr, 512-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    src   [label="Source Read Master\nrapids_src_rd\nchannels = rd, 512-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cpu   [label="CPU Master\ncpu\nchannels = rw, 64-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; descr; sink; src; cpu; }
     descr -> sink -> src -> cpu [style=invis, dir=none];
 
     br [label="Generated Bridge - bridge_rapids.sv\nmaster adapters (write-only ports get no AR / R, the read-only port no AW / W / B)\ncrossbar: one round-robin AW / AR arbiter per slave\nwidth converters where a master and slave width differ (cpu 64 -> 512 / 256)\nslave adapters: axi4_to_apb4_shim for apb_periph; internal catch-all slave (DECERR)",
-        width=9];
+        width=9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    ddr   [label="DDR\nddr - AXI4, 512-bit", fillcolor="white"];
-    apb   [label="APB Peripherals\napb_periph - APB, 32-bit", fillcolor="white"];
-    sram  [label="SRAM\nsram - AXI4, 256-bit", fillcolor="white"];
+    ddr   [label="DDR\nddr - AXI4, 512-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    apb   [label="APB Peripherals\napb_periph - APB, 32-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sram  [label="SRAM\nsram - AXI4, 256-bit", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; ddr; apb; sram; }
     ddr -> apb -> sram [style=invis, dir=none];
 

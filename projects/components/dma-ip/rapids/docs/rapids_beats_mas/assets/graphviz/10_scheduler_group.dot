@@ -7,20 +7,20 @@ digraph scheduler_group_beats {
            label="scheduler_group_beats - one channel (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    kick  [label="Kick + Configuration\napb_valid / apb_addr (descriptor address), cfg_*", fillcolor="white", group=C];
-    de    [label="Descriptor Engine\ndescriptor_engine_beats (see its figure)", group=C];
-    sc    [label="Scheduler\nscheduler_beats (see its figure)", group=C];
-    cr    [label="Control-Read Engine\nctrlrd_engine", group=L];
-    cw    [label="Control-Write Engine\nctrlwr_engine", group=R];
+    kick  [label="Kick + Configuration\napb_valid / apb_addr (descriptor address), cfg_*", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    de    [label="Descriptor Engine\ndescriptor_engine_beats (see its figure)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sc    [label="Scheduler\nscheduler_beats (see its figure)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cr    [label="Control-Read Engine\nctrlrd_engine", group=L, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cw    [label="Control-Write Engine\nctrlwr_engine", group=R, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     arb   [label="MonBus Arbiter (sideband) - monbus_arbiter, 4:1
 merges descriptor, scheduler, ctrlrd and ctrlwr
-event packets (see the MonBus aggregation figure)", style="filled,dashed", group=M];
+event packets (see the MonBus aggregation figure)", style="filled,dashed", group=M, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Group Boundary (to scheduler_group_array_beats)\nctrlrd AR / R  |  descriptor AR / R  |  sched_rd_*, sched_wr_* (to the data paths)  |  ctrlwr AW / W / B  |  mon_* (one stream)",
-         fillcolor="white", width=13.0];
+         fillcolor="white", width=13.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     kick -> de [label="descriptor address"];
     de   -> sc [label="descriptor (valid / ready)", penwidth=1.8];

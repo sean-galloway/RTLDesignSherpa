@@ -4,20 +4,20 @@ digraph axi4_to_apb4_read {
            nodesep="0.45", ranksep="0.95", splines=ortho, labelloc=t,
            label="AXI4 read to APB - a 4-beat 32-bit burst\nthrough axi4_to_apb4_shim, one APB read per beat"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pc [label="AR in\nARADDR, ARLEN = 3", group=C, fillcolor="white"];
-    pr [label="R out\n4 beats, RLAST on the 4th", group=R, fillcolor="white"];
+    pc [label="AR in\nARADDR, ARLEN = 3", group=C, fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="R out\n4 beats, RLAST on the 4th", group=R, fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pc; pr; }
     pc -> pr [style=invis];
-    bc [label="Burst Decomposition - axi_gen_addr\nAPB FSM in READ: one command per\nbeat, PADDR stepping with the burst", group=C];
-    br [label="R Collect - response FSM\nPRDATA of each transfer becomes one R\nbeat; RRESP = SLVERR on a PSLVERR\nbeat; RLAST from the side queue", group=R];
+    bc [label="Burst Decomposition - axi_gen_addr\nAPB FSM in READ: one command per\nbeat, PADDR stepping with the burst", group=C, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    br [label="R Collect - response FSM\nPRDATA of each transfer becomes one R\nbeat; RRESP = SLVERR on a PSLVERR\nbeat; RLAST from the side queue", group=R, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     { rank=same; bc; br; }
     bc -> br [style=invis];
-    bar [label="APB Port - 4 transfers, PWRITE = 0 (SETUP then ACCESS each)\nPRDATA, PSLVERR back per transfer", fillcolor="white", width=6.5];
+    bar [label="APB Port - 4 transfers, PWRITE = 0 (SETUP then ACCESS each)\nPRDATA, PSLVERR back per transfer", fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pc -> bc [xlabel="AR"];
-    pr -> br [dir=back, xlabel="R"];
+    pr -> br [color="#1A7A1A", dir=back, xlabel="R"];
     bc -> bar [xlabel="PADDR, PWRITE = 0", penwidth=1.8];
-    br -> bar [dir=back, xlabel="PRDATA, PSLVERR"];
+    br -> bar [color="#1A7A1A", dir=back, xlabel="PRDATA, PSLVERR"];
 }

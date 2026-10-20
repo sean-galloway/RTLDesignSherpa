@@ -9,35 +9,35 @@ digraph axi4_master_wr_injector {
            nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_master_wr_injector - pattern write driver with expected-CRC roll-up (aclk)";
 
-    prm  [label="Parameters (fixed at build)\lMAX_OUTSTANDING: AWs issued minus Bs received\l    (ceiling); cfg_max_outstanding dials it down\lLFSR_* / CRC_*: must match axi4_master_rd_crc_check\l", fillcolor="white"];
-    cfg  [group=A, label="Run Configuration (CSR inputs)\ncfg_start_addr, cfg_addr_stride_0/1, cfg_addr_wrap_mask_0/1,\ncfg_burst_len, cfg_txn_count, cfg_axi_size / _burst,\ncfg_id_mode, cfg_hammer_en, cfg_wr_gap,\ncfg_max_outstanding;  cfg_start", fillcolor="white"];
-    dsrc [group=W, label="Data Source Config\ncfg_data_mode: 0 LFSR phase, 1 address hash,\n2 fill pattern; cfg_lfsr_seed, cfg_hash_seed0..2,\ncfg_fill_pattern", fillcolor="white"];
-    res  [group=B, label="Results\ncfg_done (all Bs received)\no_expected_crc (+ valid with cfg_done)\no_bresp_error (sticky: any non-OKAY)", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lMAX_OUTSTANDING: AWs issued minus Bs received\l    (ceiling); cfg_max_outstanding dials it down\lLFSR_* / CRC_*: must match axi4_master_rd_crc_check\l", fillcolor="white", shape=note];
+    cfg  [group=A, label="Run Configuration (CSR inputs)\ncfg_start_addr, cfg_addr_stride_0/1, cfg_addr_wrap_mask_0/1,\ncfg_burst_len, cfg_txn_count, cfg_axi_size / _burst,\ncfg_id_mode, cfg_hammer_en, cfg_wr_gap,\ncfg_max_outstanding;  cfg_start", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dsrc [group=W, label="Data Source Config\ncfg_data_mode: 0 LFSR phase, 1 address hash,\n2 fill pattern; cfg_lfsr_seed, cfg_hash_seed0..2,\ncfg_fill_pattern", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    res  [group=B, label="Results\ncfg_done (all Bs received)\no_expected_crc (+ valid with cfg_done)\no_bresp_error (sticky: any non-OKAY)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    agaw [group=A, label="AW Address Generator\ndma_address_gen - u_addr_gen_aw\nindex 0 .. cfg_txn_count-1 -> address"];
-    iss  [group=A, label="AW Issue (flops)\nburst count, outstanding cap, wr gap;\nid per cfg_id_mode (u_id_lfsr for LFSR ids)"];
-    agw  [group=W, label="W Address Generator\ndma_address_gen - u_addr_gen_w\nwalks the same descriptor in lockstep"];
-    gen  [group=W, label="Pattern + CRC (flops)\nshifter_lfsr_fibonacci - u_lfsr (LFSR mode),\naddress hash, or fill pattern; one word per W beat;\ndataint_crc - u_crc over the same stream"];
-    bcnt [group=B, label="Completion Tracking (flops)\ncounts Bs against cfg_txn_count;\nnon-OKAY bresp sets the sticky error"];
-    leaf [label="AXI4 Master Write Leaf\naxi4_master_wr - u_master_wr\nskid buffers on AW / W / B"];
+    agaw [group=A, label="AW Address Generator\ndma_address_gen - u_addr_gen_aw\nindex 0 .. cfg_txn_count-1 -> address", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    iss  [group=A, label="AW Issue (flops)\nburst count, outstanding cap, wr gap;\nid per cfg_id_mode (u_id_lfsr for LFSR ids)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    agw  [group=W, label="W Address Generator\ndma_address_gen - u_addr_gen_w\nwalks the same descriptor in lockstep", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gen  [group=W, label="Pattern + CRC (flops)\nshifter_lfsr_fibonacci - u_lfsr (LFSR mode),\naddress hash, or fill pattern; one word per W beat;\ndataint_crc - u_crc over the same stream", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bcnt [group=B, label="Completion Tracking (flops)\ncounts Bs against cfg_txn_count;\nnon-OKAY bresp sets the sticky error", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    leaf [label="AXI4 Master Write Leaf\naxi4_master_wr - u_master_wr\nskid buffers on AW / W / B", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [label="Memory Under Test (m_axi master port)\nm_axi_aw, m_axi_w out   |   m_axi_b in",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     cfg  -> agaw [xlabel="descriptor, cfg_start"];
     agaw -> iss  [xlabel="AW address"];
     iss  -> leaf [xlabel="fub AW (addr, len, id)"];
     agw  -> gen  [xlabel="beat address"];
-    dsrc -> gen  [style=dashed, xlabel="mode, seeds"];
+    dsrc -> gen  [style=dashed, color="#777777", xlabel="mode, seeds"];
     gen  -> leaf [xlabel="fub W (pattern, wlast)"];
     leaf -> bar  [dir=both, xlabel="AW, W  /  B"];
-    bcnt -> leaf [dir=back, xlabel="fub B (bresp)"];
-    bcnt -> res  [xlabel="done, bresp error"];
-    gen  -> res  [xlabel="expected CRC"];
+    bcnt -> leaf [color="#1A7A1A", dir=back, xlabel="fub B (bresp)"];
+    bcnt -> res  [color="#1A7A1A", xlabel="done, bresp error"];
+    gen  -> res  [color="#1A7A1A", xlabel="expected CRC"];
 
     { rank=same; cfg; dsrc; res; }
     cfg -> dsrc [style=invis];

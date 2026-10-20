@@ -13,22 +13,22 @@ digraph bch_chien_search {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="bch_chien_search - Lambda(x) evaluated at B bit positions per beat (on aclk)";
 
-    in    [label="Locator Input\nin_valid / in_ready (= !out_valid)\nin_lambda: Lambda_0 .. Lambda_t\n(in_lambda_degree: port only, unused)", fillcolor="white", group=C];
+    in    [label="Locator Input\nin_valid / in_ready (= !out_valid)\nin_lambda: Lambda_0 .. Lambda_t\n(in_lambda_degree: port only, unused)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    pos   [label="Position Counter (flops)\nr_position: 0, B, 2B, ...\nout_last = position + B >= N_BITS\nload on in fire, step on out fire", group=L];
-    init  [label="Load Multipliers (combinational)\n(T_BITS+1) x gf_mul_const - u_init\nLambda_i * alpha^(-i(N-1)): position 0", group=C];
-    step  [label="Step Multipliers (combinational)\n(T_BITS+1) x gf_mul_const - u_step\nc_i * alpha^(iB): next beat", group=R];
-    cells [label="Horner Cell Registers\nr_c[0 .. T_BITS] (flops)\nload: from u_init | out fire: from u_step", group=C];
-    lanes [label="Lane Evaluation (combinational)\nlane u = 0 .. B-1:\nsum_i c_i * alpha^(iu) = Lambda at position p+u", group=C];
-    root  [label="Root Detect + Position Mask\nroot[u] = (sum == 0)\nflip_en = root and (p+u < N_BITS)", group=C];
-    rcnt  [label="Root Counter\nr_root_count (flop)\n+ roots in this beat", group=R];
+    pos   [label="Position Counter (flops)\nr_position: 0, B, 2B, ...\nout_last = position + B >= N_BITS\nload on in fire, step on out fire", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    init  [label="Load Multipliers (combinational)\n(T_BITS+1) x gf_mul_const - u_init\nLambda_i * alpha^(-i(N-1)): position 0", group=C, style="filled", fillcolor="white"];
+    step  [label="Step Multipliers (combinational)\n(T_BITS+1) x gf_mul_const - u_step\nc_i * alpha^(iB): next beat", group=R, style="filled", fillcolor="white"];
+    cells [label="Horner Cell Registers\nr_c[0 .. T_BITS] (flops)\nload: from u_init | out fire: from u_step", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    lanes [label="Lane Evaluation (combinational)\nlane u = 0 .. B-1:\nsum_i c_i * alpha^(iu) = Lambda at position p+u", group=C, style="filled", fillcolor="white"];
+    root  [label="Root Detect + Position Mask\nroot[u] = (sum == 0)\nflip_en = root and (p+u < N_BITS)", group=C, style="filled", fillcolor="white"];
+    rcnt  [label="Root Counter\nr_root_count (flop)\n+ roots in this beat", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar   [label="Outputs (one beat per B positions)\nout_valid / out_ready   |   out_flip_en[B-1:0]   |   out_root_count   |   out_last",
-           fillcolor="white", width=8.0];
+           fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     in    -> init  [xlabel="Lambda_0 .. Lambda_t"];
@@ -48,8 +48,8 @@ digraph bch_chien_search {
     step  -> cells [xlabel="stepped terms"];
 
     // ---- control ----
-    in    -> pos   [style=dashed, constraint=false, xlabel="load"];
-    pos   -> root  [style=dashed, xlabel="position p "];
+    in    -> pos   [style=dashed, color="#777777", constraint=false, xlabel="load"];
+    pos   -> root  [style=dashed, color="#777777", xlabel="position p "];
     pos   -> bar   [xlabel="out_valid, out_last"];
 
     { rank=same; init; step; pos; p_f1; }

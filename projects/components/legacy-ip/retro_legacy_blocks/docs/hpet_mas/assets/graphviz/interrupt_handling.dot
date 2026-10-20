@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // HPET interrupt service flow - a procedure in the house decision-tree
 // vocabulary (white questions, blue actions, every arrow labeled).
 // HPET_STATUS is W1C per bit (rtl/hpet/hpet_config_regs.sv): a write clears

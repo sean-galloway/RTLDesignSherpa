@@ -13,30 +13,30 @@ digraph monbus_halfbeat_packer {
            label="monbus_halfbeat_packer - two 30-bit half slots packed into one 64-bit beat, record order kept\n(single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- input (white) ----
-    inp  [group=C, label="Compressor Beats (from monbus_compressor)\nin_valid, in_slot[63:0], in_half_valid, in_half_slot[29:0] / in_ready", fillcolor="white"];
+    inp  [group=C, label="Compressor Beats (from monbus_compressor)\nin_valid, in_slot[63:0], in_half_valid, in_half_slot[29:0] / in_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    dec  [group=C, label="Case Decode (combinational)\nhalf + one pending: pair them\nhalf, none pending: buffer it, emit nothing\nfull beat, none pending: forward it\nfull beat with one pending: flush the half first, hold the beat\ninput idle with one pending: flush the half\nin_ready: 1 on buffer, out_ready on pair / forward, else 0"];
-    sel  [group=C, label="Output Select (combinational)\npair: {tag 0x4, pending half, this half}\nflush: {tag 0x4, pending half, NOP half}\nforward: in_slot unchanged"];
-    pend [group=R, label="Pending Half Register (flops)\nr_pend_valid, r_pend_slot\nload on buffer; clear when\nthe pair or flush beat is taken"];
+    dec  [group=C, label="Case Decode (combinational)\nhalf + one pending: pair them\nhalf, none pending: buffer it, emit nothing\nfull beat, none pending: forward it\nfull beat with one pending: flush the half first, hold the beat\ninput idle with one pending: flush the half\nin_ready: 1 on buffer, out_ready on pair / forward, else 0", style="filled", fillcolor="white"];
+    sel  [group=C, label="Output Select (combinational)\npair: {tag 0x4, pending half, this half}\nflush: {tag 0x4, pending half, NOP half}\nforward: in_slot unchanged", style="filled", fillcolor="white"];
+    pend [group=R, label="Pending Half Register (flops)\nr_pend_valid, r_pend_slot\nload on buffer; clear when\nthe pair or flush beat is taken", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- output bar ----
-    outs [group=C, label="Packed Beats (to the write FIFO)\nout_valid, out_slot[63:0] / out_ready", fillcolor="white", width=6.5];
+    outs [group=C, label="Packed Beats (to the write FIFO)\nout_valid, out_slot[63:0] / out_ready", fillcolor="white", width=6.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- main flow ----
     inp  -> dec  [xlabel="beat + half sideband"];
     dec  -> sel  [xlabel="case: pair / buffer /\nforward / flush"];
     sel  -> outs [xlabel="out_slot", penwidth=1.8];
-    dec  -> inp  [style=dashed, xlabel="in_ready", constraint=false];
+    dec  -> inp  [style=dashed, color="#777777", xlabel="in_ready", constraint=false];
 
     // ---- pending loop on the right ----
     dec  -> pend [dir=both, xlabel="load half /\npending valid", constraint=false];
     pend -> sel  [xlabel="pending half"];
-    outs -> pend [style=dashed, xlabel="out_ready\n(clear)", constraint=false];
+    outs -> pend [style=dashed, color="#777777", xlabel="out_ready\n(clear)", constraint=false];
 
     // ---- rank pinning ----
     { rank=same; dec; pend; }

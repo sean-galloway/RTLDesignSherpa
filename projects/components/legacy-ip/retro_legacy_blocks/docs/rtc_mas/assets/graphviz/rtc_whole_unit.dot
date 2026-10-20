@@ -19,32 +19,32 @@ digraph rtc_whole_unit {
            label="apb4_rtc - APB real-time clock: registers on pclk, timekeeping on the counter clock (rtc_clk, or pclk when clock_select=1)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
 
     subgraph cluster_p {
         label="pclk domain"; style=dashed; fontsize=10;
-        apb  [group=LO, fillcolor="white", label="APB4 Completer Port  s_apb_*\npclk, presetn"];
-        slv  [group=LO, label="APB Completer\napb4_slave"];
-        regs [group=LM, width=5.6, label="Register Wrapper\nrtc_config_regs - peakrdl_to_cmdrsp + rtc_regs (PeakRDL)\n13-register decode, PSLVERR elsewhere;\nRTC_SECONDS read latches minutes .. year"];
-        stg  [group=LI, label="Time-Set Staging + Commit Source (flop)\nrtc_config_regs, rtc_core\nsix staged bytes; time_set_mode 1 -> 0 = commit;\nbusy until the load, COMMIT_TIMEOUT_CYCLES watchdog"];
-        shd  [group=LO, label="Time Shadow (flop)\nrtc_core - sync_pulse snapshot +\nglitch_free_n_dff_arn background, two-sample filter"];
-        flg  [group=LM, label="Sticky Flags (flop)\nrtc_core - glitch_free_n_dff_arn + edge detect\nalarm_flag, second_tick: W1C, set wins"];
-        irq  [group=LM, label="Interrupt Gate (combinational)\nrtc_core\nflag AND RTC_CONTROL int enable"];
+        apb  [group=LO, fillcolor="white", label="APB4 Completer Port  s_apb_*\npclk, presetn", style="rounded,filled", fillcolor="#E2EFDA"];
+        slv  [group=LO, label="APB Completer\napb4_slave", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        regs [group=LM, width=5.6, label="Register Wrapper\nrtc_config_regs - peakrdl_to_cmdrsp + rtc_regs (PeakRDL)\n13-register decode, PSLVERR elsewhere;\nRTC_SECONDS read latches minutes .. year", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        stg  [group=LI, label="Time-Set Staging + Commit Source (flop)\nrtc_config_regs, rtc_core\nsix staged bytes; time_set_mode 1 -> 0 = commit;\nbusy until the load, COMMIT_TIMEOUT_CYCLES watchdog", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        shd  [group=LO, label="Time Shadow (flop)\nrtc_core - sync_pulse snapshot +\nglitch_free_n_dff_arn background, two-sample filter", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        flg  [group=LM, label="Sticky Flags (flop)\nrtc_core - glitch_free_n_dff_arn + edge detect\nalarm_flag, second_tick: W1C, set wins", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        irq  [group=LM, label="Interrupt Gate (combinational)\nrtc_core\nflag AND RTC_CONTROL int enable", style="filled", fillcolor="white"];
     }
 
     subgraph cluster_c {
         label="counter domain"; style=dashed; fontsize=10;
-        clkp [group=RR, fillcolor="white", label="Counter Clock / Reset\nrtc_clk (32.768 kHz), rtc_resetn"];
-        mux  [group=RR, label="Clock Select + Reset Sync\nrtc_clk_mux (rtc_clk or pclk), reset_sync\nselect flop held under rtc_resetn;\nclocks and resets every block in this region"];
-        csy  [group=RI, label="Config / Alarm Bundle Sync (flop)\nrtc_core - glitch_free_n_dff_arn, 3 flops\n+ two-sample filter (34 bits, valid-gated hold)"];
-        ld   [group=RO, label="Commit Load (flop)\nrtc_core - cdc_4_phase_handshake destination\nall six counters load on one edge"];
-        cnt  [group=RO, width=4.6, label="Divider + Time Counters (flop)\nrtc_core\n32.768 kHz -> 1 Hz tick; seconds .. year,\nbinary calendar, BCD / 12-hour at the boundary"];
-        alm  [group=RI, label="Alarm Comparator\nrtc_core\nsec / min / hour with match enables;\nheld off during time-set and commit"];
+        clkp [group=RR, fillcolor="white", label="Counter Clock / Reset\nrtc_clk (32.768 kHz), rtc_resetn", style="rounded,filled", fillcolor="#E2EFDA"];
+        mux  [group=RR, label="Clock Select + Reset Sync\nrtc_clk_mux (rtc_clk or pclk), reset_sync\nselect flop held under rtc_resetn;\nclocks and resets every block in this region", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        csy  [group=RI, label="Config / Alarm Bundle Sync (flop)\nrtc_core - glitch_free_n_dff_arn, 3 flops\n+ two-sample filter (34 bits, valid-gated hold)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        ld   [group=RO, label="Commit Load (flop)\nrtc_core - cdc_4_phase_handshake destination\nall six counters load on one edge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        cnt  [group=RO, width=4.6, label="Divider + Time Counters (flop)\nrtc_core\n32.768 kHz -> 1 Hz tick; seconds .. year,\nbinary calendar, BCD / 12-hour at the boundary", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        alm  [group=RI, label="Alarm Comparator\nrtc_core\nsec / min / hour with match enables;\nheld off during time-set and commit", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
-    bar  [fillcolor="white", width=9.0, label="Module Boundary\nrtc_alarm_irq, rtc_second_irq out (pclk domain, level)"];
+    bar  [fillcolor="white", width=9.0, label="Module Boundary\nrtc_alarm_irq, rtc_second_irq out (pclk domain, level)", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access ----
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
@@ -57,9 +57,9 @@ digraph rtc_whole_unit {
 
     // ---- counter domain ----
     clkp -> mux  [xlabel="rtc_clk, rtc_resetn"];
-    csy  -> ld   [style=dashed, xlabel="enable, time_set_mode\n(pause)"];
+    csy  -> ld   [style=dashed, color="#777777", xlabel="enable, time_set_mode\n(pause)"];
     ld   -> cnt  [xlabel="load six counters"];
-    csy  -> alm  [style=dashed, xlabel="alarm values, mask"];
+    csy  -> alm  [style=dashed, color="#777777", xlabel="alarm values, mask"];
     cnt  -> alm  [xlabel="new second (on the tick)"];
 
     // ---- counter -> pclk crossings (return, climbing) ----
@@ -68,7 +68,7 @@ digraph rtc_whole_unit {
 
     // ---- read back and interrupts ----
     regs -> shd  [dir=back, xlabel="time (hwif_in)"];
-    regs -> flg  [dir=both, style=dashed, xlabel="W1C clear\n/ flag status"];
+    regs -> flg  [dir=both, style=dashed, color="#777777", xlabel="W1C clear\n/ flag status"];
     flg  -> irq  [xlabel="flags"];
     irq  -> bar  [penwidth=1.8, xlabel="rtc_alarm_irq,\nrtc_second_irq"];
 

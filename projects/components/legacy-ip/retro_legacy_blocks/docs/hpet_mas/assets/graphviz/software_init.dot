@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // HPET software initialization flow - a procedure, not a block diagram, drawn
 // in the house decision-tree vocabulary (vault/handbook/authoring/block-diagrams.md,
 // "Decision trees"): white start / question boxes, blue action boxes, every

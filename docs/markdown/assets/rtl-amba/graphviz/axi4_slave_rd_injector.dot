@@ -8,22 +8,22 @@ digraph axi4_slave_rd_injector {
            nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_slave_rd_injector - synthetic AXI4 read slave: LFSR data out, CRC of what was sent (aclk)";
 
-    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent LFSR + CRC contexts,\l    channel = arid[CIW-1:0]; seed = LFSR_SEED ^ channel\lLFSR_TAPS / LFSR_SEED: the pattern's feedback taps and start\lCRC_POLY / _INIT / _XOROUT / _REFIN / _REFOUT: the CRC standard\l    (default CRC-32 Ethernet)\lERR_INJECT: 1 = build the error-response injector\l", fillcolor="white"];
-    port [group=C, label="AXI4 Read Port (slave)\ns_axi_ar in   |   s_axi_r out", fillcolor="white"];
-    ctl  [group=E, label="Error Config (ERR_INJECT=1)\ncfg_err_enable / _channel /\n_skip / _resp / _oneshot", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent LFSR + CRC contexts,\l    channel = arid[CIW-1:0]; seed = LFSR_SEED ^ channel\lLFSR_TAPS / LFSR_SEED: the pattern's feedback taps and start\lCRC_POLY / _INIT / _XOROUT / _REFIN / _REFOUT: the CRC standard\l    (default CRC-32 Ethernet)\lERR_INJECT: 1 = build the error-response injector\l", fillcolor="white", shape=note];
+    port [group=C, label="AXI4 Read Port (slave)\ns_axi_ar in   |   s_axi_r out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ctl  [group=E, label="Error Config (ERR_INJECT=1)\ncfg_err_enable / _channel /\n_skip / _resp / _oneshot", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    leaf [group=C, label="AXI4 Slave Read Leaf\naxi4_slave_rd - u_axi4_slave_rd\nskid buffers on AR / R"];
-    fsm  [group=C, label="Burst FSM (flops)\nRD_IDLE / RD_BURST, r_rd_id, r_rd_beats_remaining\none burst at a time; rvalid while bursting,\nrlast on the last beat"];
-    err  [group=E, label="Error Injector (ERR_INJECT=1 only)\ncounts accepted ARs on cfg_err_channel;\nburst number cfg_err_skip answers\ncfg_err_resp on every beat", style="filled,dashed"];
-    lfsr [group=R, label="Per-Channel Pattern (flops)\nNUM_CHANNELS x shifter_lfsr_fibonacci - u_lfsr\nonly the burst's channel advances, one step per R beat;\nrdata = the 32-bit word replicated across the bus"];
-    crc  [group=R, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\naccumulates each beat's 32-bit pattern word"];
+    leaf [group=C, label="AXI4 Slave Read Leaf\naxi4_slave_rd - u_axi4_slave_rd\nskid buffers on AR / R", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm  [group=C, label="Burst FSM (flops)\nRD_IDLE / RD_BURST, r_rd_id, r_rd_beats_remaining\none burst at a time; rvalid while bursting,\nrlast on the last beat", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    err  [group=E, label="Error Injector (ERR_INJECT=1 only)\ncounts accepted ARs on cfg_err_channel;\nburst number cfg_err_skip answers\ncfg_err_resp on every beat", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    lfsr [group=R, label="Per-Channel Pattern (flops)\nNUM_CHANNELS x shifter_lfsr_fibonacci - u_lfsr\nonly the burst's channel advances, one step per R beat;\nrdata = the 32-bit word replicated across the bus", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    crc  [group=R, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\naccumulates each beat's 32-bit pattern word", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     out  [label="Outputs\nread_crc_value / _valid [ch]   |   read_beat_count [ch], read_beat_count_total   |   err_injected",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> leaf [dir=both, xlabel="AR  /  R"];
     leaf -> fsm  [xlabel="fub AR (id, len)"];
@@ -31,11 +31,11 @@ digraph axi4_slave_rd_injector {
     lfsr -> leaf [xlabel="R data (pattern)"];
     lfsr -> crc  [xlabel="pattern word"];
     crc  -> out  [xlabel="CRC, beat counts"];
-    ctl  -> err  [style=dashed, xlabel="cfg_err_*"];
-    err  -> leaf [style=dashed, xlabel="rresp"];
-    err  -> out  [style=dashed, xlabel="err_injected"];
-    rst [group=L, label="Reset Pulse\ncrc_lfsr_reset\n(reload seeds, clear CRCs)", fillcolor="white"];
-    rst -> lfsr [style=dashed, xlabel="crc_lfsr_reset"];
+    ctl  -> err  [style=dashed, color="#777777", xlabel="cfg_err_*"];
+    err  -> leaf [style=dashed, color="#777777", xlabel="rresp"];
+    err  -> out  [style=dashed, color="#777777", xlabel="err_injected"];
+    rst [group=L, label="Reset Pulse\ncrc_lfsr_reset\n(reload seeds, clear CRCs)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rst -> lfsr [style=dashed, color="#777777", xlabel="crc_lfsr_reset"];
 
     { rank=same; prm; rst; port; ctl; }
     prm -> rst [style=invis];

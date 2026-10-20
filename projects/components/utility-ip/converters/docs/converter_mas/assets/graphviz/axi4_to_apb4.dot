@@ -13,24 +13,24 @@ digraph axi4_to_apb4 {
            nodesep="0.55", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_to_apb4_shim - AXI4 slave (aclk) to APB4 master (pclk)";
 
-    s     [label="AXI4 Slave Port (s_axi_*)\nAW   |   W   |   AR   |   B   |   R", fillcolor="white", width=8.0];
+    s     [label="AXI4 Slave Port (s_axi_*)\nAW   |   W   |   AR   |   B   |   R", fillcolor="white", width=8.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    stub  [label="AXI4 Channel Skids (aclk)\naxi4_slave_stub - axi_slave_stub_inst\nDEPTH_AW / W / B / AR / R", width=8.0];
+    stub  [label="AXI4 Channel Skids (aclk)\naxi4_slave_stub - axi_slave_stub_inst\nDEPTH_AW / W / B / AR / R", width=8.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    cmd   [label="Command Builder (aclk)\naxi4_to_apb4_convert: APB FSM IDLE / READ / WRITE\naxi_gen_addr steps the address per beat;\none APB command per APB-width slice:\n{pwrite, paddr, pwdata, pstrb, pprot}", group=C];
-    side  [label="Side FIFO (aclk)\ngaxi_fifo_sync - side_fifo_inst\n{read/write, id, last, user}\nper command", group=S];
-    rsp   [label="Response Builder (aclk)\naxi4_to_apb4_convert: RSP FSM\nRSP_IDLE / RSP_ACTIVE\nR: pack APB slices into AXI beats\nB: one per burst; PSLVERR -> SLVERR", group=R];
+    cmd   [label="Command Builder (aclk)\naxi4_to_apb4_convert: APB FSM IDLE / READ / WRITE\naxi_gen_addr steps the address per beat;\none APB command per APB-width slice:\n{pwrite, paddr, pwdata, pstrb, pprot}", group=C, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    side  [label="Side FIFO (aclk)\ngaxi_fifo_sync - side_fifo_inst\n{read/write, id, last, user}\nper command", group=S, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rsp   [label="Response Builder (aclk)\naxi4_to_apb4_convert: RSP FSM\nRSP_IDLE / RSP_ACTIVE\nR: pack APB slices into AXI beats\nB: one per burst; PSLVERR -> SLVERR", group=R, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    ccdc  [label="Command CDC\ngaxi_fifo_async - u_cmd_cdc_fifo\naclk -> pclk", group=C];
-    rcdc  [label="Response CDC\ngaxi_fifo_async - u_rsp_cdc_fifo\npclk -> aclk", group=R];
+    ccdc  [label="Command CDC\ngaxi_fifo_async - u_cmd_cdc_fifo\naclk -> pclk", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rcdc  [label="Response CDC\ngaxi_fifo_async - u_rsp_cdc_fifo\npclk -> aclk", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    apbm  [label="APB Master (pclk)\napb4_master_stub\nsetup / access phases, waits on PREADY", width=8.0];
+    apbm  [label="APB Master (pclk)\napb4_master_stub\nsetup / access phases, waits on PREADY", width=8.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar   [label="APB4 Master Port (m_apb_*, pclk)\nPSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT   |   PRDATA, PREADY, PSLVERR", fillcolor="white", width=8.0];
+    bar   [label="APB4 Master Port (m_apb_*, pclk)\nPSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT   |   PRDATA, PREADY, PSLVERR", fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     s     -> stub [dir=both, xlabel="AW, W, AR down /\nB, R up"];
     stub  -> cmd  [xlabel="AW + W / AR"];
@@ -38,8 +38,8 @@ digraph axi4_to_apb4 {
     ccdc  -> apbm [xlabel="command (pclk)"];
     apbm  -> bar  [dir=both, xlabel="APB transfer down /\nPRDATA, PREADY, PSLVERR up", penwidth=1.8];
 
-    cmd   -> side [style=dashed, xlabel="push per command"];
-    rsp   -> side [style=dashed, dir=back, xlabel="id, last, op"];
+    cmd   -> side [style=dashed, color="#777777", xlabel="push per command"];
+    rsp   -> side [style=dashed, color="#777777", dir=back, xlabel="id, last, op"];
 
     stub  -> rsp  [dir=back, xlabel="B / R beats"];
     rsp   -> rcdc [dir=back, xlabel="response (aclk)"];

@@ -8,21 +8,21 @@ digraph axil4_to_axi4_rd {
            nodesep="0.60", ranksep="1.10", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axil4_to_axi4_rd - AXI4-Lite reads as single-beat AXI4 reads (combinational)";
 
-    s   [label="AXI4-Lite Slave Port (s_axil_*)\nAR (addr, prot)   |   R (data, resp)", fillcolor="white", width=7.0];
+    s   [label="AXI4-Lite Slave Port (s_axil_*)\nAR (addr, prot)   |   R (data, resp)", fillcolor="white", width=7.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ar  [label="AR Field Fill (combinational)\naraddr, arprot, valid / ready pass straight\narid = DEFAULT_ID, arlen = 0, arsize = full width,\narburst = INCR, arcache = 0011, arlock = 0,\narqos = DEFAULT_QOS, arregion =\nDEFAULT_REGION, aruser = 0"];
-    r   [label="R Strip (combinational)\nrdata, rresp, valid / ready pass\nrid, rlast, ruser dropped"];
+    ar  [label="AR Field Fill (combinational)\naraddr, arprot, valid / ready pass straight\narid = DEFAULT_ID, arlen = 0, arsize = full width,\narburst = INCR, arcache = 0011, arlock = 0,\narqos = DEFAULT_QOS, arregion =\nDEFAULT_REGION, aruser = 0", style="filled", fillcolor="white"];
+    r   [label="R Strip (combinational)\nrdata, rresp, valid / ready pass\nrid, rlast, ruser dropped", style="filled", fillcolor="white"];
 
-    m   [label="AXI4 Master Port (m_axi_*)\nAR (all AXI4 fields)   |   R", fillcolor="white", width=7.0];
+    m   [label="AXI4 Master Port (m_axi_*)\nAR (all AXI4 fields)   |   R", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     s   -> ar [xlabel="AR: addr, prot"];
     ar  -> m  [xlabel="AR: single beat", penwidth=1.8];
-    s   -> r  [dir=back, xlabel="R: data, resp"];
-    r   -> m  [dir=back, xlabel="R: data, resp,\nid, last"];
+    s   -> r  [color="#1A7A1A", dir=back, xlabel="R: data, resp"];
+    r   -> m  [color="#1A7A1A", dir=back, xlabel="R: data, resp,\nid, last"];
 
     sp [label="", width=0.6, style=invis];
     { rank=same; ar; sp; r; }

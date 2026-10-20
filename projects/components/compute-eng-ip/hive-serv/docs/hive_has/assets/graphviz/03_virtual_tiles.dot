@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Delta 4x4 mesh with HIVE virtual tiles -- house style per
 // vault/handbook/authoring/block-diagrams.md. Converted from the ASCII figure in
 // HAS ch02 (virtual tile addressing). A topology map, not a flow: tiles are

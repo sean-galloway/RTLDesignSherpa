@@ -7,28 +7,28 @@ digraph mc_dfi_2p1_plane {
            nodesep="0.45", ranksep="0.55", splines=ortho,
            label="mc_dfi_2p1_plane - DFI 2.1 boundary (single ctl_clk / dfi_clk crossing)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- controller-side ports (ctl_clk) ----
-    p_wd  [label="Write data in (ctl_clk)\nfrom the write-data commit stream", fillcolor="white"];
-    p_cmd [label="DDR Command in (ctl_clk)\nfrom mc_scheduler_plane", fillcolor="white"];
-    p_rd  [label="Read data out (ctl_clk)\nto mc_rd_return_ring", fillcolor="white"];
-    p_cal [label="Calibration sideband (dfi_clk)\nmc_training_plane", fillcolor="white"];
+    p_wd  [label="Write data in (ctl_clk)\nfrom the write-data commit stream", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_cmd [label="DDR Command in (ctl_clk)\nfrom mc_scheduler_plane", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_rd  [label="Read data out (ctl_clk)\nto mc_rd_return_ring", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p_cal [label="Calibration sideband (dfi_clk)\nmc_training_plane", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- the single CDC: mc_dfi_cdc (gaxi_fifo_async only) ----
-    cdc_wd  [label="Write Data CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(ctl_clk -> dfi_clk)"];
-    cdc_cmd [label="Command CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(ctl_clk -> dfi_clk);\ndfi_init start / complete tokens (to the PHY pins)"];
-    cdc_rd  [label="Read Data CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(dfi_clk -> ctl_clk)"];
+    cdc_wd  [label="Write Data CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(ctl_clk -> dfi_clk)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    cdc_cmd [label="Command CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(ctl_clk -> dfi_clk);\ndfi_init start / complete tokens (to the PHY pins)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    cdc_rd  [label="Read Data CDC FIFO\nmc_dfi_cdc - gaxi_fifo_async\n(dfi_clk -> ctl_clk)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- dfi_clk datapath ----
-    cmd_path [label="DFI Command Path\nmc_dfi_cmd_path - FUB\nDDR2 / LPDDR2 pins, sub-command split,\nwrite / read fire strobes"];
-    wr_ser   [label="Write Serializer\nmc_dfi_wr_serializer - FUB\nlaunch at t_phy_wrlat"];
-    rd_al    [label="Read Aligner\nmc_dfi_rd_aligner - FUB\ndfi_rddata_en at t_rddata_en;\ncalibration capture"];
+    cmd_path [label="DFI Command Path\nmc_dfi_cmd_path - FUB\nDDR2 / LPDDR2 pins, sub-command split,\nwrite / read fire strobes", style="filled", fillcolor="white"];
+    wr_ser   [label="Write Serializer\nmc_dfi_wr_serializer - FUB\nlaunch at t_phy_wrlat", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd_al    [label="Read Aligner\nmc_dfi_rd_aligner - FUB\ndfi_rddata_en at t_rddata_en;\ncalibration capture", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- boundary bar (the PHY pins) + parked runtime-inputs legend ----
-    bar    [label="DDR PHY (DFI 2.1 pin bus, dfi_clk) - command, dfi_wrdata, dfi_rddata, dfi_init", fillcolor="white", width=9, height=0.5, fontsize=11];
-    legend [label="Runtime inputs (dfi_clk side, CSR-driven)\l  t_phy_wrlat: write serializer launch delay\l  t_rddata_en: read aligner enable delay\l  rd_phase / wr_phase: DFI phase of the column\l  gear: active DFI phases (masks the data enables)\l  n_subcmd / strides: sub-command split\l", fillcolor="white"];
+    bar    [label="DDR PHY (DFI 2.1 pin bus, dfi_clk) - command, dfi_wrdata, dfi_rddata, dfi_init", fillcolor="white", width=9, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    legend [label="Runtime inputs (dfi_clk side, CSR-driven)\l  t_phy_wrlat: write serializer launch delay\l  t_rddata_en: read aligner enable delay\l  rd_phase / wr_phase: DFI phase of the column\l  gear: active DFI phases (masks the data enables)\l  n_subcmd / strides: sub-command split\l", fillcolor="white", shape=note];
 
     // ---- write data: down the left column ----
     p_wd   -> cdc_wd [xlabel="write data + strb + last"];
@@ -43,9 +43,9 @@ digraph mc_dfi_2p1_plane {
     cmd_path -> rd_al    [style=dashed, xlabel="read fire"];
 
     // ---- read data: back up the right column ----
-    rd_al  -> bar    [dir=back, xlabel="Read from DDR"];
-    cdc_rd -> rd_al  [dir=back, xlabel="read data"];
-    p_rd   -> cdc_rd [dir=back, xlabel="read data + resp + last"];
+    rd_al  -> bar    [color="#1A7A1A", dir=back, xlabel="Read from DDR"];
+    cdc_rd -> rd_al  [color="#1A7A1A", dir=back, xlabel="read data"];
+    p_rd   -> cdc_rd [color="#1A7A1A", dir=back, xlabel="read data + resp + last"];
     // ---- calibration sideband: straight dashed lane, far-right margin ----
     p_cal -> rd_al [dir=both, style=dashed, xlabel="cal expect /\ncal data + valid"];
 

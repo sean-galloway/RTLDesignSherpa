@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // STREAM verification stack: cocotb tests drive the RTL only through BFMs.
 digraph stream_testbench_stack {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,

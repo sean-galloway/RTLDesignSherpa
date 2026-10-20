@@ -13,38 +13,38 @@ digraph cell_alu_focus {
          label="CELL — ALU datapath focus (MAS v0.12)",
          labelloc=t];
   node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+         fillcolor="white", color="black", margin="0.12,0.06"];
   edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
   // ---- Operand sources (left) + config (right) ----
-  inmem   [group="L", label="Input Memory\ncell_mem_in — operand lines, IP++"];
-  aluregs [group="L", label="ALU Registers\nA · B · C · D + T\npersistent operands + threshold"];
-  cfgregs [group="R", label="Cell Config (§7)\nOP_SRC · IP/OP · CTRL\nFLUSH_DEST / FLUSH_TAG"];
+  inmem   [group="L", label="Input Memory\ncell_mem_in — operand lines, IP++", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+  aluregs [group="L", label="ALU Registers\nA · B · C · D + T\npersistent operands + threshold", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  cfgregs [group="R", label="Cell Config (§7)\nOP_SRC · IP/OP · CTRL\nFLUSH_DEST / FLUSH_TAG", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
   // ---- Scheduler ----
   fsm [group="C", shape=invtrapezium, width=2.6, height=0.5,
-       label="Execution FSM — cell_exec_fsm\nPop → Issue → Push (scheduler; tetrad: gatling)"];
+       label="Execution FSM — cell_exec_fsm\nPop → Issue → Push (scheduler; tetrad: gatling)", style="filled", fillcolor="#FFF2CC"];
 
   // ---- ALU internals (inside the alu_infer_top boundary) ----
-  tagassign [group="C", label="Tag assign\n8-bit tag per invocation group"];
-  rows      [group="C", label="bf16 rows\n2×bf16 per operand line"];
-  tagfifo   [group="L", label="Tag FIFO\ntracks in-flight groups\n(ratified spec — RTL pending)"];
-  mac       [group="C", label="fp32 MAC\nper-lane accumulate\nCLEAR / ACCUMULATE / DRAIN"];
-  align     [group="C", label="Align gate\nresult_valid waits for every\nsame-tag op's valid"];
+  tagassign [group="C", label="Tag assign\n8-bit tag per invocation group", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  rows      [group="C", label="bf16 rows\n2×bf16 per operand line", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  tagfifo   [group="L", label="Tag FIFO\ntracks in-flight groups\n(ratified spec — RTL pending)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+  mac       [group="C", label="fp32 MAC\nper-lane accumulate\nCLEAR / ACCUMULATE / DRAIN", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  align     [group="C", label="Align gate\nresult_valid waits for every\nsame-tag op's valid", style="filled", fillcolor="white"];
 
   // ---- Boundary bar ----
   alubar [group="C", width=5.4, height=0.5, fillcolor="white",
-          label="ALU boundary — alu_infer_top"];
+          label="ALU boundary — alu_infer_top", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
   // ---- Result sink ----
-  outmem [group="R", label="Result Memory\ncell_mem_out — result lines, OP++"];
+  outmem [group="R", label="Result Memory\ncell_mem_out — result lines, OP++", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
   // ---- Operand fill flow (left column, top down) ----
   inmem   -> fsm [label="op lines — pop (IP++)"];
   aluregs -> fsm [label="op_line_a/b ← A|B|C|D (OP_SRC)\nT → threshold_imm"];
 
   // ---- Config flow (dashed) ----
-  cfgregs -> fsm [style=dashed, label="cfg — OP_SRC sel_a/sel_b,\nIP/OP seed, CTRL"];
+  cfgregs -> fsm [style=dashed, color="#777777", label="cfg — OP_SRC sel_a/sel_b,\nIP/OP seed, CTRL"];
 
   // ---- Issue: heavy pen, narrow edge of the scheduler ----
   fsm -> tagassign [penwidth=1.8,
@@ -55,7 +55,7 @@ digraph cell_alu_focus {
   tagassign -> tagfifo [label="8-bit tag"];
   rows      -> mac    [label="bf16 products (exact in fp32)"];
   mac       -> align  [label="round to bf16 per result line"];
-  tagfifo   -> align  [constraint=false, style=dashed, label="tag-complete status"];
+  tagfifo   -> align  [constraint=false, style=dashed, color="#777777", label="tag-complete status"];
   align     -> alubar [label="result_line — in-order"];
 
   // ---- Result flow: back UP its own route ----

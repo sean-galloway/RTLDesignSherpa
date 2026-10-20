@@ -5,22 +5,22 @@ digraph system_context {
            nodesep="0.45", ranksep="0.80", splines=ortho, labelloc=t,
            label="Bridge in an SoC - the only path between the masters and the slaves\n(each edge: requests down, responses up)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7, dir=both];
 
-    cpu [label="CPU Core", fillcolor="white"];
-    dma [label="DMA Engine", fillcolor="white"];
-    gpu [label="GPU Engine", fillcolor="white"];
-    acc [label="Accelerator", fillcolor="white"];
+    cpu [label="CPU Core", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dma [label="DMA Engine", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    gpu [label="GPU Engine", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    acc [label="Accelerator", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; cpu; dma; gpu; acc; }
     cpu -> dma -> gpu -> acc [style=invis, dir=none];
 
-    br [label="Generated Bridge - <name>.sv\npresents a slave port to each master and a master port to each slave;\naddress decode, one arbiter per slave, width and protocol conversion,\nresponses routed back to the requesting master", width=8];
+    br [label="Generated Bridge - <name>.sv\npresents a slave port to each master and a master port to each slave;\naddress decode, one arbiter per slave, width and protocol conversion,\nresponses routed back to the requesting master", width=8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    ddr   [label="DDR Controller", fillcolor="white"];
-    sram  [label="SRAM Buffer", fillcolor="white"];
-    per   [label="Peripheral Block", fillcolor="white"];
-    flash [label="Flash Controller", fillcolor="white"];
+    ddr   [label="DDR Controller", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sram  [label="SRAM Buffer", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    per   [label="Peripheral Block", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    flash [label="Flash Controller", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; ddr; sram; per; flash; }
     ddr -> sram -> per -> flash [style=invis, dir=none];
 

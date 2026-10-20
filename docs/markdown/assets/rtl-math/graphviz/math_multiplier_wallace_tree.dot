@@ -11,21 +11,21 @@ digraph math_multiplier_wallace_tree {
            nodesep="0.35", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_multiplier_wallace_tree - Wallace-reduced N x N unsigned multiplier (combinational)";
 
     node [group=M];
-    ops  [label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white"];
-    pp   [label="Partial-Product Array (combinational)\nN x N ANDs: w_pp_i_j = i_multiplier[i] & i_multiplicand[j]\n2N-1 columns, heights 1, 2 .. N .. 2, 1"];
-    s1   [label="Wallace Layer 1 (combinational)\ncompress every group of 3 bits in every column at once\nmath_adder_full (3:2) + math_adder_half"];
-    sr   [label="Wallace Layers 2 .. L (combinational)\nrepeat on the shortened columns until all are height 2\n(8-bit: 4 layers); Wallace reduces as early as it can"];
-    pack [label="Row Pack (wiring)\nw_cpa_row0, w_cpa_row1 [2N-1:0]\nthe two bits left in every column"];
-    cpa  [label="Final Carry-Propagate Adder (combinational)\nmath_adder_brent_kung_{2N} - u_final_cpa\nw_cpa_row0 + w_cpa_row1"];
-    bar  [label="Output\now_product[2N-1:0]", fillcolor="white", width=5.0];
+    ops  [label="Operands\ni_multiplier[N-1:0], i_multiplicand[N-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    pp   [label="Partial-Product Array (combinational)\nN x N ANDs: w_pp_i_j = i_multiplier[i] & i_multiplicand[j]\n2N-1 columns, heights 1, 2 .. N .. 2, 1", style="filled", fillcolor="white"];
+    s1   [label="Wallace Layer 1 (combinational)\ncompress every group of 3 bits in every column at once\nmath_adder_full (3:2) + math_adder_half", style="filled", fillcolor="white"];
+    sr   [label="Wallace Layers 2 .. L (combinational)\nrepeat on the shortened columns until all are height 2\n(8-bit: 4 layers); Wallace reduces as early as it can", style="filled", fillcolor="white"];
+    pack [label="Row Pack (wiring)\nw_cpa_row0, w_cpa_row1 [2N-1:0]\nthe two bits left in every column", style="filled", fillcolor="white"];
+    cpa  [label="Final Carry-Propagate Adder (combinational)\nmath_adder_brent_kung_{2N} - u_final_cpa\nw_cpa_row0 + w_cpa_row1", style="filled", fillcolor="white"];
+    bar  [label="Output\now_product[2N-1:0]", fillcolor="white", width=5.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     node [group=""];
 
-    var  [label="Generated Variants (N fixed per file)\lmath_multiplier_wallace_tree_008: 4 layers,\l    36 full + 25 half adders, brent_kung_016\lmath_multiplier_wallace_tree_016: 6 layers,\l    196 full + 78 half adders, brent_kung_032\lmath_multiplier_wallace_tree_032: 8 layers,\l    900 full + 216 half adders, brent_kung_064\l_csa_ variants: identical trees built from\l    math_adder_carry_save instead of math_adder_full\l", fillcolor="white"];
+    var  [label="Generated Variants (N fixed per file)\lmath_multiplier_wallace_tree_008: 4 layers,\l    36 full + 25 half adders, brent_kung_016\lmath_multiplier_wallace_tree_016: 6 layers,\l    196 full + 78 half adders, brent_kung_032\lmath_multiplier_wallace_tree_032: 8 layers,\l    900 full + 216 half adders, brent_kung_064\l_csa_ variants: identical trees built from\l    math_adder_carry_save instead of math_adder_full\l", fillcolor="white", shape=note];
 
     ops  -> pp   [xlabel="operand bits"];
     pp   -> s1   [xlabel="N x N partial-product bits"];

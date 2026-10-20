@@ -11,21 +11,21 @@ digraph axi_data_upsize {
            nodesep="0.40", ranksep="0.70", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi_data_upsize - WIDTH_RATIO narrow beats into one wide beat (on aclk)";
 
-    lane_in [label="Burst Start Lane\nstart_lane =\naddr % wide_bytes / narrow_bytes\n(0 for aligned-only use)", fillcolor="white", group=L];
-    nin     [label="Narrow Input\nnarrow_valid / narrow_ready,\nnarrow_data, narrow_last", fillcolor="white", group=C];
-    sbin    [label="Narrow Sideband\nnarrow_sideband\n(WSTRB slice or RRESP)", fillcolor="white", group=R];
-    leg     [label="Parameters (fixed at build)\lSB_OR_MODE: 0 = concatenate (WSTRB),\l    1 = severity fold, numeric max (RRESP)\lNARROW_SB_WIDTH: 0 = no sideband logic\l", fillcolor="white", group=X];
+    lane_in [label="Burst Start Lane\nstart_lane =\naddr % wide_bytes / narrow_bytes\n(0 for aligned-only use)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    nin     [label="Narrow Input\nnarrow_valid / narrow_ready,\nnarrow_data, narrow_last", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    sbin    [label="Narrow Sideband\nnarrow_sideband\n(WSTRB slice or RRESP)", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    leg     [label="Parameters (fixed at build)\lSB_OR_MODE: 0 = concatenate (WSTRB),\l    1 = severity fold, numeric max (RRESP)\lNARROW_SB_WIDTH: 0 = no sideband logic\l", fillcolor="white", group=X, shape=note];
 
-    ptr  [label="Beat Pointer + Group Control (flops)\nr_beat_ptr, r_burst_fresh\nlane: fresh burst -> start_lane,\ngroup opener -> 0\ngroup done: lane == RATIO-1 or narrow_last\n-> r_wide_valid, r_last_buffered\nnarrow_ready = !wide_valid or wide_ready", group=L];
-    dacc [label="Data Accumulator\nr_data_accumulator (flop)\ngroup opener: zero the word,\nplace the beat;\nlater beats: write their lane", group=C];
-    sacc [label="Sideband Accumulator\nr_sideband_accumulator (flop)\nsame lane as the data;\nconcat: lane-shifted, unfilled = 0\nfold: keep the maximum", group=R];
+    ptr  [label="Beat Pointer + Group Control (flops)\nr_beat_ptr, r_burst_fresh\nlane: fresh burst -> start_lane,\ngroup opener -> 0\ngroup done: lane == RATIO-1 or narrow_last\n-> r_wide_valid, r_last_buffered\nnarrow_ready = !wide_valid or wide_ready", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dacc [label="Data Accumulator\nr_data_accumulator (flop)\ngroup opener: zero the word,\nplace the beat;\nlater beats: write their lane", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sacc [label="Sideband Accumulator\nr_sideband_accumulator (flop)\nsame lane as the data;\nconcat: lane-shifted, unfilled = 0\nfold: keep the maximum", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [label="Wide Output (registered)\nwide_valid / wide_ready, wide_last   |   wide_data   |   wide_sideband",
-          fillcolor="white", width=7.0];
+          fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     nin  -> dacc [xlabel="narrow beats"];
     sbin -> sacc [xlabel="narrow sideband"];
@@ -33,8 +33,8 @@ digraph axi_data_upsize {
     sacc -> bar  [xlabel="wide sideband"];
 
     lane_in -> ptr  [xlabel="first lane"];
-    nin  -> ptr  [style=dashed, dir=both, xlabel="fire, last /\nready"];
-    ptr  -> dacc [style=dashed, xlabel="lane"];
+    nin  -> ptr  [style=dashed, color="#777777", dir=both, xlabel="fire, last /\nready"];
+    ptr  -> dacc [style=dashed, color="#777777", xlabel="lane"];
     ptr  -> bar  [xlabel="wide_valid,\nwide_last"];
 
     { rank=same; lane_in; nin; sbin; }

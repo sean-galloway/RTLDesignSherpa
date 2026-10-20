@@ -11,18 +11,18 @@ digraph sort {
            label="sort - pipelined odd-even transposition sort, NUM_VALS stages (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    data_in  [group=C, label="Data Input\ndata[NUM_VALS*SIZE-1:0]\n(element i at bits [i*SIZE +: SIZE])", fillcolor="white"];
-    valid_in [group=V, label="Valid Input\nvalid_in", fillcolor="white"];
+    data_in  [group=C, label="Data Input\ndata[NUM_VALS*SIZE-1:0]\n(element i at bits [i*SIZE +: SIZE])", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    valid_in [group=V, label="Valid Input\nvalid_in", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    s1  [group=C, label="Stage 1 - pairs (0,1), (2,3), ...\ncompare-swap: larger value to the lower index\nr_stage_data[1] (flop)"];
-    s2  [group=C, label="Stage 2 - pairs (1,2), (3,4), ...\ncompare-swap, r_stage_data[2] (flop)"];
-    sn  [group=C, label="Stages 3 .. NUM_VALS  (NUM_VALS-2 more)\nalternate the two pairings, one register each\nr_stage_data[3 .. NUM_VALS] (flops)"];
-    vp  [group=V, label="Valid Pipeline\nr_stage_valid[1 .. NUM_VALS] (flops)\nshifts one stage per clock"];
+    s1  [group=C, label="Stage 1 - pairs (0,1), (2,3), ...\ncompare-swap: larger value to the lower index\nr_stage_data[1] (flop)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    s2  [group=C, label="Stage 2 - pairs (1,2), (3,4), ...\ncompare-swap, r_stage_data[2] (flop)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sn  [group=C, label="Stages 3 .. NUM_VALS  (NUM_VALS-2 more)\nalternate the two pairings, one register each\nr_stage_data[3 .. NUM_VALS] (flops)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    vp  [group=V, label="Valid Pipeline\nr_stage_valid[1 .. NUM_VALS] (flops)\nshifts one stage per clock", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    out [label="Outputs\nsorted = r_stage_data[NUM_VALS] (descending)   |   done = r_stage_valid[NUM_VALS]", fillcolor="white", width=7.0];
+    out [label="Outputs\nsorted = r_stage_data[NUM_VALS] (descending)   |   done = r_stage_valid[NUM_VALS]", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     data_in -> s1 [xlabel="NUM_VALS values", penwidth=1.8];
     s1 -> s2 [xlabel="partly sorted", penwidth=1.8];

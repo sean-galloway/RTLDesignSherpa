@@ -7,17 +7,17 @@ digraph rapids_beats_load_balancing {
            label="Load balancing - the sender picks a channel per packet with tid; RAPIDS routes by tid",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pkts [label="Incoming Packets 0 .. 3", fillcolor="white"];
-    dist [label="Traffic Distributor (upstream, outside RAPIDS)\nassigns tid = 0 .. 3 per packet", fillcolor="white", style="filled,dashed"];
-    ing  [label="Sink Ingress - snk_data_path_axis_beats\nroutes each beat to channel s_axis_tid[2:0]", width=6.0];
-    c0 [label="Sink Channel 0\nFIFO + scheduler"];
-    c1 [label="Sink Channel 1\nFIFO + scheduler"];
-    c2 [label="Sink Channel 2\nFIFO + scheduler"];
-    c3 [label="Sink Channel 3\nFIFO + scheduler"];
-    mem [label="System Memory - one buffer chain per channel\n(written through the shared AXI write engine)", fillcolor="white", width=7.0];
+    pkts [label="Incoming Packets 0 .. 3", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    dist [label="Traffic Distributor (upstream, outside RAPIDS)\nassigns tid = 0 .. 3 per packet", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    ing  [label="Sink Ingress - snk_data_path_axis_beats\nroutes each beat to channel s_axis_tid[2:0]", width=6.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c0 [label="Sink Channel 0\nFIFO + scheduler", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c1 [label="Sink Channel 1\nFIFO + scheduler", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c2 [label="Sink Channel 2\nFIFO + scheduler", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c3 [label="Sink Channel 3\nFIFO + scheduler", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mem [label="System Memory - one buffer chain per channel\n(written through the shared AXI write engine)", fillcolor="white", width=7.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     pkts -> dist [label="packets"];
     dist -> ing  [label="s_axis_* (tid set) or\ns_cxs_* (CXSSRCID set)"];

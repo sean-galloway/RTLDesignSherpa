@@ -7,42 +7,42 @@ digraph error_handling {
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="Error handling as built - an unmapped access is answered, never dropped; slave errors return unchanged\n(no protocol checker, watchdog or error status register is generated)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pc [label="Master Requests\nAW / AR / W", fillcolor="white", group=C];
-    pr [label="Master Responses\nB / R with BRESP / RRESP", fillcolor="white", group=R];
+    pc [label="Master Requests\nAW / AR / W", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    pr [label="Master Responses\nB / R with BRESP / RRESP", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pc; pr; }
     pc -> pr [style=invis];
 
-    dec [label="Address Decode - <master>_adapter\nthe final else of the window chain\nselects the catch-all (subtractive decode)", group=C];
-    rmux [label="Response Path - <bridge>_xbar + <master>_adapter\nevery response, error or not, returns to\nthe master named by its bridge_id", group=R];
+    dec [label="Address Decode - <master>_adapter\nthe final else of the window chain\nselects the catch-all (subtractive decode)", group=C, style="filled", fillcolor="white"];
+    rmux [label="Response Path - <bridge>_xbar + <master>_adapter\nevery response, error or not, returns to\nthe master named by its bridge_id", group=R, style="filled", fillcolor="white"];
     { rank=same; dec; rmux; }
     dec -> rmux [style=invis];
 
-    trk [label="Catch-all Adapter - subtractive_adapter\naxi4_master_wr / _rd + bridge_id FIFO", group=C];
-    serr [label="Slave Error Responses\nSLVERR / DECERR from any slave pass\nthrough unchanged; an APB shim maps\nPSLVERR -> SLVERR, a write-only\nAXI5 port's atomic filter answers DECERR", group=R];
-    chk [label="Response-Order Check (simulation only)\n$error when a returned BID / RID is not\nthe bridge_id FIFO head (bridge BUG-008)", style="filled,dashed"];
+    trk [label="Catch-all Adapter - subtractive_adapter\naxi4_master_wr / _rd + bridge_id FIFO", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    serr [label="Slave Error Responses\nSLVERR / DECERR from any slave pass\nthrough unchanged; an APB shim maps\nPSLVERR -> SLVERR, a write-only\nAXI5 port's atomic filter answers DECERR", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    chk [label="Response-Order Check (simulation only)\n$error when a returned BID / RID is not\nthe bridge_id FIFO head (bridge BUG-008)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
     { rank=same; trk; serr; chk; }
     trk -> serr -> chk [style=invis];
 
-    sub [label="Subtractive Slave - axi4_subtractive_slave\nwrites: sinks every W beat, one B per AW, BRESP = DECERR\nreads: AxLEN + 1 beats, RRESP = DECERR, RDATA = READ_FILL\n(0xDEADBEEF), RLAST on the last", group=C];
-    hit [label="Hit Capture - axi4_subtractive_slave\no_hit_irq: sticky from the first unmapped access\no_hit_addr: that first address, kept across a clear\no_hit_count: saturating count"];
-    mon [label="Monbus Error Packet\none per offending AW / AR,\ncarrying the address\n(ENABLE_MONBUS; reaches the\nmonitor bus in *_mon builds)", style="filled,dashed"];
+    sub [label="Subtractive Slave - axi4_subtractive_slave\nwrites: sinks every W beat, one B per AW, BRESP = DECERR\nreads: AxLEN + 1 beats, RRESP = DECERR, RDATA = READ_FILL\n(0xDEADBEEF), RLAST on the last", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hit [label="Hit Capture - axi4_subtractive_slave\no_hit_irq: sticky from the first unmapped access\no_hit_addr: that first address, kept across a clear\no_hit_count: saturating count", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mon [label="Monbus Error Packet\none per offending AW / AR,\ncarrying the address\n(ENABLE_MONBUS; reaches the\nmonitor bus in *_mon builds)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     { rank=same; sub; hit; mon; }
     sub -> hit -> mon [style=invis];
 
-    bar [label="Bridge Top Ports - unmapped_irq, unmapped_addr, unmapped_count out; unmapped_clear in (to i_hit_clear)", fillcolor="white", width=10];
+    bar [label="Bridge Top Ports - unmapped_irq, unmapped_addr, unmapped_count out; unmapped_clear in (to i_hit_clear)", fillcolor="white", width=10, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pc -> dec [label="AW / AR / W"];
     dec -> trk [label="unmapped AW / AR + W", penwidth=1.8];
     trk -> sub [label="AW / AR / W down,\nDECERR B / R up", penwidth=1.8, dir=both];
-    sub -> hit [style=dashed, xlabel="hit"];
-    hit -> mon [style=dashed, xlabel="address"];
+    sub -> hit [style=dashed, color="#777777", xlabel="hit"];
+    hit -> mon [style=dashed, color="#777777", xlabel="address"];
     hit -> bar [xlabel="irq, addr, count / clear", dir=both];
     trk -> chk [style=invis];
 
-    pr -> rmux [dir=back, label="B / R"];
-    rmux -> serr [dir=back, label="SLVERR / DECERR"];
-    rmux -> trk [dir=back, xlabel="DECERR B / R"];
+    pr -> rmux [color="#1A7A1A", dir=back, label="B / R"];
+    rmux -> serr [color="#1A7A1A", dir=back, label="SLVERR / DECERR"];
+    rmux -> trk [color="#1A7A1A", dir=back, xlabel="DECERR B / R"];
 }

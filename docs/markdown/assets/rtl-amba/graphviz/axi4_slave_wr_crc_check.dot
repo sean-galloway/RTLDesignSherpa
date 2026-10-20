@@ -8,22 +8,22 @@ digraph axi4_slave_wr_crc_check {
            nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_slave_wr_crc_check - synthetic AXI4 write sink: CRC of what was written (aclk)";
 
-    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent CRC contexts, channel = awid[CIW-1:0]\lCRC_SLICE_OFFSET: which 32-bit lane of wdata is CRC'd\lBYTE_CRC: 1 = CRC the strobed bytes in address order,\l    four per cycle (W stalls while a beat is fed)\lCRC_POLY / _INIT / _XOROUT / _REFIN / _REFOUT: the CRC standard\lERR_INJECT: 1 = build the error-response injector\l", fillcolor="white"];
-    port [group=C, label="AXI4 Write Port (slave)\ns_axi_aw, s_axi_w in   |   s_axi_b out", fillcolor="white"];
-    ctl  [group=E, label="Error Config (ERR_INJECT=1)\ncfg_err_enable / _channel /\n_skip / _resp / _oneshot", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lNUM_CHANNELS: independent CRC contexts, channel = awid[CIW-1:0]\lCRC_SLICE_OFFSET: which 32-bit lane of wdata is CRC'd\lBYTE_CRC: 1 = CRC the strobed bytes in address order,\l    four per cycle (W stalls while a beat is fed)\lCRC_POLY / _INIT / _XOROUT / _REFIN / _REFOUT: the CRC standard\lERR_INJECT: 1 = build the error-response injector\l", fillcolor="white", shape=note];
+    port [group=C, label="AXI4 Write Port (slave)\ns_axi_aw, s_axi_w in   |   s_axi_b out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ctl  [group=E, label="Error Config (ERR_INJECT=1)\ncfg_err_enable / _channel /\n_skip / _resp / _oneshot", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    leaf [group=C, label="AXI4 Slave Write Leaf\naxi4_slave_wr - u_axi4_slave_wr\nskid buffers on AW / W / B"];
-    fsm  [group=C, label="Burst FSM (flops)\nr_wr_active, r_wr_id: one burst at a time\nawready = idle or on the last W beat\nwready = active (and BYTE_CRC feed idle)"];
-    err  [group=E, label="Error Injector (ERR_INJECT=1 only)\nburst number cfg_err_skip on\ncfg_err_channel answers cfg_err_resp", style="filled,dashed"];
-    crc  [group=R, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\nW lane CRC_SLICE_OFFSET (or the strobed bytes\nwhen BYTE_CRC) into the burst's channel"];
-    bq   [group=B, label="B Response FIFO (flops, 16 deep)\npush {user, id} on every WLAST,\npop on the B handshake"];
+    leaf [group=C, label="AXI4 Slave Write Leaf\naxi4_slave_wr - u_axi4_slave_wr\nskid buffers on AW / W / B", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm  [group=C, label="Burst FSM (flops)\nr_wr_active, r_wr_id: one burst at a time\nawready = idle or on the last W beat\nwready = active (and BYTE_CRC feed idle)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    err  [group=E, label="Error Injector (ERR_INJECT=1 only)\nburst number cfg_err_skip on\ncfg_err_channel answers cfg_err_resp", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    crc  [group=R, label="Per-Channel CRC (flops)\nNUM_CHANNELS x dataint_crc - u_crc\nW lane CRC_SLICE_OFFSET (or the strobed bytes\nwhen BYTE_CRC) into the burst's channel", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bq   [group=B, label="B Response FIFO (flops, 16 deep)\npush {user, id} on every WLAST,\npop on the B handshake", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     out  [label="Outputs\nwrite_crc_value / _valid [ch]   |   write_beat_count [ch], write_beat_count_total   |   err_injected",
-          fillcolor="white", width=9.0];
+          fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> leaf [dir=both, xlabel="AW, W  /  B"];
     leaf -> fsm  [xlabel="fub AW, W"];
@@ -31,11 +31,11 @@ digraph axi4_slave_wr_crc_check {
     fsm  -> bq   [xlabel="WLAST {user, id}"];
     bq   -> leaf [xlabel="fub B"];
     crc  -> out  [xlabel="CRC, beat counts"];
-    ctl  -> err  [style=dashed, xlabel="cfg_err_*"];
-    err  -> leaf [style=dashed, xlabel="bresp"];
-    err  -> out  [style=dashed, xlabel="err_injected"];
-    rst [group=L, label="Reset Pulse\ncrc_reset\n(clear CRCs and counts)", fillcolor="white"];
-    rst -> crc [style=dashed, xlabel="crc_reset"];
+    ctl  -> err  [style=dashed, color="#777777", xlabel="cfg_err_*"];
+    err  -> leaf [style=dashed, color="#777777", xlabel="bresp"];
+    err  -> out  [style=dashed, color="#777777", xlabel="err_injected"];
+    rst [group=L, label="Reset Pulse\ncrc_reset\n(clear CRCs and counts)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rst -> crc [style=dashed, color="#777777", xlabel="crc_reset"];
 
     { rank=same; prm; rst; port; ctl; }
     prm -> rst [style=invis];

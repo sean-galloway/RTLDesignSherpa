@@ -7,26 +7,26 @@ digraph rapids_beats_bidirectional {
            label="One network connection, two channels: receive on a sink channel, transmit on a source channel",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    nic_rx [label="Network Interface - receive\n(drives s_axis_*, tid = 0, or\ns_cxs_*, CXSSRCID = 0)", fillcolor="white"];
-    nic_tx [label="Network Interface - transmit\n(takes m_axis_*, tid = 1, or\nm_cxs_*, CXSSRCID = 1)", fillcolor="white"];
-    snk [label="Sink Channel 0 (RX)\nrapids_snk_beats: ingress -> FIFO 0\n-> AXI write engine"];
-    src [label="Source Channel 1 (TX)\nrapids_src_beats: AXI read engine\n-> FIFO 1 -> egress"];
-    mem [label="System Memory\nRX buffer (written by sink channel 0)   |   TX buffer (read by source channel 1)", fillcolor="white", width=8.0];
+    nic_rx [label="Network Interface - receive\n(drives s_axis_*, tid = 0, or\ns_cxs_*, CXSSRCID = 0)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    nic_tx [label="Network Interface - transmit\n(takes m_axis_*, tid = 1, or\nm_cxs_*, CXSSRCID = 1)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    snk [label="Sink Channel 0 (RX)\nrapids_snk_beats: ingress -> FIFO 0\n-> AXI write engine", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    src [label="Source Channel 1 (TX)\nrapids_src_beats: AXI read engine\n-> FIFO 1 -> egress", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mem [label="System Memory\nRX buffer (written by sink channel 0)   |   TX buffer (read by source channel 1)", fillcolor="white", width=8.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     nic_rx -> snk [label="network packets in\n(AXIS or CXS)"];
     snk -> mem [label="AXI write (AW + W)"];
-    nic_tx -> src [dir=back, label="network packets out\n(AXIS or CXS)"];
+    nic_tx -> src [color="#1A7A1A", dir=back, label="network packets out\n(AXIS or CXS)"];
     p_ar [shape=point, width=0.01];
     p_r  [shape=point, width=0.01];
     { rank=same; p_ar; p_r; }
     p_ar -> p_r [style=invis];
     src -> p_ar [arrowhead=none, headclip=false];
     p_ar -> mem [xlabel="AXI read\nrequest (AR)", tailclip=false];
-    src -> p_r  [dir=back, headclip=false];
-    p_r -> mem  [dir=none, xlabel="read data (R)", tailclip=false];
+    src -> p_r  [color="#1A7A1A", dir=back, headclip=false];
+    p_r -> mem  [color="#1A7A1A", dir=none, xlabel="read data (R)", tailclip=false];
 
     { rank=same; nic_rx; nic_tx; }
     { rank=same; snk; src; }

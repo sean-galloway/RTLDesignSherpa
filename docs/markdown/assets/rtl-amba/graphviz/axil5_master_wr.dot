@@ -11,23 +11,23 @@ digraph axil5_master_wr {
            label="axil5_master_wr - AXI5-Lite write master, one skid buffer per channel\n(single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lID_WIDTH: 0 = no ID (ID outputs driven 0,\l    ID inputs ignored); IDs carried, not remapped\lENABLE_USER / _TRACE / _POISON: 0 = that\l    group leaves the skid payload and its\l    outputs are driven 0\lPOISON: carried only, never generated or checked\l", fillcolor="white"];
-    top  [label="Write Requester (fub_*)\nuser logic issuing writes", fillcolor="white", width=5.0];
-    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\nSKID_DEPTH_AW (default 2)"];
-    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\nSKID_DEPTH_W (default 4)"];
-    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\nSKID_DEPTH_B (default 2)"];
-    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor fub_awvalid / fub_wvalid / m_axil_bvalid arriving", fillcolor="white"];
-    bot  [label="AXI5-Lite Bus, master side (m_axil_*)\nAW and W out at the left, B in at the right", fillcolor="white", width=5.6];
+    prm  [label="Parameters (fixed at build)\lID_WIDTH: 0 = no ID (ID outputs driven 0,\l    ID inputs ignored); IDs carried, not remapped\lENABLE_USER / _TRACE / _POISON: 0 = that\l    group leaves the skid payload and its\l    outputs are driven 0\lPOISON: carried only, never generated or checked\l", fillcolor="white", shape=note];
+    top  [label="Write Requester (fub_*)\nuser logic issuing writes", fillcolor="white", width=5.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\nSKID_DEPTH_AW (default 2)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\nSKID_DEPTH_W (default 4)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\nSKID_DEPTH_B (default 2)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor fub_awvalid / fub_wvalid / m_axil_bvalid arriving", fillcolor="white", shape=note];
+    bot  [label="AXI5-Lite Bus, master side (m_axil_*)\nAW and W out at the left, B in at the right", fillcolor="white", width=5.6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     top -> aw  [xlabel="AW: awid, awaddr, awprot,\nawuser, awtrace\n(valid down, ready up)", penwidth=1.8];
     aw  -> bot [xlabel="m_axil_aw*", penwidth=1.8];
     top -> w   [xlabel="W: wdata, wstrb,\nwuser, wpoison", penwidth=1.8];
     w   -> bot [xlabel="m_axil_w*", penwidth=1.8];
-    b   -> bot [dir=back, xlabel="B: bid, bresp,\nbuser, btrace\n(valid up, ready down)"];
-    top -> b   [dir=back, xlabel="fub_b*"];
+    b   -> bot [color="#1A7A1A", dir=back, xlabel="B: bid, bresp,\nbuser, btrace\n(valid up, ready down)"];
+    top -> b   [color="#1A7A1A", dir=back, xlabel="fub_b*"];
 
     { rank=same; aw; w; b; }
     aw -> w [style=invis]; w -> b [style=invis, minlen=2];

@@ -12,33 +12,33 @@ digraph axi4_dwidth_converter_rd {
            nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_dwidth_converter_rd - AXI4 read path, S_AXI_DATA_WIDTH -> M_AXI_DATA_WIDTH (on aclk)";
 
-    s    [label="Slave Port (s_axi_*, S_AXI_DATA_WIDTH)\nAR   |   R", fillcolor="white", width=7.5];
+    s    [label="Slave Port (s_axi_*, S_AXI_DATA_WIDTH)\nAR   |   R", fillcolor="white", width=7.5, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ask  [label="AR Skid\ngaxi_skid_buffer - ar_skid", group=A];
-    rsk  [label="R Skid\ngaxi_skid_buffer - r_skid", group=R];
+    ask  [label="AR Skid\ngaxi_skid_buffer - ar_skid", group=A, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rsk  [label="R Skid\ngaxi_skid_buffer - r_skid", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    ar   [label="AR Rewrite\nUPSIZE: arlen = ceil((lane + len+1) / ratio) - 1,\naddress aligned down to the wide word\nDOWNSIZE: split into master bursts of <= 256 beats\nissue held while this ID's record slot is busy", group=A];
-    rec  [label="Per-ID Burst Record (flops)\nrasm_rec_*: {final, master beats,\nnarrow length, start lane}, one per ID", group=M];
-    rdat [label="R Data Primitive (R_INTERLEAVE = 0 only)\nDOWNSIZE: axi_data_upsize - u_r_upsize\n(RRESP severity fold; last only on the final split)\nUPSIZE: axi_data_dnsize - u_r_dnsize\n(TRACK_BURSTS=1, start lane from the record)\nrid / ruser in the sideband\nR_INTERLEAVE = 1: not built; the front end\nemits slave-width beats itself", group=R];
-    rasm [label="R Front End - R_INTERLEAVE\nR input skid (2 deep, registered)\n1 (default): each beat converted per ID as it arrives\nDOWNSIZE: partial wide beat per ID (LUTRAM by ID)\nUPSIZE: one wide beat held, narrow beats left per ID\n0: contiguous bursts passed to the primitive", group=R];
+    ar   [label="AR Rewrite\nUPSIZE: arlen = ceil((lane + len+1) / ratio) - 1,\naddress aligned down to the wide word\nDOWNSIZE: split into master bursts of <= 256 beats\nissue held while this ID's record slot is busy", group=A, style="filled", fillcolor="white"];
+    rec  [label="Per-ID Burst Record (flops)\nrasm_rec_*: {final, master beats,\nnarrow length, start lane}, one per ID", group=M, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rdat [label="R Data Primitive (R_INTERLEAVE = 0 only)\nDOWNSIZE: axi_data_upsize - u_r_upsize\n(RRESP severity fold; last only on the final split)\nUPSIZE: axi_data_dnsize - u_r_dnsize\n(TRACK_BURSTS=1, start lane from the record)\nrid / ruser in the sideband\nR_INTERLEAVE = 1: not built; the front end\nemits slave-width beats itself", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rasm [label="R Front End - R_INTERLEAVE\nR input skid (2 deep, registered)\n1 (default): each beat converted per ID as it arrives\nDOWNSIZE: partial wide beat per ID (LUTRAM by ID)\nUPSIZE: one wide beat held, narrow beats left per ID\n0: contiguous bursts passed to the primitive", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    m    [label="Master Port (m_axi_*, M_AXI_DATA_WIDTH)\nAR   |   R (may interleave across IDs)", fillcolor="white", width=7.5];
+    m    [label="Master Port (m_axi_*, M_AXI_DATA_WIDTH)\nAR   |   R (may interleave across IDs)", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     s    -> ask  [xlabel="AR: id, addr, len, size ..."];
     ask  -> ar   [xlabel="slave burst"];
-    ar   -> rec  [style=dashed, xlabel="record per issued AR"];
+    ar   -> rec  [style=dashed, color="#777777", xlabel="record per issued AR"];
     ar   -> m    [minlen=2, xlabel="AR: rewritten / split bursts"];
 
-    s    -> rsk  [dir=back, xlabel="R: id, data, resp, last"];
-    rsk  -> rdat [dir=back, xlabel="slave-width beats"];
-    rdat -> rasm [dir=back, xlabel="per-ID beats"];
-    rasm -> m    [dir=back, xlabel="R: master beats", penwidth=1.8];
+    s    -> rsk  [color="#1A7A1A", dir=back, xlabel="R: id, data, resp, last"];
+    rsk  -> rdat [color="#1A7A1A", dir=back, xlabel="slave-width beats"];
+    rdat -> rasm [color="#1A7A1A", dir=back, xlabel="per-ID beats"];
+    rasm -> m    [color="#1A7A1A", dir=back, xlabel="R: master beats", penwidth=1.8];
 
-    rec  -> rasm [style=dashed, dir=both, xlabel="framing /\nslot free"];
+    rec  -> rasm [style=dashed, color="#777777", dir=both, xlabel="framing /\nslot free"];
 
     { rank=same; ask; rsk; }
     { rank=same; ar; rdat; }

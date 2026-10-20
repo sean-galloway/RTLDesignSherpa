@@ -13,23 +13,23 @@ digraph kestrel_mem_loader {
            nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="kestrel_mem_loader - AXI4-Lite loader and unified imem / dmem (on aclk)";
 
-    host  [label="Host AXI4-Lite Port (s_axil_*)\naddr[17] = CTRL, addr[16] = dmem,\naddr[15:2] = word index", fillcolor="white", group=H];
-    core  [label="Core Memory Ports (to kestrel_core)\nimem_addr -> imem_rdata\ndmem_req, addr, wstrb, wdata -> dmem_rdata\ncore_rst_n", fillcolor="white", group=K];
+    host  [label="Host AXI4-Lite Port (s_axil_*)\naddr[17] = CTRL, addr[16] = dmem,\naddr[15:2] = word index", fillcolor="white", group=H, style="rounded,filled", fillcolor="#E2EFDA"];
+    core  [label="Core Memory Ports (to kestrel_core)\nimem_addr -> imem_rdata\ndmem_req, addr, wstrb, wdata -> dmem_rdata\ncore_rst_n", fillcolor="white", group=K, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    skwr  [label="Write Leaf\naxil4_slave_wr\nAW / W / B skids (2 / 2 / 2)", group=H];
-    skrd  [label="Read Leaf\naxil4_slave_rd\nAR / R skids (2 / 4)", group=R];
-    hold  [label="Write Holding (flops)\nwr_addr_q, wr_addr_pending_q, b_pending_q\nCTRL address: run register write\nelse: loader write (load mode only;\ndropped in run mode, B still OKAY)", group=H];
-    run   [label="Run Register\nrun_q (flop, sticky, reset = load mode)\ncore_rst_n = run_q", group=M];
-    merge [label="Write Port Merge (one clocked write per array)\nper byte lane: loader when !run_q,\ncore when run_q and dmem_req and wstrb != 0", group=M];
-    rdmux [label="AXIL Read Mux (combinational)\naddr[17]: {31'b0, run_q}\naddr[16]: dmem else imem\n(AR accepted when R can take the beat)", group=R];
-    crd   [label="Core Read Ports (combinational)\nfetch and L/S each pick imem / dmem\nby address bit 16 (unified map)", group=K];
+    skwr  [label="Write Leaf\naxil4_slave_wr\nAW / W / B skids (2 / 2 / 2)", group=H, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    skrd  [label="Read Leaf\naxil4_slave_rd\nAR / R skids (2 / 4)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hold  [label="Write Holding (flops)\nwr_addr_q, wr_addr_pending_q, b_pending_q\nCTRL address: run register write\nelse: loader write (load mode only;\ndropped in run mode, B still OKAY)", group=H, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    run   [label="Run Register\nrun_q (flop, sticky, reset = load mode)\ncore_rst_n = run_q", group=M, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    merge [label="Write Port Merge (one clocked write per array)\nper byte lane: loader when !run_q,\ncore when run_q and dmem_req and wstrb != 0", group=M, style="filled", fillcolor="white"];
+    rdmux [label="AXIL Read Mux (combinational)\naddr[17]: {31'b0, run_q}\naddr[16]: dmem else imem\n(AR accepted when R can take the beat)", group=R, style="filled", fillcolor="white"];
+    crd   [label="Core Read Ports (combinational)\nfetch and L/S each pick imem / dmem\nby address bit 16 (unified map)", group=K, style="filled", fillcolor="white"];
 
     bar   [label="Memory Arrays (distributed RAM, combinational read)\nimem[16384 words]   |   dmem[16384 words]",
-           fillcolor="white", width=10.0];
+           fillcolor="white", width=10.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     host  -> skwr  [dir=both, xlabel="AW, W down / B up"];
     skwr  -> hold  [xlabel="fub AW, W"];
@@ -44,9 +44,9 @@ digraph kestrel_mem_loader {
     crd   -> bar   [dir=back, xlabel="reads"];
     core  -> merge [xlabel="dmem write\n(run mode)"];
 
-    hold  -> run   [style=dashed, xlabel="CTRL write"];
-    run   -> merge [style=dashed, xlabel="write owner"];
-    core  -> run   [style=dashed, dir=back, xlabel="core_rst_n"];
+    hold  -> run   [style=dashed, color="#777777", xlabel="CTRL write"];
+    run   -> merge [style=dashed, color="#777777", xlabel="write owner"];
+    core  -> run   [style=dashed, color="#777777", dir=back, xlabel="core_rst_n"];
 
     { rank=same; host; core; }
     { rank=same; skwr; skrd; }

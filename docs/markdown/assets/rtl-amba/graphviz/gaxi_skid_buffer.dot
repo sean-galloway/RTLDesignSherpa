@@ -13,18 +13,18 @@ digraph gaxi_skid_buffer {
            label="gaxi_skid_buffer - DEPTH-slot shift-register skid buffer\n(single clock: axi_aclk, axi_aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm [label="Parameters (fixed at build)\lDEPTH: 2 .. 8 slots (elaboration $error\l    outside that range; odd depths legal)\l", fillcolor="white"];
+    prm [label="Parameters (fixed at build)\lDEPTH: 2 .. 8 slots (elaboration $error\l    outside that range; odd depths legal)\l", fillcolor="white", shape=note];
 
-    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white"];
-    rd_port [group=RO, label="Read Port (valid/ready)\nrd_valid, rd_data / rd_ready", fillcolor="white"];
+    wr_port [group=WO, label="Write Port (valid/ready)\nwr_valid, wr_data / wr_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rd_port [group=RO, label="Read Port (valid/ready)\nrd_valid, rd_data / rd_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ctl [group=C, label="Count + Handshake Registers (flops)\nr_data_count: +1 write only, -1 read only\nwr_ready / rd_valid are flops, set one cycle ahead\nfrom count and this cycle's transfers"];
+    ctl [group=C, label="Count + Handshake Registers (flops)\nr_data_count: +1 write only, -1 read only\nwr_ready / rd_valid are flops, set one cycle ahead\nfrom count and this cycle's transfers", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     mem [group=C, label="Slot Shift Register  r_data[DEPTH]  (one flop row per slot)\nwrite only: wr_data lands at slot [count]\nread only: every slot shifts down one\nwrite + read: shift, and wr_data lands at slot [count-1]\nrd_data = slot [0]",
-         width=11.0, height=0.9];
+         width=11.0, height=0.9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     wr_port -> ctl [dir=both, xlabel="wr_valid /\nwr_ready"];
     rd_port -> ctl [dir=both, xlabel="rd_ready /\nrd_valid,\ncount, rd_count"];
@@ -36,8 +36,8 @@ digraph gaxi_skid_buffer {
     p_rdd [group=RD, shape=point, width=0.01];
     wr_port -> p_wd [arrowhead=none, headclip=false];
     p_wd -> mem [xlabel="wr_data", tailclip=false];
-    p_rdd -> mem [dir=none, tailclip=false, xlabel="rd_data (slot 0)"];
-    p_rdd -> rd_port [tailclip=false, constraint=false];
+    p_rdd -> mem [color="#1A7A1A", dir=none, tailclip=false, xlabel="rd_data (slot 0)"];
+    p_rdd -> rd_port [color="#1A7A1A", tailclip=false, constraint=false];
     aw -> p_wd [style=invis, weight=10];
     ar -> p_rdd [style=invis, weight=10];
 

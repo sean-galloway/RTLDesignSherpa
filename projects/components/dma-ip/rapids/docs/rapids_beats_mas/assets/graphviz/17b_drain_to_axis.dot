@@ -5,13 +5,13 @@ digraph drain_to_axis {
            nodesep="0.50", ranksep="0.50", splines=ortho,
            label="Drain to AXIS mapping - src_data_path_axis_beats", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    axis  [label="AXIS Master - m_axis_*\ntvalid, tdata, tstrb, tlast, tid, tdest, tuser (tready in)", fillcolor="white", width=7.0];
-    conv  [label="Conversion\ntdata = drain_data;  tstrb = all ones;  tuser = 0\ntid = tdest = r_d_ch (the reserved channel)\ntvalid = data stage active and drain_valid[r_d_ch]\ntlast = one beat of the reservation remains"];
-    drain [label="Drain Interface - src_data_path_beats\ndrain_req / size per channel,  drain_valid[8], drain + id -> drain_data", fillcolor="white", width=7.0];
+    axis  [label="AXIS Master - m_axis_*\ntvalid, tdata, tstrb, tlast, tid, tdest, tuser (tready in)", fillcolor="white", width=7.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    conv  [label="Conversion\ntdata = drain_data;  tstrb = all ones;  tuser = 0\ntid = tdest = r_d_ch (the reserved channel)\ntvalid = data stage active and drain_valid[r_d_ch]\ntlast = one beat of the reservation remains", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    drain [label="Drain Interface - src_data_path_beats\ndrain_req / size per channel,  drain_valid[8], drain + id -> drain_data", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    axis  -> conv  [dir=back, label="AXIS beat out; tready in"];
-    conv  -> drain [dir=back, penwidth=1.8, label="drain beats up; drain + id down"];
+    axis  -> conv  [color="#1A7A1A", dir=back, label="AXIS beat out; tready in"];
+    conv  -> drain [color="#1A7A1A", dir=back, penwidth=1.8, label="drain beats up; drain + id down"];
 }

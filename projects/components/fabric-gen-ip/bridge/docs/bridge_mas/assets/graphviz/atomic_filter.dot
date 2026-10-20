@@ -6,22 +6,22 @@ digraph atomic_filter {
            nodesep="0.40", ranksep="0.60", splines=ortho, labelloc=t,
            label="Atomic filter on a write-only AXI5 master port (<master>_adapter) - the port has no R channel\nstore-class atomics and plain writes pass; read-return atomics are answered locally with DECERR on B"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    pw [label="Master Write Data\nW in", fillcolor="white", group=L];
-    pa [label="Master Write Address\nAW in (AWATOP)", fillcolor="white", group=C];
-    pb [label="Master Write Response\nB out", fillcolor="white", group=R];
+    pw [label="Master Write Data\nW in", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    pa [label="Master Write Address\nAW in (AWATOP)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    pb [label="Master Write Response\nB out", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
     { rank=same; pw; pa; pb; }
     pw -> pa -> pb [style=invis];
 
-    sw [label="W Skid Buffer\naxi5_slave_wr", group=L];
-    sa [label="AW Skid Buffer\naxi5_slave_wr", group=C];
-    sb [label="B Skid Buffer\naxi5_slave_wr\n(BIDUNQ regenerated here)", group=R];
+    sw [label="W Skid Buffer\naxi5_slave_wr", group=L, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sa [label="AW Skid Buffer\naxi5_slave_wr", group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    sb [label="B Skid Buffer\naxi5_slave_wr\n(BIDUNQ regenerated here)", group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     { rank=same; sw; sa; sb; }
     sw -> sa -> sb [style=invis];
 
-    flt [label="Atomic Filter - axi5_atomic_filter (on pref_axi_* -> fub_axi_*)\nAW / W / B handshakes and awlen go through it; it classifies AWATOP:\nplain writes and AtomicStore forward; AtomicLoad / Swap / Compare are\nswallowed (W burst consumed) and answered DECERR on B; the R beats they\nowe are drained inside (s_rready tied high, m_r* tied low).\nEvery other payload field bypasses it as pref_axi_* -> fub_axi_* assigns", width=7, group=C];
+    flt [label="Atomic Filter - axi5_atomic_filter (on pref_axi_* -> fub_axi_*)\nAW / W / B handshakes and awlen go through it; it classifies AWATOP:\nplain writes and AtomicStore forward; AtomicLoad / Swap / Compare are\nswallowed (W burst consumed) and answered DECERR on B; the R beats they\nowe are drained inside (s_rready tied high, m_r* tied low).\nEvery other payload field bypasses it as pref_axi_* -> fub_axi_* assigns", width=7, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     pl [shape=point, width=0.01, label="", group=L];
     pc [shape=point, width=0.01, label="", group=C];
@@ -30,18 +30,18 @@ digraph atomic_filter {
     { rank=same; pl; sp1; pc; sp2; pr; }
     pl -> sp1 -> pc -> sp2 -> pr [style=invis];
 
-    bar [label="Width Paths / Fabric Structs - fub_axi_* into the master adapter's width paths and the crossbar", fillcolor="white", width=9];
+    bar [label="Width Paths / Fabric Structs - fub_axi_* into the master adapter's width paths and the crossbar", fillcolor="white", width=9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     pw -> sw [label="W"];
     pa -> sa [label="AW"];
-    pb -> sb [dir=back, label="B"];
+    pb -> sb [color="#1A7A1A", dir=back, label="B"];
     sw -> flt [xlabel="W handshake"];
     sa -> flt [xlabel="AW handshake + ATOP, awlen"];
-    sb -> flt [dir=back, xlabel="B (fabric or local DECERR)"];
-    flt -> pl [dir=none];
+    sb -> flt [color="#1A7A1A", dir=back, xlabel="B (fabric or local DECERR)"];
+    flt -> pl [color="#1A7A1A", dir=none];
     pl -> bar [xlabel="W forwarded"];
-    flt -> pc [dir=none, penwidth=1.8];
+    flt -> pc [color="#1A7A1A", dir=none, penwidth=1.8];
     pc -> bar [xlabel="AW forwarded", penwidth=1.8];
-    flt -> pr [dir=back];
-    pr -> bar [dir=none, xlabel="B from the fabric"];
+    flt -> pr [color="#1A7A1A", dir=back];
+    pr -> bar [color="#1A7A1A", dir=none, xlabel="B from the fabric"];
 }

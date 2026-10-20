@@ -11,22 +11,22 @@ digraph rs_syndrome_unit {
            nodesep="0.45", ranksep="0.80", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="syndrome_unit - 2t syndromes, S received symbols per step (on aclk)";
 
-    in    [label="Received Beat (from the caller)\ni_step, i_data (S symbols, low lanes first),\ni_count (symbols present)", fillcolor="white", group=C];
-    first [label="Block Boundary\ni_first (caller marks the\nblock's first beat)", fillcolor="white", group=L];
+    in    [label="Received Beat (from the caller)\ni_step, i_data (S symbols, low lanes first),\ni_count (symbols present)", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    first [label="Block Boundary\ni_first (caller marks the\nblock's first beat)", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cells [label="2t x Syndrome Cell\ngf_syndrome_cell - g_cell[i].u_cell, root alpha^(b+i)\ns <- s * alpha^(b+i) ^ symbol, i_count steps per i_step\n(one gf_mul_const + an m-bit flop each)", group=C, width=5.0];
-    zreg  [label="Zero Detect (registered form)\now_all_zero = (all S_i == 0)", group=A];
-    znxt  [label="Zero Detect (next form)\now_all_zero_next = (all next S_i == 0)", group=C];
+    cells [label="2t x Syndrome Cell\ngf_syndrome_cell - g_cell[i].u_cell, root alpha^(b+i)\ns <- s * alpha^(b+i) ^ symbol, i_count steps per i_step\n(one gf_mul_const + an m-bit flop each)", group=C, width=5.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    zreg  [label="Zero Detect (registered form)\now_all_zero = (all S_i == 0)", group=A, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    znxt  [label="Zero Detect (next form)\now_all_zero_next = (all next S_i == 0)", group=C, style="filled", fillcolor="white"];
 
     bar   [label="Outputs\now_synd + ow_all_zero (registered: the block after its last step)   |   ow_synd_next + ow_all_zero_next (same cycle as the last step)",
-           fillcolor="white", width=10.0];
+           fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     in    -> cells [xlabel="received symbols"];
-    first -> cells [style=dashed, xlabel="zero the state\nbefore this beat"];
+    first -> cells [style=dashed, color="#777777", xlabel="zero the state\nbefore this beat"];
     cells -> zreg  [xlabel="S_0 .. S_2t-1\n(registers)"];
     cells -> znxt  [xlabel="next S_0 .. S_2t-1\n(combinational)"];
     zreg  -> bar   [xlabel="registered syndromes", penwidth=1.8];

@@ -10,19 +10,19 @@ digraph rtc_alarm_match {
            label="RTC alarm match - compare on the counter clock, flag and interrupt on pclk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    tm  [group=L, fillcolor="white", label="Time Counters (counter clock)\nthe next second's value, on the tick"];
-    al  [group=R, fillcolor="white", label="Alarm Configuration (counter clock, via the bundle sync)\nRTC_ALARM_SEC / MIN / HOUR, per-field match enables,\nalarm_enable"];
+    tm  [group=L, fillcolor="white", label="Time Counters (counter clock)\nthe next second's value, on the tick", style="rounded,filled", fillcolor="#E2EFDA"];
+    al  [group=R, fillcolor="white", label="Alarm Configuration (counter clock, via the bundle sync)\nRTC_ALARM_SEC / MIN / HOUR, per-field match enables,\nalarm_enable", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cmp [group=C, width=6.0, label="Alarm Comparator (combinational) - rtc_core\nevery enabled field equal; evaluated only on the divider rollover,\nwith alarm_enable set, counting, and no time-set commit active"];
-    mr  [group=C, label="Match Register (flop, counter clock) - rtc_core\nr_alarm_match: one counter clock wide"];
-    es  [group=C, label="Event Sync + Edge Detect (flop, pclk) - rtc_core\nglitch_free_n_dff_arn, 3 flops, then rising edge"];
-    fl  [group=C, label="Sticky alarm_flag (flop, pclk) - rtc_core\nRTC_STATUS: W1C, a set in the clear cycle wins"];
-    gt  [group=C, label="Interrupt Gate (combinational) - rtc_core\nalarm_flag AND RTC_CONTROL.alarm_int_enable"];
+    cmp [group=C, width=6.0, label="Alarm Comparator (combinational) - rtc_core\nevery enabled field equal; evaluated only on the divider rollover,\nwith alarm_enable set, counting, and no time-set commit active", style="filled", fillcolor="white"];
+    mr  [group=C, label="Match Register (flop, counter clock) - rtc_core\nr_alarm_match: one counter clock wide", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    es  [group=C, label="Event Sync + Edge Detect (flop, pclk) - rtc_core\nglitch_free_n_dff_arn, 3 flops, then rising edge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fl  [group=C, label="Sticky alarm_flag (flop, pclk) - rtc_core\nRTC_STATUS: W1C, a set in the clear cycle wins", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    gt  [group=C, label="Interrupt Gate (combinational) - rtc_core\nalarm_flag AND RTC_CONTROL.alarm_int_enable", style="filled", fillcolor="white"];
 
-    bar [group=C, fillcolor="white", width=6.0, label="Module Boundary\nrtc_alarm_irq out (pclk, level)"];
+    bar [group=C, fillcolor="white", width=6.0, label="Module Boundary\nrtc_alarm_irq out (pclk, level)", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     tm  -> cmp [xlabel="seconds, minutes, hours"];
     al  -> cmp [xlabel="alarm values, enables"];

@@ -13,31 +13,31 @@ digraph math_bf16_multiplier {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_bf16_multiplier - BF16 x BF16 -> BF16, RNE, flush-to-zero (combinational)";
 
     // ---- inputs (white) ----
-    a_in [label="Operand A\ni_a[15:0] = {sign, exp[7:0], mant[6:0]}", fillcolor="white"];
-    b_in [label="Operand B\ni_b[15:0] = {sign, exp[7:0], mant[6:0]}", fillcolor="white"];
+    a_in [label="Operand A\ni_a[15:0] = {sign, exp[7:0], mant[6:0]}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    b_in [label="Operand B\ni_b[15:0] = {sign, exp[7:0], mant[6:0]}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- unpack + classify ----
-    unp [group=M, width=6.5, label="Unpack + Classify (combinational)\nsplit sign / exponent / mantissa of each operand\nzero, subnormal (flushed to zero), infinity, NaN\nnormal operands get the hidden 1"];
+    unp [group=M, width=6.5, label="Unpack + Classify (combinational)\nsplit sign / exponent / mantissa of each operand\nzero, subnormal (flushed to zero), infinity, NaN\nnormal operands get the hidden 1", style="filled", fillcolor="white"];
 
     // ---- three field paths ----
-    sgn  [group=S, label="Sign\nsign_a ^ sign_b"];
-    mm   [group=M, label="Mantissa Multiply\nmath_bf16_mantissa_mult - u_mant_mult\n8x8 Dadda tree with 4:2 compressors\n(math_multiplier_dadda_4to2_008)\nnormalize select, guard / round / sticky"];
-    ea   [group=E, label="Exponent Add\nmath_bf16_exponent_adder - u_exp_add\nexp_a + exp_b - 127 + needs_norm\nsaturates; overflow / underflow flags"];
+    sgn  [group=S, label="Sign\nsign_a ^ sign_b", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mm   [group=M, label="Mantissa Multiply\nmath_bf16_mantissa_mult - u_mant_mult\n8x8 Dadda tree with 4:2 compressors\n(math_multiplier_dadda_4to2_008)\nnormalize select, guard / round / sticky", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ea   [group=E, label="Exponent Add\nmath_bf16_exponent_adder - u_exp_add\nexp_a + exp_b - 127 + needs_norm\nsaturates; overflow / underflow flags", style="filled", fillcolor="white"];
 
     // ---- rounding ----
-    rnd  [group=M, label="Round to Nearest Even\nround up = G & (R | S | LSB)\nmantissa carry-out: exponent + 1"];
+    rnd  [group=M, label="Round to Nearest Even\nround up = G & (R | S | LSB)\nmantissa carry-out: exponent + 1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- special-case select ----
-    sel  [group=M, width=8.2, label="Special-Case Select (priority)\nNaN or 0 x inf -> quiet NaN (invalid)  >  zero -> signed 0\n>  inf or overflow -> signed inf  >  underflow -> 0 (unless rounding\nreached the minimum normal)  >  else the rounded product"];
+    sel  [group=M, width=8.2, label="Special-Case Select (priority)\nNaN or 0 x inf -> quiet NaN (invalid)  >  zero -> signed 0\n>  inf or overflow -> signed inf  >  underflow -> 0 (unless rounding\nreached the minimum normal)  >  else the rounded product", style="filled", fillcolor="white"];
 
     // ---- output bar ----
     bar  [label="Outputs\now_result[15:0] = {sign, exp, mant}   |   ow_overflow   |   ow_underflow   |   ow_invalid",
-          fillcolor="white", width=8.5];
+          fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- flows ----
     a_in -> unp [xlabel="i_a"];
@@ -52,8 +52,8 @@ digraph math_bf16_multiplier {
     ea  -> sel  [xlabel="overflow,\nunderflow"];
     sgn -> sel  [xlabel="result sign"];
     p_cls [shape=point, width=0.01, group=F];
-    unp -> p_cls [arrowhead=none, headclip=false, style=dashed];
-    p_cls -> sel [style=dashed, tailclip=false, xlabel="zero / inf / NaN\nflags"];
+    unp -> p_cls [arrowhead=none, headclip=false, style=dashed, color="#777777"];
+    p_cls -> sel [style=dashed, color="#777777", tailclip=false, xlabel="zero / inf / NaN\nflags"];
     sel -> bar  [xlabel="result, flags", penwidth=1.8];
 
     // ---- rank pinning ----

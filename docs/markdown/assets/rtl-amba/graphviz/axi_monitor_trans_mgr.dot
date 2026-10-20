@@ -11,25 +11,25 @@ digraph axi_monitor_trans_mgr {
            label="axi_monitor_trans_mgr - the transaction table: allocate, update, retire (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lMAX_TRANSACTIONS: table entries\lIS_READ: 0 adds the B phase and the W-beat order match\lUSE_WDATA_ORDER_Q: 1 = W beats follow an AW-order\l    queue (O(1)); 0 = oldest-entry select by age rank\lNUM_BANKS: split the table by low ID bits (1 = one table)\lADDR_FILTER_ENABLE: build the address-range filter\l", fillcolor="white"];
-    hs   [label="Observed Handshakes (from the base, ID-filtered)\ncmd (id, addr, len, size, burst), data (id, last, resp),\nresp (id, code); + timestamp", fillcolor="white"];
-    fb   [label="Feedback (input ports)\ni_event_reported_flags (reporter)\ni_timeout_detected (timeout scanner)\nclear (sync, idle only); cfg_addr_filter_*", fillcolor="white"];
-    outs [label="Outputs\ntrans_table[MAX_TRANSACTIONS] (to the timeout scanner\nand the reporter)  |  active_count  |  filtered_mask", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lMAX_TRANSACTIONS: table entries\lIS_READ: 0 adds the B phase and the W-beat order match\lUSE_WDATA_ORDER_Q: 1 = W beats follow an AW-order\l    queue (O(1)); 0 = oldest-entry select by age rank\lNUM_BANKS: split the table by low ID bits (1 = one table)\lADDR_FILTER_ENABLE: build the address-range filter\l", fillcolor="white", shape=note];
+    hs   [label="Observed Handshakes (from the base, ID-filtered)\ncmd (id, addr, len, size, burst), data (id, last, resp),\nresp (id, code); + timestamp", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    fb   [label="Feedback (input ports)\ni_event_reported_flags (reporter)\ni_timeout_detected (timeout scanner)\nclear (sync, idle only); cfg_addr_filter_*", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    outs [label="Outputs\ntrans_table[MAX_TRANSACTIONS] (to the timeout scanner\nand the reporter)  |  active_count  |  filtered_mask", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    res  [label="Slot Resolve (combinational)\nper channel: the CAM hit for its ID, or a new slot\n(a phase may arrive before its address);\nW beats (no WID): oldest open write entry, or the\nhead of the AW-order queue (USE_WDATA_ORDER_Q=1)"];
-    nxt  [label="Per-Slot Next Payload\n(combinational, MAX_TRANSACTIONS cones)\nadvance each slot on this cycle's handshakes:\nphases, beats, timestamps, error codes;\ntimeout_detected forces a terminal state"];
-    cln  [label="Retire + Status\nfree a terminal entry once its\nevent was reported;\nactive_count = live entries;\nfiltered_mask (flops): set at\nallocation for an out-of-window address"];
-    cam  [label="Entry Storage + ID Lookup\nmonitor_trans_cam - u_cam (one per bank; see its diagram)\nper-slot (valid, id, bus_transaction_t) flops;\naddr / data / resp ID lookups; lowest-free allocation", width=7.6];
+    res  [label="Slot Resolve (combinational)\nper channel: the CAM hit for its ID, or a new slot\n(a phase may arrive before its address);\nW beats (no WID): oldest open write entry, or the\nhead of the AW-order queue (USE_WDATA_ORDER_Q=1)", style="filled", fillcolor="white"];
+    nxt  [label="Per-Slot Next Payload\n(combinational, MAX_TRANSACTIONS cones)\nadvance each slot on this cycle's handshakes:\nphases, beats, timestamps, error codes;\ntimeout_detected forces a terminal state", style="filled", fillcolor="white"];
+    cln  [label="Retire + Status\nfree a terminal entry once its\nevent was reported;\nactive_count = live entries;\nfiltered_mask (flops): set at\nallocation for an out-of-window address", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cam  [label="Entry Storage + ID Lookup\nmonitor_trans_cam - u_cam (one per bank; see its diagram)\nper-slot (valid, id, bus_transaction_t) flops;\naddr / data / resp ID lookups; lowest-free allocation", width=7.6, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     hs  -> res [xlabel="handshakes + ids", penwidth=1.8];
     res -> nxt [xlabel="target slot per channel,\nallocate one-hots", penwidth=1.8];
     nxt -> cam [xlabel="next payload, write enables", penwidth=1.8];
     res -> cam [dir=back, xlabel="lookup hits, free slots"];
-    fb  -> cln [style=dashed, xlabel="reported, timed out"];
-    fb  -> nxt [style=dashed, xlabel="timeout_detected"];
+    fb  -> cln [style=dashed, color="#777777", xlabel="reported, timed out"];
+    fb  -> nxt [style=dashed, color="#777777", xlabel="timeout_detected"];
     cln -> cam [xlabel="free (clear valid)"];
     cam -> outs [xlabel="trans_table", constraint=false];
     cln -> outs [xlabel="active_count, filtered_mask", constraint=false];

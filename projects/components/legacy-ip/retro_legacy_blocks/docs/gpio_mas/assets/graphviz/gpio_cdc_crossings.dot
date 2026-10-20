@@ -12,19 +12,19 @@ digraph gpio_cdc_crossings {
            label="apb4_gpio, CDC_ENABLE=1 - the three clock-domain crossings",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white"];
-    core [label="APB Completer  (pclk)\napb4_slave inside apb4_slave_cdc\ncompleter FSM, command and response skids"];
-    cmdf [label="Command CDC FIFO  (pclk -> gpio_clk)\ngaxi_fifo_async inside apb4_slave_cdc\nmax(SKID_DEPTH, 4) entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
-    rspf [label="Response CDC FIFO  (gpio_clk -> pclk)\ngaxi_fifo_async inside apb4_slave_cdc\nmax(SKID_DEPTH, 4) entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)"];
-    adp  [label="Register-Block Adapter  (gpio_clk)\npeakrdl_to_cmdrsp"];
-    cfg  [label="Register Block + GPIO Core  (gpio_clk, gpio_rstn)\ngpio_config_regs: gpio_regs + gpio_core\nevery register lives here; none is synchronized on its own"];
-    isy  [label="IRQ Synchronizer  (pclk, presetn)\nglitch_free_n_dff_arn, FLOP_COUNT=2\na level: hold level-mode inputs >= 2 pclk periods"];
+    apb  [label="APB4 Completer Port  s_apb_*  (pclk, presetn)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    core [label="APB Completer  (pclk)\napb4_slave inside apb4_slave_cdc\ncompleter FSM, command and response skids", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cmdf [label="Command CDC FIFO  (pclk -> gpio_clk)\ngaxi_fifo_async inside apb4_slave_cdc\nmax(SKID_DEPTH, 4) entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspf [label="Response CDC FIFO  (gpio_clk -> pclk)\ngaxi_fifo_async inside apb4_slave_cdc\nmax(SKID_DEPTH, 4) entries, Gray pointers\n(USE_JOHNSON=1: Johnson pointers)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    adp  [label="Register-Block Adapter  (gpio_clk)\npeakrdl_to_cmdrsp", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cfg  [label="Register Block + GPIO Core  (gpio_clk, gpio_rstn)\ngpio_config_regs: gpio_regs + gpio_core\nevery register lives here; none is synchronized on its own", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    isy  [label="IRQ Synchronizer  (pclk, presetn)\nglitch_free_n_dff_arn, FLOP_COUNT=2\na level: hold level-mode inputs >= 2 pclk periods", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [label="Module Boundary\ngpio_in in (asynchronous)   |   gpio_out, gpio_oe out (gpio_clk)   |   irq out (pclk)",
-         fillcolor="white", width=9.5];
+         fillcolor="white", width=9.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     apb  -> core [dir=both, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     core -> cmdf [penwidth=1.8, xlabel="command\n(write, addr, data, strb)"];

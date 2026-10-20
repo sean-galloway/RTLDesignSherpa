@@ -19,28 +19,28 @@ digraph cam_tag {
            nodesep="0.30", ranksep="0.85", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="cam_tag - DEPTH-entry tag CAM (single clock)";
 
     // ---- request ports (white) ----
-    ins_in [group=A, label="Insert Port\nmark_valid, tag_in_valid\n/ tags_full, tags_empty", fillcolor="white"];
-    inv_in [group=B, label="Invalidate Port\nmark_invalid, tag_in_invalid", fillcolor="white"];
-    lkp_in [group=C, label="Lookup Port\ntag_in_status / tag_status", fillcolor="white"];
+    ins_in [group=A, label="Insert Port\nmark_valid, tag_in_valid\n/ tags_full, tags_empty", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    inv_in [group=B, label="Invalidate Port\nmark_invalid, tag_in_invalid", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    lkp_in [group=C, label="Lookup Port\ntag_in_status / tag_status", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- searches over the current array (combinational) ----
     free   [group=A, label="Free-Slot Pick\nlowest index with r_valid == 0",
-            shape=invtrapezium, width=3.2, height=0.55, fixedsize=true, fillcolor="#BFD7EE"];
-    inv_m  [group=B, label="Invalidate Match\nDEPTH parallel compares\nvalid & tag == tag_in_invalid"];
-    lkp_m  [group=C, label="Lookup Match\nDEPTH parallel compares\nvalid & tag == tag_in_status"];
+            shape=invtrapezium, width=3.2, height=0.55, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    inv_m  [group=B, label="Invalidate Match\nDEPTH parallel compares\nvalid & tag == tag_in_invalid", style="filled", fillcolor="white"];
+    lkp_m  [group=C, label="Lookup Match\nDEPTH parallel compares\nvalid & tag == tag_in_status", style="filled", fillcolor="white"];
 
     // ---- update and status ----
-    wsel   [group=A, label="Write Select\none update per clk;\ninsert wins over invalidate"];
-    occ    [group=O, label="Occupancy Flags\ntags_empty = ~|r_valid\ntags_full = &r_valid"];
+    wsel   [group=A, label="Write Select\none update per clk;\ninsert wins over invalidate", style="filled", fillcolor="white"];
+    occ    [group=O, label="Occupancy Flags\ntags_empty = ~|r_valid\ntags_full = &r_valid", style="filled", fillcolor="white"];
 
     // ---- the bar: entry storage ----
     arr    [label="Entry Array  (DEPTH entries, flops)\nr_tag_array[DEPTH][N]  +  r_valid[DEPTH]",
-            width=11.0, height=0.7];
+            width=11.0, height=0.7, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // insert flow (insert also needs !tags_full and ENABLE != 0)
     ins_in -> free [xlabel="insert"];
@@ -62,7 +62,7 @@ digraph cam_tag {
     occ   -> arr [dir=back, xlabel="r_valid"];
 
     // occupancy back to the insert port (feedback: dashed)
-    occ -> ins_in [style=dashed, constraint=false, xlabel="tags_full,\ntags_empty"];
+    occ -> ins_in [style=dashed, color="#777777", constraint=false, xlabel="tags_full,\ntags_empty"];
 
     { rank=same; ins_in; inv_in; lkp_in; }
     ins_in -> inv_in [style=invis]; inv_in -> lkp_in [style=invis];

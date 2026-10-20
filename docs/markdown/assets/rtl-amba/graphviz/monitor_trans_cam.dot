@@ -9,16 +9,16 @@ digraph monitor_trans_cam {
            nodesep="0.45", ranksep="0.8", splines=ortho, newrank=true, labelloc=t, labeljust=c,
            label="monitor_trans_cam - transaction-slot CAM: storage, ID lookup, allocation (clk, rst_n)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    lk   [label="Lookup Port\nlookup_addr_id,\nlookup_data_id,\nlookup_resp_id", fillcolor="white"];
-    wr   [group=C, label="Write Port (from the owner)\nentry_we[i], entry_valid_next[i],\nentry_id_next[i], entry_payload_next[i]; clear", fillcolor="white"];
-    al   [label="Allocate Port\naddr / data / resp_wants_alloc\n+ per-channel alloc masks", fillcolor="white"];
-    prm  [label="Parameters (fixed at build)\lDEPTH: slots\lID_WIDTH: the lookup key\lPAYLOAD_WIDTH: opaque payload\l    (trans_mgr: bus_transaction_t)\l", fillcolor="white"];
-    st   [group=C, label="Slot Storage (flops, DEPTH slots)\nr_valid[i], r_id[i], r_payload[i]\nload on entry_we[i]; clear empties every slot"];
-    mt   [label="ID Match (combinational, DEPTH x 3 compares)\n*_match_oh[i] = valid[i] & id[i] == lookup id;\ndata_match_first_oh = lowest data match"];
-    ap   [label="Allocation Pick\nlowest free slot per requester: addr first,\nthen data, then resp from the slots left", shape=invtrapezium, width=4.8, height=0.85, fixedsize=true, fillcolor="#BFD7EE"];
-    out  [group=C, label="Outputs (to the owner)\naddr / data / resp_match_oh, data_match_first_oh  |  entry_valid, entry_id, entry_payload  |  free_oh, addr / data / resp_alloc_oh", fillcolor="white", width=11.0];
+    lk   [label="Lookup Port\nlookup_addr_id,\nlookup_data_id,\nlookup_resp_id", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    wr   [group=C, label="Write Port (from the owner)\nentry_we[i], entry_valid_next[i],\nentry_id_next[i], entry_payload_next[i]; clear", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    al   [label="Allocate Port\naddr / data / resp_wants_alloc\n+ per-channel alloc masks", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    prm  [label="Parameters (fixed at build)\lDEPTH: slots\lID_WIDTH: the lookup key\lPAYLOAD_WIDTH: opaque payload\l    (trans_mgr: bus_transaction_t)\l", fillcolor="white", shape=note];
+    st   [group=C, label="Slot Storage (flops, DEPTH slots)\nr_valid[i], r_id[i], r_payload[i]\nload on entry_we[i]; clear empties every slot", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mt   [label="ID Match (combinational, DEPTH x 3 compares)\n*_match_oh[i] = valid[i] & id[i] == lookup id;\ndata_match_first_oh = lowest data match", style="filled", fillcolor="white"];
+    ap   [label="Allocation Pick\nlowest free slot per requester: addr first,\nthen data, then resp from the slots left", shape=invtrapezium, width=4.8, height=0.85, fixedsize=true, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+    out  [group=C, label="Outputs (to the owner)\naddr / data / resp_match_oh, data_match_first_oh  |  entry_valid, entry_id, entry_payload  |  free_oh, addr / data / resp_alloc_oh", fillcolor="white", width=11.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     wr  -> st [xlabel="next valid / id / payload", penwidth=1.8];
     lk  -> mt [xlabel="lookup ids"];

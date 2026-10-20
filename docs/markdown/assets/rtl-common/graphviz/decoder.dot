@@ -6,13 +6,13 @@ digraph decoder {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="decoder - binary index to one-hot (combinational)";
 
-    din  [label="Binary Input\nencoded[M-1:0]", fillcolor="white"];
-    cmp  [label="N Parallel Compares  (N = 2^M by default)\ndata[i] = (encoded == i)\none output bit high (none if encoded >= N)"];
-    dout [label="One-Hot Output\ndata[N-1:0]", fillcolor="white", width=4.0];
+    din  [label="Binary Input\nencoded[M-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cmp  [label="N Parallel Compares  (N = 2^M by default)\ndata[i] = (encoded == i)\none output bit high (none if encoded >= N)", style="filled", fillcolor="white"];
+    dout [label="One-Hot Output\ndata[N-1:0]", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
     din -> cmp  [xlabel="encoded"];
     cmp -> dout [xlabel="one-hot"];

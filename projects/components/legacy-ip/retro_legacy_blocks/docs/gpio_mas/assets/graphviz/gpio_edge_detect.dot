@@ -11,16 +11,16 @@ digraph gpio_edge_detect {
            label="gpio_core edge detection - one pin i, on the core clock",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    s    [label="Synchronized Input  s[i]\n(last synchronizer stage)", fillcolor="white"];
-    leg  [fillcolor="white", label="Configuration (gpio_regs, per pin)\lINT_BOTH[i]: 1 = either edge\lINT_POLARITY[i]: 1 = rising, 0 = falling\l    (ignored when INT_BOTH[i] = 1)\l"];
-    prev [label="Previous-Value Flop (flop)\nr_gpio_prev[i] <= s[i]"];
-    rise [label="Rising Detect (combinational)\ns & ~prev"];
-    fall [label="Falling Detect (combinational)\n~s & prev"];
-    sel  [label="Edge Select (combinational)\nINT_BOTH ? rising | falling\n: INT_POLARITY ? rising : falling"];
-    bar  [label="Edge Event  w_edge_int[i]  (one-cycle pulse, to the type select)", fillcolor="white", width=6.0];
+    s    [label="Synchronized Input  s[i]\n(last synchronizer stage)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    leg  [fillcolor="white", label="Configuration (gpio_regs, per pin)\lINT_BOTH[i]: 1 = either edge\lINT_POLARITY[i]: 1 = rising, 0 = falling\l    (ignored when INT_BOTH[i] = 1)\l", shape=note];
+    prev [label="Previous-Value Flop (flop)\nr_gpio_prev[i] <= s[i]", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rise [label="Rising Detect (combinational)\ns & ~prev", style="filled", fillcolor="white"];
+    fall [label="Falling Detect (combinational)\n~s & prev", style="filled", fillcolor="white"];
+    sel  [label="Edge Select (combinational)\nINT_BOTH ? rising | falling\n: INT_POLARITY ? rising : falling", style="filled", fillcolor="white"];
+    bar  [label="Edge Event  w_edge_int[i]  (one-cycle pulse, to the type select)", fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     p_s [shape=point, width=0.03];
     s -> p_s [arrowhead=none, headclip=false, xlabel="s[i]"];

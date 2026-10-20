@@ -10,18 +10,18 @@ digraph icg {
            label="icg - latch-based integrated clock gate (no test enable)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    clk_in [group=C, label="Clock In\nclk", fillcolor="white"];
-    en_in  [label="Enable In\nen", fillcolor="white"];
+    clk_in [group=C, label="Clock In\nclk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    en_in  [label="Enable In\nen", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    latch [label="Enable Latch (always_latch)\nen_out follows en while clk is low,\nholds while clk is high"];
-    andg  [group=C, label="Clock AND (combinational)\ngclk = en_out & clk", width=4.2];
-    out   [group=C, label="Gated Clock Out\ngclk", fillcolor="white", width=3.0];
+    latch [label="Enable Latch (always_latch)\nen_out follows en while clk is low,\nholds while clk is high", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    andg  [group=C, label="Clock AND (combinational)\ngclk = en_out & clk", width=4.2, style="filled", fillcolor="white"];
+    out   [group=C, label="Gated Clock Out\ngclk", fillcolor="white", width=3.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
     clk_in -> andg [xlabel="clk", penwidth=1.8];
-    clk_in -> latch [style=dashed, xlabel="clk"];
+    clk_in -> latch [style=dashed, color="#777777", xlabel="clk"];
     en_in -> latch [xlabel="en"];
     latch -> andg [xlabel="en_out"];
     andg -> out [xlabel="gclk", penwidth=1.8];

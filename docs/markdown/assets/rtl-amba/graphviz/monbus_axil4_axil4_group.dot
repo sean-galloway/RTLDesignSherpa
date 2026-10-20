@@ -13,28 +13,28 @@ digraph monbus_axil4_axil4_group {
            label="monbus_axil4_axil4_group - capture core behind AXI4-Lite read and write ports\n(single clock: axi_aclk, axi_aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- ports (white) ----
-    rport [group=L, label="Error-Record Read Port (from the CPU)\ns_axil_ar* in / s_axil_r* out", fillcolor="white"];
-    min   [group=C, label="Monitor Bus In\nmonbus_valid, monbus_packet,\nmonbus_timestamp / monbus_ready", fillcolor="white"];
-    cfg   [label="Config (runtime input ports)\lcfg_* filter masks and log window,\l    passed straight to the core\l", fillcolor="white"];
-    prm   [label="Parameters (fixed at build)\lS_AXIL_DATA_WIDTH: 64 = read port wired straight\l    through; 32 = each record beat read as two halves\lUSE_COMPRESSION / HALF_BEAT_EN: see the core\lSKID_DEPTH_*: leaf buffering\l(the core writes single beats: MAX_BURST_BEATS = 1)\l", fillcolor="white"];
+    rport [group=L, label="Error-Record Read Port (from the CPU)\ns_axil_ar* in / s_axil_r* out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    min   [group=C, label="Monitor Bus In\nmonbus_valid, monbus_packet,\nmonbus_timestamp / monbus_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [label="Config (runtime input ports)\lcfg_* filter masks and log window,\l    passed straight to the core\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    prm   [label="Parameters (fixed at build)\lS_AXIL_DATA_WIDTH: 64 = read port wired straight\l    through; 32 = each record beat read as two halves\lUSE_COMPRESSION / HALF_BEAT_EN: see the core\lSKID_DEPTH_*: leaf buffering\l(the core writes single beats: MAX_BURST_BEATS = 1)\l", fillcolor="white", shape=note];
 
     // ---- leaves + core ----
-    split [group=L, label="32-bit Read Splitter (S_AXIL_DATA_WIDTH=32 only)\neach 64-bit core beat served as a low then a high\n32-bit read: the low read goes to the leaf, the\nhigh read is answered from a latch", style="filled,dashed"];
-    rleaf [group=L, label="Read Leaf\naxil4_slave_rd - u_axil_rd (single beat)\nskid buffers on AR / R\ncore FUB gets arid 0, arlen 0, arsize 3, INCR"];
-    core  [group=C, label="Capture Core\nmonbus_group_core - u_core\n(see its diagram: filter, error FIFO,\ncompressor, write FIFO, burst writer)\nMAX_BURST_BEATS forced to 1", width=4.6];
-    wleaf [group=R, label="Write Leaf\naxil4_master_wr - u_axil_wr (single beat)\nskid buffers on AW / W / B\nid, len, burst dropped (single beat)"];
+    split [group=L, label="32-bit Read Splitter (S_AXIL_DATA_WIDTH=32 only)\neach 64-bit core beat served as a low then a high\n32-bit read: the low read goes to the leaf, the\nhigh read is answered from a latch", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    rleaf [group=L, label="Read Leaf\naxil4_slave_rd - u_axil_rd (single beat)\nskid buffers on AR / R\ncore FUB gets arid 0, arlen 0, arsize 3, INCR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    core  [group=C, label="Capture Core\nmonbus_group_core - u_core\n(see its diagram: filter, error FIFO,\ncompressor, write FIFO, burst writer)\nMAX_BURST_BEATS forced to 1", width=4.6, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    wleaf [group=R, label="Write Leaf\naxil4_master_wr - u_axil_wr (single beat)\nskid buffers on AW / W / B\nid, len, burst dropped (single beat)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- the boundary bar ----
     outs  [group=C, label="Log Write Port (to memory)\nm_axil_aw*, m_axil_w* out / m_axil_b* in   |   irq_out, FIFO counts, mon_time_out, mon_compressor_stat_*",
-           fillcolor="white", width=9.0];
+           fillcolor="white", width=9.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- capture ----
     min   -> core  [xlabel="monitor packets\n(valid down, ready up)"];
-    cfg   -> core  [style=dashed, xlabel="cfg_*"];
+    cfg   -> core  [style=dashed, color="#777777", xlabel="cfg_*"];
 
     // ---- error-record reads ----
     rport -> split [dir=both, xlabel="AR / R\n(32-bit)"];

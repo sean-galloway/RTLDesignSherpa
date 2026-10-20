@@ -8,19 +8,19 @@ digraph axi_monitor_filtered {
            nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c,
            label="axi_monitor_filtered - axi_monitor_base plus a configurable packet filter (single clock: aclk, aresetn)"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    prm  [label="Parameters (fixed at build)\lENABLE_FILTERING: 0 = every packet passes\lADD_PIPELINE_STAGE: 1 = register the filtered\l    packet (one more cycle, for timing)\lall axi_monitor_base parameters pass through\l", fillcolor="white"];
-    taps [group=C, label="Observed Channels (taps, nothing driven back)\ncmd, data, resp + every axi_monitor_base config port", fillcolor="white"];
-    msk  [label="Filter Masks (input ports)\lcfg_axi_pkt_mask: drop whole packet types\lcfg_axi_error / timeout / compl / thresh /\l    perf / addr / debug_mask: drop single\l    event codes within a type\l", fillcolor="white"];
-    base [group=C, label="Base Monitor\naxi_monitor_base - u_axi_monitor_base\n(see its diagram)"];
-    flt  [group=C, label="Packet Filter (combinational, ENABLE_FILTERING=1)\ndecode type / protocol / event code;\ndrop if the type is masked, or the event code is\nmasked for its type, or the protocol is not AXI"];
-    pipe [group=C, label="Pipeline Register (ADD_PIPELINE_STAGE=1 only)\nholds the passed packet + timestamp", style="filled,dashed"];
-    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet, monbus_timestamp (monbus_ready in)\n+ the base's status, window and perf outputs", fillcolor="white", width=7.0];
+    prm  [label="Parameters (fixed at build)\lENABLE_FILTERING: 0 = every packet passes\lADD_PIPELINE_STAGE: 1 = register the filtered\l    packet (one more cycle, for timing)\lall axi_monitor_base parameters pass through\l", fillcolor="white", shape=note];
+    taps [group=C, label="Observed Channels (taps, nothing driven back)\ncmd, data, resp + every axi_monitor_base config port", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    msk  [label="Filter Masks (input ports)\lcfg_axi_pkt_mask: drop whole packet types\lcfg_axi_error / timeout / compl / thresh /\l    perf / addr / debug_mask: drop single\l    event codes within a type\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    base [group=C, label="Base Monitor\naxi_monitor_base - u_axi_monitor_base\n(see its diagram)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    flt  [group=C, label="Packet Filter (combinational, ENABLE_FILTERING=1)\ndecode type / protocol / event code;\ndrop if the type is masked, or the event code is\nmasked for its type, or the protocol is not AXI", style="filled", fillcolor="white"];
+    pipe [group=C, label="Pipeline Register (ADD_PIPELINE_STAGE=1 only)\nholds the passed packet + timestamp", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    out  [group=C, label="Outputs\nmonbus_valid, monbus_packet, monbus_timestamp (monbus_ready in)\n+ the base's status, window and perf outputs", fillcolor="white", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     taps -> base [xlabel="channels, config", penwidth=1.8];
     base -> flt  [dir=both, xlabel="packet + timestamp down /\nready up (drop = consumed)", penwidth=1.8];
-    msk  -> flt  [style=dashed, xlabel="masks"];
+    msk  -> flt  [style=dashed, color="#777777", xlabel="masks"];
     flt  -> pipe [xlabel="passed packet", penwidth=1.8];
     pipe -> out  [xlabel="monbus packet", penwidth=1.8];
     { rank=same; prm; taps; msk; }

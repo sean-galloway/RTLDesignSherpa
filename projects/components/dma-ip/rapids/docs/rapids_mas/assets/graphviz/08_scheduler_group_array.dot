@@ -15,21 +15,21 @@ digraph scheduler_group_array {
            label="scheduler_group_array, SHARED_ENGINES = 1 - 8 schedulers, ONE of each engine\narbitration on the scheduler side; each engine owns its AXI master (clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    kick  [label="Kick (8 channels)\napb_valid / apb_addr", fillcolor="white", group=L];
-    cfgin [label="Scheduler Configuration\ncfg_channel_enable / reset, timeouts", fillcolor="white", group=C];
+    kick  [label="Kick (8 channels)\napb_valid / apb_addr", fillcolor="white", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    cfgin [label="Scheduler Configuration\ncfg_channel_enable / reset, timeouts", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    sch   [label="Schedulers - 8 x scheduler (one per channel)\ndescriptors in; data-path commands, packet records\nand control requests out", width=7.5, group=C];
+    sch   [label="Schedulers - 8 x scheduler (one per channel)\ndescriptors in; data-path commands, packet records\nand control requests out", width=7.5, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    deng  [label="descriptor_engine_shared\nround-robin AR issue,\nARID = channel; R routed\nby RID to the channel FIFO", width=4.4, group=L];
-    crd   [label="ctrlrd_engine_shared\nround-robin pick,\none ctrlrd_engine,\nARID = owner", group=G1];
-    cwr   [label="ctrlwr_engine_shared\nround-robin pick,\none ctrlwr_engine,\nAWID = owner", group=R];
-    mon   [label="Observers + MonBus\n(sideband)\ndesc-port monitor +\nbus meter; monbus_arbiter\n12:1: 8 schedulers,\ndesc monitor, 3 engines", style="filled,dashed", group=M];
+    deng  [label="descriptor_engine_shared\nround-robin AR issue,\nARID = channel; R routed\nby RID to the channel FIFO", width=4.4, group=L, style="filled", fillcolor="white"];
+    crd   [label="ctrlrd_engine_shared\nround-robin pick,\none ctrlrd_engine,\nARID = owner", group=G1, style="filled", fillcolor="white"];
+    cwr   [label="ctrlwr_engine_shared\nround-robin pick,\none ctrlwr_engine,\nAWID = owner", group=R, style="filled", fillcolor="white"];
+    mon   [label="Observers + MonBus\n(sideband)\ndesc-port monitor +\nbus meter; monbus_arbiter\n12:1: 8 schedulers,\ndesc monitor, 3 engines", style="filled,dashed", group=M, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
     bar [label="Array Boundary\nm_axi_desc AR / R (256-bit)  |  sched_*, sched_*_pkt_* (data path)\nm_axi_ctrlrd AR / R  |  m_axi_ctrlwr AW / W / B  |  mon_*",
-         fillcolor="white", width=11.0];
+         fillcolor="white", width=11.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // kick and descriptors, left lane
     p_k [shape=point, width=0.01, group=L];
@@ -59,7 +59,7 @@ digraph scheduler_group_array {
     p_cmd -> bar   [xlabel="data-path commands +\npacket records;\nstrobes back", tailclip=false];
 
     // monitor
-    mon -> bar [dir=both, style=dashed, xlabel="observes desc\nAR / R; mon_* out"];
+    mon -> bar [dir=both, style=dashed, color="#777777", xlabel="observes desc\nAR / R; mon_* out"];
 
     // rank pinning
     { rank=same; kick; cfgin; }

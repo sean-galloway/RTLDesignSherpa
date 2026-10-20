@@ -11,35 +11,35 @@ digraph wb4_master {
            label="wb4_master - queued command / response ports to one Wishbone B4 requester (single clock: clk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm [label="Parameters (fixed at build)\lCLASSIC: 1 = B4 standard mode: STB held until\l    the termination, no STALL; 0 = pipelined\lUSE_BURST_HINTS: 1 = CTI / BTE carried from\l    cmd_cti / cmd_bte; 0 = driven CLASSIC / LINEAR\lCMD_DEPTH / RSP_DEPTH: skid entries (default 4)\l", fillcolor="white"];
+    prm [label="Parameters (fixed at build)\lCLASSIC: 1 = B4 standard mode: STB held until\l    the termination, no STALL; 0 = pipelined\lUSE_BURST_HINTS: 1 = CTI / BTE carried from\l    cmd_cti / cmd_bte; 0 = driven CLASSIC / LINEAR\lCMD_DEPTH / RSP_DEPTH: skid entries (default 4)\l", fillcolor="white", shape=note];
 
-    cmd_port [group=L, label="Command Port\ncmd_valid / cmd_ready\ncmd_we, cmd_adr, cmd_dat, cmd_sel (+ cmd_cti, cmd_bte)", fillcolor="white"];
-    rsp_port [group=R, label="Response Port\nrsp_valid / rsp_ready\nrsp_status (ACK / ERR / RTY), rsp_dat", fillcolor="white"];
+    cmd_port [group=L, label="Command Port\ncmd_valid / cmd_ready\ncmd_we, cmd_adr, cmd_dat, cmd_sel (+ cmd_cti, cmd_bte)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rsp_port [group=R, label="Response Port\nrsp_valid / rsp_ready\nrsp_status (ACK / ERR / RTY), rsp_dat", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cmdq [group=L, label="Command Skid Buffer\ngaxi_skid_buffer - u_cmd_skid\nCMD_DEPTH entries of {we, adr, dat, sel (, cti, bte)}"];
-    rspq [group=R, label="Response Skid Buffer\ngaxi_skid_buffer - u_rsp_skid\nRSP_DEPTH entries of {status, dat}"];
-    crd  [group=L, label="Issue Credit (no FSM; flops r_inflight, r_reserved)\nSTB = head valid AND r_reserved < RSP_DEPTH\npipelined: pop on STB & !STALL, CYC while any in flight\nCLASSIC: pop with the termination, CYC = STB"];
+    cmdq [group=L, label="Command Skid Buffer\ngaxi_skid_buffer - u_cmd_skid\nCMD_DEPTH entries of {we, adr, dat, sel (, cti, bte)}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspq [group=R, label="Response Skid Buffer\ngaxi_skid_buffer - u_rsp_skid\nRSP_DEPTH entries of {status, dat}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    crd  [group=L, label="Issue Credit (no FSM; flops r_inflight, r_reserved)\nSTB = head valid AND r_reserved < RSP_DEPTH\npipelined: pop on STB & !STALL, CYC while any in flight\nCLASSIC: pop with the termination, CYC = STB", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
     bus [label="Wishbone B4 Requester Bus  m_wb_*\nout: CYC, STB, WE, ADR, DAT_W, SEL, CTI, BTE   |   in: STALL, ACK, ERR, RTY, DAT_R",
-         fillcolor="white", width=10.5];
+         fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- request flow: down the left ----
     cmd_port -> cmdq [dir=both, xlabel="cmd_valid + fields / cmd_ready"];
     cmdq -> crd [dir=both, xlabel="head command / pop"];
     crd -> bus [penwidth=1.8, xlabel="CYC, STB,\nWE, ADR, DAT_W, SEL"];
     p_st [shape=point, width=0.01];
-    p_st -> bus [dir=none, style=dashed];
-    p_st -> crd [style=dashed, xlabel="STALL", constraint=false];
+    p_st -> bus [dir=none, style=dashed, color="#777777"];
+    p_st -> crd [style=dashed, color="#777777", xlabel="STALL", constraint=false];
 
     // ---- response flow: back up the right ----
     p_rd [shape=point, width=0.01, group=R];
-    p_rd -> bus [dir=back, xlabel="ACK / ERR / RTY,\nDAT_R (termination)"];
-    p_rd -> rspq [dir=none];
-    rsp_port -> rspq [dir=back, xlabel="rsp_valid + status, dat\n/ rsp_ready"];
-    rspq -> crd [style=dashed, xlabel="pop frees a credit"];
+    p_rd -> bus [color="#1A7A1A", dir=back, xlabel="ACK / ERR / RTY,\nDAT_R (termination)"];
+    p_rd -> rspq [color="#1A7A1A", dir=none];
+    rsp_port -> rspq [color="#1A7A1A", dir=back, xlabel="rsp_valid + status, dat\n/ rsp_ready"];
+    rspq -> crd [style=dashed, color="#777777", xlabel="pop frees a credit"];
 
     { rank=same; prm; cmd_port; rsp_port; }
     { rank=same; cmdq; rspq; }

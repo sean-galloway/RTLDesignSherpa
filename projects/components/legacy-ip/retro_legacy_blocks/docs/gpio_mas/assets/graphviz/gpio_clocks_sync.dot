@@ -9,16 +9,16 @@ digraph gpio_clocks_sync {
            label="apb4_gpio, CDC_ENABLE=0 - every block on pclk, presetn (gpio_clk, gpio_rstn unused)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb [group=C, label="APB4 Completer Port  s_apb_*\n(pclk, presetn)", fillcolor="white"];
-    slv [group=C, label="APB Completer\napb4_slave  (pclk)", width=6.0];
-    adp [group=C, label="Register-Block Adapter\npeakrdl_to_cmdrsp  (pclk)"];
-    cfg [group=C, label="Register Block + GPIO Core\ngpio_config_regs: gpio_regs + gpio_core  (pclk)\ninput pins still pass SYNC_STAGES synchronizer flops on pclk", width=6.0];
+    apb [group=C, label="APB4 Completer Port  s_apb_*\n(pclk, presetn)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv [group=C, label="APB Completer\napb4_slave  (pclk)", width=6.0, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    adp [group=C, label="Register-Block Adapter\npeakrdl_to_cmdrsp  (pclk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cfg [group=C, label="Register Block + GPIO Core\ngpio_config_regs: gpio_regs + gpio_core  (pclk)\ninput pins still pass SYNC_STAGES synchronizer flops on pclk", width=6.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [group=C, label="Module Boundary\ngpio_out, gpio_oe out  (pclk)   |   irq out  (pclk, a wire from the core)   |   gpio_in in  (asynchronous)",
-         fillcolor="white", width=9.0];
+         fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     apb -> slv [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];
     slv -> adp [dir=both, xlabel="cmd / rsp"];

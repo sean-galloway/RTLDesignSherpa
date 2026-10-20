@@ -8,24 +8,24 @@ digraph alu_rv32i {
     graph [bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.35", ranksep="0.60", splines=ortho];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // Input ports (white)
-    a  [label="a (rs1 or pc)", fillcolor="white"];
-    b  [label="b (rs2 or imm)", fillcolor="white"];
-    op [label="alu_op (10 rows)", fillcolor="white"];
+    a  [label="a (rs1 or pc)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    b  [label="b (rs2 or imm)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    op [label="alu_op (10 rows)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // Parallel function rows (one rank)
-    arith [label="Adder / subtractor\nADD, SUB"];
-    logic [label="Logic unit\nAND, OR, XOR"];
-    shift [label="Shifter\nSLL, SRL, SRA"];
-    cmp   [label="Comparator\nSLT, SLTU + eq/lt/ltu"];
+    arith [label="Adder / subtractor\nADD, SUB", style="filled", fillcolor="white"];
+    logic [label="Logic unit\nAND, OR, XOR", style="filled", fillcolor="white"];
+    shift [label="Shifter\nSLL, SRL, SRA", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmp   [label="Comparator\nSLT, SLTU + eq/lt/ltu", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // Mode select (plain box, not a trapezium) and outputs (white bar)
-    sel [label="Result select\ny = row[alu_op]"];
-    y   [label="y (32b)\nto core writeback", fillcolor="white"];
-    fl  [label="eq / lt / ltu\n(not the branch comparator — §4)", fillcolor="white"];
+    sel [label="Result select\ny = row[alu_op]", style="filled", fillcolor="white"];
+    y   [label="y (32b)\nto core writeback", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    fl  [label="eq / lt / ltu\n(not the branch comparator — §4)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // Operand fan-out
     a -> arith [headlabel="a"];
@@ -42,7 +42,7 @@ digraph alu_rv32i {
     logic -> sel [label="logic"];
     shift -> sel [label="shifted"];
     cmp   -> sel [label="slt / sltu"];
-    op    -> sel [style=dashed, label="row select"];
+    op    -> sel [style=dashed, color="#777777", label="row select"];
 
     // Output bar
     sel -> y [label="result"];

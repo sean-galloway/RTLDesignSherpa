@@ -14,19 +14,19 @@ digraph rapids_vs_stream {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            label="Two harnesses, one methodology: memory to memory (STREAM) versus stream to memory and memory to stream (rapids)", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-        s_kick [group=S, label="STREAM harness: Descriptor Kick\nsrc addr, dst addr, length\n(staged, fired by GO)", fillcolor="white"];
-        s_dut  [group=S, label="STREAM DMA (one engine)\nstream_top_ch8\nm_axi_rd -> SRAM -> m_axi_wr\nmeasured by two AXI meters + in-core\nmonitors, or AXI master + slave observers", penwidth=1.8];
+        s_kick [group=S, label="STREAM harness: Descriptor Kick\nsrc addr, dst addr, length\n(staged, fired by GO)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        s_dut  [group=S, label="STREAM DMA (one engine)\nstream_top_ch8\nm_axi_rd -> SRAM -> m_axi_wr\nmeasured by two AXI meters + in-core\nmonitors, or AXI master + slave observers", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-        r_gen [label="rapids harness: AXIS Stimulus\naxis4_master_injector\nGO starts it with the kicks", fillcolor="white"];
-        r_chk [label="rapids harness: AXIS Egress Check\naxis4_slave_pattern_check", fillcolor="white"];
-        r_snk [label="SINK Engine\nrapids_snk_beats\ns_axis -> SRAM -> m_axi_wr\nmeasured by the AXIS-in and AXI-wr\nmeters + AXIS / AXI observers,\nor in-core monitors (AXIS monitor-lite)", penwidth=1.8];
-        r_src [label="SOURCE Engine\nrapids_src_beats\nm_axi_rd -> SRAM -> m_axis\nmeasured by the AXI-rd and AXIS-out\nmeters + AXI / AXIS observers,\nor in-core monitors (AXIS monitor-lite)", penwidth=1.8];
+        r_gen [label="rapids harness: AXIS Stimulus\naxis4_master_injector\nGO starts it with the kicks", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        r_chk [label="rapids harness: AXIS Egress Check\naxis4_slave_pattern_check", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+        r_snk [label="SINK Engine\nrapids_snk_beats\ns_axis -> SRAM -> m_axi_wr\nmeasured by the AXIS-in and AXI-wr\nmeters + AXIS / AXI observers,\nor in-core monitors (AXIS monitor-lite)", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        r_src [label="SOURCE Engine\nrapids_src_beats\nm_axi_rd -> SRAM -> m_axis\nmeasured by the AXI-rd and AXIS-out\nmeters + AXI / AXIS observers,\nor in-core monitors (AXIS monitor-lite)", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar [label="Harness memory models (behind axi_response_delay)\nSTREAM: axi4_dma_slaves (LFSR read source + CRC write sink)    |    rapids: axi4_slave_wr_crc_check, axi4_slave_rd_injector",
-         fillcolor="white", width=9];
+         fillcolor="white", width=9, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     { rank=same; s_kick; r_gen; r_chk; }
     s_kick -> r_gen -> r_chk [style=invis];
@@ -51,7 +51,7 @@ digraph rapids_vs_stream {
     r_gen  -> r_snk [penwidth=1.8, xlabel="s_axis"];
     r_snk  -> rw    [dir=none];
     rw     -> bar   [xlabel="m_axi_wr:\nAW + W (B back)"];
-    r_src  -> rr    [dir=back, penwidth=1.8];
+    r_src  -> rr    [color="#1A7A1A", dir=back, penwidth=1.8];
     rr     -> bar   [xlabel="m_axi_rd:\nAR down, R up"];
-    r_chk  -> r_src [dir=back, penwidth=1.8, xlabel="m_axis"];
+    r_chk  -> r_src [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="m_axis"];
 }

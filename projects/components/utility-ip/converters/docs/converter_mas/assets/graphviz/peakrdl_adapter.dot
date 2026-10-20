@@ -11,28 +11,28 @@ digraph peakrdl_adapter {
            nodesep="0.55", ranksep="0.65", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="peakrdl_to_cmdrsp - cmd/rsp stream to a PeakRDL passthrough cpuif (on aclk)";
 
-    cmd  [label="Command Port\ncmd_valid / cmd_ready (= CMD_IDLE)\ncmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb", fillcolor="white", group=C];
-    rspp [label="Response Port\nrsp_valid / rsp_ready\nrsp_prdata, rsp_pslverr", fillcolor="white", group=R];
+    cmd  [label="Command Port\ncmd_valid / cmd_ready (= CMD_IDLE)\ncmd_pwrite, cmd_paddr, cmd_pwdata, cmd_pstrb", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    rspp [label="Response Port\nrsp_valid / rsp_ready\nrsp_prdata, rsp_pslverr", fillcolor="white", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fsm  [label="Command FSM + Capture (flops)\nCMD_IDLE -> CMD_WAIT_ACK on accept\nCMD_IDLE -> CMD_STALLED if stalled; retry\nr_cmd_*: the command, pstrb expanded\nto bit enables (strb_to_biten)", group=L];
-    mux  [label="Request Mux (combinational)\nCMD_IDLE: present the live command\nelse: replay the captured one\nregblk_req = WAIT_ACK or (IDLE and cmd_valid)", group=C];
-    rcap [label="Response Capture (flops)\nRSP_IDLE -> RSP_VALID on rd_ack / wr_ack\nr_rsp_prdata, r_rsp_pslverr = rd_err / wr_err", group=R];
+    fsm  [label="Command FSM + Capture (flops)\nCMD_IDLE -> CMD_WAIT_ACK on accept\nCMD_IDLE -> CMD_STALLED if stalled; retry\nr_cmd_*: the command, pstrb expanded\nto bit enables (strb_to_biten)", group=L, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    mux  [label="Request Mux (combinational)\nCMD_IDLE: present the live command\nelse: replay the captured one\nregblk_req = WAIT_ACK or (IDLE and cmd_valid)", group=C, style="filled", fillcolor="white"];
+    rcap [label="Response Capture (flops)\nRSP_IDLE -> RSP_VALID on rd_ack / wr_ack\nr_rsp_prdata, r_rsp_pslverr = rd_err / wr_err", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [label="PeakRDL Register Block (passthrough cpuif)\nregblk_req, req_is_wr, addr, wr_data, wr_biten   |   req_stall_wr / rd   |   rd_ack, rd_err, rd_data, wr_ack, wr_err",
-          fillcolor="white", width=10.0];
+          fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     cmd  -> mux  [xlabel="live command"];
-    cmd  -> fsm  [style=dashed, xlabel="cmd_valid,\ncapture"];
+    cmd  -> fsm  [style=dashed, color="#777777", xlabel="cmd_valid,\ncapture"];
     fsm  -> mux  [xlabel="captured command,\nstate"];
     mux  -> bar  [xlabel="register request", penwidth=1.8];
-    fsm  -> bar  [style=dashed, dir=back, xlabel="stall_wr / stall_rd,\nack"];
+    fsm  -> bar  [style=dashed, color="#777777", dir=back, xlabel="stall_wr / stall_rd,\nack"];
 
-    rspp -> rcap [dir=back, xlabel="response"];
-    rcap -> bar  [dir=back, xlabel="ack, err, rd_data"];
+    rspp -> rcap [color="#1A7A1A", dir=back, xlabel="response"];
+    rcap -> bar  [color="#1A7A1A", dir=back, xlabel="ack, err, rd_data"];
 
     { rank=same; cmd; rspp; }
     { rank=same; fsm; rcap; }

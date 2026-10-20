@@ -10,19 +10,19 @@ digraph axi5_master_wr {
            label="axi5_master_wr - AXI5 write master: one skid buffer per channel, AXI5 fields ride in the payload (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\lENABLE_ATOMIC: 1 = AWATOP carried in the AW payload\l    (pass-through only); 0 = tied 0\lENABLE_NSAID / TRACE / MPAM / MECID / UNIQUE /\l    MTE / POISON: 1 = that AXI5 field rides in\l    its channel's skid payload; 0 = the output\l    is tied 0\lENABLE_WAKEUP: 0 = AWAKEUP absent, tied 0\l", fillcolor="white"];
-    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out", fillcolor="white", width=5.0];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AW: AW entries buffered (default 2)\lSKID_DEPTH_W: W beats buffered (default 4)\lSKID_DEPTH_B: B responses buffered (default 2)\l    deeper = more decoupling, more flops\lENABLE_ATOMIC: 1 = AWATOP carried in the AW payload\l    (pass-through only); 0 = tied 0\lENABLE_NSAID / TRACE / MPAM / MECID / UNIQUE /\l    MTE / POISON: 1 = that AXI5 field rides in\l    its channel's skid payload; 0 = the output\l    is tied 0\lENABLE_WAKEUP: 0 = AWAKEUP absent, tied 0\l", fillcolor="white", shape=note];
+    fub  [label="FUB Side (requester)\nfub_axi_aw* / fub_axi_w* in  /  fub_axi_b* out", fillcolor="white", width=5.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)\n+ AXI5 W fields when enabled:\npoison, tag, tagupdate"];
-    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)\n+ AXI5 AW fields when enabled: atop,\nnsaid, trace, mpam, mecid, idunq, tagop"];
-    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)\n+ AXI5 B fields when enabled:\ntrace, idunq, tagmatch"];
-    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving"];
+    w    [label="W Skid Buffer\ngaxi_skid_buffer - w_channel\n(DEPTH = SKID_DEPTH_W)\n+ AXI5 W fields when enabled:\npoison, tag, tagupdate", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    aw   [label="AW Skid Buffer\ngaxi_skid_buffer - aw_channel\n(DEPTH = SKID_DEPTH_AW)\n+ AXI5 AW fields when enabled: atop,\nnsaid, trace, mpam, mecid, idunq, tagop", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    b    [label="B Skid Buffer\ngaxi_skid_buffer - b_channel\n(DEPTH = SKID_DEPTH_B)\n+ AXI5 B fields when enabled:\ntrace, idunq, tagmatch", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busy [label="Busy Detect (combinational)\nany AW, W or B entry held, or\nawvalid / wvalid / bvalid arriving", style="filled", fillcolor="white"];
 
     mport [label="Module Boundary\nm_axi_aw* / m_axi_w* out (to the interconnect)  |  busy (to the clock-gate wrapper)  |  m_axi_awakeup  |  m_axi_b* in",
-           fillcolor="white", width=9.0];
+           fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // write data: its own lane down the left
     fub -> w     [xlabel="W: data, strb, last\n(wvalid / wready)"];
@@ -31,19 +31,19 @@ digraph axi5_master_wr {
     fub -> aw    [xlabel="AW: id, addr, len, size,\nburst, ... (awvalid / awready)"];
     aw  -> mport [xlabel="AW"];
     // response: back up the right lane (dir=back keeps the ranks top-down)
-    b   -> mport [dir=back, xlabel="B: id, resp"];
-    fub -> b     [dir=back, xlabel="B (bvalid / bready)"];
+    b   -> mport [color="#1A7A1A", dir=back, xlabel="B: id, resp"];
+    fub -> b     [color="#1A7A1A", dir=back, xlabel="B (bvalid / bready)"];
     // sideband
-    w   -> busy  [style=dashed, xlabel="w count"];
-    aw  -> busy  [style=dashed, xlabel="aw count"];
-    b   -> busy  [style=dashed, xlabel="b count"];
-    busy -> mport [style=dashed, xlabel="busy"];
+    w   -> busy  [style=dashed, color="#777777", xlabel="w count"];
+    aw  -> busy  [style=dashed, color="#777777", xlabel="aw count"];
+    b   -> busy  [style=dashed, color="#777777", xlabel="b count"];
+    busy -> mport [style=dashed, color="#777777", xlabel="busy"];
     // AWAKEUP hold (IHI 0022L A14.1.1): upstream wake OR an accepted AW / W not yet handed on
-    wake [label="Wakeup Hold (combinational)\nm_axi_awakeup = fub_axi_awakeup\n| AW or W held in a skid buffer\n(ENABLE_WAKEUP=1 only)", style="filled,dashed"];
-    fub  -> wake  [style=dashed, headlabel="fub_axi_awakeup", labelangle=25, labeldistance=5];
-    w    -> wake  [style=dashed, xlabel="W held"];
-    aw   -> wake  [style=dashed, xlabel="AW held"];
-    wake -> mport [style=dashed, xlabel="m_axi_awakeup"];
+    wake [label="Wakeup Hold (combinational)\nm_axi_awakeup = fub_axi_awakeup\n| AW or W held in a skid buffer\n(ENABLE_WAKEUP=1 only)", style="filled,dashed", style="filled,dashed", fillcolor="white"];
+    fub  -> wake  [style=dashed, color="#777777", headlabel="fub_axi_awakeup", labelangle=25, labeldistance=5];
+    w    -> wake  [style=dashed, color="#777777", xlabel="W held"];
+    aw   -> wake  [style=dashed, color="#777777", xlabel="AW held"];
+    wake -> mport [style=dashed, color="#777777", xlabel="m_axi_awakeup"];
     busy -> wake [style=invis];
 
     { rank=same; prm; fub; }

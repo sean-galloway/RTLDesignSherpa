@@ -1,3 +1,4 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
 // Figure 4.1 -- watch-fail: breaking a CDC on purpose. A process flow in the
 // house vocabulary (vault/handbook/authoring/block-diagrams.md): steps
 // top-down in one center column, each naming where it runs, every arrow

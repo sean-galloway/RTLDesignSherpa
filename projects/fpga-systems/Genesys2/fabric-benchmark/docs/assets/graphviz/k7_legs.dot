@@ -6,34 +6,34 @@
 digraph k7_legs {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.55", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2",
            label="Genesys 2 legs - one block changes, everything else is the same RTL (fabrics built; bitstreams planned)"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     subgraph cluster_a {
         label="Leg A bitstream"; fontsize=10;
-        a_m [label="Masters + master-side meters\nstream (desc via 256->128), injector"];
-        a_f [label="Bridge-generated crossbar\nbridge_fb_data, 128-bit AXI4\nsim: Verilator\nOOC: 10,201 LUT, ~186 MHz", penwidth=2.2];
-        a_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC"];
+        a_m [label="Masters + master-side meters\nstream (desc via 256->128), injector", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        a_f [label="Bridge-generated crossbar\nbridge_fb_data, 128-bit AXI4\nsim: Verilator\nOOC: 10,201 LUT, ~186 MHz", penwidth=2.2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        a_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
         a_m -> a_f [xlabel="RD / WR"];
         a_f -> a_s [xlabel="RD / WR"];
     }
     subgraph cluster_b1 {
         label="Leg B1 bitstream"; fontsize=10;
-        b_m [label="Masters + master-side meters\nstream (desc via 256->128), injector"];
-        b_f [label="Xilinx AXI Crossbar\naxi_crossbar_v2_1 = IP-catalog config\nsim: Verilator\nOOC: 2,688 LUT, ~256 MHz", penwidth=2.2];
-        b_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC"];
+        b_m [label="Masters + master-side meters\nstream (desc via 256->128), injector", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        b_f [label="Xilinx AXI Crossbar\naxi_crossbar_v2_1 = IP-catalog config\nsim: Verilator\nOOC: 2,688 LUT, ~256 MHz", penwidth=2.2, style="filled", fillcolor="white"];
+        b_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
         b_m -> b_f [xlabel="RD / WR"];
         b_f -> b_s [xlabel="RD / WR"];
     }
     subgraph cluster_b2 {
         label="Leg B2 bitstream"; fontsize=10;
-        c_m [label="Masters + master-side meters\nstream (desc via 256->128), injector"];
-        c_f [label="Xilinx SmartConnect (BD fb_sc)\nno slave-side ID: endpoints bin by address\nsim: none (encrypted), board only\nOOC: 8,333 LUT + 3,959 LUTRAM, ~268 MHz", penwidth=2.2];
-        c_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC"];
+        c_m [label="Masters + master-side meters\nstream (desc via 256->128), injector", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        c_f [label="Xilinx SmartConnect (BD fb_sc)\nno slave-side ID: endpoints bin by address\nsim: none (encrypted), board only\nOOC: 8,333 LUT + 3,959 LUTRAM, ~268 MHz", penwidth=2.2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        c_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
         c_m -> c_f [xlabel="RD / WR"];
         c_f -> c_s [xlabel="RD / WR"];
     }
-    same [label="Held constant (identical RTL, constraints, seeds):\l- control path: UART, uart_axil_bridge, config bridge, harness_csr\l- every block above and below the fabric, incl. the 256->128 desc converter\l- MIG DDR3 configuration, XDC, Vivado strategy, host programs, sequence files\l", fillcolor="white"];
+    same [label="Held constant (identical RTL, constraints, seeds):\l- control path: UART, uart_axil_bridge, config bridge, harness_csr\l- every block above and below the fabric, incl. the 256->128 desc converter\l- MIG DDR3 configuration, XDC, Vivado strategy, host programs, sequence files\l", fillcolor="white", style="rounded,filled,bold", fillcolor="#E2EFDA"];
     { rank=same; a_m; b_m; c_m; }
     { rank=same; a_f; b_f; c_f; }
     { rank=same; a_s; b_s; c_s; }

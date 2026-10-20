@@ -6,12 +6,12 @@
 // board's parts as the bar).
 digraph rlb_fpga_system {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.5", ranksep="0.7", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="RLB on an FPGA (Nexys A7 or Genesys 2), illustrative"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    cpu  [label="Soft CPU\n(MicroBlaze or RISC-V)", fillcolor="white"];
-    ddr  [label="DDR2 / DDR3 Controller", fillcolor="white"];
-    rlb  [label="rlb_top\napbx_xbar_1to10: HPET, PIC x2, PIT, RTC, SMBus,\nPM/ACPI, IOAPIC, GPIO, UART 16550\n+ interrupt fabric", width=5];
-    bar  [label="Board\nDRAM   PMOD / switches / LEDs (GPIO)   USB-UART bridge (UART)\nI2C sensors, EEPROMs (SMBus)   power-management signals (PM/ACPI)", fillcolor="white", width=8];
+    cpu  [label="Soft CPU\n(MicroBlaze or RISC-V)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    ddr  [label="DDR2 / DDR3 Controller", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rlb  [label="rlb_top\napbx_xbar_1to10: HPET, PIC x2, PIT, RTC, SMBus,\nPM/ACPI, IOAPIC, GPIO, UART 16550\n+ interrupt fabric", width=5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar  [label="Board\nDRAM   PMOD / switches / LEDs (GPIO)   USB-UART bridge (UART)\nI2C sensors, EEPROMs (SMBus)   power-management signals (PM/ACPI)", fillcolor="white", width=8, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     cpu -> ddr [dir=both, xlabel="AXI"];
     cpu -> rlb [dir=both, xlabel="APB\n/ CPU interrupt"];
     ddr -> bar [dir=both, xlabel="DRAM bus"];

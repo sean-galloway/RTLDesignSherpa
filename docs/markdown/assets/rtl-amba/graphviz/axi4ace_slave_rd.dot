@@ -11,37 +11,37 @@ digraph axi4ace_slave_rd {
            label="axi4ace_slave_rd - ACE read slave: AXI4 read + ACE fields, RACK forwarded (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AR: AR entries buffered (default 2)\lSKID_DEPTH_R: R beats buffered (default 4)\l    deeper = more decoupling, more flops\l", fillcolor="white"];
-    fub  [label="AXI4 Slave Port (s_axi_*) - from the interconnect / master\ns_axi_ar* in  /  s_axi_r* out  /  s_axi_rack in\nACE on AR: arsnoop[3:0], ardomain, arbar", fillcolor="white", width=4.0];
+    prm  [label="Parameters (fixed at build)\lSKID_DEPTH_AR: AR entries buffered (default 2)\lSKID_DEPTH_R: R beats buffered (default 4)\l    deeper = more decoupling, more flops\l", fillcolor="white", shape=note];
+    fub  [label="AXI4 Slave Port (s_axi_*) - from the interconnect / master\ns_axi_ar* in  /  s_axi_r* out  /  s_axi_rack in\nACE on AR: arsnoop[3:0], ardomain, arbar", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - i_ar_channel\n(DEPTH = SKID_DEPTH_AR)"];
-    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - i_r_channel\n(DEPTH = SKID_DEPTH_R)\nresp[3] IsShared, resp[2] PassDirty"];
-    busy [group=C, label="Busy Detect (combinational)\nany AR or R entry held,\nor arvalid / rvalid arriving"];
+    ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - i_ar_channel\n(DEPTH = SKID_DEPTH_AR)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - i_r_channel\n(DEPTH = SKID_DEPTH_R)\nresp[3] IsShared, resp[2] PassDirty", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    busy [group=C, label="Busy Detect (combinational)\nany AR or R entry held,\nor arvalid / rvalid arriving", style="filled", fillcolor="white"];
 
     mport [label="Module Boundary\nfub_axi_ar* out (to the backend)  |  busy (to the clock-gate wrapper)  |  fub_axi_r* in, fub_axi_rack out",
-           fillcolor="white", width=7.6];
+           fillcolor="white", width=7.6, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // request: down the left lane
     fub -> ar    [xlabel="AR + ACE fields\n(arvalid / arready)"];
     ar  -> mport [xlabel="AR"];
     // response: back up the right lane (dir=back keeps the ranks top-down)
-    r   -> mport [dir=back, xlabel="R: id, data,\nresp[3:0], last"];
-    fub -> r     [dir=back, xlabel="R (rvalid / rready)"];
+    r   -> mport [color="#1A7A1A", dir=back, xlabel="R: id, data,\nresp[3:0], last"];
+    fub -> r     [color="#1A7A1A", dir=back, xlabel="R (rvalid / rready)"];
     // sideband between the lanes
-    ar  -> busy  [style=dashed, xlabel="ar count"];
-    r   -> busy  [style=dashed, xlabel="r count"];
-    busy -> mport [style=dashed, xlabel="busy"];
+    ar  -> busy  [style=dashed, color="#777777", xlabel="ar count"];
+    r   -> busy  [style=dashed, color="#777777", xlabel="r count"];
+    busy -> mport [style=dashed, color="#777777", xlabel="busy"];
 
     { rank=same; prm; fub; }
     { rank=same; ar; r; }
     prm -> fub [style=invis];
     ar -> r [style=invis, minlen=4];
     p_rk [shape=point, width=0.01];
-    fub -> p_rk [dir=none, style=dashed, headclip=false, xlabel="RACK (a wire:\ns_axi_rack ->\nfub_axi_rack)"];
-    p_rk -> mport [style=dashed, tailclip=false];
+    fub -> p_rk [dir=none, style=dashed, color="#777777", headclip=false, xlabel="RACK (a wire:\ns_axi_rack ->\nfub_axi_rack)"];
+    p_rk -> mport [style=dashed, color="#777777", tailclip=false];
     { rank=same; ar; r; p_rk; }
     r -> p_rk [style=invis];
 }

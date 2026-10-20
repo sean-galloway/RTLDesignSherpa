@@ -20,29 +20,29 @@ digraph pm_acpi_whole_unit {
            label="apb4_pm_acpi - APB ACPI power-management controller\nCDC_ENABLE=0: all on pclk;  CDC_ENABLE=1: register block and core on pm_clk",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)"];
-    pins [group=R, fillcolor="white", label="Event and Reset-Source Pins (asynchronous)\ngpe_events[31:0], gpe1_events[31:0], power_button_n,\nsleep_button_n, rtc_alarm, ext_wake_n, wdt_reset_n, ext_reset_n"];
+    apb  [group=C, fillcolor="white", label="APB4 Completer Port  s_apb_*\n(12-bit address, 32-bit data)", style="rounded,filled", fillcolor="#E2EFDA"];
+    pins [group=R, fillcolor="white", label="Event and Reset-Source Pins (asynchronous)\ngpe_events[31:0], gpe1_events[31:0], power_button_n,\nsleep_button_n, rtc_alarm, ext_wake_n, wdt_reset_n, ext_reset_n", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> pm_clk)"];
-    dec  [group=C, label="Adapter + Strict Decode\npm_acpi_config_regs - peakrdl_to_cmdrsp\nonly the mapped registers pass;\nanything else: read 0, PSLVERR"];
-    regs [group=C, label="Register Block (PeakRDL)\npm_acpi_regs inside pm_acpi_config_regs\ncontrol, enables, timer, sequencer, reset control;\nW1C status registers mirror the core"];
+    slv  [group=C, label="APB Completer\napb4_slave (CDC_ENABLE=0) or\napb4_slave_cdc (CDC_ENABLE=1, pclk -> pm_clk)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dec  [group=C, label="Adapter + Strict Decode\npm_acpi_config_regs - peakrdl_to_cmdrsp\nonly the mapped registers pass;\nanything else: read 0, PSLVERR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs [group=C, label="Register Block (PeakRDL)\npm_acpi_regs inside pm_acpi_config_regs\ncontrol, enables, timer, sequencer, reset control;\nW1C status registers mirror the core", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    sync [group=R, label="Input Synchronizers (flop)\npm_acpi_core\nSYNC_STAGES flops; buttons: 3-flop chain,\ndebounce (BUTTON_TIMING), press edge, long press"];
-    det  [group=R, label="Event Detect (flop)\npm_acpi_core\nGPE edge or level per source (TRIGGER regs);\nrtc_alarm / ext_wake assertion edge;\nreset-source latches"];
+    sync [group=R, label="Input Synchronizers (flop)\npm_acpi_core\nSYNC_STAGES flops; buttons: 3-flop chain,\ndebounce (BUTTON_TIMING), press edge, long press", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    det  [group=R, label="Event Detect (flop)\npm_acpi_core\nGPE edge or level per source (TRIGGER regs);\nrtc_alarm / ext_wake assertion edge;\nreset-source latches", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    tmr  [group=L, label="PM Timer (flop)\npm_acpi_core\nprescaler + divider -> 64-bit counter\n(~3.571 MHz tick at the default divider);\noverflow, match"];
-    fsm  [group=R, label="Power State FSM (flop)\npm_acpi_core\nS0 / S1 / S3 / S5 soft off, through TRANSITION;\nsleep_enable one-shot; latched wake wins;\nwake also from an armed, pending GPE status bit;\nlong press: override to S5"];
-    sts  [group=C, label="Sticky Status (flop)\npm_acpi_core\nACPI, PM1, WAKE, GPE0 / GPE1, reset source;\nvalue & ~W1C clear | hardware set (set wins)"];
+    tmr  [group=L, label="PM Timer (flop)\npm_acpi_core\nprescaler + divider -> 64-bit counter\n(~3.571 MHz tick at the default divider);\noverflow, match", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm  [group=R, label="Power State FSM (flop)\npm_acpi_core\nS0 / S1 / S3 / S5 soft off, through TRANSITION;\nsleep_enable one-shot; latched wake wins;\nwake also from an armed, pending GPE status bit;\nlong press: override to S5", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    sts  [group=C, label="Sticky Status (flop)\npm_acpi_core\nACPI, PM1, WAKE, GPE0 / GPE1, reset source;\nvalue & ~W1C clear | hardware set (set wins)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    rst  [group=L, label="Reset Requests (flop)\npm_acpi_core\none-cycle pulse per RESET_CTRL write;\nand on leaving S5 (power state FSM)"];
-    seq  [group=R, label="Clock-Gate + Rail Sequencer (flop)\npm_acpi_core\nS1: gate all but two clocks; S3 / S5: all clocks,\nall rails but domain 0; PWR_SEQ_CONFIG walk:\nclocks off then rails 7..0, rails 0..7 then clocks"];
-    irq  [group=C, label="Interrupt Aggregation (combinational)\npm_acpi_core\nOR of enabled sticky bits, gated by acpi_enable"];
+    rst  [group=L, label="Reset Requests (flop)\npm_acpi_core\none-cycle pulse per RESET_CTRL write;\nand on leaving S5 (power state FSM)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    seq  [group=R, label="Clock-Gate + Rail Sequencer (flop)\npm_acpi_core\nS1: gate all but two clocks; S3 / S5: all clocks,\nall rails but domain 0; PWR_SEQ_CONFIG walk:\nclocks off then rails 7..0, rails 0..7 then clocks", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    irq  [group=C, label="Interrupt Aggregation (combinational)\npm_acpi_core\nOR of enabled sticky bits, gated by acpi_enable", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar  [group=C, fillcolor="white", width=14.0,
-          label="Module Boundary\nsys_reset_req, periph_reset_req out   |   clock_gate_en[31:0], power_domain_en[7:0] out,  power_domain_ack[7:0] in   |   pm_interrupt out (level)"];
+          label="Module Boundary\nsys_reset_req, periph_reset_req out   |   clock_gate_en[31:0], power_domain_en[7:0] out,  power_domain_ack[7:0] in   |   pm_interrupt out (level)", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register access ----
     apb  -> slv  [dir=both, penwidth=1.8, xlabel="APB transfer\n/ PREADY, PRDATA, PSLVERR"];

@@ -9,31 +9,31 @@ digraph converter_hierarchy {
            nodesep="0.90", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.10,0.05"];
+           fillcolor="white", color="black", margin="0.10,0.05"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="Converters component - module hierarchy (arrow = instantiates)";
 
     subgraph cluster_w {
         label="Data width converters"; style=dashed; fontsize=10;
-        wr  [label="axi4_dwidth_converter_wr\nwrite path: AW / W / B"];
-        rd  [label="axi4_dwidth_converter_rd\nread path: AR / R"];
-        up  [label="axi_data_upsize\nnarrow -> wide accumulator\n(write UPSIZE: W; read DOWNSIZE: R)"];
-        dn  [label="axi_data_dnsize\nwide -> narrow splitter\n(write DOWNSIZE: W; read UPSIZE: R)"];
+        wr  [label="axi4_dwidth_converter_wr\nwrite path: AW / W / B", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        rd  [label="axi4_dwidth_converter_rd\nread path: AR / R", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        up  [label="axi_data_upsize\nnarrow -> wide accumulator\n(write UPSIZE: W; read DOWNSIZE: R)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        dn  [label="axi_data_dnsize\nwide -> narrow splitter\n(write DOWNSIZE: W; read UPSIZE: R)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
     subgraph cluster_p {
         label="Protocol converters"; style=dashed; fontsize=10;
-        a2l  [label="axi4_to_axil4\nburst decomposition"];
-        a2lr [label="axi4_to_axil4_rd"];
-        a2lw [label="axi4_to_axil4_wr"];
-        l2a  [label="axil4_to_axi4\nprotocol upgrade"];
-        l2ar [label="axil4_to_axi4_rd"];
-        l2aw [label="axil4_to_axi4_wr"];
-        shim [label="axi4_to_apb4_shim\nAXI4 -> APB (aclk -> pclk)"];
-        conv [label="axi4_to_apb4_convert\nAXI4 -> APB command core"];
-        a2p  [label="apb4_to_peakrdl\nAPB -> register block"];
-        prdl [label="peakrdl_to_cmdrsp\nregister adapter"];
+        a2l  [label="axi4_to_axil4\nburst decomposition", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        a2lr [label="axi4_to_axil4_rd", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        a2lw [label="axi4_to_axil4_wr", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        l2a  [label="axil4_to_axi4\nprotocol upgrade", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        l2ar [label="axil4_to_axi4_rd", style="filled", fillcolor="white"];
+        l2aw [label="axil4_to_axi4_wr", style="filled", fillcolor="white"];
+        shim [label="axi4_to_apb4_shim\nAXI4 -> APB (aclk -> pclk)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        conv [label="axi4_to_apb4_convert\nAXI4 -> APB command core", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+        a2p  [label="apb4_to_peakrdl\nAPB -> register block", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        prdl [label="peakrdl_to_cmdrsp\nregister adapter", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
-    more [label="More in chapter 3: AXI4-Lite to AXI5-Lite, APB5, Wishbone B4,\lAXI3 <-> AXI4, APB to AXI4, wide alignment, UART to AXI4-Lite,\land the width-converter chains\l", fillcolor="white"];
+    more [label="More in chapter 3: AXI4-Lite to AXI5-Lite, APB5, Wishbone B4,\lAXI3 <-> AXI4, APB to AXI4, wide alignment, UART to AXI4-Lite,\land the width-converter chains\l", fillcolor="white", shape=note];
 
     wr -> up; wr -> dn;
     rd -> up; rd -> dn;

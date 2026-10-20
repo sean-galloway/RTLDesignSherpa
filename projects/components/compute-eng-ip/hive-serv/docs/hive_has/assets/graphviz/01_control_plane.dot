@@ -9,17 +9,17 @@ digraph hive_control_plane {
            label="HIVE control plane - one HIVE-C, one Control Network, sixteen SERV monitors over the Delta fabric",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host  [label="Host\n(UART / AXI4-Lite)", fillcolor="white"];
-    hivec [label="HIVE-C Master Controller - Block 1\nVexRiscv + hive_c_controller (descriptor_gen, axis4_master, ...)\nRAPIDS coordination, reconfiguration, statistics aggregation"];
-    cfgm  [label="Configuration Manager - Block 4\nconfig_manager (context memory, switch controller)\nPREPARE / SET_ROUTING_MODE / ACTIVATE,\nbroadcast through the Control Network"];
-    cnet  [label="Control Network - Block 3\ncontrol_network: control_packetizer, control_router (star fan-out),\ncontrol_arbiter (16 -> 1 uplink), hive_cdc_fifo"];
-    serv  [label="SERV Monitor - Block 2  (x16, one per compute tile)\nserv_monitor: traffic_counter, trigger_logic, axis_injector,\nctrl_net_slave, local_mem"];
+    host  [label="Host\n(UART / AXI4-Lite)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    hivec [label="HIVE-C Master Controller - Block 1\nVexRiscv + hive_c_controller (descriptor_gen, axis4_master, ...)\nRAPIDS coordination, reconfiguration, statistics aggregation", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cfgm  [label="Configuration Manager - Block 4\nconfig_manager (context memory, switch controller)\nPREPARE / SET_ROUTING_MODE / ACTIVATE,\nbroadcast through the Control Network", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cnet  [label="Control Network - Block 3\ncontrol_network: control_packetizer, control_router (star fan-out),\ncontrol_arbiter (16 -> 1 uplink), hive_cdc_fifo", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    serv  [label="SERV Monitor - Block 2  (x16, one per compute tile)\nserv_monitor: traffic_counter, trigger_logic, axis_injector,\nctrl_net_slave, local_mem", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     bar   [label="Delta Network (fabric-gen-ip/delta, external)\n4x4 mesh of compute tiles + virtual tiles 16 (RAPIDS) and 17 (HIVE-C)",
-           fillcolor="white", width=8, height=0.5, fontsize=11];
+           fillcolor="white", width=8, height=0.5, fontsize=11, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     x_u1 [shape=point, width=0.01, height=0.01, label="", style=invis];
     x_c2 [shape=point, width=0.01, height=0.01, label="", style=invis];
@@ -27,8 +27,8 @@ digraph hive_control_plane {
 
     host  -> hivec [dir=both, xlabel="host commands /\nreplies"];
     hivec -> cnet  [xlabel="commands"];
-    hivec -> cfgm  [style=dashed, xlabel="reconfiguration\nrequests"];
-    cfgm  -> cnet  [style=dashed];
+    hivec -> cfgm  [style=dashed, color="#777777", xlabel="reconfiguration\nrequests"];
+    cfgm  -> cnet  [style=dashed, color="#777777"];
     cnet  -> x_c2  [dir=none, xlabel="commands\n(unicast / multicast)"];
     x_c2  -> serv;
     hivec -> x_u1  [dir=back, xlabel="status\n(16 -> 1 round-robin)"];

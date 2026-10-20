@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Figure 3.1 -- one harness source, five targets. House style
 // (vault/handbook/authoring/block-diagrams.md): the shared source is the white
 // box on top; every arrow to a target says what that target changes (debug

@@ -13,23 +13,23 @@ digraph axi5_atomic_filter {
            label="axi5_atomic_filter - terminate read-return atomics locally, owe their B and R (single clock: aclk, aresetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lDEPTH_LG2: every queue holds 2^DEPTH_LG2\l    swallowed / in-flight transactions\lPayload (addr, data, RDATA, user, AXI5\l    sidebands) routes AROUND the filter:\l    only handshakes, ID, ATOP, LEN, LAST\l    and RESP pass through it\l", fillcolor="white"];
-    up   [label="Upstream Port (s_*) - from the boundary wrapper\nAW, W in  /  B, R out", fillcolor="white", width=6.0];
+    prm  [label="Parameters (fixed at build)\lDEPTH_LG2: every queue holds 2^DEPTH_LG2\l    swallowed / in-flight transactions\lPayload (addr, data, RDATA, user, AXI5\l    sidebands) routes AROUND the filter:\l    only handshakes, ID, ATOP, LEN, LAST\l    and RESP pass through it\l", fillcolor="white", shape=note];
+    up   [label="Upstream Port (s_*) - from the boundary wrapper\nAW, W in  /  B, R out", fillcolor="white", width=6.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    cls  [group=C, label="AW Classify (combinational)\nswallow = AWATOP[5] (AtomicLoad / Swap / Compare)\npass: forward AW  |  swallow: accept here, push queues"];
-    rte  [group=Q, label="Route Queue (flops)\none swallow flag per accepted AW,\npopped at its WLAST"];
-    wst  [group=W, label="W Steer (combinational)\nhead flag 0: forward W  |  1: consume, discard\nW stalls until its AW is accepted"];
-    rsq  [group=B, label="Response Queue (flops)\nBID per swallowed AW, committed\nonce its W burst (WLAST) is consumed"];
-    rrq  [group=R, label="Read-Return Queue (flops)\nRID + beats owed per swallowed AW\n(A6.4.7: AWLEN+1; Compare: (AWLEN+1)/2)"];
+    cls  [group=C, label="AW Classify (combinational)\nswallow = AWATOP[5] (AtomicLoad / Swap / Compare)\npass: forward AW  |  swallow: accept here, push queues", style="filled", fillcolor="white"];
+    rte  [group=Q, label="Route Queue (flops)\none swallow flag per accepted AW,\npopped at its WLAST", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wst  [group=W, label="W Steer (combinational)\nhead flag 0: forward W  |  1: consume, discard\nW stalls until its AW is accepted", style="filled", fillcolor="white"];
+    rsq  [group=B, label="Response Queue (flops)\nBID per swallowed AW, committed\nonce its W burst (WLAST) is consumed", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rrq  [group=R, label="Read-Return Queue (flops)\nRID + beats owed per swallowed AW\n(A6.4.7: AWLEN+1; Compare: (AWLEN+1)/2)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     bmg  [group=B, shape=trapezium, fixedsize=true, width=3.0, height=0.75, fillcolor="#BFD7EE",
-          label="B Merge\ndownstream first, else local DECERR"];
+          label="B Merge\ndownstream first, else local DECERR", style="filled", fillcolor="#FFF2CC"];
     rmg  [group=R, shape=trapezium, fixedsize=true, width=3.0, height=0.75, fillcolor="#BFD7EE",
-          label="R Merge\nsource held until RLAST"];
+          label="R Merge\nsource held until RLAST", style="filled", fillcolor="#FFF2CC"];
 
-    dn   [label="Downstream Port (m_*) - to the write-path fabric\nAW (non-swallowed), W (passed bursts) out  /  B, R in", fillcolor="white", width=9.0];
+    dn   [label="Downstream Port (m_*) - to the write-path fabric\nAW (non-swallowed), W (passed bursts) out  /  B, R in", fillcolor="white", width=9.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // requests: down
     up  -> cls [xlabel="AW: valid, id, atop, len"];
@@ -38,21 +38,21 @@ digraph axi5_atomic_filter {
     p_w [shape=point, width=0.01, group=W];
     up  -> p_w [arrowhead=none, headclip=false];
     p_w -> wst [tailclip=false, xlabel="W: valid, last"];
-    rte -> wst [style=dashed, xlabel="head flag"];
+    rte -> wst [style=dashed, color="#777777", xlabel="head flag"];
     wst -> dn  [xlabel="W (passed bursts)"];
     cls -> rsq [xlabel="AW id (swallowed)"];
     cls -> rrq [headlabel="AW id,\nbeats owed", labelangle=-40, labeldistance=4];
     // responses: up the right, two picks
-    bmg -> rsq [dir=back, xlabel="local DECERR\n(BID = AWID)"];
-    rmg -> rrq [dir=back, xlabel="local DECERR beats\n(RID = AWID, RLAST last)"];
+    bmg -> rsq [color="#1A7A1A", dir=back, xlabel="local DECERR\n(BID = AWID)"];
+    rmg -> rrq [color="#1A7A1A", dir=back, xlabel="local DECERR beats\n(RID = AWID, RLAST last)"];
     p_b [shape=point, width=0.01];
     p_r [shape=point, width=0.01];
-    p_b -> dn  [dir=back, arrowtail=none, tailclip=false];
-    p_r -> dn  [dir=back, arrowtail=none, tailclip=false];
-    bmg -> p_b [dir=back, headclip=false, xlabel="downstream B"];
-    rmg -> p_r [dir=back, headclip=false, xlabel="downstream R"];
-    up  -> bmg [dir=back, penwidth=1.8, xlabel="B"];
-    up  -> rmg [dir=back, penwidth=1.8, xlabel="R"];
+    p_b -> dn  [color="#1A7A1A", dir=back, arrowtail=none, tailclip=false];
+    p_r -> dn  [color="#1A7A1A", dir=back, arrowtail=none, tailclip=false];
+    bmg -> p_b [color="#1A7A1A", dir=back, headclip=false, xlabel="downstream B"];
+    rmg -> p_r [color="#1A7A1A", dir=back, headclip=false, xlabel="downstream R"];
+    up  -> bmg [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="B"];
+    up  -> rmg [color="#1A7A1A", dir=back, penwidth=1.8, xlabel="R"];
 
     { rank=same; prm; up; }
     { rank=same; p_w; cls; bmg; rmg; }

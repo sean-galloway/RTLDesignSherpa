@@ -9,19 +9,19 @@ digraph peakrdl_integration {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="CSRs behind the APB shim - AXI4 master to a PeakRDL register block";
 
-    m    [label="AXI4 Master\n(CPU, DMA, fabric port)", fillcolor="white"];
-    shim [label="AXI4 to APB Bridge\naxi4_to_apb4_shim (see Figure 3.6)"];
-    apb  [label="APB Bus\n(other APB slaves may share it)", fillcolor="white"];
+    m    [label="AXI4 Master\n(CPU, DMA, fabric port)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    shim [label="AXI4 to APB Bridge\naxi4_to_apb4_shim (see Figure 3.6)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    apb  [label="APB Bus\n(other APB slaves may share it)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     subgraph cluster_a2p {
         label="apb4_to_peakrdl"; labelloc=b; labeljust=r; style=dashed; fontsize=10;
-        cdc  [label="APB to cmd/rsp\napb4_slave_cdc"];
-        adp  [label="cmd/rsp to Passthrough cpuif\npeakrdl_to_cmdrsp (see Figure 3.8)"];
+        cdc  [label="APB to cmd/rsp\napb4_slave_cdc", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        adp  [label="cmd/rsp to Passthrough cpuif\npeakrdl_to_cmdrsp (see Figure 3.8)", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     }
-    rb   [label="PeakRDL-Generated Register Block (passthrough cpuif)", fillcolor="white", width=5.0];
+    rb   [label="PeakRDL-Generated Register Block (passthrough cpuif)", fillcolor="white", width=5.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     m    -> shim [dir=both, label="  AXI4 request down /\nB, R up"];
     shim -> apb  [dir=both, label="  APB transfer /\nPRDATA, PSLVERR"];

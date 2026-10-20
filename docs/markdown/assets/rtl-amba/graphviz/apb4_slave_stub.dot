@@ -10,19 +10,19 @@ digraph apb4_slave_stub {
            label="apb4_slave_stub - APB4 completer to packed command / response ports (single clock: pclk, presetn)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     bus [label="APB4 Completer Bus  s_apb_*\nin: PSEL, PENABLE, PADDR, PWRITE, PWDATA, PSTRB, PPROT   |   out: PREADY, PRDATA, PSLVERR",
-         fillcolor="white"];
+         fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fsm  [label="Completer FSM (state flop; outputs combinational)\nIDLE > XFER_DATA\nIDLE: push the command on PSEL & PENABLE (if skid has room)\nXFER_DATA: on a response, PREADY + PRDATA + PSLVERR the same clock"];
+    fsm  [label="Completer FSM (state flop; outputs combinational)\nIDLE > XFER_DATA\nIDLE: push the command on PSEL & PENABLE (if skid has room)\nXFER_DATA: on a response, PREADY + PRDATA + PSLVERR the same clock", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    cmdq [label="Command Skid Buffer\ngaxi_skid_buffer - cmd_skid_buffer_inst\nDEPTH entries of {pwrite, pprot, pstrb, paddr, pwdata}"];
-    rspq [label="Response Skid Buffer\ngaxi_skid_buffer - resp_skid_buffer_inst\nDEPTH entries of {pslverr, prdata}"];
+    cmdq [label="Command Skid Buffer\ngaxi_skid_buffer - cmd_skid_buffer_inst\nDEPTH entries of {pwrite, pprot, pstrb, paddr, pwdata}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspq [label="Response Skid Buffer\ngaxi_skid_buffer - resp_skid_buffer_inst\nDEPTH entries of {pslverr, prdata}", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     be [label="Packed Backend Interface\ncmd_valid / cmd_ready, cmd_data = {pwrite, pprot, pstrb, paddr, pwdata}   |   rsp_valid / rsp_ready, rsp_data = {pslverr, prdata}",
-        fillcolor="white", width=10.5];
+        fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     bus -> fsm [dir=both, penwidth=1.8, xlabel="transfer (PSEL, PENABLE, address, data)\n/ PREADY, PRDATA, PSLVERR"];
     fsm -> cmdq [dir=both, xlabel="command\n/ room"];

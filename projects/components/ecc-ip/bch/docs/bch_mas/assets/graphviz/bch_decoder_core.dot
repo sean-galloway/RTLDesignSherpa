@@ -13,25 +13,25 @@ digraph bch_decoder_core {
            nodesep="0.40", ranksep="0.50", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="bch_decoder_core - one block outstanding, release on verdict (on aclk)";
 
-    in    [label="Received Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep, in_last", fillcolor="white", group=C];
+    in    [label="Received Beat\nin_valid / in_ready, in_data[B-1:0],\nin_keep, in_last", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    frm   [label="Framing Check (flops)\nbit / beat counts; frame_err if last != N_BITS\nover-N: keep accepting, drop surplus;\nshort block: zero-pad the syndrome unit", group=C];
+    frm   [label="Framing Check (flops)\nbit / beat counts; frame_err if last != N_BITS\nover-N: keep accepting, drop surplus;\nshort block: zero-pad the syndrome unit", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     p_s   [shape=point, width=0.01, group=C];
     p_b   [shape=point, width=0.01, group=B];
-    synd  [label="Syndrome Unit\nbch_syndrome_unit - u_synd\nt odd syndromes", group=C];
-    kes   [label="Key-Equation Solver\nbch_key_equation_solver - u_kes\nriBM: Lambda(x), degree, more-than-t", group=C];
-    chien [label="Chien Search\nbch_chien_search - u_chien\nflip mask + root count per beat", group=C];
-    buf   [label="Block Buffer (flops)\nr_buf, r_buf_keep: BEATS_N received beats\nr_flip: the Chien flip mask per beat", group=B];
-    rchk  [label="Re-check Syndrome Unit\nbch_syndrome_unit - u_rechk\n(ENABLE_RECHECK=1 only)", style="filled,dashed", group=V];
-    seq   [label="Block Sequencer (FSM) + Verdict (flops)\nIDLE -> SYND -> SOLVE -> CHIEN -> RECHECK -> RELEASE\n(all-zero syndromes or frame_err: SYND -> RELEASE)\ncorrectable = !more-than-t, roots == degree,\nre-check zero -> r_st_ok / corrected / uncorrectable / frame_err", group=V];
-    rel   [label="Release (combinational)\nout_data = r_buf ^ (r_flip if correctable)\nout_keep = K-bit mask, or stored keep on frame_err", group=B];
+    synd  [label="Syndrome Unit\nbch_syndrome_unit - u_synd\nt odd syndromes", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    kes   [label="Key-Equation Solver\nbch_key_equation_solver - u_kes\nriBM: Lambda(x), degree, more-than-t", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    chien [label="Chien Search\nbch_chien_search - u_chien\nflip mask + root count per beat", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    buf   [label="Block Buffer (flops)\nr_buf, r_buf_keep: BEATS_N received beats\nr_flip: the Chien flip mask per beat", group=B, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rchk  [label="Re-check Syndrome Unit\nbch_syndrome_unit - u_rechk\n(ENABLE_RECHECK=1 only)", style="filled,dashed", group=V, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    seq   [label="Block Sequencer (FSM) + Verdict (flops)\nIDLE -> SYND -> SOLVE -> CHIEN -> RECHECK -> RELEASE\n(all-zero syndromes or frame_err: SYND -> RELEASE)\ncorrectable = !more-than-t, roots == degree,\nre-check zero -> r_st_ok / corrected / uncorrectable / frame_err", group=V, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    rel   [label="Release (combinational)\nout_data = r_buf ^ (r_flip if correctable)\nout_keep = K-bit mask, or stored keep on frame_err", group=B, style="filled", fillcolor="white"];
 
     bar   [label="Outputs\nout_valid / out_ready, out_data, out_keep, out_last (k bits)   |   out_status_ok / corrected / uncorrectable / frame_err (held through the block)",
-           fillcolor="white", width=10.5];
+           fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     in    -> frm   [xlabel="received beat"];
@@ -47,11 +47,11 @@ digraph bch_decoder_core {
     rel   -> bar   [xlabel="k corrected bits", penwidth=1.8];
 
     // ---- verdict and control ----
-    synd  -> seq   [style=dashed, taillabel="no-error", labelangle=-50, labeldistance=2.2];
-    kes   -> seq   [style=dashed, taillabel="degree, > t", labelangle=-70, labeldistance=4.5];
-    chien -> seq   [style=dashed, taillabel="roots", labelangle=-60, labeldistance=2.5];
-    rchk  -> seq   [style=dashed, xlabel="re-check zero"];
-    seq   -> rel   [style=dashed, xlabel="apply corrections\n(RELEASE)"];
+    synd  -> seq   [style=dashed, color="#777777", taillabel="no-error", labelangle=-50, labeldistance=2.2];
+    kes   -> seq   [style=dashed, color="#777777", taillabel="degree, > t", labelangle=-70, labeldistance=4.5];
+    chien -> seq   [style=dashed, color="#777777", taillabel="roots", labelangle=-60, labeldistance=2.5];
+    rchk  -> seq   [style=dashed, color="#777777", xlabel="re-check zero"];
+    seq   -> rel   [style=dashed, color="#777777", xlabel="apply corrections\n(RELEASE)"];
     seq   -> bar   [xlabel="status"];
 
     { rank=same; p_s; p_b; }

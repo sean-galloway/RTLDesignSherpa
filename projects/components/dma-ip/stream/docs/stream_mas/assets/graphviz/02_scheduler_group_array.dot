@@ -9,25 +9,25 @@ digraph scheduler_group_array {
            label="scheduler_group_array - SHARED_ENGINES = 1 (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    kick  [label="Kick (from stream_top)\napb_valid / apb_addr, per channel", fillcolor="white"];
-    sch   [label="scheduler [0 .. N-1]\none channel FSM each", width=3.2];
-    eng   [label="AXI Read / Write Engines (stream_core)\nsched_rd_* / sched_wr_* per channel", fillcolor="white"];
+    kick  [label="Kick (from stream_top)\napb_valid / apb_addr, per channel", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    sch   [label="scheduler [0 .. N-1]\none channel FSM each", width=3.2, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    eng   [label="AXI Read / Write Engines (stream_core)\nsched_rd_* / sched_wr_* per channel", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_eng {
         label="descriptor_engine_shared - one for every channel"; style=dashed; color="#555555"; fontsize=10;
-        fifos [label="Per-Channel State and FIFOs\nstate, pending address, kick-in-progress, owed beat;\ndescriptor FIFO (+ EXT chunk-1 FIFO)", width=4.6];
-        pick  [label="Round-Robin Pick\nchannels with an address to fetch\nand a free FIFO entry", shape=invtrapezium, width=4.0, fillcolor="#BFD7EE"];
-        slot  [label="Issue Slot (flops)\npicked channel + address;\nrange check next cycle -> ARVALID"];
-        rpath [label="R Path\nRID -> channel FIFO; EXT chunk 0 held,\nchunk-1 address = +32; chaining"];
-        rep   [label="MonBus Reporter\ncompletion / error per channel", fillcolor="#E8E8E8"];
+        fifos [label="Per-Channel State and FIFOs\nstate, pending address, kick-in-progress, owed beat;\ndescriptor FIFO (+ EXT chunk-1 FIFO)", width=4.6, style="filled", fillcolor="white"];
+        pick  [label="Round-Robin Pick\nchannels with an address to fetch\nand a free FIFO entry", shape=invtrapezium, width=4.0, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
+        slot  [label="Issue Slot (flops)\npicked channel + address;\nrange check next cycle -> ARVALID", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        rpath [label="R Path\nRID -> channel FIFO; EXT chunk 0 held,\nchunk-1 address = +32; chaining", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        rep   [label="MonBus Reporter\ncompletion / error per channel", fillcolor="#E8E8E8", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
-    dmon  [label="Descriptor AXI Monitor\naxi4_master_rd_monlite (optional)", fillcolor="#E8E8E8"];
-    marb  [label="monbus_arbiter\nN + 2 sources", fillcolor="#E8E8E8"];
-    bar   [label="Module Boundary\ndesc_axi (256-bit, ARID = channel)   |   mon_*", fillcolor="white", width=6.5];
+    dmon  [label="Descriptor AXI Monitor\naxi4_master_rd_monlite (optional)", fillcolor="#E8E8E8", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    marb  [label="monbus_arbiter\nN + 2 sources", fillcolor="#E8E8E8", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bar   [label="Module Boundary\ndesc_axi (256-bit, ARID = channel)   |   mon_*", fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     kick  -> fifos [xlabel="kick"];
     fifos -> sch   [xlabel="descriptor"];
@@ -39,7 +39,7 @@ digraph scheduler_group_array {
     rpath -> fifos [xlabel="push"];
     dmon  -> bar   [dir=both, penwidth=1.8];
     rep   -> marb;
-    sch   -> marb  [style=dashed];
+    sch   -> marb  [style=dashed, color="#777777"];
     marb  -> bar;
 
     { rank=same; kick; }

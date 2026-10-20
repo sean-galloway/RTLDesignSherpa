@@ -11,18 +11,18 @@ digraph glitch_free_n_dff_arn {
            label="glitch_free_n_dff_arn - N-flop synchronizer",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external interfaces (white) ----
-    d_port [label="Asynchronous Input\nd[WIDTH] from any clock domain", fillcolor="white"];
-    q_port [label="Synchronized Output\nq[WIDTH] on clk", fillcolor="white"];
-    rst    [label="Reset\nrst_n (asynchronous)", fillcolor="white"];
+    d_port [label="Asynchronous Input\nd[WIDTH] from any clock domain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    q_port [label="Synchronized Output\nq[WIDTH] on clk", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rst    [label="Reset\nrst_n (asynchronous)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     subgraph cluster_clk {
         label="clk domain"; style=dashed; fontsize=10;
-        st0  [label="Capture Stage\nr_q_array[0]\n(may go metastable)"];
-        stn  [label="Settling Stages\nr_q_array[1 .. FLOP_COUNT-1]\n(each adds a clk period to resolve)"];
+        st0  [label="Capture Stage\nr_q_array[0]\n(may go metastable)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        stn  [label="Settling Stages\nr_q_array[1 .. FLOP_COUNT-1]\n(each adds a clk period to resolve)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     }
 
     // ---- flows: capture stage over the settling stages (left column),
@@ -30,7 +30,7 @@ digraph glitch_free_n_dff_arn {
     d_port -> st0 [xlabel="d (asynchronous)", penwidth=1.8];
     st0 -> stn [xlabel="stage 0"];
     stn -> q_port [xlabel="q (last stage)", tailport=e];
-    rst -> st0 [style=dashed, xlabel="clears every stage"];
+    rst -> st0 [style=dashed, color="#777777", xlabel="clears every stage"];
 
     // ---- rank pinning ----
     { rank=same; rst; d_port; q_port; }

@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // DE10-Standard fabric benchmark - one run, sim and board (PRD 4.4, 5.2,
 // 5.5). PLANNED. The steps are CharacterizationRunner.run_config from
 // Genesys2/dma-ip/stream/bin/characterization.py, unchanged; only the bridge

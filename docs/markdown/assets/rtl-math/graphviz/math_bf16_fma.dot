@@ -14,35 +14,35 @@ digraph math_bf16_fma {
            nodesep="0.35", ranksep="0.50", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="math_bf16_fma - BF16 x BF16 + FP32 -> FP32, one rounding, RNE, flush-to-zero (combinational)";
 
     // ---- inputs (white) ----
-    ab_in [label="Multiplicands (BF16)\ni_a[15:0], i_b[15:0]", fillcolor="white"];
-    c_in  [label="Addend (FP32)\ni_c[31:0] = {sign, exp[7:0], mant[22:0]}", fillcolor="white"];
+    ab_in [label="Multiplicands (BF16)\ni_a[15:0], i_b[15:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    c_in  [label="Addend (FP32)\ni_c[31:0] = {sign, exp[7:0], mant[22:0]}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- unpack ----
-    unp [group=C, width=7.0, label="Unpack + Classify (combinational)\nBF16 a, b and FP32 c: sign / exponent / mantissa\nzero, subnormal (flushed to zero), infinity, NaN; normal operands get the hidden 1"];
+    unp [group=C, width=7.0, label="Unpack + Classify (combinational)\nBF16 a, b and FP32 c: sign / exponent / mantissa\nzero, subnormal (flushed to zero), infinity, NaN; normal operands get the hidden 1", style="filled", fillcolor="white"];
 
     // ---- product path (left) ----
-    sgn [group=S, label="Signs\nproduct sign = sign_a ^ sign_b\naddend sign = sign_c"];
-    mul [group=P, label="Mantissa Multiply\nmath_multiplier_dadda_4to2_008 - u_mant_mult\n8x8 Dadda tree, 4:2 compressors"];
-    pex [group=P, label="Product Exponent (combinational, signed)\nexp_a + exp_b - 127, + 1 if product >= 2.0\nbelow 1: product underflows (treated as zero)\nproduct mantissa extended to 24 bits"];
+    sgn [group=S, label="Signs\nproduct sign = sign_a ^ sign_b\naddend sign = sign_c", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    mul [group=P, label="Mantissa Multiply\nmath_multiplier_dadda_4to2_008 - u_mant_mult\n8x8 Dadda tree, 4:2 compressors", style="filled", fillcolor="white"];
+    pex [group=P, label="Product Exponent (combinational, signed)\nexp_a + exp_b - 127, + 1 if product >= 2.0\nbelow 1: product underflows (treated as zero)\nproduct mantissa extended to 24 bits", style="filled", fillcolor="white"];
 
     // ---- addend path (right) ----
-    cex [group=Q, label="Addend Extend (combinational)\n{hidden 1, mant_c}: 24 bits\nexp_c"];
+    cex [group=Q, label="Addend Extend (combinational)\n{hidden 1, mant_c}: 24 bits\nexp_c", style="filled", fillcolor="white"];
 
     // ---- join + center column ----
-    aln [group=C, width=7.0, label="Align (combinational)\nlarger exponent wins; the other mantissa shifts right by the difference\n(clamped to 48); both carried as 48 bits; effective subtract = sign_L ^ sign_S"];
-    add [group=C, label="48-bit Add / Subtract\nmath_adder_han_carlson_048 - u_wide_adder\nsubtract: invert the smaller operand, carry-in 1"];
-    abv [group=C, label="Absolute Value (combinational select)\nnegative difference: math_adder_han_carlson_048 - u_negate_adder (~sum + 1),\nresult sign flips; carry out on add: shift right 1, exp + 1"];
-    nrm [group=C, label="Normalize\ncount_leading_zeros (WIDTH = 48) - u_clz\nshift left by the count, exponent - count"];
-    rnd [group=C, label="Round to Nearest Even (FP32)\nmantissa [46:24]; G = [23], R = [22], S = |[21:0]\nround up = G & (R | S | LSB); carry-out -> exp + 1"];
-    sel [group=C, width=7.0, label="Special-Case Select (priority)\nNaN, 0 x inf or inf - inf -> quiet NaN (invalid)  >  product or addend inf -> signed inf\n>  zero product: pass i_c through (0 x 0 + 0 -> signed 0)  >  zero addend: the product alone\n>  exact zero -> +0  >  overflow -> inf  >  underflow -> 0  >  else the rounded sum"];
+    aln [group=C, width=7.0, label="Align (combinational)\nlarger exponent wins; the other mantissa shifts right by the difference\n(clamped to 48); both carried as 48 bits; effective subtract = sign_L ^ sign_S", style="filled", fillcolor="white"];
+    add [group=C, label="48-bit Add / Subtract\nmath_adder_han_carlson_048 - u_wide_adder\nsubtract: invert the smaller operand, carry-in 1", style="filled", fillcolor="white"];
+    abv [group=C, label="Absolute Value (combinational select)\nnegative difference: math_adder_han_carlson_048 - u_negate_adder (~sum + 1),\nresult sign flips; carry out on add: shift right 1, exp + 1", style="filled", fillcolor="white"];
+    nrm [group=C, label="Normalize\ncount_leading_zeros (WIDTH = 48) - u_clz\nshift left by the count, exponent - count", style="filled", fillcolor="white"];
+    rnd [group=C, label="Round to Nearest Even (FP32)\nmantissa [46:24]; G = [23], R = [22], S = |[21:0]\nround up = G & (R | S | LSB); carry-out -> exp + 1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sel [group=C, width=7.0, label="Special-Case Select (priority)\nNaN, 0 x inf or inf - inf -> quiet NaN (invalid)  >  product or addend inf -> signed inf\n>  zero product: pass i_c through (0 x 0 + 0 -> signed 0)  >  zero addend: the product alone\n>  exact zero -> +0  >  overflow -> inf  >  underflow -> 0  >  else the rounded sum", style="filled", fillcolor="white"];
 
     bar [label="Outputs\now_result[31:0] (FP32)   |   ow_overflow   |   ow_underflow   |   ow_invalid",
-         fillcolor="white", width=8.0];
+         fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- flows ----
     ab_in -> unp [xlabel="i_a, i_b"];
@@ -65,10 +65,10 @@ digraph math_bf16_fma {
     // ---- dashed lane: classification flags + product underflow ----
     p0 [shape=point, width=0.01, group=F];
     p1 [shape=point, width=0.01, group=F];
-    unp -> p0 [arrowhead=none, headclip=false, style=dashed];
-    p0 -> p1  [arrowhead=none, headclip=false, tailclip=false, style=dashed,
+    unp -> p0 [arrowhead=none, headclip=false, style=dashed, color="#777777"];
+    p0 -> p1  [arrowhead=none, headclip=false, tailclip=false, style=dashed, color="#777777",
                xlabel="zero / inf / NaN flags,\nproduct underflow"];
-    p1 -> sel [style=dashed, tailclip=false];
+    p1 -> sel [style=dashed, color="#777777", tailclip=false];
     pex -> p0 [style=invis];
 
     // ---- rank pinning ----

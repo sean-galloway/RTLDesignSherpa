@@ -16,30 +16,30 @@ digraph arbiter_single_client {
            label="arbiter_single_client - one client, no pick: gate, optional ack hold, one grant flop",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = hold the grant until grant_ack,\l    then drop it for one cycle before re-granting\l    0 = grant_valid is the gated request, one\l    cycle later; grant_ack is ignored\l", fillcolor="white"];
-    ack  [group=L, label="Grant Acknowledge\ngrant_ack", fillcolor="white"];
-    blk  [label="Block Input\nblock_arb", fillcolor="white"];
-    req  [group=C, label="Request\nrequest", fillcolor="white"];
-    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = hold the grant until grant_ack,\l    then drop it for one cycle before re-granting\l    0 = grant_valid is the gated request, one\l    cycle later; grant_ack is ignored\l", fillcolor="white", shape=note];
+    ack  [group=L, label="Grant Acknowledge\ngrant_ack", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    blk  [label="Block Input\nblock_arb", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    req  [group=C, label="Request\nrequest", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk  [label="Clock / Reset\nclk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    gate [group=C, label="Request Gate (combinational)\nw_req = request & !block_arb"];
-    ackt [group=L, label="ACK Tracker  (WAIT_GNT_ACK=1 only)\nr_pending_ack (flop)\nw_can_grant = !pending | ack received", style="filled,dashed"];
-    greg [group=C, label="Grant Register (flop)\ngrant_valid <= w_req & w_can_grant\n(held while pending, cleared on ack)"];
+    gate [group=C, label="Request Gate (combinational)\nw_req = request & !block_arb", style="filled", fillcolor="white"];
+    ackt [group=L, label="ACK Tracker  (WAIT_GNT_ACK=1 only)\nr_pending_ack (flop)\nw_can_grant = !pending | ack received", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    greg [group=C, label="Grant Register (flop)\ngrant_valid <= w_req & w_can_grant\n(held while pending, cleared on ack)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     outs [group=C, label="Outputs\ngrant (= grant_valid)   |   grant_valid   |   grant_id (always 0)",
-          fillcolor="white", width=6.0];
+          fillcolor="white", width=6.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     req  -> gate [xlabel="request"];
-    blk  -> gate [style=dashed, xlabel="block_arb"];
+    blk  -> gate [style=dashed, color="#777777", xlabel="block_arb"];
     gate -> greg [xlabel="w_req", penwidth=1.8];
     greg -> outs [xlabel="grant_valid"];
 
-    ack  -> ackt [style=dashed, xlabel="grant_ack"];
-    ackt -> greg [style=dashed, xlabel="can grant / hold"];
-    clk  -> greg [style=dashed, xlabel="clk, rst_n"];
+    ack  -> ackt [style=dashed, color="#777777", xlabel="grant_ack"];
+    ackt -> greg [style=dashed, color="#777777", xlabel="can grant / hold"];
+    clk  -> greg [style=dashed, color="#777777", xlabel="clk, rst_n"];
 
     { rank=same; prm; ack; req; blk; }
     prm -> ack [style=invis];

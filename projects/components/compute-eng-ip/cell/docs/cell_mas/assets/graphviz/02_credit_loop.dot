@@ -8,23 +8,23 @@ digraph credit_loop {
          label="CELL — credit loop (sender-generic)",
          labelloc=t];
   node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-         fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+         fillcolor="white", color="black", margin="0.12,0.06"];
   edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
   // ---- Sources at top (white) ----
-  rapids [fillcolor="white", label="RAPIDS (level 3)\nsends operand mem writes"];
-  peer   [fillcolor="white", label="Peer cell / core\nmay stream operands"];
+  rapids [fillcolor="white", label="RAPIDS (level 3)\nsends operand mem writes", style="rounded,filled", fillcolor="#E2EFDA"];
+  peer   [fillcolor="white", label="Peer cell / core\nmay stream operands", style="rounded,filled", fillcolor="#E2EFDA"];
 
   // ---- Top bar: the delta mesh boundary ----
   meshbar [fillcolor="white", width=4.5, height=0.35,
-           label="Delta mesh — routes by destination coordinate"];
+           label="Delta mesh — routes by destination coordinate", style="rounded,filled", fillcolor="#E2EFDA"];
 
   // ---- Cell blocks ----
-  rx     [label="cell_rx\nrecord source coord per packet"];
-  inmem  [label="cell_mem_in\noperand lines + source tag"];
-  fsm    [label="cell_exec_fsm\nconsumes line, advances IP"];
-  credit [label="cell_credit\nper-source owed counters\nbatch N + 64-cycle timeout"];
-  pktbld [label="credit-packet builder\nptype=credit, op=add/set"];
+  rx     [label="cell_rx\nrecord source coord per packet", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  inmem  [label="cell_mem_in\noperand lines + source tag", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  fsm    [label="cell_exec_fsm\nconsumes line, advances IP", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  credit [label="cell_credit\nper-source owed counters\nbatch N + 64-cycle timeout", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+  pktbld [label="credit-packet builder\nptype=credit, op=add/set", style="filled", fillcolor="white"];
 
 
   // ---- Forward flow: sources -> mesh -> rx -> inmem -> fsm ----
@@ -38,10 +38,10 @@ digraph credit_loop {
   fsm -> credit [label="consumed-line strobe\n+ src_coord"];
 
   // ---- Credit packet build and return ----
-  credit -> pktbld [style=dashed, label="batch ready / timeout"];
-  pktbld -> meshbar [style=dashed, label="credit packets — add → recorded source · boot set → level 3 (IN_DEPTH flits, §6.1)"];
-  meshbar -> rapids [style=dashed, label="credits return to RAPIDS"];
-  meshbar -> peer [style=dashed, label="credits return to peer cell"];
+  credit -> pktbld [style=dashed, color="#777777", label="batch ready / timeout"];
+  pktbld -> meshbar [style=dashed, color="#777777", label="credit packets — add → recorded source · boot set → level 3 (IN_DEPTH flits, §6.1)"];
+  meshbar -> rapids [style=dashed, color="#777777", label="credits return to RAPIDS"];
+  meshbar -> peer [style=dashed, color="#777777", label="credits return to peer cell"];
 
   // ---- Rank pinning ----
   { rank=same; rapids; peer }

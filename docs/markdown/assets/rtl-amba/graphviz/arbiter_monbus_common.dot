@@ -17,25 +17,25 @@ digraph arbiter_monbus_common {
            label="arbiter_monbus_common - arbiter observer that emits its own ocelus event packets\n(single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     // ---- external inputs (white) ----
-    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = per-client grant-to-ack timers\l    raise ACK-timeout events; 0 = timers tied off\lFAIRNESS_REPORT_CYCLES / MIN_GRANTS_FOR_FAIRNESS:\l    fairness is judged once per window, and only\l    after enough grants\lMON_FIFO_DEPTH: event packets buffered\lMON_AGENT_ID / MON_UNIT_ID: stamped in every packet\l", fillcolor="white"];
-    arb  [group=C, label="Arbiter Signals (observed, nothing driven back)\nrequest, grant_valid, grant, grant_id, grant_ack, block_arb", fillcolor="white"];
-    cfg  [label="Monitor Config (runtime input ports)\lcfg_mon_enable: 0 = no events detected\lcfg_mon_pkt_type_enable: one bit per packet class\lcfg_mon_*_thresh: latency, starvation, fairness,\l    active-request, ACK-timeout, efficiency limits\lcfg_mon_sample_period: analysis sample interval\lcfg_max_thresh: client weights, the expected\l    share each client should get (fairness)\l", fillcolor="white"];
-    tim  [group=T, label="Timebase\ni_mon_time", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lWAIT_GNT_ACK: 1 = per-client grant-to-ack timers\l    raise ACK-timeout events; 0 = timers tied off\lFAIRNESS_REPORT_CYCLES / MIN_GRANTS_FOR_FAIRNESS:\l    fairness is judged once per window, and only\l    after enough grants\lMON_FIFO_DEPTH: event packets buffered\lMON_AGENT_ID / MON_UNIT_ID: stamped in every packet\l", fillcolor="white", shape=note];
+    arb  [group=C, label="Arbiter Signals (observed, nothing driven back)\nrequest, grant_valid, grant, grant_id, grant_ack, block_arb", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="Monitor Config (runtime input ports)\lcfg_mon_enable: 0 = no events detected\lcfg_mon_pkt_type_enable: one bit per packet class\lcfg_mon_*_thresh: latency, starvation, fairness,\l    active-request, ACK-timeout, efficiency limits\lcfg_mon_sample_period: analysis sample interval\lcfg_max_thresh: client weights, the expected\l    share each client should get (fairness)\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    tim  [group=T, label="Timebase\ni_mon_time", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     // ---- logic ----
-    trk  [group=C, label="Per-Client Trackers (flops)\nlatency / starvation counters while a request waits\ngrant and completion counts\nACK timers from grant to grant_ack (WAIT_GNT_ACK=1)"];
-    fsm  [label="Sample Timer + Monitor FSM (flops)\nIDLE > ACTIVE > SAMPLE > ANALYZE > FAIRNESS\nper window: fairness deviation vs the client\nweights, grant efficiency"];
-    det  [group=C, label="Event Detect (flop pipeline register)\nthreshold compares, gated by cfg_mon_enable:\nstarvation, ACK timeout, latency, fairness,\nefficiency, active requests, completion, grant"];
-    sel  [group=C, label="Packet Select (combinational, priority order)\nstarvation > ACK timeout > latency > fairness\n> efficiency > active requests > completion > grant\neach class masked by cfg_mon_pkt_type_enable;\nprotocol ARB, agent / unit IDs, client, data"];
-    fifo [group=C, label="Event FIFO\ngaxi_fifo_sync - u_event_fifo (MON_FIFO_DEPTH)\npacket only, 128 bits"];
+    trk  [group=C, label="Per-Client Trackers (flops)\nlatency / starvation counters while a request waits\ngrant and completion counts\nACK timers from grant to grant_ack (WAIT_GNT_ACK=1)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm  [label="Sample Timer + Monitor FSM (flops)\nIDLE > ACTIVE > SAMPLE > ANALYZE > FAIRNESS\nper window: fairness deviation vs the client\nweights, grant efficiency", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    det  [group=C, label="Event Detect (flop pipeline register)\nthreshold compares, gated by cfg_mon_enable:\nstarvation, ACK timeout, latency, fairness,\nefficiency, active requests, completion, grant", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    sel  [group=C, label="Packet Select (combinational, priority order)\nstarvation > ACK timeout > latency > fairness\n> efficiency > active requests > completion > grant\neach class masked by cfg_mon_pkt_type_enable;\nprotocol ARB, agent / unit IDs, client, data", style="filled", fillcolor="white"];
+    fifo [group=C, label="Event FIFO\ngaxi_fifo_sync - u_event_fifo (MON_FIFO_DEPTH)\npacket only, 128 bits", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- the boundary bar ----
     outs [group=C, label="Monitor Bus + Debug\nmonbus_valid, monbus_packet, monbus_timestamp / monbus_ready   |   debug_fifo_count, debug_packet_count,\ndebug_ack_timeout, debug_protocol_violations, debug_grant_efficiency, debug_client_starvation, debug_fairness_deviation, debug_monitor_state",
-          fillcolor="white", width=10.5];
+          fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- main flow ----
     arb  -> trk  [xlabel="observed signals"];
@@ -46,7 +46,7 @@ digraph arbiter_monbus_common {
     fifo -> outs [xlabel="monbus_packet (valid down, ready up)", penwidth=1.8];
 
     // ---- config (dashed) ----
-    cfg  -> fsm  [style=dashed, xlabel="sample period, weights"];
+    cfg  -> fsm  [style=dashed, color="#777777", xlabel="sample period, weights"];
 
     // ---- timestamp straight down the right ----
     p_t1 [group=T, shape=point, width=0.01];

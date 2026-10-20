@@ -7,25 +7,25 @@
 // and moved the kick to stage-all-then-GO; see the stream_fpga_system book.
 digraph stream_v1_harness_top {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, nodesep="0.45", ranksep="0.6", splines=ortho, newrank=true, labelloc=t, labeljust=c, pad="0.2", label="STREAM v1 characterization harness (as measured in this report)"];
-    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled, fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    host [label="Host PC\ncharacterize.py, UART 115200 baud", fillcolor="white"];
-    br   [label="UART to AXIL Bridge\n5 address regions"];
-    csr  [label="harness_csr\nkick burst, response-delay programming,\ncycle-stamp timer, status"];
-    dram [label="Descriptor RAM"];
-    dbg  [label="Debug SRAM"];
-    apb  [label="STREAM APB"];
-    dut  [label="stream_top_ch8 (DUT)\ndescriptor-fetch, data-read and data-write AXI4 masters", width=5.5];
-    rdly [label="axi_response_delay (R side)"];
-    bdly [label="axi_response_delay (B side)"];
-    rgen [label="axi4_slave_rd_injector\nLFSR stream + per-channel CRC"];
-    wchk [label="axi4_slave_wr_crc_check\nper-channel CRC"];
-    cmp  [label="read CRC == write CRC?", fillcolor="white"];
-    bar  [label="Board Status\nLEDs / 7-seg / IRQ: PASS 0x0123, FAIL 0x9999", fillcolor="white", width=7.5];
+    host [label="Host PC\ncharacterize.py, UART 115200 baud", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    br   [label="UART to AXIL Bridge\n5 address regions", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    csr  [label="harness_csr\nkick burst, response-delay programming,\ncycle-stamp timer, status", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    dram [label="Descriptor RAM", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    dbg  [label="Debug SRAM", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    apb  [label="STREAM APB", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dut  [label="stream_top_ch8 (DUT)\ndescriptor-fetch, data-read and data-write AXI4 masters", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rdly [label="axi_response_delay (R side)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    bdly [label="axi_response_delay (B side)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rgen [label="axi4_slave_rd_injector\nLFSR stream + per-channel CRC", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    wchk [label="axi4_slave_wr_crc_check\nper-channel CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmp  [label="read CRC == write CRC?", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    bar  [label="Board Status\nLEDs / 7-seg / IRQ: PASS 0x0123, FAIL 0x9999", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     host -> br  [xlabel="UART"];
     br -> csr; br -> apb; br -> dbg; br -> dram;
-    csr -> dut  [style=dashed, xlabel="kick pulse"];
+    csr -> dut  [style=dashed, color="#777777", xlabel="kick pulse"];
     apb -> dut  [xlabel="APB"];
     dut -> dram [xlabel="descriptor\nfetch"];
     dut -> rdly [xlabel="data read"];

@@ -10,19 +10,19 @@ digraph pwm {
            label="pwm - one of CHANNELS identical channels (single clock: clk, rst_n)",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    start_in [group=C, label="Start Input\nstart[i]", fillcolor="white"];
-    cfg [label="Channel Settings (runtime input ports, per channel)\lperiod[i]: clocks per PWM cycle (0 = never starts)\lduty[i]: clocks pwm_out stays high each cycle\l    (0 = always low; >= period = always high)\lrepeat_count[i]: cycles to run, then DONE\l    (0 = run until sync_rst_n)\lsync_rst_n: synchronous clear of every register\l", fillcolor="white"];
+    start_in [group=C, label="Start Input\nstart[i]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg [label="Channel Settings (runtime input ports, per channel)\lperiod[i]: clocks per PWM cycle (0 = never starts)\lduty[i]: clocks pwm_out stays high each cycle\l    (0 = always low; >= period = always high)\lrepeat_count[i]: cycles to run, then DONE\l    (0 = run until sync_rst_n)\lsync_rst_n: synchronous clear of every register\l", fillcolor="white", shape=note];
 
-    edge_d [group=C, label="Start Edge Detect\nr_start_prev (flop)\nstart[i] & !r_start_prev"];
-    fsm    [group=C, label="Channel FSM (flop)\nr_state: IDLE / RUNNING / DONE\nDONE re-arms on the next start edge"];
-    cnt    [group=C, label="Period Counter (flop)\nr_count: 0 .. period-1, then wraps"];
-    rep    [group=R, label="Repeat Counter (flop)\nr_repeat_value: +1 per wrap\nall done = r_repeat_value >= repeat_count-1"];
-    cmp    [group=C, label="Duty Compare (combinational)\nRUNNING: pwm_out = r_count < duty\nelse 0"];
+    edge_d [group=C, label="Start Edge Detect\nr_start_prev (flop)\nstart[i] & !r_start_prev", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    fsm    [group=C, label="Channel FSM (flop)\nr_state: IDLE / RUNNING / DONE\nDONE re-arms on the next start edge", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    cnt    [group=C, label="Period Counter (flop)\nr_count: 0 .. period-1, then wraps", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rep    [group=R, label="Repeat Counter (flop)\nr_repeat_value: +1 per wrap\nall done = r_repeat_value >= repeat_count-1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    cmp    [group=C, label="Duty Compare (combinational)\nRUNNING: pwm_out = r_count < duty\nelse 0", style="filled", fillcolor="white"];
 
-    out [label="Outputs\npwm_out[i]   |   done[i] (r_state == DONE)", fillcolor="white", width=5.0];
+    out [label="Outputs\npwm_out[i]   |   done[i] (r_state == DONE)", fillcolor="white", width=5.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     start_in -> edge_d [xlabel="start[i]"];
     edge_d -> fsm [xlabel="start edge"];

@@ -10,18 +10,18 @@ digraph board_and_host {
            nodesep="0.50", ranksep="0.60", splines=ortho, newrank=true,
            label="The bench: the same Nexys A7, and a host that only ONE build needs", labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    host [label="Host PC (build-demo only)\nhost_cdc_demo.py: watch-fail, sweep, press\ncdc_demo.py (CdcDemoDriver) over the shared\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white"];
-    viv  [label="Host PC - Vivado\nmake program (either build)", fillcolor="white"];
+    host [label="Host PC (build-demo only)\nhost_cdc_demo.py: watch-fail, sweep, press\ncdc_demo.py (CdcDemoDriver) over the shared\nfpga-systems/bin/ transport (uart_link, uart_axi_bridge)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    viv  [label="Host PC - Vivado\nmake program (either build)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    usb  [label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (the driver resolves the port);\nJTAG to program (a second board may share the chain)", width=6];
+    usb  [label="One USB Connector (Digilent USB-JTAG), both roles\nUART 115200-8N1 on /dev/ttyUSB* (the driver resolves the port);\nJTAG to program (a second board may share the chain)", width=6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    demo [label="build-demo (default) - the instrument\ncdc_demo_top -> cdc_demo_harness (Figure 2.1)\n4 counters on host-controlled clocks,\n5 selectable CDC modes each", penwidth=1.8];
-    p1   [label="build-phase1 - the teaching artifact\ncdc_counter_display_top: ONE file.\nOne counter, buttons, one 4-phase handshake.\nNo harness, no UART, no host"];
+    demo [label="build-demo (default) - the instrument\ncdc_demo_top -> cdc_demo_harness (Figure 2.1)\n4 counters on host-controlled clocks,\n5 selectable CDC modes each", penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    p1   [label="build-phase1 - the teaching artifact\ncdc_counter_display_top: ONE file.\nOne counter, buttons, one 4-phase handshake.\nNo harness, no UART, no host", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    bar  [label="Nexys A7-100T board I/O (used by both builds):  push buttons  |  8-digit 7-segment display  |  LEDs  |  100 MHz oscillator  |  CPU reset", fillcolor="white", width=9];
+    bar  [label="Nexys A7-100T board I/O (used by both builds):  push buttons  |  8-digit 7-segment display  |  LEDs  |  100 MHz oscillator  |  CPU reset", fillcolor="white", width=9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     { rank=same; host; viv; }
     host -> viv [style=invis, minlen=2];
@@ -31,7 +31,7 @@ digraph board_and_host {
     host -> usb  [dir=both, penwidth=1.8, xlabel="ASCII W / R"];
     viv  -> usb  [xlabel=".bit (JTAG)"];
     usb  -> demo [dir=both, penwidth=1.8, xlabel="UART: register reads\nand writes; .bit"];
-    usb  -> p1   [style=dashed, xlabel=".bit over JTAG only"];
+    usb  -> p1   [style=dashed, color="#777777", xlabel=".bit over JTAG only"];
     demo -> bar  [dir=both, xlabel="buttons in; display,\nLEDs out; clock"];
     p1   -> bar  [dir=both, xlabel="buttons in; display,\nLEDs out; clock"];
 }

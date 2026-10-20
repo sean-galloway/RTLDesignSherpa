@@ -7,13 +7,13 @@ digraph reverse_vector {
            nodesep="0.35", ranksep="0.60", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="reverse_vector - bit-order reversal (combinational)";
 
-    vin  [label="Vector Input\nvector_in[WIDTH-1:0]", fillcolor="white"];
-    rev  [label="Bit Reverse (wiring only, no gates)\nvector_rev[WIDTH-1-i] = vector_in[i]\nMSB becomes LSB; zero logic depth"];
-    vout [label="Reversed Output\nvector_rev[WIDTH-1:0]", fillcolor="white", width=4.0];
+    vin  [label="Vector Input\nvector_in[WIDTH-1:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rev  [label="Bit Reverse (wiring only, no gates)\nvector_rev[WIDTH-1-i] = vector_in[i]\nMSB becomes LSB; zero logic depth", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    vout [label="Reversed Output\nvector_rev[WIDTH-1:0]", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
     vin -> rev  [xlabel="vector_in"];
     rev -> vout [xlabel="vector_rev"];

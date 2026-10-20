@@ -8,25 +8,25 @@ digraph sdpram_slave_axil_axi4 {
            nodesep="0.35", ranksep="0.70", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="sdpram_slave_axil_axi4 - AXI-Lite write, AXI4 read over the shared BRAM core";
 
-    wport [group=W, label="AXIL Write Port (slave)\ns_axi_aw / s_axi_w in,  s_axi_b out", fillcolor="white"];
-    cport [group=C, label="Bulk Clear and Debug\ni_cfg_start_clear / o_cfg_done_clear,\ndebug taps", fillcolor="white"];
-    rport [group=R, label="AXI4 Read Port (slave)\ns_axi_ar in,  s_axi_r out", fillcolor="white"];
+    wport [group=W, label="AXIL Write Port (slave)\ns_axi_aw / s_axi_w in,  s_axi_b out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cport [group=C, label="Bulk Clear and Debug\ni_cfg_start_clear / o_cfg_done_clear,\ndebug taps", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rport [group=R, label="AXI4 Read Port (slave)\ns_axi_ar in,  s_axi_r out", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wleaf [group=W, label="AXIL Slave Write Leaf\naxil4_slave_wr - u_axil_wr\nskid buffers on AW / W / B\nFUB tied: id 0, len 0, INCR"];
-    rleaf [group=R, label="AXI4 Slave Read Leaf\naxi4_slave_rd - u_axi4_rd\nskid buffers on AR / R\nFUB: real id, len, size, burst"];
+    wleaf [group=W, label="AXIL Slave Write Leaf\naxil4_slave_wr - u_axil_wr\nskid buffers on AW / W / B\nFUB tied: id 0, len 0, INCR", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rleaf [group=R, label="AXI4 Slave Read Leaf\naxi4_slave_rd - u_axi4_rd\nskid buffers on AR / R\nFUB: real id, len, size, burst", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     core  [group=C, label="BRAM Backend\nsdpram_core - u_core   (see its diagram)\nAW / AR queues, burst trackers, BRAM, clear FSM",
-           width=8.5, height=0.8];
+           width=8.5, height=0.8, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     wport -> wleaf [dir=both, xlabel="AW, W  /  B"];
     rport -> rleaf [dir=both, xlabel="AR  /  R"];
     wleaf -> core  [dir=both, xlabel="fub AW, W  /  fub B"];
     rleaf -> core  [dir=both, xlabel="fub AR  /  fub R"];
-    cport -> core  [style=dashed, dir=both, xlabel="start / done"];
+    cport -> core  [style=dashed, color="#777777", dir=both, xlabel="start / done"];
 
     { rank=same; wport; cport; rport; }
     wport -> cport [style=invis, minlen=2];

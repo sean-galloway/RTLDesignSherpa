@@ -1,3 +1,4 @@
+// render: no-key (conceptual / software figure, not the hardware element key)
 // Figure 5.1 -- where each kind of file lives. Replaces assets/mermaid/file_layout.mmd.
 // The entry point is the white box on top; the area's files sit in the middle,
 // each label naming its directory; the shared fpga-systems/bin/ layer is the

@@ -9,21 +9,21 @@ digraph uart_interrupt {
            nodesep="0.40", ranksep="0.60", splines=ortho, newrank=true,
            label="uart_16550_intr - IER gating, IIR priority, OUT2-gated irq (combinational except the THRE read mask)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    port [label="Raw Conditions  (from uart_16550_core; LSR / MSR report these whatever IER says)\nOE, PE, FE, BI   |   RX FIFO count / empty, character timeout   |   TX FIFO empty   |   MSR deltas (CTS, DSR, trailing RI, DCD)", fillcolor="white", width=11.0];
+    port [label="Raw Conditions  (from uart_16550_core; LSR / MSR report these whatever IER says)\nOE, PE, FE, BI   |   RX FIFO count / empty, character timeout   |   TX FIFO empty   |   MSR deltas (CTS, DSR, trailing RI, DCD)", fillcolor="white", width=11.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    g_ls [label="Line Status Gate\n(OE | PE | FE | BI)\n& IER[2]"];
-    g_rx [label="RX Data Gate\nFIFO mode: count >= FCR[7:6] trigger\n(1 / 4 / 8 / 14), else not empty;\ntimeout (FIFO mode only); & IER[0]\n(the trigger compare also drives AFE RTS)"];
-    g_tx [label="THR Empty Gate\nTX FIFO empty & IER[1]\n& !r_thre_int_masked (flop: set\nby an IIR read reporting it)"];
-    g_md [label="Modem Status Gate\nany MSR delta\n& IER[3]"];
+    g_ls [label="Line Status Gate\n(OE | PE | FE | BI)\n& IER[2]", style="filled", fillcolor="white"];
+    g_rx [label="RX Data Gate\nFIFO mode: count >= FCR[7:6] trigger\n(1 / 4 / 8 / 14), else not empty;\ntimeout (FIFO mode only); & IER[0]\n(the trigger compare also drives AFE RTS)", style="filled", fillcolor="white"];
+    g_tx [label="THR Empty Gate\nTX FIFO empty & IER[1]\n& !r_thre_int_masked (flop: set\nby an IIR read reporting it)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    g_md [label="Modem Status Gate\nany MSR delta\n& IER[3]", style="filled", fillcolor="white"];
 
     pick [shape=invtrapezium, width=9.5, height=0.7, fillcolor="#BFD7EE",
-          label="IIR Priority Encode\nuart_16550_intr - highest enabled source wins"];
+          label="IIR Priority Encode\nuart_16550_intr - highest enabled source wins", style="filled", fillcolor="#FFF2CC"];
 
-    enc [label="IIR Encode + IRQ Gate (combinational)\nint_not_pending, int_id, IIR[3] = timeout\nirq = pending & MCR.OUT2"];
+    enc [label="IIR Encode + IRQ Gate (combinational)\nint_not_pending, int_id, IIR[3] = timeout\nirq = pending & MCR.OUT2", style="filled", fillcolor="white"];
 
-    bar [label="Outputs\nIIR fields (to the register block)   |   irq (module pin)", fillcolor="white", width=9.5];
+    bar [label="Outputs\nIIR fields (to the register block)   |   irq (module pin)", fillcolor="white", width=9.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     port -> g_ls [xlabel="OE, PE, FE, BI"];
     port -> g_rx [xlabel="RX count, timeout"];

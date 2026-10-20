@@ -7,15 +7,15 @@ digraph uart_interfaces {
            nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
            label="apb4_uart_16550 - the five external interfaces", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    apb [label="APB4 Completer Port  s_apb_*\nconfiguration and data access\n(12-bit address, 32-bit data)", fillcolor="white"];
-    clk [label="Clocks / Resets\npclk, presetn (APB side)\nuart_clk, uart_rstn\n(core; CDC_ENABLE=1 only)", fillcolor="white"];
-    top [label="APB UART 16550\napb4_uart_16550\nregister block + uart_16550_core\n(TX, RX, baud, modem, interrupt)", width=5.0];
+    apb [label="APB4 Completer Port  s_apb_*\nconfiguration and data access\n(12-bit address, 32-bit data)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk [label="Clocks / Resets\npclk, presetn (APB side)\nuart_clk, uart_rstn\n(core; CDC_ENABLE=1 only)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    top [label="APB UART 16550\napb4_uart_16550\nregister block + uart_16550_core\n(TX, RX, baud, modem, interrupt)", width=5.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     bar [label="Module Boundary\nuart_tx out   |   irq, rxrdy_n, txrdy_n out   |   dtr_n, rts_n, out1_n, out2_n out / cts_n, dsr_n, ri_n, dcd_n in   |   uart_rx in",
-         fillcolor="white", width=10.0];
+         fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     apb -> top [dir=both, penwidth=1.8, xlabel="register read / write\n/ PREADY, PRDATA, PSLVERR"];
-    clk -> top [style=dashed, xlabel="clocks,\nresets"];
+    clk -> top [style=dashed, color="#777777", xlabel="clocks,\nresets"];
     p_tx [shape=point, width=0.01]; p_irq [shape=point, width=0.01];
     p_md [shape=point, width=0.01]; p_rx [shape=point, width=0.01];
     top -> p_tx [arrowhead=none, headclip=false];

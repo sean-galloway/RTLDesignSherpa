@@ -30,7 +30,7 @@ digraph {name} {{
            nodesep="0.45", ranksep="0.55", splines=ortho,
            label="{title}", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 '''
 
@@ -146,10 +146,48 @@ PLANES = {
     ),
 }
 
+# ---- element key v3 (vault/handbook/authoring/block-diagrams.md) ---------
+# Each node takes its class's shape and fill; return-data edges are green.
+# The key row is generated at render time (bin/render_block_diagram.py).
+V3_ATTRS = {
+    "interface": 'style="rounded,filled", fillcolor="#E2EFDA"',
+    "bar": 'style="rounded,filled,bold", fillcolor="#E2EFDA"',
+    "logic": 'style="filled", fillcolor="white"',
+    "registered": 'peripheries=2, style="filled", fillcolor="#D6E4F0"',
+    "fsm": 'peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"',
+    "storage": 'shape=cylinder, style="filled", fillcolor="#E8DFF5"',
+    "pick": 'style="filled", fillcolor="#FFF2CC"',
+    "note": 'shape=note',
+}
+
+
+def style_v3(text, classes, returns):
+    """Append class attrs to each `    nid [...]` line; colour return edges."""
+    import re
+    out = []
+    for line in text.split("\n"):
+        m = re.match(r"^\s+(\w+)\s+\[", line)
+        e = re.match(r"^\s+(\w+)\s*->\s*(\w+)\s*\[", line)
+        if e and (e.group(1), e.group(2)) in returns:
+            line = line.replace("[", '[color="#1A7A1A", ', 1)
+        elif m and not e and m.group(1) in classes and line.rstrip().endswith("];"):
+            line = line.rstrip()[:-2] + ", " + V3_ATTRS[classes[m.group(1)]] + "];"
+        out.append(line)
+    return "\n".join(out)
+
+BASE = dict(p_wd="interface", p_cmd="interface", p_rd="interface", p_cal="interface",
+            p_wl="interface", wl_sync="registered", cdc_wd="storage", cdc_cmd="storage",
+            cdc_rd="storage", cmd_path="logic", wr_ser="registered", rd_al="registered",
+            bar="bar", legend="note")
+CLASSES = {"06_mc_dfi_2p1_plane": BASE, "07_mc_dfi_3p1_plane": BASE,
+           "08_mc_dfi_4p0_plane": dict(BASE, cmd_path="registered")}
+RETURNS = {("p_rd", "cdc_rd"), ("cdc_rd", "rd_al"), ("rd_al", "bar")}
+
+
 def main():
     here = Path(__file__).resolve().parent
     for stem, p in PLANES.items():
-        text = HEAD.format(**p) + BODY.format(**p)
+        text = style_v3(HEAD.format(**p) + BODY.format(**p), CLASSES[stem], RETURNS)
         (here / f"{stem}.dot").write_text(text)
         print(f"wrote {stem}.dot")
 

@@ -10,26 +10,26 @@ digraph rtc_time_set {
            label="RTC time set - stage on pclk, commit on time_set_mode falling, load on the counter clock",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    sw  [group=C, fillcolor="white", label="Software (APB writes)\nRTC_CONFIG.time_set_mode = 1, six time-register writes,\nthen time_set_mode = 0"];
+    sw  [group=C, fillcolor="white", label="Software (APB writes)\nRTC_CONFIG.time_set_mode = 1, six time-register writes,\nthen time_set_mode = 0", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    stg [group=C, label="Staging (flop, pclk) - rtc_config_regs\nsix bytes held; reads return the staged values"];
-    src [group=C, label="Commit Source (flop, pclk) - rtc_core\ntime_set_mode 1 -> 0 is the commit; busy until the load;\nCOMMIT_TIMEOUT_CYCLES watchdog sets RTC_STATUS.commit_timeout"];
-    hs  [group=C, label="Four-Phase Handshake - cdc_4_phase_handshake\nreq up, ack up, req down, ack down; 48-bit bus held quasi-static"];
-    ld  [group=C, label="Commit Load (flop, counter clock) - rtc_core\nall six counters load on one edge, never beside a tick"];
-    pz  [group=L, style="filled,dashed", label="Divider Pause (counter clock) - rtc_core\ntime_set_mode via the 3-flop config bundle;\nbest effort: seen only if held ~3 counter clocks"];
+    stg [group=C, label="Staging (flop, pclk) - rtc_config_regs\nsix bytes held; reads return the staged values", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    src [group=C, label="Commit Source (flop, pclk) - rtc_core\ntime_set_mode 1 -> 0 is the commit; busy until the load;\nCOMMIT_TIMEOUT_CYCLES watchdog sets RTC_STATUS.commit_timeout", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hs  [group=C, label="Four-Phase Handshake - cdc_4_phase_handshake\nreq up, ack up, req down, ack down; 48-bit bus held quasi-static", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    ld  [group=C, label="Commit Load (flop, counter clock) - rtc_core\nall six counters load on one edge, never beside a tick", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pz  [group=L, style="filled,dashed", label="Divider Pause (counter clock) - rtc_core\ntime_set_mode via the 3-flop config bundle;\nbest effort: seen only if held ~3 counter clocks", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    bar [group=C, fillcolor="white", width=8.0, label="Time Counters (counter domain)\nseconds .. year now read the committed time"];
+    bar [group=C, fillcolor="white", width=8.0, label="Time Counters (counter domain)\nseconds .. year now read the committed time", style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sw  -> stg [xlabel="time writes"];
     stg -> src [xlabel="six staged bytes"];
     src -> hs  [penwidth=1.8, xlabel="commit request + 48-bit time"];
     hs  -> ld  [penwidth=1.8, xlabel="request seen (counter clock)"];
     ld  -> bar [penwidth=1.8, xlabel="load"];
-    sw  -> pz  [style=dashed, xlabel="time_set_mode = 1"];
-    pz  -> bar [style=dashed, xlabel="pause the divider"];
+    sw  -> pz  [style=dashed, color="#777777", xlabel="time_set_mode = 1"];
+    pz  -> bar [style=dashed, color="#777777", xlabel="pause the divider"];
     p1 [shape=point, width=0.01, group=R];
     p2 [shape=point, width=0.01, group=R];
     src -> p1 [dir=back, xlabel="load evidence (sync_pulse):\nbusy clears"];

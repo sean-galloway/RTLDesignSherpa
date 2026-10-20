@@ -10,13 +10,13 @@ digraph uart_register_file {
            nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
            label="uart_16550_regs - PeakRDL register block and its strobe glue (core clock)", labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
-    cpu [label="CPU Interface  (after the strict decode and DLAB remap)\nreq, req_is_wr, addr[5:0], wr_data, wr_biten   |   rd_ack, rd_data, wr_ack", fillcolor="white"];
-    rf  [label="Register Block (PeakRDL)\nuart_16550_regs\nRW: IER, FCR, LCR, MCR, SCR, DLL, DLM\nRO: RBR, IIR, LSR, MSR\nWO: THR (no storage field)"];
-    stb [label="Access Strobes (flop edge detect)\nuart_16550_config_regs\nTHR push (byte-lane qualified), RBR pop,\nLSR / MSR / IIR read events (read-clear)"];
+    cpu [label="CPU Interface  (after the strict decode and DLAB remap)\nreq, req_is_wr, addr[5:0], wr_data, wr_biten   |   rd_ack, rd_data, wr_ack", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    rf  [label="Register Block (PeakRDL)\nuart_16550_regs\nRW: IER, FCR, LCR, MCR, SCR, DLL, DLM\nRO: RBR, IIR, LSR, MSR\nWO: THR (no storage field)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    stb [label="Access Strobes (flop edge detect)\nuart_16550_config_regs\nTHR push (byte-lane qualified), RBR pop,\nLSR / MSR / IIR read events (read-clear)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     bar [label="uart_16550_core\nstrobes: tx_write + tx_data, rx_read, clr_*, iir_read\nhwif_out: divisor, LCR, FCR, MCR, IER   |   hwif_in: rx_data, LSR, MSR, IIR",
-         fillcolor="white", width=8.0];
+         fillcolor="white", width=8.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     cpu -> rf [dir=both, penwidth=1.8, xlabel="register read / write\n/ ack, read data"];
     cpu -> stb [xlabel="request (address,\nwrite data, byte enables)"];
     stb -> bar [xlabel="push / pop /\nread-clear strobes"];

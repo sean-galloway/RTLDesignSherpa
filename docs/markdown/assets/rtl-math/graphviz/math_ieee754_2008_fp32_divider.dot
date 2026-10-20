@@ -11,23 +11,23 @@ digraph math_ieee754_2008_fp32_divider {
            label="math_ieee754_2008_fp32_divider - a / b, multiplicative (Newton reciprocal), one shared multiply per clock",
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    prm  [label="Parameters (fixed at build)\lSUBNORMAL_SUPPORT: 0 = flush subnormals to zero;\l    1 = pre-scale subnormal operands into [1,2),\l    and an exact subnormal-grid quotient takes\l    one extra cycle (S_SUBN, 10 cycles total)\l", fillcolor="white"];
-    vin  [label="Start\ni_valid", fillcolor="white"];
-    opa  [label="Operands\ni_a[31:0], i_b[31:0]", fillcolor="white"];
+    prm  [label="Parameters (fixed at build)\lSUBNORMAL_SUPPORT: 0 = flush subnormals to zero;\l    1 = pre-scale subnormal operands into [1,2),\l    and an exact subnormal-grid quotient takes\l    one extra cycle (S_SUBN, 10 cycles total)\l", fillcolor="white", shape=note];
+    vin  [label="Start\ni_valid", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    opa  [label="Operands\ni_a[31:0], i_b[31:0]", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    fsm  [label="Control FSM (flop on i_clk) r_state\nS_IDLE > S_LUT > S_NR1A > S_NR1B > S_NR2A\n> S_NR2B > S_Q0 > S_REM > S_RNE > S_OUT\n(S_SUBN when SUBNORMAL_SUPPORT=1)\nspecial case: S_IDLE > S_OUT in 1 cycle"];
-    unp  [label="Unpack + Special Cases (combinational)\nNaN, 0/0, inf/inf, x/0, 0/x, x/inf short-circuit;\nsign, exponents, significands (r_a24, r_b24)"];
-    lut  [label="Reciprocal Seed LUT (S_LUT)\nindex b[22:16] (7 bits), 12-bit bucket centers\n|r0 x b - 1| <= 2^-7.96"];
-    itr  [label="Iteration Registers (flop on i_clk)\nr_r0 > r_r1 > r_r2: reciprocal, two Newton steps\n(e = 2 - b x r, via r_t1 / r_t2)\nr_q0: quotient   r_rem: exact residual"];
-    osel [label="Multiplier Operand Select (combinational)\none operand pair per state, hidden bit per operand"];
-    mul  [label="Shared Mantissa Multiply\nmath_ieee754_2008_fp32_mantissa_mult - u_mant_mult\n24 x 24 -> 48-bit, one product per clock"];
-    rne  [label="Exact Residual Rounding (S_RNE, combinational)\nthe sign of the remainder decides the last ulp (RNE);\nexponent = ea - eb + bias, overflow / underflow"];
-    oreg [label="Output Registers (flop on i_clk)\nr_result, r_overflow, r_underflow, r_invalid\nr_owv: one-cycle valid"];
+    fsm  [label="Control FSM (flop on i_clk) r_state\nS_IDLE > S_LUT > S_NR1A > S_NR1B > S_NR2A\n> S_NR2B > S_Q0 > S_REM > S_RNE > S_OUT\n(S_SUBN when SUBNORMAL_SUPPORT=1)\nspecial case: S_IDLE > S_OUT in 1 cycle", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    unp  [label="Unpack + Special Cases (combinational)\nNaN, 0/0, inf/inf, x/0, 0/x, x/inf short-circuit;\nsign, exponents, significands (r_a24, r_b24)", style="filled", fillcolor="white"];
+    lut  [label="Reciprocal Seed LUT (S_LUT)\nindex b[22:16] (7 bits), 12-bit bucket centers\n|r0 x b - 1| <= 2^-7.96", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    itr  [label="Iteration Registers (flop on i_clk)\nr_r0 > r_r1 > r_r2: reciprocal, two Newton steps\n(e = 2 - b x r, via r_t1 / r_t2)\nr_q0: quotient   r_rem: exact residual", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    osel [label="Multiplier Operand Select (combinational)\none operand pair per state, hidden bit per operand", style="filled", fillcolor="white"];
+    mul  [label="Shared Mantissa Multiply\nmath_ieee754_2008_fp32_mantissa_mult - u_mant_mult\n24 x 24 -> 48-bit, one product per clock", style="filled", fillcolor="white"];
+    rne  [label="Exact Residual Rounding (S_RNE, combinational)\nthe sign of the remainder decides the last ulp (RNE);\nexponent = ea - eb + bias, overflow / underflow", style="filled", fillcolor="white"];
+    oreg [label="Output Registers (flop on i_clk)\nr_result, r_overflow, r_underflow, r_invalid\nr_owv: one-cycle valid", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     outs [label="Outputs (registered)\now_result[31:0]   |   ow_overflow, ow_underflow, ow_invalid   |   ow_valid",
-          fillcolor="white", width=7.5];
+          fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     vin  -> fsm  [xlabel="accept"];
     opa  -> unp  [xlabel="i_a, i_b"];
@@ -38,8 +38,8 @@ digraph math_ieee754_2008_fp32_divider {
     osel -> mul  [xlabel="operand pair"];
     itr  -> rne  [xlabel="q0, residual"];
     rne  -> oreg [xlabel="rounded result, flags"];
-    unp  -> oreg [style=dashed, xlabel="special-case result"];
-    fsm  -> osel [style=dashed, xlabel="state selects the pair"];
+    unp  -> oreg [style=dashed, color="#777777", xlabel="special-case result"];
+    fsm  -> osel [style=dashed, color="#777777", xlabel="state selects the pair"];
     oreg -> outs [penwidth=1.8, xlabel="result, flags, valid"];
 
     // product back up the right edge into the iteration registers

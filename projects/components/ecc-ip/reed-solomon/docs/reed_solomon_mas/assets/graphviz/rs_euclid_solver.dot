@@ -12,20 +12,20 @@ digraph rs_euclid_solver {
            nodesep="0.40", ranksep="0.55", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="key_equation_solver_euclid - modified Euclid, cross-multiplied and top-aligned (on aclk)";
 
-    in    [label="Solver Input\ni_start (load and run)\ni_synd: S_0 .. S_2t-1", fillcolor="white", group=C];
-    er    [label="Erasure Count\ni_erasure_count f\n(ERASURE_SUPPORT=1 only)", fillcolor="white", style="filled,dashed", group=L];
+    in    [label="Solver Input\ni_start (load and run)\ni_synd: S_0 .. S_2t-1", fillcolor="white", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    er    [label="Erasure Count\ni_erasure_count f\n(ERASURE_SUPPORT=1 only)", fillcolor="white", style="filled,dashed", group=L, style="rounded,filled,dashed", fillcolor="#E2EFDA"];
 
-    rule  [label="Cycle Rule (combinational) + Degrees (flops)\nr_deg_r, r_deg_q; stop when degR < t + ceil(f/2)\nR[2t] == 0: normalise R  |  Q[2t] == 0: normalise Q\nelse cross; swap when degR < degQ", group=L];
-    nxt   [label="Next-State (combinational)\ncross: Rn = (Q[2t] R ^ R[2t] Q) x,  Ln = (Q[2t] lam~ ^ R[2t] mu~) x\n4 gf_mul arrays (u_br, u_aq, u_bl, u_am)\nnormalise: shift the pair up one;  i_start: load x^2t and S(x)", group=C];
-    regs  [label="Register Arrays (flops)\nR, Q: 2t+1 symbols  |  lam~, mu~: 2t+3 symbols\nall top-aligned (leading coefficient at index 2t)", group=C];
-    rd    [label="Readout (combinational)\nLambda_j = lam~[j + 2t - degR],  Omega_j = R[j + 2t - degR]\ndegree, deg_err (Lambda_t+1 .. 2t nonzero)", group=C];
+    rule  [label="Cycle Rule (combinational) + Degrees (flops)\nr_deg_r, r_deg_q; stop when degR < t + ceil(f/2)\nR[2t] == 0: normalise R  |  Q[2t] == 0: normalise Q\nelse cross; swap when degR < degQ", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    nxt   [label="Next-State (combinational)\ncross: Rn = (Q[2t] R ^ R[2t] Q) x,  Ln = (Q[2t] lam~ ^ R[2t] mu~) x\n4 gf_mul arrays (u_br, u_aq, u_bl, u_am)\nnormalise: shift the pair up one;  i_start: load x^2t and S(x)", group=C, style="filled", fillcolor="white"];
+    regs  [label="Register Arrays (flops)\nR, Q: 2t+1 symbols  |  lam~, mu~: 2t+3 symbols\nall top-aligned (leading coefficient at index 2t)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rd    [label="Readout (combinational)\nLambda_j = lam~[j + 2t - degR],  Omega_j = R[j + 2t - degR]\ndegree, deg_err (Lambda_t+1 .. 2t nonzero)", group=C, style="filled", fillcolor="white"];
 
     bar   [label="Outputs\no_lambda (2t+1)   |   o_omega (t, the textbook S*Lambda mod x^2t)   |   o_deg, o_deg_err   |   o_done, o_busy",
-           fillcolor="white", width=9.5];
+           fillcolor="white", width=9.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     in    -> nxt   [minlen=2, xlabel="syndromes"];
     nxt   -> regs  [xlabel="next R, Q, lam~, mu~"];
@@ -38,9 +38,9 @@ digraph rs_euclid_solver {
     p_f1  -> p_f2 [dir=none, tailclip=false, headclip=false, xlabel="current arrays"];
     p_f1  -> nxt  [tailclip=false];
 
-    er    -> rule  [style=dashed, xlabel="f"];
-    regs  -> rule  [style=dashed, constraint=false, xlabel="R[2t], Q[2t]"];
-    rule  -> nxt   [style=dashed, xlabel="normalise /\ncross / swap"];
+    er    -> rule  [style=dashed, color="#777777", xlabel="f"];
+    regs  -> rule  [style=dashed, color="#777777", constraint=false, xlabel="R[2t], Q[2t]"];
+    rule  -> nxt   [style=dashed, color="#777777", xlabel="normalise /\ncross / swap"];
     rule  -> bar   [xlabel="o_done (degR < stop),\ndegR for the readout"];
 
     { rank=same; in; er; }

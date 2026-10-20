@@ -10,26 +10,26 @@ digraph axi4_to_axil4_wr {
            nodesep="0.50", ranksep="1.1", splines=ortho, newrank=true,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
     label="axi4_to_axil4_wr - AXI4 write bursts as single AXI4-Lite writes (on aclk, equal data widths)";
 
-    s   [label="AXI4 Slave Port (s_axi_*)\nAW (id, addr, len, size, burst)   |   W   |   B", fillcolor="white", width=10.0];
+    s   [label="AXI4 Slave Port (s_axi_*)\nAW (id, addr, len, size, burst)   |   W   |   B", fillcolor="white", width=10.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
-    wg  [label="W Gate\n(combinational)\nwdata / wstrb\npass straight;\nheld for the\nAW-capture cycle", group=W];
-    dec [label="Burst Decomposer\n(WR_IDLE / WR_BURST / WR_LAST_BEAT)\nr_aw_*: beat 0 passes s_axi_awaddr;\nlater beats step by 1 << size\n(INCR / FIXED), wrap in window (WRAP);\nr_aw_sent: one AW per W;\none burst outstanding", group=A];
-    agg [label="B Aggregator (flops)\nr_b_id, r_b_len,\nr_b_beat_count;\nearlier Bs absorbed\n(bready high);\nlast: one B with\nthe worst RESP", group=B];
+    wg  [label="W Gate\n(combinational)\nwdata / wstrb\npass straight;\nheld for the\nAW-capture cycle", group=W, style="filled", fillcolor="white"];
+    dec [label="Burst Decomposer\n(WR_IDLE / WR_BURST / WR_LAST_BEAT)\nr_aw_*: beat 0 passes s_axi_awaddr;\nlater beats step by 1 << size\n(INCR / FIXED), wrap in window (WRAP);\nr_aw_sent: one AW per W;\none burst outstanding", group=A, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    agg [label="B Aggregator (flops)\nr_b_id, r_b_len,\nr_b_beat_count;\nearlier Bs absorbed\n(bready high);\nlast: one B with\nthe worst RESP", group=B, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
-    m   [label="AXI4-Lite Master Port (m_axil_*)\nAW (addr, prot)   |   W   |   B", fillcolor="white", width=10.0];
+    m   [label="AXI4-Lite Master Port (m_axil_*)\nAW (addr, prot)   |   W   |   B", fillcolor="white", width=10.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     s   -> wg  [xlabel="W: data, strb"];
     wg  -> m   [xlabel="W: one beat\nper single write"];
     s   -> dec [xlabel="AW: one burst"];
     dec -> m   [xlabel="AW: AWLEN+1\nsingle writes", penwidth=1.8];
-    s   -> agg [dir=back, xlabel="B: bid, worst bresp\n(buser = 0)"];
-    agg -> m   [dir=back, xlabel="B: one per\nsingle write"];
-    dec -> agg [style=dashed, xlabel="id, len"];
-    dec -> wg  [style=dashed, xlabel="AW capture"];
+    s   -> agg [color="#1A7A1A", dir=back, xlabel="B: bid, worst bresp\n(buser = 0)"];
+    agg -> m   [color="#1A7A1A", dir=back, xlabel="B: one per\nsingle write"];
+    dec -> agg [style=dashed, color="#777777", xlabel="id, len"];
+    dec -> wg  [style=dashed, color="#777777", xlabel="AW capture"];
 
     sp  [label="", width=0.6, style=invis];
     sp2 [label="", width=0.6, style=invis];

@@ -7,28 +7,28 @@ digraph response_routing {
            nodesep="0.45", ranksep="0.60", splines=ortho, labelloc=t,
            label="Response routing for one master - arbitrated twice: among the slaves on each width path (crossbar),\nthen among the master's width paths (adapter); a slave competes only when its bridge_id names this master"];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
-           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+           fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    port [label="Master Responses\nB / R out, ID = the master's own id", fillcolor="white"];
-    skid [label="B / R Skid Buffers - <master>_adapter\naxi4_slave_wr / axi4_slave_rd"];
-    msel [label="Path Arbiter - <master>_adapter\nb_pgnt / r_pgnt: round robin across the width paths; held while offered\nand not taken, re-arbitrated every beat; only the granted path's ready is raised;\nlow id bits returned as BID / RID; R also grants the local DECERR queue"];
-    p0 [label="Response Arbiter, Width Path A - <bridge>_xbar\nround robin among path A's slaves whose\nbid_ / rid_bridge_id == this master; grant held\nuntil taken, re-arbitrated every beat;\none slave: no arbiter"];
-    pn [label="Response Arbiter, Width Path B - <bridge>_xbar\nsame, for the slaves of width B"];
+    port [label="Master Responses\nB / R out, ID = the master's own id", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    skid [label="B / R Skid Buffers - <master>_adapter\naxi4_slave_wr / axi4_slave_rd", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    msel [label="Path Arbiter - <master>_adapter\nb_pgnt / r_pgnt: round robin across the width paths; held while offered\nand not taken, re-arbitrated every beat; only the granted path's ready is raised;\nlow id bits returned as BID / RID; R also grants the local DECERR queue", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    p0 [label="Response Arbiter, Width Path A - <bridge>_xbar\nround robin among path A's slaves whose\nbid_ / rid_bridge_id == this master; grant held\nuntil taken, re-arbitrated every beat;\none slave: no arbiter", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pn [label="Response Arbiter, Width Path B - <bridge>_xbar\nsame, for the slaves of width B", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     { rank=same; p0; pn; }
     p0 -> pn [style=invis];
-    t0 [label="Response Trackers - each path A slave's adapter\nBID / RID top bits (by ID)\nor bridge_id FIFO head"];
-    tn [label="Response Trackers - each path B slave's adapter\nBID / RID top bits (by ID)\nor bridge_id FIFO head"];
+    t0 [label="Response Trackers - each path A slave's adapter\nBID / RID top bits (by ID)\nor bridge_id FIFO head", style="filled", fillcolor="white"];
+    tn [label="Response Trackers - each path B slave's adapter\nBID / RID top bits (by ID)\nor bridge_id FIFO head", style="filled", fillcolor="white"];
     { rank=same; t0; tn; }
     t0 -> tn [style=invis];
-    bar [label="Slave Ports - B (one per write) and R beats (RLAST on the last) from each slave, ID = {BRIDGE_ID, id}", fillcolor="white", width=9];
+    bar [label="Slave Ports - B (one per write) and R beats (RLAST on the last) from each slave, ID = {BRIDGE_ID, id}", fillcolor="white", width=9, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
-    port -> skid [dir=back, xlabel="B / R"];
-    skid -> msel [dir=back, xlabel="B / R of the granted path", penwidth=1.8];
-    msel -> p0 [dir=back, xlabel="B / R, path A"];
-    msel -> pn [dir=back, xlabel="B / R, path B"];
-    p0 -> t0 [dir=back, xlabel="B / R + bid / rid_bridge_id"];
-    pn -> tn [dir=back, xlabel="B / R + bid / rid_bridge_id"];
-    t0 -> bar [dir=back, xlabel="B / R + ID"];
-    tn -> bar [dir=back, xlabel="B / R + ID"];
+    port -> skid [color="#1A7A1A", dir=back, xlabel="B / R"];
+    skid -> msel [color="#1A7A1A", dir=back, xlabel="B / R of the granted path", penwidth=1.8];
+    msel -> p0 [color="#1A7A1A", dir=back, xlabel="B / R, path A"];
+    msel -> pn [color="#1A7A1A", dir=back, xlabel="B / R, path B"];
+    p0 -> t0 [color="#1A7A1A", dir=back, xlabel="B / R + bid / rid_bridge_id"];
+    pn -> tn [color="#1A7A1A", dir=back, xlabel="B / R + bid / rid_bridge_id"];
+    t0 -> bar [color="#1A7A1A", dir=back, xlabel="B / R + ID"];
+    tn -> bar [color="#1A7A1A", dir=back, xlabel="B / R + ID"];
 }
