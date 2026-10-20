@@ -1,0 +1,109 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: 2026 sean galloway
+//
+// ALU harness CSR -- PeakRDL source. The regblock IS generated from this file
+// (passthrough cpuif behind apb4_to_peakrdl); regenerate with `make regmap` in
+// the area (never hand-edit rtl/generated/ or the regmap).
+//
+// Every action field is singlepulse and the harness takes its RISING EDGE:
+// apb4_to_peakrdl presents each access twice (converters BUG-010), so a
+// singlepulse is two cycles. Data writes are idempotent for the same reason.
+
+addrmap alu_harness_regs {
+    name = "ALU harness CSR";
+    desc = "Command RAM -> ALU slot (valid/ready issue seam) -> result RAM, at full clock rate";
+
+    default regwidth    = 32;
+    default accesswidth = 32;
+    default alignment   = 4;
+
+    reg { desc = "Bitstream identifier, ASCII ALUH";
+        field { sw = r; hw = w; } value[31:0] = 0x414C5548;
+    } BUILD_ID @ 0x000;
+
+    reg { desc = "Read-write scratch for link sanity";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } SCRATCH @ 0x004;
+
+    reg { desc = "What the ALU slot BUILT (parameters of the device under test)";
+        field { sw = r; hw = w; desc = "slot kind: 1 = alu-infer"; } kind[3:0] = 0;
+        field { sw = r; hw = w; desc = "EN_* bits: 0 INT8, 1 FP32, 2 FP8, 3 REDUCE, 4 PWL, 5 ACT, 6 CVT"; } en[10:4] = 0;
+        field { sw = r; hw = w; desc = "ADDER_LATENCY"; } add_lat[14:12] = 0;
+        field { sw = r; hw = w; desc = "MUL_LATENCY"; } mul_lat[18:16] = 0;
+        field { sw = r; hw = w; desc = "MAC_LATENCY"; } mac_lat[22:20] = 0;
+        field { sw = r; hw = w; desc = "PIPE_DEPTH"; } pipe_depth[28:24] = 0;
+    } SLOT_INFO @ 0x008;
+
+    reg { desc = "Harness geometry";
+        field { sw = r; hw = w; desc = "command / result RAM entries"; } depth[15:0] = 0;
+        field { sw = r; hw = w; desc = "harness clock, MHz"; } clk_mhz[31:16] = 0;
+    } GEOMETRY @ 0x00C;
+
+    reg { desc = "Control (actions are rising-edge; see the file header)";
+        field { sw = w; hw = r; singlepulse; desc = "run commands 0..COUNT-1 from the command RAM"; } start[0:0] = 0;
+        field { sw = w; hw = r; singlepulse; desc = "abort a run and clear the counters"; } clear[1:1] = 0;
+        field { sw = rw; hw = r; desc = "consumer: 0 always ready, 1 random ready (LFSR), 2 stall until the ALU's FIFO is full, then drain"; } stall_mode[5:4] = 0;
+    } CTRL @ 0x010;
+
+    reg { desc = "Commands per run (1..DEPTH)";
+        // not `count`: RegisterMap treats a register key named count as an array marker
+        field { sw = rw; hw = r; } n[15:0] = 1;
+    } RUN_COUNT @ 0x014;
+
+    reg { desc = "Command RAM index the CMD_* writes and the RES_* reads address";
+        field { sw = rw; hw = r; } index[15:0] = 0;
+    } CMD_INDEX @ 0x020;
+
+    reg { desc = "Command operand line A";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } CMD_A @ 0x024;
+
+    reg { desc = "Command operand line B";
+        field { sw = rw; hw = r; } value[31:0] = 0;
+    } CMD_B @ 0x028;
+
+    reg { desc = "Command control; WRITING this register commits {A, B, CTL} to command RAM[CMD_INDEX]";
+        field { sw = rw; hw = r; swmod; desc = "threshold_imm"; } imm[15:0] = 0;
+        field { sw = rw; hw = r; desc = "func_sel {fmt, sub_op, opcode}"; } func_sel[24:16] = 0;
+        field { sw = rw; hw = r; desc = "acc_ctrl"; } acc_ctrl[26:25] = 0;
+    } CMD_CTL @ 0x02C;
+
+    reg { desc = "Result line of entry CMD_INDEX (last run)";
+        field { sw = r; hw = w; } value[31:0] = 0;
+    } RES_LINE @ 0x030;
+
+    reg { desc = "Result flags of entry CMD_INDEX";
+        field { sw = r; hw = w; } value[31:0] = 0;
+    } RES_FLAGS @ 0x034;
+
+    reg { desc = "Timing of entry CMD_INDEX, cycles after start";
+        field { sw = r; hw = w; desc = "issue edge"; } issue[15:0] = 0;
+        field { sw = r; hw = w; desc = "retire edge"; } retire[31:16] = 0;
+    } RES_TIME @ 0x038;
+
+    reg { desc = "Status of entry CMD_INDEX";
+        field { sw = r; hw = w; desc = "err_opcode pulsed at this entry's issue"; } err[0:0] = 0;
+    } RES_STATUS @ 0x03C;
+
+    reg { desc = "Run status";
+        field { sw = r; hw = w; } busy[0:0] = 0;
+        field { sw = r; hw = w; desc = "the last run retired every command"; } done[1:1] = 0;
+        field { sw = r; hw = w; desc = "commands issued this run"; } issued[31:16] = 0;
+    } STATUS @ 0x040;
+
+    reg { desc = "Commands retired this run";
+        field { sw = r; hw = w; } value[31:0] = 0;
+    } RETIRED @ 0x044;
+
+    reg { desc = "Cycles from start to the last retire";
+        field { sw = r; hw = w; } value[31:0] = 0;
+    } CYCLES @ 0x048;
+
+    reg { desc = "Cycles with valid high and ready low (issue backpressure)";
+        field { sw = r; hw = w; } value[31:0] = 0;
+    } STALL_CYCLES @ 0x04C;
+
+    reg { desc = "err_opcode pulses this run";
+        field { sw = r; hw = w; } value[31:0] = 0;
+    } ERR_COUNT @ 0x050;
+};
