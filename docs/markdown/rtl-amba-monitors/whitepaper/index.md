@@ -35,18 +35,18 @@ the PDF in sequence, which is why orientation lives in `overview.md` beside
 this file rather than here.
 
 0. [The Ocelus as a Design Surface](00_front_matter.md)
-1. [The spine](01_the_spine.md)
-2. [Which monitor: the lite, unless you can say why not](02_which_monitor.md)
-3. [Identity space allocation](03_identity_space_allocation.md)
-4. [Where to insert monitoring](04_where_to_insert_monitoring.md)
-5. [Timestamp policy](05_timestamp_policy.md)
-6. [Drain path selection](06_drain_path_selection.md)
-7. [Packet-type filtering](07_packet_type_filtering.md)
-8. [Aggregation topology](08_aggregation_topology.md)
-9. [What it costs](09_what_it_costs.md)
-10. [Validating a tweak in simulation](10_validating_a_tweak_in_simulation.md)
-11. [Out of scope](11_out_of_scope.md)
-12. [Relationship to Nexus (IEEE-ISTO 5001)](12_relationship_to_nexus.md)
+1. [The spine](02_the_spine.md)
+2. [Which monitor: the lite, unless you can say why not](03_which_monitor.md)
+3. [Identity space allocation](04_identity_space_allocation.md)
+4. [Where to insert monitoring](05_where_to_insert_monitoring.md)
+5. [Timestamp policy](06_timestamp_policy.md)
+6. [Drain path selection](07_drain_path_selection.md)
+7. [Packet-type filtering](08_packet_type_filtering.md)
+8. [Aggregation topology](09_aggregation_topology.md)
+9. [What it costs](10_what_it_costs.md)
+10. [Validating a tweak in simulation](11_validating_a_tweak_in_simulation.md)
+11. [Out of scope](12_out_of_scope.md)
+12. [Relationship to Nexus (IEEE-ISTO 5001)](13_relationship_to_nexus.md)
 
 Figures are `../../assets/rtl-amba-monitors/graphviz/monitor_wp_*.png`, rendered
 from the graphviz sources beside them (`regenerate_all_graphviz.sh` in that
