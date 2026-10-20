@@ -1,214 +1,3 @@
-module apb_monitor_addr_check (
-	clk,
-	aresetn,
-	i_mon_time,
-	cmd_paddr,
-	cmd_pwrite,
-	cmd_valid,
-	cmd_ready,
-	cfg_addr_check_enable,
-	cfg_addr_range_enable,
-	cfg_addr_range_low,
-	cfg_addr_range_high,
-	addr_pkt_valid,
-	addr_pkt_ready,
-	addr_pkt_data,
-	addr_pkt_timestamp
-);
-	reg _sv2v_0;
-	parameter signed [31:0] N_ADDR_RANGES = 4;
-	parameter signed [31:0] ADDR_WIDTH = 32;
-	parameter [7:0] UNIT_ID = 8'h00;
-	parameter [15:0] AGENT_ID = 16'h0000;
-	parameter [3:0] PROTOCOL = 4'h2;
-	parameter signed [31:0] M = ADDR_WIDTH;
-	input wire clk;
-	input wire aresetn;
-	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
-	input wire [63:0] i_mon_time;
-	input wire [M - 1:0] cmd_paddr;
-	input wire cmd_pwrite;
-	input wire cmd_valid;
-	input wire cmd_ready;
-	input wire cfg_addr_check_enable;
-	input wire [N_ADDR_RANGES - 1:0] cfg_addr_range_enable;
-	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_low;
-	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
-	output wire addr_pkt_valid;
-	input wire addr_pkt_ready;
-	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
-	output wire [127:0] addr_pkt_data;
-	output wire [63:0] addr_pkt_timestamp;
-	wire cmd_fire;
-	reg [N_ADDR_RANGES - 1:0] hit_oh;
-	assign cmd_fire = (cmd_valid && cmd_ready) && cfg_addr_check_enable;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] i;
-			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				hit_oh[i] = ((cfg_addr_range_enable[i] && cmd_fire) && (cmd_paddr >= cfg_addr_range_low[i * M+:M])) && (cmd_paddr <= cfg_addr_range_high[i * M+:M]);
-		end
-	end
-	reg [N_ADDR_RANGES - 1:0] r_pending;
-	reg [(N_ADDR_RANGES * M) - 1:0] r_lat_addr;
-	reg [N_ADDR_RANGES - 1:0] r_lat_is_read;
-	wire [N_ADDR_RANGES - 1:0] emit_oh;
-	wire emit_any;
-	reg [3:0] emit_idx;
-	assign emit_any = |r_pending;
-	reg [N_ADDR_RANGES - 1:0] w_emit_pick;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_emit_pick = 1'sb0;
-		begin : sv2v_autoblock_2
-			reg signed [31:0] i;
-			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (r_pending[i] && (w_emit_pick == {N_ADDR_RANGES {1'sb0}}))
-					w_emit_pick[i] = 1'b1;
-		end
-	end
-	reg [N_ADDR_RANGES - 1:0] r_emit_hold;
-	reg r_emit_held;
-	assign emit_oh = (r_emit_held ? r_emit_hold : w_emit_pick);
-	function automatic signed [3:0] sv2v_cast_4_signed;
-		input reg signed [3:0] inp;
-		sv2v_cast_4_signed = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		emit_idx = 4'h0;
-		begin : sv2v_autoblock_3
-			reg signed [31:0] i;
-			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (emit_oh[i])
-					emit_idx = sv2v_cast_4_signed(i);
-		end
-	end
-	reg [N_ADDR_RANGES - 1:0] r_shadow_valid;
-	reg [(N_ADDR_RANGES * M) - 1:0] r_shadow_addr;
-	reg [N_ADDR_RANGES - 1:0] r_shadow_is_read;
-	assign addr_pkt_valid = emit_any && cfg_addr_check_enable;
-	wire accept;
-	assign accept = addr_pkt_valid && addr_pkt_ready;
-	reg [N_ADDR_RANGES - 1:0] w_presented;
-	reg [N_ADDR_RANGES - 1:0] w_range_accept;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		begin : sv2v_autoblock_4
-			reg signed [31:0] i;
-			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				begin
-					w_presented[i] = addr_pkt_valid && emit_oh[i];
-					w_range_accept[i] = accept && emit_oh[i];
-				end
-		end
-	end
-	always @(posedge clk or negedge aresetn)
-		if (!aresetn) begin
-			r_pending <= 1'sb0;
-			r_lat_addr <= 1'sb0;
-			r_lat_is_read <= 1'sb0;
-			r_shadow_valid <= 1'sb0;
-			r_shadow_addr <= 1'sb0;
-			r_shadow_is_read <= 1'sb0;
-			r_emit_hold <= 1'sb0;
-			r_emit_held <= 1'b0;
-		end
-		else begin
-			if (accept)
-				r_emit_held <= 1'b0;
-			else if (addr_pkt_valid && !addr_pkt_ready) begin
-				r_emit_held <= 1'b1;
-				r_emit_hold <= emit_oh;
-			end
-			begin : sv2v_autoblock_5
-				reg signed [31:0] i;
-				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (w_range_accept[i]) begin
-						if (hit_oh[i]) begin
-							r_lat_addr[i * M+:M] <= cmd_paddr;
-							r_lat_is_read[i] <= !cmd_pwrite;
-						end
-						else if (r_shadow_valid[i]) begin
-							r_lat_addr[i * M+:M] <= r_shadow_addr[i * M+:M];
-							r_lat_is_read[i] <= r_shadow_is_read[i];
-						end
-					end
-					else if (hit_oh[i] && !w_presented[i]) begin
-						r_lat_addr[i * M+:M] <= cmd_paddr;
-						r_lat_is_read[i] <= !cmd_pwrite;
-					end
-			end
-			begin : sv2v_autoblock_6
-				reg signed [31:0] i;
-				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (w_range_accept[i])
-						r_shadow_valid[i] <= 1'b0;
-					else if (hit_oh[i] && w_presented[i]) begin
-						r_shadow_valid[i] <= 1'b1;
-						r_shadow_addr[i * M+:M] <= cmd_paddr;
-						r_shadow_is_read[i] <= !cmd_pwrite;
-					end
-			end
-			begin : sv2v_autoblock_7
-				reg signed [31:0] i;
-				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-					if (hit_oh[i])
-						r_pending[i] <= 1'b1;
-					else if (w_range_accept[i] && !r_shadow_valid[i])
-						r_pending[i] <= 1'b0;
-			end
-		end
-	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
-	localparam [3:0] PKT_TYPE_FIELD = ocelus_common_pkg_PktTypeError;
-	localparam [3:0] PROTOCOL_FIELD = PROTOCOL;
-	localparam [7:0] EVENT_CODE = 8'h08;
-	reg [M - 1:0] emit_addr;
-	reg emit_is_read;
-	wire [63:0] event_data_field;
-	wire [58:0] addr_payload;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		emit_addr = 1'sb0;
-		emit_is_read = 1'b0;
-		begin : sv2v_autoblock_8
-			reg signed [31:0] i;
-			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
-				if (emit_oh[i]) begin
-					emit_addr = r_lat_addr[i * M+:M];
-					emit_is_read = r_lat_is_read[i];
-				end
-		end
-	end
-	generate
-		if (M >= 59) begin : g_addr_wide
-			assign addr_payload = emit_addr[58:0];
-		end
-		else begin : g_addr_narrow
-			assign addr_payload = {{59 - M {1'b0}}, emit_addr};
-		end
-	endgenerate
-	assign event_data_field = {emit_idx[3:0], emit_is_read, addr_payload};
-	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
-		input reg [3:0] packet_type;
-		input reg [3:0] protocol;
-		input reg [7:0] event_code;
-		input reg [8:0] channel_id;
-		input reg [7:0] unit_id;
-		input reg [15:0] agent_id;
-		input reg [63:0] event_data;
-		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
-	endfunction
-	assign addr_pkt_data = ocelus_common_pkg_create_monitor_packet(PKT_TYPE_FIELD, PROTOCOL_FIELD, EVENT_CODE, 9'h000, UNIT_ID, AGENT_ID, event_data_field);
-	assign addr_pkt_timestamp = i_mon_time;
-	initial _sv2v_0 = 0;
-endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -248,6 +37,198 @@ module counter_bin (
 		else
 			counter_bin_curr <= counter_bin_next;
 	initial _sv2v_0 = 0;
+endmodule
+module counter_load_clear (
+	clk,
+	rst_n,
+	clear,
+	increment,
+	load,
+	loadval,
+	count,
+	done
+);
+	parameter signed [31:0] MAX = 32'd32;
+	input wire clk;
+	input wire rst_n;
+	input wire clear;
+	input wire increment;
+	input wire load;
+	input wire [$clog2(MAX) - 1:0] loadval;
+	output reg [$clog2(MAX) - 1:0] count;
+	output wire done;
+	reg [$clog2(MAX) - 1:0] r_match_val;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			count <= 'b0;
+			r_match_val <= 'b0;
+		end
+		else begin
+			if (load)
+				r_match_val <= loadval;
+			if (clear)
+				count <= 'b0;
+			else if (increment)
+				count <= (count == r_match_val ? 'b0 : count + 'b1);
+		end
+	assign done = count == r_match_val;
+endmodule
+module counter_freq_invariant (
+	clk,
+	rst_n,
+	sync_reset_n,
+	freq_sel,
+	o_counter,
+	tick
+);
+	parameter signed [31:0] COUNTER_WIDTH = 16;
+	parameter signed [31:0] MIN_FREQ_MHZ = 5;
+	parameter signed [31:0] MAX_FREQ_MHZ = 220;
+	parameter signed [31:0] NUM_FREQ_ENTRIES = 16;
+	parameter signed [31:0] FREQ_STRATEGY = 0;
+	parameter [0:0] DEBUG_LUT = 1'b0;
+	parameter signed [31:0] SEL_WIDTH = (NUM_FREQ_ENTRIES > 1 ? $clog2(NUM_FREQ_ENTRIES) : 1);
+	parameter signed [31:0] DIV_WIDTH = $clog2(MAX_FREQ_MHZ + 1);
+	parameter signed [31:0] PRESCALER_MAX = 2 ** DIV_WIDTH;
+	input wire clk;
+	input wire rst_n;
+	input wire sync_reset_n;
+	input wire [SEL_WIDTH - 1:0] freq_sel;
+	output reg [COUNTER_WIDTH - 1:0] o_counter;
+	output reg tick;
+	initial begin : param_check
+		if (MIN_FREQ_MHZ < 1)
+			$display("Error [%0t] .flat_build/prep/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
+		if (MAX_FREQ_MHZ < MIN_FREQ_MHZ)
+			$display("Error [%0t] .flat_build/prep/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
+		if (NUM_FREQ_ENTRIES < 1)
+			$display("Error [%0t] .flat_build/prep/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
+	end
+	function automatic signed [31:0] linear_freq;
+		input reg signed [31:0] idx;
+		input reg signed [31:0] n;
+		input reg signed [31:0] lo;
+		input reg signed [31:0] hi;
+		reg [0:1] _sv2v_jump;
+		begin
+			_sv2v_jump = 2'b00;
+			if (n <= 1) begin
+				linear_freq = lo;
+				_sv2v_jump = 2'b11;
+			end
+			if (_sv2v_jump == 2'b00) begin
+				linear_freq = lo + (((hi - lo) * idx) / (n - 1));
+				_sv2v_jump = 2'b11;
+			end
+		end
+	endfunction
+	function automatic signed [31:0] pow2_freq;
+		input reg signed [31:0] idx;
+		input reg signed [31:0] n;
+		input reg signed [31:0] lo;
+		input reg signed [31:0] hi;
+		reg signed [31:0] v;
+		reg [0:1] _sv2v_jump;
+		begin
+			_sv2v_jump = 2'b00;
+			v = lo;
+			begin : sv2v_autoblock_1
+				reg signed [31:0] k;
+				begin : sv2v_autoblock_2
+					reg signed [31:0] _sv2v_value_on_break;
+					for (k = 0; k < idx; k = k + 1)
+						if (_sv2v_jump < 2'b10) begin
+							_sv2v_jump = 2'b00;
+							if (v >= hi) begin
+								pow2_freq = hi;
+								_sv2v_jump = 2'b11;
+							end
+							if (_sv2v_jump == 2'b00)
+								v = v * 2;
+							_sv2v_value_on_break = k;
+						end
+					if (!(_sv2v_jump < 2'b10))
+						k = _sv2v_value_on_break;
+					if (_sv2v_jump != 2'b11)
+						_sv2v_jump = 2'b00;
+				end
+			end
+			if (_sv2v_jump == 2'b00) begin
+				if (v > hi)
+					v = hi;
+				pow2_freq = v;
+				_sv2v_jump = 2'b11;
+			end
+		end
+	endfunction
+	function automatic signed [31:0] freq_mhz_at_idx;
+		input reg signed [31:0] idx;
+		case (FREQ_STRATEGY)
+			1: freq_mhz_at_idx = pow2_freq(idx, NUM_FREQ_ENTRIES, MIN_FREQ_MHZ, MAX_FREQ_MHZ);
+			default: freq_mhz_at_idx = linear_freq(idx, NUM_FREQ_ENTRIES, MIN_FREQ_MHZ, MAX_FREQ_MHZ);
+		endcase
+	endfunction
+	wire [DIV_WIDTH - 1:0] w_div_table [0:NUM_FREQ_ENTRIES - 1];
+	genvar _gv_gi_1;
+	function automatic signed [DIV_WIDTH - 1:0] sv2v_cast_DC41E_signed;
+		input reg signed [DIV_WIDTH - 1:0] inp;
+		sv2v_cast_DC41E_signed = inp;
+	endfunction
+	generate
+		for (_gv_gi_1 = 0; _gv_gi_1 < NUM_FREQ_ENTRIES; _gv_gi_1 = _gv_gi_1 + 1) begin : gen_div_entry
+			localparam gi = _gv_gi_1;
+			assign w_div_table[gi] = sv2v_cast_DC41E_signed(freq_mhz_at_idx(gi));
+		end
+	endgenerate
+	wire [DIV_WIDTH - 1:0] w_division_factor;
+	assign w_division_factor = w_div_table[freq_sel];
+	reg [SEL_WIDTH - 1:0] r_prev_freq_sel;
+	reg r_clear_pulse;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			r_prev_freq_sel <= 1'sb0;
+			r_clear_pulse <= 1'b1;
+		end
+		else begin
+			r_prev_freq_sel <= freq_sel;
+			r_clear_pulse <= (freq_sel != r_prev_freq_sel) || !sync_reset_n;
+		end
+	wire w_prescaler_done;
+	counter_load_clear #(.MAX(PRESCALER_MAX)) prescaler_counter(
+		.clk(clk),
+		.rst_n(rst_n),
+		.clear(r_clear_pulse),
+		.increment(1'b1),
+		.load(1'b1),
+		.loadval(w_division_factor - sv2v_cast_DC41E_signed(1)),
+		.done(w_prescaler_done),
+		.count()
+	);
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			o_counter <= 1'sb0;
+			tick <= 1'b0;
+		end
+		else if (r_clear_pulse) begin
+			o_counter <= 1'sb0;
+			tick <= 1'b0;
+		end
+		else if (w_prescaler_done && sync_reset_n) begin
+			o_counter <= o_counter + 1'b1;
+			tick <= 1'b1;
+		end
+		else
+			tick <= 1'b0;
+	initial begin : debug_print
+		if (DEBUG_LUT) begin
+			$display("counter_freq_invariant LUT (strategy=%0d, %0d entries, %0d-%0d MHz, DIV_WIDTH=%0d):", FREQ_STRATEGY, NUM_FREQ_ENTRIES, MIN_FREQ_MHZ, MAX_FREQ_MHZ, DIV_WIDTH);
+			begin : sv2v_autoblock_3
+				reg signed [31:0] i;
+				for (i = 0; i < NUM_FREQ_ENTRIES; i = i + 1)
+					$display("  freq_sel[%2d] = %4d MHz  (%0d cycles/us)", i, freq_mhz_at_idx(i), freq_mhz_at_idx(i));
+			end
+		end
+	end
 endmodule
 module fifo_control (
 	wr_clk,
@@ -530,7 +511,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/formal_apb4_monitor/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] .flat_build/prep/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -558,9 +539,9 @@ module gaxi_skid_buffer (
 			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
 		end
 		else begin : g_skid
-			genvar _gv_gi_1;
-			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-				localparam gi = _gv_gi_1;
+			genvar _gv_gi_2;
+			for (_gv_gi_2 = 0; _gv_gi_2 < DEPTH; _gv_gi_2 = _gv_gi_2 + 1) begin : g_slot
+				localparam gi = _gv_gi_2;
 				always @(posedge axi_aclk or negedge axi_aresetn)
 					if (!axi_aresetn)
 						r_data[gi] <= 1'sb0;
@@ -611,6 +592,217 @@ module gaxi_skid_buffer (
 			assign count = r_data_count;
 		end
 	endgenerate
+endmodule
+module apb_monitor_addr_check (
+	clk,
+	aresetn,
+	i_mon_time,
+	cmd_paddr,
+	cmd_pwrite,
+	cmd_valid,
+	cmd_ready,
+	cfg_addr_check_enable,
+	cfg_addr_range_enable,
+	cfg_addr_range_low,
+	cfg_addr_range_high,
+	addr_pkt_valid,
+	addr_pkt_ready,
+	addr_pkt_data,
+	addr_pkt_timestamp
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N_ADDR_RANGES = 4;
+	parameter signed [31:0] ADDR_WIDTH = 32;
+	parameter [7:0] UNIT_ID = 8'h00;
+	parameter [15:0] AGENT_ID = 16'h0000;
+	parameter [3:0] PROTOCOL = 4'h2;
+	parameter signed [31:0] M = ADDR_WIDTH;
+	input wire clk;
+	input wire aresetn;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
+	input wire [63:0] i_mon_time;
+	input wire [M - 1:0] cmd_paddr;
+	input wire cmd_pwrite;
+	input wire cmd_valid;
+	input wire cmd_ready;
+	input wire cfg_addr_check_enable;
+	input wire [N_ADDR_RANGES - 1:0] cfg_addr_range_enable;
+	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_low;
+	input wire [(N_ADDR_RANGES * M) - 1:0] cfg_addr_range_high;
+	output wire addr_pkt_valid;
+	input wire addr_pkt_ready;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
+	output wire [127:0] addr_pkt_data;
+	output wire [63:0] addr_pkt_timestamp;
+	wire cmd_fire;
+	reg [N_ADDR_RANGES - 1:0] hit_oh;
+	assign cmd_fire = (cmd_valid && cmd_ready) && cfg_addr_check_enable;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				hit_oh[i] = ((cfg_addr_range_enable[i] && cmd_fire) && (cmd_paddr >= cfg_addr_range_low[i * M+:M])) && (cmd_paddr <= cfg_addr_range_high[i * M+:M]);
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_pending;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_lat_addr;
+	reg [N_ADDR_RANGES - 1:0] r_lat_is_read;
+	wire [N_ADDR_RANGES - 1:0] emit_oh;
+	wire emit_any;
+	reg [3:0] emit_idx;
+	assign emit_any = |r_pending;
+	reg [N_ADDR_RANGES - 1:0] w_emit_pick;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_emit_pick = 1'sb0;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (r_pending[i] && (w_emit_pick == {N_ADDR_RANGES {1'sb0}}))
+					w_emit_pick[i] = 1'b1;
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_emit_hold;
+	reg r_emit_held;
+	assign emit_oh = (r_emit_held ? r_emit_hold : w_emit_pick);
+	function automatic signed [3:0] sv2v_cast_4_signed;
+		input reg signed [3:0] inp;
+		sv2v_cast_4_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		emit_idx = 4'h0;
+		begin : sv2v_autoblock_3
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (emit_oh[i])
+					emit_idx = sv2v_cast_4_signed(i);
+		end
+	end
+	reg [N_ADDR_RANGES - 1:0] r_shadow_valid;
+	reg [(N_ADDR_RANGES * M) - 1:0] r_shadow_addr;
+	reg [N_ADDR_RANGES - 1:0] r_shadow_is_read;
+	assign addr_pkt_valid = emit_any && cfg_addr_check_enable;
+	wire accept;
+	assign accept = addr_pkt_valid && addr_pkt_ready;
+	reg [N_ADDR_RANGES - 1:0] w_presented;
+	reg [N_ADDR_RANGES - 1:0] w_range_accept;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_4
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				begin
+					w_presented[i] = addr_pkt_valid && emit_oh[i];
+					w_range_accept[i] = accept && emit_oh[i];
+				end
+		end
+	end
+	always @(posedge clk or negedge aresetn)
+		if (!aresetn) begin
+			r_pending <= 1'sb0;
+			r_lat_addr <= 1'sb0;
+			r_lat_is_read <= 1'sb0;
+			r_shadow_valid <= 1'sb0;
+			r_shadow_addr <= 1'sb0;
+			r_shadow_is_read <= 1'sb0;
+			r_emit_hold <= 1'sb0;
+			r_emit_held <= 1'b0;
+		end
+		else begin
+			if (accept)
+				r_emit_held <= 1'b0;
+			else if (addr_pkt_valid && !addr_pkt_ready) begin
+				r_emit_held <= 1'b1;
+				r_emit_hold <= emit_oh;
+			end
+			begin : sv2v_autoblock_5
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (w_range_accept[i]) begin
+						if (hit_oh[i]) begin
+							r_lat_addr[i * M+:M] <= cmd_paddr;
+							r_lat_is_read[i] <= !cmd_pwrite;
+						end
+						else if (r_shadow_valid[i]) begin
+							r_lat_addr[i * M+:M] <= r_shadow_addr[i * M+:M];
+							r_lat_is_read[i] <= r_shadow_is_read[i];
+						end
+					end
+					else if (hit_oh[i] && !w_presented[i]) begin
+						r_lat_addr[i * M+:M] <= cmd_paddr;
+						r_lat_is_read[i] <= !cmd_pwrite;
+					end
+			end
+			begin : sv2v_autoblock_6
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (w_range_accept[i])
+						r_shadow_valid[i] <= 1'b0;
+					else if (hit_oh[i] && w_presented[i]) begin
+						r_shadow_valid[i] <= 1'b1;
+						r_shadow_addr[i * M+:M] <= cmd_paddr;
+						r_shadow_is_read[i] <= !cmd_pwrite;
+					end
+			end
+			begin : sv2v_autoblock_7
+				reg signed [31:0] i;
+				for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+					if (hit_oh[i])
+						r_pending[i] <= 1'b1;
+					else if (w_range_accept[i] && !r_shadow_valid[i])
+						r_pending[i] <= 1'b0;
+			end
+		end
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	localparam [3:0] PKT_TYPE_FIELD = ocelus_common_pkg_PktTypeError;
+	localparam [3:0] PROTOCOL_FIELD = PROTOCOL;
+	localparam [7:0] EVENT_CODE = 8'h08;
+	reg [M - 1:0] emit_addr;
+	reg emit_is_read;
+	wire [63:0] event_data_field;
+	wire [58:0] addr_payload;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		emit_addr = 1'sb0;
+		emit_is_read = 1'b0;
+		begin : sv2v_autoblock_8
+			reg signed [31:0] i;
+			for (i = 0; i < N_ADDR_RANGES; i = i + 1)
+				if (emit_oh[i]) begin
+					emit_addr = r_lat_addr[i * M+:M];
+					emit_is_read = r_lat_is_read[i];
+				end
+		end
+	end
+	generate
+		if (M >= 59) begin : g_addr_wide
+			assign addr_payload = emit_addr[58:0];
+		end
+		else begin : g_addr_narrow
+			assign addr_payload = {{59 - M {1'b0}}, emit_addr};
+		end
+	endgenerate
+	assign event_data_field = {emit_idx[3:0], emit_is_read, addr_payload};
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
+		input reg [3:0] packet_type;
+		input reg [3:0] protocol;
+		input reg [7:0] event_code;
+		input reg [8:0] channel_id;
+		input reg [7:0] unit_id;
+		input reg [15:0] agent_id;
+		input reg [63:0] event_data;
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+	endfunction
+	assign addr_pkt_data = ocelus_common_pkg_create_monitor_packet(PKT_TYPE_FIELD, PROTOCOL_FIELD, EVENT_CODE, 9'h000, UNIT_ID, AGENT_ID, event_data_field);
+	assign addr_pkt_timestamp = i_mon_time;
+	initial _sv2v_0 = 0;
 endmodule
 module apb4_monitor (
 	aclk,

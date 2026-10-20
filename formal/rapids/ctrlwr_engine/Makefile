@@ -3,29 +3,20 @@
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog.
 # Modelled on descriptor_engine_beats: the engine imports the monitor packages
 # through rapids_imports.svh, so the same package list and ocelus_pkg stub apply.
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes
-
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba5_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
-        $(CURDIR)/monitor_pkg_stub.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
-
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
-
-DUT := $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/fub/ctrlwr_engine.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := ctrlwr_engine_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/rapids/rtl/filelists/fub/ctrlwr_engine.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 prove: ctrlwr_engine_flat.v
 	sby -f ctrlwr_engine.sby prove
 cover: ctrlwr_engine_flat.v
 	sby -f ctrlwr_engine.sby cover
-ctrlwr_engine_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 clean:
 	rm -rf *_flat.v *_prove *_cover

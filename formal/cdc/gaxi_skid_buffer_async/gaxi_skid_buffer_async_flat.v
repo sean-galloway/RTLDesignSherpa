@@ -1,119 +1,3 @@
-module gaxi_skid_buffer (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	count,
-	rd_valid,
-	rd_ready,
-	rd_count,
-	rd_data
-);
-	parameter signed [31:0] DATA_WIDTH = 32;
-	parameter signed [31:0] DEPTH = 2;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output reg wr_ready;
-	input wire [DW - 1:0] wr_data;
-	output wire [3:0] count;
-	output reg rd_valid;
-	input wire rd_ready;
-	output wire [3:0] rd_count;
-	output wire [DW - 1:0] rd_data;
-	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
-	reg [DW - 1:0] r_data [0:SLOTS - 1];
-	reg [3:0] r_data_count;
-	wire w_wr_xfer;
-	wire w_rd_xfer;
-	assign w_wr_xfer = wr_valid & wr_ready;
-	assign w_rd_xfer = rd_valid & rd_ready;
-	generate
-		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/formal_gaxi_skid_buffer_async/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
-		end
-	endgenerate
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	generate
-		if (DEPTH == 0) begin : g_bypass
-			wire [1:1] sv2v_tmp_B1958;
-			assign sv2v_tmp_B1958 = rd_ready;
-			always @(*) wr_ready = sv2v_tmp_B1958;
-			wire [1:1] sv2v_tmp_00E98;
-			assign sv2v_tmp_00E98 = wr_valid;
-			always @(*) rd_valid = sv2v_tmp_00E98;
-			assign rd_data = wr_data;
-			wire [4:1] sv2v_tmp_953DA;
-			assign sv2v_tmp_953DA = 1'sb0;
-			always @(*) r_data_count = sv2v_tmp_953DA;
-			wire [DW:1] sv2v_tmp_D35D5;
-			assign sv2v_tmp_D35D5 = 1'sb0;
-			always @(*) r_data[0] = sv2v_tmp_D35D5;
-			assign rd_count = 1'sb0;
-			assign count = 1'sb0;
-			wire w_bypass_unused;
-			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
-		end
-		else begin : g_skid
-			genvar _gv_gi_1;
-			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-				localparam gi = _gv_gi_1;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_data[gi] <= 1'sb0;
-					else
-						(* full_case, parallel_case *)
-						case ({w_wr_xfer, w_rd_xfer})
-							2'b10:
-								if (r_data_count == gi[3:0])
-									r_data[gi] <= wr_data;
-							2'b01:
-								if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							2'b11:
-								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-									r_data[gi] <= wr_data;
-								else if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							default:
-								;
-						endcase
-			end
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data_count <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10: r_data_count <= r_data_count + 4'd1;
-						2'b01: r_data_count <= r_data_count - 4'd1;
-						default:
-							;
-					endcase
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn) begin
-					wr_ready <= 1'b0;
-					rd_valid <= 1'b0;
-				end
-				else begin
-					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
-				end
-			assign rd_data = r_data[0];
-			assign rd_count = r_data_count;
-			assign count = r_data_count;
-		end
-	endgenerate
-endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -154,53 +38,6 @@ module counter_bin (
 			counter_bin_curr <= counter_bin_next;
 	initial _sv2v_0 = 0;
 endmodule
-module counter_johnson (
-	clk,
-	rst_n,
-	enable,
-	counter_gray
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_gray;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			counter_gray <= {WIDTH {1'b0}};
-		else if (enable)
-			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
-endmodule
-module counter_bingray (
-	clk,
-	rst_n,
-	enable,
-	counter_bin,
-	counter_bin_next,
-	counter_gray
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_bin;
-	output wire [WIDTH - 1:0] counter_bin_next;
-	output reg [WIDTH - 1:0] counter_gray;
-	wire [WIDTH - 1:0] w_counter_bin;
-	wire [WIDTH - 1:0] w_counter_gray;
-	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
-	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
-	assign counter_bin_next = w_counter_bin;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			counter_bin <= 'b0;
-			counter_gray <= 'b0;
-		end
-		else begin
-			counter_bin <= w_counter_bin;
-			counter_gray <= w_counter_gray;
-		end
-endmodule
 module glitch_free_n_dff_arn (
 	clk,
 	rst_n,
@@ -239,32 +76,6 @@ module glitch_free_n_dff_arn (
 		end
 	endgenerate
 endmodule
-module find_last_set (
-	data,
-	index
-);
-	reg _sv2v_0;
-	parameter signed [31:0] WIDTH = 32;
-	input wire [WIDTH - 1:0] data;
-	output reg [$clog2(WIDTH) - 1:0] index;
-	localparam signed [31:0] N = $clog2(WIDTH);
-	reg w_found;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		index = {N {1'b0}};
-		w_found = 1'b0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] i;
-			for (i = WIDTH - 1; i >= 0; i = i - 1)
-				if (data[i] && !w_found) begin
-					index = i[N - 1:0];
-					w_found = 1'b1;
-				end
-		end
-	end
-	initial _sv2v_0 = 0;
-endmodule
 module find_first_set (
 	data,
 	index
@@ -283,6 +94,32 @@ module find_first_set (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] i;
 			for (i = 0; i < WIDTH; i = i + 1)
+				if (data[i] && !w_found) begin
+					index = i[N - 1:0];
+					w_found = 1'b1;
+				end
+		end
+	end
+	initial _sv2v_0 = 0;
+endmodule
+module find_last_set (
+	data,
+	index
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data;
+	output reg [$clog2(WIDTH) - 1:0] index;
+	localparam signed [31:0] N = $clog2(WIDTH);
+	reg w_found;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		index = {N {1'b0}};
+		w_found = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = WIDTH - 1; i >= 0; i = i - 1)
 				if (data[i] && !w_found) begin
 					index = i[N - 1:0];
 					w_found = 1'b1;
@@ -340,66 +177,6 @@ module leading_one_trailing_one (
 	assign all_zeroes = ~(|data);
 	assign valid = |data;
 	initial _sv2v_0 = 0;
-endmodule
-module johnson2bin (
-	clk,
-	rst_n,
-	gray,
-	binary
-);
-	reg _sv2v_0;
-	parameter signed [31:0] JCW = 10;
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire [JCW - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	localparam signed [31:0] N = $clog2(JCW);
-	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
-	wire [N - 1:0] w_leading_one;
-	wire [N - 1:0] w_trailing_one;
-	reg [WIDTH - 1:0] w_binary;
-	wire w_all_zeroes;
-	wire w_all_ones;
-	wire w_valid;
-	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
-		.data(gray),
-		.leadingone(w_leading_one),
-		.leadingone_vector(),
-		.trailingone(w_trailing_one),
-		.trailingone_vector(),
-		.all_zeroes(w_all_zeroes),
-		.all_ones(w_all_ones),
-		.valid(w_valid)
-	);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (w_all_zeroes || w_all_ones)
-			w_binary = {WIDTH {1'b0}};
-		else if (gray[JCW - 1])
-			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
-		else
-			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
-	end
-	assign binary[WIDTH - 1] = gray[JCW - 1];
-	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
-	initial _sv2v_0 = 0;
-endmodule
-module gray2bin (
-	gray,
-	binary
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire [WIDTH - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	genvar _gv_i_2;
-	generate
-		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
-			localparam i = _gv_i_2;
-			assign binary[i] = ^(gray >> i);
-		end
-	endgenerate
 endmodule
 module fifo_control (
 	wr_clk,
@@ -502,6 +279,113 @@ module fifo_control (
 			r_count <= w_count;
 		end
 endmodule
+module gray2bin (
+	gray,
+	binary
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire [WIDTH - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	genvar _gv_i_2;
+	generate
+		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
+			localparam i = _gv_i_2;
+			assign binary[i] = ^(gray >> i);
+		end
+	endgenerate
+endmodule
+module counter_bingray (
+	clk,
+	rst_n,
+	enable,
+	counter_bin,
+	counter_bin_next,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin;
+	output wire [WIDTH - 1:0] counter_bin_next;
+	output reg [WIDTH - 1:0] counter_gray;
+	wire [WIDTH - 1:0] w_counter_bin;
+	wire [WIDTH - 1:0] w_counter_gray;
+	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
+	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
+	assign counter_bin_next = w_counter_bin;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			counter_bin <= 'b0;
+			counter_gray <= 'b0;
+		end
+		else begin
+			counter_bin <= w_counter_bin;
+			counter_gray <= w_counter_gray;
+		end
+endmodule
+module counter_johnson (
+	clk,
+	rst_n,
+	enable,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_gray;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_gray <= {WIDTH {1'b0}};
+		else if (enable)
+			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
+endmodule
+module johnson2bin (
+	clk,
+	rst_n,
+	gray,
+	binary
+);
+	reg _sv2v_0;
+	parameter signed [31:0] JCW = 10;
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire [JCW - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	localparam signed [31:0] N = $clog2(JCW);
+	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
+	wire [N - 1:0] w_leading_one;
+	wire [N - 1:0] w_trailing_one;
+	reg [WIDTH - 1:0] w_binary;
+	wire w_all_zeroes;
+	wire w_all_ones;
+	wire w_valid;
+	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
+		.data(gray),
+		.leadingone(w_leading_one),
+		.leadingone_vector(),
+		.trailingone(w_trailing_one),
+		.trailingone_vector(),
+		.all_zeroes(w_all_zeroes),
+		.all_ones(w_all_ones),
+		.valid(w_valid)
+	);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_all_zeroes || w_all_ones)
+			w_binary = {WIDTH {1'b0}};
+		else if (gray[JCW - 1])
+			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
+		else
+			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
+	end
+	assign binary[WIDTH - 1] = gray[JCW - 1];
+	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
+	initial _sv2v_0 = 0;
+endmodule
 module gaxi_fifo_async (
 	axi_wr_aclk,
 	axi_wr_aresetn,
@@ -542,7 +426,7 @@ module gaxi_fifo_async (
 	localparam signed [31:0] PTRW = (USE_JOHNSON != 0 ? JCW : AW + 1);
 	generate
 		if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
-			initial $display("Error [elaboration] /tmp/formal_gaxi_skid_buffer_async/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
 		end
 	endgenerate
 	wire [PTRW - 1:0] r_wr_ptr_gray;
@@ -747,6 +631,122 @@ module gaxi_fifo_async (
 	always @(posedge axi_rd_aclk)
 		if (w_read && r_rd_empty)
 			;
+endmodule
+module gaxi_skid_buffer (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	count,
+	rd_valid,
+	rd_ready,
+	rd_count,
+	rd_data
+);
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] DEPTH = 2;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output reg wr_ready;
+	input wire [DW - 1:0] wr_data;
+	output wire [3:0] count;
+	output reg rd_valid;
+	input wire rd_ready;
+	output wire [3:0] rd_count;
+	output wire [DW - 1:0] rd_data;
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
+	reg [3:0] r_data_count;
+	wire w_wr_xfer;
+	wire w_rd_xfer;
+	assign w_wr_xfer = wr_valid & wr_ready;
+	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+		end
+	endgenerate
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
+		end
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
+		end
+	endgenerate
 endmodule
 module gaxi_skid_buffer_async (
 	axi_wr_aclk,

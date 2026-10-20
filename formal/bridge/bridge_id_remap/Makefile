@@ -3,13 +3,15 @@
 #
 # bridge_id_remap: per-master transaction-ID remap table in a master adapter.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS :=
-DEPS :=
-DUT := $(REPO_ROOT)/projects/components/fabric-gen-ip/bridge/rtl/bridge_id_remap.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := bridge_id_remap_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove bmc cover all clean
 
@@ -24,9 +26,6 @@ bmc: bridge_id_remap_flat.v
 
 cover: bridge_id_remap_flat.v
 	sby -f bridge_id_remap.sby cover
-
-bridge_id_remap_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_bmc *_cover

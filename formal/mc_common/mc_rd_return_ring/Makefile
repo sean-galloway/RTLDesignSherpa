@@ -3,19 +3,15 @@
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog.
 # See ../bank_timer/Makefile for why the flatten is mandatory here.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
-MC        := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(MC)/rtl/includes
-
-# Dependency order follows rtl/filelists/fub/pumice_rd_return_ring.f, which is
-# the authority on what this block needs -- not a hand-kept list here.
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-DUT  := $(MC)/rtl/fub/mc_rd_return_ring.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := ring_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_rd_return_ring.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove data cover all clean
 
@@ -34,9 +30,6 @@ data: ring_flat.v
 
 cover: ring_flat.v
 	sby -f rd_return_ring.sby cover
-
-ring_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v ring_flat.v rd_return_ring_prove rd_return_ring_data rd_return_ring_cover

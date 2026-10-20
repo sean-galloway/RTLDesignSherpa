@@ -82,6 +82,46 @@ module reset_sync (
 	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
+module counter_bin (
+	clk,
+	rst_n,
+	enable,
+	counter_bin_curr,
+	counter_bin_next
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 5;
+	parameter signed [31:0] MAX = 10;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin_curr;
+	output reg [WIDTH - 1:0] counter_bin_next;
+	wire [WIDTH - 2:0] w_max_val;
+	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
+		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
+		sv2v_cast_00F62_signed = inp;
+	endfunction
+	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (enable) begin
+			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
+				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
+			else
+				counter_bin_next = counter_bin_curr + 1;
+		end
+		else
+			counter_bin_next = counter_bin_curr;
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_bin_curr <= 'b0;
+		else
+			counter_bin_curr <= counter_bin_next;
+	initial _sv2v_0 = 0;
+endmodule
 module gaxi_skid_buffer (
 	axi_aclk,
 	axi_aresetn,

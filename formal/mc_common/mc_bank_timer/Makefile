@@ -6,13 +6,15 @@
 # pumice_pkg.sv (a multi-line `return` in a package function, pumice_pkg.sv:131),
 # so reading the .sv directly fails before any proof runs.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      ?= sv2v
-MC        := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(MC)/rtl/includes
-PKGS := $(MC)/rtl/includes/mc_common_pkg.sv
-DUT  := $(MC)/rtl/fub/mc_bank_timer.sv
+SV2V      ?= sv2v
+
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := bank_timer_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_bank_timer.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -23,9 +25,6 @@ prove: bank_timer_flat.v
 
 cover: bank_timer_flat.v
 	sby -f bank_timer.sby cover
-
-bank_timer_flat.v: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

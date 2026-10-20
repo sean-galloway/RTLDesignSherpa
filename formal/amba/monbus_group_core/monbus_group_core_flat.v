@@ -1,3 +1,178 @@
+module monbus_cam (
+	clk,
+	rst_n,
+	access_key,
+	access_hit,
+	access_idx,
+	access_old_data,
+	access_old_ts,
+	access_action,
+	access_new_data,
+	access_new_ts,
+	cam_full,
+	cam_count,
+	evicted,
+	evict_key,
+	evict_data,
+	dump_idx,
+	dump_valid,
+	dump_key,
+	dump_data,
+	soft_clear
+);
+	reg _sv2v_0;
+	parameter signed [31:0] KEY_WIDTH = 49;
+	parameter signed [31:0] DATA_WIDTH = 64;
+	parameter signed [31:0] TS_WIDTH = 24;
+	parameter signed [31:0] DEPTH = 32;
+	parameter signed [31:0] IDX_WIDTH = (DEPTH > 1 ? $clog2(DEPTH) : 1);
+	parameter signed [31:0] CNT_WIDTH = $clog2(DEPTH + 1);
+	input wire clk;
+	input wire rst_n;
+	input wire [KEY_WIDTH - 1:0] access_key;
+	output reg access_hit;
+	output reg [IDX_WIDTH - 1:0] access_idx;
+	output reg [DATA_WIDTH - 1:0] access_old_data;
+	output reg [TS_WIDTH - 1:0] access_old_ts;
+	input wire [1:0] access_action;
+	input wire [DATA_WIDTH - 1:0] access_new_data;
+	input wire [TS_WIDTH - 1:0] access_new_ts;
+	output wire cam_full;
+	output wire [CNT_WIDTH - 1:0] cam_count;
+	output wire evicted;
+	output wire [KEY_WIDTH - 1:0] evict_key;
+	output wire [DATA_WIDTH - 1:0] evict_data;
+	input wire [IDX_WIDTH - 1:0] dump_idx;
+	output wire dump_valid;
+	output wire [KEY_WIDTH - 1:0] dump_key;
+	output wire [DATA_WIDTH - 1:0] dump_data;
+	input wire soft_clear;
+	localparam [1:0] ACTION_NONE = 2'b00;
+	localparam [1:0] ACTION_TOUCH = 2'b01;
+	localparam [1:0] ACTION_INSTALL = 2'b10;
+	reg r_valid [0:DEPTH - 1];
+	reg [KEY_WIDTH - 1:0] r_key [0:DEPTH - 1];
+	reg [DATA_WIDTH - 1:0] r_data [0:DEPTH - 1];
+	reg [TS_WIDTH - 1:0] r_ts [0:DEPTH - 1];
+	reg [CNT_WIDTH - 1:0] r_count;
+	reg [DEPTH - 1:0] w_match_oh;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < DEPTH; i = i + 1)
+				w_match_oh[i] = r_valid[i] && (r_key[i] == access_key);
+		end
+	end
+	function automatic signed [IDX_WIDTH - 1:0] sv2v_cast_34E60_signed;
+		input reg signed [IDX_WIDTH - 1:0] inp;
+		sv2v_cast_34E60_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		access_hit = 1'b0;
+		access_idx = 1'sb0;
+		access_old_data = 1'sb0;
+		access_old_ts = 1'sb0;
+		begin : sv2v_autoblock_2
+			reg signed [31:0] i;
+			for (i = DEPTH - 1; i >= 0; i = i - 1)
+				if (w_match_oh[i]) begin
+					access_hit = 1'b1;
+					access_idx = sv2v_cast_34E60_signed(i);
+					access_old_data = r_data[i];
+					access_old_ts = r_ts[i];
+				end
+		end
+	end
+	assign cam_count = r_count;
+	function automatic signed [CNT_WIDTH - 1:0] sv2v_cast_1924C_signed;
+		input reg signed [CNT_WIDTH - 1:0] inp;
+		sv2v_cast_1924C_signed = inp;
+	endfunction
+	assign cam_full = r_count == sv2v_cast_1924C_signed(DEPTH);
+	assign evicted = (access_action == ACTION_INSTALL) && cam_full;
+	assign evict_key = r_key[DEPTH - 1];
+	assign evict_data = r_data[DEPTH - 1];
+	assign dump_valid = r_valid[dump_idx];
+	assign dump_key = r_key[dump_idx];
+	assign dump_data = r_data[dump_idx];
+	reg [CNT_WIDTH - 1:0] shift_to;
+	reg do_shift;
+	reg [KEY_WIDTH - 1:0] new_key;
+	reg [DATA_WIDTH - 1:0] new_data;
+	reg [TS_WIDTH - 1:0] new_ts;
+	function automatic [CNT_WIDTH - 1:0] sv2v_cast_1924C;
+		input reg [CNT_WIDTH - 1:0] inp;
+		sv2v_cast_1924C = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		do_shift = 1'b0;
+		shift_to = 1'sb0;
+		new_key = access_key;
+		new_data = access_new_data;
+		new_ts = access_new_ts;
+		(* full_case, parallel_case *)
+		case (access_action)
+			ACTION_TOUCH:
+				if (access_hit) begin
+					do_shift = 1'b1;
+					shift_to = sv2v_cast_1924C(access_idx);
+				end
+			ACTION_INSTALL: begin
+				do_shift = 1'b1;
+				shift_to = (cam_full ? sv2v_cast_1924C_signed(DEPTH - 1) : r_count);
+			end
+			default:
+				;
+		endcase
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			begin : sv2v_autoblock_3
+				reg signed [31:0] i;
+				for (i = 0; i < DEPTH; i = i + 1)
+					begin
+						r_valid[i] <= 1'b0;
+						r_key[i] <= 1'sb0;
+						r_data[i] <= 1'sb0;
+						r_ts[i] <= 1'sb0;
+					end
+			end
+			r_count <= 1'sb0;
+		end
+		else if (soft_clear) begin
+			begin : sv2v_autoblock_4
+				reg signed [31:0] i;
+				for (i = 0; i < DEPTH; i = i + 1)
+					r_valid[i] <= 1'b0;
+			end
+			r_count <= 1'sb0;
+		end
+		else if (do_shift) begin
+			r_valid[0] <= 1'b1;
+			r_key[0] <= new_key;
+			r_data[0] <= new_data;
+			r_ts[0] <= new_ts;
+			begin : sv2v_autoblock_5
+				reg signed [31:0] i;
+				for (i = 1; i < DEPTH; i = i + 1)
+					if (sv2v_cast_1924C_signed(i) <= shift_to) begin
+						r_valid[i] <= r_valid[i - 1];
+						r_key[i] <= r_key[i - 1];
+						r_data[i] <= r_data[i - 1];
+						r_ts[i] <= r_ts[i - 1];
+					end
+			end
+			if ((access_action == ACTION_INSTALL) && !cam_full)
+				r_count <= r_count + 1'b1;
+		end
+	initial _sv2v_0 = 0;
+endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -319,7 +494,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -400,299 +575,6 @@ module gaxi_skid_buffer (
 			assign count = r_data_count;
 		end
 	endgenerate
-endmodule
-module math_adder_carry_save_nbit (
-	i_a,
-	i_b,
-	i_c,
-	ow_sum,
-	ow_carry
-);
-	parameter signed [31:0] N = 4;
-	input wire [N - 1:0] i_a;
-	input wire [N - 1:0] i_b;
-	input wire [N - 1:0] i_c;
-	output wire [N - 1:0] ow_sum;
-	output wire [N - 1:0] ow_carry;
-	genvar _gv_i_1;
-	generate
-		for (_gv_i_1 = 0; _gv_i_1 < N; _gv_i_1 = _gv_i_1 + 1) begin : gen_carry_save
-			localparam i = _gv_i_1;
-			assign ow_sum[i] = (i_a[i] ^ i_b[i]) ^ i_c[i];
-			assign ow_carry[i] = ((i_a[i] & i_b[i]) | (i_a[i] & i_c[i])) | (i_b[i] & i_c[i]);
-		end
-	endgenerate
-endmodule
-module math_mod_3_compress (
-	d_in,
-	rem_out
-);
-	input wire [15:0] d_in;
-	output wire [1:0] rem_out;
-	localparam signed [31:0] BITS = 6;
-	wire [5:0] w_g0;
-	wire [5:0] w_g1;
-	wire [5:0] w_g2;
-	wire [5:0] w_g3;
-	wire [5:0] w_g4;
-	wire [5:0] w_g5;
-	wire [5:0] w_g6;
-	wire [5:0] w_g7;
-	assign w_g0 = {{4 {1'b0}}, d_in[1:0]};
-	assign w_g1 = {{4 {1'b0}}, d_in[3:2]};
-	assign w_g2 = {{4 {1'b0}}, d_in[5:4]};
-	assign w_g3 = {{4 {1'b0}}, d_in[7:6]};
-	assign w_g4 = {{4 {1'b0}}, d_in[9:8]};
-	assign w_g5 = {{4 {1'b0}}, d_in[11:10]};
-	assign w_g6 = {{4 {1'b0}}, d_in[13:12]};
-	assign w_g7 = {{4 {1'b0}}, d_in[15:14]};
-	wire [5:0] w_sumA1;
-	wire [5:0] w_carryA1;
-	wire [5:0] w_sumB1;
-	wire [5:0] w_carryB1;
-	wire [5:0] w_sumC1;
-	wire [5:0] w_carryC1;
-	wire [5:0] w_sumD2;
-	wire [5:0] w_carryD2;
-	wire [5:0] w_sumE2;
-	wire [5:0] w_carryE2;
-	wire [5:0] w_sumF3;
-	wire [5:0] w_carryF3;
-	wire [5:0] w_sumG4;
-	wire [5:0] w_carryG4;
-	wire [5:0] w_grp_sum;
-	math_adder_carry_save_nbit #(.N(BITS)) comp1(
-		.i_a(w_g0),
-		.i_b(w_g1),
-		.i_c(w_g2),
-		.ow_sum(w_sumA1),
-		.ow_carry(w_carryA1)
-	);
-	math_adder_carry_save_nbit #(.N(BITS)) comp2(
-		.i_a(w_g3),
-		.i_b(w_g4),
-		.i_c(w_g5),
-		.ow_sum(w_sumB1),
-		.ow_carry(w_carryB1)
-	);
-	math_adder_carry_save_nbit #(.N(BITS)) comp3(
-		.i_a(w_g6),
-		.i_b(w_g7),
-		.i_c({BITS {1'b0}}),
-		.ow_sum(w_sumC1),
-		.ow_carry(w_carryC1)
-	);
-	math_adder_carry_save_nbit #(.N(BITS)) comp4(
-		.i_a(w_sumA1),
-		.i_b({w_carryA1[4:0], 1'b0}),
-		.i_c(w_sumB1),
-		.ow_sum(w_sumD2),
-		.ow_carry(w_carryD2)
-	);
-	math_adder_carry_save_nbit #(.N(BITS)) comp5(
-		.i_a({w_carryB1[4:0], 1'b0}),
-		.i_b(w_sumC1),
-		.i_c({w_carryC1[4:0], 1'b0}),
-		.ow_sum(w_sumE2),
-		.ow_carry(w_carryE2)
-	);
-	math_adder_carry_save_nbit #(.N(BITS)) comp6(
-		.i_a(w_sumD2),
-		.i_b({w_carryD2[4:0], 1'b0}),
-		.i_c(w_sumE2),
-		.ow_sum(w_sumF3),
-		.ow_carry(w_carryF3)
-	);
-	math_adder_carry_save_nbit #(.N(BITS)) comp7(
-		.i_a(w_sumF3),
-		.i_b({w_carryF3[4:0], 1'b0}),
-		.i_c({w_carryE2[4:0], 1'b0}),
-		.ow_sum(w_sumG4),
-		.ow_carry(w_carryG4)
-	);
-	assign w_grp_sum = w_sumG4 + {w_carryG4[4:0], 1'b0};
-	wire [3:0] w_fold;
-	assign w_fold = ({2'b00, w_grp_sum[1:0]} + {2'b00, w_grp_sum[3:2]}) + {3'b000, w_grp_sum[4]};
-	function automatic [1:0] sv2v_cast_2;
-		input reg [1:0] inp;
-		sv2v_cast_2 = inp;
-	endfunction
-	assign rem_out = sv2v_cast_2((w_fold >= 4'd6 ? w_fold - 4'd6 : (w_fold >= 4'd3 ? w_fold - 4'd3 : w_fold)));
-endmodule
-module monbus_cam (
-	clk,
-	rst_n,
-	access_key,
-	access_hit,
-	access_idx,
-	access_old_data,
-	access_old_ts,
-	access_action,
-	access_new_data,
-	access_new_ts,
-	cam_full,
-	cam_count,
-	evicted,
-	evict_key,
-	evict_data,
-	dump_idx,
-	dump_valid,
-	dump_key,
-	dump_data,
-	soft_clear
-);
-	reg _sv2v_0;
-	parameter signed [31:0] KEY_WIDTH = 49;
-	parameter signed [31:0] DATA_WIDTH = 64;
-	parameter signed [31:0] TS_WIDTH = 24;
-	parameter signed [31:0] DEPTH = 32;
-	parameter signed [31:0] IDX_WIDTH = (DEPTH > 1 ? $clog2(DEPTH) : 1);
-	parameter signed [31:0] CNT_WIDTH = $clog2(DEPTH + 1);
-	input wire clk;
-	input wire rst_n;
-	input wire [KEY_WIDTH - 1:0] access_key;
-	output reg access_hit;
-	output reg [IDX_WIDTH - 1:0] access_idx;
-	output reg [DATA_WIDTH - 1:0] access_old_data;
-	output reg [TS_WIDTH - 1:0] access_old_ts;
-	input wire [1:0] access_action;
-	input wire [DATA_WIDTH - 1:0] access_new_data;
-	input wire [TS_WIDTH - 1:0] access_new_ts;
-	output wire cam_full;
-	output wire [CNT_WIDTH - 1:0] cam_count;
-	output wire evicted;
-	output wire [KEY_WIDTH - 1:0] evict_key;
-	output wire [DATA_WIDTH - 1:0] evict_data;
-	input wire [IDX_WIDTH - 1:0] dump_idx;
-	output wire dump_valid;
-	output wire [KEY_WIDTH - 1:0] dump_key;
-	output wire [DATA_WIDTH - 1:0] dump_data;
-	input wire soft_clear;
-	localparam [1:0] ACTION_NONE = 2'b00;
-	localparam [1:0] ACTION_TOUCH = 2'b01;
-	localparam [1:0] ACTION_INSTALL = 2'b10;
-	reg r_valid [0:DEPTH - 1];
-	reg [KEY_WIDTH - 1:0] r_key [0:DEPTH - 1];
-	reg [DATA_WIDTH - 1:0] r_data [0:DEPTH - 1];
-	reg [TS_WIDTH - 1:0] r_ts [0:DEPTH - 1];
-	reg [CNT_WIDTH - 1:0] r_count;
-	reg [DEPTH - 1:0] w_match_oh;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] i;
-			for (i = 0; i < DEPTH; i = i + 1)
-				w_match_oh[i] = r_valid[i] && (r_key[i] == access_key);
-		end
-	end
-	function automatic signed [IDX_WIDTH - 1:0] sv2v_cast_34E60_signed;
-		input reg signed [IDX_WIDTH - 1:0] inp;
-		sv2v_cast_34E60_signed = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		access_hit = 1'b0;
-		access_idx = 1'sb0;
-		access_old_data = 1'sb0;
-		access_old_ts = 1'sb0;
-		begin : sv2v_autoblock_2
-			reg signed [31:0] i;
-			for (i = DEPTH - 1; i >= 0; i = i - 1)
-				if (w_match_oh[i]) begin
-					access_hit = 1'b1;
-					access_idx = sv2v_cast_34E60_signed(i);
-					access_old_data = r_data[i];
-					access_old_ts = r_ts[i];
-				end
-		end
-	end
-	assign cam_count = r_count;
-	function automatic signed [CNT_WIDTH - 1:0] sv2v_cast_1924C_signed;
-		input reg signed [CNT_WIDTH - 1:0] inp;
-		sv2v_cast_1924C_signed = inp;
-	endfunction
-	assign cam_full = r_count == sv2v_cast_1924C_signed(DEPTH);
-	assign evicted = (access_action == ACTION_INSTALL) && cam_full;
-	assign evict_key = r_key[DEPTH - 1];
-	assign evict_data = r_data[DEPTH - 1];
-	assign dump_valid = r_valid[dump_idx];
-	assign dump_key = r_key[dump_idx];
-	assign dump_data = r_data[dump_idx];
-	reg [CNT_WIDTH - 1:0] shift_to;
-	reg do_shift;
-	reg [KEY_WIDTH - 1:0] new_key;
-	reg [DATA_WIDTH - 1:0] new_data;
-	reg [TS_WIDTH - 1:0] new_ts;
-	function automatic [CNT_WIDTH - 1:0] sv2v_cast_1924C;
-		input reg [CNT_WIDTH - 1:0] inp;
-		sv2v_cast_1924C = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		do_shift = 1'b0;
-		shift_to = 1'sb0;
-		new_key = access_key;
-		new_data = access_new_data;
-		new_ts = access_new_ts;
-		(* full_case, parallel_case *)
-		case (access_action)
-			ACTION_TOUCH:
-				if (access_hit) begin
-					do_shift = 1'b1;
-					shift_to = sv2v_cast_1924C(access_idx);
-				end
-			ACTION_INSTALL: begin
-				do_shift = 1'b1;
-				shift_to = (cam_full ? sv2v_cast_1924C_signed(DEPTH - 1) : r_count);
-			end
-			default:
-				;
-		endcase
-	end
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			begin : sv2v_autoblock_3
-				reg signed [31:0] i;
-				for (i = 0; i < DEPTH; i = i + 1)
-					begin
-						r_valid[i] <= 1'b0;
-						r_key[i] <= 1'sb0;
-						r_data[i] <= 1'sb0;
-						r_ts[i] <= 1'sb0;
-					end
-			end
-			r_count <= 1'sb0;
-		end
-		else if (soft_clear) begin
-			begin : sv2v_autoblock_4
-				reg signed [31:0] i;
-				for (i = 0; i < DEPTH; i = i + 1)
-					r_valid[i] <= 1'b0;
-			end
-			r_count <= 1'sb0;
-		end
-		else if (do_shift) begin
-			r_valid[0] <= 1'b1;
-			r_key[0] <= new_key;
-			r_data[0] <= new_data;
-			r_ts[0] <= new_ts;
-			begin : sv2v_autoblock_5
-				reg signed [31:0] i;
-				for (i = 1; i < DEPTH; i = i + 1)
-					if (sv2v_cast_1924C_signed(i) <= shift_to) begin
-						r_valid[i] <= r_valid[i - 1];
-						r_key[i] <= r_key[i - 1];
-						r_data[i] <= r_data[i - 1];
-						r_ts[i] <= r_ts[i - 1];
-					end
-			end
-			if ((access_action == ACTION_INSTALL) && !cam_full)
-				r_count <= r_count + 1'b1;
-		end
-	initial _sv2v_0 = 0;
 endmodule
 module monbus_cam_pipe (
 	clk,
@@ -1291,6 +1173,124 @@ module monbus_compressor (
 	assign stat_event_data_ovf = r_event_data_ovf;
 	assign stat_ed_delta_ovf = r_ed_delta_ovf;
 	initial _sv2v_0 = 0;
+endmodule
+module math_adder_carry_save_nbit (
+	i_a,
+	i_b,
+	i_c,
+	ow_sum,
+	ow_carry
+);
+	parameter signed [31:0] N = 4;
+	input wire [N - 1:0] i_a;
+	input wire [N - 1:0] i_b;
+	input wire [N - 1:0] i_c;
+	output wire [N - 1:0] ow_sum;
+	output wire [N - 1:0] ow_carry;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < N; _gv_i_1 = _gv_i_1 + 1) begin : gen_carry_save
+			localparam i = _gv_i_1;
+			assign ow_sum[i] = (i_a[i] ^ i_b[i]) ^ i_c[i];
+			assign ow_carry[i] = ((i_a[i] & i_b[i]) | (i_a[i] & i_c[i])) | (i_b[i] & i_c[i]);
+		end
+	endgenerate
+endmodule
+module math_mod_3_compress (
+	d_in,
+	rem_out
+);
+	input wire [15:0] d_in;
+	output wire [1:0] rem_out;
+	localparam signed [31:0] BITS = 6;
+	wire [5:0] w_g0;
+	wire [5:0] w_g1;
+	wire [5:0] w_g2;
+	wire [5:0] w_g3;
+	wire [5:0] w_g4;
+	wire [5:0] w_g5;
+	wire [5:0] w_g6;
+	wire [5:0] w_g7;
+	assign w_g0 = {{4 {1'b0}}, d_in[1:0]};
+	assign w_g1 = {{4 {1'b0}}, d_in[3:2]};
+	assign w_g2 = {{4 {1'b0}}, d_in[5:4]};
+	assign w_g3 = {{4 {1'b0}}, d_in[7:6]};
+	assign w_g4 = {{4 {1'b0}}, d_in[9:8]};
+	assign w_g5 = {{4 {1'b0}}, d_in[11:10]};
+	assign w_g6 = {{4 {1'b0}}, d_in[13:12]};
+	assign w_g7 = {{4 {1'b0}}, d_in[15:14]};
+	wire [5:0] w_sumA1;
+	wire [5:0] w_carryA1;
+	wire [5:0] w_sumB1;
+	wire [5:0] w_carryB1;
+	wire [5:0] w_sumC1;
+	wire [5:0] w_carryC1;
+	wire [5:0] w_sumD2;
+	wire [5:0] w_carryD2;
+	wire [5:0] w_sumE2;
+	wire [5:0] w_carryE2;
+	wire [5:0] w_sumF3;
+	wire [5:0] w_carryF3;
+	wire [5:0] w_sumG4;
+	wire [5:0] w_carryG4;
+	wire [5:0] w_grp_sum;
+	math_adder_carry_save_nbit #(.N(BITS)) comp1(
+		.i_a(w_g0),
+		.i_b(w_g1),
+		.i_c(w_g2),
+		.ow_sum(w_sumA1),
+		.ow_carry(w_carryA1)
+	);
+	math_adder_carry_save_nbit #(.N(BITS)) comp2(
+		.i_a(w_g3),
+		.i_b(w_g4),
+		.i_c(w_g5),
+		.ow_sum(w_sumB1),
+		.ow_carry(w_carryB1)
+	);
+	math_adder_carry_save_nbit #(.N(BITS)) comp3(
+		.i_a(w_g6),
+		.i_b(w_g7),
+		.i_c({BITS {1'b0}}),
+		.ow_sum(w_sumC1),
+		.ow_carry(w_carryC1)
+	);
+	math_adder_carry_save_nbit #(.N(BITS)) comp4(
+		.i_a(w_sumA1),
+		.i_b({w_carryA1[4:0], 1'b0}),
+		.i_c(w_sumB1),
+		.ow_sum(w_sumD2),
+		.ow_carry(w_carryD2)
+	);
+	math_adder_carry_save_nbit #(.N(BITS)) comp5(
+		.i_a({w_carryB1[4:0], 1'b0}),
+		.i_b(w_sumC1),
+		.i_c({w_carryC1[4:0], 1'b0}),
+		.ow_sum(w_sumE2),
+		.ow_carry(w_carryE2)
+	);
+	math_adder_carry_save_nbit #(.N(BITS)) comp6(
+		.i_a(w_sumD2),
+		.i_b({w_carryD2[4:0], 1'b0}),
+		.i_c(w_sumE2),
+		.ow_sum(w_sumF3),
+		.ow_carry(w_carryF3)
+	);
+	math_adder_carry_save_nbit #(.N(BITS)) comp7(
+		.i_a(w_sumF3),
+		.i_b({w_carryF3[4:0], 1'b0}),
+		.i_c({w_carryE2[4:0], 1'b0}),
+		.ow_sum(w_sumG4),
+		.ow_carry(w_carryG4)
+	);
+	assign w_grp_sum = w_sumG4 + {w_carryG4[4:0], 1'b0};
+	wire [3:0] w_fold;
+	assign w_fold = ({2'b00, w_grp_sum[1:0]} + {2'b00, w_grp_sum[3:2]}) + {3'b000, w_grp_sum[4]};
+	function automatic [1:0] sv2v_cast_2;
+		input reg [1:0] inp;
+		sv2v_cast_2 = inp;
+	endfunction
+	assign rem_out = sv2v_cast_2((w_fold >= 4'd6 ? w_fold - 4'd6 : (w_fold >= 4'd3 ? w_fold - 4'd3 : w_fold)));
 endmodule
 module monbus_halfbeat_packer (
 	clk,

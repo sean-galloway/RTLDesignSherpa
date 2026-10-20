@@ -109,8 +109,11 @@ def main():
         text = text[:decl_at] + "\n" + decls + text[decl_at:]
 
     open(dst, "w").write(text)
+    # stderr: the flat is built through a pipe (make/formal_flat.mk FLAT_POST),
+    # so stdout may be the flat itself.
     print("inject_probes: %d hookups audited, %d probes wired"
-          % (len(SRC_HOOKUPS), len(ALIAS_PROBES) + len(DANGLING_PROBES)))
+          % (len(SRC_HOOKUPS), len(ALIAS_PROBES) + len(DANGLING_PROBES)),
+          file=sys.stderr)
 
 
 if __name__ == "__main__":

@@ -139,507 +139,6 @@ module fifo_control (
 			r_count <= w_count;
 		end
 endmodule
-module arbiter_round_robin (
-	clk,
-	rst_n,
-	block_arb,
-	request,
-	grant_ack,
-	grant_valid,
-	grant,
-	grant_id,
-	last_grant
-);
-	reg _sv2v_0;
-	parameter signed [31:0] CLIENTS = 4;
-	parameter signed [31:0] WAIT_GNT_ACK = 0;
-	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
-	input wire clk;
-	input wire rst_n;
-	input wire block_arb;
-	input wire [CLIENTS - 1:0] request;
-	input wire [CLIENTS - 1:0] grant_ack;
-	output reg grant_valid;
-	output reg [CLIENTS - 1:0] grant;
-	output reg [N - 1:0] grant_id;
-	output reg [CLIENTS - 1:0] last_grant;
-	wire [CLIENTS - 1:0] w_requests_gated;
-	wire w_any_requests;
-	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
-	assign w_any_requests = |w_requests_gated;
-	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
-		input reg signed [CLIENTS - 1:0] inp;
-		sv2v_cast_6D6F8_signed = inp;
-	endfunction
-	generate
-		if (CLIENTS == 1) begin : gen_single_client
-			wire [CLIENTS:1] sv2v_tmp_14D78;
-			assign sv2v_tmp_14D78 = w_requests_gated;
-			always @(*) grant = sv2v_tmp_14D78;
-			wire [1:1] sv2v_tmp_6195E;
-			assign sv2v_tmp_6195E = w_requests_gated[0];
-			always @(*) grant_valid = sv2v_tmp_6195E;
-			wire [N:1] sv2v_tmp_E4D73;
-			assign sv2v_tmp_E4D73 = 1'sb0;
-			always @(*) grant_id = sv2v_tmp_E4D73;
-			always @(posedge clk or negedge rst_n)
-				if (!rst_n)
-					last_grant <= 1'sb0;
-				else
-					last_grant <= grant;
-		end
-		else begin : gen_multi_client
-			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
-			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
-			genvar _gv_i_1;
-			for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
-				localparam i = _gv_i_1;
-				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
-				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
-			end
-			reg [N - 1:0] r_last_grant_id;
-			reg r_last_valid;
-			reg r_pending_ack;
-			reg [N - 1:0] r_pending_client;
-			wire [CLIENTS - 1:0] w_requests_masked;
-			wire [CLIENTS - 1:0] w_requests_unmasked;
-			wire w_any_masked_requests;
-			wire [CLIENTS - 1:0] w_curr_mask_decode;
-			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
-			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
-			assign w_requests_unmasked = w_requests_gated;
-			assign w_any_masked_requests = |w_requests_masked;
-			wire [N - 1:0] w_winner;
-			wire w_winner_valid;
-			arbiter_priority_encoder #(
-				.CLIENTS(CLIENTS),
-				.N(N)
-			) u_priority_encoder(
-				.requests_masked(w_requests_masked),
-				.requests_unmasked(w_requests_unmasked),
-				.any_masked_requests(w_any_masked_requests),
-				.winner(w_winner),
-				.winner_valid(w_winner_valid)
-			);
-			wire w_ack_received;
-			wire w_can_grant;
-			wire [CLIENTS - 1:0] w_other_requests;
-			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
-				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
-				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
-				assign w_can_grant = !r_pending_ack || w_ack_received;
-			end
-			else begin : gen_no_ack_optimized
-				assign w_ack_received = 1'b0;
-				assign w_can_grant = 1'b1;
-				assign w_other_requests = 1'sb0;
-			end
-			wire w_should_grant;
-			reg [CLIENTS - 1:0] w_next_grant;
-			reg [N - 1:0] w_next_grant_id;
-			wire w_next_grant_valid;
-			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				w_next_grant = 1'sb0;
-				w_next_grant_id = 1'sb0;
-				if (w_should_grant) begin
-					w_next_grant[w_winner] = 1'b1;
-					w_next_grant_id = w_winner;
-				end
-			end
-			assign w_next_grant_valid = w_should_grant;
-			always @(posedge clk or negedge rst_n)
-				if (!rst_n) begin
-					grant <= 1'sb0;
-					grant_id <= 1'sb0;
-					grant_valid <= 1'b0;
-					last_grant <= 1'sb0;
-					r_last_grant_id <= 1'sb0;
-					r_last_valid <= 1'sb0;
-					r_pending_ack <= 1'b0;
-					r_pending_client <= 1'sb0;
-				end
-				else begin
-					r_last_valid <= grant_valid;
-					if (WAIT_GNT_ACK == 0) begin
-						grant <= w_next_grant;
-						grant_id <= w_next_grant_id;
-						grant_valid <= w_next_grant_valid;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-					end
-					else if (grant_valid == 1'b0) begin
-						grant <= w_next_grant;
-						grant_id <= w_next_grant_id;
-						grant_valid <= w_next_grant_valid;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-						if (w_next_grant_valid) begin
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-					end
-					else if ((grant_valid == 1'b1) && !w_ack_received)
-						;
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
-						grant <= 1'sb0;
-						grant_id <= 1'sb0;
-						grant_valid <= 1'b0;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-						r_pending_ack <= 1'b0;
-						r_pending_client <= 1'sb0;
-					end
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
-						if (w_next_grant_valid) begin
-							grant <= w_next_grant;
-							grant_id <= w_next_grant_id;
-							grant_valid <= w_next_grant_valid;
-							last_grant <= grant;
-							r_last_grant_id <= grant_id;
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-						else begin
-							grant <= 1'sb0;
-							grant_id <= 1'sb0;
-							grant_valid <= 1'b0;
-							r_pending_ack <= 1'b0;
-							r_pending_client <= 1'sb0;
-						end
-					end
-				end
-		end
-	endgenerate
-	initial _sv2v_0 = 0;
-endmodule
-module arbiter_priority_encoder (
-	requests_masked,
-	requests_unmasked,
-	any_masked_requests,
-	winner,
-	winner_valid
-);
-	reg _sv2v_0;
-	parameter signed [31:0] CLIENTS = 4;
-	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
-	input wire [CLIENTS - 1:0] requests_masked;
-	input wire [CLIENTS - 1:0] requests_unmasked;
-	input wire any_masked_requests;
-	output reg [N - 1:0] winner;
-	output reg winner_valid;
-	wire [CLIENTS - 1:0] w_priority_requests;
-	assign w_priority_requests = (any_masked_requests ? requests_masked : requests_unmasked);
-	generate
-		if (CLIENTS == 4) begin : gen_pe_4
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					4'bzzz1: begin
-						winner = 2'd0;
-						winner_valid = 1'b1;
-					end
-					4'bzz10: begin
-						winner = 2'd1;
-						winner_valid = 1'b1;
-					end
-					4'bz100: begin
-						winner = 2'd2;
-						winner_valid = 1'b1;
-					end
-					4'b1000: begin
-						winner = 2'd3;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 2'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else if (CLIENTS == 8) begin : gen_pe_8
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					8'bzzzzzzz1: begin
-						winner = 3'd0;
-						winner_valid = 1'b1;
-					end
-					8'bzzzzzz10: begin
-						winner = 3'd1;
-						winner_valid = 1'b1;
-					end
-					8'bzzzzz100: begin
-						winner = 3'd2;
-						winner_valid = 1'b1;
-					end
-					8'bzzzz1000: begin
-						winner = 3'd3;
-						winner_valid = 1'b1;
-					end
-					8'bzzz10000: begin
-						winner = 3'd4;
-						winner_valid = 1'b1;
-					end
-					8'bzz100000: begin
-						winner = 3'd5;
-						winner_valid = 1'b1;
-					end
-					8'bz1000000: begin
-						winner = 3'd6;
-						winner_valid = 1'b1;
-					end
-					8'b10000000: begin
-						winner = 3'd7;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 3'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else if (CLIENTS == 16) begin : gen_pe_16
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					16'bzzzzzzzzzzzzzzz1: begin
-						winner = 4'd0;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzzzzz10: begin
-						winner = 4'd1;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzzzz100: begin
-						winner = 4'd2;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzzz1000: begin
-						winner = 4'd3;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzz10000: begin
-						winner = 4'd4;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzz100000: begin
-						winner = 4'd5;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzz1000000: begin
-						winner = 4'd6;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzz10000000: begin
-						winner = 4'd7;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzz100000000: begin
-						winner = 4'd8;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzz1000000000: begin
-						winner = 4'd9;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzz10000000000: begin
-						winner = 4'd10;
-						winner_valid = 1'b1;
-					end
-					16'bzzzz100000000000: begin
-						winner = 4'd11;
-						winner_valid = 1'b1;
-					end
-					16'bzzz1000000000000: begin
-						winner = 4'd12;
-						winner_valid = 1'b1;
-					end
-					16'bzz10000000000000: begin
-						winner = 4'd13;
-						winner_valid = 1'b1;
-					end
-					16'bz100000000000000: begin
-						winner = 4'd14;
-						winner_valid = 1'b1;
-					end
-					16'b1000000000000000: begin
-						winner = 4'd15;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 4'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else if (CLIENTS == 32) begin : gen_pe_32
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz1: begin
-						winner = 5'd0;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz10: begin
-						winner = 5'd1;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzz100: begin
-						winner = 5'd2;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzz1000: begin
-						winner = 5'd3;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzz10000: begin
-						winner = 5'd4;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzz100000: begin
-						winner = 5'd5;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzz1000000: begin
-						winner = 5'd6;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzz10000000: begin
-						winner = 5'd7;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzz100000000: begin
-						winner = 5'd8;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzz1000000000: begin
-						winner = 5'd9;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzz10000000000: begin
-						winner = 5'd10;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzz100000000000: begin
-						winner = 5'd11;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzz1000000000000: begin
-						winner = 5'd12;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzz10000000000000: begin
-						winner = 5'd13;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzz100000000000000: begin
-						winner = 5'd14;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzz1000000000000000: begin
-						winner = 5'd15;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzz10000000000000000: begin
-						winner = 5'd16;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzz100000000000000000: begin
-						winner = 5'd17;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzz1000000000000000000: begin
-						winner = 5'd18;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzz10000000000000000000: begin
-						winner = 5'd19;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzz100000000000000000000: begin
-						winner = 5'd20;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzz1000000000000000000000: begin
-						winner = 5'd21;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzz10000000000000000000000: begin
-						winner = 5'd22;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzz100000000000000000000000: begin
-						winner = 5'd23;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzz1000000000000000000000000: begin
-						winner = 5'd24;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzz10000000000000000000000000: begin
-						winner = 5'd25;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzz100000000000000000000000000: begin
-						winner = 5'd26;
-						winner_valid = 1'b1;
-					end
-					32'bzzzz1000000000000000000000000000: begin
-						winner = 5'd27;
-						winner_valid = 1'b1;
-					end
-					32'bzzz10000000000000000000000000000: begin
-						winner = 5'd28;
-						winner_valid = 1'b1;
-					end
-					32'bzz100000000000000000000000000000: begin
-						winner = 5'd29;
-						winner_valid = 1'b1;
-					end
-					32'bz1000000000000000000000000000000: begin
-						winner = 5'd30;
-						winner_valid = 1'b1;
-					end
-					32'b10000000000000000000000000000000: begin
-						winner = 5'd31;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 5'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else begin : gen_pe_generic
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				winner = 1'sb0;
-				winner_valid = 1'b0;
-				begin : sv2v_autoblock_1
-					reg signed [31:0] i;
-					for (i = 0; i < CLIENTS; i = i + 1)
-						if (w_priority_requests[i] && !winner_valid) begin
-							winner = i[N - 1:0];
-							winner_valid = 1'b1;
-						end
-				end
-			end
-		end
-	endgenerate
-	initial _sv2v_0 = 0;
-endmodule
 module gaxi_fifo_sync (
 	axi_aclk,
 	axi_aresetn,
@@ -820,7 +319,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] .flat_build/prep/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -901,534 +400,6 @@ module gaxi_skid_buffer (
 			assign count = r_data_count;
 		end
 	endgenerate
-endmodule
-module stream_alloc_ctrl (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_size,
-	wr_ready,
-	rd_valid,
-	rd_ready,
-	space_free,
-	wr_full,
-	wr_almost_full,
-	rd_empty,
-	rd_almost_empty
-);
-	parameter signed [31:0] DEPTH = 512;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] REGISTERED = 1;
-	parameter signed [31:0] D = DEPTH;
-	parameter signed [31:0] AW = $clog2(D);
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	input wire [7:0] wr_size;
-	output wire wr_ready;
-	input wire rd_valid;
-	output wire rd_ready;
-	output wire [AW:0] space_free;
-	output wire wr_full;
-	output wire wr_almost_full;
-	output wire rd_empty;
-	output wire rd_almost_empty;
-	reg [AW:0] r_wr_ptr_bin;
-	wire [AW:0] r_rd_ptr_bin;
-	wire [AW:0] w_wr_ptr_bin_next;
-	wire [AW:0] w_rd_ptr_bin_next;
-	wire r_wr_full;
-	wire r_wr_almost_full;
-	wire r_rd_empty;
-	wire r_rd_almost_empty;
-	wire [AW:0] w_count;
-	wire w_write;
-	wire w_read;
-	assign w_write = wr_valid && wr_ready;
-	assign w_read = rd_valid && rd_ready;
-	function automatic [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65;
-		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
-		sv2v_cast_2BB65 = inp;
-	endfunction
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn)
-			r_wr_ptr_bin <= 1'sb0;
-		else if (w_write && !r_wr_full)
-			r_wr_ptr_bin <= r_wr_ptr_bin + sv2v_cast_2BB65(wr_size);
-	assign w_wr_ptr_bin_next = r_wr_ptr_bin + (w_write && !r_wr_full ? sv2v_cast_2BB65(wr_size) : {(AW >= 0 ? AW + 1 : 1 - AW) {1'sb0}});
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) read_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_read && !r_rd_empty),
-		.counter_bin_curr(r_rd_ptr_bin),
-		.counter_bin_next(w_rd_ptr_bin_next)
-	);
-	fifo_control #(
-		.DEPTH(D),
-		.ADDR_WIDTH(AW),
-		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
-		.REGISTERED(REGISTERED)
-	) fifo_control_inst(
-		.wr_clk(axi_aclk),
-		.wr_rst_n(axi_aresetn),
-		.rd_clk(axi_aclk),
-		.rd_rst_n(axi_aresetn),
-		.wr_ptr_bin(w_wr_ptr_bin_next),
-		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
-		.rd_ptr_bin(w_rd_ptr_bin_next),
-		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-		.count(w_count),
-		.wr_full(r_wr_full),
-		.wr_almost_full(r_wr_almost_full),
-		.rd_empty(r_rd_empty),
-		.rd_almost_empty(r_rd_almost_empty)
-	);
-	assign wr_ready = !r_wr_full;
-	assign rd_ready = !r_rd_empty;
-	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
-		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
-		sv2v_cast_2BB65_signed = inp;
-	endfunction
-	assign space_free = sv2v_cast_2BB65_signed(D) - w_count;
-	assign wr_full = r_wr_full;
-	assign wr_almost_full = r_wr_almost_full;
-	assign rd_empty = r_rd_empty;
-	assign rd_almost_empty = r_rd_almost_empty;
-endmodule
-module stream_drain_ctrl (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	rd_valid,
-	rd_size,
-	rd_ready,
-	data_available,
-	wr_full,
-	wr_almost_full,
-	rd_empty,
-	rd_almost_empty
-);
-	parameter signed [31:0] DEPTH = 512;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] REGISTERED = 1;
-	parameter signed [31:0] D = DEPTH;
-	parameter signed [31:0] AW = $clog2(D);
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output wire wr_ready;
-	input wire rd_valid;
-	input wire [7:0] rd_size;
-	output wire rd_ready;
-	output wire [AW:0] data_available;
-	output wire wr_full;
-	output wire wr_almost_full;
-	output wire rd_empty;
-	output wire rd_almost_empty;
-	wire [AW:0] r_wr_ptr_bin;
-	reg [AW:0] r_rd_ptr_bin;
-	wire [AW:0] w_wr_ptr_bin_next;
-	wire [AW:0] w_rd_ptr_bin_next;
-	wire r_wr_full;
-	wire r_wr_almost_full;
-	wire r_rd_empty;
-	wire r_rd_almost_empty;
-	wire [AW:0] w_count;
-	wire [AW:0] w_available_data;
-	wire w_write;
-	wire w_read;
-	assign w_write = wr_valid && wr_ready;
-	assign w_read = rd_valid && rd_ready;
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) write_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_write && !r_wr_full),
-		.counter_bin_curr(r_wr_ptr_bin),
-		.counter_bin_next(w_wr_ptr_bin_next)
-	);
-	function automatic [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65;
-		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
-		sv2v_cast_2BB65 = inp;
-	endfunction
-	always @(posedge axi_aclk or negedge axi_aresetn)
-		if (!axi_aresetn)
-			r_rd_ptr_bin <= 1'sb0;
-		else if (w_read && !r_rd_empty)
-			r_rd_ptr_bin <= r_rd_ptr_bin + sv2v_cast_2BB65(rd_size);
-	assign w_rd_ptr_bin_next = r_rd_ptr_bin + (w_read && !r_rd_empty ? sv2v_cast_2BB65(rd_size) : {(AW >= 0 ? AW + 1 : 1 - AW) {1'sb0}});
-	fifo_control #(
-		.DEPTH(D),
-		.ADDR_WIDTH(AW),
-		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
-		.REGISTERED(REGISTERED)
-	) fifo_control_inst(
-		.wr_clk(axi_aclk),
-		.wr_rst_n(axi_aresetn),
-		.rd_clk(axi_aclk),
-		.rd_rst_n(axi_aresetn),
-		.wr_ptr_bin(w_wr_ptr_bin_next),
-		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
-		.rd_ptr_bin(w_rd_ptr_bin_next),
-		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-		.count(w_count),
-		.wr_full(r_wr_full),
-		.wr_almost_full(r_wr_almost_full),
-		.rd_empty(r_rd_empty),
-		.rd_almost_empty(r_rd_almost_empty)
-	);
-	assign wr_ready = !r_wr_full;
-	assign rd_ready = !r_rd_empty;
-	assign data_available = w_count;
-	assign wr_full = r_wr_full;
-	assign wr_almost_full = r_wr_almost_full;
-	assign rd_empty = r_rd_empty;
-	assign rd_almost_empty = r_rd_almost_empty;
-	always @(posedge axi_aclk)
-		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
-endmodule
-module stream_latency_bridge (
-	clk,
-	rst_n,
-	s_valid,
-	s_ready,
-	s_data,
-	m_valid,
-	m_ready,
-	m_data,
-	occupancy,
-	dbg_r_pending,
-	dbg_r_out_valid
-);
-	parameter signed [31:0] DATA_WIDTH = 64;
-	parameter signed [31:0] SKID_DEPTH = 4;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	input wire clk;
-	input wire rst_n;
-	input wire s_valid;
-	output wire s_ready;
-	input wire [DW - 1:0] s_data;
-	output wire m_valid;
-	input wire m_ready;
-	output wire [DW - 1:0] m_data;
-	output wire [2:0] occupancy;
-	output wire dbg_r_pending;
-	output wire dbg_r_out_valid;
-	reg r_drain_ip;
-	wire skid_wr_valid;
-	wire skid_wr_ready;
-	wire [DW - 1:0] skid_wr_data;
-	wire [$clog2(SKID_DEPTH):0] skid_count;
-	wire w_draining_now = m_valid && m_ready;
-	wire w_write_stalled = skid_wr_valid && !skid_wr_ready;
-	wire [2:0] pending_count = skid_count + {2'b00, w_write_stalled};
-	function automatic signed [2:0] sv2v_cast_3_signed;
-		input reg signed [2:0] inp;
-		sv2v_cast_3_signed = inp;
-	endfunction
-	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
-	assign s_ready = w_room_available || w_draining_now;
-	wire w_drain_fifo = s_valid && s_ready;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			r_drain_ip <= 1'b0;
-		else
-			r_drain_ip <= w_drain_fifo;
-	assign skid_wr_valid = r_drain_ip;
-	assign skid_wr_data = s_data;
-	gaxi_fifo_sync #(
-		.MEM_STYLE(32'sd0),
-		.REGISTERED(0),
-		.DATA_WIDTH(DW),
-		.DEPTH(SKID_DEPTH)
-	) u_skid_buffer(
-		.axi_aclk(clk),
-		.axi_aresetn(rst_n),
-		.wr_valid(skid_wr_valid),
-		.wr_ready(skid_wr_ready),
-		.wr_data(skid_wr_data),
-		.rd_valid(m_valid),
-		.rd_ready(m_ready),
-		.rd_data(m_data),
-		.count(skid_count)
-	);
-	assign occupancy = skid_count;
-	assign dbg_r_pending = r_drain_ip;
-	assign dbg_r_out_valid = m_valid;
-endmodule
-module sram_controller_unit (
-	clk,
-	rst_n,
-	axi_rd_alloc_req,
-	axi_rd_alloc_size,
-	axi_rd_alloc_space_free,
-	axi_rd_sram_valid,
-	axi_rd_sram_ready,
-	axi_rd_sram_data,
-	axi_wr_drain_data_avail,
-	axi_wr_drain_req,
-	axi_wr_drain_size,
-	axi_wr_sram_valid,
-	axi_wr_sram_ready,
-	axi_wr_sram_data,
-	dbg_bridge_pending,
-	dbg_bridge_out_valid
-);
-	parameter signed [31:0] DATA_WIDTH = 512;
-	parameter signed [31:0] SRAM_DEPTH = 512;
-	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] SD = SRAM_DEPTH;
-	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
-	input wire clk;
-	input wire rst_n;
-	input wire axi_rd_alloc_req;
-	input wire [7:0] axi_rd_alloc_size;
-	output reg [SCW - 1:0] axi_rd_alloc_space_free;
-	input wire axi_rd_sram_valid;
-	output wire axi_rd_sram_ready;
-	input wire [DW - 1:0] axi_rd_sram_data;
-	output wire [SCW - 1:0] axi_wr_drain_data_avail;
-	input wire axi_wr_drain_req;
-	input wire [7:0] axi_wr_drain_size;
-	output wire axi_wr_sram_valid;
-	input wire axi_wr_sram_ready;
-	output wire [DW - 1:0] axi_wr_sram_data;
-	output wire dbg_bridge_pending;
-	output wire dbg_bridge_out_valid;
-	localparam signed [31:0] ADDR_WIDTH = $clog2(SD);
-	wire [ADDR_WIDTH:0] alloc_space_free;
-	wire [ADDR_WIDTH:0] drain_data_available;
-	wire fifo_rd_valid_internal;
-	wire fifo_rd_ready_internal;
-	wire [DW - 1:0] fifo_rd_data_internal;
-	wire [ADDR_WIDTH:0] fifo_count;
-	wire fifo_empty;
-	wire fifo_full;
-	wire [2:0] bridge_occupancy;
-	stream_alloc_ctrl #(
-		.DEPTH(SD),
-		.REGISTERED(1)
-	) u_alloc_ctrl(
-		.axi_aclk(clk),
-		.axi_aresetn(rst_n),
-		.wr_valid(axi_rd_alloc_req),
-		.wr_size(axi_rd_alloc_size),
-		.wr_ready(),
-		.rd_valid(axi_wr_sram_valid && axi_wr_sram_ready),
-		.rd_ready(),
-		.space_free(alloc_space_free),
-		.wr_full(),
-		.wr_almost_full(),
-		.rd_empty(),
-		.rd_almost_empty()
-	);
-	wire [ADDR_WIDTH + 1:0] w_drain_data_available_acct;
-	assign drain_data_available = w_drain_data_available_acct[ADDR_WIDTH:0];
-	stream_drain_ctrl #(
-		.DEPTH(2 * SD),
-		.REGISTERED(1)
-	) u_drain_ctrl(
-		.axi_aclk(clk),
-		.axi_aresetn(rst_n),
-		.wr_valid(axi_rd_sram_valid && axi_rd_sram_ready),
-		.wr_ready(),
-		.rd_valid(axi_wr_drain_req),
-		.rd_size(axi_wr_drain_size),
-		.rd_ready(),
-		.data_available(w_drain_data_available_acct),
-		.wr_full(),
-		.wr_almost_full(),
-		.rd_empty(),
-		.rd_almost_empty()
-	);
-	gaxi_fifo_sync #(
-		.MEM_STYLE(32'sd2),
-		.REGISTERED(1),
-		.DATA_WIDTH(DW),
-		.DEPTH(SD)
-	) u_channel_fifo(
-		.axi_aclk(clk),
-		.axi_aresetn(rst_n),
-		.wr_valid(axi_rd_sram_valid),
-		.wr_ready(axi_rd_sram_ready),
-		.wr_data(axi_rd_sram_data),
-		.rd_valid(fifo_rd_valid_internal),
-		.rd_ready(fifo_rd_ready_internal),
-		.rd_data(fifo_rd_data_internal),
-		.count(fifo_count)
-	);
-	stream_latency_bridge #(.DATA_WIDTH(DW)) u_latency_bridge(
-		.clk(clk),
-		.rst_n(rst_n),
-		.s_data(fifo_rd_data_internal),
-		.s_valid(fifo_rd_valid_internal),
-		.s_ready(fifo_rd_ready_internal),
-		.m_data(axi_wr_sram_data),
-		.m_valid(axi_wr_sram_valid),
-		.m_ready(axi_wr_sram_ready),
-		.occupancy(bridge_occupancy),
-		.dbg_r_pending(dbg_bridge_pending),
-		.dbg_r_out_valid(dbg_bridge_out_valid)
-	);
-	assign axi_wr_drain_data_avail = drain_data_available;
-	function automatic signed [SCW - 1:0] sv2v_cast_14961_signed;
-		input reg signed [SCW - 1:0] inp;
-		sv2v_cast_14961_signed = inp;
-	endfunction
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			axi_rd_alloc_space_free <= sv2v_cast_14961_signed(SD);
-		else
-			axi_rd_alloc_space_free <= alloc_space_free;
-endmodule
-module sram_controller (
-	clk,
-	rst_n,
-	axi_rd_alloc_req,
-	axi_rd_alloc_size,
-	axi_rd_alloc_id,
-	axi_rd_alloc_space_free,
-	axi_rd_sram_valid,
-	axi_rd_sram_ready,
-	axi_rd_sram_id,
-	axi_rd_sram_data,
-	axi_wr_drain_data_avail,
-	axi_wr_drain_req,
-	axi_wr_drain_size,
-	axi_wr_sram_valid,
-	axi_wr_sram_valid_comb,
-	axi_wr_sram_drain,
-	axi_wr_sram_id,
-	axi_wr_sram_data,
-	dbg_bridge_pending,
-	dbg_bridge_out_valid
-);
-	reg _sv2v_0;
-	parameter signed [31:0] NUM_CHANNELS = 8;
-	parameter signed [31:0] DATA_WIDTH = 512;
-	parameter signed [31:0] SRAM_DEPTH = 512;
-	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
-	parameter signed [31:0] NC = NUM_CHANNELS;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] SD = SRAM_DEPTH;
-	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
-	parameter signed [31:0] CIW = (NC > 1 ? $clog2(NC) : 1);
-	input wire clk;
-	input wire rst_n;
-	input wire axi_rd_alloc_req;
-	input wire [7:0] axi_rd_alloc_size;
-	input wire [CIW - 1:0] axi_rd_alloc_id;
-	output reg [(NC * SCW) - 1:0] axi_rd_alloc_space_free;
-	input wire axi_rd_sram_valid;
-	output reg axi_rd_sram_ready;
-	input wire [CIW - 1:0] axi_rd_sram_id;
-	input wire [DW - 1:0] axi_rd_sram_data;
-	output reg [(NC * SCW) - 1:0] axi_wr_drain_data_avail;
-	input wire [NC - 1:0] axi_wr_drain_req;
-	input wire [(NC * 8) - 1:0] axi_wr_drain_size;
-	output reg [NC - 1:0] axi_wr_sram_valid;
-	output wire [NC - 1:0] axi_wr_sram_valid_comb;
-	input wire axi_wr_sram_drain;
-	input wire [CIW - 1:0] axi_wr_sram_id;
-	output reg [DW - 1:0] axi_wr_sram_data;
-	output wire [NC - 1:0] dbg_bridge_pending;
-	output wire [NC - 1:0] dbg_bridge_out_valid;
-	reg [NC - 1:0] axi_rd_sram_valid_decoded;
-	wire [NC - 1:0] axi_rd_sram_ready_per_channel;
-	reg [NC - 1:0] axi_wr_sram_drain_decoded;
-	wire [(NC * DW) - 1:0] axi_wr_sram_data_per_channel;
-	reg [NC - 1:0] axi_rd_alloc_req_decoded;
-	wire [(NC * SCW) - 1:0] axi_rd_alloc_space_free_comb;
-	wire [(NC * SCW) - 1:0] axi_wr_drain_data_avail_comb;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		axi_rd_sram_valid_decoded = 1'sb0;
-		if (axi_rd_sram_valid && (axi_rd_sram_id < NC))
-			axi_rd_sram_valid_decoded[axi_rd_sram_id] = 1'b1;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (axi_rd_sram_id < NC)
-			axi_rd_sram_ready = axi_rd_sram_ready_per_channel[axi_rd_sram_id];
-		else
-			axi_rd_sram_ready = 1'b0;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		axi_wr_sram_drain_decoded = 1'sb0;
-		if (axi_wr_sram_drain && (axi_wr_sram_id < NC))
-			axi_wr_sram_drain_decoded[axi_wr_sram_id] = 1'b1;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (axi_wr_sram_id < NC)
-			axi_wr_sram_data = axi_wr_sram_data_per_channel[axi_wr_sram_id * DW+:DW];
-		else
-			axi_wr_sram_data = 1'sb0;
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		axi_rd_alloc_req_decoded = 1'sb0;
-		if (axi_rd_alloc_req && (axi_rd_alloc_id < NC))
-			axi_rd_alloc_req_decoded[axi_rd_alloc_id] = 1'b1;
-	end
-	genvar _gv_i_2;
-	generate
-		for (_gv_i_2 = 0; _gv_i_2 < NC; _gv_i_2 = _gv_i_2 + 1) begin : gen_channel_units
-			localparam i = _gv_i_2;
-			sram_controller_unit #(
-				.DATA_WIDTH(DW),
-				.SRAM_DEPTH(SRAM_DEPTH),
-				.SEG_COUNT_WIDTH(SEG_COUNT_WIDTH)
-			) u_channel_unit(
-				.clk(clk),
-				.rst_n(rst_n),
-				.axi_rd_sram_valid(axi_rd_sram_valid_decoded[i]),
-				.axi_rd_sram_ready(axi_rd_sram_ready_per_channel[i]),
-				.axi_rd_sram_data(axi_rd_sram_data),
-				.axi_wr_sram_valid(axi_wr_sram_valid_comb[i]),
-				.axi_wr_sram_ready(axi_wr_sram_drain_decoded[i]),
-				.axi_wr_sram_data(axi_wr_sram_data_per_channel[i * DW+:DW]),
-				.axi_rd_alloc_req(axi_rd_alloc_req_decoded[i]),
-				.axi_rd_alloc_size(axi_rd_alloc_size),
-				.axi_rd_alloc_space_free(axi_rd_alloc_space_free_comb[i * SCW+:SCW]),
-				.axi_wr_drain_req(axi_wr_drain_req[i]),
-				.axi_wr_drain_size(axi_wr_drain_size[i * 8+:8]),
-				.axi_wr_drain_data_avail(axi_wr_drain_data_avail_comb[i * SCW+:SCW]),
-				.dbg_bridge_pending(dbg_bridge_pending[i]),
-				.dbg_bridge_out_valid(dbg_bridge_out_valid[i])
-			);
-		end
-	endgenerate
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			axi_rd_alloc_space_free <= 1'sb0;
-			axi_wr_drain_data_avail <= 1'sb0;
-			axi_wr_sram_valid <= 1'sb0;
-		end
-		else begin
-			axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
-			axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
-			axi_wr_sram_valid <= axi_wr_sram_valid_comb;
-		end
-	initial _sv2v_0 = 0;
 endmodule
 module dma_address_gen (
 	i_clk,
@@ -1809,7 +780,7 @@ module scheduler (
 	output wire [127:0] mon_packet;
 	output wire [63:0] mon_timestamp;
 	initial if (DESC_WIDTH != 256) begin
-		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
+		$display("Fatal [%0t] .flat_build/prep/scheduler.sv:175:13 - scheduler.<unnamed_block>.<unnamed_block>\n msg: ", $time, "scheduler (STREAM): DESC_WIDTH must be 256, got %0d. For RAPIDS, use rapids_scheduler.", DESC_WIDTH);
 		$finish(1);
 	end
 	localparam signed [31:0] DESC_SRC_ADDR_LO = 0;
@@ -2346,6 +1317,559 @@ module scheduler (
 	assign mon_packet = (GEN_MON ? r_mon_packet : {128 {1'sb0}});
 	assign mon_timestamp = (GEN_MON ? r_mon_timestamp : {64 {1'sb0}});
 	initial _sv2v_0 = 0;
+endmodule
+module arbiter_priority_encoder (
+	requests_masked,
+	requests_unmasked,
+	any_masked_requests,
+	winner,
+	winner_valid
+);
+	reg _sv2v_0;
+	parameter signed [31:0] CLIENTS = 4;
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
+	input wire [CLIENTS - 1:0] requests_masked;
+	input wire [CLIENTS - 1:0] requests_unmasked;
+	input wire any_masked_requests;
+	output reg [N - 1:0] winner;
+	output reg winner_valid;
+	wire [CLIENTS - 1:0] w_priority_requests;
+	assign w_priority_requests = (any_masked_requests ? requests_masked : requests_unmasked);
+	generate
+		if (CLIENTS == 4) begin : gen_pe_4
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					4'bzzz1: begin
+						winner = 2'd0;
+						winner_valid = 1'b1;
+					end
+					4'bzz10: begin
+						winner = 2'd1;
+						winner_valid = 1'b1;
+					end
+					4'bz100: begin
+						winner = 2'd2;
+						winner_valid = 1'b1;
+					end
+					4'b1000: begin
+						winner = 2'd3;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 2'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else if (CLIENTS == 8) begin : gen_pe_8
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					8'bzzzzzzz1: begin
+						winner = 3'd0;
+						winner_valid = 1'b1;
+					end
+					8'bzzzzzz10: begin
+						winner = 3'd1;
+						winner_valid = 1'b1;
+					end
+					8'bzzzzz100: begin
+						winner = 3'd2;
+						winner_valid = 1'b1;
+					end
+					8'bzzzz1000: begin
+						winner = 3'd3;
+						winner_valid = 1'b1;
+					end
+					8'bzzz10000: begin
+						winner = 3'd4;
+						winner_valid = 1'b1;
+					end
+					8'bzz100000: begin
+						winner = 3'd5;
+						winner_valid = 1'b1;
+					end
+					8'bz1000000: begin
+						winner = 3'd6;
+						winner_valid = 1'b1;
+					end
+					8'b10000000: begin
+						winner = 3'd7;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 3'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else if (CLIENTS == 16) begin : gen_pe_16
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					16'bzzzzzzzzzzzzzzz1: begin
+						winner = 4'd0;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzzzzz10: begin
+						winner = 4'd1;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzzzz100: begin
+						winner = 4'd2;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzzz1000: begin
+						winner = 4'd3;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzz10000: begin
+						winner = 4'd4;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzz100000: begin
+						winner = 4'd5;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzz1000000: begin
+						winner = 4'd6;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzz10000000: begin
+						winner = 4'd7;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzz100000000: begin
+						winner = 4'd8;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzz1000000000: begin
+						winner = 4'd9;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzz10000000000: begin
+						winner = 4'd10;
+						winner_valid = 1'b1;
+					end
+					16'bzzzz100000000000: begin
+						winner = 4'd11;
+						winner_valid = 1'b1;
+					end
+					16'bzzz1000000000000: begin
+						winner = 4'd12;
+						winner_valid = 1'b1;
+					end
+					16'bzz10000000000000: begin
+						winner = 4'd13;
+						winner_valid = 1'b1;
+					end
+					16'bz100000000000000: begin
+						winner = 4'd14;
+						winner_valid = 1'b1;
+					end
+					16'b1000000000000000: begin
+						winner = 4'd15;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 4'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else if (CLIENTS == 32) begin : gen_pe_32
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz1: begin
+						winner = 5'd0;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz10: begin
+						winner = 5'd1;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzz100: begin
+						winner = 5'd2;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzz1000: begin
+						winner = 5'd3;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzz10000: begin
+						winner = 5'd4;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzz100000: begin
+						winner = 5'd5;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzz1000000: begin
+						winner = 5'd6;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzz10000000: begin
+						winner = 5'd7;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzz100000000: begin
+						winner = 5'd8;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzz1000000000: begin
+						winner = 5'd9;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzz10000000000: begin
+						winner = 5'd10;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzz100000000000: begin
+						winner = 5'd11;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzz1000000000000: begin
+						winner = 5'd12;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzz10000000000000: begin
+						winner = 5'd13;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzz100000000000000: begin
+						winner = 5'd14;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzz1000000000000000: begin
+						winner = 5'd15;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzz10000000000000000: begin
+						winner = 5'd16;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzz100000000000000000: begin
+						winner = 5'd17;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzz1000000000000000000: begin
+						winner = 5'd18;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzz10000000000000000000: begin
+						winner = 5'd19;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzz100000000000000000000: begin
+						winner = 5'd20;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzz1000000000000000000000: begin
+						winner = 5'd21;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzz10000000000000000000000: begin
+						winner = 5'd22;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzz100000000000000000000000: begin
+						winner = 5'd23;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzz1000000000000000000000000: begin
+						winner = 5'd24;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzz10000000000000000000000000: begin
+						winner = 5'd25;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzz100000000000000000000000000: begin
+						winner = 5'd26;
+						winner_valid = 1'b1;
+					end
+					32'bzzzz1000000000000000000000000000: begin
+						winner = 5'd27;
+						winner_valid = 1'b1;
+					end
+					32'bzzz10000000000000000000000000000: begin
+						winner = 5'd28;
+						winner_valid = 1'b1;
+					end
+					32'bzz100000000000000000000000000000: begin
+						winner = 5'd29;
+						winner_valid = 1'b1;
+					end
+					32'bz1000000000000000000000000000000: begin
+						winner = 5'd30;
+						winner_valid = 1'b1;
+					end
+					32'b10000000000000000000000000000000: begin
+						winner = 5'd31;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 5'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else begin : gen_pe_generic
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				winner = 1'sb0;
+				winner_valid = 1'b0;
+				begin : sv2v_autoblock_1
+					reg signed [31:0] i;
+					for (i = 0; i < CLIENTS; i = i + 1)
+						if (w_priority_requests[i] && !winner_valid) begin
+							winner = i[N - 1:0];
+							winner_valid = 1'b1;
+						end
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
+module arbiter_round_robin (
+	clk,
+	rst_n,
+	block_arb,
+	request,
+	grant_ack,
+	grant_valid,
+	grant,
+	grant_id,
+	last_grant
+);
+	reg _sv2v_0;
+	parameter signed [31:0] CLIENTS = 4;
+	parameter signed [31:0] WAIT_GNT_ACK = 0;
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
+	input wire clk;
+	input wire rst_n;
+	input wire block_arb;
+	input wire [CLIENTS - 1:0] request;
+	input wire [CLIENTS - 1:0] grant_ack;
+	output reg grant_valid;
+	output reg [CLIENTS - 1:0] grant;
+	output reg [N - 1:0] grant_id;
+	output reg [CLIENTS - 1:0] last_grant;
+	wire [CLIENTS - 1:0] w_requests_gated;
+	wire w_any_requests;
+	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
+	assign w_any_requests = |w_requests_gated;
+	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
+		input reg signed [CLIENTS - 1:0] inp;
+		sv2v_cast_6D6F8_signed = inp;
+	endfunction
+	generate
+		if (CLIENTS == 1) begin : gen_single_client
+			wire [CLIENTS:1] sv2v_tmp_14D78;
+			assign sv2v_tmp_14D78 = w_requests_gated;
+			always @(*) grant = sv2v_tmp_14D78;
+			wire [1:1] sv2v_tmp_6195E;
+			assign sv2v_tmp_6195E = w_requests_gated[0];
+			always @(*) grant_valid = sv2v_tmp_6195E;
+			wire [N:1] sv2v_tmp_E4D73;
+			assign sv2v_tmp_E4D73 = 1'sb0;
+			always @(*) grant_id = sv2v_tmp_E4D73;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n)
+					last_grant <= 1'sb0;
+				else
+					last_grant <= grant;
+		end
+		else begin : gen_multi_client
+			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
+			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
+			genvar _gv_i_1;
+			for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
+				localparam i = _gv_i_1;
+				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
+				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
+			end
+			reg [N - 1:0] r_last_grant_id;
+			reg r_last_valid;
+			reg r_pending_ack;
+			reg [N - 1:0] r_pending_client;
+			wire [CLIENTS - 1:0] w_requests_masked;
+			wire [CLIENTS - 1:0] w_requests_unmasked;
+			wire w_any_masked_requests;
+			wire [CLIENTS - 1:0] w_curr_mask_decode;
+			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
+			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
+			assign w_requests_unmasked = w_requests_gated;
+			assign w_any_masked_requests = |w_requests_masked;
+			wire [N - 1:0] w_winner;
+			wire w_winner_valid;
+			arbiter_priority_encoder #(
+				.CLIENTS(CLIENTS),
+				.N(N)
+			) u_priority_encoder(
+				.requests_masked(w_requests_masked),
+				.requests_unmasked(w_requests_unmasked),
+				.any_masked_requests(w_any_masked_requests),
+				.winner(w_winner),
+				.winner_valid(w_winner_valid)
+			);
+			wire w_ack_received;
+			wire w_can_grant;
+			wire [CLIENTS - 1:0] w_other_requests;
+			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
+				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
+				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
+				assign w_can_grant = !r_pending_ack || w_ack_received;
+			end
+			else begin : gen_no_ack_optimized
+				assign w_ack_received = 1'b0;
+				assign w_can_grant = 1'b1;
+				assign w_other_requests = 1'sb0;
+			end
+			wire w_should_grant;
+			reg [CLIENTS - 1:0] w_next_grant;
+			reg [N - 1:0] w_next_grant_id;
+			wire w_next_grant_valid;
+			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				w_next_grant = 1'sb0;
+				w_next_grant_id = 1'sb0;
+				if (w_should_grant) begin
+					w_next_grant[w_winner] = 1'b1;
+					w_next_grant_id = w_winner;
+				end
+			end
+			assign w_next_grant_valid = w_should_grant;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin
+					grant <= 1'sb0;
+					grant_id <= 1'sb0;
+					grant_valid <= 1'b0;
+					last_grant <= 1'sb0;
+					r_last_grant_id <= 1'sb0;
+					r_last_valid <= 1'sb0;
+					r_pending_ack <= 1'b0;
+					r_pending_client <= 1'sb0;
+				end
+				else begin
+					r_last_valid <= grant_valid;
+					if (WAIT_GNT_ACK == 0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+					end
+					else if (grant_valid == 1'b0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						if (w_next_grant_valid) begin
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+					end
+					else if ((grant_valid == 1'b1) && !w_ack_received)
+						;
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
+						grant <= 1'sb0;
+						grant_id <= 1'sb0;
+						grant_valid <= 1'b0;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						r_pending_ack <= 1'b0;
+						r_pending_client <= 1'sb0;
+					end
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
+						if (w_next_grant_valid) begin
+							grant <= w_next_grant;
+							grant_id <= w_next_grant_id;
+							grant_valid <= w_next_grant_valid;
+							last_grant <= grant;
+							r_last_grant_id <= grant_id;
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+						else begin
+							grant <= 1'sb0;
+							grant_id <= 1'sb0;
+							grant_valid <= 1'b0;
+							r_pending_ack <= 1'b0;
+							r_pending_client <= 1'sb0;
+						end
+					end
+				end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
+module arbiter_single_client (
+	clk,
+	rst_n,
+	block_arb,
+	request,
+	grant_ack,
+	grant_valid,
+	grant,
+	grant_id
+);
+	parameter signed [31:0] WAIT_GNT_ACK = 1;
+	input wire clk;
+	input wire rst_n;
+	input wire block_arb;
+	input wire request;
+	input wire grant_ack;
+	output reg grant_valid;
+	output wire grant;
+	output wire grant_id;
+	reg r_pending_ack;
+	wire w_req;
+	wire w_ack_received;
+	wire w_can_grant;
+	wire w_should_grant;
+	assign w_req = request && !block_arb;
+	assign w_ack_received = (WAIT_GNT_ACK == 1 ? r_pending_ack && grant_ack : 1'b0);
+	assign w_can_grant = (WAIT_GNT_ACK == 1 ? !r_pending_ack || w_ack_received : 1'b1);
+	assign w_should_grant = w_req && w_can_grant;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			grant_valid <= 1'b0;
+			r_pending_ack <= 1'b0;
+		end
+		else if (WAIT_GNT_ACK == 0) begin
+			grant_valid <= w_should_grant;
+			r_pending_ack <= 1'b0;
+		end
+		else if (grant_valid == 1'b0) begin
+			grant_valid <= w_should_grant;
+			r_pending_ack <= w_should_grant;
+		end
+		else if (!w_ack_received) begin
+			grant_valid <= 1'b1;
+			r_pending_ack <= 1'b1;
+		end
+		else begin
+			grant_valid <= 1'b0;
+			r_pending_ack <= 1'b0;
+		end
+	assign grant = grant_valid;
+	assign grant_id = 1'b0;
 endmodule
 module axi_write_engine (
 	clk,
@@ -2923,6 +2447,534 @@ module axi_write_engine (
 	assign dbg_w_beats = r_w_beats;
 	assign o_active_channel_id = r_w_channel_id;
 	assign o_active_channel_valid = r_w_active;
+	initial _sv2v_0 = 0;
+endmodule
+module stream_alloc_ctrl (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_size,
+	wr_ready,
+	rd_valid,
+	rd_ready,
+	space_free,
+	wr_full,
+	wr_almost_full,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] DEPTH = 512;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] REGISTERED = 1;
+	parameter signed [31:0] D = DEPTH;
+	parameter signed [31:0] AW = $clog2(D);
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	input wire [7:0] wr_size;
+	output wire wr_ready;
+	input wire rd_valid;
+	output wire rd_ready;
+	output wire [AW:0] space_free;
+	output wire wr_full;
+	output wire wr_almost_full;
+	output wire rd_empty;
+	output wire rd_almost_empty;
+	reg [AW:0] r_wr_ptr_bin;
+	wire [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	wire r_wr_full;
+	wire r_wr_almost_full;
+	wire r_rd_empty;
+	wire r_rd_almost_empty;
+	wire [AW:0] w_count;
+	wire w_write;
+	wire w_read;
+	assign w_write = wr_valid && wr_ready;
+	assign w_read = rd_valid && rd_ready;
+	function automatic [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65;
+		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65 = inp;
+	endfunction
+	always @(posedge axi_aclk or negedge axi_aresetn)
+		if (!axi_aresetn)
+			r_wr_ptr_bin <= 1'sb0;
+		else if (w_write && !r_wr_full)
+			r_wr_ptr_bin <= r_wr_ptr_bin + sv2v_cast_2BB65(wr_size);
+	assign w_wr_ptr_bin_next = r_wr_ptr_bin + (w_write && !r_wr_full ? sv2v_cast_2BB65(wr_size) : {(AW >= 0 ? AW + 1 : 1 - AW) {1'sb0}});
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) read_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_read && !r_rd_empty),
+		.counter_bin_curr(r_rd_ptr_bin),
+		.counter_bin_next(w_rd_ptr_bin_next)
+	);
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(axi_aclk),
+		.wr_rst_n(axi_aresetn),
+		.rd_clk(axi_aclk),
+		.rd_rst_n(axi_aresetn),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
+		.rd_ptr_bin(w_rd_ptr_bin_next),
+		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+		.count(w_count),
+		.wr_full(r_wr_full),
+		.wr_almost_full(r_wr_almost_full),
+		.rd_empty(r_rd_empty),
+		.rd_almost_empty(r_rd_almost_empty)
+	);
+	assign wr_ready = !r_wr_full;
+	assign rd_ready = !r_rd_empty;
+	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
+		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65_signed = inp;
+	endfunction
+	assign space_free = sv2v_cast_2BB65_signed(D) - w_count;
+	assign wr_full = r_wr_full;
+	assign wr_almost_full = r_wr_almost_full;
+	assign rd_empty = r_rd_empty;
+	assign rd_almost_empty = r_rd_almost_empty;
+endmodule
+module stream_drain_ctrl (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	rd_valid,
+	rd_size,
+	rd_ready,
+	data_available,
+	wr_full,
+	wr_almost_full,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] DEPTH = 512;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] REGISTERED = 1;
+	parameter signed [31:0] D = DEPTH;
+	parameter signed [31:0] AW = $clog2(D);
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output wire wr_ready;
+	input wire rd_valid;
+	input wire [7:0] rd_size;
+	output wire rd_ready;
+	output wire [AW:0] data_available;
+	output wire wr_full;
+	output wire wr_almost_full;
+	output wire rd_empty;
+	output wire rd_almost_empty;
+	wire [AW:0] r_wr_ptr_bin;
+	reg [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	wire r_wr_full;
+	wire r_wr_almost_full;
+	wire r_rd_empty;
+	wire r_rd_almost_empty;
+	wire [AW:0] w_count;
+	wire [AW:0] w_available_data;
+	wire w_write;
+	wire w_read;
+	assign w_write = wr_valid && wr_ready;
+	assign w_read = rd_valid && rd_ready;
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) write_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_write && !r_wr_full),
+		.counter_bin_curr(r_wr_ptr_bin),
+		.counter_bin_next(w_wr_ptr_bin_next)
+	);
+	function automatic [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65;
+		input reg [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65 = inp;
+	endfunction
+	always @(posedge axi_aclk or negedge axi_aresetn)
+		if (!axi_aresetn)
+			r_rd_ptr_bin <= 1'sb0;
+		else if (w_read && !r_rd_empty)
+			r_rd_ptr_bin <= r_rd_ptr_bin + sv2v_cast_2BB65(rd_size);
+	assign w_rd_ptr_bin_next = r_rd_ptr_bin + (w_read && !r_rd_empty ? sv2v_cast_2BB65(rd_size) : {(AW >= 0 ? AW + 1 : 1 - AW) {1'sb0}});
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(axi_aclk),
+		.wr_rst_n(axi_aresetn),
+		.rd_clk(axi_aclk),
+		.rd_rst_n(axi_aresetn),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
+		.rd_ptr_bin(w_rd_ptr_bin_next),
+		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+		.count(w_count),
+		.wr_full(r_wr_full),
+		.wr_almost_full(r_wr_almost_full),
+		.rd_empty(r_rd_empty),
+		.rd_almost_empty(r_rd_almost_empty)
+	);
+	assign wr_ready = !r_wr_full;
+	assign rd_ready = !r_rd_empty;
+	assign data_available = w_count;
+	assign wr_full = r_wr_full;
+	assign wr_almost_full = r_wr_almost_full;
+	assign rd_empty = r_rd_empty;
+	assign rd_almost_empty = r_rd_almost_empty;
+	always @(posedge axi_aclk)
+		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
+			$display("Error [%0t] .flat_build/prep/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
+endmodule
+module stream_latency_bridge (
+	clk,
+	rst_n,
+	s_valid,
+	s_ready,
+	s_data,
+	m_valid,
+	m_ready,
+	m_data,
+	occupancy,
+	dbg_r_pending,
+	dbg_r_out_valid
+);
+	parameter signed [31:0] DATA_WIDTH = 64;
+	parameter signed [31:0] SKID_DEPTH = 4;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire clk;
+	input wire rst_n;
+	input wire s_valid;
+	output wire s_ready;
+	input wire [DW - 1:0] s_data;
+	output wire m_valid;
+	input wire m_ready;
+	output wire [DW - 1:0] m_data;
+	output wire [2:0] occupancy;
+	output wire dbg_r_pending;
+	output wire dbg_r_out_valid;
+	reg r_drain_ip;
+	wire skid_wr_valid;
+	wire skid_wr_ready;
+	wire [DW - 1:0] skid_wr_data;
+	wire [$clog2(SKID_DEPTH):0] skid_count;
+	wire w_draining_now = m_valid && m_ready;
+	wire w_write_stalled = skid_wr_valid && !skid_wr_ready;
+	wire [2:0] pending_count = skid_count + {2'b00, w_write_stalled};
+	function automatic signed [2:0] sv2v_cast_3_signed;
+		input reg signed [2:0] inp;
+		sv2v_cast_3_signed = inp;
+	endfunction
+	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
+	assign s_ready = w_room_available || w_draining_now;
+	wire w_drain_fifo = s_valid && s_ready;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_drain_ip <= 1'b0;
+		else
+			r_drain_ip <= w_drain_fifo;
+	assign skid_wr_valid = r_drain_ip;
+	assign skid_wr_data = s_data;
+	gaxi_fifo_sync #(
+		.MEM_STYLE(32'sd0),
+		.REGISTERED(0),
+		.DATA_WIDTH(DW),
+		.DEPTH(SKID_DEPTH)
+	) u_skid_buffer(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(skid_wr_valid),
+		.wr_ready(skid_wr_ready),
+		.wr_data(skid_wr_data),
+		.rd_valid(m_valid),
+		.rd_ready(m_ready),
+		.rd_data(m_data),
+		.count(skid_count)
+	);
+	assign occupancy = skid_count;
+	assign dbg_r_pending = r_drain_ip;
+	assign dbg_r_out_valid = m_valid;
+endmodule
+module sram_controller_unit (
+	clk,
+	rst_n,
+	axi_rd_alloc_req,
+	axi_rd_alloc_size,
+	axi_rd_alloc_space_free,
+	axi_rd_sram_valid,
+	axi_rd_sram_ready,
+	axi_rd_sram_data,
+	axi_wr_drain_data_avail,
+	axi_wr_drain_req,
+	axi_wr_drain_size,
+	axi_wr_sram_valid,
+	axi_wr_sram_ready,
+	axi_wr_sram_data,
+	dbg_bridge_pending,
+	dbg_bridge_out_valid
+);
+	parameter signed [31:0] DATA_WIDTH = 512;
+	parameter signed [31:0] SRAM_DEPTH = 512;
+	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] SD = SRAM_DEPTH;
+	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
+	input wire clk;
+	input wire rst_n;
+	input wire axi_rd_alloc_req;
+	input wire [7:0] axi_rd_alloc_size;
+	output reg [SCW - 1:0] axi_rd_alloc_space_free;
+	input wire axi_rd_sram_valid;
+	output wire axi_rd_sram_ready;
+	input wire [DW - 1:0] axi_rd_sram_data;
+	output wire [SCW - 1:0] axi_wr_drain_data_avail;
+	input wire axi_wr_drain_req;
+	input wire [7:0] axi_wr_drain_size;
+	output wire axi_wr_sram_valid;
+	input wire axi_wr_sram_ready;
+	output wire [DW - 1:0] axi_wr_sram_data;
+	output wire dbg_bridge_pending;
+	output wire dbg_bridge_out_valid;
+	localparam signed [31:0] ADDR_WIDTH = $clog2(SD);
+	wire [ADDR_WIDTH:0] alloc_space_free;
+	wire [ADDR_WIDTH:0] drain_data_available;
+	wire fifo_rd_valid_internal;
+	wire fifo_rd_ready_internal;
+	wire [DW - 1:0] fifo_rd_data_internal;
+	wire [ADDR_WIDTH:0] fifo_count;
+	wire fifo_empty;
+	wire fifo_full;
+	wire [2:0] bridge_occupancy;
+	stream_alloc_ctrl #(
+		.DEPTH(SD),
+		.REGISTERED(1)
+	) u_alloc_ctrl(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(axi_rd_alloc_req),
+		.wr_size(axi_rd_alloc_size),
+		.wr_ready(),
+		.rd_valid(axi_wr_sram_valid && axi_wr_sram_ready),
+		.rd_ready(),
+		.space_free(alloc_space_free),
+		.wr_full(),
+		.wr_almost_full(),
+		.rd_empty(),
+		.rd_almost_empty()
+	);
+	wire [ADDR_WIDTH + 1:0] w_drain_data_available_acct;
+	assign drain_data_available = w_drain_data_available_acct[ADDR_WIDTH:0];
+	stream_drain_ctrl #(
+		.DEPTH(2 * SD),
+		.REGISTERED(1)
+	) u_drain_ctrl(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(axi_rd_sram_valid && axi_rd_sram_ready),
+		.wr_ready(),
+		.rd_valid(axi_wr_drain_req),
+		.rd_size(axi_wr_drain_size),
+		.rd_ready(),
+		.data_available(w_drain_data_available_acct),
+		.wr_full(),
+		.wr_almost_full(),
+		.rd_empty(),
+		.rd_almost_empty()
+	);
+	gaxi_fifo_sync #(
+		.MEM_STYLE(32'sd2),
+		.REGISTERED(1),
+		.DATA_WIDTH(DW),
+		.DEPTH(SD)
+	) u_channel_fifo(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(axi_rd_sram_valid),
+		.wr_ready(axi_rd_sram_ready),
+		.wr_data(axi_rd_sram_data),
+		.rd_valid(fifo_rd_valid_internal),
+		.rd_ready(fifo_rd_ready_internal),
+		.rd_data(fifo_rd_data_internal),
+		.count(fifo_count)
+	);
+	stream_latency_bridge #(.DATA_WIDTH(DW)) u_latency_bridge(
+		.clk(clk),
+		.rst_n(rst_n),
+		.s_data(fifo_rd_data_internal),
+		.s_valid(fifo_rd_valid_internal),
+		.s_ready(fifo_rd_ready_internal),
+		.m_data(axi_wr_sram_data),
+		.m_valid(axi_wr_sram_valid),
+		.m_ready(axi_wr_sram_ready),
+		.occupancy(bridge_occupancy),
+		.dbg_r_pending(dbg_bridge_pending),
+		.dbg_r_out_valid(dbg_bridge_out_valid)
+	);
+	assign axi_wr_drain_data_avail = drain_data_available;
+	function automatic signed [SCW - 1:0] sv2v_cast_14961_signed;
+		input reg signed [SCW - 1:0] inp;
+		sv2v_cast_14961_signed = inp;
+	endfunction
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			axi_rd_alloc_space_free <= sv2v_cast_14961_signed(SD);
+		else
+			axi_rd_alloc_space_free <= alloc_space_free;
+endmodule
+module sram_controller (
+	clk,
+	rst_n,
+	axi_rd_alloc_req,
+	axi_rd_alloc_size,
+	axi_rd_alloc_id,
+	axi_rd_alloc_space_free,
+	axi_rd_sram_valid,
+	axi_rd_sram_ready,
+	axi_rd_sram_id,
+	axi_rd_sram_data,
+	axi_wr_drain_data_avail,
+	axi_wr_drain_req,
+	axi_wr_drain_size,
+	axi_wr_sram_valid,
+	axi_wr_sram_valid_comb,
+	axi_wr_sram_drain,
+	axi_wr_sram_id,
+	axi_wr_sram_data,
+	dbg_bridge_pending,
+	dbg_bridge_out_valid
+);
+	reg _sv2v_0;
+	parameter signed [31:0] NUM_CHANNELS = 8;
+	parameter signed [31:0] DATA_WIDTH = 512;
+	parameter signed [31:0] SRAM_DEPTH = 512;
+	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
+	parameter signed [31:0] NC = NUM_CHANNELS;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] SD = SRAM_DEPTH;
+	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
+	parameter signed [31:0] CIW = (NC > 1 ? $clog2(NC) : 1);
+	input wire clk;
+	input wire rst_n;
+	input wire axi_rd_alloc_req;
+	input wire [7:0] axi_rd_alloc_size;
+	input wire [CIW - 1:0] axi_rd_alloc_id;
+	output reg [(NC * SCW) - 1:0] axi_rd_alloc_space_free;
+	input wire axi_rd_sram_valid;
+	output reg axi_rd_sram_ready;
+	input wire [CIW - 1:0] axi_rd_sram_id;
+	input wire [DW - 1:0] axi_rd_sram_data;
+	output reg [(NC * SCW) - 1:0] axi_wr_drain_data_avail;
+	input wire [NC - 1:0] axi_wr_drain_req;
+	input wire [(NC * 8) - 1:0] axi_wr_drain_size;
+	output reg [NC - 1:0] axi_wr_sram_valid;
+	output wire [NC - 1:0] axi_wr_sram_valid_comb;
+	input wire axi_wr_sram_drain;
+	input wire [CIW - 1:0] axi_wr_sram_id;
+	output reg [DW - 1:0] axi_wr_sram_data;
+	output wire [NC - 1:0] dbg_bridge_pending;
+	output wire [NC - 1:0] dbg_bridge_out_valid;
+	reg [NC - 1:0] axi_rd_sram_valid_decoded;
+	wire [NC - 1:0] axi_rd_sram_ready_per_channel;
+	reg [NC - 1:0] axi_wr_sram_drain_decoded;
+	wire [(NC * DW) - 1:0] axi_wr_sram_data_per_channel;
+	reg [NC - 1:0] axi_rd_alloc_req_decoded;
+	wire [(NC * SCW) - 1:0] axi_rd_alloc_space_free_comb;
+	wire [(NC * SCW) - 1:0] axi_wr_drain_data_avail_comb;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		axi_rd_sram_valid_decoded = 1'sb0;
+		if (axi_rd_sram_valid && (axi_rd_sram_id < NC))
+			axi_rd_sram_valid_decoded[axi_rd_sram_id] = 1'b1;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (axi_rd_sram_id < NC)
+			axi_rd_sram_ready = axi_rd_sram_ready_per_channel[axi_rd_sram_id];
+		else
+			axi_rd_sram_ready = 1'b0;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		axi_wr_sram_drain_decoded = 1'sb0;
+		if (axi_wr_sram_drain && (axi_wr_sram_id < NC))
+			axi_wr_sram_drain_decoded[axi_wr_sram_id] = 1'b1;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (axi_wr_sram_id < NC)
+			axi_wr_sram_data = axi_wr_sram_data_per_channel[axi_wr_sram_id * DW+:DW];
+		else
+			axi_wr_sram_data = 1'sb0;
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		axi_rd_alloc_req_decoded = 1'sb0;
+		if (axi_rd_alloc_req && (axi_rd_alloc_id < NC))
+			axi_rd_alloc_req_decoded[axi_rd_alloc_id] = 1'b1;
+	end
+	genvar _gv_i_2;
+	generate
+		for (_gv_i_2 = 0; _gv_i_2 < NC; _gv_i_2 = _gv_i_2 + 1) begin : gen_channel_units
+			localparam i = _gv_i_2;
+			sram_controller_unit #(
+				.DATA_WIDTH(DW),
+				.SRAM_DEPTH(SRAM_DEPTH),
+				.SEG_COUNT_WIDTH(SEG_COUNT_WIDTH)
+			) u_channel_unit(
+				.clk(clk),
+				.rst_n(rst_n),
+				.axi_rd_sram_valid(axi_rd_sram_valid_decoded[i]),
+				.axi_rd_sram_ready(axi_rd_sram_ready_per_channel[i]),
+				.axi_rd_sram_data(axi_rd_sram_data),
+				.axi_wr_sram_valid(axi_wr_sram_valid_comb[i]),
+				.axi_wr_sram_ready(axi_wr_sram_drain_decoded[i]),
+				.axi_wr_sram_data(axi_wr_sram_data_per_channel[i * DW+:DW]),
+				.axi_rd_alloc_req(axi_rd_alloc_req_decoded[i]),
+				.axi_rd_alloc_size(axi_rd_alloc_size),
+				.axi_rd_alloc_space_free(axi_rd_alloc_space_free_comb[i * SCW+:SCW]),
+				.axi_wr_drain_req(axi_wr_drain_req[i]),
+				.axi_wr_drain_size(axi_wr_drain_size[i * 8+:8]),
+				.axi_wr_drain_data_avail(axi_wr_drain_data_avail_comb[i * SCW+:SCW]),
+				.dbg_bridge_pending(dbg_bridge_pending[i]),
+				.dbg_bridge_out_valid(dbg_bridge_out_valid[i])
+			);
+		end
+	endgenerate
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			axi_rd_alloc_space_free <= 1'sb0;
+			axi_wr_drain_data_avail <= 1'sb0;
+			axi_wr_sram_valid <= 1'sb0;
+		end
+		else begin
+			axi_rd_alloc_space_free <= axi_rd_alloc_space_free_comb;
+			axi_wr_drain_data_avail <= axi_wr_drain_data_avail_comb;
+			axi_wr_sram_valid <= axi_wr_sram_valid_comb;
+		end
 	initial _sv2v_0 = 0;
 endmodule
 module datapath_wr_test (

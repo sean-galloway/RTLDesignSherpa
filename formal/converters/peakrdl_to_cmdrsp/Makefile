@@ -2,20 +2,15 @@
 # Formal verification Makefile for peakrdl_to_cmdrsp
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-# Package files (none needed)
-PKGS :=
-
-# RTL dependencies (none -- standalone module)
-DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := peakrdl_to_cmdrsp_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -26,9 +21,6 @@ prove: peakrdl_to_cmdrsp_flat.v
 
 cover: peakrdl_to_cmdrsp_flat.v
 	sby -f peakrdl_to_cmdrsp.sby cover
-
-peakrdl_to_cmdrsp_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

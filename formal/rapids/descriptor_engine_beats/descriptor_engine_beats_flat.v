@@ -401,6 +401,143 @@ module gaxi_skid_buffer (
 		end
 	endgenerate
 endmodule
+module fifo_sync (
+	clk,
+	rst_n,
+	write,
+	wr_data,
+	wr_full,
+	wr_almost_full,
+	read,
+	rd_data,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] MEM_STYLE = 32'sd0;
+	parameter signed [31:0] REGISTERED = 0;
+	parameter signed [31:0] DATA_WIDTH = 4;
+	parameter signed [31:0] DEPTH = 4;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	input wire clk;
+	input wire rst_n;
+	input wire write;
+	input wire [DATA_WIDTH - 1:0] wr_data;
+	output wire wr_full;
+	output wire wr_almost_full;
+	input wire read;
+	output wire [DATA_WIDTH - 1:0] rd_data;
+	output wire rd_empty;
+	output wire rd_almost_empty;
+	localparam signed [31:0] DW = DATA_WIDTH;
+	localparam signed [31:0] D = DEPTH;
+	localparam signed [31:0] AW = $clog2(DEPTH);
+	wire [AW - 1:0] r_wr_addr;
+	wire [AW - 1:0] r_rd_addr;
+	wire [AW:0] r_wr_ptr_bin;
+	wire [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) write_pointer_inst(
+		.clk(clk),
+		.rst_n(rst_n),
+		.enable(write && !wr_full),
+		.counter_bin_curr(r_wr_ptr_bin),
+		.counter_bin_next(w_wr_ptr_bin_next)
+	);
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) read_pointer_inst(
+		.clk(clk),
+		.rst_n(rst_n),
+		.enable(read && !rd_empty),
+		.counter_bin_curr(r_rd_ptr_bin),
+		.counter_bin_next(w_rd_ptr_bin_next)
+	);
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(clk),
+		.wr_rst_n(rst_n),
+		.rd_clk(clk),
+		.rd_rst_n(rst_n),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
+		.rd_ptr_bin(w_rd_ptr_bin_next),
+		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+		.count(),
+		.wr_full(wr_full),
+		.wr_almost_full(wr_almost_full),
+		.rd_empty(rd_empty),
+		.rd_almost_empty(rd_almost_empty)
+	);
+	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
+	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
+	generate
+		if (MEM_STYLE == 32'sd1) begin : gen_srl
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge clk)
+				if (write && !wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge clk or negedge rst_n)
+					if (!rst_n)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+		else if (MEM_STYLE == 32'sd2) begin : gen_bram
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge clk)
+				if (write && !wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge clk or negedge rst_n)
+					if (!rst_n)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+		else begin : gen_auto
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge clk)
+				if (write && !wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge clk or negedge rst_n)
+					if (!rst_n)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+	endgenerate
+endmodule
 module descriptor_engine_beats (
 	clk,
 	rst_n,

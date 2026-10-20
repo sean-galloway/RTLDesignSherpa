@@ -6,31 +6,21 @@
 # three of <x>_slave_cdc, <x>_slave_cg and <x>_slave_cdc_cg. The gap was in no
 # tracker, so nothing surfaced it.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/rtl/amba/wb4/wb4_pkg.sv
-
-# icg.sv is deliberately ABSENT: the harness supplies a clock-enable model of
-# the cell, because a derived clock is not provable in the single-clock flow.
-DEPS := $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
-        $(REPO_ROOT)/rtl/cdc/reset_sync.sv $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/cdc/counter_johnson.sv \
-        $(REPO_ROOT)/rtl/cdc/counter_bingray.sv \
-        $(REPO_ROOT)/rtl/cdc/glitch_free_n_dff_arn.sv \
-        $(REPO_ROOT)/rtl/common/find_last_set.sv \
-        $(REPO_ROOT)/rtl/common/find_first_set.sv \
-        $(REPO_ROOT)/rtl/common/leading_one_trailing_one.sv \
-        $(REPO_ROOT)/rtl/cdc/johnson2bin.sv \
-        $(REPO_ROOT)/rtl/cdc/gray2bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/cdc/gaxi_fifo_async.sv \
-        $(REPO_ROOT)/rtl/amba/wb4/wb4_slave.sv \
-        $(REPO_ROOT)/rtl/amba/wb4/wb4_slave_cdc.sv
-DUT  := $(REPO_ROOT)/rtl/amba/wb4/wb4_slave_cdc_cg.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := wb4_slave_cdc_cg_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/wb4_slave_cdc_cg.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+# The harness defines its own copy of these modules (a clock-enable model of
+# the ICG cell: a derived clock is not provable in this flow).
+FLAT_EXCLUDE    := /icg.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -41,9 +31,6 @@ prove: wb4_slave_cdc_cg_flat.v
 
 cover: wb4_slave_cdc_cg_flat.v
 	sby -f wb4_slave_cdc_cg.sby cover
-
-wb4_slave_cdc_cg_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf wb4_slave_cdc_cg_flat.v wb4_slave_cdc_cg_prove wb4_slave_cdc_cg_cover

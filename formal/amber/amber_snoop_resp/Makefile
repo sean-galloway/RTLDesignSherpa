@@ -7,14 +7,22 @@
 # skid-buffered ACE transport, not a fork.
 # Regenerate the flat file whenever the RTL changes.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
-INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/includes/l1_pkg.sv
-SRCS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/ace/axi4ace_snoop_slave.sv \
-        $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/fub/l1_snoop_resp.sv
-TMPDIR := /tmp/formal_amber_snoop_resp
+
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := amber_snoop_resp_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/cache-ip/common-ip/rtl/filelists/l1_snoop_resp.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+# specialize_params pins the tiny formal geometry AND deletes the parameter
+# declarations, so the DUT is parameterless and yosys's expose applies
+# (bind silently never fires in this yosys build).
+FLAT_POST       := python3 ../specialize_params.py - /dev/stdout --param ADDR_WIDTH=32 --param DATA_WIDTH=64 --param LINE_BYTES=64 --module l1_snoop_resp
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -26,41 +34,5 @@ prove: amber_snoop_resp_flat.v
 cover: amber_snoop_resp_flat.v
 	sby -f amber_snoop_resp.sby cover
 
-amber_snoop_resp_flat.v: $(PKGS) $(SRCS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
-	# specialize_params pins the geometry values and deletes the parameter
-	# declarations of the DUT: yosys bind only fires on truly parameterless
-	# modules (without this the properties would be silently dropped).
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
-	    --param ADDR_WIDTH=32 --param DATA_WIDTH=64 --param LINE_BYTES=64 \
-	    --module l1_snoop_resp
-	@rm -rf $(TMPDIR)
-
 clean:
 	rm -rf amber_snoop_resp_prove amber_snoop_resp_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < amber_snoop_resp_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: amber_snoop_resp_flat.v does not match the RTL."; \
-		echo "Regenerate with: make amber_snoop_resp_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(PKGS) $(SRCS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) | python3 ../specialize_params.py - $@ \
-	    --param ADDR_WIDTH=32 --param DATA_WIDTH=64 --param LINE_BYTES=64 \
-	    --module l1_snoop_resp
-	@rm -rf $(TMPDIR)

@@ -14,7 +14,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);

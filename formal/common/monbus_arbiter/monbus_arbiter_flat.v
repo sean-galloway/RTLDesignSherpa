@@ -1,118 +1,143 @@
-module gaxi_skid_buffer (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	count,
-	rd_valid,
-	rd_ready,
-	rd_count,
-	rd_data
+module counter_bin (
+	clk,
+	rst_n,
+	enable,
+	counter_bin_curr,
+	counter_bin_next
 );
-	parameter signed [31:0] DATA_WIDTH = 32;
-	parameter signed [31:0] DEPTH = 2;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output reg wr_ready;
-	input wire [DW - 1:0] wr_data;
-	output wire [3:0] count;
-	output reg rd_valid;
-	input wire rd_ready;
-	output wire [3:0] rd_count;
-	output wire [DW - 1:0] rd_data;
-	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
-	reg [DW - 1:0] r_data [0:SLOTS - 1];
-	reg [3:0] r_data_count;
-	wire w_wr_xfer;
-	wire w_rd_xfer;
-	assign w_wr_xfer = wr_valid & wr_ready;
-	assign w_rd_xfer = rd_valid & rd_ready;
-	generate
-		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/formal_monbus_arbiter/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
-		end
-	endgenerate
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 5;
+	parameter signed [31:0] MAX = 10;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin_curr;
+	output reg [WIDTH - 1:0] counter_bin_next;
+	wire [WIDTH - 2:0] w_max_val;
+	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
+		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
+		sv2v_cast_00F62_signed = inp;
 	endfunction
-	generate
-		if (DEPTH == 0) begin : g_bypass
-			wire [1:1] sv2v_tmp_B1958;
-			assign sv2v_tmp_B1958 = rd_ready;
-			always @(*) wr_ready = sv2v_tmp_B1958;
-			wire [1:1] sv2v_tmp_00E98;
-			assign sv2v_tmp_00E98 = wr_valid;
-			always @(*) rd_valid = sv2v_tmp_00E98;
-			assign rd_data = wr_data;
-			wire [4:1] sv2v_tmp_953DA;
-			assign sv2v_tmp_953DA = 1'sb0;
-			always @(*) r_data_count = sv2v_tmp_953DA;
-			wire [DW:1] sv2v_tmp_D35D5;
-			assign sv2v_tmp_D35D5 = 1'sb0;
-			always @(*) r_data[0] = sv2v_tmp_D35D5;
-			assign rd_count = 1'sb0;
-			assign count = 1'sb0;
-			wire w_bypass_unused;
-			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
+	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (enable) begin
+			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
+				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
+			else
+				counter_bin_next = counter_bin_curr + 1;
 		end
-		else begin : g_skid
-			genvar _gv_gi_1;
-			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-				localparam gi = _gv_gi_1;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_data[gi] <= 1'sb0;
-					else
-						(* full_case, parallel_case *)
-						case ({w_wr_xfer, w_rd_xfer})
-							2'b10:
-								if (r_data_count == gi[3:0])
-									r_data[gi] <= wr_data;
-							2'b01:
-								if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							2'b11:
-								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-									r_data[gi] <= wr_data;
-								else if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							default:
-								;
-						endcase
-			end
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data_count <= 1'sb0;
+		else
+			counter_bin_next = counter_bin_curr;
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_bin_curr <= 'b0;
+		else
+			counter_bin_curr <= counter_bin_next;
+	initial _sv2v_0 = 0;
+endmodule
+module fifo_control (
+	wr_clk,
+	wr_rst_n,
+	rd_clk,
+	rd_rst_n,
+	wr_ptr_bin,
+	wdom_rd_ptr_bin,
+	rd_ptr_bin,
+	rdom_wr_ptr_bin,
+	count,
+	wr_full,
+	wr_almost_full,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] ADDR_WIDTH = 3;
+	parameter signed [31:0] DEPTH = 8;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] REGISTERED = 0;
+	input wire wr_clk;
+	input wire wr_rst_n;
+	input wire rd_clk;
+	input wire rd_rst_n;
+	input wire [ADDR_WIDTH:0] wr_ptr_bin;
+	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
+	output wire [ADDR_WIDTH:0] count;
+	output reg wr_full;
+	output reg wr_almost_full;
+	output reg rd_empty;
+	output reg rd_almost_empty;
+	localparam signed [31:0] D = DEPTH;
+	localparam signed [31:0] AW = ADDR_WIDTH;
+	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
+	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
+	localparam signed [31:0] AFT = D - AFULL;
+	localparam signed [31:0] AET = AEMPTY;
+	wire w_wdom_ptr_xor;
+	wire w_rdom_ptr_xor;
+	wire w_wr_full_d;
+	wire w_wr_almost_full_d;
+	wire w_rd_empty_d;
+	wire w_rd_almost_empty_d;
+	wire [AW:0] w_almost_full_count;
+	wire [AW:0] w_almost_empty_count;
+	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
+	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
+	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
+	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
+		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65_signed = inp;
+	endfunction
+	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
+	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
+	always @(posedge wr_clk or negedge wr_rst_n)
+		if (!wr_rst_n) begin
+			wr_full <= 'b0;
+			wr_almost_full <= 'b0;
+		end
+		else begin
+			wr_full <= w_wr_full_d;
+			wr_almost_full <= w_wr_almost_full_d;
+		end
+	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
+	wire w_rdom_ptr_xor_for_empty;
+	generate
+		if (REGISTERED == 1) begin : gen_flop_mode
+			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
+			always @(posedge rd_clk or negedge rd_rst_n)
+				if (!rd_rst_n)
+					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
 				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10: r_data_count <= r_data_count + 4'd1;
-						2'b01: r_data_count <= r_data_count - 4'd1;
-						default:
-							;
-					endcase
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn) begin
-					wr_ready <= 1'b0;
-					rd_valid <= 1'b0;
-				end
-				else begin
-					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
-				end
-			assign rd_data = r_data[0];
-			assign rd_count = r_data_count;
-			assign count = r_data_count;
+					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
+			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
+		end
+		else begin : gen_mux_mode
+			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
 		end
 	endgenerate
+	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
+	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
+	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
+	wire [ADDR_WIDTH:0] w_count;
+	reg [ADDR_WIDTH:0] r_count;
+	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign count = (REGISTERED == 1 ? r_count : w_count);
+	always @(posedge rd_clk or negedge rd_rst_n)
+		if (!rd_rst_n) begin
+			rd_empty <= 'b1;
+			rd_almost_empty <= 'b0;
+			r_count <= 'b0;
+		end
+		else begin
+			rd_empty <= w_rd_empty_d;
+			rd_almost_empty <= w_rd_almost_empty_d;
+			r_count <= w_count;
+		end
 endmodule
 module arbiter_priority_encoder (
 	requests_masked,
@@ -614,6 +639,122 @@ module arbiter_round_robin (
 		end
 	endgenerate
 	initial _sv2v_0 = 0;
+endmodule
+module gaxi_skid_buffer (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	count,
+	rd_valid,
+	rd_ready,
+	rd_count,
+	rd_data
+);
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] DEPTH = 2;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output reg wr_ready;
+	input wire [DW - 1:0] wr_data;
+	output wire [3:0] count;
+	output reg rd_valid;
+	input wire rd_ready;
+	output wire [3:0] rd_count;
+	output wire [DW - 1:0] rd_data;
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
+	reg [3:0] r_data_count;
+	wire w_wr_xfer;
+	wire w_rd_xfer;
+	assign w_wr_xfer = wr_valid & wr_ready;
+	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+		end
+	endgenerate
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
+		end
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
+		end
+	endgenerate
 endmodule
 module monbus_arbiter (
 	axi_aclk,

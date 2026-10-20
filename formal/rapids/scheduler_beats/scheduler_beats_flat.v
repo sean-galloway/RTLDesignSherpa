@@ -1,3 +1,119 @@
+module dma_address_gen (
+	i_clk,
+	i_rst_n,
+	i_cfg_base_addr,
+	i_cfg_stride_0,
+	i_cfg_stride_1,
+	i_cfg_wrap_mask_0,
+	i_cfg_wrap_mask_1,
+	i_req_valid,
+	o_req_ready,
+	i_req_index_0,
+	i_req_index_1,
+	i_req_tag,
+	o_result_valid,
+	i_result_ready,
+	o_result_addr,
+	o_result_tag
+);
+	reg _sv2v_0;
+	parameter signed [31:0] ADDR_WIDTH = 40;
+	parameter signed [31:0] INDEX_WIDTH = 16;
+	parameter signed [31:0] STRIDE_WIDTH = 24;
+	parameter signed [31:0] TAG_WIDTH = 8;
+	input wire i_clk;
+	input wire i_rst_n;
+	input wire [ADDR_WIDTH - 1:0] i_cfg_base_addr;
+	input wire signed [STRIDE_WIDTH - 1:0] i_cfg_stride_0;
+	input wire signed [STRIDE_WIDTH - 1:0] i_cfg_stride_1;
+	input wire [ADDR_WIDTH - 1:0] i_cfg_wrap_mask_0;
+	input wire [ADDR_WIDTH - 1:0] i_cfg_wrap_mask_1;
+	input wire i_req_valid;
+	output wire o_req_ready;
+	input wire [INDEX_WIDTH - 1:0] i_req_index_0;
+	input wire [INDEX_WIDTH - 1:0] i_req_index_1;
+	input wire [TAG_WIDTH - 1:0] i_req_tag;
+	output wire o_result_valid;
+	input wire i_result_ready;
+	output wire [ADDR_WIDTH - 1:0] o_result_addr;
+	output wire [TAG_WIDTH - 1:0] o_result_tag;
+	localparam signed [31:0] PRODUCT_WIDTH = INDEX_WIDTH + STRIDE_WIDTH;
+	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_0;
+	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_1;
+	assign w_s1_raw_offset_0 = $signed({1'b0, i_req_index_0}) * i_cfg_stride_0;
+	assign w_s1_raw_offset_1 = $signed({1'b0, i_req_index_1}) * i_cfg_stride_1;
+	reg [ADDR_WIDTH - 1:0] w_s1_offset_0;
+	reg [ADDR_WIDTH - 1:0] w_s1_offset_1;
+	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
+		input reg signed [ADDR_WIDTH - 1:0] inp;
+		sv2v_cast_A5DC5_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (i_cfg_wrap_mask_0 != {ADDR_WIDTH {1'sb0}})
+			w_s1_offset_0 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_0) & i_cfg_wrap_mask_0;
+		else
+			w_s1_offset_0 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_0);
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (i_cfg_wrap_mask_1 != {ADDR_WIDTH {1'sb0}})
+			w_s1_offset_1 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_1) & i_cfg_wrap_mask_1;
+		else
+			w_s1_offset_1 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_1);
+	end
+	reg r_s1_valid;
+	reg [ADDR_WIDTH - 1:0] r_s1_offset_0;
+	reg [ADDR_WIDTH - 1:0] r_s1_offset_1;
+	reg [ADDR_WIDTH - 1:0] r_s1_base_addr;
+	reg [TAG_WIDTH - 1:0] r_s1_tag;
+	wire w_s1_ready;
+	wire w_s2_ready;
+	assign w_s1_ready = !r_s1_valid || w_s2_ready;
+	assign o_req_ready = w_s1_ready;
+	always @(posedge i_clk or negedge i_rst_n)
+		if (!i_rst_n) begin
+			r_s1_valid <= 1'b0;
+			r_s1_offset_0 <= 1'sb0;
+			r_s1_offset_1 <= 1'sb0;
+			r_s1_base_addr <= 1'sb0;
+			r_s1_tag <= 1'sb0;
+		end
+		else if (i_req_valid && w_s1_ready) begin
+			r_s1_valid <= 1'b1;
+			r_s1_offset_0 <= w_s1_offset_0;
+			r_s1_offset_1 <= w_s1_offset_1;
+			r_s1_base_addr <= i_cfg_base_addr;
+			r_s1_tag <= i_req_tag;
+		end
+		else if (w_s2_ready)
+			r_s1_valid <= 1'b0;
+	wire [ADDR_WIDTH - 1:0] w_s2_addr;
+	assign w_s2_addr = (r_s1_base_addr + r_s1_offset_0) + r_s1_offset_1;
+	reg r_s2_valid;
+	reg [ADDR_WIDTH - 1:0] r_s2_addr;
+	reg [TAG_WIDTH - 1:0] r_s2_tag;
+	assign w_s2_ready = !r_s2_valid || i_result_ready;
+	always @(posedge i_clk or negedge i_rst_n)
+		if (!i_rst_n) begin
+			r_s2_valid <= 1'b0;
+			r_s2_addr <= 1'sb0;
+			r_s2_tag <= 1'sb0;
+		end
+		else if (r_s1_valid && w_s2_ready) begin
+			r_s2_valid <= 1'b1;
+			r_s2_addr <= w_s2_addr;
+			r_s2_tag <= r_s1_tag;
+		end
+		else if (i_result_ready)
+			r_s2_valid <= 1'b0;
+	assign o_result_valid = r_s2_valid;
+	assign o_result_addr = r_s2_addr;
+	assign o_result_tag = r_s2_tag;
+	initial _sv2v_0 = 0;
+endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -284,122 +400,6 @@ module gaxi_fifo_sync (
 		if (w_read && r_rd_empty)
 			;
 	end
-endmodule
-module dma_address_gen (
-	i_clk,
-	i_rst_n,
-	i_cfg_base_addr,
-	i_cfg_stride_0,
-	i_cfg_stride_1,
-	i_cfg_wrap_mask_0,
-	i_cfg_wrap_mask_1,
-	i_req_valid,
-	o_req_ready,
-	i_req_index_0,
-	i_req_index_1,
-	i_req_tag,
-	o_result_valid,
-	i_result_ready,
-	o_result_addr,
-	o_result_tag
-);
-	reg _sv2v_0;
-	parameter signed [31:0] ADDR_WIDTH = 40;
-	parameter signed [31:0] INDEX_WIDTH = 16;
-	parameter signed [31:0] STRIDE_WIDTH = 24;
-	parameter signed [31:0] TAG_WIDTH = 8;
-	input wire i_clk;
-	input wire i_rst_n;
-	input wire [ADDR_WIDTH - 1:0] i_cfg_base_addr;
-	input wire signed [STRIDE_WIDTH - 1:0] i_cfg_stride_0;
-	input wire signed [STRIDE_WIDTH - 1:0] i_cfg_stride_1;
-	input wire [ADDR_WIDTH - 1:0] i_cfg_wrap_mask_0;
-	input wire [ADDR_WIDTH - 1:0] i_cfg_wrap_mask_1;
-	input wire i_req_valid;
-	output wire o_req_ready;
-	input wire [INDEX_WIDTH - 1:0] i_req_index_0;
-	input wire [INDEX_WIDTH - 1:0] i_req_index_1;
-	input wire [TAG_WIDTH - 1:0] i_req_tag;
-	output wire o_result_valid;
-	input wire i_result_ready;
-	output wire [ADDR_WIDTH - 1:0] o_result_addr;
-	output wire [TAG_WIDTH - 1:0] o_result_tag;
-	localparam signed [31:0] PRODUCT_WIDTH = INDEX_WIDTH + STRIDE_WIDTH;
-	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_0;
-	wire signed [PRODUCT_WIDTH:0] w_s1_raw_offset_1;
-	assign w_s1_raw_offset_0 = $signed({1'b0, i_req_index_0}) * i_cfg_stride_0;
-	assign w_s1_raw_offset_1 = $signed({1'b0, i_req_index_1}) * i_cfg_stride_1;
-	reg [ADDR_WIDTH - 1:0] w_s1_offset_0;
-	reg [ADDR_WIDTH - 1:0] w_s1_offset_1;
-	function automatic signed [ADDR_WIDTH - 1:0] sv2v_cast_A5DC5_signed;
-		input reg signed [ADDR_WIDTH - 1:0] inp;
-		sv2v_cast_A5DC5_signed = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (i_cfg_wrap_mask_0 != {ADDR_WIDTH {1'sb0}})
-			w_s1_offset_0 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_0) & i_cfg_wrap_mask_0;
-		else
-			w_s1_offset_0 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_0);
-	end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (i_cfg_wrap_mask_1 != {ADDR_WIDTH {1'sb0}})
-			w_s1_offset_1 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_1) & i_cfg_wrap_mask_1;
-		else
-			w_s1_offset_1 = sv2v_cast_A5DC5_signed(w_s1_raw_offset_1);
-	end
-	reg r_s1_valid;
-	reg [ADDR_WIDTH - 1:0] r_s1_offset_0;
-	reg [ADDR_WIDTH - 1:0] r_s1_offset_1;
-	reg [ADDR_WIDTH - 1:0] r_s1_base_addr;
-	reg [TAG_WIDTH - 1:0] r_s1_tag;
-	wire w_s1_ready;
-	wire w_s2_ready;
-	assign w_s1_ready = !r_s1_valid || w_s2_ready;
-	assign o_req_ready = w_s1_ready;
-	always @(posedge i_clk or negedge i_rst_n)
-		if (!i_rst_n) begin
-			r_s1_valid <= 1'b0;
-			r_s1_offset_0 <= 1'sb0;
-			r_s1_offset_1 <= 1'sb0;
-			r_s1_base_addr <= 1'sb0;
-			r_s1_tag <= 1'sb0;
-		end
-		else if (i_req_valid && w_s1_ready) begin
-			r_s1_valid <= 1'b1;
-			r_s1_offset_0 <= w_s1_offset_0;
-			r_s1_offset_1 <= w_s1_offset_1;
-			r_s1_base_addr <= i_cfg_base_addr;
-			r_s1_tag <= i_req_tag;
-		end
-		else if (w_s2_ready)
-			r_s1_valid <= 1'b0;
-	wire [ADDR_WIDTH - 1:0] w_s2_addr;
-	assign w_s2_addr = (r_s1_base_addr + r_s1_offset_0) + r_s1_offset_1;
-	reg r_s2_valid;
-	reg [ADDR_WIDTH - 1:0] r_s2_addr;
-	reg [TAG_WIDTH - 1:0] r_s2_tag;
-	assign w_s2_ready = !r_s2_valid || i_result_ready;
-	always @(posedge i_clk or negedge i_rst_n)
-		if (!i_rst_n) begin
-			r_s2_valid <= 1'b0;
-			r_s2_addr <= 1'sb0;
-			r_s2_tag <= 1'sb0;
-		end
-		else if (r_s1_valid && w_s2_ready) begin
-			r_s2_valid <= 1'b1;
-			r_s2_addr <= w_s2_addr;
-			r_s2_tag <= r_s1_tag;
-		end
-		else if (i_result_ready)
-			r_s2_valid <= 1'b0;
-	assign o_result_valid = r_s2_valid;
-	assign o_result_addr = r_s2_addr;
-	assign o_result_tag = r_s2_tag;
-	initial _sv2v_0 = 0;
 endmodule
 module stream_run_addr_gen (
 	clk,

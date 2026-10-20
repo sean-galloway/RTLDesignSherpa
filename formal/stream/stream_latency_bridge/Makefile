@@ -14,18 +14,15 @@
 # flatten the real RTL. See vault BUG-001 and handbook dv/formal.md,
 # "PROVING A FORK IS WORSE THAN NO PROOF".
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-# Closed set: stream_latency_bridge instantiates only gaxi_fifo_sync, and
-# counter_bin/fifo_control instantiate nothing.
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := stream_latency_bridge_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/fub/stream_latency_bridge.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -34,9 +31,6 @@ prove: stream_latency_bridge_flat.v
 
 cover: stream_latency_bridge_flat.v
 	sby -f stream_latency_bridge.sby cover
-
-stream_latency_bridge_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

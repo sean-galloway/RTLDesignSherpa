@@ -8,17 +8,18 @@
 # take. Regenerate the flat file whenever the RTL changes -- a stale flat is a
 # proof about code that no longer exists.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/apb4/apb4_master.sv
-DUT  := $(REPO_ROOT)/rtl/amba/apb4/apb4_master_stub.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := apb4_master_stub_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/apb4_master_stub.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -29,9 +30,6 @@ prove: apb4_master_stub_flat.v
 
 cover: apb4_master_stub_flat.v
 	sby -f apb4_master_stub.sby cover
-
-apb4_master_stub_flat.v: $(DUT) $(DEPS)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf apb4_master_stub_flat.v apb4_master_stub_prove apb4_master_stub_cover

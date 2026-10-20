@@ -14,21 +14,19 @@
 # only ELABORATION asserts, and keeping those leaves `assert (...) else begin
 # ... end` in the output, which yosys cannot parse.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes
-
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv
-
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
-DUT  := $(REPO_ROOT)/rtl/amba/ocelus/arbiter_monbus_common.sv
-
-TMPDIR := /tmp/formal_arbiter_monbus_common
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := arbiter_monbus_common_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/arbiter_monbus_common.f
+FLAT_SV2V_FLAGS := --define=FORMAL
+# ocelus_pkg re-exports its sub-packages' types, which trips sv2v's
+# "ambiguous identifier"; the prep strips the import and the scope prefix.
+FLAT_PREP       := s/import ocelus_pkg::\*;//g;s/ocelus_pkg:://g
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -40,44 +38,5 @@ prove: arbiter_monbus_common_flat.v
 cover: arbiter_monbus_common_flat.v
 	sby -f arbiter_monbus_common.sby cover
 
-# ocelus_pkg re-exports sub-package types and trips sv2v "ambiguous
-# identifier"; strip the import the way apb4_monitor does.
-arbiter_monbus_common_flat.v: $(DUT) $(PKGS) $(DEPS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(DEPS) $(DUT); do \
-	    sed -e 's/import ocelus_pkg::\*;//g' -e 's/ocelus_pkg:://g' $$f \
-	        > $(TMPDIR)/$$(basename $$f); \
-	done
-	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
-	    $(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
-	@rm -rf $(TMPDIR)
-
 clean:
 	rm -rf arbiter_monbus_common_flat.v arbiter_monbus_common_prove arbiter_monbus_common_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < arbiter_monbus_common_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: arbiter_monbus_common_flat.v does not match the RTL."; \
-		echo "Regenerate with: make arbiter_monbus_common_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(DEPS) $(DUT); do \
-	    sed -e 's/import ocelus_pkg::\*;//g' -e 's/ocelus_pkg:://g' $$f \
-	        > $(TMPDIR)/$$(basename $$f); \
-	done
-	$(SV2V) --define=FORMAL $(INC) $(PKGS) \
-	    $(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
-	@rm -rf $(TMPDIR)

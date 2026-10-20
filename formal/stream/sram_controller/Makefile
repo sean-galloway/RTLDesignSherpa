@@ -2,28 +2,15 @@
 # Formal verification Makefile for sram_controller
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
-
-# Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
-
-# RTL dependencies (all of sram_controller_unit's deps plus the unit itself)
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller_unit.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := sram_controller_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/fub/sram_controller.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -32,9 +19,6 @@ prove: sram_controller_flat.v
 
 cover: sram_controller_flat.v
 	sby -f sram_controller.sby cover
-
-sram_controller_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

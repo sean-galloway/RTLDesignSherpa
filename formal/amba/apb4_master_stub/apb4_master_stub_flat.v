@@ -38,6 +38,41 @@ module counter_bin (
 			counter_bin_curr <= counter_bin_next;
 	initial _sv2v_0 = 0;
 endmodule
+module counter_load_clear (
+	clk,
+	rst_n,
+	clear,
+	increment,
+	load,
+	loadval,
+	count,
+	done
+);
+	parameter signed [31:0] MAX = 32'd32;
+	input wire clk;
+	input wire rst_n;
+	input wire clear;
+	input wire increment;
+	input wire load;
+	input wire [$clog2(MAX) - 1:0] loadval;
+	output reg [$clog2(MAX) - 1:0] count;
+	output wire done;
+	reg [$clog2(MAX) - 1:0] r_match_val;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			count <= 'b0;
+			r_match_val <= 'b0;
+		end
+		else begin
+			if (load)
+				r_match_val <= loadval;
+			if (clear)
+				count <= 'b0;
+			else if (increment)
+				count <= (count == r_match_val ? 'b0 : count + 'b1);
+		end
+	assign done = count == r_match_val;
+endmodule
 module fifo_control (
 	wr_clk,
 	wr_rst_n,

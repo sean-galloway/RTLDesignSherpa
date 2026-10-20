@@ -9,12 +9,18 @@
 # The harness reads the packed form. sv2v puts element 0 at the MSB end, so
 # element i is bits [W*(7-i) +: W] (measured 2026-09-11).
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-DUT  := $(REPO_ROOT)/rtl/math/math_bf16_softmax_8.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := math_bf16_softmax_8_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/math/filelists/math_bf16_softmax_8.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -25,9 +31,6 @@ prove: math_bf16_softmax_8_flat.v
 
 cover: math_bf16_softmax_8_flat.v
 	sby -f math_bf16_softmax_8.sby cover
-
-math_bf16_softmax_8_flat.v: $(DUT)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(DUT) > $@
 
 clean:
 	rm -rf math_bf16_softmax_8_flat.v math_bf16_softmax_8_prove math_bf16_softmax_8_cover

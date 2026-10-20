@@ -14,7 +14,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
@@ -81,354 +81,6 @@ module reset_sync (
 		end
 	endgenerate
 	initial _sv2v_0 = 0;
-endmodule
-module gaxi_skid_buffer (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	count,
-	rd_valid,
-	rd_ready,
-	rd_count,
-	rd_data
-);
-	parameter signed [31:0] DATA_WIDTH = 32;
-	parameter signed [31:0] DEPTH = 2;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output reg wr_ready;
-	input wire [DW - 1:0] wr_data;
-	output wire [3:0] count;
-	output reg rd_valid;
-	input wire rd_ready;
-	output wire [3:0] rd_count;
-	output wire [DW - 1:0] rd_data;
-	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
-	reg [DW - 1:0] r_data [0:SLOTS - 1];
-	reg [3:0] r_data_count;
-	wire w_wr_xfer;
-	wire w_rd_xfer;
-	assign w_wr_xfer = wr_valid & wr_ready;
-	assign w_rd_xfer = rd_valid & rd_ready;
-	generate
-		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
-		end
-	endgenerate
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	generate
-		if (DEPTH == 0) begin : g_bypass
-			wire [1:1] sv2v_tmp_B1958;
-			assign sv2v_tmp_B1958 = rd_ready;
-			always @(*) wr_ready = sv2v_tmp_B1958;
-			wire [1:1] sv2v_tmp_00E98;
-			assign sv2v_tmp_00E98 = wr_valid;
-			always @(*) rd_valid = sv2v_tmp_00E98;
-			assign rd_data = wr_data;
-			wire [4:1] sv2v_tmp_953DA;
-			assign sv2v_tmp_953DA = 1'sb0;
-			always @(*) r_data_count = sv2v_tmp_953DA;
-			wire [DW:1] sv2v_tmp_D35D5;
-			assign sv2v_tmp_D35D5 = 1'sb0;
-			always @(*) r_data[0] = sv2v_tmp_D35D5;
-			assign rd_count = 1'sb0;
-			assign count = 1'sb0;
-			wire w_bypass_unused;
-			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
-		end
-		else begin : g_skid
-			genvar _gv_gi_1;
-			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-				localparam gi = _gv_gi_1;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_data[gi] <= 1'sb0;
-					else
-						(* full_case, parallel_case *)
-						case ({w_wr_xfer, w_rd_xfer})
-							2'b10:
-								if (r_data_count == gi[3:0])
-									r_data[gi] <= wr_data;
-							2'b01:
-								if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							2'b11:
-								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-									r_data[gi] <= wr_data;
-								else if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							default:
-								;
-						endcase
-			end
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data_count <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10: r_data_count <= r_data_count + 4'd1;
-						2'b01: r_data_count <= r_data_count - 4'd1;
-						default:
-							;
-					endcase
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn) begin
-					wr_ready <= 1'b0;
-					rd_valid <= 1'b0;
-				end
-				else begin
-					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
-				end
-			assign rd_data = r_data[0];
-			assign rd_count = r_data_count;
-			assign count = r_data_count;
-		end
-	endgenerate
-endmodule
-module axil4_master_rd (
-	aclk,
-	aresetn,
-	fub_araddr,
-	fub_arprot,
-	fub_arvalid,
-	fub_arready,
-	fub_rdata,
-	fub_rresp,
-	fub_rvalid,
-	fub_rready,
-	m_axil_araddr,
-	m_axil_arprot,
-	m_axil_arvalid,
-	m_axil_arready,
-	m_axil_rdata,
-	m_axil_rresp,
-	m_axil_rvalid,
-	m_axil_rready,
-	busy
-);
-	parameter signed [31:0] AXIL_ADDR_WIDTH = 32;
-	parameter signed [31:0] AXIL_DATA_WIDTH = 32;
-	parameter signed [31:0] SKID_DEPTH_AR = 2;
-	parameter signed [31:0] SKID_DEPTH_R = 4;
-	parameter signed [31:0] AW = AXIL_ADDR_WIDTH;
-	parameter signed [31:0] DW = AXIL_DATA_WIDTH;
-	parameter signed [31:0] ARSize = AW + 3;
-	parameter signed [31:0] RSize = DW + 2;
-	input wire aclk;
-	input wire aresetn;
-	input wire [AW - 1:0] fub_araddr;
-	input wire [2:0] fub_arprot;
-	input wire fub_arvalid;
-	output wire fub_arready;
-	output wire [DW - 1:0] fub_rdata;
-	output wire [1:0] fub_rresp;
-	output wire fub_rvalid;
-	input wire fub_rready;
-	output wire [AW - 1:0] m_axil_araddr;
-	output wire [2:0] m_axil_arprot;
-	output wire m_axil_arvalid;
-	input wire m_axil_arready;
-	input wire [DW - 1:0] m_axil_rdata;
-	input wire [1:0] m_axil_rresp;
-	input wire m_axil_rvalid;
-	output wire m_axil_rready;
-	output wire busy;
-	initial begin : param_check
-		if (!((AXIL_DATA_WIDTH == 32) || (AXIL_DATA_WIDTH == 64))) begin
-			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/rtl/amba/axil4/axil4_master_rd.sv:77:13 - axil4_master_rd.param_check.<unnamed_block>\n msg: ", $time, "axil4_master_rd: AXIL_DATA_WIDTH=%0d is not a legal AXI4-Lite data width (32 or 64; IHI 0022H B1.1.2)", AXIL_DATA_WIDTH);
-			$finish(1);
-		end
-	end
-	wire [3:0] int_ar_count;
-	wire [ARSize - 1:0] int_ar_pkt;
-	wire int_skid_arvalid;
-	wire int_skid_arready;
-	wire [3:0] int_r_count;
-	wire int_skid_rvalid;
-	wire int_skid_rready;
-	assign busy = (((int_ar_count > 0) || (int_r_count > 0)) || fub_arvalid) || m_axil_rvalid;
-	gaxi_skid_buffer #(
-		.DEPTH(SKID_DEPTH_AR),
-		.DATA_WIDTH(ARSize)
-	) ar_channel(
-		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
-		.wr_valid(fub_arvalid),
-		.wr_ready(fub_arready),
-		.wr_data({fub_araddr, fub_arprot}),
-		.rd_valid(int_skid_arvalid),
-		.rd_ready(int_skid_arready),
-		.rd_count(int_ar_count),
-		.rd_data(int_ar_pkt),
-		.count()
-	);
-	assign {m_axil_araddr, m_axil_arprot} = int_ar_pkt;
-	assign m_axil_arvalid = int_skid_arvalid;
-	assign int_skid_arready = m_axil_arready;
-	gaxi_skid_buffer #(
-		.DEPTH(SKID_DEPTH_R),
-		.DATA_WIDTH(RSize)
-	) r_channel(
-		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
-		.wr_valid(m_axil_rvalid),
-		.wr_ready(m_axil_rready),
-		.wr_data({m_axil_rdata, m_axil_rresp}),
-		.rd_valid(int_skid_rvalid),
-		.rd_ready(int_skid_rready),
-		.rd_count(int_r_count),
-		.rd_data({fub_rdata, fub_rresp}),
-		.count()
-	);
-	assign fub_rvalid = int_skid_rvalid;
-	assign int_skid_rready = fub_rready;
-endmodule
-module axil4_master_wr (
-	aclk,
-	aresetn,
-	fub_awaddr,
-	fub_awprot,
-	fub_awvalid,
-	fub_awready,
-	fub_wdata,
-	fub_wstrb,
-	fub_wvalid,
-	fub_wready,
-	fub_bresp,
-	fub_bvalid,
-	fub_bready,
-	m_axil_awaddr,
-	m_axil_awprot,
-	m_axil_awvalid,
-	m_axil_awready,
-	m_axil_wdata,
-	m_axil_wstrb,
-	m_axil_wvalid,
-	m_axil_wready,
-	m_axil_bresp,
-	m_axil_bvalid,
-	m_axil_bready,
-	busy
-);
-	parameter signed [31:0] AXIL_ADDR_WIDTH = 32;
-	parameter signed [31:0] AXIL_DATA_WIDTH = 32;
-	parameter signed [31:0] SKID_DEPTH_AW = 2;
-	parameter signed [31:0] SKID_DEPTH_W = 2;
-	parameter signed [31:0] SKID_DEPTH_B = 2;
-	parameter signed [31:0] AW = AXIL_ADDR_WIDTH;
-	parameter signed [31:0] DW = AXIL_DATA_WIDTH;
-	parameter signed [31:0] AWSize = AW + 3;
-	parameter signed [31:0] WSize = DW + (DW / 8);
-	parameter signed [31:0] BSize = 2;
-	input wire aclk;
-	input wire aresetn;
-	input wire [AW - 1:0] fub_awaddr;
-	input wire [2:0] fub_awprot;
-	input wire fub_awvalid;
-	output wire fub_awready;
-	input wire [DW - 1:0] fub_wdata;
-	input wire [(DW / 8) - 1:0] fub_wstrb;
-	input wire fub_wvalid;
-	output wire fub_wready;
-	output wire [1:0] fub_bresp;
-	output wire fub_bvalid;
-	input wire fub_bready;
-	output wire [AW - 1:0] m_axil_awaddr;
-	output wire [2:0] m_axil_awprot;
-	output wire m_axil_awvalid;
-	input wire m_axil_awready;
-	output wire [DW - 1:0] m_axil_wdata;
-	output wire [(DW / 8) - 1:0] m_axil_wstrb;
-	output wire m_axil_wvalid;
-	input wire m_axil_wready;
-	input wire [1:0] m_axil_bresp;
-	input wire m_axil_bvalid;
-	output wire m_axil_bready;
-	output wire busy;
-	initial begin : param_check
-		if (!((AXIL_DATA_WIDTH == 32) || (AXIL_DATA_WIDTH == 64))) begin
-			$display("Fatal [%0t] /mnt/data/github/RTLDesignSherpa/rtl/amba/axil4/axil4_master_wr.sv:89:13 - axil4_master_wr.param_check.<unnamed_block>\n msg: ", $time, "axil4_master_wr: AXIL_DATA_WIDTH=%0d is not a legal AXI4-Lite data width (32 or 64; IHI 0022H B1.1.2)", AXIL_DATA_WIDTH);
-			$finish(1);
-		end
-	end
-	wire [3:0] int_aw_count;
-	wire [AWSize - 1:0] int_aw_pkt;
-	wire int_skid_awvalid;
-	wire int_skid_awready;
-	wire [3:0] int_w_count;
-	wire [WSize - 1:0] int_w_pkt;
-	wire int_skid_wvalid;
-	wire int_skid_wready;
-	wire [3:0] int_b_count;
-	wire int_skid_bvalid;
-	wire int_skid_bready;
-	assign busy = (((((int_aw_count > 0) || (int_w_count > 0)) || (int_b_count > 0)) || fub_awvalid) || fub_wvalid) || m_axil_bvalid;
-	gaxi_skid_buffer #(
-		.DEPTH(SKID_DEPTH_AW),
-		.DATA_WIDTH(AWSize)
-	) aw_channel(
-		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
-		.wr_valid(fub_awvalid),
-		.wr_ready(fub_awready),
-		.wr_data({fub_awaddr, fub_awprot}),
-		.rd_valid(int_skid_awvalid),
-		.rd_ready(int_skid_awready),
-		.rd_count(int_aw_count),
-		.rd_data(int_aw_pkt),
-		.count()
-	);
-	assign {m_axil_awaddr, m_axil_awprot} = int_aw_pkt;
-	assign m_axil_awvalid = int_skid_awvalid;
-	assign int_skid_awready = m_axil_awready;
-	gaxi_skid_buffer #(
-		.DEPTH(SKID_DEPTH_W),
-		.DATA_WIDTH(WSize)
-	) w_channel(
-		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
-		.wr_valid(fub_wvalid),
-		.wr_ready(fub_wready),
-		.wr_data({fub_wdata, fub_wstrb}),
-		.rd_valid(int_skid_wvalid),
-		.rd_ready(int_skid_wready),
-		.rd_count(int_w_count),
-		.rd_data(int_w_pkt),
-		.count()
-	);
-	assign {m_axil_wdata, m_axil_wstrb} = int_w_pkt;
-	assign m_axil_wvalid = int_skid_wvalid;
-	assign int_skid_wready = m_axil_wready;
-	gaxi_skid_buffer #(
-		.DEPTH(SKID_DEPTH_B),
-		.DATA_WIDTH(BSize)
-	) b_channel(
-		.axi_aclk(aclk),
-		.axi_aresetn(aresetn),
-		.wr_valid(m_axil_bvalid),
-		.wr_ready(m_axil_bready),
-		.wr_data(m_axil_bresp),
-		.rd_valid(int_skid_bvalid),
-		.rd_ready(int_skid_bready),
-		.rd_count(int_b_count),
-		.rd_data(fub_bresp),
-		.count()
-	);
-	assign fub_bvalid = int_skid_bvalid;
-	assign int_skid_bready = fub_bready;
 endmodule
 module uart_rx (
 	i_clk,
@@ -636,6 +288,354 @@ module uart_tx (
 	assign o_tx = r_tx_reg;
 	assign o_tx_ready = r_state == 3'd0;
 	initial _sv2v_0 = 0;
+endmodule
+module gaxi_skid_buffer (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	count,
+	rd_valid,
+	rd_ready,
+	rd_count,
+	rd_data
+);
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] DEPTH = 2;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output reg wr_ready;
+	input wire [DW - 1:0] wr_data;
+	output wire [3:0] count;
+	output reg rd_valid;
+	input wire rd_ready;
+	output wire [3:0] rd_count;
+	output wire [DW - 1:0] rd_data;
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
+	reg [3:0] r_data_count;
+	wire w_wr_xfer;
+	wire w_rd_xfer;
+	assign w_wr_xfer = wr_valid & wr_ready;
+	assign w_rd_xfer = rd_valid & rd_ready;
+	generate
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+		end
+	endgenerate
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
+		end
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
+					else
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
+				end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
+				end
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
+		end
+	endgenerate
+endmodule
+module axil4_master_rd (
+	aclk,
+	aresetn,
+	fub_araddr,
+	fub_arprot,
+	fub_arvalid,
+	fub_arready,
+	fub_rdata,
+	fub_rresp,
+	fub_rvalid,
+	fub_rready,
+	m_axil_araddr,
+	m_axil_arprot,
+	m_axil_arvalid,
+	m_axil_arready,
+	m_axil_rdata,
+	m_axil_rresp,
+	m_axil_rvalid,
+	m_axil_rready,
+	busy
+);
+	parameter signed [31:0] AXIL_ADDR_WIDTH = 32;
+	parameter signed [31:0] AXIL_DATA_WIDTH = 32;
+	parameter signed [31:0] SKID_DEPTH_AR = 2;
+	parameter signed [31:0] SKID_DEPTH_R = 4;
+	parameter signed [31:0] AW = AXIL_ADDR_WIDTH;
+	parameter signed [31:0] DW = AXIL_DATA_WIDTH;
+	parameter signed [31:0] ARSize = AW + 3;
+	parameter signed [31:0] RSize = DW + 2;
+	input wire aclk;
+	input wire aresetn;
+	input wire [AW - 1:0] fub_araddr;
+	input wire [2:0] fub_arprot;
+	input wire fub_arvalid;
+	output wire fub_arready;
+	output wire [DW - 1:0] fub_rdata;
+	output wire [1:0] fub_rresp;
+	output wire fub_rvalid;
+	input wire fub_rready;
+	output wire [AW - 1:0] m_axil_araddr;
+	output wire [2:0] m_axil_arprot;
+	output wire m_axil_arvalid;
+	input wire m_axil_arready;
+	input wire [DW - 1:0] m_axil_rdata;
+	input wire [1:0] m_axil_rresp;
+	input wire m_axil_rvalid;
+	output wire m_axil_rready;
+	output wire busy;
+	initial begin : param_check
+		if (!((AXIL_DATA_WIDTH == 32) || (AXIL_DATA_WIDTH == 64))) begin
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/rtl/amba/axil4/axil4_master_rd.sv:77:13 - axil4_master_rd.param_check.<unnamed_block>\n msg: ", $time, "axil4_master_rd: AXIL_DATA_WIDTH=%0d is not a legal AXI4-Lite data width (32 or 64; IHI 0022H B1.1.2)", AXIL_DATA_WIDTH);
+			$finish(1);
+		end
+	end
+	wire [3:0] int_ar_count;
+	wire [ARSize - 1:0] int_ar_pkt;
+	wire int_skid_arvalid;
+	wire int_skid_arready;
+	wire [3:0] int_r_count;
+	wire int_skid_rvalid;
+	wire int_skid_rready;
+	assign busy = (((int_ar_count > 0) || (int_r_count > 0)) || fub_arvalid) || m_axil_rvalid;
+	gaxi_skid_buffer #(
+		.DEPTH(SKID_DEPTH_AR),
+		.DATA_WIDTH(ARSize)
+	) ar_channel(
+		.axi_aclk(aclk),
+		.axi_aresetn(aresetn),
+		.wr_valid(fub_arvalid),
+		.wr_ready(fub_arready),
+		.wr_data({fub_araddr, fub_arprot}),
+		.rd_valid(int_skid_arvalid),
+		.rd_ready(int_skid_arready),
+		.rd_count(int_ar_count),
+		.rd_data(int_ar_pkt),
+		.count()
+	);
+	assign {m_axil_araddr, m_axil_arprot} = int_ar_pkt;
+	assign m_axil_arvalid = int_skid_arvalid;
+	assign int_skid_arready = m_axil_arready;
+	gaxi_skid_buffer #(
+		.DEPTH(SKID_DEPTH_R),
+		.DATA_WIDTH(RSize)
+	) r_channel(
+		.axi_aclk(aclk),
+		.axi_aresetn(aresetn),
+		.wr_valid(m_axil_rvalid),
+		.wr_ready(m_axil_rready),
+		.wr_data({m_axil_rdata, m_axil_rresp}),
+		.rd_valid(int_skid_rvalid),
+		.rd_ready(int_skid_rready),
+		.rd_count(int_r_count),
+		.rd_data({fub_rdata, fub_rresp}),
+		.count()
+	);
+	assign fub_rvalid = int_skid_rvalid;
+	assign int_skid_rready = fub_rready;
+endmodule
+module axil4_master_wr (
+	aclk,
+	aresetn,
+	fub_awaddr,
+	fub_awprot,
+	fub_awvalid,
+	fub_awready,
+	fub_wdata,
+	fub_wstrb,
+	fub_wvalid,
+	fub_wready,
+	fub_bresp,
+	fub_bvalid,
+	fub_bready,
+	m_axil_awaddr,
+	m_axil_awprot,
+	m_axil_awvalid,
+	m_axil_awready,
+	m_axil_wdata,
+	m_axil_wstrb,
+	m_axil_wvalid,
+	m_axil_wready,
+	m_axil_bresp,
+	m_axil_bvalid,
+	m_axil_bready,
+	busy
+);
+	parameter signed [31:0] AXIL_ADDR_WIDTH = 32;
+	parameter signed [31:0] AXIL_DATA_WIDTH = 32;
+	parameter signed [31:0] SKID_DEPTH_AW = 2;
+	parameter signed [31:0] SKID_DEPTH_W = 2;
+	parameter signed [31:0] SKID_DEPTH_B = 2;
+	parameter signed [31:0] AW = AXIL_ADDR_WIDTH;
+	parameter signed [31:0] DW = AXIL_DATA_WIDTH;
+	parameter signed [31:0] AWSize = AW + 3;
+	parameter signed [31:0] WSize = DW + (DW / 8);
+	parameter signed [31:0] BSize = 2;
+	input wire aclk;
+	input wire aresetn;
+	input wire [AW - 1:0] fub_awaddr;
+	input wire [2:0] fub_awprot;
+	input wire fub_awvalid;
+	output wire fub_awready;
+	input wire [DW - 1:0] fub_wdata;
+	input wire [(DW / 8) - 1:0] fub_wstrb;
+	input wire fub_wvalid;
+	output wire fub_wready;
+	output wire [1:0] fub_bresp;
+	output wire fub_bvalid;
+	input wire fub_bready;
+	output wire [AW - 1:0] m_axil_awaddr;
+	output wire [2:0] m_axil_awprot;
+	output wire m_axil_awvalid;
+	input wire m_axil_awready;
+	output wire [DW - 1:0] m_axil_wdata;
+	output wire [(DW / 8) - 1:0] m_axil_wstrb;
+	output wire m_axil_wvalid;
+	input wire m_axil_wready;
+	input wire [1:0] m_axil_bresp;
+	input wire m_axil_bvalid;
+	output wire m_axil_bready;
+	output wire busy;
+	initial begin : param_check
+		if (!((AXIL_DATA_WIDTH == 32) || (AXIL_DATA_WIDTH == 64))) begin
+			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/rtl/amba/axil4/axil4_master_wr.sv:89:13 - axil4_master_wr.param_check.<unnamed_block>\n msg: ", $time, "axil4_master_wr: AXIL_DATA_WIDTH=%0d is not a legal AXI4-Lite data width (32 or 64; IHI 0022H B1.1.2)", AXIL_DATA_WIDTH);
+			$finish(1);
+		end
+	end
+	wire [3:0] int_aw_count;
+	wire [AWSize - 1:0] int_aw_pkt;
+	wire int_skid_awvalid;
+	wire int_skid_awready;
+	wire [3:0] int_w_count;
+	wire [WSize - 1:0] int_w_pkt;
+	wire int_skid_wvalid;
+	wire int_skid_wready;
+	wire [3:0] int_b_count;
+	wire int_skid_bvalid;
+	wire int_skid_bready;
+	assign busy = (((((int_aw_count > 0) || (int_w_count > 0)) || (int_b_count > 0)) || fub_awvalid) || fub_wvalid) || m_axil_bvalid;
+	gaxi_skid_buffer #(
+		.DEPTH(SKID_DEPTH_AW),
+		.DATA_WIDTH(AWSize)
+	) aw_channel(
+		.axi_aclk(aclk),
+		.axi_aresetn(aresetn),
+		.wr_valid(fub_awvalid),
+		.wr_ready(fub_awready),
+		.wr_data({fub_awaddr, fub_awprot}),
+		.rd_valid(int_skid_awvalid),
+		.rd_ready(int_skid_awready),
+		.rd_count(int_aw_count),
+		.rd_data(int_aw_pkt),
+		.count()
+	);
+	assign {m_axil_awaddr, m_axil_awprot} = int_aw_pkt;
+	assign m_axil_awvalid = int_skid_awvalid;
+	assign int_skid_awready = m_axil_awready;
+	gaxi_skid_buffer #(
+		.DEPTH(SKID_DEPTH_W),
+		.DATA_WIDTH(WSize)
+	) w_channel(
+		.axi_aclk(aclk),
+		.axi_aresetn(aresetn),
+		.wr_valid(fub_wvalid),
+		.wr_ready(fub_wready),
+		.wr_data({fub_wdata, fub_wstrb}),
+		.rd_valid(int_skid_wvalid),
+		.rd_ready(int_skid_wready),
+		.rd_count(int_w_count),
+		.rd_data(int_w_pkt),
+		.count()
+	);
+	assign {m_axil_wdata, m_axil_wstrb} = int_w_pkt;
+	assign m_axil_wvalid = int_skid_wvalid;
+	assign int_skid_wready = m_axil_wready;
+	gaxi_skid_buffer #(
+		.DEPTH(SKID_DEPTH_B),
+		.DATA_WIDTH(BSize)
+	) b_channel(
+		.axi_aclk(aclk),
+		.axi_aresetn(aresetn),
+		.wr_valid(m_axil_bvalid),
+		.wr_ready(m_axil_bready),
+		.wr_data(m_axil_bresp),
+		.rd_valid(int_skid_bvalid),
+		.rd_ready(int_skid_bready),
+		.rd_count(int_b_count),
+		.rd_data(fub_bresp),
+		.count()
+	);
+	assign fub_bvalid = int_skid_bvalid;
+	assign int_skid_bready = fub_bready;
 endmodule
 module uart_axil_bridge (
 	aclk,

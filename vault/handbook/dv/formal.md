@@ -5,9 +5,18 @@ summary: sv2v/SBY flow; in-RTL properties; mutation rule; vacuity traps; solver 
 
 # Formal (SymbiYosys via sv2v)
 
-Flow: tools/gen_formal_deps.py regenerates each formal dir's Makefile DEPS
-closure (run after RTL moves). Flatten runs sv2v --define=FORMAL
---exclude=Assert.
+Flow: every formal Makefile sets FLAT / FLAT_FILELIST (the DUT's own rtl
+.f) and includes make/formal_flat.mk, which flattens the list with
+bin/flatten_filelist.py and runs sv2v. A flat's source list is NEVER
+hand-listed (owner rule, 2026-10-19): on that date 140 of 141 Makefiles
+hand-listed SRCS/DEPS, and one new reset_sync inside three blocks broke
+twelve proofs, each list a snapshot of a closure that had moved on. A
+"module not found" is fixed in the RTL's .f, where sim, lint and formal
+all get it. Unit-specific needs are knobs, not lists: FLAT_SV2V_FLAGS
+(--define=FORMAL --exclude=Assert), FLAT_PREP (a sed over every source),
+FLAT_SPLICE (props before one module's endmodule), FLAT_EXCLUDE (a
+sub-filelist the harness replaces, e.g. icg.f), FLAT_POST (a filter on
+sv2v's output). `make check-flat` regenerates and compares content.
 
 Rules - each guards against a proof that PASSES while checking nothing:
 - sv2v silently DELETES immediate assertions without --exclude=Assert.

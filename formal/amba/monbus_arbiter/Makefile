@@ -7,17 +7,16 @@
 # ready only to the granted client. See formal_monbus_arbiter.sv for the
 # configuration choice (input skids off, so A3 is checked on a port).
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes
-
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv
-
-DEPS := $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
-DUT  := $(REPO_ROOT)/rtl/amba/ocelus/monbus_arbiter.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := monbus_arbiter_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/monbus_arbiter.f
+FLAT_SV2V_FLAGS := --define=FORMAL
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -29,25 +28,5 @@ prove: monbus_arbiter_flat.v
 cover: monbus_arbiter_flat.v
 	sby -f monbus_arbiter.sby cover
 
-monbus_arbiter_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) --define=FORMAL $(INC) $(PKGS) $(DEPS) $(DUT) > $@
-
 clean:
 	rm -rf monbus_arbiter_flat.v monbus_arbiter_prove monbus_arbiter_cover
-
-# Regenerate-and-diff self-detection for the committed flat (tooling TASK-026
-# house pattern; consumed by bin/formal_status.py --check-flats).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < monbus_arbiter_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: monbus_arbiter_flat.v does not match the RTL."; \
-		echo "Regenerate with: make monbus_arbiter_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) --define=FORMAL $(INC) $(PKGS) $(DEPS) $(DUT) > $@

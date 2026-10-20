@@ -114,6 +114,241 @@ module gaxi_skid_buffer (
 		end
 	endgenerate
 endmodule
+module wb4_slave (
+	clk,
+	aresetn,
+	s_wb_CYC,
+	s_wb_STB,
+	s_wb_WE,
+	s_wb_ADR,
+	s_wb_DAT_W,
+	s_wb_SEL,
+	s_wb_CTI,
+	s_wb_BTE,
+	s_wb_STALL,
+	s_wb_ACK,
+	s_wb_ERR,
+	s_wb_RTY,
+	s_wb_DAT_R,
+	cmd_valid,
+	cmd_ready,
+	cmd_we,
+	cmd_adr,
+	cmd_dat,
+	cmd_sel,
+	cmd_cti,
+	cmd_bte,
+	rsp_valid,
+	rsp_ready,
+	rsp_status,
+	rsp_dat
+);
+	parameter signed [31:0] ADDR_WIDTH = 32;
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] CMD_DEPTH = 2;
+	parameter signed [31:0] RSP_DEPTH = 2;
+	parameter signed [31:0] MAX_OUTSTANDING = 16;
+	parameter signed [31:0] CLASSIC = 0;
+	parameter signed [31:0] USE_BURST_HINTS = 0;
+	parameter signed [31:0] SEL_WIDTH = DATA_WIDTH / 8;
+	parameter signed [31:0] AW = ADDR_WIDTH;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] SW = SEL_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_STATUS_WIDTH = 2;
+	parameter signed [31:0] STW = wb4_pkg_WB4_STATUS_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_CTI_WIDTH = 3;
+	parameter signed [31:0] CTW = wb4_pkg_WB4_CTI_WIDTH;
+	localparam signed [31:0] wb4_pkg_WB4_BTE_WIDTH = 2;
+	parameter signed [31:0] BTW = wb4_pkg_WB4_BTE_WIDTH;
+	parameter signed [31:0] CPW = (((1 + AW) + DW) + SW) + (USE_BURST_HINTS != 0 ? CTW + BTW : 0);
+	parameter signed [31:0] RPW = STW + DW;
+	input wire clk;
+	input wire aresetn;
+	input wire s_wb_CYC;
+	input wire s_wb_STB;
+	input wire s_wb_WE;
+	input wire [AW - 1:0] s_wb_ADR;
+	input wire [DW - 1:0] s_wb_DAT_W;
+	input wire [SW - 1:0] s_wb_SEL;
+	input wire [CTW - 1:0] s_wb_CTI;
+	input wire [BTW - 1:0] s_wb_BTE;
+	output wire s_wb_STALL;
+	output reg s_wb_ACK;
+	output reg s_wb_ERR;
+	output reg s_wb_RTY;
+	output reg [DW - 1:0] s_wb_DAT_R;
+	output wire cmd_valid;
+	input wire cmd_ready;
+	output wire cmd_we;
+	output wire [AW - 1:0] cmd_adr;
+	output wire [DW - 1:0] cmd_dat;
+	output wire [SW - 1:0] cmd_sel;
+	output wire [CTW - 1:0] cmd_cti;
+	output wire [BTW - 1:0] cmd_bte;
+	input wire rsp_valid;
+	output wire rsp_ready;
+	input wire [STW - 1:0] rsp_status;
+	input wire [DW - 1:0] rsp_dat;
+	localparam signed [31:0] OW = $clog2(MAX_OUTSTANDING + 1);
+	localparam signed [31:0] ABW = OW + 1;
+	localparam signed [31:0] AB_MAX = (1 << ABW) - 1;
+	reg [OW - 1:0] r_outstanding;
+	reg [ABW - 1:0] r_abandoned;
+	wire w_drop_abandoned;
+	wire w_accept;
+	wire w_term;
+	wire w_orphan;
+	wire w_cmd_room;
+	wire [CPW - 1:0] w_cmd_data_in;
+	wire [CPW - 1:0] r_cmd_data_out;
+	function automatic [2:0] sv2v_cast_90DB4;
+		input reg [2:0] inp;
+		sv2v_cast_90DB4 = inp;
+	endfunction
+	function automatic [CTW - 1:0] sv2v_cast_E0906;
+		input reg [CTW - 1:0] inp;
+		sv2v_cast_E0906 = inp;
+	endfunction
+	function automatic [1:0] sv2v_cast_F1CE9;
+		input reg [1:0] inp;
+		sv2v_cast_F1CE9 = inp;
+	endfunction
+	function automatic [BTW - 1:0] sv2v_cast_85537;
+		input reg [BTW - 1:0] inp;
+		sv2v_cast_85537 = inp;
+	endfunction
+	generate
+		if (USE_BURST_HINTS != 0) begin : g_hints
+			assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL, s_wb_CTI, s_wb_BTE};
+			assign {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte} = r_cmd_data_out;
+		end
+		else begin : g_no_hints
+			assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL};
+			assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = r_cmd_data_out;
+			assign cmd_cti = sv2v_cast_E0906(sv2v_cast_90DB4(3'b000));
+			assign cmd_bte = sv2v_cast_85537(sv2v_cast_F1CE9(2'b00));
+			wire w_unused_hints;
+			assign w_unused_hints = ^{s_wb_CTI, s_wb_BTE};
+		end
+	endgenerate
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		if (CLASSIC != 0) begin : g_classic
+			assign s_wb_STALL = 1'b0;
+			assign w_accept = (((s_wb_CYC && s_wb_STB) && w_cmd_room) && (r_outstanding == {OW {1'sb0}})) && !((s_wb_ACK || s_wb_ERR) || s_wb_RTY);
+		end
+		else begin : g_pipelined
+			assign s_wb_STALL = !w_cmd_room || (sv2v_cast_32(r_outstanding) >= MAX_OUTSTANDING);
+			assign w_accept = (s_wb_CYC && s_wb_STB) && !s_wb_STALL;
+		end
+	endgenerate
+	gaxi_skid_buffer #(
+		.DATA_WIDTH(CPW),
+		.DEPTH(CMD_DEPTH)
+	) u_cmd_skid(
+		.axi_aclk(clk),
+		.axi_aresetn(aresetn),
+		.wr_valid(w_accept),
+		.wr_ready(w_cmd_room),
+		.wr_data(w_cmd_data_in),
+		.rd_valid(cmd_valid),
+		.rd_ready(cmd_ready),
+		.rd_data(r_cmd_data_out),
+		.count(),
+		.rd_count()
+	);
+	wire r_rsp_valid;
+	wire w_rsp_pop;
+	wire [RPW - 1:0] w_rsp_data_in;
+	wire [RPW - 1:0] r_rsp_data_out;
+	wire [STW - 1:0] r_rsp_status;
+	wire [DW - 1:0] r_rsp_dat;
+	assign w_rsp_data_in = {rsp_status, rsp_dat};
+	assign {r_rsp_status, r_rsp_dat} = r_rsp_data_out;
+	gaxi_skid_buffer #(
+		.DATA_WIDTH(RPW),
+		.DEPTH(RSP_DEPTH)
+	) u_rsp_skid(
+		.axi_aclk(clk),
+		.axi_aresetn(aresetn),
+		.wr_valid(rsp_valid),
+		.wr_ready(rsp_ready),
+		.wr_data(w_rsp_data_in),
+		.rd_valid(r_rsp_valid),
+		.rd_ready(w_rsp_pop),
+		.rd_data(r_rsp_data_out),
+		.count(),
+		.rd_count()
+	);
+	assign w_drop_abandoned = r_rsp_valid && (r_abandoned != {ABW {1'sb0}});
+	assign w_term = ((r_rsp_valid && (r_outstanding != {OW {1'sb0}})) && s_wb_CYC) && (r_abandoned == {ABW {1'sb0}});
+	assign w_orphan = r_rsp_valid && ((r_outstanding == {OW {1'sb0}}) || w_drop_abandoned);
+	assign w_rsp_pop = w_term || w_orphan;
+	function automatic [1:0] sv2v_cast_1AA03;
+		input reg [1:0] inp;
+		sv2v_cast_1AA03 = inp;
+	endfunction
+	function automatic signed [ABW - 1:0] sv2v_cast_5B7D2_signed;
+		input reg signed [ABW - 1:0] inp;
+		sv2v_cast_5B7D2_signed = inp;
+	endfunction
+	function automatic [ABW - 1:0] sv2v_cast_5B7D2;
+		input reg [ABW - 1:0] inp;
+		sv2v_cast_5B7D2 = inp;
+	endfunction
+	function automatic [OW - 1:0] sv2v_cast_0975F;
+		input reg [OW - 1:0] inp;
+		sv2v_cast_0975F = inp;
+	endfunction
+	always @(posedge clk or negedge aresetn)
+		if (!aresetn) begin
+			r_outstanding <= 1'sb0;
+			r_abandoned <= 1'sb0;
+			s_wb_ACK <= 1'b0;
+			s_wb_ERR <= 1'b0;
+			s_wb_RTY <= 1'b0;
+			s_wb_DAT_R <= 1'sb0;
+		end
+		else begin
+			s_wb_ACK <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b00));
+			s_wb_ERR <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b01));
+			s_wb_RTY <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b10));
+			if (w_term)
+				s_wb_DAT_R <= r_rsp_dat;
+			if (!s_wb_CYC) begin
+				r_outstanding <= 1'sb0;
+				if (((sv2v_cast_32(r_abandoned) + sv2v_cast_32(r_outstanding)) - sv2v_cast_32(w_drop_abandoned)) > AB_MAX)
+					r_abandoned <= sv2v_cast_5B7D2_signed(AB_MAX);
+				else
+					r_abandoned <= (r_abandoned + sv2v_cast_5B7D2(r_outstanding)) - sv2v_cast_5B7D2(w_drop_abandoned);
+			end
+			else begin
+				r_outstanding <= (r_outstanding + sv2v_cast_0975F(w_accept)) - sv2v_cast_0975F(w_term);
+				r_abandoned <= r_abandoned - sv2v_cast_5B7D2(w_drop_abandoned);
+			end
+		end
+	reg f_past_valid;
+	initial f_past_valid = 1'b0;
+	always @(posedge clk) f_past_valid <= 1'b1;
+	always @(posedge clk)
+		if ((f_past_valid && aresetn) && $past(aresetn)) begin
+			assert ($onehot0({s_wb_ACK, s_wb_ERR, s_wb_RTY})) ;
+			if ((s_wb_ACK || s_wb_ERR) || s_wb_RTY)
+				assert ($past(s_wb_CYC) && ($past(r_outstanding) != 0)) ;
+			assert (sv2v_cast_32(r_outstanding) <= MAX_OUTSTANDING) ;
+			assert (!w_accept || w_cmd_room) ;
+			assert (!w_term || (r_abandoned == 0)) ;
+			if ($past(!s_wb_CYC) && ($past(r_outstanding) != 0))
+				assert (r_abandoned != 0) ;
+			if (CLASSIC != 0) begin
+				assert (r_outstanding <= 1) ;
+				assert (!s_wb_STALL) ;
+			end
+		end
+endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -747,241 +982,6 @@ module gaxi_fifo_async (
 	always @(posedge axi_rd_aclk)
 		if (w_read && r_rd_empty)
 			;
-endmodule
-module wb4_slave (
-	clk,
-	aresetn,
-	s_wb_CYC,
-	s_wb_STB,
-	s_wb_WE,
-	s_wb_ADR,
-	s_wb_DAT_W,
-	s_wb_SEL,
-	s_wb_CTI,
-	s_wb_BTE,
-	s_wb_STALL,
-	s_wb_ACK,
-	s_wb_ERR,
-	s_wb_RTY,
-	s_wb_DAT_R,
-	cmd_valid,
-	cmd_ready,
-	cmd_we,
-	cmd_adr,
-	cmd_dat,
-	cmd_sel,
-	cmd_cti,
-	cmd_bte,
-	rsp_valid,
-	rsp_ready,
-	rsp_status,
-	rsp_dat
-);
-	parameter signed [31:0] ADDR_WIDTH = 32;
-	parameter signed [31:0] DATA_WIDTH = 32;
-	parameter signed [31:0] CMD_DEPTH = 2;
-	parameter signed [31:0] RSP_DEPTH = 2;
-	parameter signed [31:0] MAX_OUTSTANDING = 16;
-	parameter signed [31:0] CLASSIC = 0;
-	parameter signed [31:0] USE_BURST_HINTS = 0;
-	parameter signed [31:0] SEL_WIDTH = DATA_WIDTH / 8;
-	parameter signed [31:0] AW = ADDR_WIDTH;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] SW = SEL_WIDTH;
-	localparam signed [31:0] wb4_pkg_WB4_STATUS_WIDTH = 2;
-	parameter signed [31:0] STW = wb4_pkg_WB4_STATUS_WIDTH;
-	localparam signed [31:0] wb4_pkg_WB4_CTI_WIDTH = 3;
-	parameter signed [31:0] CTW = wb4_pkg_WB4_CTI_WIDTH;
-	localparam signed [31:0] wb4_pkg_WB4_BTE_WIDTH = 2;
-	parameter signed [31:0] BTW = wb4_pkg_WB4_BTE_WIDTH;
-	parameter signed [31:0] CPW = (((1 + AW) + DW) + SW) + (USE_BURST_HINTS != 0 ? CTW + BTW : 0);
-	parameter signed [31:0] RPW = STW + DW;
-	input wire clk;
-	input wire aresetn;
-	input wire s_wb_CYC;
-	input wire s_wb_STB;
-	input wire s_wb_WE;
-	input wire [AW - 1:0] s_wb_ADR;
-	input wire [DW - 1:0] s_wb_DAT_W;
-	input wire [SW - 1:0] s_wb_SEL;
-	input wire [CTW - 1:0] s_wb_CTI;
-	input wire [BTW - 1:0] s_wb_BTE;
-	output wire s_wb_STALL;
-	output reg s_wb_ACK;
-	output reg s_wb_ERR;
-	output reg s_wb_RTY;
-	output reg [DW - 1:0] s_wb_DAT_R;
-	output wire cmd_valid;
-	input wire cmd_ready;
-	output wire cmd_we;
-	output wire [AW - 1:0] cmd_adr;
-	output wire [DW - 1:0] cmd_dat;
-	output wire [SW - 1:0] cmd_sel;
-	output wire [CTW - 1:0] cmd_cti;
-	output wire [BTW - 1:0] cmd_bte;
-	input wire rsp_valid;
-	output wire rsp_ready;
-	input wire [STW - 1:0] rsp_status;
-	input wire [DW - 1:0] rsp_dat;
-	localparam signed [31:0] OW = $clog2(MAX_OUTSTANDING + 1);
-	localparam signed [31:0] ABW = OW + 1;
-	localparam signed [31:0] AB_MAX = (1 << ABW) - 1;
-	reg [OW - 1:0] r_outstanding;
-	reg [ABW - 1:0] r_abandoned;
-	wire w_drop_abandoned;
-	wire w_accept;
-	wire w_term;
-	wire w_orphan;
-	wire w_cmd_room;
-	wire [CPW - 1:0] w_cmd_data_in;
-	wire [CPW - 1:0] r_cmd_data_out;
-	function automatic [2:0] sv2v_cast_90DB4;
-		input reg [2:0] inp;
-		sv2v_cast_90DB4 = inp;
-	endfunction
-	function automatic [CTW - 1:0] sv2v_cast_E0906;
-		input reg [CTW - 1:0] inp;
-		sv2v_cast_E0906 = inp;
-	endfunction
-	function automatic [1:0] sv2v_cast_F1CE9;
-		input reg [1:0] inp;
-		sv2v_cast_F1CE9 = inp;
-	endfunction
-	function automatic [BTW - 1:0] sv2v_cast_85537;
-		input reg [BTW - 1:0] inp;
-		sv2v_cast_85537 = inp;
-	endfunction
-	generate
-		if (USE_BURST_HINTS != 0) begin : g_hints
-			assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL, s_wb_CTI, s_wb_BTE};
-			assign {cmd_we, cmd_adr, cmd_dat, cmd_sel, cmd_cti, cmd_bte} = r_cmd_data_out;
-		end
-		else begin : g_no_hints
-			assign w_cmd_data_in = {s_wb_WE, s_wb_ADR, s_wb_DAT_W, s_wb_SEL};
-			assign {cmd_we, cmd_adr, cmd_dat, cmd_sel} = r_cmd_data_out;
-			assign cmd_cti = sv2v_cast_E0906(sv2v_cast_90DB4(3'b000));
-			assign cmd_bte = sv2v_cast_85537(sv2v_cast_F1CE9(2'b00));
-			wire w_unused_hints;
-			assign w_unused_hints = ^{s_wb_CTI, s_wb_BTE};
-		end
-	endgenerate
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	generate
-		if (CLASSIC != 0) begin : g_classic
-			assign s_wb_STALL = 1'b0;
-			assign w_accept = (((s_wb_CYC && s_wb_STB) && w_cmd_room) && (r_outstanding == {OW {1'sb0}})) && !((s_wb_ACK || s_wb_ERR) || s_wb_RTY);
-		end
-		else begin : g_pipelined
-			assign s_wb_STALL = !w_cmd_room || (sv2v_cast_32(r_outstanding) >= MAX_OUTSTANDING);
-			assign w_accept = (s_wb_CYC && s_wb_STB) && !s_wb_STALL;
-		end
-	endgenerate
-	gaxi_skid_buffer #(
-		.DATA_WIDTH(CPW),
-		.DEPTH(CMD_DEPTH)
-	) u_cmd_skid(
-		.axi_aclk(clk),
-		.axi_aresetn(aresetn),
-		.wr_valid(w_accept),
-		.wr_ready(w_cmd_room),
-		.wr_data(w_cmd_data_in),
-		.rd_valid(cmd_valid),
-		.rd_ready(cmd_ready),
-		.rd_data(r_cmd_data_out),
-		.count(),
-		.rd_count()
-	);
-	wire r_rsp_valid;
-	wire w_rsp_pop;
-	wire [RPW - 1:0] w_rsp_data_in;
-	wire [RPW - 1:0] r_rsp_data_out;
-	wire [STW - 1:0] r_rsp_status;
-	wire [DW - 1:0] r_rsp_dat;
-	assign w_rsp_data_in = {rsp_status, rsp_dat};
-	assign {r_rsp_status, r_rsp_dat} = r_rsp_data_out;
-	gaxi_skid_buffer #(
-		.DATA_WIDTH(RPW),
-		.DEPTH(RSP_DEPTH)
-	) u_rsp_skid(
-		.axi_aclk(clk),
-		.axi_aresetn(aresetn),
-		.wr_valid(rsp_valid),
-		.wr_ready(rsp_ready),
-		.wr_data(w_rsp_data_in),
-		.rd_valid(r_rsp_valid),
-		.rd_ready(w_rsp_pop),
-		.rd_data(r_rsp_data_out),
-		.count(),
-		.rd_count()
-	);
-	assign w_drop_abandoned = r_rsp_valid && (r_abandoned != {ABW {1'sb0}});
-	assign w_term = ((r_rsp_valid && (r_outstanding != {OW {1'sb0}})) && s_wb_CYC) && (r_abandoned == {ABW {1'sb0}});
-	assign w_orphan = r_rsp_valid && ((r_outstanding == {OW {1'sb0}}) || w_drop_abandoned);
-	assign w_rsp_pop = w_term || w_orphan;
-	function automatic [1:0] sv2v_cast_1AA03;
-		input reg [1:0] inp;
-		sv2v_cast_1AA03 = inp;
-	endfunction
-	function automatic signed [ABW - 1:0] sv2v_cast_5B7D2_signed;
-		input reg signed [ABW - 1:0] inp;
-		sv2v_cast_5B7D2_signed = inp;
-	endfunction
-	function automatic [ABW - 1:0] sv2v_cast_5B7D2;
-		input reg [ABW - 1:0] inp;
-		sv2v_cast_5B7D2 = inp;
-	endfunction
-	function automatic [OW - 1:0] sv2v_cast_0975F;
-		input reg [OW - 1:0] inp;
-		sv2v_cast_0975F = inp;
-	endfunction
-	always @(posedge clk or negedge aresetn)
-		if (!aresetn) begin
-			r_outstanding <= 1'sb0;
-			r_abandoned <= 1'sb0;
-			s_wb_ACK <= 1'b0;
-			s_wb_ERR <= 1'b0;
-			s_wb_RTY <= 1'b0;
-			s_wb_DAT_R <= 1'sb0;
-		end
-		else begin
-			s_wb_ACK <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b00));
-			s_wb_ERR <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b01));
-			s_wb_RTY <= w_term && (r_rsp_status == sv2v_cast_1AA03(2'b10));
-			if (w_term)
-				s_wb_DAT_R <= r_rsp_dat;
-			if (!s_wb_CYC) begin
-				r_outstanding <= 1'sb0;
-				if (((sv2v_cast_32(r_abandoned) + sv2v_cast_32(r_outstanding)) - sv2v_cast_32(w_drop_abandoned)) > AB_MAX)
-					r_abandoned <= sv2v_cast_5B7D2_signed(AB_MAX);
-				else
-					r_abandoned <= (r_abandoned + sv2v_cast_5B7D2(r_outstanding)) - sv2v_cast_5B7D2(w_drop_abandoned);
-			end
-			else begin
-				r_outstanding <= (r_outstanding + sv2v_cast_0975F(w_accept)) - sv2v_cast_0975F(w_term);
-				r_abandoned <= r_abandoned - sv2v_cast_5B7D2(w_drop_abandoned);
-			end
-		end
-	reg f_past_valid;
-	initial f_past_valid = 1'b0;
-	always @(posedge clk) f_past_valid <= 1'b1;
-	always @(posedge clk)
-		if ((f_past_valid && aresetn) && $past(aresetn)) begin
-			assert ($onehot0({s_wb_ACK, s_wb_ERR, s_wb_RTY})) ;
-			if ((s_wb_ACK || s_wb_ERR) || s_wb_RTY)
-				assert ($past(s_wb_CYC) && ($past(r_outstanding) != 0)) ;
-			assert (sv2v_cast_32(r_outstanding) <= MAX_OUTSTANDING) ;
-			assert (!w_accept || w_cmd_room) ;
-			assert (!w_term || (r_abandoned == 0)) ;
-			if ($past(!s_wb_CYC) && ($past(r_outstanding) != 0))
-				assert (r_abandoned != 0) ;
-			if (CLASSIC != 0) begin
-				assert (r_outstanding <= 1) ;
-				assert (!s_wb_STALL) ;
-			end
-		end
 endmodule
 module wb4_slave_cdc (
 	wb_clk,

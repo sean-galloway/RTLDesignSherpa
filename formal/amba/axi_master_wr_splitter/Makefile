@@ -7,17 +7,16 @@
 # sv2v can, so the fork is gone and the proof is about the shipped design.
 # Regenerate the flat file whenever the RTL changes. (2026-09-11)
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
-INC  := -I$(REPO_ROOT)/rtl/amba/includes
-PKGS := 
-SRCS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
-        $(REPO_ROOT)/rtl/amba/shared/axi_split_combi.sv \
-        $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/shared/axi_master_wr_splitter.sv
-TMPDIR := /tmp/formal_axi_master_wr_splitter
+
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := axi_master_wr_splitter_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/axi_master_wr_splitter.f
+FLAT_SV2V_FLAGS := --define=FORMAL
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -29,34 +28,5 @@ prove: axi_master_wr_splitter_flat.v
 cover: axi_master_wr_splitter_flat.v
 	sby -f axi_master_wr_splitter.sby cover
 
-axi_master_wr_splitter_flat.v: $(PKGS) $(SRCS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
-	$(SV2V) --define=FORMAL $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) > $@
-	@rm -rf $(TMPDIR)
-
 clean:
 	rm -rf axi_master_wr_splitter_prove axi_master_wr_splitter_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < axi_master_wr_splitter_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: axi_master_wr_splitter_flat.v does not match the RTL."; \
-		echo "Regenerate with: make axi_master_wr_splitter_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(PKGS) $(SRCS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(SRCS); do cp $$f $(TMPDIR)/; done
-	$(SV2V) --define=FORMAL $(INC) $(PKGS) $(addprefix $(TMPDIR)/,$(notdir $(SRCS))) > $@
-	@rm -rf $(TMPDIR)

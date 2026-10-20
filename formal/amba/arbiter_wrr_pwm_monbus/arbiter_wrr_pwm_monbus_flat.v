@@ -1,3 +1,144 @@
+module counter_bin (
+	clk,
+	rst_n,
+	enable,
+	counter_bin_curr,
+	counter_bin_next
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 5;
+	parameter signed [31:0] MAX = 10;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin_curr;
+	output reg [WIDTH - 1:0] counter_bin_next;
+	wire [WIDTH - 2:0] w_max_val;
+	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
+		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
+		sv2v_cast_00F62_signed = inp;
+	endfunction
+	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (enable) begin
+			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
+				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
+			else
+				counter_bin_next = counter_bin_curr + 1;
+		end
+		else
+			counter_bin_next = counter_bin_curr;
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_bin_curr <= 'b0;
+		else
+			counter_bin_curr <= counter_bin_next;
+	initial _sv2v_0 = 0;
+endmodule
+module fifo_control (
+	wr_clk,
+	wr_rst_n,
+	rd_clk,
+	rd_rst_n,
+	wr_ptr_bin,
+	wdom_rd_ptr_bin,
+	rd_ptr_bin,
+	rdom_wr_ptr_bin,
+	count,
+	wr_full,
+	wr_almost_full,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] ADDR_WIDTH = 3;
+	parameter signed [31:0] DEPTH = 8;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] REGISTERED = 0;
+	input wire wr_clk;
+	input wire wr_rst_n;
+	input wire rd_clk;
+	input wire rd_rst_n;
+	input wire [ADDR_WIDTH:0] wr_ptr_bin;
+	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
+	output wire [ADDR_WIDTH:0] count;
+	output reg wr_full;
+	output reg wr_almost_full;
+	output reg rd_empty;
+	output reg rd_almost_empty;
+	localparam signed [31:0] D = DEPTH;
+	localparam signed [31:0] AW = ADDR_WIDTH;
+	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
+	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
+	localparam signed [31:0] AFT = D - AFULL;
+	localparam signed [31:0] AET = AEMPTY;
+	wire w_wdom_ptr_xor;
+	wire w_rdom_ptr_xor;
+	wire w_wr_full_d;
+	wire w_wr_almost_full_d;
+	wire w_rd_empty_d;
+	wire w_rd_almost_empty_d;
+	wire [AW:0] w_almost_full_count;
+	wire [AW:0] w_almost_empty_count;
+	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
+	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
+	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
+	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
+		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65_signed = inp;
+	endfunction
+	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
+	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
+	always @(posedge wr_clk or negedge wr_rst_n)
+		if (!wr_rst_n) begin
+			wr_full <= 'b0;
+			wr_almost_full <= 'b0;
+		end
+		else begin
+			wr_full <= w_wr_full_d;
+			wr_almost_full <= w_wr_almost_full_d;
+		end
+	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
+	wire w_rdom_ptr_xor_for_empty;
+	generate
+		if (REGISTERED == 1) begin : gen_flop_mode
+			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
+			always @(posedge rd_clk or negedge rd_rst_n)
+				if (!rd_rst_n)
+					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
+				else
+					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
+			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
+		end
+		else begin : gen_mux_mode
+			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
+		end
+	endgenerate
+	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
+	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
+	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
+	wire [ADDR_WIDTH:0] w_count;
+	reg [ADDR_WIDTH:0] r_count;
+	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign count = (REGISTERED == 1 ? r_count : w_count);
+	always @(posedge rd_clk or negedge rd_rst_n)
+		if (!rd_rst_n) begin
+			rd_empty <= 'b1;
+			rd_almost_empty <= 'b0;
+			r_count <= 'b0;
+		end
+		else begin
+			rd_empty <= w_rd_empty_d;
+			rd_almost_empty <= w_rd_almost_empty_d;
+			r_count <= w_count;
+		end
+endmodule
 module arbiter_priority_encoder (
 	requests_masked,
 	requests_unmasked,
@@ -831,147 +972,6 @@ module pwm (
 		end
 	endgenerate
 	initial _sv2v_0 = 0;
-endmodule
-module counter_bin (
-	clk,
-	rst_n,
-	enable,
-	counter_bin_curr,
-	counter_bin_next
-);
-	reg _sv2v_0;
-	parameter signed [31:0] WIDTH = 5;
-	parameter signed [31:0] MAX = 10;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_bin_curr;
-	output reg [WIDTH - 1:0] counter_bin_next;
-	wire [WIDTH - 2:0] w_max_val;
-	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
-		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
-		sv2v_cast_00F62_signed = inp;
-	endfunction
-	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (enable) begin
-			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
-				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
-			else
-				counter_bin_next = counter_bin_curr + 1;
-		end
-		else
-			counter_bin_next = counter_bin_curr;
-	end
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			counter_bin_curr <= 'b0;
-		else
-			counter_bin_curr <= counter_bin_next;
-	initial _sv2v_0 = 0;
-endmodule
-module fifo_control (
-	wr_clk,
-	wr_rst_n,
-	rd_clk,
-	rd_rst_n,
-	wr_ptr_bin,
-	wdom_rd_ptr_bin,
-	rd_ptr_bin,
-	rdom_wr_ptr_bin,
-	count,
-	wr_full,
-	wr_almost_full,
-	rd_empty,
-	rd_almost_empty
-);
-	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 8;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] REGISTERED = 0;
-	input wire wr_clk;
-	input wire wr_rst_n;
-	input wire rd_clk;
-	input wire rd_rst_n;
-	input wire [ADDR_WIDTH:0] wr_ptr_bin;
-	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
-	input wire [ADDR_WIDTH:0] rd_ptr_bin;
-	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
-	output wire [ADDR_WIDTH:0] count;
-	output reg wr_full;
-	output reg wr_almost_full;
-	output reg rd_empty;
-	output reg rd_almost_empty;
-	localparam signed [31:0] D = DEPTH;
-	localparam signed [31:0] AW = ADDR_WIDTH;
-	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
-	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
-	localparam signed [31:0] AFT = D - AFULL;
-	localparam signed [31:0] AET = AEMPTY;
-	wire w_wdom_ptr_xor;
-	wire w_rdom_ptr_xor;
-	wire w_wr_full_d;
-	wire w_wr_almost_full_d;
-	wire w_rd_empty_d;
-	wire w_rd_almost_empty_d;
-	wire [AW:0] w_almost_full_count;
-	wire [AW:0] w_almost_empty_count;
-	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
-	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
-	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
-	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
-		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
-		sv2v_cast_2BB65_signed = inp;
-	endfunction
-	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
-	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
-	always @(posedge wr_clk or negedge wr_rst_n)
-		if (!wr_rst_n) begin
-			wr_full <= 'b0;
-			wr_almost_full <= 'b0;
-		end
-		else begin
-			wr_full <= w_wr_full_d;
-			wr_almost_full <= w_wr_almost_full_d;
-		end
-	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
-	wire w_rdom_ptr_xor_for_empty;
-	generate
-		if (REGISTERED == 1) begin : gen_flop_mode
-			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk or negedge rd_rst_n)
-				if (!rd_rst_n)
-					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
-				else
-					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
-			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
-		end
-		else begin : gen_mux_mode
-			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
-		end
-	endgenerate
-	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
-	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
-	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
-	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
-	wire [ADDR_WIDTH:0] w_count;
-	reg [ADDR_WIDTH:0] r_count;
-	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
-	assign count = (REGISTERED == 1 ? r_count : w_count);
-	always @(posedge rd_clk or negedge rd_rst_n)
-		if (!rd_rst_n) begin
-			rd_empty <= 'b1;
-			rd_almost_empty <= 'b0;
-			r_count <= 'b0;
-		end
-		else begin
-			rd_empty <= w_rd_empty_d;
-			rd_almost_empty <= w_rd_almost_empty_d;
-			r_count <= w_count;
-		end
 endmodule
 module gaxi_fifo_sync (
 	axi_aclk,

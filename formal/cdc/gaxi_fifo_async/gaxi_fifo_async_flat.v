@@ -38,53 +38,6 @@ module counter_bin (
 			counter_bin_curr <= counter_bin_next;
 	initial _sv2v_0 = 0;
 endmodule
-module counter_johnson (
-	clk,
-	rst_n,
-	enable,
-	counter_gray
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_gray;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			counter_gray <= {WIDTH {1'b0}};
-		else if (enable)
-			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
-endmodule
-module counter_bingray (
-	clk,
-	rst_n,
-	enable,
-	counter_bin,
-	counter_bin_next,
-	counter_gray
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_bin;
-	output wire [WIDTH - 1:0] counter_bin_next;
-	output reg [WIDTH - 1:0] counter_gray;
-	wire [WIDTH - 1:0] w_counter_bin;
-	wire [WIDTH - 1:0] w_counter_gray;
-	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
-	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
-	assign counter_bin_next = w_counter_bin;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			counter_bin <= 'b0;
-			counter_gray <= 'b0;
-		end
-		else begin
-			counter_bin <= w_counter_bin;
-			counter_gray <= w_counter_gray;
-		end
-endmodule
 module glitch_free_n_dff_arn (
 	clk,
 	rst_n,
@@ -123,32 +76,6 @@ module glitch_free_n_dff_arn (
 		end
 	endgenerate
 endmodule
-module find_last_set (
-	data,
-	index
-);
-	reg _sv2v_0;
-	parameter signed [31:0] WIDTH = 32;
-	input wire [WIDTH - 1:0] data;
-	output reg [$clog2(WIDTH) - 1:0] index;
-	localparam signed [31:0] N = $clog2(WIDTH);
-	reg w_found;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		index = {N {1'b0}};
-		w_found = 1'b0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] i;
-			for (i = WIDTH - 1; i >= 0; i = i - 1)
-				if (data[i] && !w_found) begin
-					index = i[N - 1:0];
-					w_found = 1'b1;
-				end
-		end
-	end
-	initial _sv2v_0 = 0;
-endmodule
 module find_first_set (
 	data,
 	index
@@ -167,6 +94,32 @@ module find_first_set (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] i;
 			for (i = 0; i < WIDTH; i = i + 1)
+				if (data[i] && !w_found) begin
+					index = i[N - 1:0];
+					w_found = 1'b1;
+				end
+		end
+	end
+	initial _sv2v_0 = 0;
+endmodule
+module find_last_set (
+	data,
+	index
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data;
+	output reg [$clog2(WIDTH) - 1:0] index;
+	localparam signed [31:0] N = $clog2(WIDTH);
+	reg w_found;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		index = {N {1'b0}};
+		w_found = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = WIDTH - 1; i >= 0; i = i - 1)
 				if (data[i] && !w_found) begin
 					index = i[N - 1:0];
 					w_found = 1'b1;
@@ -224,66 +177,6 @@ module leading_one_trailing_one (
 	assign all_zeroes = ~(|data);
 	assign valid = |data;
 	initial _sv2v_0 = 0;
-endmodule
-module johnson2bin (
-	clk,
-	rst_n,
-	gray,
-	binary
-);
-	reg _sv2v_0;
-	parameter signed [31:0] JCW = 10;
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire [JCW - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	localparam signed [31:0] N = $clog2(JCW);
-	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
-	wire [N - 1:0] w_leading_one;
-	wire [N - 1:0] w_trailing_one;
-	reg [WIDTH - 1:0] w_binary;
-	wire w_all_zeroes;
-	wire w_all_ones;
-	wire w_valid;
-	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
-		.data(gray),
-		.leadingone(w_leading_one),
-		.leadingone_vector(),
-		.trailingone(w_trailing_one),
-		.trailingone_vector(),
-		.all_zeroes(w_all_zeroes),
-		.all_ones(w_all_ones),
-		.valid(w_valid)
-	);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (w_all_zeroes || w_all_ones)
-			w_binary = {WIDTH {1'b0}};
-		else if (gray[JCW - 1])
-			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
-		else
-			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
-	end
-	assign binary[WIDTH - 1] = gray[JCW - 1];
-	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
-	initial _sv2v_0 = 0;
-endmodule
-module gray2bin (
-	gray,
-	binary
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire [WIDTH - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	genvar _gv_i_2;
-	generate
-		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
-			localparam i = _gv_i_2;
-			assign binary[i] = ^(gray >> i);
-		end
-	endgenerate
 endmodule
 module fifo_control (
 	wr_clk,
@@ -386,6 +279,113 @@ module fifo_control (
 			r_count <= w_count;
 		end
 endmodule
+module gray2bin (
+	gray,
+	binary
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire [WIDTH - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	genvar _gv_i_2;
+	generate
+		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
+			localparam i = _gv_i_2;
+			assign binary[i] = ^(gray >> i);
+		end
+	endgenerate
+endmodule
+module counter_bingray (
+	clk,
+	rst_n,
+	enable,
+	counter_bin,
+	counter_bin_next,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin;
+	output wire [WIDTH - 1:0] counter_bin_next;
+	output reg [WIDTH - 1:0] counter_gray;
+	wire [WIDTH - 1:0] w_counter_bin;
+	wire [WIDTH - 1:0] w_counter_gray;
+	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
+	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
+	assign counter_bin_next = w_counter_bin;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			counter_bin <= 'b0;
+			counter_gray <= 'b0;
+		end
+		else begin
+			counter_bin <= w_counter_bin;
+			counter_gray <= w_counter_gray;
+		end
+endmodule
+module counter_johnson (
+	clk,
+	rst_n,
+	enable,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_gray;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_gray <= {WIDTH {1'b0}};
+		else if (enable)
+			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
+endmodule
+module johnson2bin (
+	clk,
+	rst_n,
+	gray,
+	binary
+);
+	reg _sv2v_0;
+	parameter signed [31:0] JCW = 10;
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire [JCW - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	localparam signed [31:0] N = $clog2(JCW);
+	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
+	wire [N - 1:0] w_leading_one;
+	wire [N - 1:0] w_trailing_one;
+	reg [WIDTH - 1:0] w_binary;
+	wire w_all_zeroes;
+	wire w_all_ones;
+	wire w_valid;
+	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
+		.data(gray),
+		.leadingone(w_leading_one),
+		.leadingone_vector(),
+		.trailingone(w_trailing_one),
+		.trailingone_vector(),
+		.all_zeroes(w_all_zeroes),
+		.all_ones(w_all_ones),
+		.valid(w_valid)
+	);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_all_zeroes || w_all_ones)
+			w_binary = {WIDTH {1'b0}};
+		else if (gray[JCW - 1])
+			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
+		else
+			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
+	end
+	assign binary[WIDTH - 1] = gray[JCW - 1];
+	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
+	initial _sv2v_0 = 0;
+endmodule
 module gaxi_fifo_async (
 	axi_wr_aclk,
 	axi_wr_aresetn,
@@ -426,7 +426,7 @@ module gaxi_fifo_async (
 	localparam signed [31:0] PTRW = (USE_JOHNSON != 0 ? JCW : AW + 1);
 	generate
 		if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
-			initial $display("Error [elaboration] /tmp/formal_gaxi_fifo_async/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
 		end
 	endgenerate
 	wire [PTRW - 1:0] r_wr_ptr_gray;

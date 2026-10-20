@@ -8,13 +8,18 @@
 # take. Regenerate the flat file whenever the RTL changes -- a stale flat is a
 # proof about code that no longer exists.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-DEPS := 
-DUT  := $(REPO_ROOT)/rtl/math/math_bf16_exp2.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := math_bf16_exp2_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/math/filelists/math_bf16_exp2.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -25,9 +30,6 @@ prove: math_bf16_exp2_flat.v
 
 cover: math_bf16_exp2_flat.v
 	sby -f math_bf16_exp2.sby cover
-
-math_bf16_exp2_flat.v: $(DUT) $(DEPS)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf math_bf16_exp2_flat.v math_bf16_exp2_prove math_bf16_exp2_cover

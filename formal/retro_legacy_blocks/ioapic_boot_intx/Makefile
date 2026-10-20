@@ -2,16 +2,20 @@
 # Formal verification Makefile for ioapic_boot_intx (retro_legacy_blocks)
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 #
-# No DEPS and no PKGS: the companion instantiates nothing. Its whole contract
+# The companion instantiates nothing, so its closure is the module alone. Its whole contract
 # -- the per-pin reroute decision and the map onto the legacy PIC inputs -- is
 # combinational and at its own ports. Same shape as ioapic_lowest_pri_arb and
 # ioapic_msi_emit, which are likewise dependency-free.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-DUT := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/ioapic_boot_intx.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := ioapic_boot_intx_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/ioapic/filelists/ioapic_boot_intx.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -22,9 +26,6 @@ prove: ioapic_boot_intx_flat.v
 
 cover: ioapic_boot_intx_flat.v
 	sby -f ioapic_boot_intx.sby cover
-
-ioapic_boot_intx_flat.v: $(DUT)
-	$(SV2V) $(INC) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover ioapic_boot_intx/

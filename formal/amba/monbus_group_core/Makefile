@@ -2,30 +2,25 @@
 # proof (formal/stream, retired 2026-09-28) described a module that no longer
 # exists; this one proves the core every protocol wrapper is a thin shell
 # around. Flattened with sv2v like its siblings; `make prove cover`.
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-# The dependency closure of rtl/amba/filelists/monbus_group.f, in that order
-# (bin/filelist_registry.py --resolve rtl/amba/filelists/monbus_group.f).
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/math/math_adder_carry_save_nbit.sv \
-        $(REPO_ROOT)/rtl/math/math_mod_3_compress.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/monbus_cam.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/monbus_cam_pipe.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/monbus_compressor.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/monbus_halfbeat_packer.sv
-DUT  := $(REPO_ROOT)/rtl/amba/ocelus/monbus_group_core.sv
+
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := monbus_group_core_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/monbus_cam.f \
+                   $(REPO_ROOT)/rtl/amba/filelists/monbus_group_core.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+include $(REPO_ROOT)/make/formal_flat.mk
+
 .PHONY: prove cover all clean
 all: prove cover
 prove: monbus_group_core_flat.v
 	sby -f monbus_group_core.sby prove
 cover: monbus_group_core_flat.v
 	sby -f monbus_group_core.sby cover
-monbus_group_core_flat.v: $(DUT) $(DEPS)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(DEPS) $(DUT) > $@
 clean:
 	rm -rf monbus_group_core_flat.v monbus_group_core_prove monbus_group_core_cover

@@ -1,31 +1,3 @@
-module dataint_parity (
-	data_in,
-	parity_in,
-	parity_type,
-	parity,
-	parity_err
-);
-	parameter signed [31:0] CHUNKS = 4;
-	parameter signed [31:0] WIDTH = 32;
-	input wire [WIDTH - 1:0] data_in;
-	input wire [CHUNKS - 1:0] parity_in;
-	input wire parity_type;
-	output wire [CHUNKS - 1:0] parity;
-	output wire [CHUNKS - 1:0] parity_err;
-	localparam signed [31:0] ChunkSize = WIDTH / CHUNKS;
-	localparam signed [31:0] ExtraBits = WIDTH % CHUNKS;
-	genvar _gv_i_1;
-	generate
-		for (_gv_i_1 = 0; _gv_i_1 < CHUNKS; _gv_i_1 = _gv_i_1 + 1) begin : gen_parity
-			localparam i = _gv_i_1;
-			localparam signed [31:0] LowerBound = i * ChunkSize;
-			localparam signed [31:0] UpperBound = (i < (CHUNKS - 1) ? ((i + 1) * ChunkSize) - 1 : WIDTH - 1);
-			wire calculated_parity = (parity_type ? ^data_in[UpperBound:LowerBound] : ~^data_in[UpperBound:LowerBound]);
-			assign parity[i] = calculated_parity;
-			assign parity_err[i] = calculated_parity != parity_in[i];
-		end
-	endgenerate
-endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -65,6 +37,41 @@ module counter_bin (
 		else
 			counter_bin_curr <= counter_bin_next;
 	initial _sv2v_0 = 0;
+endmodule
+module counter_load_clear (
+	clk,
+	rst_n,
+	clear,
+	increment,
+	load,
+	loadval,
+	count,
+	done
+);
+	parameter signed [31:0] MAX = 32'd32;
+	input wire clk;
+	input wire rst_n;
+	input wire clear;
+	input wire increment;
+	input wire load;
+	input wire [$clog2(MAX) - 1:0] loadval;
+	output reg [$clog2(MAX) - 1:0] count;
+	output wire done;
+	reg [$clog2(MAX) - 1:0] r_match_val;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			count <= 'b0;
+			r_match_val <= 'b0;
+		end
+		else begin
+			if (load)
+				r_match_val <= loadval;
+			if (clear)
+				count <= 'b0;
+			else if (increment)
+				count <= (count == r_match_val ? 'b0 : count + 'b1);
+		end
+	assign done = count == r_match_val;
 endmodule
 module fifo_control (
 	wr_clk,
@@ -166,6 +173,34 @@ module fifo_control (
 			rd_almost_empty <= w_rd_almost_empty_d;
 			r_count <= w_count;
 		end
+endmodule
+module dataint_parity (
+	data_in,
+	parity_in,
+	parity_type,
+	parity,
+	parity_err
+);
+	parameter signed [31:0] CHUNKS = 4;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data_in;
+	input wire [CHUNKS - 1:0] parity_in;
+	input wire parity_type;
+	output wire [CHUNKS - 1:0] parity;
+	output wire [CHUNKS - 1:0] parity_err;
+	localparam signed [31:0] ChunkSize = WIDTH / CHUNKS;
+	localparam signed [31:0] ExtraBits = WIDTH % CHUNKS;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < CHUNKS; _gv_i_1 = _gv_i_1 + 1) begin : gen_parity
+			localparam i = _gv_i_1;
+			localparam signed [31:0] LowerBound = i * ChunkSize;
+			localparam signed [31:0] UpperBound = (i < (CHUNKS - 1) ? ((i + 1) * ChunkSize) - 1 : WIDTH - 1);
+			wire calculated_parity = (parity_type ? ^data_in[UpperBound:LowerBound] : ~^data_in[UpperBound:LowerBound]);
+			assign parity[i] = calculated_parity;
+			assign parity_err[i] = calculated_parity != parity_in[i];
+		end
+	endgenerate
 endmodule
 module gaxi_fifo_sync (
 	axi_aclk,

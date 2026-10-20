@@ -2,44 +2,20 @@
 # Formal verification Makefile for datapath_wr_test
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
-TMPDIR    := .sv2v_prep
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
-
-# Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
-
-# RTL dependencies (transitive closure for datapath_wr_test):
-#   datapath_wr_test -> scheduler (no sub-deps)
-#                    -> axi_write_engine -> arbiter_round_robin, arbiter_priority_encoder
-#                                        -> gaxi_fifo_sync -> counter_bin, fifo_control
-#                    -> sram_controller -> sram_controller_unit
-#                                       -> stream_alloc_ctrl, stream_drain_ctrl
-#                                       -> stream_latency_bridge -> gaxi_fifo_sync
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller_unit.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv \
-        $(TMPDIR)/axi_write_engine.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/macro/datapath_wr_test.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := datapath_wr_test_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/datapath_wr_test.f
+# sv2v does not honour `// synopsys translate_off`, so the write engine's
+# hang-diagnostic $display would survive into the flat, and yosys cannot
+# size its $time argument (AST_AUTOWIRE). Stripped for FORMAL only;
+# simulation reads the original source and keeps the prints.
+FLAT_PREP       := /synopsys translate_off/,/synopsys translate_on/d
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -49,40 +25,5 @@ prove: datapath_wr_test_flat.v
 cover: datapath_wr_test_flat.v
 	sby -f datapath_wr_test.sby cover
 
-# sv2v does not honour `// synopsys translate_off` -- it is a comment to sv2v,
-# so the hang-diagnostic $display survives into the flat and yosys cannot size
-# its $time argument ("Don't know how to detect sign and width for AST_AUTOWIRE").
-# Strip those blocks for FORMAL ONLY: simulation reads the original source and
-# still gets the prints. The `ifdef ENHANCED_DEBUG` prints need no handling --
-# sv2v honours preprocessor directives, so they are already excluded.
-$(TMPDIR):
-	mkdir -p $(TMPDIR)
-
-$(TMPDIR)/axi_write_engine.sv: $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/axi_write_engine.sv | $(TMPDIR)
-	sed '/synopsys translate_off/,/synopsys translate_on/d' $< > $@
-
-datapath_wr_test_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
-
 clean:
-	rm -rf *_flat.v *_prove *_cover $(TMPDIR)
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < datapath_wr_test_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: datapath_wr_test_flat.v does not match the RTL."; \
-		echo "Regenerate with: make datapath_wr_test_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
+	rm -rf *_flat.v *_prove *_cover $(FLAT_BUILD)

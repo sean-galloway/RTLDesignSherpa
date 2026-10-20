@@ -1,27 +1,19 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for wb4_monitor
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
-# (same shape as formal/amba/apb4_monitor/Makefile; DEPS is the closure of
-# wb4_monitor, leaves first, and the sv2v file list is derived from it).
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_wb4_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/wb4/wb4_pkg.sv
-
-# RTL dependencies (transitive closure of wb4_monitor, leaves first)
-DEPS := $(REPO_ROOT)/rtl/amba/ocelus/apb_monitor_addr_check.sv \
-        $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv
-
-DUT := $(REPO_ROOT)/rtl/amba/wb4/wb4_monitor.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := wb4_monitor_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/wb4_monitor.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -32,12 +24,6 @@ prove: wb4_monitor_flat.v
 
 cover: wb4_monitor_flat.v
 	sby -f wb4_monitor.sby cover
-
-# --define=FORMAL keeps the in-RTL properties; --exclude=Assert keeps sv2v
-# from deleting the immediate assertions (see vault/handbook/dv/formal.md).
-wb4_monitor_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) $(DEPS) $(DUT) > $@
-	@echo "asserts in flat: $$(grep -c 'assert' $@)"
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

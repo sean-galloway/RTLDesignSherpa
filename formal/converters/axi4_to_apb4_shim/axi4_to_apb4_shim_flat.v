@@ -1,3 +1,322 @@
+module cdc_2_phase_handshake (
+	clk_src,
+	rst_src_n,
+	src_valid,
+	src_ready,
+	src_data,
+	src_timeout,
+	clk_dst,
+	rst_dst_n,
+	dst_valid,
+	dst_ready,
+	dst_data
+);
+	reg _sv2v_0;
+	parameter signed [31:0] DATA_WIDTH = 8;
+	parameter signed [31:0] SYNC_STAGES = 3;
+	parameter signed [31:0] TIMEOUT_CYCLES = 0;
+	input wire clk_src;
+	input wire rst_src_n;
+	input wire src_valid;
+	output reg src_ready;
+	input wire [DATA_WIDTH - 1:0] src_data;
+	output reg src_timeout;
+	input wire clk_dst;
+	input wire rst_dst_n;
+	output reg dst_valid;
+	input wire dst_ready;
+	output wire [DATA_WIDTH - 1:0] dst_data;
+	reg r_req_tog;
+	reg r_ack_tog;
+	reg [DATA_WIDTH - 1:0] r_src_data_hold;
+	(* ASYNC_REG = "TRUE" *) reg [DATA_WIDTH - 1:0] r_dst_data;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_req_sync;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_ack_sync;
+	reg r_req_sync_d;
+	reg r_ack_sync_d;
+	wire w_req_sync;
+	wire w_ack_sync;
+	wire w_req_event;
+	wire w_ack_event;
+	reg r_src_state;
+	reg r_dst_state;
+	localparam signed [31:0] TIMEOUT_CW = (TIMEOUT_CYCLES > 1 ? $clog2(TIMEOUT_CYCLES + 1) : 1);
+	reg [TIMEOUT_CW - 1:0] r_timeout_cnt;
+	always @(posedge clk_src or negedge rst_src_n)
+		if (!rst_src_n) begin
+			r_ack_sync <= 1'sb0;
+			r_ack_sync_d <= 1'b0;
+		end
+		else begin
+			r_ack_sync <= {r_ack_sync[SYNC_STAGES - 2:0], r_ack_tog};
+			r_ack_sync_d <= r_ack_sync[SYNC_STAGES - 1];
+		end
+	assign w_ack_sync = r_ack_sync[SYNC_STAGES - 1];
+	assign w_ack_event = w_ack_sync ^ r_ack_sync_d;
+	always @(posedge clk_src or negedge rst_src_n)
+		if (!rst_src_n) begin
+			r_src_state <= 1'd0;
+			r_req_tog <= 1'b0;
+			src_ready <= 1'b0;
+			r_src_data_hold <= 1'sb0;
+		end
+		else
+			(* full_case, parallel_case *)
+			case (r_src_state)
+				1'd0: begin
+					src_ready <= 1'b1;
+					if (src_valid) begin
+						r_src_data_hold <= src_data;
+						r_req_tog <= ~r_req_tog;
+						src_ready <= 1'b0;
+						r_src_state <= 1'd1;
+					end
+				end
+				1'd1: begin
+					src_ready <= 1'b0;
+					if (w_ack_event) begin
+						src_ready <= 1'b1;
+						r_src_state <= 1'd0;
+					end
+				end
+				default: begin
+					r_src_state <= 1'd0;
+					src_ready <= 1'b1;
+				end
+			endcase
+	generate
+		if (TIMEOUT_CYCLES > 0) begin : g_timeout
+			always @(posedge clk_src or negedge rst_src_n)
+				if (!rst_src_n) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_src_state == 1'd0) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_timeout_cnt == TIMEOUT_CYCLES[TIMEOUT_CW - 1:0])
+					src_timeout <= 1'b1;
+				else
+					r_timeout_cnt <= r_timeout_cnt + 1'b1;
+		end
+		else begin : g_no_timeout
+			wire [1:1] sv2v_tmp_D5E08;
+			assign sv2v_tmp_D5E08 = 1'b0;
+			always @(*) src_timeout = sv2v_tmp_D5E08;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				r_timeout_cnt = 1'sb0;
+			end
+		end
+	endgenerate
+	always @(posedge clk_dst or negedge rst_dst_n)
+		if (!rst_dst_n) begin
+			r_req_sync <= 1'sb0;
+			r_req_sync_d <= 1'b0;
+		end
+		else begin
+			r_req_sync <= {r_req_sync[SYNC_STAGES - 2:0], r_req_tog};
+			r_req_sync_d <= r_req_sync[SYNC_STAGES - 1];
+		end
+	assign w_req_sync = r_req_sync[SYNC_STAGES - 1];
+	assign w_req_event = w_req_sync ^ r_req_sync_d;
+	always @(posedge clk_dst or negedge rst_dst_n)
+		if (!rst_dst_n) begin
+			r_dst_state <= 1'd0;
+			r_ack_tog <= 1'b0;
+			dst_valid <= 1'b0;
+			r_dst_data <= 1'sb0;
+		end
+		else
+			(* full_case, parallel_case *)
+			case (r_dst_state)
+				1'd0:
+					if (w_req_event) begin
+						r_dst_data <= r_src_data_hold;
+						dst_valid <= 1'b1;
+						r_dst_state <= 1'd1;
+					end
+					else
+						dst_valid <= 1'b0;
+				1'd1: begin
+					dst_valid <= 1'b1;
+					if (dst_ready) begin
+						r_ack_tog <= ~r_ack_tog;
+						dst_valid <= 1'b0;
+						r_dst_state <= 1'd0;
+					end
+				end
+				default: begin
+					r_dst_state <= 1'd0;
+					dst_valid <= 1'b0;
+				end
+			endcase
+	assign dst_data = r_dst_data;
+	initial _sv2v_0 = 0;
+endmodule
+module cdc_4_phase_handshake (
+	clk_src,
+	rst_src_n,
+	src_valid,
+	src_ready,
+	src_data,
+	src_timeout,
+	clk_dst,
+	rst_dst_n,
+	dst_valid,
+	dst_ready,
+	dst_data
+);
+	parameter signed [31:0] DATA_WIDTH = 8;
+	parameter signed [31:0] SYNC_STAGES = 3;
+	parameter signed [31:0] TIMEOUT_CYCLES = 0;
+	input wire clk_src;
+	input wire rst_src_n;
+	input wire src_valid;
+	output reg src_ready;
+	input wire [DATA_WIDTH - 1:0] src_data;
+	output reg src_timeout;
+	input wire clk_dst;
+	input wire rst_dst_n;
+	output reg dst_valid;
+	input wire dst_ready;
+	output wire [DATA_WIDTH - 1:0] dst_data;
+	reg r_req_src;
+	reg r_ack_dst;
+	reg [DATA_WIDTH - 1:0] r_src_data_hold;
+	(* ASYNC_REG = "TRUE" *) reg [DATA_WIDTH - 1:0] r_dst_data;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_req_sync;
+	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_ack_sync;
+	wire w_req_sync;
+	wire w_ack_sync;
+	reg [1:0] r_src_state;
+	reg [1:0] r_dst_state;
+	localparam signed [31:0] TIMEOUT_CW = (TIMEOUT_CYCLES > 1 ? $clog2(TIMEOUT_CYCLES + 1) : 1);
+	always @(posedge clk_src or negedge rst_src_n)
+		if (!rst_src_n)
+			r_ack_sync <= 1'sb0;
+		else
+			r_ack_sync <= {r_ack_sync[SYNC_STAGES - 2:0], r_ack_dst};
+	assign w_ack_sync = r_ack_sync[SYNC_STAGES - 1];
+	always @(posedge clk_src or negedge rst_src_n)
+		if (!rst_src_n) begin
+			r_src_state <= 2'd0;
+			r_req_src <= 1'b0;
+			src_ready <= 1'b0;
+			r_src_data_hold <= 1'sb0;
+		end
+		else
+			(* full_case, parallel_case *)
+			case (r_src_state)
+				2'd0: begin
+					src_ready <= 1'b1;
+					r_req_src <= 1'b0;
+					if (src_valid) begin
+						r_src_data_hold <= src_data;
+						r_req_src <= 1'b1;
+						src_ready <= 1'b0;
+						r_src_state <= 2'd1;
+					end
+				end
+				2'd1: begin
+					src_ready <= 1'b0;
+					if (w_ack_sync) begin
+						r_req_src <= 1'b0;
+						r_src_state <= 2'd2;
+					end
+				end
+				2'd2: begin
+					src_ready <= 1'b0;
+					r_req_src <= 1'b0;
+					if (!w_ack_sync) begin
+						src_ready <= 1'b1;
+						r_src_state <= 2'd0;
+					end
+				end
+				default: begin
+					r_src_state <= 2'd0;
+					src_ready <= 1'b1;
+					r_req_src <= 1'b0;
+				end
+			endcase
+	generate
+		if (TIMEOUT_CYCLES > 0) begin : g_timeout
+			reg [TIMEOUT_CW - 1:0] r_timeout_cnt;
+			always @(posedge clk_src or negedge rst_src_n)
+				if (!rst_src_n) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_src_state == 2'd0) begin
+					r_timeout_cnt <= 1'sb0;
+					src_timeout <= 1'b0;
+				end
+				else if (r_timeout_cnt == TIMEOUT_CYCLES[TIMEOUT_CW - 1:0])
+					src_timeout <= 1'b1;
+				else
+					r_timeout_cnt <= r_timeout_cnt + 1'b1;
+		end
+		else begin : g_no_timeout
+			wire [1:1] sv2v_tmp_D5E08;
+			assign sv2v_tmp_D5E08 = 1'b0;
+			always @(*) src_timeout = sv2v_tmp_D5E08;
+		end
+	endgenerate
+	always @(posedge clk_dst or negedge rst_dst_n)
+		if (!rst_dst_n)
+			r_req_sync <= 1'sb0;
+		else
+			r_req_sync <= {r_req_sync[SYNC_STAGES - 2:0], r_req_src};
+	assign w_req_sync = r_req_sync[SYNC_STAGES - 1];
+	always @(posedge clk_dst or negedge rst_dst_n)
+		if (!rst_dst_n) begin
+			r_dst_state <= 2'd0;
+			r_ack_dst <= 1'b0;
+			dst_valid <= 1'b0;
+			r_dst_data <= 1'sb0;
+		end
+		else
+			(* full_case, parallel_case *)
+			case (r_dst_state)
+				2'd0: begin
+					r_ack_dst <= 1'b0;
+					if (w_req_sync) begin
+						r_dst_data <= r_src_data_hold;
+						dst_valid <= 1'b1;
+						r_dst_state <= 2'd1;
+					end
+					else
+						dst_valid <= 1'b0;
+				end
+				2'd1: begin
+					dst_valid <= 1'b1;
+					if (dst_ready) begin
+						r_ack_dst <= 1'b1;
+						dst_valid <= 1'b0;
+						r_dst_state <= 2'd2;
+					end
+					else if (!w_req_sync) begin
+						dst_valid <= 1'b0;
+						r_dst_state <= 2'd0;
+					end
+				end
+				2'd2: begin
+					dst_valid <= 1'b0;
+					if (!w_req_sync) begin
+						r_ack_dst <= 1'b0;
+						r_dst_state <= 2'd0;
+					end
+				end
+				default: begin
+					r_dst_state <= 2'd0;
+					r_ack_dst <= 1'b0;
+					dst_valid <= 1'b0;
+				end
+			endcase
+	assign dst_data = r_dst_data;
+endmodule
 module reset_sync (
 	clk,
 	rst_n,
@@ -369,215 +688,144 @@ module gaxi_fifo_sync (
 			;
 	end
 endmodule
-module gaxi_skid_buffer (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	count,
-	rd_valid,
-	rd_ready,
-	rd_count,
-	rd_data
+module glitch_free_n_dff_arn (
+	clk,
+	rst_n,
+	d,
+	q
 );
-	parameter signed [31:0] DATA_WIDTH = 32;
-	parameter signed [31:0] DEPTH = 2;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output reg wr_ready;
-	input wire [DW - 1:0] wr_data;
-	output wire [3:0] count;
-	output reg rd_valid;
-	input wire rd_ready;
-	output wire [3:0] rd_count;
-	output wire [DW - 1:0] rd_data;
-	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
-	reg [DW - 1:0] r_data [0:SLOTS - 1];
-	reg [3:0] r_data_count;
-	wire w_wr_xfer;
-	wire w_rd_xfer;
-	assign w_wr_xfer = wr_valid & wr_ready;
-	assign w_rd_xfer = rd_valid & rd_ready;
-	generate
-		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
-		end
-	endgenerate
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	generate
-		if (DEPTH == 0) begin : g_bypass
-			wire [1:1] sv2v_tmp_B1958;
-			assign sv2v_tmp_B1958 = rd_ready;
-			always @(*) wr_ready = sv2v_tmp_B1958;
-			wire [1:1] sv2v_tmp_00E98;
-			assign sv2v_tmp_00E98 = wr_valid;
-			always @(*) rd_valid = sv2v_tmp_00E98;
-			assign rd_data = wr_data;
-			wire [4:1] sv2v_tmp_953DA;
-			assign sv2v_tmp_953DA = 1'sb0;
-			always @(*) r_data_count = sv2v_tmp_953DA;
-			wire [DW:1] sv2v_tmp_D35D5;
-			assign sv2v_tmp_D35D5 = 1'sb0;
-			always @(*) r_data[0] = sv2v_tmp_D35D5;
-			assign rd_count = 1'sb0;
-			assign count = 1'sb0;
-			wire w_bypass_unused;
-			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
-		end
-		else begin : g_skid
-			genvar _gv_gi_1;
-			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
-				localparam gi = _gv_gi_1;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_data[gi] <= 1'sb0;
-					else
-						(* full_case, parallel_case *)
-						case ({w_wr_xfer, w_rd_xfer})
-							2'b10:
-								if (r_data_count == gi[3:0])
-									r_data[gi] <= wr_data;
-							2'b01:
-								if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							2'b11:
-								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
-									r_data[gi] <= wr_data;
-								else if (gi < (DEPTH - 1))
-									r_data[gi] <= r_data[gi + 1];
-								else
-									r_data[gi] <= 1'sb0;
-							default:
-								;
-						endcase
+	parameter signed [31:0] FLOP_COUNT = 3;
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire [WIDTH - 1:0] d;
+	output reg [WIDTH - 1:0] q;
+	localparam signed [31:0] FC = FLOP_COUNT;
+	localparam signed [31:0] DW = WIDTH;
+	reg [(FC * WIDTH) - 1:0] r_q_array;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_q_array <= {FC {{DW {1'b0}}}};
+		else begin
+			r_q_array[0+:WIDTH] <= d;
+			begin : sv2v_autoblock_1
+				reg signed [31:0] i;
+				for (i = 1; i < FC; i = i + 1)
+					r_q_array[i * WIDTH+:WIDTH] <= r_q_array[(i - 1) * WIDTH+:WIDTH];
 			end
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_data_count <= 1'sb0;
-				else
-					(* full_case, parallel_case *)
-					case ({w_wr_xfer, w_rd_xfer})
-						2'b10: r_data_count <= r_data_count + 4'd1;
-						2'b01: r_data_count <= r_data_count - 4'd1;
-						default:
-							;
-					endcase
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn) begin
-					wr_ready <= 1'b0;
-					rd_valid <= 1'b0;
-				end
-				else begin
-					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
-					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
-				end
-			assign rd_data = r_data[0];
-			assign rd_count = r_data_count;
-			assign count = r_data_count;
+		end
+	wire [WIDTH:1] sv2v_tmp_60F54;
+	assign sv2v_tmp_60F54 = r_q_array[(FC - 1) * WIDTH+:WIDTH];
+	always @(*) q = sv2v_tmp_60F54;
+	wire [(DW * FC) - 1:0] flat_r_q;
+	genvar _gv_i_1;
+	generate
+		for (_gv_i_1 = 0; _gv_i_1 < FC; _gv_i_1 = _gv_i_1 + 1) begin : gen_flatten_memory
+			localparam i = _gv_i_1;
+			assign flat_r_q[i * DW+:DW] = r_q_array[i * WIDTH+:WIDTH];
 		end
 	endgenerate
 endmodule
-module axi_gen_addr (
-	curr_addr,
-	size,
-	burst,
-	len,
-	next_addr,
-	next_addr_align
+module find_first_set (
+	data,
+	index
 );
 	reg _sv2v_0;
-	parameter signed [31:0] AW = 32;
-	parameter signed [31:0] DW = 32;
-	parameter signed [31:0] ODW = 32;
-	parameter signed [31:0] LEN = 8;
-	input wire [AW - 1:0] curr_addr;
-	input wire [2:0] size;
-	input wire [1:0] burst;
-	input wire [LEN - 1:0] len;
-	output reg [AW - 1:0] next_addr;
-	output wire [AW - 1:0] next_addr_align;
-	localparam signed [31:0] ODWBYTES = ODW / 8;
-	reg [AW - 1:0] increment_pre;
-	reg [AW - 1:0] increment;
-	reg [AW - 1:0] wrap_mask;
-	reg [AW - 1:0] aligned_addr;
-	reg [AW - 1:0] wrap_addr;
-	wire [16:0] len_plus1;
-	reg [4:0] len_log2;
-	function automatic [16:0] sv2v_cast_17;
-		input reg [16:0] inp;
-		sv2v_cast_17 = inp;
-	endfunction
-	assign len_plus1 = sv2v_cast_17({1'b0, len}) + 17'd1;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data;
+	output reg [$clog2(WIDTH) - 1:0] index;
+	localparam signed [31:0] N = $clog2(WIDTH);
+	reg w_found;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		casez (len_plus1)
-			17'b1zzzzzzzzzzzzzzzz: len_log2 = 5'd16;
-			17'b01zzzzzzzzzzzzzzz: len_log2 = 5'd15;
-			17'b001zzzzzzzzzzzzzz: len_log2 = 5'd14;
-			17'b0001zzzzzzzzzzzzz: len_log2 = 5'd13;
-			17'b00001zzzzzzzzzzzz: len_log2 = 5'd12;
-			17'b000001zzzzzzzzzzz: len_log2 = 5'd11;
-			17'b0000001zzzzzzzzzz: len_log2 = 5'd10;
-			17'b00000001zzzzzzzzz: len_log2 = 5'd9;
-			17'b000000001zzzzzzzz: len_log2 = 5'd8;
-			17'b0000000001zzzzzzz: len_log2 = 5'd7;
-			17'b00000000001zzzzzz: len_log2 = 5'd6;
-			17'b000000000001zzzzz: len_log2 = 5'd5;
-			17'b0000000000001zzzz: len_log2 = 5'd4;
-			17'b00000000000001zzz: len_log2 = 5'd3;
-			17'b000000000000001zz: len_log2 = 5'd2;
-			17'b0000000000000001z: len_log2 = 5'd1;
-			17'b00000000000000001: len_log2 = 5'd0;
-			default: len_log2 = 5'd0;
-		endcase
-	end
-	function automatic [AW - 1:0] sv2v_cast_DE851;
-		input reg [AW - 1:0] inp;
-		sv2v_cast_DE851 = inp;
-	endfunction
-	function automatic signed [AW - 1:0] sv2v_cast_DE851_signed;
-		input reg signed [AW - 1:0] inp;
-		sv2v_cast_DE851_signed = inp;
-	endfunction
-	function automatic [31:0] sv2v_cast_32;
-		input reg [31:0] inp;
-		sv2v_cast_32 = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		increment_pre = 1 << size;
-		increment = increment_pre;
-		if (DW != ODW) begin
-			if (sv2v_cast_DE851(increment_pre) > sv2v_cast_DE851_signed(ODWBYTES))
-				increment = sv2v_cast_DE851_signed(ODWBYTES);
+		index = {N {1'b0}};
+		w_found = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = 0; i < WIDTH; i = i + 1)
+				if (data[i] && !w_found) begin
+					index = i[N - 1:0];
+					w_found = 1'b1;
+				end
 		end
-		wrap_mask = (1 << (sv2v_cast_32(size) + sv2v_cast_32(len_log2))) - 1;
-		aligned_addr = (curr_addr + increment) & ~(increment - 1);
-		wrap_addr = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask);
 	end
+	initial _sv2v_0 = 0;
+endmodule
+module find_last_set (
+	data,
+	index
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data;
+	output reg [$clog2(WIDTH) - 1:0] index;
+	localparam signed [31:0] N = $clog2(WIDTH);
+	reg w_found;
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		casez (burst)
-			2'b00: next_addr = curr_addr;
-			2'b01: next_addr = curr_addr + increment;
-			2'b10: next_addr = wrap_addr;
-			default: next_addr = curr_addr + increment;
-		endcase
+		index = {N {1'b0}};
+		w_found = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = WIDTH - 1; i >= 0; i = i - 1)
+				if (data[i] && !w_found) begin
+					index = i[N - 1:0];
+					w_found = 1'b1;
+				end
+		end
 	end
-	wire [AW - 1:0] w_alignment_mask = sv2v_cast_DE851_signed(ODWBYTES) - 1;
-	assign next_addr_align = next_addr & ~w_alignment_mask;
+	initial _sv2v_0 = 0;
+endmodule
+module leading_one_trailing_one (
+	data,
+	leadingone,
+	leadingone_vector,
+	trailingone,
+	trailingone_vector,
+	all_zeroes,
+	all_ones,
+	valid
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 8;
+	input wire [WIDTH - 1:0] data;
+	output wire [$clog2(WIDTH) - 1:0] leadingone;
+	output reg [WIDTH - 1:0] leadingone_vector;
+	output wire [$clog2(WIDTH) - 1:0] trailingone;
+	output reg [WIDTH - 1:0] trailingone_vector;
+	output wire all_zeroes;
+	output wire all_ones;
+	output wire valid;
+	localparam signed [31:0] N = $clog2(WIDTH);
+	find_last_set #(.WIDTH(WIDTH)) u_find_last_set(
+		.data(data),
+		.index(leadingone)
+	);
+	find_first_set #(.WIDTH(WIDTH)) u_find_first_set(
+		.data(data),
+		.index(trailingone)
+	);
+	function automatic signed [31:0] sv2v_cast_32_signed;
+		input reg signed [31:0] inp;
+		sv2v_cast_32_signed = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		leadingone_vector = 1'sb0;
+		trailingone_vector = 1'sb0;
+		if (|data) begin
+			if (sv2v_cast_32_signed(leadingone) < WIDTH)
+				leadingone_vector[leadingone] = 1'b1;
+			if (sv2v_cast_32_signed(trailingone) < WIDTH)
+				trailingone_vector[trailingone] = 1'b1;
+		end
+	end
+	assign all_ones = &data;
+	assign all_zeroes = ~(|data);
+	assign valid = |data;
 	initial _sv2v_0 = 0;
 endmodule
 module gray2bin (
@@ -587,58 +835,13 @@ module gray2bin (
 	parameter signed [31:0] WIDTH = 4;
 	input wire [WIDTH - 1:0] gray;
 	output wire [WIDTH - 1:0] binary;
-	genvar _gv_i_1;
+	genvar _gv_i_2;
 	generate
-		for (_gv_i_1 = 0; _gv_i_1 < WIDTH; _gv_i_1 = _gv_i_1 + 1) begin : gen_gray_to_bin
-			localparam i = _gv_i_1;
+		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
+			localparam i = _gv_i_2;
 			assign binary[i] = ^(gray >> i);
 		end
 	endgenerate
-endmodule
-module johnson2bin (
-	clk,
-	rst_n,
-	gray,
-	binary
-);
-	reg _sv2v_0;
-	parameter signed [31:0] JCW = 10;
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire [JCW - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	localparam signed [31:0] N = $clog2(JCW);
-	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
-	wire [N - 1:0] w_leading_one;
-	wire [N - 1:0] w_trailing_one;
-	reg [WIDTH - 1:0] w_binary;
-	wire w_all_zeroes;
-	wire w_all_ones;
-	wire w_valid;
-	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
-		.data(gray),
-		.leadingone(w_leading_one),
-		.leadingone_vector(),
-		.trailingone(w_trailing_one),
-		.trailingone_vector(),
-		.all_zeroes(w_all_zeroes),
-		.all_ones(w_all_ones),
-		.valid(w_valid)
-	);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (w_all_zeroes || w_all_ones)
-			w_binary = {WIDTH {1'b0}};
-		else if (gray[JCW - 1])
-			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
-		else
-			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
-	end
-	assign binary[WIDTH - 1] = gray[JCW - 1];
-	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
-	initial _sv2v_0 = 0;
 endmodule
 module counter_bingray (
 	clk,
@@ -687,43 +890,50 @@ module counter_johnson (
 		else if (enable)
 			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
 endmodule
-module glitch_free_n_dff_arn (
+module johnson2bin (
 	clk,
 	rst_n,
-	d,
-	q
+	gray,
+	binary
 );
-	parameter signed [31:0] FLOP_COUNT = 3;
+	reg _sv2v_0;
+	parameter signed [31:0] JCW = 10;
 	parameter signed [31:0] WIDTH = 4;
 	input wire clk;
 	input wire rst_n;
-	input wire [WIDTH - 1:0] d;
-	output reg [WIDTH - 1:0] q;
-	localparam signed [31:0] FC = FLOP_COUNT;
-	localparam signed [31:0] DW = WIDTH;
-	reg [(FC * WIDTH) - 1:0] r_q_array;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			r_q_array <= {FC {{DW {1'b0}}}};
-		else begin
-			r_q_array[0+:WIDTH] <= d;
-			begin : sv2v_autoblock_1
-				reg signed [31:0] i;
-				for (i = 1; i < FC; i = i + 1)
-					r_q_array[i * WIDTH+:WIDTH] <= r_q_array[(i - 1) * WIDTH+:WIDTH];
-			end
-		end
-	wire [WIDTH:1] sv2v_tmp_60F54;
-	assign sv2v_tmp_60F54 = r_q_array[(FC - 1) * WIDTH+:WIDTH];
-	always @(*) q = sv2v_tmp_60F54;
-	wire [(DW * FC) - 1:0] flat_r_q;
-	genvar _gv_i_2;
-	generate
-		for (_gv_i_2 = 0; _gv_i_2 < FC; _gv_i_2 = _gv_i_2 + 1) begin : gen_flatten_memory
-			localparam i = _gv_i_2;
-			assign flat_r_q[i * DW+:DW] = r_q_array[i * WIDTH+:WIDTH];
-		end
-	endgenerate
+	input wire [JCW - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	localparam signed [31:0] N = $clog2(JCW);
+	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
+	wire [N - 1:0] w_leading_one;
+	wire [N - 1:0] w_trailing_one;
+	reg [WIDTH - 1:0] w_binary;
+	wire w_all_zeroes;
+	wire w_all_ones;
+	wire w_valid;
+	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
+		.data(gray),
+		.leadingone(w_leading_one),
+		.leadingone_vector(),
+		.trailingone(w_trailing_one),
+		.trailingone_vector(),
+		.all_zeroes(w_all_zeroes),
+		.all_ones(w_all_ones),
+		.valid(w_valid)
+	);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_all_zeroes || w_all_ones)
+			w_binary = {WIDTH {1'b0}};
+		else if (gray[JCW - 1])
+			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
+		else
+			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
+	end
+	assign binary[WIDTH - 1] = gray[JCW - 1];
+	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
+	initial _sv2v_0 = 0;
 endmodule
 module gaxi_fifo_async (
 	axi_wr_aclk,
@@ -971,324 +1181,156 @@ module gaxi_fifo_async (
 		if (w_read && r_rd_empty)
 			;
 endmodule
-module cdc_2_phase_handshake (
-	clk_src,
-	rst_src_n,
-	src_valid,
-	src_ready,
-	src_data,
-	src_timeout,
-	clk_dst,
-	rst_dst_n,
-	dst_valid,
-	dst_ready,
-	dst_data
+module counter_load_clear (
+	clk,
+	rst_n,
+	clear,
+	increment,
+	load,
+	loadval,
+	count,
+	done
 );
-	reg _sv2v_0;
-	parameter signed [31:0] DATA_WIDTH = 8;
-	parameter signed [31:0] SYNC_STAGES = 3;
-	parameter signed [31:0] TIMEOUT_CYCLES = 0;
-	input wire clk_src;
-	input wire rst_src_n;
-	input wire src_valid;
-	output reg src_ready;
-	input wire [DATA_WIDTH - 1:0] src_data;
-	output reg src_timeout;
-	input wire clk_dst;
-	input wire rst_dst_n;
-	output reg dst_valid;
-	input wire dst_ready;
-	output wire [DATA_WIDTH - 1:0] dst_data;
-	reg r_req_tog;
-	reg r_ack_tog;
-	reg [DATA_WIDTH - 1:0] r_src_data_hold;
-	(* ASYNC_REG = "TRUE" *) reg [DATA_WIDTH - 1:0] r_dst_data;
-	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_req_sync;
-	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_ack_sync;
-	reg r_req_sync_d;
-	reg r_ack_sync_d;
-	wire w_req_sync;
-	wire w_ack_sync;
-	wire w_req_event;
-	wire w_ack_event;
-	reg r_src_state;
-	reg r_dst_state;
-	localparam signed [31:0] TIMEOUT_CW = (TIMEOUT_CYCLES > 1 ? $clog2(TIMEOUT_CYCLES + 1) : 1);
-	reg [TIMEOUT_CW - 1:0] r_timeout_cnt;
-	always @(posedge clk_src or negedge rst_src_n)
-		if (!rst_src_n) begin
-			r_ack_sync <= 1'sb0;
-			r_ack_sync_d <= 1'b0;
+	parameter signed [31:0] MAX = 32'd32;
+	input wire clk;
+	input wire rst_n;
+	input wire clear;
+	input wire increment;
+	input wire load;
+	input wire [$clog2(MAX) - 1:0] loadval;
+	output reg [$clog2(MAX) - 1:0] count;
+	output wire done;
+	reg [$clog2(MAX) - 1:0] r_match_val;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			count <= 'b0;
+			r_match_val <= 'b0;
 		end
 		else begin
-			r_ack_sync <= {r_ack_sync[SYNC_STAGES - 2:0], r_ack_tog};
-			r_ack_sync_d <= r_ack_sync[SYNC_STAGES - 1];
+			if (load)
+				r_match_val <= loadval;
+			if (clear)
+				count <= 'b0;
+			else if (increment)
+				count <= (count == r_match_val ? 'b0 : count + 'b1);
 		end
-	assign w_ack_sync = r_ack_sync[SYNC_STAGES - 1];
-	assign w_ack_event = w_ack_sync ^ r_ack_sync_d;
-	always @(posedge clk_src or negedge rst_src_n)
-		if (!rst_src_n) begin
-			r_src_state <= 1'd0;
-			r_req_tog <= 1'b0;
-			src_ready <= 1'b0;
-			r_src_data_hold <= 1'sb0;
-		end
-		else
-			(* full_case, parallel_case *)
-			case (r_src_state)
-				1'd0: begin
-					src_ready <= 1'b1;
-					if (src_valid) begin
-						r_src_data_hold <= src_data;
-						r_req_tog <= ~r_req_tog;
-						src_ready <= 1'b0;
-						r_src_state <= 1'd1;
-					end
-				end
-				1'd1: begin
-					src_ready <= 1'b0;
-					if (w_ack_event) begin
-						src_ready <= 1'b1;
-						r_src_state <= 1'd0;
-					end
-				end
-				default: begin
-					r_src_state <= 1'd0;
-					src_ready <= 1'b1;
-				end
-			endcase
-	generate
-		if (TIMEOUT_CYCLES > 0) begin : g_timeout
-			always @(posedge clk_src or negedge rst_src_n)
-				if (!rst_src_n) begin
-					r_timeout_cnt <= 1'sb0;
-					src_timeout <= 1'b0;
-				end
-				else if (r_src_state == 1'd0) begin
-					r_timeout_cnt <= 1'sb0;
-					src_timeout <= 1'b0;
-				end
-				else if (r_timeout_cnt == TIMEOUT_CYCLES[TIMEOUT_CW - 1:0])
-					src_timeout <= 1'b1;
-				else
-					r_timeout_cnt <= r_timeout_cnt + 1'b1;
-		end
-		else begin : g_no_timeout
-			wire [1:1] sv2v_tmp_D5E08;
-			assign sv2v_tmp_D5E08 = 1'b0;
-			always @(*) src_timeout = sv2v_tmp_D5E08;
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				r_timeout_cnt = 1'sb0;
-			end
-		end
-	endgenerate
-	always @(posedge clk_dst or negedge rst_dst_n)
-		if (!rst_dst_n) begin
-			r_req_sync <= 1'sb0;
-			r_req_sync_d <= 1'b0;
-		end
-		else begin
-			r_req_sync <= {r_req_sync[SYNC_STAGES - 2:0], r_req_tog};
-			r_req_sync_d <= r_req_sync[SYNC_STAGES - 1];
-		end
-	assign w_req_sync = r_req_sync[SYNC_STAGES - 1];
-	assign w_req_event = w_req_sync ^ r_req_sync_d;
-	always @(posedge clk_dst or negedge rst_dst_n)
-		if (!rst_dst_n) begin
-			r_dst_state <= 1'd0;
-			r_ack_tog <= 1'b0;
-			dst_valid <= 1'b0;
-			r_dst_data <= 1'sb0;
-		end
-		else
-			(* full_case, parallel_case *)
-			case (r_dst_state)
-				1'd0:
-					if (w_req_event) begin
-						r_dst_data <= r_src_data_hold;
-						dst_valid <= 1'b1;
-						r_dst_state <= 1'd1;
-					end
-					else
-						dst_valid <= 1'b0;
-				1'd1: begin
-					dst_valid <= 1'b1;
-					if (dst_ready) begin
-						r_ack_tog <= ~r_ack_tog;
-						dst_valid <= 1'b0;
-						r_dst_state <= 1'd0;
-					end
-				end
-				default: begin
-					r_dst_state <= 1'd0;
-					dst_valid <= 1'b0;
-				end
-			endcase
-	assign dst_data = r_dst_data;
-	initial _sv2v_0 = 0;
+	assign done = count == r_match_val;
 endmodule
-module cdc_4_phase_handshake (
-	clk_src,
-	rst_src_n,
-	src_valid,
-	src_ready,
-	src_data,
-	src_timeout,
-	clk_dst,
-	rst_dst_n,
-	dst_valid,
-	dst_ready,
-	dst_data
+module gaxi_skid_buffer (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	count,
+	rd_valid,
+	rd_ready,
+	rd_count,
+	rd_data
 );
-	parameter signed [31:0] DATA_WIDTH = 8;
-	parameter signed [31:0] SYNC_STAGES = 3;
-	parameter signed [31:0] TIMEOUT_CYCLES = 0;
-	input wire clk_src;
-	input wire rst_src_n;
-	input wire src_valid;
-	output reg src_ready;
-	input wire [DATA_WIDTH - 1:0] src_data;
-	output reg src_timeout;
-	input wire clk_dst;
-	input wire rst_dst_n;
-	output reg dst_valid;
-	input wire dst_ready;
-	output wire [DATA_WIDTH - 1:0] dst_data;
-	reg r_req_src;
-	reg r_ack_dst;
-	reg [DATA_WIDTH - 1:0] r_src_data_hold;
-	(* ASYNC_REG = "TRUE" *) reg [DATA_WIDTH - 1:0] r_dst_data;
-	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_req_sync;
-	(* ASYNC_REG = "TRUE" *) reg [SYNC_STAGES - 1:0] r_ack_sync;
-	wire w_req_sync;
-	wire w_ack_sync;
-	reg [1:0] r_src_state;
-	reg [1:0] r_dst_state;
-	localparam signed [31:0] TIMEOUT_CW = (TIMEOUT_CYCLES > 1 ? $clog2(TIMEOUT_CYCLES + 1) : 1);
-	always @(posedge clk_src or negedge rst_src_n)
-		if (!rst_src_n)
-			r_ack_sync <= 1'sb0;
-		else
-			r_ack_sync <= {r_ack_sync[SYNC_STAGES - 2:0], r_ack_dst};
-	assign w_ack_sync = r_ack_sync[SYNC_STAGES - 1];
-	always @(posedge clk_src or negedge rst_src_n)
-		if (!rst_src_n) begin
-			r_src_state <= 2'd0;
-			r_req_src <= 1'b0;
-			src_ready <= 1'b0;
-			r_src_data_hold <= 1'sb0;
-		end
-		else
-			(* full_case, parallel_case *)
-			case (r_src_state)
-				2'd0: begin
-					src_ready <= 1'b1;
-					r_req_src <= 1'b0;
-					if (src_valid) begin
-						r_src_data_hold <= src_data;
-						r_req_src <= 1'b1;
-						src_ready <= 1'b0;
-						r_src_state <= 2'd1;
-					end
-				end
-				2'd1: begin
-					src_ready <= 1'b0;
-					if (w_ack_sync) begin
-						r_req_src <= 1'b0;
-						r_src_state <= 2'd2;
-					end
-				end
-				2'd2: begin
-					src_ready <= 1'b0;
-					r_req_src <= 1'b0;
-					if (!w_ack_sync) begin
-						src_ready <= 1'b1;
-						r_src_state <= 2'd0;
-					end
-				end
-				default: begin
-					r_src_state <= 2'd0;
-					src_ready <= 1'b1;
-					r_req_src <= 1'b0;
-				end
-			endcase
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] DEPTH = 2;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output reg wr_ready;
+	input wire [DW - 1:0] wr_data;
+	output wire [3:0] count;
+	output reg rd_valid;
+	input wire rd_ready;
+	output wire [3:0] rd_count;
+	output wire [DW - 1:0] rd_data;
+	localparam signed [31:0] SLOTS = (DEPTH == 0 ? 1 : DEPTH);
+	reg [DW - 1:0] r_data [0:SLOTS - 1];
+	reg [3:0] r_data_count;
+	wire w_wr_xfer;
+	wire w_rd_xfer;
+	assign w_wr_xfer = wr_valid & wr_ready;
+	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
-		if (TIMEOUT_CYCLES > 0) begin : g_timeout
-			reg [TIMEOUT_CW - 1:0] r_timeout_cnt;
-			always @(posedge clk_src or negedge rst_src_n)
-				if (!rst_src_n) begin
-					r_timeout_cnt <= 1'sb0;
-					src_timeout <= 1'b0;
-				end
-				else if (r_src_state == 2'd0) begin
-					r_timeout_cnt <= 1'sb0;
-					src_timeout <= 1'b0;
-				end
-				else if (r_timeout_cnt == TIMEOUT_CYCLES[TIMEOUT_CW - 1:0])
-					src_timeout <= 1'b1;
-				else
-					r_timeout_cnt <= r_timeout_cnt + 1'b1;
-		end
-		else begin : g_no_timeout
-			wire [1:1] sv2v_tmp_D5E08;
-			assign sv2v_tmp_D5E08 = 1'b0;
-			always @(*) src_timeout = sv2v_tmp_D5E08;
+		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
-	always @(posedge clk_dst or negedge rst_dst_n)
-		if (!rst_dst_n)
-			r_req_sync <= 1'sb0;
-		else
-			r_req_sync <= {r_req_sync[SYNC_STAGES - 2:0], r_req_src};
-	assign w_req_sync = r_req_sync[SYNC_STAGES - 1];
-	always @(posedge clk_dst or negedge rst_dst_n)
-		if (!rst_dst_n) begin
-			r_dst_state <= 2'd0;
-			r_ack_dst <= 1'b0;
-			dst_valid <= 1'b0;
-			r_dst_data <= 1'sb0;
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	generate
+		if (DEPTH == 0) begin : g_bypass
+			wire [1:1] sv2v_tmp_B1958;
+			assign sv2v_tmp_B1958 = rd_ready;
+			always @(*) wr_ready = sv2v_tmp_B1958;
+			wire [1:1] sv2v_tmp_00E98;
+			assign sv2v_tmp_00E98 = wr_valid;
+			always @(*) rd_valid = sv2v_tmp_00E98;
+			assign rd_data = wr_data;
+			wire [4:1] sv2v_tmp_953DA;
+			assign sv2v_tmp_953DA = 1'sb0;
+			always @(*) r_data_count = sv2v_tmp_953DA;
+			wire [DW:1] sv2v_tmp_D35D5;
+			assign sv2v_tmp_D35D5 = 1'sb0;
+			always @(*) r_data[0] = sv2v_tmp_D35D5;
+			assign rd_count = 1'sb0;
+			assign count = 1'sb0;
+			wire w_bypass_unused;
+			assign w_bypass_unused = &{1'b0, axi_aclk, axi_aresetn, r_data[0], r_data_count, w_wr_xfer, w_rd_xfer};
 		end
-		else
-			(* full_case, parallel_case *)
-			case (r_dst_state)
-				2'd0: begin
-					r_ack_dst <= 1'b0;
-					if (w_req_sync) begin
-						r_dst_data <= r_src_data_hold;
-						dst_valid <= 1'b1;
-						r_dst_state <= 2'd1;
-					end
+		else begin : g_skid
+			genvar _gv_gi_1;
+			for (_gv_gi_1 = 0; _gv_gi_1 < DEPTH; _gv_gi_1 = _gv_gi_1 + 1) begin : g_slot
+				localparam gi = _gv_gi_1;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_data[gi] <= 1'sb0;
 					else
-						dst_valid <= 1'b0;
+						(* full_case, parallel_case *)
+						case ({w_wr_xfer, w_rd_xfer})
+							2'b10:
+								if (r_data_count == gi[3:0])
+									r_data[gi] <= wr_data;
+							2'b01:
+								if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							2'b11:
+								if ((r_data_count >= 1) && (gi[3:0] == (r_data_count - 4'd1)))
+									r_data[gi] <= wr_data;
+								else if (gi < (DEPTH - 1))
+									r_data[gi] <= r_data[gi + 1];
+								else
+									r_data[gi] <= 1'sb0;
+							default:
+								;
+						endcase
+			end
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_data_count <= 1'sb0;
+				else
+					(* full_case, parallel_case *)
+					case ({w_wr_xfer, w_rd_xfer})
+						2'b10: r_data_count <= r_data_count + 4'd1;
+						2'b01: r_data_count <= r_data_count - 4'd1;
+						default:
+							;
+					endcase
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn) begin
+					wr_ready <= 1'b0;
+					rd_valid <= 1'b0;
 				end
-				2'd1: begin
-					dst_valid <= 1'b1;
-					if (dst_ready) begin
-						r_ack_dst <= 1'b1;
-						dst_valid <= 1'b0;
-						r_dst_state <= 2'd2;
-					end
-					else if (!w_req_sync) begin
-						dst_valid <= 1'b0;
-						r_dst_state <= 2'd0;
-					end
+				else begin
+					wr_ready <= ((sv2v_cast_32(r_data_count) <= (DEPTH - 2)) || ((sv2v_cast_32(r_data_count) == (DEPTH - 1)) && (~w_wr_xfer || w_rd_xfer))) || ((sv2v_cast_32(r_data_count) == DEPTH) && w_rd_xfer);
+					rd_valid <= ((r_data_count >= 2) || ((r_data_count == 4'b0001) && (~w_rd_xfer || w_wr_xfer))) || ((r_data_count == 4'b0000) && w_wr_xfer);
 				end
-				2'd2: begin
-					dst_valid <= 1'b0;
-					if (!w_req_sync) begin
-						r_ack_dst <= 1'b0;
-						r_dst_state <= 2'd0;
-					end
-				end
-				default: begin
-					r_dst_state <= 2'd0;
-					r_ack_dst <= 1'b0;
-					dst_valid <= 1'b0;
-				end
-			endcase
-	assign dst_data = r_dst_data;
+			assign rd_data = r_data[0];
+			assign rd_count = r_data_count;
+			assign count = r_data_count;
+		end
+	endgenerate
 endmodule
 module apb4_master (
 	pclk,
@@ -1563,6 +1605,101 @@ module apb4_master_stub (
 		.rsp_prdata(rsp_prdata),
 		.rsp_pslverr(rsp_pslverr)
 	);
+endmodule
+module axi_gen_addr (
+	curr_addr,
+	size,
+	burst,
+	len,
+	next_addr,
+	next_addr_align
+);
+	reg _sv2v_0;
+	parameter signed [31:0] AW = 32;
+	parameter signed [31:0] DW = 32;
+	parameter signed [31:0] ODW = 32;
+	parameter signed [31:0] LEN = 8;
+	input wire [AW - 1:0] curr_addr;
+	input wire [2:0] size;
+	input wire [1:0] burst;
+	input wire [LEN - 1:0] len;
+	output reg [AW - 1:0] next_addr;
+	output wire [AW - 1:0] next_addr_align;
+	localparam signed [31:0] ODWBYTES = ODW / 8;
+	reg [AW - 1:0] increment_pre;
+	reg [AW - 1:0] increment;
+	reg [AW - 1:0] wrap_mask;
+	reg [AW - 1:0] aligned_addr;
+	reg [AW - 1:0] wrap_addr;
+	wire [16:0] len_plus1;
+	reg [4:0] len_log2;
+	function automatic [16:0] sv2v_cast_17;
+		input reg [16:0] inp;
+		sv2v_cast_17 = inp;
+	endfunction
+	assign len_plus1 = sv2v_cast_17({1'b0, len}) + 17'd1;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		casez (len_plus1)
+			17'b1zzzzzzzzzzzzzzzz: len_log2 = 5'd16;
+			17'b01zzzzzzzzzzzzzzz: len_log2 = 5'd15;
+			17'b001zzzzzzzzzzzzzz: len_log2 = 5'd14;
+			17'b0001zzzzzzzzzzzzz: len_log2 = 5'd13;
+			17'b00001zzzzzzzzzzzz: len_log2 = 5'd12;
+			17'b000001zzzzzzzzzzz: len_log2 = 5'd11;
+			17'b0000001zzzzzzzzzz: len_log2 = 5'd10;
+			17'b00000001zzzzzzzzz: len_log2 = 5'd9;
+			17'b000000001zzzzzzzz: len_log2 = 5'd8;
+			17'b0000000001zzzzzzz: len_log2 = 5'd7;
+			17'b00000000001zzzzzz: len_log2 = 5'd6;
+			17'b000000000001zzzzz: len_log2 = 5'd5;
+			17'b0000000000001zzzz: len_log2 = 5'd4;
+			17'b00000000000001zzz: len_log2 = 5'd3;
+			17'b000000000000001zz: len_log2 = 5'd2;
+			17'b0000000000000001z: len_log2 = 5'd1;
+			17'b00000000000000001: len_log2 = 5'd0;
+			default: len_log2 = 5'd0;
+		endcase
+	end
+	function automatic [AW - 1:0] sv2v_cast_DE851;
+		input reg [AW - 1:0] inp;
+		sv2v_cast_DE851 = inp;
+	endfunction
+	function automatic signed [AW - 1:0] sv2v_cast_DE851_signed;
+		input reg signed [AW - 1:0] inp;
+		sv2v_cast_DE851_signed = inp;
+	endfunction
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		increment_pre = 1 << size;
+		increment = increment_pre;
+		if (DW != ODW) begin
+			if (sv2v_cast_DE851(increment_pre) > sv2v_cast_DE851_signed(ODWBYTES))
+				increment = sv2v_cast_DE851_signed(ODWBYTES);
+		end
+		wrap_mask = (1 << (sv2v_cast_32(size) + sv2v_cast_32(len_log2))) - 1;
+		aligned_addr = (curr_addr + increment) & ~(increment - 1);
+		wrap_addr = (curr_addr & ~wrap_mask) | (aligned_addr & wrap_mask);
+	end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		casez (burst)
+			2'b00: next_addr = curr_addr;
+			2'b01: next_addr = curr_addr + increment;
+			2'b10: next_addr = wrap_addr;
+			default: next_addr = curr_addr + increment;
+		endcase
+	end
+	wire [AW - 1:0] w_alignment_mask = sv2v_cast_DE851_signed(ODWBYTES) - 1;
+	assign next_addr_align = next_addr & ~w_alignment_mask;
+	initial _sv2v_0 = 0;
 endmodule
 module axi4_slave_rd_stub (
 	aclk,

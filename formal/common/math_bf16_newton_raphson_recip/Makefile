@@ -8,25 +8,18 @@
 # take. Regenerate the flat file whenever the RTL changes -- a stale flat is a
 # proof about code that no longer exists.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-DEPS := $(REPO_ROOT)/rtl/math/math_prefix_cell.sv \
-        $(REPO_ROOT)/rtl/math/math_prefix_cell_gray.sv \
-        $(REPO_ROOT)/rtl/math/math_adder_full.sv \
-        $(REPO_ROOT)/rtl/math/math_adder_han_carlson_016.sv \
-        $(REPO_ROOT)/rtl/math/math_compressor_4to2.sv \
-        $(REPO_ROOT)/rtl/math/math_multiplier_dadda_4to2_008.sv \
-        $(REPO_ROOT)/rtl/math/math_bf16_exponent_adder.sv \
-        $(REPO_ROOT)/rtl/math/math_bf16_mantissa_mult.sv \
-        $(REPO_ROOT)/rtl/math/math_bf16_multiplier.sv \
-        $(REPO_ROOT)/rtl/common/shifter_barrel.sv \
-        $(REPO_ROOT)/rtl/common/count_leading_zeros.sv \
-        $(REPO_ROOT)/rtl/math/math_bf16_adder.sv \
-        $(REPO_ROOT)/rtl/math/math_bf16_fast_reciprocal.sv
-DUT  := $(REPO_ROOT)/rtl/math/math_bf16_newton_raphson_recip.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := math_bf16_newton_raphson_recip_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/math/filelists/math_bf16_newton_raphson_recip.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -37,9 +30,6 @@ prove: math_bf16_newton_raphson_recip_flat.v
 
 cover: math_bf16_newton_raphson_recip_flat.v
 	sby -f math_bf16_newton_raphson_recip.sby cover
-
-math_bf16_newton_raphson_recip_flat.v: $(DUT) $(DEPS)
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf math_bf16_newton_raphson_recip_flat.v math_bf16_newton_raphson_recip_prove math_bf16_newton_raphson_recip_cover

@@ -285,6 +285,75 @@ module gaxi_fifo_sync (
 			;
 	end
 endmodule
+module stream_latency_bridge (
+	clk,
+	rst_n,
+	s_valid,
+	s_ready,
+	s_data,
+	m_valid,
+	m_ready,
+	m_data,
+	occupancy,
+	dbg_r_pending,
+	dbg_r_out_valid
+);
+	parameter signed [31:0] DATA_WIDTH = 64;
+	parameter signed [31:0] SKID_DEPTH = 4;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	input wire clk;
+	input wire rst_n;
+	input wire s_valid;
+	output wire s_ready;
+	input wire [DW - 1:0] s_data;
+	output wire m_valid;
+	input wire m_ready;
+	output wire [DW - 1:0] m_data;
+	output wire [2:0] occupancy;
+	output wire dbg_r_pending;
+	output wire dbg_r_out_valid;
+	reg r_drain_ip;
+	wire skid_wr_valid;
+	wire skid_wr_ready;
+	wire [DW - 1:0] skid_wr_data;
+	wire [$clog2(SKID_DEPTH):0] skid_count;
+	wire w_draining_now = m_valid && m_ready;
+	wire w_write_stalled = skid_wr_valid && !skid_wr_ready;
+	wire [2:0] pending_count = skid_count + {2'b00, w_write_stalled};
+	function automatic signed [2:0] sv2v_cast_3_signed;
+		input reg signed [2:0] inp;
+		sv2v_cast_3_signed = inp;
+	endfunction
+	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
+	assign s_ready = w_room_available || w_draining_now;
+	wire w_drain_fifo = s_valid && s_ready;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			r_drain_ip <= 1'b0;
+		else
+			r_drain_ip <= w_drain_fifo;
+	assign skid_wr_valid = r_drain_ip;
+	assign skid_wr_data = s_data;
+	gaxi_fifo_sync #(
+		.MEM_STYLE(32'sd0),
+		.REGISTERED(0),
+		.DATA_WIDTH(DW),
+		.DEPTH(SKID_DEPTH)
+	) u_skid_buffer(
+		.axi_aclk(clk),
+		.axi_aresetn(rst_n),
+		.wr_valid(skid_wr_valid),
+		.wr_ready(skid_wr_ready),
+		.wr_data(skid_wr_data),
+		.rd_valid(m_valid),
+		.rd_ready(m_ready),
+		.rd_data(m_data),
+		.count(skid_count)
+	);
+	assign occupancy = skid_count;
+	assign dbg_r_pending = r_drain_ip;
+	assign dbg_r_out_valid = m_valid;
+endmodule
 module stream_alloc_ctrl (
 	axi_aclk,
 	axi_aresetn,
@@ -480,75 +549,6 @@ module stream_drain_ctrl (
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
 			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
-endmodule
-module stream_latency_bridge (
-	clk,
-	rst_n,
-	s_valid,
-	s_ready,
-	s_data,
-	m_valid,
-	m_ready,
-	m_data,
-	occupancy,
-	dbg_r_pending,
-	dbg_r_out_valid
-);
-	parameter signed [31:0] DATA_WIDTH = 64;
-	parameter signed [31:0] SKID_DEPTH = 4;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	input wire clk;
-	input wire rst_n;
-	input wire s_valid;
-	output wire s_ready;
-	input wire [DW - 1:0] s_data;
-	output wire m_valid;
-	input wire m_ready;
-	output wire [DW - 1:0] m_data;
-	output wire [2:0] occupancy;
-	output wire dbg_r_pending;
-	output wire dbg_r_out_valid;
-	reg r_drain_ip;
-	wire skid_wr_valid;
-	wire skid_wr_ready;
-	wire [DW - 1:0] skid_wr_data;
-	wire [$clog2(SKID_DEPTH):0] skid_count;
-	wire w_draining_now = m_valid && m_ready;
-	wire w_write_stalled = skid_wr_valid && !skid_wr_ready;
-	wire [2:0] pending_count = skid_count + {2'b00, w_write_stalled};
-	function automatic signed [2:0] sv2v_cast_3_signed;
-		input reg signed [2:0] inp;
-		sv2v_cast_3_signed = inp;
-	endfunction
-	wire w_room_available = pending_count < sv2v_cast_3_signed(SKID_DEPTH);
-	assign s_ready = w_room_available || w_draining_now;
-	wire w_drain_fifo = s_valid && s_ready;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			r_drain_ip <= 1'b0;
-		else
-			r_drain_ip <= w_drain_fifo;
-	assign skid_wr_valid = r_drain_ip;
-	assign skid_wr_data = s_data;
-	gaxi_fifo_sync #(
-		.MEM_STYLE(32'sd0),
-		.REGISTERED(0),
-		.DATA_WIDTH(DW),
-		.DEPTH(SKID_DEPTH)
-	) u_skid_buffer(
-		.axi_aclk(clk),
-		.axi_aresetn(rst_n),
-		.wr_valid(skid_wr_valid),
-		.wr_ready(skid_wr_ready),
-		.wr_data(skid_wr_data),
-		.rd_valid(m_valid),
-		.rd_ready(m_ready),
-		.rd_data(m_data),
-		.count(skid_count)
-	);
-	assign occupancy = skid_count;
-	assign dbg_r_pending = r_drain_ip;
-	assign dbg_r_out_valid = m_valid;
 endmodule
 module sram_controller_unit (
 	clk,

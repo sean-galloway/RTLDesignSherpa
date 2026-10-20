@@ -1,17 +1,12 @@
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-PKGS :=
-
-DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
-        $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/shared/axi_gen_addr.sv
-
-DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_to_apb4_convert.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := axi4_to_apb4_convert_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/filelists/axi4_to_apb4_convert.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -22,9 +17,6 @@ prove: axi4_to_apb4_convert_flat.v
 
 cover: axi4_to_apb4_convert_flat.v
 	sby -f axi4_to_apb4_convert.sby cover
-
-axi4_to_apb4_convert_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

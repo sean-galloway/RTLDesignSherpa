@@ -1,556 +1,3 @@
-module arbiter_priority_encoder (
-	requests_masked,
-	requests_unmasked,
-	any_masked_requests,
-	winner,
-	winner_valid
-);
-	reg _sv2v_0;
-	parameter signed [31:0] CLIENTS = 4;
-	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
-	input wire [CLIENTS - 1:0] requests_masked;
-	input wire [CLIENTS - 1:0] requests_unmasked;
-	input wire any_masked_requests;
-	output reg [N - 1:0] winner;
-	output reg winner_valid;
-	wire [CLIENTS - 1:0] w_priority_requests;
-	assign w_priority_requests = (any_masked_requests ? requests_masked : requests_unmasked);
-	generate
-		if (CLIENTS == 4) begin : gen_pe_4
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					4'bzzz1: begin
-						winner = 2'd0;
-						winner_valid = 1'b1;
-					end
-					4'bzz10: begin
-						winner = 2'd1;
-						winner_valid = 1'b1;
-					end
-					4'bz100: begin
-						winner = 2'd2;
-						winner_valid = 1'b1;
-					end
-					4'b1000: begin
-						winner = 2'd3;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 2'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else if (CLIENTS == 8) begin : gen_pe_8
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					8'bzzzzzzz1: begin
-						winner = 3'd0;
-						winner_valid = 1'b1;
-					end
-					8'bzzzzzz10: begin
-						winner = 3'd1;
-						winner_valid = 1'b1;
-					end
-					8'bzzzzz100: begin
-						winner = 3'd2;
-						winner_valid = 1'b1;
-					end
-					8'bzzzz1000: begin
-						winner = 3'd3;
-						winner_valid = 1'b1;
-					end
-					8'bzzz10000: begin
-						winner = 3'd4;
-						winner_valid = 1'b1;
-					end
-					8'bzz100000: begin
-						winner = 3'd5;
-						winner_valid = 1'b1;
-					end
-					8'bz1000000: begin
-						winner = 3'd6;
-						winner_valid = 1'b1;
-					end
-					8'b10000000: begin
-						winner = 3'd7;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 3'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else if (CLIENTS == 16) begin : gen_pe_16
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					16'bzzzzzzzzzzzzzzz1: begin
-						winner = 4'd0;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzzzzz10: begin
-						winner = 4'd1;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzzzz100: begin
-						winner = 4'd2;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzzz1000: begin
-						winner = 4'd3;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzzz10000: begin
-						winner = 4'd4;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzzz100000: begin
-						winner = 4'd5;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzzz1000000: begin
-						winner = 4'd6;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzzz10000000: begin
-						winner = 4'd7;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzzz100000000: begin
-						winner = 4'd8;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzzz1000000000: begin
-						winner = 4'd9;
-						winner_valid = 1'b1;
-					end
-					16'bzzzzz10000000000: begin
-						winner = 4'd10;
-						winner_valid = 1'b1;
-					end
-					16'bzzzz100000000000: begin
-						winner = 4'd11;
-						winner_valid = 1'b1;
-					end
-					16'bzzz1000000000000: begin
-						winner = 4'd12;
-						winner_valid = 1'b1;
-					end
-					16'bzz10000000000000: begin
-						winner = 4'd13;
-						winner_valid = 1'b1;
-					end
-					16'bz100000000000000: begin
-						winner = 4'd14;
-						winner_valid = 1'b1;
-					end
-					16'b1000000000000000: begin
-						winner = 4'd15;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 4'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else if (CLIENTS == 32) begin : gen_pe_32
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				casez (w_priority_requests)
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz1: begin
-						winner = 5'd0;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz10: begin
-						winner = 5'd1;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzz100: begin
-						winner = 5'd2;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzz1000: begin
-						winner = 5'd3;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzz10000: begin
-						winner = 5'd4;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzzz100000: begin
-						winner = 5'd5;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzzz1000000: begin
-						winner = 5'd6;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzzz10000000: begin
-						winner = 5'd7;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzzz100000000: begin
-						winner = 5'd8;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzzz1000000000: begin
-						winner = 5'd9;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzzz10000000000: begin
-						winner = 5'd10;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzzz100000000000: begin
-						winner = 5'd11;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzzz1000000000000: begin
-						winner = 5'd12;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzzz10000000000000: begin
-						winner = 5'd13;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzzz100000000000000: begin
-						winner = 5'd14;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzzz1000000000000000: begin
-						winner = 5'd15;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzzz10000000000000000: begin
-						winner = 5'd16;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzzz100000000000000000: begin
-						winner = 5'd17;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzzz1000000000000000000: begin
-						winner = 5'd18;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzzz10000000000000000000: begin
-						winner = 5'd19;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzzz100000000000000000000: begin
-						winner = 5'd20;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzzz1000000000000000000000: begin
-						winner = 5'd21;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzzz10000000000000000000000: begin
-						winner = 5'd22;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzzz100000000000000000000000: begin
-						winner = 5'd23;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzzz1000000000000000000000000: begin
-						winner = 5'd24;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzzz10000000000000000000000000: begin
-						winner = 5'd25;
-						winner_valid = 1'b1;
-					end
-					32'bzzzzz100000000000000000000000000: begin
-						winner = 5'd26;
-						winner_valid = 1'b1;
-					end
-					32'bzzzz1000000000000000000000000000: begin
-						winner = 5'd27;
-						winner_valid = 1'b1;
-					end
-					32'bzzz10000000000000000000000000000: begin
-						winner = 5'd28;
-						winner_valid = 1'b1;
-					end
-					32'bzz100000000000000000000000000000: begin
-						winner = 5'd29;
-						winner_valid = 1'b1;
-					end
-					32'bz1000000000000000000000000000000: begin
-						winner = 5'd30;
-						winner_valid = 1'b1;
-					end
-					32'b10000000000000000000000000000000: begin
-						winner = 5'd31;
-						winner_valid = 1'b1;
-					end
-					default: begin
-						winner = 5'd0;
-						winner_valid = 1'b0;
-					end
-				endcase
-			end
-		end
-		else begin : gen_pe_generic
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				winner = 1'sb0;
-				winner_valid = 1'b0;
-				begin : sv2v_autoblock_1
-					reg signed [31:0] i;
-					for (i = 0; i < CLIENTS; i = i + 1)
-						if (w_priority_requests[i] && !winner_valid) begin
-							winner = i[N - 1:0];
-							winner_valid = 1'b1;
-						end
-				end
-			end
-		end
-	endgenerate
-	initial _sv2v_0 = 0;
-endmodule
-module arbiter_round_robin (
-	clk,
-	rst_n,
-	block_arb,
-	request,
-	grant_ack,
-	grant_valid,
-	grant,
-	grant_id,
-	last_grant
-);
-	reg _sv2v_0;
-	parameter signed [31:0] CLIENTS = 4;
-	parameter signed [31:0] WAIT_GNT_ACK = 0;
-	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
-	input wire clk;
-	input wire rst_n;
-	input wire block_arb;
-	input wire [CLIENTS - 1:0] request;
-	input wire [CLIENTS - 1:0] grant_ack;
-	output reg grant_valid;
-	output reg [CLIENTS - 1:0] grant;
-	output reg [N - 1:0] grant_id;
-	output reg [CLIENTS - 1:0] last_grant;
-	wire [CLIENTS - 1:0] w_requests_gated;
-	wire w_any_requests;
-	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
-	assign w_any_requests = |w_requests_gated;
-	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
-		input reg signed [CLIENTS - 1:0] inp;
-		sv2v_cast_6D6F8_signed = inp;
-	endfunction
-	generate
-		if (CLIENTS == 1) begin : gen_single_client
-			wire [CLIENTS:1] sv2v_tmp_14D78;
-			assign sv2v_tmp_14D78 = w_requests_gated;
-			always @(*) grant = sv2v_tmp_14D78;
-			wire [1:1] sv2v_tmp_6195E;
-			assign sv2v_tmp_6195E = w_requests_gated[0];
-			always @(*) grant_valid = sv2v_tmp_6195E;
-			wire [N:1] sv2v_tmp_E4D73;
-			assign sv2v_tmp_E4D73 = 1'sb0;
-			always @(*) grant_id = sv2v_tmp_E4D73;
-			always @(posedge clk or negedge rst_n)
-				if (!rst_n)
-					last_grant <= 1'sb0;
-				else
-					last_grant <= grant;
-		end
-		else begin : gen_multi_client
-			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
-			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
-			genvar _gv_i_1;
-			for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
-				localparam i = _gv_i_1;
-				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
-				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
-			end
-			reg [N - 1:0] r_last_grant_id;
-			reg r_last_valid;
-			reg r_pending_ack;
-			reg [N - 1:0] r_pending_client;
-			wire [CLIENTS - 1:0] w_requests_masked;
-			wire [CLIENTS - 1:0] w_requests_unmasked;
-			wire w_any_masked_requests;
-			wire [CLIENTS - 1:0] w_curr_mask_decode;
-			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
-			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
-			assign w_requests_unmasked = w_requests_gated;
-			assign w_any_masked_requests = |w_requests_masked;
-			wire [N - 1:0] w_winner;
-			wire w_winner_valid;
-			arbiter_priority_encoder #(
-				.CLIENTS(CLIENTS),
-				.N(N)
-			) u_priority_encoder(
-				.requests_masked(w_requests_masked),
-				.requests_unmasked(w_requests_unmasked),
-				.any_masked_requests(w_any_masked_requests),
-				.winner(w_winner),
-				.winner_valid(w_winner_valid)
-			);
-			wire w_ack_received;
-			wire w_can_grant;
-			wire [CLIENTS - 1:0] w_other_requests;
-			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
-				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
-				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
-				assign w_can_grant = !r_pending_ack || w_ack_received;
-			end
-			else begin : gen_no_ack_optimized
-				assign w_ack_received = 1'b0;
-				assign w_can_grant = 1'b1;
-				assign w_other_requests = 1'sb0;
-			end
-			wire w_should_grant;
-			reg [CLIENTS - 1:0] w_next_grant;
-			reg [N - 1:0] w_next_grant_id;
-			wire w_next_grant_valid;
-			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				w_next_grant = 1'sb0;
-				w_next_grant_id = 1'sb0;
-				if (w_should_grant) begin
-					w_next_grant[w_winner] = 1'b1;
-					w_next_grant_id = w_winner;
-				end
-			end
-			assign w_next_grant_valid = w_should_grant;
-			always @(posedge clk or negedge rst_n)
-				if (!rst_n) begin
-					grant <= 1'sb0;
-					grant_id <= 1'sb0;
-					grant_valid <= 1'b0;
-					last_grant <= 1'sb0;
-					r_last_grant_id <= 1'sb0;
-					r_last_valid <= 1'sb0;
-					r_pending_ack <= 1'b0;
-					r_pending_client <= 1'sb0;
-				end
-				else begin
-					r_last_valid <= grant_valid;
-					if (WAIT_GNT_ACK == 0) begin
-						grant <= w_next_grant;
-						grant_id <= w_next_grant_id;
-						grant_valid <= w_next_grant_valid;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-					end
-					else if (grant_valid == 1'b0) begin
-						grant <= w_next_grant;
-						grant_id <= w_next_grant_id;
-						grant_valid <= w_next_grant_valid;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-						if (w_next_grant_valid) begin
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-					end
-					else if ((grant_valid == 1'b1) && !w_ack_received)
-						;
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
-						grant <= 1'sb0;
-						grant_id <= 1'sb0;
-						grant_valid <= 1'b0;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-						r_pending_ack <= 1'b0;
-						r_pending_client <= 1'sb0;
-					end
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
-						if (w_next_grant_valid) begin
-							grant <= w_next_grant;
-							grant_id <= w_next_grant_id;
-							grant_valid <= w_next_grant_valid;
-							last_grant <= grant;
-							r_last_grant_id <= grant_id;
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-						else begin
-							grant <= 1'sb0;
-							grant_id <= 1'sb0;
-							grant_valid <= 1'b0;
-							r_pending_ack <= 1'b0;
-							r_pending_client <= 1'sb0;
-						end
-					end
-				end
-		end
-	endgenerate
-	initial _sv2v_0 = 0;
-endmodule
-module arbiter_single_client (
-	clk,
-	rst_n,
-	block_arb,
-	request,
-	grant_ack,
-	grant_valid,
-	grant,
-	grant_id
-);
-	parameter signed [31:0] WAIT_GNT_ACK = 1;
-	input wire clk;
-	input wire rst_n;
-	input wire block_arb;
-	input wire request;
-	input wire grant_ack;
-	output reg grant_valid;
-	output wire grant;
-	output wire grant_id;
-	reg r_pending_ack;
-	wire w_req;
-	wire w_ack_received;
-	wire w_can_grant;
-	wire w_should_grant;
-	assign w_req = request && !block_arb;
-	assign w_ack_received = (WAIT_GNT_ACK == 1 ? r_pending_ack && grant_ack : 1'b0);
-	assign w_can_grant = (WAIT_GNT_ACK == 1 ? !r_pending_ack || w_ack_received : 1'b1);
-	assign w_should_grant = w_req && w_can_grant;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			grant_valid <= 1'b0;
-			r_pending_ack <= 1'b0;
-		end
-		else if (WAIT_GNT_ACK == 0) begin
-			grant_valid <= w_should_grant;
-			r_pending_ack <= 1'b0;
-		end
-		else if (grant_valid == 1'b0) begin
-			grant_valid <= w_should_grant;
-			r_pending_ack <= w_should_grant;
-		end
-		else if (!w_ack_received) begin
-			grant_valid <= 1'b1;
-			r_pending_ack <= 1'b1;
-		end
-		else begin
-			grant_valid <= 1'b0;
-			r_pending_ack <= 1'b0;
-		end
-	assign grant = grant_valid;
-	assign grant_id = 1'b0;
-endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -1032,7 +479,7 @@ module stream_drain_ctrl (
 	assign rd_almost_empty = r_rd_almost_empty;
 	always @(posedge axi_aclk)
 		if (((axi_aresetn && rd_valid) && !r_rd_empty) && (sv2v_cast_2BB65(rd_size) > data_available))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
+			$display("Error [%0t] .flat_build/prep/stream_drain_ctrl.sv:177:13 - stream_drain_ctrl.<unnamed_block>.<unnamed_block>\n msg: ", $time, "stream_drain_ctrl: over-drain -- rd_size=%0d exceeds data_available=%0d; rd_ptr will overshoot wr_ptr and permanently corrupt the occupancy count", rd_size, data_available);
 endmodule
 module stream_latency_bridge (
 	clk,
@@ -1325,10 +772,10 @@ module sram_controller (
 		if (axi_rd_alloc_req && (axi_rd_alloc_id < NC))
 			axi_rd_alloc_req_decoded[axi_rd_alloc_id] = 1'b1;
 	end
-	genvar _gv_i_2;
+	genvar _gv_i_1;
 	generate
-		for (_gv_i_2 = 0; _gv_i_2 < NC; _gv_i_2 = _gv_i_2 + 1) begin : gen_channel_units
-			localparam i = _gv_i_2;
+		for (_gv_i_1 = 0; _gv_i_1 < NC; _gv_i_1 = _gv_i_1 + 1) begin : gen_channel_units
+			localparam i = _gv_i_1;
 			sram_controller_unit #(
 				.DATA_WIDTH(DW),
 				.SRAM_DEPTH(SRAM_DEPTH),
@@ -1421,7 +868,7 @@ module src_sram_controller (
 	output wire [NC - 1:0] dbg_bridge_pending;
 	output wire [NC - 1:0] dbg_bridge_out_valid;
 	initial if (NC > 128) begin
-		$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_sram_controller.sv:121:13 - src_sram_controller.<unnamed_block>.<unnamed_block>\n msg: ", $time, "src_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
+		$display("Fatal [%0t] .flat_build/prep/src_sram_controller.sv:121:13 - src_sram_controller.<unnamed_block>.<unnamed_block>\n msg: ", $time, "src_sram_controller: NUM_CHANNELS=%0d exceeds maximum of 128", NC);
 		$finish(1);
 	end
 	reg [NC - 1:0] r_ch_rst_n;
@@ -1452,10 +899,10 @@ module src_sram_controller (
 				end
 		end
 	end
-	genvar _gv_i_3;
+	genvar _gv_i_2;
 	generate
-		for (_gv_i_3 = 0; _gv_i_3 < NC; _gv_i_3 = _gv_i_3 + 1) begin : gen_channel
-			localparam i = _gv_i_3;
+		for (_gv_i_2 = 0; _gv_i_2 < NC; _gv_i_2 = _gv_i_2 + 1) begin : gen_channel
+			localparam i = _gv_i_2;
 			sram_controller #(
 				.NUM_CHANNELS(1),
 				.DATA_WIDTH(DW),
@@ -1487,179 +934,558 @@ module src_sram_controller (
 	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
-module src_data_path (
+module arbiter_priority_encoder (
+	requests_masked,
+	requests_unmasked,
+	any_masked_requests,
+	winner,
+	winner_valid
+);
+	reg _sv2v_0;
+	parameter signed [31:0] CLIENTS = 4;
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
+	input wire [CLIENTS - 1:0] requests_masked;
+	input wire [CLIENTS - 1:0] requests_unmasked;
+	input wire any_masked_requests;
+	output reg [N - 1:0] winner;
+	output reg winner_valid;
+	wire [CLIENTS - 1:0] w_priority_requests;
+	assign w_priority_requests = (any_masked_requests ? requests_masked : requests_unmasked);
+	generate
+		if (CLIENTS == 4) begin : gen_pe_4
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					4'bzzz1: begin
+						winner = 2'd0;
+						winner_valid = 1'b1;
+					end
+					4'bzz10: begin
+						winner = 2'd1;
+						winner_valid = 1'b1;
+					end
+					4'bz100: begin
+						winner = 2'd2;
+						winner_valid = 1'b1;
+					end
+					4'b1000: begin
+						winner = 2'd3;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 2'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else if (CLIENTS == 8) begin : gen_pe_8
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					8'bzzzzzzz1: begin
+						winner = 3'd0;
+						winner_valid = 1'b1;
+					end
+					8'bzzzzzz10: begin
+						winner = 3'd1;
+						winner_valid = 1'b1;
+					end
+					8'bzzzzz100: begin
+						winner = 3'd2;
+						winner_valid = 1'b1;
+					end
+					8'bzzzz1000: begin
+						winner = 3'd3;
+						winner_valid = 1'b1;
+					end
+					8'bzzz10000: begin
+						winner = 3'd4;
+						winner_valid = 1'b1;
+					end
+					8'bzz100000: begin
+						winner = 3'd5;
+						winner_valid = 1'b1;
+					end
+					8'bz1000000: begin
+						winner = 3'd6;
+						winner_valid = 1'b1;
+					end
+					8'b10000000: begin
+						winner = 3'd7;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 3'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else if (CLIENTS == 16) begin : gen_pe_16
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					16'bzzzzzzzzzzzzzzz1: begin
+						winner = 4'd0;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzzzzz10: begin
+						winner = 4'd1;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzzzz100: begin
+						winner = 4'd2;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzzz1000: begin
+						winner = 4'd3;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzzz10000: begin
+						winner = 4'd4;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzzz100000: begin
+						winner = 4'd5;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzzz1000000: begin
+						winner = 4'd6;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzzz10000000: begin
+						winner = 4'd7;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzzz100000000: begin
+						winner = 4'd8;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzzz1000000000: begin
+						winner = 4'd9;
+						winner_valid = 1'b1;
+					end
+					16'bzzzzz10000000000: begin
+						winner = 4'd10;
+						winner_valid = 1'b1;
+					end
+					16'bzzzz100000000000: begin
+						winner = 4'd11;
+						winner_valid = 1'b1;
+					end
+					16'bzzz1000000000000: begin
+						winner = 4'd12;
+						winner_valid = 1'b1;
+					end
+					16'bzz10000000000000: begin
+						winner = 4'd13;
+						winner_valid = 1'b1;
+					end
+					16'bz100000000000000: begin
+						winner = 4'd14;
+						winner_valid = 1'b1;
+					end
+					16'b1000000000000000: begin
+						winner = 4'd15;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 4'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else if (CLIENTS == 32) begin : gen_pe_32
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				casez (w_priority_requests)
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz1: begin
+						winner = 5'd0;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz10: begin
+						winner = 5'd1;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzzz100: begin
+						winner = 5'd2;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzzz1000: begin
+						winner = 5'd3;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzzz10000: begin
+						winner = 5'd4;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzzz100000: begin
+						winner = 5'd5;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzzz1000000: begin
+						winner = 5'd6;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzzz10000000: begin
+						winner = 5'd7;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzzz100000000: begin
+						winner = 5'd8;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzzz1000000000: begin
+						winner = 5'd9;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzzz10000000000: begin
+						winner = 5'd10;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzzz100000000000: begin
+						winner = 5'd11;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzzz1000000000000: begin
+						winner = 5'd12;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzzz10000000000000: begin
+						winner = 5'd13;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzzz100000000000000: begin
+						winner = 5'd14;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzzz1000000000000000: begin
+						winner = 5'd15;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzzz10000000000000000: begin
+						winner = 5'd16;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzzz100000000000000000: begin
+						winner = 5'd17;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzzz1000000000000000000: begin
+						winner = 5'd18;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzzz10000000000000000000: begin
+						winner = 5'd19;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzzz100000000000000000000: begin
+						winner = 5'd20;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzzz1000000000000000000000: begin
+						winner = 5'd21;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzzz10000000000000000000000: begin
+						winner = 5'd22;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzzz100000000000000000000000: begin
+						winner = 5'd23;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzzz1000000000000000000000000: begin
+						winner = 5'd24;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzzz10000000000000000000000000: begin
+						winner = 5'd25;
+						winner_valid = 1'b1;
+					end
+					32'bzzzzz100000000000000000000000000: begin
+						winner = 5'd26;
+						winner_valid = 1'b1;
+					end
+					32'bzzzz1000000000000000000000000000: begin
+						winner = 5'd27;
+						winner_valid = 1'b1;
+					end
+					32'bzzz10000000000000000000000000000: begin
+						winner = 5'd28;
+						winner_valid = 1'b1;
+					end
+					32'bzz100000000000000000000000000000: begin
+						winner = 5'd29;
+						winner_valid = 1'b1;
+					end
+					32'bz1000000000000000000000000000000: begin
+						winner = 5'd30;
+						winner_valid = 1'b1;
+					end
+					32'b10000000000000000000000000000000: begin
+						winner = 5'd31;
+						winner_valid = 1'b1;
+					end
+					default: begin
+						winner = 5'd0;
+						winner_valid = 1'b0;
+					end
+				endcase
+			end
+		end
+		else begin : gen_pe_generic
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				winner = 1'sb0;
+				winner_valid = 1'b0;
+				begin : sv2v_autoblock_1
+					reg signed [31:0] i;
+					for (i = 0; i < CLIENTS; i = i + 1)
+						if (w_priority_requests[i] && !winner_valid) begin
+							winner = i[N - 1:0];
+							winner_valid = 1'b1;
+						end
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
+module arbiter_round_robin (
 	clk,
 	rst_n,
-	cfg_axi_rd_xfer_beats,
-	cfg_channel_reset,
-	sched_rd_valid,
-	sched_rd_addr,
-	sched_rd_beats,
-	sched_rd_done_strobe,
-	sched_rd_beats_done,
-	sched_rd_error,
-	drain_data_avail,
-	drain_req,
-	drain_size,
-	drain_valid,
-	drain_valid_comb,
-	drain_read,
-	drain_id,
-	drain_data,
-	m_axi_arid,
-	m_axi_araddr,
-	m_axi_arlen,
-	m_axi_arsize,
-	m_axi_arburst,
-	m_axi_arvalid,
-	m_axi_arready,
-	m_axi_rid,
-	m_axi_rdata,
-	m_axi_rresp,
-	m_axi_rlast,
-	m_axi_rvalid,
-	m_axi_rready,
-	dbg_rd_all_complete,
-	dbg_r_beats_rcvd,
-	dbg_sram_writes,
-	dbg_arb_request,
-	dbg_sram_bridge_pending,
-	dbg_sram_bridge_out_valid
+	block_arb,
+	request,
+	grant_ack,
+	grant_valid,
+	grant,
+	grant_id,
+	last_grant
 );
-	parameter signed [31:0] NUM_CHANNELS = 8;
-	parameter signed [31:0] ADDR_WIDTH = 64;
-	parameter signed [31:0] DATA_WIDTH = 512;
-	parameter signed [31:0] AXI_ID_WIDTH = 8;
-	parameter signed [31:0] SRAM_DEPTH = 512;
-	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
-	parameter signed [31:0] PIPELINE = 1;
-	parameter signed [31:0] AR_MAX_OUTSTANDING = 8;
-	parameter signed [31:0] NC = NUM_CHANNELS;
-	parameter signed [31:0] AW = ADDR_WIDTH;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] IW = AXI_ID_WIDTH;
-	parameter signed [31:0] SD = SRAM_DEPTH;
-	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
-	parameter signed [31:0] CIW = (NC > 1 ? $clog2(NC) : 1);
+	reg _sv2v_0;
+	parameter signed [31:0] CLIENTS = 4;
+	parameter signed [31:0] WAIT_GNT_ACK = 0;
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
 	input wire clk;
 	input wire rst_n;
-	input wire [7:0] cfg_axi_rd_xfer_beats;
-	input wire [NC - 1:0] cfg_channel_reset;
-	input wire [NC - 1:0] sched_rd_valid;
-	input wire [(NC * AW) - 1:0] sched_rd_addr;
-	input wire [(NC * 32) - 1:0] sched_rd_beats;
-	output wire [NC - 1:0] sched_rd_done_strobe;
-	output wire [(NC * 32) - 1:0] sched_rd_beats_done;
-	output wire [NC - 1:0] sched_rd_error;
-	output wire [(NC * SCW) - 1:0] drain_data_avail;
-	input wire [NC - 1:0] drain_req;
-	input wire [(NC * 8) - 1:0] drain_size;
-	output wire [NC - 1:0] drain_valid;
-	output wire [NC - 1:0] drain_valid_comb;
-	input wire drain_read;
-	input wire [CIW - 1:0] drain_id;
-	output wire [DW - 1:0] drain_data;
-	output wire [IW - 1:0] m_axi_arid;
-	output wire [AW - 1:0] m_axi_araddr;
-	output wire [7:0] m_axi_arlen;
-	output wire [2:0] m_axi_arsize;
-	output wire [1:0] m_axi_arburst;
-	output wire m_axi_arvalid;
-	input wire m_axi_arready;
-	input wire [IW - 1:0] m_axi_rid;
-	input wire [DW - 1:0] m_axi_rdata;
-	input wire [1:0] m_axi_rresp;
-	input wire m_axi_rlast;
-	input wire m_axi_rvalid;
-	output wire m_axi_rready;
-	output wire [NC - 1:0] dbg_rd_all_complete;
-	output wire [31:0] dbg_r_beats_rcvd;
-	output wire [31:0] dbg_sram_writes;
-	output wire [NC - 1:0] dbg_arb_request;
-	output wire [NC - 1:0] dbg_sram_bridge_pending;
-	output wire [NC - 1:0] dbg_sram_bridge_out_valid;
-	wire alloc_req;
-	wire [7:0] alloc_size;
-	wire [IW - 1:0] alloc_id;
-	wire [(NC * SCW) - 1:0] alloc_space_free;
-	wire sram_valid;
-	wire sram_ready;
-	wire [IW - 1:0] sram_id;
-	wire [DW - 1:0] sram_data;
-	axi_read_engine #(
-		.NUM_CHANNELS(NC),
-		.ADDR_WIDTH(AW),
-		.DATA_WIDTH(DW),
-		.ID_WIDTH(IW),
-		.SEG_COUNT_WIDTH(SCW),
-		.PIPELINE(PIPELINE),
-		.AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
-		.STROBE_EVERY_BEAT(0)
-	) u_axi_read_engine(
-		.clk(clk),
-		.rst_n(rst_n),
-		.cfg_axi_rd_xfer_beats(cfg_axi_rd_xfer_beats),
-		.cfg_channel_reset(cfg_channel_reset),
-		.sched_rd_valid(sched_rd_valid),
-		.sched_rd_addr(sched_rd_addr),
-		.sched_rd_beats(sched_rd_beats),
-		.sched_rd_done_strobe(sched_rd_done_strobe),
-		.sched_rd_beats_done(sched_rd_beats_done),
-		.axi_rd_alloc_req(alloc_req),
-		.axi_rd_alloc_size(alloc_size),
-		.axi_rd_alloc_id(alloc_id),
-		.axi_rd_alloc_space_free(alloc_space_free),
-		.axi_rd_sram_valid(sram_valid),
-		.axi_rd_sram_ready(sram_ready),
-		.axi_rd_sram_id(sram_id),
-		.axi_rd_sram_data(sram_data),
-		.m_axi_arvalid(m_axi_arvalid),
-		.m_axi_arready(m_axi_arready),
-		.m_axi_arid(m_axi_arid),
-		.m_axi_araddr(m_axi_araddr),
-		.m_axi_arlen(m_axi_arlen),
-		.m_axi_arsize(m_axi_arsize),
-		.m_axi_arburst(m_axi_arburst),
-		.m_axi_rvalid(m_axi_rvalid),
-		.m_axi_rready(m_axi_rready),
-		.m_axi_rid(m_axi_rid),
-		.m_axi_rdata(m_axi_rdata),
-		.m_axi_rresp(m_axi_rresp),
-		.m_axi_rlast(m_axi_rlast),
-		.sched_rd_error(sched_rd_error),
-		.dbg_rd_all_complete(dbg_rd_all_complete),
-		.dbg_r_beats_rcvd(dbg_r_beats_rcvd),
-		.dbg_sram_writes(dbg_sram_writes),
-		.dbg_arb_request(dbg_arb_request)
-	);
-	src_sram_controller #(
-		.NUM_CHANNELS(NC),
-		.DATA_WIDTH(DW),
-		.SRAM_DEPTH(SD),
-		.SEG_COUNT_WIDTH(SCW)
-	) u_src_sram_controller(
-		.clk(clk),
-		.rst_n(rst_n),
-		.cfg_channel_reset(cfg_channel_reset),
-		.fill_alloc_req(alloc_req),
-		.fill_alloc_size(alloc_size),
-		.fill_alloc_id(alloc_id[CIW - 1:0]),
-		.fill_space_free(alloc_space_free),
-		.fill_valid(sram_valid),
-		.fill_ready(sram_ready),
-		.fill_id(sram_id[CIW - 1:0]),
-		.fill_data(sram_data),
-		.drain_data_avail(drain_data_avail),
-		.drain_req(drain_req),
-		.drain_size(drain_size),
-		.drain_valid(drain_valid),
-		.drain_valid_comb(drain_valid_comb),
-		.drain_read(drain_read),
-		.drain_id(drain_id),
-		.drain_data(drain_data),
-		.dbg_bridge_pending(dbg_sram_bridge_pending),
-		.dbg_bridge_out_valid(dbg_sram_bridge_out_valid)
-	);
+	input wire block_arb;
+	input wire [CLIENTS - 1:0] request;
+	input wire [CLIENTS - 1:0] grant_ack;
+	output reg grant_valid;
+	output reg [CLIENTS - 1:0] grant;
+	output reg [N - 1:0] grant_id;
+	output reg [CLIENTS - 1:0] last_grant;
+	wire [CLIENTS - 1:0] w_requests_gated;
+	wire w_any_requests;
+	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
+	assign w_any_requests = |w_requests_gated;
+	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
+		input reg signed [CLIENTS - 1:0] inp;
+		sv2v_cast_6D6F8_signed = inp;
+	endfunction
+	generate
+		if (CLIENTS == 1) begin : gen_single_client
+			wire [CLIENTS:1] sv2v_tmp_14D78;
+			assign sv2v_tmp_14D78 = w_requests_gated;
+			always @(*) grant = sv2v_tmp_14D78;
+			wire [1:1] sv2v_tmp_6195E;
+			assign sv2v_tmp_6195E = w_requests_gated[0];
+			always @(*) grant_valid = sv2v_tmp_6195E;
+			wire [N:1] sv2v_tmp_E4D73;
+			assign sv2v_tmp_E4D73 = 1'sb0;
+			always @(*) grant_id = sv2v_tmp_E4D73;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n)
+					last_grant <= 1'sb0;
+				else
+					last_grant <= grant;
+		end
+		else begin : gen_multi_client
+			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
+			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
+			genvar _gv_i_3;
+			for (_gv_i_3 = 0; _gv_i_3 < CLIENTS; _gv_i_3 = _gv_i_3 + 1) begin : gen_mask_lut
+				localparam i = _gv_i_3;
+				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
+				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
+			end
+			reg [N - 1:0] r_last_grant_id;
+			reg r_last_valid;
+			reg r_pending_ack;
+			reg [N - 1:0] r_pending_client;
+			wire [CLIENTS - 1:0] w_requests_masked;
+			wire [CLIENTS - 1:0] w_requests_unmasked;
+			wire w_any_masked_requests;
+			wire [CLIENTS - 1:0] w_curr_mask_decode;
+			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
+			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
+			assign w_requests_unmasked = w_requests_gated;
+			assign w_any_masked_requests = |w_requests_masked;
+			wire [N - 1:0] w_winner;
+			wire w_winner_valid;
+			arbiter_priority_encoder #(
+				.CLIENTS(CLIENTS),
+				.N(N)
+			) u_priority_encoder(
+				.requests_masked(w_requests_masked),
+				.requests_unmasked(w_requests_unmasked),
+				.any_masked_requests(w_any_masked_requests),
+				.winner(w_winner),
+				.winner_valid(w_winner_valid)
+			);
+			wire w_ack_received;
+			wire w_can_grant;
+			wire [CLIENTS - 1:0] w_other_requests;
+			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
+				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
+				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
+				assign w_can_grant = !r_pending_ack || w_ack_received;
+			end
+			else begin : gen_no_ack_optimized
+				assign w_ack_received = 1'b0;
+				assign w_can_grant = 1'b1;
+				assign w_other_requests = 1'sb0;
+			end
+			wire w_should_grant;
+			reg [CLIENTS - 1:0] w_next_grant;
+			reg [N - 1:0] w_next_grant_id;
+			wire w_next_grant_valid;
+			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				w_next_grant = 1'sb0;
+				w_next_grant_id = 1'sb0;
+				if (w_should_grant) begin
+					w_next_grant[w_winner] = 1'b1;
+					w_next_grant_id = w_winner;
+				end
+			end
+			assign w_next_grant_valid = w_should_grant;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin
+					grant <= 1'sb0;
+					grant_id <= 1'sb0;
+					grant_valid <= 1'b0;
+					last_grant <= 1'sb0;
+					r_last_grant_id <= 1'sb0;
+					r_last_valid <= 1'sb0;
+					r_pending_ack <= 1'b0;
+					r_pending_client <= 1'sb0;
+				end
+				else begin
+					r_last_valid <= grant_valid;
+					if (WAIT_GNT_ACK == 0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+					end
+					else if (grant_valid == 1'b0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						if (w_next_grant_valid) begin
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+					end
+					else if ((grant_valid == 1'b1) && !w_ack_received)
+						;
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
+						grant <= 1'sb0;
+						grant_id <= 1'sb0;
+						grant_valid <= 1'b0;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						r_pending_ack <= 1'b0;
+						r_pending_client <= 1'sb0;
+					end
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
+						if (w_next_grant_valid) begin
+							grant <= w_next_grant;
+							grant_id <= w_next_grant_id;
+							grant_valid <= w_next_grant_valid;
+							last_grant <= grant;
+							r_last_grant_id <= grant_id;
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+						else begin
+							grant <= 1'sb0;
+							grant_id <= 1'sb0;
+							grant_valid <= 1'b0;
+							r_pending_ack <= 1'b0;
+							r_pending_client <= 1'sb0;
+						end
+					end
+				end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
+module arbiter_single_client (
+	clk,
+	rst_n,
+	block_arb,
+	request,
+	grant_ack,
+	grant_valid,
+	grant,
+	grant_id
+);
+	parameter signed [31:0] WAIT_GNT_ACK = 1;
+	input wire clk;
+	input wire rst_n;
+	input wire block_arb;
+	input wire request;
+	input wire grant_ack;
+	output reg grant_valid;
+	output wire grant;
+	output wire grant_id;
+	reg r_pending_ack;
+	wire w_req;
+	wire w_ack_received;
+	wire w_can_grant;
+	wire w_should_grant;
+	assign w_req = request && !block_arb;
+	assign w_ack_received = (WAIT_GNT_ACK == 1 ? r_pending_ack && grant_ack : 1'b0);
+	assign w_can_grant = (WAIT_GNT_ACK == 1 ? !r_pending_ack || w_ack_received : 1'b1);
+	assign w_should_grant = w_req && w_can_grant;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			grant_valid <= 1'b0;
+			r_pending_ack <= 1'b0;
+		end
+		else if (WAIT_GNT_ACK == 0) begin
+			grant_valid <= w_should_grant;
+			r_pending_ack <= 1'b0;
+		end
+		else if (grant_valid == 1'b0) begin
+			grant_valid <= w_should_grant;
+			r_pending_ack <= w_should_grant;
+		end
+		else if (!w_ack_received) begin
+			grant_valid <= 1'b1;
+			r_pending_ack <= 1'b1;
+		end
+		else begin
+			grant_valid <= 1'b0;
+			r_pending_ack <= 1'b0;
+		end
+	assign grant = grant_valid;
+	assign grant_id = 1'b0;
 endmodule
 module axi_read_engine (
 	clk,
@@ -2078,6 +1904,180 @@ module axi_read_engine (
 	assign dbg_arb_request = w_arb_request;
 	initial _sv2v_0 = 0;
 endmodule
+module src_data_path (
+	clk,
+	rst_n,
+	cfg_axi_rd_xfer_beats,
+	cfg_channel_reset,
+	sched_rd_valid,
+	sched_rd_addr,
+	sched_rd_beats,
+	sched_rd_done_strobe,
+	sched_rd_beats_done,
+	sched_rd_error,
+	drain_data_avail,
+	drain_req,
+	drain_size,
+	drain_valid,
+	drain_valid_comb,
+	drain_read,
+	drain_id,
+	drain_data,
+	m_axi_arid,
+	m_axi_araddr,
+	m_axi_arlen,
+	m_axi_arsize,
+	m_axi_arburst,
+	m_axi_arvalid,
+	m_axi_arready,
+	m_axi_rid,
+	m_axi_rdata,
+	m_axi_rresp,
+	m_axi_rlast,
+	m_axi_rvalid,
+	m_axi_rready,
+	dbg_rd_all_complete,
+	dbg_r_beats_rcvd,
+	dbg_sram_writes,
+	dbg_arb_request,
+	dbg_sram_bridge_pending,
+	dbg_sram_bridge_out_valid
+);
+	parameter signed [31:0] NUM_CHANNELS = 8;
+	parameter signed [31:0] ADDR_WIDTH = 64;
+	parameter signed [31:0] DATA_WIDTH = 512;
+	parameter signed [31:0] AXI_ID_WIDTH = 8;
+	parameter signed [31:0] SRAM_DEPTH = 512;
+	parameter signed [31:0] SEG_COUNT_WIDTH = $clog2(SRAM_DEPTH) + 1;
+	parameter signed [31:0] PIPELINE = 1;
+	parameter signed [31:0] AR_MAX_OUTSTANDING = 8;
+	parameter signed [31:0] NC = NUM_CHANNELS;
+	parameter signed [31:0] AW = ADDR_WIDTH;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] IW = AXI_ID_WIDTH;
+	parameter signed [31:0] SD = SRAM_DEPTH;
+	parameter signed [31:0] SCW = SEG_COUNT_WIDTH;
+	parameter signed [31:0] CIW = (NC > 1 ? $clog2(NC) : 1);
+	input wire clk;
+	input wire rst_n;
+	input wire [7:0] cfg_axi_rd_xfer_beats;
+	input wire [NC - 1:0] cfg_channel_reset;
+	input wire [NC - 1:0] sched_rd_valid;
+	input wire [(NC * AW) - 1:0] sched_rd_addr;
+	input wire [(NC * 32) - 1:0] sched_rd_beats;
+	output wire [NC - 1:0] sched_rd_done_strobe;
+	output wire [(NC * 32) - 1:0] sched_rd_beats_done;
+	output wire [NC - 1:0] sched_rd_error;
+	output wire [(NC * SCW) - 1:0] drain_data_avail;
+	input wire [NC - 1:0] drain_req;
+	input wire [(NC * 8) - 1:0] drain_size;
+	output wire [NC - 1:0] drain_valid;
+	output wire [NC - 1:0] drain_valid_comb;
+	input wire drain_read;
+	input wire [CIW - 1:0] drain_id;
+	output wire [DW - 1:0] drain_data;
+	output wire [IW - 1:0] m_axi_arid;
+	output wire [AW - 1:0] m_axi_araddr;
+	output wire [7:0] m_axi_arlen;
+	output wire [2:0] m_axi_arsize;
+	output wire [1:0] m_axi_arburst;
+	output wire m_axi_arvalid;
+	input wire m_axi_arready;
+	input wire [IW - 1:0] m_axi_rid;
+	input wire [DW - 1:0] m_axi_rdata;
+	input wire [1:0] m_axi_rresp;
+	input wire m_axi_rlast;
+	input wire m_axi_rvalid;
+	output wire m_axi_rready;
+	output wire [NC - 1:0] dbg_rd_all_complete;
+	output wire [31:0] dbg_r_beats_rcvd;
+	output wire [31:0] dbg_sram_writes;
+	output wire [NC - 1:0] dbg_arb_request;
+	output wire [NC - 1:0] dbg_sram_bridge_pending;
+	output wire [NC - 1:0] dbg_sram_bridge_out_valid;
+	wire alloc_req;
+	wire [7:0] alloc_size;
+	wire [IW - 1:0] alloc_id;
+	wire [(NC * SCW) - 1:0] alloc_space_free;
+	wire sram_valid;
+	wire sram_ready;
+	wire [IW - 1:0] sram_id;
+	wire [DW - 1:0] sram_data;
+	axi_read_engine #(
+		.NUM_CHANNELS(NC),
+		.ADDR_WIDTH(AW),
+		.DATA_WIDTH(DW),
+		.ID_WIDTH(IW),
+		.SEG_COUNT_WIDTH(SCW),
+		.PIPELINE(PIPELINE),
+		.AR_MAX_OUTSTANDING(AR_MAX_OUTSTANDING),
+		.STROBE_EVERY_BEAT(0)
+	) u_axi_read_engine(
+		.clk(clk),
+		.rst_n(rst_n),
+		.cfg_axi_rd_xfer_beats(cfg_axi_rd_xfer_beats),
+		.cfg_channel_reset(cfg_channel_reset),
+		.sched_rd_valid(sched_rd_valid),
+		.sched_rd_addr(sched_rd_addr),
+		.sched_rd_beats(sched_rd_beats),
+		.sched_rd_done_strobe(sched_rd_done_strobe),
+		.sched_rd_beats_done(sched_rd_beats_done),
+		.axi_rd_alloc_req(alloc_req),
+		.axi_rd_alloc_size(alloc_size),
+		.axi_rd_alloc_id(alloc_id),
+		.axi_rd_alloc_space_free(alloc_space_free),
+		.axi_rd_sram_valid(sram_valid),
+		.axi_rd_sram_ready(sram_ready),
+		.axi_rd_sram_id(sram_id),
+		.axi_rd_sram_data(sram_data),
+		.m_axi_arvalid(m_axi_arvalid),
+		.m_axi_arready(m_axi_arready),
+		.m_axi_arid(m_axi_arid),
+		.m_axi_araddr(m_axi_araddr),
+		.m_axi_arlen(m_axi_arlen),
+		.m_axi_arsize(m_axi_arsize),
+		.m_axi_arburst(m_axi_arburst),
+		.m_axi_rvalid(m_axi_rvalid),
+		.m_axi_rready(m_axi_rready),
+		.m_axi_rid(m_axi_rid),
+		.m_axi_rdata(m_axi_rdata),
+		.m_axi_rresp(m_axi_rresp),
+		.m_axi_rlast(m_axi_rlast),
+		.sched_rd_error(sched_rd_error),
+		.dbg_rd_all_complete(dbg_rd_all_complete),
+		.dbg_r_beats_rcvd(dbg_r_beats_rcvd),
+		.dbg_sram_writes(dbg_sram_writes),
+		.dbg_arb_request(dbg_arb_request)
+	);
+	src_sram_controller #(
+		.NUM_CHANNELS(NC),
+		.DATA_WIDTH(DW),
+		.SRAM_DEPTH(SD),
+		.SEG_COUNT_WIDTH(SCW)
+	) u_src_sram_controller(
+		.clk(clk),
+		.rst_n(rst_n),
+		.cfg_channel_reset(cfg_channel_reset),
+		.fill_alloc_req(alloc_req),
+		.fill_alloc_size(alloc_size),
+		.fill_alloc_id(alloc_id[CIW - 1:0]),
+		.fill_space_free(alloc_space_free),
+		.fill_valid(sram_valid),
+		.fill_ready(sram_ready),
+		.fill_id(sram_id[CIW - 1:0]),
+		.fill_data(sram_data),
+		.drain_data_avail(drain_data_avail),
+		.drain_req(drain_req),
+		.drain_size(drain_size),
+		.drain_valid(drain_valid),
+		.drain_valid_comb(drain_valid_comb),
+		.drain_read(drain_read),
+		.drain_id(drain_id),
+		.drain_data(drain_data),
+		.dbg_bridge_pending(dbg_sram_bridge_pending),
+		.dbg_bridge_out_valid(dbg_sram_bridge_out_valid)
+	);
+endmodule
 module src_data_path_axis (
 	clk,
 	rst_n,
@@ -2209,15 +2209,15 @@ module src_data_path_axis (
 	output wire [31:0] dbg_axis_packets_sent;
 	initial begin
 		if ((TILE_HDR != 0) && (DW < 128)) begin
-			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_data_path_axis.sv:175:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_HDR needs DATA_WIDTH >= 128 (the header is one 128-bit beat)");
+			$display("Fatal [%0t] .flat_build/prep/src_data_path_axis.sv:175:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_HDR needs DATA_WIDTH >= 128 (the header is one 128-bit beat)");
 			$finish(1);
 		end
 		if ((TILE_HDR != 0) && (NC > 16)) begin
-			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_data_path_axis.sv:177:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_HDR carries the channel in a 4-bit tag: NUM_CHANNELS <= 16");
+			$display("Fatal [%0t] .flat_build/prep/src_data_path_axis.sv:177:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_HDR carries the channel in a 4-bit tag: NUM_CHANNELS <= 16");
 			$finish(1);
 		end
 		if ((TILE_CREDITS != 0) && (TILE_HDR == 0)) begin
-			$display("Fatal [%0t] /tmp/rds-canonical-repo-root/projects/components/dma-ip/rapids/rtl/macro/src_data_path_axis.sv:179:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_CREDITS = 1 needs TILE_HDR = 1");
+			$display("Fatal [%0t] .flat_build/prep/src_data_path_axis.sv:179:13 - src_data_path_axis.<unnamed_block>.<unnamed_block>\n msg: ", $time, "TILE_CREDITS = 1 needs TILE_HDR = 1");
 			$finish(1);
 		end
 	end

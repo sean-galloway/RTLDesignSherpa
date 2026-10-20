@@ -2,24 +2,15 @@
 # Formal verification Makefile for perf_profiler
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
-
-# Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
-
-# RTL dependencies (FIFO and counter submodules)
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/perf_profiler.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := perf_profiler_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/fub/perf_profiler.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -28,9 +19,6 @@ prove: perf_profiler_flat.v
 
 cover: perf_profiler_flat.v
 	sby -f perf_profiler.sby cover
-
-perf_profiler_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

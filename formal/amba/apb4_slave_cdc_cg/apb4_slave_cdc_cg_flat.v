@@ -1,172 +1,3 @@
-module clock_gate_ctrl (
-	clk_in,
-	aresetn,
-	cfg_cg_enable,
-	cfg_cg_idle_count,
-	wakeup,
-	clk_out,
-	gating
-);
-	parameter signed [31:0] IDLE_CNTR_WIDTH = 4;
-	input wire clk_in;
-	input wire aresetn;
-	input wire cfg_cg_enable;
-	input wire [IDLE_CNTR_WIDTH - 1:0] cfg_cg_idle_count;
-	input wire wakeup;
-	output wire clk_out;
-	output wire gating;
-	localparam signed [31:0] N = IDLE_CNTR_WIDTH;
-	reg [N - 1:0] r_idle_counter;
-	always @(posedge clk_in or negedge aresetn)
-		if (!aresetn)
-			r_idle_counter <= cfg_cg_idle_count;
-		else if (wakeup || !cfg_cg_enable)
-			r_idle_counter <= cfg_cg_idle_count;
-		else if (r_idle_counter != 'h0)
-			r_idle_counter <= r_idle_counter - 1'b1;
-	wire w_gate_enable = (cfg_cg_enable && !wakeup) && (r_idle_counter == 'h0);
-	icg u_icg(
-		.clk(clk_in),
-		.en(~w_gate_enable),
-		.gclk(clk_out)
-	);
-	assign gating = w_gate_enable;
-endmodule
-module reset_sync (
-	clk,
-	rst_n,
-	sync_rst_n
-);
-	reg _sv2v_0;
-	parameter signed [31:0] N = 3;
-	parameter [0:0] KEEP_ATTRS = 1'b1;
-	parameter [0:0] IN_ACTIVE_LOW = 1'b1;
-	parameter [0:0] OUT_ACTIVE_LOW = 1'b1;
-	parameter [0:0] ASYNC_ASSERT = 1'b1;
-	input wire clk;
-	input wire rst_n;
-	output reg sync_rst_n;
-	generate
-		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
-		end
-	endgenerate
-	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
-	generate
-		if (ASYNC_ASSERT) begin : g_async_assert
-			if (KEEP_ATTRS) begin : g_attrd
-				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
-				always @(posedge clk or posedge rst_in_h)
-					if (rst_in_h)
-						r_sync_reg <= 1'sb1;
-					else
-						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
-				wire sync_rst_h = r_sync_reg[N - 1];
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
-				end
-			end
-			else begin : g_plain
-				reg [N - 1:0] r_sync_reg = 1'sb0;
-				always @(posedge clk or posedge rst_in_h)
-					if (rst_in_h)
-						r_sync_reg <= 1'sb1;
-					else
-						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
-				wire sync_rst_h = r_sync_reg[N - 1];
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
-				end
-			end
-		end
-		else begin : g_sync_only
-			if (KEEP_ATTRS) begin : g_attrd
-				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
-				always @(posedge clk)
-					if (rst_in_h)
-						r_sync_reg <= 1'sb1;
-					else
-						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
-				wire sync_rst_h = r_sync_reg[N - 1];
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
-				end
-			end
-			else begin : g_plain
-				reg [N - 1:0] r_sync_reg = 1'sb0;
-				always @(posedge clk)
-					if (rst_in_h)
-						r_sync_reg <= 1'sb1;
-					else
-						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
-				wire sync_rst_h = r_sync_reg[N - 1];
-				always @(*) begin
-					if (_sv2v_0)
-						;
-					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
-				end
-			end
-		end
-	endgenerate
-	initial _sv2v_0 = 0;
-endmodule
-module amba_clock_gate_ctrl (
-	clk_in,
-	aresetn,
-	cfg_cg_enable,
-	cfg_cg_idle_count,
-	user_valid,
-	axi_valid,
-	clk_out,
-	gating,
-	idle
-);
-	parameter signed [31:0] CG_IDLE_COUNT_WIDTH = 4;
-	parameter signed [31:0] ICW = CG_IDLE_COUNT_WIDTH;
-	input wire clk_in;
-	input wire aresetn;
-	input wire cfg_cg_enable;
-	input wire [ICW - 1:0] cfg_cg_idle_count;
-	input wire user_valid;
-	input wire axi_valid;
-	output wire clk_out;
-	output wire gating;
-	output wire idle;
-	wire w_aresetn;
-	reset_sync #(
-		.N(3),
-		.KEEP_ATTRS(1'b1),
-		.IN_ACTIVE_LOW(1'b1),
-		.OUT_ACTIVE_LOW(1'b1),
-		.ASYNC_ASSERT(1'b1)
-	) u_reset_sync(
-		.clk(clk_in),
-		.rst_n(aresetn),
-		.sync_rst_n(w_aresetn)
-	);
-	reg r_wakeup;
-	always @(posedge clk_in or negedge w_aresetn)
-		if (!w_aresetn)
-			r_wakeup <= 'h1;
-		else
-			r_wakeup <= user_valid || axi_valid;
-	assign idle = ~r_wakeup;
-	clock_gate_ctrl #(.IDLE_CNTR_WIDTH(ICW)) u_clock_gate_ctrl(
-		.clk_in(clk_in),
-		.aresetn(w_aresetn),
-		.cfg_cg_enable(cfg_cg_enable),
-		.cfg_cg_idle_count(cfg_cg_idle_count),
-		.wakeup(r_wakeup),
-		.clk_out(clk_out),
-		.gating(gating)
-	);
-endmodule
 module gaxi_skid_buffer (
 	axi_aclk,
 	axi_aresetn,
@@ -201,7 +32,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -283,155 +114,6 @@ module gaxi_skid_buffer (
 		end
 	endgenerate
 endmodule
-module apb4_slave (
-	pclk,
-	presetn,
-	s_apb_PSEL,
-	s_apb_PENABLE,
-	s_apb_PREADY,
-	s_apb_PADDR,
-	s_apb_PWRITE,
-	s_apb_PWDATA,
-	s_apb_PSTRB,
-	s_apb_PPROT,
-	s_apb_PRDATA,
-	s_apb_PSLVERR,
-	cmd_valid,
-	cmd_ready,
-	cmd_pwrite,
-	cmd_paddr,
-	cmd_pwdata,
-	cmd_pstrb,
-	cmd_pprot,
-	rsp_valid,
-	rsp_ready,
-	rsp_prdata,
-	rsp_pslverr
-);
-	parameter signed [31:0] ADDR_WIDTH = 32;
-	parameter signed [31:0] DATA_WIDTH = 32;
-	parameter signed [31:0] STRB_WIDTH = DATA_WIDTH / 8;
-	parameter signed [31:0] PROT_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 2;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] AW = ADDR_WIDTH;
-	parameter signed [31:0] SW = STRB_WIDTH;
-	parameter signed [31:0] PW = PROT_WIDTH;
-	parameter signed [31:0] CPW = (((AW + DW) + SW) + PW) + 1;
-	parameter signed [31:0] RPW = DW + 1;
-	input wire pclk;
-	input wire presetn;
-	input wire s_apb_PSEL;
-	input wire s_apb_PENABLE;
-	output reg s_apb_PREADY;
-	input wire [AW - 1:0] s_apb_PADDR;
-	input wire s_apb_PWRITE;
-	input wire [DW - 1:0] s_apb_PWDATA;
-	input wire [SW - 1:0] s_apb_PSTRB;
-	input wire [PW - 1:0] s_apb_PPROT;
-	output reg [DW - 1:0] s_apb_PRDATA;
-	output reg s_apb_PSLVERR;
-	output wire cmd_valid;
-	input wire cmd_ready;
-	output wire cmd_pwrite;
-	output wire [AW - 1:0] cmd_paddr;
-	output wire [DW - 1:0] cmd_pwdata;
-	output wire [SW - 1:0] cmd_pstrb;
-	output wire [PW - 1:0] cmd_pprot;
-	input wire rsp_valid;
-	output wire rsp_ready;
-	input wire [DW - 1:0] rsp_prdata;
-	input wire rsp_pslverr;
-	reg r_cmd_valid;
-	wire r_cmd_ready;
-	wire r_cmd_ready_pre;
-	wire [CPW - 1:0] r_cmd_data_in;
-	wire [CPW - 1:0] r_cmd_data_out;
-	wire [3:0] r_cmd_count;
-	assign r_cmd_data_in = {s_apb_PWRITE, s_apb_PPROT, s_apb_PSTRB, s_apb_PADDR, s_apb_PWDATA};
-	assign {cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata} = r_cmd_data_out;
-	gaxi_skid_buffer #(
-		.DEPTH(DEPTH),
-		.DATA_WIDTH(CPW)
-	) cmd_skid_buffer_inst(
-		.axi_aclk(pclk),
-		.axi_aresetn(presetn),
-		.wr_valid(r_cmd_valid),
-		.wr_ready(r_cmd_ready),
-		.wr_data(r_cmd_data_in),
-		.rd_valid(cmd_valid),
-		.rd_ready(cmd_ready),
-		.rd_data(r_cmd_data_out),
-		.count(r_cmd_count),
-		.rd_count()
-	);
-	wire r_rsp_valid;
-	reg r_rsp_ready;
-	wire [RPW - 1:0] r_rsp_data_in;
-	wire [DW - 1:0] r_rsp_prdata;
-	wire r_rsp_pslverr;
-	wire [RPW - 1:0] r_rsp_data_out;
-	wire [3:0] r_rsp_count;
-	assign {r_rsp_pslverr, r_rsp_prdata} = r_rsp_data_out;
-	assign r_rsp_data_in = {rsp_pslverr, rsp_prdata};
-	gaxi_skid_buffer #(
-		.DEPTH(DEPTH),
-		.DATA_WIDTH(RPW)
-	) resp_skid_buffer_inst(
-		.axi_aclk(pclk),
-		.axi_aresetn(presetn),
-		.wr_valid(rsp_valid),
-		.wr_ready(rsp_ready),
-		.wr_data(r_rsp_data_in),
-		.rd_valid(r_rsp_valid),
-		.rd_ready(r_rsp_ready),
-		.rd_data(r_rsp_data_out),
-		.count(r_rsp_count),
-		.rd_count()
-	);
-	reg [2:0] r_apb_state;
-	reg r_penable_prev;
-	always @(posedge pclk or negedge presetn)
-		if (!presetn) begin
-			r_apb_state <= 3'b001;
-			s_apb_PREADY <= 'b0;
-			s_apb_PSLVERR <= 'b0;
-			s_apb_PRDATA <= 'b0;
-			r_cmd_valid <= 1'b0;
-			r_rsp_ready <= 1'b0;
-			r_penable_prev <= 1'b0;
-		end
-		else begin
-			r_apb_state <= r_apb_state;
-			s_apb_PREADY <= 'b0;
-			s_apb_PSLVERR <= 'b0;
-			r_cmd_valid <= 1'b0;
-			r_rsp_ready <= 1'b0;
-			r_penable_prev <= s_apb_PENABLE;
-			casez (r_apb_state)
-				3'b001: begin
-					if (r_rsp_valid) begin
-						r_rsp_ready <= 1'b1;
-						$display("%t %m WARNING: orphan APB response discarded (prdata=0x%0h pslverr=%0b) -- no command outstanding. Check for duplicate backend responses or an independently-reset CDC.", $time, r_rsp_prdata, r_rsp_pslverr);
-					end
-					if (((s_apb_PSEL && s_apb_PENABLE) && !r_penable_prev) && r_cmd_ready) begin
-						r_cmd_valid <= 1'b1;
-						r_apb_state <= 3'b010;
-					end
-				end
-				3'b010:
-					if (r_rsp_valid) begin
-						s_apb_PREADY <= 1'b1;
-						s_apb_PRDATA <= r_rsp_prdata;
-						s_apb_PSLVERR <= r_rsp_pslverr;
-						r_rsp_ready <= 1'b1;
-						r_apb_state <= 3'b100;
-					end
-				3'b100: r_apb_state <= 3'b001;
-				default: r_apb_state <= 3'b001;
-			endcase
-		end
-endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -472,53 +154,6 @@ module counter_bin (
 			counter_bin_curr <= counter_bin_next;
 	initial _sv2v_0 = 0;
 endmodule
-module counter_johnson (
-	clk,
-	rst_n,
-	enable,
-	counter_gray
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_gray;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			counter_gray <= {WIDTH {1'b0}};
-		else if (enable)
-			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
-endmodule
-module counter_bingray (
-	clk,
-	rst_n,
-	enable,
-	counter_bin,
-	counter_bin_next,
-	counter_gray
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_bin;
-	output wire [WIDTH - 1:0] counter_bin_next;
-	output reg [WIDTH - 1:0] counter_gray;
-	wire [WIDTH - 1:0] w_counter_bin;
-	wire [WIDTH - 1:0] w_counter_gray;
-	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
-	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
-	assign counter_bin_next = w_counter_bin;
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n) begin
-			counter_bin <= 'b0;
-			counter_gray <= 'b0;
-		end
-		else begin
-			counter_bin <= w_counter_bin;
-			counter_gray <= w_counter_gray;
-		end
-endmodule
 module glitch_free_n_dff_arn (
 	clk,
 	rst_n,
@@ -557,32 +192,6 @@ module glitch_free_n_dff_arn (
 		end
 	endgenerate
 endmodule
-module find_last_set (
-	data,
-	index
-);
-	reg _sv2v_0;
-	parameter signed [31:0] WIDTH = 32;
-	input wire [WIDTH - 1:0] data;
-	output reg [$clog2(WIDTH) - 1:0] index;
-	localparam signed [31:0] N = $clog2(WIDTH);
-	reg w_found;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		index = {N {1'b0}};
-		w_found = 1'b0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] i;
-			for (i = WIDTH - 1; i >= 0; i = i - 1)
-				if (data[i] && !w_found) begin
-					index = i[N - 1:0];
-					w_found = 1'b1;
-				end
-		end
-	end
-	initial _sv2v_0 = 0;
-endmodule
 module find_first_set (
 	data,
 	index
@@ -601,6 +210,32 @@ module find_first_set (
 		begin : sv2v_autoblock_1
 			reg signed [31:0] i;
 			for (i = 0; i < WIDTH; i = i + 1)
+				if (data[i] && !w_found) begin
+					index = i[N - 1:0];
+					w_found = 1'b1;
+				end
+		end
+	end
+	initial _sv2v_0 = 0;
+endmodule
+module find_last_set (
+	data,
+	index
+);
+	reg _sv2v_0;
+	parameter signed [31:0] WIDTH = 32;
+	input wire [WIDTH - 1:0] data;
+	output reg [$clog2(WIDTH) - 1:0] index;
+	localparam signed [31:0] N = $clog2(WIDTH);
+	reg w_found;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		index = {N {1'b0}};
+		w_found = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] i;
+			for (i = WIDTH - 1; i >= 0; i = i - 1)
 				if (data[i] && !w_found) begin
 					index = i[N - 1:0];
 					w_found = 1'b1;
@@ -658,66 +293,6 @@ module leading_one_trailing_one (
 	assign all_zeroes = ~(|data);
 	assign valid = |data;
 	initial _sv2v_0 = 0;
-endmodule
-module johnson2bin (
-	clk,
-	rst_n,
-	gray,
-	binary
-);
-	reg _sv2v_0;
-	parameter signed [31:0] JCW = 10;
-	parameter signed [31:0] WIDTH = 4;
-	input wire clk;
-	input wire rst_n;
-	input wire [JCW - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	localparam signed [31:0] N = $clog2(JCW);
-	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
-	wire [N - 1:0] w_leading_one;
-	wire [N - 1:0] w_trailing_one;
-	reg [WIDTH - 1:0] w_binary;
-	wire w_all_zeroes;
-	wire w_all_ones;
-	wire w_valid;
-	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
-		.data(gray),
-		.leadingone(w_leading_one),
-		.leadingone_vector(),
-		.trailingone(w_trailing_one),
-		.trailingone_vector(),
-		.all_zeroes(w_all_zeroes),
-		.all_ones(w_all_ones),
-		.valid(w_valid)
-	);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (w_all_zeroes || w_all_ones)
-			w_binary = {WIDTH {1'b0}};
-		else if (gray[JCW - 1])
-			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
-		else
-			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
-	end
-	assign binary[WIDTH - 1] = gray[JCW - 1];
-	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
-	initial _sv2v_0 = 0;
-endmodule
-module gray2bin (
-	gray,
-	binary
-);
-	parameter signed [31:0] WIDTH = 4;
-	input wire [WIDTH - 1:0] gray;
-	output wire [WIDTH - 1:0] binary;
-	genvar _gv_i_2;
-	generate
-		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
-			localparam i = _gv_i_2;
-			assign binary[i] = ^(gray >> i);
-		end
-	endgenerate
 endmodule
 module fifo_control (
 	wr_clk,
@@ -820,6 +395,113 @@ module fifo_control (
 			r_count <= w_count;
 		end
 endmodule
+module gray2bin (
+	gray,
+	binary
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire [WIDTH - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	genvar _gv_i_2;
+	generate
+		for (_gv_i_2 = 0; _gv_i_2 < WIDTH; _gv_i_2 = _gv_i_2 + 1) begin : gen_gray_to_bin
+			localparam i = _gv_i_2;
+			assign binary[i] = ^(gray >> i);
+		end
+	endgenerate
+endmodule
+module counter_bingray (
+	clk,
+	rst_n,
+	enable,
+	counter_bin,
+	counter_bin_next,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin;
+	output wire [WIDTH - 1:0] counter_bin_next;
+	output reg [WIDTH - 1:0] counter_gray;
+	wire [WIDTH - 1:0] w_counter_bin;
+	wire [WIDTH - 1:0] w_counter_gray;
+	assign w_counter_bin = (enable ? counter_bin + 1 : counter_bin);
+	assign w_counter_gray = w_counter_bin ^ (w_counter_bin >> 1);
+	assign counter_bin_next = w_counter_bin;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			counter_bin <= 'b0;
+			counter_gray <= 'b0;
+		end
+		else begin
+			counter_bin <= w_counter_bin;
+			counter_gray <= w_counter_gray;
+		end
+endmodule
+module counter_johnson (
+	clk,
+	rst_n,
+	enable,
+	counter_gray
+);
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_gray;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_gray <= {WIDTH {1'b0}};
+		else if (enable)
+			counter_gray <= {counter_gray[WIDTH - 2:0], ~counter_gray[WIDTH - 1]};
+endmodule
+module johnson2bin (
+	clk,
+	rst_n,
+	gray,
+	binary
+);
+	reg _sv2v_0;
+	parameter signed [31:0] JCW = 10;
+	parameter signed [31:0] WIDTH = 4;
+	input wire clk;
+	input wire rst_n;
+	input wire [JCW - 1:0] gray;
+	output wire [WIDTH - 1:0] binary;
+	localparam signed [31:0] N = $clog2(JCW);
+	localparam signed [31:0] PAD_WIDTH = (WIDTH > (N + 1) ? (WIDTH - N) - 1 : 0);
+	wire [N - 1:0] w_leading_one;
+	wire [N - 1:0] w_trailing_one;
+	reg [WIDTH - 1:0] w_binary;
+	wire w_all_zeroes;
+	wire w_all_ones;
+	wire w_valid;
+	leading_one_trailing_one #(.WIDTH(JCW)) u_leading_one_trailing_one(
+		.data(gray),
+		.leadingone(w_leading_one),
+		.leadingone_vector(),
+		.trailingone(w_trailing_one),
+		.trailingone_vector(),
+		.all_zeroes(w_all_zeroes),
+		.all_ones(w_all_ones),
+		.valid(w_valid)
+	);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (w_all_zeroes || w_all_ones)
+			w_binary = {WIDTH {1'b0}};
+		else if (gray[JCW - 1])
+			w_binary = {{WIDTH - N {1'b0}}, w_trailing_one};
+		else
+			w_binary = {{WIDTH - N {1'b0}}, w_leading_one + 1'b1};
+	end
+	assign binary[WIDTH - 1] = gray[JCW - 1];
+	assign binary[WIDTH - 2:0] = w_binary[WIDTH - 2:0];
+	initial _sv2v_0 = 0;
+endmodule
 module gaxi_fifo_async (
 	axi_wr_aclk,
 	axi_wr_aresetn,
@@ -860,7 +542,7 @@ module gaxi_fifo_async (
 	localparam signed [31:0] PTRW = (USE_JOHNSON != 0 ? JCW : AW + 1);
 	generate
 		if ((USE_JOHNSON == 0) && ((DEPTH & (DEPTH - 1)) != 0)) begin : g_bad_depth
-			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
+			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/cdc/gaxi_fifo_async.sv:83:9 - gaxi_fifo_async.g_bad_depth\n msg: ", "gaxi_fifo_async: USE_JOHNSON=0 (Gray) requires a power-of-2 DEPTH, got %0d. Set USE_JOHNSON=1 for arbitrary depths.", DEPTH);
 		end
 	endgenerate
 	wire [PTRW - 1:0] r_wr_ptr_gray;
@@ -1065,6 +747,324 @@ module gaxi_fifo_async (
 	always @(posedge axi_rd_aclk)
 		if (w_read && r_rd_empty)
 			;
+endmodule
+module reset_sync (
+	clk,
+	rst_n,
+	sync_rst_n
+);
+	reg _sv2v_0;
+	parameter signed [31:0] N = 3;
+	parameter [0:0] KEEP_ATTRS = 1'b1;
+	parameter [0:0] IN_ACTIVE_LOW = 1'b1;
+	parameter [0:0] OUT_ACTIVE_LOW = 1'b1;
+	parameter [0:0] ASYNC_ASSERT = 1'b1;
+	input wire clk;
+	input wire rst_n;
+	output reg sync_rst_n;
+	generate
+		if (N < 2) begin : g_illegal
+			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+		end
+	endgenerate
+	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
+	generate
+		if (ASYNC_ASSERT) begin : g_async_assert
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk or posedge rst_in_h)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+		else begin : g_sync_only
+			if (KEEP_ATTRS) begin : g_attrd
+				(* ASYNC_REG = "TRUE", SHREG_EXTRACT = "NO" *) (* altera_attribute = "-name SYNCHRONIZER_IDENTIFICATION FORCED" *) reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+			else begin : g_plain
+				reg [N - 1:0] r_sync_reg = 1'sb0;
+				always @(posedge clk)
+					if (rst_in_h)
+						r_sync_reg <= 1'sb1;
+					else
+						r_sync_reg <= {r_sync_reg[N - 2:0], 1'b0};
+				wire sync_rst_h = r_sync_reg[N - 1];
+				always @(*) begin
+					if (_sv2v_0)
+						;
+					sync_rst_n = (OUT_ACTIVE_LOW ? ~sync_rst_h : sync_rst_h);
+				end
+			end
+		end
+	endgenerate
+	initial _sv2v_0 = 0;
+endmodule
+module clock_gate_ctrl (
+	clk_in,
+	aresetn,
+	cfg_cg_enable,
+	cfg_cg_idle_count,
+	wakeup,
+	clk_out,
+	gating
+);
+	parameter signed [31:0] IDLE_CNTR_WIDTH = 4;
+	input wire clk_in;
+	input wire aresetn;
+	input wire cfg_cg_enable;
+	input wire [IDLE_CNTR_WIDTH - 1:0] cfg_cg_idle_count;
+	input wire wakeup;
+	output wire clk_out;
+	output wire gating;
+	localparam signed [31:0] N = IDLE_CNTR_WIDTH;
+	reg [N - 1:0] r_idle_counter;
+	always @(posedge clk_in or negedge aresetn)
+		if (!aresetn)
+			r_idle_counter <= cfg_cg_idle_count;
+		else if (wakeup || !cfg_cg_enable)
+			r_idle_counter <= cfg_cg_idle_count;
+		else if (r_idle_counter != 'h0)
+			r_idle_counter <= r_idle_counter - 1'b1;
+	wire w_gate_enable = (cfg_cg_enable && !wakeup) && (r_idle_counter == 'h0);
+	icg u_icg(
+		.clk(clk_in),
+		.en(~w_gate_enable),
+		.gclk(clk_out)
+	);
+	assign gating = w_gate_enable;
+endmodule
+module amba_clock_gate_ctrl (
+	clk_in,
+	aresetn,
+	cfg_cg_enable,
+	cfg_cg_idle_count,
+	user_valid,
+	axi_valid,
+	clk_out,
+	gating,
+	idle
+);
+	parameter signed [31:0] CG_IDLE_COUNT_WIDTH = 4;
+	parameter signed [31:0] ICW = CG_IDLE_COUNT_WIDTH;
+	input wire clk_in;
+	input wire aresetn;
+	input wire cfg_cg_enable;
+	input wire [ICW - 1:0] cfg_cg_idle_count;
+	input wire user_valid;
+	input wire axi_valid;
+	output wire clk_out;
+	output wire gating;
+	output wire idle;
+	wire w_aresetn;
+	reset_sync #(
+		.N(3),
+		.KEEP_ATTRS(1'b1),
+		.IN_ACTIVE_LOW(1'b1),
+		.OUT_ACTIVE_LOW(1'b1),
+		.ASYNC_ASSERT(1'b1)
+	) u_reset_sync(
+		.clk(clk_in),
+		.rst_n(aresetn),
+		.sync_rst_n(w_aresetn)
+	);
+	reg r_wakeup;
+	always @(posedge clk_in or negedge w_aresetn)
+		if (!w_aresetn)
+			r_wakeup <= 'h1;
+		else
+			r_wakeup <= user_valid || axi_valid;
+	assign idle = ~r_wakeup;
+	clock_gate_ctrl #(.IDLE_CNTR_WIDTH(ICW)) u_clock_gate_ctrl(
+		.clk_in(clk_in),
+		.aresetn(w_aresetn),
+		.cfg_cg_enable(cfg_cg_enable),
+		.cfg_cg_idle_count(cfg_cg_idle_count),
+		.wakeup(r_wakeup),
+		.clk_out(clk_out),
+		.gating(gating)
+	);
+endmodule
+module apb4_slave (
+	pclk,
+	presetn,
+	s_apb_PSEL,
+	s_apb_PENABLE,
+	s_apb_PREADY,
+	s_apb_PADDR,
+	s_apb_PWRITE,
+	s_apb_PWDATA,
+	s_apb_PSTRB,
+	s_apb_PPROT,
+	s_apb_PRDATA,
+	s_apb_PSLVERR,
+	cmd_valid,
+	cmd_ready,
+	cmd_pwrite,
+	cmd_paddr,
+	cmd_pwdata,
+	cmd_pstrb,
+	cmd_pprot,
+	rsp_valid,
+	rsp_ready,
+	rsp_prdata,
+	rsp_pslverr
+);
+	parameter signed [31:0] ADDR_WIDTH = 32;
+	parameter signed [31:0] DATA_WIDTH = 32;
+	parameter signed [31:0] STRB_WIDTH = DATA_WIDTH / 8;
+	parameter signed [31:0] PROT_WIDTH = 3;
+	parameter signed [31:0] DEPTH = 2;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] AW = ADDR_WIDTH;
+	parameter signed [31:0] SW = STRB_WIDTH;
+	parameter signed [31:0] PW = PROT_WIDTH;
+	parameter signed [31:0] CPW = (((AW + DW) + SW) + PW) + 1;
+	parameter signed [31:0] RPW = DW + 1;
+	input wire pclk;
+	input wire presetn;
+	input wire s_apb_PSEL;
+	input wire s_apb_PENABLE;
+	output reg s_apb_PREADY;
+	input wire [AW - 1:0] s_apb_PADDR;
+	input wire s_apb_PWRITE;
+	input wire [DW - 1:0] s_apb_PWDATA;
+	input wire [SW - 1:0] s_apb_PSTRB;
+	input wire [PW - 1:0] s_apb_PPROT;
+	output reg [DW - 1:0] s_apb_PRDATA;
+	output reg s_apb_PSLVERR;
+	output wire cmd_valid;
+	input wire cmd_ready;
+	output wire cmd_pwrite;
+	output wire [AW - 1:0] cmd_paddr;
+	output wire [DW - 1:0] cmd_pwdata;
+	output wire [SW - 1:0] cmd_pstrb;
+	output wire [PW - 1:0] cmd_pprot;
+	input wire rsp_valid;
+	output wire rsp_ready;
+	input wire [DW - 1:0] rsp_prdata;
+	input wire rsp_pslverr;
+	reg r_cmd_valid;
+	wire r_cmd_ready;
+	wire r_cmd_ready_pre;
+	wire [CPW - 1:0] r_cmd_data_in;
+	wire [CPW - 1:0] r_cmd_data_out;
+	wire [3:0] r_cmd_count;
+	assign r_cmd_data_in = {s_apb_PWRITE, s_apb_PPROT, s_apb_PSTRB, s_apb_PADDR, s_apb_PWDATA};
+	assign {cmd_pwrite, cmd_pprot, cmd_pstrb, cmd_paddr, cmd_pwdata} = r_cmd_data_out;
+	gaxi_skid_buffer #(
+		.DEPTH(DEPTH),
+		.DATA_WIDTH(CPW)
+	) cmd_skid_buffer_inst(
+		.axi_aclk(pclk),
+		.axi_aresetn(presetn),
+		.wr_valid(r_cmd_valid),
+		.wr_ready(r_cmd_ready),
+		.wr_data(r_cmd_data_in),
+		.rd_valid(cmd_valid),
+		.rd_ready(cmd_ready),
+		.rd_data(r_cmd_data_out),
+		.count(r_cmd_count),
+		.rd_count()
+	);
+	wire r_rsp_valid;
+	reg r_rsp_ready;
+	wire [RPW - 1:0] r_rsp_data_in;
+	wire [DW - 1:0] r_rsp_prdata;
+	wire r_rsp_pslverr;
+	wire [RPW - 1:0] r_rsp_data_out;
+	wire [3:0] r_rsp_count;
+	assign {r_rsp_pslverr, r_rsp_prdata} = r_rsp_data_out;
+	assign r_rsp_data_in = {rsp_pslverr, rsp_prdata};
+	gaxi_skid_buffer #(
+		.DEPTH(DEPTH),
+		.DATA_WIDTH(RPW)
+	) resp_skid_buffer_inst(
+		.axi_aclk(pclk),
+		.axi_aresetn(presetn),
+		.wr_valid(rsp_valid),
+		.wr_ready(rsp_ready),
+		.wr_data(r_rsp_data_in),
+		.rd_valid(r_rsp_valid),
+		.rd_ready(r_rsp_ready),
+		.rd_data(r_rsp_data_out),
+		.count(r_rsp_count),
+		.rd_count()
+	);
+	reg [2:0] r_apb_state;
+	reg r_penable_prev;
+	always @(posedge pclk or negedge presetn)
+		if (!presetn) begin
+			r_apb_state <= 3'b001;
+			s_apb_PREADY <= 'b0;
+			s_apb_PSLVERR <= 'b0;
+			s_apb_PRDATA <= 'b0;
+			r_cmd_valid <= 1'b0;
+			r_rsp_ready <= 1'b0;
+			r_penable_prev <= 1'b0;
+		end
+		else begin
+			r_apb_state <= r_apb_state;
+			s_apb_PREADY <= 'b0;
+			s_apb_PSLVERR <= 'b0;
+			r_cmd_valid <= 1'b0;
+			r_rsp_ready <= 1'b0;
+			r_penable_prev <= s_apb_PENABLE;
+			casez (r_apb_state)
+				3'b001: begin
+					if (r_rsp_valid) begin
+						r_rsp_ready <= 1'b1;
+						$display("%t %m WARNING: orphan APB response discarded (prdata=0x%0h pslverr=%0b) -- no command outstanding. Check for duplicate backend responses or an independently-reset CDC.", $time, r_rsp_prdata, r_rsp_pslverr);
+					end
+					if (((s_apb_PSEL && s_apb_PENABLE) && !r_penable_prev) && r_cmd_ready) begin
+						r_cmd_valid <= 1'b1;
+						r_apb_state <= 3'b010;
+					end
+				end
+				3'b010:
+					if (r_rsp_valid) begin
+						s_apb_PREADY <= 1'b1;
+						s_apb_PRDATA <= r_rsp_prdata;
+						s_apb_PSLVERR <= r_rsp_pslverr;
+						r_rsp_ready <= 1'b1;
+						r_apb_state <= 3'b100;
+					end
+				3'b100: r_apb_state <= 3'b001;
+				default: r_apb_state <= 3'b001;
+			endcase
+		end
 endmodule
 module apb4_slave_cdc_cg (
 	aclk,

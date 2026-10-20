@@ -1,178 +1,289 @@
-module arbiter_round_robin (
+module counter_bin (
 	clk,
 	rst_n,
-	block_arb,
-	request,
-	grant_ack,
-	grant_valid,
-	grant,
-	grant_id,
-	last_grant
+	enable,
+	counter_bin_curr,
+	counter_bin_next
 );
 	reg _sv2v_0;
-	parameter signed [31:0] CLIENTS = 4;
-	parameter signed [31:0] WAIT_GNT_ACK = 0;
-	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
+	parameter signed [31:0] WIDTH = 5;
+	parameter signed [31:0] MAX = 10;
 	input wire clk;
 	input wire rst_n;
-	input wire block_arb;
-	input wire [CLIENTS - 1:0] request;
-	input wire [CLIENTS - 1:0] grant_ack;
-	output reg grant_valid;
-	output reg [CLIENTS - 1:0] grant;
-	output reg [N - 1:0] grant_id;
-	output reg [CLIENTS - 1:0] last_grant;
-	wire [CLIENTS - 1:0] w_requests_gated;
-	wire w_any_requests;
-	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
-	assign w_any_requests = |w_requests_gated;
-	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
-		input reg signed [CLIENTS - 1:0] inp;
-		sv2v_cast_6D6F8_signed = inp;
+	input wire enable;
+	output reg [WIDTH - 1:0] counter_bin_curr;
+	output reg [WIDTH - 1:0] counter_bin_next;
+	wire [WIDTH - 2:0] w_max_val;
+	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
+		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
+		sv2v_cast_00F62_signed = inp;
 	endfunction
-	generate
-		if (CLIENTS == 1) begin : gen_single_client
-			wire [CLIENTS:1] sv2v_tmp_14D78;
-			assign sv2v_tmp_14D78 = w_requests_gated;
-			always @(*) grant = sv2v_tmp_14D78;
-			wire [1:1] sv2v_tmp_6195E;
-			assign sv2v_tmp_6195E = w_requests_gated[0];
-			always @(*) grant_valid = sv2v_tmp_6195E;
-			wire [N:1] sv2v_tmp_E4D73;
-			assign sv2v_tmp_E4D73 = 1'sb0;
-			always @(*) grant_id = sv2v_tmp_E4D73;
-			always @(posedge clk or negedge rst_n)
-				if (!rst_n)
-					last_grant <= 1'sb0;
-				else
-					last_grant <= grant;
+	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		if (enable) begin
+			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
+				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
+			else
+				counter_bin_next = counter_bin_curr + 1;
 		end
-		else begin : gen_multi_client
-			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
-			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
-			genvar _gv_i_1;
-			for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
-				localparam i = _gv_i_1;
-				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
-				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
-			end
-			reg [N - 1:0] r_last_grant_id;
-			reg r_last_valid;
-			reg r_pending_ack;
-			reg [N - 1:0] r_pending_client;
-			wire [CLIENTS - 1:0] w_requests_masked;
-			wire [CLIENTS - 1:0] w_requests_unmasked;
-			wire w_any_masked_requests;
-			wire [CLIENTS - 1:0] w_curr_mask_decode;
-			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
-			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
-			assign w_requests_unmasked = w_requests_gated;
-			assign w_any_masked_requests = |w_requests_masked;
-			wire [N - 1:0] w_winner;
-			wire w_winner_valid;
-			arbiter_priority_encoder #(
-				.CLIENTS(CLIENTS),
-				.N(N)
-			) u_priority_encoder(
-				.requests_masked(w_requests_masked),
-				.requests_unmasked(w_requests_unmasked),
-				.any_masked_requests(w_any_masked_requests),
-				.winner(w_winner),
-				.winner_valid(w_winner_valid)
-			);
-			wire w_ack_received;
-			wire w_can_grant;
-			wire [CLIENTS - 1:0] w_other_requests;
-			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
-				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
-				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
-				assign w_can_grant = !r_pending_ack || w_ack_received;
-			end
-			else begin : gen_no_ack_optimized
-				assign w_ack_received = 1'b0;
-				assign w_can_grant = 1'b1;
-				assign w_other_requests = 1'sb0;
-			end
-			wire w_should_grant;
-			reg [CLIENTS - 1:0] w_next_grant;
-			reg [N - 1:0] w_next_grant_id;
-			wire w_next_grant_valid;
-			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
-			always @(*) begin
-				if (_sv2v_0)
-					;
-				w_next_grant = 1'sb0;
-				w_next_grant_id = 1'sb0;
-				if (w_should_grant) begin
-					w_next_grant[w_winner] = 1'b1;
-					w_next_grant_id = w_winner;
-				end
-			end
-			assign w_next_grant_valid = w_should_grant;
-			always @(posedge clk or negedge rst_n)
-				if (!rst_n) begin
-					grant <= 1'sb0;
-					grant_id <= 1'sb0;
-					grant_valid <= 1'b0;
-					last_grant <= 1'sb0;
-					r_last_grant_id <= 1'sb0;
-					r_last_valid <= 1'sb0;
-					r_pending_ack <= 1'b0;
-					r_pending_client <= 1'sb0;
-				end
-				else begin
-					r_last_valid <= grant_valid;
-					if (WAIT_GNT_ACK == 0) begin
-						grant <= w_next_grant;
-						grant_id <= w_next_grant_id;
-						grant_valid <= w_next_grant_valid;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-					end
-					else if (grant_valid == 1'b0) begin
-						grant <= w_next_grant;
-						grant_id <= w_next_grant_id;
-						grant_valid <= w_next_grant_valid;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-						if (w_next_grant_valid) begin
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-					end
-					else if ((grant_valid == 1'b1) && !w_ack_received)
-						;
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
-						grant <= 1'sb0;
-						grant_id <= 1'sb0;
-						grant_valid <= 1'b0;
-						last_grant <= grant;
-						r_last_grant_id <= grant_id;
-						r_pending_ack <= 1'b0;
-						r_pending_client <= 1'sb0;
-					end
-					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
-						if (w_next_grant_valid) begin
-							grant <= w_next_grant;
-							grant_id <= w_next_grant_id;
-							grant_valid <= w_next_grant_valid;
-							last_grant <= grant;
-							r_last_grant_id <= grant_id;
-							r_pending_ack <= 1'b1;
-							r_pending_client <= w_next_grant_id;
-						end
-						else begin
-							grant <= 1'sb0;
-							grant_id <= 1'sb0;
-							grant_valid <= 1'b0;
-							r_pending_ack <= 1'b0;
-							r_pending_client <= 1'sb0;
-						end
-					end
-				end
+		else
+			counter_bin_next = counter_bin_curr;
+	end
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n)
+			counter_bin_curr <= 'b0;
+		else
+			counter_bin_curr <= counter_bin_next;
+	initial _sv2v_0 = 0;
+endmodule
+module fifo_control (
+	wr_clk,
+	wr_rst_n,
+	rd_clk,
+	rd_rst_n,
+	wr_ptr_bin,
+	wdom_rd_ptr_bin,
+	rd_ptr_bin,
+	rdom_wr_ptr_bin,
+	count,
+	wr_full,
+	wr_almost_full,
+	rd_empty,
+	rd_almost_empty
+);
+	parameter signed [31:0] ADDR_WIDTH = 3;
+	parameter signed [31:0] DEPTH = 8;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] REGISTERED = 0;
+	input wire wr_clk;
+	input wire wr_rst_n;
+	input wire rd_clk;
+	input wire rd_rst_n;
+	input wire [ADDR_WIDTH:0] wr_ptr_bin;
+	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rd_ptr_bin;
+	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
+	output wire [ADDR_WIDTH:0] count;
+	output reg wr_full;
+	output reg wr_almost_full;
+	output reg rd_empty;
+	output reg rd_almost_empty;
+	localparam signed [31:0] D = DEPTH;
+	localparam signed [31:0] AW = ADDR_WIDTH;
+	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
+	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
+	localparam signed [31:0] AFT = D - AFULL;
+	localparam signed [31:0] AET = AEMPTY;
+	wire w_wdom_ptr_xor;
+	wire w_rdom_ptr_xor;
+	wire w_wr_full_d;
+	wire w_wr_almost_full_d;
+	wire w_rd_empty_d;
+	wire w_rd_almost_empty_d;
+	wire [AW:0] w_almost_full_count;
+	wire [AW:0] w_almost_empty_count;
+	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
+	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
+	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
+	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
+		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
+		sv2v_cast_2BB65_signed = inp;
+	endfunction
+	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
+	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
+	always @(posedge wr_clk or negedge wr_rst_n)
+		if (!wr_rst_n) begin
+			wr_full <= 'b0;
+			wr_almost_full <= 'b0;
+		end
+		else begin
+			wr_full <= w_wr_full_d;
+			wr_almost_full <= w_wr_almost_full_d;
+		end
+	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
+	wire w_rdom_ptr_xor_for_empty;
+	generate
+		if (REGISTERED == 1) begin : gen_flop_mode
+			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
+			always @(posedge rd_clk or negedge rd_rst_n)
+				if (!rd_rst_n)
+					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
+				else
+					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
+			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
+		end
+		else begin : gen_mux_mode
+			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
 		end
 	endgenerate
-	initial _sv2v_0 = 0;
+	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
+	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
+	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
+	wire [ADDR_WIDTH:0] w_count;
+	reg [ADDR_WIDTH:0] r_count;
+	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
+	assign count = (REGISTERED == 1 ? r_count : w_count);
+	always @(posedge rd_clk or negedge rd_rst_n)
+		if (!rd_rst_n) begin
+			rd_empty <= 'b1;
+			rd_almost_empty <= 'b0;
+			r_count <= 'b0;
+		end
+		else begin
+			rd_empty <= w_rd_empty_d;
+			rd_almost_empty <= w_rd_almost_empty_d;
+			r_count <= w_count;
+		end
+endmodule
+module gaxi_fifo_sync (
+	axi_aclk,
+	axi_aresetn,
+	wr_valid,
+	wr_ready,
+	wr_data,
+	rd_ready,
+	count,
+	rd_valid,
+	rd_data
+);
+	parameter signed [31:0] MEM_STYLE = 32'sd0;
+	parameter signed [31:0] REGISTERED = 0;
+	parameter signed [31:0] DATA_WIDTH = 4;
+	parameter signed [31:0] DEPTH = 4;
+	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
+	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
+	parameter signed [31:0] DW = DATA_WIDTH;
+	parameter signed [31:0] D = DEPTH;
+	parameter signed [31:0] AW = $clog2(DEPTH);
+	input wire axi_aclk;
+	input wire axi_aresetn;
+	input wire wr_valid;
+	output wire wr_ready;
+	input wire [DW - 1:0] wr_data;
+	input wire rd_ready;
+	output wire [AW:0] count;
+	output wire rd_valid;
+	output wire [DW - 1:0] rd_data;
+	wire [AW - 1:0] r_wr_addr;
+	wire [AW - 1:0] r_rd_addr;
+	wire [AW:0] r_wr_ptr_bin;
+	wire [AW:0] r_rd_ptr_bin;
+	wire [AW:0] w_wr_ptr_bin_next;
+	wire [AW:0] w_rd_ptr_bin_next;
+	wire r_wr_full;
+	wire r_wr_almost_full;
+	wire r_rd_empty;
+	wire r_rd_almost_empty;
+	wire w_write;
+	wire w_read;
+	assign w_write = wr_valid && wr_ready;
+	assign w_read = rd_valid && rd_ready;
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) write_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_write && !r_wr_full),
+		.counter_bin_curr(r_wr_ptr_bin),
+		.counter_bin_next(w_wr_ptr_bin_next)
+	);
+	counter_bin #(
+		.WIDTH(AW + 1),
+		.MAX(D)
+	) read_pointer_inst(
+		.clk(axi_aclk),
+		.rst_n(axi_aresetn),
+		.enable(w_read && !r_rd_empty),
+		.counter_bin_curr(r_rd_ptr_bin),
+		.counter_bin_next(w_rd_ptr_bin_next)
+	);
+	fifo_control #(
+		.DEPTH(D),
+		.ADDR_WIDTH(AW),
+		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
+		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
+		.REGISTERED(REGISTERED)
+	) fifo_control_inst(
+		.wr_clk(axi_aclk),
+		.wr_rst_n(axi_aresetn),
+		.rd_clk(axi_aclk),
+		.rd_rst_n(axi_aresetn),
+		.wr_ptr_bin(w_wr_ptr_bin_next),
+		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
+		.rd_ptr_bin(w_rd_ptr_bin_next),
+		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
+		.count(count),
+		.wr_full(r_wr_full),
+		.wr_almost_full(r_wr_almost_full),
+		.rd_empty(r_rd_empty),
+		.rd_almost_empty(r_rd_almost_empty)
+	);
+	assign wr_ready = !r_wr_full;
+	assign rd_valid = !r_rd_empty;
+	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
+	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
+	generate
+		if (MEM_STYLE == 32'sd1) begin : gen_srl
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+		else if (MEM_STYLE == 32'sd2) begin : gen_bram
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			reg [DATA_WIDTH - 1:0] r_rd_data;
+			always @(posedge axi_aclk or negedge axi_aresetn)
+				if (!axi_aresetn)
+					r_rd_data <= 1'sb0;
+				else
+					r_rd_data <= mem[r_rd_addr];
+			assign rd_data = r_rd_data;
+		end
+		else begin : gen_auto
+			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
+			always @(posedge axi_aclk)
+				if (w_write && !r_wr_full)
+					mem[r_wr_addr] <= wr_data;
+			if (REGISTERED != 0) begin : g_flop
+				reg [DATA_WIDTH - 1:0] r_rd_data;
+				always @(posedge axi_aclk or negedge axi_aresetn)
+					if (!axi_aresetn)
+						r_rd_data <= 1'sb0;
+					else
+						r_rd_data <= mem[r_rd_addr];
+				assign rd_data = r_rd_data;
+			end
+			else begin : g_mux
+				assign rd_data = mem[r_rd_addr];
+			end
+		end
+	endgenerate
+	always @(posedge axi_aclk) begin
+		if (w_write && r_wr_full)
+			;
+		if (w_read && r_rd_empty)
+			;
+	end
 endmodule
 module arbiter_priority_encoder (
 	requests_masked,
@@ -499,292 +610,233 @@ module arbiter_priority_encoder (
 	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
-module counter_bin (
+module arbiter_round_robin (
 	clk,
 	rst_n,
-	enable,
-	counter_bin_curr,
-	counter_bin_next
+	block_arb,
+	request,
+	grant_ack,
+	grant_valid,
+	grant,
+	grant_id,
+	last_grant
 );
 	reg _sv2v_0;
-	parameter signed [31:0] WIDTH = 5;
-	parameter signed [31:0] MAX = 10;
+	parameter signed [31:0] CLIENTS = 4;
+	parameter signed [31:0] WAIT_GNT_ACK = 0;
+	parameter signed [31:0] N = (CLIENTS > 1 ? $clog2(CLIENTS) : 1);
 	input wire clk;
 	input wire rst_n;
-	input wire enable;
-	output reg [WIDTH - 1:0] counter_bin_curr;
-	output reg [WIDTH - 1:0] counter_bin_next;
-	wire [WIDTH - 2:0] w_max_val;
-	function automatic signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] sv2v_cast_00F62_signed;
-		input reg signed [((WIDTH - 2) >= 0 ? WIDTH - 1 : 3 - WIDTH) - 1:0] inp;
-		sv2v_cast_00F62_signed = inp;
+	input wire block_arb;
+	input wire [CLIENTS - 1:0] request;
+	input wire [CLIENTS - 1:0] grant_ack;
+	output reg grant_valid;
+	output reg [CLIENTS - 1:0] grant;
+	output reg [N - 1:0] grant_id;
+	output reg [CLIENTS - 1:0] last_grant;
+	wire [CLIENTS - 1:0] w_requests_gated;
+	wire w_any_requests;
+	assign w_requests_gated = (block_arb ? {CLIENTS {1'sb0}} : request);
+	assign w_any_requests = |w_requests_gated;
+	function automatic signed [CLIENTS - 1:0] sv2v_cast_6D6F8_signed;
+		input reg signed [CLIENTS - 1:0] inp;
+		sv2v_cast_6D6F8_signed = inp;
 	endfunction
-	assign w_max_val = sv2v_cast_00F62_signed(MAX - 1);
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		if (enable) begin
-			if (counter_bin_curr[WIDTH - 2:0] == w_max_val)
-				counter_bin_next = {~counter_bin_curr[WIDTH - 1], {WIDTH - 1 {1'b0}}};
-			else
-				counter_bin_next = counter_bin_curr + 1;
+	generate
+		if (CLIENTS == 1) begin : gen_single_client
+			wire [CLIENTS:1] sv2v_tmp_14D78;
+			assign sv2v_tmp_14D78 = w_requests_gated;
+			always @(*) grant = sv2v_tmp_14D78;
+			wire [1:1] sv2v_tmp_6195E;
+			assign sv2v_tmp_6195E = w_requests_gated[0];
+			always @(*) grant_valid = sv2v_tmp_6195E;
+			wire [N:1] sv2v_tmp_E4D73;
+			assign sv2v_tmp_E4D73 = 1'sb0;
+			always @(*) grant_id = sv2v_tmp_E4D73;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n)
+					last_grant <= 1'sb0;
+				else
+					last_grant <= grant;
 		end
-		else
-			counter_bin_next = counter_bin_curr;
-	end
-	always @(posedge clk or negedge rst_n)
-		if (!rst_n)
-			counter_bin_curr <= 'b0;
-		else
-			counter_bin_curr <= counter_bin_next;
+		else begin : gen_multi_client
+			wire [CLIENTS - 1:0] w_mask_decode [0:CLIENTS - 1];
+			wire [CLIENTS - 1:0] w_win_mask_decode [0:CLIENTS - 1];
+			genvar _gv_i_1;
+			for (_gv_i_1 = 0; _gv_i_1 < CLIENTS; _gv_i_1 = _gv_i_1 + 1) begin : gen_mask_lut
+				localparam i = _gv_i_1;
+				assign w_mask_decode[i] = (sv2v_cast_6D6F8_signed(1) << i) - sv2v_cast_6D6F8_signed(1);
+				assign w_win_mask_decode[i] = ~((sv2v_cast_6D6F8_signed(1) << (i + 1)) - sv2v_cast_6D6F8_signed(1));
+			end
+			reg [N - 1:0] r_last_grant_id;
+			reg r_last_valid;
+			reg r_pending_ack;
+			reg [N - 1:0] r_pending_client;
+			wire [CLIENTS - 1:0] w_requests_masked;
+			wire [CLIENTS - 1:0] w_requests_unmasked;
+			wire w_any_masked_requests;
+			wire [CLIENTS - 1:0] w_curr_mask_decode;
+			assign w_curr_mask_decode = (grant_valid ? w_win_mask_decode[grant_id] : (r_last_valid ? w_win_mask_decode[r_last_grant_id] : sv2v_cast_6D6F8_signed(1)));
+			assign w_requests_masked = w_requests_gated & w_curr_mask_decode;
+			assign w_requests_unmasked = w_requests_gated;
+			assign w_any_masked_requests = |w_requests_masked;
+			wire [N - 1:0] w_winner;
+			wire w_winner_valid;
+			arbiter_priority_encoder #(
+				.CLIENTS(CLIENTS),
+				.N(N)
+			) u_priority_encoder(
+				.requests_masked(w_requests_masked),
+				.requests_unmasked(w_requests_unmasked),
+				.any_masked_requests(w_any_masked_requests),
+				.winner(w_winner),
+				.winner_valid(w_winner_valid)
+			);
+			wire w_ack_received;
+			wire w_can_grant;
+			wire [CLIENTS - 1:0] w_other_requests;
+			if (WAIT_GNT_ACK == 1) begin : gen_ack_optimized
+				assign w_ack_received = r_pending_ack && grant_ack[r_pending_client];
+				assign w_other_requests = w_requests_gated & ~(sv2v_cast_6D6F8_signed(1) << r_pending_client);
+				assign w_can_grant = !r_pending_ack || w_ack_received;
+			end
+			else begin : gen_no_ack_optimized
+				assign w_ack_received = 1'b0;
+				assign w_can_grant = 1'b1;
+				assign w_other_requests = 1'sb0;
+			end
+			wire w_should_grant;
+			reg [CLIENTS - 1:0] w_next_grant;
+			reg [N - 1:0] w_next_grant_id;
+			wire w_next_grant_valid;
+			assign w_should_grant = (w_winner_valid && w_any_requests) && w_can_grant;
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				w_next_grant = 1'sb0;
+				w_next_grant_id = 1'sb0;
+				if (w_should_grant) begin
+					w_next_grant[w_winner] = 1'b1;
+					w_next_grant_id = w_winner;
+				end
+			end
+			assign w_next_grant_valid = w_should_grant;
+			always @(posedge clk or negedge rst_n)
+				if (!rst_n) begin
+					grant <= 1'sb0;
+					grant_id <= 1'sb0;
+					grant_valid <= 1'b0;
+					last_grant <= 1'sb0;
+					r_last_grant_id <= 1'sb0;
+					r_last_valid <= 1'sb0;
+					r_pending_ack <= 1'b0;
+					r_pending_client <= 1'sb0;
+				end
+				else begin
+					r_last_valid <= grant_valid;
+					if (WAIT_GNT_ACK == 0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+					end
+					else if (grant_valid == 1'b0) begin
+						grant <= w_next_grant;
+						grant_id <= w_next_grant_id;
+						grant_valid <= w_next_grant_valid;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						if (w_next_grant_valid) begin
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+					end
+					else if ((grant_valid == 1'b1) && !w_ack_received)
+						;
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests == {CLIENTS {1'sb0}})) begin
+						grant <= 1'sb0;
+						grant_id <= 1'sb0;
+						grant_valid <= 1'b0;
+						last_grant <= grant;
+						r_last_grant_id <= grant_id;
+						r_pending_ack <= 1'b0;
+						r_pending_client <= 1'sb0;
+					end
+					else if (((grant_valid == 1'b1) && w_ack_received) && (w_other_requests != {CLIENTS {1'sb0}})) begin
+						if (w_next_grant_valid) begin
+							grant <= w_next_grant;
+							grant_id <= w_next_grant_id;
+							grant_valid <= w_next_grant_valid;
+							last_grant <= grant;
+							r_last_grant_id <= grant_id;
+							r_pending_ack <= 1'b1;
+							r_pending_client <= w_next_grant_id;
+						end
+						else begin
+							grant <= 1'sb0;
+							grant_id <= 1'sb0;
+							grant_valid <= 1'b0;
+							r_pending_ack <= 1'b0;
+							r_pending_client <= 1'sb0;
+						end
+					end
+				end
+		end
+	endgenerate
 	initial _sv2v_0 = 0;
 endmodule
-module fifo_control (
-	wr_clk,
-	wr_rst_n,
-	rd_clk,
-	rd_rst_n,
-	wr_ptr_bin,
-	wdom_rd_ptr_bin,
-	rd_ptr_bin,
-	rdom_wr_ptr_bin,
-	count,
-	wr_full,
-	wr_almost_full,
-	rd_empty,
-	rd_almost_empty
+module arbiter_single_client (
+	clk,
+	rst_n,
+	block_arb,
+	request,
+	grant_ack,
+	grant_valid,
+	grant,
+	grant_id
 );
-	parameter signed [31:0] ADDR_WIDTH = 3;
-	parameter signed [31:0] DEPTH = 8;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] REGISTERED = 0;
-	input wire wr_clk;
-	input wire wr_rst_n;
-	input wire rd_clk;
-	input wire rd_rst_n;
-	input wire [ADDR_WIDTH:0] wr_ptr_bin;
-	input wire [ADDR_WIDTH:0] wdom_rd_ptr_bin;
-	input wire [ADDR_WIDTH:0] rd_ptr_bin;
-	input wire [ADDR_WIDTH:0] rdom_wr_ptr_bin;
-	output wire [ADDR_WIDTH:0] count;
-	output reg wr_full;
-	output reg wr_almost_full;
-	output reg rd_empty;
-	output reg rd_almost_empty;
-	localparam signed [31:0] D = DEPTH;
-	localparam signed [31:0] AW = ADDR_WIDTH;
-	localparam signed [31:0] AFULL = ALMOST_WR_MARGIN;
-	localparam signed [31:0] AEMPTY = ALMOST_RD_MARGIN;
-	localparam signed [31:0] AFT = D - AFULL;
-	localparam signed [31:0] AET = AEMPTY;
-	wire w_wdom_ptr_xor;
-	wire w_rdom_ptr_xor;
-	wire w_wr_full_d;
-	wire w_wr_almost_full_d;
-	wire w_rd_empty_d;
-	wire w_rd_almost_empty_d;
-	wire [AW:0] w_almost_full_count;
-	wire [AW:0] w_almost_empty_count;
-	assign w_wdom_ptr_xor = wr_ptr_bin[AW] ^ wdom_rd_ptr_bin[AW];
-	assign w_rdom_ptr_xor = rd_ptr_bin[AW] ^ rdom_wr_ptr_bin[AW];
-	assign w_wr_full_d = w_wdom_ptr_xor && (wr_ptr_bin[AW - 1:0] == wdom_rd_ptr_bin[AW - 1:0]);
-	function automatic signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] sv2v_cast_2BB65_signed;
-		input reg signed [((AW + 0) >= 0 ? AW + 1 : 1 - (AW + 0)) - 1:0] inp;
-		sv2v_cast_2BB65_signed = inp;
-	endfunction
-	assign w_almost_full_count = (w_wdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - wdom_rd_ptr_bin[AW - 1:0]) + wr_ptr_bin[AW - 1:0] : wr_ptr_bin[AW - 1:0] - wdom_rd_ptr_bin[AW - 1:0]);
-	assign w_wr_almost_full_d = w_almost_full_count >= sv2v_cast_2BB65_signed(AFT);
-	always @(posedge wr_clk or negedge wr_rst_n)
-		if (!wr_rst_n) begin
-			wr_full <= 'b0;
-			wr_almost_full <= 'b0;
+	parameter signed [31:0] WAIT_GNT_ACK = 1;
+	input wire clk;
+	input wire rst_n;
+	input wire block_arb;
+	input wire request;
+	input wire grant_ack;
+	output reg grant_valid;
+	output wire grant;
+	output wire grant_id;
+	reg r_pending_ack;
+	wire w_req;
+	wire w_ack_received;
+	wire w_can_grant;
+	wire w_should_grant;
+	assign w_req = request && !block_arb;
+	assign w_ack_received = (WAIT_GNT_ACK == 1 ? r_pending_ack && grant_ack : 1'b0);
+	assign w_can_grant = (WAIT_GNT_ACK == 1 ? !r_pending_ack || w_ack_received : 1'b1);
+	assign w_should_grant = w_req && w_can_grant;
+	always @(posedge clk or negedge rst_n)
+		if (!rst_n) begin
+			grant_valid <= 1'b0;
+			r_pending_ack <= 1'b0;
+		end
+		else if (WAIT_GNT_ACK == 0) begin
+			grant_valid <= w_should_grant;
+			r_pending_ack <= 1'b0;
+		end
+		else if (grant_valid == 1'b0) begin
+			grant_valid <= w_should_grant;
+			r_pending_ack <= w_should_grant;
+		end
+		else if (!w_ack_received) begin
+			grant_valid <= 1'b1;
+			r_pending_ack <= 1'b1;
 		end
 		else begin
-			wr_full <= w_wr_full_d;
-			wr_almost_full <= w_wr_almost_full_d;
+			grant_valid <= 1'b0;
+			r_pending_ack <= 1'b0;
 		end
-	wire [ADDR_WIDTH:0] w_wr_ptr_for_empty;
-	wire w_rdom_ptr_xor_for_empty;
-	generate
-		if (REGISTERED == 1) begin : gen_flop_mode
-			reg [ADDR_WIDTH:0] r_rdom_wr_ptr_bin_delayed;
-			always @(posedge rd_clk or negedge rd_rst_n)
-				if (!rd_rst_n)
-					r_rdom_wr_ptr_bin_delayed <= 1'sb0;
-				else
-					r_rdom_wr_ptr_bin_delayed <= rdom_wr_ptr_bin;
-			assign w_wr_ptr_for_empty = r_rdom_wr_ptr_bin_delayed;
-		end
-		else begin : gen_mux_mode
-			assign w_wr_ptr_for_empty = rdom_wr_ptr_bin;
-		end
-	endgenerate
-	assign w_rdom_ptr_xor_for_empty = rd_ptr_bin[AW] ^ w_wr_ptr_for_empty[AW];
-	assign w_rd_empty_d = !w_rdom_ptr_xor_for_empty && (rd_ptr_bin[AW:0] == w_wr_ptr_for_empty[AW:0]);
-	assign w_almost_empty_count = (w_rdom_ptr_xor ? (sv2v_cast_2BB65_signed(D) - rd_ptr_bin[AW - 1:0]) + rdom_wr_ptr_bin[AW - 1:0] : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
-	assign w_rd_almost_empty_d = w_almost_empty_count <= sv2v_cast_2BB65_signed(AET);
-	wire [ADDR_WIDTH:0] w_count;
-	reg [ADDR_WIDTH:0] r_count;
-	assign w_count = (w_rdom_ptr_xor ? (rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]) + sv2v_cast_2BB65_signed(D) : rdom_wr_ptr_bin[AW - 1:0] - rd_ptr_bin[AW - 1:0]);
-	assign count = (REGISTERED == 1 ? r_count : w_count);
-	always @(posedge rd_clk or negedge rd_rst_n)
-		if (!rd_rst_n) begin
-			rd_empty <= 'b1;
-			rd_almost_empty <= 'b0;
-			r_count <= 'b0;
-		end
-		else begin
-			rd_empty <= w_rd_empty_d;
-			rd_almost_empty <= w_rd_almost_empty_d;
-			r_count <= w_count;
-		end
-endmodule
-module gaxi_fifo_sync (
-	axi_aclk,
-	axi_aresetn,
-	wr_valid,
-	wr_ready,
-	wr_data,
-	rd_ready,
-	count,
-	rd_valid,
-	rd_data
-);
-	parameter signed [31:0] MEM_STYLE = 32'sd0;
-	parameter signed [31:0] REGISTERED = 0;
-	parameter signed [31:0] DATA_WIDTH = 4;
-	parameter signed [31:0] DEPTH = 4;
-	parameter signed [31:0] ALMOST_WR_MARGIN = 1;
-	parameter signed [31:0] ALMOST_RD_MARGIN = 1;
-	parameter signed [31:0] DW = DATA_WIDTH;
-	parameter signed [31:0] D = DEPTH;
-	parameter signed [31:0] AW = $clog2(DEPTH);
-	input wire axi_aclk;
-	input wire axi_aresetn;
-	input wire wr_valid;
-	output wire wr_ready;
-	input wire [DW - 1:0] wr_data;
-	input wire rd_ready;
-	output wire [AW:0] count;
-	output wire rd_valid;
-	output wire [DW - 1:0] rd_data;
-	wire [AW - 1:0] r_wr_addr;
-	wire [AW - 1:0] r_rd_addr;
-	wire [AW:0] r_wr_ptr_bin;
-	wire [AW:0] r_rd_ptr_bin;
-	wire [AW:0] w_wr_ptr_bin_next;
-	wire [AW:0] w_rd_ptr_bin_next;
-	wire r_wr_full;
-	wire r_wr_almost_full;
-	wire r_rd_empty;
-	wire r_rd_almost_empty;
-	wire w_write;
-	wire w_read;
-	assign w_write = wr_valid && wr_ready;
-	assign w_read = rd_valid && rd_ready;
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) write_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_write && !r_wr_full),
-		.counter_bin_curr(r_wr_ptr_bin),
-		.counter_bin_next(w_wr_ptr_bin_next)
-	);
-	counter_bin #(
-		.WIDTH(AW + 1),
-		.MAX(D)
-	) read_pointer_inst(
-		.clk(axi_aclk),
-		.rst_n(axi_aresetn),
-		.enable(w_read && !r_rd_empty),
-		.counter_bin_curr(r_rd_ptr_bin),
-		.counter_bin_next(w_rd_ptr_bin_next)
-	);
-	fifo_control #(
-		.DEPTH(D),
-		.ADDR_WIDTH(AW),
-		.ALMOST_RD_MARGIN(ALMOST_RD_MARGIN),
-		.ALMOST_WR_MARGIN(ALMOST_WR_MARGIN),
-		.REGISTERED(REGISTERED)
-	) fifo_control_inst(
-		.wr_clk(axi_aclk),
-		.wr_rst_n(axi_aresetn),
-		.rd_clk(axi_aclk),
-		.rd_rst_n(axi_aresetn),
-		.wr_ptr_bin(w_wr_ptr_bin_next),
-		.wdom_rd_ptr_bin(w_rd_ptr_bin_next),
-		.rd_ptr_bin(w_rd_ptr_bin_next),
-		.rdom_wr_ptr_bin(w_wr_ptr_bin_next),
-		.count(count),
-		.wr_full(r_wr_full),
-		.wr_almost_full(r_wr_almost_full),
-		.rd_empty(r_rd_empty),
-		.rd_almost_empty(r_rd_almost_empty)
-	);
-	assign wr_ready = !r_wr_full;
-	assign rd_valid = !r_rd_empty;
-	assign r_wr_addr = r_wr_ptr_bin[AW - 1:0];
-	assign r_rd_addr = r_rd_ptr_bin[AW - 1:0];
-	generate
-		if (MEM_STYLE == 32'sd1) begin : gen_srl
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			if (REGISTERED != 0) begin : g_flop
-				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_rd_data <= 1'sb0;
-					else
-						r_rd_data <= mem[r_rd_addr];
-				assign rd_data = r_rd_data;
-			end
-			else begin : g_mux
-				assign rd_data = mem[r_rd_addr];
-			end
-		end
-		else if (MEM_STYLE == 32'sd2) begin : gen_bram
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			reg [DATA_WIDTH - 1:0] r_rd_data;
-			always @(posedge axi_aclk or negedge axi_aresetn)
-				if (!axi_aresetn)
-					r_rd_data <= 1'sb0;
-				else
-					r_rd_data <= mem[r_rd_addr];
-			assign rd_data = r_rd_data;
-		end
-		else begin : gen_auto
-			reg [DATA_WIDTH - 1:0] mem [0:DEPTH - 1];
-			always @(posedge axi_aclk)
-				if (w_write && !r_wr_full)
-					mem[r_wr_addr] <= wr_data;
-			if (REGISTERED != 0) begin : g_flop
-				reg [DATA_WIDTH - 1:0] r_rd_data;
-				always @(posedge axi_aclk or negedge axi_aresetn)
-					if (!axi_aresetn)
-						r_rd_data <= 1'sb0;
-					else
-						r_rd_data <= mem[r_rd_addr];
-				assign rd_data = r_rd_data;
-			end
-			else begin : g_mux
-				assign rd_data = mem[r_rd_addr];
-			end
-		end
-	endgenerate
-	always @(posedge axi_aclk) begin
-		if (w_write && r_wr_full)
-			;
-		if (w_read && r_rd_empty)
-			;
-	end
+	assign grant = grant_valid;
+	assign grant_id = 1'b0;
 endmodule
 module axi_write_engine (
 	clk,

@@ -36,13 +36,13 @@ module l1_victim (
 	output wire [LINE_WIDTH - 1:0] victim_data;
 	initial begin
 		if ((SETS & (SETS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_victim/l1_victim.sv:124:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: SETS must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:124:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: SETS must be a power of two");
 		if ((LINE_BYTES & (LINE_BYTES - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_victim/l1_victim.sv:126:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:126:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES must be a power of two");
 		if ((FILL_BEATS & (FILL_BEATS - 1)) != 0)
-			$display("Error [%0t] /tmp/formal_amber_victim/l1_victim.sv:128:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:128:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: LINE_BYTES / BUS_WIDTH*8 must be a power of two");
 		if ((BUS_WIDTH % 8) != 0)
-			$display("Error [%0t] /tmp/formal_amber_victim/l1_victim.sv:130:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: BUS_WIDTH must be a multiple of 8");
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/cache-ip/common-ip/rtl/fub/l1_victim.sv:130:13 - l1_victim.<unnamed_block>.<unnamed_block>\n msg: ", $time, "l1_victim: BUS_WIDTH must be a multiple of 8");
 	end
 	reg victim_valid_q;
 	reg [ADDR_WIDTH - 1:0] victim_addr_q;

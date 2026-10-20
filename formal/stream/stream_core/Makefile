@@ -10,9 +10,8 @@
 # track that component's internal dependencies, and it silently rots when they
 # change". So we resolve the filelist instead, and the rot cannot recur.
 #
-# NOTE: no other formal Makefile drives from a filelist yet (0 of 124). This
-# one does because its closure is large enough that hand-listing demonstrably
-# failed. See vault BUG-003 and [[filelists]].
+# This was the first formal Makefile to drive from a filelist (BUG-003). Since
+# 2026-10-19 every formal flat does, through make/formal_flat.mk.
 #
 # The old `ocelus_pkg` sed workaround is GONE. Its premise -- "sv2v cannot
 # handle the typedef re-export ambiguity" -- was re-tested against sv2v v0.0.13
@@ -24,35 +23,16 @@
 # cannot size its $time argument (AST_AUTOWIRE). Strip it for FORMAL ONLY --
 # simulation reads the original source and still gets the prints.
 
-# Exported: the recipe below expands $REPO_ROOT in the SHELL (the filelist's
-# +incdir+$REPO_ROOT/... is left for the environment by --resolve-env), so it
-# must reach the recipe's shell even when env_python was not sourced -- CI
-# and check-flat run bare.
-export REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      ?= sv2v
-PYTHON    ?= python3
-TMPDIR    := .sv2v_prep
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
 
-# The filelist resolves $STREAM_ROOT via the environment (see env_python);
-# define it here so this Makefile stands alone -- CI and check-flat do not
-# source env_python. Same default the fpga-systems stream Makefiles export.
-# Forced (:=), not defaulted: the flat bakes source paths into its $display
-# strings, so they must derive from REPO_ROOT alone -- an inherited
-# STREAM_ROOT made the bytes depend on who ran make, and broke the AWE_PREP
-# substitution below under check-flat's canonical REPO_ROOT.
-export STREAM_ROOT := $(REPO_ROOT)/projects/components/dma-ip/stream
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := stream_core_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/stream_core.f
+FLAT_PREP       := /synopsys translate_off/,/synopsys translate_on/d
+include $(REPO_ROOT)/make/formal_flat.mk
 
-FILELIST  := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/stream_core.f
-FLATTEN   := $(PYTHON) $(REPO_ROOT)/bin/flatten_filelist.py
-
-# The single file needing preprocessing, and its prepped copy. The recipes
-# swap it in by its tail, not by $(AWE_SRC) verbatim: the resolved filelist
-# spells the path through whatever root resolved it, and a silent no-match
-# leaves the $display in, which yosys rejects (AST_AUTOWIRE).
-AWE_SRC   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/axi_write_engine.sv
-AWE_PREP  := $(TMPDIR)/axi_write_engine.sv
-
-.PHONY: prove cover clean srcs
+.PHONY: prove cover clean
 
 prove: stream_core_flat.v
 	sby -f stream_core.sby prove
@@ -60,52 +40,5 @@ prove: stream_core_flat.v
 cover: stream_core_flat.v
 	sby -f stream_core.sby cover
 
-$(TMPDIR):
-	mkdir -p $(TMPDIR)
-
-$(AWE_PREP): $(AWE_SRC) | $(TMPDIR)
-	sed '/synopsys translate_off/,/synopsys translate_on/d' $< > $@
-
-# The closure is re-resolved on every build of the flat. A change INSIDE a
-# nested .f does not retrigger this rule on its own (make cannot see through
-# the -f indirection without expanding it at parse time, which would run the
-# resolver on every invocation); `make clean` or touching $(FILELIST) forces it.
-stream_core_flat.v: $(FILELIST) $(AWE_PREP)
-	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env -o $(TMPDIR)/stream_core.flat.f
-	$(SV2V) \
-	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \
-	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
-	     | sed 's|^.*/stream/rtl/fub/axi_write_engine\.sv$$|$(AWE_PREP)|') \
-	  > $@
-
-# Show the resolved source list (debugging aid: what the closure actually is).
-srcs: | $(TMPDIR)
-	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env
-
 clean:
-	rm -rf *_flat.v *_prove *_cover $(TMPDIR)
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < stream_core_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: stream_core_flat.v does not match the RTL."; \
-		echo "Regenerate with: make stream_core_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(FILELIST) $(AWE_PREP)
-	$(FLATTEN) $(FILELIST) --absolute-paths --resolve-env -o $(TMPDIR)/stream_core.flat.f
-	$(SV2V) \
-	  $$(grep '^+incdir+' $(TMPDIR)/stream_core.flat.f | sed 's/^+incdir+/-I/') \
-	  $$(grep -E '\.sv$$' $(TMPDIR)/stream_core.flat.f \
-	     | sed 's|^.*/stream/rtl/fub/axi_write_engine\.sv$$|$(AWE_PREP)|') \
-	  > $@
+	rm -rf *_flat.v *_prove *_cover $(FLAT_BUILD)

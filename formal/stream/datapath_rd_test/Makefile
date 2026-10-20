@@ -2,43 +2,15 @@
 # Formal verification Makefile for datapath_rd_test
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
-
-# Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
-
-# RTL dependencies (transitive closure for datapath_rd_test):
-#   datapath_rd_test -> scheduler (no sub-deps)
-#                    -> axi_read_engine -> arbiter_round_robin, arbiter_priority_encoder
-#                    -> sram_controller -> sram_controller_unit
-#                                       -> stream_alloc_ctrl, stream_drain_ctrl
-#                                       -> stream_latency_bridge -> gaxi_fifo_sync
-#                                                                   -> counter_bin, fifo_control
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_alloc_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_drain_ctrl.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/stream_latency_bridge.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller_unit.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/sram_controller.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/axi_read_engine.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/macro/datapath_rd_test.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := datapath_rd_test_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/datapath_rd_test.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -47,9 +19,6 @@ prove: datapath_rd_test_flat.v
 
 cover: datapath_rd_test_flat.v
 	sby -f datapath_rd_test.sby cover
-
-datapath_rd_test_flat.v: $(DUT) $(PKGS) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

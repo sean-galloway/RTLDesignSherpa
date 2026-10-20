@@ -2,23 +2,15 @@
 # Formal verification Makefile for axi4_dwidth_converter_wr
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-# Package files (none needed - uses reset_defs.svh only)
-PKGS :=
-
-# RTL dependencies (gaxi_skid_buffer + data-width primitives used by the DUT)
-DEPS := $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_wr.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := axi4_dwidth_converter_wr_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -27,9 +19,6 @@ prove: axi4_dwidth_converter_wr_flat.v
 
 cover: axi4_dwidth_converter_wr_flat.v
 	sby -f axi4_dwidth_converter_wr.sby cover
-
-axi4_dwidth_converter_wr_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v *_prove *_cover

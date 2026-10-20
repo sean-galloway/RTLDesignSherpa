@@ -3,13 +3,15 @@
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog.
 # See ../bank_timer/Makefile for why the flatten is mandatory here.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      ?= sv2v
-MC        := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(MC)/rtl/includes
-PKGS := $(MC)/rtl/includes/mc_common_pkg.sv
-DUT  := $(MC)/rtl/fub/mc_xddr2_refresh_ctrl.sv
+SV2V      ?= sv2v
+
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := refresh_ctrl_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_xddr2_refresh_ctrl.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -20,9 +22,6 @@ prove: refresh_ctrl_flat.v
 
 cover: refresh_ctrl_flat.v
 	sby -f refresh_ctrl.sby cover
-
-refresh_ctrl_flat.v: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) > $@
 
 clean:
 	rm -rf *_flat.v refresh_ctrl_prove refresh_ctrl_cover

@@ -1694,7 +1694,7 @@ module axi_monitor_trans_mgr
 `ifdef FORMAL
     // ========================================================================
     // In-RTL formal properties (flattened into the formal build by sv2v, which
-    // defines FORMAL -- see tools/gen_formal_deps.py). Living here rather than
+    // defines FORMAL -- see make/formal_flat.mk). Living here rather than
     // in the harness gives them full visibility of internal state and means
     // every proof that includes this module checks them.
     //

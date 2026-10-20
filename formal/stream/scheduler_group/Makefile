@@ -3,42 +3,15 @@
 # Integration wrapper: descriptor_engine + scheduler + monbus_arbiter
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-# Include paths for sv2v preprocessing
-INC := -I$(REPO_ROOT)/rtl/amba/includes \
-       -I$(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes
-
-# Package files (order matters: dependencies first)
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_arbiter_pkg.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/includes/stream_pkg.sv
-
-# RTL dependencies (full transitive closure)
-# descriptor_engine deps: gaxi_fifo_sync, gaxi_skid_buffer, counter_bin, fifo_control
-# scheduler deps: none (pure logic + FSM)
-# monbus_arbiter deps: arbiter_round_robin, arbiter_priority_encoder, gaxi_skid_buffer
-DEPS := $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_round_robin.sv \
-        $(REPO_ROOT)/rtl/common/arbiter_priority_encoder.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/monbus_arbiter.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/dma_address_gen.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/descriptor_engine.sv \
-        $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/fub/scheduler.sv
-
-# Device under test
-DUT := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/macro/scheduler_group.sv
-
-# Post-processing script to fix multi-driver issues in sv2v output.
-# The descriptor_engine RTL (instantiated inside scheduler_group) has two
-# always_ff blocks driving r_descriptor_error (main FSM + APB address check).
-# Same fix as formal/stream/descriptor_engine/patch_flat.py.
-PATCH := python3 $(CURDIR)/patch_flat.py
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := scheduler_group_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/dma-ip/stream/rtl/filelists/macro/scheduler_group.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -48,32 +21,5 @@ prove: scheduler_group_flat.v
 cover: scheduler_group_flat.v
 	sby -f scheduler_group.sby cover
 
-scheduler_group_flat.v: $(DUT) $(PKGS) $(DEPS) patch_flat.py
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@.raw
-	$(PATCH) $@.raw $@
-	rm -f $@.raw
-
 clean:
 	rm -rf *_flat.v *.raw *_prove *_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < scheduler_group_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: scheduler_group_flat.v does not match the RTL."; \
-		echo "Regenerate with: make scheduler_group_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS) patch_flat.py
-	$(SV2V) $(INC) $(PKGS) $(DEPS) $(DUT) > $@.raw
-	$(PATCH) $@.raw $@
-	rm -f $@.raw

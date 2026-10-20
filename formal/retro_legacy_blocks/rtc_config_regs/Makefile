@@ -2,24 +2,19 @@
 # Formal verification Makefile for rtc_config_regs (retro_legacy_blocks/rtc)
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
 #
-# The DEPS order matters: the package first, then the bridge and the generated
-# register block, then the DUT. peakrdl_to_cmdrsp is IN the closure on purpose
+# peakrdl_to_cmdrsp is IN the closure (rtc_config_regs.f) on purpose
 # -- the two-cycle regblk_req hold both proved properties turn on lives there,
 # so modelling it instead of including it would prove the model, not the design.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-RLB := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc
-
-DEPS := $(RLB)/rtc_regs_pkg.sv \
-        $(REPO_ROOT)/rtl/cdc/reset_sync.sv \
-        $(REPO_ROOT)/projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv \
-        $(RLB)/rtc_regs.sv
-
-DUT := $(RLB)/rtc_config_regs.sv
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := rtc_config_regs_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks/rtl/rtc/filelists/rtc_config_regs.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -30,9 +25,6 @@ prove: rtc_config_regs_flat.v
 
 cover: rtc_config_regs_flat.v
 	sby -f rtc_config_regs.sby cover
-
-rtc_config_regs_flat.v: $(DUT) $(DEPS)
-	$(SV2V) $(INC) $(DEPS) $(DUT) > $@
 
 clean:
 	# sby also creates a bare <top>/ directory when prep -top names the DUT,

@@ -58,11 +58,11 @@ module counter_freq_invariant (
 	output reg tick;
 	initial begin : param_check
 		if (MIN_FREQ_MHZ < 1)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:128:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MIN_FREQ_MHZ must be >= 1 (got %0d)", MIN_FREQ_MHZ);
 		if (MAX_FREQ_MHZ < MIN_FREQ_MHZ)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:130:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: MAX_FREQ_MHZ (%0d) < MIN_FREQ_MHZ (%0d)", MAX_FREQ_MHZ, MIN_FREQ_MHZ);
 		if (NUM_FREQ_ENTRIES < 1)
-			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
+			$display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/common/counter_freq_invariant.sv:133:13 - counter_freq_invariant.param_check.<unnamed_block>\n msg: ", $time, "counter_freq_invariant: NUM_FREQ_ENTRIES must be >= 1 (got %0d)", NUM_FREQ_ENTRIES);
 	end
 	function automatic signed [31:0] linear_freq;
 		input reg signed [31:0] idx;
@@ -528,7 +528,7 @@ module axis_monitor_lite (
 	input wire aclk;
 	input wire aresetn;
 	input wire clear;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_TS_WIDTH = 64;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_TS_WIDTH = 64;
 	input wire [63:0] i_mon_time;
 	input wire axis_tvalid;
 	input wire axis_tready;
@@ -549,7 +549,7 @@ module axis_monitor_lite (
 	input wire [15:0] cfg_axis_pkt_mask;
 	output wire monbus_valid;
 	input wire monbus_ready;
-	localparam signed [31:0] monitor_common_pkg_MONBUS_PKT_WIDTH = 128;
+	localparam signed [31:0] ocelus_common_pkg_MONBUS_PKT_WIDTH = 128;
 	output wire [127:0] monbus_packet;
 	output wire [63:0] monbus_timestamp;
 	output wire busy;
@@ -600,18 +600,18 @@ module axis_monitor_lite (
 		input reg [3:0] t;
 		type_allowed = !cfg_axis_pkt_mask[t];
 	endfunction
-	localparam [3:0] monitor_common_pkg_PktTypeError = 4'h0;
-	wire w_en_err = cfg_error_enable && type_allowed(monitor_common_pkg_PktTypeError);
-	localparam [3:0] monitor_common_pkg_PktTypeTimeout = 4'h3;
-	wire w_en_tmo = (cfg_timeout_enable && !w_never) && type_allowed(monitor_common_pkg_PktTypeTimeout);
-	localparam [3:0] monitor_common_pkg_PktTypeCompletion = 4'h1;
-	wire w_en_compl = cfg_compl_enable && type_allowed(monitor_common_pkg_PktTypeCompletion);
-	localparam [3:0] monitor_common_pkg_PktTypeCredit = 4'h5;
-	wire w_en_credit = (cfg_credit_enable && (cfg_stall_threshold != 32'd0)) && type_allowed(monitor_common_pkg_PktTypeCredit);
-	localparam [3:0] monitor_common_pkg_PktTypeChannel = 4'h6;
-	wire w_en_chan = cfg_channel_enable && type_allowed(monitor_common_pkg_PktTypeChannel);
-	localparam [3:0] monitor_common_pkg_PktTypeStream = 4'h7;
-	wire w_en_stream = cfg_stream_enable && type_allowed(monitor_common_pkg_PktTypeStream);
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	wire w_en_err = cfg_error_enable && type_allowed(ocelus_common_pkg_PktTypeError);
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	wire w_en_tmo = (cfg_timeout_enable && !w_never) && type_allowed(ocelus_common_pkg_PktTypeTimeout);
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	wire w_en_compl = cfg_compl_enable && type_allowed(ocelus_common_pkg_PktTypeCompletion);
+	localparam [3:0] ocelus_common_pkg_PktTypeCredit = 4'h5;
+	wire w_en_credit = (cfg_credit_enable && (cfg_stall_threshold != 32'd0)) && type_allowed(ocelus_common_pkg_PktTypeCredit);
+	localparam [3:0] ocelus_common_pkg_PktTypeChannel = 4'h6;
+	wire w_en_chan = cfg_channel_enable && type_allowed(ocelus_common_pkg_PktTypeChannel);
+	localparam [3:0] ocelus_common_pkg_PktTypeStream = 4'h7;
+	wire w_en_stream = cfg_stream_enable && type_allowed(ocelus_common_pkg_PktTypeStream);
 	wire w_err_valid_drop = (w_en_err && r_valid_pend) && !axis_tvalid;
 	wire w_err_strb0 = ((w_en_err && cfg_strb_check_enable) && w_hs) && (axis_tstrb == {SW {1'sb0}});
 	wire w_tmo_hs = ((((w_en_tmo && axis_tvalid) && !axis_tready) && r_valid_pend) && (w_stall_age >= cfg_timeout_cnt[AGE_WIDTH - 1:0])) && !r_tmo_hs_fired;
@@ -694,60 +694,60 @@ module axis_monitor_lite (
 		input reg [3:0] idx;
 		reg [84:0] e;
 		begin
-			e = {monitor_common_pkg_PktTypeError, 8'h00, sv2v_cast_9(r_e_tid), 64'h0000000000000000};
+			e = {ocelus_common_pkg_PktTypeError, 8'h00, sv2v_cast_9(r_e_tid), 64'h0000000000000000};
 			case (idx)
 				4'd10: begin
-					e[84-:4] = monitor_common_pkg_PktTypeError;
+					e[84-:4] = ocelus_common_pkg_PktTypeError;
 					e[80-:8] = 8'h02;
 					e[63-:64] = {r_e_stall_cycles, r_e_pkt_count};
 				end
 				4'd9: begin
-					e[84-:4] = monitor_common_pkg_PktTypeError;
+					e[84-:4] = ocelus_common_pkg_PktTypeError;
 					e[80-:8] = 8'h05;
 					e[63-:64] = {r_e_beats_now, r_e_pkt_count};
 				end
 				4'd8: begin
-					e[84-:4] = monitor_common_pkg_PktTypeTimeout;
+					e[84-:4] = ocelus_common_pkg_PktTypeTimeout;
 					e[80-:8] = 8'h00;
 					e[63-:64] = {r_e_stall_cycles, r_e_stall_age, cfg_timeout_cnt};
 				end
 				4'd7: begin
-					e[84-:4] = monitor_common_pkg_PktTypeTimeout;
+					e[84-:4] = ocelus_common_pkg_PktTypeTimeout;
 					e[80-:8] = 8'h02;
 					e[63-:64] = {r_e_pkt_beats, r_e_beat_age, cfg_timeout_cnt};
 				end
 				4'd6: begin
-					e[84-:4] = monitor_common_pkg_PktTypeCompletion;
+					e[84-:4] = ocelus_common_pkg_PktTypeCompletion;
 					e[80-:8] = 8'h00;
 					e[63-:64] = {sv2v_cast_16(r_e_tid), sv2v_cast_16(r_e_tdest), r_e_beats_now};
 				end
 				4'd5: begin
-					e[84-:4] = monitor_common_pkg_PktTypeCredit;
+					e[84-:4] = ocelus_common_pkg_PktTypeCredit;
 					e[80-:8] = 8'h05;
 					e[63-:64] = {r_e_stall_cycles, cfg_stall_threshold};
 				end
 				4'd4: begin
-					e[84-:4] = monitor_common_pkg_PktTypeChannel;
+					e[84-:4] = ocelus_common_pkg_PktTypeChannel;
 					e[80-:8] = 8'h05;
 					e[63-:64] = {sv2v_cast_16(r_e_prev_tid), sv2v_cast_16(r_e_tid), r_e_beats_now};
 				end
 				4'd3: begin
-					e[84-:4] = monitor_common_pkg_PktTypeChannel;
+					e[84-:4] = ocelus_common_pkg_PktTypeChannel;
 					e[80-:8] = 8'h06;
 					e[63-:64] = {sv2v_cast_16(r_e_prev_tdest), sv2v_cast_16(r_e_tdest), r_e_beats_now};
 				end
 				4'd2: begin
-					e[84-:4] = monitor_common_pkg_PktTypeStream;
+					e[84-:4] = ocelus_common_pkg_PktTypeStream;
 					e[80-:8] = 8'h00;
 					e[63-:64] = {sv2v_cast_16(r_e_tid), sv2v_cast_16(r_e_tdest), r_e_pkt_count};
 				end
 				4'd1: begin
-					e[84-:4] = monitor_common_pkg_PktTypeStream;
+					e[84-:4] = ocelus_common_pkg_PktTypeStream;
 					e[80-:8] = 8'h02;
 					e[63-:64] = {r_e_pkt_beats, r_e_pkt_count};
 				end
 				default: begin
-					e[84-:4] = monitor_common_pkg_PktTypeStream;
+					e[84-:4] = ocelus_common_pkg_PktTypeStream;
 					e[80-:8] = 8'h03;
 					e[63-:64] = {r_e_pkt_beats, r_e_pkt_count};
 				end
@@ -865,7 +865,7 @@ module axis_monitor_lite (
 		input reg [1:0] inp;
 		sv2v_cast_2 = inp;
 	endfunction
-	wire [1:0] w_err_take = sv2v_cast_2(w_take1 && (w_e1[84-:4] == monitor_common_pkg_PktTypeError)) + sv2v_cast_2(w_take2 && (w_e2[84-:4] == monitor_common_pkg_PktTypeError));
+	wire [1:0] w_err_take = sv2v_cast_2(w_take1 && (w_e1[84-:4] == ocelus_common_pkg_PktTypeError)) + sv2v_cast_2(w_take2 && (w_e2[84-:4] == ocelus_common_pkg_PktTypeError));
 	always @(posedge aclk or negedge aresetn)
 		if (!aresetn) begin
 			r_lost <= 1'sb0;
@@ -894,15 +894,15 @@ module axis_monitor_lite (
 		input reg [63:0] inp;
 		sv2v_cast_64 = inp;
 	endfunction
-	assign w_slot1 = (w_fire1 ? w_e1 : {monitor_common_pkg_PktTypeError, 17'h01c00, sv2v_cast_64(r_dropped)});
+	assign w_slot1 = (w_fire1 ? w_e1 : {ocelus_common_pkg_PktTypeError, 17'h01c00, sv2v_cast_64(r_dropped)});
 	wire w_push1 = w_take1 || w_drop_rpt;
 	wire w_push2 = w_take2;
 	wire w_q_pop = monbus_valid && monbus_ready;
-	wire [84:0] w_bank_rd_data [0:1];
-	assign w_entry_out = w_bank_rd_data[r_q_rb];
 	wire [1:0] w_bank_wr;
 	wire [1:0] w_bank_rd_valid;
 	wire [84:0] w_bank_wr_data [0:1];
+	wire [84:0] w_bank_rd_data [0:1];
+	assign w_entry_out = w_bank_rd_data[r_q_rb];
 	genvar _gv_b_1;
 	function automatic signed [0:0] sv2v_cast_1_signed;
 		input reg signed [0:0] inp;
@@ -949,7 +949,7 @@ module axis_monitor_lite (
 				r_q_rb <= !r_q_rb;
 		end
 	assign monbus_valid = !w_q_empty;
-	function automatic [127:0] monitor_common_pkg_create_monitor_packet;
+	function automatic [127:0] ocelus_common_pkg_create_monitor_packet;
 		input reg [3:0] packet_type;
 		input reg [3:0] protocol;
 		input reg [7:0] event_code;
@@ -957,9 +957,9 @@ module axis_monitor_lite (
 		input reg [7:0] unit_id;
 		input reg [15:0] agent_id;
 		input reg [63:0] event_data;
-		monitor_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
+		ocelus_common_pkg_create_monitor_packet = {packet_type, 15'h0000, protocol, event_code, channel_id, agent_id, unit_id, event_data};
 	endfunction
-	assign monbus_packet = monitor_common_pkg_create_monitor_packet(w_entry_out[84-:4], 4'h1, w_entry_out[80-:8], w_entry_out[72-:9], UNIT_ID, AGENT_ID, w_entry_out[63-:64]);
+	assign monbus_packet = ocelus_common_pkg_create_monitor_packet(w_entry_out[84-:4], 4'h1, w_entry_out[80-:8], w_entry_out[72-:9], UNIT_ID, AGENT_ID, w_entry_out[63-:64]);
 	assign monbus_timestamp = i_mon_time;
 	assign busy = (((r_in_pkt || r_valid_pend) || |r_e_cand) || (r_lost != 4'd0)) || monbus_valid;
 	assign in_packet = r_in_pkt;

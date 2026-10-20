@@ -1,26 +1,22 @@
 # SPDX-License-Identifier: MIT
 # Formal verification Makefile for axi_monitor_trans_mgr
 # Workflow: sv2v flattens SystemVerilog -> sby reads plain Verilog
-#
-# DEPS is the transitive module closure of axi_monitor_trans_mgr (leaves first), regenerated
-# by tools/gen_formal_deps.py after the rtl/amba/ocelus/ move, the reporter
-# split (axi_monitor_reporter_*), and the monitor_trans_cam extraction.  The
-# sv2v file list is derived from $(DEPS) so the two cannot drift.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv
-
-# RTL dependencies (transitive closure of axi_monitor_trans_mgr, leaves first)
-DEPS := $(REPO_ROOT)/rtl/amba/ocelus/monitor_trans_cam.sv
-
-DUT := $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_trans_mgr.sv
-
-TMPDIR := /tmp/formal_axi_monitor_trans_mgr_banked
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := axi_monitor_trans_mgr_banked_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/axi_monitor_trans_mgr.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+# ocelus_pkg re-exports its sub-packages' types, which trips sv2v's
+# "ambiguous identifier"; the prep strips the import and the scope prefix.
+FLAT_PREP       := s/import ocelus_pkg::\*;//g;s/ocelus_pkg:://g
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover clean
 
@@ -30,45 +26,5 @@ prove: axi_monitor_trans_mgr_banked_flat.v
 cover: axi_monitor_trans_mgr_banked_flat.v
 	sby -f axi_monitor_trans_mgr_banked.sby cover
 
-# Strip `import ocelus_pkg::*;` and `ocelus_pkg::` scope prefixes (ocelus_pkg
-# re-exports sub-package types and trips sv2v "ambiguous identifier"), then
-# flatten DUT + closure into a single Verilog file.
-axi_monitor_trans_mgr_banked_flat.v: $(DUT) $(PKGS) $(DEPS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import ocelus_pkg::\*;//g' \
-		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
-	done
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
-		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
-	@rm -rf $(TMPDIR)
-
 clean:
 	rm -rf *_flat.v *_prove *_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < axi_monitor_trans_mgr_banked_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: axi_monitor_trans_mgr_banked_flat.v does not match the RTL."; \
-		echo "Regenerate with: make axi_monitor_trans_mgr_banked_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import ocelus_pkg::\*;//g' \
-		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
-	done
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
-		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
-	@rm -rf $(TMPDIR)

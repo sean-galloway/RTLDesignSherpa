@@ -1,538 +1,3 @@
-module axi_monitor_reporter_compl (
-	trans_table,
-	event_reported,
-	cfg_compl_enable,
-	pkt_valid,
-	pkt_type,
-	pkt_event_code,
-	pkt_channel,
-	pkt_data,
-	sel_idx
-);
-	reg _sv2v_0;
-	parameter signed [31:0] MAX_TRANSACTIONS = 16;
-	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
-	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
-	input wire [MAX_TRANSACTIONS - 1:0] event_reported;
-	input wire cfg_compl_enable;
-	output wire pkt_valid;
-	output wire [3:0] pkt_type;
-	output wire [7:0] pkt_event_code;
-	output wire [8:0] pkt_channel;
-	output wire [63:0] pkt_data;
-	output wire [IDX_W - 1:0] sel_idx;
-	function automatic [63:0] sv2v_cast_64;
-		input reg [63:0] inp;
-		sv2v_cast_64 = inp;
-	endfunction
-	function automatic [63:0] pad_address;
-		input reg [31:0] addr;
-		pad_address = sv2v_cast_64(addr);
-	endfunction
-	reg [MAX_TRANSACTIONS - 1:0] w_events;
-	reg [IDX_W - 1:0] w_sel;
-	reg w_has_event;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_events = 1'sb0;
-		w_sel = 1'sb0;
-		w_has_event = 1'b0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !event_reported[idx]) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && cfg_compl_enable)
-					w_events[idx] = 1'b1;
-		end
-		begin : sv2v_autoblock_2
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (w_events[idx] && !w_has_event) begin
-					w_sel = idx[IDX_W - 1:0];
-					w_has_event = 1'b1;
-				end
-		end
-	end
-	assign pkt_valid = w_has_event;
-	assign sel_idx = w_sel;
-	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
-	assign pkt_type = ocelus_common_pkg_PktTypeCompletion;
-	localparam [7:0] ocelus_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
-	assign pkt_event_code = ocelus_amba4_pkg_EVT_TRANS_COMPLETE;
-	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
-	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
-	initial _sv2v_0 = 0;
-endmodule
-module axi_monitor_reporter_debug (
-	aclk,
-	aresetn,
-	trans_table,
-	cfg_debug_enable,
-	output_busy,
-	pkt_taken,
-	pkt_valid,
-	pkt_type,
-	pkt_event_code,
-	pkt_channel,
-	pkt_data
-);
-	reg _sv2v_0;
-	parameter signed [31:0] MAX_TRANSACTIONS = 16;
-	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
-	input wire aclk;
-	input wire aresetn;
-	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
-	input wire cfg_debug_enable;
-	input wire output_busy;
-	input wire pkt_taken;
-	output reg pkt_valid;
-	output reg [3:0] pkt_type;
-	output reg [7:0] pkt_event_code;
-	output reg [8:0] pkt_channel;
-	output reg [63:0] pkt_data;
-	function automatic [63:0] sv2v_cast_64;
-		input reg [63:0] inp;
-		sv2v_cast_64 = inp;
-	endfunction
-	function automatic [63:0] pad_address;
-		input reg [31:0] addr;
-		pad_address = sv2v_cast_64(addr);
-	endfunction
-	reg [2:0] r_prev_state [0:MAX_TRANSACTIONS - 1];
-	reg [MAX_TRANSACTIONS - 1:0] w_changed;
-	reg [IDX_W - 1:0] w_sel;
-	reg w_has_event;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_changed = 1'sb0;
-		w_sel = 1'sb0;
-		w_has_event = 1'b0;
-		if (cfg_debug_enable) begin
-			begin : sv2v_autoblock_1
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != r_prev_state[idx]))
-						w_changed[idx] = 1'b1;
-			end
-			begin : sv2v_autoblock_2
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					if (w_changed[idx] && !w_has_event) begin
-						w_sel = idx[IDX_W - 1:0];
-						w_has_event = 1'b1;
-					end
-			end
-		end
-	end
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin : sv2v_autoblock_3
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				r_prev_state[idx] <= 3'h0;
-		end
-		else begin : sv2v_autoblock_4
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (!trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
-					r_prev_state[idx] <= 3'h0;
-				else
-					r_prev_state[idx] <= trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3];
-		end
-	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		pkt_valid = 1'b0;
-		pkt_type = ocelus_common_pkg_PktTypeDebug;
-		pkt_event_code = 8'h00;
-		pkt_channel = 1'sb0;
-		pkt_data = 1'sb0;
-		if (w_has_event && !output_busy) begin
-			pkt_valid = 1'b1;
-			pkt_event_code = 8'h00;
-			pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
-			pkt_data = {r_prev_state[w_sel], trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 277-:3], 26'h0000000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]};
-		end
-	end
-	wire unused_pkt_taken;
-	assign unused_pkt_taken = pkt_taken;
-	initial _sv2v_0 = 0;
-endmodule
-module axi_monitor_reporter_error (
-	trans_table,
-	event_reported,
-	timeout_detected,
-	cfg_error_enable,
-	pkt_valid,
-	pkt_type,
-	pkt_event_code,
-	pkt_channel,
-	pkt_data,
-	sel_idx
-);
-	reg _sv2v_0;
-	parameter signed [31:0] MAX_TRANSACTIONS = 16;
-	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
-	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
-	input wire [MAX_TRANSACTIONS - 1:0] event_reported;
-	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
-	input wire cfg_error_enable;
-	output wire pkt_valid;
-	output wire [3:0] pkt_type;
-	output wire [7:0] pkt_event_code;
-	output wire [8:0] pkt_channel;
-	output wire [63:0] pkt_data;
-	output wire [IDX_W - 1:0] sel_idx;
-	function automatic [63:0] sv2v_cast_64;
-		input reg [63:0] inp;
-		sv2v_cast_64 = inp;
-	endfunction
-	function automatic [63:0] pad_address;
-		input reg [31:0] addr;
-		pad_address = sv2v_cast_64(addr);
-	endfunction
-	reg [MAX_TRANSACTIONS - 1:0] w_events;
-	reg [IDX_W - 1:0] w_sel;
-	reg w_has_event;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_events = 1'sb0;
-		w_sel = 1'sb0;
-		w_has_event = 1'b0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !event_reported[idx]) && cfg_error_enable) && (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) && !timeout_detected[idx]) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)))
-					w_events[idx] = 1'b1;
-		end
-		begin : sv2v_autoblock_2
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (w_events[idx] && !w_has_event) begin
-					w_sel = idx[IDX_W - 1:0];
-					w_has_event = 1'b1;
-				end
-		end
-	end
-	assign pkt_valid = w_has_event;
-	assign sel_idx = w_sel;
-	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
-	assign pkt_type = ocelus_common_pkg_PktTypeError;
-	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
-	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
-	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
-	initial _sv2v_0 = 0;
-endmodule
-module axi_monitor_reporter_perf (
-	aclk,
-	aresetn,
-	cfg_perf_enable,
-	output_busy,
-	pkt_taken,
-	error_marked_mask,
-	compl_marked_mask,
-	pkt_valid,
-	pkt_type,
-	pkt_event_code,
-	pkt_channel,
-	pkt_data,
-	perf_completed_count,
-	perf_error_count
-);
-	reg _sv2v_0;
-	parameter signed [31:0] MAX_TRANSACTIONS = 16;
-	input wire aclk;
-	input wire aresetn;
-	input wire cfg_perf_enable;
-	input wire output_busy;
-	input wire pkt_taken;
-	input wire [MAX_TRANSACTIONS - 1:0] error_marked_mask;
-	input wire [MAX_TRANSACTIONS - 1:0] compl_marked_mask;
-	output reg pkt_valid;
-	output reg [3:0] pkt_type;
-	output reg [7:0] pkt_event_code;
-	output reg [8:0] pkt_channel;
-	output reg [63:0] pkt_data;
-	output wire [15:0] perf_completed_count;
-	output wire [15:0] perf_error_count;
-	reg [15:0] r_completed_count;
-	reg [15:0] r_error_count;
-	assign perf_completed_count = r_completed_count;
-	assign perf_error_count = r_error_count;
-	reg [2:0] r_state;
-	reg [2:0] w_next_state;
-	reg w_gen_completed;
-	reg w_gen_errors;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_next_state = r_state;
-		w_gen_completed = 1'b0;
-		w_gen_errors = 1'b0;
-		if (cfg_perf_enable && !output_busy)
-			case (r_state)
-				3'h0: w_next_state = 3'h1;
-				3'h1: w_next_state = 3'h2;
-				3'h2: w_next_state = 3'h3;
-				3'h3: begin
-					w_next_state = 3'h4;
-					if (r_completed_count > 0)
-						w_gen_completed = 1'b1;
-				end
-				3'h4: begin
-					w_next_state = 3'h0;
-					if (r_error_count > 0)
-						w_gen_errors = 1'b1;
-				end
-				default: w_next_state = 3'h0;
-			endcase
-	end
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
-			r_completed_count <= 1'sb0;
-			r_error_count <= 1'sb0;
-			r_state <= 3'h0;
-		end
-		else begin
-			begin : sv2v_autoblock_1
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					begin
-						if (error_marked_mask[idx])
-							r_error_count <= r_error_count + 1'b1;
-						if (compl_marked_mask[idx])
-							r_completed_count <= r_completed_count + 1'b1;
-					end
-			end
-			if (!(pkt_valid && !pkt_taken))
-				r_state <= w_next_state;
-		end
-	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
-	function automatic [63:0] sv2v_cast_64;
-		input reg [63:0] inp;
-		sv2v_cast_64 = inp;
-	endfunction
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		pkt_valid = 1'b0;
-		pkt_type = ocelus_common_pkg_PktTypePerf;
-		pkt_event_code = 8'h07;
-		pkt_channel = 1'sb0;
-		pkt_data = 1'sb0;
-		if (w_gen_completed) begin
-			pkt_valid = 1'b1;
-			pkt_event_code = 8'h07;
-			pkt_data = sv2v_cast_64(r_completed_count);
-		end
-		else if (w_gen_errors) begin
-			pkt_valid = 1'b1;
-			pkt_event_code = 8'h08;
-			pkt_data = sv2v_cast_64(r_error_count);
-		end
-	end
-	initial _sv2v_0 = 0;
-endmodule
-module axi_monitor_reporter_threshold (
-	aclk,
-	aresetn,
-	trans_table,
-	cfg_threshold_enable,
-	active_trans_threshold,
-	latency_threshold,
-	output_busy,
-	pkt_taken,
-	pkt_valid,
-	pkt_type,
-	pkt_event_code,
-	pkt_channel,
-	pkt_data
-);
-	reg _sv2v_0;
-	parameter signed [31:0] MAX_TRANSACTIONS = 16;
-	parameter [0:0] IS_READ = 1'b1;
-	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
-	input wire aclk;
-	input wire aresetn;
-	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
-	input wire cfg_threshold_enable;
-	input wire [15:0] active_trans_threshold;
-	input wire [31:0] latency_threshold;
-	input wire output_busy;
-	input wire pkt_taken;
-	output reg pkt_valid;
-	output reg [3:0] pkt_type;
-	output reg [7:0] pkt_event_code;
-	output reg [8:0] pkt_channel;
-	output reg [63:0] pkt_data;
-	function automatic [63:0] sv2v_cast_64;
-		input reg [63:0] inp;
-		sv2v_cast_64 = inp;
-	endfunction
-	function automatic [63:0] pad_address;
-		input reg [31:0] v;
-		pad_address = sv2v_cast_64(v);
-	endfunction
-	reg r_active_crossed;
-	reg r_latency_crossed;
-	reg [31:0] r_latency [0:MAX_TRANSACTIONS - 1];
-	reg [MAX_TRANSACTIONS - 1:0] r_latency_over_thresh;
-	reg [7:0] w_active_count;
-	reg w_active_detect;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_active_count = 1'sb0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h3)) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h4))
-					w_active_count = w_active_count + 1'b1;
-		end
-		w_active_detect = ((cfg_threshold_enable && ({8'h00, w_active_count} > active_trans_threshold)) && !r_active_crossed) && !output_busy;
-	end
-	reg [IDX_W - 1:0] w_lat_sel;
-	reg w_has_lat;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_lat_sel = 1'sb0;
-		w_has_lat = 1'b0;
-		if (cfg_threshold_enable) begin : sv2v_autoblock_2
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (r_latency_over_thresh[idx] && !w_has_lat) begin
-					w_lat_sel = idx[IDX_W - 1:0];
-					w_has_lat = 1'b1;
-				end
-		end
-	end
-	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
-	always @(posedge aclk or negedge aresetn)
-		if (!aresetn) begin
-			begin : sv2v_autoblock_3
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					r_latency[idx] <= 1'sb0;
-			end
-			r_latency_over_thresh <= 1'sb0;
-			r_active_crossed <= 1'b0;
-			r_latency_crossed <= 1'b0;
-		end
-		else begin
-			begin : sv2v_autoblock_4
-				reg signed [31:0] idx;
-				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-					begin : sv2v_autoblock_5
-						reg [31:0] lat;
-						if (IS_READ)
-							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 87-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
-						else
-							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 55-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
-						r_latency[idx] <= lat;
-						r_latency_over_thresh[idx] <= (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold);
-					end
-			end
-			if (((w_active_detect && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
-				r_active_crossed <= 1'b1;
-			else if ({8'h00, w_active_count} <= active_trans_threshold)
-				r_active_crossed <= 1'b0;
-			if (((w_has_lat && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
-				r_latency_crossed <= 1'b1;
-			else if (!w_has_lat)
-				r_latency_crossed <= 1'b0;
-		end
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		pkt_valid = 1'b0;
-		pkt_type = ocelus_common_pkg_PktTypeThreshold;
-		pkt_event_code = 8'h00;
-		pkt_channel = 1'sb0;
-		pkt_data = 1'sb0;
-		if (w_active_detect) begin
-			pkt_valid = 1'b1;
-			pkt_event_code = 8'h00;
-			pkt_data = sv2v_cast_64(w_active_count);
-			pkt_channel = 1'sb0;
-		end
-		else if ((w_has_lat && !r_latency_crossed) && !output_busy) begin
-			pkt_valid = 1'b1;
-			pkt_event_code = 8'h01;
-			pkt_data = pad_address(r_latency[w_lat_sel]);
-			pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_lat_sel) * 285) + 221-:6]};
-		end
-	end
-	initial _sv2v_0 = 0;
-endmodule
-module axi_monitor_reporter_timeout (
-	trans_table,
-	event_reported,
-	timeout_detected,
-	cfg_timeout_enable,
-	pkt_valid,
-	pkt_type,
-	pkt_event_code,
-	pkt_channel,
-	pkt_data,
-	sel_idx
-);
-	reg _sv2v_0;
-	parameter signed [31:0] MAX_TRANSACTIONS = 16;
-	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
-	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
-	input wire [MAX_TRANSACTIONS - 1:0] event_reported;
-	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
-	input wire cfg_timeout_enable;
-	output wire pkt_valid;
-	output wire [3:0] pkt_type;
-	output wire [7:0] pkt_event_code;
-	output wire [8:0] pkt_channel;
-	output wire [63:0] pkt_data;
-	output wire [IDX_W - 1:0] sel_idx;
-	function automatic [63:0] sv2v_cast_64;
-		input reg [63:0] inp;
-		sv2v_cast_64 = inp;
-	endfunction
-	function automatic [63:0] pad_address;
-		input reg [31:0] addr;
-		pad_address = sv2v_cast_64(addr);
-	endfunction
-	reg [MAX_TRANSACTIONS - 1:0] w_events;
-	reg [IDX_W - 1:0] w_sel;
-	reg w_has_event;
-	always @(*) begin
-		if (_sv2v_0)
-			;
-		w_events = 1'sb0;
-		w_sel = 1'sb0;
-		w_has_event = 1'b0;
-		begin : sv2v_autoblock_1
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if ((((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !event_reported[idx]) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4)) && cfg_timeout_enable) && timeout_detected[idx])
-					w_events[idx] = 1'b1;
-		end
-		begin : sv2v_autoblock_2
-			reg signed [31:0] idx;
-			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
-				if (w_events[idx] && !w_has_event) begin
-					w_sel = idx[IDX_W - 1:0];
-					w_has_event = 1'b1;
-				end
-		end
-	end
-	assign pkt_valid = w_has_event;
-	assign sel_idx = w_sel;
-	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
-	assign pkt_type = ocelus_common_pkg_PktTypeTimeout;
-	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
-	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
-	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
-	initial _sv2v_0 = 0;
-endmodule
 module counter_bin (
 	clk,
 	rst_n,
@@ -819,6 +284,541 @@ module gaxi_fifo_sync (
 		if (w_read && r_rd_empty)
 			;
 	end
+endmodule
+module axi_monitor_reporter_error (
+	trans_table,
+	event_reported,
+	timeout_detected,
+	cfg_error_enable,
+	pkt_valid,
+	pkt_type,
+	pkt_event_code,
+	pkt_channel,
+	pkt_data,
+	sel_idx
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
+	input wire [MAX_TRANSACTIONS - 1:0] event_reported;
+	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
+	input wire cfg_error_enable;
+	output wire pkt_valid;
+	output wire [3:0] pkt_type;
+	output wire [7:0] pkt_event_code;
+	output wire [8:0] pkt_channel;
+	output wire [63:0] pkt_data;
+	output wire [IDX_W - 1:0] sel_idx;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	function automatic [63:0] pad_address;
+		input reg [31:0] addr;
+		pad_address = sv2v_cast_64(addr);
+	endfunction
+	reg [MAX_TRANSACTIONS - 1:0] w_events;
+	reg [IDX_W - 1:0] w_sel;
+	reg w_has_event;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_events = 1'sb0;
+		w_sel = 1'sb0;
+		w_has_event = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !event_reported[idx]) && cfg_error_enable) && (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4) && !timeout_detected[idx]) || (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h5)))
+					w_events[idx] = 1'b1;
+		end
+		begin : sv2v_autoblock_2
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (w_events[idx] && !w_has_event) begin
+					w_sel = idx[IDX_W - 1:0];
+					w_has_event = 1'b1;
+				end
+		end
+	end
+	assign pkt_valid = w_has_event;
+	assign sel_idx = w_sel;
+	localparam [3:0] ocelus_common_pkg_PktTypeError = 4'h0;
+	assign pkt_type = ocelus_common_pkg_PktTypeError;
+	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
+	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
+	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
+	initial _sv2v_0 = 0;
+endmodule
+module axi_monitor_reporter_timeout (
+	trans_table,
+	event_reported,
+	timeout_detected,
+	cfg_timeout_enable,
+	pkt_valid,
+	pkt_type,
+	pkt_event_code,
+	pkt_channel,
+	pkt_data,
+	sel_idx
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
+	input wire [MAX_TRANSACTIONS - 1:0] event_reported;
+	input wire [MAX_TRANSACTIONS - 1:0] timeout_detected;
+	input wire cfg_timeout_enable;
+	output wire pkt_valid;
+	output wire [3:0] pkt_type;
+	output wire [7:0] pkt_event_code;
+	output wire [8:0] pkt_channel;
+	output wire [63:0] pkt_data;
+	output wire [IDX_W - 1:0] sel_idx;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	function automatic [63:0] pad_address;
+		input reg [31:0] addr;
+		pad_address = sv2v_cast_64(addr);
+	endfunction
+	reg [MAX_TRANSACTIONS - 1:0] w_events;
+	reg [IDX_W - 1:0] w_sel;
+	reg w_has_event;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_events = 1'sb0;
+		w_sel = 1'sb0;
+		w_has_event = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if ((((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !event_reported[idx]) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h4)) && cfg_timeout_enable) && timeout_detected[idx])
+					w_events[idx] = 1'b1;
+		end
+		begin : sv2v_autoblock_2
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (w_events[idx] && !w_has_event) begin
+					w_sel = idx[IDX_W - 1:0];
+					w_has_event = 1'b1;
+				end
+		end
+	end
+	assign pkt_valid = w_has_event;
+	assign sel_idx = w_sel;
+	localparam [3:0] ocelus_common_pkg_PktTypeTimeout = 4'h3;
+	assign pkt_type = ocelus_common_pkg_PktTypeTimeout;
+	assign pkt_event_code = trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 7-:8];
+	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
+	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
+	initial _sv2v_0 = 0;
+endmodule
+module axi_monitor_reporter_compl (
+	trans_table,
+	event_reported,
+	cfg_compl_enable,
+	pkt_valid,
+	pkt_type,
+	pkt_event_code,
+	pkt_channel,
+	pkt_data,
+	sel_idx
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
+	input wire [MAX_TRANSACTIONS - 1:0] event_reported;
+	input wire cfg_compl_enable;
+	output wire pkt_valid;
+	output wire [3:0] pkt_type;
+	output wire [7:0] pkt_event_code;
+	output wire [8:0] pkt_channel;
+	output wire [63:0] pkt_data;
+	output wire [IDX_W - 1:0] sel_idx;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	function automatic [63:0] pad_address;
+		input reg [31:0] addr;
+		pad_address = sv2v_cast_64(addr);
+	endfunction
+	reg [MAX_TRANSACTIONS - 1:0] w_events;
+	reg [IDX_W - 1:0] w_sel;
+	reg w_has_event;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_events = 1'sb0;
+		w_sel = 1'sb0;
+		w_has_event = 1'b0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && !event_reported[idx]) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && cfg_compl_enable)
+					w_events[idx] = 1'b1;
+		end
+		begin : sv2v_autoblock_2
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (w_events[idx] && !w_has_event) begin
+					w_sel = idx[IDX_W - 1:0];
+					w_has_event = 1'b1;
+				end
+		end
+	end
+	assign pkt_valid = w_has_event;
+	assign sel_idx = w_sel;
+	localparam [3:0] ocelus_common_pkg_PktTypeCompletion = 4'h1;
+	assign pkt_type = ocelus_common_pkg_PktTypeCompletion;
+	localparam [7:0] ocelus_amba4_pkg_EVT_TRANS_COMPLETE = 8'h00;
+	assign pkt_event_code = ocelus_amba4_pkg_EVT_TRANS_COMPLETE;
+	assign pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
+	assign pkt_data = pad_address(trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]);
+	initial _sv2v_0 = 0;
+endmodule
+module axi_monitor_reporter_threshold (
+	aclk,
+	aresetn,
+	trans_table,
+	cfg_threshold_enable,
+	active_trans_threshold,
+	latency_threshold,
+	output_busy,
+	pkt_taken,
+	pkt_valid,
+	pkt_type,
+	pkt_event_code,
+	pkt_channel,
+	pkt_data
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter [0:0] IS_READ = 1'b1;
+	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
+	input wire aclk;
+	input wire aresetn;
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
+	input wire cfg_threshold_enable;
+	input wire [15:0] active_trans_threshold;
+	input wire [31:0] latency_threshold;
+	input wire output_busy;
+	input wire pkt_taken;
+	output reg pkt_valid;
+	output reg [3:0] pkt_type;
+	output reg [7:0] pkt_event_code;
+	output reg [8:0] pkt_channel;
+	output reg [63:0] pkt_data;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	function automatic [63:0] pad_address;
+		input reg [31:0] v;
+		pad_address = sv2v_cast_64(v);
+	endfunction
+	reg r_active_crossed;
+	reg r_latency_crossed;
+	reg [31:0] r_latency [0:MAX_TRANSACTIONS - 1];
+	reg [MAX_TRANSACTIONS - 1:0] r_latency_over_thresh;
+	reg [7:0] w_active_count;
+	reg w_active_detect;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_active_count = 1'sb0;
+		begin : sv2v_autoblock_1
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if ((trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h3)) && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != 3'h4))
+					w_active_count = w_active_count + 1'b1;
+		end
+		w_active_detect = ((cfg_threshold_enable && ({8'h00, w_active_count} > active_trans_threshold)) && !r_active_crossed) && !output_busy;
+	end
+	reg [IDX_W - 1:0] w_lat_sel;
+	reg w_has_lat;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_lat_sel = 1'sb0;
+		w_has_lat = 1'b0;
+		if (cfg_threshold_enable) begin : sv2v_autoblock_2
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (r_latency_over_thresh[idx] && !w_has_lat) begin
+					w_lat_sel = idx[IDX_W - 1:0];
+					w_has_lat = 1'b1;
+				end
+		end
+	end
+	localparam [3:0] ocelus_common_pkg_PktTypeThreshold = 4'h2;
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin
+			begin : sv2v_autoblock_3
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					r_latency[idx] <= 1'sb0;
+			end
+			r_latency_over_thresh <= 1'sb0;
+			r_active_crossed <= 1'b0;
+			r_latency_crossed <= 1'b0;
+		end
+		else begin
+			begin : sv2v_autoblock_4
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					begin : sv2v_autoblock_5
+						reg [31:0] lat;
+						if (IS_READ)
+							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 87-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
+						else
+							lat = trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 55-:32] - trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 119-:32];
+						r_latency[idx] <= lat;
+						r_latency_over_thresh[idx] <= (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] == 3'h3)) && (lat > latency_threshold);
+					end
+			end
+			if (((w_active_detect && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h00))
+				r_active_crossed <= 1'b1;
+			else if ({8'h00, w_active_count} <= active_trans_threshold)
+				r_active_crossed <= 1'b0;
+			if (((w_has_lat && pkt_taken) && (pkt_type == ocelus_common_pkg_PktTypeThreshold)) && (pkt_event_code == 8'h01))
+				r_latency_crossed <= 1'b1;
+			else if (!w_has_lat)
+				r_latency_crossed <= 1'b0;
+		end
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		pkt_valid = 1'b0;
+		pkt_type = ocelus_common_pkg_PktTypeThreshold;
+		pkt_event_code = 8'h00;
+		pkt_channel = 1'sb0;
+		pkt_data = 1'sb0;
+		if (w_active_detect) begin
+			pkt_valid = 1'b1;
+			pkt_event_code = 8'h00;
+			pkt_data = sv2v_cast_64(w_active_count);
+			pkt_channel = 1'sb0;
+		end
+		else if ((w_has_lat && !r_latency_crossed) && !output_busy) begin
+			pkt_valid = 1'b1;
+			pkt_event_code = 8'h01;
+			pkt_data = pad_address(r_latency[w_lat_sel]);
+			pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_lat_sel) * 285) + 221-:6]};
+		end
+	end
+	initial _sv2v_0 = 0;
+endmodule
+module axi_monitor_reporter_perf (
+	aclk,
+	aresetn,
+	cfg_perf_enable,
+	output_busy,
+	pkt_taken,
+	error_marked_mask,
+	compl_marked_mask,
+	pkt_valid,
+	pkt_type,
+	pkt_event_code,
+	pkt_channel,
+	pkt_data,
+	perf_completed_count,
+	perf_error_count
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	input wire aclk;
+	input wire aresetn;
+	input wire cfg_perf_enable;
+	input wire output_busy;
+	input wire pkt_taken;
+	input wire [MAX_TRANSACTIONS - 1:0] error_marked_mask;
+	input wire [MAX_TRANSACTIONS - 1:0] compl_marked_mask;
+	output reg pkt_valid;
+	output reg [3:0] pkt_type;
+	output reg [7:0] pkt_event_code;
+	output reg [8:0] pkt_channel;
+	output reg [63:0] pkt_data;
+	output wire [15:0] perf_completed_count;
+	output wire [15:0] perf_error_count;
+	reg [15:0] r_completed_count;
+	reg [15:0] r_error_count;
+	assign perf_completed_count = r_completed_count;
+	assign perf_error_count = r_error_count;
+	reg [2:0] r_state;
+	reg [2:0] w_next_state;
+	reg w_gen_completed;
+	reg w_gen_errors;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_next_state = r_state;
+		w_gen_completed = 1'b0;
+		w_gen_errors = 1'b0;
+		if (cfg_perf_enable && !output_busy)
+			case (r_state)
+				3'h0: w_next_state = 3'h1;
+				3'h1: w_next_state = 3'h2;
+				3'h2: w_next_state = 3'h3;
+				3'h3: begin
+					w_next_state = 3'h4;
+					if (r_completed_count > 0)
+						w_gen_completed = 1'b1;
+				end
+				3'h4: begin
+					w_next_state = 3'h0;
+					if (r_error_count > 0)
+						w_gen_errors = 1'b1;
+				end
+				default: w_next_state = 3'h0;
+			endcase
+	end
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin
+			r_completed_count <= 1'sb0;
+			r_error_count <= 1'sb0;
+			r_state <= 3'h0;
+		end
+		else begin
+			begin : sv2v_autoblock_1
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					begin
+						if (error_marked_mask[idx])
+							r_error_count <= r_error_count + 1'b1;
+						if (compl_marked_mask[idx])
+							r_completed_count <= r_completed_count + 1'b1;
+					end
+			end
+			if (!(pkt_valid && !pkt_taken))
+				r_state <= w_next_state;
+		end
+	localparam [3:0] ocelus_common_pkg_PktTypePerf = 4'h4;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		pkt_valid = 1'b0;
+		pkt_type = ocelus_common_pkg_PktTypePerf;
+		pkt_event_code = 8'h07;
+		pkt_channel = 1'sb0;
+		pkt_data = 1'sb0;
+		if (w_gen_completed) begin
+			pkt_valid = 1'b1;
+			pkt_event_code = 8'h07;
+			pkt_data = sv2v_cast_64(r_completed_count);
+		end
+		else if (w_gen_errors) begin
+			pkt_valid = 1'b1;
+			pkt_event_code = 8'h08;
+			pkt_data = sv2v_cast_64(r_error_count);
+		end
+	end
+	initial _sv2v_0 = 0;
+endmodule
+module axi_monitor_reporter_debug (
+	aclk,
+	aresetn,
+	trans_table,
+	cfg_debug_enable,
+	output_busy,
+	pkt_taken,
+	pkt_valid,
+	pkt_type,
+	pkt_event_code,
+	pkt_channel,
+	pkt_data
+);
+	reg _sv2v_0;
+	parameter signed [31:0] MAX_TRANSACTIONS = 16;
+	parameter signed [31:0] IDX_W = $clog2(MAX_TRANSACTIONS);
+	input wire aclk;
+	input wire aresetn;
+	input wire [(MAX_TRANSACTIONS * 285) - 1:0] trans_table;
+	input wire cfg_debug_enable;
+	input wire output_busy;
+	input wire pkt_taken;
+	output reg pkt_valid;
+	output reg [3:0] pkt_type;
+	output reg [7:0] pkt_event_code;
+	output reg [8:0] pkt_channel;
+	output reg [63:0] pkt_data;
+	function automatic [63:0] sv2v_cast_64;
+		input reg [63:0] inp;
+		sv2v_cast_64 = inp;
+	endfunction
+	function automatic [63:0] pad_address;
+		input reg [31:0] addr;
+		pad_address = sv2v_cast_64(addr);
+	endfunction
+	reg [2:0] r_prev_state [0:MAX_TRANSACTIONS - 1];
+	reg [MAX_TRANSACTIONS - 1:0] w_changed;
+	reg [IDX_W - 1:0] w_sel;
+	reg w_has_event;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		w_changed = 1'sb0;
+		w_sel = 1'sb0;
+		w_has_event = 1'b0;
+		if (cfg_debug_enable) begin
+			begin : sv2v_autoblock_1
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					if (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284] && (trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3] != r_prev_state[idx]))
+						w_changed[idx] = 1'b1;
+			end
+			begin : sv2v_autoblock_2
+				reg signed [31:0] idx;
+				for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+					if (w_changed[idx] && !w_has_event) begin
+						w_sel = idx[IDX_W - 1:0];
+						w_has_event = 1'b1;
+					end
+			end
+		end
+	end
+	always @(posedge aclk or negedge aresetn)
+		if (!aresetn) begin : sv2v_autoblock_3
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				r_prev_state[idx] <= 3'h0;
+		end
+		else begin : sv2v_autoblock_4
+			reg signed [31:0] idx;
+			for (idx = 0; idx < MAX_TRANSACTIONS; idx = idx + 1)
+				if (!trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 284])
+					r_prev_state[idx] <= 3'h0;
+				else
+					r_prev_state[idx] <= trans_table[(((MAX_TRANSACTIONS - 1) - idx) * 285) + 277-:3];
+		end
+	localparam [3:0] ocelus_common_pkg_PktTypeDebug = 4'hf;
+	always @(*) begin
+		if (_sv2v_0)
+			;
+		pkt_valid = 1'b0;
+		pkt_type = ocelus_common_pkg_PktTypeDebug;
+		pkt_event_code = 8'h00;
+		pkt_channel = 1'sb0;
+		pkt_data = 1'sb0;
+		if (w_has_event && !output_busy) begin
+			pkt_valid = 1'b1;
+			pkt_event_code = 8'h00;
+			pkt_channel = {3'b000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 221-:6]};
+			pkt_data = {r_prev_state[w_sel], trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 277-:3], 26'h0000000, trans_table[(((MAX_TRANSACTIONS - 1) - w_sel) * 285) + 274-:32]};
+		end
+	end
+	wire unused_pkt_taken;
+	assign unused_pkt_taken = pkt_taken;
+	initial _sv2v_0 = 0;
 endmodule
 module axi_monitor_reporter (
 	aclk,

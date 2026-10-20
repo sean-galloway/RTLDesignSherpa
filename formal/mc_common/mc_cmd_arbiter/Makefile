@@ -4,13 +4,22 @@
 # Both modules are flattened together because the proof is about the LOOP
 # between them -- see formal_cmd_arbiter.sv.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
-SV2V      ?= sv2v
-MC        := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
 
-INC  := -I$(REPO_ROOT)/rtl/amba/includes -I$(MC)/rtl/includes
-PKGS := $(MC)/rtl/includes/mc_common_pkg.sv
-DUT  := $(MC)/rtl/fub/mc_global_timers.sv $(MC)/rtl/fub/mc_cmd_arbiter.sv
+SV2V      ?= sv2v
+
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := arb_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_global_timers.f \
+                   $(REPO_ROOT)/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_cmd_arbiter.f
+# mc_cmd_arbiter's always_comb blocks read whole unpacked arrays; sv2v spells
+# each as an explicit `always @(a or b ...)` list naming them, which yosys
+# rejects ("Insufficient number of array indices"). A combinational list
+# means nothing to yosys, so every non-edge list is rewritten to @(*).
+COMB_STAR := sed -E '/(posedge|negedge)/!s/^([[:space:]]*)always @\(.*\) begin$$/\1always @(*) begin/'
+FLAT_POST       := $(COMB_STAR)
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove issue019 cover all clean
 # `issue019` was the held-red reproduction for pumice BUG-021 (the tRRD/tFAW
@@ -27,34 +36,6 @@ issue019: arb_flat.v
 
 cover: arb_flat.v
 	sby -f cmd_arbiter.sby cover
-# mc_cmd_arbiter's always_comb blocks read whole unpacked arrays (rd_xpop and
-# friends). sv2v spells each as an explicit `always @(a or b ...)` list naming
-# those arrays, which yosys rejects ("Insufficient number of array indices").
-# A combinational sensitivity list carries no meaning for yosys -- it infers
-# the dependencies -- so every non-edge list is rewritten to @(*).
-COMB_STAR := sed -E '/(posedge|negedge)/!s/^([[:space:]]*)always @\(.*\) begin$$/\1always @(*) begin/'
 
-arb_flat.v: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) | $(COMB_STAR) > $@
 clean:
 	rm -rf *_flat.v arb_flat.v cmd_arbiter_prove cmd_arbiter_issue019 cmd_arbiter_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < arb_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: arb_flat.v does not match the RTL."; \
-		echo "Regenerate with: make arb_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS)
-	$(SV2V) $(INC) $(PKGS) $(DUT) | $(COMB_STAR) > $@

@@ -7,52 +7,33 @@
 # and by two clock-gating bugs in the wrapper; all three were fixed, and the
 # page was left claiming a block that no longer existed.
 #
-# DEPS is the transitive closure of axi4_slave_wr_mon (leaves first) plus the
-# clock gate. rtl/common/icg.sv is DELIBERATELY ABSENT -- the harness supplies
+# The flat is the closure of axi4_slave_wr_mon plus the clock gate, with icg.f
+# DELIBERATELY EXCLUDED (FLAT_EXCLUDE) -- the harness supplies
 # a clock-enable model of the cell, because a derived clock is not provable in
 # this flow. See formal/amba/wb4_slave_cdc_cg for the same arrangement.
 
-REPO_ROOT := $(shell git rev-parse --show-toplevel)
+REPO_ROOT ?= $(shell git rev-parse --show-toplevel)
+
 SV2V      ?= sv2v
 
-INC := -I$(REPO_ROOT)/rtl/amba/includes
-
-PKGS := $(REPO_ROOT)/rtl/amba/includes/ocelus_common_pkg.sv \
-        $(REPO_ROOT)/rtl/amba/includes/ocelus_amba4_pkg.sv \
-        monitor_pkg_stub.sv
-
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
-        $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_addr_check.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_compl.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_debug.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_error.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_perf.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_threshold.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter_timeout.sv \
-        $(REPO_ROOT)/rtl/common/counter_bin.sv \
-        $(REPO_ROOT)/rtl/common/fifo_control.sv \
-        $(REPO_ROOT)/rtl/amba/gaxi/gaxi_fifo_sync.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_reporter.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_timeout.sv \
-        $(REPO_ROOT)/rtl/common/counter_load_clear.sv \
-        $(REPO_ROOT)/rtl/common/counter_freq_invariant.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_timer.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/monitor_trans_cam.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_trans_mgr.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_base.sv \
-        $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_filtered.sv \
-        $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr_mon.sv \
-        $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
-        $(REPO_ROOT)/rtl/cdc/reset_sync.sv $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv
-
-DUT := $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_wr_mon_cg.sv
-
-# Wrapper gating properties, spliced before endmodule of axi4_slave_wr_mon.sv (the RTL
-# carries no assertions; see axi4_slave_wr_mon_props.svh)
-PROPS := $(REPO_ROOT)/formal/amba/axi4_slave_wr_mon/axi4_slave_wr_mon_props.svh
-
-TMPDIR := /tmp/formal_axi4_slave_wr_mon_cg
+# The flat's source list is the DUT's own filelist, flattened by
+# bin/flatten_filelist.py (make/formal_flat.mk) -- never hand-listed.
+FLAT            := axi4_slave_wr_mon_cg_flat.v
+FLAT_FILELIST   := $(REPO_ROOT)/rtl/amba/filelists/axi4_slave_wr_mon_cg.f
+# --define=FORMAL keeps the in-RTL formal blocks; --exclude=Assert keeps sv2v
+# from deleting the immediate assertions (vault/handbook/dv/formal.md).
+FLAT_SV2V_FLAGS := --define=FORMAL --exclude=Assert
+# ocelus_pkg re-exports its sub-packages' types, which trips sv2v's
+# "ambiguous identifier"; the prep strips the import and the scope prefix.
+FLAT_PREP       := s/import ocelus_pkg::\*;//g;s/ocelus_pkg:://g
+# Wrapper gating properties, spliced before endmodule of axi4_slave_wr_mon.sv (the
+# RTL carries no assertions).
+FLAT_SPLICE      := $(REPO_ROOT)/formal/amba/axi4_slave_wr_mon/axi4_slave_wr_mon_props.svh
+FLAT_SPLICE_INTO := axi4_slave_wr_mon.sv
+# The harness defines its own copy of these modules (a clock-enable model of
+# the ICG cell: a derived clock is not provable in this flow).
+FLAT_EXCLUDE    := /icg.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
 .PHONY: prove cover all clean
 
@@ -64,47 +45,5 @@ prove: axi4_slave_wr_mon_cg_flat.v
 cover: axi4_slave_wr_mon_cg_flat.v
 	sby -f axi4_slave_wr_mon_cg.sby cover
 
-# Strip `import ocelus_pkg::*;` and `ocelus_pkg::` scope prefixes (ocelus_pkg
-# re-exports sub-package types and trips sv2v "ambiguous identifier"), then
-# flatten DUT + closure into a single Verilog file.
-axi4_slave_wr_mon_cg_flat.v: $(DUT) $(PKGS) $(DEPS) $(PROPS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import ocelus_pkg::\*;//g' \
-		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
-		if [ "$$(basename $$f)" = "axi4_slave_wr_mon.sv" ]; then sed -i '/^endmodule/e cat $(PROPS)' $(TMPDIR)/axi4_slave_wr_mon.sv; fi; \
-	done
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
-		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
-	@rm -rf $(TMPDIR)
-
 clean:
 	rm -rf axi4_slave_wr_mon_cg_flat.v axi4_slave_wr_mon_cg_prove axi4_slave_wr_mon_cg_cover
-
-# tooling TASK-026: regenerate-and-diff self-detection for the committed flat.
-# House pattern from formal/common/counter_freq_invariant; consumed by
-# bin/formal_status.py --check-flats (mechanism a) and the pre-commit gate.
-# Comparison squeezes whitespace, matching the token normalization the
-# checker uses (committed flats may be post-formatter).
-.PHONY: check-flat .check_flat_tmp
-check-flat: .check_flat_tmp
-	@if [ "$$(tr -s '[:space:]' ' ' < .check_flat_tmp)" = "$$(tr -s '[:space:]' ' ' < axi4_slave_wr_mon_cg_flat.v)" ]; then \
-		rm -f .check_flat_tmp; \
-		echo "flat file is current"; \
-	else \
-		rm -f .check_flat_tmp; \
-		echo "STALE: axi4_slave_wr_mon_cg_flat.v does not match the RTL."; \
-		echo "Regenerate with: make axi4_slave_wr_mon_cg_flat.v"; \
-		exit 1; \
-	fi
-
-.check_flat_tmp: $(DUT) $(PKGS) $(DEPS) $(PROPS)
-	@mkdir -p $(TMPDIR)
-	@for f in $(DEPS) $(DUT); do \
-		sed -e 's/import ocelus_pkg::\*;//g' \
-		    -e 's/ocelus_pkg:://g' $$f > $(TMPDIR)/$$(basename $$f); \
-		if [ "$$(basename $$f)" = "axi4_slave_wr_mon.sv" ]; then sed -i '/^endmodule/e cat $(PROPS)' $(TMPDIR)/axi4_slave_wr_mon.sv; fi; \
-	done
-	$(SV2V) --define=FORMAL --exclude=Assert $(INC) $(PKGS) \
-		$(addprefix $(TMPDIR)/,$(notdir $(DEPS) $(DUT))) > $@
-	@rm -rf $(TMPDIR)
