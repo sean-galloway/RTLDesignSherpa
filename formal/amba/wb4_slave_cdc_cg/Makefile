@@ -15,7 +15,7 @@ PKGS := $(REPO_ROOT)/rtl/amba/wb4/wb4_pkg.sv
 # icg.sv is deliberately ABSENT: the harness supplies a clock-enable model of
 # the cell, because a derived clock is not provable in the single-clock flow.
 DEPS := $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
-        $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv \
+        $(REPO_ROOT)/rtl/cdc/reset_sync.sv $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv \
         $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/common/counter_bin.sv \
         $(REPO_ROOT)/rtl/cdc/counter_johnson.sv \

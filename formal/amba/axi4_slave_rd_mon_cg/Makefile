@@ -44,7 +44,7 @@ DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv \
         $(REPO_ROOT)/rtl/amba/ocelus/axi_monitor_filtered.sv \
         $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_rd_mon.sv \
         $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv \
-        $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv
+        $(REPO_ROOT)/rtl/cdc/reset_sync.sv $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv
 
 DUT := $(REPO_ROOT)/rtl/amba/axi4/axi4_slave_rd_mon_cg.sv
 

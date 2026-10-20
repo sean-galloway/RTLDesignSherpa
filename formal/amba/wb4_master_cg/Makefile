@@ -10,7 +10,7 @@ INC := -I$(REPO_ROOT)/rtl/amba/includes
 
 PKGS := $(REPO_ROOT)/rtl/amba/wb4/wb4_pkg.sv
 # icg.sv deliberately absent: the harness supplies a clock-enable model of the cell.
-DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv $(REPO_ROOT)/rtl/amba/wb4/wb4_master.sv
+DEPS := $(REPO_ROOT)/rtl/amba/gaxi/gaxi_skid_buffer.sv $(REPO_ROOT)/rtl/common/clock_gate_ctrl.sv $(REPO_ROOT)/rtl/cdc/reset_sync.sv $(REPO_ROOT)/rtl/amba/shared/amba_clock_gate_ctrl.sv $(REPO_ROOT)/rtl/amba/wb4/wb4_master.sv
 DUT  := $(REPO_ROOT)/rtl/amba/wb4/wb4_master_cg.sv
 
 .PHONY: prove cover all clean
