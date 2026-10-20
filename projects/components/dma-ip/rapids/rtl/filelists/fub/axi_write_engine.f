@@ -15,6 +15,9 @@
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 -f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin.f
+# arbiter_single_client: instantiated only under `if (NC == 1)`, so the
+# default (multi-channel) build never asks for it and the list looked complete.
+-f $REPO_ROOT/rtl/common/filelists/arbiter_single_client.f
 
 # Package files (MUST be first, in dependency order)
 # Monitor packages - common first, then protocol-specific, then unified

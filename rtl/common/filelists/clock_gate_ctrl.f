@@ -8,7 +8,7 @@
 $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 
 # Dependencies
-$REPO_ROOT/rtl/common/icg.sv
+-f $REPO_ROOT/rtl/common/filelists/icg.f
 
 # clock_gate_ctrl module
 $REPO_ROOT/rtl/common/clock_gate_ctrl.sv
