@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 
 """
-Macro contract test: mc_age_fifo + mc_matrix_arbiter (MC-003 2026-10-18).
+Macro contract test: mc_age_fifo + mc_matrix_arbiter (MC-003 2026-10-18;
+contract rework 2026-10-19).
 
 Pins the novel semantics of the owner-specified aged-arbiter core before
 integration into the store/scheduler:
@@ -10,14 +11,18 @@ integration into the store/scheduler:
   1. Age discipline: push ages 0,1,2,... (monotone along the queue); every
      decrement strobe steps ALL entries down, saturating at 0; a push on the
      same cycle as a decrement lands on the stepped value.
-  2. needs_act enqueue decode: empty queue reads the bank image (closed ->
-     act; open at same row -> column); non-empty compares against the tail's
-     row; page-close policy forces act on every entry.
-  3. Head views: head/head2 advance on pop; head2_vld drops at count 1;
-     head payload fields track the pushed data.
+  2. Registered snapshots (storage->sched contract SS17): the head/head2
+     views are flops that load the next-state head every cycle, so a
+     push-to-empty or a pop shows at the next edge with zero added
+     latency; head2_vld drops at count 1.
+  3. Head payload fields track the pushed data through pops.
   4. Matrix arbiter: empty request -> no grant; any request set grants
      exactly one; grants rotate across updates (round-robin over time);
      a grant is consumed only with upd_i.
+
+Hit classification does NOT live here (owner ruling 2026-10-19): the fifo
+carries no enqueue-time act tag and reads no bank-state image; the
+scheduler plane decodes each candidate against the live bank state.
 
 common-ip/dv carries NO RTL assertions by repo rule; the checks live here.
 """
@@ -41,27 +46,21 @@ async def _cycle(dut):
     await NextTimeStep()
 
 
-async def _push_a(dut, slot, row, col=0, txn_id=0, last=0,
-                  bank_open=0, bank_row=0, close_pol=0):
+async def _push_a(dut, slot, row, col=0, txn_id=0, last=0):
     dut.a_push.value = 1
     dut.a_push_slot.value = slot
     dut.a_push_row.value = row
     dut.a_push_col.value = col
     dut.a_push_id.value = txn_id
     dut.a_push_last.value = last
-    dut.a_push_bank_open.value = bank_open
-    dut.a_push_bank_row.value = bank_row
-    dut.a_push_close_pol.value = close_pol
     await _cycle(dut)
     dut.a_push.value = 0
 
 
-async def _push_b(dut, slot, row, bank_open=0, bank_row=0):
+async def _push_b(dut, slot, row):
     dut.b_push.value = 1
     dut.b_push_slot.value = slot
     dut.b_push_row.value = row
-    dut.b_push_bank_open.value = bank_open
-    dut.b_push_bank_row.value = bank_row
     await _cycle(dut)
     dut.b_push.value = 0
 
@@ -83,18 +82,21 @@ async def cocotb_test_age_fifo_semantics(dut):
     dut.aresetn.value = 1
     await _cycle(dut)
 
-    # -- 1. age discipline -------------------------------------------------
-    # Bank closed, row 0x10 -> first entry act, age 0.
-    await _push_a(dut, slot=1, row=0x10, bank_open=0, bank_row=0)
+    # -- 1. age discipline + registered snapshot ---------------------------
+    # First push lands at age 0 and is head at the next edge (push-to-empty
+    # captured by the registered snapshot, zero added latency).
+    await _push_a(dut, slot=1, row=0x10)
     assert int(dut.a_head_vld.value) == 1
-    assert int(dut.a_head_act.value) == 1, "closed bank push must need act"
+    assert int(dut.a_head_slot.value) == 1
     assert int(dut.a_head_age.value) == 0
-    # Same row -> column, age 1.
-    await _push_a(dut, slot=2, row=0x10, bank_open=1, bank_row=0x10)
+    # head2 is invalid at count 1.
+    assert int(dut.a_head2_vld.value) == 0, "head2 must be invalid at count 1"
+    # Second push: age 1, now head2.
+    await _push_a(dut, slot=2, row=0x10)
     assert int(dut.a_head2_vld.value) == 1
     assert int(dut.a_head2_age.value) == 1
-    # Different row -> act, age 2.
-    await _push_a(dut, slot=3, row=0x20, bank_open=1, bank_row=0x10)
+    # Third push: head ages unchanged.
+    await _push_a(dut, slot=3, row=0x20)
     assert int(dut.a_head_age.value) == 0
     # Decrement: ages 0(sat),0,1.
     dut.decr.value = 1
@@ -102,7 +104,8 @@ async def cocotb_test_age_fifo_semantics(dut):
     dut.decr.value = 0
     assert int(dut.a_head_age.value) == 0
     assert int(dut.a_head2_age.value) == 0
-    # Pop the head (slot 1 out). head -> slot 2 (age 0); head2 -> slot 3 (age 1).
+    # Pop the head (slot 1 out). The snapshot advances on the same edge:
+    # head -> slot 2 (age 0); head2 -> slot 3 (age 1).
     dut.a_pop.value = 1
     await _cycle(dut)
     dut.a_pop.value = 0
@@ -115,42 +118,34 @@ async def cocotb_test_age_fifo_semantics(dut):
     dut.a_push.value = 1
     dut.a_push_slot.value = 4
     dut.a_push_row.value = 0x20
-    dut.a_push_bank_open.value = 0
-    dut.a_push_close_pol.value = 0
     await _cycle(dut)
     dut.decr.value = 0
     dut.a_push.value = 0
     assert int(dut.a_head2_age.value) == 0, "simultaneous push+decr: newcomer takes stepped tail age"
 
-    # -- 2. empty-queue bank-image decode ----------------------------------
-    # Drain A completely.
-    while int(dut.a_head_vld.value):
+    # -- 2. simultaneous push+pop roll (count 1) ----------------------------
+    # Drain A back to a single entry, then push+pop together: the snapshot
+    # head must roll to the pushed entry in one edge.
+    while int(dut.a_head2_vld.value):
         dut.a_pop.value = 1
         await _cycle(dut)
         dut.a_pop.value = 0
-    # Open bank at 0x30: same-row push is a column.
-    await _push_a(dut, slot=5, row=0x30, bank_open=1, bank_row=0x30)
-    assert int(dut.a_head_act.value) == 0, "open same-row push must be a column"
+    assert int(dut.a_head2_vld.value) == 0
     dut.a_pop.value = 1
+    dut.a_push.value = 1
+    dut.a_push_slot.value = 7
+    dut.a_push_row.value = 0x70
     await _cycle(dut)
     dut.a_pop.value = 0
-    # Open bank at 0x30: different-row push needs a row open.
-    await _push_a(dut, slot=6, row=0x40, bank_open=1, bank_row=0x30)
-    assert int(dut.a_head_act.value) == 1, "open different-row push must need act"
-    dut.a_pop.value = 1
-    await _cycle(dut)
-    dut.a_pop.value = 0
-    # Page-close policy forces act even on a same-row push.
-    await _push_a(dut, slot=7, row=0x50, bank_open=1, bank_row=0x50, close_pol=1)
-    assert int(dut.a_head_act.value) == 1, "page-close policy forces act"
-    dut.a_pop.value = 1
-    await _cycle(dut)
-    dut.a_pop.value = 0
+    dut.a_push.value = 0
+    assert int(dut.a_head_vld.value) == 1, "count-1 push+pop: snapshot head must roll to the pushed entry"
+    assert int(dut.a_head_slot.value) == 7, "count-1 push+pop: head must be the pushed entry"
+    assert int(dut.a_head2_vld.value) == 0
 
     # -- 3. cross-fifo age visibility --------------------------------------
     # Fifo B gets two entries while no fires happen: ages 0 then 1.
-    await _push_b(dut, slot=4, row=0x60, bank_open=0, bank_row=0)
-    await _push_b(dut, slot=5, row=0x60, bank_open=0, bank_row=0)
+    await _push_b(dut, slot=4, row=0x60)
+    await _push_b(dut, slot=5, row=0x60)
     assert int(dut.b_head_age.value) == 0
     # One fire (decrement) drops B's head to 0 (sat) and second to 0.
     dut.decr.value = 1

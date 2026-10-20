@@ -654,7 +654,6 @@ module mc_scheduler_plane
             .wr_bh_id_i         (wr_bh_id_i),
             .wr_bh_last_i       (wr_bh_last_i),
             .wr_bh_empty_i      (wr_bh_empty_i),
-            .wr_bh_act_i        (wr_bh_act_i),
             .wr_bh_age_i        (wr_bh_age_i),
             .rd_bh_valid_i      (rd_bh_valid_i),
             .rd_bh_slot_i       (rd_bh_slot_i),
@@ -662,7 +661,6 @@ module mc_scheduler_plane
             .rd_bh_col_i        (rd_bh_col_i),
             .rd_bh_id_i         (rd_bh_id_i),
             .rd_bh_empty_i      (rd_bh_empty_i),
-            .rd_bh_act_i        (rd_bh_act_i),
             .rd_bh_age_i        (rd_bh_age_i),
             .wr_bh2_valid_i     (wr_bh2_valid_i),
             .wr_bh2_slot_i      (wr_bh2_slot_i),
@@ -670,14 +668,12 @@ module mc_scheduler_plane
             .wr_bh2_col_i       (wr_bh2_col_i),
             .wr_bh2_id_i        (wr_bh2_id_i),
             .wr_bh2_last_i      (wr_bh2_last_i),
-            .wr_bh2_act_i       (wr_bh2_act_i),
             .wr_bh2_age_i       (wr_bh2_age_i),
             .rd_bh2_valid_i     (rd_bh2_valid_i),
             .rd_bh2_slot_i      (rd_bh2_slot_i),
             .rd_bh2_row_i       (rd_bh2_row_i),
             .rd_bh2_col_i       (rd_bh2_col_i),
             .rd_bh2_id_i        (rd_bh2_id_i),
-            .rd_bh2_act_i       (rd_bh2_act_i),
             .rd_bh2_age_i       (rd_bh2_age_i),
             .wr_commit_ready_i  (wr_commit_ready_i),
             .wr_commit_valid_o  (wr_commit_valid_o),
@@ -750,6 +746,11 @@ module mc_scheduler_plane
             .stall_zq_o         (stall_zq_o)
         );
         assign a_cmd_bg = '0;
+        // The act views are dead by contract (hit classification is local to
+        // this core against the live bank state, MC-003 SS17); sink the
+        // plane inputs so both pick cores keep one port list.
+        wire _unused_bh_act = &{1'b0, wr_bh_act_i, rd_bh_act_i,
+                                wr_bh2_act_i, rd_bh2_act_i};
     end else begin : g_arbiter
     // ======================================================================
     // mc_cmd_arbiter — the FRFCFS research pick core.

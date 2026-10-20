@@ -61,7 +61,6 @@ module mc_xddr2_entry_store
 ) (
     input  logic                     aclk,
     input  logic                     aresetn,
-    input  page_policy_e             page_policy_i,
 
     //=========================================================================
     // WR descriptor push from mc_axi4_plane
@@ -119,12 +118,6 @@ module mc_xddr2_entry_store
     input  logic [3:0]          ar_push_qos_i,
 
     //=========================================================================
-    // Bank-state image for per-bank queue enqueue-time decode
-    //=========================================================================
-    input  logic [NUM_BANKS-1:0]          bank_row_active_i,
-    input  logic [NUM_BANKS*ROW_WIDTH-1:0] bank_open_row_i,
-
-    //=========================================================================
     // Return-ring allocation/issue handshake with mc_axi4_plane
     //=========================================================================
     input  logic                rt_alloc_ready_i,
@@ -169,13 +162,17 @@ module mc_xddr2_entry_store
 
     //=========================================================================
     // Per-bank head views — BANK_FIFO pick core (mc_scheduler_plane v2).
-    // Purely combinational off the entry arrays; the core latches a bank's
-    // head into its own sequencer register and drives the SAME commit/issue
-    // strobes above (head slot), so no store state changes here.
+    // CONTRACT (MC-003 SS17): REGISTERED snapshots out of the per-bank age
+    // fifos — these wires are flops at the storage->scheduler boundary, no
+    // combinational array reads.  The core latches a bank's head into its
+    // own sequencer register and drives the SAME commit/issue strobes above
+    // (head slot), so no store state changes here.
     //   head  = oldest schedulable entry of the bank (wr: valid && fdone &&
     //           !sched; rd: valid), via the age matrix.
     //   empty = exactly one schedulable entry in the bank (CLOSE_ON_DRAIN:
     //           the head's close is exact when its queue drains behind it).
+    // Hit classification does NOT cross here: the scheduler plane decodes
+    // each candidate against the live bank state (owner ruling 2026-10-19).
     //=========================================================================
     output logic [NUM_BANKS-1:0]                wr_bh_valid_o,
     output logic [NUM_BANKS*PTRW-1:0]           wr_bh_slot_o,
@@ -206,13 +203,9 @@ module mc_xddr2_entry_store
     output logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh2_row_o,
     output logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh2_col_o,
     output logic [NUM_BANKS*IW-1:0]             rd_bh2_id_o,
-    output logic [NUM_BANKS-1:0]                wr_bh_act_o,
     output logic [NUM_BANKS*6-1:0]              wr_bh_age_o,
-    output logic [NUM_BANKS-1:0]                rd_bh_act_o,
     output logic [NUM_BANKS*6-1:0]              rd_bh_age_o,
-    output logic [NUM_BANKS-1:0]                wr_bh2_act_o,
     output logic [NUM_BANKS*6-1:0]              wr_bh2_age_o,
-    output logic [NUM_BANKS-1:0]                rd_bh2_act_o,
     output logic [NUM_BANKS*6-1:0]              rd_bh2_age_o,
 
     //=========================================================================
@@ -787,7 +780,8 @@ module mc_xddr2_entry_store
     // One mc_age_fifo per (direction, bank).  Pushes are structural events:
     // WR when the last W beat finishes the entry; RD at the AR handshake.
     // Pops ride the existing commit/issue fire handshakes.  Head/head2 views
-    // are combinational; empty flags are the fifo's one_o (count == 1).
+    // are the fifos' REGISTERED snapshots (contract SS17); empty flags ride
+    // the registered one_o.
     // ======================================================================
     generate
         for (genvar b = 0; b < NUM_BANKS; b++) begin : g_age_fifo
@@ -813,9 +807,6 @@ module mc_xddr2_entry_store
                 .push_col_i      (r_wr_col[w_wr_fifo_push_slot]),
                 .push_id_i       (r_wr_id [w_wr_fifo_push_slot]),
                 .push_last_i     (r_wr_last[w_wr_fifo_push_slot]),
-                .push_bank_open_i(bank_row_active_i[b]),
-                .push_bank_row_i (bank_open_row_i[b*ROW_WIDTH +: ROW_WIDTH]),
-                .push_close_pol_i(page_policy_i == PAGE_POLICY_CLOSE),
                 .full_o          (),
                 .decr_i          (sched_decr_i),
                 .head_vld_o      (wr_bh_valid_o[b]),
@@ -824,7 +815,6 @@ module mc_xddr2_entry_store
                 .head_col_o      (wr_bh_col_o[b*COL_WIDTH +: COL_WIDTH]),
                 .head_id_o       (wr_bh_id_o[b*IW +: IW]),
                 .head_last_o     (wr_bh_last_o[b]),
-                .head_act_o      (wr_bh_act_o[b]),
                 .head_age_o      (wr_bh_age_o[b*AF_AGEW +: AF_AGEW]),
                 .head2_vld_o     (wr_bh2_valid_o[b]),
                 .head2_slot_o    (wr_bh2_slot_o[b*PTRW +: PTRW]),
@@ -833,7 +823,6 @@ module mc_xddr2_entry_store
                 .head2_id_o      (wr_bh2_id_o[b*IW +: IW]),
                 .head2_last_o    (wr_bh2_last_o[b]),
                 .head2_age_o     (wr_bh2_age_o[b*AF_AGEW +: AF_AGEW]),
-                .head2_act_o     (wr_bh2_act_o[b]),
                 .pop_i           (w_wr_pop_b),
                 .empty_o         (),
                 .one_o           (wr_bh_empty_o[b])
@@ -855,9 +844,6 @@ module mc_xddr2_entry_store
                 .push_col_i      (ar_push_col_i),
                 .push_id_i       (ar_push_id_i),
                 .push_last_i     (1'b0),
-                .push_bank_open_i(bank_row_active_i[b]),
-                .push_bank_row_i (bank_open_row_i[b*ROW_WIDTH +: ROW_WIDTH]),
-                .push_close_pol_i(page_policy_i == PAGE_POLICY_CLOSE),
                 .full_o          (),
                 .decr_i          (sched_decr_i),
                 .head_vld_o      (rd_bh_valid_o[b]),
@@ -866,7 +852,6 @@ module mc_xddr2_entry_store
                 .head_col_o      (rd_bh_col_o[b*COL_WIDTH +: COL_WIDTH]),
                 .head_id_o       (rd_bh_id_o[b*IW +: IW]),
                 .head_last_o     (),
-                .head_act_o      (rd_bh_act_o[b]),
                 .head_age_o      (rd_bh_age_o[b*AF_AGEW +: AF_AGEW]),
                 .head2_vld_o     (rd_bh2_valid_o[b]),
                 .head2_slot_o    (rd_bh2_slot_o[b*PTRW +: PTRW]),
@@ -875,7 +860,6 @@ module mc_xddr2_entry_store
                 .head2_id_o      (rd_bh2_id_o[b*IW +: IW]),
                 .head2_last_o    (),
                 .head2_age_o     (rd_bh2_age_o[b*AF_AGEW +: AF_AGEW]),
-                .head2_act_o     (rd_bh2_act_o[b]),
                 .pop_i           (w_rd_pop_b),
                 .empty_o         (),
                 .one_o           (rd_bh_empty_o[b])

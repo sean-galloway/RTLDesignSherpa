@@ -63,7 +63,6 @@ module mc_bank_sched
     input  logic [NUM_BANKS*IW-1:0]   wr_bh_id_i,
     input  logic [NUM_BANKS-1:0]      wr_bh_last_i,
     input  logic [NUM_BANKS-1:0]      wr_bh_empty_i,
-    input  logic [NUM_BANKS-1:0]      wr_bh_act_i,
     input  logic [NUM_BANKS*6-1:0]    wr_bh_age_i,
     input  logic [NUM_BANKS-1:0]      rd_bh_valid_i,
     input  logic [NUM_BANKS*PTRW-1:0] rd_bh_slot_i,
@@ -71,7 +70,6 @@ module mc_bank_sched
     input  logic [NUM_BANKS*COL_WIDTH-1:0] rd_bh_col_i,
     input  logic [NUM_BANKS*IW-1:0]   rd_bh_id_i,
     input  logic [NUM_BANKS-1:0]      rd_bh_empty_i,
-    input  logic [NUM_BANKS-1:0]      rd_bh_act_i,
     input  logic [NUM_BANKS*6-1:0]    rd_bh_age_i,
     input  logic [NUM_BANKS-1:0]      wr_bh2_valid_i,
     input  logic [NUM_BANKS*PTRW-1:0] wr_bh2_slot_i,
@@ -79,14 +77,12 @@ module mc_bank_sched
     input  logic [NUM_BANKS*COL_WIDTH-1:0] wr_bh2_col_i,
     input  logic [NUM_BANKS*IW-1:0]   wr_bh2_id_i,
     input  logic [NUM_BANKS-1:0]      wr_bh2_last_i,
-    input  logic [NUM_BANKS-1:0]      wr_bh2_act_i,
     input  logic [NUM_BANKS*6-1:0]    wr_bh2_age_i,
     input  logic [NUM_BANKS-1:0]      rd_bh2_valid_i,
     input  logic [NUM_BANKS*PTRW-1:0] rd_bh2_slot_i,
     input  logic [NUM_BANKS*ROW_WIDTH-1:0] rd_bh2_row_i,
     input  logic [NUM_BANKS*COL_WIDTH-1:0] rd_bh2_col_i,
     input  logic [NUM_BANKS*IW-1:0]   rd_bh2_id_i,
-    input  logic [NUM_BANKS-1:0]      rd_bh2_act_i,
     input  logic [NUM_BANKS*6-1:0]    rd_bh2_age_i,
 
     // ---- storage commit / issue handshake (same contract as the FRFCFS core)
@@ -303,13 +299,16 @@ module mc_bank_sched
 
     // ======================================================================
     // Aged matrix-arbiter pick core.  The store keeps one age-ordered fifo per
-    // (direction,bank); this core sees only the head/head2 views plus the
-    // enqueue-time act tag and 6-bit age.  A 16-requester matrix arbiter picks
-    // among the entries whose decoded op is non-NOP and whose presented age
-    // equals the global minimum; the winner registers, is re-checked against
-    // the LIVE JEDEC gates, and fires combinationally.  Head2 is pre-picked
-    // for the pair whose registered winner fires this cycle so back-to-back
-    // same-bank columns run at one command per cycle.
+    // (direction,bank); this core sees only the REGISTERED head/head2
+    // snapshots and their 6-bit ages (storage->sched contract SS17 — no
+    // combinational array views cross the boundary, and no enqueue-time
+    // flags: hit classification below decodes each candidate against the
+    // LIVE bank timer state).  A 16-requester matrix arbiter picks among
+    // the entries whose decoded op is non-NOP and whose presented age
+    // equals the global minimum; the winner registers, is re-checked
+    // against the LIVE JEDEC gates, and fires combinationally.  Head2 is
+    // pre-picked for the pair whose registered winner fires this cycle so
+    // back-to-back same-bank columns run at one command per cycle.
     // ======================================================================
     typedef struct packed {
         logic                 vld;
