@@ -27,20 +27,24 @@
       "wave": "222x....",
       "data": [
         "MUL",
-        "MUL",
+        "ADD",
         "RELU"
       ]
     },
     {
       "name": "ready (ALU)",
-      "wave": "0111...."
+      "wave": "1110...."
+    },
+    {
+      "name": "result_valid (ALU)",
+      "wave": ".1000110."
     },
     {
       "name": "result_line",
-      "wave": "x....222",
+      "wave": "x2xxx23x",
       "data": [
         "r(MUL)",
-        "r(MUL)",
+        "r(ADD)",
         "r(RELU)"
       ]
     }
@@ -49,6 +53,6 @@
     "hscale": 2.2
   },
   "head": {
-    "text": "Back-to-back issue: any opcodes, one per clock while ready, in-order results (L drawn = 4)"
+    "text": "Back-to-back issue, one per clock: in-order results at natural per-row latency \u2014 RELU waits behind ADD"
   }
 }

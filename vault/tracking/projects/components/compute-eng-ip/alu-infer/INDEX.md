@@ -24,3 +24,4 @@ RDS-DV BFM testbench in `alu-infer/dv/` (own component area since
 |---|---|
 | [TASK-006](task/closed/TASK-006.md) | tag/same-tag alignment in RTL (replaces alu_infer_pipe timer mailbox) |
 | [TASK-008](task/closed/TASK-008.md) | alu-infer own component area + RDS-DV GAXI BFM testbench (stream methodology) |
+| [TASK-009](task/closed/TASK-009.md) | testplan coverage map generated from real coverage data + standard delay-profile sweep |

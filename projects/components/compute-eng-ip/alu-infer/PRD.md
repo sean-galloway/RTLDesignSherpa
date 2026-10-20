@@ -47,7 +47,9 @@ padded stages on quick rows, in-order results. **Base decisions** — bf16
 element model on the rtl/math `math_bf16_*` library, fp32 MAC accumulate,
 one RV32I core per tetrad with in-band everything.
 **Status:** Pre-HAS PRD, and the **normative definition of the cell's ALU
-block**: the RTL implementation lives in the **cell** component, and where
+block**: the RTL implementation lives in this component (`alu-infer/rtl/`,
+unit tests in `alu-infer/dv/tests/`; moved from `cell/rtl/` 2026-10-20) and
+the **cell** component integrates it. Where
 this document and the [cell PRD](../cell/docs/PRD.md) touch the ALU, this
 one governs (the cell PRD was reconciled to it 2026-10-17; see §2).
 
@@ -70,11 +72,16 @@ set), so the ALU is the math library's inference consumer the same way the
 falcon suite's garuda rung is its IEEE-fp32 consumer. Rows without a bf16
 block (copy, and the compare *mask* packing) are wires and glue.
 
-Placement (owner decision 2026-10-17): this directory holds the product
-definition, verification doctrine, and open questions. The RTL —
-SystemVerilog plus its cocotb tests — is built and maintained inside
-[`cell/`](../cell/README.md) as the cell's "ALU + execution FSM" block, so
-it is verified with the memories, packetizer, and credit logic it serves.
+Placement (owner decision 2026-10-17, updated 2026-10-20): this directory
+holds the product definition, verification doctrine, the RTL
+(`rtl/`, SystemVerilog), and its cocotb unit tests (`dv/tests/`) —
+organized like the repo's other component areas (the dma-ip/stream
+pattern: flat RTL with per-block filelists and a lint master, a four-line
+area Makefile, and a discoverable `dv/tests` suite). The
+[`cell/`](../cell/README.md) component integrates the block as the cell's
+"ALU + execution FSM" element: the cell filelists include this block's
+filelist, and cell-level tests will verify it with the memories,
+packetizer, and credit logic it serves.
 The block boundaries in the cell PRD were chosen so a future CGRA array
 replaces this ALU without disturbing the network, credit, or observation
 contracts (cell PRD §11); this PRD's interface contract (§4) is written to
@@ -107,7 +114,7 @@ PRD links here rather than restating it.
 ## 3. Function set (v1)
 
 Opcode rows on the bf16 base; the `math_bf16_*` block named in each row is
-the implementation base inside the cell RTL. Each row is an RTL table
+the implementation base in the ALU's RTL. Each row is an RTL table
 entry, not a new block.
 
 | Opcode | Function | `rtl/math` base | Operand pattern |

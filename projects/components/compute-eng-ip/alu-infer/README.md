@@ -28,18 +28,24 @@ The cell's compute ALU: a bf16 inference datapath — two bf16 lanes per
 multiplier, fused FMA-mac, comparator, min/max, ReLU, and the activation
 growth set), driven by the cell's execution FSM.
 
-This directory holds the **product definition only**; the RTL implementation
-is built and verified inside the cell component (owner decision 2026-10-17).
+This directory holds the **product definition and the RTL**; the ALU is
+integrated and verified at system level inside the cell component (owner
+decision 2026-10-17; RTL moved here from `cell/rtl/` on 2026-10-20).
 
 - **PRD:** [PRD.md](PRD.md)
 - **MAS:** [Micro-Architecture Specification](docs/alu_infer_mas/alu_infer_mas_index.md)
   ([PDF](docs/ALUINFER_MAS_v0.50.pdf)) — module tree, function rows, fp32
   MAC accumulator, ALU↔FSM interface, cycle behavior, verification hooks
-- **Implementation home:** [`cell/`](../cell/README.md) — the "ALU + execution
+- **RTL:** [`rtl/`](rtl/) — `alu_infer_top.sv`, `alu_infer_rows.sv`,
+  `alu_infer_pipe.sv`, `alu_infer_acc.sv`, organized like the other
+  component areas (per-block filelists under `rtl/filelists/`, an
+  `alu_infer_all.f` lint master, four-line area Makefile)
+- **Unit tests:** [`dv/tests/`](dv/tests/) — `test_alu_infer.py`
+  (func+gate green), run via `make -C dv/tests run-alu_infer-<level>`
+- **Integration home:** [`cell/`](../cell/README.md) — the "ALU + execution
   FSM" block; the normative datapath context is [cell PRD §4](../cell/docs/PRD.md).
-  The v1 RTL landed in `cell/rtl/` on 2026-10-17/18 (func+gate green):
-  `alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`,
-  `alu_infer_acc.sv`.
+  The cell filelists include this block's filelist for slice-3
+  instantiation.
 - **Arithmetic library:** [`rtl/math/`](../../../../rtl/math/) `math_bf16_*`
   family
 - **Back to family:** [compute-eng-ip README](../README.md)

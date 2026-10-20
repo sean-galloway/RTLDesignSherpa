@@ -571,7 +571,17 @@ filelist_dirs = ["projects/components/compute-eng-ip/hive-serv/rtl/filelists"]
 [[area]]
 name = "cell"
 kind = "component"
-# ALU-INFER bf16 inference ALU inside the compute cell. Registered 2026-10-17
-# with its first RTL (alu_infer_top, alu_infer_pipe, alu_infer_rows, alu_infer_acc).
+# Compute cell (slice 1: delta node containment, config registers, data-in/out
+# memories, RX). The ALU-INFER block it integrates lives in the sibling
+# alu-infer area (registered below); cell_top.f includes its filelist.
 rtl_roots = ["projects/components/compute-eng-ip/cell/rtl"]
 filelist_dirs = ["projects/components/compute-eng-ip/cell/rtl/filelists"]
+
+[[area]]
+name = "alu-infer"
+kind = "component"
+# ALU-INFER bf16 inference ALU. RTL registered 2026-10-17 (alu_infer_top,
+# alu_infer_pipe, alu_infer_rows, alu_infer_acc); moved from cell/rtl to its
+# own component area 2026-10-20.
+rtl_roots = ["projects/components/compute-eng-ip/alu-infer/rtl"]
+filelist_dirs = ["projects/components/compute-eng-ip/alu-infer/rtl/filelists"]

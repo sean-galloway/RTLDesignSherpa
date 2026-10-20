@@ -32,7 +32,7 @@
 | Document Title | ALU-INFER Micro-Architecture Specification |
 | Version | 0.50 (pinned per owner, "for now") |
 | Date | 2026-10-17 |
-| Status | Draft — v1 RTL landed in `cell/rtl/` on 2026-10-17/18 (func+gate green): `alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`, `alu_infer_acc.sv`. The MAS's planned submodules `alu_infer_decompose`/`select`/`compose`/`decode` are folded into `alu_infer_rows.sv` in the as-built RTL; `ROW_LATENCY` defaults to 4 with range [1,6]. Chapters 2–4 are reconciled to the as-built code and carry the open decision IDs M1–M8. |
+| Status | Draft — v1 RTL lives in `alu-infer/rtl/` (landed 2026-10-17/18 in `cell/rtl/`, func+gate green; moved to the alu-infer component 2026-10-20): `alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`, `alu_infer_acc.sv`. The MAS's planned submodules `alu_infer_decompose`/`select`/`compose`/`decode` are folded into `alu_infer_rows.sv` in the as-built RTL. The tag-based alignment of the owner ruling 2026-10-18 is the as-built realization since 2026-10-19: `alu_infer_pipe` is a tag FIFO with an arrival join; parameters are `PIPE_DEPTH` (default 8, range [2,16]), `ADDER_LATENCY` (default 3, range [0,4]), and `TAG_W` (8, per ruling). Chapters 2–4 are reconciled to the as-built code and carry the open decision IDs M1–M8. |
 | Classification | Open Source - MIT License |
 
 : Document information
@@ -56,20 +56,20 @@ inference ALU is built:
   register
 
 Yes, the "(planned)" markers of earlier drafts get called out up front
-rather than left for you to discover. The v1 RTL landed in `cell/rtl/`
-on 2026-10-17/18 (func+gate green): `alu_infer_top.sv`,
+rather than left for you to discover. The v1 RTL lives in
+`alu-infer/rtl/` (landed in `cell/rtl/` on 2026-10-17/18, func+gate
+green; moved to the alu-infer component on 2026-10-20): `alu_infer_top.sv`,
 `alu_infer_rows.sv`, `alu_infer_pipe.sv`, `alu_infer_acc.sv`. The MAS's
 planned submodules `alu_infer_decompose`/`select`/`compose`/`decode` are
-folded into `alu_infer_rows.sv` in the as-built RTL; `ROW_LATENCY`
-defaults to 4 with range [1,6]. This book now documents the as-built
-implementation that the cell's RTL is checked against. For what the ALU
-must do and why, see the companion **alu-infer PRD** (normative for the
-ALU block); for the cell around it, see the **cell PRD**.
-
-**Addendum 2026-10-19:** the tag-based alignment mechanism described in
-Chapter 4 is a ratified target, not yet in the as-built RTL; the v1
-implementation realizes the same uniform-presentation contract with the
-alignment-timer mailbox inside `alu_infer_pipe.sv`.
+folded into `alu_infer_rows.sv` in the as-built RTL. This book now
+documents the as-built implementation that the cell's RTL is checked
+against — including the tag-based alignment of the owner ruling
+2026-10-18, implemented 2026-10-19: `alu_infer_pipe` is a tag FIFO with
+an arrival join (Chapter 4), and the retired alignment-timer mailbox's
+`ROW_LATENCY` parameter is replaced by `PIPE_DEPTH` and `ADDER_LATENCY`.
+For what the ALU must do and why, see the companion **alu-infer PRD**
+(normative for the ALU block); for the cell around it, see the **cell
+PRD**.
 
 ### Intended Audience
 
@@ -84,7 +84,7 @@ alignment-timer mailbox inside `alu_infer_pipe.sv`.
 
 | Version | Date | Author | Description |
 |---|---|---|---|
-| 0.50 | 2026-10-18 | RTL Design Sherpa | Revs pinned at 0.50 per owner ("for now," while the ALU heads to the board). Content: tag-based elastic alignment ruling (PRD v0.50) — 8-bit tag per loaded invocation, common to all ops that must run in parallel; FIFO-tracked; op valid asserts only when all valids of its tag group are ready. Alignment architecture for deep-pipelined rows; as-built mailbox/timers remain the v1 realization (ch04 note). v1 RTL landed in `cell/rtl/` on 2026-10-17/18 (func+gate green): `alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`, `alu_infer_acc.sv`; planned `alu_infer_decompose`/`select`/`compose`/`decode` submodules folded into `alu_infer_rows.sv`; `ROW_LATENCY` defaults to 4, range [1,6]. No interface change. Carries Rev 0.5's port-width correction. |
+| 0.50 | 2026-10-18 | RTL Design Sherpa | Revs pinned at 0.50 per owner ("for now," while the ALU heads to the board). Content: tag-based elastic alignment ruling (PRD v0.50) — 8-bit tag per loaded invocation, common to all ops that must run in parallel; FIFO-tracked; op valid asserts only when all valids of its tag group are ready. **Implemented 2026-10-19** (func+gate green, 13 cocotb tests × {gate,func} × PIPE_DEPTH {4,8}): `alu_infer_pipe` is now the tag FIFO with an arrival join; results retire in issue order at natural per-row latency (combinational rows the cycle after issue, add/sub `ADDER_LATENCY` cycles after), a stalled consumer no longer blocks issue until the FIFO fills, and `ROW_LATENCY` is replaced by `PIPE_DEPTH` (default 8, [2,16]) and `ADDER_LATENCY` (default 3, [0,4]). The PRD's "exactly `ROW_LATENCY` cycles" phrasing described the retired mailbox realization; the seam contract (two valid/ready pairs, in-order, II=1, no tags on the seam) is unchanged. Carries Rev 0.5's port-width correction. |
 | 0.5 | 2026-10-17 | RTL Design Sherpa | Port-width correction (PRD v0.9): operand ports stay `LINE_W` each — a binary/mac invocation pops one line per side (OP_LINES counts the A+B pair); the v0.7 widening was a line/lane mis-count. Same-clock capture ruling unchanged. |
 | 0.4 | 2026-10-17 | RTL Design Sherpa | Owner accept-and-defer pass (PRD v0.8): M7 and the `acc_ctrl` encoding accepted as drafted ("works for now"); per-row latency minimization deferred to FPGA bring-up (M8); PRD §8 result-flag question closed (packed low, one bit per lane). |
 | 0.3 | 2026-10-17 | RTL Design Sherpa | Owner rulings closing the implementation gaps (PRD v0.7): `OP_LINES × LINE_W` operand ports with same-clock capture; scheduler-paced feedback (the ALU makes no autonomous pacing decisions); CLEAR and errored opcodes retire their slots; `result_flags` = one mask bit per lane, packed low (M5 closed). |

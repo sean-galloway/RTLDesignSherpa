@@ -61,15 +61,16 @@ an 8-stage pipeline, the chain would run at one step per 8 clocks no
 matter how fast issues arrive. The row is therefore split:
 
 - **Product stage(s)** — the bf16 multiply, whose fp32 product is
-  exact — pipelined as deep as `ROW_LATENCY` wants. Feed-forward, so
-  back-to-back invocations sustain II=1 regardless of depth.
+  exact — pipelined as deep as the integration clock wants (§7 growth).
+  Feed-forward, so back-to-back invocations sustain II=1 regardless of
+  depth; the tag FIFO absorbs the depth unchanged.
 - **Accumulate stage** — one fp32 add in the feedback path,
   single-cycle. The chain closes in one clock: one fused accumulate
   per lane per cycle, sustained.
 
-The product pipeline and the single-cycle accumulate also compose into
-the uniform-latency contract: presentation of step *k* lags its issue
-by `ROW_LATENCY`, in order, like every other row.
+The product pipeline and the single-cycle accumulate also compose with
+the tag-join contract: the bf16 view of step *k* retires in issue order
+at the row's natural latency, like every other row.
 
 ## Presentation Semantics (MAS decision M7)
 

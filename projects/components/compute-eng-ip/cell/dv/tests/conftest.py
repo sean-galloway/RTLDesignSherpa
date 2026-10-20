@@ -1,4 +1,4 @@
-"""CELL (alu-infer) test configuration for pytest.
+"""CELL test configuration for pytest.
 
 Boilerplate (log dir, coverage aggregation, marker registration) lives in
 ``bin/cov_utils/conftest_base.py`` -- the shared base the other component
@@ -23,7 +23,6 @@ AREA_NAME = 'CELL'
 LOG_BASENAME = 'pytest_cell.log'
 MARKERS = (
     'cell: CELL subsystem tests',
-    'alu_infer: ALU-INFER block tests',
     'basic: Basic functionality tests',
     'coverage: Tests that collect coverage data',
 )

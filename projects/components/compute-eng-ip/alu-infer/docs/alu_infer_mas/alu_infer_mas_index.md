@@ -89,15 +89,15 @@ block diagram correctly shows a plain box, not a trapezium.
 now," while the ALU heads to the board):** tag-based elastic alignment
 ruling (PRD v0.50) — each loaded invocation takes an 8-bit tag, common to
 all ops that must execute in parallel; a FIFO tracks tags in flight; an
-op's valid asserts only when every op of its tag group is ready. Ruled as
-the alignment architecture for deep-pipelined rows (multiplier/FMA
-`PIPE_STAGE_*` growth); the as-built v1 uses the alignment-timer mailbox
-in `alu_infer_pipe.sv` instead. v1 RTL landed in `cell/rtl/` on
-2026-10-17/18 (func+gate green): `alu_infer_top.sv`, `alu_infer_rows.sv`,
-`alu_infer_pipe.sv`, `alu_infer_acc.sv`; planned
-`alu_infer_decompose`/`select`/`compose`/`decode` submodules are folded
-into `alu_infer_rows.sv`; `ROW_LATENCY` defaults to 4 with range [1,6].
-No interface change — tags stay inside the block. Carries Rev 0.5's
+op's valid asserts only when every op of its tag group is ready.
+**Implemented 2026-10-19** (func+gate green, 13 cocotb tests ×
+{gate,func} × `PIPE_DEPTH` {4,8}): `alu_infer_pipe` is the tag FIFO with
+an arrival join; results retire in issue order at natural per-row
+latency; a stalled consumer no longer blocks issue until the FIFO fills;
+`ROW_LATENCY` is replaced by `PIPE_DEPTH` (default 8, [2,16]) and
+`ADDER_LATENCY` (default 3, [0,4]). The PRD's "exactly `ROW_LATENCY`
+cycles" phrasing described the retired mailbox realization; the seam
+contract is unchanged — tags stay inside the block. Carries Rev 0.5's
 port-width correction.
 
 **Rev 0.5 (2026-10-17):** port-width correction (PRD v0.9) —
@@ -137,7 +137,8 @@ at both ends. Carries Rev 0.1's decisions unchanged.
 PRD v0.3 decisions — bf16 element model on the `math_bf16_*` library,
 fp32 MAC accumulation (presentation semantics decided as M7), per-tetrad
 control interface, in-band config/programming. v1 RTL landed in
-`cell/rtl/` on 2026-10-17/18 (func+gate green); chapters 2–4 document the
+`cell/rtl/` on 2026-10-17/18 (func+gate green) and moved to
+`alu-infer/rtl/` on 2026-10-20; chapters 2–4 document the
 as-built implementation and carry the open decisions M1–M8 of Chapter 6
 in their labels.
 

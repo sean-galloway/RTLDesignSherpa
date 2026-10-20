@@ -1,6 +1,6 @@
 # Master filelist for the cell RTL area (lint closure).
-# Includes every alu_infer_top source, the slice-1 cell modules, and the
-# delta node dependency they instantiate.
+# The cell's own modules plus its dependencies: the delta node it instantiates
+# and the alu-infer block (owned by the sibling alu-infer area) that slice 3+
+# will instantiate. All reached transitively through cell_top.f.
 
--f $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/filelists/alu_infer_top.f
 -f $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/filelists/cell_top.f

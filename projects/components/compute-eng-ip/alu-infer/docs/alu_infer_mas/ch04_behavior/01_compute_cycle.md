@@ -100,16 +100,17 @@ accumulator tests rely on.
 
 The pipeline never inserts a stall of its own: a MUL issue on one
 clock, a RELU on the next, a MAC step on the third — all in flight
-together, results retiring in issue order `ROW_LATENCY` later
+together, results retiring in issue order as each tag group arrives
 (Waveform 3.2). The one stall source is downstream: when
-`result_ready` deasserts, the output stage holds, the alignment timer
-freezes, and `ready` at the input falls once the backup reaches it
-(Waveform 3.1). Three consequences are worth stating:
+`result_ready` deasserts, the head entry holds its offer with stable
+data, rows behind it keep landing in their own entries, and `ready`
+falls only once the FIFO is full (Waveform 3.1). Three consequences are
+worth stating:
 
-- **No drain logic.** Because every row presents the same latency,
-  switching opcode mid-stream costs nothing; there is no pipeline
-  flush, no bubble. Backpressure needs no drain either — the elastic
-  stages simply hold their state until the blockage clears.
+- **No drain logic.** Because retirement is in issue order regardless
+  of per-row latency, switching opcode mid-stream costs nothing; there
+  is no pipeline flush, no bubble. Backpressure needs no drain either —
+  the FIFO entries simply hold their state until the blockage clears.
 - **The FSM pairs results by counting.** Result N belongs to
   invocation N; no tags ride the interface.
 - **Idle is a hold.** When the FSM stops issuing (`valid` low), the
@@ -117,17 +118,21 @@ freezes, and `ready` at the input falls once the backup reaches it
   result holds until consumed, and the accumulator bank holds until
   `acc_ctrl` says otherwise.
 
-**Alignment mechanism ruling (owner 2026-10-18).** The as-built block
-realizes this chapter's uniform presentation with the result mailbox and
-per-slot countdown timers inside `alu_infer_pipe.sv`. The owner has ruled
-the alignment architecture for deep-pipelined rows (alu-infer PRD §4
-invariant 3 and §7): when an invocation is loaded it takes an **8-bit
-tag**, common to all ops that must execute in parallel; a **FIFO**
-tracks the tags in flight; an op asserts its valid only when every op of
-its tag group is ready. The tag-ganged join plus FIFO is the **ratified
-target**, not yet in the as-built RTL; the v1 mailbox-and-timers
-realization keeps the same contract. No interface change: the tags stay
-inside the block; the ALU↔FSM seam keeps its two valid/ready pairs.
+**The alignment mechanism (owner ruling 2026-10-18, as-built since
+2026-10-19).** When an invocation is loaded it takes an **8-bit tag**,
+common to all ops that must execute in parallel; a **FIFO** tracks the
+tags in flight; an op asserts its valid only when every op of its tag
+group is ready. The as-built `alu_infer_pipe` is exactly this: a
+free-running tag counter at issue, a `PIPE_DEPTH`-entry FIFO in issue
+order, and an arrival join — combinational rows land at the issue edge,
+the pipelined add/sub row re-joins its entry by **tag compare** (not
+position) when its result lands. v1 issues one row-op per invocation,
+so a tag group is one arrival; the group join is exercised structurally
+and multi-op parallel issue is the growth path the ruling targets
+(deep-pipelined rows, PRD §7). This supersedes the first v1 build's
+alignment-timer mailbox and its uniform `ROW_LATENCY` presentation —
+with no interface change: the tags stay inside the block; the ALU↔FSM
+seam keeps its two valid/ready pairs.
 
 ---
 

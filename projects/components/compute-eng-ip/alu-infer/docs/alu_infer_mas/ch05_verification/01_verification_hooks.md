@@ -24,11 +24,29 @@
 # Verification Hooks and Observability
 
 The ALU's verifiability is a consequence of its structure, and this
-chapter names the hooks the design exposes on purpose. The tests live
-in the cell's `dv/` tree (the RTL does), on the repo's cocotb + rds-dv
-BFM stack; the cell PRD's credit-loop tests already prove lines-in →
-credits-out independently of the datapath, so these hooks assume a
-datapath-only test space.
+chapter names the hooks the design exposes on purpose. The tests live in
+`alu-infer/dv/` — `tbclasses/alu_infer_tb.py` holds the testbench (an
+`AluInferTB` class on the repo's `TBBase`), and `tests/test_alu_infer.py`
+is a thin TEST_TYPE-dispatching runner, the repository standard pattern
+(the stream area's). Both valid/ready interfaces are owned by RDS-DV GAXI
+BFMs: a `GAXIMaster` drives the issue interface (`valid`/`ready` +
+operand/func fields), a `GAXISlave` receives the result interface
+(`result_valid`/`result_ready` + line/flags), and passive `GAXIMonitor`s
+record completed transfers on both sides. Timing checks anchor on the
+BFMs' packet timestamps (the master stamps the accepting edge, the slave
+the retiring cycle), and the mixed soak additionally runs under the
+standard randomized GAXI delay profiles (`GAXI_TIMING_PROFILE`, from the
+shared `GAXI_RANDOMIZER_CONFIGS` table in
+`bin/TBClasses/amba/amba_random_configs.py`): func sweeps `fast`,
+`slow_producer`, `slow_consumer`, `gaxi_realistic`, `gaxi_backpressure`;
+full adds `constrained`, `burst_pause`, `high_throughput`, `gaxi_stress`
+(the per-type default is `backtoback`). The scenario-to-coverage map
+lives in `dv/testplans/alu_infer_top_testplan.yaml` — its `covers_lines`
+are generated from the per-scenario merged coverage data, and
+`bin/cov_utils/verify_testplan_coverage.py --strict` re-checks every
+scenario against a fresh `COVERAGE=1` run. The cell PRD's
+credit-loop tests already prove lines-in → credits-out independently of
+the datapath, so these hooks assume a datapath-only test space.
 
 ## The Golden Model
 
@@ -67,6 +85,20 @@ base classes (`bf16_special_value_product`, per the math area's
 TASK-006 grid discipline) generate the Cartesian product; the matrix
 above says where it must be applied.
 
+## Elastic and Tag-Join Behavior
+
+The alignment mechanism has its own directed tests — the as-built
+TEST_TYPEs `copy_timing`, `backpressure`, and `tag_join`: natural per-row
+latency (combinational rows offered the cycle after issue, add/sub
+`ADDER_LATENCY` cycles after, measured from BFM packet timestamps),
+II=1 streaming proven from consecutive retirement deltas under
+`send_burst`, the elastic hold-and-resume (the slave's
+`set_ready_policy('stall'/'always')` drives the consumer side), the
+tag-FIFO fill (`ready` falls only at `PIPE_DEPTH` in flight, never
+earlier), and the join itself — an add issued ahead of a relu and a
+copy must present first, with the fast rows waiting at the FIFO head.
+These are the tests that pin the owner ruling of 2026-10-18.
+
 ## Observability
 
 - **No internal monitor taps by default.** Observability is the Ocelus
@@ -88,4 +120,4 @@ programming, credit loop, packetizer) that consume this block.
 
 ---
 
-**Last Updated:** 2026-10-17
+**Last Updated:** 2026-10-20

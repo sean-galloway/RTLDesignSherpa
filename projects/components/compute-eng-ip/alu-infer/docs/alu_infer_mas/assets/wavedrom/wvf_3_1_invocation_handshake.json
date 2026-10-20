@@ -29,48 +29,62 @@
       "wave": "22x.......",
       "data": [
         "MUL",
-        "MUL"
+        "RELU"
       ]
     },
     {
       "name": "ready (ALU)",
-      "wave": "010......."
+      "wave": "111......."
     },
     {
       "name": "issue = valid & ready",
-      "wave": ".10......."
+      "wave": "110......."
     },
     {
       "name": "operand lines",
-      "wave": "x=x.......",
+      "wave": "22x.......",
       "data": [
-        "A0/B0 \u00b7 A1/B1 (same clock)"
+        "A0/B0",
+        "A1/B1"
+      ]
+    },
+    {
+      "name": "tag (internal, 8b)",
+      "wave": "22x.......",
+      "data": [
+        "t0",
+        "t1"
       ]
     },
     {
       "name": "result_valid (ALU)",
-      "wave": ".....1110."
+      "wave": ".1111110.."
     },
     {
       "name": "result_ready (FSM)",
-      "wave": "111110011."
+      "wave": "0000011..."
     },
     {
       "name": "result_line",
-      "wave": "x....=22x.",
+      "wave": "x222223xxx",
       "data": [
-        "result"
+        "r(MUL)",
+        "r(MUL)",
+        "r(MUL)",
+        "r(MUL)",
+        "r(MUL)",
+        "r(RELU)"
       ]
     },
     {
       "name": "retire",
-      "wave": ".......10."
+      "wave": ".....11..."
     }
   ],
   "config": {
     "hscale": 2.2
   },
   "head": {
-    "text": "Elastic handshake: input stall, all operand lines captured at issue, result offered at L = 4, output stall holds until consumed"
+    "text": "Elastic handshake: comb-row result offered the cycle after issue; an output stall holds head and follower until consumed"
   }
 }

@@ -94,15 +94,18 @@ def get_covered_lines(coverage_dat, rtl_filename):
             if rtl_filename in sv_file.name:
                 with open(sv_file, 'r') as f:
                     lines = f.readlines()
-                # verilator_coverage --annotate prefixes each SOURCE line with either
-                # " <count>" (executed) or "%<count>" (below threshold), one annotated
-                # line per source line, preceded by a single legend header line. The
-                # source line number is therefore the physical position (after the
-                # header), NOT anything embedded in the text. A line is covered when
-                # its hit count is > 0 (regardless of the ' '/'%' flag).
+                # verilator_coverage --annotate prefixes each SOURCE line with
+                # " <count>" (all points covered), "~<count>" (some points on
+                # the line covered, some not -- e.g. a bus whose upper bits
+                # never toggled both ways), or "%<count>" (nothing covered),
+                # one annotated line per source line, preceded by a single
+                # legend header line. The source line number is therefore the
+                # physical position (after the header), NOT anything embedded
+                # in the text. A line is covered when its hit count is > 0
+                # (regardless of the ' '/'~'/'%' flag).
                 offset = 1 if lines and 'verilator_coverage annotation' in lines[0] else 0
                 for lineno, line in enumerate(lines[offset:], start=1):
-                    m = re.match(r'^([ %])0*(\d+)', line)  # prefix + hit count
+                    m = re.match(r'^([ %~])0*(\d+)', line)  # prefix + hit count
                     if m and int(m.group(2)) > 0:
                         covered_lines.add(lineno)
                 break

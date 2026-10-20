@@ -25,8 +25,10 @@
 
 ## Parameters
 
-See Table 2.1: `LINE_W = 32`, `N_LANES = LINE_W/16`, `ACC_W = 32`, and
-`ROW_LATENCY` (set at integration, M8). The only behavior-switch
+See Table 2.1: `LINE_W = 32`, `N_LANES = LINE_W/16`, `ACC_W = 32`,
+`PIPE_DEPTH` (tag-FIFO entries, default 8 — the stall-tolerance knob),
+`ADDER_LATENCY` (the add/sub row's own pipe depth, default 3), and
+`TAG_W` (8, per the owner ruling). The only behavior-switch
 surface is the opcode table itself — the element model is bf16-only and
 rounding is the library's RNE throughout (a dynamic rounding mode is
 out of scope by the garuda RNE precedent; any request would raise the
@@ -56,10 +58,17 @@ now"; revisit at FPGA bring-up if the mac row is reworked)
 
 ## Filelists
 
-The RTL lands inside the cell component (`cell/rtl/...`) with the
-cell's filelists; a dedicated `alu_infer` filelist is **not** planned —
-the block is compiled as part of the cell. This mirrors the placement
-decision of the PRD (implementation in `cell/`).
+The RTL lives in the alu-infer component (`alu-infer/rtl/...`,
+organized like the other component areas — flat RTL, per-block
+filelists, and a `<area>_all.f` master for lint). The block has
+its own unit filelist,
+`alu-infer/rtl/filelists/alu_infer_top.f` — the four ALU sources plus the
+`rtl/math` filelists of the instantiated library blocks — which is what
+the unit testbench (`alu-infer/dv/tests/test_alu_infer.py`) compiles.
+`alu-infer/rtl/filelists/alu_infer_all.f` is the lint master. The
+cell-level filelists (`cell_top.f`, `cell_all.f`) include the block's
+filelist for integration, since slice 3+ instantiates `alu_infer_top`
+inside the cell.
 
 ## Open Items Register
 
@@ -75,7 +84,7 @@ decisions this specification does not make.
 | M5 — **closed 2026-10-17 (owner ruling)** | `result_flags` format: one mask bit per lane, packed low in a `LINE_W` line; port width `LINE_W` | closed |
 | M6 | `FUNC_SEL` reserved-field disposition (retire vs keep for fp8/integer growth) | register map freeze |
 | M7 — **accepted 2026-10-17** | mac presents the post-update fp32 accumulator rounded to bf16 per invocation; `DRAIN` presents without accumulating — accepted as drafted ("works for now"); revisit if FPGA latency work rewrites the mac row | accepted |
-| M8 | `ROW_LATENCY` value and the per-row natural-latency table feeding the alignment timer — **deferred to FPGA bring-up** (owner direction 2026-10-17): tuned against hardware, with possible aggressive per-function latency minimization; the uniform-presentation contract absorbs faster rows without interface change (the alignment timer re-aligns) | FPGA bring-up |
+| M8 | Per-row natural-latency table and `PIPE_DEPTH`/`ADDER_LATENCY` values — **deferred to FPGA bring-up** (owner direction 2026-10-17): tuned against hardware, with possible aggressive per-function latency minimization; the tag-join contract absorbs faster or deeper rows without interface change (each row carries its tag through its own pipeline and joins by compare) | FPGA bring-up |
 
 : Table 6.3: open items M1–M8
 

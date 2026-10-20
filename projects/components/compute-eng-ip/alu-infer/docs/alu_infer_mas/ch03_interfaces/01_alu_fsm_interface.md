@@ -66,23 +66,31 @@ interface.
    lines, `func_sel`, and `acc_ctrl` stable — the standard valid/ready
    contract.
 2. **Retire is `result_valid && result_ready`, strictly in issue
-   order.** Each result is offered exactly `ROW_LATENCY` cycles after
-   its issue *when the output has been draining continuously*. When
-   `result_ready` is low, `result_valid` holds with stable data and the
-   results behind it wait in order — no loss, no reorder, no tags.
+   order.** Each result is offered at its row's natural latency —
+   combinational rows (copy, mul, min/max, compare, relu, mac) in the
+   cycle after the issue edge, add/sub `ADDER_LATENCY` cycles after —
+   never before every op of its tag group has arrived, and never
+   overtaking an earlier invocation: a fast row behind a slow one waits
+   at the FIFO head. When `result_ready` is low, `result_valid` holds
+   with stable data and the results behind it wait in order — no loss,
+   no reorder, no tags on the seam.
 3. **The pipeline is elastic end to end.** Every stage boundary obeys
-   valid/ready, so a stall at the result port propagates back to the
-   input port: the output stage holds, the alignment timer freezes
-   mid-countdown, in-flight invocations keep their state, and `ready`
-   falls once the backup reaches the front of the pipe. When
-   `result_ready` returns, the pipeline resumes exactly where it
-   stopped; `ROW_LATENCY` is measured in drain cycles, not wall clocks.
-4. **Uniform presentation, in order by construction.** Every result
-   emerges in issue order at the common `ROW_LATENCY`; the FSM pairs
-   result N with invocation N by counting. Quick rows compute in
-   parallel at their natural speed — `alu_infer_pipe` is an alignment
-   timer that holds each result until its presentation slot, **not** a
-   bank of padded pipe stages (owner direction 2026-10-17).
+   valid/ready, and the tag FIFO is what makes it natural: a stall at
+   the result port leaves the head entry offered with stable data while
+   rows behind it keep landing in their own entries — issue remains
+   open until the FIFO is *genuinely full* (`PIPE_DEPTH` in flight),
+   and only then does `ready` fall. There is no alignment state to
+   freeze: entries hold their arrivals indefinitely. When
+   `result_ready` returns, the head retires and the entries behind it
+   drain in order at one per cycle; issue resumes the moment an entry
+   frees.
+4. **In order by construction.** The tag FIFO retires in issue order,
+   so the FSM pairs result N with invocation N by counting. The 8-bit
+   tags are internal to the block (owner ruling 2026-10-18): they never
+   appear on this seam, whose flow control is exactly the two
+   valid/ready pairs. Quick rows compute in parallel at their natural
+   speed and align at the join — `alu_infer_pipe` is a tag FIFO, **not**
+   a bank of padded pipe stages (owner direction 2026-10-17/18).
 5. **Config sampled at issue.** `func_sel` and `acc_ctrl` are sampled
    at the issue edge and travel with the invocation through the
    pipeline, so the FSM may change them for the next issue immediately.
@@ -103,30 +111,35 @@ obeys `ready`, and the ALU makes no autonomous pacing decisions. The
 single-cycle accumulate exists so that scheduler-chosen II=1 is
 sustainable.
 
-### Waveform 3.1: Elastic handshake — input stall, fixed-latency result, output stall
+### Waveform 3.1: Elastic handshake — natural latency, output stall, ready stays high
 
 ![Waveform 3.1: elastic handshake](../assets/wavedrom/wvf_3_1_invocation_handshake.png)
 
-One invocation rides the elastic protocol end to end. The input stalls
-one cycle (`valid` high, `ready` low — the output stage is still
-holding a stalled result), the issue lands at n+1, and the result is
-offered L = 4 cycles later. The consumer then stalls two cycles:
-`result_valid` and `result_line` hold with stable data until
-`result_ready` accepts at n+7; the input side saw `ready` fall only
-because the backup reached it. Operands and config are stable from
-`valid` to issue; operand pops happen inside the block between those
-events.
+Two invocations ride the elastic protocol end to end. Both are
+combinational rows: the MUL issued at n is offered one cycle later
+(n+1), the RELU issued at n+1 lands at n+2 — each taking its 8-bit tag
+(t0, t1) at issue. The consumer stalls from n+2 to n+4: the head holds
+`r(MUL)` with stable data, the RELU waits behind it in its own FIFO
+entry, and **`ready` stays high throughout** — with `PIPE_DEPTH`
+entries, a two-entry backup is nowhere near full, so the input side
+never feels the stall. The consumer accepts at n+5 (MUL retires) and
+n+6 (the waiting RELU retires immediately after). Operands and config
+are stable from `valid` to issue; both operand lines are captured at
+the issue edge.
 
-### Waveform 3.2: Back-to-back issue — mixed opcodes, one per clock, in-order results
+### Waveform 3.2: Back-to-back issue — mixed latencies, in-order results
 
 ![Waveform 3.2: back-to-back issue](../assets/wavedrom/wvf_3_2_back_to_back.png)
 
-Three invocations (MUL, MUL, RELU) issue on consecutive clocks; three
-results retire on consecutive clocks, L later, in the same order — the
-II=1 steady state with the output draining. The RELU computes almost
-immediately and its result waits in a holding slot until the alignment
-timer releases it — same external timing as every other row, without
-padding its datapath to depth L.
+Three invocations (MUL, ADD, RELU) issue on consecutive clocks with the
+output draining. The MUL (combinational) retires at n+1. The head then
+belongs to the ADD, whose pipelined row presents at n+5
+(`ADDER_LATENCY = 3`); `result_valid` dips while the faster results
+behind it — the RELU, computed at n+3 — wait at the join. ADD retires
+at n+5, RELU immediately after. This is the owner ruling of 2026-10-18
+in one picture: following ops are delayed to align with or after the
+earlier slower operation, and no row carries padded stages to hide the
+difference.
 
 ## Boundary Notes
 

@@ -39,7 +39,7 @@
     },
     {
       "name": "acc lane 0 (fp32)",
-      "wave": "==2=2==x",
+      "wave": "==2222=x",
       "data": [
         "0",
         "p0",
@@ -49,11 +49,12 @@
     },
     {
       "name": "result_line",
-      "wave": "x..2222x",
+      "wave": "x.22223x",
       "data": [
         "view0",
         "view1",
         "view2",
+        "view3",
         "drain"
       ]
     }
@@ -62,6 +63,6 @@
     "hscale": 2.2
   },
   "head": {
-    "text": "MAC chain at II=1: pipelined exact product + 1-cycle fp32 accumulate"
+    "text": "MAC chain at II=1: single-cycle fused fp32 accumulate; each step's post-update accumulator viewed (bf16) a cycle after issue"
   }
 }

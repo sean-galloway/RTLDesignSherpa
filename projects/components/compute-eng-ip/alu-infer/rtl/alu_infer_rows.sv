@@ -21,7 +21,8 @@ module alu_infer_rows #(
     parameter int LINE_W     = 32,
     parameter int N_LANES    = LINE_W / 16,
     parameter int ACC_W      = 32,
-    parameter int ROW_LATENCY = 4
+    parameter int ADDER_LATENCY = 3,
+    parameter int TAG_W      = 8
 ) (
     input  logic              clk,
     input  logic              aresetn,
@@ -34,19 +35,17 @@ module alu_infer_rows #(
 
     input  logic              issue,
     input  logic              mac_issue,
-    input  logic [$clog2(ROW_LATENCY)-1:0] issue_seq,
+    input  logic [TAG_W-1:0]  issue_tag,
 
     output logic              row_write_valid,
-    output logic [$clog2(ROW_LATENCY)-1:0] row_write_idx,
+    output logic [TAG_W-1:0]  row_write_tag,
     output logic [LINE_W-1:0] row_write_data,
     output logic [LINE_W-1:0] row_write_flags,
 
-    // Late write path (pipelined adder result).  Always a different mailbox
-    // slot than row_write in the same cycle: the adder entry was issued
-    // ADDER_LATENCY cycles ago, so its slot index differs from the current
-    // tail by construction.
+    // Late write path (pipelined adder result), carrying the invocation's
+    // tag through the row's own pipeline so the pipe can join by tag.
     output logic              late_write_valid,
-    output logic [$clog2(ROW_LATENCY)-1:0] late_write_idx,
+    output logic [TAG_W-1:0]  late_write_tag,
     output logic [LINE_W-1:0] late_write_data
 );
 
@@ -62,8 +61,11 @@ module alu_infer_rows #(
     localparam logic [1:0] ACC_CLEAR  = 2'b10;
     localparam logic [1:0] ACC_ACCUM  = 2'b01;
 
-    localparam int PTR_W = $clog2(ROW_LATENCY);
-    localparam int ADDER_LATENCY = (ROW_LATENCY - 1) < 4 ? (ROW_LATENCY - 1) : 4;
+    initial begin
+        if (ADDER_LATENCY < 0 || ADDER_LATENCY > 4) begin
+            $error("alu_infer_rows: ADDER_LATENCY must be in [0,4], got %0d", ADDER_LATENCY);
+        end
+    end
 
     // Decode func_sel.
     logic [4:0] opcode;
@@ -133,38 +135,38 @@ module alu_infer_rows #(
         end
     endgenerate
 
-    // Late-write path for the adder: remember the mailbox slot for the
-    // invocation until the pipelined adder result is ready.
+    // Late-write path for the adder: carry the invocation's tag through the
+    // row's pipeline so the result can join its tag group when it lands.
     logic              adder_write_valid;
-    logic [PTR_W-1:0]  adder_write_idx;
+    logic [TAG_W-1:0]  adder_write_tag;
     logic [LINE_W-1:0] adder_write_data;
 
     generate
         if (ADDER_LATENCY > 0) begin : gen_adder_shift
-            logic [PTR_W-1:0] adder_seq_pipe [ADDER_LATENCY];
+            logic [TAG_W-1:0] adder_tag_pipe [ADDER_LATENCY];
             logic             adder_valid_pipe [ADDER_LATENCY];
 
             `ALWAYS_FF_RST(clk, aresetn,
                 if (`RST_ASSERTED(aresetn)) begin
                     for (int i = 0; i < ADDER_LATENCY; i++) begin
-                        adder_seq_pipe[i]   <= '0;
+                        adder_tag_pipe[i]   <= '0;
                         adder_valid_pipe[i] <= 1'b0;
                     end
                 end else begin
-                    adder_seq_pipe[0]   <= issue_seq;
+                    adder_tag_pipe[0]   <= issue_tag;
                     adder_valid_pipe[0] <= issue && is_addsub;
                     for (int i = 1; i < ADDER_LATENCY; i++) begin
-                        adder_seq_pipe[i]   <= adder_seq_pipe[i-1];
+                        adder_tag_pipe[i]   <= adder_tag_pipe[i-1];
                         adder_valid_pipe[i] <= adder_valid_pipe[i-1];
                     end
                 end
             )
 
             assign adder_write_valid = adder_valid_pipe[ADDER_LATENCY-1] && adder_ow_valid[0];
-            assign adder_write_idx   = adder_seq_pipe[ADDER_LATENCY-1];
+            assign adder_write_tag   = adder_tag_pipe[ADDER_LATENCY-1];
         end else begin : gen_adder_no_shift
             assign adder_write_valid = issue && is_addsub && adder_ow_valid[0];
-            assign adder_write_idx   = issue_seq;
+            assign adder_write_tag   = issue_tag;
         end
     endgenerate
 
@@ -294,15 +296,15 @@ module alu_infer_rows #(
     end
 
     // Issue-time rows write at the issue edge.  The adder's late-write path
-    // is a separate port pair; the pipe writes both in the same cycle.
+    // is a separate port pair; the pipe applies both in the same cycle.
     assign row_write_valid = issue && !is_addsub;
-    assign row_write_idx   = issue_seq;
+    assign row_write_tag   = issue_tag;
     assign row_write_data  = selected_result;
     assign row_write_flags = selected_flags;
 
-    // Late write path: pipelined adder result into its remembered slot.
+    // Late write path: pipelined adder result, joined by tag.
     assign late_write_valid = adder_write_valid;
-    assign late_write_idx   = adder_write_idx;
+    assign late_write_tag   = adder_write_tag;
     assign late_write_data  = adder_write_data;
 
 endmodule : alu_infer_rows

@@ -1,5 +1,5 @@
 # Filelist for alu_infer_top module.
-# Location: projects/components/compute-eng-ip/cell/rtl/filelists/alu_infer_top.f
+# Location: projects/components/compute-eng-ip/alu-infer/rtl/filelists/alu_infer_top.f
 
 # Include directories
 +incdir+$REPO_ROOT/rtl/amba/includes
@@ -18,7 +18,7 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 -f $REPO_ROOT/rtl/math/filelists/math_fp32_to_bf16.f
 
 # ALU-INFER RTL
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/alu_infer_acc.sv
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/alu_infer_pipe.sv
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/alu_infer_rows.sv
-$REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/alu_infer_top.sv
+$REPO_ROOT/projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_acc.sv
+$REPO_ROOT/projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_pipe.sv
+$REPO_ROOT/projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_rows.sv
+$REPO_ROOT/projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_top.sv

@@ -11,7 +11,7 @@
 -f $REPO_ROOT/projects/components/fabric-gen-ip/delta/rtl/filelists/delta_mesh.f
 
 # ALU-INFER dependencies (slice 3+ will instantiate alu_infer_top)
--f $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/filelists/alu_infer_top.f
+-f $REPO_ROOT/projects/components/compute-eng-ip/alu-infer/rtl/filelists/alu_infer_top.f
 
 # Cell shared package and slice-1 modules
 $REPO_ROOT/projects/components/compute-eng-ip/cell/rtl/cell_pkg.sv

@@ -94,16 +94,20 @@ golden model states it explicitly.
 - Two lanes computed **in parallel, independently** — lane *i* of a
   result never depends on lane *j* (PRD §4 invariant 1). This is what
   lets the testbench check a lane against a scalar golden reference.
-- **Presentation, not padding.** As the library ships, every row
+- **Natural speed, joined by tag.** As the library ships, every row
   except add/sub is one combinational cloud (latency 0), and the adder
-  carries optional `PIPE_STAGE_1..4` (latency 0–4). The ALU does not
-  force fast rows through deep pipe stages to match: each row computes
-  at its natural speed, and `alu_infer_pipe`'s alignment timer delays
-  presentation to the common `ROW_LATENCY`, in issue order (Chapter 3).
-  A row whose timing genuinely needs depth — the mac row's exact-product
-  pipe, a multiplier restructured for the integration clock — carries
-  real stages instead; that work belongs to `rtl/math` (the `PIPE_STAGE`
-  family precedent) and does not change this block's contract.
+  carries `ADDER_LATENCY` of its optional `PIPE_STAGE_1..4`. The ALU
+  does not force fast rows through deep pipe stages to match: each row
+  computes at its natural speed and carries the invocation's 8-bit tag
+  through its own pipeline; `alu_infer_pipe`'s tag FIFO re-joins each
+  result to its entry — by tag compare, not position — and retires
+  strictly in issue order (Chapter 3). A fast row behind a slow one
+  simply waits at the FIFO head (owner ruling 2026-10-18: following ops
+  align with or after the earlier slower operation). A row whose timing
+  genuinely needs depth — a multiplier restructured for the integration
+  clock, the deep-pipelined FMA of §7 — carries real stages and its tag
+  with them; that work belongs to `rtl/math` (the `PIPE_STAGE` family
+  precedent) and does not change this block's contract.
 - Growth rows (gelu, sigmoid, silu, tanh, leaky-relu, reciprocal,
   divide, conversions — PRD §3 growth list) are additional children of
   `alu_infer_rows` behind free opcodes, added without touching the

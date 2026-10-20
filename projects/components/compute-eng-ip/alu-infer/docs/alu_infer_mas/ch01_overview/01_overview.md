@@ -34,12 +34,17 @@ and the tile's data/config/programming stream arrives in-band on delta.
 The ALU's only job is to turn operand lines into result lines, one
 config-selected function at a time.
 
-**Addendum 2026-10-19:** the v1 RTL landed in `cell/rtl/` on 2026-10-17/18
-(func+gate green): `alu_infer_top.sv`, `alu_infer_rows.sv`,
-`alu_infer_pipe.sv`, `alu_infer_acc.sv`. The planned submodules
+The v1 RTL lives in `alu-infer/rtl/` (landed 2026-10-17/18, func+gate
+green; moved from `cell/rtl/` to the alu-infer component on 2026-10-20):
+`alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`,
+`alu_infer_acc.sv`. The planned submodules
 `alu_infer_decompose`/`select`/`compose`/`decode` of earlier MAS drafts
-are folded into `alu_infer_rows.sv` in the as-built code; `ROW_LATENCY`
-defaults to 4 with valid range [1,6].
+are folded into `alu_infer_rows.sv` in the as-built code. The alignment
+mechanism is the owner-ruled tag FIFO (2026-10-18, implemented
+2026-10-19): each issue takes an 8-bit tag, `alu_infer_pipe` tracks the
+tags in flight, and a result is offered only when every op of its tag
+group has arrived — so quick rows compute at their natural speed and
+align at the join instead of carrying padded pipe stages.
 
 Three commitments shape every decision in this specification.
 
@@ -110,14 +115,16 @@ as `result_flags`).
 ## Status of This Specification
 
 The v1 RTL is built and green. Chapters 2–4 document the as-built
-implementation in `cell/rtl/` (`alu_infer_top.sv`, `alu_infer_rows.sv`,
+implementation in `alu-infer/rtl/` (`alu_infer_top.sv`, `alu_infer_rows.sv`,
 `alu_infer_pipe.sv`, `alu_infer_acc.sv`, landed 2026-10-17/18, func+gate
 green). Where the PRD left a choice open, this specification either
 decides it (and records the decision) or carries it as an open item M1–M8
-in Chapter 6. The tag-based alignment mechanism described in Chapter 4 is
-a ratified target, not yet in the as-built RTL; the v1 implementation
-realizes the same uniform-presentation contract with the alignment-timer
-mailbox inside `alu_infer_pipe.sv`.
+in Chapter 6. The tag-based alignment mechanism of Chapter 4 is the
+as-built realization since 2026-10-19; it superseded the alignment-timer
+mailbox of the first v1 build without any interface change — the PRD's
+"presented exactly `ROW_LATENCY` cycles after issue" phrasing described
+that mailbox and is superseded with it (the seam contract it sat under —
+two valid/ready pairs, in-order retirement, II=1 — is unchanged).
 
 ---
 

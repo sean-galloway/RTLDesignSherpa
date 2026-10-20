@@ -1,0 +1,205 @@
+# Testplan for alu_infer_top (covers the full alu-infer pipeline:
+# top + rows + pipe + acc -- one inseparable unit tested via the top)
+# Maps functional test scenarios to Verilator coverage points.
+#
+# GENERATED FROM REAL COVERAGE DATA: per-scenario coverage.dat files
+# (COVERAGE=1 make run-all-func-parallel) are merged and annotated;
+# covers_lines are that scenario's covered lines in
+# verilator_coverage --annotate numbering -- the same semantics
+# bin/cov_utils/verify_testplan_coverage.py checks with. Regenerate
+# with the same flow when the RTL or tests change.
+
+module: alu_infer_top
+rtl_files:
+  - projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_top.sv
+  - projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_rows.sv
+  - projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_pipe.sv
+  - projects/components/compute-eng-ip/alu-infer/rtl/alu_infer_acc.sv
+test_file: projects/components/compute-eng-ip/alu-infer/dv/tests/test_alu_infer.py
+
+# Module description:
+# BF16 inference ALU at the cell execution-FSM seam. One GAXI-style
+# valid/ready issue interface (op lines, func_sel, acc_ctrl), one
+# valid/ready result interface. Elastic pipeline: comb rows retire the
+# cycle after issue, the pipelined adder row after ADDER_LATENCY, MAC
+# drains on acc_ctrl; an 8-bit tag FIFO joins ops that must align.
+
+parameters:
+  - name: LINE_W
+    default: 32
+    description: Operand line width (2 x BF16 lanes)
+  - name: N_LANES
+    default: 2
+    description: BF16 lanes per line (LINE_W/16)
+  - name: ACC_W
+    default: 32
+    description: FP32 accumulator width
+  - name: PIPE_DEPTH
+    default: 8
+    description: In-flight bound (tag FIFO depth); tested at 4 and 8
+  - name: ADDER_LATENCY
+    default: 3
+    description: Pipelined adder row latency (0-4)
+  - name: TAG_W
+    default: 8
+    description: Alignment tag width
+
+coverage_points:
+  - line: 35
+    type: input_port
+    content: "input logic clk"
+    covered: true
+    hit_count: 110489
+  - line: 36
+    type: input_port
+    content: "input logic aresetn"
+    covered: true
+    hit_count: 62
+  - line: 38
+    type: input_port
+    content: "input logic [LINE_W-1:0] op_line_a"
+    covered: true
+    hit_count: 8395
+  - line: 39
+    type: input_port
+    content: "input logic [LINE_W-1:0] op_line_b"
+    covered: true
+    hit_count: 8241
+  - line: 40
+    type: input_port
+    content: "input logic [15:0] threshold_imm"
+    covered: true
+    hit_count: 7416
+  - line: 41
+    type: input_port
+    content: "input logic [8:0] func_sel"
+    covered: true
+    hit_count: 7544
+  - line: 42
+    type: input_port
+    content: "input logic [1:0] acc_ctrl"
+    covered: true
+    hit_count: 7399
+  - line: 44
+    type: input_port
+    content: "input logic valid"
+    covered: true
+    hit_count: 15889
+  - line: 45
+    type: output_port
+    content: "output logic ready"
+    covered: true
+    hit_count: 66
+  - line: 47
+    type: output_port
+    content: "output logic result_valid"
+    covered: true
+    hit_count: 15861
+  - line: 48
+    type: input_port
+    content: "input logic result_ready"
+    covered: true
+    hit_count: 109337
+  - line: 49
+    type: output_port
+    content: "output logic [LINE_W-1:0] result_line"
+    covered: true
+    hit_count: 7402
+  - line: 50
+    type: output_port
+    content: "output logic [LINE_W-1:0] result_flags"
+    covered: true
+    hit_count: 1653
+
+functional_scenarios:
+  - id: ALUINF-01
+    name: "Handshake shell, copy, natural latency"
+    description: "Valid/ready shell, copy opcode, per-row natural-latency retirement timing, in-order II=1 streaming"
+    test_function: test_alu_infer (copy_timing)
+    covers_lines: [27, 27, 28, 28, 30, 31, 32, 32, 34, 35, 35, 36, 36, 38, 38, 40, 40, 41, 41, 42, 42, 44, 45, 47, 47, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 74, 77, 78, 79, 80, 80, 89, 90, 92, 93, 93, 94, 100, 100, 106, 114, 116, 141, 142, 146, 161, 163, 196, 220, 223, 244, 279, 282, 283, 284, 285, 286]
+    priority: high
+    status: verified
+  - id: ALUINF-02
+    name: "BF16 add/sub golden"
+    description: "Add/sub lanes vs Python float RNE golden (1-ULP library contract)"
+    test_function: test_alu_infer (add_sub)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 41, 41, 41, 44, 44, 45, 47, 47, 47, 47, 48, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 68, 69, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 81, 89, 90, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 107, 108, 109, 114, 115, 116, 140, 141, 142, 146, 147, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 282, 283, 284, 285, 286, 288]
+    priority: high
+    status: verified
+  - id: ALUINF-03
+    name: "BF16 multiply golden"
+    description: "Mul lanes vs Python float RNE golden (1-ULP library contract)"
+    test_function: test_alu_infer (mul)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 40, 40, 41, 41, 41, 42, 42, 44, 44, 45, 47, 47, 48, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 81, 89, 90, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 107, 114, 116, 141, 142, 146, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 279, 282, 283, 284, 285, 286, 289]
+    priority: high
+    status: verified
+  - id: ALUINF-04
+    name: "Min/max rows"
+    description: "Min and max sub-ops on both lanes"
+    test_function: test_alu_infer (minmax)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 40, 40, 41, 41, 41, 42, 42, 44, 44, 45, 47, 47, 48, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 71, 72, 74, 77, 78, 79, 80, 80, 81, 89, 90, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 107, 114, 116, 141, 142, 146, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 279, 282, 283, 284, 285, 286, 291]
+    priority: medium
+    status: verified
+  - id: ALUINF-05
+    name: "Compare vs B and immediate"
+    description: "Compare against operand B and threshold_imm; result_line is zero, mask packed low in result_flags[1:0]"
+    test_function: test_alu_infer (compare)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 40, 40, 40, 41, 41, 41, 43, 43, 44, 44, 45, 47, 47, 48, 48, 48, 48, 49, 49, 50, 51, 53, 53, 54, 54, 56, 57, 62, 63, 64, 64, 64, 65, 66, 67, 68, 69, 70, 71, 71, 72, 74, 77, 78, 79, 80, 80, 81, 89, 91, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 107, 114, 116, 141, 142, 146, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 280, 282, 283, 284, 285, 286, 292]
+    priority: medium
+    status: verified
+  - id: ALUINF-06
+    name: "ReLU row"
+    description: "ReLU including negative, -0, +0, -inf, NaN inputs"
+    test_function: test_alu_infer (relu)
+    covers_lines: [27, 27, 28, 28, 30, 31, 32, 32, 33, 34, 35, 35, 36, 36, 38, 38, 40, 40, 41, 41, 41, 42, 42, 44, 44, 45, 47, 47, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 89, 90, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 114, 116, 141, 142, 146, 161, 163, 177, 195, 196, 217, 220, 222, 223, 244, 279, 282, 283, 284, 285, 286, 293]
+    priority: medium
+    status: verified
+  - id: ALUINF-07
+    name: "MAC with FP32 accumulator"
+    description: "MAC CLEAR/ACC/DRAIN/HOLD acc_ctrl sequences against the FP32 accumulator golden (math_bf16_fma contract)"
+    test_function: test_alu_infer (mac)
+    covers_lines: [27, 27, 28, 28, 30, 30, 31, 31, 31, 32, 32, 33, 33, 34, 34, 35, 35, 35, 36, 36, 37, 38, 38, 39, 40, 40, 41, 41, 41, 42, 42, 42, 42, 43, 44, 44, 45, 47, 47, 48, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 81, 81, 82, 83, 84, 89, 90, 92, 93, 93, 94, 95, 96, 97, 100, 100, 106, 107, 114, 116, 141, 142, 146, 161, 163, 177, 195, 196, 220, 221, 223, 244, 258, 279, 282, 283, 284, 285, 286, 290]
+    priority: high
+    status: verified
+  - id: ALUINF-08
+    name: "Elastic backpressure"
+    description: "Consumer stall: results hold, tag FIFO fills, issue backpressures, in-order resume on release"
+    test_function: test_alu_infer (backpressure)
+    covers_lines: [27, 27, 28, 28, 30, 31, 32, 32, 34, 35, 35, 36, 36, 38, 38, 40, 40, 41, 41, 42, 42, 44, 45, 47, 47, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 74, 77, 78, 79, 80, 80, 89, 90, 92, 93, 93, 94, 100, 100, 106, 114, 116, 141, 142, 146, 161, 163, 196, 220, 223, 244, 279, 282, 283, 284, 285, 286]
+    priority: high
+    status: verified
+  - id: ALUINF-09
+    name: "Reserved opcode handling"
+    description: "Out-of-range opcode retires in order and returns zero"
+    test_function: test_alu_infer (error_opcode)
+    covers_lines: [27, 27, 28, 28, 30, 31, 32, 32, 33, 34, 35, 35, 36, 36, 38, 38, 40, 40, 41, 41, 41, 42, 42, 44, 45, 47, 47, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 89, 90, 92, 93, 93, 94, 100, 100, 106, 114, 116, 141, 142, 146, 161, 163, 196, 220, 223, 244, 279, 282, 283, 284, 285, 286, 294]
+    priority: medium
+    status: verified
+  - id: ALUINF-10
+    name: "Special-value grid"
+    description: "Special-value grid (0/inf/NaN/subnormal) across add/sub/mul/minmax/compare/relu"
+    test_function: test_alu_infer (special_grid)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 40, 40, 41, 41, 41, 42, 42, 43, 43, 44, 44, 45, 47, 47, 47, 47, 48, 48, 48, 48, 49, 49, 49, 50, 51, 53, 53, 54, 54, 55, 56, 57, 62, 63, 64, 64, 64, 65, 65, 66, 67, 68, 69, 69, 70, 71, 71, 72, 74, 77, 78, 79, 80, 80, 81, 89, 90, 91, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 107, 108, 109, 114, 115, 116, 140, 141, 142, 146, 147, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 279, 280, 282, 283, 284, 285, 286, 288, 289, 291, 292, 293]
+    priority: high
+    status: verified
+  - id: ALUINF-11
+    name: "Mixed-opcode soak"
+    description: "Random mixed-opcode sequence retires in order with golden check; FUNC/FULL sweep the standard GAXI delay profiles (fast, slow_producer, slow_consumer, gaxi_realistic, gaxi_backpressure; FULL adds constrained, burst_pause, high_throughput, gaxi_stress)"
+    test_function: test_alu_infer (mixed_soak)
+    covers_lines: [27, 27, 28, 28, 30, 30, 31, 31, 31, 32, 32, 32, 33, 33, 34, 34, 35, 35, 35, 36, 36, 37, 38, 38, 39, 40, 40, 40, 41, 41, 41, 42, 42, 42, 42, 43, 43, 43, 44, 44, 45, 47, 47, 47, 47, 48, 48, 48, 48, 49, 49, 49, 50, 51, 53, 53, 54, 54, 55, 56, 57, 62, 63, 63, 64, 64, 64, 65, 65, 66, 67, 68, 69, 69, 70, 71, 71, 72, 74, 77, 78, 79, 80, 80, 81, 81, 82, 83, 84, 89, 90, 91, 92, 93, 93, 94, 95, 96, 97, 99, 100, 100, 106, 107, 108, 109, 114, 115, 116, 140, 141, 142, 146, 147, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 258, 279, 280, 282, 283, 284, 285, 286, 288, 289, 290, 291, 292, 293, 294]
+    priority: high
+    status: verified
+  - id: ALUINF-12
+    name: "SUB 1-ULP corner"
+    description: "Directed SUB corner exposing the library adder 1-ULP tolerance boundary"
+    test_function: test_alu_infer (sub_ulp_corner)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 41, 41, 41, 44, 44, 45, 47, 47, 47, 47, 48, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 68, 69, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 81, 90, 92, 93, 93, 94, 95, 97, 100, 100, 106, 107, 108, 109, 114, 115, 116, 140, 141, 142, 146, 147, 161, 163, 177, 195, 196, 220, 221, 223, 244, 282, 283, 284, 285, 286, 288]
+    priority: low
+    status: verified
+  - id: ALUINF-13
+    name: "Tag-FIFO alignment join"
+    description: "Tag-based alignment: fast rows wait behind an earlier slow row sharing the tag; first-offer timing checked cycle-exact"
+    test_function: test_alu_infer (tag_join)
+    covers_lines: [27, 27, 28, 28, 30, 31, 31, 32, 32, 33, 33, 34, 35, 35, 36, 36, 38, 38, 39, 40, 40, 41, 41, 41, 42, 42, 44, 44, 45, 47, 47, 47, 47, 48, 48, 48, 48, 49, 49, 49, 51, 53, 53, 54, 54, 55, 57, 62, 63, 64, 64, 64, 65, 65, 67, 68, 69, 69, 70, 71, 71, 74, 77, 78, 79, 80, 80, 81, 89, 90, 92, 93, 93, 94, 95, 97, 99, 100, 100, 106, 107, 108, 109, 114, 116, 140, 141, 142, 146, 147, 161, 163, 177, 195, 196, 217, 220, 221, 222, 223, 244, 279, 282, 283, 284, 285, 286, 288, 289, 293]
+    priority: high
+    status: verified
