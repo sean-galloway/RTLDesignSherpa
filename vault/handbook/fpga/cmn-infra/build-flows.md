@@ -8,12 +8,24 @@ summary: Vivado non-project batch flow, board switches, bitstream naming.
 ## The global make infra
 
 Flow logic lives in ONE place and every FPGA project reuses it -- the
-`make/tests.mk` pattern (see [[test-runner]]) applied to board builds. Two files:
+`make/tests.mk` pattern (see [[test-runner]]) applied to board builds. Three files:
 
 | File | Include when | Gives you |
 |---|---|---|
-| `make/fpga_flow.mk` | a build wants the whole flow | `project synth bitstream bitstream-ila lint program ports board-info boards sim run seq-list utilization timing clean clean-all help` |
+| `make/fpga_flow.mk` | a build wants the whole flow | `project synth bitstream bitstream-ila lint program ports board-info boards sim run seq-list utilization timing clean clean-all help` (it includes the other two) |
 | `make/fpga_board.mk` | a flow already owns its build recipes | the board half only: `program ports board-info boards` |
+| `make/fpga_lint.mk` | a flow on `fpga_board.mk` -- always | the lint gate: `lint flat-filelist lint-decl-order`, with `TOP` and `FILELIST` set |
+
+**Every flow has `make lint`, including one that owns its build half** (owner,
+2026-10-19). The lint gate used to live inside `fpga_flow.mk`, so the two RAPIDS
+flows, which include `fpga_board.mk` to keep their `verify-sim`-gated build
+recipes, had no lint target at all, and a hand-rolled substitute ran softer
+(`-Wno-fatal`, its own stubs) than the real gate. The gate is now its own file:
+`fpga_flow.mk` includes it unchanged (`make -n lint` identical on all 20 of its
+flows), and a `fpga_board.mk` flow includes it directly and sets
+`LINT_GENERICS` to the generics its `create_project.tcl` applies (RAPIDS:
+`flows-rapids/Makefile`, `flows-rapids-beats/Makefile`). Never write a second
+lint recipe.
 
 A build's Makefile is variables, not recipes:
 

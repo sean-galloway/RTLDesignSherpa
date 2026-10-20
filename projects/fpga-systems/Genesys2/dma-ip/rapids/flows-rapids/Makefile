@@ -149,12 +149,13 @@ export BYTE_CRC ?= 1
 # whose monitors actually emit packets.
 export MON_CAPTURE ?= 0
 
-.PHONY: help sim verify-sim project synth bitstream program characterize \
+.PHONY: help sim verify-sim lint project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
 
 help:
 	@echo "RAPIDS Characterization — FPGA build & characterization targets"
 	@echo "  make sim          cocotb harness self-check (sink + source, multi-channel)"
+	@echo "  make lint         verilator lint of the board top at the build generics (pre-Vivado)"
 	@echo "  make synth        synthesis only + utilization/timing reports"
 	@echo "  make bitstream    full synth/impl/bitgen + reports"
 	@echo "  make program      flash the Nexys A7 via JTAG"
@@ -273,6 +274,32 @@ bitstream: verify-sim
 # every byte-RAPIDS board record was filed under the beats flow's name.
 FLOW ?= rapids
 include $(REPO_ROOT)/make/fpga_board.mk
+
+# ---- Lint ------------------------------------------------------------------
+# The repo's FPGA lint gate, make/fpga_lint.mk -- the same file every
+# fpga_flow.mk build uses: declaration order over the whole harness, then
+# verilator --lint-only of the board top, hard-fail. This flow keeps its own
+# build half (fpga_board.mk), so it includes the lint half directly. Linted at
+# the generics this build synthesizes (tcl/create_project.tcl top_generics),
+# not at the RTL defaults.
+RDS_ROOT ?= $(REPO_ROOT)
+ifeq ($(BOARD),genesys2)
+TOP      := rapids_byte_genesys2_top
+else
+TOP      := rapids_byte_top
+endif
+FILELIST := $(SELF_DIR)/filelists/$(TOP).f
+include $(REPO_ROOT)/make/fpga_lint.mk
+LINT_GENERICS = \
+    -GNUM_CHANNELS=$(RAPIDS_NUM_CHANNELS) -GDATA_WIDTH=$(RAPIDS_DATA_WIDTH) \
+    -GSRAM_DEPTH=$(RAPIDS_SRAM_DEPTH) \
+    $(if $(RAPIDS_DESC_RAM_ENTRIES),-GDESC_RAM_ENTRIES=$(RAPIDS_DESC_RAM_ENTRIES)) \
+    $(if $(RAPIDS_ROW_COL),-GUSE_ROW_COL_MAJOR_ADDRESSING=$(RAPIDS_ROW_COL)) \
+    -GUSE_AXI_MONITORS=$(USE_AXI_MONITORS) -GGEN_MON=$(GEN_MON) \
+    -GUSE_OBSERVERS=$(USE_OBSERVERS) -GOBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS) \
+    -GBYTE_CRC=$(BYTE_CRC) -GMON_CAPTURE=$(MON_CAPTURE) -GSHARED_ENGINES=$(RAPIDS_SHARED_ENGINES) \
+    $(if $(RAPIDS_VCO_MHZ),-GVCO_MHZ=$(RAPIDS_VCO_MHZ)) \
+    $(if $(RAPIDS_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(RAPIDS_CLKOUT0_DIVIDE))
 
 # ---- UART characterization -------------------------------------------------
 # Drives the programmed board over UART: config SRC+SNK by name, load
