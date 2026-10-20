@@ -21,7 +21,7 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
-DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3']
+DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5']
 TXNS = {'gate': 40, 'func': 200, 'full': 1000}
 SIM_UART_CLKS_PER_BIT = 4
 

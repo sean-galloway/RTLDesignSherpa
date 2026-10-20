@@ -80,7 +80,9 @@ module axi_stress_txn_gen
     output logic [7:0]          txn_gap,
     output logic [7:0]          txn_tag,
     output logic [1:0]          txn_resp,      // the window's expected response
-    output logic                txn_strb_rand
+    output logic                txn_strb_rand,
+    output logic                txn_sb,        // AXI5: the window expects responses to echo
+    output logic [3:0]          txn_plg2       // AXI5: the window's poison rate
 );
 
     localparam int WSW = (NWIN > 1) ? $clog2(NWIN) : 1;
@@ -265,6 +267,8 @@ module axi_stress_txn_gen
             txn_tag       <= w_w.tag;
             txn_resp      <= w_w.resp;
             txn_strb_rand <= w_w.strb_rand;
+            txn_sb        <= w_w.sb;
+            txn_plg2      <= w_w.poison_lg2;
         end
     end
 

@@ -58,7 +58,7 @@ package axi_stress_pkg;
     localparam logic [1:0] RESP_SLVERR = 2'b10;
     localparam logic [1:0] RESP_DECERR = 2'b11;
 
-    // ---- Error codes: one bit each in a block's 16-bit err_mask -------------
+    // ---- Error codes: one bit each in a block's 16-bit err_mask (all 16 used) 
     // Master side
     localparam int ERR_RD_STRAY = 0;   // R beat on an ID with nothing outstanding
     localparam int ERR_RD_LAST  = 1;   // RLAST on the wrong beat
@@ -75,6 +75,9 @@ package axi_stress_pkg;
     localparam int ERR_S_WSTRB  = 11;  // a strobe outside the beat's byte lanes
     localparam int ERR_S_WLAST  = 12;  // WLAST on the wrong beat
     localparam int ERR_S_WID    = 13;  // AXI3: WID is not its burst's AWID
+    localparam int ERR_S_SB     = 14;  // AXI5: request sideband or WPOISON wrong
+    // Master side, either direction
+    localparam int ERR_M_SB     = 15;  // AXI5: response sideband or RPOISON wrong
 
     // ---- Configuration and status -------------------------------------------
     // One target window of a master. Windows are size-aligned power-of-two
@@ -96,6 +99,8 @@ package axi_stress_pkg;
         logic        strb_rand;    // writes clear random strobes
         logic        rd_en;
         logic        wr_en;
+        logic        sb;           // AXI5: responses echo the request sideband
+        logic [3:0]  poison_lg2;   // AXI5: beats poisoned 1 in 2^n; 0 = never
     } stress_win_t;
 
     // One direction of a master.
@@ -151,6 +156,8 @@ package axi_stress_pkg;
         logic [3:0]  data_throttle;// WREADY low / an R bubble, n/16
         logic [7:0]  max_out;      // requests held; 0 = as built
         logic [31:0] seed;
+        logic [7:0]  sb_src;       // AXI5: masters (by ID prefix) whose requests carry sideband
+        logic [3:0]  poison_lg2;   // AXI5: as stress_win_t.poison_lg2, for this slave
     } stress_sdir_cfg_t;
 
     typedef struct packed {
@@ -189,6 +196,42 @@ package axi_stress_pkg;
         logic [31:0] k;
         k = seed ^ {tag, ~tag, tag, ~tag} ^ (dir ? 32'h5A5A_A5A5 : 32'h0);
         return f_xs32(f_xs32({waddr[31:2], 2'b00} ^ k) ^ {k[15:0], k[31:16]});
+    endfunction
+
+    // AXI5 sideband layout. A shell packs the request fields its port carries
+    // into one 32-bit word, and its responses into one 8-bit word, at these
+    // fixed positions; SB_MASK / RSB_MASK say which bits it carries.
+    localparam logic [31:0] SB_M_NSAID  = 32'h0000_000F;  // AxNSAID [3:0]
+    localparam logic [31:0] SB_M_TRACE  = 32'h0000_0010;  // AxTRACE [4]
+    localparam logic [31:0] SB_M_MPAM   = 32'h0000_FFE0;  // AxMPAM  [15:5]
+    localparam logic [31:0] SB_M_MECID  = 32'hFFFF_0000;  // AxMECID [31:16]
+    localparam logic [7:0]  RSB_M_TRACE = 8'h01;          // BTRACE / RTRACE [0]
+
+    // AXI5 sideband: every sideband field a request carries (NSAID, TRACE,
+    // MPAM, MECID, packed by the shell) is f_sb(start address) & SB_MASK.
+    // Both ends compute it, so like the data it needs no state, and a field
+    // the fabric drops, swaps or routes to the wrong burst fails the check.
+    // The response sideband is the slave's echo of what it received (f_rsb):
+    // BTRACE / RTRACE repeat the request's TRACE, as AXI asks of a
+    // trace-capable slave (and as the bridge asserts in simulation).
+    function automatic logic [31:0] f_sb(input logic [31:0] a,
+                                         input logic [31:0] seed);
+        return f_xs32(f_xs32(a ^ seed ^ 32'hC6A4_A793) ^ 32'h5851_F42D);
+    endfunction
+
+    // The response sideband word that echoes a request sideband word.
+    function automatic logic [7:0] f_rsb(input logic [31:0] sb);
+        return {7'd0, sb[4]};             // RTRACE / BTRACE = AxTRACE
+    endfunction
+
+    // A beat at address `a` is poisoned with probability 1 in 2^lg2 (never
+    // when lg2 is 0): a hash of the beat address both ends agree on.
+    function automatic logic f_poison(input logic [31:0] a,
+                                      input logic [31:0] seed,
+                                      input logic [3:0]  lg2);
+        logic [31:0] h;
+        h = f_sb(a ^ 32'h9E37_79B9, seed);
+        return (lg2 != 4'd0) && ((h & ((32'd1 << lg2) - 32'd1)) == 32'd0);
     endfunction
 
     // The address of the beat after `a` in a burst (AXI4 A3.4.1). WRAP needs

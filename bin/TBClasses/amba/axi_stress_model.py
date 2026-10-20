@@ -30,7 +30,7 @@ ERR_NAMES = {
     0: 'RD_STRAY', 1: 'RD_LAST', 2: 'RD_RESP', 3: 'RD_DATA',
     4: 'WR_STRAY', 5: 'WR_RESP', 6: 'WR_EARLY', 7: 'HANG',
     8: 'S_ADDR', 9: 'S_PROTO', 10: 'S_WDATA', 11: 'S_WSTRB', 12: 'S_WLAST',
-    13: 'S_WID',
+    13: 'S_WID', 14: 'S_SB', 15: 'M_SB',
 }
 ERR_CODES = {v: k for k, v in ERR_NAMES.items()}
 
@@ -60,6 +60,26 @@ def f_word(addr: int, seed: int, tag: int, rd: bool) -> int:
          ^ (0x5A5A_A5A5 if rd else 0)) & M32
     rot = ((k << 16) | (k >> 16)) & M32
     return xs32(xs32((addr & ~3 & M32) ^ k) ^ rot)
+
+
+# AXI5 sideband layout (axi_stress_pkg SB_M_* / RSB_M_*)
+SB_M_NSAID, SB_M_TRACE, SB_M_MPAM, SB_M_MECID = 0x0000_000F, 0x10, 0x0000_FFE0, 0xFFFF_0000
+RSB_M_TRACE = 0x01
+
+
+def f_sb(addr: int, seed: int) -> int:
+    """AXI5 sideband word of a request's start address."""
+    return xs32(xs32((addr ^ seed ^ 0xC6A4_A793) & M32) ^ 0x5851_F42D)
+
+
+def f_rsb(sb: int) -> int:
+    """The response sideband echo of a request sideband word: TRACE."""
+    return (sb >> 4) & 1
+
+
+def f_poison(addr: int, seed: int, lg2: int) -> bool:
+    """A beat at addr is poisoned 1 in 2**lg2 (never for lg2 = 0)."""
+    return lg2 != 0 and (f_sb(addr ^ 0x9E37_79B9, seed) & ((1 << lg2) - 1)) == 0
 
 
 def f_byte(addr: int, seed: int, tag: int, rd: bool) -> int:
@@ -125,7 +145,7 @@ def burst_illegal(addr: int, axlen: int, size: int, burst: int, bus_lg2: int) ->
 WIN_FIELDS = (('base', 32), ('size_lg2', 6), ('tag', 8), ('resp', 2),
               ('len_mask', 8), ('size_min', 3), ('size_max', 3),
               ('burst_mask', 3), ('unaligned', 1), ('strb_rand', 1),
-              ('rd_en', 1), ('wr_en', 1))
+              ('rd_en', 1), ('wr_en', 1), ('sb', 1), ('poison_lg2', 4))
 
 MCFG_FIELDS = (('enable', 1), ('txn_count', 32), ('seed', 32), ('id_base', 16),
                ('id_mask', 16), ('gap_mask', 8), ('resp_throttle', 4),
@@ -142,7 +162,7 @@ SCFG_FIELDS = (('base', 32), ('size_lg2', 6), ('offset_mode', 1), ('tag', 8),
                ('err_en', 1), ('err_base', 32), ('err_mask', 32), ('inorder', 1),
                ('interleave', 1), ('lat_min', 8), ('lat_mask', 8),
                ('req_throttle', 4), ('data_throttle', 4), ('max_out', 8),
-               ('seed', 32))
+               ('seed', 32), ('sb_src', 8), ('poison_lg2', 4))
 
 SSTS_FIELDS = (('runs', 8), ('bursts', 32), ('beats', 32), ('err_mask', 16), ('err_cnt', 16),
                ('fe_valid', 1), ('fe_kind', 4), ('fe_id', 16), ('fe_addr', 32),
@@ -201,6 +221,8 @@ class Window:
     strb_rand: int = 1
     rd_en: int = 1
     wr_en: int = 1
+    sb: int = 0
+    poison_lg2: int = 0
 
     def fields(self) -> Dict[str, int]:
         return dict(self.__dict__)

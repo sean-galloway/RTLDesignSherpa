@@ -279,6 +279,14 @@ package bstress_mst_regs_pkg;
     } bstress_mst_regs__win_t__CFG1__WR_EN__out_t;
 
     typedef struct {
+        logic value;
+    } bstress_mst_regs__win_t__CFG1__SB__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } bstress_mst_regs__win_t__CFG1__POISON_LG2__out_t;
+
+    typedef struct {
         bstress_mst_regs__win_t__CFG1__SIZE_MIN__out_t SIZE_MIN;
         bstress_mst_regs__win_t__CFG1__SIZE_MAX__out_t SIZE_MAX;
         bstress_mst_regs__win_t__CFG1__BURST_MASK__out_t BURST_MASK;
@@ -286,6 +294,8 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__win_t__CFG1__STRB_RAND__out_t STRB_RAND;
         bstress_mst_regs__win_t__CFG1__RD_EN__out_t RD_EN;
         bstress_mst_regs__win_t__CFG1__WR_EN__out_t WR_EN;
+        bstress_mst_regs__win_t__CFG1__SB__out_t SB;
+        bstress_mst_regs__win_t__CFG1__POISON_LG2__out_t POISON_LG2;
     } bstress_mst_regs__win_t__CFG1__out_t;
 
     typedef struct {

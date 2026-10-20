@@ -318,6 +318,14 @@ module bstress_mst_regs (
                     logic next;
                     logic load_next;
                 } WR_EN;
+                struct {
+                    logic next;
+                    logic load_next;
+                } SB;
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } POISON_LG2;
             } CFG1;
         } WIN[8];
     } field_combo_t;
@@ -448,6 +456,12 @@ module bstress_mst_regs (
                 struct {
                     logic value;
                 } WR_EN;
+                struct {
+                    logic value;
+                } SB;
+                struct {
+                    logic [3:0] value;
+                } POISON_LG2;
             } CFG1;
         } WIN[8];
     } field_storage_t;
@@ -1236,6 +1250,52 @@ module bstress_mst_regs (
             end
         end
         assign hwif_out.WIN[i0].CFG1.WR_EN.value = field_storage.WIN[i0].CFG1.WR_EN.value;
+        // Field: bstress_mst_regs.WIN[].CFG1.SB
+        always_comb begin
+            automatic logic [0:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.WIN[i0].CFG1.SB.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.WIN[i0].CFG1 && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.WIN[i0].CFG1.SB.value & ~decoded_wr_biten[16:16]) | (decoded_wr_data[16:16] & decoded_wr_biten[16:16]);
+                load_next_c = '1;
+            end
+            field_combo.WIN[i0].CFG1.SB.next = next_c;
+            field_combo.WIN[i0].CFG1.SB.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.WIN[i0].CFG1.SB.value <= 1'h0;
+            end else begin
+                if(field_combo.WIN[i0].CFG1.SB.load_next) begin
+                    field_storage.WIN[i0].CFG1.SB.value <= field_combo.WIN[i0].CFG1.SB.next;
+                end
+            end
+        end
+        assign hwif_out.WIN[i0].CFG1.SB.value = field_storage.WIN[i0].CFG1.SB.value;
+        // Field: bstress_mst_regs.WIN[].CFG1.POISON_LG2
+        always_comb begin
+            automatic logic [3:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.WIN[i0].CFG1.POISON_LG2.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.WIN[i0].CFG1 && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.WIN[i0].CFG1.POISON_LG2.value & ~decoded_wr_biten[23:20]) | (decoded_wr_data[23:20] & decoded_wr_biten[23:20]);
+                load_next_c = '1;
+            end
+            field_combo.WIN[i0].CFG1.POISON_LG2.next = next_c;
+            field_combo.WIN[i0].CFG1.POISON_LG2.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.WIN[i0].CFG1.POISON_LG2.value <= 4'h0;
+            end else begin
+                if(field_combo.WIN[i0].CFG1.POISON_LG2.load_next) begin
+                    field_storage.WIN[i0].CFG1.POISON_LG2.value <= field_combo.WIN[i0].CFG1.POISON_LG2.next;
+                end
+            end
+        end
+        assign hwif_out.WIN[i0].CFG1.POISON_LG2.value = field_storage.WIN[i0].CFG1.POISON_LG2.value;
     end
 
     //--------------------------------------------------------------------------
@@ -1307,7 +1367,10 @@ module bstress_mst_regs (
         assign readback_array[i0 * 3 + 12][13:13] = (decoded_reg_strb.WIN[i0].CFG1 && !decoded_req_is_wr) ? field_storage.WIN[i0].CFG1.STRB_RAND.value : '0;
         assign readback_array[i0 * 3 + 12][14:14] = (decoded_reg_strb.WIN[i0].CFG1 && !decoded_req_is_wr) ? field_storage.WIN[i0].CFG1.RD_EN.value : '0;
         assign readback_array[i0 * 3 + 12][15:15] = (decoded_reg_strb.WIN[i0].CFG1 && !decoded_req_is_wr) ? field_storage.WIN[i0].CFG1.WR_EN.value : '0;
-        assign readback_array[i0 * 3 + 12][31:16] = '0;
+        assign readback_array[i0 * 3 + 12][16:16] = (decoded_reg_strb.WIN[i0].CFG1 && !decoded_req_is_wr) ? field_storage.WIN[i0].CFG1.SB.value : '0;
+        assign readback_array[i0 * 3 + 12][19:17] = '0;
+        assign readback_array[i0 * 3 + 12][23:20] = (decoded_reg_strb.WIN[i0].CFG1 && !decoded_req_is_wr) ? field_storage.WIN[i0].CFG1.POISON_LG2.value : '0;
+        assign readback_array[i0 * 3 + 12][31:24] = '0;
     end
     assign readback_array[34][0:0] = (decoded_reg_strb.RD_STATUS && !decoded_req_is_wr) ? hwif_in.RD_STATUS.BUSY.next : '0;
     assign readback_array[34][1:1] = (decoded_reg_strb.RD_STATUS && !decoded_req_is_wr) ? hwif_in.RD_STATUS.DONE.next : '0;

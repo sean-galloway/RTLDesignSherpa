@@ -201,17 +201,32 @@ package bstress_slv_regs_pkg;
     } bstress_slv_regs__scfg_timing_t__out_t;
 
     typedef struct {
+        logic [7:0] value;
+    } bstress_slv_regs__scfg_sb_t__SRC__out_t;
+
+    typedef struct {
+        logic [3:0] value;
+    } bstress_slv_regs__scfg_sb_t__POISON_LG2__out_t;
+
+    typedef struct {
+        bstress_slv_regs__scfg_sb_t__SRC__out_t SRC;
+        bstress_slv_regs__scfg_sb_t__POISON_LG2__out_t POISON_LG2;
+    } bstress_slv_regs__scfg_sb_t__out_t;
+
+    typedef struct {
         bstress_slv_regs__scfg_u32_t__out_t RD_BASE;
         bstress_slv_regs__scfg_ctrl_t__out_t RD_CTRL;
         bstress_slv_regs__scfg_u32_t__out_t RD_ERR_BASE;
         bstress_slv_regs__scfg_u32_t__out_t RD_ERR_MASK;
         bstress_slv_regs__scfg_timing_t__out_t RD_TIMING;
         bstress_slv_regs__scfg_u32_t__out_t RD_SEED;
+        bstress_slv_regs__scfg_sb_t__out_t RD_SB;
         bstress_slv_regs__scfg_u32_t__out_t WR_BASE;
         bstress_slv_regs__scfg_ctrl_t__out_t WR_CTRL;
         bstress_slv_regs__scfg_u32_t__out_t WR_ERR_BASE;
         bstress_slv_regs__scfg_u32_t__out_t WR_ERR_MASK;
         bstress_slv_regs__scfg_timing_t__out_t WR_TIMING;
         bstress_slv_regs__scfg_u32_t__out_t WR_SEED;
+        bstress_slv_regs__scfg_sb_t__out_t WR_SB;
     } bstress_slv_regs__out_t;
 endpackage

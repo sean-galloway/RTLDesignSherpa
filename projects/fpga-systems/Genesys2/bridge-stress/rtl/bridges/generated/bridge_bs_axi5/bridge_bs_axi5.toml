@@ -1,0 +1,127 @@
+#============================================================================
+# bridge_bs_axi5 -- the bridge stress model's AXI5 device under test.
+#
+# The same 4 x 4 shape as bridge_bs_axi4 (remap, CDC, the DECERR hole), with
+# AXI5 on every port that does not cross a clock (the CDC crossing carries
+# the AXI4 set, config_validator.validate_cdc_constraints). Every AXI5 port
+# carries the same pass-through sideband (NSAID, TRACE, MPAM, MECID); poison
+# is legal only where every connected path is AXI5-both-ends and one width
+# (validate_axi5_poison_connectivity), so it lives on a 64-bit clique:
+#   poison clique   cpu (64) -> mem0 (64), mem2 (64): sideband and poison
+#   sideband mesh   dma (128) -> mem1 (128): sideband native
+#                   io  (32)  -> mem1 (128): AXI5 both ends, width-converted:
+#                              the converter drops sideband, so 0 at mem1
+#                   acc (AXI4, cdc) -> mem1: AXI4 master, 0 at mem1
+#                   dma, io, acc -> mem3 (AXI4, cdc): sideband dropped, and
+#                              BTRACE / RTRACE come back 0
+# mem1 so sees three kinds of request at once and must tell them apart by the
+# master index in the fabric ID.
+# Masters: cpu AXI5 64b, dma AXI5 128b, acc AXI4 32b (cdc), io AXI5 32b.
+# Slaves:  mem0 AXI5 64b, mem1 AXI5 128b, mem2 AXI5 64b, mem3 AXI4 64b (cdc).
+# Slave id_width is the fabric's ({master index, slot}); the validator checks it.
+#============================================================================
+
+[bridge]
+name = "bridge_bs_axi5"
+variants = ["no"]
+description = "bridge stress model: 3 AXI5 + 1 AXI4 (CDC) masters x 3 AXI5 + 1 AXI4 (CDC) slaves, sideband, poison, mixed widths, remap"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name          = "cpu"
+prefix        = "cpu_axi_"
+protocol      = "axi5"
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison"]
+channels      = "rw"
+id_width      = 8
+addr_width    = 32
+data_width    = 64
+user_width    = 1
+
+[[bridge.masters]]
+name          = "dma"
+prefix        = "dma_axi_"
+protocol      = "axi5"
+axi5_features = ["nsaid", "trace", "mpam", "mecid"]
+channels      = "rw"
+id_width      = 4
+addr_width    = 32
+data_width    = 128
+user_width    = 1
+
+[[bridge.masters]]
+name       = "acc"
+prefix     = "acc_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 32
+user_width = 1
+cdc        = true
+
+[[bridge.masters]]
+name          = "io"
+prefix        = "io_axi_"
+protocol      = "axi5"
+axi5_features = ["nsaid", "trace", "mpam", "mecid"]
+channels      = "rw"
+id_width      = 8
+addr_width    = 32
+data_width    = 32
+user_width    = 1
+
+[[bridge.slaves]]
+name          = "mem0"
+prefix        = "mem0_axi_"
+protocol      = "axi5"
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison"]
+channels      = "rw"
+id_width      = 6
+addr_width    = 32
+data_width    = 64
+user_width    = 1
+base_addr     = "0x00000000"
+addr_range    = "0x10000000"
+
+[[bridge.slaves]]
+name          = "mem1"
+prefix        = "mem1_axi_"
+protocol      = "axi5"
+axi5_features = ["nsaid", "trace", "mpam", "mecid"]
+channels      = "rw"
+id_width      = 6
+addr_width    = 32
+data_width    = 128
+user_width    = 1
+base_addr     = "0x10000000"
+addr_range    = "0x10000000"
+
+[[bridge.slaves]]
+name          = "mem2"
+prefix        = "mem2_axi_"
+protocol      = "axi5"
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "poison"]
+channels      = "rw"
+id_width      = 6
+addr_width    = 32
+data_width    = 64
+user_width    = 1
+base_addr     = "0x30000000"
+addr_range    = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem3"
+prefix     = "mem3_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+cdc        = true
+base_addr  = "0x40000000"
+addr_range = "0x10000000"

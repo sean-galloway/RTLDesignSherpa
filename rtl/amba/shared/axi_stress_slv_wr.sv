@@ -34,6 +34,11 @@
 // B: a finished burst waits lat_min + random & lat_mask cycles, then answers
 // once it is the oldest of its ID (all IDs as one with cfg.inorder); among
 // those the scheduler picks at random.
+//
+// AXI5 sideband (SB_MASK / RSB_MASK / POISON, all off for AXI3/AXI4): AWSB is checked
+// as ARSB is in axi_stress_slv_rd (ERR_S_SB); each W beat's WPOISON must be
+// f_poison(beat address, cfg.poison_lg2) (ERR_S_SB); B echoes the burst's
+// request sideband (f_rsb(AWSB) & RSB_MASK: BTRACE = AWTRACE).
 //==============================================================================
 
 `timescale 1ns / 1ps
@@ -48,6 +53,11 @@ module axi_stress_slv_wr
     parameter int DW      = 64,
     parameter int UW      = 1,
     parameter bit CHECK_WID = 1'b0,   // AXI3 shell: check fub_axi_wid
+    parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
+    parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
+    parameter bit POISON  = 1'b0,        // AXI5 WPOISON checked
+    parameter int SRC_LSB = 0,           // master-index field of the ID
+    parameter int SRC_W   = 0,           //   (0: one master, index 0)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -72,6 +82,7 @@ module axi_stress_slv_wr
     input  logic [3:0]          fub_axi_awqos,
     input  logic [3:0]          fub_axi_awregion,
     input  logic [UW-1:0]       fub_axi_awuser,
+    input  logic [31:0]      fub_axi_awsb,
     input  logic                fub_axi_awvalid,
     output logic                fub_axi_awready,
 
@@ -80,12 +91,14 @@ module axi_stress_slv_wr
     input  logic [IW-1:0]       fub_axi_wid,
     input  logic                fub_axi_wlast,
     input  logic [UW-1:0]       fub_axi_wuser,
+    input  logic                fub_axi_wpoison,
     input  logic                fub_axi_wvalid,
     output logic                fub_axi_wready,
 
     output logic [IW-1:0]       fub_axi_bid,
     output logic [1:0]          fub_axi_bresp,
     output logic [UW-1:0]       fub_axi_buser,
+    output logic [7:0]     fub_axi_bsb,
     output logic                fub_axi_bvalid,
     input  logic                fub_axi_bready
 );
@@ -100,7 +113,7 @@ module axi_stress_slv_wr
     // =========================================================================
     // AW queue
     // =========================================================================
-    localparam int AQW = IW + 32 + 8 + 3 + 2 + 2;
+    localparam int AQW = IW + 32 + 8 + 3 + 2 + 2 + 8;
 
     logic           aq_wr_ready, aq_rd_valid, aq_rd_ready, w_aw_hs;
     logic [AQW-1:0] aq_rd_data;
@@ -132,7 +145,7 @@ module axi_stress_slv_wr
         .wr_valid    (w_aw_hs),
         .wr_ready    (aq_wr_ready),
         .wr_data     ({fub_axi_awid, w_faddr, fub_axi_awlen, fub_axi_awsize,
-                       fub_axi_awburst, w_aw_resp}),
+                       fub_axi_awburst, w_aw_resp, f_rsb(fub_axi_awsb) & RSB_MASK}),
         .rd_ready    (aq_rd_ready),
         /* verilator lint_off PINCONNECTEMPTY */
         .count       (),
@@ -146,7 +159,8 @@ module axi_stress_slv_wr
     logic [7:0]    q_len;
     logic [2:0]    q_size;
     logic [1:0]    q_burst, q_resp;
-    assign {q_id, q_addr, q_len, q_size, q_burst, q_resp} = aq_rd_data;
+    logic [7:0]    q_rsb;
+    assign {q_id, q_addr, q_len, q_size, q_burst, q_resp, q_rsb} = aq_rd_data;
 
     // registered request checks
     logic          r_q_valid, r_q_win;
@@ -155,6 +169,8 @@ module axi_stress_slv_wr
     logic [7:0]    r_q_len;
     logic [2:0]    r_q_size;
     logic [1:0]    r_q_burst;
+    logic [31:0]   r_q_faddr;
+    logic [31:0] r_q_sb;
 
     logic w_in_win;
     assign w_in_win = (cfg.size_lg2 >= 6'd32) ? 1'b1
@@ -165,6 +181,8 @@ module axi_stress_slv_wr
     always_ff @(posedge aclk) begin
         if (w_aw_hs) begin
             r_q_win   <= w_in_win;
+            r_q_faddr <= w_faddr;
+            r_q_sb    <= fub_axi_awsb;
             r_q_id    <= fub_axi_awid;
             r_q_addr  <= fub_axi_awaddr;
             r_q_len   <= fub_axi_awlen;
@@ -172,6 +190,19 @@ module axi_stress_slv_wr
             r_q_burst <= fub_axi_awburst;
         end
     end
+
+    // AXI5: the request sideband, expected only from a master that carries it
+    localparam int  SRC_W_P   = (SRC_W > 0) ? SRC_W   : 1;
+    localparam int  SRC_LSB_P = (SRC_W > 0) ? SRC_LSB : 0;
+    logic [2:0]     w_q_src;
+    logic [31:0] w_q_sb_exp;
+    logic           w_q_sb_err;
+    always_comb begin
+        w_q_src = '0;
+        if (SRC_W > 0) w_q_src = 3'(r_q_id[SRC_LSB_P +: SRC_W_P]);
+        w_q_sb_exp = cfg.sb_src[w_q_src] ? (f_sb(r_q_faddr, cfg_hash_seed) & SB_MASK) : '0;
+    end
+    assign w_q_sb_err = (SB_MASK != '0) && r_q_valid && ((r_q_sb & SB_MASK) != w_q_sb_exp);
 
     logic w_q_addr_err, w_q_proto_err;
     assign w_q_addr_err  = r_q_valid && !r_q_win;
@@ -187,6 +218,7 @@ module axi_stress_slv_wr
     logic [7:0]    r_wa_len, r_wa_left;
     logic [2:0]    r_wa_size;
     logic [1:0]    r_wa_burst, r_wa_resp;
+    logic [7:0]    r_wa_rsb;              // AXI5: the B sideband echo
 
     logic          c_valid;
     logic [IW-1:0] c_id;
@@ -194,6 +226,7 @@ module axi_stress_slv_wr
     logic [7:0]    c_len, c_left;
     logic [2:0]    c_size;
     logic [1:0]    c_burst, c_resp;
+    logic [7:0]    c_rsb;
     always_comb begin
         c_valid = r_wa || aq_rd_valid;
         c_id    = r_wa ? r_wa_id    : q_id;
@@ -203,6 +236,7 @@ module axi_stress_slv_wr
         c_size  = r_wa ? r_wa_size  : q_size;
         c_burst = r_wa ? r_wa_burst : q_burst;
         c_resp  = r_wa ? r_wa_resp  : q_resp;
+        c_rsb   = r_wa ? r_wa_rsb   : q_rsb;
     end
 
     logic tb_full, w_b_push;
@@ -220,6 +254,7 @@ module axi_stress_slv_wr
             r_wa_size  <= c_size;
             r_wa_burst <= c_burst;
             r_wa_resp  <= c_resp;
+            r_wa_rsb   <= c_rsb;
         end
     end
 
@@ -230,6 +265,7 @@ module axi_stress_slv_wr
     logic [2:0]    r_c_size;
     logic [DW-1:0] r_c_data;
     logic [NB-1:0] r_c_strb;
+    logic          r_c_poison;
 
     always_ff @(posedge aclk) begin
         if (w_w_hs) begin
@@ -241,6 +277,7 @@ module axi_stress_slv_wr
             r_c_strb     <= fub_axi_wstrb;
             r_c_last     <= fub_axi_wlast;
             r_c_exp_last <= (c_left == 8'd0);
+            r_c_poison   <= fub_axi_wpoison;
         end
     end
 
@@ -248,6 +285,11 @@ module axi_stress_slv_wr
     logic [NL-1:0] w_c_bad;
     logic          w_c_data_err, w_c_strb_err, w_c_last_err, w_c_wid_err;
     logic [31:0]   w_c_exp_w, w_c_act_w, w_c_addr_w;
+
+    // AXI5: WPOISON of the beat
+    logic w_c_p_exp, w_c_poison_err;
+    assign w_c_p_exp      = POISON && f_poison(r_c_addr, cfg_hash_seed, cfg.poison_lg2);
+    assign w_c_poison_err = POISON && r_c_valid && (r_c_poison != w_c_p_exp);
 
     always_comb begin
         logic [BUS_LG2:0] lo, hi;
@@ -321,6 +363,7 @@ module axi_stress_slv_wr
     logic [IW-1:0] r_s_id   [DEPTH];
     logic [1:0]    r_s_resp [DEPTH];
     logic [8:0]    r_s_dly  [DEPTH];
+    logic [7:0] r_s_bsb [DEPTH];
 
     logic [8:0] w_dly;
     assign w_dly = 9'(cfg.lat_min) + 9'(r_rnd[7:0] & cfg.lat_mask);
@@ -333,6 +376,7 @@ module axi_stress_slv_wr
             r_s_id  [tb_alloc_idx] <= c_id;
             r_s_resp[tb_alloc_idx] <= c_resp;
             r_s_dly [tb_alloc_idx] <= w_dly;
+            r_s_bsb [tb_alloc_idx] <= c_rsb;
         end
     end
 
@@ -360,6 +404,7 @@ module axi_stress_slv_wr
         if (w_bmake) begin
             fub_axi_bid   <= r_s_id[w_pick_idx];
             fub_axi_bresp <= r_s_resp[w_pick_idx];
+            fub_axi_bsb   <= r_s_bsb[w_pick_idx];
         end
     end
 
@@ -410,12 +455,13 @@ module axi_stress_slv_wr
             if (w_c_strb_err)  sts.err_mask[ERR_S_WSTRB] <= 1'b1;
             if (w_c_last_err)  sts.err_mask[ERR_S_WLAST] <= 1'b1;
             if (w_c_wid_err)   sts.err_mask[ERR_S_WID]   <= 1'b1;
+            if (w_q_sb_err || w_c_poison_err) sts.err_mask[ERR_S_SB] <= 1'b1;
             if (w_q_addr_err || w_q_proto_err || w_c_data_err || w_c_strb_err || w_c_last_err
-                || w_c_wid_err)
-                sts.err_cnt <= (sts.err_cnt > 16'hFFF9) ? 16'hFFFF
+                || w_c_wid_err || w_q_sb_err || w_c_poison_err)
+                sts.err_cnt <= (sts.err_cnt > 16'hFFF7) ? 16'hFFFF
                              : sts.err_cnt + 16'(w_q_addr_err) + 16'(w_q_proto_err)
                                + 16'(w_c_data_err) + 16'(w_c_strb_err) + 16'(w_c_last_err)
-                               + 16'(w_c_wid_err);
+                               + 16'(w_c_wid_err) + 16'(w_q_sb_err) + 16'(w_c_poison_err);
             if (!sts.fe_valid) begin
                 if (w_c_data_err || w_c_strb_err || w_c_last_err || w_c_wid_err) begin
                     sts.fe_valid <= 1'b1;
@@ -433,6 +479,20 @@ module axi_stress_slv_wr
                     sts.fe_addr  <= r_q_addr;
                     sts.fe_exp   <= 32'({r_q_size, r_q_len});
                     sts.fe_act   <= {30'd0, r_q_burst};
+                end else if (w_c_poison_err) begin
+                    sts.fe_valid <= 1'b1;
+                    sts.fe_kind  <= 4'(ERR_S_SB);
+                    sts.fe_id    <= 16'(r_c_id);
+                    sts.fe_addr  <= r_c_addr;
+                    sts.fe_exp   <= {w_c_p_exp,  31'd0};
+                    sts.fe_act   <= {r_c_poison, 31'd0};
+                end else if (w_q_sb_err) begin
+                    sts.fe_valid <= 1'b1;
+                    sts.fe_kind  <= 4'(ERR_S_SB);
+                    sts.fe_id    <= 16'(r_q_id);
+                    sts.fe_addr  <= r_q_addr;
+                    sts.fe_exp   <= 32'(w_q_sb_exp);
+                    sts.fe_act   <= 32'(r_q_sb);
                 end
             end
             sts.out_now <= 8'(r_held);

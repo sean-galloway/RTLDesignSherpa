@@ -92,6 +92,8 @@ module bstress_slv_csr
         cfg_rd.lat_mask      = ho.RD_TIMING.LAT_MASK.value;
         cfg_rd.max_out       = ho.RD_TIMING.MAX_OUT.value;
         cfg_rd.seed          = ho.RD_SEED.VALUE.value;
+        cfg_rd.sb_src        = ho.RD_SB.SRC.value;
+        cfg_rd.poison_lg2    = ho.RD_SB.POISON_LG2.value;
 
         cfg_wr = '0;
         cfg_wr.base          = ho.WR_BASE.VALUE.value;
@@ -109,6 +111,8 @@ module bstress_slv_csr
         cfg_wr.lat_mask      = ho.WR_TIMING.LAT_MASK.value;
         cfg_wr.max_out       = ho.WR_TIMING.MAX_OUT.value;
         cfg_wr.seed          = ho.WR_SEED.VALUE.value;
+        cfg_wr.sb_src        = ho.WR_SB.SRC.value;
+        cfg_wr.poison_lg2    = ho.WR_SB.POISON_LG2.value;
     end
 
     always_comb begin

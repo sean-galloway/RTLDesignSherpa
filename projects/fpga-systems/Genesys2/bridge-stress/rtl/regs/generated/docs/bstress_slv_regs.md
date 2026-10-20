@@ -22,12 +22,14 @@ Don't override. Generated from: $root
 | 0x01C|RD_ERR_MASK|  — |
 | 0x020| RD_TIMING |  — |
 | 0x024|  RD_SEED  |  — |
+| 0x028|   RD_SB   |  — |
 | 0x030|  WR_BASE  |  — |
 | 0x034|  WR_CTRL  |  — |
 | 0x038|WR_ERR_BASE|  — |
 | 0x03C|WR_ERR_MASK|  — |
 | 0x040| WR_TIMING |  — |
 | 0x044|  WR_SEED  |  — |
+| 0x048|   WR_SB   |  — |
 | 0x200| RD_BURSTS |  — |
 | 0x204|  RD_BEATS |  — |
 | 0x208|   RD_ERR  |  — |
@@ -218,6 +220,25 @@ Don't override. Generated from: $root
 |----|----------|------|-----|----|
 |31:0|   VALUE  |  rw  | 0x0 |  — |
 
+### RD_SB register
+
+- Absolute Address: 0x28
+- Base Offset: 0x28
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|    SRC   |  rw  | 0x0 |  — |
+|11:8|POISON_LG2|  rw  | 0x0 |  — |
+
+#### SRC field
+
+<p>AXI5: bit i set = requests from master index i (the fabric's ID prefix) carry sideband natively and must match f_sb; from any other master the sideband must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: R beats poisoned, and W beats expected poisoned, 1 in 2^n by address; 0 = never.</p>
+
 ### WR_BASE register
 
 - Absolute Address: 0x30
@@ -330,6 +351,25 @@ Don't override. Generated from: $root
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
 |31:0|   VALUE  |  rw  | 0x0 |  — |
+
+### WR_SB register
+
+- Absolute Address: 0x48
+- Base Offset: 0x48
+- Size: 0x4
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|    SRC   |  rw  | 0x0 |  — |
+|11:8|POISON_LG2|  rw  | 0x0 |  — |
+
+#### SRC field
+
+<p>AXI5: bit i set = requests from master index i (the fabric's ID prefix) carry sideband natively and must match f_sb; from any other master the sideband must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: R beats poisoned, and W beats expected poisoned, 1 in 2^n by address; 0 = never.</p>
 
 ### RD_BURSTS register
 

@@ -122,6 +122,8 @@ module bstress_mst_csr
             cfg_win[i].burst_mask = ho.WIN[i].CFG1.BURST_MASK.value;
             cfg_win[i].unaligned  = ho.WIN[i].CFG1.UNALIGNED.value;
             cfg_win[i].strb_rand  = ho.WIN[i].CFG1.STRB_RAND.value;
+            cfg_win[i].sb         = ho.WIN[i].CFG1.SB.value;
+            cfg_win[i].poison_lg2 = ho.WIN[i].CFG1.POISON_LG2.value;
             cfg_win[i].rd_en      = ho.WIN[i].CFG1.RD_EN.value && HAS_RD;
             cfg_win[i].wr_en      = ho.WIN[i].CFG1.WR_EN.value && HAS_WR;
         end

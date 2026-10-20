@@ -23,7 +23,7 @@
 
 # Genesys 2 (Kintex-7) Bridge Stress Model -- PRD
 
-**Version:** 0.2 (draft) · **Date:** 2026-10-19 · **Status:** AXI4 and AXI3 builds passing on the Genesys 2: 27/27 board runs each (9 profiles x 3 seeds x 4000 bursts per master direction) and a 15-minute chaos soak each
+**Version:** 0.3 (draft) · **Date:** 2026-10-19 · **Status:** AXI4, AXI3 and AXI5 builds passing on the Genesys 2: 27/27 board runs each (9 profiles x 3 seeds x 4000 bursts per master direction) and a 15-minute chaos soak each
 
 ## 1. Purpose
 
@@ -60,7 +60,7 @@ LUT levels at bus rate.
 | Layer | Where | What |
 |---|---|---|
 | stress cores | `rtl/amba/shared/axi_stress_*.sv` | protocol-neutral master (generator + per-ID ordered scoreboard, rd and wr) and slave (hash responder with reorder / interleave / latency / throttle / SLVERR window); `cfg` / `sts` structs, no CSRs |
-| protocol shells | `rtl/amba/shared/<proto>_{master,slave}_stress.sv` | the cores on the protocol's channel modules: AXI4, AXI3 (bursts cut to 16 beats in the generator, WID carried with each W beat, 2-bit lock) |
+| protocol shells | `rtl/amba/shared/<proto>_{master,slave}_stress.sv` | the cores on the protocol's channel modules: AXI4, AXI3 (bursts cut to 16 beats in the generator, WID carried with each W beat, 2-bit lock), AXI5 (`axi5_*` channel modules; NSAID / TRACE / MPAM / MECID / POISON per port, from the DUT TOML's `axi5_features`) |
 | register blocks | `rtl/regs/*.rdl`, `rtl/bstress_{mst,slv}_csr.sv` | one regblock per block, in that block's clock (`apb4_to_peakrdl` carries the access across) |
 | harness | `rtl/generated/bs_harness_<dut>/` from `bin/gen_bs_harness.py` | generated from the DUT TOML: one shell per DUT port, the configuration bridge, control regs, GO/STOP into every clock |
 | board top | `rtl/bs_genesys2_top.sv` | MMCM (aclk 100 MHz, cclk 75 MHz), resets, UART, LEDs |
@@ -80,6 +80,13 @@ LUT levels at bus rate.
 | S_PROTO | slave | an illegal burst: size, WRAP shape, FIXED/WRAP length, 4 KB crossing |
 | S_WDATA / S_WSTRB / S_WLAST | slave | a strobed byte wrong, a strobe outside the beat, WLAST misplaced |
 | S_WID | AXI3 slave | a W beat whose WID is not the AWID of the burst it belongs to (interleaved or mis-stamped write data) |
+| S_SB | AXI5 slave | a request's NSAID / TRACE / MPAM / MECID is not `f_sb(address)` (from a master whose path carries sideband natively) or not 0 (from any other: the slave tells them apart by the master index in the fabric ID), or a W beat's WPOISON is not `f_poison(beat address)` |
+| M_SB | AXI5 master | BTRACE / RTRACE is not the request's TRACE (a trace-capable bridge port echoes it whatever the slave, bridge BUG-010), or an R beat's RPOISON is not `f_poison(beat address)` |
+
+AXI5 sideband and poison follow the data contract: every field is a hash of
+the address (`f_sb`, `f_poison` in `axi_stress_pkg`), so both ends compute it
+and nothing is stored. Poison is drawn 1 beat in 2^POISON_LG2 by address
+hash, on paths where both ends enable it.
 
 Every check is shown to fire by the pair test's fault injector
 (`val/amba/test_axi_stress_pair.py`), and an independent Python monitor
@@ -92,13 +99,16 @@ checks the blocks themselves against the model.
 | `build-axi4` | `bridge_bs_axi4`: 4 AXI4 masters (64/128/32/64, IDs 8/4/6/8, one cdc) x 4 AXI4 slaves (64/128/32/64, one cdc), a 256 MB hole | WNS +0.081 ns at 100 / 75 MHz, 94.8k LUTs (47%), no BRAM/DSP; sim and board: every profile passes under the path limits |
 | `build-axi3` | `bridge_bs_axi3`: the same shape with AXI3 on every port that does not cross a clock (cpu, dma, io; mem0, mem1, mem2). The two CDC ports (acc, mem3) stay AXI4: the generator has no AXI3 CDC (`validate_axi3`, rule 3). Paths: AXI3 -> AXI3, AXI3 -> AXI4, and AXI4 -> AXI3 with bursts longer than 16 beats chopped | WNS +0.001 ns, WHS +0.013 ns at 100 / 75 MHz, 106.7k LUTs (52%); sim and board: every profile passes under the path limits |
 
+| `build-axi5` | `bridge_bs_axi5`: AXI5 on every port that does not cross a clock (cpu 64b, dma 128b, io 32b; mem0 64b, mem1 128b, mem2 64b), all with NSAID / TRACE / MPAM / MECID; the CDC ports (acc, mem3) stay AXI4. Poison on a 64-bit clique (cpu -> mem0, mem2): the validator allows it only where every connected path is AXI5 at both ends and one width. mem1 takes native (dma), width-converted (io: sideband dropped) and AXI4 (acc) requests at once and tells them apart by the fabric's master index | WNS +0.066 ns, WHS +0.036 ns at 100 / 75 MHz, 87.8k LUTs (43%); sim 9/9, board 27/27, soak 174/174 |
+
 ## 5. Phases
 
 | Phase | Adds | Shells |
 |---|---|---|
 | 1 | the cores, AXI4, the Genesys 2 build | `axi4_{master,slave}_stress` |
 | 2a (done) | AXI3 ports, `build-axi3` | `axi3_{master,slave}_stress` (WID, 16-beat, 2-bit lock) |
-| 2b | AXI5 ports in a mixed DUT | `axi5_*` (the bridge's AXI5 feature groups) |
+| 2b (sideband + poison) | AXI5 ports in a mixed DUT, `build-axi5` | `axi5_{master,slave}_stress`: NSAID, TRACE, MPAM, MECID, POISON |
+| 2c | atomics, IDUNQ, MTE | the same shells; see bridge TASK-019 |
 | 3 | AXI4-Lite / AXI5-Lite, APB4 / APB5, WB4 | single-beat shells; slaves in offset mode where the bridge hands them a window offset |
 
 ## 6. Findings
@@ -111,6 +121,9 @@ checks the blocks themselves against the model.
 | converters BUG-011 (fixed) | DUT, AXI3 slave adapters | `axi4_to_axi3` chopped an unaligned INCR longer than 16 beats into chunks that all stayed unaligned (AXI: every beat after the first is aligned), so the AXI3 slave took the first beat of each later chunk for a partial one. `S_WSTRB` in sim and on the board (0/4 runs on the pre-fix bitstream); the chunk address is aligned now, with regressions in the converter suite |
 | (fixed here) | build flow | `make lint` never passed `BS_HARNESS`, so every build linted the AXI4 harness; the build Makefiles set `LINT_DEFINES` |
 | (limit) | bridge generator | no AXI3 port may be a CDC port (v1); `build-axi3` keeps its CDC ports AXI4 |
+| (limit) | bridge generator | no AXI5 port may be a CDC port (the crossing carries the AXI4 set); `build-axi5` keeps its CDC ports AXI4 |
+| (by design) | DUT, AXI5 master ports | a trace-capable master port echoes AxTRACE on BTRACE / RTRACE itself, whatever the slave (bridge BUG-010), and asserts in sim that a trace-capable slave echoes it too. The stress model's first slave returned an address hash and hit that assertion; it echoes now |
+| bridge BUG-019 | DUT, several converters | unaligned INCR bursts keep their start misalignment past the first beat in the dwidth downsize, `axi4_to_axil4` (and AXI5-Lite / WB4) and `axi_gen_addr` (APB) paths; `axi4_to_axi3` was fixed as converters BUG-011 |
 
 ## 7. Board results
 
@@ -123,6 +136,8 @@ checks the blocks themselves against the model.
 | AXI3, pre-fix bitstream (BUG-011): `clean`, `bursts`, seeds 1-2 | 0/4 PASS: `S_WSTRB` on the AXI3 slaves, every error from the AXI4 master's chopped writes | `reports/board/bridge_bs_axi3_20261019_135031.csv` |
 | AXI3: every profile x seeds 1-3, 4000 bursts | 27/27 PASS | `reports/board/bridge_bs_axi3_20261019_140649.csv` |
 | AXI3 soak: chaos, a fresh seed per run, 8000 bursts per master direction, 15 min | 168/168 PASS (~10.7 M bursts) | `reports/board/bridge_bs_axi3_20261019_140943.csv` |
+| AXI5: every profile x seeds 1-3, 4000 bursts | 27/27 PASS | `reports/board/bridge_bs_axi5_20261019_181755.csv` |
+| AXI5 soak: chaos, a fresh seed per run, 8000 bursts per master direction, 15 min | 174/174 PASS (~11.1 M bursts) | `reports/board/bridge_bs_axi5_20261019_182057.csv` |
 
 ## 8. Running
 

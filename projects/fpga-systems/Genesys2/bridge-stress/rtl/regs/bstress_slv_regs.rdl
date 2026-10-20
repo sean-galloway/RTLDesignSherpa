@@ -59,6 +59,10 @@ addrmap bstress_slv_regs {
         field { sw = rw; hw = r; desc = "... plus random & LAT_MASK."; } LAT_MASK[15:8] = 0;
         field { sw = rw; hw = r; desc = "Requests held; 0 = as built."; } MAX_OUT[23:16] = 0;
     };
+    reg scfg_sb_t {
+        field { sw = rw; hw = r; desc = "AXI5: bit i set = requests from master index i (the fabric's ID prefix) carry sideband natively and must match f_sb; from any other master the sideband must be 0."; } SRC[7:0] = 0;
+        field { sw = rw; hw = r; desc = "AXI5: R beats poisoned, and W beats expected poisoned, 1 in 2^n by address; 0 = never."; } POISON_LG2[11:8] = 0;
+    };
     reg ssts_u32_t { field { sw = r; hw = w; } VALUE[31:0] = 0; };
     reg ssts_err_t {
         field { sw = r; hw = w; desc = "Sticky, one bit per ERR_* code."; } MASK[15:0] = 0;
@@ -81,6 +85,7 @@ addrmap bstress_slv_regs {
     scfg_u32_t     RD_ERR_MASK  @ 0x01C;
     scfg_timing_t  RD_TIMING    @ 0x020;
     scfg_u32_t     RD_SEED      @ 0x024;  // Scheduler PRNG seed; 0 = built-in.
+    scfg_sb_t      RD_SB        @ 0x028;  // AXI5 sideband / poison.
 
     scfg_u32_t     WR_BASE      @ 0x030;  // The slave's fabric window base.
     scfg_ctrl_t    WR_CTRL      @ 0x034;
@@ -88,6 +93,7 @@ addrmap bstress_slv_regs {
     scfg_u32_t     WR_ERR_MASK  @ 0x03C;
     scfg_timing_t  WR_TIMING    @ 0x040;
     scfg_u32_t     WR_SEED      @ 0x044;  // Scheduler PRNG seed; 0 = built-in.
+    scfg_sb_t      WR_SB        @ 0x048;  // AXI5 sideband / poison.
 
     ssts_u32_t     RD_BURSTS    @ 0x200;
     ssts_u32_t     RD_BEATS     @ 0x204;

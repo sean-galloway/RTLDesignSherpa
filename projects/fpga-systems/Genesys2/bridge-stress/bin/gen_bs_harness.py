@@ -22,11 +22,18 @@ from __future__ import annotations
 import argparse
 import sys
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from types import SimpleNamespace
 from typing import List
 
 AREA = Path(__file__).resolve().parent.parent
+REPO = AREA.parents[3]          # ./projects/fpga-systems/Genesys2/bridge-stress
+# The AXI5 pin set of a bridge port and the fabric's ID layout come from the
+# bridge generator itself, so the harness cannot drift from the DUT.
+sys.path.insert(0, str(REPO / 'projects/components/fabric-gen-ip/bridge/bin'))
+from bridge_pkg.components.axi4_timing_wrapper_component import axi5_exposed_ext_signals  # noqa: E402
+from bridge_pkg.width_utils import fabric_local_id_width, id_prefix_width  # noqa: E402
 MAX_PORTS = 8          # configuration windows bridge_bs_cfg carries per side
 PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil': 3, 'axil5': 4,
               'apb': 5, 'apb5': 6, 'wb4': 7}
@@ -48,8 +55,24 @@ AR3 = [(n, {'arlen': '4', 'arlock': '2'}.get(n, w)) for n, w in AR
 AW3 = [(n.replace('ar', 'aw', 1), w) for n, w in AR3]
 W3 = [('wid', 'IW')] + W
 
+# AXI5: no AxREGION; the shells carry every AXI5 pin (a disabled feature's pin
+# is tied off inside), the DUT port only those of its axi5_features.
+AR5 = [(n, w) for n, w in AR if n != 'arregion']
+AW5 = [(n.replace('ar', 'aw', 1), w) for n, w in AR5]
+AW5_X = [('awatop', '6'), ('awnsaid', '4'), ('awtrace', '1'), ('awmpam', '11'),
+         ('awmecid', '16'), ('awidunq', '1'), ('awtagop', '2'), ('awakeup', '1')]
+W5_X = [('wpoison', '1'), ('wtag', 'TW'), ('wtagupdate', 'NT')]
+B5_X = [('btrace', '1'), ('bidunq', '1'), ('btagmatch', '2')]
+AR5_X = [('arnsaid', '4'), ('artrace', '1'), ('armpam', '11'), ('armecid', '16'),
+         ('aridunq', '1'), ('archunken', '1'), ('artagop', '2')]
+R5_X = [('rtrace', '1'), ('ridunq', '1'), ('rpoison', '1'), ('rchunkv', '1'),
+        ('rchunknum', '4'), ('rchunkstrb', 'NT'), ('rtag', 'TW')]
+# What the AXI5 stress shells model; any other feature on a DUT port is refused.
+AXI5_STRESS_FEATURES = ('nsaid', 'trace', 'mpam', 'mecid', 'poison')
+
 # protocol -> (AW, W, B, AR, R); the stress shells are <protocol>_{master,slave}_stress
-CHANNELS = {'axi4': (AW, W, B, AR, R), 'axi3': (AW3, W3, B, AR3, R)}
+CHANNELS = {'axi4': (AW, W, B, AR, R), 'axi3': (AW3, W3, B, AR3, R),
+            'axi5': (AW5 + AW5_X, W + W5_X, B + B5_X, AR5 + AR5_X, R + R5_X)}
 
 
 @dataclass
@@ -64,6 +87,8 @@ class Port:
     cdc: bool
     base: int = 0
     size: int = 0
+    features: List[str] = field(default_factory=list)   # axi5_features
+    max_outstanding: int = 16
 
     @property
     def rd(self) -> bool:
@@ -90,13 +115,31 @@ class Port:
         return aw + w + b + ar + r
 
     def sigs(self) -> List[tuple]:
+        """The DUT port's pins: for AXI5 the base set plus the pins of its
+        axi5_features, exactly as the bridge generator declares them."""
         aw, w, b, ar, r = self.chans
+        if self.protocol == 'axi5':
+            def ext(ch):
+                return [(n, str(wd)) for n, wd, _ in
+                        axi5_exposed_ext_signals(ch, self.features, self.dw, self.channels)]
+            aw, w, b, ar, r = (AW5 + ext('aw'), W + ext('w'), B + ext('b'),
+                               AR5 + ext('ar'), R + ext('r'))
         out = []
         if self.wr:
             out += aw + w + b
         if self.rd:
             out += ar + r
         return out
+
+    def en(self, feat: str) -> int:
+        return int(self.protocol == 'axi5' and feat in self.features)
+
+    def axi5_params(self) -> str:
+        if self.protocol != 'axi5':
+            return ''
+        return (f", .EN_NSAID(1'b{self.en('nsaid')}), .EN_TRACE(1'b{self.en('trace')}),"
+                f" .EN_MPAM(1'b{self.en('mpam')}), .EN_MECID(1'b{self.en('mecid')}),"
+                f" .EN_POISON(1'b{self.en('poison')})")
 
 
 def load(toml: Path):
@@ -105,23 +148,31 @@ def load(toml: Path):
     for m in cfg['masters']:
         ms.append(Port(m['name'], m['prefix'], m.get('protocol', 'axi4'),
                        m.get('channels', 'rw'), m['data_width'], m.get('id_width', 0),
-                       max(1, m.get('user_width', 1)), bool(m.get('cdc', False))))
+                       max(1, m.get('user_width', 1)), bool(m.get('cdc', False)),
+                       features=list(m.get('axi5_features', [])),
+                       max_outstanding=int(m.get('max_outstanding', 16))))
     for s in cfg['slaves']:
         ss.append(Port(s['name'], s['prefix'], s.get('protocol', 'axi4'),
                        s.get('channels', 'rw'), s['data_width'], s.get('id_width', 0),
                        max(1, s.get('user_width', 1)), bool(s.get('cdc', False)),
-                       int(s['base_addr'], 0), int(s['addr_range'], 0)))
+                       int(s['base_addr'], 0), int(s['addr_range'], 0),
+                       features=list(s.get('axi5_features', []))))
     for p in ms + ss:
         if p.protocol not in CHANNELS:
             sys.exit(f'{p.name}: protocol {p.protocol!r} has no stress shell yet '
                      f'(have {sorted(CHANNELS)})')
+        extra = set(p.features) - set(AXI5_STRESS_FEATURES)
+        if extra:
+            sys.exit(f'{p.name}: axi5_features {sorted(extra)} are not modelled by the '
+                     f'stress shells yet (have {list(AXI5_STRESS_FEATURES)})')
     if len(ms) > MAX_PORTS or len(ss) > MAX_PORTS:
         sys.exit(f'at most {MAX_PORTS} masters and {MAX_PORTS} slaves')
     return cfg['name'], ms, ss
 
 
 def width(w: str, p: Port) -> str:
-    v = {'IW': p.iw, 'DW': p.dw, 'SW': p.dw // 8, 'UW': p.uw}.get(w)
+    nt = max(1, p.dw // 128)
+    v = {'IW': p.iw, 'DW': p.dw, 'SW': p.dw // 8, 'UW': p.uw, 'NT': nt, 'TW': 4 * nt}.get(w)
     n = int(w) if v is None else v
     return '' if n == 1 else f'[{n - 1}:0]'
 
@@ -365,7 +416,7 @@ module bs_harness_{dut}
 
     {p.protocol}_master_stress #(
         .EN_RD(1'b{int(p.rd)}), .EN_WR(1'b{int(p.wr)}), .DEPTH(16), .NWIN(8),
-        .IW({p.iw}), .DW({p.dw}), .UW({p.uw})
+        .IW({p.iw}), .DW({p.dw}), .UW({p.uw}){p.axi5_params()}
     ) u_m{i} (
         .aclk ({p.clk}), .aresetn ({p.rst}), .go ({go}), .stop ({stop}),
         .cfg_rd (m{i}_cfg_rd), .cfg_wr (m{i}_cfg_wr), .cfg_win (m{i}_win),
@@ -373,8 +424,12 @@ module bs_harness_{dut}
         .sts_rd (m{i}_sts_rd), .sts_wr (m{i}_sts_wr),""")
         conns = []
         have = {n for n, _ in p.sigs()}
+        aw, w, b, ar, r = p.chans
+        m_inputs = {x for x, _ in b + r} | {'awready', 'wready', 'arready'}
+        m_inputs -= {'bready', 'rready'}
         for n, _ in p.all_sigs():
-            conns.append(f"        .m_axi_{n:<9} ({p.prefix + n if n in have else ''})")
+            tie = "'0" if n in m_inputs else ''
+            conns.append(f"        .m_axi_{n:<9} ({p.prefix + n if n in have else tie})")
         a("        /* verilator lint_off PINCONNECTEMPTY */")
         a(",\n".join(conns))
         a("        /* verilator lint_on PINCONNECTEMPTY */")
@@ -383,8 +438,15 @@ module bs_harness_{dut}
         a(f"    assign mst_err_raw[{i}]  = (|m{i}_sts_rd.err_mask) || (|m{i}_sts_wr.err_mask);\n")
 
     # ---------------------------------------------------------------- slaves
+    # The fabric ID a slave sees is {master index, master-local ID}; an AXI5
+    # slave finds which master a request came from in that index field.
+    spec = [SimpleNamespace(id_width=m.iw, max_outstanding=m.max_outstanding,
+                            axi5_features=m.features, channels=m.channels) for m in ms]
+    src_lsb, src_w = fabric_local_id_width(spec), id_prefix_width(spec)
     for i, p in enumerate(ss):
         go, seed = ('go_c', 'seed_c') if p.cdc else ('go_a', 'seed_a')
+        src_params = (f", .SRC_LSB({src_lsb}), .SRC_W({src_w})"
+                      if p.protocol == 'axi5' else '')
         a(f"""    // =========================================================================
     // Slave {i}: {p.name} ({p.protocol}, {p.channels}, {p.dw}-bit, ID {p.iw}, {p.clk})
     //          window 0x{p.base:08X} + 0x{p.size:X}
@@ -412,7 +474,7 @@ module bs_harness_{dut}
 
     {p.protocol}_slave_stress #(
         .EN_RD(1'b{int(p.rd)}), .EN_WR(1'b{int(p.wr)}), .DEPTH(16),
-        .IW({p.iw}), .DW({p.dw}), .UW({p.uw})
+        .IW({p.iw}), .DW({p.dw}), .UW({p.uw}){p.axi5_params()}{src_params}
     ) u_s{i} (
         .aclk ({p.clk}), .aresetn ({p.rst}), .clear ({go}),
         .cfg_rd (s{i}_cfg_rd), .cfg_wr (s{i}_cfg_wr), .cfg_hash_seed ({seed}),

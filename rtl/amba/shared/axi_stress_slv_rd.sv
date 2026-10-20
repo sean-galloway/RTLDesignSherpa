@@ -35,6 +35,13 @@
 // cfg.interleave it picks again for every beat, so beats of different IDs
 // interleave, otherwise it stays on one burst to RLAST. data_throttle puts
 // random bubbles between beats.
+//
+// AXI5 sideband (SB_MASK / RSB_MASK / POISON, all off for AXI3/AXI4): ARSB must be
+// f_sb(fabric address) & SB_MASK when the request came from a master in
+// cfg.sb_src -- the master index is the fabric's ID prefix, ID[SRC_LSB +:
+// SRC_W] -- and 0 from any other (ERR_S_SB). Each R beat echoes the
+// burst's request sideband (f_rsb(ARSB) & RSB_MASK: RTRACE = ARTRACE) and
+// carries RPOISON = f_poison(beat address, cfg.poison_lg2).
 //==============================================================================
 
 `timescale 1ns / 1ps
@@ -48,6 +55,11 @@ module axi_stress_slv_rd
     parameter int IW      = 8,
     parameter int DW      = 64,
     parameter int UW      = 1,
+    parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
+    parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
+    parameter bit POISON  = 1'b0,        // AXI5 RPOISON driven
+    parameter int SRC_LSB = 0,           // master-index field of the ID
+    parameter int SRC_W   = 0,           //   (0: one master, index 0)
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -72,6 +84,7 @@ module axi_stress_slv_rd
     input  logic [3:0]          fub_axi_arqos,
     input  logic [3:0]          fub_axi_arregion,
     input  logic [UW-1:0]       fub_axi_aruser,
+    input  logic [31:0]      fub_axi_arsb,
     input  logic                fub_axi_arvalid,
     output logic                fub_axi_arready,
 
@@ -80,6 +93,8 @@ module axi_stress_slv_rd
     output logic [1:0]          fub_axi_rresp,
     output logic                fub_axi_rlast,
     output logic [UW-1:0]       fub_axi_ruser,
+    output logic [7:0]     fub_axi_rsb,
+    output logic                fub_axi_rpoison,
     output logic                fub_axi_rvalid,
     input  logic                fub_axi_rready
 );
@@ -126,6 +141,7 @@ module axi_stress_slv_rd
     logic [7:0]    r_s_left  [DEPTH];
     logic [1:0]    r_s_resp  [DEPTH];
     logic [8:0]    r_s_dly   [DEPTH];      // cycles until it may answer
+    logic [7:0]    r_s_rsb   [DEPTH];      // AXI5: the response sideband echo
 
     // =========================================================================
     // AR accept
@@ -167,6 +183,7 @@ module axi_stress_slv_rd
             r_s_resp [tb_alloc_idx] <= (cfg.err_en && ((w_faddr & cfg.err_mask) == cfg.err_base))
                                        ? RESP_SLVERR : RESP_OKAY;
             r_s_dly  [tb_alloc_idx] <= w_dly;
+            r_s_rsb  [tb_alloc_idx] <= f_rsb(fub_axi_arsb) & RSB_MASK;
         end
         if (w_rmake) begin
             r_s_addr[w_pick_idx] <= f_next_addr(r_s_addr[w_pick_idx], r_s_size[w_pick_idx],
@@ -182,10 +199,14 @@ module axi_stress_slv_rd
     logic [7:0]    r_q_len;
     logic [2:0]    r_q_size;
     logic [1:0]    r_q_burst;
+    logic [31:0]   r_q_faddr;
+    logic [31:0] r_q_sb;
 
     always_ff @(posedge aclk) begin
         if (w_ar_hs) begin
             r_q_win   <= w_in_win;
+            r_q_faddr <= w_faddr;
+            r_q_sb    <= fub_axi_arsb;
             r_q_id    <= fub_axi_arid;
             r_q_addr  <= fub_axi_araddr;
             r_q_len   <= fub_axi_arlen;
@@ -193,6 +214,19 @@ module axi_stress_slv_rd
             r_q_burst <= fub_axi_arburst;
         end
     end
+
+    // AXI5: the request sideband, expected only from a master that carries it
+    localparam int  SRC_W_P   = (SRC_W > 0) ? SRC_W   : 1;
+    localparam int  SRC_LSB_P = (SRC_W > 0) ? SRC_LSB : 0;
+    logic [2:0]     w_q_src;
+    logic [31:0] w_q_sb_exp;
+    logic           w_q_sb_err;
+    always_comb begin
+        w_q_src = '0;
+        if (SRC_W > 0) w_q_src = 3'(r_q_id[SRC_LSB_P +: SRC_W_P]);
+        w_q_sb_exp = cfg.sb_src[w_q_src] ? (f_sb(r_q_faddr, cfg_hash_seed) & SB_MASK) : '0;
+    end
+    assign w_q_sb_err = (SB_MASK != '0) && r_q_valid && ((r_q_sb & SB_MASK) != w_q_sb_exp);
 
     logic w_q_addr_err, w_q_proto_err;
     assign w_q_addr_err  = r_q_valid && !r_q_win;
@@ -269,6 +303,9 @@ module axi_stress_slv_rd
             fub_axi_rdata <= w_rdata;
             fub_axi_rresp <= r_s_resp[w_pick_idx];
             fub_axi_rlast <= (r_s_left[w_pick_idx] == 8'd0);
+            fub_axi_rsb   <= r_s_rsb[w_pick_idx];
+            fub_axi_rpoison <= POISON && f_poison(r_s_addr[w_pick_idx], cfg_hash_seed,
+                                                  cfg.poison_lg2);
         end
     end
 
@@ -289,9 +326,11 @@ module axi_stress_slv_rd
             if (r_rv && fub_axi_rready)     sts.beats  <= sts.beats + 32'd1;
             if (w_q_addr_err)  sts.err_mask[ERR_S_ADDR]  <= 1'b1;
             if (w_q_proto_err) sts.err_mask[ERR_S_PROTO] <= 1'b1;
-            if (w_q_addr_err || w_q_proto_err)
-                sts.err_cnt <= (sts.err_cnt > 16'hFFFD) ? 16'hFFFF
-                             : sts.err_cnt + 16'(w_q_addr_err) + 16'(w_q_proto_err);
+            if (w_q_sb_err)    sts.err_mask[ERR_S_SB]    <= 1'b1;
+            if (w_q_addr_err || w_q_proto_err || w_q_sb_err)
+                sts.err_cnt <= (sts.err_cnt > 16'hFFFC) ? 16'hFFFF
+                             : sts.err_cnt + 16'(w_q_addr_err) + 16'(w_q_proto_err)
+                               + 16'(w_q_sb_err);
             if (!sts.fe_valid && (w_q_addr_err || w_q_proto_err)) begin
                 sts.fe_valid <= 1'b1;
                 sts.fe_kind  <= w_q_addr_err ? 4'(ERR_S_ADDR) : 4'(ERR_S_PROTO);
@@ -299,6 +338,13 @@ module axi_stress_slv_rd
                 sts.fe_addr  <= r_q_addr;
                 sts.fe_exp   <= 32'({r_q_size, r_q_len});
                 sts.fe_act   <= {30'd0, r_q_burst};
+            end else if (!sts.fe_valid && w_q_sb_err) begin
+                sts.fe_valid <= 1'b1;
+                sts.fe_kind  <= 4'(ERR_S_SB);
+                sts.fe_id    <= 16'(r_q_id);
+                sts.fe_addr  <= r_q_addr;
+                sts.fe_exp   <= 32'(w_q_sb_exp);
+                sts.fe_act   <= 32'(r_q_sb);
             end
             sts.out_now <= 8'(tb_count);
             if (8'(tb_count) > sts.out_max) sts.out_max <= 8'(tb_count);

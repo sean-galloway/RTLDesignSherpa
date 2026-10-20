@@ -360,15 +360,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -397,6 +399,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -462,15 +472,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -499,6 +511,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -564,15 +584,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -601,6 +623,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -666,15 +696,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -703,6 +735,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -768,15 +808,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -805,6 +847,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -870,15 +920,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -907,6 +959,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -972,15 +1032,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1009,6 +1071,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ## WIN register file
 
@@ -1074,15 +1144,17 @@ Don't override. Generated from: $root
 - Base Offset: 0x8
 - Size: 0x4
 
-|Bits|Identifier|Access|Reset|Name|
-|----|----------|------|-----|----|
-| 2:0| SIZE_MIN |  rw  | 0x0 |  — |
-| 6:4| SIZE_MAX |  rw  | 0x7 |  — |
-|10:8|BURST_MASK|  rw  | 0x2 |  — |
-| 12 | UNALIGNED|  rw  | 0x0 |  — |
-| 13 | STRB_RAND|  rw  | 0x0 |  — |
-| 14 |   RD_EN  |  rw  | 0x0 |  — |
-| 15 |   WR_EN  |  rw  | 0x0 |  — |
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 2:0 | SIZE_MIN |  rw  | 0x0 |  — |
+| 6:4 | SIZE_MAX |  rw  | 0x7 |  — |
+| 10:8|BURST_MASK|  rw  | 0x2 |  — |
+|  12 | UNALIGNED|  rw  | 0x0 |  — |
+|  13 | STRB_RAND|  rw  | 0x0 |  — |
+|  14 |   RD_EN  |  rw  | 0x0 |  — |
+|  15 |   WR_EN  |  rw  | 0x0 |  — |
+|  16 |    SB    |  rw  | 0x0 |  — |
+|23:20|POISON_LG2|  rw  | 0x0 |  — |
 
 #### SIZE_MIN field
 
@@ -1111,6 +1183,14 @@ Don't override. Generated from: $root
 #### WR_EN field
 
 <p>Writes target this window.</p>
+
+#### SB field
+
+<p>AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0.</p>
+
+#### POISON_LG2 field
+
+<p>AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2.</p>
 
 ### RD_STATUS register
 

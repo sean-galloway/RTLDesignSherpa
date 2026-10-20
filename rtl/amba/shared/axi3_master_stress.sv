@@ -151,6 +151,9 @@ module axi3_master_stress
             .fub_axi_arqos     (f_arqos),
             .fub_axi_arregion  (f_arregion),
             .fub_axi_aruser    (f_aruser),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_arsb      (),
+            /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_arvalid   (f_arvalid),
             .fub_axi_arready   (f_arready),
             .fub_axi_rid       (f_rid),
@@ -158,6 +161,8 @@ module axi3_master_stress
             .fub_axi_rresp     (f_rresp),
             .fub_axi_rlast     (f_rlast),
             .fub_axi_ruser     (f_ruser),
+            .fub_axi_rsb       ('0),
+            .fub_axi_rpoison   (1'b0),
             .fub_axi_rvalid    (f_rvalid),
             .fub_axi_rready    (f_rready)
         );
@@ -284,6 +289,9 @@ module axi3_master_stress
             .fub_axi_awqos     (f_awqos),
             .fub_axi_awregion  (f_awregion),
             .fub_axi_awuser    (f_awuser),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_awsb      (),
+            /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_awvalid   (f_awvalid),
             .fub_axi_awready   (f_awready),
             .fub_axi_wdata     (f_wdata),
@@ -291,11 +299,15 @@ module axi3_master_stress
             .fub_axi_wid       (f_wid),
             .fub_axi_wlast     (f_wlast),
             .fub_axi_wuser     (f_wuser),
+            /* verilator lint_off PINCONNECTEMPTY */
+            .fub_axi_wpoison   (),
+            /* verilator lint_on PINCONNECTEMPTY */
             .fub_axi_wvalid    (f_wvalid),
             .fub_axi_wready    (f_wready),
             .fub_axi_bid       (f_bid),
             .fub_axi_bresp     (f_bresp),
             .fub_axi_buser     (f_buser),
+            .fub_axi_bsb       ('0),
             .fub_axi_bvalid    (f_bvalid),
             .fub_axi_bready    (f_bready)
         );

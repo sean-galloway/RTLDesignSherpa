@@ -21,6 +21,14 @@ Window plan, per master (8 windows):
   - one DECERR window in an address hole no slave owns
   - SLVERR windows (the profile's `errors`): the next quarter of a slave's
     range, which that slave is told to answer SLVERR -- as many as fit
+
+AXI5 (bridge TASK-019 phase 2b): a slave is told which masters' requests
+carry sideband natively (sb_native; its SB.SRC bitmap, by the fabric's
+master index) and expects 0 from the rest. A trace-capable master port echoes
+the request's TRACE on BTRACE / RTRACE at the bridge boundary whatever the
+slave (bridge BUG-010), so every window of such a master, the DECERR hole
+included, expects the echo (window SB). A poison path (both ends enable
+poison) poisons 1 beat in 2^poison_lg2 in both directions.
 """
 from __future__ import annotations
 
@@ -80,6 +88,7 @@ class Port:
     base: int = 0
     size: int = 0
     ooo: bool = False
+    features: Tuple[str, ...] = ()           # axi5_features
 
     @property
     def rd(self) -> bool:
@@ -112,12 +121,14 @@ def load_build(toml: Path) -> Build:
     toml = Path(toml)
     cfg = tomllib.loads(toml.read_text())['bridge']
     ms = tuple(Port(i, m['name'], m.get('protocol', 'axi4'), m.get('channels', 'rw'),
-                    m['data_width'], m.get('id_width', 0), bool(m.get('cdc', False)))
+                    m['data_width'], m.get('id_width', 0), bool(m.get('cdc', False)),
+                    features=tuple(m.get('axi5_features', ())))
                for i, m in enumerate(cfg['masters']))
     ss = tuple(Port(i, s['name'], s.get('protocol', 'axi4'), s.get('channels', 'rw'),
                     s['data_width'], s.get('id_width', 0), bool(s.get('cdc', False)),
                     int(s['base_addr'], 0), int(s['addr_range'], 0),
-                    bool(s.get('enable_ooo', False)))
+                    bool(s.get('enable_ooo', False)),
+                    features=tuple(s.get('axi5_features', ())))
                for i, s in enumerate(cfg['slaves']))
     conn_file = toml.with_name(f"{cfg['name']}_connectivity.csv")
     conn: Dict[str, Tuple[str, ...]] = {}
@@ -126,7 +137,37 @@ def load_build(toml: Path) -> Build:
     for l in lines[1:]:
         row = l.split(',')
         conn[row[0]] = tuple(c for c, v in zip(cols, row[1:]) if v.strip() == '1')
-    return Build(cfg['name'], ms, ss, conn)
+    build = Build(cfg['name'], ms, ss, conn)
+    for m in ms:
+        for sl in build.slaves_of(m):
+            a, b = sb_feats(m), sb_feats(sl)
+            if a and b and a != b and m.dw == sl.dw:
+                raise ValueError(f'{m.name} -> {sl.name}: AXI5 sideband features differ '
+                                 f'({sorted(a)} vs {sorted(b)}); the stress model checks a '
+                                 f'path as all-or-nothing')
+    return build
+
+
+SB_FEATURES = frozenset(('nsaid', 'trace', 'mpam', 'mecid'))
+
+
+def sb_feats(p: Port) -> frozenset:
+    return frozenset(p.features) & SB_FEATURES if p.protocol == 'axi5' else frozenset()
+
+
+def sb_native(m: Port, s: Port) -> bool:
+    """The bridge carries the AXI5 request / response sideband from m to s
+    unchanged: both ends AXI5 with the same sideband features, one width (a
+    width converter drops sideband) and neither end across a clock (the CDC
+    crossing carries the AXI4 set). Anywhere else the far end sees 0."""
+    return (bool(sb_feats(m)) and sb_feats(m) == sb_feats(s) and m.dw == s.dw
+            and not m.cdc and not s.cdc)
+
+
+def poison_path(m: Port, s: Port) -> bool:
+    """Both ends enable poison (the bridge validator then guarantees the
+    path carries it natively)."""
+    return all(p.protocol == 'axi5' and 'poison' in p.features for p in (m, s))
 
 
 def find_hole(build: Build, size_lg2: int = 24) -> Optional[int]:
@@ -166,6 +207,7 @@ class Profile:
     interleave: bool = False
     qos_rand: bool = False
     timeout_lg2: int = 20
+    poison_lg2: int = 3           # AXI5 poison paths: 1 beat in 8 poisoned
     full_axi: bool = False        # ignore path_caps: drive every path with the full AXI4 set
 
 
@@ -250,14 +292,15 @@ class StressHarness:
     def windows(self, m: Port, prof: Profile) -> List[M.Window]:
         size_max = (m.dw // 8).bit_length() - 1
         size_min = 0 if prof.narrow else size_max
-        common = dict(len_mask=prof.len_mask, size_min=size_min, size_max=size_max,
+        common = dict(sb=int(m.protocol == 'axi5' and 'trace' in m.features),
+                      len_mask=prof.len_mask, size_min=size_min, size_max=size_max,
                       burst_mask=prof.bursts, unaligned=int(prof.unaligned),
                       strb_rand=int(prof.strb_rand), rd_en=int(m.rd and prof.rd),
                       wr_en=int(m.wr and prof.wr))
         slaves = self.build.slaves_of(m)
 
         def limited(s: Port) -> dict:
-            c = dict(common)
+            c = dict(common, poison_lg2=prof.poison_lg2 if poison_path(m, s) else 0)
             caps = {} if prof.full_axi else path_caps(m, s)
             if 'bursts' in caps:
                 c['burst_mask'] = c['burst_mask'] & caps['bursts'] or caps['bursts']
@@ -297,7 +340,8 @@ class StressHarness:
                         len_mask=w.len_mask)
                 d.write(f'WIN{i}_CFG1', size_min=w.size_min, size_max=w.size_max,
                         burst_mask=w.burst_mask, unaligned=w.unaligned,
-                        strb_rand=w.strb_rand, rd_en=w.rd_en, wr_en=w.wr_en)
+                        strb_rand=w.strb_rand, rd_en=w.rd_en, wr_en=w.wr_en,
+                        sb=w.sb, poison_lg2=w.poison_lg2)
             id_mask = 0 if prof.single_id else (1 << m.iw) - 1
             for dr, en in (('RD', m.rd and prof.rd), ('WR', m.wr and prof.wr)):
                 d.write(f'{dr}_CTRL', enable=int(en), qos_rand=int(prof.qos_rand),
@@ -309,9 +353,14 @@ class StressHarness:
                                             (0 if dr == 'RD' else 0x5555)) & M.M32 or 1)
                 d.write(f'{dr}_ID_CFG', base=(0xA5 & ((1 << m.iw) - 1)) if prof.single_id else 0,
                         mask=id_mask)
+        axi5 = any(p.protocol == 'axi5' for p in b.masters + b.slaves)
         for s, d in zip(b.slaves, self.slv):
             inorder = len(b.masters_of(s)) <= 1 and not s.ooo
+            sb_src = sum(1 << m.index for m in b.masters_of(s) if sb_native(m, s))
+            plg2 = prof.poison_lg2 if (s.protocol == 'axi5' and 'poison' in s.features) else 0
             for dr in ('RD', 'WR'):
+                if axi5:     # SB is new with AXI5; an older bitstream has no such register
+                    d.write(f'{dr}_SB', src=sb_src, poison_lg2=plg2)
                 d.write_word(f'{dr}_BASE', s.base)
                 d.write(f'{dr}_CTRL', size_lg2=s.size_lg2, offset_mode=0, err_en=1,
                         tag=TAG0 + s.index, inorder=int(inorder),

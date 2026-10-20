@@ -74,12 +74,14 @@ module bstress_slv_regs (
         logic RD_ERR_MASK;
         logic RD_TIMING;
         logic RD_SEED;
+        logic RD_SB;
         logic WR_BASE;
         logic WR_CTRL;
         logic WR_ERR_BASE;
         logic WR_ERR_MASK;
         logic WR_TIMING;
         logic WR_SEED;
+        logic WR_SB;
         logic RD_BURSTS;
         logic RD_BEATS;
         logic RD_ERR;
@@ -112,12 +114,14 @@ module bstress_slv_regs (
         decoded_reg_strb.RD_ERR_MASK = cpuif_req_masked & (cpuif_addr == 10'h1c);
         decoded_reg_strb.RD_TIMING = cpuif_req_masked & (cpuif_addr == 10'h20);
         decoded_reg_strb.RD_SEED = cpuif_req_masked & (cpuif_addr == 10'h24);
+        decoded_reg_strb.RD_SB = cpuif_req_masked & (cpuif_addr == 10'h28);
         decoded_reg_strb.WR_BASE = cpuif_req_masked & (cpuif_addr == 10'h30);
         decoded_reg_strb.WR_CTRL = cpuif_req_masked & (cpuif_addr == 10'h34);
         decoded_reg_strb.WR_ERR_BASE = cpuif_req_masked & (cpuif_addr == 10'h38);
         decoded_reg_strb.WR_ERR_MASK = cpuif_req_masked & (cpuif_addr == 10'h3c);
         decoded_reg_strb.WR_TIMING = cpuif_req_masked & (cpuif_addr == 10'h40);
         decoded_reg_strb.WR_SEED = cpuif_req_masked & (cpuif_addr == 10'h44);
+        decoded_reg_strb.WR_SB = cpuif_req_masked & (cpuif_addr == 10'h48);
         decoded_reg_strb.RD_BURSTS = cpuif_req_masked & (cpuif_addr == 10'h200);
         decoded_reg_strb.RD_BEATS = cpuif_req_masked & (cpuif_addr == 10'h204);
         decoded_reg_strb.RD_ERR = cpuif_req_masked & (cpuif_addr == 10'h208);
@@ -220,6 +224,16 @@ module bstress_slv_regs (
         } RD_SEED;
         struct {
             struct {
+                logic [7:0] next;
+                logic load_next;
+            } SRC;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } POISON_LG2;
+        } RD_SB;
+        struct {
+            struct {
                 logic [31:0] next;
                 logic load_next;
             } VALUE;
@@ -290,6 +304,16 @@ module bstress_slv_regs (
                 logic load_next;
             } VALUE;
         } WR_SEED;
+        struct {
+            struct {
+                logic [7:0] next;
+                logic load_next;
+            } SRC;
+            struct {
+                logic [3:0] next;
+                logic load_next;
+            } POISON_LG2;
+        } WR_SB;
     } field_combo_t;
     field_combo_t field_combo;
 
@@ -353,6 +377,14 @@ module bstress_slv_regs (
         } RD_SEED;
         struct {
             struct {
+                logic [7:0] value;
+            } SRC;
+            struct {
+                logic [3:0] value;
+            } POISON_LG2;
+        } RD_SB;
+        struct {
+            struct {
                 logic [31:0] value;
             } VALUE;
         } WR_BASE;
@@ -408,6 +440,14 @@ module bstress_slv_regs (
                 logic [31:0] value;
             } VALUE;
         } WR_SEED;
+        struct {
+            struct {
+                logic [7:0] value;
+            } SRC;
+            struct {
+                logic [3:0] value;
+            } POISON_LG2;
+        } WR_SB;
     } field_storage_t;
     field_storage_t field_storage;
 
@@ -756,6 +796,52 @@ module bstress_slv_regs (
         end
     end
     assign hwif_out.RD_SEED.VALUE.value = field_storage.RD_SEED.VALUE.value;
+    // Field: bstress_slv_regs.RD_SB.SRC
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.RD_SB.SRC.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.RD_SB && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.RD_SB.SRC.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.RD_SB.SRC.next = next_c;
+        field_combo.RD_SB.SRC.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.RD_SB.SRC.value <= 8'h0;
+        end else begin
+            if(field_combo.RD_SB.SRC.load_next) begin
+                field_storage.RD_SB.SRC.value <= field_combo.RD_SB.SRC.next;
+            end
+        end
+    end
+    assign hwif_out.RD_SB.SRC.value = field_storage.RD_SB.SRC.value;
+    // Field: bstress_slv_regs.RD_SB.POISON_LG2
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.RD_SB.POISON_LG2.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.RD_SB && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.RD_SB.POISON_LG2.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.RD_SB.POISON_LG2.next = next_c;
+        field_combo.RD_SB.POISON_LG2.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.RD_SB.POISON_LG2.value <= 4'h0;
+        end else begin
+            if(field_combo.RD_SB.POISON_LG2.load_next) begin
+                field_storage.RD_SB.POISON_LG2.value <= field_combo.RD_SB.POISON_LG2.next;
+            end
+        end
+    end
+    assign hwif_out.RD_SB.POISON_LG2.value = field_storage.RD_SB.POISON_LG2.value;
     // Field: bstress_slv_regs.WR_BASE.VALUE
     always_comb begin
         automatic logic [31:0] next_c;
@@ -1101,6 +1187,52 @@ module bstress_slv_regs (
         end
     end
     assign hwif_out.WR_SEED.VALUE.value = field_storage.WR_SEED.VALUE.value;
+    // Field: bstress_slv_regs.WR_SB.SRC
+    always_comb begin
+        automatic logic [7:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.WR_SB.SRC.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.WR_SB && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.WR_SB.SRC.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
+            load_next_c = '1;
+        end
+        field_combo.WR_SB.SRC.next = next_c;
+        field_combo.WR_SB.SRC.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.WR_SB.SRC.value <= 8'h0;
+        end else begin
+            if(field_combo.WR_SB.SRC.load_next) begin
+                field_storage.WR_SB.SRC.value <= field_combo.WR_SB.SRC.next;
+            end
+        end
+    end
+    assign hwif_out.WR_SB.SRC.value = field_storage.WR_SB.SRC.value;
+    // Field: bstress_slv_regs.WR_SB.POISON_LG2
+    always_comb begin
+        automatic logic [3:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.WR_SB.POISON_LG2.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.WR_SB && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.WR_SB.POISON_LG2.value & ~decoded_wr_biten[11:8]) | (decoded_wr_data[11:8] & decoded_wr_biten[11:8]);
+            load_next_c = '1;
+        end
+        field_combo.WR_SB.POISON_LG2.next = next_c;
+        field_combo.WR_SB.POISON_LG2.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.WR_SB.POISON_LG2.value <= 4'h0;
+        end else begin
+            if(field_combo.WR_SB.POISON_LG2.load_next) begin
+                field_storage.WR_SB.POISON_LG2.value <= field_combo.WR_SB.POISON_LG2.next;
+            end
+        end
+    end
+    assign hwif_out.WR_SB.POISON_LG2.value = field_storage.WR_SB.POISON_LG2.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1118,7 +1250,7 @@ module bstress_slv_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[30];
+    logic [31:0] readback_array[32];
     assign readback_array[0][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? hwif_in.ID.BUS_BYTES.next : '0;
     assign readback_array[0][12:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? hwif_in.ID.ID_WIDTH.next : '0;
     assign readback_array[0][15:13] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? hwif_in.ID.PROTOCOL.next : '0;
@@ -1148,56 +1280,62 @@ module bstress_slv_regs (
     assign readback_array[6][23:16] = (decoded_reg_strb.RD_TIMING && !decoded_req_is_wr) ? field_storage.RD_TIMING.MAX_OUT.value : '0;
     assign readback_array[6][31:24] = '0;
     assign readback_array[7][31:0] = (decoded_reg_strb.RD_SEED && !decoded_req_is_wr) ? field_storage.RD_SEED.VALUE.value : '0;
-    assign readback_array[8][31:0] = (decoded_reg_strb.WR_BASE && !decoded_req_is_wr) ? field_storage.WR_BASE.VALUE.value : '0;
-    assign readback_array[9][5:0] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.SIZE_LG2.value : '0;
-    assign readback_array[9][6:6] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.OFFSET_MODE.value : '0;
-    assign readback_array[9][7:7] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.ERR_EN.value : '0;
-    assign readback_array[9][15:8] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.TAG.value : '0;
-    assign readback_array[9][16:16] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.INORDER.value : '0;
-    assign readback_array[9][17:17] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.INTERLEAVE.value : '0;
-    assign readback_array[9][19:18] = '0;
-    assign readback_array[9][23:20] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.REQ_THROTTLE.value : '0;
-    assign readback_array[9][27:24] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.DATA_THROTTLE.value : '0;
-    assign readback_array[9][31:28] = '0;
-    assign readback_array[10][31:0] = (decoded_reg_strb.WR_ERR_BASE && !decoded_req_is_wr) ? field_storage.WR_ERR_BASE.VALUE.value : '0;
-    assign readback_array[11][31:0] = (decoded_reg_strb.WR_ERR_MASK && !decoded_req_is_wr) ? field_storage.WR_ERR_MASK.VALUE.value : '0;
-    assign readback_array[12][7:0] = (decoded_reg_strb.WR_TIMING && !decoded_req_is_wr) ? field_storage.WR_TIMING.LAT_MIN.value : '0;
-    assign readback_array[12][15:8] = (decoded_reg_strb.WR_TIMING && !decoded_req_is_wr) ? field_storage.WR_TIMING.LAT_MASK.value : '0;
-    assign readback_array[12][23:16] = (decoded_reg_strb.WR_TIMING && !decoded_req_is_wr) ? field_storage.WR_TIMING.MAX_OUT.value : '0;
-    assign readback_array[12][31:24] = '0;
-    assign readback_array[13][31:0] = (decoded_reg_strb.WR_SEED && !decoded_req_is_wr) ? field_storage.WR_SEED.VALUE.value : '0;
-    assign readback_array[14][31:0] = (decoded_reg_strb.RD_BURSTS && !decoded_req_is_wr) ? hwif_in.RD_BURSTS.VALUE.next : '0;
-    assign readback_array[15][31:0] = (decoded_reg_strb.RD_BEATS && !decoded_req_is_wr) ? hwif_in.RD_BEATS.VALUE.next : '0;
-    assign readback_array[16][15:0] = (decoded_reg_strb.RD_ERR && !decoded_req_is_wr) ? hwif_in.RD_ERR.MASK.next : '0;
-    assign readback_array[16][31:16] = (decoded_reg_strb.RD_ERR && !decoded_req_is_wr) ? hwif_in.RD_ERR.COUNT.next : '0;
-    assign readback_array[17][0:0] = (decoded_reg_strb.RD_FE && !decoded_req_is_wr) ? hwif_in.RD_FE.FE_VALID.next : '0;
-    assign readback_array[17][3:1] = '0;
-    assign readback_array[17][7:4] = (decoded_reg_strb.RD_FE && !decoded_req_is_wr) ? hwif_in.RD_FE.FE_KIND.next : '0;
-    assign readback_array[17][15:8] = '0;
-    assign readback_array[17][31:16] = (decoded_reg_strb.RD_FE && !decoded_req_is_wr) ? hwif_in.RD_FE.FE_ID.next : '0;
-    assign readback_array[18][31:0] = (decoded_reg_strb.RD_FE_ADDR && !decoded_req_is_wr) ? hwif_in.RD_FE_ADDR.VALUE.next : '0;
-    assign readback_array[19][31:0] = (decoded_reg_strb.RD_FE_EXP && !decoded_req_is_wr) ? hwif_in.RD_FE_EXP.VALUE.next : '0;
-    assign readback_array[20][31:0] = (decoded_reg_strb.RD_FE_ACT && !decoded_req_is_wr) ? hwif_in.RD_FE_ACT.VALUE.next : '0;
-    assign readback_array[21][7:0] = (decoded_reg_strb.RD_OUT && !decoded_req_is_wr) ? hwif_in.RD_OUT.OUT_NOW.next : '0;
-    assign readback_array[21][15:8] = (decoded_reg_strb.RD_OUT && !decoded_req_is_wr) ? hwif_in.RD_OUT.OUT_MAX.next : '0;
-    assign readback_array[21][23:16] = (decoded_reg_strb.RD_OUT && !decoded_req_is_wr) ? hwif_in.RD_OUT.RUNS.next : '0;
-    assign readback_array[21][31:24] = '0;
-    assign readback_array[22][31:0] = (decoded_reg_strb.WR_BURSTS && !decoded_req_is_wr) ? hwif_in.WR_BURSTS.VALUE.next : '0;
-    assign readback_array[23][31:0] = (decoded_reg_strb.WR_BEATS && !decoded_req_is_wr) ? hwif_in.WR_BEATS.VALUE.next : '0;
-    assign readback_array[24][15:0] = (decoded_reg_strb.WR_ERR && !decoded_req_is_wr) ? hwif_in.WR_ERR.MASK.next : '0;
-    assign readback_array[24][31:16] = (decoded_reg_strb.WR_ERR && !decoded_req_is_wr) ? hwif_in.WR_ERR.COUNT.next : '0;
-    assign readback_array[25][0:0] = (decoded_reg_strb.WR_FE && !decoded_req_is_wr) ? hwif_in.WR_FE.FE_VALID.next : '0;
-    assign readback_array[25][3:1] = '0;
-    assign readback_array[25][7:4] = (decoded_reg_strb.WR_FE && !decoded_req_is_wr) ? hwif_in.WR_FE.FE_KIND.next : '0;
-    assign readback_array[25][15:8] = '0;
-    assign readback_array[25][31:16] = (decoded_reg_strb.WR_FE && !decoded_req_is_wr) ? hwif_in.WR_FE.FE_ID.next : '0;
-    assign readback_array[26][31:0] = (decoded_reg_strb.WR_FE_ADDR && !decoded_req_is_wr) ? hwif_in.WR_FE_ADDR.VALUE.next : '0;
-    assign readback_array[27][31:0] = (decoded_reg_strb.WR_FE_EXP && !decoded_req_is_wr) ? hwif_in.WR_FE_EXP.VALUE.next : '0;
-    assign readback_array[28][31:0] = (decoded_reg_strb.WR_FE_ACT && !decoded_req_is_wr) ? hwif_in.WR_FE_ACT.VALUE.next : '0;
-    assign readback_array[29][7:0] = (decoded_reg_strb.WR_OUT && !decoded_req_is_wr) ? hwif_in.WR_OUT.OUT_NOW.next : '0;
-    assign readback_array[29][15:8] = (decoded_reg_strb.WR_OUT && !decoded_req_is_wr) ? hwif_in.WR_OUT.OUT_MAX.next : '0;
-    assign readback_array[29][23:16] = (decoded_reg_strb.WR_OUT && !decoded_req_is_wr) ? hwif_in.WR_OUT.RUNS.next : '0;
-    assign readback_array[29][31:24] = '0;
+    assign readback_array[8][7:0] = (decoded_reg_strb.RD_SB && !decoded_req_is_wr) ? field_storage.RD_SB.SRC.value : '0;
+    assign readback_array[8][11:8] = (decoded_reg_strb.RD_SB && !decoded_req_is_wr) ? field_storage.RD_SB.POISON_LG2.value : '0;
+    assign readback_array[8][31:12] = '0;
+    assign readback_array[9][31:0] = (decoded_reg_strb.WR_BASE && !decoded_req_is_wr) ? field_storage.WR_BASE.VALUE.value : '0;
+    assign readback_array[10][5:0] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.SIZE_LG2.value : '0;
+    assign readback_array[10][6:6] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.OFFSET_MODE.value : '0;
+    assign readback_array[10][7:7] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.ERR_EN.value : '0;
+    assign readback_array[10][15:8] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.TAG.value : '0;
+    assign readback_array[10][16:16] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.INORDER.value : '0;
+    assign readback_array[10][17:17] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.INTERLEAVE.value : '0;
+    assign readback_array[10][19:18] = '0;
+    assign readback_array[10][23:20] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.REQ_THROTTLE.value : '0;
+    assign readback_array[10][27:24] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.DATA_THROTTLE.value : '0;
+    assign readback_array[10][31:28] = '0;
+    assign readback_array[11][31:0] = (decoded_reg_strb.WR_ERR_BASE && !decoded_req_is_wr) ? field_storage.WR_ERR_BASE.VALUE.value : '0;
+    assign readback_array[12][31:0] = (decoded_reg_strb.WR_ERR_MASK && !decoded_req_is_wr) ? field_storage.WR_ERR_MASK.VALUE.value : '0;
+    assign readback_array[13][7:0] = (decoded_reg_strb.WR_TIMING && !decoded_req_is_wr) ? field_storage.WR_TIMING.LAT_MIN.value : '0;
+    assign readback_array[13][15:8] = (decoded_reg_strb.WR_TIMING && !decoded_req_is_wr) ? field_storage.WR_TIMING.LAT_MASK.value : '0;
+    assign readback_array[13][23:16] = (decoded_reg_strb.WR_TIMING && !decoded_req_is_wr) ? field_storage.WR_TIMING.MAX_OUT.value : '0;
+    assign readback_array[13][31:24] = '0;
+    assign readback_array[14][31:0] = (decoded_reg_strb.WR_SEED && !decoded_req_is_wr) ? field_storage.WR_SEED.VALUE.value : '0;
+    assign readback_array[15][7:0] = (decoded_reg_strb.WR_SB && !decoded_req_is_wr) ? field_storage.WR_SB.SRC.value : '0;
+    assign readback_array[15][11:8] = (decoded_reg_strb.WR_SB && !decoded_req_is_wr) ? field_storage.WR_SB.POISON_LG2.value : '0;
+    assign readback_array[15][31:12] = '0;
+    assign readback_array[16][31:0] = (decoded_reg_strb.RD_BURSTS && !decoded_req_is_wr) ? hwif_in.RD_BURSTS.VALUE.next : '0;
+    assign readback_array[17][31:0] = (decoded_reg_strb.RD_BEATS && !decoded_req_is_wr) ? hwif_in.RD_BEATS.VALUE.next : '0;
+    assign readback_array[18][15:0] = (decoded_reg_strb.RD_ERR && !decoded_req_is_wr) ? hwif_in.RD_ERR.MASK.next : '0;
+    assign readback_array[18][31:16] = (decoded_reg_strb.RD_ERR && !decoded_req_is_wr) ? hwif_in.RD_ERR.COUNT.next : '0;
+    assign readback_array[19][0:0] = (decoded_reg_strb.RD_FE && !decoded_req_is_wr) ? hwif_in.RD_FE.FE_VALID.next : '0;
+    assign readback_array[19][3:1] = '0;
+    assign readback_array[19][7:4] = (decoded_reg_strb.RD_FE && !decoded_req_is_wr) ? hwif_in.RD_FE.FE_KIND.next : '0;
+    assign readback_array[19][15:8] = '0;
+    assign readback_array[19][31:16] = (decoded_reg_strb.RD_FE && !decoded_req_is_wr) ? hwif_in.RD_FE.FE_ID.next : '0;
+    assign readback_array[20][31:0] = (decoded_reg_strb.RD_FE_ADDR && !decoded_req_is_wr) ? hwif_in.RD_FE_ADDR.VALUE.next : '0;
+    assign readback_array[21][31:0] = (decoded_reg_strb.RD_FE_EXP && !decoded_req_is_wr) ? hwif_in.RD_FE_EXP.VALUE.next : '0;
+    assign readback_array[22][31:0] = (decoded_reg_strb.RD_FE_ACT && !decoded_req_is_wr) ? hwif_in.RD_FE_ACT.VALUE.next : '0;
+    assign readback_array[23][7:0] = (decoded_reg_strb.RD_OUT && !decoded_req_is_wr) ? hwif_in.RD_OUT.OUT_NOW.next : '0;
+    assign readback_array[23][15:8] = (decoded_reg_strb.RD_OUT && !decoded_req_is_wr) ? hwif_in.RD_OUT.OUT_MAX.next : '0;
+    assign readback_array[23][23:16] = (decoded_reg_strb.RD_OUT && !decoded_req_is_wr) ? hwif_in.RD_OUT.RUNS.next : '0;
+    assign readback_array[23][31:24] = '0;
+    assign readback_array[24][31:0] = (decoded_reg_strb.WR_BURSTS && !decoded_req_is_wr) ? hwif_in.WR_BURSTS.VALUE.next : '0;
+    assign readback_array[25][31:0] = (decoded_reg_strb.WR_BEATS && !decoded_req_is_wr) ? hwif_in.WR_BEATS.VALUE.next : '0;
+    assign readback_array[26][15:0] = (decoded_reg_strb.WR_ERR && !decoded_req_is_wr) ? hwif_in.WR_ERR.MASK.next : '0;
+    assign readback_array[26][31:16] = (decoded_reg_strb.WR_ERR && !decoded_req_is_wr) ? hwif_in.WR_ERR.COUNT.next : '0;
+    assign readback_array[27][0:0] = (decoded_reg_strb.WR_FE && !decoded_req_is_wr) ? hwif_in.WR_FE.FE_VALID.next : '0;
+    assign readback_array[27][3:1] = '0;
+    assign readback_array[27][7:4] = (decoded_reg_strb.WR_FE && !decoded_req_is_wr) ? hwif_in.WR_FE.FE_KIND.next : '0;
+    assign readback_array[27][15:8] = '0;
+    assign readback_array[27][31:16] = (decoded_reg_strb.WR_FE && !decoded_req_is_wr) ? hwif_in.WR_FE.FE_ID.next : '0;
+    assign readback_array[28][31:0] = (decoded_reg_strb.WR_FE_ADDR && !decoded_req_is_wr) ? hwif_in.WR_FE_ADDR.VALUE.next : '0;
+    assign readback_array[29][31:0] = (decoded_reg_strb.WR_FE_EXP && !decoded_req_is_wr) ? hwif_in.WR_FE_EXP.VALUE.next : '0;
+    assign readback_array[30][31:0] = (decoded_reg_strb.WR_FE_ACT && !decoded_req_is_wr) ? hwif_in.WR_FE_ACT.VALUE.next : '0;
+    assign readback_array[31][7:0] = (decoded_reg_strb.WR_OUT && !decoded_req_is_wr) ? hwif_in.WR_OUT.OUT_NOW.next : '0;
+    assign readback_array[31][15:8] = (decoded_reg_strb.WR_OUT && !decoded_req_is_wr) ? hwif_in.WR_OUT.OUT_MAX.next : '0;
+    assign readback_array[31][23:16] = (decoded_reg_strb.WR_OUT && !decoded_req_is_wr) ? hwif_in.WR_OUT.RUNS.next : '0;
+    assign readback_array[31][31:24] = '0;
 
     // Reduce the array
     always_comb begin
@@ -1205,7 +1343,7 @@ module bstress_slv_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<30; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<32; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

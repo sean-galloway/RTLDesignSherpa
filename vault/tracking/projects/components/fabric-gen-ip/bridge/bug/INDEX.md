@@ -2,7 +2,7 @@
 
 # bridge — bugs
 
-**Next ID: BUG-019** — never recycle a number, even when its item closed.
+**Next ID: BUG-020** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **BUG-019** — unaligned INCR bursts keep their start misalignment past the first beat: axi4_to_axi3 (fixed, converters BUG-011), dwidth downsize, axi4_to_axil4/axil5/wb4, axi_gen_addr (APB)
 - **BUG-018** — width-converted paths emit illegal AXI for FIXED, WRAP, narrow and unaligned bursts (found by the Genesys 2 bridge stress model)
 
 

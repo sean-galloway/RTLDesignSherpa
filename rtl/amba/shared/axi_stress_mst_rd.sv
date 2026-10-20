@@ -30,7 +30,15 @@
 //   C  every active byte lane against f_word(beat address, tag, RD); beats
 //      of a non-OKAY window are not data-checked
 //
-// Checks: ERR_RD_STRAY, ERR_RD_LAST, ERR_RD_RESP, ERR_RD_DATA, ERR_HANG.
+// AXI5 sideband (SB_MASK / RSB_MASK / POISON, all off for AXI3/AXI4): ARSB is
+// f_sb(ARADDR) & SB_MASK, which the shell unpacks into the request fields;
+// each R beat's response sideband must echo the request's (f_rsb(ARSB) &
+// RSB_MASK: RTRACE = ARTRACE) when the window says responses echo (its sb),
+// else 0, and RPOISON must be f_poison(beat address, the window's rate). A miss
+// is ERR_M_SB.
+//
+// Checks: ERR_RD_STRAY, ERR_RD_LAST, ERR_RD_RESP, ERR_RD_DATA, ERR_HANG,
+// ERR_M_SB.
 // The first error is captured (kind, ID, address, expected, actual) and held
 // until the next GO.
 //==============================================================================
@@ -48,6 +56,9 @@ module axi_stress_mst_rd
     parameter int DW      = 64,          // >= 32
     parameter int UW      = 1,
     parameter logic [7:0] LEN_MASK = 8'hFF,   // AxLEN limit (AXI3: 8'h0F)
+    parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
+    parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
+    parameter bit POISON  = 1'b0,        // AXI5 RPOISON checked
     parameter int XW      = $clog2(DEPTH),
     parameter int NB      = DW / 8,
     parameter int BUS_LG2 = $clog2(NB),
@@ -75,6 +86,7 @@ module axi_stress_mst_rd
     output logic [3:0]          fub_axi_arqos,
     output logic [3:0]          fub_axi_arregion,
     output logic [UW-1:0]       fub_axi_aruser,
+    output logic [31:0]      fub_axi_arsb,
     output logic                fub_axi_arvalid,
     input  logic                fub_axi_arready,
 
@@ -83,6 +95,8 @@ module axi_stress_mst_rd
     input  logic [1:0]          fub_axi_rresp,
     input  logic                fub_axi_rlast,
     input  logic [UW-1:0]       fub_axi_ruser,
+    input  logic [7:0]     fub_axi_rsb,
+    input  logic                fub_axi_rpoison,
     input  logic                fub_axi_rvalid,
     output logic                fub_axi_rready
 );
@@ -110,7 +124,8 @@ module axi_stress_mst_rd
     // =========================================================================
     // Generator
     // =========================================================================
-    logic          t_valid, t_ready, t_strb_rand;
+    logic          t_valid, t_ready, t_strb_rand, t_sb;
+    logic [3:0]    t_plg2;
     logic [31:0]   t_addr;
     logic [7:0]    t_len, t_gap, t_tag;
     logic [2:0]    t_size;
@@ -143,7 +158,9 @@ module axi_stress_mst_rd
         .txn_gap      (t_gap),
         .txn_tag      (t_tag),
         .txn_resp     (t_resp),
-        .txn_strb_rand(t_strb_rand)
+        .txn_strb_rand(t_strb_rand),
+        .txn_sb       (t_sb),
+        .txn_plg2     (t_plg2)
     );
 
     // =========================================================================
@@ -187,6 +204,8 @@ module axi_stress_mst_rd
     logic [1:0]  r_s_resp  [DEPTH];
     logic [7:0]  r_s_tag   [DEPTH];
     logic [15:0] r_s_ts    [DEPTH];
+    logic [7:0]  r_s_rsb   [DEPTH];   // AXI5: the response sideband expected
+    logic [3:0]  r_s_plg2  [DEPTH];   // AXI5: poison rate
 
     // =========================================================================
     // AR issue
@@ -222,6 +241,7 @@ module axi_stress_mst_rd
             fub_axi_arsize  <= t_size;
             fub_axi_arburst <= t_burst;
             fub_axi_arqos   <= t_qos;
+            fub_axi_arsb    <= (SB_MASK != '0) ? (f_sb(t_addr, cfg_hash_seed) & SB_MASK) : '0;
         end
     end
 
@@ -240,6 +260,8 @@ module axi_stress_mst_rd
     logic [DW-1:0] r_a_data;
     logic [1:0]  r_a_resp;
     logic        r_a_last;
+    logic [7:0] r_a_rsb;
+    logic        r_a_poison;
     wire         w_r_hs = fub_axi_rvalid && r_rready;
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -260,6 +282,8 @@ module axi_stress_mst_rd
             r_a_data <= fub_axi_rdata;
             r_a_resp <= fub_axi_rresp;
             r_a_last <= fub_axi_rlast;
+            r_a_rsb    <= fub_axi_rsb;
+            r_a_poison <= fub_axi_rpoison;
         end
     end
 
@@ -310,6 +334,9 @@ module axi_stress_mst_rd
             r_s_resp [tb_alloc_idx] <= t_resp;
             r_s_tag  [tb_alloc_idx] <= t_tag;
             r_s_ts   [tb_alloc_idx] <= r_now;
+            r_s_rsb  [tb_alloc_idx] <= t_sb ? (f_rsb(f_sb(t_addr, cfg_hash_seed) & SB_MASK)
+                                               & RSB_MASK) : '0;
+            r_s_plg2 [tb_alloc_idx] <= t_plg2;
         end
         if (r_a_valid && tb_lk_hit) begin
             r_s_addr[tb_lk_idx] <= f_next_addr(r_s_addr[tb_lk_idx], r_s_size[tb_lk_idx],
@@ -327,11 +354,21 @@ module axi_stress_mst_rd
     logic [7:0]      r_c_tag;
     logic [IW-1:0]   r_c_id;
     logic [DW-1:0]   r_c_data;
+    logic            r_c_sv;          // AXI5: check this beat's sideband
+    logic            r_c_poison;
+    logic [7:0]      r_c_rsb_exp;
+    logic [3:0]      r_c_plg2;
+    logic [7:0] r_c_rsb;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) r_c_valid <= 1'b0;
-        else r_c_valid <= r_a_valid && tb_lk_hit && (r_s_resp[tb_lk_idx] == RESP_OKAY)
-                       && (r_a_resp == RESP_OKAY);
+        if (`RST_ASSERTED(aresetn)) begin
+            r_c_valid <= 1'b0;
+            r_c_sv    <= 1'b0;
+        end else begin
+            r_c_valid <= r_a_valid && tb_lk_hit && (r_s_resp[tb_lk_idx] == RESP_OKAY)
+                      && (r_a_resp == RESP_OKAY);
+            r_c_sv    <= r_a_valid && tb_lk_hit && ((RSB_MASK != '0) || POISON);
+        end
     )
 
     always_ff @(posedge aclk) begin
@@ -341,8 +378,20 @@ module axi_stress_mst_rd
             r_c_tag  <= r_s_tag[tb_lk_idx];
             r_c_id   <= r_a_id;
             r_c_data <= r_a_data;
+            r_c_rsb_exp <= r_s_rsb[tb_lk_idx];
+            r_c_plg2   <= r_s_plg2[tb_lk_idx];
+            r_c_rsb    <= r_a_rsb;
+            r_c_poison <= r_a_poison;
         end
     end
+
+    // AXI5 response sideband and poison of the beat
+    logic [7:0] w_c_rsb_exp;
+    logic            w_c_p_exp, w_c_sb_err;
+    assign w_c_rsb_exp = r_c_rsb_exp;
+    assign w_c_p_exp   = POISON && f_poison(r_c_addr, cfg_hash_seed, r_c_plg2);
+    assign w_c_sb_err  = r_c_sv && (((RSB_MASK != '0) && ((r_c_rsb & RSB_MASK) != w_c_rsb_exp))
+                                 || (POISON && (r_c_poison != w_c_p_exp)));
 
     logic [NB-1:0]  w_c_lanes;
     logic [DW-1:0]  w_c_exp;
@@ -433,12 +482,14 @@ module axi_stress_mst_rd
                 else if (!r_idle[31])         r_idle <= r_idle + 32'd1;
 
                 // errors: the older beat (stage C) is captured first
-                if (w_c_err) sts.err_mask[ERR_RD_DATA] <= 1'b1;
-                if (w_b_err) sts.err_mask[w_b_kind]    <= 1'b1;
-                if (w_hang)  sts.err_mask[ERR_HANG]    <= 1'b1;
-                if (w_c_err || w_b_err || w_hang) begin
-                    sts.err_cnt <= (sts.err_cnt > 16'hFFFC) ? 16'hFFFF
-                                 : sts.err_cnt + 16'(w_c_err) + 16'(w_b_err) + 16'(w_hang);
+                if (w_c_err)    sts.err_mask[ERR_RD_DATA] <= 1'b1;
+                if (w_c_sb_err) sts.err_mask[ERR_M_SB]    <= 1'b1;
+                if (w_b_err)    sts.err_mask[w_b_kind]    <= 1'b1;
+                if (w_hang)     sts.err_mask[ERR_HANG]    <= 1'b1;
+                if (w_c_err || w_c_sb_err || w_b_err || w_hang) begin
+                    sts.err_cnt <= (sts.err_cnt > 16'hFFFB) ? 16'hFFFF
+                                 : sts.err_cnt + 16'(w_c_err) + 16'(w_c_sb_err)
+                                   + 16'(w_b_err) + 16'(w_hang);
                 end
                 if (!sts.fe_valid) begin
                     if (w_c_err) begin
@@ -448,6 +499,13 @@ module axi_stress_mst_rd
                         sts.fe_addr  <= w_c_addr_w;
                         sts.fe_exp   <= w_c_exp_w;
                         sts.fe_act   <= w_c_act_w;
+                    end else if (w_c_sb_err) begin
+                        sts.fe_valid <= 1'b1;
+                        sts.fe_kind  <= 4'(ERR_M_SB);
+                        sts.fe_id    <= 16'(r_c_id);
+                        sts.fe_addr  <= r_c_addr;
+                        sts.fe_exp   <= {w_c_p_exp,  31'(w_c_rsb_exp)};
+                        sts.fe_act   <= {r_c_poison, 31'(r_c_rsb)};
                     end else if (w_b_err) begin
                         sts.fe_valid <= 1'b1;
                         sts.fe_kind  <= w_b_kind;
@@ -482,7 +540,7 @@ module axi_stress_mst_rd
     )
 
     assign w_done_now = !r_run && (tb_count == '0) && !r_ar_valid
-                     && !r_a_valid && !r_c_valid;
+                     && !r_a_valid && !r_c_valid && !r_c_sv;
 
     wire unused = ^{fub_axi_ruser, t_strb_rand};
 

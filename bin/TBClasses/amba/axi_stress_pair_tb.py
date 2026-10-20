@@ -20,6 +20,11 @@ contract, or check nothing. Three things stop that:
   every R beat's data and RLAST against its own burst (by RID, any order),
   every W beat's strobed bytes and WLAST. It also counts reordering and
   interleaving, so an "out of order" run that never reordered fails.
+  With AXI5 it also checks every request's NSAID / TRACE / MPAM / MECID
+  against f_sb(start address), every RTRACE / BTRACE (the request's TRACE,
+  echoed) and every R / W
+  poison bit, and counts poisoned beats, so a poison run that never
+  poisoned anything fails too.
 * Every run first proves traffic moved: issued == completed == the budget,
   and the slave saw the same number of bursts.
 * The fault injector in the harness corrupts one handshake per fault, and
@@ -48,7 +53,7 @@ class AxiStressPairTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate')
         self.DW = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '64'))
         self.NWIN = self.convert_to_int(os.environ.get('TEST_NWIN', '8'))
-        self.PROTO = os.environ.get('TEST_PROTO', 'axi4')    # axi4 | axi3
+        self.PROTO = os.environ.get('TEST_PROTO', 'axi4')    # axi4 | axi3 | axi5
         self.NB = self.DW // 8
         self.BUS_LG2 = self.NB.bit_length() - 1
         random.seed(self.SEED)
@@ -179,8 +184,22 @@ class AxiStressPairTB(TBBase):
         self.mon_errors.clear()
         self.stats.clear()
 
+    def _check_req_sb(self, ch: str, a: int):
+        """AXI5: the request sideband fields of an AR / AW at address a."""
+        d = self.dut
+        sb = M.f_sb(a, self.hash_seed)
+        exp = {'nsaid': sb & 0xF, 'trace': (sb >> 4) & 1,
+               'mpam': (sb >> 5) & 0x7FF, 'mecid': (sb >> 16) & 0xFFFF}
+        for f, e in exp.items():
+            got = int(getattr(d, f'm_{ch}{f}').value)
+            if got != e:
+                self._merr(f'{ch.upper()} {a:#x}: {ch.upper()}{f.upper()} {got:#x} != {e:#x}')
+        self.stats['sb_req'] += 1
+
     async def _monitor(self):
         d = self.dut
+        axi5 = self.PROTO == 'axi5'
+        b_q: Dict[int, deque] = defaultdict(deque)     # bid -> AW addresses
         rd_q: Dict[int, deque] = defaultdict(deque)    # rid -> bursts
         rd_order: deque = deque()                       # AR issue order (seq numbers)
         wr_q: deque = deque()
@@ -204,9 +223,11 @@ class AxiStressPairTB(TBBase):
                     self._merr(f'AR {a:#x} in no window')
                 addrs = M.beat_addrs(a, ln + 1, sz, bt)
                 self.stats['max_len'] = max(self.stats['max_len'], ln)
+                if axi5:
+                    self._check_req_sb('ar', a)
                 rd_q[int(d.m_arid.value)].append(
                     dict(seq=seq, addrs=addrs, size=sz, n=0,
-                         resp=w.resp if w else 0))
+                         resp=w.resp if w else 0, win=w, start=a))
                 rd_order.append(seq)
                 seq += 1
                 self.stats['ar'] += 1
@@ -234,6 +255,15 @@ class AxiStressPairTB(TBBase):
                                 self._merr(f'R ID {rid:#x} beat {b["n"]} addr {addr:#x} '
                                            f'lane {lane}: {got:#04x} != {exp:#04x}')
                                 break
+                    if axi5:
+                        w = b['win']
+                        e_tr = M.f_rsb(M.f_sb(b['start'], self.hash_seed)) if (w and w.sb) else 0
+                        e_p = int(M.f_poison(addr, self.hash_seed, w.poison_lg2 if w else 0))
+                        if int(d.m_rtrace.value) != e_tr:
+                            self._merr(f'R ID {rid:#x} addr {addr:#x}: RTRACE != {e_tr}')
+                        if int(d.m_rpoison.value) != e_p:
+                            self._merr(f'R ID {rid:#x} addr {addr:#x}: RPOISON != {e_p}')
+                        self.stats['r_poison'] += e_p
                     last = b['n'] == len(b['addrs']) - 1
                     if int(d.m_rlast.value) != int(last):
                         self._merr(f'R ID {rid:#x} RLAST={int(d.m_rlast.value)} on beat '
@@ -259,20 +289,30 @@ class AxiStressPairTB(TBBase):
                 if self._win_of(a) is None:
                     self._merr(f'AW {a:#x} in no window')
                 self.stats['max_len'] = max(self.stats['max_len'], ln)
+                if axi5:
+                    self._check_req_sb('aw', a)
+                b_q[int(d.m_awid.value)].append((a, self._win_of(a)))
                 wr_q.append(dict(addrs=M.beat_addrs(a, ln + 1, sz, bt), size=sz, n=0,
-                                 id=int(d.m_awid.value)))
+                                 id=int(d.m_awid.value), win=self._win_of(a)))
                 self.stats['aw'] += 1
             # W (before the injector). A W beat may cross the wire before its
             # AW (the slave's skid takes it), so beats wait for their AW here.
             if int(d.m_wvalid.value) and int(d.m_wready.value):
                 w_pend.append((int(d.m_wdata.value), int(d.m_wstrb.value),
-                               int(d.m_wlast.value), int(d.m_wid.value)))
+                               int(d.m_wlast.value), int(d.m_wid.value),
+                               int(d.m_wpoison.value)))
             while w_pend and (cur_w is not None or wr_q):
                 if cur_w is None:
                     cur_w = wr_q.popleft()
-                data, strb, wlast, wid = w_pend.popleft()
+                data, strb, wlast, wid, wpoison = w_pend.popleft()
                 b = cur_w
                 addr = b['addrs'][b['n']]
+                if axi5:
+                    w = b['win']
+                    e_p = int(M.f_poison(addr, self.hash_seed, w.poison_lg2 if w else 0))
+                    if wpoison != e_p:
+                        self._merr(f'W addr {addr:#x}: WPOISON {wpoison} != {e_p}')
+                    self.stats['w_poison'] += e_p
                 if self.PROTO == 'axi3' and wid != b['id']:
                     self._merr(f'W addr {addr:#x}: WID {wid:#x} != AWID {b["id"]:#x}')
                 lanes = set(M.beat_lanes(addr, b['size'], self.NB))
@@ -296,6 +336,12 @@ class AxiStressPairTB(TBBase):
                     cur_w = None
                 self.stats['w_beats'] += 1
             if int(d.m_bvalid.value) and int(d.m_bready.value):
+                q = b_q.get(int(d.m_bid.value))
+                if q:
+                    a, w = q.popleft()
+                    e_tr = M.f_rsb(M.f_sb(a, self.hash_seed)) if (axi5 and w and w.sb) else 0
+                    if axi5 and int(d.m_btrace.value) != e_tr:
+                        self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BTRACE != {e_tr}')
                 self.stats['b'] += 1
                 if int(d.m_bresp.value) != M.OKAY:
                     self.stats['b_err'] += 1

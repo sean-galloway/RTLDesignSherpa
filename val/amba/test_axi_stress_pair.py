@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""axi{4,3}_master_stress -> axi{4,3}_slave_stress, back to back.
+"""axi{4,3,5}_master_stress -> axi{4,3,5}_slave_stress, back to back.
 
 Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
 
@@ -10,12 +10,16 @@ Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
       on both sides, and the scenario's feature (reordering, interleaving,
       partial strobes, error responses) was actually seen on the wire.
   cocotb_test_axi_stress_faults  each of the harness's one-shot faults (eight;
-      nine with AXI3, which adds a flipped WID) must raise the error the
-      blocks claim it raises.
+      nine with AXI3, which adds a flipped WID; fourteen with AXI5, which adds
+      flipped ARTRACE, AWMECID, WPOISON, RTRACE, RPOISON and BTRACE) must raise
+      the error the blocks claim it raises.
 
-TEST_PROTO picks the shells (axi4 | axi3); the cores and every check are the
-same. With AXI3 no burst may be longer than 16 beats, and the monitor checks
-WID against the AWID of the burst each beat belongs to.
+TEST_PROTO picks the shells (axi4 | axi3 | axi5); the cores and every check
+are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
+checks WID against the AWID of the burst each beat belongs to. With AXI5 both
+shells carry NSAID, TRACE, MPAM, MECID and POISON, every window is a sideband
+path and one beat in four is poisoned; the monitor checks every field, and a
+run must have poisoned beats in both directions.
 """
 
 import os
@@ -44,7 +48,10 @@ def _windows(tag, *, err=False, narrow=False, aligned=False):
     return wins
 
 
-def _scenario(name, n, tag):
+AXI5_POISON_LG2 = 2      # one beat in four
+
+
+def _scenario(name, n, tag, proto='axi4'):
     """(windows, master rd/wr cfg, slave rd/wr cfg) for one scenario."""
     m = dict(enable=1, txn_count=n, id_base=0x30, id_mask=0x0F,
              timeout_lg2=16, max_out=0)
@@ -70,6 +77,10 @@ def _scenario(name, n, tag):
         m.update(id_mask=0, max_out=4)
     else:
         raise ValueError(f'unknown scenario {name}')
+    if proto == 'axi5':
+        for w in wins:
+            w.sb, w.poison_lg2 = 1, AXI5_POISON_LG2
+        s.update(sb_src=0x01, poison_lg2=AXI5_POISON_LG2)
     return wins, dict(m, seed=0x1111_0000 + n), dict(m, seed=0x2222_0000 + n), \
         dict(s, seed=0x3333), dict(s, seed=0x4444)
 
@@ -80,7 +91,7 @@ async def cocotb_test_axi_stress_clean(dut):
     name = os.environ.get('TEST_TYPE', 'ooo')
     n = TXNS.get(tb.TEST_LEVEL, TXNS['gate'])
     await tb.setup_clocks_and_reset()
-    wins, mrd, mwr, srd, swr = _scenario(name, n, tag=0x5A)
+    wins, mrd, mwr, srd, swr = _scenario(name, n, tag=0x5A, proto=tb.PROTO)
     tb.configure(wins, mrd, mwr, srd, swr)
     await tb.wait_clocks('aclk', 2)
     await tb.go()
@@ -106,7 +117,12 @@ async def cocotb_test_axi_stress_clean(dut):
         assert tb.stats['max_len'] == 15, \
             f"AXI3: longest burst AxLEN {tb.stats['max_len']}, expected exactly 15"
     else:
-        assert tb.stats['max_len'] > 15, 'AXI4: no burst longer than 16 beats'
+        assert tb.stats['max_len'] > 15, f'{tb.PROTO}: no burst longer than 16 beats'
+    if tb.PROTO == 'axi5':
+        assert tb.stats['sb_req'] == 2 * n, f"AXI5: {tb.stats['sb_req']} requests checked"
+        assert tb.stats['r_poison'] > 0 and tb.stats['w_poison'] > 0, \
+            'AXI5: no beat was poisoned in one direction'
+        assert tb.stats['r_poison'] < tb.stats['r_beats'], 'AXI5: every R beat poisoned'
 
     if name in ('ooo', 'interleave', 'narrow', 'errwin'):
         assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
@@ -140,14 +156,17 @@ FAULTS = [
     (7, 'mrd', {'RD_RESP'}),
 ]
 FAULTS_AXI3 = [(8, 'swr', {'S_WID'})]
+FAULTS_AXI5 = [(9, 'srd', {'S_SB'}), (10, 'swr', {'S_SB'}), (11, 'mrd', {'M_SB'}),
+               (12, 'mrd', {'M_SB'}), (13, 'mwr', {'M_SB'}), (14, 'swr', {'S_SB'})]
+FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5}
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_axi_stress_faults(dut):
     tb = AxiStressPairTB(dut)
-    for bit, blk, expect in FAULTS + (FAULTS_AXI3 if tb.PROTO == 'axi3' else []):
+    for bit, blk, expect in FAULTS + FAULTS_BY_PROTO[tb.PROTO]:
         await tb.setup_clocks_and_reset()
-        wins, mrd, mwr, srd, swr = _scenario('ooo', 0, tag=0x5A)  # until STOP
+        wins, mrd, mwr, srd, swr = _scenario('ooo', 0, tag=0x5A, proto=tb.PROTO)  # until STOP
         tb.configure(wins, mrd, mwr, srd, swr)
         await tb.wait_clocks('aclk', 2)
         await tb.go()
@@ -175,7 +194,7 @@ async def cocotb_test_axi_stress_faults(dut):
         tb.reset_monitor()
 
 
-PROTO_CODE = {'axi4': 0, 'axi3': 1}
+PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2}
 
 
 def _params():

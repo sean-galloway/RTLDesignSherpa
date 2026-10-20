@@ -91,6 +91,8 @@ addrmap bstress_mst_regs {
             field { sw = rw; hw = r; desc = "Writes clear random strobes."; } STRB_RAND[13:13] = 0;
             field { sw = rw; hw = r; desc = "Reads target this window."; } RD_EN[14:14] = 0;
             field { sw = rw; hw = r; desc = "Writes target this window."; } WR_EN[15:15] = 0;
+            field { sw = rw; hw = r; desc = "AXI5: BTRACE / RTRACE must echo the request's TRACE (the bridge echoes it at a trace-capable master port whatever the slave); else they must be 0."; } SB[16:16] = 0;
+            field { sw = rw; hw = r; desc = "AXI5: W beats poisoned, and R beats expected poisoned, 1 in 2^n by address; 0 = never. Set only on a poison path, to the slave's POISON_LG2."; } POISON_LG2[23:20] = 0;
         } CFG1 @ 0x8;
     };
 
