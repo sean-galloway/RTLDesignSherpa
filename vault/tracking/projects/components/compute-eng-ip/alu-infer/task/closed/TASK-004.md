@@ -1,7 +1,7 @@
 # TASK-004: int8 x4-lane element width (func_sel[8:7], open item M6)
 
 **Priority:** P2
-**Status:** open -- 2026-10-19
+**Status:** closed -- 2026-10-20
 **Owner:** sean galloway
 
 ## Why
@@ -31,3 +31,9 @@ items.
 
 Depends on TASK-006 (tag alignment) only if row depths diverge per format —
 check at design time. After v1 FPGA bring-up.
+
+## Closed 2026-10-20
+
+func_sel[8:7] = 1: int8 x4 lanes -- saturating add/sub/mul, min/max, compare, relu, const; MAC and REDUCE into int32 with the requantize shift imm[4:0] on presentation; bf16<->int8 conversions (quantize by imm scale). Tests `fmt_int8`, `mac_formats`, `reduce`, `cvt`.
+
+Verified: gate (82 cells) and func (184 cells, COVERAGE=1) through the area Makefile, four build configs (default, deep, flat, lean); testplan 25/25 scenarios VERIFIED (--strict). MAS 0.50 reconciled. Sequenced ahead of FPGA bring-up at the owner's request ("implement all of the features in the ALU-infer MAS AND PRD", 2026-10-20).

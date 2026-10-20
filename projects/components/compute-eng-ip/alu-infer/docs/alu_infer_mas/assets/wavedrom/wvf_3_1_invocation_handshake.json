@@ -21,7 +21,7 @@
       ]
     },
     {
-      "name": "valid (FSM)",
+      "name": "valid (gatling)",
       "wave": "110......."
     },
     {
@@ -61,7 +61,7 @@
       "wave": ".1111110.."
     },
     {
-      "name": "result_ready (FSM)",
+      "name": "result_ready (gatling)",
       "wave": "0000011..."
     },
     {

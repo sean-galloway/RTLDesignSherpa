@@ -32,17 +32,20 @@ points for the ALU-INFER block. Format follows
 
 | Testplan | Modules | Status | Test File |
 |----------|---------|--------|-----------|
-| `alu_infer_top_testplan.yaml` | alu_infer_top.sv, alu_infer_rows.sv, alu_infer_pipe.sv, alu_infer_acc.sv | Tested | `../tests/test_alu_infer.py` |
+| `alu_infer_top_testplan.yaml` | alu_infer_top.sv and its 12 submodules (rows, pipe, acc, decode, delay, the four format row families, act, pwl, cvt) | Tested | `../tests/test_alu_infer.py` |
 
-One testplan covers the whole pipeline: the four RTL modules are a single
+One testplan covers the whole pipeline: the RTL modules are a single
 inseparable unit (top wiring + row compute + tag-FIFO alignment pipe + FP32
 accumulator) and are only meaningful tested together through the top-level
 GAXI interfaces. This is the same multi-module pattern as stream's
 `axi_engines_testplan.yaml`.
 
-## Scenarios (13)
+## Scenarios (25)
 
-All scenarios run at gate/func/full across PIPE_DEPTH {4, 8}; the mixed soak
+All scenarios run at gate/func/full across PIPE_DEPTH {4, 8} on the default
+build; the timing and accumulator scenarios also run on the `deep` and `flat`
+latency builds, and the v1 suite plus the illegal sweep on the `lean` build
+(every `EN_*` off). The mixed soak
 additionally sweeps the standard `GAXI_RANDOMIZER_CONFIGS` delay profiles at
 func (`fast`, `slow_producer`, `slow_consumer`, `gaxi_realistic`,
 `gaxi_backpressure`) and full (adds `constrained`, `burst_pause`,
@@ -63,13 +66,25 @@ func (`fast`, `slow_producer`, `slow_consumer`, `gaxi_realistic`,
 | ALUINF-11 | mixed_soak | Random mixed opcodes, in-order golden check, timing-profile sweep |
 | ALUINF-12 | sub_ulp_corner | Directed SUB corner at the library adder's 1-ULP boundary |
 | ALUINF-13 | tag_join | Tag-FIFO arrival join: fast rows wait behind an earlier slow row |
+| ALUINF-14 | fmt_int8 | int8 rows (saturating add/sub/mul, min/max, compare, relu, const) |
+| ALUINF-15 | fmt_fp32 | fp32 rows on the IEEE 754-2008 blocks vs library references |
+| ALUINF-16 | fmt_fp8 | fp8 e4m3 rows vs library references |
+| ALUINF-17 | const | immediate broadcast in every format |
+| ALUINF-18 | act | library activations (bf16/fp32/fp8) and bf16 recip/exp2/log2/qscale |
+| ALUINF-19 | cvt | every CVT pair (narrow/widen packing) and ALTFMT |
+| ALUINF-20 | reduce | REDUCE sum/max, identity CLEAR, cross-lane fold, every format |
+| ALUINF-21 | mac_formats | MAC in int8 (requantize), fp32, fp8 |
+| ALUINF-22 | mac_chain | >100-step dependent bf16 MAC chain at II=1 |
+| ALUINF-23 | pwl | PWL LUT load, read-back, bit-exact evaluation, accuracy bound |
+| ALUINF-24 | latency | each result port at its parameterized latency |
+| ALUINF-25 | softmax | the roadmap rows composed into softmax vs float |
 
 ## covers_lines Are Generated From Data
 
 `covers_lines` in the testplan are **not hand-maintained**: each scenario's
 list is the covered-line set of that scenario's own merged coverage data
 (`verilator_coverage --annotate` numbering — the same semantics the verifier
-checks with), unioned across the four RTL files, levels, PIPE_DEPTHs, and
+checks with), unioned across the RTL files, levels, PIPE_DEPTHs, and
 timing profiles.
 
 Regenerate after RTL or test changes:
@@ -102,7 +117,7 @@ python3 bin/cov_utils/verify_testplan_coverage.py --all \
     --strict
 ```
 
-Expected: 13/13 scenarios VERIFIED. The repo-wide ref ratchet
+Expected: 25/25 scenarios VERIFIED. The repo-wide ref ratchet
 (`bin/filelist_registry.py --check`) separately guarantees the testplan's
 `rtl_files`/`test_file` refs resolve.
 

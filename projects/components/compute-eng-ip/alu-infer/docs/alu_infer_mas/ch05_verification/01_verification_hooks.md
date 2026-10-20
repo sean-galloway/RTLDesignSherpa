@@ -23,100 +23,99 @@
 
 # Verification Hooks and Observability
 
-The ALU's verifiability is a consequence of its structure, and this
-chapter names the hooks the design exposes on purpose. The tests live in
-`alu-infer/dv/` — `tbclasses/alu_infer_tb.py` holds the testbench (an
-`AluInferTB` class on the repo's `TBBase`), and `tests/test_alu_infer.py`
-is a thin TEST_TYPE-dispatching runner, the repository standard pattern
-(the stream area's). Both valid/ready interfaces are owned by RDS-DV GAXI
-BFMs: a `GAXIMaster` drives the issue interface (`valid`/`ready` +
-operand/func fields), a `GAXISlave` receives the result interface
-(`result_valid`/`result_ready` + line/flags), and passive `GAXIMonitor`s
-record completed transfers on both sides. Timing checks anchor on the
-BFMs' packet timestamps (the master stamps the accepting edge, the slave
-the retiring cycle), and the mixed soak additionally runs under the
-standard randomized GAXI delay profiles (`GAXI_TIMING_PROFILE`, from the
-shared `GAXI_RANDOMIZER_CONFIGS` table in
-`bin/TBClasses/amba/amba_random_configs.py`): func sweeps `fast`,
-`slow_producer`, `slow_consumer`, `gaxi_realistic`, `gaxi_backpressure`;
-full adds `constrained`, `burst_pause`, `high_throughput`, `gaxi_stress`
-(the per-type default is `backtoback`). The scenario-to-coverage map
-lives in `dv/testplans/alu_infer_top_testplan.yaml` — its `covers_lines`
-are generated from the per-scenario merged coverage data, and
-`bin/cov_utils/verify_testplan_coverage.py --strict` re-checks every
-scenario against a fresh `COVERAGE=1` run. The cell PRD's
-credit-loop tests already prove lines-in → credits-out independently of
-the datapath, so these hooks assume a datapath-only test space.
+The tests live in `alu-infer/dv/`. `tbclasses/alu_infer_tb.py` is the
+testbench (`AluInferTB` on the repo's `TBBase`), with the extended
+scenarios mixed in from `alu_infer_ext_tests.py`. `alu_infer_golden.py`
+holds the golden models, and `tests/test_alu_infer.py` is a thin
+`TEST_TYPE` dispatcher (the stream-area standard pattern).
 
-## The Golden Model
+Both valid/ready interfaces are owned by RDS-DV GAXI BFMs: a `GAXIMaster`
+drives issue, a `GAXISlave` receives results, and passive `GAXIMonitor`s
+record both. Timing checks use the BFMs' packet timestamps. The extended
+scenarios issue invocations as bursts, so the elastic pipeline streams
+while every retired line is checked.
 
-One scalar bf16 numerics model, applied per lane: compute the expected
-result in fp32, round to bf16 RNE. This is the same discipline the math
-library's own dv uses, which means the ALU's golden model and the
-library's golden model are the same arithmetic — and lane independence
-(PRD §4 invariant 1) makes a per-lane scalar comparison a *strong*
-check, not a sampling one. For mac, the golden model keeps a fp32
-accumulator per lane and only rounds at presentation, matching decision
-M7.
+## The Golden Models: the Library's Own
 
-## Built-in Cross-check
+Every floating-point row instantiates an `rtl/math` block, so its expected
+value comes from **the same reference model that block's unit test uses**
+(`bin/TBClasses/common/fp_testing.py`, `bf16_testing.py`), at that test's
+tolerance. Exact rows (copy, const, min/max, relu) must match exactly;
+arithmetic rows within 1 ULP; reciprocal 2, exp2 and log2 16 (log2 200
+near zero), as their library tests allow. This is the MAS's built-in
+cross-check made literal: an ALU/library divergence is a wiring bug in
+exactly one of them.
 
-Every row instantiates an `rtl/math` block with its own passing dv. The
-unit testbench therefore double-checks for free: drive the same
-operands to the ALU and to the library block directly (or to its
-reference model); any divergence is a bug in exactly one of them. This
-is the strongest hook in the design — it turns "the ALU works" into
-"the ALU is wired the way the library block expects," which is where
-integration bugs actually live.
+It has already paid off. The exp2 row's check exposed **math BUG-009**:
+`math_bf16_exp2` returned 0 for every x ≥ 256, because a 9-bit signed
+"+256" saturate wrapped to −256. It was fixed in `rtl/math`, and the
+library's own test gained the cases that failed.
+
+- **int8**: the exact saturating model (no library family).
+- **Accumulators**: the bank is modeled bit-exactly for bf16, fp8 and int8
+  (the `math_bf16_fma` contract, including its FTZ of an underflowing
+  product). The fp32 bank is checked against the library FMA reference at
+  its tolerance and then re-synced from the DUT, which presents the fp32
+  bank exactly.
+- **PWL**: bit-exact against the row model in `bin/alu_infer_pwl.py`, plus
+  an approximation bound per function (Table 2.7, with margin).
+
+## Scenarios
+
+| TEST_TYPE | Proves |
+|---|---|
+| copy_timing, tag_join, backpressure | handshake, natural latency, II=1, the tag join, the elastic hold |
+| add_sub, mul, minmax, compare, relu, special_grid, sub_ulp_corner | the v1 bf16 rows, special-value grid, the adder's 1-ULP corner |
+| mac, mac_chain | bf16 CLEAR/ACC/DRAIN/HOLD; a 104–512-step dependent chain at II=1, every step exact |
+| fmt_int8, fmt_fp32, fmt_fp8 | every elementwise row per format, specials and random values |
+| const, act, cvt, pwl | const in every format; activations; every CVT pair and ALTFMT; PWL load, read-back, evaluation and accuracy |
+| reduce, mac_formats | REDUCE sum/max with identity CLEAR and fold, every format; MAC in int8/fp32/fp8 |
+| latency | each port at its parameterized latency, every format that uses it; in-order retirement behind the slowest port |
+| error_opcode | every illegal class retires a zero line in order and pulses `err_opcode` exactly once |
+| mixed_soak | random mixed opcodes under the GAXI delay profiles |
+| softmax | the roadmap rows composed as a program would: REDUCE max + fold, SUB, PWL exp, REDUCE sum + fold, RECIP, MUL, each step fed by the last; within 2e-2 of float softmax (measured 1.6e-3) |
+
+: Table 5.1: test scenarios
+
+## Build Configurations
+
+| Config | Parameters | Runs |
+|---|---|---|
+| default | RTL defaults (`ADDER_LATENCY` 3, `MUL_LATENCY` 0, `MAC_LATENCY` 0) | every scenario at `PIPE_DEPTH` 4 and 8 |
+| deep | `ADDER_LATENCY` 4, `MUL_LATENCY` 2, `MAC_LATENCY` 2 | the timing and accumulator scenarios |
+| flat | every latency 0 | the timing and accumulator scenarios (exercises the latency-0 tag bypass) |
+| lean | every `EN_*` off | the v1 suite, and every built-out family must decode illegal |
+
+: Table 5.2: build configurations
+
+The house gate/func/full grid applies: gate runs every cell lightly, and
+func and full deepen the value sets and chains and sweep the mixed soak
+across the standard GAXI delay profiles.
 
 ## Coverage Matrix
 
 | Axis | Values |
 |------|--------|
-| Opcode | 0–7 (all v1 rows) |
-| Special-value class | NaN payload, +inf, −inf, +0, −0, normal, denormal/FTZ (per block `SUBNORMAL_SUPPORT`, M3) |
-| Lane position | 0 and 1 (both populated, either populated) |
-| Accumulator | long chains (>100 ACC steps), CLEAR/ACC/DRAIN corners, clear-then-accumulate, drain-without-accumulate |
+| Opcode × format | every legal pair of Table 2.2; every illegal class |
+| Special-value class | ±0, ±inf (fp8: ±max-normal), NaN, ±min-subnormal, ±1, per format (`special_value_grid`) |
+| Lane position | every lane of every format |
+| Accumulator | CLEAR/ACC/DRAIN/HOLD; chains over 100 steps; REDUCE fold sum and max |
+| Latency | 0, the defaults, and deep for each port |
 
-: Table 5.1: unit coverage matrix
+: Table 5.3: coverage matrix
 
-Special values are mandatory corners, not extras — the bf16_testing
-base classes (`bf16_special_value_product`, per the math area's
-TASK-006 grid discipline) generate the Cartesian product; the matrix
-above says where it must be applied.
-
-## Elastic and Tag-Join Behavior
-
-The alignment mechanism has its own directed tests — the as-built
-TEST_TYPEs `copy_timing`, `backpressure`, and `tag_join`: natural per-row
-latency (combinational rows offered the cycle after issue, add/sub
-`ADDER_LATENCY` cycles after, measured from BFM packet timestamps),
-II=1 streaming proven from consecutive retirement deltas under
-`send_burst`, the elastic hold-and-resume (the slave's
-`set_ready_policy('stall'/'always')` drives the consumer side), the
-tag-FIFO fill (`ready` falls only at `PIPE_DEPTH` in flight, never
-earlier), and the join itself — an add issued ahead of a relu and a
-copy must present first, with the fast rows waiting at the FIFO head.
-These are the tests that pin the owner ruling of 2026-10-18.
+`dv/testplans/alu_infer_top_testplan.yaml` maps each scenario to the RTL
+lines its own merged coverage data covers (generated, never hand-edited),
+and `bin/cov_utils/verify_testplan_coverage.py --strict` re-checks it.
 
 ## Observability
 
-- **No internal monitor taps by default.** Observability is the Ocelus
-  MonBus plane's job at tile scope; the ALU contributes nothing to it.
-- **The accumulator bank is read-back-able** through normal mac DRAIN
-  invocations, so no debug port is needed for the state that matters.
-- **Open item M2** (flag observability) is the one place this chapter
-  deliberately leaves a hook decision open: whether the library blocks'
-  IEEE exception outputs forward into `result_flags`, and if so in what
-  layout alongside the mask bits (the mask format itself is closed —
-  one bit per lane, packed low; M5).
-
-## Test Levels
-
-House gate/func/full grid, per the cell PRD §9: gate smoke on copy +
-add; func per-row truth tables against the golden model; full as the
-coverage matrix above plus the cell's integration tests (in-band `cfg`
-programming, credit loop, packetizer) that consume this block.
+- **No internal monitor taps.** Observability is the Ocelus MonBus plane's
+  job.
+- **State is readable through the seam**: the accumulator by DRAIN and the
+  PWL table by `OP_PWL_LUT` read.
+- **M2** (whether the library blocks' IEEE exception outputs should reach
+  `result_flags`) stays open; `err_opcode` covers illegal invocations only.
 
 ---
 

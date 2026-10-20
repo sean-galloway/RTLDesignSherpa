@@ -25,107 +25,90 @@
 
 ## What This Block Is
 
-`alu_infer` is the cell's compute engine: a bf16 function array that the
-cell's execution FSM drives with a simple pop → compute → push loop. It is
-deliberately *not* a processor — no fetch, no program counter, no
-branches. Its programmability lives one level up: a per-tetrad RV32I
-control core (gatling-class barrel RISC-V) reacts to the cells' status,
-and the tile's data/config/programming stream arrives in-band on delta.
-The ALU's only job is to turn operand lines into result lines, one
-config-selected function at a time.
-
-The v1 RTL lives in `alu-infer/rtl/` (landed 2026-10-17/18, func+gate
-green; moved from `cell/rtl/` to the alu-infer component on 2026-10-20):
-`alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`,
-`alu_infer_acc.sv`. The planned submodules
-`alu_infer_decompose`/`select`/`compose`/`decode` of earlier MAS drafts
-are folded into `alu_infer_rows.sv` in the as-built code. The alignment
-mechanism is the owner-ruled tag FIFO (2026-10-18, implemented
-2026-10-19): each issue takes an 8-bit tag, `alu_infer_pipe` tracks the
-tags in flight, and a result is offered only when every op of its tag
-group has arrived — so quick rows compute at their natural speed and
-align at the join instead of carrying padded pipe stages.
+`alu_infer` is the cell's compute engine: a function table over packed
+element lanes. It is deliberately *not* a processor — no fetch, no program
+counter, no branches. Programmability lives in the issuer: the tetrad's
+**gatling** core, a barrel RV32I with the Xcell extension, runs one context
+per cell. A context's program presents operands and a function select to
+this block's issue seam and takes results back in order (gatling PRD §1,
+owner ruling 2026-10-19: *the program is the schedule*). The ALU turns
+operand lines into result lines, one invocation at a time, and makes no
+pacing decisions of its own.
 
 Three commitments shape every decision in this specification.
 
-**1. The math library is the datapath.** Nearly every function row
-instantiates an existing `rtl/math` block — `math_bf16_adder`,
-`math_bf16_multiplier`, `math_bf16_fma`, `math_bf16_comparator`,
-`math_bf16_min`, `math_bf16_max`, `math_bf16_relu`. The ALU therefore
-inherits three things for free: structure already documented in the
-rtl-math book, verification already done by the library's own dv, and
-convergent-thinking citations already archived in
-`rtl/math/references/`. New arithmetic is added to the library first and
-consumed here second; rows without a block (copy, mask packing) are wires
-and glue. This is the same consumption pattern as the falcon suite's
-garuda rung, which takes the library's IEEE-fp32 blocks behind its
-reservation stations.
+**1. The math library is the datapath.** Every floating-point row
+instantiates an existing `rtl/math` block — `math_bf16_*` for bf16, the IEEE
+754-2008 fp32 adder/multiplier/FMA and `math_fp32_*` for fp32,
+`math_fp8_e4m3_*` for fp8, the `*_to_*` converters. The ALU inherits each
+block's structure, numerics and special-value behavior. The int8 rows are
+plain saturating integer logic; there is no int8 library family.
 
-**2. FMA-first, fp32 accumulate.** Inference time is dominated by
-multiply-accumulate, so the mac row is the workhorse: `math_bf16_fma`
-computes the bf16 product exactly in fp32 (8×8 significand bits fit
-fp32's 24) and adds it into a per-lane fp32 accumulator — one rounding
-per operation, one rounding to bf16 at result presentation. Every other
-row is sized to sit beside the FMA without dwarfing it.
+**2. FMA-first, one-cycle loop.** Inference time is multiply-accumulate
+time. The accumulator is a per-lane 32-bit bank (fp32 for the float
+formats, int32 for int8). The bf16 FMA computes the product exactly in
+fp32 and rounds once, and the accumulate loop is that one fused operation
+per cycle, so a dependent chain sustains one step per clock at any operand
+pipeline depth.
 
-**3. A function table, not a function zoo.** Opcodes 0–7 are RTL table
-rows — the select is a mode mux driven by `func_sel`, never an arbiter,
-and growth rows (activations, reciprocal/divide, conversions) are added
-as rows without disturbing the handshake, the lanes, or the
-verification scaffolding.
+**3. A function table, not a function zoo.** `func_sel` names an element
+format, a row and a sub-op. Decode routes the invocation to one row and to
+one of four result ports by latency class; nothing arbitrates. New rows
+are table entries behind the same seam.
 
 ## The Dataflow in One Paragraph
 
-Both operand lines — A and B, one per side — arrive **in the same
-clock** from the execution FSM's input-memory pops. The
-element decompose block splits each 32-bit line into two bf16 lanes. All
-seven function rows see the same lanes; the row named by
-`func_sel.opcode` computes, and the result select forwards that row's
-two lanes to the line composer, which packs them back into a 32-bit
-result line. The compare row additionally emits a per-lane mask as
-`result_flags`. State exists in exactly one place — the fp32 MAC
-accumulator, private to opcode 4, managed by `acc_ctrl` — so every other
-row is a pure function of its operands, which is what makes the
-verification story (Chapter 5) tractable.
+Gatling presents an invocation: operand lines A and B (`LINE_W` each,
+captured in the same clock), a 16-bit immediate, `func_sel`, `acc_ctrl`,
+and `valid`. On the issue edge (`valid && ready`) the invocation takes the
+next 8-bit tag. Decode checks that the (opcode, format) pair is legal in
+this build and routes it. A combinational row lands its result in the tag
+FIFO at the issue edge. The adders land `ADDER_LATENCY` cycles later, the
+multipliers `MUL_LATENCY` later, and the accumulator rows `MAC_LATENCY`
+later. Each carries its tag and joins its FIFO entry by tag compare. The
+FIFO offers results strictly in issue order. An illegal invocation still
+retires its slot, with a zero line, and pulses `err_opcode`.
 
-### Figure 1.1: ALU-INFER datapath overview (definition level)
+### Figure 1.1: ALU-INFER datapath overview
 
 ![Figure 1.1: ALU-INFER datapath overview](../assets/graphviz/01_alu_infer_datapath.png)
 
-The figure above is the context view — operand flow down the center,
-`FUNC_SEL` and the MAC accumulator dashed as sideband. The full block
-diagram with every row and its library block is Figure 2.1 in the next
-chapter.
+The full block diagram, with every row family and result port, is Figure
+2.1 in the next chapter.
 
-## Relationship to the Cell and the Tetrad Core
+## Element Formats
 
-The ALU speaks only to the cell's execution FSM (Chapter 3): operands,
-result, handshake, and two config inputs (`func_sel`, `acc_ctrl`). The
-FSM owns sequencing, the memories, and the credit loop. The tetrad
-control core — one gatling-class barrel RV32I per tetrad — is out of
-this block entirely: it reads cell status and IRQs over the AXIL register
-plane and exercises operational registers; per the owner ruling of
-2026-10-17 it originates no config traffic, and cell *programming*
-(including this ALU's `FUNC_SEL` register) arrives in-band with the
-delta traffic. Observability is the Ocelus MonBus plane's job, not the
-ALU's; this block exposes no monitor taps by default (open item M2
-asks whether the library blocks' IEEE exception outputs should surface
-as `result_flags`).
+| `func_sel[8:7]` | Format | Lanes per 32-bit line | Accumulator lane |
+|---|---|---|---|
+| 0 | bf16 | 2 | fp32 |
+| 1 | int8 (two's complement) | 4 | int32 |
+| 2 | fp32 | 1 | fp32 |
+| 3 | fp8 e4m3 | 4 | fp32 |
+
+: Table 1.1: element formats
+
+bf16 is the v1 format and the one every row supports. int8 is the PRD
+roadmap's first added format (4 MACs per clock on a 32-bit line), and fp32
+the second. fp8 e4m3 is the §7 element-model extension. Wider lines scale
+the lane count, never the element width.
+
+## Relationship to Gatling and the Cell
+
+The ALU speaks only across the issue seam (Chapter 3) and one status
+output. Gatling owns sequencing and pacing: it shapes the `valid` stream,
+obeys `ready`, and pairs results with invocations by counting. Cell
+configuration — including anything that sets an ALU mode for a layer —
+arrives in-band on delta, and gatling never originates config traffic
+(gatling PRD §1). Observability belongs to the Ocelus MonBus plane, and
+this block exposes no monitor taps.
 
 ## Status of This Specification
 
-The v1 RTL is built and green. Chapters 2–4 document the as-built
-implementation in `alu-infer/rtl/` (`alu_infer_top.sv`, `alu_infer_rows.sv`,
-`alu_infer_pipe.sv`, `alu_infer_acc.sv`, landed 2026-10-17/18, func+gate
-green). Where the PRD left a choice open, this specification either
-decides it (and records the decision) or carries it as an open item M1–M8
-in Chapter 6. The tag-based alignment mechanism of Chapter 4 is the
-as-built realization since 2026-10-19; it superseded the alignment-timer
-mailbox of the first v1 build without any interface change — the PRD's
-"presented exactly `ROW_LATENCY` cycles after issue" phrasing described
-that mailbox and is superseded with it (the seam contract it sat under —
-two valid/ready pairs, in-order retirement, II=1 — is unchanged).
+The RTL is built and verified at gate and func levels, in four build
+configurations (Chapter 5). Chapters 2–4 document the as-built code. Where
+the PRD left a choice open, this specification records the as-built choice
+or carries it as M1–M8 (Chapter 6).
 
 ---
 
-**Last Updated:** 2026-10-19
+**Last Updated:** 2026-10-20

@@ -21,98 +21,122 @@
 
 <!-- End Header -->
 
-# The Seven Function Rows
+# The Function Rows
 
-Each row is one RTL table entry: same lanes in, two lanes out, no state.
-The `rtl/math` block named per row is the implementation base — its
-internal structure, pipeline behavior, and special-value handling are
-documented in its own rtl-math page and are not restated here (one
-source per fact). What this chapter pins is the row's *wiring* into the
-ALU: operands, lane routing, and the one or two integration decisions
-the block does not make.
+Each row is one table entry. It takes the lanes of operand A (and B or the
+immediate), computes every lane in parallel and independently, and returns
+one result line. The `rtl/math` block named for a row is its
+implementation. That block's structure, numerics and special-value
+handling are documented in its rtl-math page and not restated here; this
+chapter pins the row's wiring.
 
-## Row Summary
+## Opcode Map
 
-| Opcode | Row | Library block | Operands | Notes |
-|--------|-----|---------------|----------|-------|
-| 0 | copy | wires (bypass) | 1 line | passthrough; latency-free |
-| 1 | add | `math_bf16_adder` | 2 lines | per-lane |
-| 2 | sub | `math_bf16_adder` | 2 lines | sign-flip B's sign bit pre-add (see below) |
-| 3 | mul | `math_bf16_multiplier` | 2 lines | mantissa_mult + exponent_adder inside |
-| 4 | mac | `math_bf16_fma` | 2 lines + acc | the workhorse; see `alu_infer_acc` chapter |
-| 5 | min / max | `math_bf16_min` / `math_bf16_max` | 2 lines | sub-op selects; NaN semantics per M1 |
-| 6 | compare / threshold | `math_bf16_comparator` | 2 lines or line + imm | mask bits, not values; imm encoding M4 |
-| 7 | relu | `math_bf16_relu` | 1 line | per-lane; NaN passthrough per M1 |
+| Opcode | Row | Formats | Operands | Port |
+|---|---|---|---|---|
+| 0 | copy | all | A | comb |
+| 1 | add | all | A, B | adder (bf16, fp32) / comb (int8, fp8) |
+| 2 | sub | all | A, B | as add |
+| 3 | mul | all | A, B | multiplier (bf16, fp32) / comb (int8, fp8) |
+| 4 | mac | all | A, B, bank | accumulator |
+| 5 | min / max (sub_op[0]) | all | A, B | comb |
+| 6 | compare (sub_op[0]: B / imm) | all | A, B or imm | comb |
+| 7 | relu | all | A | comb |
+| 8 | reduce (sub_op[0]: sum / max; sub_op[1]: fold) | all | A, bank | accumulator |
+| 9 | pwl | bf16 | A, LUT | comb |
+| 10 | pwl_lut (sub_op[0]: write / read) | bf16 | A = entry, B[7:0] = index | comb |
+| 11 | const | all | imm | comb |
+| 12 | leaky-relu | bf16, fp32, fp8 | A | comb |
+| 13 | gelu | bf16, fp32, fp8 | A | comb |
+| 14 | sigmoid | bf16, fp32, fp8 | A | comb |
+| 15 | silu | bf16, fp32, fp8 | A | comb |
+| 16 | tanh | bf16, fp32, fp8 | A | comb |
+| 17 | reciprocal | bf16 | A | comb |
+| 18 | exp2 | bf16 | A | comb |
+| 19 | log2 | bf16 | A | comb |
+| 20 | log2-scale (qscale) | bf16 | A | comb |
+| 21 | cvt (src = fmt, dst = sub_op) | library pairs | A (+ B) | comb |
+| 22 | altfmt (bf16 <-> fp16 / e5m2) | bf16 | A (+ B) | comb |
+| 23–31 | — | — | — | illegal |
 
-: Table 2.2: the v1 function rows (normative list in PRD §3)
+: Table 2.2: the function rows
+
+"All" means every format built in. A (format, opcode) pair outside this
+table is illegal (Chapter 2.4).
+
+## Elementwise Rows per Format
+
+| Row | bf16 | int8 | fp32 | fp8 e4m3 |
+|---|---|---|---|---|
+| add / sub | `math_bf16_adder` (sub: B sign flipped) | saturating `a ± b` | `math_ieee754_2008_fp32_adder` | `math_fp8_e4m3_adder` |
+| mul | `math_bf16_multiplier` | saturating `a × b` | `math_ieee754_2008_fp32_multiplier` | `math_fp8_e4m3_multiplier` |
+| min / max | `math_bf16_min` / `_max` | signed compare | `math_fp32_min` / `_max` | `math_fp8_e4m3_min` / `_max` |
+| compare | `math_bf16_comparator` (lt) | signed `a < b` | `math_fp32_comparator` | `math_fp8_e4m3_comparator` |
+| relu | `math_bf16_relu` | `a < 0 ? 0 : a` | `math_fp32_relu` | `math_fp8_e4m3_relu` |
+| const | `imm` | `imm[7:0]` | `{imm, 16'h0}` | `imm[7:0]` |
+
+: Table 2.3: elementwise rows
 
 ## Per-Row Notes
 
-**copy (opcode 0).** A bypass lane from operand A's lanes to the result
-select. It exists so the FSM can move lines through the ALU without a
-function — useful for drain and test patterns. No library block, no
-latency, no flags.
+**copy (0).** Operand A to the result line, in any format; useful for
+moving lines and for test patterns.
 
-**add / sub (opcodes 1–2).** One `math_bf16_adder` serves both rows.
-The sub row flips operand B's sign bit before the adder — the standard
-sign-magnitude subtract — so the two rows share one block instance
-selected by the row decode. Rounding is the library's RNE; the adder's
-IEEE exception outputs are observable inside the row and are *not*
-forwarded in v1 (open item M2).
+**add / sub (1, 2).** Sub shares the adder with B's sign bit flipped (bf16,
+fp32, fp8). The bf16 and fp32 adders are pipelined `ADDER_LATENCY` stages
+and land on the adder port; the int8 and fp8 adders are combinational.
+int8 saturates to [-128, 127] — the inference convention — and never
+wraps.
 
-**mul (opcode 3).** `math_bf16_multiplier` (its `mantissa_mult` and
-`exponent_adder` children do the field work). "Low half" is meaningless
-in floating point — the product is the rounded bf16 result, per the
-PRD's bf16 reframing of the cell PRD's integer "low half" row.
+**mul (3).** The bf16 and fp32 multipliers are combinational blocks
+followed by `MUL_LATENCY` output stages. Those registers are retiming
+candidates: the integration flow moves them into the multiplier. int8
+saturates its 16-bit product.
 
-**mac (opcode 4).** `math_bf16_fma`, consuming the accumulator bank;
-the row's micro-architecture *is* the next chapter.
+**min / max (5).** `sub_op[0]` picks max. NaN semantics are each block's
+own: the float blocks return the non-NaN operand (IEEE `minNum`/`maxNum`),
+recorded at M1.
 
-**min / max (opcode 5).** Two library blocks (`math_bf16_min`,
-`math_bf16_max`) behind the sub-op bit; both compare through
-`math_bf16_comparator`. The only open question with hardware
-consequences is NaN propagation (IEEE `minNum` quiet-NaN semantics vs
-the inference "ignore NaN" convention) — the library blocks' existing
-semantics decide, and the choice is recorded at M1 so the golden model
-agrees.
+**compare (6).** Lane `i` of the mask is `A[i] < B[i]`, or
+`A[i] < imm` when `sub_op[0]` is set. The mask is packed low in
+`result_flags`, one bit per lane of the format (2, 4, 1 or 4 bits), and
+`result_line` is zero. The immediate is the raw pattern of the format: a
+bf16 pattern for bf16, widened exactly to fp32 for fp32, and `imm[7:0]`
+for int8 and fp8 (M4).
 
-**compare / threshold (opcode 6).** `math_bf16_comparator` per lane,
-comparing A against B or against `threshold_imm` (sub-op selects). The
-row's output is **mask bits, not values** — each lane contributes one
-bit, packed by the line composer into `result_flags` (format closed:
-one bit per lane, packed low — M5).
-`threshold_imm` carries a raw bf16 bit pattern in the simplest encoding
-(alternative: small int compared after conversion — M4).
+**relu (7).** Negative lanes to zero; NaN passes per the block (M1).
 
-**relu (opcode 7).** `math_bf16_relu` per lane: negative lanes go to
-+0, positives and the sign of zero pass per the library's contract.
-NaN passthrough is the library default and is carried at M1 so the
-golden model states it explicitly.
+**const (11).** The immediate broadcast into every lane of the format
+(PRD roadmap item 3): a program builds a bias line without memory traffic.
+
+## Activation and Scaling Rows
+
+Opcodes 12–16 instantiate each format's library activation: leaky-relu
+(alpha = 2^-`LEAKY_SHIFT`), gelu, sigmoid, silu, tanh, in bf16, fp32 and
+fp8. Opcodes 17–20 are bf16 only, because those blocks exist only in bf16:
+`math_bf16_reciprocal`, `math_bf16_exp2`, `math_bf16_log2` and
+`math_bf16_log2_scale` (the quantization scale `2^ceil(log2 max)` of a max
+value, as bf16).
+
+These rows inherit the library's approximations unchanged. The gelu,
+sigmoid, silu and tanh blocks are coarse piecewise forms (gelu, for
+example, is a constant over the medium range). **The PWL row (Chapter 2.5)
+is the accurate activation path.** It is what the PRD's roadmap item 2
+asked for, and its error is bounded and measured. There is no divider
+row: the PRD (roadmap, 2026-10-19) plans none, and exp followed by
+reciprocal-multiply covers softmax's divide.
 
 ## What Every Row Shares
 
-- Two lanes computed **in parallel, independently** — lane *i* of a
-  result never depends on lane *j* (PRD §4 invariant 1). This is what
-  lets the testbench check a lane against a scalar golden reference.
-- **Natural speed, joined by tag.** As the library ships, every row
-  except add/sub is one combinational cloud (latency 0), and the adder
-  carries `ADDER_LATENCY` of its optional `PIPE_STAGE_1..4`. The ALU
-  does not force fast rows through deep pipe stages to match: each row
-  computes at its natural speed and carries the invocation's 8-bit tag
-  through its own pipeline; `alu_infer_pipe`'s tag FIFO re-joins each
-  result to its entry — by tag compare, not position — and retires
-  strictly in issue order (Chapter 3). A fast row behind a slow one
-  simply waits at the FIFO head (owner ruling 2026-10-18: following ops
-  align with or after the earlier slower operation). A row whose timing
-  genuinely needs depth — a multiplier restructured for the integration
-  clock, the deep-pipelined FMA of §7 — carries real stages and its tag
-  with them; that work belongs to `rtl/math` (the `PIPE_STAGE` family
-  precedent) and does not change this block's contract.
-- Growth rows (gelu, sigmoid, silu, tanh, leaky-relu, reciprocal,
-  divide, conversions — PRD §3 growth list) are additional children of
-  `alu_infer_rows` behind free opcodes, added without touching the
-  handshake or the select width.
+- **Lane independence.** Lane `i` of a result never depends on lane `j`
+  (PRD §4 invariant 1). The accumulator rows' fold sub-op is the one
+  deliberate exception (Chapter 2.3).
+- **Natural speed, joined by tag.** A row does not pad itself to match
+  slower ones; its port carries the tag and the FIFO keeps order (Chapter
+  2.4).
+- **FTZ.** Every library block runs at its default `SUBNORMAL_SUPPORT = 0`:
+  subnormal inputs flush to zero (M3).
 
 ---
 
-**Last Updated:** 2026-10-19
+**Last Updated:** 2026-10-20

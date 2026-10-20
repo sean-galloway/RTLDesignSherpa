@@ -1,7 +1,7 @@
 # TASK-001: Line-reduce row (sum/max tree into the fp32 accumulator)
 
 **Priority:** P2
-**Status:** open -- 2026-10-19
+**Status:** closed -- 2026-10-20
 **Owner:** sean galloway
 
 ## Why
@@ -31,3 +31,9 @@ reciprocal-multiply) runs in the cell DV environment.
 
 Sequenced after FPGA bring-up of the v1 rows (owner: "We will see what we
 can do with the latency once the ALU is on the fpga").
+
+## Closed 2026-10-20
+
+REDUCE (opcode 8): sum/max over a span of lines into the accumulator bank in every format; CLEAR loads the identity (+0 / -inf / INT32_MIN); sub_op[1] presents the cross-lane fold broadcast. Tests `reduce` (all four formats) and `softmax` (REDUCE max+fold, SUB, PWL exp, REDUCE sum+fold, RECIP, MUL: worst element error 1.6e-3 vs float softmax). The cell DV environment does not instantiate the ALU yet, so the softmax sequence runs in the alu-infer DV, driven through the same seam.
+
+Verified: gate (82 cells) and func (184 cells, COVERAGE=1) through the area Makefile, four build configs (default, deep, flat, lean); testplan 25/25 scenarios VERIFIED (--strict). MAS 0.50 reconciled. Sequenced ahead of FPGA bring-up at the owner's request ("implement all of the features in the ALU-infer MAS AND PRD", 2026-10-20).

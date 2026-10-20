@@ -18,6 +18,7 @@ summary: RTL rules with the failures that taught them.
 - [[streaming-no-fsm]] - the pipeline pattern for datapaths
 - [[block-boundary-dead-cycles]] - a framed datapath is pipelined only at `beats`/block; measure the SLOPE over two block counts, then account every excess cycle to a named mechanism (RS decoder, 2026-09-30)
 - [[sram-and-memories]] - no-reset SRAMs, ram_style, array syntax
+- [[library-arithmetic-consumers]] - check rows against the rtl/math block's own reference model; never split a fused op without a bit-equivalence run (math BUG-009)
 - [[sizing-invariants]] - shared-resource math; one source of truth
 - [[priority-logic-depth]] - serialized scans vs parallel selects
 - [[static-loop-bounds]] - a loop bounded by a runtime value simulates and lints clean; Vivado refuses it (arbiter_matrix, 2026-10-18)

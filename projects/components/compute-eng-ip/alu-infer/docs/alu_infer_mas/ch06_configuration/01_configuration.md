@@ -25,22 +25,21 @@
 
 ## Parameters
 
-See Table 2.1: `LINE_W = 32`, `N_LANES = LINE_W/16`, `ACC_W = 32`,
-`PIPE_DEPTH` (tag-FIFO entries, default 8 — the stall-tolerance knob),
-`ADDER_LATENCY` (the add/sub row's own pipe depth, default 3), and
-`TAG_W` (8, per the owner ruling). The only behavior-switch
-surface is the opcode table itself — the element model is bf16-only and
-rounding is the library's RNE throughout (a dynamic rounding mode is
-out of scope by the garuda RNE precedent; any request would raise the
-error path, per Chapter 2.4).
+See Table 2.1. Two kinds:
+
+- **Latency knobs** (`ADDER_LATENCY`, `MUL_LATENCY`, `MAC_LATENCY`,
+  `PIPE_DEPTH`): none of them changes behavior seen at the seam, only
+  when results are offered. The tag join absorbs any combination.
+- **Build-out switches** (`EN_*`): a family built out decodes as illegal.
+  The lean build (all off) is the v1 bf16 ALU.
 
 ## `func_sel` Encoding
 
 | Bits | Field | Encoding |
 |------|-------|----------|
-| [4:0] | opcode | 0 copy, 1 add, 2 sub, 3 mul, 4 mac, 5 min/max, 6 compare/threshold, 7 relu; 8–31 growth |
-| [6:5] | sub_op | row-internal (min/max select; compare operand select); row docs of Chapter 2 |
-| [8:7] | reserved | element-width legacy field — reserved under the bf16 model (M6) |
+| [4:0] | opcode | Table 2.2; 23–31 unassigned (illegal) |
+| [6:5] | sub_op | row-specific: min/max select, compare operand, reduce sum/max and fold, PWL write/read, CVT destination format, ALTFMT conversion |
+| [8:7] | fmt | element format: 0 bf16, 1 int8, 2 fp32, 3 fp8 e4m3 |
 
 : Table 6.1: `func_sel` fields
 
@@ -48,54 +47,48 @@ error path, per Chapter 2.4).
 
 | Value | Name | Action |
 |-------|------|--------|
-| 2'b00 | HOLD | acc unchanged |
-| 2'b01 | ACCUMULATE | per-lane `acc <= fma(a, b, acc)` |
-| 2'b10 | CLEAR | acc ← +0.0 per lane |
-| 2'b11 | DRAIN | present acc (fp32→bf16 RNE) without accumulating |
+| 2'b00 | HOLD | bank unchanged; present it |
+| 2'b01 | ACCUMULATE | MAC / REDUCE update per active lane |
+| 2'b10 | CLEAR | bank ← identity (+0; −inf or INT32_MIN for max) |
+| 2'b11 | DRAIN | bank unchanged; present it (or its fold) |
 
-: Table 6.2: `acc_ctrl` encoding (accepted 2026-10-17 — "works for
-now"; revisit at FPGA bring-up if the mac row is reworked)
+: Table 6.2: `acc_ctrl` encoding (accepted 2026-10-17, "works for now")
+
+## `threshold_imm` Uses
+
+| Row | Meaning |
+|---|---|
+| compare (`sub_op[0]` = 1) | threshold, as one lane of the format |
+| const | the value broadcast |
+| int8 MAC / REDUCE | `[4:0]` = requantize right shift of the presented view |
+| CVT bf16 → int8 | quantization scale (bf16) |
+
+: Table 6.3: immediate uses
 
 ## Filelists
 
-The RTL lives in the alu-infer component (`alu-infer/rtl/...`,
-organized like the other component areas — flat RTL, per-block
-filelists, and a `<area>_all.f` master for lint). The block has
-its own unit filelist,
-`alu-infer/rtl/filelists/alu_infer_top.f` — the four ALU sources plus the
-`rtl/math` filelists of the instantiated library blocks — which is what
-the unit testbench (`alu-infer/dv/tests/test_alu_infer.py`) compiles.
-`alu-infer/rtl/filelists/alu_infer_all.f` is the lint master. The
-cell-level filelists (`cell_top.f`, `cell_all.f`) include the block's
-filelist for integration, since slice 3+ instantiates `alu_infer_top`
-inside the cell.
+`alu-infer/rtl/filelists/alu_infer_top.f` is the block's compile closure:
+`alu_infer_pkg`, the `rtl/math` filelists of every instantiated block, and
+the area's sources. The unit testbench compiles it.
+`filelists/alu-infer_all.f` is the area lint master, the name
+`rtl/make/area.mk` derives from `AREA := alu-infer`. The cell filelists
+include the block's filelist for integration.
 
 ## Open Items Register
 
-Carried from PRD §8, with the MAS additions M7; these are the only
-decisions this specification does not make.
+| ID | Item | State |
+|----|------|-------|
+| M1 | NaN/inf semantics in min/max and activations | **Recorded as built**: each library block's semantics (min/max return the non-NaN operand; relu and the activations pass NaN). Owner may override. |
+| M2 | Whether library IEEE exception outputs forward into `result_flags` | Open (observability) |
+| M3 | Denormal/FTZ policy | **Recorded as built**: FTZ everywhere (every block's default `SUBNORMAL_SUPPORT = 0`). Owner may override. |
+| M4 | `threshold_imm` encoding | **Recorded as built**: the raw element pattern of the format (Table 6.3) |
+| M5 | `result_flags` format | Closed 2026-10-17: one mask bit per lane, packed low |
+| M6 | `func_sel[8:7]` disposition | **Closed by implementation 2026-10-20**: the element-format field, as the PRD roadmap planned |
+| M7 | MAC presents the post-update bank in the element format; DRAIN presents without updating | Accepted 2026-10-17; extended to REDUCE and every format |
+| M8 | Per-row latency values tuned on the FPGA | Open (FPGA bring-up); the latency parameters are the knobs |
 
-| ID | Item | Blocking |
-|----|------|----------|
-| M1 | NaN/inf semantics in min/max and activations (IEEE `minNum` propagation vs inference "ignore NaN") | golden model for rows 5, 7 |
-| M2 | Whether library IEEE exception outputs forward into `result_flags` | observability only |
-| M3 | Denormal/FTZ policy cell-wide vs per-block `SUBNORMAL_SUPPORT` defaults | special-value grid |
-| M4 | `threshold_imm` encoding (raw bf16 pattern vs converted small int) | opcode-6 tests |
-| M5 — **closed 2026-10-17 (owner ruling)** | `result_flags` format: one mask bit per lane, packed low in a `LINE_W` line; port width `LINE_W` | closed |
-| M6 | `FUNC_SEL` reserved-field disposition (retire vs keep for fp8/integer growth) | register map freeze |
-| M7 — **accepted 2026-10-17** | mac presents the post-update fp32 accumulator rounded to bf16 per invocation; `DRAIN` presents without accumulating — accepted as drafted ("works for now"); revisit if FPGA latency work rewrites the mac row | accepted |
-| M8 | Per-row natural-latency table and `PIPE_DEPTH`/`ADDER_LATENCY` values — **deferred to FPGA bring-up** (owner direction 2026-10-17): tuned against hardware, with possible aggressive per-function latency minimization; the tag-join contract absorbs faster or deeper rows without interface change (each row carries its tag through its own pipeline and joins by compare) | FPGA bring-up |
-
-: Table 6.3: open items M1–M8
-
-M1, M3 and M4 resolve from the `rtl/math` library blocks' existing
-semantics wherever those semantics are already fixed — the work is
-recording the choice, not inventing it. M2 and M6 are cell-level and
-ride the cell PRD's next edit. **M5 is closed** (owner ruling
-2026-10-17): one mask bit per lane, packed low in a `LINE_W` line. M7
-is this MAS's one novel decision and is the first candidate for owner
-review of this document.
+: Table 6.4: open items M1–M8
 
 ---
 
-**Last Updated:** 2026-10-17
+**Last Updated:** 2026-10-20

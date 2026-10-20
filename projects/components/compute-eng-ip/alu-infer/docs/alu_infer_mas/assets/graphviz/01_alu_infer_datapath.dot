@@ -1,40 +1,34 @@
 // DERIVED from ../../assets/graphviz/01_alu_infer_datapath.dot (PRD-canonical) — keep in
 // line by copying after regenerating the PRD figure; do not edit here.
-// ALU-INFER datapath (definition level) — house style per
-// vault/handbook/authoring/block-diagrams.md (single-clock block mapping:
-// white ports on top, white output bar at the bottom, sideband dashed).
-// Owner direction 2026-10-17: bf16 lanes built on the rtl/math math_bf16_*
-// family — the named rows are the library blocks.
+// ALU-INFER datapath (definition level) -- element key v3 per
+// vault/handbook/authoring/block-diagrams.md.  Context view: gatling issues
+// invocations over the seam; the function table computes on the rtl/math
+// blocks in the element format func_sel names; the tag FIFO retires in
+// order.  The full block diagram is 02_alu_infer_block.dot.
 digraph alu_infer {
     rankdir=TB;
     graph [bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.35", ranksep="0.60", splines=ortho];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="white", color="black", margin="0.12,0.06"];
-    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
 
-    // Ports (white) and sideband state
-    in    [label="Operand line(s)\nsame-clock capture\n(from execution FSM)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    cfg   [label="FUNC_SEL {opcode, sub-op,\nreserved} (mode select,\nfrom cell config registers)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    acc   [label="MAC accumulator\n(one acc element per lane;\nprecision per PRD §7)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    { rank=same; in; cfg; }
+    in   [label="Issue seam (from gatling)\noperand lines A, B + imm\nvalid / ready (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg  [label="func_sel {fmt, sub_op, opcode}\nacc_ctrl", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    // Flow blocks
-    decomp [label="Element decompose\n2xbf16 per 32-bit line\n(rtl/math bf16 lanes)", style="filled", fillcolor="white"];
-    funcs  [label="bf16 function array (math_bf16_*)\ncopy | add | sub | mul | mac (fma)\nmin/max | compare/threshold | relu", style="filled", fillcolor="white"];
-    comp   [label="Line composer\n(bf16 lanes -> result line)", style="filled", fillcolor="white"];
+    funcs [label="Function table (math_bf16 / fp32 / fp8 blocks, int8 logic)\nelementwise | activations | PWL LUT | conversions\nformats: bf16 x2  int8 x4  fp32 x1  fp8 x4 lanes per 32-bit line"];
+    acc   [label="Accumulator  (MAC, REDUCE)\nper-lane 32-bit bank, one-cycle loop", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    fifo  [label="Tag FIFO + arrival join\nin-order retirement at natural latency", shape=cylinder, fillcolor="#E8DFF5"];
 
-    // Boundary bar
-    out   [label="Result line + flags\n(to result memory push)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    out  [label="Result seam (to gatling)\nresult_line + result_flags, result_valid / ready (flopped)", style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
 
-    // Main flow: operands down the center
-    in    -> decomp [label="operand line(s)"];
-    decomp -> funcs [label="bf16 lanes"];
-    funcs  -> comp  [label="result lanes"];
-    comp   -> out   [label="result line"];
+    in    -> funcs [penwidth=1.8, xlabel="lanes"];
+    in    -> acc   [xlabel="A, B"];
+    funcs -> fifo  [penwidth=1.8, xlabel="result + tag"];
+    acc   -> fifo  [xlabel="view + tag"];
+    fifo  -> out   [penwidth=1.8];
 
-    // Sideband: config and accumulator (one combined edge per node pair —
-    // never two parallel edges for the read/update pair)
-    cfg -> decomp [style=dashed, color="#777777", label="(fixed bf16)"];
-    cfg -> funcs  [style=dashed, color="#777777", label="function + sub-op"];
-    acc -> funcs  [dir=both, style=dashed, color="#777777", label="acc read / update (mac)"];
+    cfg -> funcs [style=dashed, color="#777777", xlabel="row + format"];
+    cfg -> acc   [style=dashed, color="#777777", xlabel="acc_ctrl"];
 }

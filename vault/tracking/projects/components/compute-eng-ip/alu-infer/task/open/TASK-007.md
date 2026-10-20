@@ -30,3 +30,7 @@ At M1 bring-up (tetrad on the FPGA, tile milestone ladder), close out:
 
 Every M-item in the alu-infer MAS is marked resolved with the measured
 answer, or moved to a task of its own.
+
+## Progress 2026-10-20
+
+M6 closed by implementation (func_sel[8:7] is the element-format field). M1, M3 and M4 recorded as built in MAS Table 6.4 (library NaN semantics, FTZ everywhere, raw element-pattern immediate), owner may override. M2 and M8 stay open for FPGA bring-up.

@@ -46,6 +46,12 @@ backpressure freezes the alignment tracking, II=1 while draining, no
 padded stages on quick rows, in-order results. **Base decisions** — bf16
 element model on the rtl/math `math_bf16_*` library, fp32 MAC accumulate,
 one RV32I core per tetrad with in-band everything.
+**Implementation (2026-10-20, revs still pinned):** every row of §3 — the
+v1 table, the function-set roadmap (reduce, PWL/LUT, const), the format
+roadmap (int8, fp32, plus fp8 e4m3 from §7) and the growth list — is built
+and verified, except what this PRD rules out (a true divider, the B4–B32
+companion mode, the CGRA replacement). The issuer is gatling (§5). The
+MAS is the as-built record.
 **Status:** Pre-HAS PRD, and the **normative definition of the cell's ALU
 block**: the RTL implementation lives in this component (`alu-infer/rtl/`,
 unit tests in `alu-infer/dv/tests/`; moved from `cell/rtl/` 2026-10-20) and
@@ -58,8 +64,8 @@ one governs (the cell PRD was reconciled to it 2026-10-17; see §2).
 ## 1. Identity and scope
 
 **alu-infer** is the compute engine of the **cell**: the function array the
-cell's execution FSM drives to turn input-memory lines into result-memory
-lines. It is an *inference* ALU — the arithmetic a neural-network layer
+tetrad's **gatling** core issues (§5) to turn input-memory lines into
+result-memory lines. It is an *inference* ALU — the arithmetic a neural-network layer
 needs (add, multiply, fused accumulate, min/max, threshold, ReLU-family
 activations), not a general-purpose ISA datapath.
 
@@ -79,7 +85,8 @@ organized like the repo's other component areas (the dma-ip/stream
 pattern: flat RTL with per-block filelists and a lint master, a four-line
 area Makefile, and a discoverable `dv/tests` suite). The
 [`cell/`](../cell/README.md) component integrates the block as the cell's
-"ALU + execution FSM" element: the cell filelists include this block's
+"ALU" element (gatling replaced the execution FSM as its driver, owner
+ruling 2026-10-19): the cell filelists include this block's
 filelist, and cell-level tests will verify it with the memories,
 packetizer, and credit logic it serves.
 The block boundaries in the cell PRD were chosen so a future CGRA array
@@ -87,7 +94,7 @@ replaces this ALU without disturbing the network, credit, or observation
 contracts (cell PRD §11); this PRD's interface contract (§4) is written to
 that same seam.
 
-Out of scope: the execution FSM's sequencing policy, the memories, the
+Out of scope: the issuer's sequencing policy (gatling's), the memories, the
 packetizer, credit/grant logic, and the delta node (all cell PRD territory).
 
 ## 2. Element model
@@ -160,7 +167,8 @@ v1 element width); its final disposition is §8.
 ### Function-set roadmap (owner ruling 2026-10-19)
 
 The v1 rows 0–7 in the table above stand unchanged. Row additions after
-FPGA bring-up, in priority order:
+FPGA bring-up, in priority order (all three implemented 2026-10-20 as
+opcodes 8, 9–10 and 11; MAS Chapter 2):
 
 1. **reduce** — sum/max tree over a span of lines into the fp32
    accumulator; unlocks softmax/layernorm/pooling.
@@ -173,7 +181,9 @@ FPGA bring-up, in priority order:
 Format roadmap, via the reserved `func_sel[8:7]` element-width field (open
 item M6): **int8** (4 lanes per 32-bit line) first — the same MAC fabric
 runs 4 MACs/clk and teaches quantization; **fp32** (1 lane per line)
-second — a general vector engine. **bf16 stays the v1 format.**
+second — a general vector engine. **bf16 stays the v1 format.** Both
+implemented 2026-10-20 (`func_sel[8:7]` = 1 int8, 2 fp32), with fp8 e4m3
+(§7) as format 3.
 
 **No-fork rationale:** there are no A/B/C ALU variants — one ALU per cell;
 heterogeneity belongs at cell/tile granularity because delta/tile is
@@ -182,7 +192,9 @@ ALUs for the falcon cores (a different role, not variants of this one).
 
 ## 4. Interface contract
 
-The contract the cell implementation obeys at the ALU↔FSM seam:
+The contract the cell implementation obeys at the issue seam (the ALU↔gatling
+seam; the MAS chapter "The Issue Seam" is the signal-level form, including
+the `err_opcode` status pulse added 2026-10-20):
 
 | Signal group | Direction | Width | Notes |
 |---|---|---|---|
@@ -192,8 +204,8 @@ The contract the cell implementation obeys at the ALU↔FSM seam:
 | `acc_ctrl` | in | — | accumulator clear / hold / accumulate (opcode 4 state) |
 | `result_line` | out | LINE_W | one line per invocation for all v1 rows (2 bf16 lanes, fp32-rounded at drain for opcode 4) |
 | `result_flags` | out | LINE_W | opcode-6 mask — one bit per lane, packed low (M5 closed 2026-10-17, owner ruling); zero for other rows |
-| `valid` / `ready` | in handshake | 1/1 | elastic issue: the invocation enters the row pipeline when `valid && ready`; `ready` deasserts only under downstream backpressure, so a new invocation may be accepted **every clock** while the output drains (II=1); the FSM holds `valid` and its operands/config stable while `ready` is low |
-| `result_valid` / `result_ready` | out handshake | 1/1 | elastic retire: each result is offered exactly `ROW_LATENCY` cycles after its issue (continuous drain) and held with stable data until accepted; results retire strictly in issue order |
+| `valid` / `ready` | in handshake | 1/1 | elastic issue: the invocation enters the row pipeline when `valid && ready`; `ready` deasserts only under downstream backpressure, so a new invocation may be accepted **every clock** while the output drains (II=1); the issuer holds `valid` and its operands/config stable while `ready` is low |
+| `result_valid` / `result_ready` | out handshake | 1/1 | elastic retire: each result is offered at its row's natural latency (MAS Table 2.6; the retired mailbox's uniform `ROW_LATENCY` is gone) and held with stable data until accepted; results retire strictly in issue order |
 
 Invariants:
 
@@ -231,71 +243,38 @@ Invariants:
 4. **Function-table growth.** New opcodes and sub-ops are additive rows;
    they must not change §4's handshake or the lane-independence invariant.
 
-## 5. Control interface — one RV32I core per tetrad, in-band everything
+## 5. Control interface — gatling issues the ALU; in-band everything
 
 **Owner ruling 2026-10-19:** gatling sequences the four ALUs of its
-adjacent cells. The barrel RV32I core is the programmable sequencer for its
-tetrad — each context runs a small program whose POP presents operands to
-the cell's alu-infer issue handshake and whose PUSH retires a result line;
-the ALU keeps its elastic valid/ready seam and tag-alignment contract
-unchanged. Gatling is also a barrel RISC-V with custom commands (Xcell:
-CFG/POP/PUSH/ECTX/FLUSH/KICK/WAIT) — the program is the schedule. Gatling
-never originates config traffic; cell configuration arrives in-band over
-delta.
+adjacent cells. The [`gatling-rv32itetrad`](../../riscv-ip/gatling-rv32itetrad/PRD.md)
+barrel RV32I core runs one context per cell; a context's program presents
+operands to the cell's alu-infer issue handshake and retires result lines
+(Xcell POP/PUSH, gatling PRD §3). The program is the schedule. The ALU
+keeps its elastic valid/ready seam and tag-alignment contract (§4)
+unchanged, and makes no pacing decisions of its own.
 
 The tile blocks take **all data, config, and programming in-band on delta**
-(owner ruling 2026-10-17). The programming stream rides with the data as
-`cfg` packets (cell PRD §3); the cells' demux writes the §7 register map
-from the stream — **the stream is the programmer**. Consequences, decided
-with the owner:
+(owner ruling 2026-10-17). Configuration rides with the data as `cfg`
+packets (cell PRD §3) and the cell's demux writes its register map from the
+stream — **the stream is the programmer**. Consequences:
 
-- **The tetrad controller is deliberately not a config originator.** No
-  config traffic is generated by the compute-side control core; configs
-  arrive inline with the delta traffic. There is no per-tetrad config
-  broadcaster to design or verify.
-- **One RV32I core per tetrad** (4 cells), four per tile: the local
-  programmable agent for its tetrad. The owner-authored
-  [`gatling-rv32itetrad`](../../riscv-ip/gatling-rv32itetrad/PRD.md) barrel
-  RISC-V is the tetrad sequencer (owner ruling 2026-10-19). **Kestrel-class**
-  — single-cycle, CPI 1, the repo's proven core (rv32ui battery and
-  riscv-formal green) — remains a `CORE_FLAVOR` candidate via the same swap
-  pattern HIVE-C uses. **Not SERV:** SERV is the repo's bit-serial *agent*
-  core, and its role is the Ocelus observability infrastructure (hive-serv
-  monitors) — its CPI class is wrong for compute control, and its job is
-  already taken.
-- **Duties** — local reaction, not programming: read cell status and IRQs
-  (done, error, grant-starved, credit-timeout — cell PRD §8) over the local
-  AXIL register plane; run small decision firmware (layer-boundary
-  detection, flush policy — the cell PRD §12 open item; local event
-  bookkeeping); exercise *operational* registers (flush-and-send, soft
-  reset, IRQ clear — the AXIL-for-registers plane, not fabric config). Its
-  own firmware arrives in-band like everything else's, booted through the
-  repo's loader-window pattern.
-- **Custom instructions stay minimal** (gatling Xcell subset in the custom-0
-  opcode space): KICK (funct3=100) starts its tetrad's cells once local
-  conditions hold, WAIT (funct3=101) stalls until the tetrad's group-done
-  bitmask is set; POP/PUSH present operands and retire results across the
-  ALU↔FSM seam. The gatling PRD v0.2 carries the exact encodings; the
-  ALU's elastic handshake and tag-alignment contract are unchanged. The
-  array's programming model remains the in-band stream; the core's firmware
-  programs only its own reactions.
-- **Why per-tetrad:** the tetrad is the tile's structural group; one
-  group-done per four cells; four independent control points allow layer
-  pipelining across tetrads without sixteen instruction streams or sixteen
-  I-mems. SIMD width per tetrad: 4 cells × 2 bf16 lanes = 8 bf16 lanes
-  stepping together; the 16-cell tile is 32 bf16 lanes.
+- **Gatling never originates config traffic.** There is no per-tetrad
+  config broadcaster to design or verify.
+- **One gatling per tetrad** (4 cells, four per tile): the tetrad is the
+  tile's structural group, with one group-done per four cells, and four
+  independent control points allow layer pipelining across tetrads
+  without sixteen instruction streams. SIMD width per tetrad: 4 cells × 2
+  bf16 lanes = 8 bf16 lanes stepping together (16 int8 or fp8 lanes in
+  those formats).
+- **Xcell stays minimal** (custom-0): CFG/POP/PUSH/ECTX/FLUSH/KICK/WAIT,
+  encodings in the gatling PRD v0.2. How POP/PUSH map onto this block's
+  issue fields is gatling-MAS scope.
 - **Observability stays with Ocelus.** The tile's MonBus aggregation and
-  the SERV-based monitor plane are untouched; the tetrad core reads
-  registers and reacts — it is control, not instrumentation (§8 lists the
-  boundary as an open detail).
-- **Deferral (owner direction 2026-10-18):** the tetrad engine — core
-  flavor, attach, and duties above — is defined **after the cell is fully
-  defined and working**. The cell is the lowest module (cell PRD v0.3 §1);
-  the owner-authored
-  [`gatling-rv32itetrad`](../../riscv-ip/gatling-rv32itetrad/PRD.md) barrel-core
-  PRD (2026-10-17) is the selected sequencer, with kestrel-class remaining a
-  candidate flavor via `CORE_FLAVOR`. The in-band-everything model in this
-  section is unchanged by the deferral.
+  the SERV-based monitor plane are untouched; gatling adds per-context
+  status to the observed set (gatling PRD §5). The ALU exposes no taps.
+- **Not SERV, not a per-cell FSM:** SERV is the Ocelus agent core; the
+  per-cell execution FSM of the first cell PRD is replaced by gatling
+  (gatling PRD §5).
 
 ## 6. Verification hooks
 
@@ -314,16 +293,22 @@ with the owner:
 - **Cross-check against `rtl/math`:** the ALU's rows instantiate the library
   blocks; a unit-vs-library diff on identical operands is a bug in exactly
   one of them.
-- **Controller bring-up** reuses the kestrel battery, loader contract, and
-  lockstep flow unchanged (the HIVE-C precedent); the kick/wait extension
-  and the in-band cfg stream are verified at the cell testbench level — the
-  cfg path already exists in the cell PRD's dataflow tests.
+- **Issuer bring-up** is gatling's (its PRD §6: spike lockstep on RV32I,
+  directed Xcell tests); the issue seam itself is verified here, with GAXI
+  BFMs standing in for gatling.
 - Coverage matrix: opcode (8) × special-value class × lane position (2 per
   line), plus accumulator chains and threshold immediate corners. The cell
   PRD's credit-loop tests already verify lines-in → credits-out
   independently of the datapath.
 
 ## 7. Deferred and growth
+
+Status 2026-10-20: implemented — pipelining knobs (`MUL_LATENCY`, and
+`MAC_LATENCY` operand stages ahead of a one-cycle fused accumulate),
+activations, reciprocal, exp2/log2, int8 drain, conversions, fp8 e4m3
+lanes. Not implemented, by this PRD's own rulings: divide (no true divider
+is planned, §3 roadmap), the B4–B32 companion mode, the CGRA replacement,
+and the cell-PRD items.
 
 - **Deep-pipelined multiplier / FMA rows** — the combinational fp32 FMA
   (with its accumulator feedback) is the timing risk at FPGA bring-up;
@@ -341,7 +326,7 @@ with the owner:
 - **Companion integer mode** (B4–B32) — deferred, and not currently planned;
   the bf16 model is the accelerator's single datapath (§2).
 - **CGRA replacement** — per cell PRD §11, an array replaces this ALU behind
-  the same FSM handshake.
+  the same issue handshake.
 - Context switching / multi-function pipelines and cell-initiated grant
   requests (both cell PRD §11) — cross-referenced, not restated.
 
@@ -367,8 +352,9 @@ with the owner:
 - **Result-flag line format** for opcode 6 — **closed 2026-10-17**
   (owner ruling): per-lane 1-bit mask, packed low in the `LINE_W`
   line (M5).
-- **`FUNC_SEL` element-width field disposition** — retire the field from
-  the register map, or keep it reserved for the fp8/integer growth modes.
+- **`FUNC_SEL` element-width field disposition** — **closed 2026-10-20 by
+  implementation:** `func_sel[8:7]` is the element-format field (0 bf16,
+  1 int8, 2 fp32, 3 fp8 e4m3), as the format roadmap planned (M6).
 
 ## 9. Dependencies
 
@@ -377,16 +363,13 @@ with the owner:
   `fma`, `comparator`, `min`, `max`, `relu`, plus the activation, divide,
   scale, and conversion blocks of the growth list.
 - [`cell/docs/PRD.md`](../cell/docs/PRD.md) — the cell around the ALU
-  (memories, FSM seam, packetizer, credits; reconciled to this PRD
+  (memories, issue seam, packetizer, credits; reconciled to this PRD
   2026-10-17).
-- [`kestrel-rv32i/`](../../riscv-ip/kestrel-rv32i/) — the tetrad controller's
-  reference core (falcon suite; `CORE_FLAVOR`-swappable per the HIVE-C
-  precedent).
+- [`gatling-rv32itetrad/`](../../riscv-ip/gatling-rv32itetrad/PRD.md) — the
+  tetrad barrel core that issues the ALU (§5).
 - [`tile/docs/TILE_SPEC.md`](../tile/docs/TILE_SPEC.md) §11 — packet,
   credit/grant, and coordinate protocols the cell (not the ALU) answers to;
-  listed so a reader of this PRD can find the whole contract. (The
-  tetrad-level control core is not yet recorded in the tile spec — flagged
-  for its next edit.)
+  listed so a reader of this PRD can find the whole contract.
 - [`rtl/math/references/README.md`](../../../../rtl/math/references/README.md)
   — the central math-paper index (bf16 format, activation, quantization, and
   fp8 citations for §§3, 7).
@@ -395,9 +378,8 @@ with the owner:
 
 - [`cell/docs/PRD.md`](../cell/docs/PRD.md) — the cell around the ALU
   (normative for everything except the ALU block, which this PRD owns).
-- [`riscv-ip/README.md`](../../riscv-ip/README.md) — the falcon suite
-  (kestrel rung: the tetrad controller's reference core; `CORE_FLAVOR`
-  precedent per the [hive-serv PRD](../hive-serv/PRD.md) §10.3).
+- [`gatling-rv32itetrad` PRD](../../riscv-ip/gatling-rv32itetrad/PRD.md) —
+  the issuer: barrel RV32I + Xcell, one context per cell.
 - S. Wang, P. Kanwar, "BFloat16: The Secret to High Performance on Cloud
   TPUs," Google Cloud blog, Aug. 2019 — the bf16 format's canonical
   definition (non-peer; citation-only in the math index).

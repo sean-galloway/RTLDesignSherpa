@@ -1,7 +1,7 @@
 # TASK-005: fp32 single-lane element width (func_sel[8:7], open item M6)
 
 **Priority:** P3
-**Status:** open -- 2026-10-19
+**Status:** closed -- 2026-10-20
 **Owner:** sean galloway
 
 ## Why
@@ -28,3 +28,9 @@ policy recorded in the MAS; M6 closed together with TASK-004.
 
 Lowest priority of the roadmap items — bf16+int8 cover the accelerator
 story; fp32 is the "compute vehicle" stretch.
+
+## Closed 2026-10-20
+
+func_sel[8:7] = 2: fp32 single lane on the IEEE 754-2008 adder (ADDER_LATENCY), multiplier (MUL_LATENCY) and FMA, plus min/max/compare/relu/const and the fp32 activations; fp8 e4m3 added as format 3 alongside. Tests `fmt_fp32`, `mac_formats`, `reduce`, `act`, `cvt`.
+
+Verified: gate (82 cells) and func (184 cells, COVERAGE=1) through the area Makefile, four build configs (default, deep, flat, lean); testplan 25/25 scenarios VERIFIED (--strict). MAS 0.50 reconciled. Sequenced ahead of FPGA bring-up at the owner's request ("implement all of the features in the ALU-infer MAS AND PRD", 2026-10-20).

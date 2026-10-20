@@ -23,124 +23,94 @@
 
 # ALU-INFER Micro-Architecture Specification Index
 
-**Component:** ALU-INFER — the cell's bf16 inference ALU (the cell PRD's
-"ALU + execution FSM" block, implemented inside the cell component)
+**Component:** ALU-INFER — the cell's inference ALU, issued by the tetrad's
+gatling core
 **Version:** 0.50 (pinned — revs held at 0.50 per owner, "for now," while
 the ALU heads to the board)
-**Date:** 2026-10-17
+**Date:** 2026-10-20
 **Purpose:** Detailed micro-architecture specification for the ALU-INFER
-block: what the datapath actually does, block by block
+block: what the datapath does, block by block, as built
 
 ---
 
 ## Overview
 
-ALU-INFER is the compute engine of the **cell**: a bf16 function array
-that the cell's execution FSM drives with a pop → compute → push loop,
-turning input-memory lines into result-memory lines under a
-config-selected function. It is built mostly from the `math_bf16_*`
-family of `rtl/math` — the adder, multiplier, FMA, comparator, min/max,
-and ReLU blocks are instantiated, not reinvented — and it holds exactly
-one piece of state: a per-lane fp32 MAC accumulator. This is the
-internals document, the one you open when you need to know what the
-datapath does rather than what the product definition
-([PRD](../../PRD.md)) requires of it.
+ALU-INFER is the compute engine of the **cell**. The tetrad's **gatling**
+barrel RV32I core issues it one invocation at a time over an elastic
+valid/ready seam: two operand lines, a function select, and accumulator
+control in; one result line and a flag line out, in issue order. Everything
+behind the seam — the function rows, the accumulator, the alignment FIFO —
+is this document.
+
+The rows are built from the `rtl/math` library (`math_bf16_*`, the IEEE
+754-2008 fp32 blocks, `math_fp8_e4m3_*`, the converters) plus a little
+integer logic for int8. The block holds two pieces of architectural state:
+the per-lane accumulator bank and the PWL lookup table.
 
 ### Key Features
 
-- **bf16 packed lanes:** a 32-bit line is two bf16 elements; every row
-  computes both lanes in parallel, independently
-- **Library-instantiated rows:** each of the seven v1 rows names its
-  `rtl/math` block (`math_bf16_adder`, `math_bf16_multiplier`,
-  `math_bf16_fma`, `math_bf16_comparator`, `math_bf16_min`,
-  `math_bf16_max`, `math_bf16_relu`) — structure, latency, and
-  special-value behavior are inherited from the library's own
-  documentation and dv
-- **fp32 MAC accumulation:** bf16×bf16 products are exact in fp32, so
-  the FMA row accumulates in fp32 and rounds to bf16 once per result
-  presentation — the production pattern, decided 2026-10-17
-- **Function-table growth:** opcodes 8–31 and new sub-ops are RTL table
-  rows behind the same valid/ready elastic pipeline; activations,
-  reciprocal/divide, and conversions are the queued growth set
-- **A hard boundary:** the ALU originates no config traffic (the stream
-  is the programmer), exposes no monitor taps (observability is
-  Ocelus's job), and speaks only to the cell FSM across one interface
+- **Four element formats** on `func_sel[8:7]`: bf16 (2 lanes per 32-bit
+  line), int8 (4), fp32 (1), fp8 e4m3 (4). Every lane is computed in
+  parallel and independently.
+- **23 opcodes**: the v1 rows (copy, add, sub, mul, mac, min/max,
+  compare, relu), the roadmap rows (reduce, PWL LUT activation, const),
+  the library activations (leaky-relu, gelu, sigmoid, silu, tanh,
+  reciprocal, exp2, log2, log2-scale) and format conversions.
+- **Accumulator rows** (MAC, REDUCE) on a 32-bit-per-lane bank: fp32 for
+  the float formats, int32 for int8; one-cycle accumulate loop, so a
+  dependent chain sustains one step per clock.
+- **Natural-latency result ports** (combinational, adder, multiplier,
+  accumulator) joined by an 8-bit tag FIFO: in-order retirement, II=1, no
+  padded stages.
+- **Build-out parameters** (`EN_INT8`, `EN_FP32`, `EN_FP8`, `EN_REDUCE`,
+  `EN_PWL`, `EN_ACT`, `EN_CVT`): a family built out decodes as illegal,
+  and the lean build is the v1 bf16 ALU.
+- **A hard boundary:** the ALU originates no config traffic, exposes no
+  monitor taps, and speaks only across the issue seam plus one
+  `err_opcode` status pulse.
 
 ### Design Philosophy
 
-**The math library is the datapath.** New arithmetic lands in
-`rtl/math` first and is consumed here second; the ALU is the library's
-inference consumer the way the falcon suite's garuda rung is its
-IEEE-fp32 consumer.
+**The math library is the datapath.** New arithmetic lands in `rtl/math`
+first and is consumed here second. The rows inherit each block's
+structure, numerics and special-value behavior, and the testbench checks
+each row against that block's own reference model.
 
-**FMA-first.** Inference time is multiply-accumulate time; every other
-row is sized to sit beside the FMA without dwarfing it, and the one
-piece of state in the block exists for the FMA's accumulator.
+**FMA-first.** Inference time is multiply-accumulate time. The
+accumulator loop is one fused operation per cycle; depth goes into the
+operand stages ahead of it, never into the loop.
 
-**A function table, not a function zoo.** The result select is a
-port-driven mode mux — no arbitration, no starvation — and the house
-block diagram correctly shows a plain box, not a trapezium.
+**A function table, not a function zoo.** Decode routes an invocation to
+one row and one result port; there is no arbitration, so nothing can
+starve.
 
 ## Design Notes
 
 ### Version History
 
-**Rev 0.50 (2026-10-18, current — revs pinned at 0.50 per owner, "for
-now," while the ALU heads to the board):** tag-based elastic alignment
-ruling (PRD v0.50) — each loaded invocation takes an 8-bit tag, common to
-all ops that must execute in parallel; a FIFO tracks tags in flight; an
-op's valid asserts only when every op of its tag group is ready.
-**Implemented 2026-10-19** (func+gate green, 13 cocotb tests ×
-{gate,func} × `PIPE_DEPTH` {4,8}): `alu_infer_pipe` is the tag FIFO with
-an arrival join; results retire in issue order at natural per-row
-latency; a stalled consumer no longer blocks issue until the FIFO fills;
-`ROW_LATENCY` is replaced by `PIPE_DEPTH` (default 8, [2,16]) and
-`ADDER_LATENCY` (default 3, [0,4]). The PRD's "exactly `ROW_LATENCY`
-cycles" phrasing described the retired mailbox realization; the seam
-contract is unchanged — tags stay inside the block. Carries Rev 0.5's
-port-width correction.
+**Rev 0.50, 2026-10-20 update (revs pinned at 0.50):** the PRD's
+function-set roadmap and growth rows implemented and verified — element
+formats on `func_sel[8:7]` (int8, fp32, fp8 e4m3 alongside bf16), REDUCE
+sum/max with a cross-lane fold, the 256-entry PWL LUT activation loaded
+in-band, const, the library activations and conversions, MAC in every
+format. The single combinational/late port pair became four
+natural-latency ports (`MUL_LATENCY`, `MAC_LATENCY` added), the
+accumulator gained an operand pipeline ahead of a one-cycle loop, illegal
+invocations pulse `err_opcode`, and `EN_*` parameters build families out.
+The issuer is gatling throughout. The exp2 row exposed a library bug
+(math BUG-009, `math_bf16_exp2` returned 0 for every x >= 256), fixed in
+`rtl/math`.
 
-**Rev 0.5 (2026-10-17):** port-width correction (PRD v0.9) —
-the v0.7 "widening" of `op_line_a/b` to `OP_LINES × LINE_W` was
-premised on a mis-count of operand lines vs lanes; a binary/mac
-invocation pops one line per side (OP_LINES counts the A+B pair), so
-the ports stay `LINE_W` each. The owner ruling underneath — both
-operand lines in the same clock — is unchanged. Diagram port labels
-re-rendered. Carries Rev 0.4's accept-and-defer pass and Rev 0.3's
-rulings.
+**Rev 0.50 (2026-10-18/19):** tag-based elastic alignment (owner ruling
+2026-10-18), implemented 2026-10-19: the alignment-timer mailbox became a
+tag FIFO with an arrival join; `ROW_LATENCY` became `PIPE_DEPTH` and
+`ADDER_LATENCY`.
 
-**Rev 0.4 (2026-10-17):** owner accept-and-defer pass —
-M7 and the `acc_ctrl` encoding accepted as drafted ("works for now");
-per-row latency work deferred to FPGA bring-up (M8), where aggressive
-per-function latency minimization is expected — the alignment-timer
-contract absorbs faster rows without interface churn (noted at
-`alu_infer_pipe`). PRD §8's result-flag question closed (packed low).
-Carries Rev 0.3's rulings.
-
-**Rev 0.3 (2026-10-17):** owner rulings closing the
-implementation gaps (PRD v0.7) — operand ports are `OP_LINES × LINE_W`
-so all operand lines present **in the same clock** and are captured at
-the issue edge (Waveform 3.1 redrawn; block-diagram port labels
-updated); **scheduler-paced feedback**: the ALU makes no autonomous
-pacing decisions; CLEAR flows through the pipe and retires a don't-care
-slot; an errored opcode retires its slot behind the IRQ; `result_flags`
-closed — one mask bit per lane, packed low (**M5 closed**).
-
-**Rev 0.2 (2026-10-17):** elastic-pipeline interface (owner
-direction, PRD v0.6) — the ALU↔FSM seam is documented as a valid/ready
-elastic pipeline: `valid`/`ready` issue handshake, `result_valid`/
-`result_ready` retire handshake, backpressure propagates upstream and
-freezes the alignment timer; Waveform 3.1 redrawn to show backpressure
-at both ends. Carries Rev 0.1's decisions unchanged.
-
-**Rev 0.1 (2026-10-17):** initial MAS, drafted alongside the
-PRD v0.3 decisions — bf16 element model on the `math_bf16_*` library,
-fp32 MAC accumulation (presentation semantics decided as M7), per-tetrad
-control interface, in-band config/programming. v1 RTL landed in
-`cell/rtl/` on 2026-10-17/18 (func+gate green) and moved to
-`alu-infer/rtl/` on 2026-10-20; chapters 2–4 document the
-as-built implementation and carry the open decisions M1–M8 of Chapter 6
-in their labels.
+**Rev 0.1–0.5 (2026-10-17):** initial MAS with the PRD v0.3 decisions
+(bf16 lanes on the `math_bf16_*` library, fp32 MAC accumulation, M7);
+elastic valid/ready seam; same-clock operand capture; scheduler-paced
+feedback; `result_flags` packed low (M5 closed); operand ports `LINE_W`
+each.
 
 ## References
 
@@ -148,18 +118,14 @@ in their labels.
 
 Diagram and waveform sources and their renders live in `assets/`:
 
-- **Source Files:**
-  - `assets/graphviz/*.dot` — Graphviz block-diagram sources (derived
-    from the PRD-canonical copies in `../../assets/graphviz/`)
-  - `assets/wavedrom/*.json` — WaveDrom timing-diagram sources
+- `assets/graphviz/*.dot` — block-diagram sources, derived from the
+  PRD-canonical copies in `../../assets/graphviz/`; `.png` renders beside
+  them
+- `assets/wavedrom/*.json` — timing-diagram sources; `.png` renders
 
-- **Rendered Files:**
-  - `assets/graphviz/*.png` — Rendered block diagrams
-  - `assets/wavedrom/*.png` — Rendered timing diagrams
-
-`gen_alu_infer_figures.py` (one directory up) regenerates the waveforms
-and copies the diagrams; each `graphviz/` directory's
-`regenerate_all_graphviz.sh` re-renders the `.dot` files.
+`gen_alu_infer_figures.py` (one directory up) regenerates the waveforms and
+copies the diagrams; each `graphviz/` directory's `regenerate_all_graphviz.sh`
+re-renders the `.dot` files.
 
 #### Diagrams
 
@@ -168,22 +134,22 @@ and copies the diagrams; each `graphviz/` directory's
 
 #### Waveforms
 
-1. **Elastic handshake (backpressure at both ends)** — [assets/wavedrom/wvf_3_1_invocation_handshake.png](assets/wavedrom/wvf_3_1_invocation_handshake.png)
-2. **Back-to-back issue (streaming)** — [assets/wavedrom/wvf_3_2_back_to_back.png](assets/wavedrom/wvf_3_2_back_to_back.png)
+1. **Elastic handshake** — [assets/wavedrom/wvf_3_1_invocation_handshake.png](assets/wavedrom/wvf_3_1_invocation_handshake.png)
+2. **Back-to-back issue** — [assets/wavedrom/wvf_3_2_back_to_back.png](assets/wavedrom/wvf_3_2_back_to_back.png)
 3. **MAC chain** — [assets/wavedrom/wvf_4_1_mac_chain.png](assets/wavedrom/wvf_4_1_mac_chain.png)
 
 ### Companion Specifications
 
-- **[alu-infer PRD](../../PRD.md)** — product definition (normative for
-  the ALU block; this MAS implements it)
+- **[alu-infer PRD](../../PRD.md)** — product definition (normative for the
+  ALU block; this MAS implements it)
+- **[gatling PRD](../../../../riscv-ip/gatling-rv32itetrad/PRD.md)** — the
+  tetrad barrel core that issues the ALU
 - **[cell PRD](../../../cell/docs/PRD.md)** — the cell around the ALU:
-  memories, FSM seam, packetizer, credit logic, §7 register map
+  memories, packetizer, credits, register map
 
 ### Project-Level
 
 - **README:** [../../README.md](../../README.md) — component pointer page
-- **TILE_SPEC §11.13:** [../../../tile/docs/TILE_SPEC.md](../../../tile/docs/TILE_SPEC.md) — the tetrad control core's place in the tile
-- **KESTREL MAS:** [../../../../riscv-ip/kestrel-rv32i/docs/kestrel_mas/kestrel_mas_index.md](../../../../riscv-ip/kestrel-rv32i/docs/kestrel_mas/kestrel_mas_index.md) — the tetrad control core's reference core
 - **rtl-math book:** [../../../../../../docs/markdown/rtl-math/index.md](../../../../../../docs/markdown/rtl-math/index.md) — the library the rows instantiate
 
 ## Navigation
@@ -203,13 +169,15 @@ Each chapter below is one source file.
 #### Chapter 2: Functional Blocks
 
 - [alu_infer_top (module tree)](ch02_blocks/01_module_tree.md)
-- [The Seven Function Rows](ch02_blocks/02_function_rows.md)
-- [The FP32 MAC Accumulator](ch02_blocks/03_mac_accumulate.md)
-- [Result Select and Line Composer](ch02_blocks/04_select_and_compose.md)
+- [The Function Rows](ch02_blocks/02_function_rows.md)
+- [The Accumulator Rows: MAC and REDUCE](ch02_blocks/03_mac_accumulate.md)
+- [Decode and Result Ports](ch02_blocks/04_decode_and_ports.md)
+- [The PWL LUT Activation](ch02_blocks/05_pwl_lut.md)
+- [Format Conversions](ch02_blocks/06_conversions.md)
 
 #### Chapter 3: Internal Interfaces
 
-- [The ALU↔FSM Interface](ch03_interfaces/01_alu_fsm_interface.md)
+- [The Issue Seam](ch03_interfaces/01_issue_seam.md)
 
 #### Chapter 4: Micro-Architecture Behavior
 
@@ -227,28 +195,24 @@ Each chapter below is one source file.
 
 #### For New Users
 
-1. Start with [Overview](ch01_overview/01_overview.md) for the design
-   commitments and the dataflow in one paragraph
-2. Read the [full block diagram chapter](ch02_blocks/01_module_tree.md)
-   for the module tree and parameters
-3. Study the [ALU↔FSM interface](ch03_interfaces/01_alu_fsm_interface.md)
-   for the handshake that brackets every invocation
-4. Reference [Configuration](ch06_configuration/01_configuration.md)
-   for encodings and the open-items register
+1. Start with [Overview](ch01_overview/01_overview.md) for the commitments
+   and the dataflow in one paragraph
+2. Read the [module tree](ch02_blocks/01_module_tree.md) for the blocks and
+   parameters
+3. Study [the issue seam](ch03_interfaces/01_issue_seam.md) for the
+   handshake that brackets every invocation
+4. Reference [Configuration](ch06_configuration/01_configuration.md) for
+   the opcode map and encodings
 
 #### For Implementers
 
-- **A row's datapath:** see [Function Rows](ch02_blocks/02_function_rows.md)
-  for the library block per opcode and its wiring
-- **The accumulator:** see [FP32 MAC Accumulator](ch02_blocks/03_mac_accumulate.md)
-  for CLEAR/ACCUMULATE/DRAIN semantics and isolation invariants
-- **Timing:** see [Compute Cycle](ch04_behavior/01_compute_cycle.md) with
-  the MAC-chain waveform
-- **Testbenches:** see [Verification Hooks](ch05_verification/01_verification_hooks.md)
-  for the golden model, the built-in library cross-check, and the
-  coverage matrix
+- **A row:** [Function Rows](ch02_blocks/02_function_rows.md)
+- **The accumulator:** [MAC and REDUCE](ch02_blocks/03_mac_accumulate.md)
+- **Timing:** [Decode and Result Ports](ch02_blocks/04_decode_and_ports.md)
+  and [Compute Cycle](ch04_behavior/01_compute_cycle.md)
+- **Testbenches:** [Verification Hooks](ch05_verification/01_verification_hooks.md)
 
 ---
 
-**Last Updated:** 2026-10-19
+**Last Updated:** 2026-10-20
 **Maintained By:** RTL Design Sherpa Project

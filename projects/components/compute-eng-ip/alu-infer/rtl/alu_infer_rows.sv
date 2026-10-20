@@ -5,24 +5,39 @@
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
 // Module: alu_infer_rows
-// Purpose: Seven row datapaths and func_sel decode for alu_infer_top
+// Purpose: The function table: decode, every row family, and the four
+//          result ports (combinational, adder, multiplier, accumulator) that
+//          carry each invocation's tag to the tag FIFO
 //
 // Documentation: projects/components/compute-eng-ip/alu-infer/docs/alu_infer_mas
-// Subsystem: cell
+// Subsystem: alu-infer
 //
 // Author: sean galloway
 // Created: 2026-10-17
+// Updated: 2026-10-20 -- element formats (func_sel[8:7]), reduce, PWL LUT,
+//          const, library activations, conversions; rows split per family;
+//          one result port per latency class
 
 `timescale 1ns / 1ps
 
 `include "reset_defs.svh"
 
-module alu_infer_rows #(
-    parameter int LINE_W     = 32,
-    parameter int N_LANES    = LINE_W / 16,
-    parameter int ACC_W      = 32,
+module alu_infer_rows
+    import alu_infer_pkg::*;
+#(
+    parameter int LINE_W        = 32,
     parameter int ADDER_LATENCY = 3,
-    parameter int TAG_W      = 8
+    parameter int MUL_LATENCY   = 0,
+    parameter int MAC_LATENCY   = 0,
+    parameter int TAG_W         = 8,
+    parameter int LEAKY_SHIFT   = 4,
+    parameter bit EN_INT8       = 1'b1,
+    parameter bit EN_FP32       = 1'b1,
+    parameter bit EN_FP8        = 1'b1,
+    parameter bit EN_REDUCE     = 1'b1,
+    parameter bit EN_PWL        = 1'b1,
+    parameter bit EN_ACT        = 1'b1,
+    parameter bit EN_CVT        = 1'b1
 ) (
     input  logic              clk,
     input  logic              aresetn,
@@ -34,277 +49,239 @@ module alu_infer_rows #(
     input  logic [1:0]        acc_ctrl,
 
     input  logic              issue,
-    input  logic              mac_issue,
     input  logic [TAG_W-1:0]  issue_tag,
 
-    output logic              row_write_valid,
-    output logic [TAG_W-1:0]  row_write_tag,
-    output logic [LINE_W-1:0] row_write_data,
-    output logic [LINE_W-1:0] row_write_flags,
+    output logic              o_err,          // issue of an illegal func_sel
 
-    // Late write path (pipelined adder result), carrying the invocation's
-    // tag through the row's own pipeline so the pipe can join by tag.
-    output logic              late_write_valid,
-    output logic [TAG_W-1:0]  late_write_tag,
-    output logic [LINE_W-1:0] late_write_data
+    output logic              port_valid [N_PORTS],
+    output logic [TAG_W-1:0]  port_tag   [N_PORTS],
+    output logic [LINE_W-1:0] port_data  [N_PORTS],
+    output logic [LINE_W-1:0] port_flags [N_PORTS]
 );
 
-    localparam logic [4:0] OPCODE_COPY  = 5'd0;
-    localparam logic [4:0] OPCODE_ADD   = 5'd1;
-    localparam logic [4:0] OPCODE_SUB   = 5'd2;
-    localparam logic [4:0] OPCODE_MUL   = 5'd3;
-    localparam logic [4:0] OPCODE_MAC   = 5'd4;
-    localparam logic [4:0] OPCODE_MINMAX= 5'd5;
-    localparam logic [4:0] OPCODE_CMP   = 5'd6;
-    localparam logic [4:0] OPCODE_RELU  = 5'd7;
+    logic [4:0] opcode;
+    logic [1:0] sub_op;
+    logic [1:0] fmt;
 
-    localparam logic [1:0] ACC_CLEAR  = 2'b10;
-    localparam logic [1:0] ACC_ACCUM  = 2'b01;
+    assign opcode = func_sel[4:0];
+    assign sub_op = func_sel[6:5];
+    assign fmt    = func_sel[8:7];
 
-    initial begin
-        if (ADDER_LATENCY < 0 || ADDER_LATENCY > 4) begin
-            $error("alu_infer_rows: ADDER_LATENCY must be in [0,4], got %0d", ADDER_LATENCY);
+    // ------------------------------------------------------------------
+    // Decode
+    // ------------------------------------------------------------------
+    logic       legal;
+    logic [1:0] port;
+
+    alu_infer_decode #(
+        .EN_INT8(EN_INT8), .EN_FP32(EN_FP32), .EN_FP8(EN_FP8),
+        .EN_REDUCE(EN_REDUCE), .EN_PWL(EN_PWL), .EN_ACT(EN_ACT), .EN_CVT(EN_CVT)
+    ) u_decode (
+        .func_sel (func_sel),
+        .o_legal  (legal),
+        .o_port   (port)
+    );
+
+    assign o_err = issue && !legal;
+
+    logic go_comb, go_add, go_mul, go_acc;
+    assign go_comb = issue && (port == 2'(PORT_COMB));
+    assign go_add  = issue && (port == 2'(PORT_ADD));
+    assign go_mul  = issue && (port == 2'(PORT_MUL));
+    assign go_acc  = issue && (port == 2'(PORT_ACC));
+
+    // ------------------------------------------------------------------
+    // Row families
+    // ------------------------------------------------------------------
+    logic [LINE_W-1:0] bf16_comb, bf16_flags, bf16_add, bf16_mul;
+    logic [LINE_W-1:0] int8_comb, int8_flags;
+    logic [LINE_W-1:0] fp32_comb, fp32_flags, fp32_add, fp32_mul;
+    logic [LINE_W-1:0] fp8_comb,  fp8_flags;
+    logic [LINE_W-1:0] act_line, pwl_line, cvt_line;
+    logic [31:0]       lut_rdata;
+
+    alu_infer_bf16_rows #(.LINE_W(LINE_W), .ADDER_LATENCY(ADDER_LATENCY)) u_bf16 (
+        .clk       (clk),
+        .aresetn   (aresetn),
+        .a_line    (op_line_a),
+        .b_line    (op_line_b),
+        .imm       (threshold_imm),
+        .opcode    (opcode),
+        .sub_op    (sub_op),
+        .add_issue (go_add && (fmt == FMT_BF16)),
+        .o_comb    (bf16_comb),
+        .o_flags   (bf16_flags),
+        .o_add     (bf16_add),
+        .o_mul     (bf16_mul)
+    );
+
+    generate
+        if (EN_INT8) begin : gen_int8
+            alu_infer_int8_rows #(.LINE_W(LINE_W)) u_int8 (
+                .a_line (op_line_a), .b_line(op_line_b), .imm(threshold_imm),
+                .opcode (opcode), .sub_op(sub_op),
+                .o_comb (int8_comb), .o_flags(int8_flags));
+        end else begin : gen_no_int8
+            assign int8_comb  = '0;
+            assign int8_flags = '0;
+        end
+
+        if (EN_FP32) begin : gen_fp32
+            alu_infer_fp32_rows #(.LINE_W(LINE_W), .ADDER_LATENCY(ADDER_LATENCY)) u_fp32 (
+                .clk       (clk),
+                .aresetn   (aresetn),
+                .a_line    (op_line_a),
+                .b_line    (op_line_b),
+                .imm       (threshold_imm),
+                .opcode    (opcode),
+                .sub_op    (sub_op),
+                .add_issue (go_add && (fmt == FMT_FP32)),
+                .o_comb    (fp32_comb),
+                .o_flags   (fp32_flags),
+                .o_add     (fp32_add),
+                .o_mul     (fp32_mul));
+        end else begin : gen_no_fp32
+            assign fp32_comb  = '0;
+            assign fp32_flags = '0;
+            assign fp32_add   = '0;
+            assign fp32_mul   = '0;
+        end
+
+        if (EN_FP8) begin : gen_fp8
+            alu_infer_fp8_rows #(.LINE_W(LINE_W)) u_fp8 (
+                .a_line (op_line_a), .b_line(op_line_b), .imm(threshold_imm),
+                .opcode (opcode), .sub_op(sub_op),
+                .o_comb (fp8_comb), .o_flags(fp8_flags));
+        end else begin : gen_no_fp8
+            assign fp8_comb  = '0;
+            assign fp8_flags = '0;
+        end
+
+        if (EN_ACT) begin : gen_act
+            alu_infer_act_rows #(
+                .LINE_W(LINE_W), .LEAKY_SHIFT(LEAKY_SHIFT),
+                .EN_FP32(EN_FP32), .EN_FP8(EN_FP8)
+            ) u_act (
+                .a_line (op_line_a), .opcode(opcode), .fmt(fmt), .o_line(act_line));
+        end else begin : gen_no_act
+            assign act_line = '0;
+        end
+
+        if (EN_PWL) begin : gen_pwl
+            alu_infer_pwl #(.LINE_W(LINE_W)) u_pwl (
+                .clk       (clk),
+                .lut_we    (go_comb && legal && (opcode == OP_PWL_LUT) && !sub_op[0]),
+                .lut_waddr (op_line_b[7:0]),
+                .lut_wdata (op_line_a[31:0]),
+                .lut_raddr (op_line_b[7:0]),
+                .lut_rdata (lut_rdata),
+                .a_line    (op_line_a),
+                .o_line    (pwl_line));
+        end else begin : gen_no_pwl
+            assign pwl_line  = '0;
+            assign lut_rdata = '0;
+        end
+
+        if (EN_CVT) begin : gen_cvt
+            alu_infer_cvt #(
+                .LINE_W(LINE_W), .EN_INT8(EN_INT8), .EN_FP32(EN_FP32), .EN_FP8(EN_FP8)
+            ) u_cvt (
+                .a_line (op_line_a), .b_line(op_line_b), .imm(threshold_imm),
+                .opcode (opcode), .src(fmt), .dst(sub_op), .o_line(cvt_line));
+        end else begin : gen_no_cvt
+            assign cvt_line = '0;
+        end
+    endgenerate
+
+    // ------------------------------------------------------------------
+    // Port 0: combinational rows, written at the issue edge.
+    // ------------------------------------------------------------------
+    logic [LINE_W-1:0] comb_data, comb_flags;
+
+    always_comb begin
+        comb_data  = '0;
+        comb_flags = '0;
+        if (legal) begin
+            case (opcode)
+                OP_PWL:             comb_data = pwl_line;
+                OP_PWL_LUT:         comb_data = sub_op[0] ? LINE_W'(lut_rdata) : '0;
+                OP_LEAKY, OP_GELU, OP_SIGMOID, OP_SILU, OP_TANH,
+                OP_RECIP, OP_EXP2, OP_LOG2, OP_QSCALE:
+                                    comb_data = act_line;
+                OP_CVT, OP_ALTFMT:  comb_data = cvt_line;
+                default: begin
+                    case (fmt)
+                        FMT_INT8: begin comb_data = int8_comb; comb_flags = int8_flags; end
+                        FMT_FP32: begin comb_data = fp32_comb; comb_flags = fp32_flags; end
+                        FMT_FP8:  begin comb_data = fp8_comb;  comb_flags = fp8_flags;  end
+                        default:  begin comb_data = bf16_comb; comb_flags = bf16_flags; end
+                    endcase
+                    if (opcode != OP_CMP) comb_flags = '0;
+                end
+            endcase
         end
     end
 
-    // Decode func_sel.
-    logic [4:0] opcode;
-    logic [1:0] sub_op;
-    logic [1:0] reserved;
+    assign port_valid[PORT_COMB] = go_comb;
+    assign port_tag[PORT_COMB]   = issue_tag;
+    assign port_data[PORT_COMB]  = comb_data;
+    assign port_flags[PORT_COMB] = comb_flags;
 
-    assign opcode   = func_sel[4:0];
-    assign sub_op   = func_sel[6:5];
-    assign reserved = func_sel[8:7];
+    // ------------------------------------------------------------------
+    // Port 1: adders (bf16 / fp32), ADDER_LATENCY after issue.  The library
+    // adders carry the data; this line carries the tag and format alongside.
+    // ------------------------------------------------------------------
+    logic       add_v;
+    logic [1:0] add_fmt;
 
-    // Lane decomposition: lane 0 = [15:0], lane 1 = [31:16].
-    logic [15:0] a_lane [N_LANES];
-    logic [15:0] b_lane [N_LANES];
+    alu_infer_delay #(.W(TAG_W + 2), .DEPTH(ADDER_LATENCY)) u_add_tag (
+        .clk     (clk),
+        .aresetn (aresetn),
+        .i_valid (go_add),
+        .i_data  ({issue_tag, fmt}),
+        .o_valid (add_v),
+        .o_data  ({port_tag[PORT_ADD], add_fmt})
+    );
 
-    generate
-        for (genvar i = 0; i < N_LANES; i++) begin : gen_lane_split
-            assign a_lane[i] = op_line_a[i*16 +: 16];
-            assign b_lane[i] = op_line_b[i*16 +: 16];
-        end
-    endgenerate
+    assign port_valid[PORT_ADD] = add_v;
+    assign port_data[PORT_ADD]  = (add_fmt == FMT_FP32) ? fp32_add : bf16_add;
+    assign port_flags[PORT_ADD] = '0;
 
-    // -------------------------------------------------------------------------
-    // Row results.
-    // -------------------------------------------------------------------------
-    logic [LINE_W-1:0] copy_result;
-    logic [LINE_W-1:0] addsub_result;
-    logic [LINE_W-1:0] mul_result;
-    logic [LINE_W-1:0] mac_result;
-    logic [LINE_W-1:0] minmax_result;
-    logic [LINE_W-1:0] cmp_result;
-    logic [LINE_W-1:0] cmp_flags;
-    logic [LINE_W-1:0] relu_result;
+    // ------------------------------------------------------------------
+    // Port 2: multipliers (bf16 / fp32), MUL_LATENCY after issue.
+    // ------------------------------------------------------------------
+    alu_infer_delay #(.W(TAG_W + LINE_W), .DEPTH(MUL_LATENCY)) u_mul_pipe (
+        .clk     (clk),
+        .aresetn (aresetn),
+        .i_valid (go_mul),
+        .i_data  ({issue_tag, (fmt == FMT_FP32) ? fp32_mul : bf16_mul}),
+        .o_valid (port_valid[PORT_MUL]),
+        .o_data  ({port_tag[PORT_MUL], port_data[PORT_MUL]})
+    );
 
-    // Copy row: A passthrough.
-    assign copy_result = op_line_a;
+    assign port_flags[PORT_MUL] = '0;
 
-    // Adder row (sub uses sign-flipped B).
-    logic [15:0] adder_result_lane [N_LANES];
-    logic [15:0] adder_b_input [N_LANES];
-    logic        adder_ow_valid [N_LANES];
-    logic        is_addsub;
-
-    assign is_addsub = (opcode == OPCODE_ADD) || (opcode == OPCODE_SUB);
-
-    generate
-        for (genvar i = 0; i < N_LANES; i++) begin : gen_adder_lane
-            assign adder_b_input[i] = (opcode == OPCODE_SUB) ?
-                (b_lane[i] ^ 16'h8000) : b_lane[i];
-
-            math_bf16_adder #(
-                .PIPE_STAGE_1(ADDER_LATENCY > 0 ? 1 : 0),
-                .PIPE_STAGE_2(ADDER_LATENCY > 1 ? 1 : 0),
-                .PIPE_STAGE_3(ADDER_LATENCY > 2 ? 1 : 0),
-                .PIPE_STAGE_4(ADDER_LATENCY > 3 ? 1 : 0)
-            ) u_adder (
-                .i_clk      (clk),
-                .i_rst_n    (aresetn),
-                .i_a        (a_lane[i]),
-                .i_b        (adder_b_input[i]),
-                .i_valid    (issue && is_addsub),
-                .ow_result  (adder_result_lane[i]),
-                .ow_overflow(),
-                .ow_underflow(),
-                .ow_invalid (),
-                .ow_valid   (adder_ow_valid[i])
-            );
-        end
-    endgenerate
-
-    // Late-write path for the adder: carry the invocation's tag through the
-    // row's pipeline so the result can join its tag group when it lands.
-    logic              adder_write_valid;
-    logic [TAG_W-1:0]  adder_write_tag;
-    logic [LINE_W-1:0] adder_write_data;
-
-    generate
-        if (ADDER_LATENCY > 0) begin : gen_adder_shift
-            logic [TAG_W-1:0] adder_tag_pipe [ADDER_LATENCY];
-            logic             adder_valid_pipe [ADDER_LATENCY];
-
-            `ALWAYS_FF_RST(clk, aresetn,
-                if (`RST_ASSERTED(aresetn)) begin
-                    for (int i = 0; i < ADDER_LATENCY; i++) begin
-                        adder_tag_pipe[i]   <= '0;
-                        adder_valid_pipe[i] <= 1'b0;
-                    end
-                end else begin
-                    adder_tag_pipe[0]   <= issue_tag;
-                    adder_valid_pipe[0] <= issue && is_addsub;
-                    for (int i = 1; i < ADDER_LATENCY; i++) begin
-                        adder_tag_pipe[i]   <= adder_tag_pipe[i-1];
-                        adder_valid_pipe[i] <= adder_valid_pipe[i-1];
-                    end
-                end
-            )
-
-            assign adder_write_valid = adder_valid_pipe[ADDER_LATENCY-1] && adder_ow_valid[0];
-            assign adder_write_tag   = adder_tag_pipe[ADDER_LATENCY-1];
-        end else begin : gen_adder_no_shift
-            assign adder_write_valid = issue && is_addsub && adder_ow_valid[0];
-            assign adder_write_tag   = issue_tag;
-        end
-    endgenerate
-
-    assign adder_write_data = {adder_result_lane[1], adder_result_lane[0]};
-    assign addsub_result    = adder_write_data;
-
-    // Multiplier row: one combinational multiplier per lane.
-    logic [15:0] mul_result_lane [N_LANES];
-
-    generate
-        for (genvar i = 0; i < N_LANES; i++) begin : gen_mul_lane
-            math_bf16_multiplier u_mul (
-                .i_a        (a_lane[i]),
-                .i_b        (b_lane[i]),
-                .ow_result  (mul_result_lane[i]),
-                .ow_overflow(),
-                .ow_underflow(),
-                .ow_invalid ()
-            );
-        end
-    endgenerate
-
-    assign mul_result = {mul_result_lane[1], mul_result_lane[0]};
-
-    // Min/max row: instantiate both and select by sub_op[0].
-    logic [15:0] min_result_lane [N_LANES];
-    logic [15:0] max_result_lane [N_LANES];
-
-    generate
-        for (genvar i = 0; i < N_LANES; i++) begin : gen_minmax_lane
-            math_bf16_min u_min (
-                .i_a       (a_lane[i]),
-                .i_b       (b_lane[i]),
-                .ow_result (min_result_lane[i])
-            );
-            math_bf16_max u_max (
-                .i_a       (a_lane[i]),
-                .i_b       (b_lane[i]),
-                .ow_result (max_result_lane[i])
-            );
-        end
-    endgenerate
-
-    assign minmax_result = { (sub_op[0] ? max_result_lane[1] : min_result_lane[1]),
-                             (sub_op[0] ? max_result_lane[0] : min_result_lane[0]) };
-
-    // Compare row: per-lane A < B or A < threshold_imm, packed into flags.
-    logic [N_LANES-1:0] cmp_lane_lt;
-
-    generate
-        for (genvar i = 0; i < N_LANES; i++) begin : gen_cmp_lane
-            logic [15:0] cmp_b;
-            logic        ow_lt;
-            assign cmp_b = sub_op[0] ? threshold_imm : b_lane[i];
-
-            math_bf16_comparator u_cmp (
-                .i_a       (a_lane[i]),
-                .i_b       (cmp_b),
-                .ow_eq     (),
-                .ow_lt     (ow_lt),
-                .ow_gt     (),
-                .ow_le     (),
-                .ow_ge     (),
-                .ow_ne     (),
-                .ow_unord  ()
-            );
-            assign cmp_lane_lt[i] = ow_lt;
-        end
-    endgenerate
-
-    assign cmp_result = '0;
-    assign cmp_flags  = {{(LINE_W-N_LANES){1'b0}}, cmp_lane_lt};
-
-    // ReLU row: per-lane on operand A.
-    logic [15:0] relu_result_lane [N_LANES];
-
-    generate
-        for (genvar i = 0; i < N_LANES; i++) begin : gen_relu_lane
-            math_bf16_relu u_relu (
-                .i_a       (a_lane[i]),
-                .ow_result (relu_result_lane[i])
-            );
-        end
-    endgenerate
-
-    assign relu_result = {relu_result_lane[1], relu_result_lane[0]};
-
-    // MAC row: FP32 accumulator with BF16 read-back view.
-    logic [LINE_W-1:0] acc_line;
-
+    // ------------------------------------------------------------------
+    // Port 3: MAC / REDUCE, MAC_LATENCY after issue.
+    // ------------------------------------------------------------------
     alu_infer_acc #(
-        .LINE_W (LINE_W),
-        .N_LANES(N_LANES),
-        .ACC_W  (ACC_W)
+        .LINE_W(LINE_W), .MAC_LATENCY(MAC_LATENCY), .TAG_W(TAG_W),
+        .EN_INT8(EN_INT8), .EN_FP32(EN_FP32), .EN_FP8(EN_FP8)
     ) u_acc (
         .clk       (clk),
         .aresetn   (aresetn),
-        .mac_issue (mac_issue),
+        .acc_issue (go_acc),
+        .issue_tag (issue_tag),
+        .a_line    (op_line_a),
+        .b_line    (op_line_b),
+        .imm       (threshold_imm),
+        .func_sel  (func_sel),
         .acc_ctrl  (acc_ctrl),
-        .a_line   (op_line_a),
-        .b_line   (op_line_b),
-        .acc_line (acc_line)
+        .o_valid   (port_valid[PORT_ACC]),
+        .o_tag     (port_tag[PORT_ACC]),
+        .o_line    (port_data[PORT_ACC])
     );
 
-    assign mac_result = acc_line;
-
-    // -------------------------------------------------------------------------
-    // Row select and issue-time write generation.
-    // -------------------------------------------------------------------------
-    logic [LINE_W-1:0] selected_result;
-    logic [LINE_W-1:0] selected_flags;
-
-    always_comb begin
-        selected_result = copy_result;
-        selected_flags  = '0;
-        case (opcode)
-            OPCODE_COPY:   selected_result = copy_result;
-            OPCODE_ADD,
-            OPCODE_SUB:    selected_result = addsub_result;
-            OPCODE_MUL:    selected_result = mul_result;
-            OPCODE_MAC:    selected_result = mac_result;
-            OPCODE_MINMAX: selected_result = minmax_result;
-            OPCODE_CMP:    begin selected_result = cmp_result; selected_flags = cmp_flags; end
-            OPCODE_RELU:   selected_result = relu_result;
-            default:       begin selected_result = '0; selected_flags = '0; end
-        endcase
-    end
-
-    // Issue-time rows write at the issue edge.  The adder's late-write path
-    // is a separate port pair; the pipe applies both in the same cycle.
-    assign row_write_valid = issue && !is_addsub;
-    assign row_write_tag   = issue_tag;
-    assign row_write_data  = selected_result;
-    assign row_write_flags = selected_flags;
-
-    // Late write path: pipelined adder result, joined by tag.
-    assign late_write_valid = adder_write_valid;
-    assign late_write_tag   = adder_write_tag;
-    assign late_write_data  = adder_write_data;
+    assign port_flags[PORT_ACC] = '0;
 
 endmodule : alu_infer_rows

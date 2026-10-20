@@ -25,102 +25,71 @@
 
 ## Purpose
 
-`alu_infer_top` is the ALU block instantiated inside the cell, at the
-seam the cell PRD calls "ALU + execution FSM". It owns everything
-between the operand-line inputs and the result-line outputs: element
-decompose, the seven function rows, the fp32 MAC accumulator, the
-result select, and the line composer.
+`alu_infer_top` is the ALU block the cell instantiates at its issue seam.
+It owns everything between the operand inputs and the result outputs:
+decode, the row families, the accumulator, the result ports and the tag
+FIFO.
 
 ## Module Tree
 
 ```text
-alu_infer_top                               — the ALU block at the cell seam
-├── alu_infer_rows                          — the function table
-│   ├── row_copy                            — bypass (wires)
-│   ├── row_addsub    (math_bf16_adder)     — opcode 1/2
-│   ├── row_mul       (math_bf16_multiplier)— opcode 3
-│   ├── row_mac       (math_bf16_fma)       — opcode 4, with alu_infer_acc
-│   ├── row_minmax    (math_bf16_min/max)   — opcode 5
-│   ├── row_compare   (math_bf16_comparator)— opcode 6
-│   └── row_relu      (math_bf16_relu)      — opcode 7
-├── alu_infer_pipe                          — tag FIFO + arrival join
-└── alu_infer_acc                           — fp32 accumulator bank (2 lanes)
+alu_infer_top                     the ALU block at the issue seam
+├── alu_infer_pipe                tag FIFO + arrival join (one join per port)
+└── alu_infer_rows                the function table
+    ├── alu_infer_decode          legality + result-port routing
+    ├── alu_infer_bf16_rows       bf16: add/sub, mul, min/max, cmp, relu, const
+    ├── alu_infer_int8_rows       int8: saturating add/sub/mul, min/max, cmp, relu, const   [EN_INT8]
+    ├── alu_infer_fp32_rows       fp32: IEEE add/sub, mul, min/max, cmp, relu, const          [EN_FP32]
+    ├── alu_infer_fp8_rows        fp8 e4m3: add/sub, mul, min/max, cmp, relu, const           [EN_FP8]
+    ├── alu_infer_act_rows        activations (bf16/fp32/fp8) + recip/exp2/log2/qscale (bf16) [EN_ACT]
+    ├── alu_infer_pwl             256-entry PWL LUT activation                                 [EN_PWL]
+    ├── alu_infer_cvt             CVT and ALTFMT conversions                                   [EN_CVT]
+    ├── alu_infer_delay           tag/data delay lines (adder tag, MUL_LATENCY)
+    └── alu_infer_acc             MAC / REDUCE: operand pipeline + accumulate stage + bank
+        └── alu_infer_delay       MAC_LATENCY operand stages
 ```
 
-The as-built RTL folds the planned `alu_infer_decompose`,
-`alu_infer_select`, `alu_infer_compose`, and `alu_infer_decode`
-submodules of earlier drafts into `alu_infer_rows.sv`. The four source
-files are `alu_infer_top.sv`, `alu_infer_rows.sv`, `alu_infer_pipe.sv`,
-and `alu_infer_acc.sv` in `projects/components/compute-eng-ip/alu-infer/rtl/`.
-
-The tree is flat on purpose: every child is one rank of the block
-diagram, the data flows strictly top-down through them, and growth rows
-extend `alu_infer_rows` without touching any sibling — the CGRA
-replacement boundary of the cell PRD §11 runs around this whole tree.
-
-`alu_infer_pipe` is what makes the elastic handshake (Chapter 3) true
-— and it is deliberately *not* a bank of padding stages. It is a **tag
-FIFO with an arrival join** (owner ruling 2026-10-18, as-built since
-2026-10-19): each issue takes the next 8-bit tag from a free-running
-counter, common to every op the invocation loads into the pipeline; the
-FIFO tracks the tags in flight in issue order; and an entry's result is
-offered only when every op of its tag group has arrived. v1 issues one
-row-op per invocation, so a tag group is a single arrival — the join is
-exercised structurally and multi-op groups (parallel issue of ops that
-must finish together) are the growth path the mechanism was ruled for.
-Quick rows (copy, mul, min/max, compare, relu, mac) compute
-combinationally and land at the issue edge; the add/sub row lands
-`ADDER_LATENCY` cycles later and re-joins its entry by tag compare —
-not by position — so a row's pipeline depth is its own business. The
-join yields group-aligned, strictly in-order retirement at natural
-per-row latency, and it "naturally takes care of the elastic nature"
-(owner, ibid.): a stalled consumer simply leaves the head entry offered
-while rows behind it keep landing, and `ready` falls only when the FIFO
-is genuinely full — never earlier. Only rows whose *timing* genuinely
-requires depth carry real stages: the adder as configured (its
-`PIPE_STAGE_1..4` = `ADDER_LATENCY`), and whatever the integration clock
-demands of the multiplier/FMA (§7 growth — the join absorbs deeper rows
-unchanged). Per-row natural latency is deliberately a knob: an
-aggressively optimized row (a faster multiplier or FMA, say) lands in
-`rtl/math` and simply joins earlier — the interface never changes
-(owner direction 2026-10-17: latency work happens on FPGA).
+`alu_infer_pkg` (`rtl/includes/`) holds the shared encodings: opcodes,
+formats, `acc_ctrl`, port numbers. Each `[EN_*]` family is a generate
+branch: built out, it costs nothing and decodes as illegal (Chapter 2.4).
+The four planned submodules of the first draft (decompose, select,
+compose, decode) are absorbed: lane split and pack are part-selects inside
+each row family, and the select is the per-port mux in `alu_infer_rows`.
 
 ### Figure 2.1: ALU-INFER full block diagram
 
 ![Figure 2.1: ALU-INFER full block diagram](../assets/graphviz/02_alu_infer_block.png)
 
-White boxes are ports (the top rank is the interface of Chapter 3);
-blue boxes are this block's logic — double-bordered where registered
-(the adder row, the tag FIFO + arrival join); dashed boxes are state
-(`alu_infer_acc`) and sideband (`clk, rst_n`). Every arrow is labeled
-with what it carries — the operand trunk splits once at the decompose
-output and fans to the seven rows, exactly the shared-trunk pattern of
-the house style.
+The element key is the house v3 key: green rounded boxes are the seam,
+white boxes combinational logic, double-bordered blue boxes registered,
+lavender cylinders storage, and dashed outlines build-optional families.
+The four result ports sit in one rank above the tag FIFO. Each port
+carries its rows' results and tags at that port's latency.
 
 ## Parameters
 
 | Parameter | Default | Meaning |
 |-----------|---------|---------|
-| `LINE_W` | 32 | Line width in bits; wider lines scale the lane count, never the element width (PRD §2) |
-| `N_LANES` | `LINE_W / 16` | bf16 lanes per line (2 at `LINE_W = 32`) |
-| `ACC_W` | 32 | fp32 accumulator width per lane |
-| `PIPE_DEPTH` | 8 | Tag-FIFO entries = maximum invocations in flight; valid range [2,16]. Sizes the stall tolerance, never a latency — presentation is at natural per-row speed |
-| `ADDER_LATENCY` | 3 | Pipe stages of the add/sub row's `math_bf16_adder` (`PIPE_STAGE_1..4`); valid range [0,4] |
-| `TAG_W` | 8 | Alignment tag width in bits (owner ruling 2026-10-18); 256 values can never alias the ≤16 entries in flight |
+| `LINE_W` | 32 | Line width; a positive multiple of 32. Lanes scale with it, element widths never do |
+| `PIPE_DEPTH` | 8 | Tag-FIFO entries = invocations in flight, [2,16]; the stall tolerance, not a latency |
+| `ADDER_LATENCY` | 3 | bf16 and fp32 adder pipe stages (the library `PIPE_STAGE_1..4`), [0,4] |
+| `MUL_LATENCY` | 0 | bf16 and fp32 multiplier output stages, [0,4]; retiming candidates |
+| `MAC_LATENCY` | 0 | Operand stages ahead of the one-cycle accumulate stage, [0,4] |
+| `TAG_W` | 8 | Alignment tag width (owner ruling 2026-10-18) |
+| `LEAKY_SHIFT` | 4 | Leaky-relu alpha = 2^-LEAKY_SHIFT, every format |
+| `EN_INT8`, `EN_FP32`, `EN_FP8` | 1 | Build the element format |
+| `EN_REDUCE`, `EN_PWL`, `EN_ACT`, `EN_CVT` | 1 | Build the row family |
+| `N_LANES`, `ACC_W` | `LINE_W/16`, 32 | Retained for compatibility; not used by the rows |
 
 : Table 2.1: `alu_infer_top` parameters
 
-No behavior-switch parameters exist in v1: the element model is bf16
-only, and the `func_sel` element-width field is reserved (Chapter 6).
-
 ## Clock and Reset
 
-Single clock, active-low async `aresetn` (house `ALWAYS_FF_RST`) —
-matching the cell and the tile's single-clock-domain decision (TILE_SPEC
-§9). Reset clears the accumulator bank and the registered config
-snapshot (`func_sel`, `acc_ctrl`); it does not clear anything else,
-because nothing else is state.
+Single clock, active-low asynchronous `aresetn` (house `ALWAYS_FF_RST`),
+matching the cell. Reset clears the tag FIFO, the delay lines and the
+accumulator bank. The PWL table is a memory and has no reset (house SRAM
+rule): it must be loaded before use (Chapter 2.5).
 
 ---
 
-**Last Updated:** 2026-10-19
+**Last Updated:** 2026-10-20

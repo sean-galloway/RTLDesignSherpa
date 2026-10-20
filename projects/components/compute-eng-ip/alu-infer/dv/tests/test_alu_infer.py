@@ -32,7 +32,13 @@ record completed transfers on both.  See dv/tbclasses/alu_infer_tb.py.
 
 Test types (TEST_TYPE env): copy_timing, add_sub, mul, minmax, compare, relu,
 mac, backpressure, error_opcode, special_grid, mixed_soak, sub_ulp_corner,
-tag_join.
+tag_join (v1 bf16 rows); fmt_int8, fmt_fp32, fmt_fp8, const, act, cvt,
+reduce, mac_formats, mac_chain, pwl, latency, softmax (element formats and the
+roadmap/growth rows).
+
+Build configs (BUILD_CFG, the last parametrize axis): default (RTL
+defaults), deep (ADDER/MUL/MAC latencies 4/2/2), flat (every latency 0) and
+lean (every EN_* off: the v1 bf16 ALU, everything else illegal).
 """
 
 import os
@@ -65,7 +71,7 @@ from cov_utils.conftest_coverage import get_coverage_compile_args
 # interfaces through GAXI BFMs.  This runner only dispatches by TEST_TYPE.
 #===============================================================================
 
-@cocotb.test(timeout_time=10, timeout_unit="ms")
+@cocotb.test(timeout_time=50, timeout_unit="ms")
 async def cocotb_test_alu_infer(dut):
     """Unified ALU-INFER test - handles all test types via TEST_TYPE env var."""
     test_type = os.environ.get('TEST_TYPE', 'copy_timing')
@@ -87,6 +93,18 @@ async def cocotb_test_alu_infer(dut):
         'mixed_soak': tb.test_mixed_soak,
         'sub_ulp_corner': tb.test_sub_ulp_corner,
         'tag_join': tb.test_tag_join,
+        'fmt_int8': tb.test_fmt_int8,
+        'fmt_fp32': tb.test_fmt_fp32,
+        'fmt_fp8': tb.test_fmt_fp8,
+        'const': tb.test_const,
+        'act': tb.test_act,
+        'cvt': tb.test_cvt,
+        'reduce': tb.test_reduce,
+        'mac_formats': tb.test_mac_formats,
+        'mac_chain': tb.test_mac_chain,
+        'pwl': tb.test_pwl,
+        'latency': tb.test_latency,
+        'softmax': tb.test_softmax,
     }
     if test_type not in scenarios:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
@@ -99,19 +117,44 @@ async def cocotb_test_alu_infer(dut):
 # PARAMETER GENERATION
 #===============================================================================
 
-TEST_TYPES = [
+V1_TYPES = [
     'copy_timing', 'add_sub', 'mul', 'minmax', 'compare', 'relu', 'mac',
     'backpressure', 'error_opcode', 'special_grid', 'mixed_soak',
     'sub_ulp_corner', 'tag_join',
 ]
+EXT_TYPES = [
+    'fmt_int8', 'fmt_fp32', 'fmt_fp8', 'const', 'act', 'cvt', 'reduce',
+    'mac_formats', 'mac_chain', 'pwl', 'latency', 'softmax',
+]
+TEST_TYPES = V1_TYPES + EXT_TYPES
+
+# Build configurations: RTL parameter overrides per config name.
+BUILD_CFGS = {
+    'default': {},
+    'deep': {'ADDER_LATENCY': '4', 'MUL_LATENCY': '2', 'MAC_LATENCY': '2'},
+    'flat': {'ADDER_LATENCY': '0', 'MUL_LATENCY': '0', 'MAC_LATENCY': '0'},
+    'lean': {'EN_INT8': '0', 'EN_FP32': '0', 'EN_FP8': '0', 'EN_REDUCE': '0',
+             'EN_PWL': '0', 'EN_ACT': '0', 'EN_CVT': '0'},
+}
+# What each non-default config re-runs: the timing-sensitive scenarios for
+# the latency configs, the v1 suite plus the illegal sweep for lean.
+CFG_TYPES = {
+    'deep': ['copy_timing', 'tag_join', 'latency', 'add_sub', 'mul', 'mac',
+             'mac_chain', 'reduce', 'mac_formats', 'fmt_fp32', 'mixed_soak'],
+    'flat': ['copy_timing', 'tag_join', 'latency', 'add_sub', 'mul', 'mac',
+             'mac_chain', 'reduce', 'fmt_fp32', 'mixed_soak'],
+    'lean': ['copy_timing', 'add_sub', 'mul', 'minmax', 'compare', 'relu', 'mac',
+             'error_opcode', 'mixed_soak', 'tag_join', 'latency'],
+}
 
 
 def generate_params():
     """
     Generate parameters for ALU-INFER tests based on REG_LEVEL.
 
-    GATE/FUNC/FULL: every test type at PIPE_DEPTH {4, 8} (default profile =
-    'backtoback', zero-delay valid/ready).
+    GATE/FUNC/FULL: every test type at PIPE_DEPTH {4, 8} on the default build
+    (default profile = 'backtoback', zero-delay valid/ready), plus each
+    non-default build config's scenario list at PIPE_DEPTH 8.
     FUNC and FULL sweep the mixed soak across the standard delay profiles from
     GAXI_RANDOMIZER_CONFIGS (bin/TBClasses/amba/amba_random_configs.py) -- the
     elastic pipeline under randomized valid/ready timing:
@@ -121,21 +164,24 @@ def generate_params():
       FULL adds: constrained, burst_pause, high_throughput, gaxi_stress
 
     Returns:
-        List of tuples: (test_type, pipe_depth, timing_profile)
+        List of tuples: (test_type, pipe_depth, timing_profile, build_cfg)
     """
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
 
     pipe_depths = ['4', '8']
-    params = [(t, pd, 'default') for t in TEST_TYPES for pd in pipe_depths]
+    params = [(t, pd, 'default', 'default') for t in TEST_TYPES for pd in pipe_depths]
+    for cfg, types in CFG_TYPES.items():
+        params += [(t, '8', 'default', cfg) for t in types]
 
     if reg_level in ('FUNC', 'FULL'):
         for profile in ['fast', 'slow_producer', 'slow_consumer',
                         'gaxi_realistic', 'gaxi_backpressure']:
-            params.append(('mixed_soak', '8', profile))
+            params.append(('mixed_soak', '8', profile, 'default'))
+            params.append(('mixed_soak', '8', profile, 'deep'))
     if reg_level == 'FULL':
         for profile in ['constrained', 'burst_pause', 'high_throughput',
                         'gaxi_stress']:
-            params.append(('mixed_soak', '8', profile))
+            params.append(('mixed_soak', '8', profile, 'default'))
 
     return params
 
@@ -147,9 +193,9 @@ params = generate_params()
 # PYTEST WRAPPER FUNCTION - Single wrapper for all test types
 #===============================================================================
 
-@pytest.mark.parametrize("test_type, pipe_depth, timing_profile", params)
+@pytest.mark.parametrize("test_type, pipe_depth, timing_profile, build_cfg", params)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_alu_infer(request, test_type, test_level, pipe_depth, timing_profile):
+def test_alu_infer(request, test_type, test_level, pipe_depth, timing_profile, build_cfg):
     """Pytest wrapper for ALU-INFER tests - handles all test types."""
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
 
@@ -159,7 +205,7 @@ def test_alu_infer(request, test_type, test_level, pipe_depth, timing_profile):
     os.makedirs(log_dir, exist_ok=True)
 
     # Format parameters for a unique test name (xdist compatibility)
-    test_name = f'{module}_{test_type}_{test_level}_pd{pipe_depth}_{timing_profile}'
+    test_name = f'{module}_{test_type}_{test_level}_pd{pipe_depth}_{timing_profile}_{build_cfg}'
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name = f'{test_name}_{worker_id}'
@@ -220,10 +266,11 @@ def test_alu_infer(request, test_type, test_level, pipe_depth, timing_profile):
         sim_build=sim_build,
         work_dir=sim_build,
         results_xml=results_path,
-        parameters={'PIPE_DEPTH': pipe_depth},
+        parameters={'PIPE_DEPTH': pipe_depth, **BUILD_CFGS[build_cfg]},
         extra_env=extra_env,
         waves=enable_waves,
         plus_args=['--trace'] if enable_waves else [],
     )
 
-    print(f"ALU-INFER {test_type} [{test_level}, PIPE_DEPTH={pipe_depth}] completed! Logs: {log_path}")
+    print(f"ALU-INFER {test_type} [{test_level}, PIPE_DEPTH={pipe_depth}, {build_cfg}] "
+          f"completed! Logs: {log_path}")

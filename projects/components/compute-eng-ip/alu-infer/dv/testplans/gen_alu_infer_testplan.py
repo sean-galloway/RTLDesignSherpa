@@ -30,12 +30,23 @@ RTL_FILES = [
     'alu_infer_rows.sv',
     'alu_infer_pipe.sv',
     'alu_infer_acc.sv',
+    'alu_infer_decode.sv',
+    'alu_infer_delay.sv',
+    'alu_infer_bf16_rows.sv',
+    'alu_infer_int8_rows.sv',
+    'alu_infer_fp32_rows.sv',
+    'alu_infer_fp8_rows.sv',
+    'alu_infer_act_rows.sv',
+    'alu_infer_pwl.sv',
+    'alu_infer_cvt.sv',
 ]
 
 TEST_TYPES = [
     'copy_timing', 'add_sub', 'mul', 'minmax', 'compare', 'relu', 'mac',
     'backpressure', 'error_opcode', 'special_grid', 'mixed_soak',
     'sub_ulp_corner', 'tag_join',
+    'fmt_int8', 'fmt_fp32', 'fmt_fp8', 'const', 'act', 'cvt', 'reduce',
+    'mac_formats', 'mac_chain', 'pwl', 'latency', 'softmax',
 ]
 
 SCENARIOS = {
@@ -67,9 +78,11 @@ SCENARIOS = {
                      'Consumer stall: results hold, tag FIFO fills, issue '
                      'backpressures, in-order resume on release',
                      'test_alu_infer (backpressure)', 'high'),
-    'error_opcode': ('ALUINF-09', 'Reserved opcode handling',
-                     'Out-of-range opcode retires in order and returns zero',
-                     'test_alu_infer (error_opcode)', 'medium'),
+    'error_opcode': ('ALUINF-09', 'Illegal func_sel handling',
+                     'Every illegal class (unassigned opcode, undefined format, '
+                     'unsupported conversion pair, EN_* built-out family) retires '
+                     'in order with a zero line and pulses err_opcode once',
+                     'test_alu_infer (error_opcode)', 'high'),
     'special_grid': ('ALUINF-10', 'Special-value grid',
                      'Special-value grid (0/inf/NaN/subnormal) across '
                      'add/sub/mul/minmax/compare/relu',
@@ -89,6 +102,58 @@ SCENARIOS = {
                  'Tag-based alignment: fast rows wait behind an earlier slow '
                  'row sharing the tag; first-offer timing checked cycle-exact',
                  'test_alu_infer (tag_join)', 'high'),
+    'fmt_int8': ('ALUINF-14', 'int8 element format',
+                 'int8 rows (4 lanes): saturating add/sub/mul, min/max, compare '
+                 'vs B and imm, relu, const, copy vs the exact integer model',
+                 'test_alu_infer (fmt_int8)', 'high'),
+    'fmt_fp32': ('ALUINF-15', 'fp32 element format',
+                 'fp32 rows (1 lane) on the IEEE 754-2008 blocks vs the library '
+                 'reference models; adder on the adder port, mul on the mul port',
+                 'test_alu_infer (fmt_fp32)', 'high'),
+    'fmt_fp8': ('ALUINF-16', 'fp8 e4m3 element format',
+                'fp8 e4m3 rows (4 lanes) on the math_fp8_e4m3 blocks vs the '
+                'library reference models',
+                'test_alu_infer (fmt_fp8)', 'high'),
+    'const': ('ALUINF-17', 'const / bias row',
+              'threshold_imm broadcast into every lane in all four formats',
+              'test_alu_infer (const)', 'medium'),
+    'act': ('ALUINF-18', 'Library activation rows',
+            'leaky-relu/gelu/sigmoid/silu/tanh (bf16, fp32, fp8) and bf16 '
+            'reciprocal/exp2/log2/log2-scale vs each block reference and '
+            'its library tolerance',
+            'test_alu_infer (act)', 'high'),
+    'cvt': ('ALUINF-19', 'Format conversions',
+            'OP_CVT for every library pair (narrowing packs A then B, '
+            'widening takes the B part select, bf16->int8 quantizes by imm) '
+            'and OP_ALTFMT bf16<->fp16/e5m2',
+            'test_alu_infer (cvt)', 'high'),
+    'reduce': ('ALUINF-20', 'REDUCE sum/max and fold',
+               'REDUCE sum/max in every format: identity CLEAR, span '
+               'accumulate, DRAIN/HOLD, cross-lane fold broadcast',
+               'test_alu_infer (reduce)', 'high'),
+    'mac_formats': ('ALUINF-21', 'MAC in int8/fp32/fp8',
+                    'MAC chains: int8 into int32 with the requantize shift, '
+                    'fp32 on the IEEE FMA, fp8 widened into the bf16 FMA',
+                    'test_alu_infer (mac_formats)', 'high'),
+    'mac_chain': ('ALUINF-22', 'Long dependent MAC chain at II=1',
+                  'More than 100 dependent bf16 MAC steps streamed back to '
+                  'back: every view exact, one retirement per clock',
+                  'test_alu_infer (mac_chain)', 'high'),
+    'pwl': ('ALUINF-23', 'PWL LUT activation',
+            'Table loaded in-band, read back, evaluated bit-exactly vs the row '
+            'model, approximation error bounded (sigmoid/tanh/gelu/silu/exp)',
+            'test_alu_infer (pwl)', 'high'),
+    'latency': ('ALUINF-24', 'Per-port natural latency',
+                'Each result port at its latency (comb 0, adders '
+                'ADDER_LATENCY, multipliers MUL_LATENCY, accumulator '
+                'MAC_LATENCY) in every format; in-order retirement behind '
+                'the slowest port',
+                'test_alu_infer (latency)', 'high'),
+    'softmax': ('ALUINF-25', 'Softmax sequence',
+                'The roadmap rows composed with issuer-paced feedback: REDUCE '
+                'max + fold, SUB, PWL exp, REDUCE sum + fold, RECIP, MUL; '
+                'checked against float softmax',
+                'test_alu_infer (softmax)', 'high'),
 }
 
 DIR_RE = re.compile(r'test_alu_infer_(.+)_(gate|func|full)_pd\d+_')
@@ -186,11 +251,12 @@ def main():
     w('test_file: projects/components/compute-eng-ip/alu-infer/dv/tests/test_alu_infer.py')
     w('')
     w('# Module description:')
-    w('# BF16 inference ALU at the cell execution-FSM seam. One GAXI-style')
+    w('# Inference ALU at the cell issue seam (driven by gatling). bf16, int8,')
+    w('# fp32 and fp8 element formats on func_sel[8:7]. One GAXI-style')
     w('# valid/ready issue interface (op lines, func_sel, acc_ctrl), one')
-    w('# valid/ready result interface. Elastic pipeline: comb rows retire the')
-    w('# cycle after issue, the pipelined adder row after ADDER_LATENCY, MAC')
-    w('# drains on acc_ctrl; an 8-bit tag FIFO joins ops that must align.')
+    w('# valid/ready result interface. Elastic pipeline: four result ports')
+    w('# (comb, adder, multiplier, accumulator), each at its natural latency,')
+    w('# joined in issue order by an 8-bit tag FIFO.')
     w('')
     w('parameters:')
     w('  - name: LINE_W')
@@ -207,7 +273,16 @@ def main():
     w('    description: In-flight bound (tag FIFO depth); tested at 4 and 8')
     w('  - name: ADDER_LATENCY')
     w('    default: 3')
-    w('    description: Pipelined adder row latency (0-4)')
+    w('    description: bf16/fp32 adder row latency (0-4); tested at 0, 3, 4')
+    w('  - name: MUL_LATENCY')
+    w('    default: 0')
+    w('    description: bf16/fp32 multiplier row output stages (0-4); tested at 0, 2')
+    w('  - name: MAC_LATENCY')
+    w('    default: 0')
+    w('    description: Operand stages ahead of the accumulate stage (0-4); tested at 0, 2')
+    w('  - name: EN_INT8 / EN_FP32 / EN_FP8 / EN_REDUCE / EN_PWL / EN_ACT / EN_CVT')
+    w('    default: 1')
+    w('    description: Build-out switches; each tested off in the lean build')
     w('  - name: TAG_W')
     w('    default: 8')
     w('    description: Alignment tag width')

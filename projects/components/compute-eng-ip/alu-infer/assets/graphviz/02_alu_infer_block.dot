@@ -1,97 +1,74 @@
-// ALU-INFER full block diagram — house style per
-// vault/handbook/authoring/block-diagrams.md (single-clock block mapping:
-// white input ports on top, parallel function rows in one rank, mode select
-// dashed, state dashed, white output bar at the bottom; no trapezium — the
-// function pick is a port-driven mode select, a plain box; shared operand
-// trunk splits at a labeled point node). The tag FIFO + arrival join is the
-// registered alignment stage between the composer and the output bar
-// (owner ruling 2026-10-18, as-built 2026-10-19).
+// ALU-INFER full block diagram -- element key v3 per
+// vault/handbook/authoring/block-diagrams.md: interfaces green rounded,
+// combinational white, registered double-border blue, storage lavender
+// cylinder, build-optional families dashed (EN_* parameters).
+// Shape of the RTL (2026-10-20): decode routes each invocation to one of
+// four result ports by latency class; every port carries the invocation's
+// 8-bit tag to the tag FIFO, which retires in issue order.
 digraph alu_infer_block {
     rankdir=TB;
     graph [bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.30", ranksep="0.55", splines=ortho];
+           nodesep="0.40", ranksep="0.65", splines=ortho];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="white", color="black", margin="0.12,0.06"];
-    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize="0.7"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
 
-    // ---- Ports (white), pinned to the top rank so sideband ports never
-    // sit inside the function-row rank ----
-    { rank=same; pa; pb; timm; fsel; actl; clk; }
-    pa  [label="op_line_a (32b)\nsame-clock capture", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    pb  [label="op_line_b (32b)\nsame-clock capture", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    timm [label="threshold_imm\n(bf16)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    fsel [label="func_sel (9b)\nopcode + sub-op + reserved", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    actl [label="acc_ctrl\nclear / hold / acc / drain", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    clk  [label="clk, rst_n", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    // ---- Issue seam (from gatling) ----
+    { rank=same; hsi; fsel; ops; actl; }
+    hsi -> fsel -> ops -> actl [style=invis];
+    ops  [label="op_line_a, op_line_b (LINE_W)\nthreshold_imm (16b)\nissue seam (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
+    fsel [label="func_sel (9b)\n{fmt, sub_op, opcode}", style="rounded,filled", fillcolor="#E2EFDA"];
+    actl [label="acc_ctrl (2b)\nhold / acc / clear / drain", style="rounded,filled", fillcolor="#E2EFDA"];
+    hsi  [label="valid / ready\nissue handshake", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    // ---- Element decompose (one block, both operands) ----
-    da [label="Element decompose\n2xbf16 lanes per 32-bit line (A, B)", style="filled", fillcolor="white"];
-    p  [shape=point, style=invis, label="", width="0.05", fixedsize=true];
+    // ---- Decode and row families ----
+    { rank=same; dec; rf32; rbf; rnar; rext; lut; }
+    dec -> rf32 -> rbf -> rnar -> rext -> lut [style=invis];
+    dec  [label="Decode\nalu_infer_decode\nlegal?  result port"];
+    rbf  [label="bf16 rows\nadd/sub  mul  min/max\ncompare  relu  const"];
+    rf32 [label="fp32 rows (EN_FP32)\nIEEE adder, mul\nmin/max  compare  relu", style="filled,dashed"];
+    rnar [label="int8 + fp8 e4m3 rows\n(EN_INT8, EN_FP8)\nadd/sub mul min/max\ncompare relu", style="filled,dashed"];
+    rext [label="Activations, PWL, conversions\n(EN_ACT, EN_PWL, EN_CVT)\nlibrary activations, slope*x+icpt,\nCVT / ALTFMT", style="filled,dashed"];
+    lut  [label="PWL LUT\n256 x {slope, icpt}\nloaded in-band", shape=cylinder, style="filled,dashed", fillcolor="#E8DFF5"];
 
-    // ---- Function rows (one rank; rtl/math block on the second line) ----
-    fcopy [label="Copy / passthrough\n(bypass lane)", style="filled", fillcolor="white"];
-    fadd  [label="Add / Subtract\nmath_bf16_adder", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    fmul  [label="Multiply\nmath_bf16_multiplier", style="filled", fillcolor="white"];
-    fmac  [label="FMA / MAC\nmath_bf16_fma", style="filled", fillcolor="white"];
-    fmm   [label="Min / Max\nmath_bf16_min/max", style="filled", fillcolor="white"];
-    fcmp  [label="Compare / threshold\nmath_bf16_comparator", style="filled", fillcolor="white"];
-    frelu [label="ReLU\nmath_bf16_relu", style="filled", fillcolor="white"];
+    // ---- Result ports ----
+    { rank=same; err; p2; p1; p0; acc; }
+    err -> p2 -> p1 -> p0 -> acc [style=invis];
+    p0   [label="Port 0: combinational\nselect by opcode + fmt\nlands at the issue edge"];
+    p1   [label="Port 1: adders\nbf16 / fp32\nADDER_LATENCY", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    p2   [label="Port 2: multipliers\nbf16 / fp32\nMUL_LATENCY", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    acc  [label="Port 3: accumulator\nMAC_LATENCY operand stages,\none-cycle accumulate loop,\n32b bank per 8-bit lane", shape=box, peripheries=2, fillcolor="#D6E4F0"];
+    err  [label="err_opcode\nstatus pulse (comb)", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    // ---- Post paths ----
-    sel  [label="Result select (mode mux)\ny = row[func_sel.opcode]", style="filled", fillcolor="white"];
-    comp [label="Line composer\npack 2xbf16 -> 32b line\n(MAC: fp32 -> bf16 RNE at drain)", style="filled", fillcolor="white"];
+    fifo [label="Tag FIFO + arrival join  alu_infer_pipe\nPIPE_DEPTH entries, 8-bit tag per issue,\neach port joins its entry by tag", shape=cylinder, fillcolor="#E8DFF5"];
+    out  [label="result_valid / result_ready, result_line, result_flags\nretire in issue order (flopped)", style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
 
-    // ---- Alignment stage (registered): the owner-ruled tag FIFO ----
-    pipe [label="Tag FIFO + arrival join\nalu_infer_pipe — 8-bit tag per issue\nPIPE_DEPTH entries, valid/ready elastic",
-          peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    // ---- Flow ----
+    ops -> rbf  [penwidth=1.8];
+    ops -> rf32;
+    ops -> rnar;
+    ops -> rext;
+    ops -> acc  [xlabel="A, B, imm"];
+    rbf  -> p1  [xlabel="sum"];
+    rbf  -> p2  [xlabel="product"];
+    rbf  -> p0  [penwidth=1.8];
+    rf32 -> p1;
+    rf32 -> p2;
+    rf32 -> p0;
+    rnar -> p0;
+    rext -> p0;
+    lut  -> rext [dir=both, style=dashed, color="#777777"];
 
-    // ---- Outputs (white bar) ----
-    out  [label="result_line (32b)\nto FSM / result-memory push", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    flg  [label="result_flags\nmask / flags (opcode 6)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    p0   -> fifo [penwidth=1.8, xlabel="line, flags, tag"];
+    p1   -> fifo [xlabel="sum, tag"];
+    p2   -> fifo [xlabel="product, tag"];
+    acc  -> fifo [xlabel="view, tag"];
+    fifo -> out  [penwidth=1.8];
 
-    // ---- Handshake ports (white bar, sideband) ----
-    hsi  [label="valid / ready\n(issue)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    hso  [label="result_valid /\nresult_ready\n(retire)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-
-    // ---- State (dashed sideband) ----
-    acc  [label="fp32 MAC accumulator\n(per lane)", style="filled,dashed", peripheries=2, fillcolor="#D6E4F0"];
-
-    // ---- Operand trunk ----
-    pa -> da [label="operand line A"];
-    pb -> da [label="operand line B"];
-    da -> p  [label="bf16 lanes"];
-    p -> fcopy;
-    p -> fadd;
-    p -> fmul;
-    p -> fmac;
-    p -> fmm;
-    p -> fcmp;
-    p -> frelu;
-    timm -> fcmp [label="bf16 imm"];
-
-    // ---- Row results into the mode select ----
-    fcopy -> sel [label="passthrough"];
-    fadd  -> sel [label="sum / diff"];
-    fmul  -> sel [label="product"];
-    fmac  -> sel [label="fused (fp32)"];
-    fmm   -> sel [label="min / max"];
-    fcmp  -> sel [label="mask"];
-    frelu -> sel [label="activated"];
-
-    // ---- Compose, align, retire ----
-    sel  -> comp [label="selected lanes"];
-    fcmp -> comp [label="mask bits"];
-    comp -> pipe [label="line + flags + tag"];
-    pipe -> out  [label="result line\n(in issue order)"];
-    pipe -> flg  [label="mask / flags\n(in issue order)"];
-
-    // ---- Sideband: handshake, config, accumulator, clock ----
-    hsi  -> pipe [style=dashed, color="#777777", label="tag assign at issue"];
-    pipe -> hso  [style=dashed, color="#777777", label="offer / hold"];
-    fsel -> sel  [style=dashed, color="#777777", label="row + sub-op select"];
-    actl -> acc  [style=dashed, color="#777777", label="acc control"];
-    acc  -> fmac [dir=both, style=dashed, color="#777777", label="acc read / update"];
-    clk  -> acc  [style=dashed, color="#777777", label="clk"];
-    clk  -> comp [style=dashed, color="#777777", label="clk"];
-    clk  -> pipe [style=dashed, color="#777777", label="clk"];
+    // ---- Sideband ----
+    hsi  -> dec [style=dashed, color="#777777"];
+    fsel -> dec [style=dashed, color="#777777"];
+    dec  -> err [style=dashed, color="#777777"];
+    dec  -> p0  [style=dashed, color="#777777", xlabel="route"];
+    actl -> acc [style=dashed, color="#777777"];
 }

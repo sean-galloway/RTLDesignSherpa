@@ -58,6 +58,12 @@ from TBClasses.common.bf16_testing import (
     BF16Utils, BF16_SPECIAL_GRID,
 )
 
+from .alu_infer_ext_tests import AluInferExtTests
+from .alu_infer_golden import (
+    FMT_BF16, FMT_INT8, FMT_FP32, FMT_FP8, CVT_ILLEGAL, ACT_OPS, BF16_ONLY_OPS,
+    OP_REDUCE, OP_PWL, OP_PWL_LUT, OP_CVT, OP_ALTFMT, OP_LEAKY, OP_RECIP,
+)
+
 # ----------------------------------------------------------------------------
 # Golden model -- BF16 references matching the rtl/math library contracts
 # (moved here unchanged from the pre-BFM suite; see bf16_testing.py for the
@@ -258,7 +264,7 @@ OP_CMP = 6
 OP_RELU = 7
 
 
-class AluInferTB(TBBase):
+class AluInferTB(AluInferExtTests, TBBase):
     """Testbench for alu_infer_top: GAXI BFMs on both valid/ready interfaces."""
 
     # Per-level stimulus depths (TEST_LEVEL env, set per cell by the runner).
@@ -273,10 +279,12 @@ class AluInferTB(TBBase):
         self.dut = dut
         self.line_w = int(dut.LINE_W.value)
         self.pipe_depth = int(dut.PIPE_DEPTH.value)
-        try:
-            self.adder_latency = int(dut.ADDER_LATENCY.value)
-        except Exception:
-            self.adder_latency = 3
+        self.adder_latency = self._param('ADDER_LATENCY', 3)
+        self.mul_latency = self._param('MUL_LATENCY', 0)
+        self.mac_latency = self._param('MAC_LATENCY', 0)
+        self.en = {k: self._param(k, 1) for k in
+                   ('EN_INT8', 'EN_FP32', 'EN_FP8', 'EN_REDUCE', 'EN_PWL', 'EN_ACT', 'EN_CVT')}
+        self.err_pulses = 0
         self.level = os.environ.get('TEST_LEVEL', 'gate').lower()
 
         self.cycle = 0
@@ -286,6 +294,13 @@ class AluInferTB(TBBase):
         self.result_slave = None
         self.mon_issue = None
         self.mon_result = None
+
+    def _param(self, name, default):
+        """A DUT parameter, or the RTL default when the simulator hides it."""
+        try:
+            return int(getattr(self.dut, name).value)
+        except Exception:
+            return default
 
     # ------------------------------------------------------------------
     # Setup
@@ -304,6 +319,7 @@ class AluInferTB(TBBase):
         await self.wait_clocks('clk', 5)
         self._create_bfms()
         cocotb.start_soon(self._count_cycles())
+        cocotb.start_soon(self._count_err_pulses())
 
     async def _count_cycles(self):
         while True:
@@ -391,16 +407,16 @@ class AluInferTB(TBBase):
 
     CLK_NS = 10   # setup_clocks_and_reset starts a 10 ns clock
 
-    def _make_packet(self, opcode, a=0, b=0, imm=0, sub_op=0, acc_ctrl=0):
+    def _make_packet(self, opcode, a=0, b=0, imm=0, sub_op=0, acc_ctrl=0, fmt=0):
         """Build one invocation packet for the issue master."""
         return self.issue_master.create_packet(
             op_line_a=a, op_line_b=b, threshold_imm=imm,
-            func_sel=func_sel_word(opcode, sub_op), acc_ctrl=acc_ctrl)
+            func_sel=func_sel_word(opcode, sub_op, fmt), acc_ctrl=acc_ctrl)
 
-    async def issue(self, opcode, a=0, b=0, imm=0, sub_op=0, acc_ctrl=0):
+    async def issue(self, opcode, a=0, b=0, imm=0, sub_op=0, acc_ctrl=0, fmt=0):
         """Send one invocation; returns the packet (end_time = issue edge)."""
         pkt = self._make_packet(opcode, a=a, b=b, imm=imm, sub_op=sub_op,
-                                acc_ctrl=acc_ctrl)
+                                acc_ctrl=acc_ctrl, fmt=fmt)
         await self.issue_master.send(pkt)
         return pkt
 
@@ -782,28 +798,60 @@ class AluInferTB(TBBase):
 
         self.log.info("backpressure PASSED")
 
+    def illegal_func_sels(self):
+        """(opcode, sub_op, fmt) triples this build must reject: unassigned
+        opcodes, formats a row does not define, unsupported conversion
+        pairs, and every family an EN_* parameter built out."""
+        ill = [(op, 0, FMT_BF16) for op in range(23, 32)]
+        ill += [(op, 0, FMT_INT8) for op in ACT_OPS + BF16_ONLY_OPS]
+        ill += [(op, 0, f) for op in BF16_ONLY_OPS for f in (FMT_FP32, FMT_FP8)]
+        ill += [(op, 0, f) for op in (OP_PWL, OP_PWL_LUT) for f in (FMT_INT8, FMT_FP32, FMT_FP8)]
+        ill += [(OP_ALTFMT, 0, f) for f in (FMT_INT8, FMT_FP32, FMT_FP8)]
+        ill += [(OP_CVT, dst, src) for src, dst in CVT_ILLEGAL]
+        fam = {'EN_REDUCE': [(OP_REDUCE, 0, FMT_BF16)],
+               'EN_PWL': [(OP_PWL, 0, FMT_BF16), (OP_PWL_LUT, 0, FMT_BF16)],
+               'EN_ACT': [(OP_LEAKY, 0, FMT_BF16), (OP_RECIP, 0, FMT_BF16)],
+               'EN_CVT': [(OP_CVT, FMT_FP32, FMT_BF16), (OP_ALTFMT, 0, FMT_BF16)],
+               'EN_INT8': [(OP_ADD, 0, FMT_INT8), (OP_MAC, 0, FMT_INT8)],
+               'EN_FP32': [(OP_ADD, 0, FMT_FP32), (OP_MUL, 0, FMT_FP32)],
+               'EN_FP8': [(OP_ADD, 0, FMT_FP8), (OP_COPY, 0, FMT_FP8)]}
+        for k, ops in fam.items():
+            if not self.en[k]:
+                ill += ops
+        return ill
+
     async def test_error_opcode(self):
-        """Out-of-range opcode retires in order and returns zero."""
-        self.log.info("=== error_opcode: in-order error retirement ===")
+        """Illegal func_sel: retires in order with a zero line and zero
+        flags, and pulses err_opcode exactly once at its issue edge."""
+        self.log.info("=== error_opcode: illegal classes retire in order, err_opcode ===")
         self.drain_results()
+        illegal = self.illegal_func_sels()
+        if self.level == 'gate':
+            illegal = illegal[::3]
 
-        sent = [
-            (pack_bf16_line(0x3F80, 0x4000), 0, 0),   # copy 1.0, 2.0
-            (pack_bf16_line(0x0000, 0x0000), 8, 0),   # invalid opcode -> zero
-            (pack_bf16_line(0x4040, 0x4080), 0, 0),   # copy 3.0, 4.0
-        ]
+        cases, expected = [], []
+        for k, (op, sub, fmt) in enumerate(illegal):
+            copy_a = pack_bf16_line(0x3F80 + k, 0x4000 + k)
+            cases.append((OP_COPY, 0, 0, copy_a))
+            expected.append(copy_a)
+            cases.append((op, sub, fmt, 0x3F803F80))
+            expected.append(0)
 
-        for a, opcode, sub_op in sent:
-            await self.issue(opcode, sub_op=sub_op, a=a)
-
-        expected = [sent[0][0], 0x00000000, sent[2][0]]
-        got = await self.recv_results(3)
+        start_pulses = self.err_pulses
+        pkts = [self._make_packet(op, a=a, sub_op=sub, fmt=fmt) for op, sub, fmt, a in cases]
+        await self.issue_burst(pkts)
+        got = await self.recv_results(len(pkts), timeout_cycles=len(pkts) + 128)
         for i, exp in enumerate(expected):
             line, flags = got[i]
-            assert line == exp, f"result {i} mismatch: got 0x{line:08X}, exp 0x{exp:08X}"
+            assert line == exp, f"result {i} {cases[i][:3]}: got 0x{line:08X}, exp 0x{exp:08X}"
             assert flags == 0, f"result {i} flags mismatch: got 0x{flags:08X}"
+        await self.wait_clocks('clk', 2)
+        pulses = self.err_pulses - start_pulses
+        assert pulses == len(illegal), \
+            f"err_opcode pulsed {pulses} times for {len(illegal)} illegal issues"
 
-        self.log.info("error_opcode PASSED")
+        self.log.info(f"error_opcode PASSED ({len(illegal)} illegal func_sels, "
+                      f"{pulses} err_opcode pulses)")
 
     async def test_special_grid(self):
         """Special-value grid for add/sub/mul/minmax/compare/relu."""
@@ -971,7 +1019,7 @@ class AluInferTB(TBBase):
                 a = rand_bf16()
                 b = rand_bf16()
                 imm = rand_bf16() & 0xFFFF
-                opcode = random.choice([0, 1, 2, 3, 4, 5, 6, 7, 8])
+                opcode = random.choice([0, 1, 2, 3, 4, 5, 6, 7, 23])
                 sub_op = random.choice([0, 1])
                 acc_ctrl = random.choice([0, 1, 2, 3])
 
@@ -1066,7 +1114,8 @@ class AluInferTB(TBBase):
 
         assert n_copy == 0, f"copy latency {n_copy}, expected 0 (combinational row)"
         assert n_relu == 0, f"relu latency {n_relu}, expected 0 (combinational row)"
-        assert n_mul == 0, f"mul latency {n_mul}, expected 0 (combinational row)"
+        assert n_mul == self.mul_latency, \
+            f"mul latency {n_mul}, expected MUL_LATENCY={self.mul_latency}"
         assert n_add == self.adder_latency, \
             f"add latency {n_add}, expected ADDER_LATENCY={self.adder_latency}"
         self.log.info(f"  natural latencies: copy/relu/mul = 1 cycle, add = {n_add + 1} cycles")
