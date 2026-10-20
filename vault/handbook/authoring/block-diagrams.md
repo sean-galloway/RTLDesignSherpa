@@ -287,7 +287,76 @@ edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
   centered under the drawing with a tiny PIL/Pillow script
   (alpha-composite onto white). Deterministic, pixel-exact, and the key's
   own spacing (short arrows, tight nodesep) stops fighting the main
-  graph's.
+  graph's. The full recipe, copy-ready (case: `mem-ctrl-ip/debug`, owner
+  approved 2026-10-19):
+
+  1. Strip the `cluster_key` from the drawing's dot file; the drawing and
+     the key are now two independent files. The key file is a single
+     same-rank row — samples and short arrows only, no other structure:
+
+  ```dot
+  digraph key {
+      rankdir=TB;
+      graph [nodesep=0.14, ranksep=0.3, fontname="Helvetica", bgcolor=none];
+      node  [fontname="Helvetica", fontsize=8];
+      edge  [fontname="Helvetica", fontsize=8, arrowsize=0.7];
+      k_lbl [label="Key", shape=none, fontsize=11];
+      // one invisible-point pair per sample arrow: two tiny endpoints
+      // give the label guaranteed-empty space; nothing can overdraw it
+      k_s1a [shape=point, width=0.01, style=invis];
+      k_s1b [shape=point, width=0.01, style=invis];
+      k_s2a [shape=point, width=0.01, style=invis];
+      k_s2b [shape=point, width=0.01, style=invis];
+      k_s3a [shape=point, width=0.01, style=invis];
+      k_s3b [shape=point, width=0.01, style=invis];
+      // one node per class, fills per the element key table above
+      k_log  [label="logic", shape=box];
+      k_flop [label="registered", shape=box, peripheries=2,
+              style="filled", fillcolor="#D6E4F0"];
+      k_sto  [label="storage", shape=cylinder, style="filled",
+              fillcolor="#E8DFF5"];
+      k_arb  [label="arbiter / pick", shape=invtrapezium, style="filled",
+              fillcolor="#FFF2CC"];
+      k_if   [label="interface\n(flopped)", shape=box, style="rounded,filled",
+              fillcolor="#E2EFDA"];
+      k_ifc  [label="interface\n(comb)", shape=box, style="rounded,filled,dashed",
+              fillcolor="#E2EFDA"];
+      { rank=same; k_lbl; k_s1a; k_s1b; k_s2a; k_s2b; k_s3a; k_s3b;
+        k_log; k_flop; k_sto; k_arb; k_if; k_ifc; }
+      // NO splines=ortho in this file: ortho swallows plain edge labels
+      // (recipe above), and short horizontal samples don't need it
+      k_s1a -> k_s1b [label="flow"];
+      k_s2a -> k_s2b [label="heavy", penwidth=1.8];
+      k_s3a -> k_s3b [label="sideband", style=dashed, color="#777777"];
+  }
+  ```
+
+  2. Render both at the same dpi, then composite — main centered at the
+     top, key centered beneath it on a white canvas:
+
+  ```bash
+  dot -Tpng -Gdpi=150 -oX_main.png X_main.dot
+  dot -Tpng -Gdpi=150 -oX_key.png  X_key.dot
+  ```
+
+  ```python
+  # composite_key.py -- pixel-exact centering dot cannot do
+  from PIL import Image
+  main = Image.open("X_main.png").convert("RGBA")   # dot writes RGBA
+  key  = Image.open("X_key.png").convert("RGBA")    # bgcolor=none -> alpha
+  gap  = 25
+  canvas = Image.new("RGBA",
+                     (max(main.width, key.width),
+                      main.height + gap + key.height), "white")
+  canvas.paste(main, ((canvas.width - main.width) // 2, 0), main)
+  canvas.paste(key,  ((canvas.width - key.width)  // 2,
+                      main.height + gap), key)
+  canvas.convert("RGB").save("X.png")
+  ```
+
+  To change a diagram later, edit its `X_main.dot` / `X_key.dot`, re-run
+  both `dot` lines and the script; the composite reproduces byte-for-byte
+  apart from the edited region.
 - **Stack multi-field payloads as a multi-line `xlabel`.** "snarf probe /
   {bank,row,col} / hit + data" becomes `xlabel="snarf probe\n{bank,row,col}\nhit
   + data"` — three short lines centered on the segment read as one payload,
