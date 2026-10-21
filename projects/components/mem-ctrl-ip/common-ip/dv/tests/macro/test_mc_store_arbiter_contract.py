@@ -54,6 +54,16 @@ N_HOST_BURSTS = 4
 CHUNKS_PER_BURST = N_WR_CHUNKS // N_HOST_BURSTS
 PHASE_TIMEOUT_NS = 200_000   # 200 us is ~15000 cycles at 75 MHz -- generous
 
+# dram_op_e values from mc_common_pkg.sv
+OP_ACT = 1
+OP_RD  = 2
+OP_RDA = 3
+OP_WR  = 4
+OP_WRA = 5
+OP_PRE = 6
+OP_REF = 8
+OP_REFPB = 9
+
 
 async def _push_aw(dut, bank, row, col, txn_id, agg, last):
     dut.aw_push_valid.value = 1
@@ -116,8 +126,7 @@ async def _wait_for(dut, signal, target):
         await RisingEdge(dut.aclk)
 
 
-@cocotb.test()
-async def cocotb_test_store_arbiter_contract(dut):
+async def _reset(dut):
     cocotb.start_soon(Clock(dut.aclk, 10, unit="ns").start())
     dut.aresetn.value = 0
     dut.aw_push_valid.value = 0
@@ -128,6 +137,50 @@ async def cocotb_test_store_arbiter_contract(dut):
     dut.aresetn.value = 1
     for _ in range(5):
         await RisingEdge(dut.aclk)
+
+
+async def _open_arbiter_gates(dut):
+    """Make every JEDEC readiness input permissive so the pick pool is live."""
+    dut.u_arb.bank_act_ready_i.value = 0xFF
+    dut.u_arb.bank_rdwr_ready_i.value = 0xFF
+    dut.u_arb.bank_pre_ready_i.value = 0xFF
+    dut.u_arb.bank_act_ready_la_i.value = 0xFF
+    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
+    dut.u_arb.bank_pre_ready_la_i.value = 0xFF
+    dut.u_arb.bank_row_active_i.value = 0xFF
+    dut.u_arb.bank_open_row_i.value = 0
+    dut.u_arb.tfaw_ok_i.value = 1
+    dut.u_arb.trrd_ok_i.value = 1
+    dut.u_arb.twtr_ok_i.value = 1
+    dut.u_arb.trtw_ok_i.value = 1
+    dut.u_arb.tccd_ok_i.value = 1
+    dut.u_arb.tccd_l_ok_i.value = 1
+    dut.u_arb.trrd_l_ok_i.value = 1
+    dut.u_arb.refresh_req_i.value = 0
+    dut.u_arb.refresh_drain_i.value = 0
+    dut.u_arb.maint_req_i.value = 0
+    dut.u_arb.init_done_i.value = 1
+    dut.u_arb.init_cmd_valid_i.value = 0
+
+
+async def _cmd_ready_every_cycle(dut):
+    """Override the TB's 1-in-4 cm_ready gate so cmd_ready_i is high every cycle.
+
+    r_cm_gate is a 2-bit free-running counter; cm_ready = (r_cm_gate == 0).
+    Depositing 0 every cycle keeps r_cm_gate at 0, so cm_ready/cmd_ready_i
+    stay asserted.
+    """
+    dut.r_cm_gate.value = 0
+
+
+async def _push_wr_chunk(dut, bank, row, col, txn_id=0):
+    await _push_aw(dut, bank, row, col, txn_id, agg=1, last=1)
+    await _push_wd(dut, data=0xA500_0000 + (bank << 16) + (row << 8) + col, last=1)
+
+
+@cocotb.test()
+async def cocotb_test_store_arbiter_contract(dut):
+    await _reset(dut)
 
     # ---- phase 1: writes ---------------------------------------------------
     wr_task = cocotb.start_soon(_run_writes(dut))
@@ -166,14 +219,264 @@ async def cocotb_test_store_arbiter_contract(dut):
     assert issues == N_RD_DESCS, f"rd issues {issues} != {N_RD_DESCS}"
 
 
-def test_mc_store_arbiter_contract(request):
+@cocotb.test()
+async def cocotb_test_hold_on_gate_block(dut):
+    """A blocked live JEDEC gate must HOLD the chosen winner, not drop/re-pick it.
+
+    Old RTL: w_out_reject makes w_out_ready true, so the output register is
+    overwritten by a fresh pick next cycle. With a second candidate in bank 1
+    still ready, the bank/row/col of the output command changes while the gate
+    is closed -- the winner is not held.
+    """
+    await _reset(dut)
+    await _open_arbiter_gates(dut)
+    await _cmd_ready_every_cycle(dut)
+
+    # Preload two candidates in different banks. Bank 0 is the older winner.
+    await _push_wr_chunk(dut, bank=0, row=0, col=10)
+    await _push_wr_chunk(dut, bank=1, row=0, col=20)
+
+    # Wait until the first pick has reached the output register and is bank 0.
+    while True:
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+        if int(dut.u_arb.r_pick_valid.value) and int(dut.u_arb.cmd_bank_o.value) == 0:
+            break
+
+    chosen_op = int(dut.u_arb.cmd_op_o.value)
+    chosen_bank = int(dut.u_arb.cmd_bank_o.value)
+    chosen_col = int(dut.u_arb.cmd_col_o.value)
+
+    # Block bank 0's read/write ready path (live JEDEC gate), keep bank 1 open.
+    dut.u_arb.bank_rdwr_ready_i.value = 0xFE   # bit 0 low
+    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFE
+
+    held_cycles = 0
+    for _ in range(8):
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+        if not int(dut.u_arb.cmd_valid_o.value):
+            assert False, "cmd_valid_o dropped while gate blocked"
+        if (int(dut.u_arb.cmd_op_o.value) != chosen_op or
+            int(dut.u_arb.cmd_bank_o.value) != chosen_bank or
+            int(dut.u_arb.cmd_col_o.value) != chosen_col):
+            assert False, ("command changed while gate blocked: "
+                           f"op {int(dut.u_arb.cmd_op_o.value)} bank "
+                           f"{int(dut.u_arb.cmd_bank_o.value)} col "
+                           f"{int(dut.u_arb.cmd_col_o.value)}")
+        held_cycles += 1
+
+    # Open the gate. The held winner should fire exactly once.
+    before = int(dut.drain_count.value)
+    dut.u_arb.bank_rdwr_ready_i.value = 0xFF
+    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
+
+    for _ in range(4):
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+        if int(dut.drain_count.value) == before + 1:
+            break
+    after = int(dut.drain_count.value)
+    assert after == before + 1, f"held winner fired {after - before} times, expected 1"
+
+
+@cocotb.test()
+async def cocotb_test_zero_bubble_stream(dut):
+    """With all gates open, a same-bank row-hit stream must fire every cycle.
+
+    Old RTL drops a pick on any transient reject and must refill its 3-stage
+    pipeline, producing at least one idle cycle. We create that reject by
+    briefly closing bank_rdwr_ready_i for one cycle mid-stream while a
+    replenishment task keeps the pool filled.
+    """
+    await _reset(dut)
+    await _open_arbiter_gates(dut)
+
+    # Seed the pipeline with same-bank row-hit writes.
+    for col in range(8):
+        await _push_wr_chunk(dut, bank=0, row=0, col=col)
+
+    # Keep the pool filled: push one replacement each time a command drains.
+    next_col = 8
+    async def _replenish():
+        nonlocal next_col
+        prev = int(dut.drain_count.value)
+        while True:
+            await RisingEdge(dut.aclk)
+            cur = int(dut.drain_count.value)
+            if cur > prev:
+                for _ in range(cur - prev):
+                    await _push_wr_chunk(dut, bank=0, row=0, col=next_col)
+                    next_col += 1
+            prev = cur
+    repl_task = cocotb.start_soon(_replenish())
+
+    # Let the pipeline prime.
+    for _ in range(8):
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+
+    # Run a measured steady-state window.
+    steady_fires = 0
+    steady_idle = 0
+    for _ in range(16):
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+        if int(dut.u_arb.cmd_valid_o.value) and int(dut.u_arb.cmd_ready_i.value):
+            steady_fires += 1
+        else:
+            steady_idle += 1
+
+    # Inject a one-cycle gate block; new core holds, old core drops -> bubble.
+    dut.u_arb.bank_rdwr_ready_i.value = 0xFE
+    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFE
+    await _cmd_ready_every_cycle(dut)
+    await RisingEdge(dut.aclk)
+    dut.u_arb.bank_rdwr_ready_i.value = 0xFF
+    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
+
+    # Measure recovery: after the gate closes there must be no extra bubbles.
+    post_fires = 0
+    post_idle = 0
+    for _ in range(8):
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+        if int(dut.u_arb.cmd_valid_o.value) and int(dut.u_arb.cmd_ready_i.value):
+            post_fires += 1
+        else:
+            post_idle += 1
+
+    repl_task.cancel()
+
+    # The gate block itself costs one cycle; any additional idle cycle is a
+    # re-pick bubble that the new core must not have.
+    assert post_idle <= 1, f"post-gate bubbles: {post_idle} idle cycles (expected <=1)"
+
+
+@cocotb.test()
+async def cocotb_test_post_pop_winner(dut):
+    """The cycle after a pop must show the speculative next-winner, not a bubble.
+
+    We preload only entry A, let it reach the output register, then add B and
+    fire A in the same cycle. The new core recomputes the winner from the live
+    pool (B); the old core uses a stale STAGE-1a snapshot that lacks B, so it
+    either re-picks A or bubbles.
+    """
+    await _reset(dut)
+    await _open_arbiter_gates(dut)
+
+    # Preload A only, then wait until A is the live output pick.
+    await _push_wr_chunk(dut, bank=0, row=0, col=10)
+    while True:
+        await _cmd_ready_every_cycle(dut)
+        await RisingEdge(dut.aclk)
+        if (int(dut.u_arb.r_pick_valid.value) and
+            int(dut.u_arb.cmd_valid_o.value) and
+            int(dut.u_arb.cmd_op_o.value) in (OP_WR, OP_WRA)):
+            break
+
+    a_slot = int(dut.u_arb.r_commit_slot.value)
+
+    # Add B in the same cycle we fire A.
+    cocotb.start_soon(_push_wr_chunk(dut, bank=0, row=0, col=20))
+
+    # Fire A.
+    await _cmd_ready_every_cycle(dut)
+    await RisingEdge(dut.aclk)
+
+    # Next cycle: must be a valid WR to a different slot (B).
+    await _cmd_ready_every_cycle(dut)
+    await RisingEdge(dut.aclk)
+
+    assert int(dut.u_arb.cmd_valid_o.value), "post-pop cycle was a bubble"
+    assert int(dut.u_arb.cmd_op_o.value) in (OP_WR, OP_WRA), \
+        f"post-pop op {int(dut.u_arb.cmd_op_o.value)} is not a column write"
+    b_slot = int(dut.u_arb.r_commit_slot.value)
+    assert b_slot != a_slot, f"post-pop re-picked the same slot {a_slot}"
+
+
+@cocotb.test()
+async def cocotb_test_override_preempts_speculation(dut):
+    """An init-passthrough override must preempt a held speculative column pick.
+
+    We load one write, hold cmd_ready_i low until the WR reaches the output
+    register, then raise init_cmd_valid_i while init_done_i is low. The override
+    must be emitted instead of the WR; the WR must not be committed as a stale
+    winner. After the override drains, the live pool still contains the WR and
+    it is picked cleanly.
+    """
+    await _reset(dut)
+    await _open_arbiter_gates(dut)
+
+    # Preload a write and let it reach the output register, but keep cmd_ready_i
+    # low so it cannot fire yet.
+    await _push_wr_chunk(dut, bank=0, row=0, col=10)
+    while True:
+        dut.r_cm_gate.value = 1          # cm_ready = 0
+        await RisingEdge(dut.aclk)
+        if (int(dut.u_arb.r_pick_valid.value) and
+            int(dut.u_arb.cmd_op_o.value) in (OP_WR, OP_WRA)):
+            break
+
+    # Raise init-passthrough override.
+    dut.u_arb.init_done_i.value = 0
+    dut.u_arb.init_cmd_valid_i.value = 1
+    dut.u_arb.init_cmd_op_i.value = OP_ACT
+    dut.u_arb.init_cmd_bank_i.value = 0
+    dut.u_arb.init_cmd_row_i.value = 0
+
+    # Release cmd_ready_i; the very next valid command must be the override.
+    saw_override = False
+    speculative_fired = False
+    for i in range(8):
+        dut.r_cm_gate.value = 0          # cm_ready = 1
+        await RisingEdge(dut.aclk)
+        op = int(dut.u_arb.cmd_op_o.value)
+        valid = int(dut.u_arb.cmd_valid_o.value)
+        if valid:
+            if op in (OP_WR, OP_WRA):
+                speculative_fired = True
+            if op == OP_ACT:
+                saw_override = True
+            if saw_override or speculative_fired:
+                break
+
+    assert saw_override, "init override did not preempt the speculative column"
+    assert not speculative_fired, "speculative WR fired before/instead of override"
+
+    # Drain the override and drop init passthrough.
+    dut.u_arb.init_cmd_valid_i.value = 0
+    dut.u_arb.init_done_i.value = 1
+
+    # Normal picking must resume from the live pool (the original WR).
+    saw_wr = False
+    for _ in range(8):
+        dut.r_cm_gate.value = 0
+        await RisingEdge(dut.aclk)
+        if (int(dut.u_arb.cmd_valid_o.value) and
+            int(dut.u_arb.cmd_op_o.value) in (OP_WR, OP_WRA)):
+            saw_wr = True
+            break
+    assert saw_wr, "normal picking did not resume from the live pool"
+
+
+CONTRACT_TESTS = [
+    "cocotb_test_store_arbiter_contract",
+    "cocotb_test_hold_on_gate_block",
+    "cocotb_test_zero_bubble_stream",
+    "cocotb_test_post_pop_winner",
+    "cocotb_test_override_preempts_speculation",
+]
+
+
+@pytest.mark.parametrize("testcase", CONTRACT_TESTS)
+def test_mc_store_arbiter_contract(request, testcase):
     from cocotb_test.simulator import run
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "mc_store_arbiter_macro_tb_top"
-    test_name = "cocotb_test_store_arbiter_contract"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST)
-    sim_build = sim_build_path(tests_dir, test_name)
+    sim_build = sim_build_path(tests_dir, testcase)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"NUM_ENTRIES": str(NUM_ENTRIES),
@@ -181,12 +484,12 @@ def test_mc_store_arbiter_contract(request):
               "NUM_RANKS": "1", "NUM_BANKS": "8",
               "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "AXI_BEATS_PER_BURST": "1", "RD_RET_DEPTH": "32"}
-    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
+    extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{testcase}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
-                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml")}
+                 "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml")}
     extra_env.update(params)
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
-        toplevel=dut_name, module=module, testcase="cocotb_test_store_arbiter_contract",
+        toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "--public-flat-rw",
                       "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
