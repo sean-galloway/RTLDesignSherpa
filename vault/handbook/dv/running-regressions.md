@@ -307,6 +307,19 @@ session identity: everyone who has not set `SIM_BUILD_ROOT` is `session=shared`,
 so an "is it mine?" check compares 'shared' to 'shared' and cleans straight
 through a live build.
 
+A per-entry liveness check is not enough on its own: the cleaner's listing is
+a snapshot. It used to finish with `rmtree(container)` whenever nothing in the
+snapshot was busy, so a run that called `sim_build_path()` after the
+`listdir` lost its live build, marker and all, without the busy check ever
+seeing it. The container is now removed with `rmdir`, which fails on a
+non-empty directory; `bin/tests/test_clean_sim_builds.py` races a late build
+against the cleaner and fails on the old code. The symptom that led here
+(2026-10-20, kestrel, 48 workers): 20+ build directories vanished mid-run,
+`mem_loader`/`mem_bram` cells went to RERUN, and one regfile sim sat 4 hours
+in a futex on a deleted cwd -- `ls -l /proc/<pid>/cwd` showing `(deleted)` is
+the tell. A suite that hangs past its own timeouts after the coverage merge
+has printed is a dead cwd until proven otherwise.
+
 **The framework can move underneath a long run.** cocotb re-imports per test,
 so a mid-run edit to `CocoTBFramework` means early and late cases ran different
 code -- and the run still reports one number. Fingerprint it:

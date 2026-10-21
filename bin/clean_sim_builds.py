@@ -72,6 +72,11 @@ def clean_container(container, dry_run=False):
     for entry in entries:
         path = os.path.join(container, entry)
         if not os.path.isdir(path):
+            if not dry_run:
+                try:
+                    os.remove(path)        # loose file, no owner to consult
+                except OSError:
+                    pass
             continue
         owner = sim_build_is_busy(path)
         if owner:
@@ -81,10 +86,17 @@ def clean_container(container, dry_run=False):
             shutil.rmtree(path, ignore_errors=True)
         removed.append(path)
 
-    # Drop the container itself only when nothing was left behind, so a
-    # skipped build keeps the directory that holds it.
+    # Drop the container itself only when it is EMPTY. This used to be
+    # rmtree(container) once nothing was skipped -- but `entries` is a
+    # snapshot, and a run that called sim_build_path() after the listdir had
+    # its live build deleted with the container, marker and all -- the busy
+    # check never saw it. rmdir fails on a non-empty directory, so a late
+    # arrival keeps the container.
     if not skipped and not dry_run:
-        shutil.rmtree(container, ignore_errors=True)
+        try:
+            os.rmdir(container)
+        except OSError:
+            pass
     return removed, skipped
 
 

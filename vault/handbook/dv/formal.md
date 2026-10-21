@@ -20,6 +20,17 @@ sv2v's output). `make check-flat` regenerates and compares content.
 CI enforces the rule: `bin/check_formal_flat_sources.py` fails on any
 formal Makefile that builds a `*_flat.v` without the include.
 
+Build the flat AFTER anything that recreates its directory. riscv-formal's
+`genchecks.py` does `rmtree(checks)` then `mkdir`, and the kestrel flat lives
+in `checks/rtl_v/`. Moving the sv2v call onto formal_flat.mk made the flat a
+make prerequisite of `checks`, so it was converted first and deleted by
+genchecks a moment later; all 42 checks then failed "kestrel_flat.v not found"
+(2026-10-20 to 2026-10-21). The CI rule above passed throughout -- it checks
+that the include exists, not that the file survives to the sby run. The fix
+is a recursive `$(MAKE) $(FLAT)` after genchecks, in
+formal/kestrel/riscv-formal/Makefile. Read the order of the recipe, not just
+the dependency list, whenever a step owns the directory you write into.
+
 Rules - each guards against a proof that PASSES while checking nothing:
 - sv2v silently DELETES immediate assertions without --exclude=Assert.
   Verify the flat .v contains your asserts (grep count).

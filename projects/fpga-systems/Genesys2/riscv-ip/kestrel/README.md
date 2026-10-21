@@ -16,11 +16,14 @@ freely (bounded to two consecutive waits), and the rv32ui battery passes
 42/42 through this memory path with spike lockstep (`ma_data` is an expected
 halt: kestrel halts on misaligned loads/stores, cause 4/5).
 
-**Rebuild pending (2026-10-20).** The 80 MHz figure below was closed with the
-first version of the wrapper (a fetch / execute / load sequencer, CPI 2-3,
-and the hardware misaligned retry). The current design was measured on the
-Nexys A7 (`../../../NexysA7/riscv-ip/kestrel/README.md`); this build has not
-been rerun since.
+**The Nexys A7 is the reference board; this build is not rebuilt (owner,
+2026-10-21).** The 80 MHz figure below was closed with the first version of
+the wrapper (a fetch / execute / load sequencer, CPI 2-3, and the hardware
+misaligned retry). The current design is measured on the Nexys A7
+(`../../../NexysA7/riscv-ip/kestrel/README.md`): the same RTL and the same
+host battery, on the slower fabric, so a rebuild here adds only a Kintex-7
+fmax figure. The UART cosim below still runs from this directory
+(`make clean-all && make sim`) and is the part of this build that gates.
 
 The second port is the UART loader: write an image in load mode, set
 `CTRL.run`, poll the status (halted, cause, cycles, instret, and the last
