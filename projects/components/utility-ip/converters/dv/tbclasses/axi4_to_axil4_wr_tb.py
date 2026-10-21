@@ -23,6 +23,7 @@ Architecture:
 - Monitor AXIL4 master outputs for burst decomposition validation
 """
 
+from collections import deque
 import os
 import sys
 import cocotb
@@ -157,39 +158,31 @@ class AXI4ToAXIL4WriteTB(TBBase):
         actual AXIL protocol handshakes on the DUT signals. For writes,
         we track both AW and W handshakes and match them up.
 
-        Note: this monitor assumes AW + W handshakes are paired within a
-        small window (the AXIL slave BFM enforces this). For pipelined
-        b2b cases with many AWs outstanding, beat counts/data may be off —
-        treat any monitor-side mismatch as a SIGNAL that the b2b scenario
-        triggered timing where AW and W desynchronize on the wire, which
-        is the page-probe class of bug we want to surface.
+        AXI4-Lite pairs the n-th AW with the n-th W, and either may come
+        first (A3.3.1): the converter offers W without waiting for AWREADY,
+        so a W can complete before its AW. The two handshake streams are
+        queued and paired in order. (This monitor used to keep one pending
+        address and drop a W that arrived ahead of it -- a monitor that
+        assumed AW-before-W, which AXI does not promise.)
         """
         self.log.info("Starting AXIL4 transaction monitor")
-
-        # Track pending addresses
-        pending_addr = None
+        aw_q: deque = deque()
+        w_q: deque = deque()
 
         while True:
             await RisingEdge(self.clk)
-
-            # Monitor AW channel handshakes
             if (int(self.dut.m_axil_awvalid.value) == 1 and
                 int(self.dut.m_axil_awready.value) == 1):
-                pending_addr = int(self.dut.m_axil_awaddr.value)
-                self.log.debug(f"AXIL4 AW handshake: addr=0x{pending_addr:08X}")
-
-            # Monitor W channel handshakes
+                aw_q.append(int(self.dut.m_axil_awaddr.value))
             if (int(self.dut.m_axil_wvalid.value) == 1 and
                 int(self.dut.m_axil_wready.value) == 1):
-                w_data = int(self.dut.m_axil_wdata.value)
-                w_strb = int(self.dut.m_axil_wstrb.value)
-
-                # Match with pending address
-                if pending_addr is not None:
-                    self.axil_transactions.append(('W', pending_addr, w_data, w_strb))
-                    self.stats['axil_writes_received'] += 1
-                    self.log.debug(f"AXIL4 Write complete: addr=0x{pending_addr:08X}, data=0x{w_data:08X}")
-                    pending_addr = None
+                w_q.append((int(self.dut.m_axil_wdata.value), int(self.dut.m_axil_wstrb.value)))
+            while aw_q and w_q:
+                addr = aw_q.popleft()
+                w_data, w_strb = w_q.popleft()
+                self.axil_transactions.append(('W', addr, w_data, w_strb))
+                self.stats['axil_writes_received'] += 1
+                self.log.debug(f"AXIL4 Write complete: addr=0x{addr:08X}, data=0x{w_data:08X}")
 
     # =========================================================================
     # TEST SCENARIO METHODS

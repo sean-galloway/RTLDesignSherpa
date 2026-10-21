@@ -51,6 +51,7 @@ addrmap bstress_slv_regs {
         field { sw = rw; hw = r; desc = "Tag folded into this slave's data."; } TAG[15:8] = 0;
         field { sw = rw; hw = r; desc = "Complete in request order across IDs (required behind a FIFO-tracked bridge slave port)."; } INORDER[16:16] = 0;
         field { sw = rw; hw = r; desc = "Read: switch bursts between beats."; } INTERLEAVE[17:17] = 0;
+        field { sw = rw; hw = r; desc = "Write: AWREADY only while WVALID is up -- the slave waits for write data before it takes the address, as AXI A3.3.1 allows (an AXI CDMA register slave does). A fabric that holds WVALID until AWREADY deadlocks against it (bridge BUG-020)."; } W_FIRST[18:18] = 0;
         field { sw = rw; hw = r; desc = "AxREADY low with probability n/16."; } REQ_THROTTLE[23:20] = 0;
         field { sw = rw; hw = r; desc = "WREADY low / an R bubble with probability n/16."; } DATA_THROTTLE[27:24] = 0;
     };

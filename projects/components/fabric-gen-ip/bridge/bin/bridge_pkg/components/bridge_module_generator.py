@@ -322,12 +322,9 @@ class BridgeModuleGenerator:
         # feature, not a repair -- it needs an extra arbiter source and moves
         # the _mon tests' packet expectations.
         slave_is_internal = getattr(slave, 'internal', False)
-        if (self.enable_monitoring and not slave_is_internal
-                and cdc_lanes.is_lane_slave(slave, slave_index, self.masters)):
-            raise ValueError(
-                f"{self.bridge_name}: slave '{slave.name}' is a cdc slave that several masters "
-                f"share; it is arbitrated on its own clock (bridge W9) and has no aclk-side "
-                f"stream for a monitor. Monitored variants with such a slave are not supported.")
+        # A monitored cdc slave that several masters share (bridge W9) has no
+        # aclk-side stream: its monitors run on s_aclk after the arbiter and
+        # cross into the group through bridge_mon_cdc (SlaveAdapterGenerator).
 
         slave_adapter_gen = SlaveAdapterGenerator(
             bridge_name=self.bridge_name,
@@ -457,7 +454,7 @@ class BridgeModuleGenerator:
             ('arvalid', 'input',  1), ('arready', 'output', 1),
             ('araddr',  'input',  AW), ('arprot',  'input',  3),
             ('rvalid',  'output', 1), ('rready',  'input',  1),
-            ('rdata',   'output', 64), ('rresp',   'output', 2),
+            ('rdata',   'output', mg.s_axil_data_width), ('rresp',   'output', 2),
         ]
         slave_axi4 = [
             ('arid',    'input',  ID), ('araddr',  'input',  AW),
@@ -867,6 +864,8 @@ class BridgeModuleGenerator:
                 ('NUM_PROTOCOLS',        3),
                 ('USE_COMPRESSION',      mg.use_compression),
             ]
+            if not mg.slave_is_axi4 and mg.s_axil_data_width != 64:
+                params += [('S_AXIL_DATA_WIDTH', mg.s_axil_data_width)]
             if mg.slave_is_axi4 and mg.master_is_axi4:
                 params += [
                     ('AXI_ID_WIDTH_S',  mg.axi_id_width),

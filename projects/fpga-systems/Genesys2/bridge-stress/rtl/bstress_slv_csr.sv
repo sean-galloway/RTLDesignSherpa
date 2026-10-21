@@ -113,6 +113,7 @@ module bstress_slv_csr
         cfg_wr.seed          = ho.WR_SEED.VALUE.value;
         cfg_wr.sb_src        = ho.WR_SB.SRC.value;
         cfg_wr.poison_lg2    = ho.WR_SB.POISON_LG2.value;
+        cfg_wr.w_first       = ho.WR_CTRL.W_FIRST.value;
     end
 
     always_comb begin

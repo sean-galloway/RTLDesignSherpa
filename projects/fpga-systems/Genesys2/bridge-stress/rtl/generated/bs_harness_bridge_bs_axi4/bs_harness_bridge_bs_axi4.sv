@@ -177,6 +177,44 @@ module bs_harness_bridge_bs_axi4
     logic [1:0]   ext1_axil_rresp;
     logic         ext1_axil_rvalid;
     logic         ext1_axil_rready;
+    logic [31:0]  ext2_axil_awaddr;
+    logic [2:0]   ext2_axil_awprot;
+    logic         ext2_axil_awvalid;
+    logic         ext2_axil_awready;
+    logic [31:0]  ext2_axil_wdata;
+    logic [3:0]   ext2_axil_wstrb;
+    logic         ext2_axil_wvalid;
+    logic         ext2_axil_wready;
+    logic [1:0]   ext2_axil_bresp;
+    logic         ext2_axil_bvalid;
+    logic         ext2_axil_bready;
+    logic [31:0]  ext2_axil_araddr;
+    logic [2:0]   ext2_axil_arprot;
+    logic         ext2_axil_arvalid;
+    logic         ext2_axil_arready;
+    logic [31:0]  ext2_axil_rdata;
+    logic [1:0]   ext2_axil_rresp;
+    logic         ext2_axil_rvalid;
+    logic         ext2_axil_rready;
+    logic [31:0]  ext3_axil_awaddr;
+    logic [2:0]   ext3_axil_awprot;
+    logic         ext3_axil_awvalid;
+    logic         ext3_axil_awready;
+    logic [31:0]  ext3_axil_wdata;
+    logic [3:0]   ext3_axil_wstrb;
+    logic         ext3_axil_wvalid;
+    logic         ext3_axil_wready;
+    logic [1:0]   ext3_axil_bresp;
+    logic         ext3_axil_bvalid;
+    logic         ext3_axil_bready;
+    logic [31:0]  ext3_axil_araddr;
+    logic [2:0]   ext3_axil_arprot;
+    logic         ext3_axil_arvalid;
+    logic         ext3_axil_arready;
+    logic [31:0]  ext3_axil_rdata;
+    logic [1:0]   ext3_axil_rresp;
+    logic         ext3_axil_rvalid;
+    logic         ext3_axil_rready;
     logic        cfg_unmapped_irq;
 
     bridge_bs_cfg u_cfg (
@@ -239,6 +277,8 @@ module bs_harness_bridge_bs_axi4
         .slv7_apb_PRDATA, .slv7_apb_PREADY, .slv7_apb_PSLVERR,
         .ext0_axil_awaddr, .ext0_axil_awprot, .ext0_axil_awvalid, .ext0_axil_awready, .ext0_axil_wdata, .ext0_axil_wstrb, .ext0_axil_wvalid, .ext0_axil_wready, .ext0_axil_bresp, .ext0_axil_bvalid, .ext0_axil_bready, .ext0_axil_araddr, .ext0_axil_arprot, .ext0_axil_arvalid, .ext0_axil_arready, .ext0_axil_rdata, .ext0_axil_rresp, .ext0_axil_rvalid, .ext0_axil_rready,
         .ext1_axil_awaddr, .ext1_axil_awprot, .ext1_axil_awvalid, .ext1_axil_awready, .ext1_axil_wdata, .ext1_axil_wstrb, .ext1_axil_wvalid, .ext1_axil_wready, .ext1_axil_bresp, .ext1_axil_bvalid, .ext1_axil_bready, .ext1_axil_araddr, .ext1_axil_arprot, .ext1_axil_arvalid, .ext1_axil_arready, .ext1_axil_rdata, .ext1_axil_rresp, .ext1_axil_rvalid, .ext1_axil_rready,
+        .ext2_axil_awaddr, .ext2_axil_awprot, .ext2_axil_awvalid, .ext2_axil_awready, .ext2_axil_wdata, .ext2_axil_wstrb, .ext2_axil_wvalid, .ext2_axil_wready, .ext2_axil_bresp, .ext2_axil_bvalid, .ext2_axil_bready, .ext2_axil_araddr, .ext2_axil_arprot, .ext2_axil_arvalid, .ext2_axil_arready, .ext2_axil_rdata, .ext2_axil_rresp, .ext2_axil_rvalid, .ext2_axil_rready,
+        .ext3_axil_awaddr, .ext3_axil_awprot, .ext3_axil_awvalid, .ext3_axil_awready, .ext3_axil_wdata, .ext3_axil_wstrb, .ext3_axil_wvalid, .ext3_axil_wready, .ext3_axil_bresp, .ext3_axil_bvalid, .ext3_axil_bready, .ext3_axil_araddr, .ext3_axil_arprot, .ext3_axil_arvalid, .ext3_axil_arready, .ext3_axil_rdata, .ext3_axil_rresp, .ext3_axil_rvalid, .ext3_axil_rready,
         .unmapped_irq   (cfg_unmapped_irq),
         /* verilator lint_off PINCONNECTEMPTY */
         .unmapped_addr  (),
@@ -282,23 +322,16 @@ module bs_harness_bridge_bs_axi4
     wire unused_cfg = ^{cfg_unmapped_irq, mst4_apb_PSEL, mst4_apb_PADDR, mst4_apb_PENABLE, mst4_apb_PWRITE, mst4_apb_PWDATA, mst4_apb_PSTRB, mst4_apb_PPROT, mst5_apb_PSEL, mst5_apb_PADDR, mst5_apb_PENABLE, mst5_apb_PWRITE, mst5_apb_PWDATA, mst5_apb_PSTRB, mst5_apb_PPROT, mst6_apb_PSEL, mst6_apb_PADDR, mst6_apb_PENABLE, mst6_apb_PWRITE, mst6_apb_PWDATA, mst6_apb_PSTRB, mst6_apb_PPROT, mst7_apb_PSEL, mst7_apb_PADDR, mst7_apb_PENABLE, mst7_apb_PWRITE, mst7_apb_PWDATA, mst7_apb_PSTRB, mst7_apb_PPROT, slv4_apb_PSEL, slv4_apb_PADDR, slv4_apb_PENABLE, slv4_apb_PWRITE, slv4_apb_PWDATA, slv4_apb_PSTRB, slv4_apb_PPROT, slv5_apb_PSEL, slv5_apb_PADDR, slv5_apb_PENABLE, slv5_apb_PWRITE, slv5_apb_PWDATA, slv5_apb_PSTRB, slv5_apb_PPROT, slv6_apb_PSEL, slv6_apb_PADDR, slv6_apb_PENABLE, slv6_apb_PWRITE, slv6_apb_PWDATA, slv6_apb_PSTRB, slv6_apb_PPROT, slv7_apb_PSEL, slv7_apb_PADDR, slv7_apb_PENABLE, slv7_apb_PWRITE, slv7_apb_PWDATA, slv7_apb_PSTRB, slv7_apb_PPROT};
 
     // ext0: no vendor IP in this build -- every access answers SLVERR
-    // (readies from state alone: the bridge's AXI4-Lite adapter may gate
-    // its VALIDs on them)
-    logic r_ext0_aw, r_ext0_w, r_ext0_bv, r_ext0_rv;
+    logic r_ext0_aw, r_ext0_w, r_ext0_bv;
     assign ext0_axil_awready = !r_ext0_aw && !r_ext0_bv;
     assign ext0_axil_wready  = !r_ext0_w  && !r_ext0_bv;
     assign ext0_axil_bvalid  = r_ext0_bv;
     assign ext0_axil_bresp   = 2'b10;
-    assign ext0_axil_arready = !r_ext0_rv;
-    assign ext0_axil_rvalid  = r_ext0_rv;
-    assign ext0_axil_rresp   = 2'b10;
-    assign ext0_axil_rdata   = 32'hDEAD_0000;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ext0_aw <= 1'b0;
             r_ext0_w  <= 1'b0;
             r_ext0_bv <= 1'b0;
-            r_ext0_rv <= 1'b0;
         end else begin
             if (ext0_axil_awvalid && ext0_axil_awready) r_ext0_aw <= 1'b1;
             if (ext0_axil_wvalid  && ext0_axil_wready)  r_ext0_w  <= 1'b1;
@@ -309,31 +342,32 @@ module bs_harness_bridge_bs_axi4
             end else if (r_ext0_bv && ext0_axil_bready) begin
                 r_ext0_bv <= 1'b0;
             end
-            if (ext0_axil_arvalid && ext0_axil_arready) r_ext0_rv <= 1'b1;
-            else if (ext0_axil_rready)                 r_ext0_rv <= 1'b0;
         end
     end
-    wire unused_ext0 = ^{ext0_axil_awaddr, ext0_axil_awprot, ext0_axil_wdata, ext0_axil_wstrb,
-                        ext0_axil_araddr, ext0_axil_arprot};
+    wire unused_ext0_wr = ^{ext0_axil_awaddr, ext0_axil_awprot, ext0_axil_wdata, ext0_axil_wstrb};
+    logic r_ext0_rv;
+    assign ext0_axil_arready = !r_ext0_rv;
+    assign ext0_axil_rvalid  = r_ext0_rv;
+    assign ext0_axil_rresp   = 2'b10;
+    assign ext0_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                                  r_ext0_rv <= 1'b0;
+        else if (ext0_axil_arvalid && ext0_axil_arready) r_ext0_rv <= 1'b1;
+        else if (ext0_axil_rready)                      r_ext0_rv <= 1'b0;
+    end
+    wire unused_ext0_rd = ^{ext0_axil_araddr, ext0_axil_arprot};
 
     // ext1: no vendor IP in this build -- every access answers SLVERR
-    // (readies from state alone: the bridge's AXI4-Lite adapter may gate
-    // its VALIDs on them)
-    logic r_ext1_aw, r_ext1_w, r_ext1_bv, r_ext1_rv;
+    logic r_ext1_aw, r_ext1_w, r_ext1_bv;
     assign ext1_axil_awready = !r_ext1_aw && !r_ext1_bv;
     assign ext1_axil_wready  = !r_ext1_w  && !r_ext1_bv;
     assign ext1_axil_bvalid  = r_ext1_bv;
     assign ext1_axil_bresp   = 2'b10;
-    assign ext1_axil_arready = !r_ext1_rv;
-    assign ext1_axil_rvalid  = r_ext1_rv;
-    assign ext1_axil_rresp   = 2'b10;
-    assign ext1_axil_rdata   = 32'hDEAD_0000;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_ext1_aw <= 1'b0;
             r_ext1_w  <= 1'b0;
             r_ext1_bv <= 1'b0;
-            r_ext1_rv <= 1'b0;
         end else begin
             if (ext1_axil_awvalid && ext1_axil_awready) r_ext1_aw <= 1'b1;
             if (ext1_axil_wvalid  && ext1_axil_wready)  r_ext1_w  <= 1'b1;
@@ -344,12 +378,92 @@ module bs_harness_bridge_bs_axi4
             end else if (r_ext1_bv && ext1_axil_bready) begin
                 r_ext1_bv <= 1'b0;
             end
-            if (ext1_axil_arvalid && ext1_axil_arready) r_ext1_rv <= 1'b1;
-            else if (ext1_axil_rready)                 r_ext1_rv <= 1'b0;
         end
     end
-    wire unused_ext1 = ^{ext1_axil_awaddr, ext1_axil_awprot, ext1_axil_wdata, ext1_axil_wstrb,
-                        ext1_axil_araddr, ext1_axil_arprot};
+    wire unused_ext1_wr = ^{ext1_axil_awaddr, ext1_axil_awprot, ext1_axil_wdata, ext1_axil_wstrb};
+    logic r_ext1_rv;
+    assign ext1_axil_arready = !r_ext1_rv;
+    assign ext1_axil_rvalid  = r_ext1_rv;
+    assign ext1_axil_rresp   = 2'b10;
+    assign ext1_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                                  r_ext1_rv <= 1'b0;
+        else if (ext1_axil_arvalid && ext1_axil_arready) r_ext1_rv <= 1'b1;
+        else if (ext1_axil_rready)                      r_ext1_rv <= 1'b0;
+    end
+    wire unused_ext1_rd = ^{ext1_axil_araddr, ext1_axil_arprot};
+
+    // ext2: the DUT has no Ocelus monitors in this build -- SLVERR
+    logic r_ext2_aw, r_ext2_w, r_ext2_bv;
+    assign ext2_axil_awready = !r_ext2_aw && !r_ext2_bv;
+    assign ext2_axil_wready  = !r_ext2_w  && !r_ext2_bv;
+    assign ext2_axil_bvalid  = r_ext2_bv;
+    assign ext2_axil_bresp   = 2'b10;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ext2_aw <= 1'b0;
+            r_ext2_w  <= 1'b0;
+            r_ext2_bv <= 1'b0;
+        end else begin
+            if (ext2_axil_awvalid && ext2_axil_awready) r_ext2_aw <= 1'b1;
+            if (ext2_axil_wvalid  && ext2_axil_wready)  r_ext2_w  <= 1'b1;
+            if (r_ext2_aw && r_ext2_w) begin
+                r_ext2_bv <= 1'b1;
+                r_ext2_aw <= 1'b0;
+                r_ext2_w  <= 1'b0;
+            end else if (r_ext2_bv && ext2_axil_bready) begin
+                r_ext2_bv <= 1'b0;
+            end
+        end
+    end
+    wire unused_ext2_wr = ^{ext2_axil_awaddr, ext2_axil_awprot, ext2_axil_wdata, ext2_axil_wstrb};
+    logic r_ext2_rv;
+    assign ext2_axil_arready = !r_ext2_rv;
+    assign ext2_axil_rvalid  = r_ext2_rv;
+    assign ext2_axil_rresp   = 2'b10;
+    assign ext2_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                                  r_ext2_rv <= 1'b0;
+        else if (ext2_axil_arvalid && ext2_axil_arready) r_ext2_rv <= 1'b1;
+        else if (ext2_axil_rready)                      r_ext2_rv <= 1'b0;
+    end
+    wire unused_ext2_rd = ^{ext2_axil_araddr, ext2_axil_arprot};
+
+    // ext3: the DUT has no Ocelus monitors in this build -- SLVERR
+    logic r_ext3_aw, r_ext3_w, r_ext3_bv;
+    assign ext3_axil_awready = !r_ext3_aw && !r_ext3_bv;
+    assign ext3_axil_wready  = !r_ext3_w  && !r_ext3_bv;
+    assign ext3_axil_bvalid  = r_ext3_bv;
+    assign ext3_axil_bresp   = 2'b10;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ext3_aw <= 1'b0;
+            r_ext3_w  <= 1'b0;
+            r_ext3_bv <= 1'b0;
+        end else begin
+            if (ext3_axil_awvalid && ext3_axil_awready) r_ext3_aw <= 1'b1;
+            if (ext3_axil_wvalid  && ext3_axil_wready)  r_ext3_w  <= 1'b1;
+            if (r_ext3_aw && r_ext3_w) begin
+                r_ext3_bv <= 1'b1;
+                r_ext3_aw <= 1'b0;
+                r_ext3_w  <= 1'b0;
+            end else if (r_ext3_bv && ext3_axil_bready) begin
+                r_ext3_bv <= 1'b0;
+            end
+        end
+    end
+    wire unused_ext3_wr = ^{ext3_axil_awaddr, ext3_axil_awprot, ext3_axil_wdata, ext3_axil_wstrb};
+    logic r_ext3_rv;
+    assign ext3_axil_arready = !r_ext3_rv;
+    assign ext3_axil_rvalid  = r_ext3_rv;
+    assign ext3_axil_rresp   = 2'b10;
+    assign ext3_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                                  r_ext3_rv <= 1'b0;
+        else if (ext3_axil_arvalid && ext3_axil_arready) r_ext3_rv <= 1'b1;
+        else if (ext3_axil_rready)                      r_ext3_rv <= 1'b0;
+    end
+    wire unused_ext3_rd = ^{ext3_axil_araddr, ext3_axil_arprot};
 
     // =========================================================================
     // Control regblock (aclk)
@@ -1423,6 +1537,9 @@ module bs_harness_bridge_bs_axi4
     logic        dut_unmapped_irq;
     logic [31:0] dut_unmapped_addr;
     logic [7:0]  dut_unmapped_count;
+    logic        dut_mon_irq;
+
+    assign dut_mon_irq = 1'b0;      // no Ocelus monitors in this build
 
     bridge_bs_axi4 u_dut (
         .aclk, .aresetn,
@@ -1849,6 +1966,8 @@ module bs_harness_bridge_bs_axi4
         ctl_hi.STATUS.ANY_ERR.next   = w_any_err;
         ctl_hi.STATUS.CLOCKS_OK.next = r_cresetn_a;
         ctl_hi.STATUS.UNMAPPED.next  = dut_unmapped_irq;
+        ctl_hi.STATUS.MON_IRQ.next   = dut_mon_irq;
+        ctl_hi.STATUS.HAS_MON.next   = 1'b0;
         ctl_hi.STATUS.MST_DONE.next  = 8'(mst_done);
         ctl_hi.STATUS.MST_ERR.next   = 8'(mst_err);
         ctl_hi.STATUS.SLV_ERR.next   = 8'(slv_err);

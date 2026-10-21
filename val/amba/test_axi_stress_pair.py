@@ -8,7 +8,8 @@ Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
       TEST_LEVEL budget; passes only if both blocks report zero errors, the
       independent bus monitor agrees with every beat, the budget moved in full
       on both sides, and the scenario's feature (reordering, interleaving,
-      partial strobes, error responses) was actually seen on the wire.
+      partial strobes, error responses, a slave that takes AW only with W --
+      w_first) was actually seen on the wire.
   cocotb_test_axi_stress_faults  each of the harness's one-shot faults (eight;
       nine with AXI3, which adds a flipped WID; twenty-three with AXI5, which adds
       flipped ARTRACE, AWMECID, WPOISON, RTRACE, RPOISON, BTRACE, RIDUNQ, BIDUNQ,
@@ -78,6 +79,11 @@ def _scenario(name, n, tag, proto='axi4'):
     elif name == 'one_id':
         s.update(lat_mask=0x3F, interleave=1)
         m.update(id_mask=0, max_out=4)
+    elif name == 'w_first':
+        # the slave takes AW only while WVALID is up (A3.3.1); a master that
+        # holds W until AWREADY would deadlock here (bridge BUG-020)
+        s.update(w_first=1, lat_mask=0x0F)
+        m.update(data_throttle=6)
     else:
         raise ValueError(f'unknown scenario {name}')
     if proto == 'axi5':
@@ -117,6 +123,12 @@ async def cocotb_test_axi_stress_clean(dut):
     assert tb.stats['ar'] == n and tb.stats['aw'] == n and tb.stats['b'] == n
     assert tb.stats['r_beats'] == s['mrd']['beats'] == s['srd']['beats']
     assert tb.stats['w_beats'] == s['mwr']['beats'] == s['swr']['beats']
+    if name == 'w_first':
+        assert tb.stats['aw_hs_no_w'] == 0, \
+            f"w_first: {tb.stats['aw_hs_no_w']} AWs taken with no W beat offered"
+        assert tb.stats['aw_wait_no_w'] > 0, 'w_first: no AW ever waited for its W'
+    else:
+        assert tb.stats['aw_hs_no_w'] > 0, f'{name}: every AW came with a W beat (the gate is stuck on)'
     if tb.PROTO == 'axi3':
         assert tb.stats['max_len'] == 15, \
             f"AXI3: longest burst AxLEN {tb.stats['max_len']}, expected exactly 15"
@@ -221,7 +233,7 @@ PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2}
 def _params():
     level = os.environ.get('TEST_LEVEL', 'gate')
     dws = [64] if level == 'gate' else [32, 64, 128]
-    scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id']
+    scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id', 'w_first']
     out = []
     for proto in PROTO_CODE:
         out += [(proto, dw, 'clean', sc) for dw in dws for sc in scen]

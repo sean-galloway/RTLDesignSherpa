@@ -49,6 +49,10 @@ class MonGroupConfig:
       master_protocol = "axi4"   # "axil4" | "axi4"
       axi_id_width    = 8        # used when either side is axi4
       max_burst_beats = 64       # used when master is axi4
+      s_axil_data_width = 64     # err-FIFO drain width, axil4 slave only:
+                                 # 64 (a record = 3 beats) or 32 (6 beats,
+                                 # for a 32-bit host -- the group splits
+                                 # each 64-bit slice low then high)
 
     Defaults reproduce the axil4/axil4 group so configs that omit the
     table keep their existing top-level surface and tests.
@@ -68,6 +72,7 @@ class MonGroupConfig:
     axi_id_width: int = 8             # slave-read and/or master-write id
     axi_user_width: int = 1
     max_burst_beats: int = 64         # master-write burst cap (axi4 master)
+    s_axil_data_width: int = 64       # err-FIFO drain width (axil4 slave): 64 | 32
 
     _VALID_PROTOCOLS = ("axil4", "axi4")
     # Pre-rename spelling, normalised in __post_init__ (see class docstring).
@@ -83,6 +88,14 @@ class MonGroupConfig:
         self.master_protocol = self._PROTOCOL_ALIASES.get(
             self.master_protocol, self.master_protocol)
 
+        if self.s_axil_data_width not in (32, 64):
+            raise ValueError(
+                f"[bridge.mon_group].s_axil_data_width = {self.s_axil_data_width!r} "
+                f"is not 32 or 64")
+        if self.s_axil_data_width != 64 and self.slave_is_axi4:
+            raise ValueError(
+                "[bridge.mon_group].s_axil_data_width applies to the axil4 drain "
+                "only (slave_protocol = 'axil4')")
         for label, p in (("slave_protocol", self.slave_protocol),
                          ("master_protocol", self.master_protocol)):
             if p not in self._VALID_PROTOCOLS:

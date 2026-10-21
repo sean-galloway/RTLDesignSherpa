@@ -22,7 +22,14 @@
 //     has just emptied, the grant is stale: VALID is masked by the lane's
 //     own valid and the grant is released with an ack of its own.
 //   - W follows the AW pick: an owner FIFO records the granted lane at each
-//     AW handshake, and its head selects the W lane until WLAST.
+//     AW handshake, and its head selects the W lane until WLAST. With the
+//     FIFO empty, the lane whose AW is being presented owns W at once (the
+//     owner bypass): the grant is a flop, so this depends on no READY, and
+//     W ahead of its AW is legal AXI. Without it a slave that waits for
+//     WVALID before AWREADY (A3.3.1 allows it) never saw W and deadlocked
+//     the fabric (bridge BUG-020). If the bypassed burst's WLAST goes before
+//     its AW handshake, `own_ahead` marks it so the handshake pushes no
+//     owner; the grant holds on that lane meanwhile (WAIT_GNT_ACK).
 //   - B and R cross back to aclk through one async FIFO each; the fabric
 //     routes them by the master-index bits of their ID.
 //   - At most MAX_OUTSTANDING writes and MAX_OUTSTANDING reads are in
@@ -222,20 +229,30 @@ module bridge_cdc_slave_arb #(
 
         // W owner: the granted lane at each AW handshake, in pick order.
         // Entries live from AW to WLAST, so MAX_OUTSTANDING bounds them.
-        logic          own_v, own_wr_ready;
-        logic [NB-1:0] own_id;
+        logic          own_v, own_wr_ready, own_ahead, own_byp, own_sel_v;
+        logic [NB-1:0] own_id, own_sel;
         logic          w_last_hs;
         assign w_last_hs = m_axi_wvalid && m_axi_wready && m_axi_wlast;
+        assign own_byp   = !own_v && !own_ahead && m_axi_awvalid;
+        assign own_sel_v = own_v || own_byp;
+        assign own_sel   = own_v ? own_id : aw_gid;
+        `ALWAYS_FF_RST(s_aclk, s_aresetn,
+            if (`RST_ASSERTED(s_aresetn))              own_ahead <= 1'b0;
+            else if (aw_hs)                           own_ahead <= 1'b0;
+            else if (own_byp && w_last_hs)            own_ahead <= 1'b1;
+        )
         gaxi_fifo_sync #(
             .DATA_WIDTH (NB),
             .DEPTH      (MAX_OUTSTANDING)
         ) u_owner (
             .axi_aclk    (s_aclk),
             .axi_aresetn (s_aresetn),
-            .wr_valid    (aw_hs),
+            // no owner for a burst whose W already went (ahead, or bypassed
+            // to its WLAST in the handshake cycle)
+            .wr_valid    (aw_hs && !own_ahead && !(own_byp && w_last_hs)),
             .wr_ready    (own_wr_ready),
             .wr_data     (aw_gid),
-            .rd_ready    (w_last_hs),
+            .rd_ready    (own_v && w_last_hs),
             /* verilator lint_off PINCONNECTEMPTY */
             .count       (),
             /* verilator lint_on PINCONNECTEMPTY */
@@ -247,10 +264,10 @@ module bridge_cdc_slave_arb #(
         assign unused_own_wr_ready = own_wr_ready;   // never full: see above
         /* verilator lint_on UNUSEDSIGNAL */
 
-        assign m_axi_wvalid = own_v && w_lv[own_id];
-        assign {m_axi_wdata, m_axi_wstrb, m_axi_wlast, m_axi_wuser} = w_ld[own_id];
+        assign m_axi_wvalid = own_sel_v && w_lv[own_sel];
+        assign {m_axi_wdata, m_axi_wstrb, m_axi_wlast, m_axi_wuser} = w_ld[own_sel];
         for (genvar i = 0; i < NM; i++) begin : gen_wsel
-            assign w_lr[i] = own_v && (own_id == NB'(i)) && m_axi_wready;
+            assign w_lr[i] = own_sel_v && (own_sel == NB'(i)) && m_axi_wready;
         end
 
         gaxi_fifo_async #(

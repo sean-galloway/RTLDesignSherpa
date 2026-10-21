@@ -1,0 +1,150 @@
+#============================================================================
+# bridge_bs_xmix -- the bridge stress model's mixed-protocol third-party
+# build: AXI3, AXI4 and AXI5 ports on one bridge, with third-party IP on the
+# AXI4 and AXI3 ones.
+#
+#   masters   cpu   AXI5 stress master (64b; NSAID / TRACE / MPAM / MECID,
+#                   IDUNQ): its sideband reaches the AXI5 slave natively and
+#                   is dropped on the way to the AXI4 / AXI3 slaves
+#             io    AXI3 stress master (64b): 16-beat bursts, WID
+#             acc   AXI4 stress master on cclk (32b: a crossing and a width)
+#             atg   AXI Traffic Generator (AXI4, 64b)
+#             cdma  AXI Central DMA (AXI4, 64b): 256-beat bursts, which the
+#                   bridge chops for the AXI3 bram port
+#   slaves    mem0  AXI5 stress slave (64b, same features as cpu)
+#             mem1  AXI3 stress slave (64b)
+#             mem2  AXI4 stress slave on cclk (32b)
+#             ddr   LiteDRAM DDR3 (AXI4, 128b, 1 GB)
+#             bram  AXI BRAM Controller behind the AXI Protocol Converter on
+#                   an AXI3 port: the bridge's AXI4-to-AXI3 path into
+#                   third-party IP
+# AXI3 and AXI5 ports cannot be clock-crossing ports (generator rules), so
+# the CDC ports are AXI4. The vendor masters reach only the memories (their
+# data is the memory image); every stress master reaches every slave.
+#============================================================================
+
+[harness]
+vendor = ["atg", "cdma", "ddr", "bram"]
+
+[bridge]
+name = "bridge_bs_xmix"
+variants = ["no"]
+description = "bridge stress model: AXI3 / AXI4 / AXI5 stress ports with third-party IP on AXI4 and AXI3"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name       = "cpu"
+prefix     = "cpu_axi_"
+protocol   = "axi5"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "unique"]
+
+[[bridge.masters]]
+name       = "io"
+prefix     = "io_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name       = "acc"
+prefix     = "acc_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 32
+user_width = 1
+cdc        = true
+
+[[bridge.masters]]
+name       = "atg"
+prefix     = "atg_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 2
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name       = "cdma"
+prefix     = "cdma_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 1
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.slaves]]
+name       = "mem0"
+prefix     = "mem0_axi_"
+protocol   = "axi5"
+channels   = "rw"
+id_width   = 7
+addr_width = 32
+data_width = 64
+user_width = 1
+axi5_features = ["nsaid", "trace", "mpam", "mecid", "unique"]
+base_addr  = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem1"
+prefix     = "mem1_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 7
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x10000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "mem2"
+prefix     = "mem2_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 7
+addr_width = 32
+data_width = 32
+user_width = 1
+cdc        = true
+base_addr  = "0x30000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "bram"
+prefix     = "bram_axi_"
+protocol   = "axi3"
+channels   = "rw"
+id_width   = 7
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x20000000"
+addr_range = "0x00010000"
+
+[[bridge.slaves]]
+name       = "ddr"
+prefix     = "ddr_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 7
+addr_width = 32
+data_width = 128
+user_width = 1
+base_addr  = "0x40000000"
+addr_range = "0x40000000"

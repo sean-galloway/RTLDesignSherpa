@@ -1,0 +1,2 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xil,clean,1,4000,False,False,1165882,atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set

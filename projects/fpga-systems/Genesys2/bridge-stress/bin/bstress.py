@@ -260,6 +260,7 @@ class Profile:
     poison_lg2: int = 3           # AXI5 poison paths: 1 beat in 8 poisoned
     atom_lg2: int = 3             # AXI5 atomic masters: 1 write burst in 8 an atomic
     full_axi: bool = False        # ignore path_caps: drive every path with the full AXI4 set
+    s_w_first: bool = False       # stress slaves take AW only while WVALID is up (A3.3.1)
 
 
 PROFILES: Dict[str, Profile] = {p.name: p for p in (
@@ -275,6 +276,9 @@ PROFILES: Dict[str, Profile] = {p.name: p for p in (
     Profile('chaos', errors=True, narrow=True, unaligned=True, strb_rand=True,
             m_resp_throttle=5, m_data_throttle=4, s_req_throttle=5, s_data_throttle=5,
             s_lat_mask=0x3F, interleave=True, qos_rand=True, gap_mask=0x03),
+    # slaves that wait for write data before they take the address, as AXI
+    # A3.3.1 allows (an AXI CDMA register slave does): bridge BUG-020's gate
+    Profile('w_first', s_w_first=True, m_data_throttle=4, s_lat_mask=0x0F),
 )}
 
 
@@ -321,6 +325,7 @@ class StressHarness:
                            regmap_file=str(REGMAPS / 'bstress_slv_regs_regmap.py'))
                     for s in build.stress_slaves]
         self.vendor = None          # bstress_xil.XilVendors on a build with vendor masters
+        self.ocelus = None          # bstress_ocelus.Ocelus when the DUT is its mon variant
         self.hole = find_hole(build)
         self.plan: Dict[int, List[M.Window]] = {}
 
@@ -341,6 +346,10 @@ class StressHarness:
                 want = (magic << 16) | (PROTO_CODE[p.protocol] << 13) | (p.iw << 8) | (p.dw // 8)
                 if v != want:
                     raise BuildMismatch(f'{d.name} ({p.name}): ID {v:#010x}, TOML says {want:#010x}')
+        # Ocelus: the bitstream says whether its DUT is the monitored variant
+        if self.ctl.field('STATUS', 'HAS_MON'):
+            from bstress_ocelus import Ocelus
+            self.ocelus = Ocelus(self, Ocelus.regmap_for(AREA, b.name), log=self.log)
 
     # ---- configuration -------------------------------------------------------
     def windows(self, m: Port, prof: Profile) -> List[M.Window]:
@@ -433,7 +442,8 @@ class StressHarness:
                 d.write(f'{dr}_CTRL', size_lg2=s.size_lg2, offset_mode=0, err_en=1,
                         tag=TAG0 + s.index, inorder=int(inorder),
                         interleave=int(prof.interleave and dr == 'RD'),
-                        req_throttle=prof.s_req_throttle, data_throttle=prof.s_data_throttle)
+                        req_throttle=prof.s_req_throttle, data_throttle=prof.s_data_throttle,
+                        w_first=int(prof.s_w_first and dr == 'WR'))
                 d.write_word(f'{dr}_ERR_BASE', s.base + (s.size >> 1))
                 d.write_word(f'{dr}_ERR_MASK', (~((s.size >> 2) - 1)) & M.M32)
                 d.write(f'{dr}_TIMING', lat_min=prof.s_lat_min, lat_mask=prof.s_lat_mask,
@@ -495,6 +505,8 @@ class StressHarness:
             sleep: Callable[[float], None] = time.sleep) -> dict:
         if txns <= 0:
             raise ValueError('a verdict needs a budget: txns >= 1')
+        if self.ocelus is not None:     # before the fill: it is part of the run
+            self.ocelus.configure(prof)
         fill_why = self.sweep('WR', timeout_s, sleep) if self.build.memories else []
         self.configure(prof, seed, txns)
         if self.vendor is not None:
@@ -510,6 +522,8 @@ class StressHarness:
         res['meta'] = dict(profile=prof.name, seed=seed, txns=txns, finished=finished)
         res['prof'] = prof
         res['vendor'] = fill_why + vendor_why
+        if self.ocelus is not None:
+            res['ocelus'] = [self.ocelus.describe(p) for p in self.ocelus.drain()]
         return res
 
     # ---- real memories -------------------------------------------------------
@@ -604,6 +618,9 @@ class StressHarness:
             if [m for m in b.masters_of(s) if not m.vendor] and reached == 0:
                 why.append(f'{s.name}: no traffic reached it')
         why += res.get('vendor', [])
+        # every Ocelus record is a finding: timeouts always, errors when the
+        # profile injects none (bstress_ocelus.Ocelus.configure)
+        why += [f'ocelus: {r}' for r in res.get('ocelus', [])]
         unm = res['ctl']['UNMAPPED_COUNT'] & 0xFF
         if prof.errors and self.hole is not None and unm == 0:
             why.append('DECERR windows planned but the bridge saw no unmapped access')

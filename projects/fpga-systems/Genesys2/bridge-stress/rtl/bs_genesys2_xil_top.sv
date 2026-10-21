@@ -24,13 +24,14 @@
 // Vendor control (AXI4-Lite out of the configuration bridge)
 //   ext0 0x0010_0000  u_atg's programming slave (an AXI4 slave, driven one
 //                     beat at a time)
-//   ext1 0x0011_0000  u_cdma's register slave, behind an AW skid (BUG-020)
+//   ext1 0x0011_0000  u_cdma's register slave (it waits for W before AW)
 // EXT_STS (control block)
 //   EXT_STS0  [0] DDR3 init_done  [1] LiteDRAM PLL locked  [2] cclk MMCM
 //             locked  [3] ddr link protocol violation  [4] bram link
 //             protocol violation  [5] ATG irq_out  [6] ATG err_out
 //             [7] CDMA cdma_introut  [8] ddr link stall (2048 idle cycles
 //             with work pending)  [9] bram link stall  [10] DDR3 init_error
+//             [11] traffic generator link protocol violation
 //             [31:16] ddr writes outstanding
 //   EXT_STS1  bs_pc_ddr pc_status[31:0]    EXT_STS2  bs_pc_ddr pc_status[63:32]
 //   EXT_STS3  bs_pc_bram pc_status[31:0]
@@ -150,7 +151,7 @@ module bs_genesys2_xil_top #(
     logic         cdma_axi_arvalid, cdma_axi_arready, cdma_axi_rvalid, cdma_axi_rready, cdma_axi_wlast, cdma_axi_rlast;
     logic [63:0]  cdma_axi_wdata, cdma_axi_rdata;
     logic [7:0]   cdma_axi_wstrb;
-    logic [5:0]   bram_axi_awid, bram_axi_arid, bram_axi_bid, bram_axi_rid;
+    logic [6:0]   bram_axi_awid, bram_axi_arid, bram_axi_bid, bram_axi_rid;
     logic [31:0]  bram_axi_awaddr, bram_axi_araddr;
     logic [7:0]   bram_axi_awlen, bram_axi_arlen;
     logic [2:0]   bram_axi_awsize, bram_axi_arsize, bram_axi_awprot, bram_axi_arprot;
@@ -162,7 +163,7 @@ module bs_genesys2_xil_top #(
     logic         bram_axi_arvalid, bram_axi_arready, bram_axi_rvalid, bram_axi_rready, bram_axi_wlast, bram_axi_rlast;
     logic [63:0]  bram_axi_wdata, bram_axi_rdata;
     logic [7:0]   bram_axi_wstrb;
-    logic [5:0]   ddr_axi_awid, ddr_axi_arid, ddr_axi_bid, ddr_axi_rid;
+    logic [6:0]   ddr_axi_awid, ddr_axi_arid, ddr_axi_bid, ddr_axi_rid;
     logic [31:0]  ddr_axi_awaddr, ddr_axi_araddr;
     logic [7:0]   ddr_axi_awlen, ddr_axi_arlen;
     logic [2:0]   ddr_axi_awsize, ddr_axi_arsize, ddr_axi_awprot, ddr_axi_arprot;
@@ -391,25 +392,15 @@ module bs_genesys2_xil_top #(
     // ---- AXI Central DMA (master cdma; registers through ext1) ------------------------
     logic w_cdma_irq;
 
-    // AW decoupler for the DMA's register slave, which takes AW only with W
-    // (bridge BUG-020): the bridge routes a write's W only after the slave port
-    // has taken its AW, and this slave takes AW only with W; a skid takes the
-    // AW at once and lets the W through
-    logic       w_cdma_awvalid, w_cdma_awready;
-    logic [5:0] w_cdma_awaddr;
-    gaxi_skid_buffer #(.DATA_WIDTH(6), .DEPTH(2)) u_cdma_aw_skid (
-        .axi_aclk (aclk), .axi_aresetn (aresetn),
-        .wr_valid (ext1_axil_awvalid), .wr_ready (ext1_axil_awready),
-        .wr_data  (ext1_axil_awaddr[5:0]),
-        .count (), .rd_count (),
-        .rd_valid (w_cdma_awvalid), .rd_ready (w_cdma_awready), .rd_data (w_cdma_awaddr)
-    );
-
+    // The DMA's register slave takes AW only with W (AXI A3.3.1). It sits
+    // directly on ext1: the AXI4-to-AXI4-Lite converter in the configuration
+    // bridge offers W without waiting for AWREADY since bridge BUG-020 was
+    // fixed (an AW skid stood here until then).
     bs_cdma u_cdma (
         .m_axi_aclk (aclk), .s_axi_lite_aclk (aclk), .s_axi_lite_aresetn (aresetn),
         .cdma_introut (w_cdma_irq),
-        .s_axi_lite_awready (w_cdma_awready),    .s_axi_lite_awvalid (w_cdma_awvalid),
-        .s_axi_lite_awaddr  (w_cdma_awaddr),
+        .s_axi_lite_awready (ext1_axil_awready), .s_axi_lite_awvalid (ext1_axil_awvalid),
+        .s_axi_lite_awaddr  (ext1_axil_awaddr[5:0]),
         .s_axi_lite_wready  (ext1_axil_wready),  .s_axi_lite_wvalid  (ext1_axil_wvalid),
         .s_axi_lite_wdata   (ext1_axil_wdata),
         .s_axi_lite_bready  (ext1_axil_bready),  .s_axi_lite_bvalid  (ext1_axil_bvalid),
@@ -447,7 +438,11 @@ module bs_genesys2_xil_top #(
 
     // ---- protocol checkers on the two memory links -------------------------------------
     logic [159:0] w_pc_ddr_status, w_pc_bram_status;
-    logic         w_pc_ddr_asserted, w_pc_bram_asserted;
+    // pc_ddr / pc_bram asserted are ILA triggers too (capture_ila.tcl ILA_TRIG=pc)
+    (* mark_debug = "true" *) logic w_pc_ddr_asserted;
+    (* mark_debug = "true" *) logic w_pc_bram_asserted;
+    logic         w_pc_atg_asserted;
+    logic [159:0] w_pc_atg_status;
 
     
     bs_pc_ddr u_pc_ddr (
@@ -497,6 +492,30 @@ module bs_genesys2_xil_top #(
         .pc_axi_rlast (bram_axi_rlast), .pc_axi_rdata (bram_axi_rdata),
         .pc_axi_rresp (bram_axi_rresp), .pc_axi_rvalid (bram_axi_rvalid),
         .pc_axi_rready (bram_axi_rready)
+    );
+    bs_pc_atg u_pc_atg (
+        .pc_status (w_pc_atg_status), .pc_asserted (w_pc_atg_asserted),
+        .aclk, .aresetn,
+        .pc_axi_awid (atg_axi_awid), .pc_axi_awaddr (atg_axi_awaddr),
+        .pc_axi_awlen (atg_axi_awlen), .pc_axi_awsize (atg_axi_awsize),
+        .pc_axi_awburst (atg_axi_awburst), .pc_axi_awlock (atg_axi_awlock),
+        .pc_axi_awcache (atg_axi_awcache), .pc_axi_awprot (atg_axi_awprot),
+        .pc_axi_awqos (atg_axi_awqos), .pc_axi_awregion (atg_axi_awregion),
+        .pc_axi_awvalid (atg_axi_awvalid), .pc_axi_awready (atg_axi_awready),
+        .pc_axi_wlast (atg_axi_wlast), .pc_axi_wdata (atg_axi_wdata),
+        .pc_axi_wstrb (atg_axi_wstrb), .pc_axi_wvalid (atg_axi_wvalid),
+        .pc_axi_wready (atg_axi_wready), .pc_axi_bid (atg_axi_bid),
+        .pc_axi_bresp (atg_axi_bresp), .pc_axi_bvalid (atg_axi_bvalid),
+        .pc_axi_bready (atg_axi_bready), .pc_axi_arid (atg_axi_arid),
+        .pc_axi_araddr (atg_axi_araddr), .pc_axi_arlen (atg_axi_arlen),
+        .pc_axi_arsize (atg_axi_arsize), .pc_axi_arburst (atg_axi_arburst),
+        .pc_axi_arlock (atg_axi_arlock), .pc_axi_arcache (atg_axi_arcache),
+        .pc_axi_arprot (atg_axi_arprot), .pc_axi_arqos (atg_axi_arqos),
+        .pc_axi_arregion (atg_axi_arregion), .pc_axi_arvalid (atg_axi_arvalid),
+        .pc_axi_arready (atg_axi_arready), .pc_axi_rid (atg_axi_rid),
+        .pc_axi_rlast (atg_axi_rlast), .pc_axi_rdata (atg_axi_rdata),
+        .pc_axi_rresp (atg_axi_rresp), .pc_axi_rvalid (atg_axi_rvalid),
+        .pc_axi_rready (atg_axi_rready)
     );
 
     // ---- link stall detectors (the ILA's triggers) ---------------------------------
@@ -592,14 +611,14 @@ module bs_genesys2_xil_top #(
     // Everything below is on aclk except the cclk MMCM lock, which is quasi-
     // static (it falls only with user_clk, which resets everything).
     always_ff @(posedge aclk) begin
-        w_ext_sts[31:0]   <= {r_ddr_wr_out, 5'd0, ddr_init_error, r_bram_stall, r_ddr_stall, w_cdma_irq, w_atg_err, w_atg_irq,
+        w_ext_sts[31:0]   <= {r_ddr_wr_out, 4'd0, w_pc_atg_asserted, ddr_init_error, r_bram_stall, r_ddr_stall, w_cdma_irq, w_atg_err, w_atg_irq,
                               w_pc_bram_asserted, w_pc_ddr_asserted, w_c_locked,
                               ddr_pll_locked, ddr_init_done};
         w_ext_sts[63:32]  <= w_pc_ddr_status[31:0];
         w_ext_sts[95:64]  <= w_pc_ddr_status[63:32];
         w_ext_sts[127:96] <= w_pc_bram_status[31:0];
     end
-    wire unused_pc = ^{w_pc_ddr_status[159:64], w_pc_bram_status[159:32]};
+    wire unused_pc = ^{w_pc_ddr_status[159:64], w_pc_bram_status[159:32], w_pc_atg_status};
 
     logic [25:0] r_beat;
     always_ff @(posedge aclk or negedge aresetn) begin

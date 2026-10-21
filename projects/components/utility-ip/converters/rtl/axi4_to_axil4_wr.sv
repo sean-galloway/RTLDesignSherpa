@@ -117,7 +117,6 @@ module axi4_to_axil4_wr #(
     //==========================================================================
 
     // Write burst tracker
-    logic [AXI_ID_WIDTH-1:0]     r_aw_id;
     logic [AXI_ADDR_WIDTH-1:0]   r_aw_addr;
     logic [7:0]                  r_aw_len;
     logic [7:0]                  r_aw_beat_count;
@@ -125,7 +124,7 @@ module axi4_to_axil4_wr #(
     logic [1:0]                  r_aw_burst;
     logic [2:0]                  r_aw_prot;
     logic                        r_aw_active;
-    logic                        r_aw_sent;    // AW beat sent, waiting for W
+    logic                        r_aw_sent;    // this beat's AXI4-Lite AW is done, waiting for its W
 
     // Address increment calculation
     logic [AXI_ADDR_WIDTH-1:0] w_aw_addr_incr;
@@ -145,215 +144,91 @@ module axi4_to_axil4_wr #(
                ((r_aw_addr + w_aw_addr_incr) & w_aw_wrap_mask))
             : (r_aw_addr + w_aw_addr_incr);
 
-    // Write state machine
-    typedef enum logic [1:0] {
-        WR_IDLE       = 2'b00,
-        WR_BURST      = 2'b01,
-        WR_LAST_BEAT  = 2'b10
-    } wr_state_t;
+    // Write sequencing. Every AW, single-beat or burst, is taken into the
+    // r_aw_* registers and then issued as AXI4-Lite beats, one at a time.
+    // Within a beat the AXI4-Lite AW and W handshakes are independent: the
+    // beat is done once both have happened, in either order or together.
+    //
+    // As the AXI4-Lite master this block must not wait for AWREADY before
+    // asserting WVALID (AXI A3.3.1), because the slave may wait for WVALID
+    // before asserting AWREADY -- an AXI CDMA register slave does, and the
+    // older version, which forwarded a beat's W only with or after its AW
+    // handshake and passed single beats' AWREADY straight through, deadlocked
+    // against it on the board (bridge BUG-020). W passes only for a
+    // registered burst, so a W beat can never pair with the wrong AW (the
+    // orphan-W hazard of the old passthrough leg cannot arise).
+    //
+    // One AXI write burst in flight at a time: r_wr_outstanding is set when
+    // the AW is taken and cleared when its B is handed to the master; the
+    // response path below keeps a single-entry record of it.
+    logic r_w_sent;     // this beat's AXI4-Lite W is done, waiting for its AW
+    logic w_axil_aw_hs, w_axil_w_hs, w_beat_aw_done, w_beat_w_done, w_beat_done;
+    logic w_last_beat;
+    assign w_axil_aw_hs   = m_axil_awvalid && m_axil_awready;
+    assign w_axil_w_hs    = m_axil_wvalid && m_axil_wready;
+    assign w_beat_aw_done = r_aw_sent || w_axil_aw_hs;
+    assign w_beat_w_done  = r_w_sent  || w_axil_w_hs;
+    assign w_beat_done    = r_aw_active && w_beat_aw_done && w_beat_w_done;
+    assign w_last_beat    = (r_aw_beat_count == r_aw_len);
 
-    wr_state_t r_wr_state, w_wr_next_state;
-
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_wr_state <= WR_IDLE;
-        end else begin
-            r_wr_state <= w_wr_next_state;
-        end
-    )
-
-    // Write next state logic
-    always_comb begin
-        w_wr_next_state = r_wr_state;
-        case (r_wr_state)
-            WR_IDLE: begin
-                if (s_axi_awvalid && s_axi_awready) begin
-                    if (s_axi_awlen == 0)
-                        w_wr_next_state = WR_IDLE;
-                    else
-                        w_wr_next_state = WR_BURST;
-                end
-            end
-            WR_BURST: begin
-                // Transition when beat completes (either AW+W together, or W after AW)
-                if ((m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready) ||
-                    (r_aw_sent && m_axil_wvalid && m_axil_wready)) begin
-                    if (r_aw_beat_count == r_aw_len - 1)
-                        w_wr_next_state = WR_LAST_BEAT;
-                end
-            end
-            WR_LAST_BEAT: begin
-                // Transition when beat completes (either AW+W together, or W after AW)
-                if ((m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready) ||
-                    (r_aw_sent && m_axil_wvalid && m_axil_wready))
-                    w_wr_next_state = WR_IDLE;
-            end
-            default: w_wr_next_state = WR_IDLE;
-        endcase
-    end
-
-    // Write burst tracking registers
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_aw_id <= '0;
-            r_aw_addr <= '0;
-            r_aw_len <= '0;
-            r_aw_beat_count <= '0;
-            r_aw_size <= '0;
-            r_aw_burst <= '0;
-            r_aw_prot <= '0;
-            r_aw_active <= 1'b0;
-            r_aw_sent <= 1'b0;
-        end else begin
-            case (r_wr_state)
-                WR_IDLE: begin
-                    if (s_axi_awvalid && s_axi_awready) begin
-                        r_aw_id <= s_axi_awid;
-                        r_aw_addr <= s_axi_awaddr;
-                        r_aw_len <= s_axi_awlen;
-                        r_aw_beat_count <= 8'd0;
-                        r_aw_size <= s_axi_awsize;
-                        r_aw_burst <= s_axi_awburst;
-                        r_aw_prot <= s_axi_awprot;
-                        r_aw_active <= (s_axi_awlen > 0);
-                    end else begin
-                        r_aw_active <= 1'b0;  // Clear when idle and not accepting new AW
-                    end
-                    r_aw_sent <= 1'b0;
-                end
-                // WR_BURST and WR_LAST_BEAT. Written as `default` with an
-                // explicit state test rather than a two-label arm, because
-                // `ALWAYS_FF_RST` takes this body as a macro ARGUMENT and the
-                // comma in `WR_BURST, WR_LAST_BEAT:` would split it. The
-                // else-branch below is the original `default` arm verbatim, so
-                // the undefined-state behaviour is unchanged too.
-                default: if (r_wr_state != WR_IDLE) begin
-                    // Track AW/W completion for this beat
-                    if (m_axil_awvalid && m_axil_awready && m_axil_wvalid && m_axil_wready) begin
-                        // Both AW and W complete together
-                        r_aw_beat_count <= r_aw_beat_count + 1'b1;
-                        if (r_aw_burst != 2'b00)  // Not FIXED
-                            r_aw_addr <= w_aw_next_addr;
-                        if (r_wr_state == WR_LAST_BEAT)
-                            r_aw_active <= 1'b0;
-                        r_aw_sent <= 1'b0;  // Ready for next beat
-                    end else if (m_axil_awvalid && m_axil_awready) begin
-                        // AW completes but W doesn't
-                        r_aw_sent <= 1'b1;
-                    end else if (r_aw_sent && m_axil_wvalid && m_axil_wready) begin
-                        // W completes after AW
-                        r_aw_beat_count <= r_aw_beat_count + 1'b1;
-                        if (r_aw_burst != 2'b00)  // Not FIXED
-                            r_aw_addr <= w_aw_next_addr;
-                        if (r_wr_state == WR_LAST_BEAT)
-                            r_aw_active <= 1'b0;
-                        r_aw_sent <= 1'b0;
-                    end
-                end else begin
-                    r_aw_sent <= 1'b0;
-                end
-            endcase
-        end
-    )
-
-    // AXI4-Lite AW and W channel assignment
-    // For bursts (awlen>0): Don't pass through, let FSM handle all beats
-    // For single beats (awlen==0): Pass through directly for efficiency
-    // One AXI write burst in flight at a time: set on AW acceptance, cleared
-    // when its B is handed to the master. awready is low while set, so the
-    // set and clear cannot collide. Guard the set against simultaneous clear:
-    // a combinational AXIL response can return B in the same cycle as AW
-    // acceptance, and priority to set would leave outstanding stuck high.
     logic r_wr_outstanding;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_wr_outstanding <= 1'b0;
         end else if (s_axi_bvalid && s_axi_bready) begin
+            // A combinational AXIL response can return B in the same cycle
+            // the AW is taken; clear wins only because awready is low while
+            // set, so the two cannot coincide for one burst.
             r_wr_outstanding <= 1'b0;
         end else if (s_axi_awvalid && s_axi_awready) begin
             r_wr_outstanding <= 1'b1;
         end
     )
 
-    assign m_axil_awaddr = r_aw_active ? r_aw_addr : s_axi_awaddr;
-    assign m_axil_awprot = r_aw_active ? r_aw_prot : s_axi_awprot;
-    // The passthrough leg drives awvalid from s_axi_awvalid directly rather
-    // than from the accepted handshake, so it needs the same outstanding
-    // guard as awready -- otherwise an AW held off by the guard keeps
-    // awvalid asserted and the AXIL slave services the same write again.
-    assign m_axil_awvalid = r_aw_active ? (r_wr_state != WR_IDLE && !r_aw_sent) :
-                            (s_axi_awvalid && (s_axi_awlen == 0) &&
-                             !r_wr_outstanding);
-    // For bursts, accept AW immediately into registers (don't wait for AXIL ready)
-    // For single beats, tie to AXIL ready for passthrough.
-    //
-    // r_b_id / r_b_len / r_b_beat_count are a SINGLE-entry record of the
-    // write in flight, and accepting an AW overwrites them. For awlen==0
-    // r_aw_active never sets, so without the outstanding guard a second
-    // single-beat AW was accepted while the first write's B was still
-    // outstanding, and the first master never saw its response at all.
-    assign s_axi_awready = !r_aw_active && !r_wr_outstanding &&
-                           ((s_axi_awlen == 0) ? m_axil_awready : 1'b1);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            r_aw_addr       <= '0;
+            r_aw_len        <= '0;
+            r_aw_beat_count <= '0;
+            r_aw_size       <= '0;
+            r_aw_burst      <= '0;
+            r_aw_prot       <= '0;
+            r_aw_active     <= 1'b0;
+            r_aw_sent       <= 1'b0;
+            r_w_sent        <= 1'b0;
+        end else if (s_axi_awvalid && s_axi_awready) begin
+            r_aw_addr       <= s_axi_awaddr;
+            r_aw_len        <= s_axi_awlen;
+            r_aw_beat_count <= 8'd0;
+            r_aw_size       <= s_axi_awsize;
+            r_aw_burst      <= s_axi_awburst;
+            r_aw_prot       <= s_axi_awprot;
+            r_aw_active     <= 1'b1;
+            r_aw_sent       <= 1'b0;
+            r_w_sent        <= 1'b0;
+        end else if (w_beat_done) begin
+            r_aw_beat_count <= r_aw_beat_count + 1'b1;
+            if (r_aw_burst != 2'b00)  // not FIXED
+                r_aw_addr <= w_aw_next_addr;
+            if (w_last_beat)
+                r_aw_active <= 1'b0;
+            r_aw_sent <= 1'b0;
+            r_w_sent  <= 1'b0;
+        end else begin
+            if (w_axil_aw_hs) r_aw_sent <= 1'b1;
+            if (w_axil_w_hs)  r_w_sent  <= 1'b1;
+        end
+    )
 
-    // Write data control with burst synchronization
-    // W channel must be synchronized with AW FSM for burst decomposition
-    assign m_axil_wdata = s_axi_wdata;
-    assign m_axil_wstrb = s_axi_wstrb;
-    //
-    // W gating. Three states for the W path:
-    //
-    //   1. Idle (no current burst): single-beat AW passthrough mode. W
-    //      passes through directly.
-    //
-    //   2. Active burst (r_aw_active=1): the FSM controls per-beat AW
-    //      emission. W passthrough plus s_axi_wready already gated by
-    //      AW progress prevents upstream from running ahead of the FSM.
-    //
-    //   3. *Burst-capture cycle* (r_aw_active=0, but a multi-beat AW is
-    //      being accepted into the registers this cycle): block W
-    //      entirely. r_aw_active rises on the next clock edge — if we
-    //      don't block here, this cycle falls through the !r_aw_active
-    //      branch into single-beat passthrough mode and fires the new
-    //      burst's W beat 0 with no paired AW (m_axil_awvalid is 0 this
-    //      cycle: r_aw_active=0 AND s_axi_awlen>0 fails the single-beat
-    //      passthrough condition). That orphan W gets mis-paired by a
-    //      FIFO-matching AXIL slave: the AXIL AW for the new burst's
-    //      beat 0 (cycle K+1) pairs with the leftover orphan W (beat 0
-    //      data), and the AXIL AW for beat 1 pairs with W beat 1 — net
-    //      result, W data and address get one-beat-shifted at the AXIL
-    //      slave. Symptom: AW addr from burst N pairs with W data from
-    //      burst N+1 (the bridge's 1x5_wr boundary_probe failure).
-    //
-    //      The bug only surfaces under back-to-back bursts (next AW
-    //      arriving in the cycle right after WR_LAST_BEAT completes —
-    //      sequential test_write_burst-with-20-clock-cooldown never
-    //      reaches this window, which is why this slipped through the
-    //      FUB tests until the bridge boundary_probe stressed it).
-    //
-    //      The `s_axi_awready` term restricts the block to the ACCEPT
-    //      cycle. Without it, a burst AW merely PARKED on the wire (held
-    //      off by the one-outstanding guard, awready=0) blocked the W
-    //      path of the write already in flight: that W never forwarded,
-    //      its B never generated, outstanding never cleared, and the
-    //      parked AW never accepted -- permanent deadlock. A lone BFM
-    //      serializes AW+W and never parks a second AW, which is why the
-    //      FUB tests missed it; the bridge's multi-master arbiter hit it
-    //      on the first storm (test_pending_w_blocked_by_waiting_burst_aw
-    //      is the pinned regression).
-    wire w_burst_capture = !r_aw_active && s_axi_awvalid && s_axi_awready &&
-                           (s_axi_awlen > 0);
+    assign s_axi_awready  = !r_aw_active && !r_wr_outstanding;
+    assign m_axil_awaddr  = r_aw_addr;
+    assign m_axil_awprot  = r_aw_prot;
+    assign m_axil_awvalid = r_aw_active && !r_aw_sent;
 
-    assign m_axil_wvalid = w_burst_capture ? 1'b0 :
-                           r_aw_active     ? (s_axi_wvalid &&
-                                              (r_aw_sent ||
-                                               (m_axil_awvalid && m_axil_awready))) :
-                                             s_axi_wvalid;
-    assign s_axi_wready  = w_burst_capture ? 1'b0 :
-                           r_aw_active     ? (m_axil_wready &&
-                                              (r_aw_sent ||
-                                               (m_axil_awvalid && m_axil_awready))) :
-                                             m_axil_wready;
-
+    assign m_axil_wdata  = s_axi_wdata;
+    assign m_axil_wstrb  = s_axi_wstrb;
+    assign m_axil_wvalid = r_aw_active && !r_w_sent && s_axi_wvalid;
+    assign s_axi_wready  = r_aw_active && !r_w_sent && m_axil_wready;
 
     // Write response path - accumulate responses
     logic [7:0] r_b_beat_count;

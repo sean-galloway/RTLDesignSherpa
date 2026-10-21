@@ -103,6 +103,8 @@ Don't override. Generated from: $root
 |  1  |  ANY_ERR |   r  | 0x0 |  — |
 |  2  | CLOCKS_OK|   r  | 0x0 |  — |
 |  3  | UNMAPPED |   r  | 0x0 |  — |
+|  4  |  MON_IRQ |   r  | 0x0 |  — |
+|  5  |  HAS_MON |   r  | 0x0 |  — |
 | 15:8| MST_DONE |   r  | 0x0 |  — |
 |23:16|  MST_ERR |   r  | 0x0 |  — |
 |31:24|  SLV_ERR |   r  | 0x0 |  — |
@@ -122,6 +124,14 @@ Don't override. Generated from: $root
 #### UNMAPPED field
 
 <p>Bridge unmapped-address flag.</p>
+
+#### MON_IRQ field
+
+<p>Ocelus: the bridge's error FIFO holds a record (its mon_irq_out). The drain (window ext3) stalls a read of an empty FIFO, so the host reads a record only while this is set.</p>
+
+#### HAS_MON field
+
+<p>Ocelus: the DUT is the bridge's monitored (mon) variant; its cfg regblock is window ext2 and its error drain window ext3. 0: both answer SLVERR.</p>
 
 #### MST_DONE field
 

@@ -404,6 +404,7 @@ module bridge_1x2_rw_axi5a_mon_ddr_adapter
         .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(1),
         .AGENT_ID(1),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
@@ -543,6 +544,7 @@ module bridge_1x2_rw_axi5a_mon_ddr_adapter
         .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(1),
         .AGENT_ID(0),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),

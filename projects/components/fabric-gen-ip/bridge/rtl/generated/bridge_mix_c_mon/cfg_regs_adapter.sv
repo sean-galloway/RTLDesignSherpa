@@ -394,6 +394,7 @@ module bridge_mix_c_mon_cfg_regs_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(17),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
@@ -498,6 +499,7 @@ module bridge_mix_c_mon_cfg_regs_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(16),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),

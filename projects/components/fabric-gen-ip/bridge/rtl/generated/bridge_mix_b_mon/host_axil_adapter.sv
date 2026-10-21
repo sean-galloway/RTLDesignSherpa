@@ -282,6 +282,7 @@ module bridge_mix_b_mon_host_axil_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(2),
         .AGENT_ID(33),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
@@ -388,6 +389,7 @@ module bridge_mix_b_mon_host_axil_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(2),
         .AGENT_ID(32),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_timing_wrapper_rd (
         .aclk(aclk),

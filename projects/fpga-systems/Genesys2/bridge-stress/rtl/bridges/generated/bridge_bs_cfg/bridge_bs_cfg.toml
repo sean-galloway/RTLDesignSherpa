@@ -5,7 +5,10 @@
 # harness control regs, and each stress master's and slave's own regblock
 # (bstress_*_csr, which carries the access into the block's clock), and two
 # AXI4-Lite windows, ext0 / ext1, for vendor IP control ports (build-xil: the
-# traffic generator and the DMA; every other harness answers them SLVERR).
+# traffic generator and the DMA; every other harness answers them SLVERR),
+# and ext2 / ext3 for the DUT's Ocelus monitors when it is the monitored
+# (mon) variant: ext2 its cfg regblock, ext3 its error-FIFO drain (SLVERR in
+# a build without them).
 # Not under test: every build holds it constant.
 #============================================================================
 
@@ -254,4 +257,28 @@ addr_width  = 32
 data_width  = 32
 user_width  = 0
 base_addr   = "0x00110000"
+addr_range  = "0x00010000"
+
+[[bridge.slaves]]
+name        = "ext2"
+prefix      = "ext2_axil_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00120000"
+addr_range  = "0x00010000"
+
+[[bridge.slaves]]
+name        = "ext3"
+prefix      = "ext3_axil_"
+protocol    = "axil"
+channels    = "rw"
+id_width    = 0
+addr_width  = 32
+data_width  = 32
+user_width  = 0
+base_addr   = "0x00130000"
 addr_range  = "0x00010000"

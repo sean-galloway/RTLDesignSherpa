@@ -25,7 +25,7 @@ from pathlib import Path
 AREA = Path(__file__).resolve().parent.parent
 OUT = AREA / 'rtl/lint/bs_xil_ip_stubs.sv'
 GEN = AREA / 'build-xil/fpga/build/vivado_project/bs_xil.gen/sources_1/ip'
-IPS = ('bs_atg', 'bs_cdma', 'bs_bram_ctrl', 'bs_bram', 'bs_pc_ddr', 'bs_pc_bram')
+IPS = ('bs_atg', 'bs_cdma', 'bs_bram_ctrl', 'bs_bram', 'bs_pc_ddr', 'bs_pc_bram', 'bs_pc_atg')
 DECL = re.compile(r'^\s*(input|output|inout)\s*(\[[^\]]*\])?\s*([\w,\s]+?)\s*(?:/\*.*?\*/)?\s*;', re.M)
 
 

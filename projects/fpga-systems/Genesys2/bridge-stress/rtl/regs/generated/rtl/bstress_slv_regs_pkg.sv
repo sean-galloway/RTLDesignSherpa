@@ -164,6 +164,10 @@ package bstress_slv_regs_pkg;
     } bstress_slv_regs__scfg_ctrl_t__INTERLEAVE__out_t;
 
     typedef struct {
+        logic value;
+    } bstress_slv_regs__scfg_ctrl_t__W_FIRST__out_t;
+
+    typedef struct {
         logic [3:0] value;
     } bstress_slv_regs__scfg_ctrl_t__REQ_THROTTLE__out_t;
 
@@ -178,6 +182,7 @@ package bstress_slv_regs_pkg;
         bstress_slv_regs__scfg_ctrl_t__TAG__out_t TAG;
         bstress_slv_regs__scfg_ctrl_t__INORDER__out_t INORDER;
         bstress_slv_regs__scfg_ctrl_t__INTERLEAVE__out_t INTERLEAVE;
+        bstress_slv_regs__scfg_ctrl_t__W_FIRST__out_t W_FIRST;
         bstress_slv_regs__scfg_ctrl_t__REQ_THROTTLE__out_t REQ_THROTTLE;
         bstress_slv_regs__scfg_ctrl_t__DATA_THROTTLE__out_t DATA_THROTTLE;
     } bstress_slv_regs__scfg_ctrl_t__out_t;

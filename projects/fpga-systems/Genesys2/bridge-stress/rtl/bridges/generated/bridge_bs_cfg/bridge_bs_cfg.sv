@@ -307,6 +307,50 @@ module bridge_bs_cfg
     input  logic [1:0]            ext1_axil_rresp,
     input  logic                  ext1_axil_rvalid,
     output logic                  ext1_axil_rready,
+
+    // Slave 19: ext2
+    // AXI4-Lite Slave: ext2
+    output logic [31:0] ext2_axil_awaddr,
+    output logic [2:0]            ext2_axil_awprot,
+    output logic                  ext2_axil_awvalid,
+    input  logic                  ext2_axil_awready,
+    output logic [31:0] ext2_axil_wdata,
+    output logic [3:0] ext2_axil_wstrb,
+    output logic                  ext2_axil_wvalid,
+    input  logic                  ext2_axil_wready,
+    input  logic [1:0]            ext2_axil_bresp,
+    input  logic                  ext2_axil_bvalid,
+    output logic                  ext2_axil_bready,
+    output logic [31:0] ext2_axil_araddr,
+    output logic [2:0]            ext2_axil_arprot,
+    output logic                  ext2_axil_arvalid,
+    input  logic                  ext2_axil_arready,
+    input  logic [31:0] ext2_axil_rdata,
+    input  logic [1:0]            ext2_axil_rresp,
+    input  logic                  ext2_axil_rvalid,
+    output logic                  ext2_axil_rready,
+
+    // Slave 20: ext3
+    // AXI4-Lite Slave: ext3
+    output logic [31:0] ext3_axil_awaddr,
+    output logic [2:0]            ext3_axil_awprot,
+    output logic                  ext3_axil_awvalid,
+    input  logic                  ext3_axil_awready,
+    output logic [31:0] ext3_axil_wdata,
+    output logic [3:0] ext3_axil_wstrb,
+    output logic                  ext3_axil_wvalid,
+    input  logic                  ext3_axil_wready,
+    input  logic [1:0]            ext3_axil_bresp,
+    input  logic                  ext3_axil_bvalid,
+    output logic                  ext3_axil_bready,
+    output logic [31:0] ext3_axil_araddr,
+    output logic [2:0]            ext3_axil_arprot,
+    output logic                  ext3_axil_arvalid,
+    input  logic                  ext3_axil_arready,
+    input  logic [31:0] ext3_axil_rdata,
+    input  logic [1:0]            ext3_axil_rresp,
+    input  logic                  ext3_axil_rvalid,
+    output logic                  ext3_axil_rready,
     // Unmapped-address status (subtractive slave).
     // unmapped_irq is STICKY: it latches on the first
     // unmapped access and holds until unmapped_clear,
@@ -320,7 +364,7 @@ module bridge_bs_cfg
     input  logic        unmapped_clear
 );
 
-    localparam NUM_SLAVES = 20;
+    localparam NUM_SLAVES = 22;
 
     // host Adapter outputs
     logic [NUM_SLAVES-1:0] host_slave_select_aw;
@@ -1333,6 +1377,110 @@ module bridge_bs_cfg
     logic [BRIDGE_ID_WIDTH-1:0] ext1_axi_rid_bridge_id;
     logic                       ext1_axi_rid_valid;
 
+    // ext2 (AXIL, 32b AXI4 interface)
+    logic [0:0]            xbar_ext2_axi_awid;
+    logic [31:0]               xbar_ext2_axi_awaddr;
+    logic [7:0]                xbar_ext2_axi_awlen;
+    logic [2:0]                xbar_ext2_axi_awsize;
+    logic [1:0]                xbar_ext2_axi_awburst;
+    logic                      xbar_ext2_axi_awlock;
+    logic [3:0]                xbar_ext2_axi_awcache;
+    logic [2:0]                xbar_ext2_axi_awprot;
+    logic [3:0]                xbar_ext2_axi_awqos;
+    logic [3:0]                xbar_ext2_axi_awregion;
+    logic                      xbar_ext2_axi_awuser;
+    logic                      xbar_ext2_axi_awvalid;
+    logic                      xbar_ext2_axi_awready;
+    logic [31:0] xbar_ext2_axi_wdata;
+    logic [3:0] xbar_ext2_axi_wstrb;
+    logic                      xbar_ext2_axi_wlast;
+    logic                      xbar_ext2_axi_wuser;
+    logic                      xbar_ext2_axi_wvalid;
+    logic                      xbar_ext2_axi_wready;
+    logic [0:0]            xbar_ext2_axi_bid;
+    logic [1:0]                xbar_ext2_axi_bresp;
+    logic                      xbar_ext2_axi_buser;
+    logic                      xbar_ext2_axi_bvalid;
+    logic                      xbar_ext2_axi_bready;
+    logic [0:0]            xbar_ext2_axi_arid;
+    logic [31:0]               xbar_ext2_axi_araddr;
+    logic [7:0]                xbar_ext2_axi_arlen;
+    logic [2:0]                xbar_ext2_axi_arsize;
+    logic [1:0]                xbar_ext2_axi_arburst;
+    logic                      xbar_ext2_axi_arlock;
+    logic [3:0]                xbar_ext2_axi_arcache;
+    logic [2:0]                xbar_ext2_axi_arprot;
+    logic [3:0]                xbar_ext2_axi_arqos;
+    logic [3:0]                xbar_ext2_axi_arregion;
+    logic                      xbar_ext2_axi_aruser;
+    logic                      xbar_ext2_axi_arvalid;
+    logic                      xbar_ext2_axi_arready;
+    logic [0:0]            xbar_ext2_axi_rid;
+    logic [31:0] xbar_ext2_axi_rdata;
+    logic [1:0]                xbar_ext2_axi_rresp;
+    logic                      xbar_ext2_axi_rlast;
+    logic                      xbar_ext2_axi_ruser;
+    logic                      xbar_ext2_axi_rvalid;
+    logic                      xbar_ext2_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] ext2_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] ext2_axi_bid_bridge_id;
+    logic                       ext2_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] ext2_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] ext2_axi_rid_bridge_id;
+    logic                       ext2_axi_rid_valid;
+
+    // ext3 (AXIL, 32b AXI4 interface)
+    logic [0:0]            xbar_ext3_axi_awid;
+    logic [31:0]               xbar_ext3_axi_awaddr;
+    logic [7:0]                xbar_ext3_axi_awlen;
+    logic [2:0]                xbar_ext3_axi_awsize;
+    logic [1:0]                xbar_ext3_axi_awburst;
+    logic                      xbar_ext3_axi_awlock;
+    logic [3:0]                xbar_ext3_axi_awcache;
+    logic [2:0]                xbar_ext3_axi_awprot;
+    logic [3:0]                xbar_ext3_axi_awqos;
+    logic [3:0]                xbar_ext3_axi_awregion;
+    logic                      xbar_ext3_axi_awuser;
+    logic                      xbar_ext3_axi_awvalid;
+    logic                      xbar_ext3_axi_awready;
+    logic [31:0] xbar_ext3_axi_wdata;
+    logic [3:0] xbar_ext3_axi_wstrb;
+    logic                      xbar_ext3_axi_wlast;
+    logic                      xbar_ext3_axi_wuser;
+    logic                      xbar_ext3_axi_wvalid;
+    logic                      xbar_ext3_axi_wready;
+    logic [0:0]            xbar_ext3_axi_bid;
+    logic [1:0]                xbar_ext3_axi_bresp;
+    logic                      xbar_ext3_axi_buser;
+    logic                      xbar_ext3_axi_bvalid;
+    logic                      xbar_ext3_axi_bready;
+    logic [0:0]            xbar_ext3_axi_arid;
+    logic [31:0]               xbar_ext3_axi_araddr;
+    logic [7:0]                xbar_ext3_axi_arlen;
+    logic [2:0]                xbar_ext3_axi_arsize;
+    logic [1:0]                xbar_ext3_axi_arburst;
+    logic                      xbar_ext3_axi_arlock;
+    logic [3:0]                xbar_ext3_axi_arcache;
+    logic [2:0]                xbar_ext3_axi_arprot;
+    logic [3:0]                xbar_ext3_axi_arqos;
+    logic [3:0]                xbar_ext3_axi_arregion;
+    logic                      xbar_ext3_axi_aruser;
+    logic                      xbar_ext3_axi_arvalid;
+    logic                      xbar_ext3_axi_arready;
+    logic [0:0]            xbar_ext3_axi_rid;
+    logic [31:0] xbar_ext3_axi_rdata;
+    logic [1:0]                xbar_ext3_axi_rresp;
+    logic                      xbar_ext3_axi_rlast;
+    logic                      xbar_ext3_axi_ruser;
+    logic                      xbar_ext3_axi_rvalid;
+    logic                      xbar_ext3_axi_rready;
+    logic [BRIDGE_ID_WIDTH-1:0] ext3_axi_bridge_id_aw;
+    logic [BRIDGE_ID_WIDTH-1:0] ext3_axi_bid_bridge_id;
+    logic                       ext3_axi_bid_valid;
+    logic [BRIDGE_ID_WIDTH-1:0] ext3_axi_bridge_id_ar;
+    logic [BRIDGE_ID_WIDTH-1:0] ext3_axi_rid_bridge_id;
+    logic                       ext3_axi_rid_valid;
+
     // subtractive (AXI4, 32b AXI4 interface)
     logic [0:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
@@ -1386,7 +1534,7 @@ module bridge_bs_cfg
     logic                       subtractive_axi_rid_valid;
 
 
-    // ---- Slave 19: subtractive (subtractive catch-all, internal) ----
+    // ---- Slave 21: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (bridge BUG-007, was BRIDGE-009). Always answers DECERR.
     logic         subtractive_awid;
@@ -1444,7 +1592,7 @@ module bridge_bs_cfg
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (32),
         .AXI_USER_WIDTH (1),
-        .UNIT_ID        (8'd19),
+        .UNIT_ID        (8'd21),
         .AGENT_ID       (16'h5B00)
     ) u_subtractive (
         .aclk          (aclk),
@@ -2602,7 +2750,113 @@ module bridge_bs_cfg
         .ext1_axi_rid_bridge_id(ext1_axi_rid_bridge_id),
         .ext1_axi_rid_valid(ext1_axi_rid_valid),
 
-        // Slave 19: subtractive
+        // Slave 19: ext2
+        .ext2_axi_awid(xbar_ext2_axi_awid),
+        .ext2_axi_awaddr(xbar_ext2_axi_awaddr),
+        .ext2_axi_awlen(xbar_ext2_axi_awlen),
+        .ext2_axi_awsize(xbar_ext2_axi_awsize),
+        .ext2_axi_awburst(xbar_ext2_axi_awburst),
+        .ext2_axi_awlock(xbar_ext2_axi_awlock),
+        .ext2_axi_awcache(xbar_ext2_axi_awcache),
+        .ext2_axi_awprot(xbar_ext2_axi_awprot),
+        .ext2_axi_awqos(xbar_ext2_axi_awqos),
+        .ext2_axi_awregion(xbar_ext2_axi_awregion),
+        .ext2_axi_awuser(xbar_ext2_axi_awuser),
+        .ext2_axi_awvalid(xbar_ext2_axi_awvalid),
+        .ext2_axi_awready(xbar_ext2_axi_awready),
+        .ext2_axi_wdata(xbar_ext2_axi_wdata),
+        .ext2_axi_wstrb(xbar_ext2_axi_wstrb),
+        .ext2_axi_wlast(xbar_ext2_axi_wlast),
+        .ext2_axi_wuser(xbar_ext2_axi_wuser),
+        .ext2_axi_wvalid(xbar_ext2_axi_wvalid),
+        .ext2_axi_wready(xbar_ext2_axi_wready),
+        .ext2_axi_bid(xbar_ext2_axi_bid),
+        .ext2_axi_bresp(xbar_ext2_axi_bresp),
+        .ext2_axi_buser(xbar_ext2_axi_buser),
+        .ext2_axi_bvalid(xbar_ext2_axi_bvalid),
+        .ext2_axi_bready(xbar_ext2_axi_bready),
+        .ext2_axi_arid(xbar_ext2_axi_arid),
+        .ext2_axi_araddr(xbar_ext2_axi_araddr),
+        .ext2_axi_arlen(xbar_ext2_axi_arlen),
+        .ext2_axi_arsize(xbar_ext2_axi_arsize),
+        .ext2_axi_arburst(xbar_ext2_axi_arburst),
+        .ext2_axi_arlock(xbar_ext2_axi_arlock),
+        .ext2_axi_arcache(xbar_ext2_axi_arcache),
+        .ext2_axi_arprot(xbar_ext2_axi_arprot),
+        .ext2_axi_arqos(xbar_ext2_axi_arqos),
+        .ext2_axi_arregion(xbar_ext2_axi_arregion),
+        .ext2_axi_aruser(xbar_ext2_axi_aruser),
+        .ext2_axi_arvalid(xbar_ext2_axi_arvalid),
+        .ext2_axi_arready(xbar_ext2_axi_arready),
+        .ext2_axi_rid(xbar_ext2_axi_rid),
+        .ext2_axi_rdata(xbar_ext2_axi_rdata),
+        .ext2_axi_rresp(xbar_ext2_axi_rresp),
+        .ext2_axi_rlast(xbar_ext2_axi_rlast),
+        .ext2_axi_ruser(xbar_ext2_axi_ruser),
+        .ext2_axi_rvalid(xbar_ext2_axi_rvalid),
+        .ext2_axi_rready(xbar_ext2_axi_rready),
+        .ext2_axi_bridge_id_aw(ext2_axi_bridge_id_aw),
+        .ext2_axi_bid_bridge_id(ext2_axi_bid_bridge_id),
+        .ext2_axi_bid_valid(ext2_axi_bid_valid),
+
+        .ext2_axi_bridge_id_ar(ext2_axi_bridge_id_ar),
+        .ext2_axi_rid_bridge_id(ext2_axi_rid_bridge_id),
+        .ext2_axi_rid_valid(ext2_axi_rid_valid),
+
+        // Slave 20: ext3
+        .ext3_axi_awid(xbar_ext3_axi_awid),
+        .ext3_axi_awaddr(xbar_ext3_axi_awaddr),
+        .ext3_axi_awlen(xbar_ext3_axi_awlen),
+        .ext3_axi_awsize(xbar_ext3_axi_awsize),
+        .ext3_axi_awburst(xbar_ext3_axi_awburst),
+        .ext3_axi_awlock(xbar_ext3_axi_awlock),
+        .ext3_axi_awcache(xbar_ext3_axi_awcache),
+        .ext3_axi_awprot(xbar_ext3_axi_awprot),
+        .ext3_axi_awqos(xbar_ext3_axi_awqos),
+        .ext3_axi_awregion(xbar_ext3_axi_awregion),
+        .ext3_axi_awuser(xbar_ext3_axi_awuser),
+        .ext3_axi_awvalid(xbar_ext3_axi_awvalid),
+        .ext3_axi_awready(xbar_ext3_axi_awready),
+        .ext3_axi_wdata(xbar_ext3_axi_wdata),
+        .ext3_axi_wstrb(xbar_ext3_axi_wstrb),
+        .ext3_axi_wlast(xbar_ext3_axi_wlast),
+        .ext3_axi_wuser(xbar_ext3_axi_wuser),
+        .ext3_axi_wvalid(xbar_ext3_axi_wvalid),
+        .ext3_axi_wready(xbar_ext3_axi_wready),
+        .ext3_axi_bid(xbar_ext3_axi_bid),
+        .ext3_axi_bresp(xbar_ext3_axi_bresp),
+        .ext3_axi_buser(xbar_ext3_axi_buser),
+        .ext3_axi_bvalid(xbar_ext3_axi_bvalid),
+        .ext3_axi_bready(xbar_ext3_axi_bready),
+        .ext3_axi_arid(xbar_ext3_axi_arid),
+        .ext3_axi_araddr(xbar_ext3_axi_araddr),
+        .ext3_axi_arlen(xbar_ext3_axi_arlen),
+        .ext3_axi_arsize(xbar_ext3_axi_arsize),
+        .ext3_axi_arburst(xbar_ext3_axi_arburst),
+        .ext3_axi_arlock(xbar_ext3_axi_arlock),
+        .ext3_axi_arcache(xbar_ext3_axi_arcache),
+        .ext3_axi_arprot(xbar_ext3_axi_arprot),
+        .ext3_axi_arqos(xbar_ext3_axi_arqos),
+        .ext3_axi_arregion(xbar_ext3_axi_arregion),
+        .ext3_axi_aruser(xbar_ext3_axi_aruser),
+        .ext3_axi_arvalid(xbar_ext3_axi_arvalid),
+        .ext3_axi_arready(xbar_ext3_axi_arready),
+        .ext3_axi_rid(xbar_ext3_axi_rid),
+        .ext3_axi_rdata(xbar_ext3_axi_rdata),
+        .ext3_axi_rresp(xbar_ext3_axi_rresp),
+        .ext3_axi_rlast(xbar_ext3_axi_rlast),
+        .ext3_axi_ruser(xbar_ext3_axi_ruser),
+        .ext3_axi_rvalid(xbar_ext3_axi_rvalid),
+        .ext3_axi_rready(xbar_ext3_axi_rready),
+        .ext3_axi_bridge_id_aw(ext3_axi_bridge_id_aw),
+        .ext3_axi_bid_bridge_id(ext3_axi_bid_bridge_id),
+        .ext3_axi_bid_valid(ext3_axi_bid_valid),
+
+        .ext3_axi_bridge_id_ar(ext3_axi_bridge_id_ar),
+        .ext3_axi_rid_bridge_id(ext3_axi_rid_bridge_id),
+        .ext3_axi_rid_valid(ext3_axi_rid_valid),
+
+        // Slave 21: subtractive
         .subtractive_axi_awid(xbar_subtractive_axi_awid),
         .subtractive_axi_awaddr(xbar_subtractive_axi_awaddr),
         .subtractive_axi_awlen(xbar_subtractive_axi_awlen),
@@ -4047,6 +4301,168 @@ module bridge_bs_cfg
         .xbar_bridge_id_ar(ext1_axi_bridge_id_ar),
         .rid_bridge_id(ext1_axi_rid_bridge_id),
         .rid_valid(ext1_axi_rid_valid)
+    );
+
+    // ext2 adapter (AXIL, crossbar → external slave)
+    bridge_bs_cfg_ext2_adapter u_ext2_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_ext2_axi_*)
+        .xbar_ext2_axi_awid(xbar_ext2_axi_awid),
+        .xbar_ext2_axi_awaddr(xbar_ext2_axi_awaddr),
+        .xbar_ext2_axi_awlen(xbar_ext2_axi_awlen),
+        .xbar_ext2_axi_awsize(xbar_ext2_axi_awsize),
+        .xbar_ext2_axi_awburst(xbar_ext2_axi_awburst),
+        .xbar_ext2_axi_awlock(xbar_ext2_axi_awlock),
+        .xbar_ext2_axi_awcache(xbar_ext2_axi_awcache),
+        .xbar_ext2_axi_awprot(xbar_ext2_axi_awprot),
+        .xbar_ext2_axi_awqos(xbar_ext2_axi_awqos),
+        .xbar_ext2_axi_awregion(xbar_ext2_axi_awregion),
+        .xbar_ext2_axi_awuser(xbar_ext2_axi_awuser),
+        .xbar_ext2_axi_awvalid(xbar_ext2_axi_awvalid),
+        .xbar_ext2_axi_awready(xbar_ext2_axi_awready),
+        .xbar_ext2_axi_wdata(xbar_ext2_axi_wdata),
+        .xbar_ext2_axi_wstrb(xbar_ext2_axi_wstrb),
+        .xbar_ext2_axi_wlast(xbar_ext2_axi_wlast),
+        .xbar_ext2_axi_wuser(xbar_ext2_axi_wuser),
+        .xbar_ext2_axi_wvalid(xbar_ext2_axi_wvalid),
+        .xbar_ext2_axi_wready(xbar_ext2_axi_wready),
+        .xbar_ext2_axi_bid(xbar_ext2_axi_bid),
+        .xbar_ext2_axi_bresp(xbar_ext2_axi_bresp),
+        .xbar_ext2_axi_buser(xbar_ext2_axi_buser),
+        .xbar_ext2_axi_bvalid(xbar_ext2_axi_bvalid),
+        .xbar_ext2_axi_bready(xbar_ext2_axi_bready),
+        .xbar_ext2_axi_arid(xbar_ext2_axi_arid),
+        .xbar_ext2_axi_araddr(xbar_ext2_axi_araddr),
+        .xbar_ext2_axi_arlen(xbar_ext2_axi_arlen),
+        .xbar_ext2_axi_arsize(xbar_ext2_axi_arsize),
+        .xbar_ext2_axi_arburst(xbar_ext2_axi_arburst),
+        .xbar_ext2_axi_arlock(xbar_ext2_axi_arlock),
+        .xbar_ext2_axi_arcache(xbar_ext2_axi_arcache),
+        .xbar_ext2_axi_arprot(xbar_ext2_axi_arprot),
+        .xbar_ext2_axi_arqos(xbar_ext2_axi_arqos),
+        .xbar_ext2_axi_arregion(xbar_ext2_axi_arregion),
+        .xbar_ext2_axi_aruser(xbar_ext2_axi_aruser),
+        .xbar_ext2_axi_arvalid(xbar_ext2_axi_arvalid),
+        .xbar_ext2_axi_arready(xbar_ext2_axi_arready),
+        .xbar_ext2_axi_rid(xbar_ext2_axi_rid),
+        .xbar_ext2_axi_rdata(xbar_ext2_axi_rdata),
+        .xbar_ext2_axi_rresp(xbar_ext2_axi_rresp),
+        .xbar_ext2_axi_rlast(xbar_ext2_axi_rlast),
+        .xbar_ext2_axi_ruser(xbar_ext2_axi_ruser),
+        .xbar_ext2_axi_rvalid(xbar_ext2_axi_rvalid),
+        .xbar_ext2_axi_rready(xbar_ext2_axi_rready),
+
+        // External AXI4-Lite interface (ext2_axil_*)
+        .ext2_axil_awaddr(ext2_axil_awaddr),
+        .ext2_axil_awprot(ext2_axil_awprot),
+        .ext2_axil_awvalid(ext2_axil_awvalid),
+        .ext2_axil_awready(ext2_axil_awready),
+        .ext2_axil_wdata(ext2_axil_wdata),
+        .ext2_axil_wstrb(ext2_axil_wstrb),
+        .ext2_axil_wvalid(ext2_axil_wvalid),
+        .ext2_axil_wready(ext2_axil_wready),
+        .ext2_axil_bresp(ext2_axil_bresp),
+        .ext2_axil_bvalid(ext2_axil_bvalid),
+        .ext2_axil_bready(ext2_axil_bready),
+        .ext2_axil_araddr(ext2_axil_araddr),
+        .ext2_axil_arprot(ext2_axil_arprot),
+        .ext2_axil_arvalid(ext2_axil_arvalid),
+        .ext2_axil_arready(ext2_axil_arready),
+        .ext2_axil_rdata(ext2_axil_rdata),
+        .ext2_axil_rresp(ext2_axil_rresp),
+        .ext2_axil_rvalid(ext2_axil_rvalid),
+        .ext2_axil_rready(ext2_axil_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(ext2_axi_bridge_id_aw),
+        .bid_bridge_id(ext2_axi_bid_bridge_id),
+        .bid_valid(ext2_axi_bid_valid),
+        .xbar_bridge_id_ar(ext2_axi_bridge_id_ar),
+        .rid_bridge_id(ext2_axi_rid_bridge_id),
+        .rid_valid(ext2_axi_rid_valid)
+    );
+
+    // ext3 adapter (AXIL, crossbar → external slave)
+    bridge_bs_cfg_ext3_adapter u_ext3_adapter (
+        .aclk(aclk),
+        .aresetn(aresetn),
+
+        // Crossbar interface (xbar_ext3_axi_*)
+        .xbar_ext3_axi_awid(xbar_ext3_axi_awid),
+        .xbar_ext3_axi_awaddr(xbar_ext3_axi_awaddr),
+        .xbar_ext3_axi_awlen(xbar_ext3_axi_awlen),
+        .xbar_ext3_axi_awsize(xbar_ext3_axi_awsize),
+        .xbar_ext3_axi_awburst(xbar_ext3_axi_awburst),
+        .xbar_ext3_axi_awlock(xbar_ext3_axi_awlock),
+        .xbar_ext3_axi_awcache(xbar_ext3_axi_awcache),
+        .xbar_ext3_axi_awprot(xbar_ext3_axi_awprot),
+        .xbar_ext3_axi_awqos(xbar_ext3_axi_awqos),
+        .xbar_ext3_axi_awregion(xbar_ext3_axi_awregion),
+        .xbar_ext3_axi_awuser(xbar_ext3_axi_awuser),
+        .xbar_ext3_axi_awvalid(xbar_ext3_axi_awvalid),
+        .xbar_ext3_axi_awready(xbar_ext3_axi_awready),
+        .xbar_ext3_axi_wdata(xbar_ext3_axi_wdata),
+        .xbar_ext3_axi_wstrb(xbar_ext3_axi_wstrb),
+        .xbar_ext3_axi_wlast(xbar_ext3_axi_wlast),
+        .xbar_ext3_axi_wuser(xbar_ext3_axi_wuser),
+        .xbar_ext3_axi_wvalid(xbar_ext3_axi_wvalid),
+        .xbar_ext3_axi_wready(xbar_ext3_axi_wready),
+        .xbar_ext3_axi_bid(xbar_ext3_axi_bid),
+        .xbar_ext3_axi_bresp(xbar_ext3_axi_bresp),
+        .xbar_ext3_axi_buser(xbar_ext3_axi_buser),
+        .xbar_ext3_axi_bvalid(xbar_ext3_axi_bvalid),
+        .xbar_ext3_axi_bready(xbar_ext3_axi_bready),
+        .xbar_ext3_axi_arid(xbar_ext3_axi_arid),
+        .xbar_ext3_axi_araddr(xbar_ext3_axi_araddr),
+        .xbar_ext3_axi_arlen(xbar_ext3_axi_arlen),
+        .xbar_ext3_axi_arsize(xbar_ext3_axi_arsize),
+        .xbar_ext3_axi_arburst(xbar_ext3_axi_arburst),
+        .xbar_ext3_axi_arlock(xbar_ext3_axi_arlock),
+        .xbar_ext3_axi_arcache(xbar_ext3_axi_arcache),
+        .xbar_ext3_axi_arprot(xbar_ext3_axi_arprot),
+        .xbar_ext3_axi_arqos(xbar_ext3_axi_arqos),
+        .xbar_ext3_axi_arregion(xbar_ext3_axi_arregion),
+        .xbar_ext3_axi_aruser(xbar_ext3_axi_aruser),
+        .xbar_ext3_axi_arvalid(xbar_ext3_axi_arvalid),
+        .xbar_ext3_axi_arready(xbar_ext3_axi_arready),
+        .xbar_ext3_axi_rid(xbar_ext3_axi_rid),
+        .xbar_ext3_axi_rdata(xbar_ext3_axi_rdata),
+        .xbar_ext3_axi_rresp(xbar_ext3_axi_rresp),
+        .xbar_ext3_axi_rlast(xbar_ext3_axi_rlast),
+        .xbar_ext3_axi_ruser(xbar_ext3_axi_ruser),
+        .xbar_ext3_axi_rvalid(xbar_ext3_axi_rvalid),
+        .xbar_ext3_axi_rready(xbar_ext3_axi_rready),
+
+        // External AXI4-Lite interface (ext3_axil_*)
+        .ext3_axil_awaddr(ext3_axil_awaddr),
+        .ext3_axil_awprot(ext3_axil_awprot),
+        .ext3_axil_awvalid(ext3_axil_awvalid),
+        .ext3_axil_awready(ext3_axil_awready),
+        .ext3_axil_wdata(ext3_axil_wdata),
+        .ext3_axil_wstrb(ext3_axil_wstrb),
+        .ext3_axil_wvalid(ext3_axil_wvalid),
+        .ext3_axil_wready(ext3_axil_wready),
+        .ext3_axil_bresp(ext3_axil_bresp),
+        .ext3_axil_bvalid(ext3_axil_bvalid),
+        .ext3_axil_bready(ext3_axil_bready),
+        .ext3_axil_araddr(ext3_axil_araddr),
+        .ext3_axil_arprot(ext3_axil_arprot),
+        .ext3_axil_arvalid(ext3_axil_arvalid),
+        .ext3_axil_arready(ext3_axil_arready),
+        .ext3_axil_rdata(ext3_axil_rdata),
+        .ext3_axil_rresp(ext3_axil_rresp),
+        .ext3_axil_rvalid(ext3_axil_rvalid),
+        .ext3_axil_rready(ext3_axil_rready),
+
+        // Bridge ID tracking
+        .xbar_bridge_id_aw(ext3_axi_bridge_id_aw),
+        .bid_bridge_id(ext3_axi_bid_bridge_id),
+        .bid_valid(ext3_axi_bid_valid),
+        .xbar_bridge_id_ar(ext3_axi_bridge_id_ar),
+        .rid_bridge_id(ext3_axi_rid_bridge_id),
+        .rid_valid(ext3_axi_rid_valid)
     );
 
     // subtractive adapter (AXI4, crossbar → external slave)

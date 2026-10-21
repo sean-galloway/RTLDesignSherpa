@@ -41,6 +41,8 @@ addrmap bstress_ctl_regs {
         field { sw = r; hw = w; desc = "Any block has an error bit set."; } ANY_ERR[1:1] = 0;
         field { sw = r; hw = w; desc = "Every clock domain locked / out of reset."; } CLOCKS_OK[2:2] = 0;
         field { sw = r; hw = w; desc = "Bridge unmapped-address flag."; } UNMAPPED[3:3] = 0;
+        field { sw = r; hw = w; desc = "Ocelus: the bridge's error FIFO holds a record (its mon_irq_out). The drain (window ext3) stalls a read of an empty FIFO, so the host reads a record only while this is set."; } MON_IRQ[4:4] = 0;
+        field { sw = r; hw = w; desc = "Ocelus: the DUT is the bridge's monitored (mon) variant; its cfg regblock is window ext2 and its error drain window ext3. 0: both answer SLVERR."; } HAS_MON[5:5] = 0;
         field { sw = r; hw = w; desc = "Per master: done."; } MST_DONE[15:8] = 0;
         field { sw = r; hw = w; desc = "Per master: error."; } MST_ERR[23:16] = 0;
         field { sw = r; hw = w; desc = "Per slave: error."; } SLV_ERR[31:24] = 0;

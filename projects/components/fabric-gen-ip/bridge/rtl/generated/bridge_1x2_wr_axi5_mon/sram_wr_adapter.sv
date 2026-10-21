@@ -210,6 +210,7 @@ module bridge_1x2_wr_axi5_mon_sram_wr_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(17),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),

@@ -6,8 +6,8 @@
 # DDR3-800 at 1:4, 100 MHz sys from the board's 200 MHz clock. The VexRiscv +
 # BIOS calibrate the PHY at boot and then idle; init_done is "DDR3 ready".
 #
-# The user port is the ddr port's: 128-bit AXI4, ID width 6
-# (bridge_bs_xil.toml). user_clk is aclk, so the port needs no crossing.
+# The user port is the ddr port's: 128-bit AXI4, ID width 7
+# (bridge_bs_xil.toml, bridge_bs_xmix.toml). user_clk is aclk, so the port needs no crossing.
 #
 # Replaces MIG 7-series (owner decision 2026-10-20): MIG's controller raised
 # app_rd_data_valid with no read issued and then stopped accepting commands
@@ -31,6 +31,6 @@
     "cmd_buffer_depth": 16,
 
     "user_ports": {
-        "axi_0": { "type": "axi", "data_width": 128, "id_width": 6 }
+        "axi_0": { "type": "axi", "data_width": 128, "id_width": 7 }
     }
 }

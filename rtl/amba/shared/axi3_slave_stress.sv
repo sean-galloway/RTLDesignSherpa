@@ -251,6 +251,12 @@ module axi3_slave_stress
         logic              f_bvalid, f_bready;
         logic [CUW-1:0]    c_buser;
 
+        // W_FIRST (cfg w_first): take an AW only while a W beat is offered, as a
+        // slave that waits for write data first does (AXI A3.3.1 allows it)
+        logic w_aw_gate, w_ch_awready;
+        assign w_aw_gate     = !cfg_wr.w_first || s_axi_wvalid;
+        assign s_axi_awready = w_ch_awready && w_aw_gate;
+
         axi4_slave_wr #(
             .SKID_DEPTH_AW(SKID_DEPTH_AW), .SKID_DEPTH_W(SKID_DEPTH_W), .SKID_DEPTH_B(SKID_DEPTH_B),
             .AXI_ID_WIDTH(IW), .AXI_ADDR_WIDTH(32), .AXI_DATA_WIDTH(DW), .AXI_USER_WIDTH(CUW)
@@ -267,8 +273,8 @@ module axi3_slave_stress
             .s_axi_awqos     (4'd0),
             .s_axi_awregion  (4'd0),
             .s_axi_awuser    ({IW'(0), s_axi_awuser}),
-            .s_axi_awvalid   (s_axi_awvalid),
-            .s_axi_awready   (s_axi_awready),
+            .s_axi_awvalid   (s_axi_awvalid && w_aw_gate),
+            .s_axi_awready   (w_ch_awready),
             .s_axi_wdata     (s_axi_wdata),
             .s_axi_wstrb     (s_axi_wstrb),
             .s_axi_wlast     (s_axi_wlast),

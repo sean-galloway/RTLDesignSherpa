@@ -1,0 +1,2 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xil,narrow,1,4000,False,True,1126783,

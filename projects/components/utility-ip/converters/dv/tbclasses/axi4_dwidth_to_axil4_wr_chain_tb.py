@@ -22,6 +22,7 @@ master adapter and a narrow AXIL4 peripheral. The same b2b page-probe
 class of bug that the bridge surfaces shows up here.
 """
 
+from collections import deque
 import os
 import sys
 import cocotb
@@ -131,23 +132,24 @@ class AXI4DWidthToAXIL4WrChainTB(TBBase):
 
     async def axil4_transaction_monitor(self):
         """
-        Monitor narrow AXIL4 writes by pairing AW addresses with W beats
-        in handshake order.
+        Monitor narrow AXIL4 writes: the n-th AW handshake pairs with the
+        n-th W handshake, either may come first (A3.3.1), so both streams
+        are queued and paired in order.
         """
-        pending_addr = None
+        aw_q: deque = deque()
+        w_q: deque = deque()
         while True:
             await RisingEdge(self.clk)
             if (int(self.dut.m_axil_awvalid.value) == 1 and
                 int(self.dut.m_axil_awready.value) == 1):
-                pending_addr = int(self.dut.m_axil_awaddr.value)
+                aw_q.append(int(self.dut.m_axil_awaddr.value))
             if (int(self.dut.m_axil_wvalid.value) == 1 and
                 int(self.dut.m_axil_wready.value) == 1):
-                w_data = int(self.dut.m_axil_wdata.value)
-                w_strb = int(self.dut.m_axil_wstrb.value)
-                if pending_addr is not None:
-                    self.axil_transactions.append((pending_addr, w_data, w_strb))
-                    self.stats['axil_writes_received'] += 1
-                    pending_addr = None
+                w_q.append((int(self.dut.m_axil_wdata.value), int(self.dut.m_axil_wstrb.value)))
+            while aw_q and w_q:
+                w_data, w_strb = w_q.popleft()
+                self.axil_transactions.append((aw_q.popleft(), w_data, w_strb))
+                self.stats['axil_writes_received'] += 1
 
     # ------------------------------------------------------------------
     # Helpers

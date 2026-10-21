@@ -23,7 +23,9 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
 DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil']
 # build-xil's vendor slaves are BFM memories here, which model aligned INCR only
-DUT_PROFILES = {'bridge_bs_xil': ['clean']}
+# build-xil: the vendor-memory BFM models aligned INCR only; 'ocelus' is the
+# monitors' self-check (bs_harness_tb.BsHarnessTB.run)
+DUT_PROFILES = {'bridge_bs_xil': ['clean', 'ocelus']}
 TXNS = {'gate': 40, 'func': 200, 'full': 1000}
 SIM_UART_CLKS_PER_BIT = 4
 
@@ -52,7 +54,7 @@ def _params():
         return [(d, from_env) for d in DUTS]
     profiles = [
         'clean', 'bursts', 'backpressure', 'reorder', 'narrow', 'single_id',
-        'errors', 'short', 'chaos']
+        'errors', 'short', 'chaos', 'w_first']
     return [(d, p) for d in DUTS for p in DUT_PROFILES.get(d, profiles)]
 
 
@@ -80,7 +82,7 @@ def test_bs_harness(request, dut_bridge, profile, test_level):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(1, 100000))),
     }
-    for k in ('BS_TXNS', 'BS_BURSTS', 'BS_TIMEOUT_S', 'BS_FULL_AXI'):
+    for k in ('BS_TXNS', 'BS_BURSTS', 'BS_TIMEOUT_S', 'BS_FULL_AXI', 'BS_EXCLUDE'):
         if os.environ.get(k):
             extra_env[k] = os.environ[k]
     compile_args = ["-Wno-fatal", "-Wno-lint", "-Wno-style", "-Wno-MULTIDRIVEN",

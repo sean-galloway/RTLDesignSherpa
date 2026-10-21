@@ -40,6 +40,7 @@ from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
+from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 
 import bstress
 from uart_axi_bridge import UARTAxiBridge
@@ -61,6 +62,10 @@ class BsHarnessTB(TBBase):
         self.failures: list[str] = []
         self.mems: dict[str, MemoryModel] = {}
         self._vendor_bfms: list = []
+        # the board's AXI Protocol Checkers (bs_pc_ddr / bs_pc_bram) in sim: the
+        # framework checker on every vendor memory link, always on
+        self.pcs: dict[str, AXI4ComplianceChecker] = {}
+        self._pc_seen: dict[str, int] = {}
         # wall-clock bound on one run's ALL_DONE poll (a hang must fail, not spin)
         self.timeout_s = float(os.environ.get('BS_TIMEOUT_S', '1200'))
 
@@ -94,6 +99,10 @@ class BsHarnessTB(TBBase):
                       id_width=s.iw, addr_width=32, data_width=s.dw, user_width=1,
                       memory_model=mem, base_addr=s.base)
             self._vendor_bfms += [create_axi4_slave_rd(**kw), create_axi4_slave_wr(**kw)]
+            self.pcs[s.name] = AXI4ComplianceChecker(
+                d, d.aclk, prefix=f'{s.name}_axi_', log=self.log,
+                id_width=s.iw, addr_width=32, data_width=s.dw, user_width=1)
+            self._pc_seen[s.name] = 0
         for m in self.build.masters:
             if not m.vendor:
                 continue
@@ -206,6 +215,65 @@ class BsHarnessTB(TBBase):
             if miss:
                 self.failures.append(f'{label}: {m.name}: ' + '; '.join(miss))
 
+    def _check_ocelus(self, res: dict, seed: int) -> bool:
+        recs = res.get('ocelus', [])
+        for r in recs:
+            self.log.info(f'ocelus record: {r}')
+        res = dict(res, ocelus=[])
+        ok, why = self.h.verdict(res)
+        why = list(why)
+        stress_slaves = {s.name for s in self.build.stress_slaves}
+        if not any('SLVERR' in r and r.split('.')[0] in stress_slaves and '(slave port)' in r
+                   for r in recs):
+            why.append(f'ocelus: no SLVERR record from a stress slave port among {len(recs)}')
+        if self.h.hole is not None and not any('DECERR' in r for r in recs):
+            why.append(f'ocelus: no DECERR record (the hole) among {len(recs)}')
+        # each slave port's SLVERR names an address in that slave's range
+        # (the record decode, slice order included, is checked by this)
+        import re
+        rng = {s.name: (s.base, s.base + s.size) for s in self.build.slaves}
+        for r in recs:
+            m = re.match(r'(\w+)\.(?:rd|wr) \(slave port\).*SLVERR.* addr=(0x[0-9a-f]+)', r)
+            if m and m.group(1) in rng and not rng[m.group(1)][0] <= int(m.group(2), 16) < rng[m.group(1)][1]:
+                why.append(f'ocelus: address outside its slave: {r}')
+                break
+        # a lite monitor flooded with errors drops events and says so
+        expected = ('SLVERR', 'DECERR', 'AXI_ERR_EVENT_DROPPED')
+        bad = [r for r in recs if not any(e in r for e in expected)]
+        if bad:
+            why.append(f'ocelus: {len(bad)} records that are not the injected errors: {bad[:4]}')
+        self.log.info(f'ocelus: {len(recs)} records')
+        if why:
+            for w in why:
+                self.log.error(f'FAIL ocelus seed={seed}: {w}')
+            self.failures.append(f'ocelus/{seed}: ' + '; '.join(why))
+            return False
+        self.log.info(f'PASS ocelus seed={seed}')
+        return True
+
+    def check_pcs(self, label: str) -> None:
+        """Each vendor link's checker: armed, saw traffic, and what it flagged
+        during this run (fill sweep, run and read sweep)."""
+        planned = {s.name for s in self.build.slaves}
+        for name, pc in self.pcs.items():
+            if name not in planned:          # BS_EXCLUDE: no traffic is planned there
+                continue
+            r = pc.get_compliance_report()
+            st = r['statistics']
+            self.log.info(f'{label}: checker {name}: armed={r["armed"]} channels={r["channels"]} '
+                          f'AW {st["total_aw_transactions"]} W {st["total_w_beats"]} '
+                          f'B {st["total_b_responses"]} AR {st["total_ar_transactions"]} '
+                          f'R {st["total_r_beats"]} violations {r["total_violations"]} '
+                          f'{r["violation_summary"]} w_without_aw {r["w_without_aw"]}')
+            if not r['armed'] or not st['total_aw_transactions']:
+                self.failures.append(f'{label}: checker {name} is blind '
+                                     f'(armed={r["armed"]}, {st["total_aw_transactions"]} AWs)')
+            new = r['total_violations'] - self._pc_seen[name]
+            self._pc_seen[name] = r['total_violations']
+            if new > 0:
+                self.failures.append(f'{label}: checker {name}: {new} new violations '
+                                     f'{r["violation_summary"]}; last {r["violations"][-3:]}')
+
     def check_go(self) -> None:
         bad = [w for w in self.go_widths if w != 1]
         if bad or self.go_c_count != len(self.go_widths):
@@ -221,10 +289,54 @@ class BsHarnessTB(TBBase):
         self.dut.cresetn.value = 1
 
     # ---- the board's library --------------------------------------------------
+    def _dump_write_state(self) -> None:
+        """At a failure, each DUT port's write handshake state: a hang shows
+        as a VALID up with its READY down (who waits on whom)."""
+        d = self.dut
+        for p in self.build.masters + self.build.slaves:
+            pre = f"{p.name}_axi_"
+            try:
+                v = {n: int(getattr(d, pre + n).value) for n in
+                     ('awvalid', 'awready', 'wvalid', 'wready', 'bvalid', 'bready')}
+            except AttributeError:
+                continue
+            self.log.error(f"  {p.name:>5}: AW {v['awvalid']}/{v['awready']}  "
+                           f"W {v['wvalid']}/{v['wready']}  B {v['bvalid']}/{v['bready']}")
+
     async def identify(self):
         await bridge(self.h.identify)()
+        # BS_EXCLUDE=bram,ddr: leave those slaves out of the plan, as
+        # run_stress --exclude does on the board (after identify, which counts
+        # the build's ports). On build-xil it takes the vendor memories out --
+        # and with them the fill / read sweeps -- so a profile the memory BFM
+        # cannot model (narrow, unaligned) can run on the stress slaves.
+        ex = [x for x in os.environ.get('BS_EXCLUDE', '').split(',') if x]
+        if ex:
+            unknown = set(ex) - {s.name for s in self.build.slaves}
+            assert not unknown, f'BS_EXCLUDE: no such slave {sorted(unknown)}'
+            self.build = bstress.replace(self.build, slaves=tuple(
+                s for s in self.build.slaves if s.name not in ex))
+            self.h.build = self.build
+            self.log.info(f'excluded from the plan: {ex}')
 
     async def run(self, profile: str, seed: int, txns: int) -> bool:
+        ocelus_check = profile == 'ocelus'
+        if ocelus_check:
+            # Ocelus self-check (a DUT built as its mon variant): the errors
+            # profile on INCR only (the vendor-memory BFM models nothing else)
+            # with error packets reported, so the run must come back with
+            # records -- SLVERR from the stress slaves, DECERR from the hole --
+            # drained, decoded and named by port. They are the expected result,
+            # not findings; anything else Ocelus reports still fails the run.
+            if self.h.ocelus is None:
+                self.failures.append('ocelus: the DUT is not its mon variant (STATUS.HAS_MON 0)')
+                return False
+            prof = bstress.replace(bstress.PROFILES['errors'], name='ocelus', bursts=0b010)
+            self.h.ocelus.force_errors = True
+            res = await bridge(lambda: self.h.run(prof, seed, txns, timeout_s=self.timeout_s,
+                                                  sleep=lambda s: None))()
+            self.h.ocelus.force_errors = False
+            return self._check_ocelus(res, seed)
         prof = bstress.PROFILES[profile]
         if os.environ.get('BS_BURSTS'):          # e.g. 2 = INCR only, for triage
             prof = bstress.replace(prof, bursts=int(os.environ['BS_BURSTS'], 0))
@@ -237,6 +349,7 @@ class BsHarnessTB(TBBase):
         ok, why = self.h.verdict(res)
         n0 = len(self.failures)
         self.check_cov(prof, f'{profile}/{seed}')
+        self.check_pcs(f'{profile}/{seed}')
         if len(self.failures) > n0:
             ok = False
             why = list(why) + self.failures[n0:]
@@ -248,5 +361,6 @@ class BsHarnessTB(TBBase):
         else:
             for w in why:
                 self.log.error(f'FAIL {profile} seed={seed}: {w}')
+            self._dump_write_state()
             self.failures.append(f'{profile}/{seed}: ' + '; '.join(why))
         return ok

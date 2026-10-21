@@ -10,7 +10,7 @@
 -f $CONVERTERS_ROOT/rtl/filelists/apb4_to_peakrdl.f
 -f $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/filelists/bstress_regs.f
 -f $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/filelists/bridge_bs_cfg.f
--f $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/filelists/bridge_bs_xil.f
+-f $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/filelists/bridge_bs_xil_mon.f
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bstress_mst_csr.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bstress_slv_csr.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/generated/bs_harness_bridge_bs_xil/bs_harness_bridge_bs_xil.sv

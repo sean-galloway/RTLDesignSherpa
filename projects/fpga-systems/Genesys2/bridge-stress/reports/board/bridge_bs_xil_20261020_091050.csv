@@ -1,0 +1,14 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xil,clean,1,4000,False,True,1170749,
+bridge_bs_xil,clean,2,4000,False,True,1191351,
+bridge_bs_xil,clean,3,4000,False,True,1209962,
+bridge_bs_xil,bursts,1,4000,False,True,1016161,
+bridge_bs_xil,bursts,2,4000,False,True,1020940,
+bridge_bs_xil,bursts,3,4000,False,True,1034370,
+bridge_bs_xil,backpressure,1,4000,False,True,1603141,
+bridge_bs_xil,backpressure,2,4000,False,True,1612746,
+bridge_bs_xil,backpressure,3,4000,False,True,1646837,
+bridge_bs_xil,reorder,1,4000,False,True,1029351,
+bridge_bs_xil,reorder,2,4000,False,True,1030355,
+bridge_bs_xil,reorder,3,4000,False,True,1049164,
+bridge_bs_xil,narrow,1,4000,False,False,3642174761,timed out before ALL_DONE | cpu.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000006) | cpu.wr: issued 3216 completed 3210 of 4000 | rd sweep: timed out before ALL_DONE

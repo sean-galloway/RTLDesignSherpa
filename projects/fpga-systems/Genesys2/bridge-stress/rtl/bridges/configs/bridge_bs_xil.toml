@@ -25,6 +25,9 @@
 # [harness] vendor: ports the harness brings out as pins for the board top
 # to connect to the vendor IP, instead of building a stress block on them.
 # Slave id_width is the fabric's ({master index, slot}); the validator checks it.
+# ddr and bram declare 7, one wider than this fabric needs, so build-xmix (5
+# masters, 7-bit slave IDs) shares their IP configuration (bs_litedram.yml,
+# bs_xil_ip.tcl); the extra ID bit is 0 here.
 #============================================================================
 
 [harness]
@@ -32,8 +35,18 @@ vendor = ["atg", "cdma", "ddr", "bram"]
 
 [bridge]
 name = "bridge_bs_xil"
-variants = ["no"]
+# "mon": an Ocelus monitor on every port (errors, timeouts) into the bridge's
+# monbus group -- mem1, a cdc slave several masters share, is monitored on
+# its own clock after its arbiter (bridge W9, bridge_mon_cdc). Its config is
+# one regblock (use_cfg_regblock) and its error-FIFO drain is 32-bit, both
+# on the configuration bridge (ext2 / ext3, gen_bs_harness), so the host
+# reads which port, channel, ID and address went wrong.
+variants = ["mon"]
+use_cfg_regblock = true
 description = "bridge stress model: 2 stress + 2 Xilinx masters x 2 stress slaves, LiteDRAM DDR3 and a Xilinx BRAM controller"
+
+[bridge.mon_group]
+s_axil_data_width = 32
 
 [bridge.clock]
 name = "aclk"
@@ -110,7 +123,7 @@ name       = "bram"
 prefix     = "bram_axi_"
 protocol   = "axi4"
 channels   = "rw"
-id_width   = 6
+id_width   = 7
 addr_width = 32
 data_width = 64
 user_width = 1
@@ -122,7 +135,7 @@ name       = "ddr"
 prefix     = "ddr_axi_"
 protocol   = "axi4"
 channels   = "rw"
-id_width   = 6
+id_width   = 7
 addr_width = 32
 data_width = 128
 user_width = 1

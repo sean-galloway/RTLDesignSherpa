@@ -18,6 +18,8 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/br
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ctl_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ext0_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ext1_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ext2_adapter.sv
+$REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/ext3_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/mst0_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/mst1_adapter.sv
 $REPO_ROOT/projects/fpga-systems/Genesys2/bridge-stress/rtl/bridges/generated/bridge_bs_cfg/mst2_adapter.sv

@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/converters — bugs
 
-**Next ID: BUG-012** — never recycle a number, even when its item closed.
+**Next ID: BUG-013** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 10 | done (kept for history) |
+| [closed/](closed/) | 11 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,9 +22,10 @@ by construction rather than by discipline.
 
 - **BUG-010** — peakrdl_to_cmdrsp presents every access to the regblock twice (singlepulse fields fire for 2 cycles)
 
-(none)
 
 ## Closed
+
+- **BUG-012** — a split write lost its B when the slave answered its first part before its final AW issued — RESOLVED 2026-10-20: the B-CAM entry is pushed at the FIRST master AW with the part count; board narrow 300/300 (was ~1 hang in 50 runs)
 
 - **BUG-011** — axi4_to_axi3 chopped an unaligned INCR into chunks that stay
   unaligned (later chunks' first beats looked partial at the AXI3 slave);

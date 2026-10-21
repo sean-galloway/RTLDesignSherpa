@@ -151,6 +151,7 @@ module bridge_1x2_rd_axi5_mon_cpu_rd_adapter
         .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(2),
         .AGENT_ID(0),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_timing_wrapper_rd (
         .aclk(aclk),

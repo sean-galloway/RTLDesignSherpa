@@ -167,7 +167,7 @@ module bs_harness_bridge_bs_xil
     output logic         cdma_axi_rvalid,
     input  logic         cdma_axi_rready,
     // bram: DUT slave port, to vendor IP (aclk),
-    output logic [5:0]   bram_axi_awid,
+    output logic [6:0]   bram_axi_awid,
     output logic [31:0]  bram_axi_awaddr,
     output logic [7:0]   bram_axi_awlen,
     output logic [2:0]   bram_axi_awsize,
@@ -186,12 +186,12 @@ module bs_harness_bridge_bs_xil
     output logic         bram_axi_wuser,
     output logic         bram_axi_wvalid,
     input  logic         bram_axi_wready,
-    input  logic [5:0]   bram_axi_bid,
+    input  logic [6:0]   bram_axi_bid,
     input  logic [1:0]   bram_axi_bresp,
     input  logic         bram_axi_buser,
     input  logic         bram_axi_bvalid,
     output logic         bram_axi_bready,
-    output logic [5:0]   bram_axi_arid,
+    output logic [6:0]   bram_axi_arid,
     output logic [31:0]  bram_axi_araddr,
     output logic [7:0]   bram_axi_arlen,
     output logic [2:0]   bram_axi_arsize,
@@ -204,7 +204,7 @@ module bs_harness_bridge_bs_xil
     output logic         bram_axi_aruser,
     output logic         bram_axi_arvalid,
     input  logic         bram_axi_arready,
-    input  logic [5:0]   bram_axi_rid,
+    input  logic [6:0]   bram_axi_rid,
     input  logic [63:0]  bram_axi_rdata,
     input  logic [1:0]   bram_axi_rresp,
     input  logic         bram_axi_rlast,
@@ -212,7 +212,7 @@ module bs_harness_bridge_bs_xil
     input  logic         bram_axi_rvalid,
     output logic         bram_axi_rready,
     // ddr: DUT slave port, to vendor IP (aclk),
-    output logic [5:0]   ddr_axi_awid,
+    output logic [6:0]   ddr_axi_awid,
     output logic [31:0]  ddr_axi_awaddr,
     output logic [7:0]   ddr_axi_awlen,
     output logic [2:0]   ddr_axi_awsize,
@@ -231,12 +231,12 @@ module bs_harness_bridge_bs_xil
     output logic         ddr_axi_wuser,
     output logic         ddr_axi_wvalid,
     input  logic         ddr_axi_wready,
-    input  logic [5:0]   ddr_axi_bid,
+    input  logic [6:0]   ddr_axi_bid,
     input  logic [1:0]   ddr_axi_bresp,
     input  logic         ddr_axi_buser,
     input  logic         ddr_axi_bvalid,
     output logic         ddr_axi_bready,
-    output logic [5:0]   ddr_axi_arid,
+    output logic [6:0]   ddr_axi_arid,
     output logic [31:0]  ddr_axi_araddr,
     output logic [7:0]   ddr_axi_arlen,
     output logic [2:0]   ddr_axi_arsize,
@@ -249,7 +249,7 @@ module bs_harness_bridge_bs_xil
     output logic         ddr_axi_aruser,
     output logic         ddr_axi_arvalid,
     input  logic         ddr_axi_arready,
-    input  logic [5:0]   ddr_axi_rid,
+    input  logic [6:0]   ddr_axi_rid,
     input  logic [127:0] ddr_axi_rdata,
     input  logic [1:0]   ddr_axi_rresp,
     input  logic         ddr_axi_rlast,
@@ -359,6 +359,44 @@ module bs_harness_bridge_bs_xil
     logic [31:0] slv7_apb_PADDR, slv7_apb_PWDATA, slv7_apb_PRDATA;
     logic [3:0]  slv7_apb_PSTRB;
     logic [2:0]  slv7_apb_PPROT;
+    logic [31:0]  ext2_axil_awaddr;
+    logic [2:0]   ext2_axil_awprot;
+    logic         ext2_axil_awvalid;
+    logic         ext2_axil_awready;
+    logic [31:0]  ext2_axil_wdata;
+    logic [3:0]   ext2_axil_wstrb;
+    logic         ext2_axil_wvalid;
+    logic         ext2_axil_wready;
+    logic [1:0]   ext2_axil_bresp;
+    logic         ext2_axil_bvalid;
+    logic         ext2_axil_bready;
+    logic [31:0]  ext2_axil_araddr;
+    logic [2:0]   ext2_axil_arprot;
+    logic         ext2_axil_arvalid;
+    logic         ext2_axil_arready;
+    logic [31:0]  ext2_axil_rdata;
+    logic [1:0]   ext2_axil_rresp;
+    logic         ext2_axil_rvalid;
+    logic         ext2_axil_rready;
+    logic [31:0]  ext3_axil_awaddr;
+    logic [2:0]   ext3_axil_awprot;
+    logic         ext3_axil_awvalid;
+    logic         ext3_axil_awready;
+    logic [31:0]  ext3_axil_wdata;
+    logic [3:0]   ext3_axil_wstrb;
+    logic         ext3_axil_wvalid;
+    logic         ext3_axil_wready;
+    logic [1:0]   ext3_axil_bresp;
+    logic         ext3_axil_bvalid;
+    logic         ext3_axil_bready;
+    logic [31:0]  ext3_axil_araddr;
+    logic [2:0]   ext3_axil_arprot;
+    logic         ext3_axil_arvalid;
+    logic         ext3_axil_arready;
+    logic [31:0]  ext3_axil_rdata;
+    logic [1:0]   ext3_axil_rresp;
+    logic         ext3_axil_rvalid;
+    logic         ext3_axil_rready;
     logic        cfg_unmapped_irq;
 
     bridge_bs_cfg u_cfg (
@@ -421,6 +459,8 @@ module bs_harness_bridge_bs_xil
         .slv7_apb_PRDATA, .slv7_apb_PREADY, .slv7_apb_PSLVERR,
         .ext0_axil_awaddr, .ext0_axil_awprot, .ext0_axil_awvalid, .ext0_axil_awready, .ext0_axil_wdata, .ext0_axil_wstrb, .ext0_axil_wvalid, .ext0_axil_wready, .ext0_axil_bresp, .ext0_axil_bvalid, .ext0_axil_bready, .ext0_axil_araddr, .ext0_axil_arprot, .ext0_axil_arvalid, .ext0_axil_arready, .ext0_axil_rdata, .ext0_axil_rresp, .ext0_axil_rvalid, .ext0_axil_rready,
         .ext1_axil_awaddr, .ext1_axil_awprot, .ext1_axil_awvalid, .ext1_axil_awready, .ext1_axil_wdata, .ext1_axil_wstrb, .ext1_axil_wvalid, .ext1_axil_wready, .ext1_axil_bresp, .ext1_axil_bvalid, .ext1_axil_bready, .ext1_axil_araddr, .ext1_axil_arprot, .ext1_axil_arvalid, .ext1_axil_arready, .ext1_axil_rdata, .ext1_axil_rresp, .ext1_axil_rvalid, .ext1_axil_rready,
+        .ext2_axil_awaddr, .ext2_axil_awprot, .ext2_axil_awvalid, .ext2_axil_awready, .ext2_axil_wdata, .ext2_axil_wstrb, .ext2_axil_wvalid, .ext2_axil_wready, .ext2_axil_bresp, .ext2_axil_bvalid, .ext2_axil_bready, .ext2_axil_araddr, .ext2_axil_arprot, .ext2_axil_arvalid, .ext2_axil_arready, .ext2_axil_rdata, .ext2_axil_rresp, .ext2_axil_rvalid, .ext2_axil_rready,
+        .ext3_axil_awaddr, .ext3_axil_awprot, .ext3_axil_awvalid, .ext3_axil_awready, .ext3_axil_wdata, .ext3_axil_wstrb, .ext3_axil_wvalid, .ext3_axil_wready, .ext3_axil_bresp, .ext3_axil_bvalid, .ext3_axil_bready, .ext3_axil_araddr, .ext3_axil_arprot, .ext3_axil_arvalid, .ext3_axil_arready, .ext3_axil_rdata, .ext3_axil_rresp, .ext3_axil_rvalid, .ext3_axil_rready,
         .unmapped_irq   (cfg_unmapped_irq),
         /* verilator lint_off PINCONNECTEMPTY */
         .unmapped_addr  (),
@@ -462,6 +502,31 @@ module bs_harness_bridge_bs_xil
     assign slv7_apb_PSLVERR = 1'b1;
     assign slv7_apb_PRDATA  = 32'hDEAD_0000;
     wire unused_cfg = ^{cfg_unmapped_irq, mst4_apb_PSEL, mst4_apb_PADDR, mst4_apb_PENABLE, mst4_apb_PWRITE, mst4_apb_PWDATA, mst4_apb_PSTRB, mst4_apb_PPROT, mst5_apb_PSEL, mst5_apb_PADDR, mst5_apb_PENABLE, mst5_apb_PWRITE, mst5_apb_PWDATA, mst5_apb_PSTRB, mst5_apb_PPROT, mst6_apb_PSEL, mst6_apb_PADDR, mst6_apb_PENABLE, mst6_apb_PWRITE, mst6_apb_PWDATA, mst6_apb_PSTRB, mst6_apb_PPROT, mst7_apb_PSEL, mst7_apb_PADDR, mst7_apb_PENABLE, mst7_apb_PWRITE, mst7_apb_PWDATA, mst7_apb_PSTRB, mst7_apb_PPROT, slv4_apb_PSEL, slv4_apb_PADDR, slv4_apb_PENABLE, slv4_apb_PWRITE, slv4_apb_PWDATA, slv4_apb_PSTRB, slv4_apb_PPROT, slv5_apb_PSEL, slv5_apb_PADDR, slv5_apb_PENABLE, slv5_apb_PWRITE, slv5_apb_PWDATA, slv5_apb_PSTRB, slv5_apb_PPROT, slv6_apb_PSEL, slv6_apb_PADDR, slv6_apb_PENABLE, slv6_apb_PWRITE, slv6_apb_PWDATA, slv6_apb_PSTRB, slv6_apb_PPROT, slv7_apb_PSEL, slv7_apb_PADDR, slv7_apb_PENABLE, slv7_apb_PWRITE, slv7_apb_PWDATA, slv7_apb_PSTRB, slv7_apb_PPROT};
+
+    // ext3: the error drain is read-only -- a write answers SLVERR
+    logic r_ext3_aw, r_ext3_w, r_ext3_bv;
+    assign ext3_axil_awready = !r_ext3_aw && !r_ext3_bv;
+    assign ext3_axil_wready  = !r_ext3_w  && !r_ext3_bv;
+    assign ext3_axil_bvalid  = r_ext3_bv;
+    assign ext3_axil_bresp   = 2'b10;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ext3_aw <= 1'b0;
+            r_ext3_w  <= 1'b0;
+            r_ext3_bv <= 1'b0;
+        end else begin
+            if (ext3_axil_awvalid && ext3_axil_awready) r_ext3_aw <= 1'b1;
+            if (ext3_axil_wvalid  && ext3_axil_wready)  r_ext3_w  <= 1'b1;
+            if (r_ext3_aw && r_ext3_w) begin
+                r_ext3_bv <= 1'b1;
+                r_ext3_aw <= 1'b0;
+                r_ext3_w  <= 1'b0;
+            end else if (r_ext3_bv && ext3_axil_bready) begin
+                r_ext3_bv <= 1'b0;
+            end
+        end
+    end
+    wire unused_ext3_wr = ^{ext3_axil_awaddr, ext3_axil_awprot, ext3_axil_wdata, ext3_axil_wstrb};
 
     // =========================================================================
     // Control regblock (aclk)
@@ -1055,8 +1120,46 @@ module bs_harness_bridge_bs_xil
     logic        dut_unmapped_irq;
     logic [31:0] dut_unmapped_addr;
     logic [7:0]  dut_unmapped_count;
+    logic        dut_mon_irq;
 
-    bridge_bs_xil u_dut (
+    // Ocelus (mon variant): cfg regblock on ext2, error drain on ext3, both
+    // addressed by the offset inside their 64 KB window
+    logic [31:0] w_mon_cfg_awaddr, w_mon_cfg_araddr, w_mon_drain_araddr;
+    assign w_mon_cfg_awaddr   = {16'd0, ext2_axil_awaddr[15:0]};
+    assign w_mon_cfg_araddr   = {16'd0, ext2_axil_araddr[15:0]};
+    assign w_mon_drain_araddr = {16'd0, ext3_axil_araddr[15:0]};
+
+    // The group's trace-write master: accepted and answered OKAY. The host
+    // routes every packet class to the error FIFO (axi_err_select), so in
+    // use nothing arrives here; a write that does is dropped, not stalled.
+    logic        m_mon_axil_awvalid, m_mon_axil_wvalid, m_mon_axil_bready, r_mon_bv;
+    logic [31:0] m_mon_axil_awaddr;
+    logic [2:0]  m_mon_axil_awprot;
+    logic [63:0] m_mon_axil_wdata;
+    logic [7:0]  m_mon_axil_wstrb;
+    logic        r_mon_aw, r_mon_w;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_mon_aw <= 1'b0;
+            r_mon_w  <= 1'b0;
+            r_mon_bv <= 1'b0;
+        end else begin
+            if (m_mon_axil_awvalid && !r_mon_aw && !r_mon_bv) r_mon_aw <= 1'b1;
+            if (m_mon_axil_wvalid  && !r_mon_w  && !r_mon_bv) r_mon_w  <= 1'b1;
+            if (r_mon_aw && r_mon_w) begin
+                r_mon_bv <= 1'b1;
+                r_mon_aw <= 1'b0;
+                r_mon_w  <= 1'b0;
+            end else if (r_mon_bv && m_mon_axil_bready) begin
+                r_mon_bv <= 1'b0;
+            end
+        end
+    end
+    wire unused_mon = ^{m_mon_axil_awaddr, m_mon_axil_awprot, m_mon_axil_wdata,
+                        m_mon_axil_wstrb, ext2_axil_awaddr[31:16], ext2_axil_araddr[31:16],
+                        ext3_axil_araddr[31:16]};
+
+    bridge_bs_xil_mon u_dut (
         .aclk, .aresetn,
         .dma_aclk (cclk), .dma_aresetn (cresetn),
         .mem1_aclk (cclk), .mem1_aresetn (cresetn),
@@ -1412,6 +1515,27 @@ module bs_harness_bridge_bs_xil
         .ddr_axi_ruser,
         .ddr_axi_rvalid,
         .ddr_axi_rready,
+        // Ocelus: cfg regblock (ext2), error drain (ext3), trace-write sink, IRQ
+        .s_cfg_axil_awvalid (ext2_axil_awvalid), .s_cfg_axil_awready (ext2_axil_awready),
+        .s_cfg_axil_awaddr  (w_mon_cfg_awaddr), .s_cfg_axil_awprot  (ext2_axil_awprot),
+        .s_cfg_axil_wvalid  (ext2_axil_wvalid),  .s_cfg_axil_wready  (ext2_axil_wready),
+        .s_cfg_axil_wdata   (ext2_axil_wdata),   .s_cfg_axil_wstrb   (ext2_axil_wstrb),
+        .s_cfg_axil_bvalid  (ext2_axil_bvalid),  .s_cfg_axil_bready  (ext2_axil_bready),
+        .s_cfg_axil_bresp   (ext2_axil_bresp),
+        .s_cfg_axil_arvalid (ext2_axil_arvalid), .s_cfg_axil_arready (ext2_axil_arready),
+        .s_cfg_axil_araddr  (w_mon_cfg_araddr), .s_cfg_axil_arprot  (ext2_axil_arprot),
+        .s_cfg_axil_rvalid  (ext2_axil_rvalid),  .s_cfg_axil_rready  (ext2_axil_rready),
+        .s_cfg_axil_rdata   (ext2_axil_rdata),   .s_cfg_axil_rresp   (ext2_axil_rresp),
+        .s_mon_axil_arvalid (ext3_axil_arvalid), .s_mon_axil_arready (ext3_axil_arready),
+        .s_mon_axil_araddr  (w_mon_drain_araddr), .s_mon_axil_arprot (ext3_axil_arprot),
+        .s_mon_axil_rvalid  (ext3_axil_rvalid),  .s_mon_axil_rready  (ext3_axil_rready),
+        .s_mon_axil_rdata   (ext3_axil_rdata),   .s_mon_axil_rresp   (ext3_axil_rresp),
+        .m_mon_axil_awvalid, .m_mon_axil_awready (!r_mon_aw && !r_mon_bv),
+        .m_mon_axil_awaddr,  .m_mon_axil_awprot,
+        .m_mon_axil_wvalid,  .m_mon_axil_wready  (!r_mon_w && !r_mon_bv),
+        .m_mon_axil_wdata,   .m_mon_axil_wstrb,
+        .m_mon_axil_bvalid  (r_mon_bv), .m_mon_axil_bready, .m_mon_axil_bresp (2'b00),
+        .mon_irq_out        (dut_mon_irq),
         .unmapped_irq   (dut_unmapped_irq),
         .unmapped_addr  (dut_unmapped_addr),
         .unmapped_count (dut_unmapped_count),
@@ -1481,6 +1605,8 @@ module bs_harness_bridge_bs_xil
         ctl_hi.STATUS.ANY_ERR.next   = w_any_err;
         ctl_hi.STATUS.CLOCKS_OK.next = r_cresetn_a;
         ctl_hi.STATUS.UNMAPPED.next  = dut_unmapped_irq;
+        ctl_hi.STATUS.MON_IRQ.next   = dut_mon_irq;
+        ctl_hi.STATUS.HAS_MON.next   = 1'b1;
         ctl_hi.STATUS.MST_DONE.next  = 8'(mst_done);
         ctl_hi.STATUS.MST_ERR.next   = 8'(mst_err);
         ctl_hi.STATUS.SLV_ERR.next   = 8'(slv_err);

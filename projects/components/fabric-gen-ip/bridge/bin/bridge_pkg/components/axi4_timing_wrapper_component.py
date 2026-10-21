@@ -263,6 +263,11 @@ class Axi4TimingWrapper:
         # actually drops the cone at synthesis. Only meaningful when
         # mon=True. Pass None to leave the SV defaults in place (all 1).
         mon_enables: Optional[dict] = None,
+        # max_transactions -- the monitor's table size (MAX_TRANSACTIONS),
+        # only on _mon variants. The port's outstanding limit: a command
+        # that finds no free slot is not tracked and its beats report as
+        # ORPHAN errors (bridge BUG-021). None keeps the SV default (8).
+        max_transactions: Optional[int] = None,
         # protocol -- module family selector: 'axi4' (default, unchanged
         # behaviour) or 'axi5' (axi5_slave_* boundary wrappers on
         # master-adapter ports (A5-1), axi5_master_* on slave-adapter
@@ -353,6 +358,8 @@ class Axi4TimingWrapper:
                 f", parameter int UNIT_ID         = {unit_id}, "
                 f"parameter int AGENT_ID        = {agent_id}"
             )
+        if mon and max_transactions is not None:
+            param_str += f", parameter int MAX_TRANSACTIONS = {int(max_transactions)}"
         # Per-instance USE_MONITOR override (only on _mon variants -- the
         # non-mon modules don't declare the parameter). Two modes:
         #   - use_monitor_param set: emit a parameter-name reference so

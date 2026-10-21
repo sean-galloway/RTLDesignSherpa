@@ -132,6 +132,7 @@ module bridge_1x2_rd_lite_mon_cpu_rd_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(2),
         .AGENT_ID(0),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_timing_wrapper_rd (
         .aclk(aclk),

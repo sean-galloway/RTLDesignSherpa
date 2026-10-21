@@ -132,6 +132,23 @@ async def axi4_dwidth_converter_wr_ooo_b_test(dut):
 
 
 @cocotb.test(timeout_time=30, timeout_unit="ms")
+async def axi4_dwidth_converter_wr_early_b_test(dut):
+    """A split burst's first master B arrives before its final master AW."""
+    os.environ['DWIDTH_WR_EARLY_B_TEST'] = '1'
+    tb = AXI4DWidthConverterWriteTB(dut)
+    seed = int(os.environ.get('SEED', '42'))
+    random.seed(seed)
+    tb.log.info(f"Using seed: {seed}")
+    await tb.setup_clocks_and_reset()
+    try:
+        ok = await tb.run_early_b_test()
+        await tb.wait_clocks('aclk', 50)
+        assert ok and tb.get_statistics()['errors'] == 0, "early-B split-fold test failed"
+    finally:
+        await tb.wait_clocks('aclk', 10)
+
+
+@cocotb.test(timeout_time=30, timeout_unit="ms")
 async def axi4_dwidth_converter_wr_b_cam_flood_test(dut):
     """BUG-008 follow-up: B-CAM occupancy flood with slow B return."""
     os.environ['DWIDTH_WR_B_CAM_FLOOD_TEST'] = '1'
@@ -490,6 +507,103 @@ def test_axi4_dwidth_converter_wr_ooo_b(request):
         print("OOO-B TEST PASSED")
     except Exception as e:
         print(f"OOO-B TEST FAILED: {str(e)}")
+        print(f"   Logs: {log_path}")
+        print(f"   Waveforms: {cmd_filename}")
+        raise
+
+
+def test_axi4_dwidth_converter_wr_early_b(request):
+    """A split burst's first master B before its final master AW (the bridge's 64 -> 32 path)."""
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
+        'rtl_cmn': 'rtl/common',
+        'rtl_amba_shared': 'rtl/amba/shared',
+        'rtl_converters': 'projects/components/utility-ip/converters/rtl',
+        'rtl_amba_gaxi': 'rtl/amba/gaxi',
+        'rtl_amba_includes': 'rtl/amba/includes'})
+
+    dut_name = "axi4_dwidth_converter_wr"
+    toplevel = dut_name
+    s_data_width, m_data_width = 64, 32
+    test_name_plus_params = "test_axi4_dwidth_converter_wr_early_b"
+
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    results_path = os.path.join(log_dir, f'results_{test_name_plus_params}.xml')
+
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f'
+    )
+    rtl_parameters = {
+        'S_AXI_DATA_WIDTH': str(s_data_width),
+        'M_AXI_DATA_WIDTH': str(m_data_width),
+        'AXI_ID_WIDTH': '8',
+        'AXI_ADDR_WIDTH': '32',
+        'AXI_USER_WIDTH': '1',
+    }
+
+    extra_env = {
+        'TRACE_FILE': f"{sim_build}/dump.fst",
+        'VERILATOR_TRACE': '1',
+        'DUT': dut_name,
+        'LOG_PATH': log_path,
+        'COCOTB_LOG_LEVEL': 'DEBUG',
+        'COCOTB_RESULTS_FILE': results_path,
+        'COCOTB_TEST_TIMEOUT': '30000',
+        'TESTCASE': 'axi4_dwidth_converter_wr_early_b_test',
+        'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
+        'S_AXI_DATA_WIDTH': str(s_data_width),
+        'M_AXI_DATA_WIDTH': str(m_data_width),
+        'AXI_ID_WIDTH': '8',
+        'AXI_ADDR_WIDTH': '32',
+        'AXI_USER_WIDTH': '1',
+        'TEST_CLK_PERIOD': '10',
+    }
+
+    compile_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+    sim_args = [
+        "--trace",
+        "--trace-structs",
+        "--trace-depth", "99",
+    ]
+
+    if bool(int(os.environ.get('WAVES', '0'))):
+        extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
+
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+
+    print(f"\n{'='*80}")
+    print(f"early-B split-fold test")
+    print(f"Conversion: {s_data_width}-bit → {m_data_width}-bit (downsize 2:1)")
+    print(f"{'='*80}")
+
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=toplevel,
+            module=module,
+            parameters=rtl_parameters,
+            sim_build=sim_build,
+            extra_env=extra_env,
+            waves=enable_waves,
+            keep_files=True,
+            compile_args=compile_args,
+            sim_args=sim_args,
+            plus_args=['--trace'] if enable_waves else [],
+        )
+        print("EARLY-B TEST PASSED")
+    except Exception as e:
+        print(f"EARLY-B TEST FAILED: {str(e)}")
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
         raise

@@ -86,6 +86,9 @@ class AXI4DWidthConverterWriteTB(TBBase):
         # outstanding bursts) -- the final-AW CAM-slot gate must prevent
         # push drops.
         self.b_cam_flood_test = os.environ.get('DWIDTH_WR_B_CAM_FLOOD_TEST', '0') == '1'
+        # A split burst's first master B arrives before its final master AW
+        # is issued (the slave answers part 1 while part 2's AW is held back).
+        self.early_b_test = os.environ.get('DWIDTH_WR_EARLY_B_TEST', '0') == '1'
 
         # Calculate derived parameters
         self.WIDTH_RATIO = max(self.S_AXI_DATA_WIDTH, self.M_AXI_DATA_WIDTH) // \
@@ -189,7 +192,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 'addr_width': self.AXI_ADDR_WIDTH,
                 'super_debug': True  # Enable super_debug to validate signal connections
             }
-            if self.ooo_b_test or self.b_cam_flood_test:
+            if self.ooo_b_test or self.b_cam_flood_test or self.early_b_test:
                 # BUG-008 TDD: drive B responses manually so we can force the
                 # cross-ID out-of-order arrival that the BFM's built-in OOO
                 # scheduler cannot guarantee while W data streams in-order.
@@ -204,7 +207,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
             # (AXI4SlaveWrite callbacks consume the _recvQ, so we need to capture first)
             self.master_write_slave['AW'].add_callback(self._capture_aw_callback)
             self.master_write_slave['W'].add_callback(self._capture_w_callback)
-            if self.ooo_b_test or self.b_cam_flood_test:
+            if self.ooo_b_test or self.b_cam_flood_test or self.early_b_test:
                 self.master_write_slave['W'].add_callback(self._capture_wlast_callback)
                 self.slave_write_master['B'].add_callback(self._capture_b_callback)
 
@@ -1206,6 +1209,109 @@ class AXI4DWidthConverterWriteTB(TBBase):
         else:
             self.log.error("OOO-B split-fold test FAILED")
         return ok
+
+    async def run_early_b_test(self):
+        """A split burst's first master B before its final master AW.
+
+        A slave burst one beat too long for one master burst is split in two.
+        Only the FINAL part's AW waits for a free B-CAM slot (the burst's CAM
+        entry is pushed then); the first part's does not. So with the CAM full
+        -- 16 single-beat bursts whose Bs are held back -- the first part goes
+        out, its W completes and its B can come back while the final AW still
+        waits: a slave answering part 1 before part 2 reaches it (found on the
+        Genesys 2 bridge stress model: a cpu write into a 32-bit cdc slave
+        never got its B). Then the fillers' Bs free the CAM, the final part
+        runs and gets its B. Every slave burst must get exactly one B, the
+        split one after both parts. A fold that takes a B matching no entry
+        and drops it leaves the split burst waiting for a B that never comes.
+        """
+        if not self.DOWNSIZE:
+            self.log.info("early-B test: only relevant in DOWNSIZE mode")
+            return True
+        from cocotb.triggers import with_timeout
+        cam_depth = 16                               # B_CAM_DEPTH = SPLITQ_DEPTH
+        ratio = self.WIDTH_RATIO
+        slave_beats = (256 // ratio) + 1            # one master burst too many
+        narrow = slave_beats * ratio
+        bid = 7                                     # no filler uses it
+        self.captured_aw_packets.clear()
+        self.captured_w_packets.clear()
+        self.captured_wlast_times.clear()
+        self.captured_b_events.clear()
+        from cocotb.triggers import RisingEdge
+        pins = {'s_w': 0, 'm_w': 0, 's_aw': 0, 'm_aw': 0}
+        d = self.dut
+
+        async def _count():
+            while True:
+                await RisingEdge(self.aclk)
+                pins['s_w'] += int(d.s_axi_wvalid.value) & int(d.s_axi_wready.value)
+                pins['m_w'] += int(d.m_axi_wvalid.value) & int(d.m_axi_wready.value)
+                pins['s_aw'] += int(d.s_axi_awvalid.value) & int(d.s_axi_awready.value)
+                pins['m_aw'] += int(d.m_axi_awvalid.value) & int(d.m_axi_awready.value)
+        counter = cocotb.start_soon(_count())
+        tasks = [cocotb.start_soon(self.write_transaction(
+                     0x1000 + i * 0x100, self.generate_traceable_data(i % 4, 1), awid=i % 4))
+                 for i in range(cam_depth)]
+        await self.wait_clocks(self.aclk_name, 200)  # CAM full, every B held back
+        split = cocotb.start_soon(self.write_transaction(
+            0x8000, self.generate_traceable_data(bid, slave_beats), awid=bid))
+
+        # Answer like the slave: each master burst's B as soon as its WLAST
+        # is seen, except the fillers', which wait until the split burst has
+        # had its chance -- so a part of it that goes out while the CAM is
+        # full is answered then (the window), and a design that holds it back
+        # until a slot frees is equally fine.
+        b_ch = self.master_write_slave['B']
+        answered, release, waited = set(), False, 0
+        last_mw, idle = -1, 0
+        while waited < self.TIMEOUT_CYCLES * 20:
+            aws, nlast = self.captured_aw_packets, len(self.captured_wlast_times)
+            for k in range(min(len(aws), nlast)):
+                if k in answered or (k < cam_depth and not release):
+                    continue
+                if k >= cam_depth and not release:
+                    self.log.info(f"early-B: split part {k - cam_depth + 1} answered with "
+                                  f"the CAM full")
+                await b_ch.send(b_ch.create_packet(id=int(getattr(aws[k], 'id', 0)), resp=0))
+                answered.add(k)
+                break
+            # The fillers wait until a split part has been answered (it went
+            # out with the CAM full) or the master W has stalled for 200
+            # cycles (its AW is held for a slot) -- adaptive, because the
+            # master-side BFM's WREADY sets part 1's pace, and well inside the
+            # stimulus BFM's 1000-cycle per-beat ready timeout.
+            idle = idle + 2 if pins['m_w'] == last_mw else 0
+            last_mw = pins['m_w']
+            if not release and (any(k >= cam_depth for k in answered) or idle >= 200):
+                release = True
+            if len(answered) == cam_depth + -(-narrow // 256):
+                break
+            await self.wait_clocks(self.aclk_name, 2)
+            waited += 2
+        self.log.info(f"early-B: responder done after {waited} cycles: {len(answered)} Bs sent, "
+                      f"{len(self.captured_aw_packets)} AWs, {len(self.captured_wlast_times)} "
+                      f"WLASTs, {len(self.captured_w_packets)} W beats; pins {pins}")
+        counter.cancel()
+        try:
+            await with_timeout(split, 20 * self.TIMEOUT_CYCLES, 'ns')
+            for t in tasks:
+                await with_timeout(t, 20 * self.TIMEOUT_CYCLES, 'ns')
+        except Exception as e:
+            self.log.error(f"early-B: a slave burst never got its B ({type(e).__name__}); "
+                           f"split-burst Bs seen: "
+                           f"{sum(ev['id'] == bid for ev in self.captured_b_events)}")
+            self.errors += 1
+            return False
+        await self.wait_clocks(self.aclk_name, 10)
+        mine = [ev for ev in self.captured_b_events if ev['id'] == bid]
+        if len(self.captured_b_events) != cam_depth + 1 or len(mine) != 1:
+            self.log.error(f"early-B: expected {cam_depth + 1} Bs, one for ID {bid}; got "
+                           f"{len(self.captured_b_events)}, {len(mine)} for ID {bid}")
+            self.errors += 1
+            return False
+        self.log.info("early-B split-fold test PASSED")
+        return True
 
     async def run_b_cam_flood_test(self):
         """BUG-008 follow-up: the per-burst B CAM must not overflow under a

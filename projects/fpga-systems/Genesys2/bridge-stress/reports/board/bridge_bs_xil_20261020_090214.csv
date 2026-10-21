@@ -1,0 +1,5 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xil,clean,1,4000,False,False,1173368,atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set
+bridge_bs_xil,clean,2,4000,False,False,1200949,atg: still busy from an earlier run -- left alone this run (reprogram to recover it)
+bridge_bs_xil,chaos,1,4000,False,False,1341269,atg: still busy from an earlier run -- left alone this run (reprogram to recover it)
+bridge_bs_xil,chaos,2,4000,False,False,1396356,atg: still busy from an earlier run -- left alone this run (reprogram to recover it)

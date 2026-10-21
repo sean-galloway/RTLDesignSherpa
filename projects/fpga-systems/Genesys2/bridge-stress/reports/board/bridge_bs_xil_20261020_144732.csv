@@ -1,0 +1,4 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xil,clean,1,4000,False,True,1166308,
+bridge_bs_xil,clean,2,4000,False,True,1189651,
+bridge_bs_xil,clean,3,4000,False,True,1212555,

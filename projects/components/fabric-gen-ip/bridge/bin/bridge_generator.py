@@ -1305,6 +1305,9 @@ def _emit_bridge_variant(
         filelist_lines.append("")
         filelist_lines.append("# Slave-domain arbitration for multi-master cdc slaves (bridge W9)")
         filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cdc_slave_arb.f")
+        if use_monitor:
+            # their monitors run on the slave clock and cross into the group
+            filelist_lines.append("-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_mon_cdc.f")
 
     # Slave watchdogs (GitHub #119 L3).
     if any(int(getattr(s, 'timeout_cycles', 0) or 0) > 0 for s in config.slaves):

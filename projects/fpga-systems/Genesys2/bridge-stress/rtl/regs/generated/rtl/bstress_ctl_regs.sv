@@ -287,7 +287,9 @@ module bstress_ctl_regs (
     assign readback_array[3][1:1] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.ANY_ERR.next : '0;
     assign readback_array[3][2:2] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.CLOCKS_OK.next : '0;
     assign readback_array[3][3:3] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.UNMAPPED.next : '0;
-    assign readback_array[3][7:4] = '0;
+    assign readback_array[3][4:4] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.MON_IRQ.next : '0;
+    assign readback_array[3][5:5] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.HAS_MON.next : '0;
+    assign readback_array[3][7:6] = '0;
     assign readback_array[3][15:8] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.MST_DONE.next : '0;
     assign readback_array[3][23:16] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.MST_ERR.next : '0;
     assign readback_array[3][31:24] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.SLV_ERR.next : '0;

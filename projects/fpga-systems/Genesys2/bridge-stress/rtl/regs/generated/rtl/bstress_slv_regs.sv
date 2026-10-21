@@ -182,6 +182,10 @@ module bstress_slv_regs (
                 logic load_next;
             } INTERLEAVE;
             struct {
+                logic next;
+                logic load_next;
+            } W_FIRST;
+            struct {
                 logic [3:0] next;
                 logic load_next;
             } REQ_THROTTLE;
@@ -264,6 +268,10 @@ module bstress_slv_regs (
                 logic load_next;
             } INTERLEAVE;
             struct {
+                logic next;
+                logic load_next;
+            } W_FIRST;
+            struct {
                 logic [3:0] next;
                 logic load_next;
             } REQ_THROTTLE;
@@ -343,6 +351,9 @@ module bstress_slv_regs (
                 logic value;
             } INTERLEAVE;
             struct {
+                logic value;
+            } W_FIRST;
+            struct {
                 logic [3:0] value;
             } REQ_THROTTLE;
             struct {
@@ -407,6 +418,9 @@ module bstress_slv_regs (
             struct {
                 logic value;
             } INTERLEAVE;
+            struct {
+                logic value;
+            } W_FIRST;
             struct {
                 logic [3:0] value;
             } REQ_THROTTLE;
@@ -612,6 +626,29 @@ module bstress_slv_regs (
         end
     end
     assign hwif_out.RD_CTRL.INTERLEAVE.value = field_storage.RD_CTRL.INTERLEAVE.value;
+    // Field: bstress_slv_regs.RD_CTRL.W_FIRST
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.RD_CTRL.W_FIRST.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.RD_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.RD_CTRL.W_FIRST.value & ~decoded_wr_biten[18:18]) | (decoded_wr_data[18:18] & decoded_wr_biten[18:18]);
+            load_next_c = '1;
+        end
+        field_combo.RD_CTRL.W_FIRST.next = next_c;
+        field_combo.RD_CTRL.W_FIRST.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.RD_CTRL.W_FIRST.value <= 1'h0;
+        end else begin
+            if(field_combo.RD_CTRL.W_FIRST.load_next) begin
+                field_storage.RD_CTRL.W_FIRST.value <= field_combo.RD_CTRL.W_FIRST.next;
+            end
+        end
+    end
+    assign hwif_out.RD_CTRL.W_FIRST.value = field_storage.RD_CTRL.W_FIRST.value;
     // Field: bstress_slv_regs.RD_CTRL.REQ_THROTTLE
     always_comb begin
         automatic logic [3:0] next_c;
@@ -1003,6 +1040,29 @@ module bstress_slv_regs (
         end
     end
     assign hwif_out.WR_CTRL.INTERLEAVE.value = field_storage.WR_CTRL.INTERLEAVE.value;
+    // Field: bstress_slv_regs.WR_CTRL.W_FIRST
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.WR_CTRL.W_FIRST.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.WR_CTRL && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.WR_CTRL.W_FIRST.value & ~decoded_wr_biten[18:18]) | (decoded_wr_data[18:18] & decoded_wr_biten[18:18]);
+            load_next_c = '1;
+        end
+        field_combo.WR_CTRL.W_FIRST.next = next_c;
+        field_combo.WR_CTRL.W_FIRST.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.WR_CTRL.W_FIRST.value <= 1'h0;
+        end else begin
+            if(field_combo.WR_CTRL.W_FIRST.load_next) begin
+                field_storage.WR_CTRL.W_FIRST.value <= field_combo.WR_CTRL.W_FIRST.next;
+            end
+        end
+    end
+    assign hwif_out.WR_CTRL.W_FIRST.value = field_storage.WR_CTRL.W_FIRST.value;
     // Field: bstress_slv_regs.WR_CTRL.REQ_THROTTLE
     always_comb begin
         automatic logic [3:0] next_c;
@@ -1269,7 +1329,8 @@ module bstress_slv_regs (
     assign readback_array[3][15:8] = (decoded_reg_strb.RD_CTRL && !decoded_req_is_wr) ? field_storage.RD_CTRL.TAG.value : '0;
     assign readback_array[3][16:16] = (decoded_reg_strb.RD_CTRL && !decoded_req_is_wr) ? field_storage.RD_CTRL.INORDER.value : '0;
     assign readback_array[3][17:17] = (decoded_reg_strb.RD_CTRL && !decoded_req_is_wr) ? field_storage.RD_CTRL.INTERLEAVE.value : '0;
-    assign readback_array[3][19:18] = '0;
+    assign readback_array[3][18:18] = (decoded_reg_strb.RD_CTRL && !decoded_req_is_wr) ? field_storage.RD_CTRL.W_FIRST.value : '0;
+    assign readback_array[3][19:19] = '0;
     assign readback_array[3][23:20] = (decoded_reg_strb.RD_CTRL && !decoded_req_is_wr) ? field_storage.RD_CTRL.REQ_THROTTLE.value : '0;
     assign readback_array[3][27:24] = (decoded_reg_strb.RD_CTRL && !decoded_req_is_wr) ? field_storage.RD_CTRL.DATA_THROTTLE.value : '0;
     assign readback_array[3][31:28] = '0;
@@ -1290,7 +1351,8 @@ module bstress_slv_regs (
     assign readback_array[10][15:8] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.TAG.value : '0;
     assign readback_array[10][16:16] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.INORDER.value : '0;
     assign readback_array[10][17:17] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.INTERLEAVE.value : '0;
-    assign readback_array[10][19:18] = '0;
+    assign readback_array[10][18:18] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.W_FIRST.value : '0;
+    assign readback_array[10][19:19] = '0;
     assign readback_array[10][23:20] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.REQ_THROTTLE.value : '0;
     assign readback_array[10][27:24] = (decoded_reg_strb.WR_CTRL && !decoded_req_is_wr) ? field_storage.WR_CTRL.DATA_THROTTLE.value : '0;
     assign readback_array[10][31:28] = '0;

@@ -7,6 +7,8 @@
 #   ddr, bram     each memory link's handshakes, AWLEN, IDs, WLAST / RLAST,
 #                 BRESP / RRESP, its stall detector and outstanding counts
 #   masters       the vendor masters' write handshakes
+#   checkers      bs_pc_ddr / bs_pc_bram asserted, with each link's AWADDR,
+#                 AWSIZE, AWBURST and WSTRB (what the checker judges)
 # Capture: fpga/tcl/capture_ila.tcl (make tcl-capture_ila), triggered on
 # either stall detector with most of the window before it. It found MIG's
 # spurious read return on this board (PRD findings); the method follows the
@@ -43,6 +45,11 @@ foreach l {ddr bram} {
     foreach n {awlen awid bid bresp arid rid rresp} {
         bs_probe ${l}_axi_$n [get_nets -quiet "${l}_axi_${n}[*]"]
     }
+    # what the protocol checker judges a write by: address, size, burst, strobes
+    foreach n {awaddr awsize awburst wstrb} {
+        bs_probe ${l}_axi_$n [get_nets -quiet "${l}_axi_${n}[*]"]
+    }
+    bs_probe w_pc_${l}_asserted [get_nets -quiet w_pc_${l}_asserted]
     bs_probe r_${l}_stall [get_nets -quiet r_${l}_stall]
     bs_probe r_${l}_wr_out [get_nets -quiet "r_${l}_wr_out[*]"]
     bs_probe r_${l}_rd_out [get_nets -quiet "r_${l}_rd_out[*]"]

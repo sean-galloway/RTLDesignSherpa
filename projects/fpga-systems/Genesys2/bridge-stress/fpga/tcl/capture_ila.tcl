@@ -5,7 +5,9 @@
 # links around a stall (make tcl-capture_ila)
 #==============================================================================
 # Arms on r_ddr_stall, r_bram_stall or r_atg_stall rising (bs_genesys2_xil_top: work pending on a memory
-# link and no handshake for 2048 cycles) with all but 512 samples before it,
+# link and no handshake for 2048 cycles) with all but 512 samples before it;
+# ILA_TRIG=pc arms on w_pc_ddr_asserted or w_pc_bram_asserted rising instead
+# (an AXI Protocol Checker flag), with half the window either side,
 # then waits ILA_WAIT_S seconds (default 300) for the host to drive traffic --
 # run the host from another shell once "ILA armed" prints. Writes
 # reports/ila_links.csv. Adapted from the fabric benchmark's MIG capture.
@@ -55,20 +57,32 @@ for {set i 0} {$i < 10 && $ila eq ""} {incr i} {
 if {$ila eq ""} { puts stderr "ERROR: no ILA found after programming (is ui_clk running?)"; exit 1 }
 
 set depth [get_property CONTROL.DATA_DEPTH $ila]
-# most of the window BEFORE the stall flag: the cycles that led into it
-set_property CONTROL.TRIGGER_POSITION [expr {$depth - 512}] $ila
+set mode [expr {[info exists ::env(ILA_TRIG)] ? $::env(ILA_TRIG) : "stall"}]
 set_property CONTROL.TRIGGER_CONDITION OR $ila
-foreach l {ddr bram atg} {
-    set trig [lindex [get_hw_probes -of_objects $ila -filter "NAME =~ *r_${l}_stall*"] 0]
-    if {$trig eq ""} { puts stderr "ERROR: no r_${l}_stall probe"; exit 1 }
+if {$mode eq "pc"} {
+    # a checker flag fires on the offending beat: half the window either side
+    set_property CONTROL.TRIGGER_POSITION [expr {$depth / 2}] $ila
+    set trigs {}
+    foreach l {ddr bram} { lappend trigs "w_pc_${l}_asserted" }
+} elseif {$mode eq "stall"} {
+    # most of the window BEFORE the stall flag: the cycles that led into it
+    set_property CONTROL.TRIGGER_POSITION [expr {$depth - 512}] $ila
+    set trigs {}
+    foreach l {ddr bram atg} { lappend trigs "r_${l}_stall" }
+} else {
+    puts stderr "ERROR: ILA_TRIG must be stall or pc, not '$mode'"; exit 1
+}
+foreach t $trigs {
+    set trig [lindex [get_hw_probes -of_objects $ila -filter "NAME =~ *${t}*"] 0]
+    if {$trig eq ""} { puts stderr "ERROR: no $t probe (rebuild with make bitstream-ila)"; exit 1 }
     set_property TRIGGER_COMPARE_VALUE eq1'bR $trig
 }
 run_hw_ila $ila
-puts "ILA armed (r_ddr_stall, r_bram_stall or r_atg_stall rising, depth $depth)"
+puts "ILA armed ($trigs rising, depth $depth)"
 flush stdout
 set wait_s [expr {[info exists ::env(ILA_WAIT_S)] ? $::env(ILA_WAIT_S) : 300}]
 if {[catch {wait_on_hw_ila -timeout [expr {($wait_s + 59) / 60}] $ila} err]} {
-    puts stderr "ERROR: ILA never triggered -- no memory link stalled ($err)"
+    puts stderr "ERROR: ILA never triggered on $trigs ($err)"
     exit 1
 }
 upload_hw_ila_data $ila

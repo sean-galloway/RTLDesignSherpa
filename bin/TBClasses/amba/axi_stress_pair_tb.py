@@ -231,6 +231,13 @@ class AxiStressPairTB(TBBase):
             await RisingEdge(d.aclk)
             if not int(d.aresetn.value):
                 continue
+            # W_FIRST evidence: an AW taken with no W beat offered, and an AW
+            # held while none was
+            awv, awr, wv = int(d.m_awvalid.value), int(d.m_awready.value), int(d.m_wvalid.value)
+            if awv and awr and not wv:
+                self.stats['aw_hs_no_w'] += 1
+            if awv and not awr and not wv:
+                self.stats['aw_wait_no_w'] += 1
             # AR
             if int(d.m_arvalid.value) and int(d.m_arready.value):
                 a, ln, sz, bt = (int(d.m_araddr.value), int(d.m_arlen.value),

@@ -131,6 +131,7 @@ Don't override. Generated from: $root
 | 15:8|     TAG     |  rw  | 0x0 |  — |
 |  16 |   INORDER   |  rw  | 0x0 |  — |
 |  17 |  INTERLEAVE |  rw  | 0x0 |  — |
+|  18 |   W_FIRST   |  rw  | 0x0 |  — |
 |23:20| REQ_THROTTLE|  rw  | 0x0 |  — |
 |27:24|DATA_THROTTLE|  rw  | 0x0 |  — |
 
@@ -157,6 +158,10 @@ Don't override. Generated from: $root
 #### INTERLEAVE field
 
 <p>Read: switch bursts between beats.</p>
+
+#### W_FIRST field
+
+<p>Write: AWREADY only while WVALID is up -- the slave waits for write data before it takes the address, as AXI A3.3.1 allows (an AXI CDMA register slave does). A fabric that holds WVALID until AWREADY deadlocks against it (bridge BUG-020).</p>
 
 #### REQ_THROTTLE field
 
@@ -263,6 +268,7 @@ Don't override. Generated from: $root
 | 15:8|     TAG     |  rw  | 0x0 |  — |
 |  16 |   INORDER   |  rw  | 0x0 |  — |
 |  17 |  INTERLEAVE |  rw  | 0x0 |  — |
+|  18 |   W_FIRST   |  rw  | 0x0 |  — |
 |23:20| REQ_THROTTLE|  rw  | 0x0 |  — |
 |27:24|DATA_THROTTLE|  rw  | 0x0 |  — |
 
@@ -289,6 +295,10 @@ Don't override. Generated from: $root
 #### INTERLEAVE field
 
 <p>Read: switch bursts between beats.</p>
+
+#### W_FIRST field
+
+<p>Write: AWREADY only while WVALID is up -- the slave waits for write data before it takes the address, as AXI A3.3.1 allows (an AXI CDMA register slave does). A fabric that holds WVALID until AWREADY deadlocks against it (bridge BUG-020).</p>
 
 #### REQ_THROTTLE field
 

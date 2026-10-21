@@ -355,6 +355,14 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
         # orphans) -- require SLVERR present, all packets PktTypeError.
         assert any(p.event_code == AXIErrorCode.AXI_ERR_RESP_SLVERR for p in pkts), (
             f"[ERR_BP/slverr] no AXI_ERR_RESP_SLVERR among error codes {codes}")
+        # The injected slave's own monitor (slave side: UNIT_ID 1, AGENT_ID
+        # slave_index << 4 | dir) must be among the reporters, not only the
+        # masters' -- on a cdc slave several masters share it runs on that
+        # slave's clock and crosses into the group (bridge W9, bridge_mon_cdc).
+        agents = sorted({(p.unit_id, p.agent_id) for p in pkts})
+        tb.log.info(f"[ERR_BP/slverr] reporting (unit, agent): {agents}")
+        assert any(u == 1 and a >> 4 == rs[0] for u, a in agents), (
+            f"[ERR_BP/slverr] slave {rs[0]}'s monitor reported nothing; reporters {agents}")
     set_monitor_cfg(dut, cfg_prefixes, monitor=0)
     await ClockCycles(tb.clock, 50)
 

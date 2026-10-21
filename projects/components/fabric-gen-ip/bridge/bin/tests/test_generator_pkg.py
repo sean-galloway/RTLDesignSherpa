@@ -1780,6 +1780,52 @@ def _generate_fixture(tmp_path, name):
     return out / name, tmp_path / "filelists" / f"{name}.f"
 
 
+def test_lane_slave_monitor_on_its_own_clock(tmp_path):
+    """bridge W9: a cdc slave several masters share has no aclk-side stream,
+    so its monitors run on s_aclk after bridge_cdc_slave_arb and cross into
+    the group through bridge_mon_cdc (the mon variant of
+    bridge_3x2_rw_mcdc, whose ddr all three masters reach)."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc")
+    mon = gen.parent / "bridge_3x2_rw_mcdc_mon"
+    ddr = (mon / "ddr_adapter.sv").read_text()
+    # the arbiter drives the s_aclk nets, the wrappers take them to the pins
+    assert ".m_axi_awvalid(lmon_ddr_axi_awvalid)" in ddr
+    assert ".fub_axi_awvalid(lmon_ddr_axi_awvalid)" in ddr
+    for chan in ("wr", "rd"):
+        i = ddr.index(f") u_master_{chan} (")
+        assert ".aclk(s_aclk)" in ddr[i:i + 200]
+        assert f".i_mon_time(lmon_{chan}_mon_time)" in ddr
+        assert f"u_mon_cdc_{chan}" in ddr
+        assert f".monbus_valid(monbus_{chan}_valid)" in ddr
+    mfl = (fl.parent / "bridge_3x2_rw_mcdc_mon.f").read_text()
+    assert "bridge_mon_cdc.f" in mfl and "bridge_cdc_slave_arb.f" in mfl
+    # the unmonitored variant is unchanged: the arbiter drives the pins
+    plain = (gen / "ddr_adapter.sv").read_text()
+    assert "lmon_" not in plain and "bridge_mon_cdc" not in plain
+    assert "bridge_mon_cdc.f" not in fl.read_text()
+
+
+def test_monitor_table_covers_port_outstanding(tmp_path):
+    """bridge BUG-021: every port's monitor tracks as many transactions as the
+    port can have outstanding. With the wrapper default (8) a port running 16
+    deep counts the 9th command untracked and reports its beats as ORPHAN
+    errors; the generator passes MAX_TRANSACTIONS = max_outstanding."""
+    import re
+    gen, _ = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc")
+    mon = gen.parent / "bridge_3x2_rw_mcdc_mon"
+    seen = 0
+    for f in sorted(mon.glob("*_adapter.sv")):
+        src = f.read_text()
+        n_mon = len(re.findall(r"\b(axi[45]_(?:master|slave)_(?:rd|wr)_mon\w*) #\(", src))
+        tables = re.findall(r"\.MAX_TRANSACTIONS\((\d+)\)", src)
+        assert len(tables) == n_mon, f"{f.name}: {n_mon} monitors, {len(tables)} MAX_TRANSACTIONS"
+        assert all(int(t) == 16 for t in tables), f"{f.name}: {tables}"   # max_outstanding default
+        seen += n_mon
+    assert seen == 9      # cpu, dma, ddr, sram rw (2 each) + lfsr rd
+    # an unmonitored wrapper has no such parameter
+    assert "MAX_TRANSACTIONS" not in "".join(f.read_text() for f in gen.glob("*_adapter.sv"))
+
+
 def test_lite_req_generation_smoke(tmp_path):
     """bridge_2x2_lite_req: an AXI4-Lite and an AXI5-Lite REQUESTER.
 

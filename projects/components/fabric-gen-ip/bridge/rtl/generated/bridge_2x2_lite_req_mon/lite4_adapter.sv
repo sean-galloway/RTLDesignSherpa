@@ -262,6 +262,7 @@ module bridge_2x2_lite_req_mon_lite4_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(2),
         .AGENT_ID(1),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
@@ -368,6 +369,7 @@ module bridge_2x2_lite_req_mon_lite4_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(2),
         .AGENT_ID(0),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_timing_wrapper_rd (
         .aclk(aclk),

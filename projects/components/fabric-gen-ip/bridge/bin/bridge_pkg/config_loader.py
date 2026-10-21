@@ -62,7 +62,7 @@ def _parse_mon_group(raw, config_path: str) -> MonGroupConfig:
     known = {
         'slave_protocol', 'master_protocol', 'fifo_depth_err',
         'fifo_depth_write', 'flush_timeout_cycles', 'use_compression',
-        'axi_id_width', 'axi_user_width', 'max_burst_beats',
+        'axi_id_width', 'axi_user_width', 'max_burst_beats', 's_axil_data_width',
     }
     unknown = set(raw) - known
     if unknown:

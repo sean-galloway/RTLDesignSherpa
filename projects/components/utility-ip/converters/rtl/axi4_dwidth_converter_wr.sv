@@ -210,12 +210,19 @@ module axi4_dwidth_converter_wr #(
     // by gen_b_fold for the per-burst B CAM).
     logic       w_aw_issue;
     logic       w_this_last;
+    // The master AW on offer is its slave burst's FIRST, and the number of
+    // master bursts that slave burst splits into (1..WIDTH_RATIO).
+    logic       w_this_first;
+    logic [7:0] w_this_parts;
     // A free B-CAM slot exists (driven in gen_b_fold, consumed in
-    // gen_aw_downsize): a slave burst's FINAL master AW must not issue
+    // gen_aw_downsize): a slave burst's FIRST master AW must not issue
     // unless the CAM can take its entry, or the push would be dropped and
     // that burst's B responses would match nothing (BUG-008 follow-up:
     // the CAM drains on B return while the split queue drains on W
     // framing, so split-queue space alone does not bound CAM occupancy).
+    // The entry is pushed at the first master AW, not the last: a slave may
+    // answer part 1 while a later part's AW still waits, and a B with no
+    // entry is taken and dropped (converters BUG-012).
     logic       w_b_cam_slot_free;
 
     // Burst-split queue / B CAM depth.  Shared across generate blocks so
@@ -352,7 +359,12 @@ module axi4_dwidth_converter_wr #(
             logic [AXI_ADDR_WIDTH-1:0] r_split_addr;
             logic                      r_split_active;
             logic [8:0]                w_this_beats;
+            logic                      r_split_issued;   // a part of this burst has issued
 
+            assign w_this_first = !r_split_issued;
+            // parts = ceil(remaining / MAX_BEATS), taken while the first part
+            // is on offer (remaining is then the whole burst)
+            assign w_this_parts = 8'((r_split_remaining + CNTW'(MAX_BEATS - 1)) >> 8);
             assign w_this_beats = (r_split_remaining > CNTW'(MAX_BEATS))
                                   ? 9'(MAX_BEATS) : 9'(r_split_remaining);
             assign w_this_last  = (r_split_remaining <= CNTW'(MAX_BEATS));
@@ -363,7 +375,9 @@ module axi4_dwidth_converter_wr #(
                     r_split_remaining <= '0;
                     r_split_addr      <= '0;
                     r_split_active    <= 1'b0;
+                    r_split_issued    <= 1'b0;
                 end else if (!r_split_active) begin
+                    r_split_issued <= 1'b0;
                     if (int_aw_valid) begin
                         r_split_remaining <= (CNTW'(int_awlen) + CNTW'(1))
                                              * CNTW'(WIDTH_RATIO);
@@ -371,6 +385,7 @@ module axi4_dwidth_converter_wr #(
                         r_split_active    <= 1'b1;
                     end
                 end else if (w_aw_issue) begin
+                    r_split_issued <= !w_this_last;
                     if (w_this_last) begin
                         r_split_remaining <= '0;
                         r_split_active    <= 1'b0;
@@ -426,10 +441,10 @@ module axi4_dwidth_converter_wr #(
             assign m_axi_awqos    = int_awqos;
             assign m_axi_awregion = int_awregion;
             assign m_axi_awuser   = int_awuser;
-            // The final master AW of a slave burst also pushes the B CAM,
-            // so it must wait for a free CAM slot; mid-split AWs need none.
+            // The FIRST master AW of a slave burst pushes the B CAM, so it
+            // must wait for a free CAM slot; later parts need none.
             assign m_axi_awvalid  = r_split_active && !w_splitq_full &&
-                                    (!w_this_last || w_b_cam_slot_free);
+                                    (!w_this_first || w_b_cam_slot_free);
             // the slave's AW is consumed only when its FINAL master
             // burst is issued
             assign int_aw_ready   = w_aw_issue && w_this_last;
@@ -731,19 +746,13 @@ module axi4_dwidth_converter_wr #(
             // B. Registered so the decision is an AND with the hit vector.
             logic [B_CAM_DEPTH-1:0]  b_cam_last;
 
-            // The burst currently being split.  The AW splitter finishes one
-            // slave burst before accepting the next, so a single open-burst
-            // register is enough.
-            logic                    r_b_open_valid;
-            logic [AXI_ID_WIDTH-1:0] r_b_open_id;
-            logic [7:0]              r_b_open_count;
-
-            // Push the open burst to the CAM on its final master AW issue.
-            // Combinational: for a single-beat (unsplit) burst r_b_open_valid
-            // is still low on the issue cycle, so the count is exactly 1.
+            // The entry is pushed at the slave burst's FIRST master AW issue,
+            // carrying how many master bursts it splits into: every B it
+            // will get -- the first part's included, which a slave may return
+            // before a later part's AW issues -- finds it (converters
+            // BUG-012; the entry used to be pushed at the final AW).
             logic [7:0]              w_b_cam_push_count;
-            assign w_b_cam_push_count = r_b_open_valid ? (r_b_open_count + 8'd1)
-                                                       : 8'd1;
+            assign w_b_cam_push_count = w_this_parts;
 
             // Find a free CAM slot for the next push.
             logic [B_CAM_AW-1:0] w_b_cam_free_idx;
@@ -801,9 +810,6 @@ module axi4_dwidth_converter_wr #(
 
             `ALWAYS_FF_RST(aclk, w_aresetn,
                 if (`RST_ASSERTED(w_aresetn)) begin
-                    r_b_open_valid   <= 1'b0;
-                    r_b_open_id      <= '0;
-                    r_b_open_count   <= '0;
                     for (int i = 0; i < B_CAM_DEPTH; i++) begin
                         b_cam_valid[i] <= 1'b0;
                         b_cam[i]       <= '0;
@@ -811,27 +817,9 @@ module axi4_dwidth_converter_wr #(
                         b_cam_last[i]  <= 1'b0;
                     end
                 end else begin
-                    // Track the burst currently being split.
-                    if (w_aw_issue) begin
-                        if (!r_b_open_valid) begin
-                            // First master AW of a new slave burst.
-                            r_b_open_valid <= 1'b1;
-                            r_b_open_id    <= int_awid;
-                            r_b_open_count <= 8'd1;
-                        end else begin
-                            r_b_open_count <= r_b_open_count + 8'd1;
-                        end
-                    end
-
-                    // Close the open burst on its final master AW issue.
-                    if (int_aw_valid && int_aw_ready) begin
-                        r_b_open_valid <= 1'b0;
-                    end
-
-                    // Push finalized burst into the CAM when its last
-                    // master AW is issued.  Use the current AWID directly so
-                    // single-beat bursts do not suffer a register-update race.
-                    if (w_aw_issue && w_this_last) begin
+                    // Push the burst into the CAM when its first master AW
+                    // issues (int_awid is that burst's ID throughout).
+                    if (w_aw_issue && w_this_first) begin
                         if (w_b_cam_free_found) begin
                             b_cam_valid[w_b_cam_free_idx] <= 1'b1;
                             b_cam[w_b_cam_free_idx].id    <= int_awid;
@@ -864,10 +852,10 @@ module axi4_dwidth_converter_wr #(
             )
 
 `ifdef SIMULATION
-            // Defense in depth: gen_aw_downsize already gates a burst's final
+            // Defense in depth: gen_aw_downsize already gates a burst's first
             // master AW on w_b_cam_slot_free, so this should be unreachable.
             always_ff @(posedge aclk) begin
-                if (w_aresetn && w_aw_issue && w_this_last && !w_b_cam_free_found)
+                if (w_aresetn && w_aw_issue && w_this_first && !w_b_cam_free_found)
                     $error("axi4_dwidth_converter_wr: B CAM overflow");
             end
 `endif

@@ -2,7 +2,7 @@
 
 # bridge — bugs
 
-**Next ID: BUG-021** — never recycle a number, even when its item closed.
+**Next ID: BUG-022** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,20 +12,23 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-020** — a write to a slave that waits for WVALID before AWREADY deadlocks the bridge: the W route is pushed only on the slave's AW handshake (found on the board: the AXI CDMA register slave)
 - **BUG-019** — unaligned INCR bursts keep their start misalignment past the first beat: axi4_to_axi3 (fixed, converters BUG-011), dwidth downsize, axi4_to_axil4/axil5/wb4, axi_gen_addr (APB)
 - **BUG-018** — width-converted paths emit illegal AXI for FIXED, WRAP, narrow and unaligned bursts (found by the Genesys 2 bridge stress model)
 
 
 ## Closed
+
+- **BUG-021** — a monitored port reported false ORPHAN errors past 8 outstanding — RESOLVED 2026-10-20: every monitor gets MAX_TRANSACTIONS = its port's max_outstanding; board clean 3/3, narrow 300/300 with zero records
+
+- **BUG-020** — a slave that waits for WVALID before AWREADY deadlocked the bridge — RESOLVED 2026-10-20: owner bypass in bridge_cdc_slave_arb, axi4_to_axil4_wr registers every AW; stress-slave W_FIRST gate; board w_first 20/20, CDMA with no AW skid
 
 - **BUG-017** — read bandwidth below the perf floors once R interleaving landed — RESOLVED 2026-10-18: the interleaving slave BFM's scheduling, not the fabric; perf suite uses contiguous slaves, BFM VALID-drop race fixed in RDS-DV 1.2.8
 

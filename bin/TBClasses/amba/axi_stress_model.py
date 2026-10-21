@@ -267,7 +267,7 @@ SCFG_FIELDS = (('base', 32), ('size_lg2', 6), ('offset_mode', 1), ('tag', 8),
                ('err_en', 1), ('err_base', 32), ('err_mask', 32), ('inorder', 1),
                ('interleave', 1), ('lat_min', 8), ('lat_mask', 8),
                ('req_throttle', 4), ('data_throttle', 4), ('max_out', 8),
-               ('seed', 32), ('sb_src', 8), ('poison_lg2', 4))
+               ('seed', 32), ('sb_src', 8), ('poison_lg2', 4), ('w_first', 1))
 
 SSTS_FIELDS = (('runs', 8), ('bursts', 32), ('beats', 32), ('err_mask', 16), ('err_cnt', 16),
                ('fe_valid', 1), ('fe_kind', 4), ('fe_id', 16), ('fe_addr', 32),

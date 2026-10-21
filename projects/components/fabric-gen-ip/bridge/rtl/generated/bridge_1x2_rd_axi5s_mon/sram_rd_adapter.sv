@@ -205,6 +205,7 @@ module bridge_1x2_rd_axi5s_mon_sram_rd_adapter
         .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(1),
         .AGENT_ID(16),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),

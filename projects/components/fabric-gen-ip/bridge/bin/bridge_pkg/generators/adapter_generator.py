@@ -1718,6 +1718,8 @@ class AdapterGenerator:
         if self.master.channels in ["wr", "rw"]:
             wrapper = Axi4TimingWrapper(
                 side='slave', channel='wr', mon=self.enable_monitoring,
+                # bridge BUG-021: the monitor tracks every outstanding write
+                max_transactions=int(getattr(self.master, 'max_outstanding', 16)),
                 instance_name='u_timing_wrapper_wr',
                 id_width=self.fub_id_width,
                 addr_width=32,
@@ -1774,6 +1776,7 @@ class AdapterGenerator:
         if self.master.channels in ["rd", "rw"]:
             wrapper = Axi4TimingWrapper(
                 side='slave', channel='rd', mon=self.enable_monitoring,
+                max_transactions=int(getattr(self.master, 'max_outstanding', 16)),
                 instance_name='u_timing_wrapper_rd',
                 id_width=self.fub_id_width,
                 addr_width=32,

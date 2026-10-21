@@ -24,6 +24,15 @@ results are the host's to read. The configuration bridge's two AXI4-Lite
 windows ext0 / ext1 then leave the harness too, for that IP's control ports,
 and EXT_STS0..3 in the control block carry 128 bits of its status in; in a
 build without vendor ports ext0 / ext1 answer SLVERR.
+
+A DUT TOML whose `variants` holds "mon" is built as the bridge's monitored
+variant (<dut>_mon, with `use_cfg_regblock` and a 32-bit error drain): an
+Ocelus monitor on every port. Its cfg regblock is the configuration bridge's
+window ext2 and its error-FIFO drain window ext3, both inside the harness;
+the group's trace-write master gets an always-OKAY sink (the host routes
+every packet class to the error FIFO, so nothing is written there), and its
+IRQ -- a record waiting -- is the control block's STATUS.MON_IRQ. Without it
+ext2 / ext3 answer SLVERR and STATUS.HAS_MON reads 0.
 """
 from __future__ import annotations
 
@@ -86,6 +95,11 @@ EXT_AXIL = [('awaddr', 32, 1), ('awprot', 3, 1), ('awvalid', 1, 1), ('awready', 
             ('araddr', 32, 1), ('arprot', 3, 1), ('arvalid', 1, 1), ('arready', 1, 0),
             ('rdata', 32, 0), ('rresp', 2, 0), ('rvalid', 1, 0), ('rready', 1, 1)]
 EXT_WINDOWS = ('ext0', 'ext1')
+# Its windows for the DUT's Ocelus monitors (mon variant), inside the harness:
+# ext2 the cfg regblock (s_cfg_axil), ext3 the error-FIFO drain (s_mon_axil,
+# read-only). Each window is 64 KB; the DUT sees the offset inside it.
+MON_WINDOWS = ('ext2', 'ext3')
+MON_CFG, MON_DRAIN = MON_WINDOWS
 
 # protocol -> (AW, W, B, AR, R); the stress shells are <protocol>_{master,slave}_stress
 CHANNELS = {'axi4': (AW, W, B, AR, R), 'axi3': (AW3, W3, B, AR3, R),
@@ -161,6 +175,14 @@ class Port:
                 f" .EN_ATOMIC(1'b{self.en('atomic')}), .EN_MTE(1'b{self.en('mte')})")
 
 
+def has_mon(toml: Path) -> bool:
+    """The DUT is built as its monitored variant (see the module docstring)."""
+    variants = tomllib.loads(toml.read_text())['bridge'].get('variants', ['no'])
+    if 'mon' in variants and len(variants) > 1:
+        sys.exit(f'{toml.name}: a harness DUT is one variant; variants = {variants}')
+    return 'mon' in variants
+
+
 def load(toml: Path):
     doc = tomllib.loads(toml.read_text())
     cfg = doc['bridge']
@@ -215,7 +237,53 @@ def cpuif_addr_msb(regblock: str) -> int:
     return int(m.group(1))
 
 
-def gen(dut: str, ms: List[Port], ss: List[Port], variant: int) -> str:
+def slverr_axil(x: str, wr: bool = True, rd: bool = True) -> str:
+    """An AXI4-Lite window with nothing behind it: every access answers
+    SLVERR (wr / rd: which directions). Readies come from state alone: the
+    bridge's AXI4-Lite adapter may gate its VALIDs on them."""
+    t = []
+    if wr:
+        t.append(f"""    logic r_{x}_aw, r_{x}_w, r_{x}_bv;
+    assign {x}_axil_awready = !r_{x}_aw && !r_{x}_bv;
+    assign {x}_axil_wready  = !r_{x}_w  && !r_{x}_bv;
+    assign {x}_axil_bvalid  = r_{x}_bv;
+    assign {x}_axil_bresp   = 2'b10;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_{x}_aw <= 1'b0;
+            r_{x}_w  <= 1'b0;
+            r_{x}_bv <= 1'b0;
+        end else begin
+            if ({x}_axil_awvalid && {x}_axil_awready) r_{x}_aw <= 1'b1;
+            if ({x}_axil_wvalid  && {x}_axil_wready)  r_{x}_w  <= 1'b1;
+            if (r_{x}_aw && r_{x}_w) begin
+                r_{x}_bv <= 1'b1;
+                r_{x}_aw <= 1'b0;
+                r_{x}_w  <= 1'b0;
+            end else if (r_{x}_bv && {x}_axil_bready) begin
+                r_{x}_bv <= 1'b0;
+            end
+        end
+    end
+    wire unused_{x}_wr = ^{{{x}_axil_awaddr, {x}_axil_awprot, {x}_axil_wdata, {x}_axil_wstrb}};
+""")
+    if rd:
+        t.append(f"""    logic r_{x}_rv;
+    assign {x}_axil_arready = !r_{x}_rv;
+    assign {x}_axil_rvalid  = r_{x}_rv;
+    assign {x}_axil_rresp   = 2'b10;
+    assign {x}_axil_rdata   = 32'hDEAD_0000;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn)                                  r_{x}_rv <= 1'b0;
+        else if ({x}_axil_arvalid && {x}_axil_arready) r_{x}_rv <= 1'b1;
+        else if ({x}_axil_rready)                      r_{x}_rv <= 1'b0;
+    end
+    wire unused_{x}_rd = ^{{{x}_axil_araddr, {x}_axil_arprot}};
+""")
+    return ''.join(t)
+
+
+def gen(dut: str, ms: List[Port], ss: List[Port], variant: int, mon: bool = False) -> str:
     L: List[str] = []
     ctl_msb = cpuif_addr_msb('bstress_ctl_regs')
     has_vendor = any(p.vendor for p in ms + ss)
@@ -325,11 +393,10 @@ module bs_harness_{dut}
         a(f"    logic [31:0] {w}_apb_PADDR, {w}_apb_PWDATA, {w}_apb_PRDATA;")
         a(f"    logic [3:0]  {w}_apb_PSTRB;")
         a(f"    logic [2:0]  {w}_apb_PPROT;")
-    if not has_vendor:
-        for x in EXT_WINDOWS:
-            for n, wd, _ in EXT_AXIL:
-                rng = f'[{wd - 1}:0]' if wd > 1 else ''
-                a(f"    logic {rng:<7} {x}_axil_{n};")
+    for x in (MON_WINDOWS if has_vendor else EXT_WINDOWS + MON_WINDOWS):
+        for n, wd, _ in EXT_AXIL:
+            rng = f'[{wd - 1}:0]' if wd > 1 else ''
+            a(f"    logic {rng:<7} {x}_axil_{n};")
     a("    logic        cfg_unmapped_irq;")
     a("""
     bridge_bs_cfg u_cfg (
@@ -343,7 +410,7 @@ module bs_harness_{dut}
         a(f"        .{w}_apb_PSEL, .{w}_apb_PADDR, .{w}_apb_PENABLE, .{w}_apb_PWRITE,")
         a(f"        .{w}_apb_PWDATA, .{w}_apb_PSTRB, .{w}_apb_PPROT,")
         a(f"        .{w}_apb_PRDATA, .{w}_apb_PREADY, .{w}_apb_PSLVERR,")
-    for x in EXT_WINDOWS:
+    for x in EXT_WINDOWS + MON_WINDOWS:
         a("        " + ", ".join(f".{x}_axil_{n}" for n, _, _ in EXT_AXIL) + ",")
     a("""        .unmapped_irq   (cfg_unmapped_irq),
         /* verilator lint_off PINCONNECTEMPTY */
@@ -368,41 +435,15 @@ module bs_harness_{dut}
 
     if not has_vendor:
         for x in EXT_WINDOWS:
-            a(f"""    // {x}: no vendor IP in this build -- every access answers SLVERR
-    // (readies from state alone: the bridge's AXI4-Lite adapter may gate
-    // its VALIDs on them)
-    logic r_{x}_aw, r_{x}_w, r_{x}_bv, r_{x}_rv;
-    assign {x}_axil_awready = !r_{x}_aw && !r_{x}_bv;
-    assign {x}_axil_wready  = !r_{x}_w  && !r_{x}_bv;
-    assign {x}_axil_bvalid  = r_{x}_bv;
-    assign {x}_axil_bresp   = 2'b10;
-    assign {x}_axil_arready = !r_{x}_rv;
-    assign {x}_axil_rvalid  = r_{x}_rv;
-    assign {x}_axil_rresp   = 2'b10;
-    assign {x}_axil_rdata   = 32'hDEAD_0000;
-    always_ff @(posedge aclk or negedge aresetn) begin
-        if (!aresetn) begin
-            r_{x}_aw <= 1'b0;
-            r_{x}_w  <= 1'b0;
-            r_{x}_bv <= 1'b0;
-            r_{x}_rv <= 1'b0;
-        end else begin
-            if ({x}_axil_awvalid && {x}_axil_awready) r_{x}_aw <= 1'b1;
-            if ({x}_axil_wvalid  && {x}_axil_wready)  r_{x}_w  <= 1'b1;
-            if (r_{x}_aw && r_{x}_w) begin
-                r_{x}_bv <= 1'b1;
-                r_{x}_aw <= 1'b0;
-                r_{x}_w  <= 1'b0;
-            end else if (r_{x}_bv && {x}_axil_bready) begin
-                r_{x}_bv <= 1'b0;
-            end
-            if ({x}_axil_arvalid && {x}_axil_arready) r_{x}_rv <= 1'b1;
-            else if ({x}_axil_rready)                 r_{x}_rv <= 1'b0;
-        end
-    end
-    wire unused_{x} = ^{{{x}_axil_awaddr, {x}_axil_awprot, {x}_axil_wdata, {x}_axil_wstrb,
-                        {x}_axil_araddr, {x}_axil_arprot}};
-""")
+            a(f"    // {x}: no vendor IP in this build -- every access answers SLVERR")
+            a(slverr_axil(x))
+    if mon:
+        a(f"    // {MON_DRAIN}: the error drain is read-only -- a write answers SLVERR")
+        a(slverr_axil(MON_DRAIN, rd=False))
+    else:
+        for x in MON_WINDOWS:
+            a(f"    // {x}: the DUT has no Ocelus monitors in this build -- SLVERR")
+            a(slverr_axil(x))
 
     # ---------------------------------------------------------------- ctl
     a(f"""    // =========================================================================
@@ -608,8 +649,13 @@ module bs_harness_{dut}
     logic        dut_unmapped_irq;
     logic [31:0] dut_unmapped_addr;
     logic [7:0]  dut_unmapped_count;
-
-    {dut} u_dut (
+    logic        dut_mon_irq;
+""")
+    if mon:
+        a(mon_glue())
+    else:
+        a("    assign dut_mon_irq = 1'b0;      // no Ocelus monitors in this build\n")
+    a(f"""    {dut}{'_mon' if mon else ''} u_dut (
         .aclk, .aresetn,""")
     for p in ms + ss:
         if p.cdc:
@@ -617,6 +663,8 @@ module bs_harness_{dut}
     for p in ms + ss:
         for n, _ in p.sigs():
             a(f"        .{p.prefix}{n},")
+    if mon:
+        a(mon_ports())
     a("""        .unmapped_irq   (dut_unmapped_irq),
         .unmapped_addr  (dut_unmapped_addr),
         .unmapped_count (dut_unmapped_count),
@@ -691,6 +739,8 @@ module bs_harness_{dut}
         ctl_hi.STATUS.ANY_ERR.next   = w_any_err;
         ctl_hi.STATUS.CLOCKS_OK.next = r_cresetn_a;
         ctl_hi.STATUS.UNMAPPED.next  = dut_unmapped_irq;
+        ctl_hi.STATUS.MON_IRQ.next   = dut_mon_irq;
+        ctl_hi.STATUS.HAS_MON.next   = 1'b{int(mon)};
         ctl_hi.STATUS.MST_DONE.next  = 8'(mst_done);
         ctl_hi.STATUS.MST_ERR.next   = 8'(mst_err);
         ctl_hi.STATUS.SLV_ERR.next   = 8'(slv_err);
@@ -714,7 +764,76 @@ endmodule : bs_harness_{dut}
     return '\n'.join(L)
 
 
-def filelist(dut: str, rel: str, ms: List[Port], ss: List[Port]) -> str:
+def mon_glue() -> str:
+    """Nets between the configuration bridge and the DUT's Ocelus ports, and
+    the always-OKAY sink on the group's trace-write master."""
+    c, d = MON_CFG, MON_DRAIN
+    return f"""    // Ocelus (mon variant): cfg regblock on {c}, error drain on {d}, both
+    // addressed by the offset inside their 64 KB window
+    logic [31:0] w_mon_cfg_awaddr, w_mon_cfg_araddr, w_mon_drain_araddr;
+    assign w_mon_cfg_awaddr   = {{16'd0, {c}_axil_awaddr[15:0]}};
+    assign w_mon_cfg_araddr   = {{16'd0, {c}_axil_araddr[15:0]}};
+    assign w_mon_drain_araddr = {{16'd0, {d}_axil_araddr[15:0]}};
+
+    // The group's trace-write master: accepted and answered OKAY. The host
+    // routes every packet class to the error FIFO (axi_err_select), so in
+    // use nothing arrives here; a write that does is dropped, not stalled.
+    logic        m_mon_axil_awvalid, m_mon_axil_wvalid, m_mon_axil_bready, r_mon_bv;
+    logic [31:0] m_mon_axil_awaddr;
+    logic [2:0]  m_mon_axil_awprot;
+    logic [63:0] m_mon_axil_wdata;
+    logic [7:0]  m_mon_axil_wstrb;
+    logic        r_mon_aw, r_mon_w;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_mon_aw <= 1'b0;
+            r_mon_w  <= 1'b0;
+            r_mon_bv <= 1'b0;
+        end else begin
+            if (m_mon_axil_awvalid && !r_mon_aw && !r_mon_bv) r_mon_aw <= 1'b1;
+            if (m_mon_axil_wvalid  && !r_mon_w  && !r_mon_bv) r_mon_w  <= 1'b1;
+            if (r_mon_aw && r_mon_w) begin
+                r_mon_bv <= 1'b1;
+                r_mon_aw <= 1'b0;
+                r_mon_w  <= 1'b0;
+            end else if (r_mon_bv && m_mon_axil_bready) begin
+                r_mon_bv <= 1'b0;
+            end
+        end
+    end
+    wire unused_mon = ^{{m_mon_axil_awaddr, m_mon_axil_awprot, m_mon_axil_wdata,
+                        m_mon_axil_wstrb, {c}_axil_awaddr[31:16], {c}_axil_araddr[31:16],
+                        {d}_axil_araddr[31:16]}};
+"""
+
+
+def mon_ports() -> str:
+    """The DUT's Ocelus port connections (mon variant)."""
+    c, d = MON_CFG, MON_DRAIN
+    return f"""        // Ocelus: cfg regblock ({c}), error drain ({d}), trace-write sink, IRQ
+        .s_cfg_axil_awvalid ({c}_axil_awvalid), .s_cfg_axil_awready ({c}_axil_awready),
+        .s_cfg_axil_awaddr  (w_mon_cfg_awaddr), .s_cfg_axil_awprot  ({c}_axil_awprot),
+        .s_cfg_axil_wvalid  ({c}_axil_wvalid),  .s_cfg_axil_wready  ({c}_axil_wready),
+        .s_cfg_axil_wdata   ({c}_axil_wdata),   .s_cfg_axil_wstrb   ({c}_axil_wstrb),
+        .s_cfg_axil_bvalid  ({c}_axil_bvalid),  .s_cfg_axil_bready  ({c}_axil_bready),
+        .s_cfg_axil_bresp   ({c}_axil_bresp),
+        .s_cfg_axil_arvalid ({c}_axil_arvalid), .s_cfg_axil_arready ({c}_axil_arready),
+        .s_cfg_axil_araddr  (w_mon_cfg_araddr), .s_cfg_axil_arprot  ({c}_axil_arprot),
+        .s_cfg_axil_rvalid  ({c}_axil_rvalid),  .s_cfg_axil_rready  ({c}_axil_rready),
+        .s_cfg_axil_rdata   ({c}_axil_rdata),   .s_cfg_axil_rresp   ({c}_axil_rresp),
+        .s_mon_axil_arvalid ({d}_axil_arvalid), .s_mon_axil_arready ({d}_axil_arready),
+        .s_mon_axil_araddr  (w_mon_drain_araddr), .s_mon_axil_arprot ({d}_axil_arprot),
+        .s_mon_axil_rvalid  ({d}_axil_rvalid),  .s_mon_axil_rready  ({d}_axil_rready),
+        .s_mon_axil_rdata   ({d}_axil_rdata),   .s_mon_axil_rresp   ({d}_axil_rresp),
+        .m_mon_axil_awvalid, .m_mon_axil_awready (!r_mon_aw && !r_mon_bv),
+        .m_mon_axil_awaddr,  .m_mon_axil_awprot,
+        .m_mon_axil_wvalid,  .m_mon_axil_wready  (!r_mon_w && !r_mon_bv),
+        .m_mon_axil_wdata,   .m_mon_axil_wstrb,
+        .m_mon_axil_bvalid  (r_mon_bv), .m_mon_axil_bready, .m_mon_axil_bresp (2'b00),
+        .mon_irq_out        (dut_mon_irq),"""
+
+
+def filelist(dut: str, rel: str, ms: List[Port], ss: List[Port], mon: bool = False) -> str:
     shells = ''.join(f'-f $REPO_ROOT/rtl/amba/filelists/{proto}_{side}_stress.f\n'
                      for side, ports in (('master', ms), ('slave', ss))
                      for proto in sorted({p.protocol for p in ports}))
@@ -728,7 +847,7 @@ def filelist(dut: str, rel: str, ms: List[Port], ss: List[Port]) -> str:
 -f $CONVERTERS_ROOT/rtl/filelists/apb4_to_peakrdl.f
 -f $REPO_ROOT/{rel}/rtl/filelists/bstress_regs.f
 -f $REPO_ROOT/{rel}/rtl/bridges/filelists/bridge_bs_cfg.f
--f $REPO_ROOT/{rel}/rtl/bridges/filelists/{dut}.f
+-f $REPO_ROOT/{rel}/rtl/bridges/filelists/{dut}{'_mon' if mon else ''}.f
 $REPO_ROOT/{rel}/rtl/bstress_mst_csr.sv
 $REPO_ROOT/{rel}/rtl/bstress_slv_csr.sv
 $REPO_ROOT/{rel}/rtl/generated/bs_harness_{dut}/bs_harness_{dut}.sv
@@ -741,14 +860,16 @@ def main() -> int:
     ap.add_argument('--variant', type=int, default=1, help='ID.VARIANT value')
     args = ap.parse_args()
     dut, ms, ss = load(args.toml)
+    mon = has_mon(args.toml)
     out = AREA / 'rtl' / 'generated' / f'bs_harness_{dut}'
     out.mkdir(parents=True, exist_ok=True)
-    (out / f'bs_harness_{dut}.sv').write_text(gen(dut, ms, ss, args.variant))
+    (out / f'bs_harness_{dut}.sv').write_text(gen(dut, ms, ss, args.variant, mon))
     fl = AREA / 'rtl' / 'generated' / 'filelists'
     fl.mkdir(parents=True, exist_ok=True)
     repo = next(p for p in AREA.parents if (p / '.git').exists())
-    (fl / f'bs_harness_{dut}.f').write_text(filelist(dut, str(AREA.relative_to(repo)), ms, ss))
-    print(f'[gen_bs_harness] {out}/bs_harness_{dut}.sv  ({len(ms)} masters, {len(ss)} slaves)')
+    (fl / f'bs_harness_{dut}.f').write_text(filelist(dut, str(AREA.relative_to(repo)), ms, ss, mon))
+    print(f'[gen_bs_harness] {out}/bs_harness_{dut}.sv  ({len(ms)} masters, {len(ss)} slaves'
+          f'{", Ocelus" if mon else ""})')
     return 0
 
 

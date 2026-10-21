@@ -396,6 +396,7 @@ module bridge_1x2_rw_axi5a_mon_sram_adapter
         .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(1),
         .AGENT_ID(17),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
@@ -535,6 +536,7 @@ module bridge_1x2_rw_axi5a_mon_sram_adapter
         .ENABLE_WAKEUP(1'b0),
         .UNIT_ID(1),
         .AGENT_ID(16),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),

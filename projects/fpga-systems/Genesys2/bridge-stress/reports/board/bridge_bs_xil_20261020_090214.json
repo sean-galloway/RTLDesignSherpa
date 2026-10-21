@@ -1,0 +1,42 @@
+[
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1173368,
+  "reasons": "atg: did not finish its command list | atg: Error Status 0x00000000: MSTDONE never set"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1200949,
+  "reasons": "atg: still busy from an earlier run -- left alone this run (reprogram to recover it)"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1341269,
+  "reasons": "atg: still busy from an earlier run -- left alone this run (reprogram to recover it)"
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 1396356,
+  "reasons": "atg: still busy from an earlier run -- left alone this run (reprogram to recover it)"
+ }
+]

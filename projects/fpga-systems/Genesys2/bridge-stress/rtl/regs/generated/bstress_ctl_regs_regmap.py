@@ -108,6 +108,8 @@ top_block = {'CTRL': {'GO': {'default': '0x0', 'offset': '0', 'singlepulse': Tru
  'STATUS': {'ALL_DONE': {'default': '0x0', 'offset': '0', 'sw': 'r', 'type': 'field'},
             'ANY_ERR': {'default': '0x0', 'offset': '1', 'sw': 'r', 'type': 'field'},
             'CLOCKS_OK': {'default': '0x0', 'offset': '2', 'sw': 'r', 'type': 'field'},
+            'HAS_MON': {'default': '0x0', 'offset': '5', 'sw': 'r', 'type': 'field'},
+            'MON_IRQ': {'default': '0x0', 'offset': '4', 'sw': 'r', 'type': 'field'},
             'MST_DONE': {'default': '0x00', 'offset': '15:8', 'sw': 'r', 'type': 'field'},
             'MST_ERR': {'default': '0x00', 'offset': '23:16', 'sw': 'r', 'type': 'field'},
             'SLV_ERR': {'default': '0x00', 'offset': '31:24', 'sw': 'r', 'type': 'field'},

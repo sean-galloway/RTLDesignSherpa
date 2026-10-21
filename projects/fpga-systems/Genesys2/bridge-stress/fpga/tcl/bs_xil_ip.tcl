@@ -10,13 +10,15 @@
 #                 slave
 #   bs_cdma       AXI Central DMA, simple mode, 64-bit, 256-beat bursts, DRE
 #                 (unaligned copies)
-#   bs_bram_ctrl  AXI BRAM Controller, 64-bit, ID 6 (the bram port), 64 KB,
+#   bs_bram_ctrl  AXI BRAM Controller, 64-bit, ID 7 (the bram port), 64 KB,
 #                 dual port: reads and writes proceed at once (single port,
 #                 a DMA copying within it deadlocks: its read waits for the
 #                 DMA to drain, the DMA's write waits for the read)
 #   bs_bram       Block Memory Generator in BRAM-controller mode behind it
-#   bs_pc_ddr     AXI Protocol Checker on the ddr link (128-bit, ID 6)
-#   bs_pc_bram    AXI Protocol Checker on the bram link (64-bit, ID 6)
+#   bs_pc_ddr     AXI Protocol Checker on the ddr link (128-bit, ID 7)
+#   bs_pc_bram    AXI Protocol Checker on the bram link (64-bit, ID 7)
+#   bs_pc_atg     AXI Protocol Checker on the traffic generator's link (64-bit,
+#                 ID 2): judges the bridge's responses to a third-party master
 #
 # Widths and IDs are the bridge_bs_xil.toml ports'; the tcl reads every
 # CONFIG value back, because Vivado clamps or ignores a value it does not
@@ -59,7 +61,7 @@ proc bs_create_xil_ips {area} {
     puts "\n--- bs_bram_ctrl (axi_bram_ctrl) + bs_bram (blk_mem_gen) ---"
     create_ip -name axi_bram_ctrl -vendor xilinx.com -library ip -module_name bs_bram_ctrl
     bs_ip_set bs_bram_ctrl [list CONFIG.PROTOCOL {AXI4} CONFIG.DATA_WIDTH {64} \
-        CONFIG.ID_WIDTH {6} CONFIG.SINGLE_PORT_BRAM {0} CONFIG.ECC_TYPE {0} \
+        CONFIG.ID_WIDTH {7} CONFIG.SINGLE_PORT_BRAM {0} CONFIG.ECC_TYPE {0} \
         CONFIG.MEM_DEPTH {8192} CONFIG.SUPPORTS_NARROW_BURST {1}]
     create_ip -name blk_mem_gen -vendor xilinx.com -library ip -module_name bs_bram
     bs_ip_set bs_bram [list CONFIG.Memory_Type {True_Dual_Port_RAM} \
@@ -71,16 +73,16 @@ proc bs_create_xil_ips {area} {
         CONFIG.Register_PortB_Output_of_Memory_Primitives {false} CONFIG.Use_RSTB_Pin {true}]
 
     # ---- protocol checkers ---------------------------------------------------
-    foreach {name dw} {bs_pc_ddr 128 bs_pc_bram 64} {
+    foreach {name dw iw} {bs_pc_ddr 128 7 bs_pc_bram 64 7 bs_pc_atg 64 2} {
         puts "\n--- $name (axi_protocol_checker) ---"
         create_ip -name axi_protocol_checker -vendor xilinx.com -library ip -module_name $name
         bs_ip_set $name [list CONFIG.PROTOCOL {AXI4} CONFIG.READ_WRITE_MODE {READ_WRITE} \
-            CONFIG.DATA_WIDTH $dw CONFIG.ID_WIDTH {6} CONFIG.ADDR_WIDTH {32} \
+            CONFIG.DATA_WIDTH $dw CONFIG.ID_WIDTH $iw CONFIG.ADDR_WIDTH {32} \
             CONFIG.MAX_RD_BURSTS {32} CONFIG.MAX_WR_BURSTS {32} \
             CONFIG.HAS_WSTRB {1} CONFIG.SUPPORTS_NARROW_BURST {1}]
     }
 
-    set ips [get_ips {bs_atg bs_cdma bs_bram_ctrl bs_bram bs_pc_ddr bs_pc_bram}]
+    set ips [get_ips {bs_atg bs_cdma bs_bram_ctrl bs_bram bs_pc_ddr bs_pc_bram bs_pc_atg}]
     generate_target {instantiation_template synthesis} $ips
     puts "\nbs_xil_ip: [llength $ips] IPs generated"
 }

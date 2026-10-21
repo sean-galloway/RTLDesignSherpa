@@ -47,6 +47,14 @@ package bstress_ctl_regs_pkg;
     } bstress_ctl_regs__STATUS__UNMAPPED__in_t;
 
     typedef struct {
+        logic next;
+    } bstress_ctl_regs__STATUS__MON_IRQ__in_t;
+
+    typedef struct {
+        logic next;
+    } bstress_ctl_regs__STATUS__HAS_MON__in_t;
+
+    typedef struct {
         logic [7:0] next;
     } bstress_ctl_regs__STATUS__MST_DONE__in_t;
 
@@ -63,6 +71,8 @@ package bstress_ctl_regs_pkg;
         bstress_ctl_regs__STATUS__ANY_ERR__in_t ANY_ERR;
         bstress_ctl_regs__STATUS__CLOCKS_OK__in_t CLOCKS_OK;
         bstress_ctl_regs__STATUS__UNMAPPED__in_t UNMAPPED;
+        bstress_ctl_regs__STATUS__MON_IRQ__in_t MON_IRQ;
+        bstress_ctl_regs__STATUS__HAS_MON__in_t HAS_MON;
         bstress_ctl_regs__STATUS__MST_DONE__in_t MST_DONE;
         bstress_ctl_regs__STATUS__MST_ERR__in_t MST_ERR;
         bstress_ctl_regs__STATUS__SLV_ERR__in_t SLV_ERR;

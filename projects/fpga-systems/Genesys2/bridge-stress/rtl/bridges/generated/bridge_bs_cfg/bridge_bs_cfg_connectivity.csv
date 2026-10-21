@@ -1,2 +1,2 @@
-master\slave,ctl,mst0,mst1,mst2,mst3,mst4,mst5,mst6,mst7,slv0,slv1,slv2,slv3,slv4,slv5,slv6,slv7,ext0,ext1
-host,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+master\slave,ctl,mst0,mst1,mst2,mst3,mst4,mst5,mst6,mst7,slv0,slv1,slv2,slv3,slv4,slv5,slv6,slv7,ext0,ext1,ext2,ext3
+host,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1

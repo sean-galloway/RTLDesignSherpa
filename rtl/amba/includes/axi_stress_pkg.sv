@@ -165,6 +165,7 @@ package axi_stress_pkg;
         logic [31:0] seed;
         logic [7:0]  sb_src;       // AXI5: masters (by ID prefix) whose requests carry sideband
         logic [3:0]  poison_lg2;   // AXI5: as stress_win_t.poison_lg2, for this slave
+        logic        w_first;      // writes: AWREADY only while WVALID is up (A3.3.1)
     } stress_sdir_cfg_t;
 
     typedef struct packed {

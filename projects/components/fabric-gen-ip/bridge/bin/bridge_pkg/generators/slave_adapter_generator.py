@@ -1196,8 +1196,14 @@ class SlaveAdapterGenerator:
         axw, ww = self._lane_widths()
         x = f"xbar_{self.slave.name}_axi_"
         p = f"{self.slave.name}_axi_lane_"
-        pin = self.slave.prefix
-        lines = ["    // ============================================================",
+        # Monitored: the arbiter drives lmon_ nets on s_aclk and the monitor
+        # wrappers sit between them and the pins (_generate_lane_monitor).
+        pin = self._lane_mon_prefix if self.enable_monitoring else self.slave.prefix
+        lines = []
+        if self.enable_monitoring:
+            lines += ["    // s_aclk nets between bridge_cdc_slave_arb and the monitor wrappers"]
+            lines += self._shim_axi_intermediate_signal_decls(pin) + [""]
+        lines += ["    // ============================================================",
                  f"    // Slave-domain arbitration for {self.slave.name} (bridge W9): per-master",
                  "    // crossings, AW / AR picked on s_aclk, W follows the AW pick",
                  "    // ============================================================",
@@ -1255,6 +1261,93 @@ class SlaveAdapterGenerator:
         for i, conn in enumerate(c):
             lines.append(f"        {conn}{',' if i < len(c) - 1 else ''}")
         lines += ["    );", ""]
+        if self.enable_monitoring:
+            lines += self._generate_lane_monitor()
+        return lines
+
+    @property
+    def _lane_mon_prefix(self) -> str:
+        return f"lmon_{self.slave.name}_axi_"
+
+    def _generate_lane_monitor(self) -> List[str]:
+        """A monitored lane slave (bridge W9): its only AXI stream is at its
+        pins, on s_aclk, so the monitor wrappers run there, between
+        bridge_cdc_slave_arb and the pins. One bridge_mon_cdc per channel
+        carries their packets to the aclk monbus ports, and the monitor time
+        and the (quasi-static) cfg the other way."""
+        from ..components.axi4_timing_wrapper_component import Axi4TimingWrapper
+        from .adapter_generator import _MONITOR_CFG_WIDTHS
+        if self.slave.protocol != 'axi4':
+            raise ValueError(
+                f"{self.bridge_name}: slave '{self.slave.name}' is a monitored cdc slave that "
+                f"several masters share; its s_aclk monitor is built for an AXI4 port, not "
+                f"{self.slave.protocol}")
+        src = self._lane_mon_prefix
+        cfg_sigs = Axi4TimingWrapper.MONITOR_CFG_SIGNALS
+        cfg_w = sum(_MONITOR_CFG_WIDTHS[g] for g in cfg_sigs)
+        lines = ["    // ============================================================",
+                 f"    // Monitors for {self.slave.name} on s_aclk (bridge W9: no aclk-side",
+                 "    // stream). Packets, monitor time and cfg cross in bridge_mon_cdc.",
+                 "    // ============================================================"]
+        chans = ([('wr', 1)] if self.has_write else []) + ([('rd', 0)] if self.has_read else [])
+        for chan, code in chans:
+            lines += [f"    logic                                  lmon_{chan}_valid, lmon_{chan}_ready;",
+                      f"    ocelus_common_pkg::monitor_packet_t   lmon_{chan}_packet;",
+                      f"    ocelus_common_pkg::monbus_timestamp_t lmon_{chan}_timestamp, lmon_{chan}_mon_time;"]
+            for g in cfg_sigs:
+                w = _MONITOR_CFG_WIDTHS[g]
+                lines.append(f"    logic {'      ' if w == 1 else f'[{w-1}:0]'} lmon_cfg_{chan}_{g[len('cfg_'):]};")
+            lines.append("")
+        for chan, code in chans:
+            wrapper = Axi4TimingWrapper(
+                side='master', channel=chan,
+                instance_name=f'u_master_{chan}',
+                id_width=self.id_width,
+                addr_width=self.slave.addr_width,
+                data_width=self.slave.data_width,
+                skid_depth_ax=str(self.skid_depth_aw if chan == 'wr' else self.skid_depth_ar),
+                skid_depth_data=str(self.skid_depth_w if chan == 'wr' else self.skid_depth_r),
+                **({'skid_depth_resp': str(self.skid_depth_b)} if chan == 'wr' else {}),
+                mon=True,
+                max_transactions=self.max_outstanding,
+                unit_id=1,
+                agent_id=(self.slave_index << 4) | code,
+                use_monitor_param=f'USE_MONITOR_{chan.upper()}',
+                mon_enables=getattr(self.slave, 'mon_enables', None),
+                protocol='axi4',
+                axi5_features=[],
+                native_sideband=False,
+            )
+            wrapper.connect_clocks_and_resets('s_aclk', 's_aresetn')
+            wrapper.connect_bridge_internal(connector_prefix=src)
+            wrapper.connect_external(connector_prefix=self.slave.prefix)
+            wrapper.add_status()
+            wrapper.connect_monbus(valid=f'lmon_{chan}_valid', ready=f'lmon_{chan}_ready',
+                                   packet=f'lmon_{chan}_packet',
+                                   timestamp=f'lmon_{chan}_timestamp',
+                                   mon_time=f'lmon_{chan}_mon_time')
+            wrapper.connect_cfg(connector_prefix=f'lmon_cfg_{chan}_')
+            wrapper.add_addr_range_tieoff()
+            wrapper.add_perfmon_tieoff()
+            lines += [f"    // AXI4 Master {'Write' if chan == 'wr' else 'Read'} Timing Wrapper (s_aclk)"]
+            lines += wrapper.generate_lines()
+            cat_in = ", ".join(f"cfg_{chan}_{g[len('cfg_'):]}" for g in cfg_sigs)
+            cat_out = ", ".join(f"lmon_cfg_{chan}_{g[len('cfg_'):]}" for g in cfg_sigs)
+            lines += [
+                "    bridge_mon_cdc #(",
+                f"        .CFG_W({cfg_w})",
+                f"    ) u_mon_cdc_{chan} (",
+                "        .aclk(aclk), .aresetn(aresetn),",
+                "        .s_aclk(s_aclk), .s_aresetn(s_aresetn),",
+                f"        .i_mon_time(i_mon_time), .s_mon_time(lmon_{chan}_mon_time),",
+                f"        .i_cfg({{{cat_in}}}),",
+                f"        .s_cfg({{{cat_out}}}),",
+                f"        .s_monbus_valid(lmon_{chan}_valid), .s_monbus_ready(lmon_{chan}_ready),",
+                f"        .s_monbus_packet(lmon_{chan}_packet), .s_monbus_timestamp(lmon_{chan}_timestamp),",
+                f"        .monbus_valid(monbus_{chan}_valid), .monbus_ready(monbus_{chan}_ready),",
+                f"        .monbus_packet(monbus_{chan}_packet), .monbus_timestamp(monbus_{chan}_timestamp)",
+                "    );",
+                ""]
         return lines
 
     @property
@@ -1496,6 +1589,8 @@ class SlaveAdapterGenerator:
             skid_depth_data=str(self.skid_depth_w),
             skid_depth_resp=str(self.skid_depth_b),
             mon=self.enable_monitoring,
+            # bridge BUG-021: the monitor tracks every outstanding transaction
+            max_transactions=self.max_outstanding,
             unit_id=unit_id,
             agent_id=agent_id,
             # Reference the adapter-level parameter so the bridge top
@@ -1561,6 +1656,8 @@ class SlaveAdapterGenerator:
             skid_depth_ax=str(self.skid_depth_ar),
             skid_depth_data=str(self.skid_depth_r),
             mon=self.enable_monitoring,
+            # bridge BUG-021: the monitor tracks every outstanding transaction
+            max_transactions=self.max_outstanding,
             unit_id=unit_id,
             agent_id=agent_id,
             use_monitor_param=(
