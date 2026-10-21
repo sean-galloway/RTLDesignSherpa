@@ -70,7 +70,8 @@
 
 module kestrel_core #(
     parameter logic [31:0] RESET_ADDR  = 32'h0000_0000,
-    parameter bit          ALU_USE_DSP = 1'b0   // kestrel_alu USE_DSP (synthesis only)
+    parameter bit          ALU_USE_DSP = 1'b0,      // kestrel_alu USE_DSP
+    parameter string       FPGA_FAMILY = "7SERIES"  // DSP primitive family (build-derived)
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -238,7 +239,8 @@ module kestrel_core #(
     logic [31:0] alu_y;
 
     kestrel_alu #(
-        .USE_DSP (ALU_USE_DSP)
+        .USE_DSP     (ALU_USE_DSP),
+        .FPGA_FAMILY (FPGA_FAMILY)
     ) u_alu (
         .op  (alu_op),
         .a   (alu_src_a),

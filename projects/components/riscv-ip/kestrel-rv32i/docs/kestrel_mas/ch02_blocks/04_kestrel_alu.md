@@ -41,7 +41,8 @@
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `USE_DSP` | 0 | 1: the add/subtract row is `kestrel_alu_dsp`, one DSP48E1 post-adder (module-level `use_dsp`), instead of a CARRY4 chain. Measured on xc7a100t: Vivado maps a lone add/sub but not a case that also selects the bitwise rows (0 DSPs), so bitwise, shift and set-less-than stay in fabric. On the Nexys A7 it saves 42 LUTs and costs about 0.3 ns, so 0 is the default. Synthesis only: simulation, lint and formal see the same logic for both values; the ALU unit test runs both (2026-10-20). Set from the core's `ALU_USE_DSP`. |
+| `USE_DSP` | 0 | 1: ADD, SUB, AND, OR, XOR, SLT and SLTU come from `kestrel_alu_dsp`, one instantiated DSP48E1 with every register off (C = a, A:B = b, each extended to 48 bits with the sign for SLT; OPMODE/ALUMODE per op; SLT/SLTU is the sign of the 48-bit subtract). Shifts stay in fabric. Instantiated because Vivado infers the DSP for a lone add/sub but not for the logic unit (measured on xc7a100t). Vivado synthesis gets the primitive; simulation, lint and formal get a behavioral model of the slice computed from the same OPMODE/ALUMODE, checked against the Xilinx DSP48E1 simulation model (140,448 vectors, 0 mismatches). On the Nexys A7 it saves no LUTs (1,905 vs 1,908 synthesized), trades 13 CARRY4 for 18 more occupied slices, and costs about 0.08 ns, so 0 is the default (2026-10-20). Set from the core's `ALU_USE_DSP`. |
+| `FPGA_FAMILY` | `"7SERIES"` | DSP primitive family for `USE_DSP = 1`. `"7SERIES"` (Artix-7, Kintex-7) maps to DSP48E1; any other value stops elaboration. The board builds set it from the part (`make/tcl/fpga_family.tcl`). Set from the core's `FPGA_FAMILY`. |
 
 : kestrel_alu parameters
 

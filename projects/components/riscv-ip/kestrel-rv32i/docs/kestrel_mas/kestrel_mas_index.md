@@ -23,7 +23,7 @@
 
 # KESTREL-RV32I Micro-Architecture Specification Index
 
-**Version:** 0.16
+**Version:** 0.17
 **Date:** 2026-10-20
 **Purpose:** Block-level micro-architecture specification for the kestrel-rv32i single-cycle RV32I core
 

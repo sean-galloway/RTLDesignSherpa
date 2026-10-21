@@ -55,12 +55,14 @@ def smoke(k: KestrelBoard) -> Report:
         r.failures.append(f"BUILD_ID 0x{bid:08X}, expected 0x{BUILD_ID:08X}")
     k.stop()
     for addr, val in ((0x100, 0xAABB_CCDD), (0x1_0100, 0x1234_5678)):
-        k.bridge.write(addr, val)
+        k.write(addr, val)
         got = k.read_word(addr)
         if got != val:
             r.failures.append(f"mem 0x{addr:05X}: wrote 0x{val:08X} read 0x{got:08X}")
+    # Load mode is run = 0. halted/cause keep the previous run's verdict
+    # until the next run starts (kestrel_mem_bram clears them on run 0 -> 1).
     st = k.status()
-    if st.run or st.halted:
+    if st.run:
         r.failures.append(f"not in load mode after stop: {st}")
     return r
 

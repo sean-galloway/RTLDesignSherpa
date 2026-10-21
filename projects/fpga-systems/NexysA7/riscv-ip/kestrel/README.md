@@ -21,7 +21,7 @@ since it exercises the same bridge, memory system and core.
 
 ```sh
 make lint
-make bitstream            # ALU_DSP=1: ALU add/sub in one DSP48E1; IMPL=default: Vivado defaults
+make bitstream            # ALU_DSP=1: ALU add/sub/logic/compare in one DSP48E1; IMPL=default: Vivado defaults
 make program
 make host-kestrel        # smoke, then the full rv32ui battery
 ```
@@ -50,6 +50,8 @@ load fraction; `ld_st` 1.20): **72.2 MIPS**.
 | + x0 kept zero by writes (no read-side zero-select), one shared signed/unsigned comparator per use, OR-combined ALU result | 100 MHz (measurement) | -2.41 ns | -- | -- | 1,982 | 4 |
 | same, `IMPL=explore` (directives, phys_opt, placement over-constraint) | 100 MHz (measurement) | -1.63 ns: worst path 11.6 ns | -- | -- | 2,026 | 4 |
 | same, `IMPL=explore` | **75 MHz** | **+0.156 ns** | **1.039** | **72.2 MIPS** | **1,899** | **4** |
+| same, `ALU_DSP=1`: seven ALU rows in one DSP48E1, `IMPL=explore` | 100 MHz (measurement) | -1.71 ns | -- | -- | 2,029 | 4 |
+| same, `ALU_DSP=1` | 75 MHz | +0.142 ns | 1.039 | 72.2 MIPS | -- | 4 |
 
 : kestrel on the Nexys A7, before and after the timing rework
 
@@ -60,8 +62,9 @@ comparator -> IALIGN halt -> register-file write enable (14.5 ns); with the
 write gate naming only the halts an rd-writing instruction can raise, and the
 register file in distributed RAM (flops 2,049 -> 1,057), it is now the core's
 load/store address into the data RAM (block-RAM read -> register read -> ALU
-add -> port-B address, 12.2 ns). The DSP48 add/sub saves 42 LUTs and costs
-about 0.3 ns, so the fabric ALU is the default.
+add -> port-B address, 12.2 ns). The first `ALU_DSP=1` (the add/sub row
+alone in a DSP48) saved 42 LUTs and cost about 0.3 ns; it is replaced by the
+seven-row DSP ALU below.
 
 The next three changes take ideas from the BRISKI barrel core (no code is
 copied): x0 is kept zero by writing it (init-by-write, not a RAM `initial`),
@@ -73,3 +76,14 @@ at about the same length. The implementation flow did: `IMPL=explore` (opt
 uncertainty, post-place and post-route `phys_opt AggressiveExplore`, route
 `AggressiveExplore -tns_cleanup`) gains about 0.8 ns on the same netlist
 and is this build's default. Owner: 75 MHz is the target.
+
+`ALU_DSP=1` now builds ADD, SUB, AND, OR, XOR, SLT and SLTU in one
+instantiated DSP48E1 (the logic unit and the subtract's sign; UG193's
+compare application; BRISKI's one-DSP ALU idea), shifts in fabric. On the
+same netlist and flow it saves no LUTs (1,905 vs 1,908 synthesized, 2,029 vs
+2,026 routed), trades 13 CARRY4 for 18 more occupied slices, and is 0.08 ns
+slower at 100 MHz; it meets 75 MHz and runs 42/42 on the board, as does the
+fabric build (A/B 2026-10-20: three batteries and a 46,074-write soak each,
+no UART faults). The fabric ALU stays the default. The build sets the
+core's `FPGA_FAMILY` from the part (`make/tcl/fpga_family.tcl`); only
+`7SERIES` (DSP48E1) is mapped.

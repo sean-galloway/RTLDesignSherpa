@@ -177,7 +177,7 @@ full level, 200 streams, and the USE_DSP=1 ALU cells), from `make clean-all`:
 
 | Metric | Result | House target | Status |
 |---|---|---|---|
-| Line (Verilator) | 96.9% | 80% | PASS |
+| Line (Verilator) | 97.0% | 80% | PASS |
 | Line — kestrel_alu | 100.0% | — | — |
 | Line — kestrel_alu_dsp | 100.0% | — | — |
 | Line — kestrel_bram_tb_top | 97.6% | — | — |

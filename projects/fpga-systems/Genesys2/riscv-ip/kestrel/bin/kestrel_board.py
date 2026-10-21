@@ -76,24 +76,31 @@ class KestrelBoard:
     def reg(self, name: str) -> int:
         return self.bridge.read(REGS[name])
 
+    def write(self, addr: int, data: int) -> None:
+        """One acked write. UARTAxiBridge.write returns False when no "OK"
+        arrives within its timeout; carrying on would let a late "OK" answer
+        the next read, so a lost ack stops here, naming the command."""
+        if not self.bridge.write(addr, data):
+            raise IOError(f"UART write W {addr:08X} {data:08X}: no OK ack")
+
     def build_id(self) -> int:
         return self.reg("BUILD_ID")
 
     def stop(self) -> None:
         """Back to load mode: the core is held in reset."""
-        self.bridge.write(REGS["CTRL"], 0)
+        self.write(REGS["CTRL"], 0)
 
     def load(self, words: Dict[int, int]) -> None:
         """Write an image of {word_address: word} (full addresses; the memory
         decodes the low 17 bits). Only legal in load mode."""
         for idx, w in sorted(words.items()):
-            self.bridge.write((idx << 2) % MEM_BYTES, w & 0xFFFF_FFFF)
+            self.write((idx << 2) % MEM_BYTES, w & 0xFFFF_FFFF)
 
     def read_word(self, byte_addr: int) -> int:
         return self.bridge.read(byte_addr % MEM_BYTES)
 
     def run(self) -> None:
-        self.bridge.write(REGS["CTRL"], 1)
+        self.write(REGS["CTRL"], 1)
 
     def status(self) -> Status:
         c = self.reg("CTRL")

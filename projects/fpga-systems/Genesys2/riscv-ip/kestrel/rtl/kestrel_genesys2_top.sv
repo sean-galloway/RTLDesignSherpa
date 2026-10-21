@@ -20,7 +20,9 @@
 `include "reset_defs.svh"
 
 module kestrel_genesys2_top #(
-    parameter logic [31:0] RESET_ADDR = 32'h8000_0000   // the riscv-tests link base
+    parameter logic [31:0] RESET_ADDR  = 32'h8000_0000,  // the riscv-tests link base
+    parameter bit          ALU_USE_DSP = 1'b0,           // ALU rows in one DSP (Vivado generic)
+    parameter string       FPGA_FAMILY = "7SERIES"       // from the part (Vivado generic)
 ) (
     input  logic        sysclk_p,       // 200 MHz LVDS (+)
     input  logic        sysclk_n,       // 200 MHz LVDS (-)
@@ -145,7 +147,7 @@ module kestrel_genesys2_top #(
         .o_run(w_run), .o_halted(w_halted));
 
     kestrel_core #(
-        .RESET_ADDR(RESET_ADDR)
+        .RESET_ADDR(RESET_ADDR), .ALU_USE_DSP(ALU_USE_DSP), .FPGA_FAMILY(FPGA_FAMILY)
     ) u_core (
         .clk(clk), .rst_n(core_rst_n), .mem_wait(mem_wait),
         .imem_addr(imem_addr), .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),

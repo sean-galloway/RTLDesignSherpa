@@ -27,7 +27,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
+                   97]
 
   - id: ALU-02
     name: "AND / OR / XOR logical operations"
@@ -37,7 +38,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
+                   97]
 
   - id: ALU-03
     name: "SLL / SRL / SRA shifts with b[4:0] shamt"
@@ -49,7 +51,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
+                   97]
 
   - id: ALU-04
     name: "SLT / SLTU and eq/lt/ltu comparison flags"
@@ -61,7 +64,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
+                   97]
 
   - id: ALU-05
     name: "Exhaustive op x value matrix completion"
@@ -79,7 +83,8 @@ functional_scenarios:
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
+                   97]
 
   - id: ALU-06
     name: "USE_DSP=1: the DSP-mapped add/sub row is functionally identical"
@@ -94,7 +99,8 @@ functional_scenarios:
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 70,
+                   97]
 
 parameter_coverage:
   - USE_DSP: 0
