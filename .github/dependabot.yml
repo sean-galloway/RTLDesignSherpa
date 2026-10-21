@@ -61,11 +61,15 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "pytest-xdist"
         update-types: ["version-update:semver-major"]
-      # Must agree with the checked-in generated RTL, docs and regmaps.
+      # Must agree with the checked-in generated RTL, docs and regmaps --
+      # EVERY bump, not just majors: the rdl-regen CI gate regenerates with
+      # the pinned toolchain and byte-compares, so a minor/patch bump reads
+      # as "stale artifacts" (Markdown 3.11 turned intra-word `*` literal and
+      # reddened main on 2026-10-21; systemrdl-compiler 1.33 does the same).
+      # Bumping these is a human task: regen the artifacts in the same commit.
       - dependency-name: "systemrdl-compiler"
-        update-types: ["version-update:semver-major"]
       - dependency-name: "peakrdl*"
-        update-types: ["version-update:semver-major"]
+      - dependency-name: "markdown"
 
   # ---- GitHub Actions ----------------------------------------------------
   # filelist-checks.yml and track-clones.yml pin action versions; those go
