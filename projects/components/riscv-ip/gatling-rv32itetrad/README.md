@@ -4,7 +4,9 @@
 (alongside `cell/`, `tile/`, `hive-serv/`).
 **Codename:** gatling — the barrel machine; one datapath, four barrels.
 **ISA:** RV32I base + `Xcell` non-standard extension (custom-0/custom-1 space).
-**Status:** PRD 0.2 (this document set); no RTL yet.
+**Status:** PRD 0.3; the RV32I barrel is built and verified (rv32ui 168/168
+across four contexts with spike lockstep, riscv-formal 42/42 on context 0),
+and runs four harts on the Nexys A7. Xcell is next.
 
 Gatling is the per-tetrad compute engine of the tile: one barrel
 RV32I processor with **4 architectural contexts**, one context per
@@ -33,16 +35,27 @@ cost is amortized to ~1 IPC per context.
 - `docs/barrel_model/` — the barrel-processor study chapter: kestrel's
   single-cycle cost as motivation, the interleave that hides it.
 
-## Layout (RTL lands per PRD §8)
+## Layout
 
-- `rtl/top/gatling_top.sv` — barrel engine: shared fetch/decode/execute
-  FSM + 4 context files (PC + regfile) + Xcell unit.
-- `rtl/fub/` — `gatling_alu.sv`, `gatling_decode.sv`, `gatling_imm_gen.sv`,
-  `gatling_regfile.sv` (context-file wrapper), `gatling_xcell.sv`.
-- `rtl/includes/` — Xcell encoding header (`gatling_xcell_pkg.sv`).
-- `rtl/filelists/` — flist per repo convention.
-- `dv/` — cocotb, repo-wide `make/tests.mk` rails; spike lockstep on the
-  RV32I subset; Xcell unit tests + tetrad integration TB.
+- `rtl/top/gatling_core.sv` — the barrel: F/D/X/W rotation over four
+  contexts (four PCs, halt per context, per-context run control, RVFI).
+- `rtl/fub/gatling_regfile.sv` — the four context register files, one
+  block RAM ({context, register}), registered read.
+- `rtl/fub/gatling_mem_bram.sv` — one 16 KB program/data bank per context,
+  AXIL loader, per-context run/status registers (the board's memory).
+- decode / immediates / ALU are kestrel's (`kestrel_decode`,
+  `kestrel_imm_gen`, `kestrel_alu`, `kestrel_pkg`), used unchanged through
+  kestrel's filelists: one ISA, one source.
+- `rtl/includes/gatling_pkg.sv`; `rtl/filelists/` per repo convention.
+- `dv/` — cocotb on the `make/tests.mk` rails: regfile unit, directed
+  barrel tests, the rv32ui battery and the fuzz battery on all four
+  contexts at once (kestrel's golden interpreter and spike lockstep),
+  and the AXIL memory system.
+- `formal/gatling/riscv-formal` — riscv-formal on context 0 with the
+  other three contexts free.
+- Board: `projects/fpga-systems/NexysA7/riscv-ip/gatling`.
+- Xcell (`gatling_xcell.sv`, `gatling_xcell_pkg.sv`) lands with the cell
+  seam; until then custom-0 decodes as illegal and locks its context.
 
 ## Relationship to cell / tile / hive-serv
 

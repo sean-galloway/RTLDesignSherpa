@@ -1,9 +1,8 @@
 # GATLING PRD — Tetrad Compute Engine
 
-**Version:** 0.2 (2026-10-19 — owner ruling: gatling sequences the four
-ALUs of its adjacent cells; the barrel core is the programmable sequencer
-for the tetrad; the cell's bf16 ALU remains the datapath.)
-**Date:** 2026-10-19
+**Version:** 0.3 (2026-10-21 — first RTL: the RV32I barrel, four harts on
+the Nexys A7; PRD 7 items 2-4 decided; Xcell deferred to the cell seam.)
+**Date:** 2026-10-21
 **Owner decision inputs:** "Instructions" (over MMIO) for fabric
 handshake; mini RV per tetrad (over per-cell ALU+FSM); codename
 gatling (barrel machine).
@@ -131,10 +130,11 @@ own bf16 ALU datapath (owner ruling 2026-10-19).
 
 ### 4.3 Branch behavior
 
-Predict-not-taken, resolved in X (kestrel semantics carry: the branch
-decision is one ALU comparison). A taken branch costs the rotating
-window one bubble for that context — no flush machinery, no BTB. The
-predictor study belongs to peregrine, not here.
+Resolved in X (kestrel semantics carry: the branch decision is one
+comparison) and written to the context's PC at the end of X, two cycles
+before that context's next fetch. As built (2026-10-21) a taken branch
+therefore costs nothing -- no bubble, no flush machinery, no BTB, no
+prediction. The predictor study belongs to peregrine, not here.
 
 ### 4.4 Halt/trap
 
@@ -189,17 +189,16 @@ consumed* (POP), not instructions; grants are in *elements pushed*
    line; the ALU keeps its elastic valid/ready seam and tag-alignment
    contract unchanged. The v0.1 wording that made gatling "the ALU
    + execution FSM" is superseded.
-2. **Context visibility:** implicit (hardware-only `sel`; software
-   cannot tell contexts apart — simplest, binaries uniform) vs
-   explicit (CFG[2] returns context ID, enabling per-context
-   specialization). Leaning implicit; one word settles it.
-3. **Program image placement:** input memory holds both program and
-   data (self-contained cell, POP-after-code addressing) vs separate
-   program region (needs a second read port or F-state fetch from
-   program image, D-state POP from data). Separate is cleaner;
-   self-contained is cheaper. Open.
-4. **Illegal-instruction policy:** context-lock (proposed §4.4) vs
-   tetrad-lock. Leaning context-lock.
+2. **Context visibility:** RESOLVED 2026-10-21 (owner) — implicit.
+   Software cannot tell the contexts apart; binaries are uniform. CFG[2]
+   stays reserved.
+3. **Program image placement:** RESOLVED 2026-10-21 (owner) — separate.
+   Each context has its own program/data region (gatling_mem_bram: one
+   16 KB bank per context, seen at every address); the cell's POP input
+   memory is separate and arrives with Xcell.
+4. **Illegal-instruction policy:** RESOLVED 2026-10-21 (owner) —
+   context-lock. Any halt (ecall, ebreak, illegal, misaligned target or
+   access) locks only its context; the other three keep running.
 5. **Xcell binutils/toolchain:** hand-assembled hex for bring-up;
    gcc/binutils fragment later. Non-blocking.
 
@@ -207,6 +206,11 @@ Resolved/added in v0.2: the FLUSH/KICK/WAIT Xcell encodings of §3.1
 (answer TILE_SPEC §11.14 and the alu-infer PRD §5 tetrad-coordination
 pair). Their exact field layouts and MonBus integration remain
 provisional pending the tetrad MAS.
+
+Scope of the first RTL (owner, 2026-10-21): the RV32I barrel first --
+four harts running the rv32ui battery on the Nexys A7 -- with the Xcell
+custom-0 opcode decoding as illegal (context-lock) until the cell seam
+exists. Xcell lands in the next pass.
 
 ## 8. Deliverables & sequencing
 
@@ -219,6 +223,13 @@ provisional pending the tetrad MAS.
 5. Tetrad integration when `tetrad.sv` lands in `tile/`.
 
 ## 9. History
+
+- 2026-10-21: PRD 0.3. First RTL (gatling_core, gatling_regfile,
+  gatling_mem_bram): the RV32I barrel with kestrel's decode/imm_gen/ALU
+  unchanged, every memory a one-stage block-RAM latency, no wait signal;
+  four harts on the Nexys A7. Owner decisions: PRD 7 items 2-4 (implicit
+  context, separate program regions, context-lock); RV32I barrel before
+  Xcell. 4.3 corrected: a taken branch costs no bubble.
 
 - 2026-10-19: PRD 0.2. Owner ruling: gatling sequences the four ALUs
   of its adjacent cells — the barrel core is the programmable

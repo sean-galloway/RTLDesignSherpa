@@ -285,6 +285,18 @@ filelist_dirs = [
     "projects/components/riscv-ip/kestrel-rv32i/dv/filelists",
 ]
 
+[[area]]
+name = "riscv-ip/gatling-rv32itetrad"
+kind = "component"
+# Four-context barrel RV32I (tetrad compute engine). Registered 2026-10-21
+# with its first RTL; reuses kestrel's decode/imm_gen/alu through kestrel's
+# filelists.
+rtl_roots = ["projects/components/riscv-ip/gatling-rv32itetrad/rtl"]
+filelist_dirs = [
+    "projects/components/riscv-ip/gatling-rv32itetrad/rtl/filelists",
+    "projects/components/riscv-ip/gatling-rv32itetrad/dv/filelists",
+]
+
 # ---------------------------------------------------------------------------
 # Board / characterization projects. These own little or no library RTL; they
 # assemble the areas above. Coverage is not enforced, but the no-hand-listing
@@ -612,4 +624,13 @@ rtl_roots = []
 filelist_dirs = [
     "projects/fpga-systems/NexysA7/riscv-ip/kestrel/build-bram/rtl/filelists",
     "projects/fpga-systems/NexysA7/riscv-ip/kestrel/dv/filelists",
+]
+
+[[area]]
+name = "nexysa7_gatling"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/fpga-systems/NexysA7/riscv-ip/gatling/build-bram/rtl/filelists",
+    "projects/fpga-systems/NexysA7/riscv-ip/gatling/dv/filelists",
 ]

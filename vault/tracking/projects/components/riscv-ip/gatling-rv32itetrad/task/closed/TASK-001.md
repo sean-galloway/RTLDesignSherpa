@@ -1,6 +1,6 @@
 # TASK-001 — Tetrad compute FSM: kestrel-evaluation answered by gatling; PRD §7 decisions + alu-infer interface
 
-**Status:** open · **Priority:** high · **Filed:** 2026-10-17 · **Area:** projects/components/riscv-ip/gatling-rv32itetrad
+**Status:** closed -- 2026-10-21 · **Priority:** high · **Filed:** 2026-10-17 · **Area:** projects/components/riscv-ip/gatling-rv32itetrad
 
 ## The original todo
 
@@ -114,3 +114,22 @@ barrel riscv with possible custom commands."
   register file)
 - `projects/components/compute-eng-ip/tile/docs/TILE_SPEC.md` §11.13
   (v1.5 — tetrad core deferred; §10 carries the cell→cell grant item)
+
+## Resolution (2026-10-21)
+
+The last open items were settled by the owner when the RTL started, and are
+recorded in PRD v0.3 section 7:
+
+- Item 1 (context visibility): implicit. CFG[2] stays reserved.
+- Item 2 (program image placement): separate. Each context has its own
+  program/data region (gatling_mem_bram, one 16 KB bank per context); the
+  cell's POP input memory is separate and arrives with Xcell.
+- Item 3 (illegal-instruction policy): context-lock. Every halt locks only
+  its context; built and tested (test_gatling_core context_lock and
+  xcell_locks).
+- Item 4 (toolchain): non-blocking, unchanged; bring-up programs are
+  hand-encoded in the DV.
+- Items 5-6 were already closed by the 2026-10-19 ruling.
+
+The RTL itself is gatling TASK-002.
+

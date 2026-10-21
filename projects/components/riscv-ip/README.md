@@ -67,16 +67,16 @@ directory is the ladder again, nothing more.
 ### Tetrad engine: gatling-rv32itetrad
 
 [gatling-rv32itetrad/](gatling-rv32itetrad/) is not a ladder rung either — it is the
-compute family's tetrad engine (owner PRD 2026-10-17): a barrel RV32I core
-with the Xcell extension (CFG/POP/PUSH/ECTX, custom-0), one engine per
-tetrad with four contexts — the four cells — sharing one F/D/X/W datapath.
-It replaces the cell PRD's ALU + execution-FSM block ("the program is the
-config") and answers the kestrel-for-the-compute-FSM question in kestrel's
-own lineage: same RV32I contract and lockstep flow, inverted pipeline
-lesson — N contexts hide one shared datapath's latency instead of stages
-hiding latency for one stream. Open decisions and its interface to the
-bf16 alu-infer block are tracked in
-[vault TASK-001](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32itetrad/task/open/TASK-001.md).
+compute family's tetrad engine (PRD v0.3): a barrel RV32I core with four
+contexts -- the four cells of a tetrad -- sharing one F/D/X/W datapath, and
+the Xcell extension (custom-0) through which each context sequences its
+cell's bf16 ALU (owner ruling 2026-10-19: gatling drives the cell's execution
+FSM; the ALU stays). It answers the kestrel-for-the-compute-FSM question in
+kestrel's own lineage: same RV32I contract, decode and ALU, inverted
+pipeline lesson -- N contexts hide one shared datapath's latency instead of
+stages hiding latency for one stream. The RV32I barrel is built and runs
+four harts on the Nexys A7 (2026-10-21); Xcell is next, tracked in
+[vault TASK-002](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32itetrad/task/open/TASK-002.md).
 
 ## Goals per rung
 

@@ -33,6 +33,7 @@ export AMBER_ROOT        := $(REPO_ROOT)/projects/components/cache-ip/amber-mesi
 export BRIDGE_ROOT       := $(REPO_ROOT)/projects/components/fabric-gen-ip/bridge
 export CACHE_COMMON_ROOT := $(REPO_ROOT)/projects/components/cache-ip/common-ip
 export CONVERTERS_ROOT   := $(REPO_ROOT)/projects/components/utility-ip/converters
+export GATLING_ROOT      := $(REPO_ROOT)/projects/components/riscv-ip/gatling-rv32itetrad
 export KESTREL_ROOT      := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i
 export RAPIDS_ROOT       := $(REPO_ROOT)/projects/components/dma-ip/rapids
 export RETRO_ROOT        := $(REPO_ROOT)/projects/components/legacy-ip/retro_legacy_blocks

@@ -1,4 +1,5 @@
-# gatling_has — hardware architecture spec (arrives per PRD §8.2)
+# gatling_has — hardware architecture spec
 
-Authority for the ISA appendix: RV32I (as kestrel) + Xcell encoding
-table (PRD §3.1 is the working authority until this lands).
+Index: `gatling_has_index.md`; build with `../generate_has_pdf.sh --rev <v>`.
+The Xcell encoding authority is PRD §3.1 until Xcell is built and its
+chapter lands here.

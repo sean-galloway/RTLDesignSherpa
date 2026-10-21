@@ -35,6 +35,7 @@ export AMBER_ROOT=$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1
 # Shared cache-ip core (amber_pkg + the amber_core leaf FUBs + core filelists).
 # Referenced by the cache-common .f filelists and by jet-mesi-l1 when it lands.
 export CACHE_COMMON_ROOT=$REPO_ROOT/projects/components/cache-ip/common-ip
+export GATLING_ROOT=$REPO_ROOT/projects/components/riscv-ip/gatling-rv32itetrad
 export KESTREL_ROOT=$REPO_ROOT/projects/components/riscv-ip/kestrel-rv32i
 export RAPIDS_ROOT=$REPO_ROOT/projects/components/dma-ip/rapids
 export RETRO_ROOT=$REPO_ROOT/projects/components/legacy-ip/retro_legacy_blocks

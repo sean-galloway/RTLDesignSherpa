@@ -1,6 +1,6 @@
-# barrel_model — the study chapter (writes first, PRD §8.1)
+# barrel_model — the study chapter (PRD §8.1)
 
-Kestrel's single cycle as the cost (regfile + ALU + memory in one
-combinational path) → multi-cycle FSM as the fix → 4-context rotation
-as the interleave that makes the fix free. This chapter is the
-learning-value payload of gatling: the kestrel→merlin lesson inverted.
+`barrel_model.md`: kestrel's single cycle as the cost, multi-cycle as the
+fix that does not pay for one stream, and the four-context rotation that
+makes it free -- with the measured kestrel-vs-gatling numbers from the
+Nexys A7.

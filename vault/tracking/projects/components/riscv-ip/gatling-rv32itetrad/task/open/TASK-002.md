@@ -34,3 +34,26 @@ programmed destination; func+gate green; HAS/MAS no longer stubs.
 Sequenced after the cell works standalone (cell TASK-001/002) — the cell is
 the lowest module, owner direction 2026-10-18. Confirm the PRD 7 leanings
 (gatling TASK-001) before the RTL freezes them.
+
+## Progress (2026-10-21)
+
+Owner scope for the first pass: the RV32I barrel first, four harts on the
+Nexys A7; Xcell after. Done in that pass:
+
+- RTL: gatling_core (F/D/X/W over four contexts, kestrel's decode/imm_gen/ALU
+  unchanged, context-lock halts, per-context run control), gatling_regfile
+  (four context files in one block RAM), gatling_mem_bram (one bank per
+  context, AXIL loader, per-context status). Custom-0 decodes as illegal.
+- DV (dv/tests, make/tests.mk rails, full level from clean-all): rv32ui
+  168/168 (42 images x 4 contexts, four different at once, spike + golden
+  lockstep), fuzz 200/200 streams dual-golden, AXIL battery 168/168,
+  directed barrel tests, regfile unit; mutation-checked.
+- Formal: formal/gatling/riscv-formal 42/42 on context 0 with contexts 1-3
+  free (proves isolation); mutation-checked (reg, pc_fwd, liveness fail on
+  planted cross-context bugs).
+- Board: projects/fpga-systems/NexysA7/riscv-ip/gatling.
+
+Still open for "Done when": Xcell (POP/PUSH/CFG/ECTX/FLUSH/KICK/WAIT) against
+the cell's alu-infer issue handshake, a hand-assembled tetrad program in DV,
+and the HAS/MAS growing with it.
+

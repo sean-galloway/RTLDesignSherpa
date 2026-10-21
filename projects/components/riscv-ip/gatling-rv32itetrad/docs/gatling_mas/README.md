@@ -1,4 +1,6 @@
-# gatling_mas — micro-architecture spec (arrives with RTL, PRD §8.3)
+# gatling_mas — micro-architecture spec
 
-FSM states F/D/X/W, rotation policy, interlock timing, context file
-organization, Xcell unit datapath.
+Index: `gatling_mas_index.md`; build with `../generate_mas_pdf.sh --rev <v>`.
+Covers the rotation, the context register files, the per-context memory
+system, halts and run control, verification and the board result; the Xcell
+unit datapath joins it with the Xcell RTL.
