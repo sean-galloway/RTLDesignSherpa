@@ -57,6 +57,10 @@ updates:
       # Under every testbench.
       - dependency-name: "numpy"
         update-types: ["version-update:semver-major"]
+      # Rapids dma_model analysis/plotting (13 files); pandas 3.x is a
+      # copy-on-write migration, not a dependency update.
+      - dependency-name: "pandas"
+        update-types: ["version-update:semver-major"]
       - dependency-name: "pytest"
         update-types: ["version-update:semver-major"]
       - dependency-name: "pytest-xdist"
