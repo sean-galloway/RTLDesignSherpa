@@ -189,6 +189,19 @@ module fb_data_fabric (
     output logic crc_snk_bready
 );
 
+    // Bridge slave-side ID width ({master index, remap slot}), 6 of 10
+    localparam int FIW = bridge_fb_data_pkg::XBAR_ID_WIDTH;
+    logic [FIW-1:0] u_ddr_awid;
+    logic [FIW-1:0] u_ddr_arid;
+    logic [FIW-1:0] u_desc_ram_arid;
+    logic [FIW-1:0] u_lfsr_src_arid;
+    logic [FIW-1:0] u_crc_snk_awid;
+    assign ddr_awid = 10'(u_ddr_awid);
+    assign ddr_arid = 10'(u_ddr_arid);
+    assign desc_ram_arid = 10'(u_desc_ram_arid);
+    assign lfsr_src_arid = 10'(u_lfsr_src_arid);
+    assign crc_snk_awid = 10'(u_crc_snk_awid);
+
     bridge_fb_data u_fabric (
         .aclk(aclk),
         .aresetn(aresetn),
@@ -280,7 +293,7 @@ module fb_data_fabric (
         .inj_wr_awuser(1'b0),
         .inj_wr_wuser(1'b0),
         .inj_wr_buser(),
-        .ddr_awid(ddr_awid),
+        .ddr_awid(u_ddr_awid),
         .ddr_awaddr(ddr_awaddr),
         .ddr_awlen(ddr_awlen),
         .ddr_awsize(ddr_awsize),
@@ -292,9 +305,9 @@ module fb_data_fabric (
         .ddr_wdata(ddr_wdata),
         .ddr_wstrb(ddr_wstrb),
         .ddr_wlast(ddr_wlast),
-        .ddr_bid(ddr_bid),
+        .ddr_bid(ddr_bid[FIW-1:0]),
         .ddr_bresp(ddr_bresp),
-        .ddr_arid(ddr_arid),
+        .ddr_arid(u_ddr_arid),
         .ddr_araddr(ddr_araddr),
         .ddr_arlen(ddr_arlen),
         .ddr_arsize(ddr_arsize),
@@ -303,7 +316,7 @@ module fb_data_fabric (
         .ddr_arcache(ddr_arcache),
         .ddr_arprot(ddr_arprot),
         .ddr_arqos(ddr_arqos),
-        .ddr_rid(ddr_rid),
+        .ddr_rid(ddr_rid[FIW-1:0]),
         .ddr_rdata(ddr_rdata),
         .ddr_rresp(ddr_rresp),
         .ddr_rlast(ddr_rlast),
@@ -324,7 +337,7 @@ module fb_data_fabric (
         .ddr_arregion(),
         .ddr_aruser(),
         .ddr_ruser(1'b0),
-        .desc_ram_arid(desc_ram_arid),
+        .desc_ram_arid(u_desc_ram_arid),
         .desc_ram_araddr(desc_ram_araddr),
         .desc_ram_arlen(desc_ram_arlen),
         .desc_ram_arsize(desc_ram_arsize),
@@ -333,7 +346,7 @@ module fb_data_fabric (
         .desc_ram_arcache(desc_ram_arcache),
         .desc_ram_arprot(desc_ram_arprot),
         .desc_ram_arqos(desc_ram_arqos),
-        .desc_ram_rid(desc_ram_rid),
+        .desc_ram_rid(desc_ram_rid[FIW-1:0]),
         .desc_ram_rdata(desc_ram_rdata),
         .desc_ram_rresp(desc_ram_rresp),
         .desc_ram_rlast(desc_ram_rlast),
@@ -344,7 +357,7 @@ module fb_data_fabric (
         .desc_ram_arregion(),
         .desc_ram_aruser(),
         .desc_ram_ruser(1'b0),
-        .lfsr_src_arid(lfsr_src_arid),
+        .lfsr_src_arid(u_lfsr_src_arid),
         .lfsr_src_araddr(lfsr_src_araddr),
         .lfsr_src_arlen(lfsr_src_arlen),
         .lfsr_src_arsize(lfsr_src_arsize),
@@ -353,7 +366,7 @@ module fb_data_fabric (
         .lfsr_src_arcache(lfsr_src_arcache),
         .lfsr_src_arprot(lfsr_src_arprot),
         .lfsr_src_arqos(lfsr_src_arqos),
-        .lfsr_src_rid(lfsr_src_rid),
+        .lfsr_src_rid(lfsr_src_rid[FIW-1:0]),
         .lfsr_src_rdata(lfsr_src_rdata),
         .lfsr_src_rresp(lfsr_src_rresp),
         .lfsr_src_rlast(lfsr_src_rlast),
@@ -364,7 +377,7 @@ module fb_data_fabric (
         .lfsr_src_arregion(),
         .lfsr_src_aruser(),
         .lfsr_src_ruser(1'b0),
-        .crc_snk_awid(crc_snk_awid),
+        .crc_snk_awid(u_crc_snk_awid),
         .crc_snk_awaddr(crc_snk_awaddr),
         .crc_snk_awlen(crc_snk_awlen),
         .crc_snk_awsize(crc_snk_awsize),
@@ -376,7 +389,7 @@ module fb_data_fabric (
         .crc_snk_wdata(crc_snk_wdata),
         .crc_snk_wstrb(crc_snk_wstrb),
         .crc_snk_wlast(crc_snk_wlast),
-        .crc_snk_bid(crc_snk_bid),
+        .crc_snk_bid(crc_snk_bid[FIW-1:0]),
         .crc_snk_bresp(crc_snk_bresp),
         .crc_snk_awvalid(crc_snk_awvalid),
         .crc_snk_awready(crc_snk_awready),

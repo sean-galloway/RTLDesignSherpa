@@ -75,5 +75,5 @@ def test_bridge_1x2_rd_regblock_mon_monitor(request, test_level):
         filelist='projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_1x2_rd_regblock_mon.f',
         test_level=test_level,
         extra_env=level_env(test_level),
-        extra_no_warn=['-Wno-WIDTHTRUNC', '-Wno-MULTIDRIVEN'],
+        extra_no_warn=['-Wno-WIDTHTRUNC'],
     )

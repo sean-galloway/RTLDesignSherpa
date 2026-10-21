@@ -53,6 +53,7 @@ if _DV_DIR not in sys.path:
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 _ACLK_NS, _DFI_NS = board_clock_periods()   # BOARD parity, not literals
 
 NUM_BANKS, ROW_WIDTH, COL_WIDTH = 8, 14, 10
@@ -228,5 +229,5 @@ def test_pumice_top_csr(request):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_top_csr",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", "-Wno-MULTIDRIVEN"],
+        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", FIELD_COMBO_VLT],
         waves=False, keep_files=True, timescale="1ns/1ps")

@@ -49,6 +49,7 @@ sys.path.insert(0, repo_root)
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tb import IOAPICTB, IOAPICRegisterMap
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_basic import IOAPICBasicTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_tests_medium import IOAPICMediumTests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -283,7 +284,7 @@ def test_ioapic(request, cdc_enable, test_level, description):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
     ]
     compile_args.extend(get_coverage_compile_args())

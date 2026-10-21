@@ -24,9 +24,11 @@ bridge's measured limits, never deeper:
     no register slices          (bridge built with xbar_pipeline = false)
     round-robin, no priority    (bridge arbitration = "rr")
 
-The wrapper port set carries no USER and no REGION: the endpoints key on the
-low ID bits, and neither leg's slaves use region. Slave-side IDs are
-{master slot, master id} in both legs, slot = TOML master order.
+The wrapper port set carries no USER and no REGION: neither leg's slaves use
+region. Slave-side IDs are SID bits in every leg, slot = TOML master order:
+{master slot, master id} in leg B1; {master slot, remap slot} zero-extended
+in leg A, whose bridge remaps IDs wider than a slot (bridge TASK-018) -- the
+wrapper sizes those ports from bridge_fb_data_pkg::XBAR_ID_WIDTH.
 
 SmartConnect carries no ID to its slaves: the ID width at every MI port is
 read-only and 0 (it orders responses itself and expects in-order slaves). So
@@ -53,6 +55,7 @@ from __future__ import annotations
 import argparse
 import csv
 import math
+import re
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -61,6 +64,7 @@ from pathlib import Path
 AREA = Path(__file__).resolve().parent.parent
 CONFIG = AREA / "rtl/bridges/configs/bridge_fb_data.toml"
 OUT = AREA / "rtl/generated"
+BRIDGE_PKG = AREA / "rtl/bridges/generated/bridge_fb_data/bridge_fb_data_pkg.sv"
 
 ACCEPTANCE = 16
 ISSUING = 16
@@ -195,12 +199,38 @@ HEADER = """\
 """
 
 
+def bridge_xbar_id_width() -> int:
+    """The bridge's slave-side ID width, from its generated package. Since
+    bridge TASK-018 it is {master index, remap slot} and narrower than the
+    wrapper's {slot, master id} whenever a master's ID is wider than a slot."""
+    m = re.search(r"localparam int XBAR_ID_WIDTH\s*=\s*(\d+)", BRIDGE_PKG.read_text())
+    if not m:
+        sys.exit(f"gen_fabric_legs: no XBAR_ID_WIDTH in {BRIDGE_PKG}")
+    return int(m.group(1))
+
+
 def emit_bridge(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> str:
+    # Every leg presents the same slave-side ID width (sid). The bridge's own
+    # is fiw <= sid: request IDs are zero-extended to sid, response IDs come
+    # back as their low fiw bits (a slave echoes the request ID, so the upper
+    # bits are the zeros put there). Explicit, so no port is width-mismatched.
+    fiw = bridge_xbar_id_width()
+    if fiw > w["sid"]:
+        sys.exit(f"gen_fabric_legs: bridge XBAR_ID_WIDTH {fiw} exceeds the slave ID width {w['sid']}")
+    nets, assigns = [], []
     conns = ["        .aclk(aclk)", "        .aresetn(aresetn)"]
     for p in masters + slaves:
         is_m = p in masters
-        for n, _ in (AW + W + B if p.wr else []) + (AR + R if p.rd else []):
-            conns.append(f"        .{p.prefix}{n}({p.prefix}{n})")
+        for n, k in (AW + W + B if p.wr else []) + (AR + R if p.rd else []):
+            sig = p.prefix + n
+            if is_m or k != "mid" or fiw == w["sid"]:
+                conns.append(f"        .{sig}({sig})")
+            elif n in ("awid", "arid"):
+                nets.append(f"    logic [FIW-1:0] u_{sig};")
+                assigns.append(f"    assign {sig} = {w['sid']}'(u_{sig});")
+                conns.append(f"        .{sig}(u_{sig})")
+            else:
+                conns.append(f"        .{sig}({sig}[FIW-1:0])")
         hs = (["awvalid", "awready", "wvalid", "wready", "bvalid", "bready"] if p.wr else []) + \
              (["arvalid", "arready", "rvalid", "rready"] if p.rd else [])
         conns += [f"        .{p.prefix}{n}({p.prefix}{n})" for n in hs]
@@ -224,7 +254,11 @@ def emit_bridge(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> s
     return (HEADER.format(leg="leg A: bridge-generated crossbar")
             + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
             + "\n".join(port_list(masters, slaves, w))
-            + "\n);\n\n    bridge_fb_data u_fabric (\n" + body + "\n    );\n\nendmodule : fb_data_fabric\n")
+            + "\n);\n\n"
+            + (f"    // Bridge slave-side ID width ({{master index, remap slot}}), {fiw} of {w['sid']}\n"
+               "    localparam int FIW = bridge_fb_data_pkg::XBAR_ID_WIDTH;\n"
+               + "\n".join(nets) + "\n" + "\n".join(assigns) + "\n\n" if nets else "")
+            + "    bridge_fb_data u_fabric (\n" + body + "\n    );\n\nendmodule : fb_data_fabric\n")
 
 
 def hexv(values: list[int], bits: int) -> str:

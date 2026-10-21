@@ -561,7 +561,9 @@ def run_monitor_sim(*, module, repo_root, tests_dir, log_dir, dut_name, testcase
     extra_args = ['--assert', '--coverage',
                   '-Wno-PINMISSING', '-Wno-WIDTHEXPAND', '-Wno-WIDTHTRUNC',
                   '-Wno-ASCRANGE', '-Wno-SELRANGE']
-    extra_args += list(extra_no_warn) + waves['extra_args']
+    # MULTIDRIVEN stays on except PeakRDL's field_combo (the regblock variant)
+    from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT
+    extra_args += [FIELD_COMBO_VLT] + list(extra_no_warn) + waves['extra_args']
     extra_env = {
         'COCOTB_LOG_LEVEL': 'INFO',
         'LOG_PATH': log_path,

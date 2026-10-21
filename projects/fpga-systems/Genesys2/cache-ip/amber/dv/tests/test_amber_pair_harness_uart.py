@@ -42,6 +42,7 @@ from TBClasses.shared.test_levels import reg_level_grid, level_env
 from TBClasses.harness.cocotb_axil_bridge import make_uart_channel
 from run_smoke import run_campaign
 from uart_axi_bridge import UARTAxiBridge
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # Bridge address map
 ADDR_HARNESS_CSR = 0x0001_0000
@@ -178,7 +179,7 @@ def test_amber_pair_harness_uart(request, test_level):
     create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 
     compile_args = [
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP", "-Wno-MODDUP", "-Wno-PINMISSING",

@@ -16,4 +16,7 @@ lint_off -rule WIDTH -file "*/Vivado/data/ip/*"
 // members are distinct -- but this tool flags the whole variable. Exempted by
 // that variable's name only: any other multi-driven signal fails lint (Vivado
 // reports none in a regblock; it did report the real ones, bridge BUG-022).
-lint_off -rule MULTIDRIVEN -file "*/generated/*" -match "*'field_combo'*"
+// (any file: some regblocks are not under generated/, e.g. retro_legacy_blocks'
+// *_regs.sv). Simulations load this file too, through
+// TBClasses.shared.verilator_cfg.FIELD_COMBO_VLT, in place of -Wno-MULTIDRIVEN.
+lint_off -rule MULTIDRIVEN -file "*" -match "*'field_combo'*"

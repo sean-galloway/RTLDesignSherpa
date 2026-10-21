@@ -43,6 +43,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.utility_ip.misc.dv.tbclasses.axi4_intf_observer_tb import AXI4IntfObserverTB  # noqa: E402
 from TBClasses.monbus.monbus_types import AXIErrorCode, PktType  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 def _p(name, default):
@@ -899,7 +900,7 @@ def _run_observer(request, dut_name, params, testcase="cocotb_test_observer_regs
                       # allocator feed-forward did not help either (3 -> 5
                       # warnings), so the honest option is a documented waiver.
                       "-Wno-UNOPTFLAT",
-                      "-Wno-MULTIDRIVEN"] + wave_args,
+                      FIELD_COMBO_VLT] + wave_args,
         waves=enable_waves,
         sim_args=(["--trace", "--trace-structs", "--trace-depth", "99"]
                   if enable_waves else []),

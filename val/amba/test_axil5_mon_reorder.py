@@ -47,6 +47,7 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axil5.axil5_reorder import install as install_reorder
 from TBClasses.monbus.monbus_types import PktType, AXIErrorCode
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 PKT_COMPL = int(PktType.PktTypeCompletion)
 PKT_ERROR = int(PktType.PktTypeError)
@@ -270,5 +271,5 @@ def test_axil5_mon_reorder(dut_name, test_level):
             "SEED": os.environ.get("SEED", str(random.randint(0, 1_000_000))),
         },
         keep_files=True,
-        compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps"],
+        compile_args=["--public-flat-rw", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps"],
     )

@@ -10,6 +10,7 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 from TBClasses.amba.monitor_lite.axis_monitor_lite_tb import AxisMonitorLiteTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
@@ -66,7 +67,7 @@ def test_axis5_slave_monlite_cg(request, data_width, id_width, dest_width, test_
             python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
             toplevel=dut_name, module=module, parameters=rtl_parameters, simulator='verilator',
             sim_build=sim_build, extra_env=extra_env, waves=enable_waves, keep_files=True,
-            compile_args=['--trace-fst', '--trace-structs', '-Wno-fatal'],
+            compile_args=['--trace-fst', '--trace-structs', '-Wno-fatal', '-Werror-MULTIDRIVEN', FIELD_COMBO_VLT],
             sim_args=['--trace-fst', '--trace-structs'],
             plus_args=(['--trace'] if enable_waves else []),
         )

@@ -51,6 +51,7 @@ import stream_levels  # noqa: E402
 # and the counters read back zero the whole time.
 import bridge_windows  # noqa: E402
 import obs_addrs        # noqa: E402  (observer APB window bases, by name)
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 STREAM_TALLY_RD   = bridge_windows.base('stream_tally')       # count readback
 SLAVE_TALLY_RD    = bridge_windows.base('slave_tally')
@@ -607,7 +608,7 @@ def _run_stream_mon(request, profile=False):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
     create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     compile_args = [
-        "--public-flat-rw", "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN",
+        "--public-flat-rw", "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT,
         "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT", "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
         # Monitor per-slot loops do delayed array assignment; Verilator must
         # unroll them (BLKLOOPINIT) — raise the unroll budget for the monitor

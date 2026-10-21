@@ -43,7 +43,7 @@ bind bridge_stream_mon_axil axi4_protocol_checker #(
 
 // slave port desc_ram (axi4, rw) on aclk
 bind bridge_stream_mon_axil axi4_protocol_checker #(
-    .ID_WIDTH(10),
+    .ID_WIDTH(6),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(256)
 ) u_chk_desc_ram (

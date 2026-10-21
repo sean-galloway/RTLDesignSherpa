@@ -11,4 +11,4 @@
 // gate should catch. This file lives outside generated/ so regeneration does
 // not overwrite it. Same treatment as misc/rtl/regs/obs_regs.vlt and
 // stream/regs/stream_regs.vlt.
-lint_off -rule MULTIDRIVEN -file "*_regblock_mon_cfg.sv"
+lint_off -rule MULTIDRIVEN -file "*_regblock_mon_cfg.sv" -match "*'field_combo'*"   // PeakRDL's per-member writes only

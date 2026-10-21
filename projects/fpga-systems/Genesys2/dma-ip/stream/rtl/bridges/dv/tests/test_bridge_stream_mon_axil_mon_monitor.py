@@ -75,5 +75,5 @@ def test_bridge_stream_mon_axil_mon_monitor(request, test_level):
         filelist='projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/filelists/bridge_stream_mon_axil_mon.f',
         test_level=test_level,
         extra_env=level_env(test_level),
-        extra_no_warn=['-Wno-WIDTHTRUNC', '-Wno-MULTIDRIVEN'],
+        extra_no_warn=['-Wno-WIDTHTRUNC'],
     )

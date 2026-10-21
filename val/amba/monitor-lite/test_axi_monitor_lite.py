@@ -9,6 +9,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.amba.monitor_lite.axi_monitor_lite_tb import AxiMonitorLiteTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
@@ -66,7 +67,7 @@ def test_axi_monitor_lite(request, channel, id_width, max_trans, test_level):
             python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
             toplevel=dut_name, module=module, parameters=rtl_parameters, simulator='verilator',
             sim_build=sim_build, extra_env=extra_env, waves=False, keep_files=True,
-            compile_args=['--trace-fst', '--trace-structs', '-Wno-fatal'],
+            compile_args=['--trace-fst', '--trace-structs', '-Wno-fatal', '-Werror-MULTIDRIVEN', FIELD_COMBO_VLT],
             sim_args=['--trace-fst', '--trace-structs'],
             plus_args=[],
         )

@@ -41,6 +41,7 @@ if _HOST not in sys.path:
     sys.path.insert(0, _HOST)
 import ddr2_char as dc                               # noqa: E402
 import pumice_master as pm                           # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 _FILELIST = ("projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/"
              "ddr2_char_framework/dv/filelists/granite_char_uart_tb_top.f")
@@ -476,7 +477,7 @@ def test_granite_char_col_major_gap(request):
                    "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml")},
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "--public-flat-rw",
                       "--trace", "--trace-structs",
-                      "-Wno-PINMISSING", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+                      "-Wno-PINMISSING", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
                       "-Wno-WIDTHTRUNC"],
         waves=True,
         keep_files=True, timescale="1ns/1ps")

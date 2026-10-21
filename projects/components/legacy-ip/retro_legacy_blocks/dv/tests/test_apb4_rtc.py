@@ -48,6 +48,7 @@ sys.path.insert(0, repo_root)
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tb import RTCTB, RTCRegisterMap
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tests_basic import RTCBasicTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rtc.rtc_tests_medium import RTCMediumTests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
@@ -334,7 +335,7 @@ def test_rtc(request, test_level, description):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
     ]
     compile_args.extend(get_coverage_compile_args())
@@ -543,7 +544,7 @@ def test_rtc_gh56_timeout_sweep(request, test_level):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
     ]
     compile_args.extend(get_coverage_compile_args())

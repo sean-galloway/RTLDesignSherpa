@@ -12,13 +12,13 @@
 module bridge_fb_data_crc_snk_adapter
     import bridge_fb_data_pkg::*;
 #(
-    parameter int ID_WIDTH = 10
+    parameter int ID_WIDTH = 6
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [9:0]  xbar_crc_snk_axi_awid,
+    input  logic [5:0]  xbar_crc_snk_axi_awid,
     input  logic [31:0]  xbar_crc_snk_axi_awaddr,
     input  logic [7:0]  xbar_crc_snk_axi_awlen,
     input  logic [2:0]  xbar_crc_snk_axi_awsize,
@@ -37,7 +37,7 @@ module bridge_fb_data_crc_snk_adapter
     input  logic         xbar_crc_snk_axi_wuser,
     input  logic         xbar_crc_snk_axi_wvalid,
     output  logic         xbar_crc_snk_axi_wready,
-    output  logic [9:0]  xbar_crc_snk_axi_bid,
+    output  logic [5:0]  xbar_crc_snk_axi_bid,
     output  logic [1:0]  xbar_crc_snk_axi_bresp,
     output  logic         xbar_crc_snk_axi_buser,
     output  logic         xbar_crc_snk_axi_bvalid,
@@ -49,7 +49,7 @@ module bridge_fb_data_crc_snk_adapter
     output logic                       bid_valid,
 
     // External slave interface (AXI4)
-    output  logic [9:0]  crc_snk_awid,
+    output  logic [5:0]  crc_snk_awid,
     output  logic [31:0]  crc_snk_awaddr,
     output  logic [7:0]  crc_snk_awlen,
     output  logic [2:0]  crc_snk_awsize,
@@ -68,7 +68,7 @@ module bridge_fb_data_crc_snk_adapter
     output  logic         crc_snk_wuser,
     output  logic         crc_snk_wvalid,
     input  logic         crc_snk_wready,
-    input  logic [9:0]  crc_snk_bid,
+    input  logic [5:0]  crc_snk_bid,
     input  logic [1:0]  crc_snk_bresp,
     input  logic         crc_snk_buser,
     input  logic         crc_snk_bvalid,
@@ -79,69 +79,39 @@ module bridge_fb_data_crc_snk_adapter
     // Internal Signals
     // ================================================================
 
-    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
-    logic cam_wr_allocate;
-    logic cam_wr_deallocate;
-    logic [ID_WIDTH-1:0] cam_wr_allocate_tag;
-    logic [BRIDGE_ID_WIDTH-1:0] cam_wr_allocate_data;
-    logic [ID_WIDTH-1:0] cam_wr_deallocate_tag;
-
     // ================================================================
-    // Bridge ID Tracking - CAM Mode (Out-of-Order)
+    // Bridge ID Tracking - By ID (any completion order)
     // ================================================================
 
-    // Write Channel CAM
-    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form: the CAM's own tags_full masks
-    // the sub-block's ready before it reaches the crossbar. (These two nets
-    // are what the wrapper override below binds; the FIFO path declares
-    // its own. Missing here since c64660f47 -- bridge BUG-012 (was BRIDGE-015).)
+    // Write channel: by-ID tracking
+    // B is routed by its BID's master-index bits: fabric IDs are
+    // {master index, master id} (bridge TASK-005) and a slave returns the
+    // ID it was given, so the routing needs no lookup and any completion
+    // order works. (A per-ID CAM did this lookup until 2026-10-18; it was the
+    // fabric's critical path, bridge W12.) The counter is the not-full
+    // gate (bridge BUG-009): it masks the sub-block's ready before it
+    // reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
     assign xbar_crc_snk_axi_awready = w_sub_awready && !wr_trk_full;
-    bridge_cam #(
-        .TAG_WIDTH(ID_WIDTH),
-        .DATA_WIDTH(BRIDGE_ID_WIDTH),
-        .DEPTH(16),  // max_outstanding
-        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0),
-        // Registered insert: the crossbar's arbitrated ID only reaches a
-        // register here; the 16-way match + duplicate popcount run the next
-        // cycle (GitHub #119: this was the 15-level worst path, master AW
-        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
-        .PIPELINE_ALLOC(1),
-        // Registered free: the response's lookup still routes it this
-        // cycle; the entry free and same-ID decrements land the next
-        // (GitHub #119: the eviction was the next worst path).
-        .PIPELINE_FREE(1)
-    ) u_wr_cam (
-        .clk(aclk),
-        .rst_n(aresetn),
-
-        // Allocate on AW (from crossbar)
-        .allocate(xbar_crc_snk_axi_awvalid && xbar_crc_snk_axi_awready),
-        .allocate_tag(xbar_crc_snk_axi_awid),
-        .allocate_data(xbar_bridge_id_aw),
-
-        // Deallocate on B (from converter)
-        .deallocate(xbar_crc_snk_axi_bvalid && xbar_crc_snk_axi_bready),
-        .deallocate_tag(xbar_crc_snk_axi_bid),
-        .deallocate_valid(bid_valid),
-        .deallocate_data(bid_bridge_id),
-        .deallocate_count(),
-
-        // Status
-        .cam_hit(),
-        .tags_empty(),
-        .tags_full(wr_trk_full),
-        .tags_count()
-    );
+    logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            wr_out_cnt <= '0;
+        end else begin
+            wr_out_cnt <= wr_out_cnt + 5'(xbar_crc_snk_axi_awvalid && xbar_crc_snk_axi_awready) - 5'(xbar_crc_snk_axi_bvalid && xbar_crc_snk_axi_bready);
+        end
+    )
+    assign wr_trk_full = (wr_out_cnt == 5'(16));
+    assign bid_bridge_id = xbar_crc_snk_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
+    assign bid_valid     = 1'b1;
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(128),
         .AXI_USER_WIDTH(1)

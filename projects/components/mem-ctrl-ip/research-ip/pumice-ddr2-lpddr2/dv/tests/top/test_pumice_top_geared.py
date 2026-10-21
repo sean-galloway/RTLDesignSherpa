@@ -105,6 +105,7 @@ async def cocotb_test_pumice_top_geared(dut):
 
 # ---------------------------------------------------------------------------
 import pytest  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 _FILELIST = ("projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/"
              "dv/filelists/pumice_top_geared_tb_top.f")
@@ -147,7 +148,7 @@ def _run_geared(request, host_w, extra=None, test_level='gate'):
     run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
         toplevel=dut_name, module=module, testcase="cocotb_test_pumice_top_geared",
         sim_build=sim_build, simulator="verilator", extra_env=env, parameters=params,
-        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", "-Wno-MULTIDRIVEN",
+        compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw", FIELD_COMBO_VLT,
                       "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
         waves=False, keep_files=True, timescale="1ns/1ps")
 

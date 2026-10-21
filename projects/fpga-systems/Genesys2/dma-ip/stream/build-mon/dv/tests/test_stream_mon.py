@@ -46,6 +46,7 @@ from tbclasses.stream_harness_tb import StreamHarnessTB, CSR_CTRL, compose  # no
 from stream_cfg import cfg_int, num_channels, verilator_unroll_args  # noqa: E402  (reads stream_cfg_pkg.sv)
 import stream_levels  # noqa: E402
 import bridge_windows  # noqa: E402  (bridge slave windows, by name)
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # The tally exposes FOUR clean AXIL ports (2 wr, 2 rd). Count readback rides the
 # ingest window's READ channel (stream_tally@0x40000 / slave_tally@0xC0000);
@@ -711,7 +712,7 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.fst')
     create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     compile_args = [
-        "--public-flat-rw", "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN",
+        "--public-flat-rw", "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT,
         "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT", "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
         # Monitor per-slot loops do delayed array assignment; Verilator must
         # unroll them (BLKLOOPINIT) — raise the unroll budget for the monitor

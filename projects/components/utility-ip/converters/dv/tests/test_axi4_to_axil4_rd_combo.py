@@ -17,6 +17,7 @@ repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 
 from TBClasses.shared.utilities import create_view_cmd, sim_build_path
 from TBClasses.shared.test_levels import reg_level_grid, level_env
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=10, timeout_unit="ms")
@@ -117,7 +118,7 @@ def test_axi4_to_axil4_rd_combo(request, test_level):
     create_view_cmd(log_dir, log_path, sim_build, module, test_name)
 
     compile_args = [
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP", "-Wno-MODDUP", "-Wno-PINMISSING",

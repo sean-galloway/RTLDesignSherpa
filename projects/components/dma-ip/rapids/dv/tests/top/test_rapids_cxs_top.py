@@ -45,6 +45,7 @@ from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_top_tb import Rap
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_tb import RapidsCxsTileTB
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_credits_tb import RapidsCxsTileCreditsTB
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_cxs_tile_straps_tb import RapidsCxsTileStrapsTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 # ===========================================================================
@@ -489,9 +490,9 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate', dut='rap
     }
 
     compile_args = [
-        "-Wno-fatal",  # generated rapids_regs.sv trips MULTIDRIVEN/UNOPT; keep warnings non-fatal
+        "-Wno-fatal", "-Werror-MULTIDRIVEN",  # UNOPT stays non-fatal; a multi-driver does not
         "-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT", "-Wno-CASEINCOMPLETE",
-        "-Wno-MULTIDRIVEN", "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
+        FIELD_COMBO_VLT, "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
     ]
     if enable_waves:
         compile_args.extend(['--trace', '--trace-structs', '--trace-max-array', '512'])

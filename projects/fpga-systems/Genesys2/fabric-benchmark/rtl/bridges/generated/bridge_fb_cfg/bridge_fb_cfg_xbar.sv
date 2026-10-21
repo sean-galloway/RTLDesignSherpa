@@ -606,7 +606,7 @@ module bridge_fb_cfg_xbar
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- B response arbiter, master host 32b: round-robin, lock until taken ----
+    // ---- B response arbiter, master host 32b: round-robin per beat, lock until taken ----
     logic [6:0] host_32b_b_rarb_req;
     assign host_32b_b_rarb_req = {((chargen_axi_bid_bridge_id == 0) && chargen_axi_bid_valid) && chargen_axi_bvalid, ((fb_ctl_axi_bid_bridge_id == 0) && fb_ctl_axi_bid_valid) && fb_ctl_axi_bvalid, ((obs_apb_axi_bid_bridge_id == 0) && obs_apb_axi_bid_valid) && obs_apb_axi_bvalid, ((slvmon_apb_axi_bid_bridge_id == 0) && slvmon_apb_axi_bid_valid) && slvmon_apb_axi_bvalid, ((stream_err_axi_bid_bridge_id == 0) && stream_err_axi_bid_valid) && stream_err_axi_bvalid, ((harness_csr_axi_bid_bridge_id == 0) && harness_csr_axi_bid_valid) && harness_csr_axi_bvalid, ((stream_apb_axi_bid_bridge_id == 0) && stream_apb_axi_bid_valid) && stream_apb_axi_bvalid};
     logic [2:0] host_32b_b_rarb_lock, host_32b_b_rarb_rr;
@@ -642,7 +642,7 @@ module bridge_fb_cfg_xbar
         end
     )
 
-    // ---- R response arbiter, master host 32b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master host 32b: round-robin per beat, lock until taken ----
     logic [6:0] host_32b_r_rarb_req;
     assign host_32b_r_rarb_req = {((chargen_axi_rid_bridge_id == 0) && chargen_axi_rid_valid) && chargen_axi_rvalid, ((fb_ctl_axi_rid_bridge_id == 0) && fb_ctl_axi_rid_valid) && fb_ctl_axi_rvalid, ((obs_apb_axi_rid_bridge_id == 0) && obs_apb_axi_rid_valid) && obs_apb_axi_rvalid, ((slvmon_apb_axi_rid_bridge_id == 0) && slvmon_apb_axi_rid_valid) && slvmon_apb_axi_rvalid, ((stream_err_axi_rid_bridge_id == 0) && stream_err_axi_rid_valid) && stream_err_axi_rvalid, ((harness_csr_axi_rid_bridge_id == 0) && harness_csr_axi_rid_valid) && harness_csr_axi_rvalid, ((stream_apb_axi_rid_bridge_id == 0) && stream_apb_axi_rid_valid) && stream_apb_axi_rvalid};
     logic [2:0] host_32b_r_rarb_lock, host_32b_r_rarb_rr;
@@ -664,27 +664,21 @@ module bridge_fb_cfg_xbar
     wire host_32b_r_rgnt_fb_ctl = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd5);
     wire host_32b_r_rgnt_chargen = host_32b_r_rarb_gnt_valid && (host_32b_r_rarb_gnt == 3'd6);
     wire host_32b_r_rarb_vld = (host_32b_r_rgnt_stream_apb && host_32b_r_rarb_req[0]) || (host_32b_r_rgnt_harness_csr && host_32b_r_rarb_req[1]) || (host_32b_r_rgnt_stream_err && host_32b_r_rarb_req[2]) || (host_32b_r_rgnt_slvmon_apb && host_32b_r_rarb_req[3]) || (host_32b_r_rgnt_obs_apb && host_32b_r_rarb_req[4]) || (host_32b_r_rgnt_fb_ctl && host_32b_r_rarb_req[5]) || (host_32b_r_rgnt_chargen && host_32b_r_rarb_req[6]);
-    wire host_32b_r_rarb_last = (host_32b_r_rgnt_stream_apb && stream_apb_axi_rlast) || (host_32b_r_rgnt_harness_csr && harness_csr_axi_rlast) || (host_32b_r_rgnt_stream_err && stream_err_axi_rlast) || (host_32b_r_rgnt_slvmon_apb && slvmon_apb_axi_rlast) || (host_32b_r_rgnt_obs_apb && obs_apb_axi_rlast) || (host_32b_r_rgnt_fb_ctl && fb_ctl_axi_rlast) || (host_32b_r_rgnt_chargen && chargen_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_32b_r_rarb_lock   <= '0;
             host_32b_r_rarb_rr     <= '0;
             host_32b_r_rarb_locked <= 1'b0;
         end else if (host_32b_r_rarb_vld && host_32b_rready) begin
-            if (host_32b_r_rarb_last) begin
-                host_32b_r_rarb_locked <= 1'b0;
-                host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd6) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
-            end else begin
-                host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                host_32b_r_rarb_locked <= 1'b1;
-            end
+            host_32b_r_rarb_locked <= 1'b0;
+            host_32b_r_rarb_rr <= (host_32b_r_rarb_gnt == 3'd6) ? 3'd0 : host_32b_r_rarb_gnt + 1'b1;
         end else if (host_32b_r_rarb_vld) begin
             host_32b_r_rarb_lock   <= host_32b_r_rarb_gnt;       // offered, not taken: hold
             host_32b_r_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- B response arbiter, master host 128b: round-robin, lock until taken ----
+    // ---- B response arbiter, master host 128b: round-robin per beat, lock until taken ----
     logic [1:0] host_128b_b_rarb_req;
     assign host_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 0) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((desc_ram_axi_bid_bridge_id == 0) && desc_ram_axi_bid_valid) && desc_ram_axi_bvalid};
     logic [0:0] host_128b_b_rarb_lock, host_128b_b_rarb_rr;
@@ -710,7 +704,7 @@ module bridge_fb_cfg_xbar
         end
     )
 
-    // ---- R response arbiter, master host 128b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master host 128b: round-robin per beat, lock until taken ----
     logic [1:0] host_128b_r_rarb_req;
     assign host_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) && desc_ram_axi_rvalid};
     logic [0:0] host_128b_r_rarb_lock, host_128b_r_rarb_rr;
@@ -722,20 +716,14 @@ module bridge_fb_cfg_xbar
     wire host_128b_r_rgnt_desc_ram = host_128b_r_rarb_gnt_valid && (host_128b_r_rarb_gnt == 1'd0);
     wire host_128b_r_rgnt_subtractive = host_128b_r_rarb_gnt_valid && (host_128b_r_rarb_gnt == 1'd1);
     wire host_128b_r_rarb_vld = (host_128b_r_rgnt_desc_ram && host_128b_r_rarb_req[0]) || (host_128b_r_rgnt_subtractive && host_128b_r_rarb_req[1]);
-    wire host_128b_r_rarb_last = (host_128b_r_rgnt_desc_ram && desc_ram_axi_rlast) || (host_128b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             host_128b_r_rarb_lock   <= '0;
             host_128b_r_rarb_rr     <= '0;
             host_128b_r_rarb_locked <= 1'b0;
         end else if (host_128b_r_rarb_vld && host_128b_rready) begin
-            if (host_128b_r_rarb_last) begin
-                host_128b_r_rarb_locked <= 1'b0;
-                host_128b_r_rarb_rr <= (host_128b_r_rarb_gnt == 1'd1) ? 1'd0 : host_128b_r_rarb_gnt + 1'b1;
-            end else begin
-                host_128b_r_rarb_lock   <= host_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                host_128b_r_rarb_locked <= 1'b1;
-            end
+            host_128b_r_rarb_locked <= 1'b0;
+            host_128b_r_rarb_rr <= (host_128b_r_rarb_gnt == 1'd1) ? 1'd0 : host_128b_r_rarb_gnt + 1'b1;
         end else if (host_128b_r_rarb_vld) begin
             host_128b_r_rarb_lock   <= host_128b_r_rarb_gnt;       // offered, not taken: hold
             host_128b_r_rarb_locked <= 1'b1;

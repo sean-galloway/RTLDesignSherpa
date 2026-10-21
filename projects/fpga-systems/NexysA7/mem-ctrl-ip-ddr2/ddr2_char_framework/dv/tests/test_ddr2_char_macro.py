@@ -58,6 +58,7 @@ from tbclasses.pumice_top_tb import DDR2LPDDR2TopTB  # noqa: E402
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                 "..", "tbclasses"))
 from chargen_driver import ChargenDriver  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 _NBA_SETTLE_PS = 100
@@ -981,7 +982,7 @@ def test_ddr2_char_macro(request, test_type):
     # has known MULTIDRIVEN / UNUSED warnings that are not actionable).
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
@@ -1105,7 +1106,7 @@ def test_ddr2_char_macro_pacing_sweep(request, wr_gap, rd_gap):
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
@@ -1195,7 +1196,7 @@ def test_ddr2_char_macro_concurrent_gap(request, wr_gap, rd_gap):
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
@@ -1275,7 +1276,7 @@ def test_ddr2_char_macro_open_page(request):
 
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
@@ -1383,7 +1384,7 @@ def test_ddr2_char_macro_ooo_pacing_schmoo(
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
@@ -1510,7 +1511,7 @@ def test_ddr2_char_csr_probe(request):
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
@@ -1693,7 +1694,7 @@ def test_ddr2_char_1wr1rd(request):
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         # subtractive-slave optional status outputs (unmapped_*) -- the uart
         # and char suites waive this and make lint carries it in LINT_WAIVERS.
@@ -1758,7 +1759,7 @@ def test_ddr2_char_macro_hash_probe(request):
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-PINMISSING",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",

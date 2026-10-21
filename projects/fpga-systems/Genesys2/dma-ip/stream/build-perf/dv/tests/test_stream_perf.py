@@ -39,6 +39,7 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
         sys.path.insert(0, _p)
 
 from stream_cfg import num_channels, verilator_unroll_args  # noqa: E402  (reads rtl/stream_cfg_pkg.sv)
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # cocotb loads the dispatcher by module NAME; every run() below passes this.
 COCOTB_MODULE = 'cocotb_stream_harness'
@@ -276,7 +277,7 @@ def test_stream_perf(request, test_type, test_level):
         # without needing top-level pass-through ports. Slight sim-perf cost.
         "--public-flat-rw",
         "-Wno-TIMESCALEMOD",
-        "-Wno-MULTIDRIVEN",    # PeakRDL stream_regs.sv
+        FIELD_COMBO_VLT,    # PeakRDL stream_regs.sv
         "-Wno-WIDTHEXPAND",    # minor width warnings in STREAM hierarchy
         "-Wno-WIDTHTRUNC",
         "-Wno-SELRANGE",       # descriptor_engine pre-existing slice warning
@@ -398,7 +399,7 @@ def test_stream_perf_ext_suite(request):
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99",
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # deep monitor trans-table loops (RD_MON_MAX_TRANS>64) need unroll raised
         # The harness is SHARED with build-mon now, so its compile closure
@@ -498,7 +499,7 @@ def test_stream_perf_ext_chain(request):
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99",
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # The harness is SHARED with build-mon now, so its compile closure
         # includes dma_slave_monitors -> monbus_group, whose optional status
@@ -590,7 +591,7 @@ def test_stream_perf_ext_chain_soak(request):
     simulator = os.environ.get('SIM', 'verilator').lower()
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99", "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # The harness is SHARED with build-mon now, so its compile closure
         # includes dma_slave_monitors -> monbus_group, whose optional status
@@ -684,7 +685,7 @@ def test_stream_perf_ext_char(request):
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99",
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # deep monitor trans-table loops (RD_MON_MAX_TRANS>64) need unroll raised
         # The harness is SHARED with build-mon now, so its compile closure

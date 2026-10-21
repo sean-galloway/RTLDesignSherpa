@@ -143,12 +143,19 @@ class RsLoopDriver:
     INJ_DEBUG = 7
 
     def __init__(self, port: Optional[str] = None, baudrate: int = 115200,
-                 bridge: Optional[UARTAxiBridge] = None, timeout: float = 1.0):
+                 bridge: Optional[UARTAxiBridge] = None, timeout: float = 1.0,
+                 wall_deadline: bool = True):
         if bridge is None:
             if port is None or port == "auto":
                 port = find_port()
             bridge = UARTAxiBridge(port=port, baudrate=baudrate, timeout=timeout)
         self.bridge = bridge
+        # wait_done's timeout_s is wall-clock seconds: right on the board, wrong
+        # in cosim, where a loaded machine slows the simulator and a run that is
+        # still correctly decoding misses the deadline (the sweep's e=3 run, 15 of
+        # 16 blocks corrected, reported "did not finish"). A simulation passes
+        # False and is bounded in SIM time by its cocotb test timeout instead.
+        self.wall_deadline = wall_deadline
         self.regs = UartRegisterMap(bridge, start_address=HARNESS_BASE, regmap_file=REGMAP)
         self.obs_axi4 = UartRegisterMap(bridge, start_address=OBS_AXI4_BASE, regmap_file=OBS_REGMAP)
         self.obs_axis = UartRegisterMap(bridge, start_address=OBS_AXIS_BASE, regmap_file=OBS_REGMAP)
@@ -231,7 +238,7 @@ class RsLoopDriver:
 
     def wait_done(self, timeout_s: float = 10.0, poll_s: float = 0.0) -> bool:
         deadline = time.monotonic() + timeout_s
-        while time.monotonic() < deadline:
+        while not self.wall_deadline or time.monotonic() < deadline:
             if not self.status()["busy"]:
                 return True
             if poll_s:

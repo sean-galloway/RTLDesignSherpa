@@ -3,4 +3,4 @@
 // field_combo struct; Verilator reports that as MULTIDRIVEN. Waived for the
 // generated file only (same treatment as chargen_regs.vlt). Lives outside
 // generated/ so regeneration does not remove it.
-lint_off -rule MULTIDRIVEN -file "*/fb_ctl_regs.sv"
+lint_off -rule MULTIDRIVEN -file "*/fb_ctl_regs.sv" -match "*'field_combo'*"   // PeakRDL's per-member writes only

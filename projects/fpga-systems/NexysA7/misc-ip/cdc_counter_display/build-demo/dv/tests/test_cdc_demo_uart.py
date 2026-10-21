@@ -49,6 +49,7 @@ from TBClasses.harness.byte_channel import TracingChannel           # noqa: E402
 from uart_axi_bridge import UARTAxiBridge                           # noqa: E402
 import cdc_demo as cd                                               # noqa: E402
 import cdc_programs as progs                                        # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # Matches cdc_demo_uart_tb_top default (UART_CLKS_PER_BIT).
 CLKS_PER_BIT = 16
@@ -141,7 +142,7 @@ def _run(testcase: str):
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}.xml"),
     }
     compile_args = [
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-VARHIDDEN",
         "-Wno-IMPLICIT", "-Wno-CASEOVERLAP", "-Wno-MODDUP",

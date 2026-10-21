@@ -75,6 +75,18 @@ LINT_UNROLL ?=
 # rules only, never our RTL. See verilator_vendor.vlt.
 LINT_VENDOR_VLT ?= $(RDS_ROOT)/make/verilator_vendor.vlt
 
+# Second lint pass with every signal kept visible. Without --public-flat-rw
+# Verilator optimises a net away before its multi-driver check runs, so a
+# continuous `assign` onto a net that a submodule's output port also drives is
+# never reported: it lints clean and is a MULTIDRIVEN error in any cocotb build
+# of the same RTL (cocotb passes the flag). Measured on converters'
+# axi4_to_axil4_rd_combo_tb: 0 warnings without it, 1 with it.
+# The flag also disables signal splitting, which makes Verilator report
+# UNOPTFLAT on loops it otherwise splits apart (rapids' scheduler_group_array,
+# AMD's axi_crossbar) -- so this pass alone drops UNOPTFLAT. The first pass
+# runs without the flag and still checks it.
+LINT_VISIBILITY ?= --public-flat-rw -Wno-UNOPTFLAT
+
 # ------------------------------------------------------------------------------
 # Flattened, DEDUPLICATED source list -- what verilator must actually be given.
 # ------------------------------------------------------------------------------
@@ -152,6 +164,9 @@ lint: lint-decl-order lint-call-select flat-filelist  ## verilator --lint-only o
 	@[ -n "$(TOP)" ] || (echo "TOP is not set -- cannot lint." && false)
 	@echo "[lint] $(TOP) $(if $(strip $(LINT_GENERICS)),[$(strip $(LINT_GENERICS))],[RTL defaults])"
 	@$(VERILATOR) --lint-only --top-module $(TOP) $(LINT_VENDOR_VLT) -f $(FLAT_FILELIST) \
+	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS) $(LINT_UNROLL)
+	@echo "[lint] $(TOP) signals visible (multi-drivers across ports)"
+	@$(VERILATOR) --lint-only $(LINT_VISIBILITY) --top-module $(TOP) $(LINT_VENDOR_VLT) -f $(FLAT_FILELIST) \
 	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS) $(LINT_UNROLL)
 
 flat-filelist:      ## Expand + dedupe FILELIST into $(FLAT_FILELIST) (see above)

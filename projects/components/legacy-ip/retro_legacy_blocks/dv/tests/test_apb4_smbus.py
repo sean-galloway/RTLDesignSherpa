@@ -53,6 +53,7 @@ from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_
 # full per-item defect writeup). Registered at medium/full level below,
 # alongside the existing (untouched) medium_test_methods.
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.smbus.smbus_tests_medium import SMBusMediumTests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=20000, timeout_unit="us")
@@ -305,7 +306,7 @@ def test_smbus(request, cdc_enable, test_level, description):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
     ]
     compile_args.extend(get_coverage_compile_args())

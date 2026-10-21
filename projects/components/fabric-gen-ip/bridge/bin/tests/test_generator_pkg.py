@@ -2501,11 +2501,76 @@ addr_range = "0x10000000"
             repo_root=str(REPO_ROOT), filelist_path=str(tmp_path / "filelists" / "bridge_sbrb.f"))
         args = tmp_path / "lint.f"
         args.write_text("\n".join([f"+incdir+{i}" for i in incs] + srcs))
-        lr = subprocess.run(["verilator", "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME",
+        lr = subprocess.run(["verilator", "--lint-only", "--public-flat-rw", "-Wno-fatal", "-Wno-DECLFILENAME",
                              "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-PINCONNECTEMPTY",
                              "-f", str(args), "--top-module", "bridge_sbrb"],
                             capture_output=True, text=True, timeout=300)
         assert "MULTIDRIVEN" not in lr.stdout + lr.stderr, (lr.stdout + lr.stderr)[-2000:]
+
+
+def test_axil_master_id_ties_match_the_adapter_face(tmp_path):
+    """An AXI4-Lite master's adapter still has an AXI4 face, and the bridge
+    top ties its AWID / ARID. Those literals must be the face's width, which
+    the adapter sizes with fabric_local_id_width -- a remap slot when another
+    master's ID is remapped. A local copy of the formula missed the remap and
+    tied a 4-bit face with 8'h0 (STREAM's bridge_stream_mon_axil, WIDTHTRUNC
+    on four board builds)."""
+    import re
+    (tmp_path / "x.toml").write_text('''
+[bridge]
+name = "bridge_lid"
+variants = ["no"]
+[[bridge.masters]]
+name = "host"
+prefix = "host_axi_"
+protocol = "axil"
+channels = "rw"
+addr_width = 32
+data_width = 32
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 8
+max_outstanding = 16
+addr_width = 32
+data_width = 32
+user_width = 1
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 8
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr = "0x00000000"
+addr_range = "0x10000000"
+''')
+    (tmp_path / "x_connectivity.csv").write_text("master\\slave,s0\nhost,1\ndma,1\n")
+    out = tmp_path / "rtl"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", str(tmp_path / "x.toml"),
+         "--connectivity", str(tmp_path / "x_connectivity.csv"),
+         "--name", "bridge_lid", "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    gen = out / "bridge_lid"
+    top = (gen / "bridge_lid.sv").read_text()
+    adapter = (gen / "host_adapter.sv").read_text()
+    m = re.search(r"input\s+logic\s*\[(\d+)-1:0\]\s*host_axi_awid|"
+                  r"input\s+logic\s*\[(\d+):0\]\s*host_axi_awid", adapter)
+    assert m, "host adapter has no AXI4 AWID port"
+    face = int(m.group(1)) if m.group(1) else int(m.group(2)) + 1
+    assert face == 4                                    # the dma master's remap slot
+    for ch in ("awid", "arid"):
+        tie = re.search(rf"\.host_axi_{ch}\((\d+)'h0\)", top)
+        assert tie, f"no {ch} tie in the bridge top"
+        assert int(tie.group(1)) == face, f"{ch} tied {tie.group(0)} onto a {face}-bit face"
 
 
 def test_rate_buffer_defaults_and_overrides(tmp_path):

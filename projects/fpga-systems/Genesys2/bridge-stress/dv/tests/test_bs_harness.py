@@ -19,6 +19,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
 DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil', 'bridge_bs_xmix']
@@ -85,7 +86,7 @@ def test_bs_harness(request, dut_bridge, profile, test_level):
     for k in ('BS_TXNS', 'BS_BURSTS', 'BS_TIMEOUT_S', 'BS_FULL_AXI', 'BS_EXCLUDE'):
         if os.environ.get(k):
             extra_env[k] = os.environ[k]
-    compile_args = ["-Wno-fatal", "-Wno-lint", "-Wno-style", "-Wno-MULTIDRIVEN",
+    compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "-Wno-lint", "-Wno-style", FIELD_COMBO_VLT,
                     "-Wno-TIMESCALEMOD", "-Wno-UNOPTFLAT"]
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs"]

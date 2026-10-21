@@ -38,6 +38,7 @@ if _PUMICE_DV not in sys.path:
 
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 _ACLK_NS, _DFI_NS = board_clock_periods()
 
 DFI_RATE, DRAM_BEAT = 2, 64
@@ -197,5 +198,5 @@ def test_granite_bankfifo_debug(request):
         toplevel=dut_name, module=module, testcase="cocotb_test_bankfifo_race",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "-Wno-PINMISSING",
-                      "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
+                      FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
         keep_files=True, timescale="1ns/1ps")

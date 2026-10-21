@@ -45,6 +45,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.utilities import get_paths, sim_build_path
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -145,7 +146,7 @@ def test_axil_param_guard(request, caplog, dut_name, overrides, expect_fatal):
         extra_env=extra_env,
         waves=False,
         keep_files=True,
-        compile_args=["-Wno-fatal", "-DUSE_ASYNC_RESET"],
+        compile_args=["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "-DUSE_ASYNC_RESET"],
     )
 
     if expect_fatal is None:

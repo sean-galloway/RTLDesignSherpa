@@ -160,7 +160,7 @@ bind bridge_fb_data axi4_protocol_checker #(
 
 // slave port ddr (axi4, rw) on aclk
 bind bridge_fb_data axi4_protocol_checker #(
-    .ID_WIDTH(10),
+    .ID_WIDTH(6),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(128)
 ) u_chk_ddr (
@@ -199,13 +199,13 @@ bind bridge_fb_data axi4_protocol_checker #(
 
 // slave port desc_ram (axi4, rd) on aclk
 bind bridge_fb_data axi4_protocol_checker #(
-    .ID_WIDTH(10),
+    .ID_WIDTH(6),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(128)
 ) u_chk_desc_ram (
     .aclk(aclk),
     .aresetn(aresetn),
-    .awid(10'b0),
+    .awid(6'b0),
     .awaddr(32'b0),
     .awlen(8'b0),
     .awsize(3'b0),
@@ -217,7 +217,7 @@ bind bridge_fb_data axi4_protocol_checker #(
     .wlast(1'b0),
     .wvalid(1'b0),
     .wready(1'b0),
-    .bid(10'b0),
+    .bid(6'b0),
     .bresp(2'b0),
     .bvalid(1'b0),
     .bready(1'b0),
@@ -238,13 +238,13 @@ bind bridge_fb_data axi4_protocol_checker #(
 
 // slave port lfsr_src (axi4, rd) on aclk
 bind bridge_fb_data axi4_protocol_checker #(
-    .ID_WIDTH(10),
+    .ID_WIDTH(6),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(128)
 ) u_chk_lfsr_src (
     .aclk(aclk),
     .aresetn(aresetn),
-    .awid(10'b0),
+    .awid(6'b0),
     .awaddr(32'b0),
     .awlen(8'b0),
     .awsize(3'b0),
@@ -256,7 +256,7 @@ bind bridge_fb_data axi4_protocol_checker #(
     .wlast(1'b0),
     .wvalid(1'b0),
     .wready(1'b0),
-    .bid(10'b0),
+    .bid(6'b0),
     .bresp(2'b0),
     .bvalid(1'b0),
     .bready(1'b0),
@@ -277,7 +277,7 @@ bind bridge_fb_data axi4_protocol_checker #(
 
 // slave port crc_snk (axi4, wr) on aclk
 bind bridge_fb_data axi4_protocol_checker #(
-    .ID_WIDTH(10),
+    .ID_WIDTH(6),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(128)
 ) u_chk_crc_snk (
@@ -299,14 +299,14 @@ bind bridge_fb_data axi4_protocol_checker #(
     .bresp(crc_snk_bresp),
     .bvalid(crc_snk_bvalid),
     .bready(crc_snk_bready),
-    .arid(10'b0),
+    .arid(6'b0),
     .araddr(32'b0),
     .arlen(8'b0),
     .arsize(3'b0),
     .arburst(2'b0),
     .arvalid(1'b0),
     .arready(1'b0),
-    .rid(10'b0),
+    .rid(6'b0),
     .rdata(128'b0),
     .rresp(2'b0),
     .rlast(1'b0),

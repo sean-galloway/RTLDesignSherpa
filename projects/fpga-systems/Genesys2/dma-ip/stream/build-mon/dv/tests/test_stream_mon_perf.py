@@ -39,6 +39,7 @@ for _p in (os.path.join(_AREA, 'dv'), os.path.join(_AREA, 'bin')):
 
 from stream_cfg import num_channels, verilator_unroll_args  # noqa: E402  (reads rtl/stream_cfg_pkg.sv)
 import stream_levels  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 COCOTB_MODULE = 'cocotb_stream_harness'
 
@@ -185,7 +186,7 @@ def test_stream_mon_perf(request, test_type):
 
     compile_args = [
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
         # Monitor trans-table loops are per-slot; raise the unroll budget.

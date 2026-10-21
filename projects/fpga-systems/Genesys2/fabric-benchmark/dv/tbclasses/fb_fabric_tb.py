@@ -11,9 +11,14 @@ What a pass means, for either leg:
   - every read returns its endpoint's bytes, every write lands where it was aimed,
     with all four masters running at once (contention through the arbiters)
   - responses come back on the issuing ID
-  - at each slave, the ID's low 8 bits are the master's ID and the top bits are
-    the master's slot -- the CRC sink and LFSR source bin channels on the low
-    bits, so this is what keeps the per-channel CRC working through a fabric
+  - at each slave, the ID is {master slot, master-local ID}, zero-extended to
+    the slave-side width, and the slot is a master connected to that slave.
+    The local part is the leg's: leg B1 keeps the master's own ID (and the TB
+    checks it is one that master has in flight); leg A's bridge remaps an ID
+    wider than a slot to a remap slot (bridge TASK-018), so its local part is
+    $clog2(max_outstanding) bits. The width comes from the pytest wrapper
+    (FB_LOCAL_ID_W). Nothing downstream keys on it: the endpoints take the
+    channel from the address (fb_endpoints CH_SEL_ADDR=1).
   - a master reaching a slave it is not connected to gets DECERR, as does an
     unmapped address
 """
@@ -34,7 +39,8 @@ from TBClasses.shared.tbbase import TBBase
 DW = 128
 BYTES = DW // 8
 MID = 8                      # master ID width
-SID = 10                     # slave-side ID width: {slot, id}
+SID = 10                     # slave-side ID width: {slot, local id}, zero-extended
+SLOT_W = 2                   # master-slot bits: four masters
 MEM_BYTES = 0x10000          # modelled span of each endpoint (low end of its window)
 RESP_DECERR = 3
 
@@ -66,6 +72,8 @@ class FbFabricTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
         self.leg = os.environ.get('FB_LEG', 'unknown')
+        # master-local ID bits at the slaves; MID means the leg keeps the ID
+        self.local_w = int(os.environ.get('FB_LOCAL_ID_W', str(MID)))
         self.rng = random.Random(int(os.environ.get('SEED', '0')))
         self.errors: list[str] = []
         self.stats = {'rd': 0, 'wr': 0, 'rd_beats': 0, 'wr_beats': 0, 'decerr': 0, 'ids': 0}
@@ -221,12 +229,13 @@ class FbFabricTB(TBBase):
         return not self.errors
 
     async def _watch_slave_ids(self):
-        """At every slave address handshake the ID must be {slot, master id}.
+        """At every slave address handshake the ID must be {slot, local id},
+        zero-extended to SID.
 
-        The top bits name the master's slot, which must be a master connected
-        to this slave in this direction; the low 8 bits must be an ID that
-        master has in flight right now. The second half is the property the
-        LFSR source and CRC sink depend on: they bin channels on the low bits.
+        The slot names a master connected to this slave in this direction.
+        Where the leg keeps the master's ID (local_w == MID) the local part
+        must be an ID that master has in flight right now; where it remaps
+        (leg A), it is a remap slot and only its width is checked.
         """
         d = self.dut
         by_slot = {slot: m for m, (slot, _, _) in MASTERS.items()}
@@ -246,12 +255,15 @@ class FbFabricTB(TBBase):
                         and int(getattr(d, f'{ep}_{kind}ready').value)):
                     continue
                 sid = int(getattr(d, f'{ep}_{kind}id').value)
-                slot, low = sid >> MID, sid & ((1 << MID) - 1)
+                slot, low = sid >> self.local_w, sid & ((1 << self.local_w) - 1)
                 self.stats['ids'] += 1
-                if slot not in slots:
+                if slot >> SLOT_W:
+                    self.errors.append(f"{ep} {kind}id 0x{sid:03X}: bits above the "
+                                       f"{self.local_w + SLOT_W}-bit fabric ID are not 0")
+                elif slot not in slots:
                     self.errors.append(f"{ep} {kind}id 0x{sid:03X}: slot {slot} is not a "
                                        f"connected master ({sorted(slots)})")
-                elif low not in self.inflight[by_slot[slot]]:
+                elif self.local_w == MID and low not in self.inflight[by_slot[slot]]:
                     self.errors.append(f"{ep} {kind}id 0x{sid:03X}: low bits 0x{low:02X} are not "
                                        f"an ID {by_slot[slot]} has in flight")
 

@@ -89,6 +89,7 @@ from TBClasses.harness.byte_channel import TracingChannel           # noqa: E402
 from uart_axi_bridge import UARTAxiBridge                           # noqa: E402
 import rs_loop as rl                                                # noqa: E402
 import rs_loop_programs as progs                                    # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # Matches rs_loop_uart_tb_top's default. 4 clocks per bit is 25 Mbaud at the
 # 100 MHz sim clock, so the whole board campaign fits inside the 100 ms
@@ -141,7 +142,8 @@ async def _bringup(dut):
     dut.aresetn.value = 1
     await ClockCycles(dut.aclk, 20)
     chan = TracingChannel(make_uart_channel(dut, dut.aclk, CLKS_PER_BIT, log=dut._log))
-    drv = rl.RsLoopDriver(bridge=UARTAxiBridge(channel=chan))
+    drv = rl.RsLoopDriver(bridge=UARTAxiBridge(channel=chan),
+                          wall_deadline=False)   # bounded by the cocotb sim-time timeout
     return drv, chan
 
 
@@ -768,7 +770,7 @@ def _run(testcase: str, parameters=None, suffix=""):
         "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{testcase}{suffix}.xml"),
     }
     compile_args += [
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-VARHIDDEN",
         "-Wno-IMPLICIT", "-Wno-CASEOVERLAP", "-Wno-MODDUP", "-Wno-TIMESCALEMOD",

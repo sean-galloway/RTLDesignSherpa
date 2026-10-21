@@ -2085,14 +2085,14 @@ class BridgeModuleGenerator:
             axsize_val = 0
             while (1 << axsize_val) < strb_w:
                 axsize_val += 1
-            # Same rule as AdapterGenerator.fub_id_width, and it has to STAY
-            # the same: these literals drive the adapter's internal AXI4 face,
-            # so a different answer here is a width-mismatched port
-            # connection. Unclamped it also emits `0'h0` -- a zero-width
-            # literal, which is not legal SystemVerilog.
-            fub_id_width = (master.id_width or
-                            max([max(1, m.id_width or 0) for m in self.masters]
-                                or [4]))
+            # AdapterGenerator.fub_id_width's rule, by the SAME function: these
+            # literals drive the adapter's internal AXI4 face, so a different
+            # answer here is a width-mismatched port connection. A local copy
+            # of the formula did drift -- it missed ID remapping and tied a
+            # 4-bit remap-slot face with 8'h0 (STREAM's bridge_stream_mon_axil).
+            # Floored at 1, so it never emits the illegal zero-width `0'h0`.
+            from ..width_utils import fabric_local_id_width
+            fub_id_width = master.id_width or fabric_local_id_width(self.masters)
             axi4_extra_defaults = {
                 'awid':     f"{fub_id_width}'h0",
                 'awlen':    "8'h0",

@@ -47,6 +47,7 @@ if _PUMICE_DV not in sys.path:
 
 from tbclasses.pumice_axi_bfm import PumiceAxiBfm          # noqa: E402
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 _ACLK_NS, _DFI_NS = board_clock_periods()
 
@@ -210,5 +211,5 @@ def test_granite_col_major_gap(request):
                    "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                    "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{test_name}.xml")},
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "-Wno-PINMISSING",
-                      "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
+                      FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
         keep_files=True, timescale="1ns/1ps")

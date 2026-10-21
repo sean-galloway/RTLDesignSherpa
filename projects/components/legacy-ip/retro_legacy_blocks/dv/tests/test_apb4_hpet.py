@@ -54,6 +54,7 @@ from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_te
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_medium import HPETMediumTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_full import HPETFullTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.hpet.hpet_tests_legacy import HPETLegacyTests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 # Sim-time budget scales with the configuration (set by the pytest wrapper
@@ -335,7 +336,7 @@ def test_hpet(request, num_timers, vendor_id, revision_id, cdc_enable, test_leve
         "-Wall",
         # Waive warnings from PeakRDL-generated code
         "-Wno-GENUNNAMED",      # Unnamed generate blocks in PeakRDL output
-        "-Wno-MULTIDRIVEN",     # Multiple drivers in PeakRDL field_combo
+        FIELD_COMBO_VLT,     # Multiple drivers in PeakRDL field_combo
         "-Wno-UNUSEDPARAM",     # Unused parameters in package
         # johnson2bin deliberately leaves leading_one_trailing_one's
         # *_vector outputs open (`.leadingone_vector ()`), which is the

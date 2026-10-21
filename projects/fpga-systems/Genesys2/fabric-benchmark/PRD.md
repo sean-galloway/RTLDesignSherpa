@@ -108,9 +108,12 @@ holds the largest chain the host builds, 16 descriptors x 1 MB), and the
 host places each channel's buffers in its own window
 (`DescriptorBuilder(channel_stride=32 MB)`). Nothing downstream of the fabric
 depends on the slave-side ID, because SmartConnect delivers none (§5.1).
-Legs A and B1 still present `{master slot, master ID}` (10 bits) at their
-slaves, and the fabric test checks that at every slave handshake; B2
-presents 0.
+Leg B1 presents `{master slot, master ID}` (10 bits) at its slaves. Leg A
+presents `{master slot, remap slot}` (2 + 4 bits, zero-extended to 10): the
+bridge remaps a master ID wider than `$clog2(max_outstanding)` to a slot
+(bridge TASK-018), and the leg A wrapper sizes the ports explicitly from
+`bridge_fb_data_pkg::XBAR_ID_WIDTH`. The fabric test checks the layout of
+its leg at every slave handshake; B2 presents 0.
 
 Descriptors at 128 bits: the scheduler's descriptor is 256 bits and
 `m_axi_desc` stays 256-bit, so the converter splits each one-beat fetch into

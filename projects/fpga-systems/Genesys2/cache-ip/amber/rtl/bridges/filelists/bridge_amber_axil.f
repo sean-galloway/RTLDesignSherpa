@@ -37,6 +37,9 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/cache-ip/amber/rtl/bridges/generated/b
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
+# Rate-matching buffers on upsized paths into shared slaves (bridge W2)
+-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f
+
 # GAXI skid buffers (used by wrappers and converters)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 

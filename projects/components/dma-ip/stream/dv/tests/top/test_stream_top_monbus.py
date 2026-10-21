@@ -41,6 +41,7 @@ from TBClasses.monbus import PktType
 from TBClasses.scoreboards.monbus_group import (
     MonbusGroupHarness, BeatLayout, BeatOrder,
 )
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # Stream monitor CSRs referenced BY NAME. Addresses come only from
 # stream_regmap.py via tb.write_reg() / tb.read_reg() (RegisterMap by-name
@@ -324,10 +325,10 @@ def test_stream_top_monbus(request, timing_profile, test_level):
         'TIMING_PROFILE': timing_profile,
     }
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
-    compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps",
+    compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "--timescale", "1ns/1ps",
                     "-Wno-WIDTH", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD",
                     "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL", "-Wno-UNDRIVEN",
-                    "-Wno-MULTIDRIVEN",
+                    FIELD_COMBO_VLT,
                     # Monitor transaction tables do delayed array assignment in
                     # per-slot loops; Verilator must unroll them (BLKLOOPINIT) or
                     # a clean build fails. Matches the AMBA-guide sim note.

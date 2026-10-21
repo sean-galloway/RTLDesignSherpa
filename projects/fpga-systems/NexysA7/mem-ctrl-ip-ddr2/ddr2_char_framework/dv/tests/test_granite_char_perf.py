@@ -67,6 +67,7 @@ from test_granite_char_uart import (                      # noqa: E402,F401
     _make_dfi_slave, CLKS_PER_BIT, ROW_W, COL_W, NUM_BANKS, DRAM_BL,
     DFI_RATE, DRAM_BEAT_BYTES, GEAR_RATIO, DRAM_DEVICE_BYTES,
 )
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # --- BOARD clock (75 MHz). The granite uart suite runs 100 MHz; the board and
 # its JEDEC ns->cycle derivation are 75 MHz, so parity needs the 75 MHz period.
@@ -426,7 +427,7 @@ def test_granite_char_perf(request):
         "+define+USE_ASYNC_RESET",
         # expose internal scheduler signals to the gate/cmd trace probes
         "--public-flat-rw",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP", "-Wno-MODDUP", "-Wno-PINMISSING",

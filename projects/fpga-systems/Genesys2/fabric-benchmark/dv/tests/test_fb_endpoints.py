@@ -16,6 +16,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from tbclasses.fb_endpoints_tb import FbEndpointsTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 BURSTS = {'gate': 4, 'func': 16, 'full': 64}
 AREA = 'projects/fpga-systems/Genesys2/fabric-benchmark'
@@ -71,7 +72,7 @@ def test_fb_endpoints(request, ch_sel, aclk_ns, ep_ns, floor, test_level):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
-    compile_args = ["-Wno-fatal", "-Wno-lint", "-Wno-style"]
+    compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "-Wno-lint", "-Wno-style"]
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs"]
     create_view_cmd(log_dir, log_path, sim_build, module, name)

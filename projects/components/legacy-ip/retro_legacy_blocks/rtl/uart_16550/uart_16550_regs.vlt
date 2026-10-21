@@ -7,8 +7,7 @@
 // MULTIDRIVEN: PeakRDL emits one always_comb per field, each writing a
 // different sub-field of the same `field_combo` struct. No overlap; Verilator
 // reads IEEE 1800-2023 9.2.2.2 strictly, other tools accept it silently.
-lint_off -rule MULTIDRIVEN -file "*/uart_16550_regs.sv"
-
+lint_off -rule MULTIDRIVEN -file "*/uart_16550_regs.sv" -match "*'field_combo'*"   // PeakRDL's per-member writes only
 // SYNCASYNCNET: the generated block uses its reset SYNCHRONOUSLY
 // (always_ff @(posedge clk) ... if(rst)) while
 // projects/components/utility-ip/converters/rtl/peakrdl_to_cmdrsp.sv:117 uses the same

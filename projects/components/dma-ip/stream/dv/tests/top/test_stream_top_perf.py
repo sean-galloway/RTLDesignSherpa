@@ -31,6 +31,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 PERF_EN = 1 << 0          # PERF_CONFIG.PERF_EN   -- timestamp mode when MODE=0
 STATUS_EMPTY = 1 << 0     # PERF_STATUS.EMPTY
@@ -245,7 +246,7 @@ def test_stream_top_perf_fifo(request, num_channels, perf_channel):
         module=module,
         testcase="cocotb_test_perf_fifo_pairing",
         parameters=rtl_parameters,
-        compile_args=["-Wno-fatal", "--timescale", "1ns/1ps"],
+        compile_args=["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps"],
         sim_args=[],
         extra_env=extra_env,
         sim_build=sim_build,

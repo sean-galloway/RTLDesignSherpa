@@ -82,7 +82,6 @@ module axi4_to_axil4_rd_combo_tb (
     assign m_axil_rvalid  = m_axil_arvalid;
     assign m_axil_rresp   = 2'b00;
     assign m_axil_rdata   = {m_axil_araddr[15:0], 16'hA5A5};
-    assign m_axil_rready  = s_axi_rready;
 
     assign probe_rd_outstanding = u_dut.r_rd_outstanding;
 

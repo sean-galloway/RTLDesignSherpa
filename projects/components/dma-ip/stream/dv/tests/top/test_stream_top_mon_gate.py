@@ -59,6 +59,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 STREAM_TEST_SEED = os.environ.get('RANDOM_SEED', '12345')
 
@@ -244,6 +245,6 @@ def test_stream_top_mon_gate(request, test_level):
             'COCOTB_RANDOM_SEED': STREAM_TEST_SEED,
         },
         keep_files=True,
-        compile_args=["-Wno-fatal", "--timescale", "1ns/1ps",
+        compile_args=["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps",
                       "--unroll-count", "4096", "--unroll-stmts", "20000"],
     )

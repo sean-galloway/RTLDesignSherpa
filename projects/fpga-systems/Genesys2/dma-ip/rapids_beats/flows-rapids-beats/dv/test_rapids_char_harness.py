@@ -47,6 +47,7 @@ sys.path.insert(0, repo_root)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from rapids_char_harness_tb import RapidsCharHarnessTB  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 # ===========================================================================
@@ -159,9 +160,9 @@ def _run_harness(testcase, test_name):
     }
 
     compile_args = [
-        "-Wno-fatal",
+        "-Wno-fatal", "-Werror-MULTIDRIVEN",
         "-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT", "-Wno-CASEINCOMPLETE",
-        "-Wno-MULTIDRIVEN", "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
+        FIELD_COMBO_VLT, "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
     ]
     if enable_waves:
         compile_args.extend(['--trace', '--trace-structs', '--trace-max-array', '512'])

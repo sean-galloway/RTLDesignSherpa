@@ -35,6 +35,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.utility_ip.misc.dv.tbclasses.cxs_intf_observer_tb import CXSIntfObserverTB  # noqa: E402
 from TBClasses.monbus.monbus_types import CXSCompletionCode, CXSErrorCode  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 M_PRODUCTIVE, M_BACKPRESSURE, M_STARVATION, M_IDLE = 0, 1, 2, 3
 M_BYTES_LO, M_BYTES_HI, M_BEATS, M_PACKETS = 11, 12, 13, 14
@@ -235,7 +236,7 @@ def _run_observer(request, params, testcase="cocotb_test_observer_regs", test_le
                       # Same waivers as the AXI observer test: the monbus group
                       # and arbiter it shares trip UNOPTFLAT/MULTIDRIVEN on
                       # proven-false-positive paths documented there.
-                      "-Wno-UNOPTFLAT", "-Wno-MULTIDRIVEN"] + wave_args,
+                      "-Wno-UNOPTFLAT", FIELD_COMBO_VLT] + wave_args,
         waves=enable_waves,
         sim_args=(["--trace", "--trace-structs", "--trace-depth", "99"]
                   if enable_waves else []),

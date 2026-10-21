@@ -48,6 +48,7 @@ from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapi
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_boot_intx_tests import (
     IOAPICBootIntxTests,
 )
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -167,7 +168,7 @@ def test_ioapic_boot_intx(request, test_level, description):
         "--trace", "--trace-structs", "--trace-depth", "99",
         "--timescale", "1ns/1ps",
         "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND", "-Wno-CASEINCOMPLETE",
-        "-Wno-BLKANDNBLK", "-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD",
+        "-Wno-BLKANDNBLK", FIELD_COMBO_VLT, "-Wno-TIMESCALEMOD",
         "-Wno-MODDUP", "-Wno-GENUNNAMED", "-Wno-PINCONNECTEMPTY",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-SYNCASYNCNET",
     ]

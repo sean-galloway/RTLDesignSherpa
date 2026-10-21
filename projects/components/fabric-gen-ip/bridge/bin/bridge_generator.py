@@ -580,9 +580,10 @@ def generate_monitor_tests(ports_file, connectivity_file, bridge_name,
         # do not exist -- a test that passes while programming nothing.
         is_regblock = bool(getattr(config, 'use_cfg_regblock', False))
         # The regblock variant narrows the bridge top's 32-bit s_cfg_axil_*addr
-        # into the PeakRDL regblock's 8-bit s_axil_*addr (benign truncation) and
-        # has benign multidriven cfg fan-out; silence those for that variant.
-        extra_no_warn = ['-Wno-WIDTHTRUNC', '-Wno-MULTIDRIVEN'] if is_regblock else []
+        # into the PeakRDL regblock's 8-bit s_axil_*addr (benign truncation).
+        # Its PeakRDL field_combo writes are exempted by run_monitor_sim's
+        # FIELD_COMBO_VLT, not by waiving MULTIDRIVEN.
+        extra_no_warn = ['-Wno-WIDTHTRUNC'] if is_regblock else []
 
         context = {
             'rtl_module_name': bridge_name,

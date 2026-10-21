@@ -8,4 +8,4 @@
 // Waiving only for the generated file preserves MULTIDRIVEN detection
 // everywhere else. This file lives outside generated/ so regeneration
 // does not overwrite it. Same treatment as stream/regs/stream_regs.vlt.
-lint_off -rule MULTIDRIVEN -file "*/obs_regs_top.sv"
+lint_off -rule MULTIDRIVEN -file "*/obs_regs_top.sv" -match "*'field_combo'*"   // PeakRDL's per-member writes only

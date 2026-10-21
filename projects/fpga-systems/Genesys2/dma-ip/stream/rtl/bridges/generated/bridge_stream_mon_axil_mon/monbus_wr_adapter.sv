@@ -22,7 +22,7 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
     input  logic aresetn,
 
     // External AXI interface (from monbus_wr master)
-    input  logic [7:0]  monbus_wr_awid,
+    input  logic [3:0]  monbus_wr_awid,
     input  logic [31:0]  monbus_wr_awaddr,
     input  logic [7:0]  monbus_wr_awlen,
     input  logic [2:0]  monbus_wr_awsize,
@@ -43,7 +43,7 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
     input  logic         monbus_wr_wvalid,
     output  logic         monbus_wr_wready,
 
-    output  logic [7:0]  monbus_wr_bid,
+    output  logic [3:0]  monbus_wr_bid,
     output  logic [1:0]  monbus_wr_bresp,
     output  logic         monbus_wr_buser,
     output  logic         monbus_wr_bvalid,
@@ -113,16 +113,16 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
     // ================================================================
     localparam ADDR_WIDTH = 32;
     localparam DATA_WIDTH = 64;
-    localparam ID_WIDTH = 8;
+    localparam ID_WIDTH = 4;
 
     // ================================================================
     // Internal signals after wrapper (timing isolation)
-    // Note: 8-bit ID placeholder. This port is AXI4-Lite and
+    // Note: 4-bit ID placeholder. This port is AXI4-Lite and
     // has no external ID; the width matches the crossbar's struct
     // field so every connection to it is width-exact. The value is
     // tied to zero end to end.
     // ================================================================
-    logic [7:0]   fub_axi_awid;
+    logic [3:0]   fub_axi_awid;
     logic [31:0]  fub_axi_awaddr;
     logic [7:0]   fub_axi_awlen;
     logic [2:0]   fub_axi_awsize;
@@ -143,7 +143,7 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
     logic         fub_axi_wvalid;
     logic         fub_axi_wready;
 
-    logic [7:0]   fub_axi_bid;
+    logic [3:0]   fub_axi_bid;
     logic [1:0]   fub_axi_bresp;
     logic         fub_axi_bvalid;
     logic         fub_axi_bready;
@@ -162,12 +162,13 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
         .SKID_DEPTH_AW(SKID_DEPTH_AW),
         .SKID_DEPTH_W(SKID_DEPTH_W),
         .SKID_DEPTH_B(SKID_DEPTH_B),
-        .AXI_ID_WIDTH(8),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(2),
         .AGENT_ID(33),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_timing_wrapper_wr (
         .aclk(aclk),
@@ -349,7 +350,7 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
     // Intermediate signals for 256b converter
     logic conv_256b_awready;
     logic conv_256b_wready;
-    logic [9:0] conv_256b_bid;
+    logic [5:0] conv_256b_bid;
     logic [1:0] conv_256b_bresp;
     logic conv_256b_bvalid;
 
@@ -359,7 +360,7 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
     axil_to_axi4_wide_align_wr #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(256),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_USER_WIDTH(1)
     ) u_wr_conv_256b (
@@ -506,7 +507,8 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
 
     // -------- B path arbiter (fixes bridge GitHub #119 L1) --------
     // Round robin over the 2 width paths. A grant holds while its
-    // response is offered and not taken.
+    // response is offered and not taken; R switches per beat, since the
+    // slaves (and the width converters, per ID) may interleave R bursts.
     logic [1:0] b_pv, b_pgnt, r_b_held;
     logic           r_b_hold;
     logic [0:0] r_b_last;
@@ -631,23 +633,23 @@ module bridge_stream_mon_axil_mon_monbus_wr_adapter
 
     // Write response MUX (B channel - uses b_slave_select FIFO head)
     always_comb begin
-        fub_axi_bid = 8'd0;
+        fub_axi_bid = 4'd0;
         fub_axi_bresp = 2'b00;
         fub_axi_bvalid = 1'b0;
 
         case (b_slave_select)
             14'b00000001000000: begin  // Slave 6 (64b)
-                fub_axi_bid = monbus_wr_64b_b.id[7:0];
+                fub_axi_bid = monbus_wr_64b_b.id[3:0];
                 fub_axi_bresp = monbus_wr_64b_b.resp;
                 fub_axi_bvalid = monbus_wr_64b_bvalid;
             end
             14'b00010000000000: begin  // Slave 10 (64b)
-                fub_axi_bid = monbus_wr_64b_b.id[7:0];
+                fub_axi_bid = monbus_wr_64b_b.id[3:0];
                 fub_axi_bresp = monbus_wr_64b_b.resp;
                 fub_axi_bvalid = monbus_wr_64b_bvalid;
             end
             14'b10000000000000: begin  // Slave 13 (256b)
-                fub_axi_bid = conv_256b_bid[7:0];
+                fub_axi_bid = conv_256b_bid[3:0];
                 fub_axi_bresp = conv_256b_bresp;
                 fub_axi_bvalid = conv_256b_bvalid;
             end

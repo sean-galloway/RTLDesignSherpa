@@ -548,6 +548,13 @@ module scoria_char_macro
     // Host AXI is AXI_DATA_WIDTH (64); the controller core + DFI run at
     // DRAM_BEAT_WIDTH*DFI_RATE. scoria_top_geared bridges the two host<->core
     // widths with the formal AXI dwidth converters.
+    // scoria_top_geared carries ONE user bit per channel (its ports are not
+    // parameterised); the engines run UW. Bit 0 goes in, and the returned bit
+    // is zero-extended rather than leaving B/R user's upper bits undriven.
+    logic w_ctrl_buser, w_ctrl_ruser;
+    assign wr_buser = UW'(w_ctrl_buser);
+    assign rd_ruser = UW'(w_ctrl_ruser);
+
     scoria_top_geared #(
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
@@ -598,18 +605,18 @@ module scoria_char_macro
         .s_axi_awprot          (wr_awprot),
         .s_axi_awqos           (wr_awqos),
         .s_axi_awregion        (wr_awregion),
-        .s_axi_awuser          (wr_awuser),
+        .s_axi_awuser          (wr_awuser[0]),
         .s_axi_awvalid         (wr_awvalid),
         .s_axi_awready         (wr_awready),
         .s_axi_wdata           (wr_wdata),
         .s_axi_wstrb           (wr_wstrb),
         .s_axi_wlast           (wr_wlast),
-        .s_axi_wuser           (wr_wuser),
+        .s_axi_wuser           (wr_wuser[0]),
         .s_axi_wvalid          (wr_wvalid),
         .s_axi_wready          (wr_wready),
         .s_axi_bid             (wr_bid),
         .s_axi_bresp           (wr_bresp),
-        .s_axi_buser           (wr_buser),
+        .s_axi_buser           (w_ctrl_buser),
         .s_axi_bvalid          (wr_bvalid),
         .s_axi_bready          (wr_bready),
         .s_axi_arid            (rd_arid),
@@ -622,14 +629,14 @@ module scoria_char_macro
         .s_axi_arprot          (rd_arprot),
         .s_axi_arqos           (rd_arqos),
         .s_axi_arregion        (rd_arregion),
-        .s_axi_aruser          (rd_aruser),
+        .s_axi_aruser          (rd_aruser[0]),
         .s_axi_arvalid         (rd_arvalid),
         .s_axi_arready         (rd_arready),
         .s_axi_rid             (rd_rid),
         .s_axi_rdata           (rd_rdata),
         .s_axi_rresp           (rd_rresp),
         .s_axi_rlast           (rd_rlast),
-        .s_axi_ruser           (rd_ruser),
+        .s_axi_ruser           (w_ctrl_ruser),
         .s_axi_rvalid          (rd_rvalid),
         .s_axi_rready          (rd_rready),
         // DFI 2.1 pin bus (the retired cke / dram_clk_disable / ctrlupd /

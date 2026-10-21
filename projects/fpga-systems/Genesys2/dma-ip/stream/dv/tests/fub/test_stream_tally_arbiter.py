@@ -44,6 +44,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 BYTES_PER_RECORD = 3
 AW = 32
@@ -359,7 +360,7 @@ endmodule
         '--trace-fst', '--trace-structs',
         '-Wno-DECLFILENAME', '-Wno-WIDTHEXPAND', '-Wno-WIDTHTRUNC',
         '-Wno-UNUSEDPARAM', '-Wno-TIMESCALEMOD', '-Wno-UNUSEDSIGNAL',
-        '-Wno-MULTIDRIVEN',
+        FIELD_COMBO_VLT,
     ]
 
     create_view_cmd(log_dir, log_path, sim_build, module, test_name)

@@ -26,6 +26,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from tile_injectors_tb import TileInjectorsTB  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 _FLOW = 'projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids-tile'
 
@@ -115,7 +116,7 @@ def test_tile_injectors(request, testcase, land):
         'TEST_DATA_WIDTH': '512',
         'TEST_LAND_FLITS': str(land),
     }
-    compile_args = ['-Wno-fatal', '-Wno-TIMESCALEMOD', '-Wno-WIDTH', '-Wno-UNUSEDSIGNAL',
+    compile_args = ['-Wno-fatal', '-Werror-MULTIDRIVEN', FIELD_COMBO_VLT, '-Wno-TIMESCALEMOD', '-Wno-WIDTH', '-Wno-UNUSEDSIGNAL',
                     '-Wno-DECLFILENAME', '-Wno-PINCONNECTEMPTY', '-Wno-UNUSEDPARAM']
     cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, test_name)
     try:

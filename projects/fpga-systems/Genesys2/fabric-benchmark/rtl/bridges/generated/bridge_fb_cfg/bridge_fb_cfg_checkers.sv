@@ -4,7 +4,7 @@
 
 // slave port desc_ram (axi4, wr) on aclk
 bind bridge_fb_cfg axi4_protocol_checker #(
-    .ID_WIDTH(8),
+    .ID_WIDTH(1),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(128)
 ) u_chk_desc_ram (
@@ -26,14 +26,14 @@ bind bridge_fb_cfg axi4_protocol_checker #(
     .bresp(desc_ram_axi_bresp),
     .bvalid(desc_ram_axi_bvalid),
     .bready(desc_ram_axi_bready),
-    .arid(8'b0),
+    .arid(1'b0),
     .araddr(32'b0),
     .arlen(8'b0),
     .arsize(3'b0),
     .arburst(2'b0),
     .arvalid(1'b0),
     .arready(1'b0),
-    .rid(8'b0),
+    .rid(1'b0),
     .rdata(128'b0),
     .rresp(2'b0),
     .rlast(1'b0),

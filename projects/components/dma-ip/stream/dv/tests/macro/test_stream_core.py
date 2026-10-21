@@ -39,6 +39,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 # Coverage integration - optional import
 try:
@@ -823,10 +824,10 @@ def test_stream_core_single_channel(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     # Add coverage compile args if COVERAGE=1
@@ -945,10 +946,10 @@ def test_stream_core_multi_channel(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     # Add coverage compile args if COVERAGE=1
@@ -1060,10 +1061,10 @@ def test_stream_core_variable_sizes(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     # Add coverage compile args if COVERAGE=1
@@ -1218,10 +1219,10 @@ def test_stream_core_mon_backpressure(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
     compile_args.extend(get_coverage_compile_args())
 
@@ -1528,10 +1529,10 @@ def _run_stream_core_mon_regression(request, label, testcase, n_addr_ranges):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps", "--unroll-count", "256"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps", "--unroll-count", "256"]
         sim_args = []
 
     coverage_compile_args = get_coverage_compile_args()

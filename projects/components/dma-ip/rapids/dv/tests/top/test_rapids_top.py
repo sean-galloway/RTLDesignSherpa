@@ -49,6 +49,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.rapids.dv.tbclasses.rapids_top_tb import RapidsTopTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 # ===========================================================================
@@ -587,9 +588,9 @@ def _run_top(testcase, test_name, extra_params=None, test_level='gate', dut='rap
     }
 
     compile_args = [
-        "-Wno-fatal",  # generated rapids_regs.sv trips MULTIDRIVEN/UNOPT; keep warnings non-fatal
+        "-Wno-fatal", "-Werror-MULTIDRIVEN",  # UNOPT stays non-fatal; a multi-driver does not
         "-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT", "-Wno-CASEINCOMPLETE",
-        "-Wno-MULTIDRIVEN", "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
+        FIELD_COMBO_VLT, "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
     ]
     if enable_waves:
         compile_args.extend(['--trace', '--trace-structs', '--trace-max-array', '512'])

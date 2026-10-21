@@ -66,6 +66,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.stream.dv.tbclasses.stream_core_tb import StreamCoreTB
 from TBClasses.monbus.monbus_types import PktType
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 STREAM_TEST_SEED = os.environ.get('RANDOM_SEED', '12345')
 
@@ -475,7 +476,7 @@ def _run_mon_class(request, mon_class, mon_block, test_level):
         sim_build=sim_build,
         extra_env=extra_env,
         keep_files=True,
-        compile_args=["-Wno-fatal", "--timescale", "1ns/1ps",
+        compile_args=["-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps",
                       "--unroll-count", "4096", "--unroll-stmts", "20000"],
     )
 

@@ -231,6 +231,33 @@ With the waiver gone, the only remaining reports were 1,488 in PeakRDL
 regblocks, all on one variable: each field's `always_comb` writes its own
 member of the `field_combo` struct. That is legal (the always_comb one-writer
 rule is per longest static prefix) and Vivado reports none of it, so
-`verilator_vendor.vlt` exempts that variable by name inside `*/generated/*`
+`verilator_vendor.vlt` exempts that variable by name (in any file: some
+regblocks, e.g. retro_legacy_blocks' `*_regs.sv`, are not under `generated/`)
 and nothing else -- checked by linting the pre-fix BUG-022 adapter with the
 exemption in place: its 10 real multi-drivers still fail.
+
+### Lint is blind to a multi-driver across a port unless signals stay visible
+
+`verilator --lint-only` (and `--cc`) does **not** report an `assign` onto a
+net that a submodule's output port also drives: it splits and inlines the
+signal first, and the second driver disappears. With `--public-flat-rw` (or
+`--trace`) every signal stays whole and the report comes back. Measured on
+converters' `axi4_to_axil4_rd_combo_tb` (an `assign m_axil_rready` beside the
+DUT's own output): 0 MULTIDRIVEN without the flag, 1 with it. cocotb always
+passes `--public-flat-rw`, so the simulation saw what lint missed.
+
+So `fpga_lint.mk` lints twice: the normal pass (which still checks
+UNOPTFLAT), then `LINT_VISIBILITY = --public-flat-rw -Wno-UNOPTFLAT` -- the
+flag disables signal splitting, which turns legal split-able loops into
+UNOPTFLAT reports (rapids `scheduler_group_array`, AMD `axi_crossbar`), so that
+pass skips only that rule.
+
+### Simulations: the exemption, not the waiver; and `-Wno-fatal` is not enough
+
+A simulation loads the same exemption file
+(`TBClasses.shared.verilator_cfg.FIELD_COMBO_VLT`) in place of
+`-Wno-MULTIDRIVEN`. A test that passes `-Wno-fatal` must also pass
+`-Werror-MULTIDRIVEN` right after it: `-Wno-fatal` alone demotes a real
+multi-driver to a log line nobody reads. Checked both ways: the pre-fix combo
+TB exits 1 with it, the fixed TB 0; stream_regs with the exemption 0, without
+it 1 (51 hits).

@@ -42,6 +42,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_msi_tb import IOAPICMsiTB
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.ioapic.ioapic_msi_tests import IOAPICMsiTests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -166,7 +167,7 @@ def test_ioapic_msi_emit(request, test_level, description):
         "--trace", "--trace-structs", "--trace-depth", "99",
         "--timescale", "1ns/1ps",
         "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND", "-Wno-CASEINCOMPLETE",
-        "-Wno-BLKANDNBLK", "-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD",
+        "-Wno-BLKANDNBLK", FIELD_COMBO_VLT, "-Wno-TIMESCALEMOD",
         "-Wno-MODDUP", "-Wno-GENUNNAMED", "-Wno-PINCONNECTEMPTY",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-SYNCASYNCNET",
     ]

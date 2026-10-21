@@ -1689,6 +1689,7 @@ async def cocotb_test_refpb(dut):
 # pytest wrappers
 # ============================================================================
 import pytest  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 def _run(request, testcase, extra_env=None, params_over=None):
@@ -1754,7 +1755,7 @@ def _run(request, testcase, extra_env=None, params_over=None):
         testcase=testcase, sim_build=sim_build, simulator="verilator",
         extra_env=env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--public-flat-rw",
-                      "-Wno-MULTIDRIVEN"],
+                      FIELD_COMBO_VLT],
         waves=(os.environ.get("WAVES", "0") == "1"),
         # cocotb_test compiles --trace-fst under waves= but never passes the
         # RUNTIME --trace argv (cocotb's verilator.cpp only opens dump.fst when

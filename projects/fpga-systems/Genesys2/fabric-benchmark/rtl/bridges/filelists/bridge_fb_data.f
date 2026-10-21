@@ -38,9 +38,8 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/fabric-benchmark/rtl/bridges/generated
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
-# Per-ID response tracking (bridge_cam): enable_ooo slaves, and every AXI
-# slave of a multi-master fabric, whose IDs are {master index, id} (bridge BUG-012 (was BRIDGE-015)/016)
--f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_cam.f
+# Transaction-ID remap tables in the master adapters (bridge_id_remap)
+-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f
 
 # GAXI skid buffers (used by wrappers and converters)
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f

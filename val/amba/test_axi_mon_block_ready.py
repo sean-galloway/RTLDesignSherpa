@@ -47,6 +47,7 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.axi_monitor.block_ready_check import BlockReadyCheck, LiteRefuseCheck
 from TBClasses.axi4.monitor.axi4_master_monitor_tb import AXI4MasterMonitorTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402
 
 
 # Wrappers under test. Every one instantiates axi_monitor_base, so every one
@@ -506,7 +507,7 @@ def test_axi_mon_block_ready(dut_name, max_trans):
                 "SEED": _seed(),
             },
             keep_files=True,
-            compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps",
+            compile_args=["--public-flat-rw", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps",
                           "--unroll-count", "4096", "--unroll-stmts", "20000"],
         )
 
@@ -634,6 +635,6 @@ def test_axi_mon_id_slice(ch_base):
                 "SEED": _seed(),
             },
             keep_files=True,
-            compile_args=["--public-flat-rw", "-Wno-fatal", "--timescale", "1ns/1ps",
+            compile_args=["--public-flat-rw", "-Wno-fatal", "-Werror-MULTIDRIVEN", FIELD_COMBO_VLT, "--timescale", "1ns/1ps",
                           "--unroll-count", "4096", "--unroll-stmts", "20000"],
         )

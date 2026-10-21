@@ -76,7 +76,7 @@ module bridge_fb_data_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_rid_bridge_id,
     input  logic                       ddr_axi_rid_valid,
 
-    output  logic [9:0]  ddr_axi_awid,
+    output  logic [5:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
     output  logic [7:0]  ddr_axi_awlen,
     output  logic [2:0]  ddr_axi_awsize,
@@ -97,13 +97,13 @@ module bridge_fb_data_xbar
     output  logic         ddr_axi_wvalid,
     input  logic         ddr_axi_wready,
 
-    input  logic [9:0]  ddr_axi_bid,
+    input  logic [5:0]  ddr_axi_bid,
     input  logic [1:0]  ddr_axi_bresp,
     input  logic         ddr_axi_buser,
     input  logic         ddr_axi_bvalid,
     output  logic         ddr_axi_bready,
 
-    output  logic [9:0]  ddr_axi_arid,
+    output  logic [5:0]  ddr_axi_arid,
     output  logic [31:0]  ddr_axi_araddr,
     output  logic [7:0]  ddr_axi_arlen,
     output  logic [2:0]  ddr_axi_arsize,
@@ -117,7 +117,7 @@ module bridge_fb_data_xbar
     output  logic         ddr_axi_arvalid,
     input  logic         ddr_axi_arready,
 
-    input  logic [9:0]  ddr_axi_rid,
+    input  logic [5:0]  ddr_axi_rid,
     input  logic [127:0]  ddr_axi_rdata,
     input  logic [1:0]  ddr_axi_rresp,
     input  logic         ddr_axi_rlast,
@@ -130,7 +130,7 @@ module bridge_fb_data_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] desc_ram_axi_rid_bridge_id,
     input  logic                       desc_ram_axi_rid_valid,
 
-    output  logic [9:0]  desc_ram_axi_arid,
+    output  logic [5:0]  desc_ram_axi_arid,
     output  logic [31:0]  desc_ram_axi_araddr,
     output  logic [7:0]  desc_ram_axi_arlen,
     output  logic [2:0]  desc_ram_axi_arsize,
@@ -144,7 +144,7 @@ module bridge_fb_data_xbar
     output  logic         desc_ram_axi_arvalid,
     input  logic         desc_ram_axi_arready,
 
-    input  logic [9:0]  desc_ram_axi_rid,
+    input  logic [5:0]  desc_ram_axi_rid,
     input  logic [127:0]  desc_ram_axi_rdata,
     input  logic [1:0]  desc_ram_axi_rresp,
     input  logic         desc_ram_axi_rlast,
@@ -157,7 +157,7 @@ module bridge_fb_data_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] lfsr_src_axi_rid_bridge_id,
     input  logic                       lfsr_src_axi_rid_valid,
 
-    output  logic [9:0]  lfsr_src_axi_arid,
+    output  logic [5:0]  lfsr_src_axi_arid,
     output  logic [31:0]  lfsr_src_axi_araddr,
     output  logic [7:0]  lfsr_src_axi_arlen,
     output  logic [2:0]  lfsr_src_axi_arsize,
@@ -171,7 +171,7 @@ module bridge_fb_data_xbar
     output  logic         lfsr_src_axi_arvalid,
     input  logic         lfsr_src_axi_arready,
 
-    input  logic [9:0]  lfsr_src_axi_rid,
+    input  logic [5:0]  lfsr_src_axi_rid,
     input  logic [127:0]  lfsr_src_axi_rdata,
     input  logic [1:0]  lfsr_src_axi_rresp,
     input  logic         lfsr_src_axi_rlast,
@@ -184,7 +184,7 @@ module bridge_fb_data_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] crc_snk_axi_bid_bridge_id,
     input  logic                       crc_snk_axi_bid_valid,
 
-    output  logic [9:0]  crc_snk_axi_awid,
+    output  logic [5:0]  crc_snk_axi_awid,
     output  logic [31:0]  crc_snk_axi_awaddr,
     output  logic [7:0]  crc_snk_axi_awlen,
     output  logic [2:0]  crc_snk_axi_awsize,
@@ -205,7 +205,7 @@ module bridge_fb_data_xbar
     output  logic         crc_snk_axi_wvalid,
     input  logic         crc_snk_axi_wready,
 
-    input  logic [9:0]  crc_snk_axi_bid,
+    input  logic [5:0]  crc_snk_axi_bid,
     input  logic [1:0]  crc_snk_axi_bresp,
     input  logic         crc_snk_axi_buser,
     input  logic         crc_snk_axi_bvalid,
@@ -220,7 +220,7 @@ module bridge_fb_data_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [9:0]  subtractive_axi_awid,
+    output  logic [5:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -241,13 +241,13 @@ module bridge_fb_data_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [9:0]  subtractive_axi_bid,
+    input  logic [5:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [9:0]  subtractive_axi_arid,
+    output  logic [5:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -261,7 +261,7 @@ module bridge_fb_data_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [9:0]  subtractive_axi_rid,
+    input  logic [5:0]  subtractive_axi_rid,
     input  logic [127:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,
@@ -286,11 +286,34 @@ module bridge_fb_data_xbar
     logic inj_wr_128b_w_to_subtractive;
     logic inj_wr_128b_w_sel_subtractive;
 
+    // Request slots of the arbitrated slaves (assigned below)
+    axi4_aw_t stream_wr_128b_aw_slot_ddr;
+    logic stream_wr_128b_aw_slot_ddr_valid, stream_wr_128b_aw_slot_ddr_ready, stream_wr_128b_aw_slot_ddr_in_valid, stream_wr_128b_aw_slot_ddr_in_ready;
+    axi4_aw_t inj_wr_128b_aw_slot_ddr;
+    logic inj_wr_128b_aw_slot_ddr_valid, inj_wr_128b_aw_slot_ddr_ready, inj_wr_128b_aw_slot_ddr_in_valid, inj_wr_128b_aw_slot_ddr_in_ready;
+    axi4_aw_t stream_wr_128b_aw_slot_subtractive;
+    logic stream_wr_128b_aw_slot_subtractive_valid, stream_wr_128b_aw_slot_subtractive_ready, stream_wr_128b_aw_slot_subtractive_in_valid, stream_wr_128b_aw_slot_subtractive_in_ready;
+    axi4_aw_t inj_wr_128b_aw_slot_subtractive;
+    logic inj_wr_128b_aw_slot_subtractive_valid, inj_wr_128b_aw_slot_subtractive_ready, inj_wr_128b_aw_slot_subtractive_in_valid, inj_wr_128b_aw_slot_subtractive_in_ready;
+    axi4_ar_t stream_rd_128b_ar_slot_ddr;
+    logic stream_rd_128b_ar_slot_ddr_valid, stream_rd_128b_ar_slot_ddr_ready, stream_rd_128b_ar_slot_ddr_in_valid, stream_rd_128b_ar_slot_ddr_in_ready;
+    axi4_ar_t stream_desc_128b_ar_slot_subtractive;
+    logic stream_desc_128b_ar_slot_subtractive_valid, stream_desc_128b_ar_slot_subtractive_ready, stream_desc_128b_ar_slot_subtractive_in_valid, stream_desc_128b_ar_slot_subtractive_in_ready;
+    axi4_ar_t stream_rd_128b_ar_slot_subtractive;
+    logic stream_rd_128b_ar_slot_subtractive_valid, stream_rd_128b_ar_slot_subtractive_ready, stream_rd_128b_ar_slot_subtractive_in_valid, stream_rd_128b_ar_slot_subtractive_in_ready;
+    // Write ordering: a master's AW waits while another of its slots
+    // holds an AW (see _generate_request_slots)
+    wire stream_wr_128b_aw_hold_ddr = stream_wr_128b_aw_slot_subtractive_valid;
+    wire stream_wr_128b_aw_hold_crc_snk = stream_wr_128b_aw_slot_ddr_valid || stream_wr_128b_aw_slot_subtractive_valid;
+    wire stream_wr_128b_aw_hold_subtractive = stream_wr_128b_aw_slot_ddr_valid;
+    wire inj_wr_128b_aw_hold_ddr = inj_wr_128b_aw_slot_subtractive_valid;
+    wire inj_wr_128b_aw_hold_subtractive = inj_wr_128b_aw_slot_ddr_valid;
+
     // ================================================================
     // Response arbiters (one slave per master path per channel)
     // ================================================================
 
-    // ---- R response arbiter, master stream_desc 128b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master stream_desc 128b: round-robin per beat, lock until taken ----
     logic [1:0] stream_desc_128b_r_rarb_req;
     assign stream_desc_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 0) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((desc_ram_axi_rid_bridge_id == 0) && desc_ram_axi_rid_valid) && desc_ram_axi_rvalid};
     logic [0:0] stream_desc_128b_r_rarb_lock, stream_desc_128b_r_rarb_rr;
@@ -302,27 +325,21 @@ module bridge_fb_data_xbar
     wire stream_desc_128b_r_rgnt_desc_ram = stream_desc_128b_r_rarb_gnt_valid && (stream_desc_128b_r_rarb_gnt == 1'd0);
     wire stream_desc_128b_r_rgnt_subtractive = stream_desc_128b_r_rarb_gnt_valid && (stream_desc_128b_r_rarb_gnt == 1'd1);
     wire stream_desc_128b_r_rarb_vld = (stream_desc_128b_r_rgnt_desc_ram && stream_desc_128b_r_rarb_req[0]) || (stream_desc_128b_r_rgnt_subtractive && stream_desc_128b_r_rarb_req[1]);
-    wire stream_desc_128b_r_rarb_last = (stream_desc_128b_r_rgnt_desc_ram && desc_ram_axi_rlast) || (stream_desc_128b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             stream_desc_128b_r_rarb_lock   <= '0;
             stream_desc_128b_r_rarb_rr     <= '0;
             stream_desc_128b_r_rarb_locked <= 1'b0;
         end else if (stream_desc_128b_r_rarb_vld && stream_desc_128b_rready) begin
-            if (stream_desc_128b_r_rarb_last) begin
-                stream_desc_128b_r_rarb_locked <= 1'b0;
-                stream_desc_128b_r_rarb_rr <= (stream_desc_128b_r_rarb_gnt == 1'd1) ? 1'd0 : stream_desc_128b_r_rarb_gnt + 1'b1;
-            end else begin
-                stream_desc_128b_r_rarb_lock   <= stream_desc_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                stream_desc_128b_r_rarb_locked <= 1'b1;
-            end
+            stream_desc_128b_r_rarb_locked <= 1'b0;
+            stream_desc_128b_r_rarb_rr <= (stream_desc_128b_r_rarb_gnt == 1'd1) ? 1'd0 : stream_desc_128b_r_rarb_gnt + 1'b1;
         end else if (stream_desc_128b_r_rarb_vld) begin
             stream_desc_128b_r_rarb_lock   <= stream_desc_128b_r_rarb_gnt;       // offered, not taken: hold
             stream_desc_128b_r_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- R response arbiter, master stream_rd 128b: round-robin, lock through RLAST ----
+    // ---- R response arbiter, master stream_rd 128b: round-robin per beat, lock until taken ----
     logic [2:0] stream_rd_128b_r_rarb_req;
     assign stream_rd_128b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 1) && subtractive_axi_rid_valid) && subtractive_axi_rvalid, ((lfsr_src_axi_rid_bridge_id == 1) && lfsr_src_axi_rid_valid) && lfsr_src_axi_rvalid, ((ddr_axi_rid_bridge_id == 1) && ddr_axi_rid_valid) && ddr_axi_rvalid};
     logic [1:0] stream_rd_128b_r_rarb_lock, stream_rd_128b_r_rarb_rr;
@@ -336,27 +353,21 @@ module bridge_fb_data_xbar
     wire stream_rd_128b_r_rgnt_lfsr_src = stream_rd_128b_r_rarb_gnt_valid && (stream_rd_128b_r_rarb_gnt == 2'd1);
     wire stream_rd_128b_r_rgnt_subtractive = stream_rd_128b_r_rarb_gnt_valid && (stream_rd_128b_r_rarb_gnt == 2'd2);
     wire stream_rd_128b_r_rarb_vld = (stream_rd_128b_r_rgnt_ddr && stream_rd_128b_r_rarb_req[0]) || (stream_rd_128b_r_rgnt_lfsr_src && stream_rd_128b_r_rarb_req[1]) || (stream_rd_128b_r_rgnt_subtractive && stream_rd_128b_r_rarb_req[2]);
-    wire stream_rd_128b_r_rarb_last = (stream_rd_128b_r_rgnt_ddr && ddr_axi_rlast) || (stream_rd_128b_r_rgnt_lfsr_src && lfsr_src_axi_rlast) || (stream_rd_128b_r_rgnt_subtractive && subtractive_axi_rlast);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             stream_rd_128b_r_rarb_lock   <= '0;
             stream_rd_128b_r_rarb_rr     <= '0;
             stream_rd_128b_r_rarb_locked <= 1'b0;
         end else if (stream_rd_128b_r_rarb_vld && stream_rd_128b_rready) begin
-            if (stream_rd_128b_r_rarb_last) begin
-                stream_rd_128b_r_rarb_locked <= 1'b0;
-                stream_rd_128b_r_rarb_rr <= (stream_rd_128b_r_rarb_gnt == 2'd2) ? 2'd0 : stream_rd_128b_r_rarb_gnt + 1'b1;
-            end else begin
-                stream_rd_128b_r_rarb_lock   <= stream_rd_128b_r_rarb_gnt;   // mid-burst: hold through RLAST
-                stream_rd_128b_r_rarb_locked <= 1'b1;
-            end
+            stream_rd_128b_r_rarb_locked <= 1'b0;
+            stream_rd_128b_r_rarb_rr <= (stream_rd_128b_r_rarb_gnt == 2'd2) ? 2'd0 : stream_rd_128b_r_rarb_gnt + 1'b1;
         end else if (stream_rd_128b_r_rarb_vld) begin
             stream_rd_128b_r_rarb_lock   <= stream_rd_128b_r_rarb_gnt;       // offered, not taken: hold
             stream_rd_128b_r_rarb_locked <= 1'b1;
         end
     )
 
-    // ---- B response arbiter, master stream_wr 128b: round-robin, lock until taken ----
+    // ---- B response arbiter, master stream_wr 128b: round-robin per beat, lock until taken ----
     logic [2:0] stream_wr_128b_b_rarb_req;
     assign stream_wr_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 2) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((crc_snk_axi_bid_bridge_id == 2) && crc_snk_axi_bid_valid) && crc_snk_axi_bvalid, ((ddr_axi_bid_bridge_id == 2) && ddr_axi_bid_valid) && ddr_axi_bvalid};
     logic [1:0] stream_wr_128b_b_rarb_lock, stream_wr_128b_b_rarb_rr;
@@ -384,7 +395,7 @@ module bridge_fb_data_xbar
         end
     )
 
-    // ---- B response arbiter, master inj_wr 128b: round-robin, lock until taken ----
+    // ---- B response arbiter, master inj_wr 128b: round-robin per beat, lock until taken ----
     logic [1:0] inj_wr_128b_b_rarb_req;
     assign inj_wr_128b_b_rarb_req = {((subtractive_axi_bid_bridge_id == 3) && subtractive_axi_bid_valid) && subtractive_axi_bvalid, ((ddr_axi_bid_bridge_id == 3) && ddr_axi_bid_valid) && ddr_axi_bvalid};
     logic [0:0] inj_wr_128b_b_rarb_lock, inj_wr_128b_b_rarb_rr;
@@ -422,9 +433,29 @@ module bridge_fb_data_xbar
     wire stream_wr_128b_aw_to_ddr = (stream_wr_128b_aw.addr <= 32'h3fffffff);
     wire inj_wr_128b_aw_to_ddr = (inj_wr_128b_aw.addr <= 32'h3fffffff);
 
+    // AW request slots for ddr: arbitration at the slave pins
+    assign stream_wr_128b_aw_slot_ddr_in_valid = stream_wr_128b_aw_to_ddr && stream_wr_128b_awvalid && !stream_wr_128b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_stream_wr_128b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_wr_128b_aw_slot_ddr_in_valid), .wr_ready(stream_wr_128b_aw_slot_ddr_in_ready), .wr_data(stream_wr_128b_aw),
+        .rd_valid(stream_wr_128b_aw_slot_ddr_valid), .rd_ready(stream_wr_128b_aw_slot_ddr_ready), .rd_data(stream_wr_128b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign inj_wr_128b_aw_slot_ddr_in_valid = inj_wr_128b_aw_to_ddr && inj_wr_128b_awvalid && !inj_wr_128b_aw_hold_ddr;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_inj_wr_128b_aw_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(inj_wr_128b_aw_slot_ddr_in_valid), .wr_ready(inj_wr_128b_aw_slot_ddr_in_ready), .wr_data(inj_wr_128b_aw),
+        .rd_valid(inj_wr_128b_aw_slot_ddr_valid), .rd_ready(inj_wr_128b_aw_slot_ddr_ready), .rd_data(inj_wr_128b_aw_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for ddr: round-robin, lock until handshake ----
     logic [1:0] ddr_aw_arb_req;
-    assign ddr_aw_arb_req = {inj_wr_128b_aw_to_ddr && inj_wr_128b_awvalid, stream_wr_128b_aw_to_ddr && stream_wr_128b_awvalid};
+    assign ddr_aw_arb_req = {inj_wr_128b_aw_slot_ddr_valid, stream_wr_128b_aw_slot_ddr_valid};
     logic [0:0] ddr_aw_arb_lock, ddr_aw_arb_rr;
     logic ddr_aw_arb_locked;
     wire [0:0] ddr_aw_arb_pick = (ddr_aw_arb_rr == 1'd0) ? (ddr_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -448,54 +479,66 @@ module bridge_fb_data_xbar
     )
     wire stream_wr_128b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd0) && ddr_aw_arb_req[0];
     wire inj_wr_128b_aw_gnt_ddr = ddr_aw_arb_gnt_valid && (ddr_aw_arb_gnt == 1'd1) && ddr_aw_arb_req[1];
+    assign stream_wr_128b_aw_slot_ddr_ready = stream_wr_128b_aw_gnt_ddr && ddr_axi_awready;
+    assign inj_wr_128b_aw_slot_ddr_ready = inj_wr_128b_aw_gnt_ddr && ddr_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign ddr_axi_awid = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.id : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.id : '0);
-    assign ddr_axi_awaddr = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.addr : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.addr : '0);
-    assign ddr_axi_awlen = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.len : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.len : '0);
-    assign ddr_axi_awsize = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.size : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.size : '0);
-    assign ddr_axi_awburst = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.burst : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.burst : '0);
-    assign ddr_axi_awlock = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.lock : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.lock : '0);
-    assign ddr_axi_awcache = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.cache : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.cache : '0);
-    assign ddr_axi_awprot = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.prot : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.prot : '0);
-    assign ddr_axi_awqos = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.qos : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.qos : '0);
-    assign ddr_axi_awregion = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.region : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.region : '0);
-    assign ddr_axi_awuser = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw.user : '0) |
-        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw.user : '0);
+    assign ddr_axi_awid = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.id : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.id : '0);
+    assign ddr_axi_awaddr = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.addr : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.addr : '0);
+    assign ddr_axi_awlen = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.len : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.len : '0);
+    assign ddr_axi_awsize = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.size : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.size : '0);
+    assign ddr_axi_awburst = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.burst : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.burst : '0);
+    assign ddr_axi_awlock = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.lock : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.lock : '0);
+    assign ddr_axi_awcache = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.cache : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.cache : '0);
+    assign ddr_axi_awprot = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.prot : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.prot : '0);
+    assign ddr_axi_awqos = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.qos : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.qos : '0);
+    assign ddr_axi_awregion = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.region : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.region : '0);
+    assign ddr_axi_awuser = (stream_wr_128b_aw_gnt_ddr ? stream_wr_128b_aw_slot_ddr.user : '0) |
+        (inj_wr_128b_aw_gnt_ddr ? inj_wr_128b_aw_slot_ddr.user : '0);
     assign ddr_axi_awvalid = stream_wr_128b_aw_gnt_ddr || inj_wr_128b_aw_gnt_ddr;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] ddr_wowner_mem [16];
     logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
+    logic ddr_wowner_ahead;
+    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
+    wire ddr_wowner_byp = !ddr_wowner_valid && !ddr_wowner_ahead && ddr_axi_awvalid;
+    wire ddr_wowner_aw_hs = ddr_axi_awvalid && ddr_axi_awready;
+    wire ddr_wowner_w_end = ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            ddr_wowner_wptr <= '0;
-            ddr_wowner_rptr <= '0;
+            ddr_wowner_wptr  <= '0;
+            ddr_wowner_rptr  <= '0;
+            ddr_wowner_ahead <= 1'b0;
         end else begin
-            if (ddr_axi_awvalid && ddr_axi_awready) begin
+            if (ddr_wowner_aw_hs && ddr_wowner_ahead) begin
+                ddr_wowner_ahead <= 1'b0;   // its W already went
+            end else if (ddr_wowner_aw_hs && !(ddr_wowner_byp && ddr_wowner_w_end)) begin
                 ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
+            end else if (!ddr_wowner_aw_hs && ddr_wowner_byp && ddr_wowner_w_end) begin
+                ddr_wowner_ahead <= 1'b1;
             end
-            if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
+            if (ddr_wowner_valid && ddr_wowner_w_end) begin
                 ddr_wowner_rptr <= ddr_wowner_rptr + 1'b1;
             end
         end
     )
-    wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
-    assign stream_wr_128b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && stream_wr_128b_w_to_ddr;
-    assign inj_wr_128b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && inj_wr_128b_w_to_ddr;
+    wire [0:0] ddr_wowner_head = ddr_wowner_valid ? ddr_wowner_mem[ddr_wowner_rptr[3:0]]
+                                       : ddr_aw_arb_gnt;
+    assign stream_wr_128b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd0) && stream_wr_128b_w_to_ddr;
+    assign inj_wr_128b_w_sel_ddr = (ddr_wowner_valid || ddr_wowner_byp) && (ddr_wowner_head == 1'd1) && inj_wr_128b_w_to_ddr;
 
     // W channel (owner-gated mux across writing masters)
     assign ddr_axi_wdata = ((stream_wr_128b_w_sel_ddr && stream_wr_128b_wvalid) ? stream_wr_128b_w.data : '0) |
@@ -516,9 +559,20 @@ module bridge_fb_data_xbar
     assign ddr_axi_bridge_id_aw = (stream_wr_128b_aw_gnt_ddr ? stream_wr_bridge_id_aw : '0) |
         (inj_wr_128b_aw_gnt_ddr ? inj_wr_bridge_id_aw : '0);
 
+    // AR request slots for ddr: arbitration at the slave pins
+    assign stream_rd_128b_ar_slot_ddr_in_valid = stream_rd_128b_ar_to_ddr && stream_rd_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_stream_rd_128b_ar_slot_ddr (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_rd_128b_ar_slot_ddr_in_valid), .wr_ready(stream_rd_128b_ar_slot_ddr_in_ready), .wr_data(stream_rd_128b_ar),
+        .rd_valid(stream_rd_128b_ar_slot_ddr_valid), .rd_ready(stream_rd_128b_ar_slot_ddr_ready), .rd_data(stream_rd_128b_ar_slot_ddr),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for ddr: round-robin, lock until handshake ----
     logic [0:0] ddr_ar_arb_req;
-    assign ddr_ar_arb_req = {stream_rd_128b_ar_to_ddr && stream_rd_128b_arvalid};
+    assign ddr_ar_arb_req = {stream_rd_128b_ar_slot_ddr_valid};
     logic [0:0] ddr_ar_arb_lock, ddr_ar_arb_rr;
     logic ddr_ar_arb_locked;
     wire [0:0] ddr_ar_arb_pick = 1'd0;
@@ -540,19 +594,20 @@ module bridge_fb_data_xbar
         end
     )
     wire stream_rd_128b_ar_gnt_ddr = ddr_ar_arb_gnt_valid && (ddr_ar_arb_gnt == 1'd0) && ddr_ar_arb_req[0];
+    assign stream_rd_128b_ar_slot_ddr_ready = stream_rd_128b_ar_gnt_ddr && ddr_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign ddr_axi_arid = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.id : '0);
-    assign ddr_axi_araddr = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.addr : '0);
-    assign ddr_axi_arlen = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.len : '0);
-    assign ddr_axi_arsize = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.size : '0);
-    assign ddr_axi_arburst = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.burst : '0);
-    assign ddr_axi_arlock = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.lock : '0);
-    assign ddr_axi_arcache = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.cache : '0);
-    assign ddr_axi_arprot = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.prot : '0);
-    assign ddr_axi_arqos = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.qos : '0);
-    assign ddr_axi_arregion = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.region : '0);
-    assign ddr_axi_aruser = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar.user : '0);
+    assign ddr_axi_arid = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.id : '0);
+    assign ddr_axi_araddr = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.addr : '0);
+    assign ddr_axi_arlen = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.len : '0);
+    assign ddr_axi_arsize = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.size : '0);
+    assign ddr_axi_arburst = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.burst : '0);
+    assign ddr_axi_arlock = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.lock : '0);
+    assign ddr_axi_arcache = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.cache : '0);
+    assign ddr_axi_arprot = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.prot : '0);
+    assign ddr_axi_arqos = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.qos : '0);
+    assign ddr_axi_arregion = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.region : '0);
+    assign ddr_axi_aruser = (stream_rd_128b_ar_gnt_ddr ? stream_rd_128b_ar_slot_ddr.user : '0);
     assign ddr_axi_arvalid = stream_rd_128b_ar_gnt_ddr;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -633,7 +688,7 @@ module bridge_fb_data_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire stream_wr_128b_aw_to_crc_snk = ((stream_wr_128b_aw.addr >= 32'ha0000000) && (stream_wr_128b_aw.addr <= 32'hafffffff));
-    wire stream_wr_128b_aw_gnt_crc_snk = stream_wr_128b_aw_to_crc_snk;
+    wire stream_wr_128b_aw_gnt_crc_snk = stream_wr_128b_aw_to_crc_snk && !stream_wr_128b_aw_hold_crc_snk;
     assign crc_snk_axi_awid     = stream_wr_128b_aw_to_crc_snk ? stream_wr_128b_aw.id : '0;
     assign crc_snk_axi_awaddr   = stream_wr_128b_aw_to_crc_snk ? stream_wr_128b_aw.addr : '0;
     assign crc_snk_axi_awlen    = stream_wr_128b_aw_to_crc_snk ? stream_wr_128b_aw.len : '0;
@@ -645,7 +700,7 @@ module bridge_fb_data_xbar
     assign crc_snk_axi_awqos    = stream_wr_128b_aw_to_crc_snk ? stream_wr_128b_aw.qos : '0;
     assign crc_snk_axi_awregion = stream_wr_128b_aw_to_crc_snk ? stream_wr_128b_aw.region : '0;
     assign crc_snk_axi_awuser   = stream_wr_128b_aw_to_crc_snk ? stream_wr_128b_aw.user : '0;
-    assign crc_snk_axi_awvalid  = stream_wr_128b_aw_to_crc_snk && stream_wr_128b_awvalid;
+    assign crc_snk_axi_awvalid  = stream_wr_128b_aw_gnt_crc_snk && stream_wr_128b_awvalid;
 
     assign stream_wr_128b_w_sel_crc_snk = stream_wr_128b_w_to_crc_snk;
 
@@ -678,9 +733,29 @@ module bridge_fb_data_xbar
     wire stream_wr_128b_aw_to_subtractive = !(((stream_wr_128b_aw.addr <= 32'h3fffffff)) || (((stream_wr_128b_aw.addr >= 32'ha0000000) && (stream_wr_128b_aw.addr <= 32'hafffffff))));
     wire inj_wr_128b_aw_to_subtractive = !(((inj_wr_128b_aw.addr <= 32'h3fffffff)));
 
+    // AW request slots for subtractive: arbitration at the slave pins
+    assign stream_wr_128b_aw_slot_subtractive_in_valid = stream_wr_128b_aw_to_subtractive && stream_wr_128b_awvalid && !stream_wr_128b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_stream_wr_128b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_wr_128b_aw_slot_subtractive_in_valid), .wr_ready(stream_wr_128b_aw_slot_subtractive_in_ready), .wr_data(stream_wr_128b_aw),
+        .rd_valid(stream_wr_128b_aw_slot_subtractive_valid), .rd_ready(stream_wr_128b_aw_slot_subtractive_ready), .rd_data(stream_wr_128b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign inj_wr_128b_aw_slot_subtractive_in_valid = inj_wr_128b_aw_to_subtractive && inj_wr_128b_awvalid && !inj_wr_128b_aw_hold_subtractive;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_inj_wr_128b_aw_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(inj_wr_128b_aw_slot_subtractive_in_valid), .wr_ready(inj_wr_128b_aw_slot_subtractive_in_ready), .wr_data(inj_wr_128b_aw),
+        .rd_valid(inj_wr_128b_aw_slot_subtractive_valid), .rd_ready(inj_wr_128b_aw_slot_subtractive_ready), .rd_data(inj_wr_128b_aw_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AW arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_aw_arb_req;
-    assign subtractive_aw_arb_req = {inj_wr_128b_aw_to_subtractive && inj_wr_128b_awvalid, stream_wr_128b_aw_to_subtractive && stream_wr_128b_awvalid};
+    assign subtractive_aw_arb_req = {inj_wr_128b_aw_slot_subtractive_valid, stream_wr_128b_aw_slot_subtractive_valid};
     logic [0:0] subtractive_aw_arb_lock, subtractive_aw_arb_rr;
     logic subtractive_aw_arb_locked;
     wire [0:0] subtractive_aw_arb_pick = (subtractive_aw_arb_rr == 1'd0) ? (subtractive_aw_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -704,54 +779,66 @@ module bridge_fb_data_xbar
     )
     wire stream_wr_128b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd0) && subtractive_aw_arb_req[0];
     wire inj_wr_128b_aw_gnt_subtractive = subtractive_aw_arb_gnt_valid && (subtractive_aw_arb_gnt == 1'd1) && subtractive_aw_arb_req[1];
+    assign stream_wr_128b_aw_slot_subtractive_ready = stream_wr_128b_aw_gnt_subtractive && subtractive_axi_awready;
+    assign inj_wr_128b_aw_slot_subtractive_ready = inj_wr_128b_aw_gnt_subtractive && subtractive_axi_awready;
 
     // AW channel (arbitrated mux across writing masters)
-    assign subtractive_axi_awid = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.id : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.id : '0);
-    assign subtractive_axi_awaddr = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.addr : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.addr : '0);
-    assign subtractive_axi_awlen = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.len : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.len : '0);
-    assign subtractive_axi_awsize = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.size : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.size : '0);
-    assign subtractive_axi_awburst = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.burst : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.burst : '0);
-    assign subtractive_axi_awlock = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.lock : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.lock : '0);
-    assign subtractive_axi_awcache = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.cache : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.cache : '0);
-    assign subtractive_axi_awprot = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.prot : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.prot : '0);
-    assign subtractive_axi_awqos = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.qos : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.qos : '0);
-    assign subtractive_axi_awregion = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.region : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.region : '0);
-    assign subtractive_axi_awuser = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw.user : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw.user : '0);
+    assign subtractive_axi_awid = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.id : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.id : '0);
+    assign subtractive_axi_awaddr = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.addr : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.addr : '0);
+    assign subtractive_axi_awlen = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.len : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.len : '0);
+    assign subtractive_axi_awsize = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.size : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.size : '0);
+    assign subtractive_axi_awburst = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.burst : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.burst : '0);
+    assign subtractive_axi_awlock = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.lock : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.lock : '0);
+    assign subtractive_axi_awcache = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.cache : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.cache : '0);
+    assign subtractive_axi_awprot = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.prot : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.prot : '0);
+    assign subtractive_axi_awqos = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.qos : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.qos : '0);
+    assign subtractive_axi_awregion = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.region : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.region : '0);
+    assign subtractive_axi_awuser = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_128b_aw_slot_subtractive.user : '0) |
+        (inj_wr_128b_aw_gnt_subtractive ? inj_wr_128b_aw_slot_subtractive.user : '0);
     assign subtractive_axi_awvalid = stream_wr_128b_aw_gnt_subtractive || inj_wr_128b_aw_gnt_subtractive;
 
-    // W owner FIFO: slave-side AW accept order owns the W channel
+    // W owner FIFO: slave-side AW pick order owns the W channel
     // (16 deep: max_outstanding 16)
     logic [0:0] subtractive_wowner_mem [16];
     logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    logic subtractive_wowner_ahead;
+    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
+    wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
+    wire subtractive_wowner_aw_hs = subtractive_axi_awvalid && subtractive_axi_awready;
+    wire subtractive_wowner_w_end = subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            subtractive_wowner_wptr <= '0;
-            subtractive_wowner_rptr <= '0;
+            subtractive_wowner_wptr  <= '0;
+            subtractive_wowner_rptr  <= '0;
+            subtractive_wowner_ahead <= 1'b0;
         end else begin
-            if (subtractive_axi_awvalid && subtractive_axi_awready) begin
+            if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
+                subtractive_wowner_ahead <= 1'b0;   // its W already went
+            end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
                 subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
+            end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
+                subtractive_wowner_ahead <= 1'b1;
             end
-            if (subtractive_axi_wvalid && subtractive_axi_wready && subtractive_axi_wlast) begin
+            if (subtractive_wowner_valid && subtractive_wowner_w_end) begin
                 subtractive_wowner_rptr <= subtractive_wowner_rptr + 1'b1;
             end
         end
     )
-    wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_mem[subtractive_wowner_rptr[3:0]];
-    assign stream_wr_128b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd0) && stream_wr_128b_w_to_subtractive;
-    assign inj_wr_128b_w_sel_subtractive = subtractive_wowner_valid && (subtractive_wowner_head == 1'd1) && inj_wr_128b_w_to_subtractive;
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+                                       : subtractive_aw_arb_gnt;
+    assign stream_wr_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && stream_wr_128b_w_to_subtractive;
+    assign inj_wr_128b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && inj_wr_128b_w_to_subtractive;
 
     // W channel (owner-gated mux across writing masters)
     assign subtractive_axi_wdata = ((stream_wr_128b_w_sel_subtractive && stream_wr_128b_wvalid) ? stream_wr_128b_w.data : '0) |
@@ -772,9 +859,29 @@ module bridge_fb_data_xbar
     assign subtractive_axi_bridge_id_aw = (stream_wr_128b_aw_gnt_subtractive ? stream_wr_bridge_id_aw : '0) |
         (inj_wr_128b_aw_gnt_subtractive ? inj_wr_bridge_id_aw : '0);
 
+    // AR request slots for subtractive: arbitration at the slave pins
+    assign stream_desc_128b_ar_slot_subtractive_in_valid = stream_desc_128b_ar_to_subtractive && stream_desc_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_stream_desc_128b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_desc_128b_ar_slot_subtractive_in_valid), .wr_ready(stream_desc_128b_ar_slot_subtractive_in_ready), .wr_data(stream_desc_128b_ar),
+        .rd_valid(stream_desc_128b_ar_slot_subtractive_valid), .rd_ready(stream_desc_128b_ar_slot_subtractive_ready), .rd_data(stream_desc_128b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+    assign stream_rd_128b_ar_slot_subtractive_in_valid = stream_rd_128b_ar_to_subtractive && stream_rd_128b_arvalid;
+    gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_ar_t))) u_stream_rd_128b_ar_slot_subtractive (
+        .axi_aclk(aclk), .axi_aresetn(aresetn),
+        .wr_valid(stream_rd_128b_ar_slot_subtractive_in_valid), .wr_ready(stream_rd_128b_ar_slot_subtractive_in_ready), .wr_data(stream_rd_128b_ar),
+        .rd_valid(stream_rd_128b_ar_slot_subtractive_valid), .rd_ready(stream_rd_128b_ar_slot_subtractive_ready), .rd_data(stream_rd_128b_ar_slot_subtractive),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .count(), .rd_count()
+        /* verilator lint_on PINCONNECTEMPTY */
+    );
+
     // ---- AR arbiter for subtractive: round-robin, lock until handshake ----
     logic [1:0] subtractive_ar_arb_req;
-    assign subtractive_ar_arb_req = {stream_rd_128b_ar_to_subtractive && stream_rd_128b_arvalid, stream_desc_128b_ar_to_subtractive && stream_desc_128b_arvalid};
+    assign subtractive_ar_arb_req = {stream_rd_128b_ar_slot_subtractive_valid, stream_desc_128b_ar_slot_subtractive_valid};
     logic [0:0] subtractive_ar_arb_lock, subtractive_ar_arb_rr;
     logic subtractive_ar_arb_locked;
     wire [0:0] subtractive_ar_arb_pick = (subtractive_ar_arb_rr == 1'd0) ? (subtractive_ar_arb_req[0] ? 1'd0 : 1'd1) : 
@@ -798,30 +905,32 @@ module bridge_fb_data_xbar
     )
     wire stream_desc_128b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd0) && subtractive_ar_arb_req[0];
     wire stream_rd_128b_ar_gnt_subtractive = subtractive_ar_arb_gnt_valid && (subtractive_ar_arb_gnt == 1'd1) && subtractive_ar_arb_req[1];
+    assign stream_desc_128b_ar_slot_subtractive_ready = stream_desc_128b_ar_gnt_subtractive && subtractive_axi_arready;
+    assign stream_rd_128b_ar_slot_subtractive_ready = stream_rd_128b_ar_gnt_subtractive && subtractive_axi_arready;
 
     // AR channel (arbitrated mux across reading masters)
-    assign subtractive_axi_arid = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.id : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.id : '0);
-    assign subtractive_axi_araddr = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.addr : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.addr : '0);
-    assign subtractive_axi_arlen = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.len : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.len : '0);
-    assign subtractive_axi_arsize = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.size : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.size : '0);
-    assign subtractive_axi_arburst = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.burst : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.burst : '0);
-    assign subtractive_axi_arlock = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.lock : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.lock : '0);
-    assign subtractive_axi_arcache = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.cache : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.cache : '0);
-    assign subtractive_axi_arprot = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.prot : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.prot : '0);
-    assign subtractive_axi_arqos = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.qos : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.qos : '0);
-    assign subtractive_axi_arregion = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.region : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.region : '0);
-    assign subtractive_axi_aruser = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar.user : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar.user : '0);
+    assign subtractive_axi_arid = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.id : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.id : '0);
+    assign subtractive_axi_araddr = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.addr : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.addr : '0);
+    assign subtractive_axi_arlen = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.len : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.len : '0);
+    assign subtractive_axi_arsize = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.size : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.size : '0);
+    assign subtractive_axi_arburst = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.burst : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.burst : '0);
+    assign subtractive_axi_arlock = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.lock : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.lock : '0);
+    assign subtractive_axi_arcache = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.cache : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.cache : '0);
+    assign subtractive_axi_arprot = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.prot : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.prot : '0);
+    assign subtractive_axi_arqos = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.qos : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.qos : '0);
+    assign subtractive_axi_arregion = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.region : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.region : '0);
+    assign subtractive_axi_aruser = (stream_desc_128b_ar_gnt_subtractive ? stream_desc_128b_ar_slot_subtractive.user : '0) |
+        (stream_rd_128b_ar_gnt_subtractive ? stream_rd_128b_ar_slot_subtractive.user : '0);
     assign subtractive_axi_arvalid = stream_desc_128b_ar_gnt_subtractive || stream_rd_128b_ar_gnt_subtractive;
 
     // Rready (slave -> the master whose response arbiter granted it)
@@ -894,7 +1003,7 @@ module bridge_fb_data_xbar
     // Master: stream_desc, Width path: 128b
     assign stream_desc_128b_arready = 
         (stream_desc_128b_ar_gnt_desc_ram ? desc_ram_axi_arready : '0) |
-        (stream_desc_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((stream_desc_128b_ar_to_subtractive) ? stream_desc_128b_ar_slot_subtractive_in_ready : '0);
 
     assign stream_desc_128b_r.id = 
         (stream_desc_128b_r_rgnt_desc_ram ? desc_ram_axi_rid : '0) |
@@ -923,9 +1032,9 @@ module bridge_fb_data_xbar
 
     // Master: stream_rd, Width path: 128b
     assign stream_rd_128b_arready = 
-        (stream_rd_128b_ar_gnt_ddr ? ddr_axi_arready : '0) |
+        ((stream_rd_128b_ar_to_ddr) ? stream_rd_128b_ar_slot_ddr_in_ready : '0) |
         (stream_rd_128b_ar_gnt_lfsr_src ? lfsr_src_axi_arready : '0) |
-        (stream_rd_128b_ar_gnt_subtractive ? subtractive_axi_arready : '0);
+        ((stream_rd_128b_ar_to_subtractive) ? stream_rd_128b_ar_slot_subtractive_in_ready : '0);
 
     assign stream_rd_128b_r.id = 
         (stream_rd_128b_r_rgnt_ddr ? ddr_axi_rid : '0) |
@@ -960,9 +1069,9 @@ module bridge_fb_data_xbar
 
     // Master: stream_wr, Width path: 128b
     assign stream_wr_128b_awready = 
-        (stream_wr_128b_aw_gnt_ddr ? ddr_axi_awready : '0) |
+        ((stream_wr_128b_aw_to_ddr && !stream_wr_128b_aw_hold_ddr) ? stream_wr_128b_aw_slot_ddr_in_ready : '0) |
         (stream_wr_128b_aw_gnt_crc_snk ? crc_snk_axi_awready : '0) |
-        (stream_wr_128b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((stream_wr_128b_aw_to_subtractive && !stream_wr_128b_aw_hold_subtractive) ? stream_wr_128b_aw_slot_subtractive_in_ready : '0);
 
     assign stream_wr_128b_wready = 
         (stream_wr_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -992,8 +1101,8 @@ module bridge_fb_data_xbar
 
     // Master: inj_wr, Width path: 128b
     assign inj_wr_128b_awready = 
-        (inj_wr_128b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        (inj_wr_128b_aw_gnt_subtractive ? subtractive_axi_awready : '0);
+        ((inj_wr_128b_aw_to_ddr && !inj_wr_128b_aw_hold_ddr) ? inj_wr_128b_aw_slot_ddr_in_ready : '0) |
+        ((inj_wr_128b_aw_to_subtractive && !inj_wr_128b_aw_hold_subtractive) ? inj_wr_128b_aw_slot_subtractive_in_ready : '0);
 
     assign inj_wr_128b_wready = 
         (inj_wr_128b_w_sel_ddr ? ddr_axi_wready : '0) |

@@ -37,6 +37,7 @@ from TBClasses.shared.utilities import (get_paths, create_view_cmd,
                                         get_repo_root, sim_build_path)
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.harness.harness import UartSimHarness
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -218,9 +219,9 @@ def _run(request, testcase: str):
         'TEST_CLKS_PER_BIT': str(CLKS_PER_BIT),
     }
     compile_args = [
-        '-Wno-fatal',
+        '-Wno-fatal', '-Werror-MULTIDRIVEN',
         '-Wno-TIMESCALEMOD', '-Wno-WIDTH', '-Wno-UNOPTFLAT', '-Wno-CASEINCOMPLETE',
-        '-Wno-MULTIDRIVEN', '-Wno-SELRANGE', '-Wno-UNUSEDSIGNAL', '-Wno-DECLFILENAME',
+        FIELD_COMBO_VLT, '-Wno-SELRANGE', '-Wno-UNUSEDSIGNAL', '-Wno-DECLFILENAME',
         '-Wno-PINMISSING', '-Wno-UNUSED', '-Wno-UNDRIVEN', '-Wno-VARHIDDEN',
         # The APB cmd/rsp bus this test observes is INTERNAL to u_harness since
         # the 2026-09-23 host-path move. Verilator inlines plain internal wires

@@ -12,7 +12,7 @@
 module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     import bridge_stream_mon_axil_mon_pkg::*;
 #(
-    parameter int ID_WIDTH = 10
+    parameter int ID_WIDTH = 6
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
 ) (
@@ -20,7 +20,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [9:0]  xbar_slave_tally_cfg_axi_awid,
+    input  logic [5:0]  xbar_slave_tally_cfg_axi_awid,
     input  logic [31:0]  xbar_slave_tally_cfg_axi_awaddr,
     input  logic [7:0]  xbar_slave_tally_cfg_axi_awlen,
     input  logic [2:0]  xbar_slave_tally_cfg_axi_awsize,
@@ -39,12 +39,12 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     input  logic         xbar_slave_tally_cfg_axi_wuser,
     input  logic         xbar_slave_tally_cfg_axi_wvalid,
     output  logic         xbar_slave_tally_cfg_axi_wready,
-    output  logic [9:0]  xbar_slave_tally_cfg_axi_bid,
+    output  logic [5:0]  xbar_slave_tally_cfg_axi_bid,
     output  logic [1:0]  xbar_slave_tally_cfg_axi_bresp,
     output  logic         xbar_slave_tally_cfg_axi_buser,
     output  logic         xbar_slave_tally_cfg_axi_bvalid,
     input  logic         xbar_slave_tally_cfg_axi_bready,
-    input  logic [9:0]  xbar_slave_tally_cfg_axi_arid,
+    input  logic [5:0]  xbar_slave_tally_cfg_axi_arid,
     input  logic [31:0]  xbar_slave_tally_cfg_axi_araddr,
     input  logic [7:0]  xbar_slave_tally_cfg_axi_arlen,
     input  logic [2:0]  xbar_slave_tally_cfg_axi_arsize,
@@ -57,7 +57,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     input  logic         xbar_slave_tally_cfg_axi_aruser,
     input  logic         xbar_slave_tally_cfg_axi_arvalid,
     output  logic         xbar_slave_tally_cfg_axi_arready,
-    output  logic [9:0]  xbar_slave_tally_cfg_axi_rid,
+    output  logic [5:0]  xbar_slave_tally_cfg_axi_rid,
     output  logic [63:0]  xbar_slave_tally_cfg_axi_rdata,
     output  logic [1:0]  xbar_slave_tally_cfg_axi_rresp,
     output  logic         xbar_slave_tally_cfg_axi_rlast,
@@ -245,7 +245,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     // bridge needs, and it must cost no gates.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [10-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    logic [6-1:0] wr_id_fifo [WR_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -314,7 +314,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [10-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [6-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -338,7 +338,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     // ============================================================
     // axi4_master_*_mon wrapper(s) between crossbar and AXIL shim
     // ============================================================
-    logic [9:0] slave_tally_cfg_mon_axi_awid;
+    logic [5:0] slave_tally_cfg_mon_axi_awid;
     logic [31:0] slave_tally_cfg_mon_axi_awaddr;
     logic [7:0]  slave_tally_cfg_mon_axi_awlen;
     logic [2:0]  slave_tally_cfg_mon_axi_awsize;
@@ -357,12 +357,12 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     logic        slave_tally_cfg_mon_axi_wuser;
     logic        slave_tally_cfg_mon_axi_wvalid;
     logic        slave_tally_cfg_mon_axi_wready;
-    logic [9:0] slave_tally_cfg_mon_axi_bid;
+    logic [5:0] slave_tally_cfg_mon_axi_bid;
     logic [1:0]  slave_tally_cfg_mon_axi_bresp;
     logic        slave_tally_cfg_mon_axi_buser;
     logic        slave_tally_cfg_mon_axi_bvalid;
     logic        slave_tally_cfg_mon_axi_bready;
-    logic [9:0] slave_tally_cfg_mon_axi_arid;
+    logic [5:0] slave_tally_cfg_mon_axi_arid;
     logic [31:0] slave_tally_cfg_mon_axi_araddr;
     logic [7:0]  slave_tally_cfg_mon_axi_arlen;
     logic [2:0]  slave_tally_cfg_mon_axi_arsize;
@@ -375,7 +375,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     logic        slave_tally_cfg_mon_axi_aruser;
     logic        slave_tally_cfg_mon_axi_arvalid;
     logic        slave_tally_cfg_mon_axi_arready;
-    logic [9:0] slave_tally_cfg_mon_axi_rid;
+    logic [5:0] slave_tally_cfg_mon_axi_rid;
     logic [63:0] slave_tally_cfg_mon_axi_rdata;
     logic [1:0]  slave_tally_cfg_mon_axi_rresp;
     logic        slave_tally_cfg_mon_axi_rlast;
@@ -388,12 +388,13 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(193),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
@@ -492,12 +493,13 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     axi4_master_rd_monlite #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(192),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),
@@ -586,7 +588,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
 
     // AXI4-to-AXI4-Lite converter shim
     axi4_to_axil4_wr #(
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)
@@ -636,7 +638,7 @@ module bridge_stream_mon_axil_mon_slave_tally_cfg_adapter
     );
 
     axi4_to_axil4_rd #(
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(64),
         .AXI_USER_WIDTH(1)

@@ -53,6 +53,7 @@ from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_a
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_medium import PMACPIMediumTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_full import PMACPIFullTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pm_acpi.pm_acpi_tests_gh54 import PMACPIGH54Tests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=10000, timeout_unit="us")
@@ -299,7 +300,7 @@ def test_pm_acpi(request, cdc_enable, test_level, description):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
         "-Wno-SYNCASYNCNET",
     ]

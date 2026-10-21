@@ -12,13 +12,13 @@
 module bridge_fb_data_desc_ram_adapter
     import bridge_fb_data_pkg::*;
 #(
-    parameter int ID_WIDTH = 10
+    parameter int ID_WIDTH = 6
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [9:0]  xbar_desc_ram_axi_arid,
+    input  logic [5:0]  xbar_desc_ram_axi_arid,
     input  logic [31:0]  xbar_desc_ram_axi_araddr,
     input  logic [7:0]  xbar_desc_ram_axi_arlen,
     input  logic [2:0]  xbar_desc_ram_axi_arsize,
@@ -31,7 +31,7 @@ module bridge_fb_data_desc_ram_adapter
     input  logic         xbar_desc_ram_axi_aruser,
     input  logic         xbar_desc_ram_axi_arvalid,
     output  logic         xbar_desc_ram_axi_arready,
-    output  logic [9:0]  xbar_desc_ram_axi_rid,
+    output  logic [5:0]  xbar_desc_ram_axi_rid,
     output  logic [127:0]  xbar_desc_ram_axi_rdata,
     output  logic [1:0]  xbar_desc_ram_axi_rresp,
     output  logic         xbar_desc_ram_axi_rlast,
@@ -45,7 +45,7 @@ module bridge_fb_data_desc_ram_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [9:0]  desc_ram_arid,
+    output  logic [5:0]  desc_ram_arid,
     output  logic [31:0]  desc_ram_araddr,
     output  logic [7:0]  desc_ram_arlen,
     output  logic [2:0]  desc_ram_arsize,
@@ -58,7 +58,7 @@ module bridge_fb_data_desc_ram_adapter
     output  logic         desc_ram_aruser,
     output  logic         desc_ram_arvalid,
     input  logic         desc_ram_arready,
-    input  logic [9:0]  desc_ram_rid,
+    input  logic [5:0]  desc_ram_rid,
     input  logic [127:0]  desc_ram_rdata,
     input  logic [1:0]  desc_ram_rresp,
     input  logic         desc_ram_rlast,
@@ -71,65 +71,31 @@ module bridge_fb_data_desc_ram_adapter
     // Internal Signals
     // ================================================================
 
-    // CAM tracking signals (by-ID mode: enable_ooo or a multi-master fabric)
-    logic cam_rd_allocate;
-    logic cam_rd_deallocate;
-    logic [ID_WIDTH-1:0] cam_rd_allocate_tag;
-    logic [BRIDGE_ID_WIDTH-1:0] cam_rd_allocate_data;
-    logic [ID_WIDTH-1:0] cam_rd_deallocate_tag;
-
     // ================================================================
-    // Bridge ID Tracking - CAM Mode (Out-of-Order)
+    // Bridge ID Tracking - By ID (any completion order)
     // ================================================================
 
-    // Read Channel CAM
-    // bridge BUG-009 (was BRIDGE-011) not-full gating, CAM form -- see the write channel.
+    // Read channel: by-ID tracking -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
     assign xbar_desc_ram_axi_arready = w_sub_arready && !rd_trk_full;
-    bridge_cam #(
-        .TAG_WIDTH(ID_WIDTH),
-        .DATA_WIDTH(BRIDGE_ID_WIDTH),
-        .DEPTH(16),  // max_outstanding
-        .ALLOW_DUPLICATES(1),  // Mode 2: OOO support
-        .PIPELINE_EVICT(0),
-        // Registered insert: the crossbar's arbitrated ID only reaches a
-        // register here; the 16-way match + duplicate popcount run the next
-        // cycle (GitHub #119: this was the 15-level worst path, master AW
-        // gate -> crossbar grant -> CAM count, on the fabric benchmark).
-        .PIPELINE_ALLOC(1),
-        // Registered free: the response's lookup still routes it this
-        // cycle; the entry free and same-ID decrements land the next
-        // (GitHub #119: the eviction was the next worst path).
-        .PIPELINE_FREE(1)
-    ) u_rd_cam (
-        .clk(aclk),
-        .rst_n(aresetn),
-
-        // Allocate on AR (from crossbar)
-        .allocate(xbar_desc_ram_axi_arvalid && xbar_desc_ram_axi_arready),
-        .allocate_tag(xbar_desc_ram_axi_arid),
-        .allocate_data(xbar_bridge_id_ar),
-
-        // Deallocate on R (from converter)
-        .deallocate(xbar_desc_ram_axi_rvalid && xbar_desc_ram_axi_rready && xbar_desc_ram_axi_rlast),
-        .deallocate_tag(xbar_desc_ram_axi_rid),
-        .deallocate_valid(rid_valid),
-        .deallocate_data(rid_bridge_id),
-        .deallocate_count(),
-
-        // Status
-        .cam_hit(),
-        .tags_empty(),
-        .tags_full(rd_trk_full),
-        .tags_count()
-    );
+    logic [4:0] rd_out_cnt;  // in flight, 0..16 (max_outstanding)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) begin
+            rd_out_cnt <= '0;
+        end else begin
+            rd_out_cnt <= rd_out_cnt + 5'(xbar_desc_ram_axi_arvalid && xbar_desc_ram_axi_arready) - 5'(xbar_desc_ram_axi_rvalid && xbar_desc_ram_axi_rready && xbar_desc_ram_axi_rlast);
+        end
+    )
+    assign rd_trk_full = (rd_out_cnt == 5'(16));
+    assign rid_bridge_id = xbar_desc_ram_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
+    assign rid_valid     = 1'b1;
 
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(128),
         .AXI_USER_WIDTH(1)

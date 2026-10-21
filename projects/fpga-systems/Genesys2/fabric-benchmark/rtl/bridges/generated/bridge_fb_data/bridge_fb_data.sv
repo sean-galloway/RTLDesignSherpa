@@ -129,7 +129,7 @@ module bridge_fb_data
 
     // Slave 0: ddr
     // AXI4 Slave: ddr
-    output  logic [9:0]  ddr_awid,
+    output  logic [5:0]  ddr_awid,
     output  logic [31:0]  ddr_awaddr,
     output  logic [7:0]  ddr_awlen,
     output  logic [2:0]  ddr_awsize,
@@ -150,13 +150,13 @@ module bridge_fb_data
     output  logic         ddr_wvalid,
     input  logic         ddr_wready,
 
-    input  logic [9:0]  ddr_bid,
+    input  logic [5:0]  ddr_bid,
     input  logic [1:0]  ddr_bresp,
     input  logic         ddr_buser,
     input  logic         ddr_bvalid,
     output  logic         ddr_bready,
 
-    output  logic [9:0]  ddr_arid,
+    output  logic [5:0]  ddr_arid,
     output  logic [31:0]  ddr_araddr,
     output  logic [7:0]  ddr_arlen,
     output  logic [2:0]  ddr_arsize,
@@ -170,7 +170,7 @@ module bridge_fb_data
     output  logic         ddr_arvalid,
     input  logic         ddr_arready,
 
-    input  logic [9:0]  ddr_rid,
+    input  logic [5:0]  ddr_rid,
     input  logic [127:0]  ddr_rdata,
     input  logic [1:0]  ddr_rresp,
     input  logic         ddr_rlast,
@@ -180,7 +180,7 @@ module bridge_fb_data
 
     // Slave 1: desc_ram
     // AXI4 Slave: desc_ram
-    output  logic [9:0]  desc_ram_arid,
+    output  logic [5:0]  desc_ram_arid,
     output  logic [31:0]  desc_ram_araddr,
     output  logic [7:0]  desc_ram_arlen,
     output  logic [2:0]  desc_ram_arsize,
@@ -194,7 +194,7 @@ module bridge_fb_data
     output  logic         desc_ram_arvalid,
     input  logic         desc_ram_arready,
 
-    input  logic [9:0]  desc_ram_rid,
+    input  logic [5:0]  desc_ram_rid,
     input  logic [127:0]  desc_ram_rdata,
     input  logic [1:0]  desc_ram_rresp,
     input  logic         desc_ram_rlast,
@@ -204,7 +204,7 @@ module bridge_fb_data
 
     // Slave 2: lfsr_src
     // AXI4 Slave: lfsr_src
-    output  logic [9:0]  lfsr_src_arid,
+    output  logic [5:0]  lfsr_src_arid,
     output  logic [31:0]  lfsr_src_araddr,
     output  logic [7:0]  lfsr_src_arlen,
     output  logic [2:0]  lfsr_src_arsize,
@@ -218,7 +218,7 @@ module bridge_fb_data
     output  logic         lfsr_src_arvalid,
     input  logic         lfsr_src_arready,
 
-    input  logic [9:0]  lfsr_src_rid,
+    input  logic [5:0]  lfsr_src_rid,
     input  logic [127:0]  lfsr_src_rdata,
     input  logic [1:0]  lfsr_src_rresp,
     input  logic         lfsr_src_rlast,
@@ -228,7 +228,7 @@ module bridge_fb_data
 
     // Slave 3: crc_snk
     // AXI4 Slave: crc_snk
-    output  logic [9:0]  crc_snk_awid,
+    output  logic [5:0]  crc_snk_awid,
     output  logic [31:0]  crc_snk_awaddr,
     output  logic [7:0]  crc_snk_awlen,
     output  logic [2:0]  crc_snk_awsize,
@@ -249,7 +249,7 @@ module bridge_fb_data
     output  logic         crc_snk_wvalid,
     input  logic         crc_snk_wready,
 
-    input  logic [9:0]  crc_snk_bid,
+    input  logic [5:0]  crc_snk_bid,
     input  logic [1:0]  crc_snk_bresp,
     input  logic         crc_snk_buser,
     input  logic         crc_snk_bvalid,
@@ -321,7 +321,7 @@ module bridge_fb_data
 
     // Crossbar-to-Slave Internal AXI4 Signals
     // ddr (AXI4, 128b AXI4 interface)
-    logic [9:0]            xbar_ddr_axi_awid;
+    logic [5:0]            xbar_ddr_axi_awid;
     logic [31:0]               xbar_ddr_axi_awaddr;
     logic [7:0]                xbar_ddr_axi_awlen;
     logic [2:0]                xbar_ddr_axi_awsize;
@@ -340,12 +340,12 @@ module bridge_fb_data
     logic                      xbar_ddr_axi_wuser;
     logic                      xbar_ddr_axi_wvalid;
     logic                      xbar_ddr_axi_wready;
-    logic [9:0]            xbar_ddr_axi_bid;
+    logic [5:0]            xbar_ddr_axi_bid;
     logic [1:0]                xbar_ddr_axi_bresp;
     logic                      xbar_ddr_axi_buser;
     logic                      xbar_ddr_axi_bvalid;
     logic                      xbar_ddr_axi_bready;
-    logic [9:0]            xbar_ddr_axi_arid;
+    logic [5:0]            xbar_ddr_axi_arid;
     logic [31:0]               xbar_ddr_axi_araddr;
     logic [7:0]                xbar_ddr_axi_arlen;
     logic [2:0]                xbar_ddr_axi_arsize;
@@ -358,7 +358,7 @@ module bridge_fb_data
     logic                      xbar_ddr_axi_aruser;
     logic                      xbar_ddr_axi_arvalid;
     logic                      xbar_ddr_axi_arready;
-    logic [9:0]            xbar_ddr_axi_rid;
+    logic [5:0]            xbar_ddr_axi_rid;
     logic [127:0] xbar_ddr_axi_rdata;
     logic [1:0]                xbar_ddr_axi_rresp;
     logic                      xbar_ddr_axi_rlast;
@@ -373,7 +373,7 @@ module bridge_fb_data
     logic                       ddr_axi_rid_valid;
 
     // desc_ram (AXI4, 128b AXI4 interface)
-    logic [9:0]            xbar_desc_ram_axi_arid;
+    logic [5:0]            xbar_desc_ram_axi_arid;
     logic [31:0]               xbar_desc_ram_axi_araddr;
     logic [7:0]                xbar_desc_ram_axi_arlen;
     logic [2:0]                xbar_desc_ram_axi_arsize;
@@ -386,7 +386,7 @@ module bridge_fb_data
     logic                      xbar_desc_ram_axi_aruser;
     logic                      xbar_desc_ram_axi_arvalid;
     logic                      xbar_desc_ram_axi_arready;
-    logic [9:0]            xbar_desc_ram_axi_rid;
+    logic [5:0]            xbar_desc_ram_axi_rid;
     logic [127:0] xbar_desc_ram_axi_rdata;
     logic [1:0]                xbar_desc_ram_axi_rresp;
     logic                      xbar_desc_ram_axi_rlast;
@@ -398,7 +398,7 @@ module bridge_fb_data
     logic                       desc_ram_axi_rid_valid;
 
     // lfsr_src (AXI4, 128b AXI4 interface)
-    logic [9:0]            xbar_lfsr_src_axi_arid;
+    logic [5:0]            xbar_lfsr_src_axi_arid;
     logic [31:0]               xbar_lfsr_src_axi_araddr;
     logic [7:0]                xbar_lfsr_src_axi_arlen;
     logic [2:0]                xbar_lfsr_src_axi_arsize;
@@ -411,7 +411,7 @@ module bridge_fb_data
     logic                      xbar_lfsr_src_axi_aruser;
     logic                      xbar_lfsr_src_axi_arvalid;
     logic                      xbar_lfsr_src_axi_arready;
-    logic [9:0]            xbar_lfsr_src_axi_rid;
+    logic [5:0]            xbar_lfsr_src_axi_rid;
     logic [127:0] xbar_lfsr_src_axi_rdata;
     logic [1:0]                xbar_lfsr_src_axi_rresp;
     logic                      xbar_lfsr_src_axi_rlast;
@@ -423,7 +423,7 @@ module bridge_fb_data
     logic                       lfsr_src_axi_rid_valid;
 
     // crc_snk (AXI4, 128b AXI4 interface)
-    logic [9:0]            xbar_crc_snk_axi_awid;
+    logic [5:0]            xbar_crc_snk_axi_awid;
     logic [31:0]               xbar_crc_snk_axi_awaddr;
     logic [7:0]                xbar_crc_snk_axi_awlen;
     logic [2:0]                xbar_crc_snk_axi_awsize;
@@ -442,7 +442,7 @@ module bridge_fb_data
     logic                      xbar_crc_snk_axi_wuser;
     logic                      xbar_crc_snk_axi_wvalid;
     logic                      xbar_crc_snk_axi_wready;
-    logic [9:0]            xbar_crc_snk_axi_bid;
+    logic [5:0]            xbar_crc_snk_axi_bid;
     logic [1:0]                xbar_crc_snk_axi_bresp;
     logic                      xbar_crc_snk_axi_buser;
     logic                      xbar_crc_snk_axi_bvalid;
@@ -452,7 +452,7 @@ module bridge_fb_data
     logic                       crc_snk_axi_bid_valid;
 
     // subtractive (AXI4, 128b AXI4 interface)
-    logic [9:0]            xbar_subtractive_axi_awid;
+    logic [5:0]            xbar_subtractive_axi_awid;
     logic [31:0]               xbar_subtractive_axi_awaddr;
     logic [7:0]                xbar_subtractive_axi_awlen;
     logic [2:0]                xbar_subtractive_axi_awsize;
@@ -471,12 +471,12 @@ module bridge_fb_data
     logic                      xbar_subtractive_axi_wuser;
     logic                      xbar_subtractive_axi_wvalid;
     logic                      xbar_subtractive_axi_wready;
-    logic [9:0]            xbar_subtractive_axi_bid;
+    logic [5:0]            xbar_subtractive_axi_bid;
     logic [1:0]                xbar_subtractive_axi_bresp;
     logic                      xbar_subtractive_axi_buser;
     logic                      xbar_subtractive_axi_bvalid;
     logic                      xbar_subtractive_axi_bready;
-    logic [9:0]            xbar_subtractive_axi_arid;
+    logic [5:0]            xbar_subtractive_axi_arid;
     logic [31:0]               xbar_subtractive_axi_araddr;
     logic [7:0]                xbar_subtractive_axi_arlen;
     logic [2:0]                xbar_subtractive_axi_arsize;
@@ -489,7 +489,7 @@ module bridge_fb_data
     logic                      xbar_subtractive_axi_aruser;
     logic                      xbar_subtractive_axi_arvalid;
     logic                      xbar_subtractive_axi_arready;
-    logic [9:0]            xbar_subtractive_axi_rid;
+    logic [5:0]            xbar_subtractive_axi_rid;
     logic [127:0] xbar_subtractive_axi_rdata;
     logic [1:0]                xbar_subtractive_axi_rresp;
     logic                      xbar_subtractive_axi_rlast;
@@ -507,7 +507,7 @@ module bridge_fb_data
     // ---- Slave 4: subtractive (subtractive catch-all, internal) ----
     // Unmapped addresses land here instead of selecting nothing and
     // stalling the master forever (bridge BUG-007, was BRIDGE-009). Always answers DECERR.
-    logic [9:0]  subtractive_awid;
+    logic [5:0]  subtractive_awid;
     logic [31:0]  subtractive_awaddr;
     logic [7:0]  subtractive_awlen;
     logic [2:0]  subtractive_awsize;
@@ -526,12 +526,12 @@ module bridge_fb_data
     logic         subtractive_wuser;
     logic         subtractive_wvalid;
     logic         subtractive_wready;
-    logic [9:0]  subtractive_bid;
+    logic [5:0]  subtractive_bid;
     logic [1:0]  subtractive_bresp;
     logic         subtractive_buser;
     logic         subtractive_bvalid;
     logic         subtractive_bready;
-    logic [9:0]  subtractive_arid;
+    logic [5:0]  subtractive_arid;
     logic [31:0]  subtractive_araddr;
     logic [7:0]  subtractive_arlen;
     logic [2:0]  subtractive_arsize;
@@ -544,7 +544,7 @@ module bridge_fb_data
     logic         subtractive_aruser;
     logic         subtractive_arvalid;
     logic         subtractive_arready;
-    logic [9:0]  subtractive_rid;
+    logic [5:0]  subtractive_rid;
     logic [127:0]  subtractive_rdata;
     logic [1:0]  subtractive_rresp;
     logic         subtractive_rlast;
@@ -558,7 +558,7 @@ module bridge_fb_data
     ocelus_common_pkg::monitor_packet_t subtractive_monbus_packet;
 
     axi4_subtractive_slave #(
-        .AXI_ID_WIDTH   (10),
+        .AXI_ID_WIDTH   (6),
         .AXI_ADDR_WIDTH (32),
         .AXI_DATA_WIDTH (128),
         .AXI_USER_WIDTH (1),

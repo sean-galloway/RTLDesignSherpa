@@ -140,7 +140,12 @@ class BridgeStreamMonAxilMonTB(TBBase):
         # id_width from this knob. Hand-synced copies of this TB: keep the BFM
         # id_widths equal to this value — do not re-derive or hand-edit them
         # at the call sites (bridge GitHub #99).
-        self.XBAR_ID_WIDTH = 10
+        self.XBAR_ID_WIDTH = 6
+        # AXI4 read slaves interleave R beats across IDs (AXI4 allows it, and
+        # the bridge converts per ID): every test with overlapping reads at a
+        # slave then exercises it. BRIDGE_R_INTERLEAVE=0 sends each burst
+        # contiguously instead.
+        self.R_INTERLEAVE = os.environ.get('BRIDGE_R_INTERLEAVE', '1') == '1'
 
         # Per-slave metadata used by misroute checks and pattern computation.
         # slave_info[i] = (protocol, base_addr, addr_range, data_width)
@@ -626,6 +631,7 @@ class BridgeStreamMonAxilMonTB(TBBase):
             multi_sig=True,
             memory_model=self.slave_memory[4],
             base_addr=0x00020000,
+            interleave_r=self.R_INTERLEAVE,
         )
         self.slave_wr[4] = AXI4SlaveWrite(
             self.dut, self.clock,

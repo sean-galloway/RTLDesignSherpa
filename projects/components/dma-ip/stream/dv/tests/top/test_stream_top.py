@@ -42,6 +42,7 @@ repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
 
 from projects.components.dma_ip.stream.dv.tbclasses.stream_core_tb import StreamCoreTB, StreamRegisterMap
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # Coverage integration - optional import
 try:
@@ -686,10 +687,10 @@ def test_stream_top_basic(request, params):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", "--timescale", "1ns/1ps"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "--timescale", "1ns/1ps"]
         sim_args = []
 
     # Add warnings to suppress
@@ -700,7 +701,7 @@ def test_stream_top_basic(request, params):
         "-Wno-SELRANGE",
         "-Wno-UNUSEDSIGNAL",
         "-Wno-UNDRIVEN",
-        "-Wno-MULTIDRIVEN",  # PeakRDL-generated code has expected MULTIDRIVEN warnings
+        FIELD_COMBO_VLT,  # PeakRDL-generated code has expected MULTIDRIVEN warnings
     ])
 
     # Add coverage compile args if COVERAGE=1
@@ -796,15 +797,15 @@ def _run_extended(testcase, name_suffix):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     if enable_waves:
         extra_env['COCOTB_TRACE_FILE'] = os.path.join(sim_build, 'dump.vcd')
-        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["--trace", "--trace-structs", "--trace-depth", "99", "-Wno-fatal", "-Werror-MULTIDRIVEN", "--timescale", "1ns/1ps"]
         sim_args = ["--trace", "--trace-structs", "--trace-depth", "99"]
     else:
-        compile_args = ["-Wno-fatal", "--timescale", "1ns/1ps"]
+        compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "--timescale", "1ns/1ps"]
         sim_args = []
 
     compile_args.extend([
         "-Wno-WIDTH", "-Wno-CASEINCOMPLETE", "-Wno-TIMESCALEMOD", "-Wno-SELRANGE",
-        "-Wno-UNUSEDSIGNAL", "-Wno-UNDRIVEN", "-Wno-MULTIDRIVEN",
+        "-Wno-UNUSEDSIGNAL", "-Wno-UNDRIVEN", FIELD_COMBO_VLT,
     ])
     compile_args.extend(get_coverage_compile_args())
 

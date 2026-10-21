@@ -12,7 +12,7 @@
 module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     import bridge_stream_mon_axil_mon_pkg::*;
 #(
-    parameter int ID_WIDTH = 10
+    parameter int ID_WIDTH = 6
    ,parameter bit USE_MONITOR_WR = 1'b1
    ,parameter bit USE_MONITOR_RD = 1'b1
 ) (
@@ -20,7 +20,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [9:0]  xbar_slvmon_apb_axi_awid,
+    input  logic [5:0]  xbar_slvmon_apb_axi_awid,
     input  logic [31:0]  xbar_slvmon_apb_axi_awaddr,
     input  logic [7:0]  xbar_slvmon_apb_axi_awlen,
     input  logic [2:0]  xbar_slvmon_apb_axi_awsize,
@@ -39,12 +39,12 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     input  logic         xbar_slvmon_apb_axi_wuser,
     input  logic         xbar_slvmon_apb_axi_wvalid,
     output  logic         xbar_slvmon_apb_axi_wready,
-    output  logic [9:0]  xbar_slvmon_apb_axi_bid,
+    output  logic [5:0]  xbar_slvmon_apb_axi_bid,
     output  logic [1:0]  xbar_slvmon_apb_axi_bresp,
     output  logic         xbar_slvmon_apb_axi_buser,
     output  logic         xbar_slvmon_apb_axi_bvalid,
     input  logic         xbar_slvmon_apb_axi_bready,
-    input  logic [9:0]  xbar_slvmon_apb_axi_arid,
+    input  logic [5:0]  xbar_slvmon_apb_axi_arid,
     input  logic [31:0]  xbar_slvmon_apb_axi_araddr,
     input  logic [7:0]  xbar_slvmon_apb_axi_arlen,
     input  logic [2:0]  xbar_slvmon_apb_axi_arsize,
@@ -57,7 +57,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     input  logic         xbar_slvmon_apb_axi_aruser,
     input  logic         xbar_slvmon_apb_axi_arvalid,
     output  logic         xbar_slvmon_apb_axi_arready,
-    output  logic [9:0]  xbar_slvmon_apb_axi_rid,
+    output  logic [5:0]  xbar_slvmon_apb_axi_rid,
     output  logic [31:0]  xbar_slvmon_apb_axi_rdata,
     output  logic [1:0]  xbar_slvmon_apb_axi_rresp,
     output  logic         xbar_slvmon_apb_axi_rlast,
@@ -232,7 +232,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     // bridge needs, and it must cost no gates.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [10-1:0] wr_id_fifo [WR_FIFO_DEPTH];
+    logic [6-1:0] wr_id_fifo [WR_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -301,7 +301,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     // LAST beat, since that is when the FIFO entry is retired.
 `ifndef SYNTHESIS
     // synthesis translate_off
-    logic [10-1:0] rd_id_fifo [RD_FIFO_DEPTH];
+    logic [6-1:0] rd_id_fifo [RD_FIFO_DEPTH];
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
         end else begin
@@ -325,7 +325,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     // ============================================================
     // axi4_master_*_mon wrapper(s) between crossbar and APB shim
     // ============================================================
-    logic [9:0] slvmon_apb_mon_axi_awid;
+    logic [5:0] slvmon_apb_mon_axi_awid;
     logic [31:0] slvmon_apb_mon_axi_awaddr;
     logic [7:0]  slvmon_apb_mon_axi_awlen;
     logic [2:0]  slvmon_apb_mon_axi_awsize;
@@ -344,12 +344,12 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     logic        slvmon_apb_mon_axi_wuser;
     logic        slvmon_apb_mon_axi_wvalid;
     logic        slvmon_apb_mon_axi_wready;
-    logic [9:0] slvmon_apb_mon_axi_bid;
+    logic [5:0] slvmon_apb_mon_axi_bid;
     logic [1:0]  slvmon_apb_mon_axi_bresp;
     logic        slvmon_apb_mon_axi_buser;
     logic        slvmon_apb_mon_axi_bvalid;
     logic        slvmon_apb_mon_axi_bready;
-    logic [9:0] slvmon_apb_mon_axi_arid;
+    logic [5:0] slvmon_apb_mon_axi_arid;
     logic [31:0] slvmon_apb_mon_axi_araddr;
     logic [7:0]  slvmon_apb_mon_axi_arlen;
     logic [2:0]  slvmon_apb_mon_axi_arsize;
@@ -362,7 +362,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     logic        slvmon_apb_mon_axi_aruser;
     logic        slvmon_apb_mon_axi_arvalid;
     logic        slvmon_apb_mon_axi_arready;
-    logic [9:0] slvmon_apb_mon_axi_rid;
+    logic [5:0] slvmon_apb_mon_axi_rid;
     logic [31:0] slvmon_apb_mon_axi_rdata;
     logic [1:0]  slvmon_apb_mon_axi_rresp;
     logic        slvmon_apb_mon_axi_rlast;
@@ -375,12 +375,13 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
         .SKID_DEPTH_AW(2),
         .SKID_DEPTH_W(4),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(17),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
@@ -479,12 +480,13 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
     axi4_master_rd_monlite #(
         .SKID_DEPTH_AR(2),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(16),
+        .MAX_TRANSACTIONS(16),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),
@@ -582,7 +584,7 @@ module bridge_stream_mon_axil_mon_slvmon_apb_adapter
         .APB_CMD_DEPTH(4),
         .APB_RSP_DEPTH(4),
         .USE_JOHNSON(0),
-        .AXI_ID_WIDTH(10),
+        .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1),

@@ -51,6 +51,7 @@ for _p in (_HOST, _TBC):
 from TBClasses.harness.harness import UartSimHarness      # noqa: E402
 import ddr2_char as dc                                  # noqa: E402
 import pumice_master as pm                              # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # UART bit rate in system clocks (measured floor 4 on the pumice TB).
 CLKS_PER_BIT   = int(os.environ.get("TEST_CLKS_PER_BIT", "4"))
@@ -209,7 +210,7 @@ def test_granite_uart_smoke(request):
               "DRAM_BL": str(DRAM_BL)}
     compile_args = [
         "+define+USE_ASYNC_RESET",
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP", "-Wno-MODDUP", "-Wno-PINMISSING",

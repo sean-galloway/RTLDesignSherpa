@@ -48,6 +48,7 @@ sys.path.insert(0, repo_root)
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tb import PIC8259TB, PIC8259RegisterMap
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_basic import PIC8259BasicTests
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.pic_8259.pic_8259_tests_medium import PIC8259MediumTests
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=500, timeout_unit="us")
@@ -234,7 +235,7 @@ def test_pic_8259(request, test_level, description):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
     ]
     compile_args.extend(get_coverage_compile_args())

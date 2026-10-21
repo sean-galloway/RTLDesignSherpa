@@ -30,6 +30,7 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import reg_level_grid, level_env
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.axil4.axil4_factories import create_axil4_master
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 AMBER_FRAMEWORK_ROOT = os.path.join(
@@ -335,7 +336,7 @@ def test_amber_pair_harness_axil(request, test_level):
     # Match the harness-integration lint waiver set from make/fpga_flow.mk so
     # the cocotb simulation elaborates the same design `make lint` gates.
     compile_args = [
-        "-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
         "-Wno-CASEINCOMPLETE", "-Wno-SELRANGE", "-Wno-DECLFILENAME",
         "-Wno-UNUSEDSIGNAL", "-Wno-VARHIDDEN", "-Wno-IMPLICIT",
         "-Wno-CASEOVERLAP", "-Wno-MODDUP", "-Wno-PINMISSING",

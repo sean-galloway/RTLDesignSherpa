@@ -21,6 +21,7 @@ from cocotb_test.simulator import run
 
 from TBClasses.shared.utilities import get_paths, get_repo_root, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 repo_root = get_repo_root()
 sys.path.insert(0, repo_root)
@@ -132,5 +133,5 @@ def test_monbus_tally_axil(request):
                      ["--unroll-count", "16384", "--unroll-stmts", "200000",
                       "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC", "-Wno-SELRANGE",
                       "-Wno-PINMISSING", "-Wno-PINCONNECTEMPTY",
-                      "-Wno-UNOPTFLAT", "-Wno-MULTIDRIVEN"],
+                      "-Wno-UNOPTFLAT", FIELD_COMBO_VLT],
     )

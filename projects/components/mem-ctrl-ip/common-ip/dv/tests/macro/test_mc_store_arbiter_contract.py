@@ -43,6 +43,7 @@ from cocotb.triggers import RisingEdge, with_timeout
 
 from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 _FILELIST = ("projects/components/mem-ctrl-ip/common-ip/dv/filelists/"
              "mc_store_arbiter_macro.f")
@@ -501,7 +502,7 @@ def test_mc_store_arbiter_contract(request, testcase):
         toplevel=dut_name, module=module, testcase=testcase,
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "--public-flat-rw",
-                      "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
+                      FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
         waves=bool(int(os.environ.get("WAVES", "0"))),
         plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
         keep_files=True, timescale="1ns/1ps")

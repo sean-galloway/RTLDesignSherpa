@@ -60,6 +60,7 @@ from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.uart_16550.u
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.uart_16550.uart_16550_tests_full import (
     UART16550FullTests
 )
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=60000, timeout_unit="us")
@@ -231,7 +232,7 @@ def test_uart_16550(request, cdc_enable, test_level, description):
         "-Wno-WIDTHEXPAND",
         "-Wno-CASEINCOMPLETE",
         "-Wno-BLKANDNBLK",
-        "-Wno-MULTIDRIVEN",
+        FIELD_COMBO_VLT,
         "-Wno-TIMESCALEMOD",
         "-Wno-SYNCASYNCNET",
         "-Wno-UNOPTFLAT",

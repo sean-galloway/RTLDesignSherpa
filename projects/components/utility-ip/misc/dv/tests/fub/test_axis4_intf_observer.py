@@ -36,6 +36,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.utility_ip.misc.dv.tbclasses.axis4_intf_observer_tb import AXIS4IntfObserverTB  # noqa: E402
 from TBClasses.monbus.monbus_types import AXISErrorCode  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 # ocelus_amba4_pkg event codes this block emits, by class. The Python
 # decoder carries AXISErrorCode; the other five AXIS classes are asserted
@@ -352,7 +353,7 @@ def _run_observer(request, params, testcase="cocotb_test_observer_regs", test_le
                       # Same waivers as the AXI observer test: the monbus group
                       # and arbiter it shares trip UNOPTFLAT/MULTIDRIVEN on
                       # proven-false-positive paths documented there.
-                      "-Wno-UNOPTFLAT", "-Wno-MULTIDRIVEN"] + wave_args,
+                      "-Wno-UNOPTFLAT", FIELD_COMBO_VLT] + wave_args,
         waves=enable_waves,
         sim_args=(["--trace", "--trace-structs", "--trace-depth", "99"]
                   if enable_waves else []),

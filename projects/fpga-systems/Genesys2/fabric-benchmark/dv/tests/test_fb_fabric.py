@@ -5,15 +5,16 @@
 The same TB and the same seed drive each leg's `fb_data_fabric`; the leg is
 chosen only by which filelist is compiled (PRD.md section 4). Both legs must
 pass identically before either goes into the harness: concurrent traffic from
-all four masters with data checked at both ends, IDs {slot, id} at every slave
-with the master's ID in the low bits, DECERR for unconnected and unmapped
-targets.
+all four masters with data checked at both ends, IDs {slot, local id} at every
+slave (the master's own ID on leg B1, a remap slot on leg A: local_id_width),
+DECERR for unconnected and unmapped targets.
 
 Leg B1 compiles the Xilinx AXI Crossbar from the Vivado install, so
 XILINX_VIVADO must point at it (Vivado's settings64.sh sets it).
 """
 import os
 import random
+import re
 
 import pytest
 import cocotb
@@ -22,6 +23,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from tbclasses.fb_fabric_tb import FbFabricTB
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 COUNTS = {'gate': 20, 'func': 120, 'full': 500}
 AREA = 'projects/fpga-systems/Genesys2/fabric-benchmark'
@@ -29,6 +31,21 @@ LEG_FILELIST = {
     'bridge': f'{AREA}/rtl/filelists/fb_data_fabric_bridge.f',
     'xbar':   f'{AREA}/rtl/filelists/fb_data_fabric_xbar_sim.f',
 }
+
+BRIDGE_PKG = f'{AREA}/rtl/bridges/generated/bridge_fb_data/bridge_fb_data_pkg.sv'
+MASTER_ID_W = 8
+
+
+def local_id_width(repo_root: str, leg: str) -> int:
+    """Master-local ID bits at the slaves. Leg B1 forwards the master's own
+    ID; the bridge (leg A) remaps it to a slot, MASTER_ID_WIDTH in its
+    generated package (bridge TASK-018)."""
+    if leg != 'bridge':
+        return MASTER_ID_W
+    with open(os.path.join(repo_root, BRIDGE_PKG)) as fh:
+        m = re.search(r"localparam int MASTER_ID_WIDTH\s*=\s*(\d+)", fh.read())
+    assert m, f"no MASTER_ID_WIDTH in {BRIDGE_PKG}"
+    return int(m.group(1))
 
 
 @cocotb.test(timeout_time=200, timeout_unit="ms")
@@ -79,12 +96,13 @@ def test_fb_fabric(request, leg, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     extra_env = {
         'TEST_LEVEL': test_level, 'FB_LEG': leg,
+        'FB_LOCAL_ID_W': str(local_id_width(repo_root, leg)),
         'TRACE_FILE': f"{sim_build}/dump.fst", 'VERILATOR_TRACE': '1' if enable_waves else '0',
         'DUT': dut_name, 'LOG_PATH': log_path, 'COCOTB_LOG_LEVEL': 'INFO',
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
-    compile_args = ["-Wno-fatal", "-Wno-lint", "-Wno-style", "-Wno-MULTIDRIVEN"]
+    compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "-Wno-lint", "-Wno-style", FIELD_COMBO_VLT]
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs"]
     create_view_cmd(log_dir, log_path, sim_build, module, name)

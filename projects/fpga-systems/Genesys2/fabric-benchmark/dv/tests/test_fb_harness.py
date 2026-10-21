@@ -17,6 +17,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from tbclasses.fb_harness_tb import FbHarnessTB, CharConfig, fb_workloads, fb_w3
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 AREA = 'projects/fpga-systems/Genesys2/fabric-benchmark'
 # (channels, descriptors per channel, bytes per descriptor), cumulative by level
@@ -111,7 +112,7 @@ def test_fb_harness(request, leg, test_level):
     for k in ('FB_RUNS', 'FB_CHAINS', 'FB_W3'):
         if os.environ.get(k) is not None:
             extra_env[k] = os.environ[k]
-    compile_args = ["-Wno-fatal", "-Wno-lint", "-Wno-style", "-Wno-MULTIDRIVEN",
+    compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "-Wno-lint", "-Wno-style", FIELD_COMBO_VLT,
                     "-Wno-TIMESCALEMOD", "-Wno-UNOPTFLAT"]
     if enable_waves:
         compile_args += ["--trace-fst", "--trace-structs"]

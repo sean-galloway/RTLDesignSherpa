@@ -46,6 +46,7 @@ from tbclasses.pumice_axi_bfm import PumiceAxiBfm      # noqa: E402
 from tbclasses.pumice_levels import depth as _profile_depth  # noqa: E402
 
 from tbclasses.pumice_top_csr_tb import board_clock_periods  # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 _ACLK_NS, _DFI_NS = board_clock_periods()
 
 DFI_RATE, DRAM_BEAT = 2, 32
@@ -349,7 +350,7 @@ def test_granite_top_geared(request, test_level, num_entries, many):
         toplevel=dut_name, module=module, testcase="cocotb_test_granite_top_geared",
         sim_build=sim_build, simulator="verilator", extra_env=extra_env, parameters=params,
         compile_args=["+define+USE_ASYNC_RESET", "--assert", "--public-flat-rw",
-                      "-Wno-MULTIDRIVEN", "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
+                      FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND", "-Wno-WIDTHTRUNC"],
         waves=bool(int(os.environ.get("WAVES", "0"))),
         plus_args=(["--trace"] if int(os.environ.get("WAVES", "0")) else []),
         keep_files=True, timescale="1ns/1ps")

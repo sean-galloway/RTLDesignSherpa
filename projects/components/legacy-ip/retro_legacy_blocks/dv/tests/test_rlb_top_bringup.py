@@ -53,6 +53,7 @@ sys.path.insert(0, repo_root)
 
 from projects.components.legacy_ip.retro_legacy_blocks.dv.tbclasses.rlb_top.rlb_top_tb import RLBTopTB
 from projects.components.legacy_ip.retro_legacy_blocks.dv.host import rlb_bringup_programs as bringup
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 class BookBus:
@@ -200,7 +201,7 @@ def test_rlb_top_bringup(request, test_level, description):
         "--trace", "--trace-structs", "--trace-depth", "99",
         "--timescale", "1ns/1ps",
         "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND", "-Wno-CASEINCOMPLETE",
-        "-Wno-BLKANDNBLK", "-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD",
+        "-Wno-BLKANDNBLK", FIELD_COMBO_VLT, "-Wno-TIMESCALEMOD",
         "-Wno-MODDUP", "-Wno-GENUNNAMED", "-Wno-PINCONNECTEMPTY",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-SYNCASYNCNET",
         "-Wno-DECLFILENAME", "-Wno-VARHIDDEN",
