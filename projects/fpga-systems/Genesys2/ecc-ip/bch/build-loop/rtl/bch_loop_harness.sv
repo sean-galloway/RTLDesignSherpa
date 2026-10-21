@@ -124,7 +124,7 @@ module bch_loop_harness
 
     logic        w_unmapped_irq, w_unmapped_clear;
     logic [31:0] w_unmapped_addr;
-    logic [31:0] w_unmapped_count;
+    logic [7:0]  w_unmapped_count;   // the bridge's count is 8 bits
 
     bridge_bch_loop_axil u_bridge (
         .aclk    (aclk),

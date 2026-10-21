@@ -2438,6 +2438,76 @@ def test_max_outstanding_rejects_non_power_of_two_or_out_of_range(tmp_path, bad)
 
 # --- bridge W2: rate-matching buffers on upsized paths into shared slaves ----
 
+def test_rate_buffer_sideband_ties_have_one_driver(tmp_path):
+    """An AXI5 master with sideband on an upsized path into a shared slave
+    gets a write rate buffer, which drives the path's output AW / W structs
+    whole. The sideband '0 ties belong on the buffer's input structs: tied on
+    the output as well, every field had two drivers (Vivado Synth 8-6859 on
+    the Genesys 2 bridge stress model's mixed build, bridge_bs_xmix)."""
+    import re, shutil
+    (tmp_path / "x.toml").write_text('''
+[bridge]
+name = "bridge_sbrb"
+variants = ["no"]
+[[bridge.masters]]
+name = "m5"
+prefix = "m5_axi_"
+protocol = "axi5"
+channels = "rw"
+id_width = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+axi5_features = ["trace"]
+[[bridge.masters]]
+name = "m4"
+prefix = "m4_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 4
+addr_width = 32
+data_width = 128
+user_width = 1
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 5
+addr_width = 32
+data_width = 128
+user_width = 1
+base_addr = "0x00000000"
+addr_range = "0x10000000"
+''')
+    (tmp_path / "x_connectivity.csv").write_text("master\\slave,s0\nm5,1\nm4,1\n")
+    out = tmp_path / "rtl"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", str(tmp_path / "x.toml"),
+         "--connectivity", str(tmp_path / "x_connectivity.csv"),
+         "--name", "bridge_sbrb", "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    m5 = (out / "bridge_sbrb" / "m5_adapter.sv").read_text()
+    assert "u_wr_rbuf_128b" in m5                      # the case under test exists
+    assert re.search(r"assign m5_128b_rb_aw\.trace = '0;", m5)
+    assert not re.search(r"assign m5_128b_aw\.trace = ", m5)   # the buffer drives it
+    assert re.search(r"assign m5_128b_ar\.trace = '0;", m5)    # AR has no buffer
+    if shutil.which("verilator"):
+        from TBClasses.shared.filelist_utils import get_sources_from_filelist
+        srcs, incs = get_sources_from_filelist(
+            repo_root=str(REPO_ROOT), filelist_path=str(tmp_path / "filelists" / "bridge_sbrb.f"))
+        args = tmp_path / "lint.f"
+        args.write_text("\n".join([f"+incdir+{i}" for i in incs] + srcs))
+        lr = subprocess.run(["verilator", "--lint-only", "-Wno-fatal", "-Wno-DECLFILENAME",
+                             "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-PINCONNECTEMPTY",
+                             "-f", str(args), "--top-module", "bridge_sbrb"],
+                            capture_output=True, text=True, timeout=300)
+        assert "MULTIDRIVEN" not in lr.stdout + lr.stderr, (lr.stdout + lr.stderr)[-2000:]
+
+
 def test_rate_buffer_defaults_and_overrides(tmp_path):
     toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"',
                                  master_extra='rate_buffer = 8')

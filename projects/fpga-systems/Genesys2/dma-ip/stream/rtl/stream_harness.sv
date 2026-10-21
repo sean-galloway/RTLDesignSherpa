@@ -2011,7 +2011,10 @@ module stream_harness #(
         // a compiled-out checker means NO AddrMatch packet can ever reach a
         // tally. test_stream_mon_profile asserted on exactly those bins and
         // was unsatisfiable by construction, not failing on a bug.
-        .N_ADDR_RANGES       (4)
+        .N_ADDR_RANGES       (4),
+        // its err drain is the 32-bit slave_err window: the group's 2:1 read
+        // serializer (6 beats per record), not a 64-bit drain cut to 32 bits
+        .S_AXIL_DATA_WIDTH   (32)
     ) u_slave_observer (
         .aclk    (aclk),
         .aresetn (unit_aresetn),

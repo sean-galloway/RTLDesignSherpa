@@ -100,19 +100,19 @@ module amber_cycle_injector
     // ------------------------------------------------------------------
     // CSR map (32-bit word offsets)
     // ------------------------------------------------------------------
-    localparam int CSR_CTRL          = 4'h0;
-    localparam int CSR_SEED          = 4'h1;
-    localparam int CSR_ADDR_BASE     = 4'h2;
-    localparam int CSR_ADDR_MASK     = 4'h3;
-    localparam int CSR_TRANS_COUNT   = 4'h4;
-    localparam int CSR_STATUS        = 4'h5;
-    localparam int CSR_ACC_COUNT     = 4'h6;
-    localparam int CSR_RSP_COUNT     = 4'h7;
-    localparam int CSR_ERR_FLAG      = 4'h8;
-    localparam int CSR_RSP_CRC_LO    = 4'hC;   // word 12
-    localparam int CSR_RSP_CRC_HI    = 4'hD;   // word 13
-    localparam int CSR_WDATA_CRC_LO  = 4'hE;   // word 14
-    localparam int CSR_WDATA_CRC_HI  = 4'hF;   // word 15
+    localparam logic [3:0] CSR_CTRL          = 4'h0;
+    localparam logic [3:0] CSR_SEED          = 4'h1;
+    localparam logic [3:0] CSR_ADDR_BASE     = 4'h2;
+    localparam logic [3:0] CSR_ADDR_MASK     = 4'h3;
+    localparam logic [3:0] CSR_TRANS_COUNT   = 4'h4;
+    localparam logic [3:0] CSR_STATUS        = 4'h5;
+    localparam logic [3:0] CSR_ACC_COUNT     = 4'h6;
+    localparam logic [3:0] CSR_RSP_COUNT     = 4'h7;
+    localparam logic [3:0] CSR_ERR_FLAG      = 4'h8;
+    localparam logic [3:0] CSR_RSP_CRC_LO    = 4'hC;   // word 12
+    localparam logic [3:0] CSR_RSP_CRC_HI    = 4'hD;   // word 13
+    localparam logic [3:0] CSR_WDATA_CRC_LO  = 4'hE;   // word 14
+    localparam logic [3:0] CSR_WDATA_CRC_HI  = 4'hF;   // word 15
 
     localparam logic [31:0] CSR_CTRL_RUN_MASK     = 32'h0000_0001;
     localparam int          CSR_CTRL_WE_MIX_SHIFT = 8;

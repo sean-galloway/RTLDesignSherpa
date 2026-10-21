@@ -1345,7 +1345,8 @@ module scheduler_group_array #(
         .cfg_monitor_enable   (cfg_desc_mon_enable),
         .cfg_error_enable     (cfg_desc_mon_err_enable),
         .cfg_timeout_enable   (cfg_desc_mon_timeout_enable),
-        .cfg_timeout_cycles   (cfg_desc_mon_timeout_cycles),
+        // the monitor's timeout is 16 bits: CSR values above 0xFFFF are not representable
+        .cfg_timeout_cycles   (cfg_desc_mon_timeout_cycles[15:0]),
         .cfg_freq_sel         (4'b0000),
         .cfg_axi_pkt_mask     (cfg_desc_mon_pkt_mask),
         .cfg_latency_threshold (cfg_desc_mon_latency_thresh),

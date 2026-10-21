@@ -1857,8 +1857,8 @@ module stream_core #(
             assign wrmon_perf_burst_count   = r_wr_burst_cnt;
             assign rdmon_perf_beat_count    = rdmon_perf_prod_cycles;  // beats==productive
             assign wrmon_perf_beat_count    = wrmon_perf_prod_cycles;
-            assign rdmon_perf_byte_count    = 64'(rdmon_perf_beat_count) * (DW/8);
-            assign wrmon_perf_byte_count    = 64'(wrmon_perf_beat_count) * (DW/8);
+            assign rdmon_perf_byte_count    = 64'(rdmon_perf_beat_count) * 64'(DW/8);
+            assign wrmon_perf_byte_count    = 64'(wrmon_perf_beat_count) * 64'(DW/8);
 
             //=================================================================
             // RFC Stage D: per-transaction latency histograms (GATED)

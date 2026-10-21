@@ -815,11 +815,6 @@ module bridge_bs_xmix_cpu_adapter
     logic conv_128b_rlast;
     logic conv_128b_rvalid;
 
-    assign cpu_128b_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign cpu_128b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign cpu_128b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign cpu_128b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign cpu_128b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
@@ -833,6 +828,12 @@ module bridge_bs_xmix_cpu_adapter
     axi4_aw_t cpu_128b_rb_aw;
     axi4_w_128b_t cpu_128b_rb_w;
     logic cpu_128b_rb_awvalid, cpu_128b_rb_awready, cpu_128b_rb_wvalid, cpu_128b_rb_wready;
+    assign cpu_128b_rb_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign cpu_128b_rb_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign cpu_128b_rb_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign cpu_128b_rb_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign cpu_128b_rb_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(128),

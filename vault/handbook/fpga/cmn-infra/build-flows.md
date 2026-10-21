@@ -57,7 +57,8 @@ variable in the shared file instead. The three that exist:
 |---|---|---|
 | `PREBUILD` | a command that must run before `project`/`synth`/`bitstream` -- regenerating a bridge from its `.toml`, a regblock from its `.rdl` | empty (a clean no-op) |
 | `FPGA_BITSTREAM` | exported to the tcl so the artifact name has ONE authority | `$(FPGA_DIR)/bitstream/$(FLOW).bit` |
-| `LINT_WAIVERS` | board-integration warning noise | includes `-Wno-PINMISSING`: a board top routinely leaves a submodule's optional status outputs open, and that is an integration choice, not a defect |
+| `LINT_WAIVERS` | board-integration warning noise | includes `-Wno-PINMISSING`: a board top routinely leaves a submodule's optional status outputs open, and that is an integration choice, not a defect. **Never WIDTH** (below) |
+| `LINT_VENDOR_VLT` | rules switched off for third-party source only, by file path | `make/verilator_vendor.vlt`: WIDTH off under AMD's IP library, nothing else |
 | `LINT_UNROLL` | Verilator's loop-unroll budget, when the design's deepest loop exceeds the stock one | empty -- a flow that does not need it must not pay for it |
 
 `FPGA_BITSTREAM` earns its keep when a build has more than one flavor. The
@@ -195,3 +196,26 @@ Two consequences for the order:
   well under a minute and converts "the bitstream probably works" into a number.
 
 Method and rationale: [[register-testing]].
+
+## WIDTH is not waived (owner, 2026-10-20)
+
+`LINT_WAIVERS` carried `-Wno-WIDTH` for every flow. Taking it out turned 23 of
+39 builds red on 234 width sites, and among the noise were real defects that
+had passed every simulation:
+
+- a board top's 6-bit ID nets on a 7-bit bridge port (bridge-stress build-xil);
+- a monitor group's 64-bit error drain wired into a 32-bit AXI-Lite window
+  (STREAM's slave observer: the upper half of every record lost -- the class
+  f08ccce4 fixed for stream_top_ch8, still alive in a second instance);
+- STREAM's 16-bit monitor masks passed through 8-bit nets, so the monitor saw
+  `0x00FF` where the RDL resets `0xFFFF`;
+- an 8-bit copy of a 16-bit FIFO count that read "empty" at 256 records;
+- a core instantiated without its user-width parameter (granite: user bits
+  cut to 1, the upper B / R user bits undriven).
+
+Fix a width by sizing the operand or the connection where the intent is
+(`16'(x)`, `x[5:0]` with the dropped bits driven or marked unused, the net at
+the port's width) -- never by a waiver. The only exemption is third-party
+source this repo cannot edit, listed by path in `make/verilator_vendor.vlt`.
+A comment in a `.vlt` must not begin with the tool's name: it is read as a
+pragma and fails every build.

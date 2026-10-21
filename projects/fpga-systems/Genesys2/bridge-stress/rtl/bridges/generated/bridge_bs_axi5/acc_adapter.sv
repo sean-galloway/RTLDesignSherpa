@@ -583,16 +583,6 @@ module bridge_bs_axi5_acc_adapter
     logic conv_64b_rlast;
     logic conv_64b_rvalid;
 
-    assign acc_64b_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_64b_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign acc_64b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign acc_64b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign acc_64b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
@@ -607,6 +597,17 @@ module bridge_bs_axi5_acc_adapter
     axi4_aw_t acc_64b_rb_aw;
     axi4_w_64b_t acc_64b_rb_w;
     logic acc_64b_rb_awvalid, acc_64b_rb_awready, acc_64b_rb_wvalid, acc_64b_rb_wready;
+    assign acc_64b_rb_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_64b_rb_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
+
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(64),
@@ -795,16 +796,6 @@ module bridge_bs_axi5_acc_adapter
     logic conv_128b_rlast;
     logic conv_128b_rvalid;
 
-    assign acc_128b_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign acc_128b_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign acc_128b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign acc_128b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign acc_128b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
@@ -819,6 +810,17 @@ module bridge_bs_axi5_acc_adapter
     axi4_aw_t acc_128b_rb_aw;
     axi4_w_128b_t acc_128b_rb_w;
     logic acc_128b_rb_awvalid, acc_128b_rb_awready, acc_128b_rb_wvalid, acc_128b_rb_wready;
+    assign acc_128b_rb_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_aw.atop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_aw.tagop = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_w.poison = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_w.tag = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign acc_128b_rb_w.tagupdate = '0;  // AXI5 sideband: dropped across dwidth conversion
+
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(32),
         .M_AXI_DATA_WIDTH(128),

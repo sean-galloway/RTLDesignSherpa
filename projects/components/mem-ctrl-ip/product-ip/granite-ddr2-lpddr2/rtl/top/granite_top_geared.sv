@@ -367,6 +367,7 @@ module granite_top_geared
     granite_core #(
         .AXI_ID_WIDTH     (IW),
         .AXI_ADDR_WIDTH   (AW),
+        .UW               (AXI_USER_WIDTH),   // was left at the core's 1: user bits cut to 1, B/R user's upper bits undriven
         .NUM_RANKS        (NUM_RANKS),
         .NUM_BANKS        (NUM_BANKS),
         .ROW_WIDTH        (ROW_WIDTH),

@@ -32,7 +32,7 @@ import bstress
 
 AREA = bstress.AREA
 BUILDS = {'axi4': 'bridge_bs_axi4', 'axi3': 'bridge_bs_axi3', 'axi5': 'bridge_bs_axi5',
-          'xil': 'bridge_bs_xil'}
+          'xil': 'bridge_bs_xil', 'xmix': 'bridge_bs_xmix'}
 ACLK_HZ = 100e6
 
 

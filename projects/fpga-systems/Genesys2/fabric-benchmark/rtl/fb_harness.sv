@@ -737,7 +737,7 @@ module fb_harness #(
         end else begin
             r_obs_rd_out <= r_obs_rd_out
                           + 16'(stream_rd_arvalid & stream_rd_arready)
-                          - 16'(stream_rd_rvalid & stream_rd_rready & stream_rd_rlast);
+                          - 16'(stream_rd_rvalid && stream_rd_rready && stream_rd_rlast);
             r_obs_wr_out <= r_obs_wr_out
                           + 16'(stream_wr_awvalid & stream_wr_awready)
                           - 16'(stream_wr_bvalid & stream_wr_bready);

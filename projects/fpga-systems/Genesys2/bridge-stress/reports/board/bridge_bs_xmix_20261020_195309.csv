@@ -1,0 +1,3 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xmix,clean,1,4000,False,True,769772,
+bridge_bs_xmix,clean,2,4000,False,True,765455,

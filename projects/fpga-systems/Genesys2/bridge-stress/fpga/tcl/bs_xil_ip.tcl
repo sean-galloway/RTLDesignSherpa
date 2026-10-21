@@ -19,6 +19,10 @@
 #   bs_pc_bram    AXI Protocol Checker on the bram link (64-bit, ID 7)
 #   bs_pc_atg     AXI Protocol Checker on the traffic generator's link (64-bit,
 #                 ID 2): judges the bridge's responses to a third-party master
+# build-xmix (BS_XMIX=1), whose bram slave port is AXI3, adds:
+#   bs_axi3_conv  AXI Protocol Converter, AXI3 in, AXI4 out (64-bit, ID 7):
+#                 the AXI3 port to the BRAM controller
+#   bs_pc_bram3   AXI Protocol Checker in AXI3 mode on that port (64-bit, ID 7)
 #
 # Widths and IDs are the bridge_bs_xil.toml ports'; the tcl reads every
 # CONFIG value back, because Vivado clamps or ignores a value it does not
@@ -82,7 +86,22 @@ proc bs_create_xil_ips {area} {
             CONFIG.HAS_WSTRB {1} CONFIG.SUPPORTS_NARROW_BURST {1}]
     }
 
-    set ips [get_ips {bs_atg bs_cdma bs_bram_ctrl bs_bram bs_pc_ddr bs_pc_bram bs_pc_atg}]
+    set names {bs_atg bs_cdma bs_bram_ctrl bs_bram bs_pc_ddr bs_pc_bram bs_pc_atg}
+    if {[info exists ::env(BS_XMIX)] && $::env(BS_XMIX)} {
+        puts "\n--- bs_axi3_conv (axi_protocol_converter, AXI3 -> AXI4) ---"
+        create_ip -name axi_protocol_converter -vendor xilinx.com -library ip -module_name bs_axi3_conv
+        bs_ip_set bs_axi3_conv [list CONFIG.SI_PROTOCOL {AXI3} CONFIG.MI_PROTOCOL {AXI4} \
+            CONFIG.DATA_WIDTH {64} CONFIG.ID_WIDTH {7} CONFIG.ADDR_WIDTH {32} \
+            CONFIG.READ_WRITE_MODE {READ_WRITE}]
+        puts "\n--- bs_pc_bram3 (axi_protocol_checker, AXI3) ---"
+        create_ip -name axi_protocol_checker -vendor xilinx.com -library ip -module_name bs_pc_bram3
+        bs_ip_set bs_pc_bram3 [list CONFIG.PROTOCOL {AXI3} CONFIG.READ_WRITE_MODE {READ_WRITE} \
+            CONFIG.DATA_WIDTH {64} CONFIG.ID_WIDTH {7} CONFIG.ADDR_WIDTH {32} \
+            CONFIG.MAX_RD_BURSTS {32} CONFIG.MAX_WR_BURSTS {32} \
+            CONFIG.HAS_WSTRB {1} CONFIG.SUPPORTS_NARROW_BURST {1}]
+        lappend names bs_axi3_conv bs_pc_bram3
+    }
+    set ips [get_ips $names]
     generate_target {instantiation_template synthesis} $ips
     puts "\nbs_xil_ip: [llength $ips] IPs generated"
 }

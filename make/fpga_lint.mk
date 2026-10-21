@@ -37,7 +37,14 @@ LINT_DEFINES ?= +define+USE_ASYNC_RESET
 # passing every simulation. Verilator runs without -Wno-fatal here, so an
 # IMPLICIT warning is a hard lint failure. check_sv_decl_order.py complements
 # this by catching use-before-declaration of signals that ARE declared later.
-LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN -Wno-WIDTH \
+#
+# WIDTH is NOT waived (owner decision 2026-10-20). Waived, it hid a 6-bit
+# bus driving 7-bit IDs on a board top, a 64-bit monitor drain cut to a 32-bit
+# net, monitor masks cut from 16 bits to 8, and an 8-bit FIFO count that read
+# "empty" at 256 records. Size a connection or an operand explicitly instead.
+# The only exemption is AMD's own IP source, which this repo cannot edit
+# (verilator_vendor.vlt, by file path).
+LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN \
                 -Wno-CASEINCOMPLETE -Wno-SELRANGE -Wno-DECLFILENAME \
                 -Wno-UNUSEDSIGNAL -Wno-VARHIDDEN \
                 -Wno-CASEOVERLAP -Wno-MODDUP -Wno-PINMISSING
@@ -57,6 +64,10 @@ LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN -Wno-WIDTH \
 # run() calls over the same RTL compiled clean -- they passed the budget and the
 # gate did not. A gate that cannot elaborate the design cannot gate it.
 LINT_UNROLL ?=
+
+# Verilator config exempting third-party source by path (AMD's IP library):
+# rules only, never our RTL. See verilator_vendor.vlt.
+LINT_VENDOR_VLT ?= $(RDS_ROOT)/make/verilator_vendor.vlt
 
 # ------------------------------------------------------------------------------
 # Flattened, DEDUPLICATED source list -- what verilator must actually be given.
@@ -134,7 +145,7 @@ LINT_GENERICS = \
 lint: lint-decl-order lint-call-select flat-filelist  ## verilator --lint-only of the whole harness (fast, pre-Vivado)
 	@[ -n "$(TOP)" ] || (echo "TOP is not set -- cannot lint." && false)
 	@echo "[lint] $(TOP) $(if $(strip $(LINT_GENERICS)),[$(strip $(LINT_GENERICS))],[RTL defaults])"
-	@$(VERILATOR) --lint-only --top-module $(TOP) -f $(FLAT_FILELIST) \
+	@$(VERILATOR) --lint-only --top-module $(TOP) $(LINT_VENDOR_VLT) -f $(FLAT_FILELIST) \
 	    $(LINT_GENERICS) $(LINT_DEFINES) $(LINT_WAIVERS) $(LINT_UNROLL)
 
 flat-filelist:      ## Expand + dedupe FILELIST into $(FLAT_FILELIST) (see above)

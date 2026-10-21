@@ -404,12 +404,13 @@ module scheduler_group_array_beats #(
                 .ADDR_WIDTH             (ADDR_WIDTH),
                 .DATA_WIDTH             (DATA_WIDTH),
                 .AXI_ID_WIDTH           (AXI_ID_WIDTH),
-                .DESC_MON_AGENT_ID      (16'(DESC_MON_BASE_AGENT_ID + ch)),
-                .SCHED_MON_AGENT_ID     (16'(SCHED_MON_BASE_AGENT_ID + ch)),
-                .CTRLRD_MON_AGENT_ID    (16'(32 + ch)),   // 0x20.. per channel
-                .CTRLWR_MON_AGENT_ID    (16'(40 + ch)),   // 0x28.. per channel
-                .MON_UNIT_ID            (8'(MON_UNIT_ID)),
-                .MON_CHANNEL_ID         (9'(ch)),
+                // int parameters: each value is cut to its packet field, then widened
+                .DESC_MON_AGENT_ID      (int'(16'(DESC_MON_BASE_AGENT_ID + ch))),
+                .SCHED_MON_AGENT_ID     (int'(16'(SCHED_MON_BASE_AGENT_ID + ch))),
+                .CTRLRD_MON_AGENT_ID    (int'(16'(32 + ch))),   // 0x20.. per channel
+                .CTRLWR_MON_AGENT_ID    (int'(16'(40 + ch))),   // 0x28.. per channel
+                .MON_UNIT_ID            (int'(8'(MON_UNIT_ID))),
+                .MON_CHANNEL_ID         (int'(9'(ch))),
                 .EN_READ                (EN_READ),
                 .EN_WRITE               (EN_WRITE),
                 .GEN_MON                (GEN_MON),
@@ -636,7 +637,7 @@ module scheduler_group_array_beats #(
         end
 
         // Route R valid to correct channel based on ID
-        if (desc_axi_int_rvalid && desc_r_channel_id < NUM_CHANNELS) begin
+        if (desc_axi_int_rvalid && 32'(desc_r_channel_id) < NUM_CHANNELS) begin
             desc_r_valid[desc_r_channel_id] = 1'b1;
         end
     end
@@ -710,7 +711,7 @@ module scheduler_group_array_beats #(
             ctrlrd_r_last[ch] = ctrlrd_axi_rlast;
             ctrlrd_r_id[ch]   = ctrlrd_axi_rid;
         end
-        if (ctrlrd_axi_rvalid && ctrlrd_r_channel_id < NUM_CHANNELS) begin
+        if (ctrlrd_axi_rvalid && 32'(ctrlrd_r_channel_id) < NUM_CHANNELS) begin
             ctrlrd_r_valid[ctrlrd_r_channel_id] = 1'b1;
         end
     end
@@ -971,7 +972,8 @@ module scheduler_group_array_beats #(
         .cfg_monitor_enable   (cfg_desc_mon_enable),
         .cfg_error_enable     (cfg_desc_mon_err_enable),
         .cfg_timeout_enable   (cfg_desc_mon_timeout_enable),
-        .cfg_timeout_cycles   (cfg_desc_mon_timeout_cycles),
+        // the monitor's timeout is 16 bits: CSR values above 0xFFFF are not representable
+        .cfg_timeout_cycles   (cfg_desc_mon_timeout_cycles[15:0]),
         .cfg_freq_sel         (4'b0000),
         .cfg_axi_pkt_mask     (cfg_desc_mon_pkt_mask),
         .cfg_latency_threshold (cfg_desc_mon_latency_thresh),

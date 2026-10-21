@@ -204,6 +204,7 @@ module axi4_to_axi3_wr #(
     logic                      desc_push;    // a descriptor enters (FIFO or bypass)
     logic                      aw_handshake;
     logic                      aw_direct;    // an unchopped AW offered straight to the port
+    logic                      r_dpush;      // that AW's descriptor is queued; its handshake is not done
 
     // Descriptor FIFO pushed at AW acceptance; consumed by the W segmenter
     logic        descq_wr_ready, descq_rd_valid, descq_rd_ready;
@@ -288,10 +289,17 @@ module axi4_to_axi3_wr #(
     // it; a chopped one is taken into the staging register. While a chopped
     // write waits or issues its chunks, new AWs wait. No per-ID state is
     // read here: the staged write checks its ID from registers (stage_go).
+    //
+    // The direct AW's descriptor is queued when the AW is OFFERED, not when
+    // the port takes it, so its W can go first: a slave may wait for WVALID
+    // before it raises AWREADY (AXI A3.3.1), and with W held for that
+    // handshake the write deadlocked (bridge BUG-020's class, here). r_dpush
+    // marks the offered AW's descriptor as queued, so it is queued once, and
+    // keeps AWVALID up through to the handshake even if the queue fills.
     assign aw_direct     = !active_valid && !stage_valid && s_axi_awvalid &&
-                           !aw_chop && !total_full && descq_wr_ready;
+                           !aw_chop && !total_full && (descq_wr_ready || r_dpush);
     assign s_axi_awready = !active_valid && !stage_valid && !total_full &&
-                           (aw_chop || (m_axi3_awready && descq_wr_ready));
+                           (aw_chop || (m_axi3_awready && (descq_wr_ready || r_dpush)));
     assign aw_handshake  = s_axi_awvalid && s_axi_awready;
     // The staged write is counted in its ID already (at acceptance), so it
     // goes once it is the only write of that ID in flight: an unchopped
@@ -299,7 +307,12 @@ module axi4_to_axi3_wr #(
     // Its descriptor is pushed then, so W starts with its AW as before.
     assign stage_go      = stage_valid && descq_wr_ready && !id_chop[stage_aw.id] &&
                            (id_count[stage_aw.id] == CntW'(1));
-    assign desc_push     = (aw_handshake && !aw_chop) || stage_go;
+    assign desc_push     = (aw_direct && !r_dpush) || stage_go;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))    r_dpush <= 1'b0;
+        else if (aw_handshake)          r_dpush <= 1'b0;
+        else if (aw_direct && !r_dpush) r_dpush <= 1'b1;
+    )
 
     assign descq_wr_data.id    = stage_go ? stage_aw.id : s_axi_awid;
     assign descq_wr_data.beats = 9'(stage_go ? stage_aw.len : s_axi_awlen) + 9'd1;

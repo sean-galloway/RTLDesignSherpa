@@ -1,0 +1,22 @@
+[
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 769772,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 765455,
+  "reasons": ""
+ }
+]

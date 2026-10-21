@@ -40,6 +40,8 @@ from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import (
     create_axi4_slave_rd, create_axi4_slave_wr)
+from CocoTBFramework.components.axi3.axi3_factories import (
+    create_axi3_slave_rd, create_axi3_slave_wr)
 from CocoTBFramework.components.axi4.axi4_compliance_checker import AXI4ComplianceChecker
 
 import bstress
@@ -98,6 +100,12 @@ class BsHarnessTB(TBBase):
             kw = dict(dut=d, clock=d.aclk, prefix=f'{s.name}_axi', log=self.log,
                       id_width=s.iw, addr_width=32, data_width=s.dw, user_width=1,
                       memory_model=mem, base_addr=s.base)
+            if s.protocol == 'axi3':
+                # build-xmix's bram port; the framework has no AXI3 compliance
+                # checker, so this link is judged on the board (bs_pc_bram3) only
+                self._vendor_bfms += [create_axi3_slave_rd(**kw), create_axi3_slave_wr(**kw)]
+                self.log.info(f'{s.name}: AXI3 vendor link -- no compliance checker in sim')
+                continue
             self._vendor_bfms += [create_axi4_slave_rd(**kw), create_axi4_slave_wr(**kw)]
             self.pcs[s.name] = AXI4ComplianceChecker(
                 d, d.aclk, prefix=f'{s.name}_axi_', log=self.log,

@@ -826,11 +826,6 @@ module bridge_bs_xmix_io_adapter
     logic conv_128b_rlast;
     logic conv_128b_rvalid;
 
-    assign io_128b_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign io_128b_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign io_128b_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign io_128b_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
-    assign io_128b_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
     assign io_128b_ar.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
@@ -844,6 +839,12 @@ module bridge_bs_xmix_io_adapter
     axi4_aw_t io_128b_rb_aw;
     axi4_w_128b_t io_128b_rb_w;
     logic io_128b_rb_awvalid, io_128b_rb_awready, io_128b_rb_wvalid, io_128b_rb_wready;
+    assign io_128b_rb_aw.nsaid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_rb_aw.trace = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_rb_aw.mpam = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_rb_aw.mecid = '0;  // AXI5 sideband: dropped across dwidth conversion
+    assign io_128b_rb_aw.idunq = '0;  // AXI5 sideband: dropped across dwidth conversion
+
     axi4_dwidth_converter_wr #(
         .S_AXI_DATA_WIDTH(64),
         .M_AXI_DATA_WIDTH(128),

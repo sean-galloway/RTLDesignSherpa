@@ -1,0 +1,32 @@
+[
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 673421,
+  "reasons": "wr sweep of ddr by io: [], 8192 of 512 bursts | rd sweep of ddr by io: [], 8192 of 512 bursts"
+ },
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 669726,
+  "reasons": "wr sweep of ddr by io: [], 8192 of 512 bursts | rd sweep of ddr by io: [], 8192 of 512 bursts"
+ },
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 670752,
+  "reasons": "wr sweep of ddr by io: [], 8192 of 512 bursts | rd sweep of ddr by io: [], 8192 of 512 bursts"
+ }
+]

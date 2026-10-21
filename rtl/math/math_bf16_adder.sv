@@ -148,7 +148,7 @@ module math_bf16_adder #(
     logic        r1_l_is_normal, r1_s_is_normal, r1_s_eff_zero;
 
     generate
-        if (PIPE_STAGE_1) begin : gen_pipe1
+        if (PIPE_STAGE_1 != 0) begin : gen_pipe1
             `ALWAYS_FF_RST(i_clk, i_rst_n,
                 if (`RST_ASSERTED(i_rst_n)) begin
                     r1_valid        <= 1'b0;
@@ -233,7 +233,7 @@ module math_bf16_adder #(
     wire [$clog2(EXT_MANT_WIDTH):0] w_shift_amt;
 
     // Clamp shift amount to mantissa width (shifts beyond this produce zero + sticky)
-    assign w_shift_amt = (r1_exp_diff > EXT_MANT_WIDTH) ? 
+    assign w_shift_amt = (32'(r1_exp_diff) > EXT_MANT_WIDTH) ? 
                          EXT_MANT_WIDTH[$clog2(EXT_MANT_WIDTH):0] : 
                          r1_exp_diff[$clog2(EXT_MANT_WIDTH):0];
 
@@ -253,7 +253,7 @@ module math_bf16_adder #(
 
     always_comb begin
         // All bits below shift position get shifted out
-        if (r1_exp_diff >= EXT_MANT_WIDTH) begin
+        if (32'(r1_exp_diff) >= EXT_MANT_WIDTH) begin
             // Everything shifted out
             w_sticky_mask = 11'h7FF;
         end else begin
@@ -279,7 +279,7 @@ module math_bf16_adder #(
     logic        r2_sticky_s;
 
     generate
-        if (PIPE_STAGE_2) begin : gen_pipe2
+        if (PIPE_STAGE_2 != 0) begin : gen_pipe2
             `ALWAYS_FF_RST(i_clk, i_rst_n,
                 if (`RST_ASSERTED(i_rst_n)) begin
                     r2_valid          <= 1'b0;
@@ -381,7 +381,7 @@ module math_bf16_adder #(
     logic        r3_sticky_s;
 
     generate
-        if (PIPE_STAGE_3) begin : gen_pipe3
+        if (PIPE_STAGE_3 != 0) begin : gen_pipe3
             `ALWAYS_FF_RST(i_clk, i_rst_n,
                 if (`RST_ASSERTED(i_rst_n)) begin
                     r3_valid         <= 1'b0;
@@ -556,7 +556,7 @@ module math_bf16_adder #(
     logic        r4_sum_is_zero, r4_norm_sticky;
 
     generate
-        if (PIPE_STAGE_4) begin : gen_pipe4
+        if (PIPE_STAGE_4 != 0) begin : gen_pipe4
             `ALWAYS_FF_RST(i_clk, i_rst_n,
                 if (`RST_ASSERTED(i_rst_n)) begin
                     r4_valid           <= 1'b0;

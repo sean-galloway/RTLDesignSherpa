@@ -377,7 +377,7 @@ module cdc_demo_top (
             ) u_clkdiv (
                 .clk            (sys_clk),
                 .rst_n          (sys_rstn),
-                .pickoff_points (w_cfg_divisor[dvi][12:8]),
+                .pickoff_points (8'(w_cfg_divisor[dvi][12:8])),   // the divider takes 8 pick-off bits; the CSR gives 5
                 .divided_clk    (w_clk_div_raw[dvi])
             );
             BUFG u_clkdiv_bufg (.I(w_clk_div_raw[dvi]), .O(w_clk_div_bufg[dvi]));

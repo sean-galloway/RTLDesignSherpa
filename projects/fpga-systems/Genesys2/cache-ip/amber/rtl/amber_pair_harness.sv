@@ -409,11 +409,11 @@ module amber_pair_harness
     // ------------------------------------------------------------------
     // harness_csr: global control / status / cycle counter / fabric debug
     // ------------------------------------------------------------------
-    localparam int HCSR_CTRL        = 4'h0;
-    localparam int HCSR_STATUS      = 4'h1;
-    localparam int HCSR_CYCLE_LO    = 4'h2;
-    localparam int HCSR_CYCLE_HI    = 4'h3;
-    localparam int HCSR_FABRIC_DBG  = 4'h4;
+    localparam logic [3:0] HCSR_CTRL        = 4'h0;
+    localparam logic [3:0] HCSR_STATUS      = 4'h1;
+    localparam logic [3:0] HCSR_CYCLE_LO    = 4'h2;
+    localparam logic [3:0] HCSR_CYCLE_HI    = 4'h3;
+    localparam logic [3:0] HCSR_FABRIC_DBG  = 4'h4;
 
     logic [31:0] hcsr_ctrl, hcsr_status;
     logic [63:0] r_cycle_ctr;
@@ -1364,11 +1364,11 @@ module amber_harness_csr (
     input  logic [3:0]  i_fabric_dbg
 );
 
-    localparam int HCSR_CTRL       = 4'h0;
-    localparam int HCSR_STATUS     = 4'h1;
-    localparam int HCSR_CYCLE_LO   = 4'h2;
-    localparam int HCSR_CYCLE_HI   = 4'h3;
-    localparam int HCSR_FABRIC_DBG = 4'h4;
+    localparam logic [3:0] HCSR_CTRL       = 4'h0;
+    localparam logic [3:0] HCSR_STATUS     = 4'h1;
+    localparam logic [3:0] HCSR_CYCLE_LO   = 4'h2;
+    localparam logic [3:0] HCSR_CYCLE_HI   = 4'h3;
+    localparam logic [3:0] HCSR_FABRIC_DBG = 4'h4;
 
     logic [31:0] r_ctrl;
     assign o_ctrl = r_ctrl;

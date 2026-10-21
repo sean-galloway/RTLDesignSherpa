@@ -21,11 +21,11 @@ from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_pat
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
-DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil']
+DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil', 'bridge_bs_xmix']
 # build-xil's vendor slaves are BFM memories here, which model aligned INCR only
 # build-xil: the vendor-memory BFM models aligned INCR only; 'ocelus' is the
 # monitors' self-check (bs_harness_tb.BsHarnessTB.run)
-DUT_PROFILES = {'bridge_bs_xil': ['clean', 'ocelus']}
+DUT_PROFILES = {'bridge_bs_xil': ['clean', 'ocelus'], 'bridge_bs_xmix': ['clean']}
 TXNS = {'gate': 40, 'func': 200, 'full': 1000}
 SIM_UART_CLKS_PER_BIT = 4
 

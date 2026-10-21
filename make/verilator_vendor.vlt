@@ -1,0 +1,9 @@
+`verilator_config
+// Lint configuration for make/fpga_lint.mk: rules switched off for
+// THIRD-PARTY source only, matched by path. Our own RTL is never listed here
+// -- fix it instead (fpga_lint.mk, the WIDTH note above LINT_WAIVERS).
+// (No comment here may begin with the tool's name: it reads that as a pragma.)
+
+// AMD/Xilinx IP library source (the Vivado install), which a build lints when
+// it reads a vendor IP's RTL directly (fabric-benchmark's axi_crossbar)
+lint_off -rule WIDTH -file "*/Vivado/data/ip/*"

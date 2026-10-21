@@ -12,6 +12,8 @@ Vivado gets the real IP from fpga/tcl/bs_xil_ip.tcl and never sees this file.
 
     python3 bin/gen_xil_lint_stubs.py [<project>.gen/sources_1/ip]
 
+    python3 bin/gen_xil_lint_stubs.py --xmix
+
 (default: build-xil's project) writes rtl/lint/bs_xil_ip_stubs.sv, tracked
 so lint needs no Vivado. Rerun it after bs_xil_ip.tcl or the bridge_bs_xil
 ports change and build-xil has synthesized.
@@ -26,6 +28,12 @@ AREA = Path(__file__).resolve().parent.parent
 OUT = AREA / 'rtl/lint/bs_xil_ip_stubs.sv'
 GEN = AREA / 'build-xil/fpga/build/vivado_project/bs_xil.gen/sources_1/ip'
 IPS = ('bs_atg', 'bs_cdma', 'bs_bram_ctrl', 'bs_bram', 'bs_pc_ddr', 'bs_pc_bram', 'bs_pc_atg')
+# build-xmix: the same IP plus the AXI3 bram path's converter and checker
+# (bs_xil_ip.tcl, BS_XMIX=1), from build-xmix's project, to its own file
+XMIX_OUT = AREA / 'rtl/lint/bs_xmix_ip_stubs.sv'
+XMIX_GEN = AREA / 'build-xmix/fpga/build/vivado_project/bs_xmix.gen/sources_1/ip'
+# (bs_pc_bram is replaced by bs_pc_bram3 there: not instantiated, no stub)
+XMIX_IPS = tuple(ip for ip in IPS if ip != 'bs_pc_bram') + ('bs_axi3_conv', 'bs_pc_bram3')
 DECL = re.compile(r'^\s*(input|output|inout)\s*(\[[^\]]*\])?\s*([\w,\s]+?)\s*(?:/\*.*?\*/)?\s*;', re.M)
 
 
@@ -45,15 +53,18 @@ def stub(name: str, plist: list[tuple[str, str, str]]) -> str:
 
 
 def main() -> int:
-    gen = Path(sys.argv[1]) if len(sys.argv) > 1 else GEN
+    xmix = '--xmix' in sys.argv[1:]
+    args = [a for a in sys.argv[1:] if a != '--xmix']
+    gen = Path(args[0]) if args else (XMIX_GEN if xmix else GEN)
+    out, ips, build = (XMIX_OUT, XMIX_IPS, 'build-xmix') if xmix else (OUT, IPS, 'build-xil')
     mods = []
-    for ip in IPS:
+    for ip in ips:
         f = gen / ip / f'{ip}_stub.v'
         if not f.is_file():
-            sys.exit(f'gen_xil_lint_stubs: {f} missing (synthesize build-xil first)')
+            sys.exit(f'gen_xil_lint_stubs: {f} missing (synthesize {build} first)')
         mods.append(stub(ip, ports(f.read_text(), f.name)))
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(
         '// SPDX-License-Identifier: MIT\n'
         '// SPDX-FileCopyrightText: 2026 sean galloway\n'
         '//\n'
@@ -61,7 +72,7 @@ def main() -> int:
         '// From:         the Vivado 2025.1 synthesis stubs of fpga/tcl/bs_xil_ip.tcl\n'
         '// DO NOT EDIT -- regenerate.\n'
         '//\n'
-        "// Lint stubs for build-xil's AMD/Xilinx IP (ports only). Vivado builds the\n"
+        f"// Lint stubs for {build}'s AMD/Xilinx IP (ports only). Vivado builds the\n"
         '// real IP and never reads this file.\n'
         '//==============================================================================\n'
         '/* verilator lint_off DECLFILENAME */\n'
@@ -70,7 +81,7 @@ def main() -> int:
         + '\n'.join(mods)
         + '\n/* verilator lint_on UNDRIVEN */\n/* verilator lint_on UNUSEDSIGNAL */\n'
           '/* verilator lint_on DECLFILENAME */\n')
-    print(f'[gen_xil_lint_stubs] {OUT} ({len(mods)} modules)')
+    print(f'[gen_xil_lint_stubs] {out} ({len(mods)} modules)')
     return 0
 
 

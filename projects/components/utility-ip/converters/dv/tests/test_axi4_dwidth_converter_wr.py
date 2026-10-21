@@ -387,6 +387,7 @@ def test_axi4_dwidth_converter_wr(request, params):
             includes=includes,
             toplevel=toplevel,
             module=module,
+            testcase='axi4_dwidth_converter_wr_test',      # one cocotb test per wrapper
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
@@ -457,7 +458,6 @@ def test_axi4_dwidth_converter_wr_ooo_b(request):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': '30000',
-        'TESTCASE': 'axi4_dwidth_converter_wr_ooo_b_test',
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'S_AXI_DATA_WIDTH': str(s_data_width),
         'M_AXI_DATA_WIDTH': str(m_data_width),
@@ -495,6 +495,7 @@ def test_axi4_dwidth_converter_wr_ooo_b(request):
             includes=includes,
             toplevel=toplevel,
             module=module,
+            testcase='axi4_dwidth_converter_wr_ooo_b_test',      # one cocotb test per wrapper
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
@@ -554,7 +555,6 @@ def test_axi4_dwidth_converter_wr_early_b(request):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': '30000',
-        'TESTCASE': 'axi4_dwidth_converter_wr_early_b_test',
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'S_AXI_DATA_WIDTH': str(s_data_width),
         'M_AXI_DATA_WIDTH': str(m_data_width),
@@ -592,6 +592,7 @@ def test_axi4_dwidth_converter_wr_early_b(request):
             includes=includes,
             toplevel=toplevel,
             module=module,
+            testcase='axi4_dwidth_converter_wr_early_b_test',      # one cocotb test per wrapper
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,
@@ -651,7 +652,6 @@ def test_axi4_dwidth_converter_wr_b_cam_flood(request):
         'COCOTB_LOG_LEVEL': 'DEBUG',
         'COCOTB_RESULTS_FILE': results_path,
         'COCOTB_TEST_TIMEOUT': '30000',
-        'TESTCASE': 'axi4_dwidth_converter_wr_b_cam_flood_test',
         'SEED': os.environ.get('SEED', str(random.randint(0, 1000000))),
         'S_AXI_DATA_WIDTH': str(s_data_width),
         'M_AXI_DATA_WIDTH': str(m_data_width),
@@ -689,6 +689,7 @@ def test_axi4_dwidth_converter_wr_b_cam_flood(request):
             includes=includes,
             toplevel=toplevel,
             module=module,
+            testcase='axi4_dwidth_converter_wr_b_cam_flood_test',      # one cocotb test per wrapper
             parameters=rtl_parameters,
             sim_build=sim_build,
             extra_env=extra_env,

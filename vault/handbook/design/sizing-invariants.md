@@ -10,6 +10,12 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   exactly this way: MAX_TRANSACTIONS(16) compared against per-channel
   AR_MAX_OUTSTANDING(8) on a SHARED master (real bound 64) - "passive"
   claimed in a comment, datapath throttled from 2 channels up.
+- A per-port tracker must be sized from the port's own limit, passed in, not
+  left at its module default. Every bridge port monitor kept
+  `axi_monitor_lite`'s 8-entry table while the ports ran 16 deep, and past 8
+  outstanding it reported false ORPHAN errors for correct traffic (bridge
+  BUG-021; the generator now passes `MAX_TRANSACTIONS = max_outstanding`).
+  The bridge's own monitor suites never reached 9 outstanding, so they passed.
 - Invariants live in ONE place as a parameter or package function, derived
   by every consumer. `ocelus_common_pkg::cmd_entry_reserve` replaced two
   hand-synced localparams whose KEEP-IN-SYNC comment was the whole

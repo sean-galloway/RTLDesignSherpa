@@ -1,0 +1,22 @@
+[
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 764861,
+  "reasons": "wr sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x40001000 exp 0x00000000 act 0x00000001"
+ },
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 766255,
+  "reasons": "wr sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x40001000 exp 0x00000000 act 0x00000001"
+ }
+]

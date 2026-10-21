@@ -1,5 +1,0 @@
-master\slave,mem0,mem1,bram,ddr
-cpu,1,1,1,1
-dma,1,1,1,1
-atg,0,0,1,1
-cdma,0,0,1,1

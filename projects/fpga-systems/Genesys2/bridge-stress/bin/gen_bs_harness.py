@@ -225,6 +225,22 @@ def width(w: str, p: Port) -> str:
     return '' if n == 1 else f'[{n - 1}:0]'
 
 
+def xbar_id_width(dut: str, mon: bool) -> int:
+    """The DUT bridge's slave-port ID width (its XBAR_ID_WIDTH), read from the
+    generated package: a slave port's ID is always the fabric's, and the
+    TOML's slave id_width only has to be at least that (bridge generator,
+    _generate_slave_ports). A wider TOML id_width is the width of the IP on
+    the far side; the harness connects the fabric's bits and drives the rest
+    0 (no implicit truncation)."""
+    import re
+    name = f'{dut}_mon' if mon else dut
+    pkg = AREA / 'rtl/bridges/generated' / name / f'{name}_pkg.sv'
+    m = re.search(r'localparam int XBAR_ID_WIDTH\s*=\s*(\d+)', pkg.read_text())
+    if not m:
+        sys.exit(f'{pkg}: no XBAR_ID_WIDTH (regenerate the bridges first)')
+    return int(m.group(1))
+
+
 def cpuif_addr_msb(regblock: str) -> int:
     """MSB of a generated regblock's s_cpuif_addr: read from the regblock
     itself, because it grows with the register map (a hard-coded width
@@ -660,9 +676,16 @@ module bs_harness_{dut}
     for p in ms + ss:
         if p.cdc:
             a(f"        .{p.name}_aclk (cclk), .{p.name}_aresetn (cresetn),")
+    fw = xbar_id_width(dut, mon)
+    wide = []                    # (net, msb) of slave ID outputs wider than the fabric's
     for p in ms + ss:
         for n, _ in p.sigs():
-            a(f"        .{p.prefix}{n},")
+            if p in ss and p.iw > fw and n in ('awid', 'wid', 'arid', 'bid', 'rid'):
+                a(f"        .{p.prefix}{n} ({p.prefix}{n}[{fw - 1}:0]),")
+                if n in ('awid', 'wid', 'arid'):
+                    wide.append((f'{p.prefix}{n}', p.iw - 1))
+            else:
+                a(f"        .{p.prefix}{n},")
     if mon:
         a(mon_ports())
     a("""        .unmapped_irq   (dut_unmapped_irq),
@@ -671,6 +694,16 @@ module bs_harness_{dut}
         .unmapped_clear (ctl_ho.CTRL.UNMAPPED_CLEAR.value)
     );
 """)
+    if wide:
+        a(f"    // slave IDs wider than the fabric's ({fw} bits): the high bits are 0 out, and")
+        a("    // the slave echoes them on B / R, so they are 0 back too")
+        for net, msb in wide:
+            a(f"    assign {net}[{msb}:{fw}] = '0;")
+        unused = [f"{p.prefix}{n}[{p.iw - 1}:{fw}]" for p in ss if p.iw > fw for n in ('bid', 'rid')
+                  if n in dict(p.sigs())]
+        if unused:
+            a(f"    wire unused_wide_ids = ^{{{', '.join(unused)}}};")
+        a("")
 
     # ---------------------------------------------------------------- roll-up
     cm = [i for i, p in enumerate(ms) if p.cdc]

@@ -2,7 +2,7 @@
 
 # bridge — bugs
 
-**Next ID: BUG-022** — never recycle a number, even when its item closed.
+**Next ID: BUG-023** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -25,6 +25,8 @@ by construction rather than by discipline.
 
 
 ## Closed
+
+- **BUG-022** — AXI5 sideband on a rate-buffered width-converted path had two drivers (the buffer and a tie) — RESOLVED 2026-10-20: ties moved to the buffer input; bridge_bs_xmix 60 MULTIDRIVEN -> 0
 
 - **BUG-021** — a monitored port reported false ORPHAN errors past 8 outstanding — RESOLVED 2026-10-20: every monitor gets MAX_TRANSACTIONS = its port's max_outstanding; board clean 3/3, narrow 300/300 with zero records
 

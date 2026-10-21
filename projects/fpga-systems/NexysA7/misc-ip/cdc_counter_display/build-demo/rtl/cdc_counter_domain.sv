@@ -366,7 +366,7 @@ module cdc_counter_domain #(
         .DATA_WIDTH     (VAL_WIDTH),
         .STRETCH_CYCLES (STRETCH_CYCLES_MANUAL),  // used only when AUTO_STRETCH=0
         .SYNC_STAGES    (SYNC_STAGES),
-        .AUTO_STRETCH   (STRETCH_AUTO),
+        .AUTO_STRETCH   (int'(STRETCH_AUTO)),
         .SRC_CLK_HZ     (STRETCH_MAX_SAFE_SRC_HZ),
         .DST_CLK_HZ     (DST_CLK_HZ)
     ) u_stretch (
@@ -439,7 +439,7 @@ module cdc_counter_domain #(
     logic                                    w_src_ready_2p, w_src_ready_4p;
     logic [VAL_WIDTH-1:0]                    r_handshake_snap;
 
-    assign w_handshake_trigger = (r_handshake_cnt == HANDSHAKE_INTERVAL-1);
+    assign w_handshake_trigger = (32'(r_handshake_cnt) == HANDSHAKE_INTERVAL-1);
 
     `ALWAYS_FF_RST(ctr_clk, ctr_rstn,
         if (`RST_ASSERTED(ctr_rstn)) begin

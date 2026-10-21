@@ -1427,7 +1427,7 @@ module bs_harness_bridge_bs_xil
         .mem1_axi_ruser,
         .mem1_axi_rvalid,
         .mem1_axi_rready,
-        .bram_axi_awid,
+        .bram_axi_awid (bram_axi_awid[5:0]),
         .bram_axi_awaddr,
         .bram_axi_awlen,
         .bram_axi_awsize,
@@ -1446,12 +1446,12 @@ module bs_harness_bridge_bs_xil
         .bram_axi_wuser,
         .bram_axi_wvalid,
         .bram_axi_wready,
-        .bram_axi_bid,
+        .bram_axi_bid (bram_axi_bid[5:0]),
         .bram_axi_bresp,
         .bram_axi_buser,
         .bram_axi_bvalid,
         .bram_axi_bready,
-        .bram_axi_arid,
+        .bram_axi_arid (bram_axi_arid[5:0]),
         .bram_axi_araddr,
         .bram_axi_arlen,
         .bram_axi_arsize,
@@ -1464,14 +1464,14 @@ module bs_harness_bridge_bs_xil
         .bram_axi_aruser,
         .bram_axi_arvalid,
         .bram_axi_arready,
-        .bram_axi_rid,
+        .bram_axi_rid (bram_axi_rid[5:0]),
         .bram_axi_rdata,
         .bram_axi_rresp,
         .bram_axi_rlast,
         .bram_axi_ruser,
         .bram_axi_rvalid,
         .bram_axi_rready,
-        .ddr_axi_awid,
+        .ddr_axi_awid (ddr_axi_awid[5:0]),
         .ddr_axi_awaddr,
         .ddr_axi_awlen,
         .ddr_axi_awsize,
@@ -1490,12 +1490,12 @@ module bs_harness_bridge_bs_xil
         .ddr_axi_wuser,
         .ddr_axi_wvalid,
         .ddr_axi_wready,
-        .ddr_axi_bid,
+        .ddr_axi_bid (ddr_axi_bid[5:0]),
         .ddr_axi_bresp,
         .ddr_axi_buser,
         .ddr_axi_bvalid,
         .ddr_axi_bready,
-        .ddr_axi_arid,
+        .ddr_axi_arid (ddr_axi_arid[5:0]),
         .ddr_axi_araddr,
         .ddr_axi_arlen,
         .ddr_axi_arsize,
@@ -1508,7 +1508,7 @@ module bs_harness_bridge_bs_xil
         .ddr_axi_aruser,
         .ddr_axi_arvalid,
         .ddr_axi_arready,
-        .ddr_axi_rid,
+        .ddr_axi_rid (ddr_axi_rid[5:0]),
         .ddr_axi_rdata,
         .ddr_axi_rresp,
         .ddr_axi_rlast,
@@ -1541,6 +1541,14 @@ module bs_harness_bridge_bs_xil
         .unmapped_count (dut_unmapped_count),
         .unmapped_clear (ctl_ho.CTRL.UNMAPPED_CLEAR.value)
     );
+
+    // slave IDs wider than the fabric's (6 bits): the high bits are 0 out, and
+    // the slave echoes them on B / R, so they are 0 back too
+    assign bram_axi_awid[6:6] = '0;
+    assign bram_axi_arid[6:6] = '0;
+    assign ddr_axi_awid[6:6] = '0;
+    assign ddr_axi_arid[6:6] = '0;
+    wire unused_wide_ids = ^{bram_axi_bid[6:6], bram_axi_rid[6:6], ddr_axi_bid[6:6], ddr_axi_rid[6:6]};
 
     // ---- roll-up into aclk ----------------------------------------------------
     assign mst_done[0] = mst_done_raw[0];

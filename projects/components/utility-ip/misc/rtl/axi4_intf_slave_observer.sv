@@ -77,6 +77,10 @@ module axi4_intf_slave_observer
     // parameter-order-sensitive, which is a worse trap than a few tied
     // outputs.
     parameter bit EGRESS_AXIL           = 1'b0,
+    // Width of the err-FIFO drain (s_axil_rdata): 64, or 32 for a 32-bit host
+    // path (the group's 2:1 read serializer, 6 beats per record). A 64-bit
+    // drain wired into a 32-bit net loses the upper half of every beat.
+    parameter int S_AXIL_DATA_WIDTH     = 64,
 
     // ---------- Per-leaf monitor config ----------
     parameter int MAX_TRANSACTIONS      = 64,
@@ -309,7 +313,7 @@ module axi4_intf_slave_observer
     input  logic [2:0]                                          s_axil_arprot,
     output logic                                                s_axil_rvalid,
     input  logic                                                s_axil_rready,
-    output logic [63:0]                                         s_axil_rdata,
+    output logic [S_AXIL_DATA_WIDTH-1:0]                        s_axil_rdata,
     output logic [1:0]                                          s_axil_rresp,
 
     // Bulk-trace dump (AXI4 burst master-write)
@@ -1066,14 +1070,14 @@ module axi4_intf_slave_observer
     // =================================================================
     // Compressor telemetry, captured from the monbus group rather than
     // left unconnected -- it is readable through OBS_COMP_STAT* now.
-    logic [15:0] w_comp_stat_tier1_a;
-    logic [15:0] w_comp_stat_tier1_b;
-    logic [15:0] w_comp_stat_tier1_c;
-    logic [15:0] w_comp_stat_tier0;
-    logic [15:0] w_comp_stat_cam_miss;
-    logic [15:0] w_comp_stat_delta_ts_ovf;
-    logic [15:0] w_comp_stat_event_data_ovf;
-    logic [15:0] w_comp_stat_ed_delta_ovf;
+    logic [31:0] w_comp_stat_tier1_a;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_tier1_b;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_tier1_c;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_tier0;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_cam_miss;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_delta_ts_ovf;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_event_data_ovf;   // the group\'s 32-bit counter; CSR fields take its low 16
+    logic [31:0] w_comp_stat_ed_delta_ovf;   // the group\'s 32-bit counter; CSR fields take its low 16
 
     // Histogram selection comes from this block's OWN register now, not
     // from input ports the integrator had to drive. That is what makes
@@ -1106,7 +1110,8 @@ module axi4_intf_slave_observer
             .FIFO_DEPTH_WRITE      (FIFO_DEPTH_WRITE),
             .ADDR_WIDTH            (ADDR_WIDTH),
             .FLUSH_TIMEOUT_CYCLES  (FLUSH_TIMEOUT_CYCLES),
-            .USE_COMPRESSION       (USE_COMPRESSION)
+            .USE_COMPRESSION       (USE_COMPRESSION),
+            .S_AXIL_DATA_WIDTH     (S_AXIL_DATA_WIDTH)
         ) u_group (
             .axi_aclk         (aclk),
             .axi_aresetn      (aresetn),
@@ -1209,7 +1214,8 @@ module axi4_intf_slave_observer
             .AXI_USER_WIDTH        (1),
             .MAX_BURST_BEATS       (MAX_BURST_BEATS),
             .FLUSH_TIMEOUT_CYCLES  (FLUSH_TIMEOUT_CYCLES),
-            .USE_COMPRESSION       (USE_COMPRESSION)
+            .USE_COMPRESSION       (USE_COMPRESSION),
+            .S_AXIL_DATA_WIDTH     (S_AXIL_DATA_WIDTH)
         ) u_group (
             .axi_aclk         (aclk),
             .axi_aresetn      (aresetn),
@@ -1619,8 +1625,8 @@ module axi4_intf_slave_observer
     // =========================================================================
     logic [31:0] w_stat_data;
     always_comb begin
-        automatic int unsigned ti = hwif.OBS.OBS_STAT_SEL.TAP.value;
-        automatic int unsigned ci = hwif.OBS.OBS_STAT_SEL.CHANNEL.value;
+        automatic int unsigned ti = int'(hwif.OBS.OBS_STAT_SEL.TAP.value);
+        automatic int unsigned ci = int'(hwif.OBS.OBS_STAT_SEL.CHANNEL.value);
         automatic logic        iw = hwif.OBS.OBS_STAT_SEL.IS_WRITE.value;
         w_stat_data = 32'h0;
         case (hwif.OBS.OBS_STAT_SEL.METRIC.value)

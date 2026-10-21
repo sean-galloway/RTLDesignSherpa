@@ -7,6 +7,11 @@
 //          on its vendor ports -- LiteDRAM DDR3 and an AMD/Xilinx BRAM
 //          controller as memories, the AXI Traffic Generator and AXI Central
 //          DMA as masters, an AXI Protocol Checker on each memory link.
+// build-xmix (`define BS_XMIX, its filelist): the same board top around the
+//          bridge_bs_xmix harness -- AXI3, AXI4 and AXI5 stress ports -- whose
+//          bram slave port is AXI3: AMD's AXI Protocol Converter (bs_axi3_conv,
+//          AXI3 in, AXI4 out) carries it to the BRAM controller, and the bram
+//          link's protocol checker (bs_pc_bram3) judges the bridge's AXI3.
 // Documentation: projects/fpga-systems/Genesys2/bridge-stress/PRD.md
 // Author: sean galloway
 // Created: 2026-10-20
@@ -163,6 +168,20 @@ module bs_genesys2_xil_top #(
     logic         bram_axi_arvalid, bram_axi_arready, bram_axi_rvalid, bram_axi_rready, bram_axi_wlast, bram_axi_rlast;
     logic [63:0]  bram_axi_wdata, bram_axi_rdata;
     logic [7:0]   bram_axi_wstrb;
+`ifdef BS_XMIX
+    // build-xmix: the harness's AXI3 bram port, ahead of bs_axi3_conv
+    logic [6:0]   b3_axi_awid, b3_axi_arid, b3_axi_wid, b3_axi_bid, b3_axi_rid;
+    logic [31:0]  b3_axi_awaddr, b3_axi_araddr;
+    logic [3:0]   b3_axi_awlen, b3_axi_arlen, b3_axi_awcache, b3_axi_arcache;
+    logic [2:0]   b3_axi_awsize, b3_axi_arsize, b3_axi_awprot, b3_axi_arprot;
+    logic [1:0]   b3_axi_awburst, b3_axi_arburst, b3_axi_awlock, b3_axi_arlock;
+    logic [1:0]   b3_axi_bresp, b3_axi_rresp;
+    logic         b3_axi_awuser, b3_axi_aruser, b3_axi_wuser, b3_axi_buser, b3_axi_ruser;
+    logic         b3_axi_awvalid, b3_axi_awready, b3_axi_wvalid, b3_axi_wready, b3_axi_bvalid, b3_axi_bready;
+    logic         b3_axi_arvalid, b3_axi_arready, b3_axi_rvalid, b3_axi_rready, b3_axi_wlast, b3_axi_rlast;
+    logic [63:0]  b3_axi_wdata, b3_axi_rdata;
+    logic [7:0]   b3_axi_wstrb;
+`endif
     logic [6:0]   ddr_axi_awid, ddr_axi_arid, ddr_axi_bid, ddr_axi_rid;
     logic [31:0]  ddr_axi_awaddr, ddr_axi_araddr;
     logic [7:0]   ddr_axi_awlen, ddr_axi_arlen;
@@ -177,7 +196,11 @@ module bs_genesys2_xil_top #(
     logic [15:0]  ddr_axi_wstrb;
 
         
+`ifdef BS_XMIX
+    bs_harness_bridge_bs_xmix #(
+`else
     bs_harness_bridge_bs_xil #(
+`endif
         .CLKS_PER_BIT (FPGA_CLK_HZ / UART_BAUD)
     ) u_harness (
         .aclk, .aresetn, .cclk, .cresetn,
@@ -218,6 +241,23 @@ module bs_genesys2_xil_top #(
         .cdma_axi_arregion, .cdma_axi_aruser, .cdma_axi_arvalid, .cdma_axi_arready,
         .cdma_axi_rid, .cdma_axi_rdata, .cdma_axi_rresp, .cdma_axi_rlast, .cdma_axi_ruser,
         .cdma_axi_rvalid, .cdma_axi_rready,
+`ifdef BS_XMIX
+        // bram is AXI3 here: b3_axi_* into bs_axi3_conv
+        .bram_axi_awid (b3_axi_awid), .bram_axi_awaddr (b3_axi_awaddr), .bram_axi_awlen (b3_axi_awlen),
+        .bram_axi_awsize (b3_axi_awsize), .bram_axi_awburst (b3_axi_awburst), .bram_axi_awlock (b3_axi_awlock),
+        .bram_axi_awcache (b3_axi_awcache), .bram_axi_awprot (b3_axi_awprot), .bram_axi_awuser (b3_axi_awuser),
+        .bram_axi_awvalid (b3_axi_awvalid), .bram_axi_awready (b3_axi_awready), .bram_axi_wid (b3_axi_wid),
+        .bram_axi_wdata (b3_axi_wdata), .bram_axi_wstrb (b3_axi_wstrb), .bram_axi_wlast (b3_axi_wlast),
+        .bram_axi_wuser (b3_axi_wuser), .bram_axi_wvalid (b3_axi_wvalid), .bram_axi_wready (b3_axi_wready),
+        .bram_axi_bid (b3_axi_bid), .bram_axi_bresp (b3_axi_bresp), .bram_axi_buser (b3_axi_buser),
+        .bram_axi_bvalid (b3_axi_bvalid), .bram_axi_bready (b3_axi_bready), .bram_axi_arid (b3_axi_arid),
+        .bram_axi_araddr (b3_axi_araddr), .bram_axi_arlen (b3_axi_arlen), .bram_axi_arsize (b3_axi_arsize),
+        .bram_axi_arburst (b3_axi_arburst), .bram_axi_arlock (b3_axi_arlock), .bram_axi_arcache (b3_axi_arcache),
+        .bram_axi_arprot (b3_axi_arprot), .bram_axi_aruser (b3_axi_aruser), .bram_axi_arvalid (b3_axi_arvalid),
+        .bram_axi_arready (b3_axi_arready), .bram_axi_rid (b3_axi_rid), .bram_axi_rdata (b3_axi_rdata),
+        .bram_axi_rresp (b3_axi_rresp), .bram_axi_rlast (b3_axi_rlast), .bram_axi_ruser (b3_axi_ruser),
+        .bram_axi_rvalid (b3_axi_rvalid), .bram_axi_rready (b3_axi_rready),
+`else
         .bram_axi_awid, .bram_axi_awaddr, .bram_axi_awlen, .bram_axi_awsize,
         .bram_axi_awburst, .bram_axi_awlock, .bram_axi_awcache, .bram_axi_awprot,
         .bram_axi_awqos, .bram_axi_awregion, .bram_axi_awuser, .bram_axi_awvalid,
@@ -229,6 +269,7 @@ module bs_genesys2_xil_top #(
         .bram_axi_arregion, .bram_axi_aruser, .bram_axi_arvalid, .bram_axi_arready,
         .bram_axi_rid, .bram_axi_rdata, .bram_axi_rresp, .bram_axi_rlast, .bram_axi_ruser,
         .bram_axi_rvalid, .bram_axi_rready,
+`endif
         .ddr_axi_awid, .ddr_axi_awaddr, .ddr_axi_awlen, .ddr_axi_awsize, .ddr_axi_awburst,
         .ddr_axi_awlock, .ddr_axi_awcache, .ddr_axi_awprot, .ddr_axi_awqos,
         .ddr_axi_awregion, .ddr_axi_awuser, .ddr_axi_awvalid, .ddr_axi_awready,
@@ -291,6 +332,49 @@ module bs_genesys2_xil_top #(
     logic [7:0]  w_bram_we, w_bramb_we;
     logic [15:0] w_bram_addr, w_bramb_addr;
     logic [63:0] w_bram_wrdata, w_bram_rddata, w_bramb_wrdata, w_bramb_rddata;
+
+`ifdef BS_XMIX
+    // AXI3 bram port -> AXI4 BRAM controller (AMD AXI Protocol Converter)
+    bs_axi3_conv u_axi3_conv (
+        .aclk, .aresetn,
+        .s_axi_awid (b3_axi_awid), .s_axi_awaddr (b3_axi_awaddr), .s_axi_awlen (b3_axi_awlen),
+        .s_axi_awsize (b3_axi_awsize), .s_axi_awburst (b3_axi_awburst), .s_axi_awlock (b3_axi_awlock),
+        .s_axi_awcache (b3_axi_awcache), .s_axi_awprot (b3_axi_awprot), .s_axi_awqos (4'd0),
+        .s_axi_awvalid (b3_axi_awvalid), .s_axi_awready (b3_axi_awready),
+        .s_axi_wid (b3_axi_wid), .s_axi_wdata (b3_axi_wdata), .s_axi_wstrb (b3_axi_wstrb),
+        .s_axi_wlast (b3_axi_wlast), .s_axi_wvalid (b3_axi_wvalid), .s_axi_wready (b3_axi_wready),
+        .s_axi_bid (b3_axi_bid), .s_axi_bresp (b3_axi_bresp), .s_axi_bvalid (b3_axi_bvalid),
+        .s_axi_bready (b3_axi_bready),
+        .s_axi_arid (b3_axi_arid), .s_axi_araddr (b3_axi_araddr), .s_axi_arlen (b3_axi_arlen),
+        .s_axi_arsize (b3_axi_arsize), .s_axi_arburst (b3_axi_arburst), .s_axi_arlock (b3_axi_arlock),
+        .s_axi_arcache (b3_axi_arcache), .s_axi_arprot (b3_axi_arprot), .s_axi_arqos (4'd0),
+        .s_axi_arvalid (b3_axi_arvalid), .s_axi_arready (b3_axi_arready),
+        .s_axi_rid (b3_axi_rid), .s_axi_rdata (b3_axi_rdata), .s_axi_rresp (b3_axi_rresp),
+        .s_axi_rlast (b3_axi_rlast), .s_axi_rvalid (b3_axi_rvalid), .s_axi_rready (b3_axi_rready),
+        .m_axi_awid (bram_axi_awid), .m_axi_awaddr (bram_axi_awaddr), .m_axi_awlen (bram_axi_awlen),
+        .m_axi_awsize (bram_axi_awsize), .m_axi_awburst (bram_axi_awburst),
+        .m_axi_awlock (bram_axi_awlock), .m_axi_awcache (bram_axi_awcache),
+        .m_axi_awprot (bram_axi_awprot), .m_axi_awregion (bram_axi_awregion),
+        .m_axi_awqos (bram_axi_awqos), .m_axi_awvalid (bram_axi_awvalid),
+        .m_axi_awready (bram_axi_awready),
+        .m_axi_wdata (bram_axi_wdata), .m_axi_wstrb (bram_axi_wstrb), .m_axi_wlast (bram_axi_wlast),
+        .m_axi_wvalid (bram_axi_wvalid), .m_axi_wready (bram_axi_wready),
+        .m_axi_bid (bram_axi_bid), .m_axi_bresp (bram_axi_bresp), .m_axi_bvalid (bram_axi_bvalid),
+        .m_axi_bready (bram_axi_bready),
+        .m_axi_arid (bram_axi_arid), .m_axi_araddr (bram_axi_araddr), .m_axi_arlen (bram_axi_arlen),
+        .m_axi_arsize (bram_axi_arsize), .m_axi_arburst (bram_axi_arburst),
+        .m_axi_arlock (bram_axi_arlock), .m_axi_arcache (bram_axi_arcache),
+        .m_axi_arprot (bram_axi_arprot), .m_axi_arregion (bram_axi_arregion),
+        .m_axi_arqos (bram_axi_arqos), .m_axi_arvalid (bram_axi_arvalid),
+        .m_axi_arready (bram_axi_arready),
+        .m_axi_rid (bram_axi_rid), .m_axi_rdata (bram_axi_rdata), .m_axi_rresp (bram_axi_rresp),
+        .m_axi_rlast (bram_axi_rlast), .m_axi_rvalid (bram_axi_rvalid), .m_axi_rready (bram_axi_rready)
+    );
+    assign b3_axi_buser = 1'b0;
+    assign b3_axi_ruser = 1'b0;
+    assign {bram_axi_awuser, bram_axi_aruser, bram_axi_wuser} = '0;   // the AXI3 port carries no user
+    wire unused_b3_user = ^{b3_axi_awuser, b3_axi_aruser, b3_axi_wuser, bram_axi_buser, bram_axi_ruser};
+`endif
 
     bs_bram_ctrl u_bram_ctrl (
         .s_axi_aclk    (aclk),            .s_axi_aresetn (aresetn),
@@ -469,6 +553,33 @@ module bs_genesys2_xil_top #(
         .pc_axi_rresp (ddr_axi_rresp), .pc_axi_rvalid (ddr_axi_rvalid),
         .pc_axi_rready (ddr_axi_rready)
     );
+`ifdef BS_XMIX
+    // the bridge's AXI3 output is what is judged (the AXI4 side is the converter's)
+    bs_pc_bram3 u_pc_bram (
+        .pc_status (w_pc_bram_status), .pc_asserted (w_pc_bram_asserted),
+        .aclk, .aresetn,
+        .pc_axi_awid (b3_axi_awid), .pc_axi_awaddr (b3_axi_awaddr),
+        .pc_axi_awlen (b3_axi_awlen), .pc_axi_awsize (b3_axi_awsize),
+        .pc_axi_awburst (b3_axi_awburst), .pc_axi_awlock (b3_axi_awlock),
+        .pc_axi_awcache (b3_axi_awcache), .pc_axi_awprot (b3_axi_awprot),
+        .pc_axi_awqos (4'd0),
+        .pc_axi_awvalid (b3_axi_awvalid), .pc_axi_awready (b3_axi_awready),
+        .pc_axi_wid (b3_axi_wid), .pc_axi_wlast (b3_axi_wlast), .pc_axi_wdata (b3_axi_wdata),
+        .pc_axi_wstrb (b3_axi_wstrb), .pc_axi_wvalid (b3_axi_wvalid),
+        .pc_axi_wready (b3_axi_wready), .pc_axi_bid (b3_axi_bid),
+        .pc_axi_bresp (b3_axi_bresp), .pc_axi_bvalid (b3_axi_bvalid),
+        .pc_axi_bready (b3_axi_bready), .pc_axi_arid (b3_axi_arid),
+        .pc_axi_araddr (b3_axi_araddr), .pc_axi_arlen (b3_axi_arlen),
+        .pc_axi_arsize (b3_axi_arsize), .pc_axi_arburst (b3_axi_arburst),
+        .pc_axi_arlock (b3_axi_arlock), .pc_axi_arcache (b3_axi_arcache),
+        .pc_axi_arprot (b3_axi_arprot), .pc_axi_arqos (4'd0),
+        .pc_axi_arvalid (b3_axi_arvalid),
+        .pc_axi_arready (b3_axi_arready), .pc_axi_rid (b3_axi_rid),
+        .pc_axi_rlast (b3_axi_rlast), .pc_axi_rdata (b3_axi_rdata),
+        .pc_axi_rresp (b3_axi_rresp), .pc_axi_rvalid (b3_axi_rvalid),
+        .pc_axi_rready (b3_axi_rready)
+    );
+`else
     bs_pc_bram u_pc_bram (
         .pc_status (w_pc_bram_status), .pc_asserted (w_pc_bram_asserted),
         .aclk, .aresetn,
@@ -493,6 +604,7 @@ module bs_genesys2_xil_top #(
         .pc_axi_rresp (bram_axi_rresp), .pc_axi_rvalid (bram_axi_rvalid),
         .pc_axi_rready (bram_axi_rready)
     );
+`endif
     bs_pc_atg u_pc_atg (
         .pc_status (w_pc_atg_status), .pc_asserted (w_pc_atg_asserted),
         .aclk, .aresetn,

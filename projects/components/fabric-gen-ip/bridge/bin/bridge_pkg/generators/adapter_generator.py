@@ -1256,20 +1256,27 @@ class AdapterGenerator:
                 lines.append(f"    assign {dst} = '0;  // AXI5 sideband (not on this master)")
         return lines
 
-    def _sb_conv_tie_lines(self, suffix) -> List[str]:
+    def _sb_conv_tie_lines(self, suffix, skip_wr: bool = False, only_wr: bool = False,
+                           dst_prefix: str = None) -> List[str]:
         """Converter-path struct sideband ties: per-transaction and
         per-beat sideband cannot traverse the dwidth-converter IP, so
-        every union field packs '0 on this path."""
+        every union field packs '0 on this path.
+
+        A path with a write rate buffer ties its AW / W fields on the
+        buffer's INPUT structs (`dst_prefix` = <path>_rb, only_wr) -- the
+        buffer drives the whole output struct, so a tie there as well is a
+        second driver (skip_wr on the path's own call)."""
         lines = []
         chans = []
-        if self.master.channels in ("wr", "rw"):
+        if self.master.channels in ("wr", "rw") and not skip_wr:
             chans += ['aw', 'w']
-        if self.master.channels in ("rd", "rw"):
+        if self.master.channels in ("rd", "rw") and not only_wr:
             chans += ['ar']
+        pfx = dst_prefix or f"{self.master.name}_{suffix}"
         for ch in chans:
             for field, _w, _feat, _b in self._sb_fields(ch, self.sb_union):
                 lines.append(
-                    f"    assign {self.master.name}_{suffix}_{ch}.{field} = '0;"
+                    f"    assign {pfx}_{ch}.{field} = '0;"
                     f"  // AXI5 sideband: dropped across dwidth conversion")
         if lines:
             lines.append("")
@@ -2884,8 +2891,15 @@ class AdapterGenerator:
             lines.append(f"    logic conv_{suffix}_rvalid;")
         lines.append("")
 
+        use_aligner = (self.master.protocol in ('axil', 'axil5', 'apb', 'apb5', 'wb4')) and \
+                      (master_width < slave_width)
+        # A write rate buffer drives this path's output structs whole; its
+        # AW / W sideband ties go on the buffer's input (below)
+        wr_rb = (self.master.channels in ("wr", "rw") and not use_aligner
+                 and bool(self._rate_buffer_depth(slave_width, use_aligner)))
+
         # AXI5 sideband never traverses the converter (A5-2 slice 2)
-        lines.extend(self._sb_conv_tie_lines(suffix))
+        lines.extend(self._sb_conv_tie_lines(suffix, skip_wr=wr_rb))
 
         from ..components.axi4_dwidth_converter_component import Axi4DwidthConverter
 
@@ -2903,9 +2917,6 @@ class AdapterGenerator:
         # positioned at slot = awaddr[ROW_LSB-1:SLOT_LSB].
         # APB requesters produce the same single-beat, awlen=0 stream (via
         # apb{4,5}_to_axi4), so they take the aligner for the same reason.
-        use_aligner = (self.master.protocol in ('axil', 'axil5', 'apb', 'apb5', 'wb4')) and \
-                      (master_width < slave_width)
-
         # Write converter
         if self.master.channels in ["wr", "rw"]:
             if use_aligner:
@@ -2953,6 +2964,7 @@ class AdapterGenerator:
                     lines.append(f"    axi4_aw_t {rbp}_aw;")
                     lines.append(f"    axi4_w_{suffix}_t {rbp}_w;")
                     lines.append(f"    logic {rbp}_awvalid, {rbp}_awready, {rbp}_wvalid, {rbp}_wready;")
+                    lines.extend(self._sb_conv_tie_lines(suffix, only_wr=True, dst_prefix=rbp))
                 lines.extend(conv_wr.generate_lines())
                 if rb:
                     mo = int(getattr(self.master, 'max_outstanding', 16))

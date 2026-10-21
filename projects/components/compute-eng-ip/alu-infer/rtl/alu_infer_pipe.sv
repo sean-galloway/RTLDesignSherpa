@@ -79,7 +79,7 @@ module alu_infer_pipe
     // results keep landing in their own entries and the head simply holds.
     // If the head result is being consumed this cycle, that entry frees up
     // and can be re-issued immediately, keeping steady-state II=1.
-    assign ready = (occupancy < PIPE_DEPTH) || (result_valid && result_ready);
+    assign ready = (occupancy < (PTR_W+1)'(PIPE_DEPTH)) || (result_valid && result_ready);
 
     // The tag exposed to the rows at issue is the pre-increment counter.
     assign issue_tag = r_tag;

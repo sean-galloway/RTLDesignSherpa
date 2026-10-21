@@ -200,6 +200,14 @@ def sb_native(m: Port, s: Port) -> bool:
             and not m.cdc and not s.cdc)
 
 
+def sweep_bursts(m: Port, s: Port) -> int:
+    """Bursts m's fill takes to sweep memory s once. A fill burst is the
+    master's longest (its shell's LEN_MASK): 16 beats on an AXI3 port, 256
+    otherwise -- so an AXI3 sweep takes 16x the bursts of an AXI4 one."""
+    return M.fill_bursts(s.mem_lg2, (m.dw // 8).bit_length() - 1,
+                         len_mask=0x0F if m.protocol == 'axi3' else 0xFF)
+
+
 def is_atomic(p: Port) -> bool:
     return p.protocol == 'axi5' and 'atomic' in p.features
 
@@ -555,10 +563,12 @@ class StressHarness:
             full = (m.dw // 8).bit_length() - 1
             d.write_word('WIN0_BASE', s.base)
             d.write('WIN0_CFG0', size_lg2=s.mem_lg2, resp=M.OKAY, tag=MEM_TAG, len_mask=0xFF)
+            # sb as in windows(): the bridge's AXI5 trace port echoes the
+            # request's trace on B / R (bridge BUG-010) on every path
             d.write('WIN0_CFG1', size_min=full, size_max=full, burst_mask=0b010,
                     unaligned=0, strb_rand=0, rd_en=int(dr == 'RD'), wr_en=int(dr == 'WR'),
-                    mem=1)
-            d.write_word(f'{dr}_TXN_COUNT', M.fill_bursts(s.mem_lg2, full))
+                    sb=int(m.protocol == 'axi5' and 'trace' in m.features), mem=1)
+            d.write_word(f'{dr}_TXN_COUNT', sweep_bursts(m, s))
             d.write(f'{dr}_ID_CFG', base=0, mask=0)
         self.go()
         if not self.wait_done(timeout_s, sleep=sleep):
@@ -570,7 +580,7 @@ class StressHarness:
             s = owner[m.index]
             err = d.read(f'{dr}_ERR') & 0xFFFF
             n = d.read(f'{dr}_COMPLETED')
-            want = M.fill_bursts(s.mem_lg2, (m.dw // 8).bit_length() - 1)
+            want = sweep_bursts(m, s)
             if err or n != want:
                 fe = ''
                 if err:

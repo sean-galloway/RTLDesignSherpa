@@ -1,0 +1,4 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xmix,clean,1,4000,False,False,673421,"wr sweep of ddr by io: [], 8192 of 512 bursts | rd sweep of ddr by io: [], 8192 of 512 bursts"
+bridge_bs_xmix,clean,2,4000,False,False,669726,"wr sweep of ddr by io: [], 8192 of 512 bursts | rd sweep of ddr by io: [], 8192 of 512 bursts"
+bridge_bs_xmix,clean,3,4000,False,False,670752,"wr sweep of ddr by io: [], 8192 of 512 bursts | rd sweep of ddr by io: [], 8192 of 512 bursts"

@@ -496,9 +496,9 @@ module snk_data_path_axis #(
             for (int ch = 0; ch < NC; ch++) begin
                 if (fill_alloc_req && (fill_alloc_id == ch[CIW-1:0])) begin
                     if (fill_valid && fill_ready && (fill_id == ch[CIW-1:0])) begin
-                        r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size - 1'b1;
+                        r_pending_alloc[ch] <= r_pending_alloc[ch] + 16'(fill_alloc_size) - 1'b1;
                     end else begin
-                        r_pending_alloc[ch] <= r_pending_alloc[ch] + fill_alloc_size;
+                        r_pending_alloc[ch] <= r_pending_alloc[ch] + 16'(fill_alloc_size);
                     end
                 end else if (fill_valid && fill_ready && (fill_id == ch[CIW-1:0])) begin
                     r_pending_alloc[ch] <= r_pending_alloc[ch] - 1'b1;

@@ -1,0 +1,3 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_xmix,clean,1,4000,False,False,764861,"wr sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x40001000 exp 0x00000000 act 0x00000001"
+bridge_bs_xmix,clean,2,4000,False,False,766255,"wr sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of ddr by cpu: ['M_SB'], 512 of 512 bursts first at 0x40001000 exp 0x00000000 act 0x00000001"

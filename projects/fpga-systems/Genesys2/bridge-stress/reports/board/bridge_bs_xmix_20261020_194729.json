@@ -1,0 +1,32 @@
+[
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 669050,
+  "reasons": "cpu.rd: ['RD_DATA'] x42744 (first RD_DATA id=0x1c addr=0x40036228 exp=0xf27daa1d act=0xffffffff) | io.rd: ['RD_DATA'] x4055 (first RD_DATA id=0xe addr=0x40099bb8 exp=0x52d31c58 act=0xffffffff) | acc.rd: ['RD_DATA'] x46767 (first RD_DATA id=0x38 addr=0x400e04c4 exp=0x4871d79a act=0xffffffff) | wr sweep of bram by cpu: ['M_SB'], 32 of 32 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of bram by cpu: ['M_SB'], 32 of 32 bursts first at 0x20001000 exp 0x00000000 act 0x00000001"
+ },
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 672195,
+  "reasons": "cpu.rd: ['RD_DATA'] x18273 (first RD_DATA id=0x1f addr=0x400d76f0 exp=0x02822fef act=0xffffffff) | io.rd: ['RD_DATA'] x1801 (first RD_DATA id=0x19 addr=0x40063f10 exp=0xe46aadf9 act=0xffffffff) | acc.rd: ['RD_DATA'] x21036 (first RD_DATA id=0x30 addr=0x4007fd48 exp=0x92171cb1 act=0xffffffff) | wr sweep of bram by cpu: ['M_SB'], 32 of 32 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of bram by cpu: ['M_SB'], 32 of 32 bursts first at 0x20001000 exp 0x00000000 act 0x00000001"
+ },
+ {
+  "build": "bridge_bs_xmix",
+  "profile": "clean",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 668713,
+  "reasons": "cpu.rd: ['RD_DATA'] x7274 (first RD_DATA id=0x15 addr=0x4003e120 exp=0xc957dcae act=0xffffffff) | io.rd: ['RD_DATA'] x959 (first RD_DATA id=0x2f addr=0x400a76b0 exp=0x12c82b92 act=0xffffffff) | acc.rd: ['RD_DATA'] x6613 (first RD_DATA id=0x35 addr=0x4009cd84 exp=0x12bc7332 act=0xffffffff) | wr sweep of bram by cpu: ['M_SB'], 32 of 32 bursts first at 0x00000000 exp 0x00000000 act 0x00000001 | rd sweep of bram by cpu: ['M_SB'], 32 of 32 bursts first at 0x20001000 exp 0x00000000 act 0x00000001"
+ }
+]
