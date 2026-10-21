@@ -49,7 +49,7 @@
 | gem5 Ruby protocols | [../../../../References/gem5-ruby-protocols/README.md](../../../../References/gem5-ruby-protocols/README.md) | golden-model source for the Python reference model |
 | cache simulator | [../../../../../../../bin/apps/cache_sim/README.md](../../../../../../../bin/apps/cache_sim/README.md) | golden parity model for hit-rate cross-checks |
 | Global Requirements | [../../../../../../../GLOBAL_REQUIREMENTS.md](../../../../../../../GLOBAL_REQUIREMENTS.md) | reset macros, array syntax, no bespoke SRAM, filelist registry |
-| Chinnakonda, *Designing a Multiprocessor Cache Subsystem* | [../../../../../../../../calibre/books/designing-a-multiprocessor-cache-subsystem/index.md](../../../../../../../../calibre/books/designing-a-multiprocessor-cache-subsystem/index.md) | background and candidate invariants |
+| Chinnakonda, *Designing a Multiprocessor Cache Subsystem* | local Calibre conversion, outside the repo: `/mnt/data/github/calibre/books/designing-a-multiprocessor-cache-subsystem/index.md` | background and candidate invariants |
 
 : Table 0.2: Related documents
 

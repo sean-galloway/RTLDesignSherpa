@@ -96,7 +96,7 @@
 | AMBA ACE Interface Definition | [AMBA ACE Interface Definition](../../../References/AMBA_ACE_Interface_Definition.md) | in-repo ACE contract, verified against IHI 0022H |
 | cache simulator | [cache simulator](../../../../../../bin/apps/cache_sim/README.md) | golden parity model; jet extends it to predict concurrency numbers |
 | Global Requirements | [Global Requirements](../../../../../../GLOBAL_REQUIREMENTS.md) | reset macros, array syntax, no bespoke SRAM, filelist registry |
-| Chinnakonda, *Designing a Multiprocessor Cache Subsystem* | [Chinnakonda, *Designing a Multiprocessor Cache Subsystem*](../../../../../../../calibre/books/designing-a-multiprocessor-cache-subsystem/index.md) | background for open decisions: §7.8 (file 7.7) forward-progress guarantees, §8.2 deadlocks, §8.3 starvation, §10.8 (file 10.6) snoop snarfing, §10.10 (file 10.8) outstanding sizing, §13.4 (file 13.3) prefetch training |
+| Chinnakonda, *Designing a Multiprocessor Cache Subsystem* | local Calibre conversion, outside the repo: `/mnt/data/github/calibre/books/designing-a-multiprocessor-cache-subsystem/index.md` | background for open decisions: §7.8 (file 7.7) forward-progress guarantees, §8.2 deadlocks, §8.3 starvation, §10.8 (file 10.6) snoop snarfing, §10.10 (file 10.8) outstanding sizing, §13.4 (file 13.3) prefetch training |
 
 : Table 0.1: Related documentation
 

@@ -314,7 +314,7 @@ These items are either lower priority or belong to jet/non-goal future work:
 - **amber HAS index:** [../amber-mesi-l1/docs/amber_has/amber_has_index.md](../amber-mesi-l1/docs/amber_has/amber_has_index.md)
 - **amber alignment memo:** [../amber-mesi-l1/docs/amber-cache-decisions-alignment.md](../amber-mesi-l1/docs/amber-cache-decisions-alignment.md)
 - **cache-ip README:** [../README.md](../README.md)
-- **Book source index:** [../../../../../calibre/books/designing-a-multiprocessor-cache-subsystem/index.md](../../../../../calibre/books/designing-a-multiprocessor-cache-subsystem/index.md)
+- **Book source index:** local Calibre conversion, outside the repo -- `/mnt/data/github/calibre/books/designing-a-multiprocessor-cache-subsystem/index.md`
 
 ---
 
