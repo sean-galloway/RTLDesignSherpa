@@ -708,6 +708,8 @@ module axi4_dwidth_converter_wr (
 	wire int_b_valid;
 	wire w_aw_issue;
 	wire w_this_last;
+	wire w_this_first;
+	wire [7:0] w_this_parts;
 	wire w_b_cam_slot_free;
 	localparam signed [31:0] SPLITQ_DEPTH = 16;
 	wire split_w_avail;
@@ -803,10 +805,13 @@ module axi4_dwidth_converter_wr (
 			reg [AXI_ADDR_WIDTH - 1:0] r_split_addr;
 			reg r_split_active;
 			wire [8:0] w_this_beats;
+			reg r_split_issued;
+			assign w_this_first = !r_split_issued;
 			function automatic signed [CNTW - 1:0] sv2v_cast_1954F_signed;
 				input reg signed [CNTW - 1:0] inp;
 				sv2v_cast_1954F_signed = inp;
 			endfunction
+			assign w_this_parts = sv2v_cast_8((r_split_remaining + sv2v_cast_1954F_signed(255)) >> 8);
 			assign w_this_beats = (r_split_remaining > sv2v_cast_1954F_signed(MAX_BEATS) ? sv2v_cast_9_signed(MAX_BEATS) : sv2v_cast_9(r_split_remaining));
 			assign w_this_last = r_split_remaining <= sv2v_cast_1954F_signed(MAX_BEATS);
 			assign w_aw_issue = m_axi_awvalid && m_axi_awready;
@@ -815,8 +820,10 @@ module axi4_dwidth_converter_wr (
 					r_split_remaining <= 1'sb0;
 					r_split_addr <= 1'sb0;
 					r_split_active <= 1'b0;
+					r_split_issued <= 1'b0;
 				end
 				else if (!r_split_active) begin
+					r_split_issued <= 1'b0;
 					if (int_aw_valid) begin
 						begin : sv2v_autoblock_1
 							reg [CNTW - 1:0] sv2v_tmp_cast;
@@ -832,6 +839,7 @@ module axi4_dwidth_converter_wr (
 					end
 				end
 				else if (w_aw_issue) begin
+					r_split_issued <= !w_this_last;
 					if (w_this_last) begin
 						r_split_remaining <= 1'sb0;
 						r_split_active <= 1'b0;
@@ -877,7 +885,7 @@ module axi4_dwidth_converter_wr (
 			assign m_axi_awqos = int_awqos;
 			assign m_axi_awregion = int_awregion;
 			assign m_axi_awuser = int_awuser;
-			assign m_axi_awvalid = (r_split_active && !w_splitq_full) && (!w_this_last || w_b_cam_slot_free);
+			assign m_axi_awvalid = (r_split_active && !w_splitq_full) && (!w_this_first || w_b_cam_slot_free);
 			assign int_aw_ready = w_aw_issue && w_this_last;
 		end
 		else begin : gen_aw_upsize
@@ -1042,11 +1050,8 @@ module axi4_dwidth_converter_wr (
 			reg [15:0] b_cam_valid;
 			reg [15:0] b_cam_older [0:15];
 			reg [15:0] b_cam_last;
-			reg r_b_open_valid;
-			reg [AXI_ID_WIDTH - 1:0] r_b_open_id;
-			reg [7:0] r_b_open_count;
 			wire [7:0] w_b_cam_push_count;
-			assign w_b_cam_push_count = (r_b_open_valid ? r_b_open_count + 8'd1 : 8'd1);
+			assign w_b_cam_push_count = w_this_parts;
 			reg [3:0] w_b_cam_free_idx;
 			reg w_b_cam_free_found;
 			always @(*) begin
@@ -1096,34 +1101,18 @@ module axi4_dwidth_converter_wr (
 			assign int_bresp = (q_bresp > w_b_cam_worst ? q_bresp : w_b_cam_worst);
 			assign q_bready = (q_bvalid && w_b_cam_last ? int_b_ready : 1'b1);
 			always @(posedge aclk or negedge w_aresetn)
-				if (!w_aresetn) begin
-					r_b_open_valid <= 1'b0;
-					r_b_open_id <= 1'sb0;
-					r_b_open_count <= 1'sb0;
-					begin : sv2v_autoblock_6
-						reg signed [31:0] i;
-						for (i = 0; i < B_CAM_DEPTH; i = i + 1)
-							begin
-								b_cam_valid[i] <= 1'b0;
-								b_cam[i] <= 1'sb0;
-								b_cam_older[i] <= 1'sb0;
-								b_cam_last[i] <= 1'b0;
-							end
-					end
+				if (!w_aresetn) begin : sv2v_autoblock_6
+					reg signed [31:0] i;
+					for (i = 0; i < B_CAM_DEPTH; i = i + 1)
+						begin
+							b_cam_valid[i] <= 1'b0;
+							b_cam[i] <= 1'sb0;
+							b_cam_older[i] <= 1'sb0;
+							b_cam_last[i] <= 1'b0;
+						end
 				end
 				else begin
-					if (w_aw_issue) begin
-						if (!r_b_open_valid) begin
-							r_b_open_valid <= 1'b1;
-							r_b_open_id <= int_awid;
-							r_b_open_count <= 8'd1;
-						end
-						else
-							r_b_open_count <= r_b_open_count + 8'd1;
-					end
-					if (int_aw_valid && int_aw_ready)
-						r_b_open_valid <= 1'b0;
-					if (w_aw_issue && w_this_last) begin
+					if (w_aw_issue && w_this_first) begin
 						if (w_b_cam_free_found) begin
 							b_cam_valid[w_b_cam_free_idx] <= 1'b1;
 							b_cam[w_b_cam_free_idx][AXI_ID_WIDTH + 9-:((AXI_ID_WIDTH + 9) >= 10 ? AXI_ID_WIDTH + 0 : 11 - (AXI_ID_WIDTH + 9))] <= int_awid;

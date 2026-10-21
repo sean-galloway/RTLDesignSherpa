@@ -34,8 +34,6 @@
 
 REPO_ROOT    := $(abspath $(CURDIR)/../../..)
 RISCV_FORMAL := $(REPO_ROOT)/vendor/riscv-formal
-RTL          := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i/rtl
-INCLUDES     := $(REPO_ROOT)/rtl/amba/includes
 OSS_CAD_SUITE ?= /mnt/data/tools/oss-cad-suite/bin
 
 export PATH := $(OSS_CAD_SUITE):$(PATH)
@@ -45,17 +43,24 @@ RTL_V      := $(CHECKS_DIR)/rtl_v
 HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 
 # The core's compile closure comes from its own filelist via
-# bin/flatten_filelist.py -- never hand-listed.  The hand list this replaced
-# missed rtl/cdc/reset_sync.sv when the core gained its boundary reset
-# synchronizer, and every check then failed to elaborate.
-export KESTREL_ROOT := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i
-CORE_F := $(KESTREL_ROOT)/rtl/filelists/top/kestrel_core.f
-RTL_SV  = $(shell REPO_ROOT=$(REPO_ROOT) python3 $(REPO_ROOT)/bin/flatten_filelist.py \
-              $(CORE_F) --resolve-env --absolute-paths | grep -v -e '^\#' -e '^+' -e '^$$')
+# bin/flatten_filelist.py (inside make/formal_flat.mk) -- never hand-listed.
+# The hand list this replaced missed rtl/cdc/reset_sync.sv when the core
+# gained its boundary reset synchronizer, and every check then failed to
+# elaborate.
+FLAT          := $(RTL_V)/kestrel_flat.v
+FLAT_FILELIST := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i/rtl/filelists/top/kestrel_core.f
+include $(REPO_ROOT)/make/formal_flat.mk
 
-.PHONY: checks clean
+# `checks` re-converts on every run: an RTL edit under an unchanged .f must
+# still reach rtl_v, and formal_flat.mk's mtime rule alone would skip it.
+$(FLAT): FORCE | $(RTL_V)
+FORCE:
+$(RTL_V):
+	mkdir -p $@
 
-checks:
+.PHONY: checks clean FORCE
+
+checks: $(FLAT)
 	@for tool in sby yosys sv2v z3; do \
 	    command -v $$tool >/dev/null 2>&1 || { \
 	        echo "error: $$tool not on PATH (export PATH=/mnt/data/tools/oss-cad-suite/bin:<sv2v>:$$PATH)" >&2; \
@@ -72,8 +77,6 @@ checks:
 	sed 's/const rand reg/(* anyconst *) reg/' \
 	    $(RISCV_FORMAL)/checks/rvfi_macros.vh > $(REPO_ROOT)/formal/checks/rvfi_macros.vh
 	cd $(CURDIR) && python3 $(RISCV_FORMAL)/checks/genchecks.py checks
-	mkdir -p $(RTL_V)
-	sv2v -I $(INCLUDES) -w $(RTL_V)/kestrel_flat.v $(RTL_SV)
 	$(MAKE) --no-print-directory -C $(CHECKS_DIR) -j$$(nproc) -f makefile
 	@fails=0; total=0; \
 	for s in $(CHECKS_DIR)/*/status; do \

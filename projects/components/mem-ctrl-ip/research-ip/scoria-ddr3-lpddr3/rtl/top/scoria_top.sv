@@ -214,6 +214,11 @@ module scoria_top
             (w_memtype == MEMTYPE_LPDDR3);
     end
 
+    // Synchronized resets, produced by the reset_sync pair further below;
+    // declared here because the CSR block's reset port uses w_aresetn.
+    logic w_aresetn;
+    logic w_aresetn_dfi;
+
     scoria_csr u_csr (
         .clk                 (aclk),
         .rst                 (~w_aresetn),
@@ -299,8 +304,6 @@ module scoria_top
     // treated as asynchronous-assert inputs of unknown deassert quality: an
     // N=3 reset_sync (rtl/cdc, formally proven) per clock domain produces the
     // internal resets the CSR block and scoria_core see.
-    logic w_aresetn;
-    logic w_aresetn_dfi;
     reset_sync #(
         .N             (3),
         .KEEP_ATTRS    (1'b1),

@@ -10334,8 +10334,12 @@ module stream_core (
 		input reg [63:0] inp;
 		sv2v_cast_64 = inp;
 	endfunction
-	assign rdmon_perf_byte_count = sv2v_cast_64(rdmon_perf_beat_count) * (DW / 8);
-	assign wrmon_perf_byte_count = sv2v_cast_64(wrmon_perf_beat_count) * (DW / 8);
+	function automatic signed [63:0] sv2v_cast_64_signed;
+		input reg signed [63:0] inp;
+		sv2v_cast_64_signed = inp;
+	endfunction
+	assign rdmon_perf_byte_count = sv2v_cast_64(rdmon_perf_beat_count) * sv2v_cast_64_signed(DW / 8);
+	assign wrmon_perf_byte_count = sv2v_cast_64(wrmon_perf_beat_count) * sv2v_cast_64_signed(DW / 8);
 	generate
 		if (USE_AXI_MONITORS == 1) begin : g_perf_hist
 			wire [31:0] rd_hist_count;

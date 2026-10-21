@@ -2751,6 +2751,10 @@ module snk_data_path_axis (
 	assign fill_alloc_id = r_out_id;
 	assign fill_valid = (r_out_valid && !w_out_rst) && ((r_pending_alloc[r_out_id * 16+:16] > 0) || (w_channel_needs_alloc && w_channel_has_space));
 	assign w_out_take = (fill_ready && !w_out_rst) && ((r_pending_alloc[r_out_id * 16+:16] > 0) || fill_alloc_req);
+	function automatic [15:0] sv2v_cast_16;
+		input reg [15:0] inp;
+		sv2v_cast_16 = inp;
+	endfunction
 	always @(posedge clk or negedge rst_n)
 		if (!rst_n) begin
 			r_pending_alloc <= {NC {16'b0000000000000000}};
@@ -2764,9 +2768,9 @@ module snk_data_path_axis (
 					begin
 						if (fill_alloc_req && (fill_alloc_id == ch[CIW - 1:0])) begin
 							if ((fill_valid && fill_ready) && (fill_id == ch[CIW - 1:0]))
-								r_pending_alloc[ch * 16+:16] <= (r_pending_alloc[ch * 16+:16] + fill_alloc_size) - 1'b1;
+								r_pending_alloc[ch * 16+:16] <= (r_pending_alloc[ch * 16+:16] + sv2v_cast_16(fill_alloc_size)) - 1'b1;
 							else
-								r_pending_alloc[ch * 16+:16] <= r_pending_alloc[ch * 16+:16] + fill_alloc_size;
+								r_pending_alloc[ch * 16+:16] <= r_pending_alloc[ch * 16+:16] + sv2v_cast_16(fill_alloc_size);
 						end
 						else if ((fill_valid && fill_ready) && (fill_id == ch[CIW - 1:0]))
 							r_pending_alloc[ch * 16+:16] <= r_pending_alloc[ch * 16+:16] - 1'b1;

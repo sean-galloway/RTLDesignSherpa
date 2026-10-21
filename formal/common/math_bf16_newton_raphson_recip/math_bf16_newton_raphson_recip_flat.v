@@ -1612,7 +1612,7 @@ module math_bf16_adder (
 	reg r1_s_is_normal;
 	reg r1_s_eff_zero;
 	generate
-		if (PIPE_STAGE_1) begin : gen_pipe1
+		if (PIPE_STAGE_1 != 0) begin : gen_pipe1
 			always @(posedge i_clk or negedge i_rst_n)
 				if (!i_rst_n) begin
 					r1_valid <= 1'b0;
@@ -1687,7 +1687,11 @@ module math_bf16_adder (
 	wire [10:0] w_mant_s_ext = {r1_s_is_normal, r1_mant_s, 3'b000};
 	wire [10:0] w_mant_s_aligned;
 	wire [4:0] w_shift_amt;
-	assign w_shift_amt = (r1_exp_diff > EXT_MANT_WIDTH ? EXT_MANT_WIDTH[4:0] : r1_exp_diff[4:0]);
+	function automatic [31:0] sv2v_cast_32;
+		input reg [31:0] inp;
+		sv2v_cast_32 = inp;
+	endfunction
+	assign w_shift_amt = (sv2v_cast_32(r1_exp_diff) > EXT_MANT_WIDTH ? EXT_MANT_WIDTH[4:0] : r1_exp_diff[4:0]);
 	shifter_barrel #(.WIDTH(EXT_MANT_WIDTH)) u_align_shifter(
 		.data(w_mant_s_ext),
 		.ctrl(SHIFT_RIGHT_LOGIC),
@@ -1699,7 +1703,7 @@ module math_bf16_adder (
 	always @(*) begin
 		if (_sv2v_0)
 			;
-		if (r1_exp_diff >= EXT_MANT_WIDTH)
+		if (sv2v_cast_32(r1_exp_diff) >= EXT_MANT_WIDTH)
 			w_sticky_mask = 11'h7ff;
 		else
 			w_sticky_mask = (11'h001 << r1_exp_diff) - 11'h001;
@@ -1724,7 +1728,7 @@ module math_bf16_adder (
 	reg [10:0] r2_mant_s_aligned;
 	reg r2_sticky_s;
 	generate
-		if (PIPE_STAGE_2) begin : gen_pipe2
+		if (PIPE_STAGE_2 != 0) begin : gen_pipe2
 			always @(posedge i_clk or negedge i_rst_n)
 				if (!i_rst_n) begin
 					r2_valid <= 1'b0;
@@ -1820,7 +1824,7 @@ module math_bf16_adder (
 	reg r3_sum_is_zero;
 	reg r3_sticky_s;
 	generate
-		if (PIPE_STAGE_3) begin : gen_pipe3
+		if (PIPE_STAGE_3 != 0) begin : gen_pipe3
 			always @(posedge i_clk or negedge i_rst_n)
 				if (!i_rst_n) begin
 					r3_valid <= 1'b0;
@@ -1956,7 +1960,7 @@ module math_bf16_adder (
 	reg r4_sum_is_zero;
 	reg r4_norm_sticky;
 	generate
-		if (PIPE_STAGE_4) begin : gen_pipe4
+		if (PIPE_STAGE_4 != 0) begin : gen_pipe4
 			always @(posedge i_clk or negedge i_rst_n)
 				if (!i_rst_n) begin
 					r4_valid <= 1'b0;

@@ -101,13 +101,19 @@ jobs:
         with:
           python-version: '3.11'
 
+      # The transitive deps shape the output too: Markdown drifted 3.9 ->
+      # 3.11 and turned intra-word `*` into literal text (pumice_csr.md went
+      # "stale" against a tree the dev machine calls current); keep every
+      # version here in lockstep with requirements.txt.
       - name: Install the pinned PeakRDL toolchain
         run: |
           python3 -m pip install --quiet \
             peakrdl==1.5.0 \
             peakrdl-regblock==1.1.1 \
             peakrdl-html==2.11.0 \
-            peakrdl_markdown==1.0.3
+            peakrdl_markdown==1.0.3 \
+            systemrdl-compiler==1.30.1 \
+            Markdown==3.9
 
       - name: A .rdl edit has not left its generated artifacts stale
         run: python3 bin/check_rdl_regen.py
