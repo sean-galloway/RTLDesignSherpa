@@ -42,7 +42,7 @@ async def cocotb_test_bs_harness(dut):
     await tb.setup_clocks_and_reset()
     await tb.identify()
     for p in profiles:
-        await tb.run(p, seed, txns)
+        assert await tb.run(p, seed, txns)
     tb.check_go()
     assert not tb.failures, '\n'.join(tb.failures)
 
