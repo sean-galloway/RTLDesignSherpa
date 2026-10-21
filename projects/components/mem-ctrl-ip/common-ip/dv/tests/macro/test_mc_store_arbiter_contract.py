@@ -245,6 +245,7 @@ async def cocotb_test_hold_on_gate_block(dut):
 
     chosen_op = int(dut.u_arb.cmd_op_o.value)
     chosen_bank = int(dut.u_arb.cmd_bank_o.value)
+    chosen_row = int(dut.u_arb.cmd_row_o.value)
     chosen_col = int(dut.u_arb.cmd_col_o.value)
 
     # Block bank 0's read/write ready path (live JEDEC gate), keep bank 1 open.
@@ -259,10 +260,12 @@ async def cocotb_test_hold_on_gate_block(dut):
             assert False, "cmd_valid_o dropped while gate blocked"
         if (int(dut.u_arb.cmd_op_o.value) != chosen_op or
             int(dut.u_arb.cmd_bank_o.value) != chosen_bank or
+            int(dut.u_arb.cmd_row_o.value) != chosen_row or
             int(dut.u_arb.cmd_col_o.value) != chosen_col):
             assert False, ("command changed while gate blocked: "
                            f"op {int(dut.u_arb.cmd_op_o.value)} bank "
-                           f"{int(dut.u_arb.cmd_bank_o.value)} col "
+                           f"{int(dut.u_arb.cmd_bank_o.value)} row "
+                           f"{int(dut.u_arb.cmd_row_o.value)} col "
                            f"{int(dut.u_arb.cmd_col_o.value)}")
         held_cycles += 1
 
@@ -296,7 +299,9 @@ async def cocotb_test_zero_bubble_stream(dut):
     for col in range(8):
         await _push_wr_chunk(dut, bank=0, row=0, col=col)
 
-    # Keep the pool filled: push one replacement each time a command drains.
+    # Keep the pool filled: start a new push for every command that drains.
+    # Each push takes ~2 cycles; overlapping tasks let the store stay full
+    # even when the arbiter drains one entry per cycle.
     next_col = 8
     async def _replenish():
         nonlocal next_col
@@ -306,17 +311,18 @@ async def cocotb_test_zero_bubble_stream(dut):
             cur = int(dut.drain_count.value)
             if cur > prev:
                 for _ in range(cur - prev):
-                    await _push_wr_chunk(dut, bank=0, row=0, col=next_col)
+                    cocotb.start_soon(_push_wr_chunk(dut, bank=0, row=0, col=next_col))
                     next_col += 1
             prev = cur
     repl_task = cocotb.start_soon(_replenish())
 
-    # Let the pipeline prime.
-    for _ in range(8):
-        await _cmd_ready_every_cycle(dut)
+    # Prime slowly (use the TB's natural 1-in-4 cm_ready) so replenishment can
+    # fully backfill the store before we measure the every-cycle steady state.
+    for _ in range(24):
         await RisingEdge(dut.aclk)
 
-    # Run a measured steady-state window.
+    # Run a measured steady-state window. With all gates open and a filled
+    # pool, the new core must produce a valid column command every cycle.
     steady_fires = 0
     steady_idle = 0
     for _ in range(16):
@@ -335,7 +341,9 @@ async def cocotb_test_zero_bubble_stream(dut):
     dut.u_arb.bank_rdwr_ready_i.value = 0xFF
     dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
 
-    # Measure recovery: after the gate closes there must be no extra bubbles.
+    # Measure recovery: with hold-on-not-fired, the blocked winner is still
+    # valid the cycle the gate reopens, so the very next cycle must fire it
+    # with no refill bubble.
     post_fires = 0
     post_idle = 0
     for _ in range(8):
@@ -348,25 +356,25 @@ async def cocotb_test_zero_bubble_stream(dut):
 
     repl_task.cancel()
 
-    # The gate block itself costs one cycle; any additional idle cycle is a
-    # re-pick bubble that the new core must not have.
-    assert post_idle <= 1, f"post-gate bubbles: {post_idle} idle cycles (expected <=1)"
+    assert steady_idle == 0, f"steady-state bubbles: {steady_idle} idle cycles"
+    assert post_idle == 0, f"post-gate bubbles: {post_idle} idle cycles"
 
 
 @cocotb.test()
 async def cocotb_test_post_pop_winner(dut):
     """The cycle after a pop must show the speculative next-winner, not a bubble.
 
-    We preload only entry A, let it reach the output register, then add B and
-    fire A in the same cycle. The new core recomputes the winner from the live
-    pool (B); the old core uses a stale STAGE-1a snapshot that lacks B, so it
-    either re-picks A or bubbles.
+    We preload entry A, let it reach the output register, then preload B and
+    fire A in the next cycle. B is in the live pool but has not yet reached the
+    STAGE-1a snapshot. The new core speculatively computes the pool-minus-A
+    winner (B) and emits it on the next cycle; the old core either re-picks A
+    or produces a bubble.
     """
     await _reset(dut)
     await _open_arbiter_gates(dut)
 
-    # Preload A only, then wait until A is the live output pick.
-    await _push_wr_chunk(dut, bank=0, row=0, col=10)
+    # Preload A, let it reach the output register, then preload B.
+    await _push_wr_chunk(dut, bank=0, row=0, col=10)   # A
     while True:
         await _cmd_ready_every_cycle(dut)
         await RisingEdge(dut.aclk)
@@ -377,8 +385,9 @@ async def cocotb_test_post_pop_winner(dut):
 
     a_slot = int(dut.u_arb.r_commit_slot.value)
 
-    # Add B in the same cycle we fire A.
-    cocotb.start_soon(_push_wr_chunk(dut, bank=0, row=0, col=20))
+    # Preload B while A sits in the output register. B is now in the live pool
+    # but has not yet propagated into the STAGE-1a snapshot.
+    await _push_wr_chunk(dut, bank=0, row=0, col=20)   # B
 
     # Fire A.
     await _cmd_ready_every_cycle(dut)
