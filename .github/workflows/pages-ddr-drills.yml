@@ -120,7 +120,7 @@ jobs:
           pip install markdown==3.9
           python3 articles/build_articles.py _site
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
