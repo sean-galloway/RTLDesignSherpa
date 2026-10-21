@@ -27,8 +27,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
-                   97]
+    covers_lines: [24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 54, 55, 56, 57, 69]
 
   - id: ALU-02
     name: "AND / OR / XOR logical operations"
@@ -38,8 +37,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
-                   97]
+    covers_lines: [24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 54, 55, 56, 57, 69]
 
   - id: ALU-03
     name: "SLL / SRL / SRA shifts with b[4:0] shamt"
@@ -51,8 +49,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
-                   97]
+    covers_lines: [24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 54, 55, 56, 57, 69]
 
   - id: ALU-04
     name: "SLT / SLTU and eq/lt/ltu comparison flags"
@@ -64,8 +61,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
-                   97]
+    covers_lines: [24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 54, 55, 56, 57, 69]
 
   - id: ALU-05
     name: "Exhaustive op x value matrix completion"
@@ -83,37 +79,14 @@ functional_scenarios:
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 81,
-                   97]
+    covers_lines: [24, 25, 26, 27, 28, 29, 30, 38, 39, 40, 54, 55, 56, 57, 69]
 
-  - id: ALU-06
-    name: "USE_DSP=1: the DSP-mapped add/sub row is functionally identical"
-    description: "The same cocotb_test_kestrel_alu sweep (all 10 ops, the
-                  value matrix, every flag) on kestrel_alu built with
-                  USE_DSP=1, where the add/sub row is kestrel_alu_dsp (one
-                  DSP48E1 in synthesis). The attribute changes synthesis
-                  only; this cell pins that the ON setting's RTL computes the
-                  same function (2026-10-20)."
-    test_function: "cocotb_test_kestrel_alu"
-    sim_cell: "cocotb_test_kestrel_alu_dsp"
-    test_level: full
-    priority: medium
-    status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 61, 62, 63, 64, 70,
-                   97]
-
-parameter_coverage:
-  - USE_DSP: 0
-    test_level: full
-    status: verified
-  - USE_DSP: 1
-    test_level: full
-    status: verified
+parameter_coverage: []
 
 implied_coverage:
-  total_scenarios: 6
-  scenario_tracked: 6
-  implied_covered: 6
+  total_scenarios: 5
+  scenario_tracked: 5
+  implied_covered: 5
   implied_percentage: 100.0
 
 notes: |

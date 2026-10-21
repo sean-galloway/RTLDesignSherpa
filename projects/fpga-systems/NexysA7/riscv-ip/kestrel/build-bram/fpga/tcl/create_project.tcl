@@ -95,16 +95,6 @@ if {[llength $defines] > 0} {
 set_property top $top_name $src_fs
 update_compile_order -fileset sources_1
 
-# ALU_DSP (build Makefile) -> kestrel_alu USE_DSP.  `make lint` gets the SAME
-# value via LINT_GENERICS.
-set alu_dsp [expr {[info exists ::env(KESTREL_ALU_DSP)] ? $::env(KESTREL_ALU_DSP) : 0}]
-# FPGA_FAMILY from the part (make/tcl/fpga_family.tcl): kestrel_alu_dsp picks
-# its DSP primitive by it (7-series: DSP48E1).
-source "$rds_root/make/tcl/fpga_family.tcl"
-set fpga_fam [fpga_family $part_name]
-set_property generic "ALU_USE_DSP=$alu_dsp FPGA_FAMILY=\"$fpga_fam\"" $src_fs
-puts "GENERICS:     ALU_USE_DSP=$alu_dsp FPGA_FAMILY=$fpga_fam"
-
 
 set cf [get_filesets constrs_1]
 add_files -norecurse -fileset $cf "$project_root/constraints/$xdc_name"

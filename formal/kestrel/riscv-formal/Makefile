@@ -53,6 +53,10 @@ include $(REPO_ROOT)/make/formal_flat.mk
 
 # `checks` re-converts on every run: an RTL edit under an unchanged .f must
 # still reach rtl_v, and formal_flat.mk's mtime rule alone would skip it.
+# rtl_v lives under checks/, which genchecks.py rmtree's and recreates, so
+# the flat is built AFTER genchecks (a recursive make), never as a
+# prerequisite of `checks` -- as a prerequisite it was converted and then
+# deleted, and every check failed with "kestrel_flat.v not found".
 $(FLAT): FORCE | $(RTL_V)
 FORCE:
 $(RTL_V):
@@ -60,7 +64,7 @@ $(RTL_V):
 
 .PHONY: checks clean FORCE
 
-checks: $(FLAT)
+checks:
 	@for tool in sby yosys sv2v z3; do \
 	    command -v $$tool >/dev/null 2>&1 || { \
 	        echo "error: $$tool not on PATH (export PATH=/mnt/data/tools/oss-cad-suite/bin:<sv2v>:$$PATH)" >&2; \
@@ -77,6 +81,7 @@ checks: $(FLAT)
 	sed 's/const rand reg/(* anyconst *) reg/' \
 	    $(RISCV_FORMAL)/checks/rvfi_macros.vh > $(REPO_ROOT)/formal/checks/rvfi_macros.vh
 	cd $(CURDIR) && python3 $(RISCV_FORMAL)/checks/genchecks.py checks
+	$(MAKE) --no-print-directory $(FLAT)
 	$(MAKE) --no-print-directory -C $(CHECKS_DIR) -j$$(nproc) -f makefile
 	@fails=0; total=0; \
 	for s in $(CHECKS_DIR)/*/status; do \

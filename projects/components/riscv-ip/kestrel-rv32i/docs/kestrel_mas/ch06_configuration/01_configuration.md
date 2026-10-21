@@ -30,8 +30,6 @@
 | Parameter | Type | Default | Verified values | Description |
 |-----------|------|---------|-----------------|-------------|
 | `RESET_ADDR` | `logic [31:0]` | `32'h0000_0000` | `0x0`, `0x100`, `0x8000_0000` | Reset fetch address; the first retired beat's `pc_rdata` equals it (testplan scenario CORE-03) |
-| `ALU_USE_DSP` | `bit` | `0` | `0`, `1` | Passed to `kestrel_alu USE_DSP`: 1 builds ADD/SUB/AND/OR/XOR/SLT/SLTU in one DSP48E1 (both board builds expose it as `make bitstream ALU_DSP=1`) |
-| `FPGA_FAMILY` | `string` | `"7SERIES"` | `"7SERIES"` | Passed to `kestrel_alu FPGA_FAMILY`: the DSP primitive family; the board builds derive it from the part's ARCHITECTURE property |
 
 : kestrel_core parameters
 

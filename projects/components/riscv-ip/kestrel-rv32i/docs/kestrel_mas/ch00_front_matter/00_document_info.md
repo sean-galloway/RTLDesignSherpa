@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Micro-Architecture Specification
 
 **Document Number:** KESTREL-MAS-001
-**Version:** 0.17
+**Version:** 0.18
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -91,6 +91,7 @@ The external contract — ports as an integrator wires them, memory and halt beh
 | 0.15 | 2026-10-20 | seang | Register file has no reset (distributed RAM; x0 via the read ports; software initializes every register, the golden interpreter fails a test that does not). The register-write gate names only the halts an rd-writing instruction can raise (`~misalign_link & ~ls_misalign`), keeping the branch comparator off that path; target low bits from two-bit adds. New `kestrel_alu USE_DSP` / core `ALU_USE_DSP`: the add/sub row in one DSP48E1 (`kestrel_alu_dsp`). Revisions renumbered (owner: at most 0.25 until running well): 0.2-0.5 became 0.11-0.14. |
 | 0.16 | 2026-10-20 | seang | Register file loses its x0 rule: the core keeps x0 zero by writing it (in reset, and on every x0 write via the writeback zero row), so the read ports need no zero-select. One signed/unsigned comparator for branches and one for SLT/SLTU (33-bit extension). ALU result is an OR of zero-gated rows; SUB is add of the inverted operand plus carry-in. Ideas from the BRISKI barrel core, re-derived. Nexys A7: 75 MHz, 42/42, CPI 1.039, 1,899 LUTs. |
 | 0.17 | 2026-10-20 | seang | `kestrel_alu USE_DSP` builds seven rows (ADD, SUB, AND, OR, XOR, SLT, SLTU) in one instantiated DSP48E1: the logic unit by ALUMODE/OPMODE, SLT/SLTU from the 48-bit subtract's sign; simulation and formal use a behavioral model of the slice, checked against the Xilinx simulation model. New `FPGA_FAMILY` parameter (core and ALU), set by the board builds from the part; only 7SERIES is mapped. Nexys A7: no LUT saving, 0.08 ns slower; the fabric ALU stays the default. |
+| 0.18 | 2026-10-20 | seang | DSP48E1 ALU option removed (`kestrel_alu USE_DSP`, `FPGA_FAMILY`, `kestrel_alu_dsp`, core `ALU_USE_DSP`): it saved no LUTs and cost slices and slack on the Nexys A7. New section "Why the ALU is not in a DSP" in the kestrel_alu chapter records the design, the measurements and what would change the answer. |
 
 : Document Revision History
 

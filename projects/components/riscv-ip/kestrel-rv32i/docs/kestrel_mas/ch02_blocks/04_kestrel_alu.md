@@ -39,12 +39,7 @@
 
 : kestrel_alu interface
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `USE_DSP` | 0 | 1: ADD, SUB, AND, OR, XOR, SLT and SLTU come from `kestrel_alu_dsp`, one instantiated DSP48E1 with every register off (C = a, A:B = b, each extended to 48 bits with the sign for SLT; OPMODE/ALUMODE per op; SLT/SLTU is the sign of the 48-bit subtract). Shifts stay in fabric. Instantiated because Vivado infers the DSP for a lone add/sub but not for the logic unit (measured on xc7a100t). Vivado synthesis gets the primitive; simulation, lint and formal get a behavioral model of the slice computed from the same OPMODE/ALUMODE, checked against the Xilinx DSP48E1 simulation model (140,448 vectors, 0 mismatches). On the Nexys A7 it saves no LUTs (1,905 vs 1,908 synthesized), trades 13 CARRY4 for 18 more occupied slices, and costs about 0.08 ns, so 0 is the default (2026-10-20). Set from the core's `ALU_USE_DSP`. |
-| `FPGA_FAMILY` | `"7SERIES"` | DSP primitive family for `USE_DSP = 1`. `"7SERIES"` (Artix-7, Kintex-7) maps to DSP48E1; any other value stops elaboration. The board builds set it from the part (`make/tcl/fpga_family.tcl`). Set from the core's `FPGA_FAMILY`. |
-
-: kestrel_alu parameters
+`kestrel_alu` has no parameters: it is built in fabric only (see "Why the ALU is not in a DSP" below).
 
 ## Operations
 
@@ -72,3 +67,47 @@ The flags compare `a` against `b`: `eq = (a == b)`, `lt = ($signed(a) < $signed(
 ---
 
 **Last Updated:** 2026-10-07
+
+## Why the ALU is not in a DSP
+
+A DSP48E1 option was built, verified and measured, then removed (2026-10-20).
+It is recorded here so it is not tried again without a new reason.
+
+**What was built.** ADD, SUB, AND, OR, XOR, SLT and SLTU in one instantiated
+DSP48E1 with every register off: C = `a`, A:B = `b`, each extended to 48 bits
+(with the sign bit for SLT); OPMODE and ALUMODE chosen per op (the DSP's logic
+unit for AND/OR/XOR, the post-adder for ADD/SUB); SLT/SLTU taken from the sign
+of the 48-bit subtract, as in the DSP48E user guide's compare application
+(UG193). Shifts stayed in fabric. The idea of one DSP for the ALU came from the
+BRISKI barrel core. Vivado would not infer it (on xc7a100t it maps a lone
+add/sub but no DSP for a case that also selects the logic rows), so the slice
+was instantiated, with a behavioral model for simulation and formal that
+matched the Xilinx DSP48E1 model over 140,448 vectors. rv32ui passed 42/42 on
+the Nexys A7 and riscv-formal 42/42.
+
+**Why it was removed.** It did not do what it was for: save LUTs and pack the
+core denser. Nexys A7, same netlist and `IMPL=explore` flow:
+
+| | Fabric ALU | DSP ALU |
+|---|---|---|
+| LUTs, synthesized | 1,908 | 1,905 |
+| LUTs, routed | 2,026 | 2,029 |
+| CARRY4 | 72 | 59 |
+| Occupied slices | 656 | 674 |
+| Worst slack at 100 MHz | -1.63 ns | -1.71 ns |
+
+: Fabric vs DSP48E1 ALU on the Nexys A7 (xc7a100t)
+
+The ALU is too small for the move to pay. The 32-bit add is eight CARRY4
+cells, and each logic row is one LUT per bit, which the OR-combined result
+merges with the row select. The DSP has fixed sites, so its 64 operand nets
+and 32 result nets travel to and from a DSP column: the few LUTs it absorbs
+come back as that routing, which spreads the core over 18 more slices and lengthens the path through
+the ALU. A fully combinational DSP48E1 is also the slice's slowest mode. An earlier add/sub-only version (inferred) saved 42 LUTs but cost about
+0.3 ns, on the core as it stood before the x0, comparator and OR-result changes.
+
+**What would change the answer.** A pipelined core, where the DSP's input and
+output registers sit on a stage boundary, or a design short of LUTs and rich in
+spare DSPs. Neither is kestrel, which is single-cycle and meant to stay simple
+and cheap.
+

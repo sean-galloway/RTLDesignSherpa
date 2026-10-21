@@ -425,24 +425,20 @@ async def cocotb_test_kestrel_decode(dut):
 # pytest wrappers
 # ---------------------------------------------------------------------------
 
-# (toplevel, cocotb test, parameters, cell suffix).  The ALU runs twice:
-# USE_DSP only changes synthesis, and its ON setting still gets a cell.
 DUT_CASES = [
-    ("kestrel_alu", "cocotb_test_kestrel_alu", {}, ""),
-    ("kestrel_alu", "cocotb_test_kestrel_alu", {"USE_DSP": "1"}, "_dsp"),
-    ("kestrel_imm_gen", "cocotb_test_kestrel_imm_gen", {}, ""),
-    ("kestrel_decode", "cocotb_test_kestrel_decode", {}, ""),
+    ("kestrel_alu", "cocotb_test_kestrel_alu"),
+    ("kestrel_imm_gen", "cocotb_test_kestrel_imm_gen"),
+    ("kestrel_decode", "cocotb_test_kestrel_decode"),
 ]
 
 
-@pytest.mark.parametrize("dut_name, testcase, parameters, suffix", DUT_CASES)
+@pytest.mark.parametrize("dut_name, testcase", DUT_CASES)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_kestrel_decode(request, dut_name, testcase, parameters, suffix, test_level,
-                        description=None):
+def test_kestrel_decode(request, dut_name, testcase, test_level, description=None):
     """Pytest wrapper for the kestrel ALU/imm-gen/decode cocotb tests."""
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
 
-    test_name_plus_params = f"{testcase}{suffix}_{test_level}"
+    test_name_plus_params = f"{testcase}_{test_level}"
 
     log_path = os.path.join(log_dir, f"{test_name_plus_params}.log")
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
@@ -479,5 +475,4 @@ def test_kestrel_decode(request, dut_name, testcase, parameters, suffix, test_le
         waves=bool(int(os.environ.get("WAVES", "0"))),
         keep_files=True,
         compile_args=compile_args,
-        parameters=parameters,
     )

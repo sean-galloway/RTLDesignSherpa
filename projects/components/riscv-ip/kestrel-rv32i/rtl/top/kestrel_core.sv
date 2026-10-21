@@ -69,9 +69,7 @@
 `include "reset_defs.svh"
 
 module kestrel_core #(
-    parameter logic [31:0] RESET_ADDR  = 32'h0000_0000,
-    parameter bit          ALU_USE_DSP = 1'b0,      // kestrel_alu USE_DSP
-    parameter string       FPGA_FAMILY = "7SERIES"  // DSP primitive family (build-derived)
+    parameter logic [31:0] RESET_ADDR = 32'h0000_0000
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -238,10 +236,7 @@ module kestrel_core #(
     // comparator below (Task 4 review ruling, SDD ledger).
     logic [31:0] alu_y;
 
-    kestrel_alu #(
-        .USE_DSP     (ALU_USE_DSP),
-        .FPGA_FAMILY (FPGA_FAMILY)
-    ) u_alu (
+    kestrel_alu u_alu (
         .op  (alu_op),
         .a   (alu_src_a),
         .b   (alu_src_b),
