@@ -42,12 +42,15 @@ package kestrel_pkg;
 
     // Halt-cause encoding, single source of truth for kestrel_decode
     // (ecall/ebreak/illegal) and kestrel_core (misaligned control-flow
-    // target, Task 9).  Cause 3 is raised only in the core: decode cannot
-    // see it, the condition needs the resolved next-PC and branch decision.
+    // target, Task 9; misaligned load/store address, 2026-10-20).  Causes
+    // 3-5 are raised only in the core: decode cannot see them, they need
+    // the resolved next-PC or the access address.
     localparam logic [3:0] HALT_NONE   = 4'h0;
     localparam logic [3:0] HALT_ECALL  = 4'h1;
     localparam logic [3:0] HALT_EBREAK = 4'h2;
     localparam logic [3:0] HALT_IALIGN = 4'h3;
+    localparam logic [3:0] HALT_LALIGN = 4'h4;   // load address misaligned
+    localparam logic [3:0] HALT_SALIGN = 4'h5;   // store address misaligned
     localparam logic [3:0] HALT_ILL    = 4'hF;
 
 endpackage : kestrel_pkg

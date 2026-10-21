@@ -28,23 +28,25 @@
 `halt_q` is a one-bit flop that latches any nonzero `halt_cause_eff`:
 
 ```
-halt_cause_eff = dec_halt_cause | (misalign_target ? HALT_IALIGN : HALT_NONE)
-halt_now       = |halt_cause_eff
+halt_cause_eff = dec_halt_cause
+               | (misalign_target ? HALT_IALIGN : HALT_NONE)
+               | (ls_misalign ? (dmem_we ? HALT_SALIGN : HALT_LALIGN) : HALT_NONE)
+halt_now       = |halt_cause_eff & ~mem_wait
 halt_q         <= halt_q | halt_now
 halt           = halt_q | halt_now        // visible on the first halting cycle
 ```
 
-Decode raises `HALT_ECALL (1)`, `HALT_EBREAK (2)`, and `HALT_ILL (F)`; the core raises `HALT_IALIGN (3)`. Once latched:
+Decode raises `HALT_ECALL (1)`, `HALT_EBREAK (2)`, and `HALT_ILL (F)`; the core raises `HALT_IALIGN (3)`, `HALT_LALIGN (4)` and `HALT_SALIGN (5)` (the misaligned data access, Ch. 4.2). Once latched:
 
-- The PC freezes (`pc <= halt ? pc : ...`).
+- The PC freezes (`pc <= (halt || mem_wait) ? pc : next_pc`).
 - Writeback is suppressed (`rd_wen_eff` and the RVFI `rd_wb` gate both use `halt`).
-- Retirement stops: `rvfi_valid = rst_n & ~halt_q & ~ls_first`, and since `halt_q` latches on the halting cycle, the halting instruction itself is the last beat — a trap beat with `rvfi_trap = halt_now`.
+- Retirement stops: `rvfi_valid = rst_n & ~halt_q & ~mem_wait`, and since `halt_q` latches on the halting cycle, the halting instruction itself is the last beat — a trap beat with `rvfi_trap = halt_now`.
 
 A holding register rather than a pulse matters for verification: an external observer sampling any time after the halt sees a stable, unambiguous stopped state with the cause still on the port. The testbench samples four post-halt cycles pinning `halt` raised, `rvfi_valid` low, `rvfi_pc_rdata` frozen.
 
 ## The IALIGN Halt (Cause 3)
 
-With IALIGN=32 — no compressed instructions — every fetch must be 4-byte aligned, and unpriv §2.1.5 requires an *instruction-address-misaligned* exception when taken control flow targets an address whose low two bits are not `00`. RISC-V's permission to handle *data* misalignment in hardware does not extend here.
+With IALIGN=32 — no compressed instructions — every fetch must be 4-byte aligned, and unpriv §2.1.5 requires an *instruction-address-misaligned* exception when taken control flow targets an address whose low two bits are not `00`. RISC-V's permission to handle *data* misalignment in hardware does not extend here (kestrel no longer uses that permission either: misaligned data accesses halt with causes 4/5, Ch. 4.2).
 
 The condition, visible only in the core:
 
@@ -54,7 +56,7 @@ misalign_target = (jump | jalr | branch_taken) & (next_pc[1:0] != 2'b00)
 
 **Why decode cannot catch it:** for JALR the target depends on a register value; for every branch it depends on the taken decision. Decode sees neither — it produces the control bundle, not the data. `kestrel_pkg` states the ownership directly: cause 3 belongs to the core.
 
-**The writeback subtlety.** JAL/JALR set decode's `rd_wen` — they are link instructions, and a taken JAL/JALR that *does* align must write `pc+4`. The misaligned case must not. Rather than teaching decode about alignment, the core gates both the register write and the RVFI report with `halt` itself: `rd_wen_eff = rd_wen & ~ls_first & ~halt`, `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The trap beat reports the misaligned target on `rvfi_pc_wdata` (it is `next_pc`), exactly what a real trap would record as the faulting address — a detail riscv-formal's checks verify explicitly.
+**The writeback subtlety.** JAL/JALR set decode's `rd_wen` — they are link instructions, and a taken JAL/JALR that *does* align must write `pc+4`. The misaligned case must not. Rather than teaching decode about alignment, the core gates both the register write and the RVFI report with `halt` itself: `rd_wen_eff = rd_wen & ~halt & ~mem_wait`, `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The trap beat reports the misaligned target on `rvfi_pc_wdata` (it is `next_pc`), exactly what a real trap would record as the faulting address — a detail riscv-formal's checks verify explicitly.
 
 ## The System Layer: Stubs, NOPs, and Halts
 

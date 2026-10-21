@@ -3,11 +3,10 @@
 ## CPI 1, honestly stated
 
 kestrel retires one instruction per clock — CPI 1 — for every instruction
-in the ISA. Two honesty clauses attach to that claim. First, a
-cross-word misaligned load or store occupies two clocks and retires
-once, so memory-heavy code with unaligned data averages slightly above 1
-(Chapter 5); the battery's ma_data and ld_st rows exercise exactly that
-case. Second, CPI 1 is *per instruction*, and instructions are not the
+in the ISA. Two honesty clauses attach to that claim. First, behind
+block RAM a load occupies two clocks (the memory holds the core while
+its data read lands), so the average is 1 plus the load fraction; with
+combinational memories it is exactly 1. Second, CPI 1 is *per instruction*, and instructions are not the
 unit anyone asked for — programs are. The single-cycle discipline taxes
 the fast instructions to pay for the slow ones, and the tax collector is
 the clock period.
@@ -53,7 +52,6 @@ clock.
 | Load | imem + decode + regfile + ALU + dmem + rotate/sign + writeback setup |
 | Store | imem + decode + regfile + ALU + dmem + strobe setup |
 | JAL/JALR | imem + decode + regfile (JALR) + add + next-PC mux + PC setup |
-| Cross-word L/S | all of load/store, plus the retry cycle (two clocks, by design) |
 
 : Critical-path content per instruction class
 

@@ -7,7 +7,7 @@ sections, not pages) and the falcon-suite design documentation
 the falcon suite. Derived from condensed study notes; emphasis is on what
 the as-built kestrel core actually does and verifies, with the RISC-V
 specification cited as the authority.
-**Version:** 0.2
+**Version:** 0.3
 **Last Updated:** 2026-10-20
 **Status:** Draft. Personal study notes.
 
@@ -32,7 +32,7 @@ can trace by hand and a decode truth table you can read top to bottom.
 This book condenses RV32I into the material needed to understand kestrel:
 the instruction set itself (Chapter 2), the datapath (Chapter 3), the
 control truth table (Chapter 4), the memory contract including the
-hardware-misaligned policy (Chapter 5), the verification story — the
+misaligned-access halt (Chapter 5), the verification story — the
 rv32ui battery, spike lockstep, and the riscv-formal proof that caught a
 bug forty-two directed tests missed (Chapter 6) — and what the
 single-cycle discipline costs, which is exactly what motivates rung 2,
@@ -67,14 +67,14 @@ merlin (Chapter 7).
 ### Chapter 5: The Memory Contract
 
 - [01_the_contract.md](ch05_memory_contract/01_the_contract.md) - The Harvard interface, word-wide buses, combinational reads
-- [02_misaligned_data.md](ch05_memory_contract/02_misaligned_data.md) - The hardware-misaligned decision: rotation, the retry cycle, RVFI encoding
-- [03_ialign_and_halt.md](ch05_memory_contract/03_ialign_and_halt.md) - IALIGN=32, the instruction-side misaligned halt, the four halt causes
+- [02_misaligned_data.md](ch05_memory_contract/02_misaligned_data.md) - Misaligned data halts: lane rotation for aligned accesses, the halt, the retired retry, RVFI encoding
+- [03_ialign_and_halt.md](ch05_memory_contract/03_ialign_and_halt.md) - IALIGN=32, the instruction-side misaligned halt, the six halt causes
 
 ### Chapter 6: Verification
 
 - [01_testbench_and_golden.md](ch06_verification/01_testbench_and_golden.md) - The cocotb testbench, sampling contract, golden interpreter lockstep
 - [02_rv32ui_battery.md](ch06_verification/02_rv32ui_battery.md) - The 42-test rv32ui-p-* battery, results table, verdict protocol
-- [03_spike_lockstep.md](ch06_verification/03_spike_lockstep.md) - Spike 1.1.0 lockstep, the misaligned-build note, stream-diff details
+- [03_spike_lockstep.md](ch06_verification/03_spike_lockstep.md) - Spike 1.1.0 lockstep, ma_data as an expected halt, stream-diff details
 - [04_riscv_formal.md](ch06_verification/04_riscv_formal.md) - The riscv-formal flow: wrapper, checks, depths, 42/42
 - [05_the_cex_story.md](ch06_verification/05_the_cex_story.md) - The misaligned-jump counterexample: a real bug the battery missed
 
@@ -91,5 +91,6 @@ merlin (Chapter 7).
 | --- | --- | --- |
 | 0.1 | 2026-10-06 | First draft |
 | 0.2 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.3 | 2026-10-20 | kestrel now halts on misaligned loads/stores (causes 4/5) instead of the hardware cross-word retry; Chapter 5.2 rewritten and Figure 5.1 retired; RVFI memory fields follow RISCV_FORMAL_ALIGNED_MEM; immediates are selected by opcode; the memory contract covers block RAM (`mem_wait`, `imem_addr_next`); ma_data is an expected halt in the battery and spike lockstep. |
 
 : Version history

@@ -11,7 +11,8 @@ bridge's transport differs.
   battery  the riscv-tests rv32ui-p images (vendor/riscv-tests/isa): load,
            run to halt, verdict = halted on ecall with gp == 1 (the core
            halts on the final ecall, so the tohost store never runs -- the
-           same rule as the DV battery)
+           same rule as the DV battery), or the DV battery's expected halt
+           (ma_data: cause 4, the misaligned-load halt)
 """
 
 from __future__ import annotations
@@ -27,7 +28,8 @@ _KESTREL_DV = os.path.join(os.environ["REPO_ROOT"], "projects/components/riscv-i
 for _p in (_KESTREL_DV, os.path.join(_KESTREL_DV, "tests/programs")):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-from tbclasses.kestrel.rv32ui_battery import discover_tests, normalize_image  # noqa: E402
+from tbclasses.kestrel.rv32ui_battery import (  # noqa: E402
+    EXPECTED_HALTS, discover_tests, normalize_image)
 
 
 @dataclass
@@ -78,9 +80,11 @@ def battery(k: KestrelBoard, tests: Optional[List[str]] = None) -> Report:
         st = run_image(k, normalize_image(repo, name))
         cycles += st.cycles
         instret += st.instret
-        r.rows.append(f"{name:8} {'PASS' if st.riscv_tests_pass else 'FAIL'} cause={st.cause} "
+        expected = EXPECTED_HALTS.get(name)
+        ok = (st.halted and st.cause == expected[0]) if expected else st.riscv_tests_pass
+        r.rows.append(f"{name:8} {'PASS' if ok else 'FAIL'} cause={st.cause} "
                       f"gp=0x{st.gp:08X} instret={st.instret} cycles={st.cycles} cpi={st.cpi:.2f}")
-        if not st.riscv_tests_pass:
+        if not ok:
             r.failures.append(f"{name}: halted={st.halted} cause={st.cause} gp=0x{st.gp:08X}")
     r.numbers.update(tests=len(names), passed=len(names) - len(r.failures),
                      cpi=round(cycles / instret, 3) if instret else 0)

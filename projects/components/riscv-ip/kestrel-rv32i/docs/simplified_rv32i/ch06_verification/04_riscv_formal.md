@@ -17,11 +17,15 @@ depth — including the perverse ones no test author would write.
 (picorv32's), a `checks.cfg`, and a Makefile driving genchecks and sby.
 The wrapper is worth understanding because it is small:
 
+- `RISCV_FORMAL_ALIGNED_MEM` is defined (2026-10-20): memory is reported
+  as a word address with byte-lane masks, and the instruction models
+  require `rvfi_trap` on every misaligned load and store, which is
+  kestrel's halt.
 - Memory inputs (`imem_rdata`, `dmem_rdata`) are free
   `rvformal_rand_reg` values — there is no memory array. The checkers
   relate the core's *reported* rvfi_mem channels and writeback to the
   ISA model, so random read data is exactly the right stimulus, and no
-  imem-stability assumption is needed even across the two-cycle retry.
+  imem-stability assumption is needed even under free `mem_wait` stalls.
 - The core lacks `rvfi_halt/rvfi_intr/rvfi_mode/rvfi_ixl` ports, so the
   wrapper generates them: `rvfi_halt = rvfi_valid & halt` (for a core
   with no trap handler, the Task-8 trap beat *is* the final retirement —
@@ -40,7 +44,7 @@ models plus five consistency checks — `reg` (register file integrity),
 orders). This pinned genchecks emits no `mem`/`causal`/`ill`/`hang`/
 `cover` checks; load/store semantics are covered by the instruction
 models plus `reg`. Depths: instruction and consistency checks at 6 —
-enough for reset plus a two-cycle cross-word access with headroom —
+enough for reset plus a few memory wait states with headroom —
 with liveness/unique at trigger 6, check 30 per the picorv32
 configuration. Solver: z3 via smtbmc.
 

@@ -30,8 +30,10 @@ immediate, which is why U and J rows above leave cells empty.
 
 kestrel's `kestrel_decode` keys its truth table on the triple
 `{opcode, funct3, funct7}` — the exact fields that distinguish every
-base instruction — and drives `imm_sel` to tell `kestrel_imm_gen` which
-immediate assembly to build. The full table is Chapter 4; the format
+base instruction. `kestrel_imm_gen` does not wait for it: the format is a
+function of the opcode alone, so it builds all five immediates in parallel
+and picks one by `insn[6:2]` (decode's `imm_sel` output still exists but is
+unused). The full table is Chapter 4; the format
 layer is worth understanding on its own because the immediate encodings
 are the least obvious part of the ISA.
 
@@ -59,9 +61,9 @@ immediates append an explicit 0 in bit 0 because branch and jump targets
 are always 2-byte-aligned at minimum — and with IALIGN=32, kestrel
 requires 4.
 
-`kestrel_imm_gen` implements exactly this table: a five-way `unique
-case` on `imm_sel` (the package enum `I, S, B, U, J`) with the sign bits
-replicated by concatenation. U-type needs no sign extension work beyond
+`kestrel_imm_gen` implements exactly this table: five assemblies with
+the sign bits replicated by concatenation, and a `unique case` on the
+major opcode `insn[6:2]` picking one. U-type needs no sign extension work beyond
 the shift; the spec's canonical form zero-extends the 20-bit field and
 places it in the upper bits, which is what the RTL does.
 

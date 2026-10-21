@@ -1,0 +1,77 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "PPPP"
+    },
+    {
+      "name": "",
+      "wave": "2222",
+      "data": [
+        "cycle n",
+        "cycle n+1",
+        "cycle n+2",
+        "cycle n+3"
+      ]
+    },
+    {
+      "name": "pc",
+      "wave": "==.=",
+      "data": [
+        "A0",
+        "A4",
+        "A8"
+      ]
+    },
+    {
+      "name": "imem_addr_next",
+      "wave": "=.==",
+      "data": [
+        "A4",
+        "A8",
+        "A12"
+      ]
+    },
+    {
+      "name": "imem_rdata",
+      "wave": "==.=",
+      "data": [
+        "ADDI",
+        "LW",
+        "next"
+      ]
+    },
+    {
+      "name": "mem_wait",
+      "wave": "010."
+    },
+    {
+      "name": "dmem_req",
+      "wave": "01.0"
+    },
+    {
+      "name": "dmem_addr",
+      "wave": "x=.x",
+      "data": [
+        "W"
+      ]
+    },
+    {
+      "name": "dmem_rdata",
+      "wave": "x.=x",
+      "data": [
+        "mem[W]"
+      ]
+    },
+    {
+      "name": "rvfi_valid",
+      "wave": "101."
+    }
+  ],
+  "config": {
+    "hscale": 2.4
+  },
+  "head": {
+    "text": "Fetch at the next PC; LW waits one cycle"
+  }
+}

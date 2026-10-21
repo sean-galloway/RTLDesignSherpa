@@ -54,8 +54,8 @@ Each falcon-suite rung teaches exactly one layer of computer-architecture machin
 
 - RV32I base integer instruction set: all 37 instructions (unpriv §2.1)
 - Documented, bounded behavior for the FENCE/FENCE.I and SYSTEM opcode classes
-- Hardware misaligned load/store handling, including the two-cycle cross-word retry
-- The halt contract: four halt causes, trap-beat retirement, post-halt hold
+- Naturally aligned loads and stores in one cycle; a misaligned access halts (causes `0x4`/`0x5`)
+- The halt contract: six halt causes, trap-beat retirement, post-halt hold
 - The RVFI retirement-report channel
 - The optional `kestrel_mem_loader` board glue: AXIL slave, on-chip memories, load-then-run control
 

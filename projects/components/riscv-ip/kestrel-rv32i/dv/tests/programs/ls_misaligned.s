@@ -5,9 +5,10 @@
 # https://github.com/sean-galloway/RTLDesignSherpa
 #
 # Program: ls_misaligned
-# Purpose: Review Focus 6: architectural cross-word misaligned L/S.
-#          Every vector places nonzero, distinct bytes on both sides of a
-#          32-bit word boundary and checks the full assembled value.
+# Purpose: Byte-lane rotation at every naturally aligned offset (bytes in
+#          all four lanes, halves in both), then a misaligned load, which
+#          halts with cause 4 (HALT_LALIGN) and writes nothing (2026-10-20:
+#          kestrel traps misaligned data accesses).
 #
 # Documentation: projects/components/riscv-ip/README.md
 # Subsystem: riscv-ip/kestrel-rv32i
@@ -20,42 +21,32 @@
 _start:
     li    x10, 0x100       # data base address
 
-    # ---- SW at addr%4==2 (crosses 0x104/0x108), full-word load back ----
-    li    x11, 0xDEADBEEF
-    sw    x11, 6(x10)      # bytes 0x106..0x109: EF BE AD DE (little-endian)
-    lw    x1,  6(x10)      # x1 = 0xDEADBEEF
-
-    # ---- SH at addr%4==3 (crosses 0x104/0x108), halfword load back ----
-    li    x12, 0xCAFE
-    sh    x12, 7(x10)      # bytes 0x107=FE, 0x108=CA
-    lh    x2,  7(x10)      # x2 = 0xFFFFCAFE (sign-extended)
-    lhu   x3,  7(x10)      # x3 = 0x0000CAFE
-
-    # ---- SB at all four offsets around the word boundary 0x103/0x104 ----
+    # ---- SB into each lane of word 0x104, byte loads back ----
     li    x13, 0xA1
-    sb    x13, 3(x10)      # 0x103: byte 3 of word 0x100
+    sb    x13, 4(x10)      # lane 0
     li    x14, 0xB2
-    sb    x14, 4(x10)      # 0x104: byte 0 of word 0x104
+    sb    x14, 5(x10)      # lane 1
     li    x15, 0xC3
-    sb    x15, 5(x10)      # 0x105: byte 1 of word 0x104
+    sb    x15, 6(x10)      # lane 2
     li    x16, 0xD4
-    sb    x16, 6(x10)      # 0x106: byte 2 of word 0x104
+    sb    x16, 7(x10)      # lane 3
+    lb    x4,  4(x10)      # x4 = 0xFFFFFFA1
+    lbu   x5,  5(x10)      # x5 = 0x000000B2
+    lb    x6,  6(x10)      # x6 = 0xFFFFFFC3
+    lbu   x7,  7(x10)      # x7 = 0x000000D4
+    lw    x1,  4(x10)      # x1 = 0xD4C3B2A1
 
-    lb    x4,  3(x10)      # x4 = 0xFFFFFFA1
-    lbu   x5,  4(x10)      # x5 = 0x000000B2
-    lb    x6,  5(x10)      # x6 = 0x000000C3
-    lbu   x7,  6(x10)      # x7 = 0x000000D4
+    # ---- SH into both halves of word 0x108, half loads back ----
+    li    x17, 0x8234
+    sh    x17, 8(x10)      # lanes 0-1
+    li    x18, 0x5678
+    sh    x18, 10(x10)     # lanes 2-3
+    lh    x8,  8(x10)      # x8 = 0xFFFF8234
+    lhu   x9,  8(x10)      # x9 = 0x00008234
+    lh    x2,  10(x10)     # x2 = 0x00005678
+    lw    x3,  8(x10)      # x3 = 0x56788234
 
-    # ---- LH/LHU at offset 2 (in-word misaligned, not crossing) ----
-    li    x17, 0x1234
-    sh    x17, 6(x10)      # bytes 0x106=34, 0x107=12
-    lh    x8,  6(x10)      # x8 = 0x00001234
-    lhu   x9,  6(x10)      # x9 = 0x00001234
-
-    # ---- SW at addr%4==1 (crosses 0x104/0x108), full-word load back ----
-    li    x18, 0x11223344
-    sw    x18, 5(x10)      # bytes 0x105..0x108: 44 33 22 11
-    lw    x19, 5(x10)      # x19 = 0x11223344
-
-    ecall                  # halt, cause 1
-    .size _start, . - _start
+    # ---- misaligned halfword load: halts, cause 4, x20 not written ----
+    li    x20, 0x0BAD
+    lh    x20, 9(x10)
+    ecall                  # not reached

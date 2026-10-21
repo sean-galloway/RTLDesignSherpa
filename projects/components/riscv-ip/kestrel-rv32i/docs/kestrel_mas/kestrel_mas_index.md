@@ -23,7 +23,7 @@
 
 # KESTREL-RV32I Micro-Architecture Specification Index
 
-**Version:** 0.4
+**Version:** 0.5
 **Date:** 2026-10-20
 **Purpose:** Block-level micro-architecture specification for the kestrel-rv32i single-cycle RV32I core
 
@@ -58,7 +58,7 @@
 ### Chapter 4: Micro-Architecture Behavior
 
 - [The Single Cycle, Step by Step](ch04_behavior/01_the_single_cycle.md)
-- [Cross-Word Misaligned Retry](ch04_behavior/02_misaligned_retry.md)
+- [Misaligned Data Access Halt](ch04_behavior/02_misaligned_halt.md)
 - [Halt, IALIGN, and the System Layer](ch04_behavior/03_halt_ialign_csr.md)
 - [RVFI Aggregation](ch04_behavior/04_rvfi_aggregation.md)
 
@@ -82,5 +82,5 @@
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-20
 **Maintained By:** RTL Design Sherpa Project

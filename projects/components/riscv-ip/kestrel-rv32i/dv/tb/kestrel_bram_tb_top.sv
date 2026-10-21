@@ -21,7 +21,8 @@
 `timescale 1ns / 1ps
 
 module kestrel_bram_tb_top #(
-    parameter logic [31:0] RESET_ADDR = 32'h0000_0000
+    parameter logic [31:0] RESET_ADDR = 32'h0000_0000,
+    parameter int          MEM_WORDS  = 4096          // kestrel_mem_bram default (16 KB)
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -100,7 +101,11 @@ module kestrel_bram_tb_top #(
     assign dbg_busy_wr = 1'b0;
     assign dbg_busy_rd = 1'b0;
 
-    kestrel_mem_bram u_mem (
+    logic [31:0] imem_addr_next;
+
+    kestrel_mem_bram #(
+        .MEM_WORDS (MEM_WORDS)
+    ) u_mem (
         .aclk           (clk),
         .aresetn        (rst_n),
         .s_axil_awaddr  (s_axil_awaddr),
@@ -122,7 +127,7 @@ module kestrel_bram_tb_top #(
         .s_axil_rresp   (s_axil_rresp),
         .s_axil_rvalid  (s_axil_rvalid),
         .s_axil_rready  (s_axil_rready),
-        .imem_addr      (imem_addr),
+        .imem_addr_next (imem_addr_next),
         .imem_rdata     (imem_rdata),
         .dmem_req       (w_dmem_req),
         .dmem_addr      (dmem_addr),
@@ -147,6 +152,7 @@ module kestrel_bram_tb_top #(
         .rst_n          (core_rst_n),
         .mem_wait       (w_mem_wait),
         .imem_addr      (imem_addr),
+        .imem_addr_next (imem_addr_next),
         .imem_rdata     (imem_rdata),
         .dmem_req       (w_dmem_req),
         .dmem_addr      (dmem_addr),

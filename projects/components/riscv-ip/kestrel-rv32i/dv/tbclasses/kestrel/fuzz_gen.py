@@ -48,8 +48,10 @@ filtering:
   offsets inside a per-base 256-byte window of the 512-byte data
   region, which the generated image initializes word by word (zeros and
   seeded random values) -- no read ever depends on uninitialized
-  memory, and every access (aligned or not, including the cross-word
-  cases that take kestrel's 2-cycle retry) stays inside the region.
+  memory, and every access stays inside the region.  Offsets are
+  naturally aligned to the access size (2026-10-20: kestrel halts on a
+  misaligned load/store, which spike also traps; the directed
+  test_kestrel_ls programs cover those halts).
 * Instructions.  The random body emits only architecturally
   well-defined RV32I: no SYSTEM ops (the CSR stub would diverge from
   spike), no ebreak, no fences, no reserved encodings.  The fixed
@@ -119,6 +121,8 @@ ALU_IMM_OPS = ["addi", "slti", "sltiu", "xori", "ori", "andi"]
 SHIFT_IMM_OPS = ["slli", "srli", "srai"]
 LOAD_OPS = ["lb", "lbu", "lh", "lhu", "lw"]
 STORE_OPS = ["sb", "sh", "sw"]
+ACCESS_SIZE = {"lb": 1, "lbu": 1, "sb": 1, "lh": 2, "lhu": 2, "sh": 2,
+               "lw": 4, "sw": 4}
 BRANCH_OPS = ["beq", "bne", "blt", "bge", "bltu", "bgeu"]
 
 # Body mnemonics that must never appear in the random stream (SYSTEM, EBREAK,
@@ -188,11 +192,10 @@ class StreamGenerator:
     def _imm12(self):
         return self.rng.randint(-2048, 2047)
 
-    def _offset(self):
-        """Random byte offset inside a 256-byte window; misalignment is
-        the common case by construction (the kestrel cross-word retry is
-        core behavior, exercised by lw/sw at offsets 1-3)."""
-        return self.rng.randint(0, WINDOW - 4)
+    def _offset(self, size):
+        """Random byte offset inside a 256-byte window, naturally aligned
+        for a ``size``-byte access (the bases are word aligned)."""
+        return self.rng.randint(0, (WINDOW - 4) // size) * size
 
     def _label_name(self, prefix):
         self._label += 1
@@ -221,12 +224,14 @@ class StreamGenerator:
                    f"{self.rng.randint(0, 0xFFFFF)}")
 
     def _emit_load(self, out):
-        out.append(f"  {self.rng.choice(LOAD_OPS)} {self._dest()}, "
-                   f"{self._offset()}({self.rng.choice(('s0', 's1'))})")
+        op = self.rng.choice(LOAD_OPS)
+        out.append(f"  {op} {self._dest()}, "
+                   f"{self._offset(ACCESS_SIZE[op])}({self.rng.choice(('s0', 's1'))})")
 
     def _emit_store(self, out):
-        out.append(f"  {self.rng.choice(STORE_OPS)} {self._src()}, "
-                   f"{self._offset()}({self.rng.choice(('s0', 's1'))})")
+        op = self.rng.choice(STORE_OPS)
+        out.append(f"  {op} {self._src()}, "
+                   f"{self._offset(ACCESS_SIZE[op])}({self.rng.choice(('s0', 's1'))})")
 
     # ------------------------------------------------------------------
     # Control structures

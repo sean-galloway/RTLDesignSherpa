@@ -27,13 +27,14 @@
 
 | Case | Cycles | Notes |
 |------|--------|-------|
-| Any aligned instruction, including loads/stores that stay within one word | 1 | CPI 1.0; taken and not-taken branches cost the same |
-| Cross-word misaligned load/store (`addr[1:0] + size > 4`) | 2 | One retry cycle; still one retired instruction (CPI 2.0 for that instruction) |
+| Any instruction, including naturally aligned loads/stores | 1 | CPI 1.0 with combinational memories; taken and not-taken branches cost the same |
+| Load on `kestrel_mem_bram` (block RAM) | 2 | One `mem_wait` cycle while port B reads; every other instruction stays at 1 (fetch at `imem_addr_next`) |
+| Misaligned load/store | 0 extra | Halts (cause `0x4`/`0x5`) on its own cycle |
 | Halt | 0 extra | The halting instruction retires on its own cycle as the trap beat; the hold afterwards is not execution |
 
 : CPI by access class
 
-CPI 1 is per instruction, and the single-cycle discipline taxes every instruction at the rate of the slowest path (below). Code with unaligned data averages slightly above 1.0 — the battery's `ma_data` and `ld_st` programs exercise exactly that case.
+CPI 1 is per instruction, and the single-cycle discipline taxes every instruction at the rate of the slowest path (below). On block RAM the average is 1 plus the load fraction.
 
 ## Critical Path Analysis
 
@@ -46,11 +47,10 @@ In a single-cycle design, the clock period must span the slowest instruction's p
 | Load | imem + decode + regfile + ALU + dmem + rotate/sign-extend + writeback setup |
 | Store | imem + decode + regfile + ALU + dmem + strobe setup |
 | JAL/JALR | imem + decode + regfile (JALR) + add + next-PC mux + PC setup |
-| Cross-word L/S | all of load/store, plus the retry cycle (two clocks, by design) |
 
 : Critical-path content per instruction class
 
-Design consequence for integrators: timing closure must be proven against the load row with the *actual* memory macros. Synchronous-read RAM (block RAM) on either port breaks the single-cycle contract outright; the loader honors the contract with `(* ram_style = "distributed" *)` arrays.
+Design consequence for integrators: timing closure must be proven against the load row with the *actual* memory macros. The loader honors the combinational contract with `(* ram_style = "distributed" *)` arrays. Synchronous-read RAM (block RAM) takes `kestrel_mem_bram`: fetch at `imem_addr_next` puts the RAM's clock-to-out at the start of the execute cycle, and a load's data read moves to a second cycle under `mem_wait`, so the load row splits in two.
 
 ## Resource Sketch
 
@@ -58,8 +58,8 @@ An honest sketch, from the RTL rather than synthesis:
 
 | Resource | Content |
 |----------|---------|
-| State (core, outside the register file) | Five state elements: `pc` (32b), `retire_count` (64b), `halt_q` (1b), `ls_retry` (1b), `ls_rdata_lo` (32b) — the entire sequential content besides the register file |
-| Register file | 32 x 32 bits, 2 combinational read ports, 1 synchronous write port; inferred as distributed RAM/LUTRAM |
+| State (core, outside the register file) | Three state elements: `pc` (32b), `retire_count` (64b), `halt_q` (1b) — the entire sequential content besides the register file |
+| Register file | 32 x 32 bits, 2 combinational read ports, 1 synchronous write port; flops, since it clears on reset (a reset-free file could map to distributed RAM) |
 | Decode | One `unique casez` truth table keyed on `{opcode, funct3, funct7}` — no FSM, no microcode, no control ROM |
 | Datapath | ALU (10 ops), immediate generator, source muxes, writeback mux, next-PC mux, dedicated branch comparator, byte-lane rotators |
 | Loader addition | Two 16K-word distributed-RAM arrays (2 x 64 KB), AXIL leaf slaves with skid buffers, one run bit and two write-side holding registers |

@@ -52,7 +52,7 @@ module kestrel_uart_tb_top #(
     // -------------------------------------------------------------------------
     // kestrel behind the registered-read memory system
     // -------------------------------------------------------------------------
-    logic [31:0] imem_addr, imem_rdata, dmem_addr, dmem_rdata, dmem_wdata;
+    logic [31:0] imem_addr, imem_addr_next, imem_rdata, dmem_addr, dmem_rdata, dmem_wdata;
     logic        dmem_req, mem_wait, core_rst_n, halt, rvfi_valid;
     logic [3:0]  dmem_wstrb, halt_cause;
     logic [4:0]  rvfi_rd_addr;
@@ -70,7 +70,7 @@ module kestrel_uart_tb_top #(
         .s_axil_arvalid(axil_arvalid), .s_axil_arready(axil_arready),
         .s_axil_rdata(axil_rdata), .s_axil_rresp(axil_rresp),
         .s_axil_rvalid(axil_rvalid), .s_axil_rready(axil_rready),
-        .imem_addr(imem_addr), .imem_rdata(imem_rdata),
+        .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),
         .dmem_req(dmem_req), .dmem_addr(dmem_addr), .dmem_rdata(dmem_rdata),
         .dmem_wstrb(dmem_wstrb), .dmem_wdata(dmem_wdata),
         .mem_wait(mem_wait), .core_rst_n(core_rst_n),
@@ -82,7 +82,7 @@ module kestrel_uart_tb_top #(
         .RESET_ADDR(RESET_ADDR)
     ) u_core (
         .clk(aclk), .rst_n(core_rst_n), .mem_wait(mem_wait),
-        .imem_addr(imem_addr), .imem_rdata(imem_rdata),
+        .imem_addr(imem_addr), .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),
         .dmem_req(dmem_req), .dmem_addr(dmem_addr), .dmem_rdata(dmem_rdata),
         .dmem_wstrb(dmem_wstrb), .dmem_wdata(dmem_wdata),
         .halt(halt), .halt_cause(halt_cause),

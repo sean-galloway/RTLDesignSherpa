@@ -42,7 +42,7 @@
 
 - Storage is `logic [31:0] regs [32]`, reset to all zeros (so no register carries architectural garbage out of reset, and pre-load observability is deterministic).
 - **The x0 rule lives here:** writes with `rd_addr == 0` are discarded by the write condition `rd_wen && (rd_addr != X0_ADDR)`; reads of x0 return the reset/stored zero naturally.
-- The core additionally gates `rd_wen` (into `rd_wen_eff`) so that the retry's first beat and halted cycles never reach this port — see the kestrel_core chapter.
+- The core additionally gates `rd_wen` (into `rd_wen_eff`) so that memory-wait and halted cycles never reach this port — see the kestrel_core chapter.
 - No write-forwarding exists: a write commits on the edge and is readable the next cycle. This is exactly the single-cycle contract (a store is visible to the next cycle's load *through the memory*; a register write is visible to the next instruction *through the register file*).
 
 ---

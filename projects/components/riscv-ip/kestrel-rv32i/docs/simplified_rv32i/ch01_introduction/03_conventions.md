@@ -27,8 +27,8 @@ This book uses the two words the way the core uses its ports:
   to a handler. kestrel has no trap machinery and never traps.
 - A **halt** is kestrel's stop condition: the core freezes the PC,
   suppresses writeback, and raises a cause code on `halt`/`halt_cause`.
-  ECALL, EBREAK, illegal instructions, and misaligned control-flow
-  targets all halt. On RVFI the halting instruction still retires — as a
+  ECALL, EBREAK, illegal instructions, misaligned control-flow
+  targets and misaligned loads/stores all halt. On RVFI the halting instruction still retires — as a
   beat with `rvfi_trap` set — so observers see the architecturally final
   state.
 

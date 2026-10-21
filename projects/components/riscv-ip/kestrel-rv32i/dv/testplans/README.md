@@ -37,8 +37,8 @@ testplan convention so the same coverage rollup applies
 | `kestrel_imm_gen_testplan.yaml` | kestrel_imm_gen.sv | test_kestrel_decode.py | 6 | 6 | 0 |
 | `kestrel_decode_testplan.yaml` | kestrel_decode.sv | test_kestrel_decode.py | 12 | 12 | 0 |
 | `kestrel_mem_loader_testplan.yaml` | kestrel_mem_loader.sv | test_kestrel_mem_loader.py | 9 | 9 | 0 |
-| `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader,fuzz}.py | 18 | 17 | 1 |
-| **Total** | | | **55** | **54** | **1** |
+| `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader,fuzz}.py | 19 | 18 | 1 |
+| **Total** | | | **56** | **55** | **1** |
 
 Not-implemented scenarios and why:
 
@@ -71,8 +71,8 @@ Not-implemented scenarios and why:
   write leaves the arrays untouched, B still OKAY), and the golden-trace
   board path (battery images streamed over AXIL with spike lockstep).
 - **CORE (kestrel_core)**: ISA classes via golden trace, branches/jumps
-  (incl. IALIGN halt cause 3), loads/stores incl. the cross-word 2-cycle
-  retry, the system layer (FENCE NOPs, ECALL/EBREAK halt+hold, illegal
+  (incl. IALIGN halt cause 3), loads/stores incl. the misaligned-access
+  halts (causes 4/5), the system layer (FENCE NOPs, ECALL/EBREAK halt+hold, illegal
   halt, trap-beat shape), RVFI invariants, the 42-image rv32ui battery,
   spike lockstep, and the CORE-17 constrained-random fuzz (seeded streams
   vs the interpreter full-field diff plus spike lockstep at every level).

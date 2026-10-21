@@ -366,14 +366,15 @@ async def cocotb_test_kestrel_alu(dut):
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_kestrel_imm_gen(dut):
     """Golden vectors for all five immediate formats plus a SEED-driven
-    randomized sweep against imm_golden."""
+    randomized sweep against imm_golden.  The unit picks the format from the
+    opcode alone (2026-10-20), so each vector's opcode implies its format:
+    `sel` is the expected format, not a DUT input."""
     seed = int(os.environ.get("SEED", "0"))
     random.seed(seed)
     dut._log.info(f"kestrel_imm_gen test with seed {seed}")
 
     for insn, sel, expected in IMM_VECTORS:
         dut.insn.value = insn
-        dut.sel.value = sel
         await Timer(1, units="ns")
         got = int(dut.imm.value)
         assert got == _mask32(expected), (
@@ -390,7 +391,6 @@ async def cocotb_test_kestrel_imm_gen(dut):
             insn = ((random.getrandbits(17) << 15) | (funct3 << 12)
                     | (random.getrandbits(5) << 7) | opcode)
             dut.insn.value = insn
-            dut.sel.value = sel
             await Timer(1, units="ns")
             got = int(dut.imm.value)
             exp = _mask32(imm_golden(insn, sel))

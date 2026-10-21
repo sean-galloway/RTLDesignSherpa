@@ -85,14 +85,16 @@ deliberately visible in the decode table.
 | `4'h1` | HALT_ECALL | decode, ECALL | environment call |
 | `4'h2` | HALT_EBREAK | decode, EBREAK | breakpoint |
 | `4'h3` | HALT_IALIGN | core, misaligned taken control transfer | instruction-address-misaligned trap |
+| `4'h4` | HALT_LALIGN | core, misaligned load | load-address-misaligned trap |
+| `4'h5` | HALT_SALIGN | core, misaligned store | store-address-misaligned trap |
 | `4'hF` | HALT_ILL | decode, default row | illegal instruction |
 
-: The four halt causes (encoding centralized in `rtl/includes/kestrel_pkg.sv`)
+: The six halt causes (encoding centralized in `rtl/includes/kestrel_pkg.sv`)
 
-Causes 1, 2, and `F` come from decode; cause 3 can only be raised by the
-core, because it needs the resolved next PC and the branch decision that
-decode cannot see. Chapter 5 develops cause 3 and the IALIGN rule behind
-it.
+Causes 1, 2, and `F` come from decode; causes 3-5 can only be raised by
+the core, because they need the resolved next PC and branch decision, or
+the access address, which decode cannot see. Chapter 5 develops causes
+3-5 and the alignment rules behind them.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 2.1.7,
 2.1.8, 4.1, 4.2; Volume II, chapter 3 (MRET, machine trap state);

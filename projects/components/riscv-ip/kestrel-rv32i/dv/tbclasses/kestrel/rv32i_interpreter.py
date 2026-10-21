@@ -27,6 +27,10 @@ no less — so a full-field trace diff is meaningful:
   system stub — no CSR state exists, reads return zero, writes are
   dropped, MRET falls through to pc+4.  This mirrors decode exactly and
   lets the battery's p-env preamble (``csrw mtvec`` etc.) execute.
+* A load or store whose address is not naturally aligned (half on an odd
+  byte, word off a 4-byte boundary) halts with cause 4 (load) or 5 (store)
+  without touching memory or rd (2026-10-20: kestrel traps misaligned
+  data accesses instead of the old hardware cross-word retry).
 * Taken control flow to a non-4-aligned target (branch/JAL/JALR) halts
   with cause 3 (Task 9): RV32I with IALIGN=32 mandates the
   instruction-address-misaligned trap and kestrel has no exception
@@ -47,11 +51,11 @@ beat the cycle decode raises halt, so traces stay index-aligned.
 
 Memory model: unified (von Neumann).  The data memory is seeded with the
 image, so self-modifying code (the rv32ui-p-fence_i signature overwrite)
-is fetched correctly, matching the tb_top unified array.  Loads/stores
-implement architectural RISC-V misaligned semantics: an access crossing a
-32-bit word boundary reads/writes both words and assembles the full
-value.  RVFI mem fields report the unaligned byte address, a packed
-strobe starting at bit 0, and the assembled access data.
+is fetched correctly, matching the tb_top unified array.  Loads/stores are
+naturally aligned (misaligned ones halt, above).  RVFI mem fields follow
+riscv-formal's RISCV_FORMAL_ALIGNED_MEM convention: the word address, the
+byte lanes the access covers, the raw word read, and the store data
+shifted into its lanes.
 
 Hex image format: normalized kestrel images (normalize_hex.py) — one
 32-bit word per line, ``@`` records carry WORD indices, sparse (no zero
@@ -89,46 +93,9 @@ def _store_merge(word, wdata, wstrb):
     return result & MASK32
 
 
-def _arch_load(dmem, addr, size):
-    """Architectural load: return raw little-endian value of ``size`` bytes."""
-    offset = addr & 0x3
-    if offset + size <= 4:
-        word = dmem.get(addr >> 2, 0)
-        raw = (word >> (offset * 8)) & _data_mask(size)
-    else:
-        tail_size = 4 - offset
-        head_size = size - tail_size
-        word0 = dmem.get(addr >> 2, 0)
-        word1 = dmem.get((addr >> 2) + 1, 0)
-        tail = (word0 >> (offset * 8)) & _data_mask(tail_size)
-        head = word1 & _data_mask(head_size)
-        raw = (head << (tail_size * 8)) | tail
-    return raw & _data_mask(size)
-
-
-def _arch_store(dmem, addr, size, value):
-    """Architectural store: write ``size`` bytes from ``value`` at ``addr``."""
-    offset = addr & 0x3
-    value &= _data_mask(size)
-    if offset + size <= 4:
-        idx = addr >> 2
-        wstrb = ((1 << size) - 1) << offset
-        wdata = value << (offset * 8)
-        dmem[idx] = _store_merge(dmem.get(idx, 0), wdata, wstrb)
-    else:
-        tail_size = 4 - offset
-        head_size = size - tail_size
-        idx0 = addr >> 2
-        idx1 = idx0 + 1
-        tail = value & _data_mask(tail_size)
-        head = (value >> (tail_size * 8)) & _data_mask(head_size)
-        tail_strobe = ((1 << tail_size) - 1) << offset
-        dmem[idx0] = _store_merge(
-            dmem.get(idx0, 0), tail << (offset * 8), tail_strobe
-        )
-        head_strobe = (1 << head_size) - 1
-        dmem[idx1] = _store_merge(dmem.get(idx1, 0), head, head_strobe)
-    return value
+def _aligned(addr, size):
+    """True when ``addr`` is naturally aligned for a ``size``-byte access."""
+    return (addr & (size - 1)) == 0
 
 
 def load_verilog_hex(path):
@@ -163,25 +130,23 @@ class RV32IInterpreter:
         self.halt_pc = None
 
     def _load(self, addr, size, signed):
-        """Return (rd_val, rmask, rvfi_rdata) for an architectural load."""
-        raw = _arch_load(self.dmem, addr, size)
-        rmask = (1 << size) - 1
-        if size == 1:
-            val = raw & 0xFF
-            if signed:
-                val = sext(val, 8)
-        elif size == 2:
-            val = raw & 0xFFFF
-            if signed:
-                val = sext(val, 16)
-        else:
-            val = raw & MASK32
-        return val & MASK32, rmask, raw
+        """Aligned load: return (rd_val, rmask, rvfi_rdata) -- the lane mask
+        and the raw word, per RISCV_FORMAL_ALIGNED_MEM."""
+        offset = addr & 0x3
+        word = self.dmem.get(addr >> 2, 0)
+        raw = (word >> (offset * 8)) & _data_mask(size)
+        val = sext(raw, size * 8) if (signed and size < 4) else raw
+        return val & MASK32, ((1 << size) - 1) << offset, word
 
     def _store(self, addr, size, value):
-        """Commit an architectural store; return (wmask, rvfi_wdata)."""
-        raw = _arch_store(self.dmem, addr, size, value)
-        return (1 << size) - 1, raw
+        """Aligned store: commit it; return (wmask, rvfi_wdata) -- the lane
+        mask and the data shifted into its lanes."""
+        offset = addr & 0x3
+        wstrb = ((1 << size) - 1) << offset
+        wdata = ((value & _data_mask(size)) << (offset * 8)) & MASK32
+        idx = addr >> 2
+        self.dmem[idx] = _store_merge(self.dmem.get(idx, 0), wdata, wstrb)
+        return wstrb, wdata
 
     def run(self, max_insns=100_000):
         """Execute until halt (ecall/ebreak) or the retirement budget expires."""
@@ -392,32 +357,25 @@ class RV32IInterpreter:
             if next_pc & 0x3:
                 return self._halt(order, insn, 3, pc_wdata=next_pc)
         elif opcode == 0x03:                      # LOAD
-            mem_addr = (a + imm_i) & MASK32
-            if f3 == 0:                            # LB
-                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 1, True)
-            elif f3 == 1:                          # LH
-                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 2, True)
-            elif f3 == 2:                          # LW
-                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 4, False)
-            elif f3 == 4:                          # LBU
-                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 1, False)
-            elif f3 == 5:                          # LHU
-                rd_val, mem_rmask, mem_rdata = self._load(mem_addr, 2, False)
-            else:
+            addr = (a + imm_i) & MASK32
+            if f3 not in (0, 1, 2, 4, 5):
                 raise NotImplementedError(        # load funct3 3/6/7 reserved
                     f"golden: load funct3 {f3} reserved")
+            size = 1 << (f3 & 0x3)
+            if not _aligned(addr, size):
+                return self._halt(order, insn, 4)          # load misaligned
+            mem_addr = addr & ~0x3
+            rd_val, mem_rmask, mem_rdata = self._load(addr, size, f3 < 4)
         elif opcode == 0x23:                      # STORE
-            mem_addr = (a + imm_s) & MASK32
-            if f3 == 0:                            # SB
-                size = 1
-            elif f3 == 1:                          # SH
-                size = 2
-            elif f3 == 2:                          # SW
-                size = 4
-            else:
+            addr = (a + imm_s) & MASK32
+            if f3 > 2:
                 raise NotImplementedError(        # store funct3 3-7 reserved
                     f"golden: store funct3 {f3} reserved")
-            mem_wmask, mem_wdata = self._store(mem_addr, size, b)
+            size = 1 << f3
+            if not _aligned(addr, size):
+                return self._halt(order, insn, 5)          # store misaligned
+            mem_addr = addr & ~0x3
+            mem_wmask, mem_wdata = self._store(addr, size, b)
             rd = 0                                 # stores do not write rd
         elif opcode == 0x0F:                      # MISC-MEM
             if f3 > 1:

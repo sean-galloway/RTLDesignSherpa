@@ -65,7 +65,7 @@ the surprise is preserved exactly.
 Effective address is rs1 + sext(imm) for both groups. Loads sign-extend
 (LB, LH) or zero-extend (LBU, LHU) into rd; stores source rs2. The
 memory side of these eleven instructions — alignment policy, byte
-strobes, the cross-word retry — is the subject of Chapter 5.
+strobes, the misaligned-access halt — is the subject of Chapter 5.
 
 ### Branches
 

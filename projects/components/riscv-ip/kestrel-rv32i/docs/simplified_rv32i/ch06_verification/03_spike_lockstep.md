@@ -44,20 +44,18 @@ the right order. Four format details are pinned by investigation:
    then the p-environment's write_tohost tail (length varies per run —
    not diffed). The exit code is the verdict.
 
-## The misaligned-build note
+## ma_data, an expected halt
 
-kestrel handles misaligned loads and stores in hardware (Chapter 5);
-the *pinned* spike does not. spike 1.1.0 gates hardware misaligned
-support behind the compile-time `RISCV_ENABLE_MISALIGNED` — there is no
-runtime flag — so on the pinned binary `ma_data` exits 156 with
-`trap_load/store_address_misaligned`. The battery therefore uses a
-side-by-side rebuild of the *same spike 1.1.0 commit* at
-`/mnt/data/tools/spike-misaligned/bin/spike`, configured
-`--with-isa=rv32 --enable-misaligned` into its own prefix; the pinned
-binary stays untouched. With the rebuild, `ma_data` passes with the
-identical exception signature as the other 41 tests, and their streams
-are unaffected (the aligned path is unchanged). Both tools live outside
-the repository with the rest of the toolchain.
+kestrel halts on a misaligned load or store (Chapter 5), and so does the
+pinned spike 1.1.0 in its own way: without the compile-time
+`RISCV_ENABLE_MISALIGNED` it traps them. On `rv32ui-p-ma_data` both stop
+at the same instruction, the first misaligned load: kestrel with cause 4,
+spike with `trap_load_address_misaligned` (and exit code 156, since the
+test never reaches its pass path). The battery lists `ma_data` as an
+expected halt: it passes when kestrel halts with cause 4 and the lockstep
+ends on that spike trap at the halt PC. Until 2026-10-20, when kestrel
+completed misaligned accesses in hardware, the battery used a side-by-side
+`--enable-misaligned` rebuild of the same spike commit instead.
 
 ## The mnstatus divergence
 

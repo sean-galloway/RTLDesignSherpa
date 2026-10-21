@@ -6,13 +6,21 @@ on the board, behind **block RAM**.
 
 kestrel is single-cycle and its memory contract was combinational reads. A
 board-sized memory wants block RAM, whose read is registered, so this build
-uses `kestrel_mem_bram`: one unified 128 KB true-dual-port array and a small
-fetch / execute / load sequencer that holds the core with `mem_wait` while a
-read lands. Every instruction takes two clocks, a load three. The core holds
-all state while `mem_wait` is high, so the ISA is untouched -- riscv-formal
-proves all 42 checks with `mem_wait` driven freely (bounded to two
-consecutive waits), and the rv32ui battery passes 42/42 through this memory
-path with spike lockstep.
+uses `kestrel_mem_bram`: one unified true-dual-port array (16 KB by
+default). Port A fetches at the core's next PC (`imem_addr_next`), so the
+RAM's output register acts as the instruction register and an instruction
+takes one clock; a load holds the core with `mem_wait` for one more while
+port B reads. The core holds all state while `mem_wait` is high, so the ISA
+is untouched -- riscv-formal proves all 42 checks with `mem_wait` driven
+freely (bounded to two consecutive waits), and the rv32ui battery passes
+42/42 through this memory path with spike lockstep (`ma_data` is an expected
+halt: kestrel halts on misaligned loads/stores, cause 4/5).
+
+**Rebuild pending (2026-10-20).** The 80 MHz figure below was closed with the
+first version of the wrapper (a fetch / execute / load sequencer, CPI 2-3,
+and the hardware misaligned retry). The current design was measured on the
+Nexys A7 (`../../../NexysA7/riscv-ip/kestrel/README.md`); this build has not
+been rerun since.
 
 The second port is the UART loader: write an image in load mode, set
 `CTRL.run`, poll the status (halted, cause, cycles, instret, and the last

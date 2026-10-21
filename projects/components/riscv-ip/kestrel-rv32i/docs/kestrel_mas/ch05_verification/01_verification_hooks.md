@@ -31,7 +31,7 @@ kestrel was built RVFI-first, and the verification architecture hangs three obse
 |------|---------|----------------|-----------------|
 | RVFI retire channel | 17 `rvfi_*` ports | Architectural correctness: every retired beat diffed full-field against the golden interpreter `rv32i_interpreter.py` (pc, insn, order, trap, rs/rd, all four memory channels — no sampled subset, no tolerance); riscv-formal's 42 checks relate the same beats to ISA models | `kestrel_core` CORE-01..CORE-05, CORE-14; `kestrel_mem_loader` ML-07 |
 | Halt observability | `halt`, `halt_cause` | Program end, cause classification, and the post-hold: the halting trap beat, then at least four cycles of `halt` raised with `rvfi_valid` low and the PC frozen | `kestrel_core` CORE-12, CORE-13 |
-| Data-port watch | `dmem_req`, `dmem_addr`, `dmem_wstrb`, `dmem_wdata` | The memory contract on the pins: rotated strobes land the right bytes (TB per-byte merge), retry addressing steps one word, the tohost mailbox is observed on the store port, store-to-load visibility is single-cycle | `kestrel_core` CORE-08..CORE-11; loader ML-02/ML-05/ML-06 |
+| Data-port watch | `dmem_req`, `dmem_addr`, `dmem_wstrb`, `dmem_wdata` | The memory contract on the pins: rotated strobes land the right bytes (TB per-byte merge), a misaligned access drives no strobes, the tohost mailbox is observed on the store port, store-to-load visibility is single-cycle | `kestrel_core` CORE-08..CORE-11; loader ML-02/ML-05/ML-06 |
 
 : The three testplan-tracked hooks
 
@@ -50,15 +50,15 @@ kestrel was built RVFI-first, and the verification architecture hangs three obse
 | Layer | Mechanism | Scope |
 |-------|-----------|-------|
 | Golden interpreter lockstep | `rv32i_interpreter.py` emits the same RVFI beat format as the core; the cocotb harness diffs full-field, zero tolerance | Every golden-trace test, plus the constrained-random fuzz (5 gate / 25 func / 200 full streams) |
-| Spike lockstep | `spike --isa=RV32I -l` commit stream walked 1:1 against the core's (pc, insn) beats; exception records verified per beat; exit code confirms tohost==1 | Battery and fuzz at func level, using the hardware-misaligned spike 1.1.0 build |
-| rv32ui battery | 42 self-checking riscv-tests programs run to the ECALL halt; verdict = x3's last writeback | 3/3 gate, 42/42 func and full |
-| riscv-formal | 42 bounded-model-checking proofs (37 instruction models + reg/pc_fwd/pc_bwd/liveness/unique) against the RVFI port, depth 6, z3/smtbmc | Every RTL change; the gate that caught the misaligned-jump bug 42 directed tests missed |
+| Spike lockstep | `spike --isa=RV32I -l` commit stream walked 1:1 against the core's (pc, insn) beats; exception records verified per beat; exit code confirms tohost==1 | Battery and fuzz at func level, using the pinned spike 1.1.0, which traps misaligned accesses as kestrel halts on them; `ma_data` ends on the matching `trap_load_address_misaligned` (an expected halt) |
+| rv32ui battery | 42 self-checking riscv-tests programs run to the ECALL halt; verdict = x3's last writeback (`ma_data`: the cause-4 halt) | 3/3 gate, 42/42 func and full |
+| riscv-formal | 42 bounded-model-checking proofs (37 instruction models + reg/pc_fwd/pc_bwd/liveness/unique) against the RVFI port, depth 6, z3/smtbmc, `RISCV_FORMAL_ALIGNED_MEM` (misaligned accesses must trap) | Every RTL change; the gate that caught the misaligned-jump bug 42 directed tests missed |
 
 : Verification consumer stack
 
 ## Cross-Reference to the Testplan Set
 
-The six plans in `dv/testplans/` are the V&V cross-reference for both this MAS and the HAS: `kestrel_core_testplan.yaml` (18 scenarios — ISA classes, branches, loads/stores incl. the cross-word retry, system layer, battery, lockstep, fuzz, coverage closure at 94.9% line), `kestrel_mem_loader_testplan.yaml` (ML-01..ML-09), and per-FUB plans (`kestrel_alu`, `kestrel_decode`, `kestrel_imm_gen`, `kestrel_regfile`) whose directed rows pin each block's unit behavior against the chapters of this document. Coverage closure is measured across all cells (Verilator line coverage through the central cov_utils hook); regenerate with the commands recorded in each plan.
+The six plans in `dv/testplans/` are the V&V cross-reference for both this MAS and the HAS: `kestrel_core_testplan.yaml` (19 scenarios — ISA classes, branches, loads/stores incl. the misaligned-access halts, system layer, battery, lockstep, fuzz, coverage closure at 94.9% line), `kestrel_mem_loader_testplan.yaml` (ML-01..ML-09), and per-FUB plans (`kestrel_alu`, `kestrel_decode`, `kestrel_imm_gen`, `kestrel_regfile`) whose directed rows pin each block's unit behavior against the chapters of this document. Coverage closure is measured across all cells (Verilator line coverage through the central cov_utils hook); regenerate with the commands recorded in each plan.
 
 ---
 

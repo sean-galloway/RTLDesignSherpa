@@ -39,7 +39,7 @@ REGS = {
     "BUILD_ID": 0x2_0010,
 }
 BUILD_ID = 0x4B42_524D       # "KBRM"
-MEM_BYTES = 0x2_0000         # unified 128 KB; byte address = addr[16:0]
+MEM_BYTES = 0x4000           # kestrel_mem_bram default: unified 16 KB, aliased above
 CAUSE_ECALL = 1
 
 

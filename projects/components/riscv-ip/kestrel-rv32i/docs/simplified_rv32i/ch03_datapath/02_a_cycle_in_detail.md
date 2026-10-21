@@ -25,7 +25,8 @@ bundle (`alu_op`, `imm_sel`, `alu_src_a_pc`, `alu_src_b_imm`, `rd_wen`,
 
 The register file reads `rs1 = insn[19:15]` and `rs2 = insn[24:20]`
 combinationally; x0 reads zero because the file ties it. The immediate
-generator builds one of the five format immediates under `imm_sel`. Two
+generator builds all five format immediates and picks one by the opcode
+alone, in parallel with the register read (decode's `imm_sel` is unused). Two
 muxes select the ALU inputs: `alu_src_a` is the PC (for AUIPC and
 branch targets) or `rs1_data`; `alu_src_b` is the immediate or
 `rs2_data`.
@@ -63,10 +64,9 @@ decode.
 For loads and stores, `dmem_addr` is the word-aligned ALU result,
 `dmem_wdata`/`dmem_wstrb` are the store data and byte enables rotated
 into position, and read data is rotated back before size/sign selection
-implements LB/LBU/LH/LHU/LW. Aligned and in-word-misaligned accesses
-complete in the one cycle; a cross-word access holds the PC for a retry
-cycle and issues a second beat at the next word. The full misaligned
-story — rotation math, retry timing, RVFI encoding — is Chapter 5's.
+implements LB/LBU/LH/LHU/LW. A naturally aligned access completes in the
+one cycle; a misaligned one halts and performs nothing. The full story —
+rotation math, the halt, RVFI encoding — is Chapter 5's.
 
 ## Writeback
 
@@ -79,11 +79,11 @@ story — rotation math, retry timing, RVFI encoding — is Chapter 5's.
 4. JAL/JALR — `pc + 4`, the link value.
 5. Everything else — `alu_y`.
 
-The write enable is `rd_wen_eff = rd_wen & ~ls_first & ~halt`: decode's
-`rd_wen` qualified by the cross-word retry's first cycle (a partial word
-must not commit early) and by halt (the misaligned-control-flow halt
-retires JAL/JALR encodings whose decode `rd_wen` is set, so the gate is
-halt itself, not decode). The register file discards writes to x0
+The write enable is `rd_wen_eff = rd_wen & ~halt & ~mem_wait`: decode's
+`rd_wen` qualified by halt (the misaligned-control-flow halt retires
+JAL/JALR encodings, and the misaligned-load halt retires loads, whose
+decode `rd_wen` is set, so the gate is halt itself, not decode) and by the
+memory wait of a block-RAM load. The register file discards writes to x0
 independently.
 
 ## Two worked examples

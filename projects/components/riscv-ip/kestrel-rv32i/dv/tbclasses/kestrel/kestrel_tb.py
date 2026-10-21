@@ -158,9 +158,9 @@ class KestrelTB:
                 if int(dut.rvfi_valid.value):
                     self.trace.append(self._sample_beat())
                 break
-            # Cross-word L/S retires over two cycles: rvfi_valid is low on the
-            # first (retry) beat and high only on the final beat.  Skip the
-            # retry cycles; the trace-length diff catches missing retire beats.
+            # rvfi_valid is low while the memories wait (a block-RAM load's
+            # first cycle).  Skip those cycles; the trace-length diff catches
+            # missing retire beats.
             if int(dut.rvfi_valid.value) == 0:
                 continue
             self.trace.append(self._sample_beat())

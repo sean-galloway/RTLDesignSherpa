@@ -24,14 +24,15 @@ plainly and labeled as a decision, with the spec's own permission cited.
 kestrel is a single-cycle RV32I core:
 
 - One instruction retires per clock; the entire datapath completes in one
-  cycle, with exactly one documented exception (a cross-word misaligned
-  load or store takes a second cycle; see Chapter 5).
+  cycle. (Behind block RAM a load takes a second clock while the memory
+  holds the core; the core itself has no multi-cycle instruction.)
 - Control is a combinational decode truth table, not a finite-state
   machine. There is no time dimension to control yet.
 - The complete architectural state is the PC register, the 32-entry
-  register file, and a handful of bookkeeping flops — five in total.
-- There is no trap machinery. ECALL, EBREAK, illegal instructions, and
-  misaligned control-flow targets halt the core with a cause code on a
+  register file, and a handful of bookkeeping flops — three in total.
+- There is no trap machinery. ECALL, EBREAK, illegal instructions,
+  misaligned control-flow targets and misaligned loads/stores halt the
+  core with a cause code on a
   dedicated port, and the halting instruction retires as an RVFI trap
   beat (see Chapters 3 and 5).
 - Retirement is observed through a first-class RISC-V Formal Interface
@@ -72,7 +73,7 @@ what each verification method can and cannot see. Chapter 7 is the
 argument for the next rung.
 
 RTL identifiers appear in code font exactly as they do in the sources
-(`ls_retry`, `rd_wen_eff`, `HALT_IALIGN`), so statements in this book can
+(`ls_misalign`, `rd_wen_eff`, `HALT_IALIGN`), so statements in this book can
 be checked against the code mechanically.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, chapters 1-2

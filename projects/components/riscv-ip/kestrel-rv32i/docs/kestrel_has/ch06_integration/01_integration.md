@@ -60,19 +60,19 @@ kestrel was built RVFI-first: the retire port is the defined observation channel
 |------|---------|-----|
 | RVFI retire channel | 17 `rvfi_*` ports | Full-field diff against a golden model per retired beat; the basis of the cocotb harness and riscv-formal |
 | Halt observability | `halt`, `halt_cause` | Detect program end, classify the cause, sample the post-halt hold |
-| Data-port watch | `dmem_req/addr/wstrb/wdata` | tohost-mailbox watching on the store port; memory-contract checks (rotated strobes, retry addressing) |
+| Data-port watch | `dmem_req/addr/wstrb/wdata` | tohost-mailbox watching on the store port; memory-contract checks (rotated strobes, no strobes on a misaligned store) |
 | Loader taps | `core_rst_n`, `o_dbg_busy_wr`, `o_dbg_busy_rd` | Load-mode isolation and AXIL backpressure checks |
 
 : Observability hooks
 
-The V&V cross-reference is the six testplans in `dv/testplans/`: `kestrel_core` (18 scenarios, including the 42-test rv32ui battery, spike lockstep, constrained-random fuzz, and coverage closure), `kestrel_mem_loader` (ML-01..ML-09, including the golden battery over AXIL), and per-FUB plans for `kestrel_alu`, `kestrel_decode`, `kestrel_imm_gen`, and `kestrel_regfile`. Independent of simulation, riscv-formal runs 42 bounded-model-checking proofs (37 instruction models + 5 consistency checks) against the RVFI port — 42/42 PASS at depth 6. Regeneration commands are recorded in each testplan.
+The V&V cross-reference is the six testplans in `dv/testplans/`: `kestrel_core` (19 scenarios, including the 42-test rv32ui battery, spike lockstep, constrained-random fuzz, and coverage closure), `kestrel_mem_loader` (ML-01..ML-09, including the golden battery over AXIL), and per-FUB plans for `kestrel_alu`, `kestrel_decode`, `kestrel_imm_gen`, and `kestrel_regfile`. Independent of simulation, riscv-formal runs 42 bounded-model-checking proofs (37 instruction models + 5 consistency checks) against the RVFI port — 42/42 PASS at depth 6. Regeneration commands are recorded in each testplan.
 
 ## Known Limitations
 
-1. **No trap delivery.** All four spec-mandated trap events halt the core instead; recovery requires reset. Real traps arrive at rung 3 (peregrine).
+1. **No trap delivery.** Every spec-mandated trap event halts the core instead; recovery requires reset. Real traps arrive at rung 3 (peregrine).
 2. **CSR stub is not CSR support.** Reads return zero, writes drop; anything needing real CSR state (trap handlers, counters, feature probing) is out of contract.
 3. **No interrupt inputs, no debug mode, no MMU/PMP.**
-4. **Cross-word accesses are not atomic** and occupy two cycles; RVWMO is satisfied vacuously, not by ordering hardware.
+4. **Misaligned data accesses halt** (causes `0x4`/`0x5`); software that relies on misaligned loads and stores (`rv32ui-p-ma_data`) stops. RVWMO is satisfied vacuously, not by ordering hardware.
 5. **No store-to-fetch coherence in the core.** Self-modifying code requires a memory system that unifies the ports (the testbench and the loader both do, by construction).
 6. **Loader image window.** Core-visible image data is limited to 16 KB per region (word-indexed slots of a 64 KB array), the byte map aliases every `0x4000`, and the module header's `addr[15:2]` wording describes intent — the implemented index slice is `addr[13:0]` on every port, which is the convention this specification documents.
 7. **Loader regions are exactly 64 KB + 64 KB.** Images larger than the window, or linked so their active range exceeds the low-18-bit window, will not load correctly.

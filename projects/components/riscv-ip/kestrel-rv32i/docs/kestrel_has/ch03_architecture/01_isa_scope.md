@@ -51,7 +51,7 @@ Every encoding not claimed by a decode row halts as an illegal instruction (caus
 
 ## Misaligned Data Accesses
 
-RV32I permits, but does not require, hardware handling of misaligned loads and stores (unpriv §2.1.6). kestrel handles them in hardware: byte-lane rotation absorbs any in-word misalignment in the single cycle, and an access that crosses a word boundary (`addr[1:0] + size > 4`) takes a documented two-cycle retry — the PC holds for one cycle, a second beat issues at the next word, and the instruction retires once. Fixed cost: one cycle in-word, two crossing. A cross-word access is two word reads/writes and is not atomic, which the spec never promised.
+RV32I permits, but does not require, hardware handling of misaligned loads and stores (unpriv §2.1.6): an implementation may complete them or trap. kestrel traps -- that is, halts, since it has no trap machinery: a half access at an odd byte or a word access off a 4-byte boundary halts with cause `0x4` (load) or `0x5` (store) and performs nothing (2026-10-20). Naturally aligned accesses complete in the single cycle, rotated into their byte lanes. Until 2026-10-20 kestrel completed misaligned accesses in hardware with a two-cycle cross-word retry; that logic sat on the block-RAM critical path and was removed.
 
 Instruction-side misalignment is not permitted this latitude: with IALIGN=32, a taken branch, JAL, or JALR whose resolved target is not 4-byte aligned halts the core (cause `0x3`).
 

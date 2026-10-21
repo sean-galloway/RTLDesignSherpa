@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Hardware Architecture Specification
 
 **Document Number:** KESTREL-HAS-001
-**Version:** 0.4
+**Version:** 0.5
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -70,7 +70,7 @@ This document does not describe the internal microarchitecture. Block internals,
 | Term | Definition |
 |------|------------|
 | AXIL | AMBA AXI4-Lite - simple single-beat AXI subset used by the board loader |
-| Beat | One memory access cycle; a cross-word access uses two beats |
+| Beat | One retired instruction on the RVFI port |
 | CPI | Cycles per instruction |
 | FUB | Functional Unit Block - leaf RTL module |
 | GPR | General-purpose register (x0-x31; x0 is hard-wired zero) |
@@ -94,9 +94,10 @@ This document does not describe the internal microarchitecture. Block internals,
 | 0.2 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.4 | 2026-10-20 | seang | Memory contract: registered-read memories may hold the core with the new `mem_wait` input (owner, 2026-10-20); port table and timing rules updated. Combinational memories tie it low and see the unchanged single-cycle core. |
+| 0.5 | 2026-10-20 | seang | Misaligned loads/stores halt (causes `0x4`/`0x5`) instead of completing in hardware; the cross-word retry is removed and RVFI memory fields follow `RISCV_FORMAL_ALIGNED_MEM`. New output `imem_addr_next` lets a registered-read memory fetch at the next PC (block-RAM CPI 1, 2 for a load). Performance chapter updated, including the register file (flops, not distributed RAM). |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-20

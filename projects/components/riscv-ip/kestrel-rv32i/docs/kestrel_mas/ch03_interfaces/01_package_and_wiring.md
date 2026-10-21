@@ -40,6 +40,8 @@
 
 ### Immediate-format enum (`imm_sel_e`, 3 bits)
 
+Decode still produces `imm_sel`; since 2026-10-20 `kestrel_imm_gen` selects the format from the opcode itself and the core leaves decode's `imm_sel` unconnected (kestrel_imm_gen chapter).
+
 | Enumerator | Format | Assembly |
 |------------|--------|----------|
 | `I` | I-type | `{{20{insn[31]}}, insn[31:20]}` |
@@ -58,6 +60,8 @@
 | `HALT_ECALL` | `4'h1` | `kestrel_decode` | ECALL |
 | `HALT_EBREAK` | `4'h2` | `kestrel_decode` | EBREAK |
 | `HALT_IALIGN` | `4'h3` | `kestrel_core` | taken control transfer to a non-4-aligned target |
+| `HALT_LALIGN` | `4'h4` | `kestrel_core` | load address not naturally aligned |
+| `HALT_SALIGN` | `4'h5` | `kestrel_core` | store address not naturally aligned |
 | `HALT_ILL` | `4'hF` | `kestrel_decode` | illegal encoding (default row) |
 
 : `HALT_*` encodings — the single source of truth shared by decode and core
@@ -78,15 +82,15 @@ The instance map every maintainer should be able to redraw from memory:
 | `cmp_eq/cmp_lt/cmp_ltu` → `branch_cond` → `branch_taken` | core comparator → next-PC mux | funct3 selects the condition |
 | `next_pc` | next-PC mux → PC register, `rvfi_pc_wdata` | 4-row priority mux |
 | `rd_wdata` / `rd_wen_eff` | writeback mux + gates → `u_regfile` | x0 discard inside the file |
-| L/S nets (`ls_*`, `dmem_*`) | core rotators → dmem pins | retry state `ls_retry`, merge register `ls_rdata_lo` |
-| Halt nets (`halt_*`, `misalign_target`) | core → halt ports, `halt_q` | `halt_cause_eff = dec_halt_cause \| (misalign_target ? HALT_IALIGN : HALT_NONE)` |
+| L/S nets (`ls_*`, `dmem_*`) | core rotators → dmem pins | offset from `rs1_data[1:0] + imm[1:0]`; `ls_misalign` joins the halt causes |
+| Halt nets (`halt_*`, `misalign_target`, `ls_misalign`) | core → halt ports, `halt_q` | `halt_cause_eff = dec_halt_cause \| (misalign_target ? HALT_IALIGN : 0) \| (ls_misalign ? (dmem_we ? HALT_SALIGN : HALT_LALIGN) : 0)` |
 | RVFI bundle (17) | core aggregation assigns → top ports | rules in Chapter 4 |
 
 : kestrel_core internal wiring map
 
 ## Reset Discipline
 
-All sequential logic uses the shared `reset_defs.svh` macros (`ALWAYS_FF_RST`, `RST_ASSERTED`): asynchronous assert, synchronous deassert, active-low `rst_n`. The register file clears to zeros; the PC clears to `RESET_ADDR`; `halt_q`, `ls_retry`, `ls_rdata_lo`, and `retire_count` clear to zero. The loader applies the same macros with `aresetn`, and its `core_rst_n` output is the core's actual reset in loader integrations.
+All sequential logic uses the shared `reset_defs.svh` macros (`ALWAYS_FF_RST`, `RST_ASSERTED`): asynchronous assert, synchronous deassert, active-low `rst_n`. The register file clears to zeros; the PC clears to `RESET_ADDR`; `halt_q` and `retire_count` clear to zero. The loader applies the same macros with `aresetn`, and its `core_rst_n` output is the core's actual reset in loader integrations.
 
 ---
 

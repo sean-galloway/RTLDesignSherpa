@@ -130,6 +130,7 @@ module kestrel_tb_top #(
         .rst_n          (rst_n),
         .mem_wait       (1'b0),          // combinational memories: never wait
         .imem_addr      (imem_addr),
+        .imem_addr_next (),
         .imem_rdata     (imem_rdata),
         .dmem_req       (dmem_req),
         .dmem_addr      (dmem_addr),

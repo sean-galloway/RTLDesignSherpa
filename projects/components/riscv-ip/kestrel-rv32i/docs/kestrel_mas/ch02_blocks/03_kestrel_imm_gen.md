@@ -25,14 +25,13 @@
 
 ## Purpose
 
-`kestrel_imm_gen` builds the 32-bit sign- or zero-extended immediate for the five RV32I instruction formats, selected by `imm_sel` from the control bundle. It is pure combinational logic — a five-row case on bit fields of `insn`.
+`kestrel_imm_gen` builds the 32-bit sign- or zero-extended immediate for the five RV32I instruction formats. It is pure combinational logic: all five formats are assembled in parallel from the instruction bits and one is picked by the major opcode `insn[6:2]` alone (2026-10-20). In RV32I the format is a function of the opcode, so the selection needs neither funct3/funct7 nor decode's `imm_sel`, and the immediate is ready as early as the register-file read; decode's `imm_sel` still exists and is tested, but the core leaves it unconnected. On block RAM the old path (decode → `imm_sel` → immediate → operand B) was the first half of the critical path.
 
 ## Interface
 
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
-| `insn` | Input | 32 | The instruction word (only immediate-bearing bits are used) |
-| `sel` | Input | `imm_sel_e` | Format select from decode: I S B U J |
+| `insn` | Input | 32 | The instruction word (opcode and immediate-bearing bits) |
 | `imm` | Output | 32 | The assembled immediate |
 
 : kestrel_imm_gen interface
@@ -41,13 +40,13 @@
 
 The immediate assembly follows the ISA's format definitions exactly (unpriv §2.1):
 
-| `sel` | Assembly | Formats using it |
+| Format | Assembly | Selected when `insn[6:2]` is |
 |-------|----------|------------------|
-| I | `{{20{insn[31]}}, insn[31:20]}` | ADDI/SLTI/SLTIU/XORI/ORI/ANDI, loads, JALR |
-| S | `{{20{insn[31]}}, insn[31:25], insn[11:7]}` | stores |
-| B | `{{20{insn[31]}}, insn[7], insn[30:25], insn[11:8], 1'b0}` | branches |
-| U | `{insn[31:12], 12'b0}` | LUI, AUIPC |
-| J | `{{12{insn[31]}}, insn[19:12], insn[20], insn[30:21], 1'b0}` | JAL |
+| I | `{{20{insn[31]}}, insn[31:20]}` | anything else: OP-IMM, LOAD, JALR (and don't-cares) |
+| S | `{{20{insn[31]}}, insn[31:25], insn[11:7]}` | STORE `01000` |
+| B | `{{20{insn[31]}}, insn[7], insn[30:25], insn[11:8], 1'b0}` | BRANCH `11000` |
+| U | `{insn[31:12], 12'b0}` | LUI `01101`, AUIPC `00101` |
+| J | `{{12{insn[31]}}, insn[19:12], insn[20], insn[30:21], 1'b0}` | JAL `11011` |
 
 : Immediate assembly per format
 
@@ -59,4 +58,4 @@ Notes for maintainers:
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-20

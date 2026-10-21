@@ -39,16 +39,14 @@ Everything kestrel remembers, outside the register file:
 | `pc` | 32 | Program counter; resets to `RESET_ADDR` (default 0) |
 | `retire_count` | 64 | RVFI retirement order: 0, 1, 2, ... |
 | `halt_q` | 1 | Halt holding register; latches any halt cause |
-| `ls_retry` | 1 | Cross-word load/store retry-cycle flag (control state) |
-| `ls_rdata_lo` | 32 | First-word read data captured for the retry-cycle merge |
 
 : The complete kestrel state inventory, register file aside
 
-That is the whole machine. Five flops plus a 32-word register file is
+That is the whole machine. Three flops plus a 32-word register file is
 the entire sequential content of a core that passes the rv32ui battery
 and the riscv-formal ISA proofs — the single-cycle discipline buys its
 simplicity honestly, and this table is the receipt. There is no FSM
-anywhere: the retry bit and the halt bit are plain holding flops, and
+anywhere: the halt bit is a plain holding flop, and
 Chapter 4 shows why no more control state exists.
 
 ## Reading the chapters that follow

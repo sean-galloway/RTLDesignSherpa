@@ -23,7 +23,7 @@
 
 # KESTREL-RV32I Hardware Architecture Specification Index
 
-**Version:** 0.4
+**Version:** 0.5
 **Date:** 2026-10-20
 **Purpose:** High-level hardware architecture specification for the kestrel-rv32i single-cycle RV32I core
 
@@ -77,5 +77,5 @@
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-20
 **Maintained By:** RTL Design Sherpa Project

@@ -7,7 +7,8 @@
 # Module: test_kestrel_ls
 # Purpose: Golden-trace lockstep tests for kestrel_core loads and stores.
 #          Covers aligned size/sign loads after word/halfword/byte stores,
-#          in-word rotated-strobe misaligned vectors, and a store-then-load
+#          byte-lane rotation at every aligned offset, the misaligned-load
+#          and misaligned-store halts (causes 4/5), and a store-then-load
 #          dependent chain that pins the single-cycle memory semantics.
 #
 # Documentation: projects/components/riscv-ip/README.md
@@ -42,20 +43,31 @@ from tbclasses.kestrel.rv32i_interpreter import (                   # noqa: E402
 
 PROGRAMS_DIR = Path(__file__).resolve().parent / "programs"
 
+HALT_LALIGN = 4     # kestrel_pkg: load address misaligned
+HALT_SALIGN = 5     # kestrel_pkg: store address misaligned
+
 CASES = {
     "cocotb_test_kestrel_ls_basic":
         ("ls_basic.hex", 0x0000_0000),
     "cocotb_test_kestrel_ls_misaligned":
         ("ls_misaligned.hex", 0x0000_0000),
+    "cocotb_test_kestrel_ls_misalign_store":
+        ("ls_misalign_store.hex", 0x0000_0000),
     "cocotb_test_kestrel_ls_chain":
         ("ls_chain.hex", 0x0000_0000),
 }
 
 
-async def _run_case(dut, hex_name, reset_addr):
+async def _run_case(dut, hex_name, reset_addr, expected_cause=None):
     imem_words = load_verilog_hex(PROGRAMS_DIR / hex_name)
     golden = RV32IInterpreter(imem_words, reset_addr=reset_addr)
     golden.run()
+    if expected_cause is not None:
+        # Pin the program's intent: core-vs-golden agreement alone would
+        # also pass if both stopped somewhere else.
+        assert golden.halt_cause == expected_cause, \
+            f"{hex_name}: golden halted with cause {golden.halt_cause}, " \
+            f"program expects {expected_cause}" 
 
     tb = KestrelTB(dut, reset_addr=reset_addr)
     await tb.run()
@@ -80,8 +92,19 @@ async def cocotb_test_kestrel_ls_basic(dut):
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_kestrel_ls_misaligned(dut):
-    """Review Focus 6: in-word rotated-strobe misaligned accesses."""
-    await _run_case(dut, "ls_misaligned.hex", 0x0000_0000)
+    """Byte-lane rotation at every aligned offset, then a misaligned load
+    halts with cause 4 and writes nothing."""
+    tb = await _run_case(dut, "ls_misaligned.hex", 0x0000_0000,
+                         expected_cause=HALT_LALIGN)
+    assert tb.trace[-1]["trap"] == 1 and tb.trace[-1]["rd_addr"] == 0
+
+
+@cocotb.test(timeout_time=1, timeout_unit="ms")
+async def cocotb_test_kestrel_ls_misalign_store(dut):
+    """A misaligned store halts with cause 5 and performs no write."""
+    tb = await _run_case(dut, "ls_misalign_store.hex", 0x0000_0000,
+                         expected_cause=HALT_SALIGN)
+    assert tb.trace[-1]["trap"] == 1 and tb.trace[-1]["mem_wmask"] == 0
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")

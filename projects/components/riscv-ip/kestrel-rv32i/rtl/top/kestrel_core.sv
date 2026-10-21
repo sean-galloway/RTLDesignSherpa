@@ -9,13 +9,16 @@
 //          immediate generator, ALU, register file, writeback, next-PC mux,
 //          halt, and first-class RVFI retire ports.
 //
-//          Task 7 adds the load/store datapath.  Aligned and in-word
-//          misaligned accesses complete in one cycle; cross-word misaligned
-//          accesses hold PC for one retry cycle and issue a second beat at
-//          the next word.  This follows the plan's Global Constraints
-//          spec-silent decision: kestrel handles misaligned L/S in hardware
-//          (byte-lane rotation) rather than trapping, so rv32ui-p-ma_data
-//          passes without a trap mechanism.
+//          Task 7 adds the load/store datapath: naturally aligned byte,
+//          half and word accesses in one cycle, byte-lane rotation within
+//          the word.  A misaligned address halts (2026-10-20, owner: the
+//          hardware cross-word retry sat on the register-write and PC-hold
+//          path): cause 4 for a load, 5 for a store, the access is not
+//          performed.  RISC-V permits either hardware or trap handling;
+//          kestrel has no exception machinery, so like the other traps it
+//          halts.  rv32ui-p-ma_data, which needs hardware support, now halts
+//          on its first misaligned load.  RVFI follows riscv-formal's
+//          RISCV_FORMAL_ALIGNED_MEM convention (word address, lane masks).
 //
 //          Task 8 adds the system layer.  Halt is a holding register:
 //          any nonzero decode halt_cause latches halt, freezes the PC, and
@@ -48,6 +51,13 @@
 //          single-cycle core above; kestrel_mem_bram drives it to put
 //          synchronous-read memory behind the same ports.
 //
+//          Next-PC fetch port (2026-10-20).  `imem_addr_next` is the value
+//          the PC register takes at the next edge (RESET_ADDR while in
+//          reset).  A registered-read instruction memory addressed by it
+//          presents the word at `pc` one clock later, so block RAM's own
+//          output register stands in for an instruction register and the
+//          execute cycle starts at the RAM output.
+//
 // Documentation: projects/components/riscv-ip/README.md
 // Subsystem: riscv-ip/kestrel-rv32i
 //
@@ -65,6 +75,7 @@ module kestrel_core #(
     input  logic        rst_n,
     input  logic        mem_wait,       // 1: memories not ready -- hold all state
     output logic [31:0] imem_addr,
+    output logic [31:0] imem_addr_next, // PC after this edge (registered-read fetch)
     input  logic [31:0] imem_rdata,
     output logic        dmem_req,
     output logic [31:0] dmem_addr,
@@ -127,12 +138,11 @@ module kestrel_core #(
 
     // The PC register, the RVFI retirement counter, and the Task-8 halt
     // holding register are the only state besides the register file.
-    // Task 7 adds one retry bit (control state only) for cross-word L/S.
     logic [31:0] pc;
+    logic [31:0] pc_d;
+    logic        halt_q;
     logic [31:0] next_pc;
     logic [63:0] retire_count;
-    logic        ls_retry;
-    logic [31:0] ls_rdata_lo;
 
     // Fetch
     logic [31:0] insn;
@@ -146,12 +156,11 @@ module kestrel_core #(
 
     // Decode truth table (control bundle only; no state).
     alu_op_e    alu_op;
-    imm_sel_e   imm_sel;
     logic       alu_src_a_pc;
     logic       alu_src_b_imm;
     logic       rd_wen;
+    logic       dec_dmem_req;
     logic       dmem_we;
-    logic [1:0] dmem_size;
     logic       branch;
     logic       jump;
     logic       jalr;
@@ -161,13 +170,13 @@ module kestrel_core #(
     kestrel_decode u_decode (
         .insn          (insn),
         .alu_op        (alu_op),
-        .imm_sel       (imm_sel),
+        .imm_sel       (),               // imm_gen selects by opcode itself
         .alu_src_a_pc  (alu_src_a_pc),
         .alu_src_b_imm (alu_src_b_imm),
         .rd_wen        (rd_wen),
-        .dmem_req      (dmem_req),
+        .dmem_req      (dec_dmem_req),
         .dmem_we       (dmem_we),
-        .dmem_size     (dmem_size),
+        .dmem_size     (),               // funct3[1:0] is the size
         .branch        (branch),
         .jump          (jump),
         .jalr          (jalr),
@@ -180,7 +189,6 @@ module kestrel_core #(
 
     kestrel_imm_gen u_imm_gen (
         .insn (insn),
-        .sel  (imm_sel),
         .imm  (imm)
     );
 
@@ -225,11 +233,11 @@ module kestrel_core #(
         .ltu ()
     );
 
-    // Load/store datapath: byte-lane rotation with a single retry bit for
-    // cross-word accesses.  Aligned and in-word misaligned accesses complete
-    // in one cycle; when addr[1:0] + access_size > 4 the PC is held and a
-    // second beat is issued at the next word.  The retry bit is control
-    // state only — the datapath remains FSM-free.
+    // Load/store datapath: naturally aligned accesses, byte-lane rotation
+    // within the word.  The access offset is the low two bits of rs1 + imm
+    // (the ALU's own low bits, computed off the carry chain so the
+    // misaligned halt and the strobes do not wait for the 32-bit add).  The
+    // size is funct3[1:0] (byte 00, half 01, word 10) for loads and stores.
     localparam logic [3:0] STRB_BYTE = 4'b0001;
     localparam logic [3:0] STRB_HALF = 4'b0011;
     localparam logic [3:0] STRB_WORD = 4'b1111;
@@ -237,103 +245,59 @@ module kestrel_core #(
     logic        ls_active;
     logic        ls_load;
     logic        ls_store;
-    logic [2:0]  ls_size_bytes;
+    logic [1:0]  ls_offset;
+    logic        ls_misalign;
+    logic        ls_ok;
     logic [3:0]  ls_size_mask;
     logic [31:0] ls_data_mask;
-    logic [1:0]  ls_offset;
-    logic [2:0]  ls_tail_size;
-    logic [2:0]  ls_head_size;
-    logic        ls_crossing;
-    logic        ls_first;
-    logic        ls_second;
-    logic        ls_single;
     logic [31:0] ls_rdata_shifted;
-    logic [31:0] ls_raw_rdata;
     logic [31:0] ls_load_data;
-    logic [3:0]  ls_head_strobe;
-    logic [31:0] ls_wdata_first;
-    logic [31:0] ls_wdata_second;
 
+    // Requests are suppressed in reset and once halted (the frozen halting
+    // instruction is never a store that should repeat).
+    assign dmem_req   = dec_dmem_req & w_aresetn & ~halt_q;
     assign ls_active  = dmem_req;
     assign ls_load    = dmem_req & ~dmem_we;
     assign ls_store   = dmem_req & dmem_we;
-    assign ls_offset  = alu_y[1:0];
+    assign ls_offset  = rs1_data[1:0] + imm[1:0];
 
     always_comb begin
-        unique case (dmem_size)
-            2'b00:   ls_size_bytes = 3'd1;
-            2'b01:   ls_size_bytes = 3'd2;
-            2'b10:   ls_size_bytes = 3'd4;
-            default: ls_size_bytes = 3'd1;
-        endcase
-        ls_size_mask = (ls_size_bytes == 3'd4) ? STRB_WORD :
-                       (ls_size_bytes == 3'd2) ? STRB_HALF : STRB_BYTE;
-        unique case (ls_size_bytes)
-            3'd1:    ls_data_mask = 32'h0000_00FF;
-            3'd2:    ls_data_mask = 32'h0000_FFFF;
-            default: ls_data_mask = 32'hFFFF_FFFF;
+        unique case (funct3[1:0])
+            2'b00:   begin ls_size_mask = STRB_BYTE; ls_data_mask = 32'h0000_00FF; end
+            2'b01:   begin ls_size_mask = STRB_HALF; ls_data_mask = 32'h0000_FFFF; end
+            default: begin ls_size_mask = STRB_WORD; ls_data_mask = 32'hFFFF_FFFF; end
         endcase
     end
 
-    assign ls_tail_size = 3'd4 - {1'b0, ls_offset};
-    assign ls_head_size = ls_size_bytes - ls_tail_size;
-    assign ls_crossing  = ls_active & ((ls_offset + ls_size_bytes[2:0]) > 4'd4);
-    assign ls_second    = ls_retry;
-    assign ls_first     = ls_crossing & ~ls_second;
-    assign ls_single    = ls_active & ~ls_crossing;
+    assign ls_misalign = ls_active & ((funct3[1:0] == 2'b01) ? ls_offset[0]
+                                    : (funct3[1:0] == 2'b10) ? (ls_offset != 2'b00)
+                                    : 1'b0);
+    assign ls_ok       = ls_active & ~ls_misalign;
 
-    assign dmem_addr = ls_second ? {alu_y[31:2] + 30'd1, 2'b00}
-                                 : {alu_y[31:2], 2'b00};
+    assign dmem_addr  = {alu_y[31:2], 2'b00};
+    assign dmem_wdata = rs2_data << {ls_offset, 3'b000};
+    assign dmem_wstrb = (ls_store & ~ls_misalign) ? (ls_size_mask << ls_offset) : 4'b0000;
 
-    assign ls_wdata_first  = rs2_data << {ls_offset, 3'b000};
-    assign ls_wdata_second = rs2_data >> {ls_tail_size, 3'b000};
-    assign ls_head_strobe  = (ls_head_size == 3'd0) ? 4'b0000 :
-                             (ls_head_size == 3'd1) ? 4'b0001 :
-                             (ls_head_size == 3'd2) ? 4'b0011 :
-                             (ls_head_size == 3'd3) ? 4'b0111 : 4'b1111;
-
-    assign dmem_wdata = ls_second ? ls_wdata_second : ls_wdata_first;
-    assign dmem_wstrb = ls_store ? (ls_second ? ls_head_strobe
-                                              : (ls_size_mask << ls_offset))
-                                 : 4'b0000;
-
-    logic [31:0] ls_tail_mask;
-    logic [31:0] ls_head_mask;
-
-    assign ls_tail_mask = (ls_tail_size == 3'd0) ? 32'd0 :
-                          (ls_tail_size == 3'd1) ? 32'h0000_00FF :
-                          (ls_tail_size == 3'd2) ? 32'h0000_FFFF :
-                          (ls_tail_size == 3'd3) ? 32'h00FF_FFFF :
-                                                   32'hFFFF_FFFF;
-    assign ls_head_mask = (ls_head_size == 3'd0) ? 32'd0 :
-                          (ls_head_size == 3'd1) ? 32'h0000_00FF :
-                          (ls_head_size == 3'd2) ? 32'h0000_FFFF :
-                                                   32'h00FF_FFFF;
     assign ls_rdata_shifted = dmem_rdata >> {ls_offset, 3'b000};
-    assign ls_raw_rdata     = ls_second ? (((dmem_rdata & ls_head_mask) << ({ls_tail_size, 3'b000}))
-                                            | (ls_rdata_lo & ls_tail_mask))
-                                        : (ls_rdata_shifted & ls_data_mask);
 
     always_comb begin
         unique case (funct3)
-            3'b000:  ls_load_data = {{24{ls_raw_rdata[7]}},  ls_raw_rdata[7:0]};   // LB
-            3'b100:  ls_load_data = {24'b0,                  ls_raw_rdata[7:0]};   // LBU
-            3'b001:  ls_load_data = {{16{ls_raw_rdata[15]}}, ls_raw_rdata[15:0]};  // LH
-            3'b101:  ls_load_data = {16'b0,                  ls_raw_rdata[15:0]};  // LHU
-            3'b010:  ls_load_data = ls_raw_rdata;                                  // LW
-            default: ls_load_data = ls_raw_rdata;
+            3'b000:  ls_load_data = {{24{ls_rdata_shifted[7]}},  ls_rdata_shifted[7:0]};   // LB
+            3'b100:  ls_load_data = {24'b0,                      ls_rdata_shifted[7:0]};   // LBU
+            3'b001:  ls_load_data = {{16{ls_rdata_shifted[15]}}, ls_rdata_shifted[15:0]};  // LH
+            3'b101:  ls_load_data = {16'b0,                      ls_rdata_shifted[15:0]};  // LHU
+            default: ls_load_data = dmem_rdata;                                            // LW
         endcase
     end
 
     // Writeback: LUI takes its immediate straight from imm_gen; loads take the
     // assembled/sign-extended data; JAL/JALR write pc+4; CSR-stubbed SYSTEM
     // instructions write a hard zero (no CSR state exists); everything else
-    // uses the ALU result.  The register-file write is suppressed during the
-    // first cycle of a crossing load so the partial word is not committed
-    // early, and whenever halt is raised or held (Task 9: the misaligned
-    // control-flow halt has decode rd_wen set for JAL/JALR, so the gate is
-    // the halt itself, not decode's rd_wen).
-    assign rd_wen_eff = rd_wen & ~ls_first & ~halt & ~mem_wait;
+    // uses the ALU result.  The register-file write is suppressed whenever
+    // halt is raised or held (Task 9: the misaligned control-flow halt has
+    // decode rd_wen set for JAL/JALR, and a misaligned load sets it too, so
+    // the gate is the halt itself, not decode's rd_wen).
+    assign rd_wen_eff = rd_wen & ~halt & ~mem_wait;
     assign rd_wdata   = csr_stub              ? 32'd0        :
                         (opcode == OPCODE_LUI) ? imm          :
                         ls_load                ? ls_load_data :
@@ -393,7 +357,6 @@ module kestrel_core #(
     // via `halt`, same PC freeze.  Decode never sets rd_wen on its own
     // halt causes, but JAL/JALR do, which is why the writeback gate uses
     // `halt` and not decode's rd_wen.
-    logic       halt_q;
     logic       misalign_target;
     logic [3:0] halt_cause_eff;
     logic       halt_now;
@@ -401,7 +364,9 @@ module kestrel_core #(
     assign misalign_target = (jump | jalr | branch_taken)
                            & (next_pc[1:0] != 2'b00);
     assign halt_cause_eff  = dec_halt_cause
-                           | (misalign_target ? HALT_IALIGN : HALT_NONE);
+                           | (misalign_target ? HALT_IALIGN : HALT_NONE)
+                           | (ls_misalign ? (dmem_we ? HALT_SALIGN : HALT_LALIGN)
+                                          : HALT_NONE);
     assign halt_now        = (|halt_cause_eff) & ~mem_wait;
 
     `ALWAYS_FF_RST(clk, w_aresetn,
@@ -415,33 +380,17 @@ module kestrel_core #(
     assign halt       = halt_q | halt_now;
     assign halt_cause = mem_wait ? 4'd0 : halt_cause_eff;
 
-    // PC register: hold on halt or on the first cycle of a cross-word access.
+    // PC register: hold on halt or while the memories wait.  pc_d is also
+    // the registered-read fetch address (RESET_ADDR while in reset, so the
+    // first word is already at the RAM output when reset releases).
+    assign pc_d           = (halt || mem_wait) ? pc : next_pc;
+    assign imem_addr_next = w_aresetn ? pc_d : RESET_ADDR;
+
     `ALWAYS_FF_RST(clk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
             pc <= RESET_ADDR;
         end else begin
-            pc <= (halt || mem_wait) ? pc : (ls_first ? pc : next_pc);
-        end
-    )
-
-    // Cross-word L/S retry bit: control state only, set on the first beat and
-    // cleared after the second beat.  No FSM in the datapath.
-    `ALWAYS_FF_RST(clk, w_aresetn,
-        if (`RST_ASSERTED(w_aresetn)) begin
-            ls_retry <= 1'b0;
-        end else begin
-            if (!mem_wait) ls_retry <= ls_first;
-        end
-    )
-
-    // Capture the shifted first-word read data for merging on the retry cycle.
-    `ALWAYS_FF_RST(clk, w_aresetn,
-        if (`RST_ASSERTED(w_aresetn)) begin
-            ls_rdata_lo <= '0;
-        end else begin
-            if (ls_first && !mem_wait) begin
-                ls_rdata_lo <= ls_rdata_shifted;
-            end
+            pc <= pc_d;
         end
     )
 
@@ -462,20 +411,20 @@ module kestrel_core #(
     // encodings whose decode rd_wen is set, so the rvfi view is gated by
     // `halt` like the regfile write) — riscv-formal requires rd_wdata == 0
     // whenever rd_addr == 0, so the discarded write to x0 is not reported
-    // (the regfile discards that write architecturally as well); mem fields
-    // report the unaligned access address, packed strobes and assembled
-    // data on the final cycle of an access and are zero otherwise; rs
-    // fields always reflect the register-file read ports (x0 reads return 0
-    // naturally).  rvfi_valid is low during the first cycle of a cross-word
-    // access, high on the final beat, and — Task 8 — high for exactly one
-    // more beat on the halting cycle: the halting instruction (ecall/
-    // ebreak/illegal/Task-9 misaligned target) retires as an rvfi_trap beat
-    // (rvfi_trap=1, no rd write, no memory fields), after which the latched
-    // halt holds rvfi_valid low.
+    // (the regfile discards that write architecturally as well).  Memory
+    // fields follow RISCV_FORMAL_ALIGNED_MEM: the word address, the byte
+    // lanes the access covers, the raw read word, and the store data
+    // shifted into its lanes; they are zero on a misaligned (halting)
+    // access, which performs nothing.  rs fields always reflect the
+    // register-file read ports (x0 reads return 0 naturally).  rvfi_valid is
+    // low while the memories wait and — Task 8 — high for exactly one more
+    // beat on the halting cycle: the halting instruction (ecall/ebreak/
+    // illegal/misaligned target/misaligned access) retires as an rvfi_trap
+    // beat, after which the latched halt holds rvfi_valid low.
     logic rd_wb;
 
     assign rd_wb          = rd_wen & (insn[11:7] != 5'd0) & ~halt;
-    assign rvfi_valid     = w_aresetn & ~halt_q & ~ls_first & ~mem_wait;
+    assign rvfi_valid     = w_aresetn & ~halt_q & ~mem_wait;
     assign rvfi_order     = retire_count;
     assign rvfi_pc_rdata  = pc;
     assign rvfi_pc_wdata  = next_pc;
@@ -487,10 +436,11 @@ module kestrel_core #(
     assign rvfi_rs2_rdata = rs2_data;
     assign rvfi_rd_addr   = rd_wb ? insn[11:7] : 5'd0;
     assign rvfi_rd_wdata  = rd_wb ? rd_wdata  : 32'd0;
-    assign rvfi_mem_addr  = ls_active ? alu_y : 32'd0;
-    assign rvfi_mem_rmask = ls_load   ? ls_size_mask : 4'd0;
-    assign rvfi_mem_wmask = ls_store  ? ls_size_mask : 4'd0;
-    assign rvfi_mem_rdata = ls_load   ? ls_raw_rdata          : 32'd0;
-    assign rvfi_mem_wdata = ls_store  ? (rs2_data & ls_data_mask) : 32'd0;
+    assign rvfi_mem_addr  = ls_ok ? dmem_addr : 32'd0;
+    assign rvfi_mem_rmask = (ls_ok & ~dmem_we) ? (ls_size_mask << ls_offset) : 4'd0;
+    assign rvfi_mem_wmask = (ls_ok &  dmem_we) ? (ls_size_mask << ls_offset) : 4'd0;
+    assign rvfi_mem_rdata = (ls_ok & ~dmem_we) ? dmem_rdata : 32'd0;
+    assign rvfi_mem_wdata = (ls_ok &  dmem_we) ? ((rs2_data & ls_data_mask) << {ls_offset, 3'b000})
+                                               : 32'd0;
 
 endmodule : kestrel_core

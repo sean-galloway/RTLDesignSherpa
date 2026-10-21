@@ -55,6 +55,8 @@ There are no CSRs, no counters, no privilege state, and no trap state. `mepc`, `
 | `4'h1` | ECALL | decode, ECALL | environment-call exception |
 | `4'h2` | EBREAK | decode, EBREAK | breakpoint exception |
 | `4'h3` | IALIGN | core, taken branch/JAL/JALR to a non-4-aligned target | instruction-address-misaligned exception |
+| `4'h4` | LALIGN | core, load whose address is not naturally aligned | load-address-misaligned exception |
+| `4'h5` | SALIGN | core, store whose address is not naturally aligned | store-address-misaligned exception |
 | `4'hF` | ILL | decode, illegal encoding | illegal-instruction exception |
 
 : Halt causes (encodings centralized in `rtl/includes/kestrel_pkg.sv`)

@@ -8,7 +8,7 @@
 # Purpose: cocotb TB class for kestrel_core behind kestrel_mem_bram (the
 #          registered-read block-RAM path).  The loader TB's contract carries
 #          over unchanged -- same AXIL map, same load/run sequencing, same
-#          RVFI lockstep -- with a cycle budget scaled for CPI 2-3 and the
+#          RVFI lockstep -- with a cycle budget scaled for CPI 1-2 and the
 #          wrapper's status registers.
 #
 # Documentation: projects/components/riscv-ip/README.md
@@ -18,14 +18,15 @@
 # Created: 2026-10-20
 """KestrelLoaderTB on kestrel_bram_tb_top.
 
-The wrapper holds the core with mem_wait for one cycle per fetch and one
-more per load, so a program needs up to three clocks per instruction; every
-cycle budget the inherited contract passes is scaled by ``CPI_MAX``.
+The wrapper fetches at the core's next PC (one clock per instruction) and
+holds the core with mem_wait for one more cycle per load, so a program needs
+up to two clocks per instruction; every cycle budget the inherited contract
+passes is scaled by ``CPI_MAX``.
 """
 
 from tbclasses.kestrel.kestrel_loader_tb import CTRL_ADDR, KestrelLoaderTB
 
-CPI_MAX = 3
+CPI_MAX = 2
 
 # kestrel_mem_bram registers (addr[17] = 1, addr[4:2] selects)
 REG_CTRL = CTRL_ADDR + 0x0

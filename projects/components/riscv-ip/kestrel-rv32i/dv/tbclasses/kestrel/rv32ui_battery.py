@@ -69,15 +69,20 @@ GATE_TESTS = ("simple", "add", "addi")
 
 # rv32ui-p-* tests that exercise more than a retirement count in spike.
 #
-# The battery uses a hardware-misaligned spike build: kestrel handles
-# misaligned L/S in hardware (plan Global Constraints), and the pinned
-# Task-1 spike traps them (spike 1.1.0 gates misaligned support behind the
-# compile-time RISCV_ENABLE_MISALIGNED).  rv32ui-p-ma_data therefore fails
-# on the pinned binary (exit 156, trap_load/store_address_misaligned) and
-# passes on this side-by-side 1.1.0 build (--enable-misaligned, same
-# commit).  Override with KESTREL_SPIKE.
-SPIKE = os.environ.get("KESTREL_SPIKE",
-                       "/mnt/data/tools/spike-misaligned/bin/spike")
+# The battery uses the pinned Task-1 spike (1.1.0, no misaligned support):
+# since 2026-10-20 kestrel halts on a misaligned load/store instead of
+# completing it in hardware, and this spike traps the same accesses.  (The
+# side-by-side --enable-misaligned build matched the retired hardware
+# cross-word retry.)  Override with KESTREL_SPIKE.
+SPIKE = os.environ.get("KESTREL_SPIKE", "/mnt/data/tools/spike/bin/spike")
+
+# Tests whose expected outcome is a halt other than the passing ecall:
+# name -> (kestrel halt cause, spike exception kind at the halt pc).
+# rv32ui-p-ma_data needs hardware misaligned support; kestrel halts on its
+# first misaligned load (cause 4) exactly where spike traps.
+EXPECTED_HALTS = {
+    "ma_data": (4, "trap_load_address_misaligned"),
+}
 
 _TEST_CYCLES = 100_000
 
@@ -425,10 +430,14 @@ class RV32UIBattery:
         # never executes (halt on ecall), so gp-at-halt is the verdict; a
         # direct tohost write of 1 (should one ever commit) also passes.
         passed = (tb.halt_cause == 1 and gp == 1) or (1 in tb.tohost_writes)
+        expected = EXPECTED_HALTS.get(name)
+        if expected is not None:
+            passed = tb.halt_cause == expected[0]
 
         if self.level in self.lockstep_levels:
             result["lockstep_ran"] = True
-            ok, detail = self._lockstep(tb, name, words, entry, tohost)
+            ok, detail = self._lockstep(tb, name, words, entry, tohost,
+                                        expected)
             if not ok:
                 result["detail"] = detail
                 return result
@@ -440,7 +449,7 @@ class RV32UIBattery:
             result["detail"] = "tohost convention (gp==1 at ecall halt)"
         return result
 
-    def _lockstep(self, tb, name, words, entry, tohost):
+    def _lockstep(self, tb, name, words, entry, tohost, expected=None):
         """Golden interpreter full-field diff + spike (pc, insn) lockstep.
 
         Returns (ok, detail).  Raises on interpreter NotImplementedError so
@@ -466,7 +475,14 @@ class RV32UIBattery:
         detail = (f"spike rc={rc} stream ok, {len(records)} records, "
                   f"{len(stub_traps)} stub trap(s) [{stub_kinds}], "
                   f"term trap {term_trap}")
-        if rc != 0:
+        if expected is not None:
+            # An expected halt: spike fails the test (rc != 0) by design; the
+            # lockstep must end on spike's matching trap at the halt pc.
+            if term_trap != expected[1]:
+                ok = False
+                errors.append(f"expected spike {expected[1]} at the halt pc, "
+                              f"got {term_trap}")
+        elif rc != 0:
             ok = False
             if rc is None:
                 errors.append("spike timed out or failed to start")

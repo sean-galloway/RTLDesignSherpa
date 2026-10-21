@@ -27,14 +27,16 @@ Three properties define the contract:
    separate ports backed by whatever the integrator provides. The core
    never issues a data access to the instruction memory or vice versa,
    and it never sees coherence between them.
-2. **Combinational reads.** Both memories answer in the same cycle the
-   address is presented. This is the load-bearing simplification of the
-   single-cycle design: an instruction's full path — fetch, decode,
-   register read, ALU, data read, writeback — must fit in one clock, so
-   the memories are forbidden from adding latency. Synchronous-read
-   RAM macros (e.g. block RAM) would break the contract; the suite's
-   style brief calls for distributed-RAM inference when a real macro is
-   needed.
+2. **Combinational reads, or an explicit wait.** Both memories answer in
+   the same cycle the address is presented. This is the load-bearing
+   simplification of the single-cycle design: an instruction's full path
+   — fetch, decode, register read, ALU, data read, writeback — must fit
+   in one clock. A synchronous-read memory (block RAM) may instead hold
+   the core with `mem_wait`, during which nothing in the core changes.
+   `kestrel_mem_bram` does that for a load's data read only: it fetches
+   one clock early at the core's `imem_addr_next` (the PC after the
+   coming edge), so the RAM's output register acts as the instruction
+   register and every other instruction still takes one clock.
 3. **Word-wide buses with byte strobes.** Data memory is 32 bits wide;
    sub-word stores rotate the data and strobe into the addressed byte
    lanes, and sub-word loads rotate read data back before size/sign
@@ -43,12 +45,11 @@ Three properties define the contract:
 
 ## Timing: one cycle, except when documented
 
-An instruction that touches memory completes in exactly one clock when
-its access lies within one word; a cross-word access takes two clocks
-via the documented retry (next section of this chapter). There are no
-other exceptions: no wait states, no arbitration stalls, no refresh
-interference. The PC holds only for the retry's first beat and for
-halts. Everything else advances every cycle.
+An instruction that touches memory completes in exactly one clock; a
+misaligned access halts instead (next section of this chapter). There
+are no other exceptions beyond the memory's own `mem_wait`: no
+arbitration stalls, no refresh interference. The PC holds only for halts
+and while `mem_wait` is high. Everything else advances every cycle.
 
 `RESET_ADDR` (default `32'h0000_0000`, a module parameter) selects the
 fetch address out of reset; the testbench also parameterizes it to prove

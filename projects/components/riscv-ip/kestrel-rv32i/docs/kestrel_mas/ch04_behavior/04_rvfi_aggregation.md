@@ -31,7 +31,7 @@ Every instruction that retires produces one beat; the halting instruction produc
 
 | Signal | Width | kestrel aggregation |
 |--------|-------|---------------------|
-| `rvfi_valid` | 1 | `rst_n & ~halt_q & ~ls_first` — high exactly on retiring cycles |
+| `rvfi_valid` | 1 | `rst_n & ~halt_q & ~mem_wait` — high exactly on retiring cycles |
 | `rvfi_order` | 64 | `retire_count`; 0, 1, 2, ... over retired beats |
 | `rvfi_pc_rdata` | 32 | The retiring instruction's PC |
 | `rvfi_pc_wdata` | 32 | `next_pc` — the architecturally next PC (the misaligned target on a cause-3 halt) |
@@ -40,9 +40,9 @@ Every instruction that retires produces one beat; the halting instruction produc
 | `rvfi_rs1_addr` / `rvfi_rs2_addr` | 5+5 | Register-file read ports (`insn[19:15]`, `insn[24:20]`) |
 | `rvfi_rs1_rdata` / `rvfi_rs2_rdata` | 32+32 | Read data; x0 reads zero naturally |
 | `rvfi_rd_addr` / `rvfi_rd_wdata` | 5+32 | Writeback, when `rd_wb`; both zero otherwise |
-| `rvfi_mem_addr` | 32 | The unaligned byte address of a load/store (`alu_y`); zero otherwise |
-| `rvfi_mem_rmask` / `rvfi_mem_wmask` | 4+4 | Byte lanes touched, packed from bit 0 relative to `rvfi_mem_addr` (a word access reports `4'b1111` regardless of offset) |
-| `rvfi_mem_rdata` / `rvfi_mem_wdata` | 32+32 | Assembled access data (loads) / size-truncated store data (`rs2_data & ls_data_mask`); zero otherwise |
+| `rvfi_mem_addr` | 32 | The word address of a load/store (`{alu_y[31:2], 2'b00}`); zero otherwise and on a misaligned (halting) access |
+| `rvfi_mem_rmask` / `rvfi_mem_wmask` | 4+4 | The byte lanes the access covers within that word (`size_mask << offset`) |
+| `rvfi_mem_rdata` / `rvfi_mem_wdata` | 32+32 | The raw word read (loads) / the size-truncated store data shifted into its lanes (`(rs2_data & ls_data_mask) << 8*offset`); zero otherwise |
 
 : RVFI signals and their kestrel aggregation
 
@@ -51,12 +51,12 @@ Every instruction that retires produces one beat; the halting instruction produc
 Three qualifications turn the raw datapath signals into a clean retire stream:
 
 1. **x0 reports zero.** `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`, so a beat writing x0 reports `rd_addr = 0` with `rd_wdata = 0`. This is not merely tidiness: riscv-formal requires `rd_wdata == 0` whenever `rd_addr == 0`, and the early core failed exactly there until the rule was pinned. The register file independently discards the x0 write architecturally.
-2. **The retry's first cycle is silent.** During the first beat of a cross-word access, `rvfi_valid` is low (`ls_first` masks it): no partial beat leaks out. The access reports one beat on its final cycle, with the full assembled data.
+2. **A wait cycle is silent.** While a registered-read memory holds `mem_wait` high (a block-RAM load's first cycle), `rvfi_valid` is low: the instruction reports one beat on the cycle it completes.
 3. **Halt retires one trap beat, then silence.** `rvfi_trap = halt_now` marks the halting instruction itself — a beat with trap set, no rd write, no memory fields — after which the latched `halt_q` holds `rvfi_valid` low forever. The wrapper used by riscv-formal derives `rvfi_halt = rvfi_valid & halt`, which matches the semantics exactly: the trap beat is the final retirement. (`rvfi_intr = 0`, `rvfi_mode = M`, `rvfi_ixl = 32` are generated in the wrapper, not the core.)
 
 ## Memory-Field Packing
 
-For loads and stores, `rvfi_mem_addr` is the *unaligned* byte address and the masks count byte lanes from bit 0 relative to that address — the riscv-formal byte-*i* convention of `rvfi.md`. A store's `rvfi_mem_wdata` is the store value truncated to the access size (`rs2_data & ls_data_mask`), not the raw register; leaking the upper bytes into the payload is a real bug class this encoding exists to prevent, and one kestrel fixed when the battery's ma_data-shaped vectors arrived. For a cross-word access the single retire beat reports the full-size mask with the assembled data — the retry's two physical beats collapse into one architectural record.
+kestrel follows riscv-formal's `RISCV_FORMAL_ALIGNED_MEM` convention (2026-10-20, with the misaligned-access halt): `rvfi_mem_addr` is the word address and the masks mark the byte lanes the access covers within it, the same lanes the store strobes drive. A load reports the raw word (the checker shifts it by the offset itself); a store reports its value truncated to the access size and shifted into its lanes, not the raw register — leaking the upper bytes into the payload is a real bug class this encoding prevents. A misaligned access reports no memory fields: it halts and performs nothing, and the checker requires only `rvfi_trap`. (Until 2026-10-20 kestrel completed misaligned accesses in hardware and used the unaligned byte-address convention instead.)
 
 ## Why This Pays
 

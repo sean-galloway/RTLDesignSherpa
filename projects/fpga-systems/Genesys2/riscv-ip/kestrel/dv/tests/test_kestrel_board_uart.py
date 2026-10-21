@@ -41,7 +41,7 @@ CLKS_PER_BIT = 4
 SIM_TIME_BUDGET_MS = 100.0
 
 # rv32ui images the sim runs (the board runs all 42): straight-line, loads,
-# stores, self-modifying code, cross-word misaligned accesses.
+# stores, self-modifying code, and ma_data's expected misaligned-load halt.
 SIM_TESTS = ["simple", "add", "lw", "sw", "fence_i", "ma_data"]
 
 

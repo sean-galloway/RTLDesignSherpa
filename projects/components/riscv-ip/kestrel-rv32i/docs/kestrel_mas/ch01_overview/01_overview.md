@@ -27,7 +27,7 @@
 
 Three commitments shape the microarchitecture, and every block chapter shows them landing:
 
-1. **The datapath is FSM-free.** Classic processor control walks fetch/decode/execute/memory/writeback as states; in kestrel those phases are spatial, not temporal. Fetch is a wire off the PC register; decode is a truth table; execute is an ALU; memory access is a combinational port; writeback is a mux feeding a clocked register file. There is nothing to sequence, so there is no FSM — and no microcode, no control ROM, no phase counter. The two places a naive design would reach for an FSM — halting and the misaligned retry — are single holding flops with plain set/clear conditions.
+1. **The datapath is FSM-free.** Classic processor control walks fetch/decode/execute/memory/writeback as states; in kestrel those phases are spatial, not temporal. Fetch is a wire off the PC register; decode is a truth table; execute is an ALU; memory access is a combinational port; writeback is a mux feeding a clocked register file. There is nothing to sequence, so there is no FSM — and no microcode, no control ROM, no phase counter. The one place a naive design would reach for an FSM — halting — is a single holding flop with a plain set condition, and a misaligned data access is one more halt cause rather than a retry sequence.
 2. **Control is an explicit truth table.** Decode is one `unique casez` keyed on `{opcode, funct3, funct7}` producing a thirteen-field control bundle. The same word always produces the same bundle; the table is small enough to read top to bottom and is transcribed in the kestrel_decode chapter.
 3. **RVFI is the observation channel.** The retire port is not debug instrumentation bolted on afterward; it is the defined observation channel, present from the first vertical slice, and its aggregation rules are stated next to the assignments in the RTL and again in Chapter 4.
 
@@ -39,7 +39,7 @@ The discipline the suite's style brief imposes — datapath logic is truth table
 
 ![kestrel datapath block diagram](../assets/graphviz/kestrel_datapath.png)
 
-The diagram is drawn to match the RTL: the blocks are the module instances in `kestrel_core.sv`, and every named wire is a real signal in the source. State elements are the PC register, the register file, and three small holding registers described below; everything else is combinational.
+The diagram is drawn to match the RTL: the blocks are the module instances in `kestrel_core.sv`, and every named wire is a real signal in the source. State elements are the PC register, the register file, and two small holding registers described below; everything else is combinational.
 
 ## Module Inventory
 
@@ -61,15 +61,13 @@ Everything kestrel remembers, outside the register file and (when integrated) th
 
 | Element | Width | Purpose | Next-state equation |
 |---------|-------|---------|---------------------|
-| `pc` | 32 | Program counter; resets to `RESET_ADDR` | `pc <= halt ? pc : (ls_first ? pc : next_pc)` |
+| `pc` | 32 | Program counter; resets to `RESET_ADDR` | `pc <= (halt \|\| mem_wait) ? pc : next_pc` (also driven out as `imem_addr_next`) |
 | `retire_count` | 64 | RVFI retirement order: 0, 1, 2, ... | `+1` when `rvfi_valid` |
 | `halt_q` | 1 | Halt holding register; latches any halt cause | `halt_q <= halt_q \| halt_now` |
-| `ls_retry` | 1 | Cross-word L/S retry-cycle flag | `ls_retry <= ls_first` |
-| `ls_rdata_lo` | 32 | First-word read data captured for the retry-cycle merge | captures `ls_rdata_shifted` when `ls_first` |
 
 : The complete core state inventory, register file aside
 
-Five state elements with one-line next-state equations are reviewable in minutes. The retry bit and the halt bit are control state only; `ls_rdata_lo` is the only place data is captured mid-instruction — a pipeline register in the most minimal sense.
+Three state elements with one-line next-state equations are reviewable in minutes. The halt bit is control state only; no data is captured mid-instruction (until 2026-10-20 a cross-word retry bit and a 32-bit merge register were the exception; misaligned accesses now halt, Ch. 4.2).
 
 ## Key Interfaces at a Glance
 

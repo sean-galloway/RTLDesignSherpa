@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Micro-Architecture Specification
 
 **Document Number:** KESTREL-MAS-001
-**Version:** 0.4
+**Version:** 0.5
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -34,7 +34,7 @@
 
 ## Document Purpose
 
-This Micro-Architecture Specification (MAS) describes how the kestrel-rv32i core is built: one section per functional block covering its purpose, interface, internal structure, and key logic; the internal interfaces between blocks; the cycle-level behavior including the misaligned retry and halt timing; the verification hooks the design exposes on purpose; and the configuration surface. It is written for implementers and maintainers of the RTL, and for reviewers who need to check the design against its specification.
+This Micro-Architecture Specification (MAS) describes how the kestrel-rv32i core is built: one section per functional block covering its purpose, interface, internal structure, and key logic; the internal interfaces between blocks; the cycle-level behavior including the misaligned-access and halt timing; the verification hooks the design exposes on purpose; and the configuration surface. It is written for implementers and maintainers of the RTL, and for reviewers who need to check the design against its specification.
 
 The external contract — ports as an integrator wires them, memory and halt behavior, loader programming — is the companion Hardware Architecture Specification (HAS). This document assumes it.
 
@@ -68,11 +68,10 @@ The external contract — ports as an integrator wires them, memory and halt beh
 
 | Term | Definition |
 |------|------------|
-| Beat | One memory access cycle; a cross-word access uses two beats |
+| Beat | One retired instruction on the RVFI port |
 | Control bundle | The thirteen-field decode output steering the datapath each cycle |
 | FUB | Functional Unit Block - leaf RTL module |
 | Halt holding register | `halt_q` — one bit that latches any halt cause and holds it |
-| Retry bit | `ls_retry` — one bit of control state sequencing the cross-word retry |
 | Rotator | The byte-lane shift network implementing rotated strobes/data for L/S |
 | Trap beat | The single RVFI beat of a halting instruction (`rvfi_trap=1`) |
 
@@ -88,9 +87,10 @@ The external contract — ports as an integrator wires them, memory and halt beh
 | 0.2 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.4 | 2026-10-20 | seang | `mem_wait` core input and `kestrel_mem_bram` (block RAM, registered read, CPI 2/3 for loads; registers for run/stop, status, cycles, instret, gp): new Ch. 2.7; core chapter notes the wait. rv32ui 42/42 through it with spike lockstep; riscv-formal 42/42 with a free `mem_wait`. |
+| 0.5 | 2026-10-20 | seang | Timing rework (A7 path analysis). Misaligned loads/stores halt (causes 4/5) instead of the hardware cross-word retry, which is removed; RVFI moves to the `RISCV_FORMAL_ALIGNED_MEM` convention; Ch. 4.2 rewritten. `kestrel_imm_gen` selects the format by opcode in parallel with the register read. New core output `imem_addr_next`; `kestrel_mem_bram` fetches at the next PC (CPI 1, 2 for a load), decodes its load wait from the opcode, and defaults to 16 KB; Ch. 2.7 rewritten with Waveform 2.7. rv32ui 42/42 (`ma_data` an expected halt) with spike lockstep; riscv-formal 42/42. |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-20

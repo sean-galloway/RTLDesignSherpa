@@ -8,94 +8,56 @@ hardware, invisibly trap and emulate them, or trap and refuse, and it
 may treat accesses to side-effecting regions differently (spec Volume I,
 section 2.1.6). Naturally aligned accesses are guaranteed atomic;
 misaligned accesses are explicitly *not* required to be atomic. The
-design space is open, and kestrel's plan records the decision: **handle
-misaligned loads and stores in hardware.** No trap, no emulation, no
-slow-path ABI — the byte lanes absorb the misalignment, and
-rv32ui-p-ma_data passes on the datapath alone.
+design space is open, and kestrel takes the plainest corner of it:
+**a misaligned load or store halts the core.** Trap-and-refuse is the
+spec's own option; kestrel has no trap machinery, so, like every other
+trap, it halts (cause 4 for a load, 5 for a store).
 
-This is a *data*-only policy. Instruction-side misalignment is not
-permitted to be handled in hardware by anything, and section 3 of this
-chapter covers how kestrel honors that asymmetry.
+This is a *data* policy. Instruction-side misalignment is never handled
+in hardware by anything, and section 3 of this chapter covers that halt.
 
 ## The rotation model
 
-Sub-word accesses are implemented by byte-lane rotation. For an access
-at byte offset `o = addr[1:0]` with size bytes `s`:
+Naturally aligned sub-word accesses are implemented by byte-lane
+rotation. For an access at byte offset `o` with size bytes `s`:
 
+- **Offset:** `o = rs1[1:0] + imm[1:0]`, the address's low bits from their
+  own two-bit add, so the rotation and the halt test do not wait for the
+  32-bit address.
 - **Store:** `dmem_wdata = rs2_data << (8*o)` — the value slides into
   the addressed lanes; `dmem_wstrb = size_mask << o` — the byte enables
-  slide with it. The testbench memory merges enabled bytes into the
-  word.
+  slide with it. The memory merges enabled bytes into the word.
 - **Load:** `rdata_shifted = dmem_rdata >> (8*o)` — the addressed bytes
-  slide down to bit 0; a size mask keeps exactly `s` bytes, and a final
-  case implements LB (sign-extend from bit 7), LBU/LHU (zero-extend),
-  LH, LW.
+  slide down to bit 0, and a final case implements LB (sign-extend from
+  bit 7), LBU/LHU (zero-extend), LH, LW.
 
-When the access fits in one word (`o + s <= 4`) — which includes every
-*aligned* access and every misaligned access that does not cross a word
-boundary — this rotation is the entire mechanism and the access
-completes in the single cycle, exactly like an aligned one.
+Bytes are always aligned. Halves are aligned at offsets 0 and 2, words at
+0. Every aligned access fits inside one word, so the rotation is the
+entire mechanism and the access completes in the single cycle.
 
-## Crossing a word: the retry cycle
+## The misaligned halt
 
-When `o + s > 4`, the access straddles two words and one 32-bit beat
-cannot carry it. kestrel splits the access across two beats with one
-retry bit of control state (Chapter 3):
+A half at an odd offset, or a word at any nonzero offset, raises
+`ls_misalign`. The access performs nothing: the store strobes are forced
+to zero, the load does not write rd, and the instruction retires as the
+usual RVFI trap beat with empty memory fields, then the core holds
+(section 3). rv32ui-p-ma_data, which needs hardware support, halts on its
+first misaligned load; spike, which traps misaligned accesses too, takes
+`trap_load_address_misaligned` at the same instruction, so the lockstep
+still lines up (Chapter 6).
 
-1. **First beat (`ls_first`).** Address is the aligned word containing
-   the access start. For stores, the tail bytes (`4 - o` of them) are
-   written with the original left-rotated strobe. For loads, the shifted
-   first word is captured into `ls_rdata_lo`. The PC holds; no
-   retirement (`rvfi_valid` low).
-2. **Second beat (`ls_second`).** Address is the next word (`word + 1`).
-   For stores, the remaining head bytes are written with a head-only
-   strobe, data right-rotated by the tail size. For loads, the second
-   word's head is read, shifted up, and merged with the captured tail:
-   `assembled = (second & head_mask) << (8*(4-o)) | (first & tail_mask)`.
-   The instruction retires now, on this final cycle, with one RVFI beat.
+## Why not hardware?
 
-### Figure 5.1: The two-beat cross-word access
-
-![Cross-word misaligned access timing: two beats, one retirement](../assets/images/fig_5_1_retry.png)
-
-The retry is visible on the memory pins and RVFI: `dmem_addr` steps
-by one word, `dmem_req` (and `dmem_we` for stores) stays high across
-both beats, the PC freezes for the retry cycle, and `rvfi_valid` marks
-only the final cycle. Everything else in the core is unaware the retry
-happened.
-
-## Worked example: a halfword across the boundary
-
-`lh x2, 7(x10)` with x10 = 0x1000 reads the halfword at 0x1007 — one
-byte at offset 3 of word 0x1000 and one at offset 0 of word 0x1004.
-
-- Beat 1: `dmem_addr = 0x1000`, read data `>> 24`, captured into
-  `ls_rdata_lo` — the tail byte.
-- Beat 2: `dmem_addr = 0x1004`, head byte merged at bits [15:8]; the
-  halfword is sign-extended from bit 15 into x2.
-- RVFI: one beat, `mem_addr = 0x1007`, `rmask = 0011` packed from the
-  addressed address, `mem_rdata` holding the assembled halfword in bits
-  [15:0].
-
-A directed test with distinct nonzero bytes on both sides of the
-boundary (`ls_misaligned`) pins this end to end; a first-cut
-implementation that silently truncated bytes rotating past bit 31
-reported `0x00FE` where the architectural answer was `0xCAFE` — caught
-because the golden interpreter models the full two-word semantics and
-the lockstep diff tolerates no slop.
-
-## Why not trap?
-
-Trapping to software emulation needs the trap machinery kestrel
-deliberately does not have (Chapter 2), and emulating in a trap stub
-would make the misaligned case a hundred cycles instead of two. Hardware
-handling keeps every access at fixed cost — one cycle in-word, two
-crossing — which is the only cost model a single-cycle core can afford
-to reason about. The price is integration: a misaligned word access
-performs two word reads/writes and is not atomic, which the spec never
-promised anyway.
+Until 2026-10-20 kestrel did complete misaligned accesses in hardware:
+in-word ones by rotation, cross-word ones in two beats, with a retry flop,
+a 32-bit merge register for the first word's bytes, and the PC held for
+the extra cycle. On block RAM that logic sat on the critical path — it
+gated the register write and the PC hold, between the address add and the
+register file — and it was most of kestrel's control state. Dropping it
+leaves a rotation and one compare, which is the smaller and simpler design
+a rung-1 core should be. A program that needs misaligned access can split
+it into aligned byte or half accesses, as compilers already do.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, section 2.1.6;
-`rtl/top/kestrel_core.sv` (L/S rotation and retry);
-`dv/tests/programs/ls_misaligned.s`, `ls_chain.s`;
-task-7 report (cross-word fix round)
+`rtl/top/kestrel_core.sv` (L/S rotation and the misaligned halt);
+`dv/tests/programs/ls_misaligned.s`, `ls_misalign_store.s`, `ls_chain.s`

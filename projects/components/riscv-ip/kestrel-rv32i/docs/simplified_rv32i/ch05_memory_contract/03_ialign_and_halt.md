@@ -6,9 +6,10 @@ With IALIGN=32 — no compressed instructions — every instruction fetch
 must be 4-byte aligned. The spec (Volume I, section 2.1.5) therefore
 requires an *instruction-address-misaligned* exception when taken
 control flow — a taken branch, JAL, or JALR — targets an address whose
-low two bits are not `00`. RISC-V's explicit permission to handle
-*data* misalignment in hardware does not extend here: executing at a
-misaligned instruction address is never an option.
+low two bits are not `00`. RISC-V's permission to handle *data*
+misalignment in hardware does not extend here (kestrel halts on misaligned
+data anyway, section 2): executing at a misaligned instruction address is
+never an option.
 
 ## Why decode cannot catch it
 
@@ -16,7 +17,7 @@ The condition needs the *resolved* next PC: for JALR it depends on a
 register value, and for every branch it depends on the taken decision.
 Decode sees neither — it produces the control bundle, not the data.
 kestrel's `kestrel_pkg` comments state the ownership directly: causes 1,
-2, and `F` belong to decode; cause 3 belongs to the core. In
+2, and `F` belong to decode; causes 3-5 belong to the core. In
 `kestrel_core.sv`:
 
 ```
@@ -33,20 +34,22 @@ JAL and JALR set decode's `rd_wen` — they are link instructions, and a
 taken JAL/JALR that *does* align must write `pc+4`. The misaligned case
 must not. Rather than teaching decode about alignment, the core gates
 both the register write and the RVFI report with `halt` itself:
-`rd_wen_eff = rd_wen & ~ls_first & ~halt` and
+`rd_wen_eff = rd_wen & ~halt & ~mem_wait` and
 `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The trap beat reports the
 misaligned target on `rvfi_pc_wdata` (it is `next_pc`, and `next_pc` is
 the misaligned address), which is exactly what a real trap's state would
 record as the faulting target — a detail the formal model checks
 explicitly.
 
-## The four halt causes, in context
+## The six halt causes, in context
 
 | Cause | Encoding | Raised in | Spec's name for the event |
 | --- | --- | --- | --- |
 | ECALL | `4'h1` | decode | environment-call exception |
 | EBREAK | `4'h2` | decode | breakpoint exception |
 | misaligned control-flow target | `4'h3` | core | instruction-address-misaligned exception |
+| misaligned load | `4'h4` | core | load-address-misaligned exception |
+| misaligned store | `4'h5` | core | store/AMO-address-misaligned exception |
 | illegal encoding | `4'hF` | decode | illegal-instruction exception |
 
 : Halt causes and their spec counterparts

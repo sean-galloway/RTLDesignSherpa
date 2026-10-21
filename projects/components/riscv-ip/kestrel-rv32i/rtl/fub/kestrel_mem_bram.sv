@@ -6,9 +6,9 @@
 //
 // Module: kestrel_mem_bram
 // Purpose: Registered-read (block RAM) memory system for kestrel_core: one
-//          unified true-dual-port array, a fetch/exec/load sequencer that
-//          holds the core with mem_wait while the synchronous reads land,
-//          and the AXIL loader + run/status registers on the second port
+//          unified true-dual-port array (port A fetches at the core's
+//          next PC, port B serves loads/stores or the AXIL loader), a
+//          one-cycle load wait, and the run/status registers
 //
 // Documentation: projects/components/riscv-ip/kestrel-rv32i/docs/kestrel_mas
 // Subsystem: riscv-ip/kestrel-rv32i
@@ -19,19 +19,30 @@
 // Notes:
 //   - kestrel_mem_loader keeps the core's combinational-read contract with
 //     distributed RAM; this module trades it for block RAM (owner,
-//     2026-10-20): every instruction takes two clocks (fetch, execute), a
-//     load three (fetch, execute, load).  The core holds all state while
-//     mem_wait is high, so the ISA is unchanged -- riscv-formal proves it
-//     under arbitrary wait states (formal/kestrel/riscv-formal).
-//   - Port A serves the core and is time-multiplexed by the sequencer:
-//     FETCH reads at the PC; EXEC presents the L/S address (a store writes
-//     at the end of EXEC, a load's read lands in LOAD).  The instruction word
-//     is captured at the end of EXEC so it stays valid through LOAD.
-//   - Port B serves the AXIL loader.  Memory writes are accepted only in
-//     load mode (CTRL.run = 0, core held in reset); reads work at any time.
+//     2026-10-20).  Rebuilt the same day for timing (A7 path analysis): the
+//     first version time-multiplexed one port through a fetch/exec/load
+//     sequencer, which cost two clocks per instruction AND left the whole
+//     execute path hanging off the RAM output, with its load wait decoded
+//     after the ALU.
+//   - Port A fetches.  It is addressed by the core's imem_addr_next (the PC
+//     after this edge), so the word at `pc` sits on the RAM output for the
+//     whole cycle that executes it: the RAM's output register is the
+//     instruction register.  One clock per instruction.
+//   - Port B is the data port while running: a store writes at the end of
+//     its execute cycle; a load reads, and mem_wait holds the core one cycle
+//     for the data (two clocks).  mem_wait is decoded from the instruction's
+//     opcode at the RAM output, not from the core's request, so it does not
+//     wait for the address add.
+//   - Port B serves the AXIL loader otherwise.  Memory writes are accepted
+//     only in load mode (CTRL.run = 0, core held in reset); memory reads are
+//     accepted any time port B is free (the core's access wins).
+//   - A store and a fetch of the same word on the same edge is a read
+//     collision on port A; the fetch may see either value, which is what
+//     RISC-V allows without FENCE.I between them.
 //   - The address map is kestrel_mem_loader's, so its host code carries
 //     over: s_axil addr[17] = 1 selects the registers below, else memory
-//     (one unified 128 KB space, byte address addr[16:0]).
+//     (MEM_WORDS x 32 unified, 16 KB by default, byte address addr[16:0],
+//     aliased above the array).
 //
 //     addr[17]=1, addr[4:2]:
 //       0  CTRL/STATUS  W: bit0 run (1 = release the core; 0 = back to load
@@ -49,7 +60,7 @@
 module kestrel_mem_bram #(
     parameter int AXIL_ADDR_WIDTH = 18,
     parameter int AXIL_DATA_WIDTH = 32,
-    parameter int MEM_WORDS       = 32768,   // 128 KB unified
+    parameter int MEM_WORDS       = 4096,    // 16 KB unified (rv32ui images end below 12.3 KB)
     parameter int SKID_DEPTH_AW   = 2,
     parameter int SKID_DEPTH_W    = 2,
     parameter int SKID_DEPTH_B    = 2,
@@ -81,7 +92,7 @@ module kestrel_mem_bram #(
     input  logic                         s_axil_rready,
 
     // Core side (kestrel_core's memory interface + mem_wait)
-    input  logic [31:0]                  imem_addr,
+    input  logic [31:0]                  imem_addr_next,
     output logic [31:0]                  imem_rdata,
     input  logic                         dmem_req,
     input  logic [31:0]                  dmem_addr,
@@ -108,9 +119,11 @@ module kestrel_mem_bram #(
     localparam logic [31:0] BUILD_ID = 32'h4B42_524D;   // "KBRM"
     localparam logic [1:0]  RESP_OKAY = 2'b00;
     localparam logic [4:0]  REG_GP = 5'd3;
+    localparam logic [6:0]  OPCODE_LOAD = 7'b0000011;
 
     // =========================================================================
-    // The array: true dual port, byte writes, registered read on both ports
+    // The array: port A read-only (fetch), port B byte writes; registered
+    // read on both ports
     // =========================================================================
 `ifdef XILINX
     (* ram_style = "block" *)
@@ -121,15 +134,11 @@ module kestrel_mem_bram #(
 
     logic             a_en, b_en;
     logic [IDX_W-1:0] a_idx, b_idx;
-    logic [3:0]       a_we, b_we;
-    logic [31:0]      a_din, b_din, a_dout, b_dout;
+    logic [3:0]       b_we;
+    logic [31:0]      b_din, a_dout, b_dout;
 
     always_ff @(posedge aclk) begin
-        if (a_en) begin
-            for (int b = 0; b < 4; b++)
-                if (a_we[b]) r_mem[a_idx][b*8 +: 8] <= a_din[b*8 +: 8];
-            a_dout <= r_mem[a_idx];
-        end
+        if (a_en) a_dout <= r_mem[a_idx];
     end
 
     always_ff @(posedge aclk) begin
@@ -152,52 +161,29 @@ module kestrel_mem_bram #(
     assign o_halted   = halted_q;
 
     // =========================================================================
-    // Port A: the core sequencer (FETCH -> EXEC [-> LOAD] -> FETCH)
+    // Port A: fetch at the core's next PC
     // =========================================================================
-    typedef enum logic [1:0] {S_FETCH, S_EXEC, S_LOAD} seq_e;
-    seq_e        state_q;
-    logic [31:0] insn_q;
-    logic        is_load, is_store;
+    assign a_en       = 1'b1;
+    assign a_idx      = imem_addr_next[IDX_W+1:2];
+    assign imem_rdata = a_dout;
 
-    assign is_load  = dmem_req && (dmem_wstrb == 4'b0000);
-    assign is_store = dmem_req && (dmem_wstrb != 4'b0000);
+    // =========================================================================
+    // Core data on port B, and the load wait
+    // =========================================================================
+    // A load holds the core for one cycle: the address goes to port B at the
+    // end of the first, the word is on the RAM output in the second.  The
+    // wait is decoded from the opcode alone (a misaligned load also waits;
+    // the core then halts without writing).
+    logic core_b, is_load_op, load_phase_q;
 
-    always_comb begin
-        a_en  = run_q;
-        a_we  = 4'b0000;
-        a_din = dmem_wdata;
-        a_idx = imem_addr[IDX_W+1:2];
-        case (state_q)
-            S_EXEC: begin
-                a_idx = dmem_addr[IDX_W+1:2];
-                a_en  = run_q && dmem_req;
-                if (is_store) a_we = dmem_wstrb;
-            end
-            S_LOAD:  a_en = 1'b0;           // hold the load data
-            default: ;                      // S_FETCH: read at the PC
-        endcase
-    end
-
-    assign imem_rdata = (state_q == S_EXEC) ? a_dout : insn_q;
-    assign dmem_rdata = a_dout;
-    assign mem_wait   = (state_q == S_FETCH) || (state_q == S_EXEC && is_load);
+    assign core_b     = run_q && dmem_req;
+    assign is_load_op = (imem_rdata[6:0] == OPCODE_LOAD);
+    assign mem_wait   = run_q && is_load_op && !load_phase_q;
+    assign dmem_rdata = b_dout;
 
     `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            state_q <= S_FETCH;
-            insn_q  <= '0;
-        end else if (!run_q) begin
-            state_q <= S_FETCH;
-        end else begin
-            case (state_q)
-                S_FETCH: state_q <= S_EXEC;
-                S_EXEC: begin
-                    insn_q  <= a_dout;
-                    state_q <= is_load ? S_LOAD : S_FETCH;
-                end
-                default: state_q <= S_FETCH;
-            endcase
-        end
+        if (`RST_ASSERTED(aresetn)) load_phase_q <= 1'b0;
+        else                        load_phase_q <= mem_wait;
     )
 
     // =========================================================================
@@ -279,14 +265,14 @@ module kestrel_mem_bram #(
     )
 
     // ---- read side: two stages (address -> block RAM -> holding register) ----
-    // Memory writes own port B in the cycle they fire, so AR is only accepted
-    // when no write fires.
+    // Port B takes one access per cycle: AR is accepted only when neither a
+    // loader write nor the core's load/store wants it.
     logic                       rd_wait_q, rd_full_q, rd_reg_q;
     logic [2:0]                 rd_sel_q;
     logic [AXIL_DATA_WIDTH-1:0] rd_data_q, reg_rdata;
     logic                       ar_fire;
 
-    assign fub_arready = !rd_wait_q && !rd_full_q && !ld_wr;
+    assign fub_arready = !rd_wait_q && !rd_full_q && !ld_wr && !core_b;
     assign ar_fire     = fub_arvalid && fub_arready;
     assign fub_rvalid  = rd_full_q;
     assign fub_rdata   = rd_data_q;
@@ -326,10 +312,17 @@ module kestrel_mem_bram #(
     )
 
     always_comb begin
-        b_en  = ld_wr || ar_fire;
-        b_we  = ld_wr ? fub_wstrb : 4'b0000;
-        b_din = fub_wdata;
-        b_idx = ld_wr ? wr_addr_q[IDX_W+1:2] : fub_araddr[IDX_W+1:2];
+        if (core_b) begin
+            b_en  = 1'b1;
+            b_we  = dmem_wstrb;
+            b_din = dmem_wdata;
+            b_idx = dmem_addr[IDX_W+1:2];
+        end else begin
+            b_en  = ld_wr || ar_fire;
+            b_we  = ld_wr ? fub_wstrb : 4'b0000;
+            b_din = fub_wdata;
+            b_idx = ld_wr ? wr_addr_q[IDX_W+1:2] : fub_araddr[IDX_W+1:2];
+        end
     end
 
     // =========================================================================

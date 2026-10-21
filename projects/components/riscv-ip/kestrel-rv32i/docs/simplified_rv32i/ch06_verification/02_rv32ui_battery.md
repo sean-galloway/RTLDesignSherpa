@@ -35,7 +35,7 @@ commit-log records, lockstep-checked as section 3 describes):
 | lhu | 313 | 5320 | PASS / lockstep ok |
 | lui | 100 | 5107 | PASS / lockstep ok |
 | lw | 318 | 5325 | PASS / lockstep ok |
-| ma_data | 415 | 5422 | PASS / lockstep ok |
+| ma_data | 76 | 5083 | PASS (expected halt: cause 4 at the first misaligned load) / lockstep ok |
 | or | 523 | 5530 | PASS / lockstep ok |
 | ori | 240 | 5247 | PASS / lockstep ok |
 | sb | 489 | 5496 | PASS / lockstep ok |
@@ -58,7 +58,8 @@ commit-log records, lockstep-checked as section 3 describes):
 | xori | 242 | 5249 | PASS / lockstep ok |
 
 : rv32ui battery at func level — 42/42 with lockstep; every test halts
-on ecall (cause 1) with gp = 1
+on ecall (cause 1) with gp = 1, except ma_data, whose expected halt is the
+misaligned load (cause 4)
 
 Gate level reruns simple, add, and addi — 3/3 pass, lockstep not
 applicable at that level by design.

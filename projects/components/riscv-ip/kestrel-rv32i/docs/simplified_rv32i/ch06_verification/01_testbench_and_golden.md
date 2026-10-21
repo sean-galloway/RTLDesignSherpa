@@ -36,7 +36,7 @@ stays raised, `rvfi_valid` stays low, `rvfi_pc_rdata` frozen.
 the same RVFI beat format as the core — one record per retired
 instruction, none for anything that doesn't retire, plus the halt state.
 Its memory model mirrors the core's conventions exactly: word-based,
-rotated-strobe stores, architectural two-word misaligned loads/stores,
+rotated-strobe stores, the cause-4/5 halt on a misaligned load/store,
 the CSR stub's zero writeback, MRET fall-through, FENCE NOPs, and the
 cause-3 halt with the misaligned target on `pc_wdata`. When the RTL and
 the model disagree, the diff is a named field at a named beat at a named

@@ -32,9 +32,10 @@ module kestrel_genesys2_top #(
     output logic [7:0]  led
 );
 
-    // 80 MHz: the single-cycle path (block-RAM output -> decode -> register
-    // write enable, 16 levels) misses 100 MHz by 0.43 ns post-route; it closes
-    // near 95 MHz, and 80 is the exact MMCM division that leaves margin.
+    // 80 MHz: closed with the first kestrel_mem_bram (fetch/exec/load
+    // sequencer), whose path (block-RAM output -> decode -> register write
+    // enable, 16 levels) missed 100 MHz by 0.43 ns post-route.  The
+    // next-PC-fetch wrapper (2026-10-20) has not been rebuilt here yet.
     localparam int FPGA_CLK_HZ = 80_000_000;
     localparam int UART_BAUD   = 115_200;
 
@@ -117,7 +118,7 @@ module kestrel_genesys2_top #(
     // -------------------------------------------------------------------------
     // kestrel behind the registered-read memory system
     // -------------------------------------------------------------------------
-    logic [31:0] imem_addr, imem_rdata, dmem_addr, dmem_rdata, dmem_wdata;
+    logic [31:0] imem_addr, imem_addr_next, imem_rdata, dmem_addr, dmem_rdata, dmem_wdata;
     logic        dmem_req, mem_wait, core_rst_n, halt, rvfi_valid;
     logic [3:0]  dmem_wstrb, halt_cause;
     logic [4:0]  rvfi_rd_addr;
@@ -135,7 +136,7 @@ module kestrel_genesys2_top #(
         .s_axil_arvalid(axil_arvalid), .s_axil_arready(axil_arready),
         .s_axil_rdata(axil_rdata), .s_axil_rresp(axil_rresp),
         .s_axil_rvalid(axil_rvalid), .s_axil_rready(axil_rready),
-        .imem_addr(imem_addr), .imem_rdata(imem_rdata),
+        .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),
         .dmem_req(dmem_req), .dmem_addr(dmem_addr), .dmem_rdata(dmem_rdata),
         .dmem_wstrb(dmem_wstrb), .dmem_wdata(dmem_wdata),
         .mem_wait(mem_wait), .core_rst_n(core_rst_n),
@@ -147,7 +148,7 @@ module kestrel_genesys2_top #(
         .RESET_ADDR(RESET_ADDR)
     ) u_core (
         .clk(clk), .rst_n(core_rst_n), .mem_wait(mem_wait),
-        .imem_addr(imem_addr), .imem_rdata(imem_rdata),
+        .imem_addr(imem_addr), .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),
         .dmem_req(dmem_req), .dmem_addr(dmem_addr), .dmem_rdata(dmem_rdata),
         .dmem_wstrb(dmem_wstrb), .dmem_wdata(dmem_wdata),
         .halt(halt), .halt_cause(halt_cause),

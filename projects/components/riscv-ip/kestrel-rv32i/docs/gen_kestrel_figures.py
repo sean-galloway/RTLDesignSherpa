@@ -3,7 +3,7 @@
 #
 # Regenerates the committed figures for the kestrel HAS/MAS docs:
 #   - kestrel_mas/assets/wavedrom/wvf_4_1_basic_cycle.png    (wavedrom-cli + inkscape)
-#   - kestrel_mas/assets/wavedrom/wvf_4_2_retry_sh3.png      (wavedrom-cli + inkscape)
+#   - kestrel_mas/assets/wavedrom/wvf_2_7_bram_load.png      (wavedrom-cli + inkscape)
 #   - copies: the falcon ladder from the simplified_rv32i book assets, and
 #     the title-page logos from docs/logos.
 # The block diagrams (system context, datapath, loader composition) are
@@ -56,22 +56,23 @@ WAVFOMS = [
         },
     ),
     (
-        MAS_WAV / "wvf_4_2_retry_sh3.json",
-        MAS_WAV / "wvf_4_2_retry_sh3.png",
+        MAS_WAV / "wvf_2_7_bram_load.json",
+        MAS_WAV / "wvf_2_7_bram_load.png",
         {
             "signal": [
-                {"name": "clk", "wave": "PPP"},
-                {"name": "", "wave": "222", "data": ["cycle n", "cycle n+1", "cycle n+2"]},
-                {"name": "pc", "wave": "===", "data": ["A4", "A4", "A4+4"]},
-                {"name": "dmem_req", "wave": "110"},
-                {"name": "dmem_we", "wave": "110"},
-                {"name": "dmem_addr", "wave": "==x", "data": ["W", "W+4"]},
-                {"name": "dmem_wstrb", "wave": "22x", "data": ["4'b1000", "4'b0001"]},
-                {"name": "ls_retry", "wave": "010"},
-                {"name": "rvfi_valid", "wave": "010"},
+                {"name": "clk", "wave": "PPPP"},
+                {"name": "", "wave": "2222", "data": ["cycle n", "cycle n+1", "cycle n+2", "cycle n+3"]},
+                {"name": "pc", "wave": "==.=", "data": ["A0", "A4", "A8"]},
+                {"name": "imem_addr_next", "wave": "=.==", "data": ["A4", "A8", "A12"]},
+                {"name": "imem_rdata", "wave": "==.=", "data": ["ADDI", "LW", "next"]},
+                {"name": "mem_wait", "wave": "010."},
+                {"name": "dmem_req", "wave": "01.0"},
+                {"name": "dmem_addr", "wave": "x=.x", "data": ["W"]},
+                {"name": "dmem_rdata", "wave": "x.=x", "data": ["mem[W]"]},
+                {"name": "rvfi_valid", "wave": "101."},
             ],
             "config": {"hscale": 2.4},
-            "head": {"text": "Cross-word store of a halfword at byte offset 3 (SH@3): beat 1 at cycle n, beat 2 at cycle n+1"},
+            "head": {"text": "Fetch at the next PC; LW waits one cycle"},
         },
     ),
 ]

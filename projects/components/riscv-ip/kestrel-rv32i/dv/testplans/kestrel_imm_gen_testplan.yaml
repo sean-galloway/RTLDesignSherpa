@@ -8,8 +8,9 @@ rtl_file: projects/components/riscv-ip/kestrel-rv32i/rtl/fub/kestrel_imm_gen.sv
 test_file: projects/components/riscv-ip/kestrel-rv32i/dv/tests/test_kestrel_decode.py
 
 # Module description:
-# RV32I immediate sign-extension unit: selects and assembles the I/S/B/U/J
-# immediates from the instruction word (imm_sel_e). I/S/B/J sign-extend from
+# RV32I immediate sign-extension unit: assembles the I/S/B/U/J immediates
+# in parallel from the instruction word and selects one by the major opcode
+# insn[6:2] (2026-10-20; previously by decode's imm_sel_e). I/S/B/J sign-extend from
 # insn[31]; B and J force LSB=0; U is not sign-extended (insn[31:12] << 12).
 
 parameters: []
@@ -23,7 +24,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [42]
+    covers_lines: [48, 62]
 
   - id: IG-02
     name: "S-format immediate, both signs"
@@ -33,7 +34,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [43, 44]
+    covers_lines: [49, 58]
 
   - id: IG-03
     name: "B-format immediate, both signs, LSB forced 0"
@@ -44,7 +45,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [46, 47, 48, 49, 50]
+    covers_lines: [50, 51, 59]
 
   - id: IG-04
     name: "U-format upper immediate"
@@ -54,7 +55,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [51]
+    covers_lines: [52, 60]
 
   - id: IG-05
     name: "J-format immediate, both signs, LSB forced 0"
@@ -65,7 +66,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [52, 53, 54, 55, 56]
+    covers_lines: [53, 54, 61]
 
   - id: IG-06
     name: "Randomized immediate sweep vs golden"

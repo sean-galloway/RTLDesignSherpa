@@ -35,7 +35,7 @@ The sections below follow the data in dependency order through a fully general c
 
 ## 2. Operands and Immediates
 
-The register file reads `rs1 = insn[19:15]` and `rs2 = insn[24:20]` combinationally; x0 reads zero because the file ties it. The immediate generator builds one of the five format immediates under `imm_sel`. Two muxes select the ALU inputs: `alu_src_a` is the PC (for AUIPC and branch targets) or `rs1_data`; `alu_src_b` is the immediate or `rs2_data`.
+The register file reads `rs1 = insn[19:15]` and `rs2 = insn[24:20]` combinationally; x0 reads zero because the file ties it. The immediate generator builds all five format immediates in parallel and picks one by the opcode alone. Two muxes select the ALU inputs: `alu_src_a` is the PC (for AUIPC and branch targets) or `rs1_data`; `alu_src_b` is the immediate or `rs2_data`.
 
 ## 3. Execute
 
@@ -43,15 +43,15 @@ The ALU computes one of ten operations. For branches, the dedicated comparator e
 
 ## 4. Memory Access
 
-For loads and stores, `dmem_addr` is the word-aligned ALU result (`{alu_y[31:2], 2'b00}` — or the next word on a retry beat), `dmem_wdata`/`dmem_wstrb` are the rotated store data and byte enables, and read data is rotated back before size/sign selection implements LB/LBU/LH/LHU/LW. Aligned and in-word-misaligned accesses complete in this one cycle; a cross-word access holds the PC for a retry cycle and issues a second beat (next section).
+For loads and stores, `dmem_addr` is the word-aligned ALU result (`{alu_y[31:2], 2'b00}`), `dmem_wdata`/`dmem_wstrb` are the store data and byte enables rotated by the offset `rs1_data[1:0] + imm[1:0]`, and read data is rotated back before size/sign selection implements LB/LBU/LH/LHU/LW. A naturally aligned access completes in this one cycle; a misaligned one halts and performs nothing (next section).
 
 ## 5. Writeback
 
-`rd_wdata` is selected by the five-row priority mux (CSR stub zero → LUI immediate → load data → link `pc+4` → ALU result); `rd_wen_eff = rd_wen & ~ls_first & ~halt` qualifies it; the write commits on the edge.
+`rd_wdata` is selected by the five-row priority mux (CSR stub zero → LUI immediate → load data → link `pc+4` → ALU result); `rd_wen_eff = rd_wen & ~halt & ~mem_wait` qualifies it; the write commits on the edge.
 
 ## 6. Next-PC Selection and the Edge
 
-The next-PC mux selects among JAL/JALR target, taken-branch target, and `pc + 4`. The PC register loads `next_pc` on the edge — unless `halt` (frozen) or `ls_first` (held for the retry beat). `rvfi_pc_wdata = next_pc` reports the architecturally next PC on the retire beat.
+The next-PC mux selects among JAL/JALR target, taken-branch target, and `pc + 4`. The PC register loads `next_pc` on the edge — unless `halt` (frozen) or `mem_wait` (held while a registered-read memory answers). The same value, `pc_d`, leaves the core as `imem_addr_next` for a block-RAM fetch port (Ch. 2.7). `rvfi_pc_wdata = next_pc` reports the architecturally next PC on the retire beat.
 
 ## The Basic Cycle on the Pins
 

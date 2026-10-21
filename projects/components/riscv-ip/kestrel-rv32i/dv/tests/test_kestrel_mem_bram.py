@@ -82,8 +82,8 @@ async def _registers(dut):
         assert (st["run"], st["halted"], st["cause"]) == (1, 1, golden.halt_cause), st
         assert st["instret"] == len(tb.trace), \
             f"INSTRET {st['instret']} != {len(tb.trace)} RVFI beats"
-        assert 2 * st["instret"] <= st["cycles"] <= 3 * st["instret"] + 8, \
-            f"CYCLES {st['cycles']} outside CPI 2..3 for {st['instret']} instructions"
+        assert st["instret"] <= st["cycles"] <= 2 * st["instret"] + 8, \
+            f"CYCLES {st['cycles']} outside CPI 1..2 for {st['instret']} instructions"
         assert await tb.axil_read(PROG_STORE_AXIL) == 0x123, "core store not visible"
         await tb.stop()
         await RisingEdge(dut.clk)
@@ -142,10 +142,13 @@ async def cocotb_test_kestrel_mem_bram_backpressure(dut):
     await _backpressure(dut)
 
 
+# (RESET_ADDR, MEM_WORDS).  The registers case borrows the loader test's
+# program, whose data sits at 0x10000 (the old loader's split map), so it
+# builds a 128 KB array; the others run the 16 KB default.
 CASES = {
-    "cocotb_test_kestrel_mem_bram_registers": 0x0000_0000,
-    "cocotb_test_kestrel_mem_bram_golden": LINK_BASE,
-    "cocotb_test_kestrel_mem_bram_backpressure": 0x0000_0000,
+    "cocotb_test_kestrel_mem_bram_registers": (0x0000_0000, 32768),
+    "cocotb_test_kestrel_mem_bram_golden": (LINK_BASE, 4096),
+    "cocotb_test_kestrel_mem_bram_backpressure": (0x0000_0000, 4096),
 }
 
 
@@ -175,7 +178,8 @@ def test_kestrel_mem_bram(request, cocotb_testcase, test_level, description):
                    "COCOTB_LOG_LEVEL": "INFO",
                    "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{name}.xml"),
                    **level_env(test_level)},
-        parameters={"RESET_ADDR": str(CASES[cocotb_testcase])},
+        parameters={"RESET_ADDR": str(CASES[cocotb_testcase][0]),
+                    "MEM_WORDS": str(CASES[cocotb_testcase][1])},
         waves=bool(int(os.environ.get("WAVES", "0"))),
         keep_files=True,
         compile_args=["--trace", "--trace-structs", "--trace-depth", "99",

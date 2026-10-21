@@ -78,6 +78,7 @@ module rvfi_wrapper (
         .rst_n          (~reset      ),
         .mem_wait       (mem_wait    ),
         .imem_addr      (imem_addr   ),
+        .imem_addr_next (),
         .imem_rdata     (imem_rdata  ),
         .dmem_req       (dmem_req    ),
         .dmem_addr      (dmem_addr   ),

@@ -31,15 +31,14 @@ module kestrel_nexysa7_top #(
     output logic [7:0]  led
 );
 
-    // 50 MHz: the single-cycle path (block-RAM output -> decode -> ALU ->
-    // register write, 15 levels) closes at 80 MHz on the Genesys 2's
-    // Kintex-7 -2; on this Artix-7 -1 it takes ~17.7 ns (62.5 MHz failed
-    // post-route at -1.70 ns), so 50 is the next exact MMCM division.
-    localparam int FPGA_CLK_HZ = 50_000_000;
+    // Harness clock = VCO 1000 MHz / CLK_DIV.  CLK_DIV is set from this
+    // part's measured timing (README "Board result").
+    localparam int CLK_DIV     = 16;
+    localparam int FPGA_CLK_HZ = 1_000_000_000 / CLK_DIV;
     localparam int UART_BAUD   = 115_200;
 
     // -------------------------------------------------------------------------
-    // 100 MHz -> MMCM -> 50 MHz (VCO 1000 MHz, CLKOUT0 / 20)
+    // 100 MHz -> MMCM -> harness clock (VCO 1000 MHz, CLKOUT0 / CLK_DIV)
     // -------------------------------------------------------------------------
     logic clk_unbuf, clk, clkfb, clkfb_buf, mmcm_locked;
 
@@ -48,7 +47,7 @@ module kestrel_nexysa7_top #(
         .CLKIN1_PERIOD     (10.000),
         .DIVCLK_DIVIDE     (1),
         .CLKFBOUT_MULT_F   (10.000),
-        .CLKOUT0_DIVIDE_F  (20.000),
+        .CLKOUT0_DIVIDE_F  (CLK_DIV),
         .CLKOUT0_DUTY_CYCLE(0.500),
         .CLKOUT0_PHASE     (0.000),
         .STARTUP_WAIT      ("FALSE")
@@ -115,7 +114,7 @@ module kestrel_nexysa7_top #(
     // -------------------------------------------------------------------------
     // kestrel behind the registered-read memory system
     // -------------------------------------------------------------------------
-    logic [31:0] imem_addr, imem_rdata, dmem_addr, dmem_rdata, dmem_wdata;
+    logic [31:0] imem_addr, imem_addr_next, imem_rdata, dmem_addr, dmem_rdata, dmem_wdata;
     logic        dmem_req, mem_wait, core_rst_n, halt, rvfi_valid;
     logic [3:0]  dmem_wstrb, halt_cause;
     logic [4:0]  rvfi_rd_addr;
@@ -133,7 +132,7 @@ module kestrel_nexysa7_top #(
         .s_axil_arvalid(axil_arvalid), .s_axil_arready(axil_arready),
         .s_axil_rdata(axil_rdata), .s_axil_rresp(axil_rresp),
         .s_axil_rvalid(axil_rvalid), .s_axil_rready(axil_rready),
-        .imem_addr(imem_addr), .imem_rdata(imem_rdata),
+        .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),
         .dmem_req(dmem_req), .dmem_addr(dmem_addr), .dmem_rdata(dmem_rdata),
         .dmem_wstrb(dmem_wstrb), .dmem_wdata(dmem_wdata),
         .mem_wait(mem_wait), .core_rst_n(core_rst_n),
@@ -145,7 +144,7 @@ module kestrel_nexysa7_top #(
         .RESET_ADDR(RESET_ADDR)
     ) u_core (
         .clk(clk), .rst_n(core_rst_n), .mem_wait(mem_wait),
-        .imem_addr(imem_addr), .imem_rdata(imem_rdata),
+        .imem_addr(imem_addr), .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),
         .dmem_req(dmem_req), .dmem_addr(dmem_addr), .dmem_rdata(dmem_rdata),
         .dmem_wstrb(dmem_wstrb), .dmem_wdata(dmem_wdata),
         .halt(halt), .halt_cause(halt_cause),

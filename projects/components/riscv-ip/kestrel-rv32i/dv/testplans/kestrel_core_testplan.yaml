@@ -1,7 +1,7 @@
 # Testplan for kestrel_core
 # Maps functional test scenarios to verification coverage (top level).
-# STATUS: all 18 scenarios verified -- ISA classes, branches/jumps (incl.
-# IALIGN halt), loads/stores (incl. cross-word retry), system layer, the
+# STATUS: all 19 scenarios verified -- ISA classes, branches/jumps (incl.
+# IALIGN halt), loads/stores (incl. the misaligned-access halts), system layer, the
 # rv32ui battery, spike lockstep, the CORE-17 constrained-random fuzz, and
 # CORE-18 functional-coverage closure (94.9% line, measured 2026-10-07).
 
@@ -18,11 +18,11 @@ test_files:
 # Module description:
 # Single-cycle RV32I core: PC register, decode truth table, immediate
 # generator, ALU, register file, writeback mux, next-PC mux, halt holding
-# register, and first-class RVFI retire ports. Loads/stores rotate byte
-# strobes; a cross-word access holds PC for one retry cycle and retires over
-# two beats (rvfi_valid low on the first). Decode halt causes 1/2/F latch the
-# halt register; a taken branch/jump/jalr to a non-4-aligned target raises
-# cause 3 (HALT_IALIGN). The halting instruction retires as an rvfi_trap
+# register, and first-class RVFI retire ports. Naturally aligned loads/stores
+# rotate byte strobes; a misaligned one halts with cause 4 (load) or 5
+# (store) and performs nothing (2026-10-20, replacing the cross-word retry).
+# Decode halt causes 1/2/F latch the halt register; a taken branch/jump/jalr
+# to a non-4-aligned target raises cause 3 (HALT_IALIGN). The halting instruction retires as an rvfi_trap
 # beat, then rvfi_valid stays low forever and the PC freezes.
 
 parameters:
@@ -140,12 +140,12 @@ functional_scenarios:
     covers_lines: [233, 258, 259, 261, 268, 269, 270, 271, 285]
 
   - id: CORE-10
-    name: "Cross-word L/S: PC-hold retry cycle and two-beat retire"
-    description: "ls_misaligned.hex and ls_chain.hex include sw/sh crossing
-                  a word boundary (offsets 1..3): the first beat must hold PC
-                  (rvfi_valid low), the retry beat issues at the next word
-                  with the head strobe/data, and the final assembled value
-                  (lw/lh/lhu readbacks) must equal golden."
+    name: "Lane rotation and the misaligned-access halts (causes 4/5)"
+    description: "ls_misaligned.hex rotates bytes through all four lanes and
+                  halves through both, then a misaligned lh must halt with
+                  cause 4 and write nothing, diffed full-field against
+                  golden (the store halt is CORE-19). Until 2026-10-20 this
+                  scenario covered the cross-word retry."
     test_function: "cocotb_test_kestrel_ls_misaligned"
     test_level: full
     priority: high
@@ -154,9 +154,8 @@ functional_scenarios:
 
   - id: CORE-11
     name: "Store-to-load dependency: single-cycle memory visibility"
-    description: "ls_chain.hex: a cross-word store immediately followed by
-                  the load of the same address must return the full assembled
-                  stored value — pinning that stores are visible to the very
+    description: "ls_chain.hex: a store immediately followed by the load of
+                  the same address must return the stored value — pinning that stores are visible to the very
                   next cycle's load (combinational-read memory contract)."
     test_function: "cocotb_test_kestrel_ls_chain"
     test_level: func
@@ -242,12 +241,13 @@ functional_scenarios:
                   fuzz_gen.py): weighted OP/OP-IMM/LUI/AUIPC mix, structured
                   forward branches, counted backward loops, jal/jalr calls to
                   generated leaf subroutines, and loads/stores of every size
-                  at random byte offsets -- deliberately misaligned, hitting
-                  the cross-word 2-cycle retry -- all confined to a fully
+                  at random naturally aligned offsets (misaligned accesses
+                  halt; the directed CORE-10 programs cover them) -- all
+                  confined to a fully
                   initialized 512-byte data region; every stream terminates
                   li gp,1; ecall.  Per stream the DUT trace is diffed
                   full-field against the golden interpreter and (pc, insn)
-                  lockstepped against spike (misaligned build) with the
+                  lockstepped against spike (pinned 1.1.0) with the
                   tohost exit-code check, at EVERY level (the fuzz subclass
                   widens the rv32ui battery's func-only lockstep gate): gate
                   = the committed 5-seed corpus (fuzz_seeds_gate.json),
@@ -285,6 +285,18 @@ functional_scenarios:
     priority: medium
     status: verified
 
+  - id: CORE-19
+    name: "Misaligned store halts with cause 5 and writes nothing"
+    description: "ls_misalign_store.hex: an aligned sw/lw pair, then a sw at
+                  a 2-byte offset must halt with cause 5 (HALT_SALIGN); the
+                  trap beat reports an empty write mask, diffed full-field
+                  against golden (added 2026-10-20 with the misaligned-access
+                  halt)."
+    test_function: "cocotb_test_kestrel_ls_misalign_store"
+    test_level: func
+    priority: high
+    status: verified
+
 parameter_coverage:
   - RESET_ADDR: 0x00000000
     test_level: full
@@ -297,18 +309,18 @@ parameter_coverage:
     status: verified
 
 implied_coverage:
-  total_scenarios: 18
-  scenario_tracked: 18
-  implied_covered: 18
+  total_scenarios: 19
+  scenario_tracked: 19
+  implied_covered: 19
   implied_percentage: 100.0
 
 notes: |
   Test tops: kestrel_tb_top (behavioral unified 64 Ki word memory, +imem
   plusarg load, tb_mem_* backdoor for the battery) and kestrel_loader_tb_top
-  (core behind kestrel_mem_loader). The RV32IInterpreter golden model
-  implements architectural misaligned L/S semantics so cross-word accesses
-  diff as one retired beat; the TB sampler skips the retry cycle and the
-  trace-length diff catches a missing retire.
+  (core behind kestrel_mem_loader). The RV32IInterpreter golden model halts
+  on a misaligned L/S exactly as the core does (causes 4/5) and reports
+  memory in the RISCV_FORMAL_ALIGNED_MEM convention; the TB sampler skips
+  mem_wait cycles and the trace-length diff catches a missing retire.
 
   Level semantics (REG_LEVEL grid from make/tests.mk): GATE runs one gate
   cell per case, FUNC adds the func cell, FULL adds the full cell. Scenario

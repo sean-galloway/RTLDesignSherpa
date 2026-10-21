@@ -25,7 +25,7 @@
 
 ## Purpose
 
-`kestrel_core` wires the four datapath leaves together and owns everything that is not a leaf: source muxes, the dedicated branch comparator, the next-PC mux, the writeback priority mux, the load/store rotation network with its retry state, the halt holding register, and the RVFI aggregation assigns. It is the only module in the core with architectural state besides the register file.
+`kestrel_core` wires the four datapath leaves together and owns everything that is not a leaf: source muxes, the dedicated branch comparator, the next-PC mux, the writeback priority mux, the load/store rotation network, the halt holding register, and the RVFI aggregation assigns. It is the only module in the core with architectural state besides the register file.
 
 ## Interface
 
@@ -35,7 +35,7 @@ Ports are specified exhaustively in the HAS (Chapter 4 there). Internally the to
 
 ### Fetch
 
-`imem_addr = pc` and `insn = imem_rdata` — fetch is a wire. The instruction is expected combinationally (the memory contract, HAS Ch. 4), or in the first cycle `mem_wait` is low: while the memory system holds `mem_wait` high, every state update in this chapter (PC, register write, halt latch, retry bits, retire counter) is suppressed, `rvfi_valid` is low and the combinational halt is masked (Ch. 2.7); `opcode = insn[6:0]` and `funct3 = insn[14:12]` fan out to decode and the L/S size/sign logic.
+`imem_addr = pc` and `insn = imem_rdata` — fetch is a wire. The instruction is expected combinationally (the memory contract, HAS Ch. 4), or, from a registered-read memory, fetched one clock early at `imem_addr_next` — the value the PC takes at the coming edge (`RESET_ADDR` in reset), so the word at `pc` is at the RAM output for the cycle that executes it (Ch. 2.7). While the memory system holds `mem_wait` high, every state update in this chapter (PC, register write, halt latch, retire counter) is suppressed, `rvfi_valid` is low and the combinational halt is masked; `opcode = insn[6:0]` and `funct3 = insn[14:12]` fan out to decode and the L/S size/sign logic.
 
 ### Source Muxes
 
@@ -55,7 +55,7 @@ Ports are specified exhaustively in the HAS (Chapter 4 there). Internally the to
 
 : Writeback priority mux
 
-The write enable is `rd_wen_eff = rd_wen & ~ls_first & ~halt`: decode's `rd_wen` qualified by the cross-word retry's first cycle (a partial word must not commit early) and by halt (the cause-3 halt retires JAL/JALR encodings whose decode `rd_wen` is set, so the gate is `halt` itself, not decode). The register file independently discards writes to x0.
+The write enable is `rd_wen_eff = rd_wen & ~halt & ~mem_wait`: decode's `rd_wen` qualified by halt (the cause-3 halt retires JAL/JALR encodings, and the cause-4 halt loads, whose decode `rd_wen` is set, so the gate is `halt` itself, not decode) and by the memory wait. The register file independently discards writes to x0.
 
 ### Next-PC Mux
 
@@ -75,21 +75,21 @@ In a single-cycle machine this parallel evaluation is free: both the ALU result 
 
 ### Load/Store Rotation Network
 
-The L/S datapath implements the hardware-misaligned policy (unpriv §2.1.6 permits hardware handling; the plan records it as a decision). For an access at byte offset `o = alu_y[1:0]` with size `s` bytes:
+Accesses are naturally aligned; a misaligned one halts (cause 4 load, 5 store, Ch. 4.2). For an access at byte offset `o` with size `s`:
 
-- **Size decode:** `dmem_size` (00 byte, 01 half, 10 word) → `ls_size_bytes` (1/2/4), `ls_size_mask` (`0001`/`0011`/`1111`), `ls_data_mask` (`0xFF`/`0xFFFF`/`0xFFFFFFFF`).
-- **Split arithmetic:** `ls_tail_size = 4 - o`; `ls_head_size = s - ls_tail_size`; `ls_crossing = ls_active & (o + s > 4)`; `ls_first = ls_crossing & ~ls_retry`; `ls_second = ls_retry`; `ls_single = ls_active & ~ls_crossing`.
-- **Address:** `dmem_addr = ls_second ? {alu_y[31:2] + 1, 2'b00} : {alu_y[31:2], 2'b00}` — beat 2 issues at the next word.
-- **Store rotation (the store rotator):** beat 1 writes `rs2_data << (8*o)` with strobe `ls_size_mask << o`; beat 2 writes `rs2_data >> (8*ls_tail_size)` with strobe `ls_head_strobe` (a head-size decode: 0/1/2/3/4 bytes → `0000`/`0001`/`0011`/`0111`/`1111`).
-- **Load rotation (the load rotator):** beat 1 captures `ls_rdata_lo <= dmem_rdata >> (8*o)`; beat 2 assembles `(dmem_rdata & ls_head_mask) << (8*ls_tail_size) | (ls_rdata_lo & ls_tail_mask)`. Single-beat loads use `(dmem_rdata >> (8*o)) & ls_data_mask`.
-- **Size/sign select:** `ls_load_data` from `ls_raw_rdata` per `funct3`: LB sign-extends from bit 7, LBU zero-extends, LH/LHU from bit 15, LW passes through.
+- **Offset:** `o = ls_offset = rs1_data[1:0] + imm[1:0]` — the address's low bits from their own two-bit add, so nothing below waits for the 32-bit ALU result.
+- **Size decode:** `funct3[1:0]` (00 byte, 01 half, 10 word) → `ls_size_mask` (`0001`/`0011`/`1111`) and `ls_data_mask` (`0xFF`/`0xFFFF`/`0xFFFFFFFF`).
+- **Misaligned test:** `ls_misalign = ls_active & (half ? o[0] : word ? (o != 0) : 0)`. It joins the halt causes; the store strobes are forced to zero.
+- **Address:** `dmem_addr = {alu_y[31:2], 2'b00}`.
+- **Store rotation:** `dmem_wdata = rs2_data << (8*o)`, `dmem_wstrb = ls_size_mask << o` (zero when misaligned or not a store).
+- **Load rotation and size/sign select:** `ls_rdata_shifted = dmem_rdata >> (8*o)`; LB sign-extends from bit 7, LBU zero-extends, LH/LHU from bit 15, LW passes `dmem_rdata` through.
 
-`dmem_wstrb = ls_store ? (ls_second ? ls_head_strobe : ls_size_mask << o) : 4'b0000`. Bytes that would rotate past bit 31 on beat 1 are dropped by construction — beat 2 carries them. Full cycle-level behavior and the waveform are in Chapter 4.
+`dmem_req` is decode's request qualified by the internal reset and by `halt_q`, so a frozen halting instruction never repeats an access.
 
 ### Halt and PC Registers
 
-The halt path (`halt_q`, `misalign_target`, `halt_cause_eff`, `halt_now`) and the PC register (`pc <= halt ? pc : (ls_first ? pc : next_pc)`) with the retry/merge/counter flops complete the state. Their behavior is specified in Chapter 4.
+The halt path (`halt_q`, `misalign_target`, `ls_misalign`, `halt_cause_eff`, `halt_now`) and the PC register (`pc <= pc_d`, `pc_d = (halt || mem_wait) ? pc : next_pc`, also driven out as `imem_addr_next`) with the retire counter complete the state. Their behavior is specified in Chapter 4.
 
 ---
 
-**Last Updated:** 2026-10-07
+**Last Updated:** 2026-10-20

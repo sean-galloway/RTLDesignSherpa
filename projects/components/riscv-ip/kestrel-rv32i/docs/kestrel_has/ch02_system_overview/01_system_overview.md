@@ -73,8 +73,8 @@ The loader holds the core in reset while `CTRL.run == 0`, takes the program imag
 | ISA | RV32I base integer, all 37 instructions (unpriv §2.1) |
 | Microarchitecture | Single-cycle; no pipeline, no FSM in the datapath |
 | Memory interface | Harvard: separate 32-bit fetch and data ports, combinational reads |
-| Misaligned data | Handled in hardware; cross-word accesses take a 2-cycle retry |
-| Exceptions | None delivered; four halt causes on `halt`/`halt_cause` ports |
+| Misaligned data | Halts (cause `0x4` load, `0x5` store); aligned accesses take one cycle |
+| Exceptions | None delivered; six halt causes on `halt`/`halt_cause` ports |
 | Observability | First-class RVFI retire channel (17 signals) plus halt ports |
 | Board support | Optional AXIL loader with 64 KB imem + 64 KB dmem and run control |
 | Configuration | One core parameter (`RESET_ADDR`); eight loader parameters |
