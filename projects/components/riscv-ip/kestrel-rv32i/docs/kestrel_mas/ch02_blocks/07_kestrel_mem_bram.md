@@ -134,5 +134,5 @@ Setting `run` from 0 clears halted, cause and the counters.
   read. A wrapper mutant (no load wait) fails 11 of the 42 images.
 - `formal/kestrel/riscv-formal`: every check with `mem_wait` driven freely
   (bounded to two consecutive waits).
-- On the boards: `projects/fpga-systems/{Genesys2,NexysA7}/riscv-ip/kestrel`,
+- On the board: `projects/fpga-systems/NexysA7/riscv-ip/kestrel`,
   the same host programs over UART in sim and on the board.

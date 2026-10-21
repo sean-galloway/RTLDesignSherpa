@@ -4,9 +4,8 @@
 """host_kestrel.py -- host CLI for the kestrel build-bram bitstream (`make host-kestrel ARGS=...`).
 
 Thin front end over kestrel_board.KestrelBoard and the authored-once programs
-in kestrel_programs.py, both in the Genesys 2 area's bin/ (board-independent:
-the memory map and programs are the same on every board) -- the SAME programs
-the cocotb UART sim runs.
+in kestrel_programs.py, both in this area's bin/ -- the SAME programs the
+cocotb UART sim (dv/tests/test_kestrel_board_uart.py) runs.
 
     make host-kestrel                          # smoke, then the full rv32ui battery
     make host-kestrel ARGS="--tests add,lw"    # a subset of the battery
@@ -15,7 +14,7 @@ import argparse
 import sys
 from pathlib import Path
 
-_BIN = Path(__file__).resolve().parents[5] / "Genesys2" / "riscv-ip" / "kestrel" / "bin"
+_BIN = Path(__file__).resolve().parents[2] / "bin"
 sys.path.insert(0, str(_BIN))
 import kestrel_board as kb          # noqa: E402
 import kestrel_programs as progs    # noqa: E402

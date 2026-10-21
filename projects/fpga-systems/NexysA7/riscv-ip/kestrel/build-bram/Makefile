@@ -24,7 +24,9 @@ ifeq ($(filter $(IMPL),default explore),)
   $(error IMPL must be default or explore, got '$(IMPL)')
 endif
 
-# The UART-equivalence sim lives with the Genesys 2 build (same bridge, memory
-# system and core; only the board clock differs) -- run it there.
+# UART-equivalence cocotb sim: the REAL uart_axil_bridge + kestrel_mem_bram +
+# core driving the UNMODIFIED host programs (../bin/kestrel_programs.py).
+SIM_TESTS := $(SELF_DIR)/../dv/tests
+SEQ_DIR   := $(SELF_DIR)/../bin
 
 include $(RDS_ROOT)/make/fpga_flow.mk

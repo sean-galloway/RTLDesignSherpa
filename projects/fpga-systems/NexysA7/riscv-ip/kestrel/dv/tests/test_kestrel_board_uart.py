@@ -24,7 +24,7 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 
 _REPO = os.environ["REPO_ROOT"]
-_AREA = os.path.join(_REPO, "projects/fpga-systems/Genesys2/riscv-ip/kestrel")
+_AREA = os.path.join(_REPO, "projects/fpga-systems/NexysA7/riscv-ip/kestrel")
 _BIN = os.path.join(_AREA, "bin")
 _FPGA_BIN = os.path.join(_REPO, "projects/fpga-systems/bin")
 for _p in (_BIN, _FPGA_BIN):
@@ -77,7 +77,7 @@ def test_kestrel_board_uart(request, program):
                           os.path.join(repo_root, "projects/components/riscv-ip/kestrel-rv32i"))
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
-        filelist_path="projects/fpga-systems/Genesys2/riscv-ip/kestrel/dv/filelists/kestrel_uart_tb_top.f")
+        filelist_path="projects/fpga-systems/NexysA7/riscv-ip/kestrel/dv/filelists/kestrel_uart_tb_top.f")
     name = f"kestrel_board_uart_{program}"
     sim_build = sim_build_path(tests_dir, "kestrel_board_uart")   # one build, every cell
     os.makedirs(sim_build, exist_ok=True)

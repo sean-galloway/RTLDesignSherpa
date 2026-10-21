@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Host programs for kestrel on the Genesys 2, authored ONCE.
+"""Host programs for kestrel on the Nexys A7, authored ONCE.
 
 The board host (build-bram/host/host_kestrel.py) and the cocotb UART sim
 (dv/tests/test_kestrel_board_uart.py) run these same functions; only the

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""Host-side driver for kestrel on the Genesys 2 (kestrel_genesys2_top).
+"""Host-side driver for kestrel on the Nexys A7 (kestrel_nexysa7_top).
 
 Wraps `UARTAxiBridge` (projects/fpga-systems/bin) around kestrel_mem_bram's
 AXIL map. The register names below mirror the map in the RTL header

@@ -2,28 +2,43 @@
 
 The kestrel RV32I core
 ([`projects/components/riscv-ip/kestrel-rv32i`](../../../../components/riscv-ip/kestrel-rv32i/))
-on the Nexys A7, behind **block RAM**. It is the same design as the
-[Genesys 2 build](../../../Genesys2/riscv-ip/kestrel/README.md): the
-`kestrel_mem_bram` memory system (16 KB, registered read; port A fetches at
-the core's next PC, a load waits one cycle on port B), the UART loader and
-the run/status registers. Only the board top differs: the clock and the
-pins.
+on the Nexys A7, behind **block RAM**. This is kestrel's only board build.
 
-The host driver and programs are board-independent and live in the Genesys 2
-area's `bin/` (`kestrel_board.py`, `kestrel_programs.py`); `host_kestrel.py`
-here imports them from there. The UART-equivalence sim runs in that area too,
-since it exercises the same bridge, memory system and core.
+kestrel is single-cycle and its memory contract was combinational reads. A
+board-sized memory wants block RAM, whose read is registered, so this build
+uses `kestrel_mem_bram`: one unified true-dual-port array (16 KB by
+default). Port A fetches at the core's next PC (`imem_addr_next`), so the
+RAM's output register acts as the instruction register and an instruction
+takes one clock; a load holds the core with `mem_wait` for one more while
+port B reads. The core holds all state while `mem_wait` is high, so the ISA
+is untouched -- riscv-formal proves all 42 checks with `mem_wait` driven
+freely (bounded to two consecutive waits), and the rv32ui battery passes
+42/42 through this memory path with spike lockstep (`ma_data` is an expected
+halt: kestrel halts on misaligned loads/stores, cause 4/5).
+
+The second port is the UART loader: write an image in load mode, set
+`CTRL.run`, poll the status (halted, cause, cycles, instret, and the last
+value written to gp -- the riscv-tests verdict, since kestrel halts on the
+final ecall).
+
+A Genesys 2 build of the first wrapper (80 MHz, CPI 2-3) also existed. It
+was removed on 2026-10-21 (owner) so kestrel has one board area; its host
+driver, programs and UART cosim moved here unchanged, and git history keeps
+the rest.
 
 | Path | What |
 |---|---|
 | `rtl/kestrel_nexysa7_top.sv` | board top: 100 MHz -> MMCM -> 75 MHz (VCO 900 / 12), UART -> AXI4-Lite, kestrel_mem_bram, kestrel_core, LEDs |
 | `build-bram/` | the build (Vivado tcl, constraints, host CLI) |
+| `bin/kestrel_board.py`, `bin/kestrel_programs.py` | host driver + programs, the SAME code in sim and on the board |
+| `dv/tests/test_kestrel_board_uart.py` | UART-equivalence sim: the programs over the real bridge RTL |
 
 ```sh
+make sim                  # the UART-equivalence sim
 make lint
 make bitstream            # IMPL=default: Vivado defaults instead of the explore flow
 make program
-make host-kestrel        # smoke, then the full rv32ui battery
+make host-kestrel         # smoke, then the full rv32ui battery
 ```
 
 LEDs: 0 run, 1 halted, 2 halted on ecall, 3 MMCM locked, 5/6 UART activity,

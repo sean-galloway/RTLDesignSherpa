@@ -600,15 +600,6 @@ filelist_dirs = [
 ]
 
 [[area]]
-name = "genesys2_kestrel"
-kind = "board"
-rtl_roots = []
-filelist_dirs = [
-    "projects/fpga-systems/Genesys2/riscv-ip/kestrel/build-bram/rtl/filelists",
-    "projects/fpga-systems/Genesys2/riscv-ip/kestrel/dv/filelists",
-]
-
-[[area]]
 name = "nexysa7_alu_infer"
 kind = "board"
 rtl_roots = []
@@ -618,4 +609,7 @@ filelist_dirs = ["projects/fpga-systems/NexysA7/compute-eng-ip/alu-infer/build-i
 name = "nexysa7_kestrel"
 kind = "board"
 rtl_roots = []
-filelist_dirs = ["projects/fpga-systems/NexysA7/riscv-ip/kestrel/build-bram/rtl/filelists"]
+filelist_dirs = [
+    "projects/fpga-systems/NexysA7/riscv-ip/kestrel/build-bram/rtl/filelists",
+    "projects/fpga-systems/NexysA7/riscv-ip/kestrel/dv/filelists",
+]
