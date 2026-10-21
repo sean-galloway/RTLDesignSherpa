@@ -17,6 +17,7 @@ RDS-DV BFM testbench in `alu-infer/dv/` (own component area since
 | [TASK-004](task/closed/TASK-004.md) | int8 x4-lane element width (func_sel[8:7], open item M6) |
 | [TASK-005](task/closed/TASK-005.md) | fp32 single-lane element width (func_sel[8:7], open item M6) |
 | [TASK-007](task/open/TASK-007.md) | Close M1-M8 numeric-policy open items at FPGA bring-up |
+| [TASK-010](task/open/TASK-010.md) | Make the accumulate row close at a real FPGA clock (50 MHz failed by -128 ns) |
 
 ## Closed
 

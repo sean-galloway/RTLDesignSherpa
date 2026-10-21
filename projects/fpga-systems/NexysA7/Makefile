@@ -54,6 +54,7 @@ CLEAN_DIRS = $(CLEAN_ALL_DIRS) $(CLEAN_ONLY_DIRS)
 # the Genesys2 harness tree, so they hold no build artifacts and are not
 # listed; the pre-reorg `reed-solomon` path they replace did not exist.
 STATUS_ROOTS = \
+    compute-eng-ip/alu-infer \
     misc-ip/cdc_counter_display \
     riscv-ip/kestrel \
     mem-ctrl-ip-ddr2
