@@ -55,6 +55,22 @@ test('launcher tiles point at existing app directories', function () {
   };
   var apps = require(path.join(root, 'js', 'apps.js'));
   apps.forEach(function (a) {
+    if (a.href === 'articles/') {
+      // articles/ is generated content (articles/build_articles.py runs in
+      // the deploy job), not a staged bin/apps dir: check the source exists.
+      var src = path.join(root, '..', '..', '..', 'articles');
+      if (!fs.existsSync(path.join(src, 'build_articles.py'))) {
+        throw new Error('articles/ has no build_articles.py (the deploy ' +
+          'job runs it into _site/articles/)');
+      }
+      var mds = fs.readdirSync(src).filter(function (f) {
+        return f.endsWith('.md') && f !== 'README.md';
+      });
+      if (mds.length === 0) {
+        throw new Error('articles/ has no article .md files to publish');
+      }
+      return;
+    }
     var repoDir = STAGED[a.href];
     if (!repoDir) {
       throw new Error('tile ' + a.id + ' -> ' + a.href +

@@ -1,11 +1,15 @@
-name: apps pages
+name: site pages
 
-# Test-then-deploy for the RTLDesignSherpa static app site. Stages a site
-# directory: the root launcher (bin/apps/launcher) at /, and each app at its
+# Test-then-deploy for the RTLDesignSherpa static site. Stages a site
+# directory: the root launcher (bin/apps/launcher) at /, each app at its
 # tile href (ddr_drills at /ddr_drills/, fifo_depth at /fifo/, the seven
-# RTL-drills apps at /<dir>/). Every app's node suite gates the deploy: the
-# suites require() the same js bytes the browsers load, so a green test job
-# means the deploy cannot publish broken math or a malformed pack.
+# RTL-drills apps at /<dir>/), and the long-form articles at /articles/
+# (built from articles/*.md by articles/build_articles.py: one HTML page
+# per article, an index, and feed.xml for Medium/DEV.to import). Every
+# app's node suite gates the deploy: the suites require() the same js bytes
+# the browsers load, so a green test job means the deploy cannot publish
+# broken math or a malformed pack. The articles job likewise builds with
+# --check, so a malformed article blocks the deploy.
 #
 # ONE-TIME MANUAL STEP (done): repo Settings -> Pages -> Source = "GitHub
 # Actions". No gh-pages branch is used; the artifact is uploaded directly.
@@ -15,6 +19,7 @@ on:
     branches: [main]
     paths:
       - 'bin/apps/**'
+      - 'articles/**'
       - '.github/workflows/pages-ddr-drills.yml'
   workflow_dispatch:
 
@@ -67,8 +72,21 @@ jobs:
       - name: cache_sim suite
         run: node bin/apps/cache_sim/test/run_tests.js
 
+  articles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: build + validate articles (strict)
+        run: |
+          pip install markdown==3.9
+          python3 articles/build_articles.py --check /tmp/articles_check
+
   deploy:
-    needs: test
+    needs: [test, articles]
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -78,6 +96,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - uses: actions/configure-pages@v5
 
       - name: Stage site directory
@@ -96,6 +117,8 @@ jobs:
           cp -r bin/apps/cdc_drill/* _site/cdc_drill/
           cp -r bin/apps/crc_calc/* _site/crc_calc/
           cp -r bin/apps/cache_sim/* _site/cache_sim/
+          pip install markdown==3.9
+          python3 articles/build_articles.py _site
 
       - uses: actions/upload-pages-artifact@v3
         with:

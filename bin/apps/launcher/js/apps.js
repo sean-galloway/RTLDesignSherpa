@@ -54,6 +54,12 @@ var LAUNCHER_APPS = [
     name: 'Cache Simulator',
     href: 'cache_sim/',
     blurb: 'Trace-driven cache simulator: sets/ways/block size, LRU/FIFO/RANDOM replacement, and the compulsory/capacity/conflict miss split'
+  },
+  {
+    id: 'articles',
+    name: 'Articles',
+    href: 'articles/',
+    blurb: 'Long-form RDS writing: monitors, memory controllers, methodology -- canonical home for the Medium/DEV.to cross-posts'
   }
 ];
 
