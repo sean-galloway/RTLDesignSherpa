@@ -38,6 +38,17 @@ error - it produces a pass you will trust and should not.
 Skipping it saves a couple of minutes. Being wrong about whether the design
 works costs hours, and costs them later, usually on the board.
 
+**In a generated-bridge test directory, `clean-all` also deletes sources.**
+The per-bridge Makefiles (e.g. STREAM's `rtl/bridges/dv/tests`) define
+`clean-all = clean + clean-rtl + clean-tests`: the bridge's generated RTL, TB
+class, test file and filelist go too, and only `make run` / `make tests`
+regenerates them. `make clean-all` followed by a raw `pytest` therefore runs
+the *other* test files and reports green (2026-10-21: "6 passed" with
+`test_bridge_stream_char_axil.py` gone, and the deletion swept into a commit).
+There, follow `clean-all` with the Makefile's own run target, or use `make
+clean` and keep the generated files; then check `git status` for `D` lines
+before committing.
+
 ## Running it is not the same as it working
 
 `make clean-all` **aborts** when `REPO_ROOT` is unset:
