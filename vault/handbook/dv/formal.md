@@ -473,3 +473,11 @@ counterexample. Every switched unit was mutation-checked first (one
 inverted property, which must FAIL). Not every proof yields: amber
 `amber_control` (depth 126) stalls near step 45 on yices and abc bmc3
 too, and `abc pdr` (run with the task in `mode prove`) found no proof in 2 h.*
+
+*Later that day, riscv-formal on kestrel: removing the register file's reset
+(an unconstrained initial array) left z3 on `liveness` (depth 30) for over
+30 min where the whole 42-check suite had taken 8; `solver bitwuzla` in
+`checks.cfg` runs all 42 in about 3 s. Mutation-check the *observable*
+kind: a write the core makes on its own halting cycle is invisible to every
+RVFI check (nothing retires after a halt), so that mutant passes and proves
+nothing -- dropping `~mem_wait` from the write gate fails `reg`.*

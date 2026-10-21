@@ -33,12 +33,12 @@ testplan convention so the same coverage rollup applies
 | Testplan | Module | Test file(s) | Scenarios | Verified | Not impl. |
 |----------|--------|--------------|----------:|---------:|----------:|
 | `kestrel_regfile_testplan.yaml` | kestrel_regfile.sv | test_kestrel_regfile.py | 5 | 5 | 0 |
-| `kestrel_alu_testplan.yaml` | kestrel_alu.sv | test_kestrel_decode.py | 5 | 5 | 0 |
+| `kestrel_alu_testplan.yaml` | kestrel_alu.sv | test_kestrel_decode.py | 6 | 6 | 0 |
 | `kestrel_imm_gen_testplan.yaml` | kestrel_imm_gen.sv | test_kestrel_decode.py | 6 | 6 | 0 |
 | `kestrel_decode_testplan.yaml` | kestrel_decode.sv | test_kestrel_decode.py | 12 | 12 | 0 |
 | `kestrel_mem_loader_testplan.yaml` | kestrel_mem_loader.sv | test_kestrel_mem_loader.py | 9 | 9 | 0 |
 | `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader,fuzz}.py | 19 | 18 | 1 |
-| **Total** | | | **56** | **55** | **1** |
+| **Total** | | | **57** | **56** | **1** |
 
 Not-implemented scenarios and why:
 
@@ -127,9 +127,23 @@ the pumice house: these YAMLs carry no `coverage_points` blocks, so the
 tool has no cover data to score. The scenario-level rollup for kestrel is
 each YAML's `implied_coverage` block: `scenario_tracked` counts
 `status: verified` scenarios and `implied_percentage = tracked /
-total_scenarios`. Per-scenario `covers_lines` attribution from Verilator
-`.dat` files is the pumice `update_testplan_coverage.py` workflow and is
-deliberately not wired in kestrel yet (CORE-18 owns the cover model).
+total_scenarios`. Per-scenario `covers_lines` are generated from the
+Verilator `.dat` files by `update_covers_lines.py` (2026-10-20): each
+scenario gets the lines of its plan's `rtl_file` that its test's cells
+(all levels) covered, so scenarios sharing a test share a list.  Refresh
+them after any RTL change, then check with the repo verifier:
+
+```bash
+make clean-all && COVERAGE=1 make run-all-full-parallel && make coverage-report
+python3 ../testplans/update_covers_lines.py kestrel_core_testplan.yaml   # ... each plan
+python3 ../../../../../../bin/cov_utils/verify_testplan_coverage.py \
+    ../testplans/kestrel_core_testplan.yaml coverage_data/merged/latest_merged_coverage.dat
+```
+
+Last run 2026-10-20: all six plans, 56/56 line-anchored scenarios fully
+verified (CORE-18 is the coverage flow itself and carries no lines).  The
+hand-written anchors this replaced had drifted: ML-02 matched 0 of its 10
+lines, and the core plan's pointed at code that had moved.
 
 ## Running the tests
 
@@ -158,15 +172,27 @@ COVERAGE=1 make run-all-full
 make coverage-report
 ```
 
-Measured 2026-10-07 across all 60 cells (including the CORE-17 fuzz at
-full level, 200 streams):
+Measured 2026-10-20 across all 75 cells (including the CORE-17 fuzz at
+full level, 200 streams, and the USE_DSP=1 ALU cells), from `make clean-all`:
 
 | Metric | Result | House target | Status |
 |---|---|---|---|
-| Line (Verilator) | 94.9% | 80% | PASS |
-| Line — kestrel_core | 100.0% | — | — |
-| Line — kestrel_decode | 95.0% | — | — |
-| Line — kestrel_mem_loader | 90.1% | — | — |
+| Line (Verilator) | 96.5% | 80% | PASS |
+| Line — kestrel_alu | 93.3% | — | — |
+| Line — kestrel_alu_dsp | 100.0% | — | — |
+| Line — kestrel_bram_tb_top | 97.6% | — | — |
+| Line — kestrel_core | 96.6% | — | — |
+| Line — kestrel_decode | 90.0% | — | — |
+| Line — kestrel_imm_gen | 100.0% | — | — |
+| Line — kestrel_loader_tb_top | 98.0% | — | — |
+| Line — kestrel_mem_bram | 93.1% | — | — |
+| Line — kestrel_mem_loader | 98.6% | — | — |
+| Line — kestrel_regfile | 100.0% | — | — |
+| Line — kestrel_tb_top | 100.0% | — | — |
+
+The lines still at zero are by design: the AXI `prot`/`resp` buses that
+never toggle (`resp` is always OKAY, `prot` is ignored) and decode's
+unreachable default arms.
 
 Toggle collection is enabled (`--coverage-toggle`); the house
 `merge_testlevel_coverage.py` report tracks line only — toggle numbers

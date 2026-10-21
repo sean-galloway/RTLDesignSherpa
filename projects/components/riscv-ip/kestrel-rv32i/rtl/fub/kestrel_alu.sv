@@ -12,10 +12,20 @@
 //
 // Author: sean galloway
 // Created: 2026-10-06
+//
+// Notes:
+//   - USE_DSP (default 0): 1 builds the add/subtract row in kestrel_alu_dsp,
+//     one DSP48E1 post-adder, instead of a CARRY4 chain.  Bitwise, shift and
+//     set-less-than rows stay in fabric (Vivado will not infer the DSP's
+//     logic unit from a case that mixes them in; see kestrel_alu_dsp).  The attribute affects
+//     synthesis only: simulation, lint and formal see the same logic for
+//     both settings.
 
 `timescale 1ns / 1ps
 
-module kestrel_alu (
+module kestrel_alu #(
+    parameter bit USE_DSP = 1'b0
+) (
     input  kestrel_pkg::alu_op_e op,
     input  logic [31:0]          a,
     input  logic [31:0]          b,
@@ -42,10 +52,22 @@ module kestrel_alu (
     assign lt  = (a_signed < b_signed);
     assign ltu = (a < b);
 
+    // The add/sub row.  With USE_DSP it is kestrel_alu_dsp: one DSP48E1
+    // post-adder (module-level use_dsp; Vivado maps a lone add/sub, but not
+    // a case that also selects the bitwise rows, which stay in fabric).
+    logic [31:0] y_addsub;
+
+    generate
+        if (USE_DSP) begin : g_dsp
+            kestrel_alu_dsp u_dsp (.sub(op == SUB), .a(a), .b(b), .y(y_addsub));
+        end else begin : g_fabric
+            assign y_addsub = (op == SUB) ? (a - b) : (a + b);
+        end
+    endgenerate
+
     always_comb begin
         unique case (op)
-            ADD:  y = a + b;
-            SUB:  y = a - b;
+            ADD, SUB: y = y_addsub;
             AND:  y = a & b;
             OR:   y = a | b;
             XOR:  y = a ^ b;

@@ -55,7 +55,7 @@ Ports are specified exhaustively in the HAS (Chapter 4 there). Internally the to
 
 : Writeback priority mux
 
-The write enable is `rd_wen_eff = rd_wen & ~halt & ~mem_wait`: decode's `rd_wen` qualified by halt (the cause-3 halt retires JAL/JALR encodings, and the cause-4 halt loads, whose decode `rd_wen` is set, so the gate is `halt` itself, not decode) and by the memory wait. The register file independently discards writes to x0.
+The write enable is `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign`: decode's `rd_wen` qualified by the held halt, the memory wait, and the two halts an rd-writing instruction can raise (a misaligned JAL/JALR target, cause 3, and a misaligned load, cause 4). Decode sets `rd_wen` on none of its own halt rows and branches never write rd, so this equals gating with `halt` while keeping the branch comparator off the write-enable path (2026-10-20, the A7 critical path). The register file independently discards writes to x0.
 
 ### Next-PC Mux
 

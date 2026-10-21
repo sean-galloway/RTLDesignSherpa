@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Hardware Architecture Specification
 
 **Document Number:** KESTREL-HAS-001
-**Version:** 0.5
+**Version:** 0.15
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -91,10 +91,11 @@ This document does not describe the internal microarchitecture. Block internals,
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-07 | seang | Initial HAS release; documents the as-built RTL (Tasks 1-11) including the Task-9 IALIGN halt and the Task-11 AXIL board loader |
-| 0.2 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
-| 0.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
-| 0.4 | 2026-10-20 | seang | Memory contract: registered-read memories may hold the core with the new `mem_wait` input (owner, 2026-10-20); port table and timing rules updated. Combinational memories tie it low and see the unchanged single-cycle core. |
-| 0.5 | 2026-10-20 | seang | Misaligned loads/stores halt (causes `0x4`/`0x5`) instead of completing in hardware; the cross-word retry is removed and RVFI memory fields follow `RISCV_FORMAL_ALIGNED_MEM`. New output `imem_addr_next` lets a registered-read memory fetch at the next PC (block-RAM CPI 1, 2 for a load). Performance chapter updated, including the register file (flops, not distributed RAM). |
+| 0.11 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.12 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.13 | 2026-10-20 | seang | Memory contract: registered-read memories may hold the core with the new `mem_wait` input (owner, 2026-10-20); port table and timing rules updated. Combinational memories tie it low and see the unchanged single-cycle core. |
+| 0.14 | 2026-10-20 | seang | Misaligned loads/stores halt (causes `0x4`/`0x5`) instead of completing in hardware; the cross-word retry is removed and RVFI memory fields follow `RISCV_FORMAL_ALIGNED_MEM`. New output `imem_addr_next` lets a registered-read memory fetch at the next PC (block-RAM CPI 1, 2 for a load). Performance chapter updated, including the register file (flops, not distributed RAM). |
+| 0.15 | 2026-10-20 | seang | x1-x31 have no reset value (the register file has no reset; software initializes what it reads). Writeback-gate wording updated. Revisions renumbered (owner: at most 0.25 until running well): 0.2-0.5 became 0.11-0.14. |
 
 : Document Revision History
 

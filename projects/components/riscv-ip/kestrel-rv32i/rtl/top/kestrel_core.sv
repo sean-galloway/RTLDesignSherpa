@@ -69,7 +69,8 @@
 `include "reset_defs.svh"
 
 module kestrel_core #(
-    parameter logic [31:0] RESET_ADDR = 32'h0000_0000
+    parameter logic [31:0] RESET_ADDR  = 32'h0000_0000,
+    parameter bit          ALU_USE_DSP = 1'b0   // kestrel_alu USE_DSP (synthesis only)
 ) (
     input  logic        clk,
     input  logic        rst_n,
@@ -141,6 +142,7 @@ module kestrel_core #(
     logic [31:0] pc;
     logic [31:0] pc_d;
     logic        halt_q;
+    logic        misalign_link;     // JAL/JALR to a non-4-aligned target
     logic [31:0] next_pc;
     logic [63:0] retire_count;
 
@@ -200,7 +202,6 @@ module kestrel_core #(
 
     kestrel_regfile u_regfile (
         .clk      (clk),
-        .rst_n    (w_aresetn),
         .rs1_addr (insn[19:15]),
         .rs1_data (rs1_data),
         .rs2_addr (insn[24:20]),
@@ -223,7 +224,9 @@ module kestrel_core #(
     // comparator below (Task 4 review ruling, SDD ledger).
     logic [31:0] alu_y;
 
-    kestrel_alu u_alu (
+    kestrel_alu #(
+        .USE_DSP (ALU_USE_DSP)
+    ) u_alu (
         .op  (alu_op),
         .a   (alu_src_a),
         .b   (alu_src_b),
@@ -294,10 +297,15 @@ module kestrel_core #(
     // assembled/sign-extended data; JAL/JALR write pc+4; CSR-stubbed SYSTEM
     // instructions write a hard zero (no CSR state exists); everything else
     // uses the ALU result.  The register-file write is suppressed whenever
-    // halt is raised or held (Task 9: the misaligned control-flow halt has
-    // decode rd_wen set for JAL/JALR, and a misaligned load sets it too, so
-    // the gate is the halt itself, not decode's rd_wen).
-    assign rd_wen_eff = rd_wen & ~halt & ~mem_wait;
+    // halt is held, while the memories wait, and on the two halts an
+    // rd-writing instruction can raise: a misaligned JAL/JALR target (Task
+    // 9) and a misaligned load.  The other halt sources never write rd --
+    // decode sets rd_wen on none of its halt rows and branches have none --
+    // so the gate leaves them (and the branch comparator behind a taken
+    // misaligned branch) off this path; it is equivalent to gating with
+    // `halt` (2026-10-20: that was the A7 critical path, register read ->
+    // branch compare -> IALIGN halt -> register write enable).
+    assign rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign;
     assign rd_wdata   = csr_stub              ? 32'd0        :
                         (opcode == OPCODE_LUI) ? imm          :
                         ls_load                ? ls_load_data :
@@ -357,12 +365,21 @@ module kestrel_core #(
     // via `halt`, same PC freeze.  Decode never sets rd_wen on its own
     // halt causes, but JAL/JALR do, which is why the writeback gate uses
     // `halt` and not decode's rd_wen.
+    // The target's low two bits come from their own two-bit adds, not from
+    // the 32-bit next-PC adders: pc + imm for JAL and branches, (rs1 + imm)
+    // with bit 0 cleared for JALR.
     logic       misalign_target;
+    logic       misalign_branch;
+    logic [1:0] tgt_lo_pc;
+    logic [1:0] tgt_lo_jalr;
     logic [3:0] halt_cause_eff;
     logic       halt_now;
 
-    assign misalign_target = (jump | jalr | branch_taken)
-                           & (next_pc[1:0] != 2'b00);
+    assign tgt_lo_pc       = pc[1:0] + imm[1:0];
+    assign tgt_lo_jalr     = (rs1_data[1:0] + imm[1:0]) & 2'b10;
+    assign misalign_link   = (jump & (tgt_lo_pc != 2'b00)) | (jalr & (tgt_lo_jalr != 2'b00));
+    assign misalign_branch = branch_taken & (tgt_lo_pc != 2'b00);
+    assign misalign_target = misalign_link | misalign_branch;
     assign halt_cause_eff  = dec_halt_cause
                            | (misalign_target ? HALT_IALIGN : HALT_NONE)
                            | (ls_misalign ? (dmem_we ? HALT_SALIGN : HALT_LALIGN)

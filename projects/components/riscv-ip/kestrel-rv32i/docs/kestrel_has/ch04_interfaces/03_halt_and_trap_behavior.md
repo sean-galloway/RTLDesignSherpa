@@ -52,7 +52,7 @@ Cause ownership is deliberate: decode raises causes 1, 2, and `F` because it can
 
 ## Writeback Suppression Detail
 
-JAL/JALR encodings set decode's `rd_wen` (they are link instructions), and a cause-3 halt retires a JAL/JALR encoding — so the writeback gate is `halt` itself, not decode's `rd_wen`: `rd_wen_eff = rd_wen & ~halt & ~mem_wait`. A cause-4 halt retires a load, which also sets `rd_wen`; the same gate stops it. The same `halt` gate drives the RVFI rd fields to zero on the trap beat. A taken, aligned JAL/JALR writes `pc+4` normally.
+JAL/JALR encodings set decode's `rd_wen` (they are link instructions), and a cause-3 halt can retire a JAL/JALR encoding; a cause-4 halt retires a load, which also sets `rd_wen`. Those are the only halts an rd-writing instruction can raise — decode sets `rd_wen` on none of its halt rows, and branches never write rd — so the writeback gate names exactly them: `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign` (2026-10-20; gating on all of `halt` put the branch comparator on the register-write enable, the A7 critical path). It is equivalent to gating with `halt`. The RVFI rd fields are gated by `halt` itself and go to zero on the trap beat. A taken, aligned JAL/JALR writes `pc+4` normally.
 
 ## ECALL as the Termination Convention
 

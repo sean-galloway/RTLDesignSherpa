@@ -49,6 +49,13 @@ simplicity honestly, and this table is the receipt. There is no FSM
 anywhere: the halt bit is a plain holding flop, and
 Chapter 4 shows why no more control state exists.
 
+The register file itself has no reset (2026-10-20): it is plain storage,
+so it fits in distributed RAM rather than 1,024 flops. A register is
+undefined until a program writes it, and keeps an earlier program's value
+across a reload, so every program initializes each register it reads. The
+riscv-tests p-env does exactly that at its reset vector; the golden
+interpreter fails any test program that does not (Chapter 6).
+
 ## Reading the chapters that follow
 
 Chapter 3's remaining sections trace one cycle end to end (section 2),

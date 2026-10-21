@@ -15,7 +15,20 @@ FLOW      := kestrel_bram
 TOP       := kestrel_nexysa7_top
 FILELIST  := $(SELF_DIR)/rtl/filelists/kestrel_nexysa7_top.f
 
+# ALU_DSP=1: the ALU's add/sub/logic rows in DSP48 slices (kestrel_alu
+# USE_DSP).  Own bitstream name so the two variants can sit side by side.
+ALU_DSP   ?= 0
+export KESTREL_ALU_DSP := $(ALU_DSP)
+ifeq ($(filter $(ALU_DSP),0 1),)
+  $(error ALU_DSP must be 0 or 1, got '$(ALU_DSP)')
+endif
+BITSTREAM := $(SELF_DIR)/fpga/bitstream/$(FLOW)$(if $(filter 1,$(ALU_DSP)),_dsp).bit
+
 # The UART-equivalence sim lives with the Genesys 2 build (same bridge, memory
 # system and core; only the board clock differs) -- run it there.
 
 include $(RDS_ROOT)/make/fpga_flow.mk
+
+# AFTER the include (fpga_flow.mk assigns LINT_GENERICS with `=`): the same
+# generic create_project.tcl hands Vivado, so lint checks what is built.
+LINT_GENERICS += -GALU_USE_DSP=$(ALU_DSP)

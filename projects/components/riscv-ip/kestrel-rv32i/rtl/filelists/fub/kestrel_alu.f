@@ -7,4 +7,5 @@
 -f $KESTREL_ROOT/rtl/filelists/kestrel_pkg.f
 
 # ALU module
+$KESTREL_ROOT/rtl/fub/kestrel_alu_dsp.sv
 $KESTREL_ROOT/rtl/fub/kestrel_alu.sv

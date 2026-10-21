@@ -30,20 +30,17 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_kestrel_regfile(dut):
-    """Verify reset, write/read, read-during-write, and x0 discard."""
+    """Verify x0 reads zero with no reset, write/read of every register,
+    read-during-write, and x0 discard.  The file has no reset (2026-10-20):
+    every register is written before it is read."""
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
-    # Reset
-    dut.rst_n.value = 0
     dut.rs1_addr.value = 0
     dut.rs2_addr.value = 0
     dut.rd_addr.value = 0
     dut.rd_data.value = 0
     dut.rd_wen.value = 0
-    await RisingEdge(dut.clk)
-    await RisingEdge(dut.clk)
-    dut.rst_n.value = 1
     await RisingEdge(dut.clk)
 
     # Helper coroutines
@@ -63,19 +60,18 @@ async def cocotb_test_kestrel_regfile(dut):
         await RisingEdge(dut.clk)
         dut.rd_wen.value = 0
 
-    # 1) Reset leaves every register at 0.
-    for addr in range(32):
-        rs1, rs2 = await read_ports(addr, addr)
-        assert rs1 == 0, f"reset: x{addr} rs1_data != 0 ({rs1})"
-        assert rs2 == 0, f"reset: x{addr} rs2_data != 0 ({rs2})"
+    # 1) x0 reads zero on both ports with nothing ever written.
+    rs1, rs2 = await read_ports(0, 0)
+    assert (rs1, rs2) == (0, 0), f"x0 must read zero without a reset ({rs1}, {rs2})"
 
-    # 2) Write-then-read same address next cycle.
+    # 2) Write every register x1..x31, then read each back on both ports.
     seed = int(os.environ.get("SEED", "0"))
     random.seed(seed)
     dut._log.info(f"kestrel_regfile test with seed {seed}")
 
-    written = {addr: 0 for addr in range(32)}
-    test_addrs = random.sample(range(1, 32), 10)
+    written = {0: 0}
+    test_addrs = list(range(1, 32))
+    random.shuffle(test_addrs)
     for addr in test_addrs:
         data = random.randint(0, 0xFFFFFFFF)
         await write_reg(addr, data)

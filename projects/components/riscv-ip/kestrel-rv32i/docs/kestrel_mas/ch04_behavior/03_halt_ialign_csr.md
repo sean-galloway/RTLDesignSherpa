@@ -39,7 +39,7 @@ halt           = halt_q | halt_now        // visible on the first halting cycle
 Decode raises `HALT_ECALL (1)`, `HALT_EBREAK (2)`, and `HALT_ILL (F)`; the core raises `HALT_IALIGN (3)`, `HALT_LALIGN (4)` and `HALT_SALIGN (5)` (the misaligned data access, Ch. 4.2). Once latched:
 
 - The PC freezes (`pc <= (halt || mem_wait) ? pc : next_pc`).
-- Writeback is suppressed (`rd_wen_eff` and the RVFI `rd_wb` gate both use `halt`).
+- Writeback is suppressed (`rd_wen_eff` gates on `halt_q` and the two halts an rd-writing instruction can raise; the RVFI `rd_wb` gate uses `halt`).
 - Retirement stops: `rvfi_valid = rst_n & ~halt_q & ~mem_wait`, and since `halt_q` latches on the halting cycle, the halting instruction itself is the last beat — a trap beat with `rvfi_trap = halt_now`.
 
 A holding register rather than a pulse matters for verification: an external observer sampling any time after the halt sees a stable, unambiguous stopped state with the cause still on the port. The testbench samples four post-halt cycles pinning `halt` raised, `rvfi_valid` low, `rvfi_pc_rdata` frozen.
@@ -56,7 +56,7 @@ misalign_target = (jump | jalr | branch_taken) & (next_pc[1:0] != 2'b00)
 
 **Why decode cannot catch it:** for JALR the target depends on a register value; for every branch it depends on the taken decision. Decode sees neither — it produces the control bundle, not the data. `kestrel_pkg` states the ownership directly: cause 3 belongs to the core.
 
-**The writeback subtlety.** JAL/JALR set decode's `rd_wen` — they are link instructions, and a taken JAL/JALR that *does* align must write `pc+4`. The misaligned case must not. Rather than teaching decode about alignment, the core gates both the register write and the RVFI report with `halt` itself: `rd_wen_eff = rd_wen & ~halt & ~mem_wait`, `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The trap beat reports the misaligned target on `rvfi_pc_wdata` (it is `next_pc`), exactly what a real trap would record as the faulting address — a detail riscv-formal's checks verify explicitly.
+**The writeback subtlety.** JAL/JALR set decode's `rd_wen` — they are link instructions, and a taken JAL/JALR that *does* align must write `pc+4`. The misaligned case must not. Rather than teaching decode about alignment, the core gates the register write with the halts that can coincide with an rd write — `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign`, where `misalign_link` is the JAL/JALR half of `misalign_target` — and the RVFI report with `halt` itself: `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The two agree because no other halt source sets `rd_wen`; leaving the taken-branch term out keeps the branch comparator off the register-write path (2026-10-20). The target's low bits come from two-bit adds (`pc[1:0] + imm[1:0]`, and `rs1[1:0] + imm[1:0]` with bit 0 cleared for JALR), not from the 32-bit next-PC adders. The trap beat reports the misaligned target on `rvfi_pc_wdata` (it is `next_pc`), exactly what a real trap would record as the faulting address — a detail riscv-formal's checks verify explicitly.
 
 ## The System Layer: Stubs, NOPs, and Halts
 

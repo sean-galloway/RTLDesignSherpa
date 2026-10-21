@@ -47,7 +47,7 @@ For loads and stores, `dmem_addr` is the word-aligned ALU result (`{alu_y[31:2],
 
 ## 5. Writeback
 
-`rd_wdata` is selected by the five-row priority mux (CSR stub zero → LUI immediate → load data → link `pc+4` → ALU result); `rd_wen_eff = rd_wen & ~halt & ~mem_wait` qualifies it; the write commits on the edge.
+`rd_wdata` is selected by the five-row priority mux (CSR stub zero → LUI immediate → load data → link `pc+4` → ALU result); `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign` qualifies it; the write commits on the edge.
 
 ## 6. Next-PC Selection and the Edge
 

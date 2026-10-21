@@ -16,14 +16,15 @@ parameters: []
 
 functional_scenarios:
   - id: RF-01
-    name: "Synchronous reset clears all entries"
-    description: "Assert rst_n for two cycles, release, then read all 32
-                  addresses on both ports: every entry must read 0."
+    name: "x0 reads zero with no reset"
+    description: "The file has no reset (2026-10-20: distributed RAM): with
+                  nothing written, x0 must read 0 on both ports; every other
+                  register is written before the test reads it."
     test_function: "cocotb_test_kestrel_regfile"
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [39, 40, 41, 42, 43]
+    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
 
   - id: RF-02
     name: "Write-then-read back on both read ports"
@@ -34,7 +35,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [45, 46, 51, 52]
+    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
 
   - id: RF-03
     name: "Read-during-write returns the old value"
@@ -45,7 +46,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [45, 46, 51, 52]
+    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
 
   - id: RF-04
     name: "Writes to x0 are discarded"
@@ -55,7 +56,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [45, 46]
+    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
 
   - id: RF-05
     name: "Independent rs1/rs2 addressing (rs1 != rs2)"
@@ -68,7 +69,7 @@ functional_scenarios:
     test_level: func
     priority: medium
     status: verified
-    covers_lines: [51, 52]
+    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
 
 parameter_coverage: []
 

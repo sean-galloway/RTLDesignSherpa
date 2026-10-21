@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Micro-Architecture Specification
 
 **Document Number:** KESTREL-MAS-001
-**Version:** 0.5
+**Version:** 0.15
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -84,10 +84,11 @@ The external contract — ports as an integrator wires them, memory and halt beh
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1 | 2026-10-07 | seang | Initial MAS release; documents the as-built RTL (Tasks 1-11) including the Task-9 IALIGN halt and the Task-11 AXIL board loader |
-| 0.2 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
-| 0.3 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
-| 0.4 | 2026-10-20 | seang | `mem_wait` core input and `kestrel_mem_bram` (block RAM, registered read, CPI 2/3 for loads; registers for run/stop, status, cycles, instret, gp): new Ch. 2.7; core chapter notes the wait. rv32ui 42/42 through it with spike lockstep; riscv-formal 42/42 with a free `mem_wait`. |
-| 0.5 | 2026-10-20 | seang | Timing rework (A7 path analysis). Misaligned loads/stores halt (causes 4/5) instead of the hardware cross-word retry, which is removed; RVFI moves to the `RISCV_FORMAL_ALIGNED_MEM` convention; Ch. 4.2 rewritten. `kestrel_imm_gen` selects the format by opcode in parallel with the register read. New core output `imem_addr_next`; `kestrel_mem_bram` fetches at the next PC (CPI 1, 2 for a load), decodes its load wait from the opcode, and defaults to 16 KB; Ch. 2.7 rewritten with Waveform 2.7. rv32ui 42/42 (`ma_data` an expected halt) with spike lockstep; riscv-formal 42/42. |
+| 0.11 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
+| 0.12 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.13 | 2026-10-20 | seang | `mem_wait` core input and `kestrel_mem_bram` (block RAM, registered read, CPI 2/3 for loads; registers for run/stop, status, cycles, instret, gp): new Ch. 2.7; core chapter notes the wait. rv32ui 42/42 through it with spike lockstep; riscv-formal 42/42 with a free `mem_wait`. |
+| 0.14 | 2026-10-20 | seang | Timing rework (A7 path analysis). Misaligned loads/stores halt (causes 4/5) instead of the hardware cross-word retry, which is removed; RVFI moves to the `RISCV_FORMAL_ALIGNED_MEM` convention; Ch. 4.2 rewritten. `kestrel_imm_gen` selects the format by opcode in parallel with the register read. New core output `imem_addr_next`; `kestrel_mem_bram` fetches at the next PC (CPI 1, 2 for a load), decodes its load wait from the opcode, and defaults to 16 KB; Ch. 2.7 rewritten with Waveform 2.7. rv32ui 42/42 (`ma_data` an expected halt) with spike lockstep; riscv-formal 42/42. |
+| 0.15 | 2026-10-20 | seang | Register file has no reset (distributed RAM; x0 via the read ports; software initializes every register, the golden interpreter fails a test that does not). The register-write gate names only the halts an rd-writing instruction can raise (`~misalign_link & ~ls_misalign`), keeping the branch comparator off that path; target low bits from two-bit adds. New `kestrel_alu USE_DSP` / core `ALU_USE_DSP`: the add/sub row in one DSP48E1 (`kestrel_alu_dsp`). Revisions renumbered (owner: at most 0.25 until running well): 0.2-0.5 became 0.11-0.14. |
 
 : Document Revision History
 

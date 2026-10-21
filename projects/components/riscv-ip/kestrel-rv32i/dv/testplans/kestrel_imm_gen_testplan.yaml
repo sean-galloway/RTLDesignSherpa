@@ -24,7 +24,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [48, 62]
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
 
   - id: IG-02
     name: "S-format immediate, both signs"
@@ -34,7 +34,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [49, 58]
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
 
   - id: IG-03
     name: "B-format immediate, both signs, LSB forced 0"
@@ -45,7 +45,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [50, 51, 59]
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
 
   - id: IG-04
     name: "U-format upper immediate"
@@ -55,7 +55,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [52, 60]
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
 
   - id: IG-05
     name: "J-format immediate, both signs, LSB forced 0"
@@ -66,7 +66,7 @@ functional_scenarios:
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [53, 54, 61]
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
 
   - id: IG-06
     name: "Randomized immediate sweep vs golden"
@@ -79,6 +79,7 @@ functional_scenarios:
     test_level: full
     priority: low
     status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
 
 parameter_coverage: []
 

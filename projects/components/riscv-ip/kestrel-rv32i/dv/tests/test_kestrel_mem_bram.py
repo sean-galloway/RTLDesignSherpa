@@ -55,6 +55,9 @@ async def _registers(dut):
     await tb.enter_load_mode_only()
     assert int(dut.core_rst_n.value) == 0, "core_rst_n high in load mode"
     assert await tb.axil_read(REG_BUILD_ID) == BUILD_ID
+    for off in (0x14, 0x18, 0x1C):                 # unmapped register offsets 5..7
+        assert await tb.axil_read(REG_BUILD_ID - 0x10 + off) == 0, \
+            f"unmapped register offset 0x{off:02X} must read 0"
 
     st = await tb.status()
     assert (st["run"], st["halted"]) == (0, 0), f"load-mode status {st}"

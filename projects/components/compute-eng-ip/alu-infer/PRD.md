@@ -37,7 +37,7 @@ FMA rows with the adder's `PIPE_STAGE_*` pattern). **Tetrad-engine
 deferral / gatling ruling 2026-10-19** (§5) — the per-tetrad core is
 defined after the cell is fully defined and working; the owner-authored
 gatling-rv32itetrad barrel-core PRD is the **selected sequencer** for its
-tetrad (kestrel-class stays a `CORE_FLAVOR` candidate). **Port-width correction** — operand ports stay `LINE_W` each
+tetrad (kestrel is not a candidate: it stays the simple standalone single-cycle rung and never issues alu-infer, owner 2026-10-20). **Port-width correction** — operand ports stay `LINE_W` each
 (one line per side, both captured in the same clock); the earlier
 "widening" was a line-vs-lane mis-count. **Owner accept-and-defer** — M7
 and `acc_ctrl` accepted as drafted; per-row latency work deferred to FPGA

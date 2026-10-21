@@ -79,7 +79,8 @@ rotation math, the halt, RVFI encoding — is Chapter 5's.
 4. JAL/JALR — `pc + 4`, the link value.
 5. Everything else — `alu_y`.
 
-The write enable is `rd_wen_eff = rd_wen & ~halt & ~mem_wait`: decode's
+The write enable is `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait &
+~misalign_link & ~ls_misalign` — equivalent to gating with `halt`: decode's
 `rd_wen` qualified by halt (the misaligned-control-flow halt retires
 JAL/JALR encodings, and the misaligned-load halt retires loads, whose
 decode `rd_wen` is set, so the gate is halt itself, not decode) and by the

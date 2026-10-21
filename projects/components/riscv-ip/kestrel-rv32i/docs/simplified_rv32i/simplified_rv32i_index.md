@@ -7,7 +7,7 @@ sections, not pages) and the falcon-suite design documentation
 the falcon suite. Derived from condensed study notes; emphasis is on what
 the as-built kestrel core actually does and verifies, with the RISC-V
 specification cited as the authority.
-**Version:** 0.3
+**Version:** 0.31
 **Last Updated:** 2026-10-20
 **Status:** Draft. Personal study notes.
 
@@ -92,5 +92,6 @@ merlin (Chapter 7).
 | 0.1 | 2026-10-06 | First draft |
 | 0.2 | 2026-10-20 | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.3 | 2026-10-20 | kestrel now halts on misaligned loads/stores (causes 4/5) instead of the hardware cross-word retry; Chapter 5.2 rewritten and Figure 5.1 retired; RVFI memory fields follow RISCV_FORMAL_ALIGNED_MEM; immediates are selected by opcode; the memory contract covers block RAM (`mem_wait`, `imem_addr_next`); ma_data is an expected halt in the battery and spike lockstep. |
+| 0.31 | 2026-10-20 | The register file has no reset (programs initialize every register they read); the write-enable gate names the halts an rd-writing instruction can raise. |
 
 : Version history

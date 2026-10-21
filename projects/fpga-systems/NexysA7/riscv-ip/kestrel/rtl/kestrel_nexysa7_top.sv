@@ -20,7 +20,8 @@
 `include "reset_defs.svh"
 
 module kestrel_nexysa7_top #(
-    parameter logic [31:0] RESET_ADDR = 32'h8000_0000   // the riscv-tests link base
+    parameter logic [31:0] RESET_ADDR  = 32'h8000_0000,  // the riscv-tests link base
+    parameter bit          ALU_USE_DSP = 1'b0            // ALU add/sub/logic in DSP48 (Vivado generic)
 ) (
     input  logic        sysclk,         // 100 MHz oscillator (E3)
     input  logic        cpu_resetn,     // active-low pushbutton (C12)
@@ -33,7 +34,7 @@ module kestrel_nexysa7_top #(
 
     // Harness clock = VCO 1000 MHz / CLK_DIV.  CLK_DIV is set from this
     // part's measured timing (README "Board result").
-    localparam int CLK_DIV     = 16;
+    localparam int CLK_DIV     = 14;
     localparam int FPGA_CLK_HZ = 1_000_000_000 / CLK_DIV;
     localparam int UART_BAUD   = 115_200;
 
@@ -141,7 +142,7 @@ module kestrel_nexysa7_top #(
         .o_run(w_run), .o_halted(w_halted));
 
     kestrel_core #(
-        .RESET_ADDR(RESET_ADDR)
+        .RESET_ADDR(RESET_ADDR), .ALU_USE_DSP(ALU_USE_DSP)
     ) u_core (
         .clk(clk), .rst_n(core_rst_n), .mem_wait(mem_wait),
         .imem_addr(imem_addr), .imem_addr_next(imem_addr_next), .imem_rdata(imem_rdata),

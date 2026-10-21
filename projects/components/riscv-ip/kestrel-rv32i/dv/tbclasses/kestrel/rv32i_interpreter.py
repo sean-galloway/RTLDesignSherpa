@@ -49,6 +49,18 @@ RVFI trap beat — ``trap=1``, no rd write, no memory fields, ``pc_wdata``
 pc+4 — appended after which ``run()`` stops.  The core emits the matching
 beat the cycle decode raises halt, so traces stay index-aligned.
 
+Register initialization (2026-10-20): kestrel's register file has no
+reset, so a program must write every register before it reads it.  The
+interpreter tracks which registers have been written (x0 always counts) and
+raises ``UninitializedRegisterRead`` when an instruction architecturally
+reads one that has not (an unused operand *field* naming such a register is
+legal: its RVFI rs*_rdata is reported as ``None``, don't care) -- OP/BRANCH/STORE read rs1 and rs2; OP-IMM, LOAD,
+JALR and the CSR register forms read rs1; LUI/AUIPC/JAL, FENCE, ECALL/EBREAK,
+MRET and the CSR immediate forms read none.  The rv32ui p-env zeroes every
+register at reset (INIT_XREG) and the fuzz prologue clears x1-x31, so they
+pass; a directed program that forgets a register fails loudly here instead
+of depending on the simulator's power-up value.
+
 Memory model: unified (von Neumann).  The data memory is seeded with the
 image, so self-modifying code (the rv32ui-p-fence_i signature overwrite)
 is fetched correctly, matching the tb_top unified array.  Loads/stores are
@@ -65,6 +77,15 @@ because the interpreter runs in the core's address space.
 """
 
 MASK32 = 0xFFFFFFFF
+
+
+class UninitializedRegisterRead(AssertionError):
+    """A program read a register it never wrote (kestrel has no regfile reset)."""
+
+
+# Major opcode -> which source registers the instruction architecturally reads.
+_READS_RS1_RS2 = {0x33, 0x63, 0x23}          # OP, BRANCH, STORE
+_READS_RS1 = {0x13, 0x03, 0x67}              # OP-IMM, LOAD, JALR
 
 
 def sext(value, bits):
@@ -123,6 +144,7 @@ class RV32IInterpreter:
         # the tb_top unified memory).
         self.dmem = dict(imem_words)
         self.regs = [0] * 32
+        self.written = {0}          # x0 reads zero by construction
         self.pc = reset_addr
         self.reset_addr = reset_addr
         self.trace = []
@@ -181,8 +203,8 @@ class RV32IInterpreter:
             "trap": 1,
             "rs1_addr": rs1,
             "rs2_addr": rs2,
-            "rs1_rdata": self.regs[rs1],
-            "rs2_rdata": self.regs[rs2],
+            "rs1_rdata": self._rdata(rs1),
+            "rs2_rdata": self._rdata(rs2),
             "rd_addr": 0,
             "rd_wdata": 0,
             "pc_wdata": ((self.pc + 4) & MASK32) if pc_wdata is None
@@ -215,6 +237,7 @@ class RV32IInterpreter:
         shamt = (insn >> 20) & 0x1F
         a = x[rs1]
         b = x[rs2]
+        self._check_initialized(pc, insn, opcode, f3, rs1, rs2)
         next_pc = pc + 4
         rd_val = None
         mem_addr = 0
@@ -415,8 +438,8 @@ class RV32IInterpreter:
             "trap": 0,
             "rs1_addr": rs1,
             "rs2_addr": rs2,
-            "rs1_rdata": a,
-            "rs2_rdata": b,
+            "rs1_rdata": self._rdata(rs1),
+            "rs2_rdata": self._rdata(rs2),
             "rd_addr": rd,
             # riscv-formal rule: rd_wdata must be zero whenever rd_addr is
             # zero — the discarded architectural write is not reported.
@@ -430,5 +453,28 @@ class RV32IInterpreter:
         })
         if rd != 0 and rd_val is not None:
             x[rd] = rd_val & MASK32
+            self.written.add(rd)
         x[0] = 0
         return next_pc
+
+    def _rdata(self, r):
+        """RVFI rs*_rdata for register r: its value, or None (don't care)
+        when the program has not written it -- the register file has no
+        reset, so an unused operand field can name a register whose content
+        is whatever an earlier program left.  The core reports that true
+        content; the golden cannot know it."""
+        return self.regs[r] if r in self.written else None
+
+    def _check_initialized(self, pc, insn, opcode, f3, rs1, rs2):
+        """Raise if this instruction reads a register no earlier one wrote."""
+        used = []
+        if opcode in _READS_RS1_RS2:
+            used = [rs1, rs2]
+        elif opcode in _READS_RS1 or (opcode == 0x73 and f3 in (1, 2, 3)):
+            used = [rs1]
+        for r in used:
+            if r not in self.written:
+                raise UninitializedRegisterRead(
+                    f"golden: insn 0x{insn:08x} at pc=0x{pc:x} reads x{r}, "
+                    f"which no earlier instruction wrote (kestrel's register "
+                    f"file has no reset: initialize it first)")

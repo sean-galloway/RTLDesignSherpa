@@ -31,7 +31,7 @@ The architectural state visible to software is exactly:
 |---------------|-------|-------------|-------------|
 | PC | 32 | `RESET_ADDR` (parameter, default `32'h0000_0000`) | Program counter; fetch address of the currently retiring instruction |
 | x0 | 32 | 0 | Hard-wired zero; reads return 0, writes are discarded in the register file |
-| x1-x31 | 32 each | 0 | General-purpose registers; the file resets to all zeros |
+| x1-x31 | 32 each | none (undefined) | General-purpose registers; the file has no reset (2026-10-20) and holds whatever it held until written |
 | Memory | integrator-defined | integrator-defined | Flat byte-addressed space via the data port; the core provides no protection, mapping, or ordering semantics |
 | Halt state | 1 + 4 | `halt=0`, cause `0x0` | Stop flag and cause code on the boundary (below) |
 
@@ -43,7 +43,7 @@ There are no CSRs, no counters, no privilege state, and no trap state. `mepc`, `
 
 - **Program termination is a halt.** Programs end with ECALL (cause `0x1`); the harness reads the verdict from x3 (`gp`, the register the riscv-tests p-environment uses) at the final writeback before the halt.
 - **The first fetch is `RESET_ADDR`.** Images must be linked so execution begins there; the loader integration must set the core's `RESET_ADDR` parameter to the image link base.
-- **Registers start at zero.** No startup register has architectural garbage, and the register file reset makes pre-load observability deterministic.
+- **Software initializes every register it reads.** The register file has no reset (it maps to distributed RAM instead of 1,024 flops): after power-up a register is undefined, and after a reload it still holds the previous program's value. The riscv-tests p-env zeroes every register at its reset vector (`INIT_XREG`); kestrel's DV fails any test program that reads a register it never wrote.
 - **Memory needs no setup.** There is no TLB, no cache to enable, no memory attributes: an address is data memory, full stop.
 
 ## The Halt Boundary as State

@@ -34,7 +34,9 @@ JAL and JALR set decode's `rd_wen` — they are link instructions, and a
 taken JAL/JALR that *does* align must write `pc+4`. The misaligned case
 must not. Rather than teaching decode about alignment, the core gates
 both the register write and the RVFI report with `halt` itself:
-`rd_wen_eff = rd_wen & ~halt & ~mem_wait` and
+`rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign`
+(the halts an rd-writing JAL/JALR or load can raise; equal to gating with
+`halt`, without the branch comparator on the path) and
 `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The trap beat reports the
 misaligned target on `rvfi_pc_wdata` (it is `next_pc`, and `next_pc` is
 the misaligned address), which is exactly what a real trap's state would

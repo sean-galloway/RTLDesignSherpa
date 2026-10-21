@@ -12,7 +12,7 @@ ALU's tag FIFO is full, then drain).
 
 The harness knows only the ALU's issue seam. The device under test is the
 module `alu_slot`, which each build supplies -- other valid/ready ALUs (and,
-later, kestrel as the issuer) reuse the same harness.
+later, Gatling as the issuer) reuse the same harness.
 
 | Path | What |
 |---|---|

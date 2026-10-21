@@ -16,12 +16,12 @@ since it exercises the same bridge, memory system and core.
 
 | Path | What |
 |---|---|
-| `rtl/kestrel_nexysa7_top.sv` | board top: 100 MHz -> MMCM -> 62.5 MHz (`CLK_DIV` 16), UART -> AXI4-Lite, kestrel_mem_bram, kestrel_core, LEDs |
+| `rtl/kestrel_nexysa7_top.sv` | board top: 100 MHz -> MMCM -> 71.4 MHz (`CLK_DIV` 14), UART -> AXI4-Lite, kestrel_mem_bram, kestrel_core, LEDs |
 | `build-bram/` | the build (Vivado tcl, constraints, host CLI) |
 
 ```sh
 make lint
-make bitstream
+make bitstream            # ALU_DSP=1: the ALU add/sub row in one DSP48E1
 make program
 make host-kestrel        # smoke, then the full rv32ui battery
 ```
@@ -43,13 +43,19 @@ load fraction; `ld_st` 1.20).
 | Next-PC fetch, opcode load wait, 16 KB, misaligned halt, parallel immediates | 100 MHz (measurement) | -4.48 ns: worst path 14.5 ns | -- | -- | 2,470 | 4 |
 | same | 66.7 MHz | -0.019 ns (failed, 1 endpoint) | -- | -- | 2,346 | 4 |
 | same | **62.5 MHz** | **+0.210 ns** | **1.039** | **60.2 MIPS** | **2,341** | **4** |
+| + register file without reset (distributed RAM), write gate without the branch comparator | 100 MHz (measurement) | -2.22 ns: worst path 12.2 ns | -- | -- | 2,166 | 4 |
+| same, `ALU_DSP=1` (1 DSP48E1) | 100 MHz (measurement) | -2.50 ns: worst path 12.5 ns | -- | -- | 2,124 | 4 |
+| same, fabric ALU | 76.9 MHz | -0.016 ns (failed, 1 endpoint) | -- | -- | 2,080 | 4 |
+| same, fabric ALU | **71.4 MHz** | **+0.510 ns** | board run pending | -- | **2,020** | **4** |
 
 : kestrel on the Nexys A7, before and after the timing rework
 
 The first wrapper's worst path ran block-RAM read -> decode -> immediate ->
 ALU -> L/S request -> load wait -> register-file write enable (14-15 levels,
-~17.7 ns). The current worst path is block-RAM read -> register-file read ->
-branch comparator -> next-PC low bits -> instruction-misaligned halt (cause
-3) -> register-file write enable (14 levels, 14.5 ns, 67% routing). Branches
-never write a register, so taking the branch condition out of the
-write-enable gate is the next cut.
+~17.7 ns). After the rework it was block-RAM read -> register read -> branch
+comparator -> IALIGN halt -> register-file write enable (14.5 ns); with the
+write gate naming only the halts an rd-writing instruction can raise, and the
+register file in distributed RAM (flops 2,049 -> 1,057), it is now the core's
+load/store address into the data RAM (block-RAM read -> register read -> ALU
+add -> port-B address, 12.2 ns). The DSP48 add/sub saves 42 LUTs and costs
+about 0.3 ns, so the fabric ALU is the default.

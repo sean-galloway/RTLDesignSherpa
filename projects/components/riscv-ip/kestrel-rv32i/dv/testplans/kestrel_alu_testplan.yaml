@@ -27,7 +27,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [47, 48]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
+                   71, 72, 73, 74, 75, 76, 77, 78]
 
   - id: ALU-02
     name: "AND / OR / XOR logical operations"
@@ -37,7 +38,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [49, 50, 51]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
+                   71, 72, 73, 74, 75, 76, 77, 78]
 
   - id: ALU-03
     name: "SLL / SRL / SRA shifts with b[4:0] shamt"
@@ -49,7 +51,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [30, 31, 33, 34, 35, 39, 52, 53, 54]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
+                   71, 72, 73, 74, 75, 76, 77, 78]
 
   - id: ALU-04
     name: "SLT / SLTU and eq/lt/ltu comparison flags"
@@ -61,7 +64,8 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [37, 38, 41, 42, 43, 55, 56]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
+                   71, 72, 73, 74, 75, 76, 77, 78]
 
   - id: ALU-05
     name: "Exhaustive op x value matrix completion"
@@ -69,7 +73,7 @@ functional_scenarios:
                   (2,560 vectors, 4 outputs checked per vector) so every
                   defined unique-case arm of the ALU is exercised across the
                   full value matrix and no op is left at a single stimulus
-                  point. The default arm (kestrel_alu.sv:57) is unreachable
+                  point. The result case's `default:` arm is unreachable
                   in this test by construction — the sweep drives op 0..9
                   only — and unreachable in integration too: kestrel_decode
                   emits only the 10 defined alu_op values, which
@@ -79,14 +83,37 @@ functional_scenarios:
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [45, 46]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
+                   71, 72, 73, 74, 75, 76, 77, 78]
 
-parameter_coverage: []
+  - id: ALU-06
+    name: "USE_DSP=1: the DSP-mapped add/sub row is functionally identical"
+    description: "The same cocotb_test_kestrel_alu sweep (all 10 ops, the
+                  value matrix, every flag) on kestrel_alu built with
+                  USE_DSP=1, where the add/sub row is kestrel_alu_dsp (one
+                  DSP48E1 in synthesis). The attribute changes synthesis
+                  only; this cell pins that the ON setting's RTL computes the
+                  same function (2026-10-20)."
+    test_function: "cocotb_test_kestrel_alu"
+    sim_cell: "cocotb_test_kestrel_alu_dsp"
+    test_level: full
+    priority: medium
+    status: verified
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 68, 69, 70, 71,
+                   72, 73, 74, 75, 76, 77, 78]
+
+parameter_coverage:
+  - USE_DSP: 0
+    test_level: full
+    status: verified
+  - USE_DSP: 1
+    test_level: full
+    status: verified
 
 implied_coverage:
-  total_scenarios: 5
-  scenario_tracked: 5
-  implied_covered: 5
+  total_scenarios: 6
+  scenario_tracked: 6
+  implied_covered: 6
   implied_percentage: 100.0
 
 notes: |

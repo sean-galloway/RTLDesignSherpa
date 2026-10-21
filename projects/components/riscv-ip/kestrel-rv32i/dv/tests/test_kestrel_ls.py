@@ -43,6 +43,7 @@ from tbclasses.kestrel.rv32i_interpreter import (                   # noqa: E402
 
 PROGRAMS_DIR = Path(__file__).resolve().parent / "programs"
 
+HALT_ECALL = 1      # kestrel_pkg: the program ran to its final ecall
 HALT_LALIGN = 4     # kestrel_pkg: load address misaligned
 HALT_SALIGN = 5     # kestrel_pkg: store address misaligned
 
@@ -87,7 +88,7 @@ async def _run_case(dut, hex_name, reset_addr, expected_cause=None):
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_kestrel_ls_basic(dut):
     """Aligned loads of every size/sign after word/halfword/byte stores."""
-    await _run_case(dut, "ls_basic.hex", 0x0000_0000)
+    await _run_case(dut, "ls_basic.hex", 0x0000_0000, expected_cause=HALT_ECALL)
 
 
 @cocotb.test(timeout_time=1, timeout_unit="ms")
@@ -110,7 +111,7 @@ async def cocotb_test_kestrel_ls_misalign_store(dut):
 @cocotb.test(timeout_time=1, timeout_unit="ms")
 async def cocotb_test_kestrel_ls_chain(dut):
     """Store-then-load dependent chain (single-cycle memory visibility)."""
-    await _run_case(dut, "ls_chain.hex", 0x0000_0000)
+    await _run_case(dut, "ls_chain.hex", 0x0000_0000, expected_cause=HALT_ECALL)
 
 
 @pytest.mark.parametrize("test_level, description",

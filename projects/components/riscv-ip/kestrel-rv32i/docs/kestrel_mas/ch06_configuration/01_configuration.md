@@ -30,6 +30,7 @@
 | Parameter | Type | Default | Verified values | Description |
 |-----------|------|---------|-----------------|-------------|
 | `RESET_ADDR` | `logic [31:0]` | `32'h0000_0000` | `0x0`, `0x100`, `0x8000_0000` | Reset fetch address; the first retired beat's `pc_rdata` equals it (testplan scenario CORE-03) |
+| `ALU_USE_DSP` | `bit` | `0` | `0`, `1` | Passed to `kestrel_alu USE_DSP`: 1 builds the ALU's add/sub/logic rows in DSP48 slices (synthesis only; the Nexys A7 build exposes it as `make bitstream ALU_DSP=1`) |
 
 : kestrel_core parameters
 
@@ -65,7 +66,7 @@ No `define` configuration surface exists beyond this; there are no feature ifdef
 | `rtl/filelists/fub/kestrel_alu.f` | ALU + package | `$KESTREL_ROOT` |
 | `rtl/filelists/fub/kestrel_decode.f` | Decode + package | `$KESTREL_ROOT` |
 | `rtl/filelists/fub/kestrel_imm_gen.f` | Immediate generator + package | `$KESTREL_ROOT` |
-| `rtl/filelists/fub/kestrel_regfile.f` | Register file + `reset_defs` + package | `$KESTREL_ROOT`, `$REPO_ROOT` |
+| `rtl/filelists/fub/kestrel_regfile.f` | Register file + `reset_defs` + package (the file itself no longer uses the reset macros) | `$KESTREL_ROOT`, `$REPO_ROOT` |
 | `rtl/filelists/fub/kestrel_mem_loader.f` | Loader + `reset_defs` + package + `axil4_slave_wr`/`axil4_slave_rd` closures | `$KESTREL_ROOT`, `$REPO_ROOT` |
 | `rtl/filelists/top/kestrel_core.f` | Core top + all core FUB closures | `$KESTREL_ROOT`, `$REPO_ROOT` |
 | `rtl/filelists/kestrel_all.f` | Master closure: everything above | `$KESTREL_ROOT`, `$REPO_ROOT` |

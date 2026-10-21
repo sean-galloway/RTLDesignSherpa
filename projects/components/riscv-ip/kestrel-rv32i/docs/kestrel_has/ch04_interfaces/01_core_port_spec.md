@@ -32,7 +32,7 @@
 | Port | Direction | Width | Description |
 |------|-----------|-------|-------------|
 | `clk` | Input | 1 | System clock; the whole machine retires in one `clk` period |
-| `rst_n` | Input | 1 | Active-low reset (asynchronous assert, synchronous deassert via `ALWAYS_FF_RST`); PC → `RESET_ADDR`, halt/run state cleared, register file cleared |
+| `rst_n` | Input | 1 | Active-low reset (asynchronous assert, synchronous deassert via `ALWAYS_FF_RST`); PC → `RESET_ADDR`, halt/run state cleared; the register file is **not** reset (software initializes every register it reads) |
 | `mem_wait` | Input | 1 | Memory not ready this cycle: every piece of architectural state holds (PC, register write, halt latch, retire counter), `rvfi_valid` is low, and the combinational halt is masked. Tie low for combinational memories; `kestrel_mem_bram` drives it |
 
 : Clock and reset

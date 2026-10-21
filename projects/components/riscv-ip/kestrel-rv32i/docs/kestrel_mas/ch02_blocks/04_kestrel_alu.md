@@ -39,6 +39,12 @@
 
 : kestrel_alu interface
 
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `USE_DSP` | 0 | 1: the add, subtract and bitwise rows carry `use_dsp = "logic"`, so Vivado builds them in DSP48 slices (the post-adder does add/sub and AND/OR/XOR) instead of CARRY4 chains and LUTs. Shifts and set-less-than stay in fabric. Synthesis only: simulation, lint and formal see the same logic for both values; the ALU unit test runs both (2026-10-20). Set from the core's `ALU_USE_DSP`. |
+
+: kestrel_alu parameters
+
 ## Operations
 
 | `alu_op` | `y` | Notes |

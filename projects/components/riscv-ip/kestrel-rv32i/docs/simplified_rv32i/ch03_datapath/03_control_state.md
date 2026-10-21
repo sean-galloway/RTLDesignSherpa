@@ -28,7 +28,8 @@ conditions, masked while the memory holds the core (`mem_wait`). The external
 visible immediately. Once latched:
 
 - The PC freezes (`pc <= (halt || mem_wait) ? pc : next_pc`).
-- Writeback is suppressed (`rd_wen_eff`, `rd_wb` both gate on `halt`).
+- Writeback is suppressed (`rd_wen_eff` on the held halt and the halts an
+  rd-writing instruction can raise, `rd_wb` on `halt`).
 - Retirement stops: `rvfi_valid = rst_n & ~halt_q & ~mem_wait`, and
   since `halt_q` latches on the halting cycle, the halting instruction
   itself is the last beat — a trap beat with `rvfi_trap = halt_now`.

@@ -268,6 +268,8 @@ class KestrelTB:
             f"trace length: core={len(self.trace)} golden={len(golden_trace)}"
         for i, (got, want) in enumerate(zip(self.trace, golden_trace)):
             for field in TRACE_FIELDS:
+                if want[field] is None:
+                    continue    # golden: a never-written register (no regfile reset)
                 assert got[field] == want[field], (
                     f"beat {i} field {field}: core=0x{got[field]:x} "
                     f"golden=0x{want[field]:x} "

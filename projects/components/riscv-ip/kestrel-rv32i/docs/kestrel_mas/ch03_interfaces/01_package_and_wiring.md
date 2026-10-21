@@ -90,7 +90,7 @@ The instance map every maintainer should be able to redraw from memory:
 
 ## Reset Discipline
 
-All sequential logic uses the shared `reset_defs.svh` macros (`ALWAYS_FF_RST`, `RST_ASSERTED`): asynchronous assert, synchronous deassert, active-low `rst_n`. The register file clears to zeros; the PC clears to `RESET_ADDR`; `halt_q` and `retire_count` clear to zero. The loader applies the same macros with `aresetn`, and its `core_rst_n` output is the core's actual reset in loader integrations.
+All sequential logic uses the shared `reset_defs.svh` macros (`ALWAYS_FF_RST`, `RST_ASSERTED`): asynchronous assert, synchronous deassert, active-low `rst_n`. The register file has no reset (it is plain storage, mapped to distributed RAM; software initializes it); the PC clears to `RESET_ADDR`; `halt_q` and `retire_count` clear to zero. The loader applies the same macros with `aresetn`, and its `core_rst_n` output is the core's actual reset in loader integrations.
 
 ---
 
