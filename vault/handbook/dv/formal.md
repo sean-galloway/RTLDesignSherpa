@@ -25,11 +25,17 @@ Build the flat AFTER anything that recreates its directory. riscv-formal's
 in `checks/rtl_v/`. Moving the sv2v call onto formal_flat.mk made the flat a
 make prerequisite of `checks`, so it was converted first and deleted by
 genchecks a moment later; all 42 checks then failed "kestrel_flat.v not found"
-(2026-10-20 to 2026-10-21). The CI rule above passed throughout -- it checks
-that the include exists, not that the file survives to the sby run. The fix
-is a recursive `$(MAKE) $(FLAT)` after genchecks, in
-formal/kestrel/riscv-formal/Makefile. Read the order of the recipe, not just
-the dependency list, whenever a step owns the directory you write into.
+(2026-10-20 to 2026-10-21). The include rule above passed throughout -- it
+checks that the include exists, not that the file survives to the sby run.
+Reordering the recipe fixed that one Makefile; the class is closed by
+location instead: **a flat lives in its unit directory**, never in a
+subdirectory, because proof tooling owns subdirectories (genchecks.py
+rmtree's checks/, sby recreates its workdir). kestrel's flat is now
+`formal/kestrel/riscv-formal/kestrel_flat.v` (gitignored, rebuilt every
+`make checks`), and `bin/check_formal_flat_sources.py` fails any `FLAT` with
+a directory part other than `$(CURDIR)` (FLAT_SUBDIR); its test plants the
+old kestrel Makefile and requires the failure. 141 of 142 units already
+complied.
 
 Rules - each guards against a proof that PASSES while checking nothing:
 - sv2v silently DELETES immediate assertions without --exclude=Assert.

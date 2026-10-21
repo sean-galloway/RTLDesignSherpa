@@ -23,7 +23,9 @@
 #      `make clean` removes both entries.
 #   2. Runs genchecks.py (reads checks.cfg here), which wipes and regenerates
 #      the checks/ task directory with one <check>.sby per proof.
-#   3. Converts the kestrel RTL with sv2v into checks/rtl_v/ (UNTRACKED).
+#   3. Converts the kestrel RTL with sv2v into kestrel_flat.v here (UNTRACKED,
+#      gitignored), beside this Makefile and outside checks/: genchecks.py
+#      rmtree's checks/, and a flat inside it was deleted before sby ran.
 #      The RTL uses package imports inside module bodies, which yosys's
 #      read_verilog -sv cannot parse (yosys 0.62+95: "unexpected TOK_IMPORT"),
 #      so riscv-formal cannot read the .sv directly; this is the repo's
@@ -39,7 +41,6 @@ OSS_CAD_SUITE ?= /mnt/data/tools/oss-cad-suite/bin
 export PATH := $(OSS_CAD_SUITE):$(PATH)
 
 CHECKS_DIR := $(CURDIR)/checks
-RTL_V      := $(CHECKS_DIR)/rtl_v
 HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 
 # The core's compile closure comes from its own filelist via
@@ -47,24 +48,22 @@ HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 # The hand list this replaced missed rtl/cdc/reset_sync.sv when the core
 # gained its boundary reset synchronizer, and every check then failed to
 # elaborate.
-FLAT          := $(RTL_V)/kestrel_flat.v
+FLAT          := kestrel_flat.v
 FLAT_FILELIST := $(REPO_ROOT)/projects/components/riscv-ip/kestrel-rv32i/rtl/filelists/top/kestrel_core.f
 include $(REPO_ROOT)/make/formal_flat.mk
 
 # `checks` re-converts on every run: an RTL edit under an unchanged .f must
-# still reach rtl_v, and formal_flat.mk's mtime rule alone would skip it.
-# rtl_v lives under checks/, which genchecks.py rmtree's and recreates, so
-# the flat is built AFTER genchecks (a recursive make), never as a
-# prerequisite of `checks` -- as a prerequisite it was converted and then
-# deleted, and every check failed with "kestrel_flat.v not found".
-$(FLAT): FORCE | $(RTL_V)
+# still reach the flat, and formal_flat.mk's mtime rule alone would skip it.
+# The flat sits in this directory, never under checks/: genchecks.py
+# rmtree's checks/, and when the flat lived in checks/rtl_v/ it was converted
+# and then deleted, and all 42 checks failed "kestrel_flat.v not found".
+# bin/check_formal_flat_sources.py now fails any FLAT outside its unit dir.
+$(FLAT): FORCE
 FORCE:
-$(RTL_V):
-	mkdir -p $@
 
 .PHONY: checks clean FORCE
 
-checks:
+checks: $(FLAT)
 	@for tool in sby yosys sv2v z3; do \
 	    command -v $$tool >/dev/null 2>&1 || { \
 	        echo "error: $$tool not on PATH (export PATH=/mnt/data/tools/oss-cad-suite/bin:<sv2v>:$$PATH)" >&2; \
@@ -81,7 +80,6 @@ checks:
 	sed 's/const rand reg/(* anyconst *) reg/' \
 	    $(RISCV_FORMAL)/checks/rvfi_macros.vh > $(REPO_ROOT)/formal/checks/rvfi_macros.vh
 	cd $(CURDIR) && python3 $(RISCV_FORMAL)/checks/genchecks.py checks
-	$(MAKE) --no-print-directory $(FLAT)
 	$(MAKE) --no-print-directory -C $(CHECKS_DIR) -j$$(nproc) -f makefile
 	@fails=0; total=0; \
 	for s in $(CHECKS_DIR)/*/status; do \
@@ -96,7 +94,7 @@ checks:
 	echo "riscv-formal kestrel: $$((total-fails))/$$total checks PASS"; \
 	[ $$fails -eq 0 ]
 
-clean:
-	rm -rf $(CHECKS_DIR)
+clean: flat-clean
+	rm -rf $(CHECKS_DIR) $(FLAT)
 	rm -rf $(REPO_ROOT)/formal/checks
 	rm -f $(REPO_ROOT)/formal/insns
