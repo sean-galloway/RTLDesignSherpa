@@ -585,3 +585,37 @@ kind = "component"
 # own component area 2026-10-20.
 rtl_roots = ["projects/components/compute-eng-ip/alu-infer/rtl"]
 filelist_dirs = ["projects/components/compute-eng-ip/alu-infer/rtl/filelists"]
+
+# Board builds for the alu-infer and kestrel components (Genesys 2 + Nexys A7).
+# Registered 2026-10-20 to close the blind-spot ratchet their new filelist
+# dirs introduced; the owning lanes own the contents.
+[[area]]
+name = "genesys2_alu_infer"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/fpga-systems/Genesys2/compute-eng-ip/alu-infer/build-infer/rtl/filelists",
+    "projects/fpga-systems/Genesys2/compute-eng-ip/alu-infer/dv/filelists",
+    "projects/fpga-systems/Genesys2/compute-eng-ip/alu-infer/rtl/filelists",
+]
+
+[[area]]
+name = "genesys2_kestrel"
+kind = "board"
+rtl_roots = []
+filelist_dirs = [
+    "projects/fpga-systems/Genesys2/riscv-ip/kestrel/build-bram/rtl/filelists",
+    "projects/fpga-systems/Genesys2/riscv-ip/kestrel/dv/filelists",
+]
+
+[[area]]
+name = "nexysa7_alu_infer"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/NexysA7/compute-eng-ip/alu-infer/build-infer/rtl/filelists"]
+
+[[area]]
+name = "nexysa7_kestrel"
+kind = "board"
+rtl_roots = []
+filelist_dirs = ["projects/fpga-systems/NexysA7/riscv-ip/kestrel/build-bram/rtl/filelists"]
