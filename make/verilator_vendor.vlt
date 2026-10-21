@@ -1,9 +1,19 @@
 `verilator_config
-// Lint configuration for make/fpga_lint.mk: rules switched off for
-// THIRD-PARTY source only, matched by path. Our own RTL is never listed here
-// -- fix it instead (fpga_lint.mk, the WIDTH note above LINT_WAIVERS).
+// Lint configuration for make/fpga_lint.mk: rules switched off only for
+// source this repo does not write by hand -- AMD's IP library (by path) and
+// one proven-legal PeakRDL pattern (by variable name). Hand-written RTL is
+// never listed here: fix it (fpga_lint.mk, the notes above LINT_WAIVERS).
 // (No comment here may begin with the tool's name: it reads that as a pragma.)
 
 // AMD/Xilinx IP library source (the Vivado install), which a build lints when
 // it reads a vendor IP's RTL directly (fabric-benchmark's axi_crossbar)
 lint_off -rule WIDTH -file "*/Vivado/data/ip/*"
+
+// PeakRDL regblocks: each field's always_comb writes its own member of the
+// one `field_combo` struct (`field_combo.CTRL.GO.load_next` here,
+// `field_combo.CTRL.STOP.next` there). That is legal -- the one-writer rule of
+// always_comb (IEEE 1800-2023 9.2.2.2) is per longest static prefix, and the
+// members are distinct -- but this tool flags the whole variable. Exempted by
+// that variable's name only: any other multi-driven signal fails lint (Vivado
+// reports none in a regblock; it did report the real ones, bridge BUG-022).
+lint_off -rule MULTIDRIVEN -file "*/generated/*" -match "*'field_combo'*"

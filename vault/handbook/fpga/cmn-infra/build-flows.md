@@ -58,7 +58,7 @@ variable in the shared file instead. The three that exist:
 | `PREBUILD` | a command that must run before `project`/`synth`/`bitstream` -- regenerating a bridge from its `.toml`, a regblock from its `.rdl` | empty (a clean no-op) |
 | `FPGA_BITSTREAM` | exported to the tcl so the artifact name has ONE authority | `$(FPGA_DIR)/bitstream/$(FLOW).bit` |
 | `LINT_WAIVERS` | board-integration warning noise | includes `-Wno-PINMISSING`: a board top routinely leaves a submodule's optional status outputs open, and that is an integration choice, not a defect. **Never WIDTH** (below) |
-| `LINT_VENDOR_VLT` | rules switched off for third-party source only, by file path | `make/verilator_vendor.vlt`: WIDTH off under AMD's IP library, nothing else |
+| `LINT_VENDOR_VLT` | rules switched off only for source not written by hand | `make/verilator_vendor.vlt`: WIDTH off under AMD's IP library (by path); MULTIDRIVEN off for PeakRDL's `field_combo` only (by variable name) |
 | `LINT_UNROLL` | Verilator's loop-unroll budget, when the design's deepest loop exceeds the stock one | empty -- a flow that does not need it must not pay for it |
 
 `FPGA_BITSTREAM` earns its keep when a build has more than one flavor. The
@@ -219,3 +219,18 @@ the port's width) -- never by a waiver. The only exemption is third-party
 source this repo cannot edit, listed by path in `make/verilator_vendor.vlt`.
 A comment in a `.vlt` must not begin with the tool's name: it is read as a
 pragma and fails every build.
+
+## MULTIDRIVEN is not waived (owner, 2026-10-20)
+
+`-Wno-MULTIDRIVEN` hid bridge BUG-022: every AXI5 sideband field of a
+rate-buffered width-converted bridge path had two drivers (the rate buffer and
+a '0 tie), in two board-green bitstreams (build-axi5: 103 Vivado Synth 8-6859
+warnings; build-xmix: 60 Verilator MULTIDRIVEN). Vivado kept the tie by luck.
+
+With the waiver gone, the only remaining reports were 1,488 in PeakRDL
+regblocks, all on one variable: each field's `always_comb` writes its own
+member of the `field_combo` struct. That is legal (the always_comb one-writer
+rule is per longest static prefix) and Vivado reports none of it, so
+`verilator_vendor.vlt` exempts that variable by name inside `*/generated/*`
+and nothing else -- checked by linting the pre-fix BUG-022 adapter with the
+exemption in place: its 10 real multi-drivers still fail.

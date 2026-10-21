@@ -44,7 +44,13 @@ LINT_DEFINES ?= +define+USE_ASYNC_RESET
 # "empty" at 256 records. Size a connection or an operand explicitly instead.
 # The only exemption is AMD's own IP source, which this repo cannot edit
 # (verilator_vendor.vlt, by file path).
-LINT_WAIVERS ?= -Wno-MULTIDRIVEN -Wno-UNUSED -Wno-UNDRIVEN \
+#
+# MULTIDRIVEN is not waived either (owner, 2026-10-20): waived, it hid two
+# drivers on every AXI5 sideband field of a rate-buffered width-converted
+# bridge path (bridge BUG-022, in two board-green bitstreams). The one
+# exemption is PeakRDL's per-member writes to its `field_combo` struct, legal
+# SV that this tool reports conservatively (verilator_vendor.vlt, by name).
+LINT_WAIVERS ?= -Wno-UNUSED -Wno-UNDRIVEN \
                 -Wno-CASEINCOMPLETE -Wno-SELRANGE -Wno-DECLFILENAME \
                 -Wno-UNUSEDSIGNAL -Wno-VARHIDDEN \
                 -Wno-CASEOVERLAP -Wno-MODDUP -Wno-PINMISSING
