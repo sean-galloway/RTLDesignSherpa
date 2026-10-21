@@ -81,7 +81,7 @@ The instance map every maintainer should be able to redraw from memory:
 | `alu_y` | `u_alu` → dmem address, writeback mux | ALU flags unconnected (ruling, kestrel_alu chapter) |
 | `cmp_eq/cmp_lt/cmp_ltu` → `branch_cond` → `branch_taken` | core comparator → next-PC mux | funct3 selects the condition |
 | `next_pc` | next-PC mux → PC register, `rvfi_pc_wdata` | 4-row priority mux |
-| `rd_wdata` / `rd_wen_eff` | writeback mux + gates → `u_regfile` | x0 discard inside the file |
+| `rd_wdata` / `rd_wen_eff` | writeback mux + gates → `u_regfile` | x0 kept zero by writes: reset writes zero to entry 0, and an x0 write takes the mux's zero row |
 | L/S nets (`ls_*`, `dmem_*`) | core rotators → dmem pins | offset from `rs1_data[1:0] + imm[1:0]`; `ls_misalign` joins the halt causes |
 | Halt nets (`halt_*`, `misalign_target`, `ls_misalign`) | core → halt ports, `halt_q` | `halt_cause_eff = dec_halt_cause \| (misalign_target ? HALT_IALIGN : 0) \| (ls_misalign ? (dmem_we ? HALT_SALIGN : HALT_LALIGN) : 0)` |
 | RVFI bundle (17) | core aggregation assigns → top ports | rules in Chapter 4 |

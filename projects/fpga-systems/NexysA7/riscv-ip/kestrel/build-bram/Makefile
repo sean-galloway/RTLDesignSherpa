@@ -19,6 +19,14 @@ FILELIST  := $(SELF_DIR)/rtl/filelists/kestrel_nexysa7_top.f
 # USE_DSP).  Own bitstream name so the two variants can sit side by side.
 ALU_DSP   ?= 0
 export KESTREL_ALU_DSP := $(ALU_DSP)
+# IMPL=explore (the default here): timing-driven implementation directives +
+# phys_opt passes (fpga/tcl/create_project.tcl), ~0.8 ns better on this core;
+# IMPL=default keeps Vivado's defaults.
+IMPL      ?= explore
+export KESTREL_IMPL := $(IMPL)
+ifeq ($(filter $(IMPL),default explore),)
+  $(error IMPL must be default or explore, got '$(IMPL)')
+endif
 ifeq ($(filter $(ALU_DSP),0 1),)
   $(error ALU_DSP must be 0 or 1, got '$(ALU_DSP)')
 endif

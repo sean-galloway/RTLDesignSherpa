@@ -59,7 +59,7 @@ An honest sketch, from the RTL rather than synthesis:
 | Resource | Content |
 |----------|---------|
 | State (core, outside the register file) | Three state elements: `pc` (32b), `retire_count` (64b), `halt_q` (1b) — the entire sequential content besides the register file |
-| Register file | 32 x 32 bits, 2 combinational read ports, 1 synchronous write port; distributed RAM, since it has no reset (x0 is not stored: both read ports return zero for address 0) |
+| Register file | 32 x 32 bits, 2 combinational read ports, 1 synchronous write port; distributed RAM, since it has no reset; x0 is entry 0, kept zero by the core writing zero to it in reset and on every x0 write, so the read ports need no zero-select |
 | Decode | One `unique casez` truth table keyed on `{opcode, funct3, funct7}` — no FSM, no microcode, no control ROM |
 | Datapath | ALU (10 ops), immediate generator, source muxes, writeback mux, next-PC mux, dedicated branch comparator, byte-lane rotators |
 | Loader addition | Two 16K-word distributed-RAM arrays (2 x 64 KB), AXIL leaf slaves with skid buffers, one run bit and two write-side holding registers |

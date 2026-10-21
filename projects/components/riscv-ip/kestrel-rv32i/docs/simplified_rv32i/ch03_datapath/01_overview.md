@@ -54,7 +54,10 @@ so it fits in distributed RAM rather than 1,024 flops. A register is
 undefined until a program writes it, and keeps an earlier program's value
 across a reload, so every program initializes each register it reads. The
 riscv-tests p-env does exactly that at its reset vector; the golden
-interpreter fails any test program that does not (Chapter 6).
+interpreter fails any test program that does not (Chapter 6). x0 is the one
+exception, and the core handles it by writing: entry 0 gets zero while the
+core is in reset and on every instruction that names x0 as its
+destination, so nothing on the read side has to special-case it.
 
 ## Reading the chapters that follow
 

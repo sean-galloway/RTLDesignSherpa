@@ -55,6 +55,8 @@ Ports are specified exhaustively in the HAS (Chapter 4 there). Internally the to
 
 : Writeback priority mux
 
+The register file has no x0 logic: the core keeps entry 0 zero by writing it — in reset (`rd_addr = 0`, write enabled, data zero) and on every instruction that targets x0, whose write data comes from the writeback mux's zero row (the row the CSR stub already uses), so x0 costs nothing on the register-read path (kestrel_regfile chapter).
+
 The write enable is `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign`: decode's `rd_wen` qualified by the held halt, the memory wait, and the two halts an rd-writing instruction can raise (a misaligned JAL/JALR target, cause 3, and a misaligned load, cause 4). Decode sets `rd_wen` on none of its own halt rows and branches never write rd, so this equals gating with `halt` while keeping the branch comparator off the write-enable path (2026-10-20, the A7 critical path). The register file independently discards writes to x0.
 
 ### Next-PC Mux
@@ -66,9 +68,8 @@ Four rows, in priority order: JAL/JALR (`jump || jalr`) → `jalr ? (rs1_data + 
 The ALU exports `eq/lt/ltu` flags, and the core's ALU instance **deliberately leaves them unconnected** (` .eq (), .lt (), .ltu ()`). The reason is a reviewed design ruling: for branches the ALU's left input is the PC (it is simultaneously computing `pc + imm` for the next-PC mux), so its internal flags would compare pc against imm, not rs1 against rs2 — silently wrong branch decisions. Branch conditions therefore come from a dedicated comparator on the register data:
 
 - `cmp_eq = (rs1_data == rs2_data)`
-- `cmp_lt = ($signed(rs1_data) < $signed(rs2_data))`
-- `cmp_ltu = (rs1_data < rs2_data)`
-- `branch_cond` selected from `cmp_*` by `funct3` in a `unique case` (BEQ→eq, BNE→~eq, BLT→lt, BGE→~lt, BLTU→ltu, BGEU→~ltu, default→0)
+- `cmp_lt = ($signed({s & rs1_data[31], rs1_data}) < $signed({s & rs2_data[31], rs2_data}))` with `s = ~funct3[1]` — one comparator serves signed and unsigned: the operands are extended to 33 bits with their sign bit (BLT/BGE) or a zero (BLTU/BGEU) and compared signed (2026-10-20; the shared-comparator idea is from the BRISKI barrel core)
+- `branch_cond` selected by `funct3` in a `unique case` (BEQ→eq, BNE→~eq, BLT/BLTU→lt, BGE/BGEU→~lt, default→0)
 - `branch_taken = branch & branch_cond`
 
 In a single-cycle machine this parallel evaluation is free: both the ALU result and the comparator decision are ready when the next PC is chosen.

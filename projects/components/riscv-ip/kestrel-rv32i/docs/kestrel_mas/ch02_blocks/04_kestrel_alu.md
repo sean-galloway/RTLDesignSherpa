@@ -41,7 +41,7 @@
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `USE_DSP` | 0 | 1: the add, subtract and bitwise rows carry `use_dsp = "logic"`, so Vivado builds them in DSP48 slices (the post-adder does add/sub and AND/OR/XOR) instead of CARRY4 chains and LUTs. Shifts and set-less-than stay in fabric. Synthesis only: simulation, lint and formal see the same logic for both values; the ALU unit test runs both (2026-10-20). Set from the core's `ALU_USE_DSP`. |
+| `USE_DSP` | 0 | 1: the add/subtract row is `kestrel_alu_dsp`, one DSP48E1 post-adder (module-level `use_dsp`), instead of a CARRY4 chain. Measured on xc7a100t: Vivado maps a lone add/sub but not a case that also selects the bitwise rows (0 DSPs), so bitwise, shift and set-less-than stay in fabric. On the Nexys A7 it saves 42 LUTs and costs about 0.3 ns, so 0 is the default. Synthesis only: simulation, lint and formal see the same logic for both values; the ALU unit test runs both (2026-10-20). Set from the core's `ALU_USE_DSP`. |
 
 : kestrel_alu parameters
 
@@ -50,21 +50,23 @@
 | `alu_op` | `y` | Notes |
 |----------|-----|-------|
 | ADD | `a + b` | Also computes branch/JAL targets when `a = pc` |
-| SUB | `a - b` | |
+| SUB | `a + ~b + 1` | one adder for ADD/SUB: the inverted operand plus a carry-in |
 | AND / OR / XOR | bitwise | |
 | SLL | `a << shamt` | shamt = `b[4:0]` (unpriv §2.1.4.1: shift amounts use 5 bits) |
 | SRL | `a >> shamt` | logical |
 | SRA | `$signed(a) >>> shamt` | arithmetic |
-| SLT | `{{31{1'b0}}, lt}` | sets rd to 0/1 |
-| SLTU | `{{31{1'b0}}, ltu}` | unsigned compare, notably for SLTIU's sign-extended-then-unsigned immediate |
+| SLT | `{{31{1'b0}}, slt_lt}` | sets rd to 0/1 |
+| SLTU | `{{31{1'b0}}, slt_lt}` | unsigned, notably for SLTIU's sign-extended-then-unsigned immediate; SLT and SLTU share one comparator, the operands extended to 33 bits with the sign bit for SLT and a zero for SLTU |
 
 : ALU operations (`shamt = b[4:0]`)
+
+The result is the OR of every row, each forced to zero unless its op is selected, rather than a final multiplexer (2026-10-20; the OR-combined result is an idea from the BRISKI barrel core). An undefined op yields zero.
 
 The shift-by-`b[4:0]` matches the ISA's shamt semantics exactly — and because the decode table keys SLLI/SRLI/SRAI fully on funct7, encodings with shamt[5] set (reserved in RV32I) never reach this module as shifts; they halt as illegal in decode.
 
 ## The Flags Ruling
 
-The flags compare `a` against `b`: `eq = (a == b)`, `lt = ($signed(a) < $signed(b))`, `ltu = (a < b)`. For branch instructions the core drives `a = pc` (the ALU is simultaneously computing `pc + imm`), so these flags would compare pc against imm — silently wrong. The core's instance leaves `eq/lt/ltu` unconnected and branches decide on the dedicated rs1/rs2 comparator in the top. The ALU flags remain correct for SLT/SLTU's internal use (`lt`/`ltu` feed the SLT/SLTU rows) and are available to any future consumer whose `a`/`b` are the intended operands. This was a reviewed ruling (Task 4 review, SDD ledger), recorded here so nobody "fixes" the dangling pins.
+The flags compare `a` against `b`: `eq = (a == b)`, `lt = ($signed(a) < $signed(b))`, `ltu = (a < b)`. For branch instructions the core drives `a = pc` (the ALU is simultaneously computing `pc + imm`), so these flags would compare pc against imm — silently wrong. The core's instance leaves `eq/lt/ltu` unconnected and branches decide on the dedicated rs1/rs2 comparator in the top. The flag ports keep their own compares and stay correct (the unit test checks them); SLT/SLTU use the shared comparator instead. The flags are available to any future consumer whose `a`/`b` are the intended operands. This was a reviewed ruling (Task 4 review, SDD ledger), recorded here so nobody "fixes" the dangling pins.
 
 ---
 

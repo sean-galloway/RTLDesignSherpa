@@ -108,4 +108,29 @@ add_files -norecurse -fileset $cf "$project_root/constraints/$xdc_name"
 set_property strategy "Vivado Synthesis Defaults"      [get_runs synth_1]
 set_property strategy "Vivado Implementation Defaults" [get_runs impl_1]
 
+# IMPL=explore (build Makefile -> KESTREL_IMPL): timing-driven directives at
+# every implementation step, phys_opt after placement and after routing, and
+# a placement-time clock over-constraint (hooks/).  The directive set follows
+# the BRISKI barrel core's flow; IMPL=default keeps the defaults above.
+set impl_mode [expr {[info exists ::env(KESTREL_IMPL)] ? $::env(KESTREL_IMPL) : "default"}]
+if {$impl_mode eq "explore"} {
+    set ir [get_runs impl_1]
+    set hooks "$script_dir/hooks"
+    add_files -fileset utils_1 -norecurse [list "$hooks/overconstrain_on.tcl" "$hooks/overconstrain_off.tcl"]
+    set_property STEPS.OPT_DESIGN.ARGS.DIRECTIVE              Explore                $ir
+    set_property STEPS.PLACE_DESIGN.TCL.PRE                   "$hooks/overconstrain_on.tcl"  $ir
+    set_property STEPS.PLACE_DESIGN.ARGS.DIRECTIVE            ExtraPostPlacementOpt  $ir
+    set_property STEPS.PHYS_OPT_DESIGN.IS_ENABLED             true                   $ir
+    set_property STEPS.PHYS_OPT_DESIGN.ARGS.DIRECTIVE         AggressiveExplore      $ir
+    set_property STEPS.PHYS_OPT_DESIGN.TCL.POST               "$hooks/overconstrain_off.tcl" $ir
+    set_property STEPS.ROUTE_DESIGN.ARGS.DIRECTIVE            AggressiveExplore      $ir
+    set_property -name {STEPS.ROUTE_DESIGN.ARGS.MORE OPTIONS} -value {-tns_cleanup} -objects $ir
+    set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.IS_ENABLED  true                   $ir
+    set_property STEPS.POST_ROUTE_PHYS_OPT_DESIGN.ARGS.DIRECTIVE AggressiveExplore   $ir
+} elseif {$impl_mode ne "default"} {
+    puts stderr "ERROR: KESTREL_IMPL='$impl_mode' (expected default or explore)"
+    exit 1
+}
+puts "IMPL:         $impl_mode"
+
 puts "\nProject created: $project_root/$project_dir/${project_name}.xpr"

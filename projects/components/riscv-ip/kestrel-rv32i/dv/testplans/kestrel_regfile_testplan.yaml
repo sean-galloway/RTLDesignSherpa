@@ -16,15 +16,16 @@ parameters: []
 
 functional_scenarios:
   - id: RF-01
-    name: "x0 reads zero with no reset"
-    description: "The file has no reset (2026-10-20: distributed RAM): with
-                  nothing written, x0 must read 0 on both ports; every other
-                  register is written before the test reads it."
+    name: "Plain storage: every entry 0..31 writes and reads back"
+    description: "The file has no reset and no x0 rule (2026-10-20:
+                  distributed RAM; kestrel_core keeps entry 0 zero by
+                  writing it). Every entry, 0 included, is written and read
+                  back on both ports; nothing is read before it is written."
     test_function: "cocotb_test_kestrel_regfile"
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
+    covers_lines: [31, 32, 33, 34, 35, 36, 37, 38, 50, 51]
 
   - id: RF-02
     name: "Write-then-read back on both read ports"
@@ -35,7 +36,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
+    covers_lines: [31, 32, 33, 34, 35, 36, 37, 38, 50, 51]
 
   - id: RF-03
     name: "Read-during-write returns the old value"
@@ -46,17 +47,20 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
+    covers_lines: [31, 32, 33, 34, 35, 36, 37, 38, 50, 51]
 
   - id: RF-04
-    name: "Writes to x0 are discarded"
-    description: "Write 0xDEADBEEF to register 0, read x0 back on both ports:
-                  data must still be 0 (write guard rd_addr != X0_ADDR)."
+    name: "Entry 0 is ordinary storage"
+    description: "Write 0xDEADBEEF to entry 0 and read it back on both ports:
+                  the file has no x0 guard (2026-10-20). x0 reading zero is a
+                  core property -- kestrel_core writes zero to x0 in reset
+                  and on every x0 write -- checked by riscv-formal
+                  (rs*_rdata == 0 for x0) and the rv32ui battery."
     test_function: "cocotb_test_kestrel_regfile"
     test_level: gate
     priority: high
     status: verified
-    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
+    covers_lines: [31, 32, 33, 34, 35, 36, 37, 38, 50, 51]
 
   - id: RF-05
     name: "Independent rs1/rs2 addressing (rs1 != rs2)"
@@ -69,7 +73,7 @@ functional_scenarios:
     test_level: func
     priority: medium
     status: verified
-    covers_lines: [30, 31, 32, 33, 34, 35, 36, 37, 51, 52, 55, 56]
+    covers_lines: [31, 32, 33, 34, 35, 36, 37, 38, 50, 51]
 
 parameter_coverage: []
 

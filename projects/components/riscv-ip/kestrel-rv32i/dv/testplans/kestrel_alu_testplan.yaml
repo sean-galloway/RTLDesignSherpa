@@ -27,8 +27,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
-                   71, 72, 73, 74, 75, 76, 77, 78]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
 
   - id: ALU-02
     name: "AND / OR / XOR logical operations"
@@ -38,8 +37,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
-                   71, 72, 73, 74, 75, 76, 77, 78]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
 
   - id: ALU-03
     name: "SLL / SRL / SRA shifts with b[4:0] shamt"
@@ -51,8 +49,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
-                   71, 72, 73, 74, 75, 76, 77, 78]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
 
   - id: ALU-04
     name: "SLT / SLTU and eq/lt/ltu comparison flags"
@@ -64,8 +61,7 @@ functional_scenarios:
     test_level: func
     priority: high
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
-                   71, 72, 73, 74, 75, 76, 77, 78]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
 
   - id: ALU-05
     name: "Exhaustive op x value matrix completion"
@@ -83,8 +79,7 @@ functional_scenarios:
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 64, 68, 69, 70,
-                   71, 72, 73, 74, 75, 76, 77, 78]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
 
   - id: ALU-06
     name: "USE_DSP=1: the DSP-mapped add/sub row is functionally identical"
@@ -99,8 +94,7 @@ functional_scenarios:
     test_level: full
     priority: medium
     status: verified
-    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 58, 68, 69, 70, 71,
-                   72, 73, 74, 75, 76, 77, 78]
+    covers_lines: [29, 30, 31, 32, 33, 34, 35, 43, 44, 45, 60, 61, 76, 77, 86]
 
 parameter_coverage:
   - USE_DSP: 0

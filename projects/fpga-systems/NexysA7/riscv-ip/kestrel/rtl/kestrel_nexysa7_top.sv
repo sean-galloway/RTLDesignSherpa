@@ -32,14 +32,16 @@ module kestrel_nexysa7_top #(
     output logic [7:0]  led
 );
 
-    // Harness clock = VCO 1000 MHz / CLK_DIV.  CLK_DIV is set from this
-    // part's measured timing (README "Board result").
-    localparam int CLK_DIV     = 14;
-    localparam int FPGA_CLK_HZ = 1_000_000_000 / CLK_DIV;
+    // Harness clock = 100 MHz * VCO_MULT / CLK_DIV.  75 MHz (owner,
+    // 2026-10-20): VCO 900 MHz / 12.  The A7 worst path is ~11.6 ns with
+    // IMPL=explore (README "Board result").
+    localparam int VCO_MULT    = 9;
+    localparam int CLK_DIV     = 12;
+    localparam int FPGA_CLK_HZ = (100_000_000 * VCO_MULT) / CLK_DIV;   // 900e6 fits int
     localparam int UART_BAUD   = 115_200;
 
     // -------------------------------------------------------------------------
-    // 100 MHz -> MMCM -> harness clock (VCO 1000 MHz, CLKOUT0 / CLK_DIV)
+    // 100 MHz -> MMCM -> harness clock (VCO 100 * VCO_MULT MHz, CLKOUT0 / CLK_DIV)
     // -------------------------------------------------------------------------
     logic clk_unbuf, clk, clkfb, clkfb_buf, mmcm_locked;
 
@@ -47,7 +49,7 @@ module kestrel_nexysa7_top #(
         .BANDWIDTH         ("OPTIMIZED"),
         .CLKIN1_PERIOD     (10.000),
         .DIVCLK_DIVIDE     (1),
-        .CLKFBOUT_MULT_F   (10.000),
+        .CLKFBOUT_MULT_F   (VCO_MULT),
         .CLKOUT0_DIVIDE_F  (CLK_DIV),
         .CLKOUT0_DUTY_CYCLE(0.500),
         .CLKOUT0_PHASE     (0.000),

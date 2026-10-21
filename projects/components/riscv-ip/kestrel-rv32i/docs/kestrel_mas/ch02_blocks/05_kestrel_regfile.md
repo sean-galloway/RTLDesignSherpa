@@ -41,8 +41,8 @@
 ## Internal Structure and Rules
 
 - Storage is `logic [31:0] regs [32]` with `ram_style = "distributed"` and **no reset**: a register is undefined until written, and keeps the previous program's value across a reload. Every program initializes each register it reads (the riscv-tests p-env does, with `INIT_XREG`; kestrel's golden interpreter raises `UninitializedRegisterRead` on any test that does not).
-- **The x0 rule lives here:** writes with `rd_addr == 0` are discarded by the write condition `rd_wen && (rd_addr != X0_ADDR)`, and both read ports return zero for address 0 (`regs[0]` is never written, so it is not relied on).
-- The core additionally gates `rd_wen` (into `rd_wen_eff`) so that memory-wait and halted cycles never reach this port — see the kestrel_core chapter.
+- **No x0 rule here.** Entry 0 is ordinary storage and the read ports have no zero-select (2026-10-20). kestrel_core keeps x0 zero by *writing* it: in reset it writes zero to entry 0 (reset_sync holds the internal reset for at least three clocks), and any instruction that targets x0 writes zero, through the writeback mux's existing zero row. So x0 reads zero with no logic on the register-read path, which is on the critical path. The stored-zero idea comes from the BRISKI barrel core; kestrel does it init-by-write per the house SRAM rule, not with an `initial` block. riscv-formal checks `rs*_rdata == 0` for x0 on every instruction (and fails every check if the reset write is removed).
+- The core drives this port: `rd_wen = rd_wen_eff | ~reset`, `rd_addr = reset ? 0 : insn[11:7]`, with `rd_wen_eff` gating memory-wait and halting cycles — see the kestrel_core chapter.
 - No write-forwarding exists: a write commits on the edge and is readable the next cycle. This is exactly the single-cycle contract (a store is visible to the next cycle's load *through the memory*; a register write is visible to the next instruction *through the register file*).
 
 ---

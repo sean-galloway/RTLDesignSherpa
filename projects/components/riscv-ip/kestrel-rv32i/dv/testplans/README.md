@@ -177,11 +177,11 @@ full level, 200 streams, and the USE_DSP=1 ALU cells), from `make clean-all`:
 
 | Metric | Result | House target | Status |
 |---|---|---|---|
-| Line (Verilator) | 96.5% | 80% | PASS |
-| Line — kestrel_alu | 93.3% | — | — |
+| Line (Verilator) | 96.9% | 80% | PASS |
+| Line — kestrel_alu | 100.0% | — | — |
 | Line — kestrel_alu_dsp | 100.0% | — | — |
 | Line — kestrel_bram_tb_top | 97.6% | — | — |
-| Line — kestrel_core | 96.6% | — | — |
+| Line — kestrel_core | 100.0% | — | — |
 | Line — kestrel_decode | 90.0% | — | — |
 | Line — kestrel_imm_gen | 100.0% | — | — |
 | Line — kestrel_loader_tb_top | 98.0% | — | — |
@@ -192,7 +192,8 @@ full level, 200 streams, and the USE_DSP=1 ALU cells), from `make clean-all`:
 
 The lines still at zero are by design: the AXI `prot`/`resp` buses that
 never toggle (`resp` is always OKAY, `prot` is ignored) and decode's
-unreachable default arms.
+unreachable default arms.  The core and ALU are at 100% since the ALU
+result became an OR of its rows (no unreachable default arm).
 
 Toggle collection is enabled (`--coverage-toggle`); the house
 `merge_testlevel_coverage.py` report tracks line only — toggle numbers

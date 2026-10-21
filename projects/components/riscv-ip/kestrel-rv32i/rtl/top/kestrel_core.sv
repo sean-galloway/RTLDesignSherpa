@@ -194,11 +194,24 @@ module kestrel_core #(
         .imm  (imm)
     );
 
-    // Register file: combinational reads, single synchronous write, x0 tied.
+    // Register file: plain 2R1W storage with combinational reads.  x0 is
+    // kept zero by WRITES, not by a read-side mux (2026-10-20; the idea of
+    // a stored zero x0 is from the BRISKI barrel core, done here
+    // init-by-write per the house SRAM rule): while the core is in reset it
+    // writes zero to x0 (reset_sync holds w_aresetn low for at least three
+    // clocks), and any later write that targets x0 writes zero -- that term
+    // shares the writeback mux's existing zero row with the CSR stub.  So
+    // x0 reads zero with no logic on the register-read path, which is on
+    // the critical path.  riscv-formal checks rs*_rdata == 0 for x0.
     logic [31:0] rs1_data;
     logic [31:0] rs2_data;
     logic [31:0] rd_wdata;
     logic        rd_wen_eff;
+    logic [4:0]  rf_waddr;
+    logic        rf_wen;
+
+    assign rf_waddr = w_aresetn ? insn[11:7] : 5'd0;
+    assign rf_wen   = rd_wen_eff | ~w_aresetn;
 
     kestrel_regfile u_regfile (
         .clk      (clk),
@@ -206,9 +219,9 @@ module kestrel_core #(
         .rs1_data (rs1_data),
         .rs2_addr (insn[24:20]),
         .rs2_data (rs2_data),
-        .rd_addr  (insn[11:7]),
+        .rd_addr  (rf_waddr),
         .rd_data  (rd_wdata),
-        .rd_wen   (rd_wen_eff)
+        .rd_wen   (rf_wen)
     );
 
     // Source muxes: PC vs rs1, immediate vs rs2.
@@ -306,7 +319,7 @@ module kestrel_core #(
     // `halt` (2026-10-20: that was the A7 critical path, register read ->
     // branch compare -> IALIGN halt -> register write enable).
     assign rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign;
-    assign rd_wdata   = csr_stub              ? 32'd0        :
+    assign rd_wdata   = (csr_stub || (rf_waddr == 5'd0)) ? 32'd0 :
                         (opcode == OPCODE_LUI) ? imm          :
                         ls_load                ? ls_load_data :
                         (jump || jalr)         ? (pc + PC_INCR) : alu_y;
@@ -315,15 +328,21 @@ module kestrel_core #(
     // with the funct3 condition select, in parallel with the ALU computing
     // the pc+imm target. Wired now (ruling above); first exercised by the
     // Task 6 branch programs.
-    logic cmp_eq;
-    logic cmp_lt;
-    logic cmp_ltu;
-    logic branch_cond;
-    logic branch_taken;
+    // One magnitude comparator serves signed and unsigned (2026-10-20; the
+    // shared-comparator idea is from the BRISKI barrel core): each operand
+    // is extended to 33 bits with its sign bit for BLT/BGE (funct3[1] = 0)
+    // and a zero for BLTU/BGEU (funct3[1] = 1), then compared signed.  One
+    // carry chain instead of two.
+    logic        cmp_eq;
+    logic        cmp_lt;
+    logic        cmp_signed;
+    logic        branch_cond;
+    logic        branch_taken;
 
-    assign cmp_eq  = (rs1_data == rs2_data);
-    assign cmp_lt  = ($signed(rs1_data) < $signed(rs2_data));
-    assign cmp_ltu = (rs1_data < rs2_data);
+    assign cmp_signed = ~funct3[1];
+    assign cmp_eq     = (rs1_data == rs2_data);
+    assign cmp_lt     = ($signed({cmp_signed & rs1_data[31], rs1_data})
+                         < $signed({cmp_signed & rs2_data[31], rs2_data}));
 
     always_comb begin
         unique case (funct3)
@@ -331,8 +350,8 @@ module kestrel_core #(
             F3_BNE:  branch_cond = ~cmp_eq;
             F3_BLT:  branch_cond = cmp_lt;
             F3_BGE:  branch_cond = ~cmp_lt;
-            F3_BLTU: branch_cond = cmp_ltu;
-            F3_BGEU: branch_cond = ~cmp_ltu;
+            F3_BLTU: branch_cond = cmp_lt;
+            F3_BGEU: branch_cond = ~cmp_lt;
             default: branch_cond = 1'b0;
         endcase
     end

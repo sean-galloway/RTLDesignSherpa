@@ -30,9 +30,11 @@ from TBClasses.shared.utilities import get_paths, sim_build_path
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
 async def cocotb_test_kestrel_regfile(dut):
-    """Verify x0 reads zero with no reset, write/read of every register,
-    read-during-write, and x0 discard.  The file has no reset (2026-10-20):
-    every register is written before it is read."""
+    """Verify write/read of every entry (0..31), read-during-write, and
+    independent read ports.  The file is plain storage with no reset and no
+    x0 rule (2026-10-20): kestrel_core keeps entry 0 zero by writing it, so
+    x0 behaviour is checked at core level (rv32ui battery, riscv-formal).
+    Every entry is written before it is read."""
     clock = Clock(dut.clk, 10, units="ns")
     cocotb.start_soon(clock.start())
 
@@ -60,17 +62,13 @@ async def cocotb_test_kestrel_regfile(dut):
         await RisingEdge(dut.clk)
         dut.rd_wen.value = 0
 
-    # 1) x0 reads zero on both ports with nothing ever written.
-    rs1, rs2 = await read_ports(0, 0)
-    assert (rs1, rs2) == (0, 0), f"x0 must read zero without a reset ({rs1}, {rs2})"
-
-    # 2) Write every register x1..x31, then read each back on both ports.
+    # 1) Write every entry 0..31, then read each back on both ports.
     seed = int(os.environ.get("SEED", "0"))
     random.seed(seed)
     dut._log.info(f"kestrel_regfile test with seed {seed}")
 
-    written = {0: 0}
-    test_addrs = list(range(1, 32))
+    written = {}
+    test_addrs = list(range(32))
     random.shuffle(test_addrs)
     for addr in test_addrs:
         data = random.randint(0, 0xFFFFFFFF)
@@ -82,7 +80,7 @@ async def cocotb_test_kestrel_regfile(dut):
         assert rs1 == written[addr], f"write-read: x{addr} rs1_data mismatch"
         assert rs2 == written[addr], f"write-read: x{addr} rs2_data mismatch"
 
-    # 3) Read-during-write returns the OLD value on the same cycle.
+    # 2) Read-during-write returns the OLD value on the same cycle.
     old_value = 0xAABBCCDD
     new_value = 0x11223344
     target = test_addrs[0]
@@ -104,11 +102,10 @@ async def cocotb_test_kestrel_regfile(dut):
     assert rs1 == new_value, "read-during-write rs1 new value after clock"
     assert rs2 == new_value, "read-during-write rs2 new value after clock"
 
-    # 4) Writes to x0 are discarded.
+    # 3) Entry 0 is ordinary storage: it keeps what is written.
     await write_reg(0, 0xDEADBEEF)
     rs1, rs2 = await read_ports(0, 0)
-    assert rs1 == 0, "x0 write discarded rs1"
-    assert rs2 == 0, "x0 write discarded rs2"
+    assert (rs1, rs2) == (0xDEADBEEF, 0xDEADBEEF), "entry 0 is plain storage"
 
     dut._log.info("kestrel_regfile test PASSED")
 

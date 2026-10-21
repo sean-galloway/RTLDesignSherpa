@@ -52,32 +52,55 @@ module kestrel_alu #(
     assign lt  = (a_signed < b_signed);
     assign ltu = (a < b);
 
-    // The add/sub row.  With USE_DSP it is kestrel_alu_dsp: one DSP48E1
-    // post-adder (module-level use_dsp; Vivado maps a lone add/sub, but not
-    // a case that also selects the bitwise rows, which stay in fabric).
+    // The add/sub row: subtract is add of the inverted operand plus a
+    // carry-in, one adder for both.  With USE_DSP it is kestrel_alu_dsp: one
+    // DSP48E1 post-adder (module-level use_dsp; Vivado maps a lone add/sub,
+    // but not a case that also selects the bitwise rows, which stay in
+    // fabric).
+    logic        is_sub;
     logic [31:0] y_addsub;
+
+    assign is_sub = (op == SUB);
 
     generate
         if (USE_DSP) begin : g_dsp
-            kestrel_alu_dsp u_dsp (.sub(op == SUB), .a(a), .b(b), .y(y_addsub));
+            kestrel_alu_dsp u_dsp (.sub(is_sub), .a(a), .b(b), .y(y_addsub));
         end else begin : g_fabric
-            assign y_addsub = (op == SUB) ? (a - b) : (a + b);
+            assign y_addsub = a + (b ^ {32{is_sub}}) + {31'd0, is_sub};
         end
     endgenerate
 
-    always_comb begin
-        unique case (op)
-            ADD, SUB: y = y_addsub;
-            AND:  y = a & b;
-            OR:   y = a | b;
-            XOR:  y = a ^ b;
-            SLL:  y = a << shamt;
-            SRL:  y = a >> shamt;
-            SRA:  y = $signed(a) >>> shamt;
-            SLT:  y = {{PAD_WIDTH{1'b0}}, lt};
-            SLTU: y = {{PAD_WIDTH{1'b0}}, ltu};
-            default: y = '0;
-        endcase
-    end
+    // SLT/SLTU share one comparator: operands extended to 33 bits with the
+    // sign bit for SLT and a zero for SLTU, compared signed (the lt/ltu flag
+    // ports keep their own compares; kestrel_core leaves them unconnected).
+    logic slt_signed;
+    logic slt_lt;
+
+    assign slt_signed = (op == SLT);
+    assign slt_lt     = ($signed({slt_signed & a[31], a}) < $signed({slt_signed & b[31], b}));
+
+    // Result: every row is zero unless selected, and the rows are ORed --
+    // no final multiplexer (2026-10-20; the OR-combined result is an idea
+    // from the BRISKI barrel core).  An undefined op yields zero, as the
+    // old default arm did.
+    logic sel_addsub, sel_and, sel_or, sel_xor, sel_sll, sel_srl, sel_sra, sel_slt;
+
+    assign sel_addsub = (op == ADD) || (op == SUB);
+    assign sel_and    = (op == AND);
+    assign sel_or     = (op == OR);
+    assign sel_xor    = (op == XOR);
+    assign sel_sll    = (op == SLL);
+    assign sel_srl    = (op == SRL);
+    assign sel_sra    = (op == SRA);
+    assign sel_slt    = (op == SLT) || (op == SLTU);
+
+    assign y = ({32{sel_addsub}} & y_addsub)
+             | ({32{sel_and}}    & (a & b))
+             | ({32{sel_or}}     & (a | b))
+             | ({32{sel_xor}}    & (a ^ b))
+             | ({32{sel_sll}}    & (a << shamt))
+             | ({32{sel_srl}}    & (a >> shamt))
+             | ({32{sel_sra}}    & 32'($signed(a) >>> shamt))
+             | ({32{sel_slt}}    & {{PAD_WIDTH{1'b0}}, slt_lt});
 
 endmodule : kestrel_alu
