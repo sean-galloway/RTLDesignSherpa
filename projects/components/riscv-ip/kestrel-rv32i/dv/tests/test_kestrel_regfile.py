@@ -26,6 +26,7 @@ from cocotb_test.simulator import run
 from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.test_levels import level_env, reg_level_grid
 from TBClasses.shared.utilities import get_paths, sim_build_path
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 
 @cocotb.test(timeout_time=100, timeout_unit="us")
@@ -142,7 +143,7 @@ def test_kestrel_regfile(request, test_level, description):
         "--trace", "--trace-structs", "--trace-depth", "99",
         "--timescale", "1ns/1ps",
         "-Wno-WIDTHTRUNC", "-Wno-WIDTHEXPAND", "-Wno-CASEINCOMPLETE",
-        "-Wno-BLKANDNBLK", "-Wno-MULTIDRIVEN", "-Wno-TIMESCALEMOD",
+        "-Wno-BLKANDNBLK", FIELD_COMBO_VLT, "-Wno-TIMESCALEMOD",
         "-Wno-MODDUP", "-Wno-GENUNNAMED", "-Wno-PINCONNECTEMPTY",
         "-Wno-UNUSEDSIGNAL", "-Wno-UNUSEDPARAM", "-Wno-SYNCASYNCNET",
         "-Wno-DECLFILENAME", "-Wno-VARHIDDEN",

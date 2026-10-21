@@ -31,5 +31,7 @@ make program ALU_PROFILE=lean
 make host-alu                                 # smoke, known_answer, stream, backpressure, latency, pwl
 ```
 
-Status (2026-10-20): sim green (6 programs x 2 profiles), lint green; not yet
-built. Paused for the kestrel Genesys 2 build (owner priority).
+Status (2026-10-21): sim green (6 programs x 2 profiles), lint green; not yet
+built. It was paused for a kestrel Genesys 2 build, which no longer exists:
+kestrel's only board build is now the Nexys A7 (2026-10-21), so the kestrel
+work it waited on no longer blocks it.

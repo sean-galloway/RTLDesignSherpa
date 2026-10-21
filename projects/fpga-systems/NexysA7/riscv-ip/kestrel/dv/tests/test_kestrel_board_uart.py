@@ -36,6 +36,7 @@ from TBClasses.harness.byte_channel import TracingChannel           # noqa: E402
 from uart_axi_bridge import UARTAxiBridge                           # noqa: E402
 import kestrel_board as kb                                          # noqa: E402
 import kestrel_programs as progs                                    # noqa: E402
+from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 CLKS_PER_BIT = 4
 SIM_TIME_BUDGET_MS = 100.0
@@ -90,7 +91,7 @@ def test_kestrel_board_uart(request, program):
         extra_env={"DUT": "kestrel_uart_tb_top", "REPO_ROOT": repo_root,
                    "KESTREL_PROGRAM": program, "COCOTB_LOG_LEVEL": "INFO",
                    "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{name}.xml")},
-        compile_args=["-Wno-MULTIDRIVEN", "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
+        compile_args=[FIELD_COMBO_VLT, "-Wno-UNUSED", "-Wno-UNDRIVEN", "-Wno-WIDTH",
                       "-Wno-CASEINCOMPLETE", "-Wno-DECLFILENAME", "-Wno-UNUSEDSIGNAL",
                       "-Wno-UNUSEDPARAM", "-Wno-TIMESCALEMOD", "-Wno-PINCONNECTEMPTY"],
         keep_files=True, timescale="1ns/1ps")
