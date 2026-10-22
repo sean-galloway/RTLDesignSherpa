@@ -25,7 +25,7 @@
 digraph whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.35", ranksep="0.60", splines=ortho,
-           label="mem-ctrl-ip whole unit - the family stack in the classic DDR-MC course diagram form",
+           label=<<B>mem-ctrl-ip whole unit - the family stack in the classic DDR-MC course diagram form</B>>,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="white", color="black", margin="0.12,0.06"];

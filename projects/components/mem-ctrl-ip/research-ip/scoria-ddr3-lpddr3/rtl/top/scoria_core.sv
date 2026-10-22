@@ -673,6 +673,7 @@ module scoria_core
         .sched_age_thresh_i (sched_age_thresh_i),
         .wr_commit_valid_i  (w_wr_commit_v),
         .wr_commit_ready_o  (w_wr_commit_rdy),
+        .wr_commit_ready_now_o  (),
         .wr_commit_slot_i   (w_wr_commit_slot),
         .rd_issue_valid_i   (w_rd_issue_v),
         .rd_issue_ready_o   (w_rd_issue_rdy),
@@ -701,6 +702,8 @@ module scoria_core
         .wr_cm_rd_last_o    (w_cm_last),
         // per-bank head records (storage -> scheduler contract, recovery Phase 1);
         // not consumed until mc_bank_pick lands -- explicit empty, not missing
+        .bank_row_active_i  ('0),   // records unused on the FRFCFS core
+        .bank_open_row_i    ('0),
         .wr_head_o          (),
         .wr_head2_o         (),
         .rd_head_o          (),

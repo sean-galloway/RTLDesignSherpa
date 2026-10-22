@@ -207,6 +207,9 @@ module mc_scheduler_plane
     input  logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_i,
     input  logic [15:0]                         wr_sch_head_rel_i,
     input  logic                                wr_commit_ready_i,
+    // the accept condition itself for the BANK_PICK core (registers only,
+    // no commit_valid term)
+    input  logic                                wr_commit_ready_now_i,
     output logic                                wr_commit_valid_o,
     output logic [PTRW-1:0]                     wr_commit_slot_o,
 
@@ -656,7 +659,7 @@ module mc_scheduler_plane
             .wr_head2_i         (wr_head2_i),
             .rd_head_i          (rd_head_i),
             .rd_head2_i         (rd_head2_i),
-            .wr_commit_ready_i  (wr_commit_ready_i),
+            .wr_commit_ready_now_i  (wr_commit_ready_now_i),
             .wr_commit_valid_o  (wr_commit_valid_o),
             .wr_commit_slot_o   (wr_commit_slot_o),
             .rd_issue_ready_i   (rd_issue_ready_i),
@@ -693,7 +696,6 @@ module mc_scheduler_plane
             .bank_rdwr_ready_la_i(w_bank_rdwr_ready_la),
             .bank_pre_ready_la_i (w_bank_pre_ready_la),
             .bank_row_active_i  (w_bank_row_active),
-            .bank_open_row_i    (w_bank_open_row),
             .tfaw_ok_i          (w_tfaw_ok),
             .trrd_ok_i          (w_trrd_ok),
             .twtr_ok_i          (w_twtr_ok),
@@ -740,7 +742,7 @@ module mc_scheduler_plane
                               wr_sch_age_exceed_i, wr_sch_qos_i, wr_sch_head_rel_i,
                               rd_sch_bank_i, rd_sch_row_i, rd_sch_col_i, rd_sch_older_i,
                               rd_sch_age_exceed_i, rd_sch_qos_i, rd_sch_head_rel_i,
-                              wr_sch_valid_i, rd_sch_valid_i};
+                              wr_sch_valid_i, rd_sch_valid_i, wr_commit_ready_i};
     end else begin : g_arbiter
     // ======================================================================
     // mc_cmd_arbiter — the FRFCFS research pick core.
@@ -863,7 +865,8 @@ module mc_scheduler_plane
         .stall_zq_o         (stall_zq_o)
     );
         wire _unused_arb = &{1'b0, wr_head_i, wr_head2_i, rd_head_i, rd_head2_i,
-                             r_rd_ret_busy_sync1, sched_wr_batch_max_i};
+                             r_rd_ret_busy_sync1, sched_wr_batch_max_i,
+                             wr_commit_ready_now_i};
     end endgenerate
 
     assign maint_grant_o = w_maint_grant;

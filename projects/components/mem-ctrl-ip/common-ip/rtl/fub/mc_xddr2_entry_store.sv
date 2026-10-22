@@ -133,6 +133,7 @@ module mc_xddr2_entry_store
     input  logic [7:0]          sched_age_thresh_i,
     input  logic                wr_commit_valid_i,
     output logic                wr_commit_ready_o,
+    output logic                wr_commit_ready_now_o,    // room for a commit THIS cycle, registers only
     input  logic [PTRW-1:0]     wr_commit_slot_i,
     input  logic                rd_issue_valid_i,
     output logic                rd_issue_ready_o,
@@ -335,6 +336,8 @@ module mc_xddr2_entry_store
     assign w_dq_pop         = w_dq_rd_valid && w_dq_rd_ready;
     assign wr_commit_ready_o = w_dq_wr_ready
                             && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
+    // the accept condition itself, registers only (see mc_wr_data_cam)
+    assign wr_commit_ready_now_o = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(DQ_DEPTH));
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_dq_occ <= '0;

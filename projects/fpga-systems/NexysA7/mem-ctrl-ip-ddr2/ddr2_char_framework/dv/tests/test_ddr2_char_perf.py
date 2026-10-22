@@ -35,7 +35,7 @@ What this test ADDS over the granite proxy:
 
 Knobs: TEST_TREFI (585 = board), TEST_TXN (256), TEST_GAP (0), TEST_BURST_LEN
 (8), TEST_FAMILIES, TEST_NUM_GEN (1), TEST_TIMING_OVERRIDES (""), PERF_DUMP,
-PERF_CMD_TRACE, TEST_SCHED_CORE (1 = BANK_PICK, 0 = FRFCFS). Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
+PERF_CMD_TRACE, PERF_PICK_TRACE (per-cycle pick-core rows, _START/_N), TEST_SCHED_CORE (1 = BANK_PICK, 0 = FRFCFS). Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
 (TEST_DFI_RATE, TEST_DRAM_BEAT_BYTES, TEST_DRAM_DEVICE_BYTES, TEST_DRAM_BL).
 Skipped at TEST_LEVEL=GATE (a multi-minute run is not a gate check).
 """
@@ -110,6 +110,44 @@ def _sched_plane(dut):
     for name in _SCHED_PATH:
         node = getattr(node, name)
     return node
+
+
+async def _pick_probe(dut, start, n):
+    """PERF_PICK_TRACE=1: log the BANK_PICK core's per-cycle state for cycles
+    [start, start+n) of the run (PERF_PICK_TRACE_START / _N), the same row
+    the core suite's PICK_TRACE prints: effective winner, fire / gates,
+    request bits, shadow, override, sink and refresh state. Silent on the
+    FRFCFS core."""
+    try:
+        sp = _sched_plane(dut)
+        pk = sp.g_bank_pick.u_bank_pick
+    except AttributeError as e:
+        dut._log.info("PERF_PICK_TRACE: pick core absent (%r)", e)
+        return
+    cyc = 0
+    while True:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        cyc += 1
+        if start <= cyc < start + n:
+            try:
+                dut._log.info(
+                    "PK c%d win=(%d,%d,%d) ok=%d fire=%d spec=%d cls_ok=%d tmr_ok=%d hit=%d "
+                    "req=%04x reqok=%04x hint=%d(%d,%d) sh=%04x hold=%d ovr=%d(%d) wcr=%d rdr=%d "
+                    "dir=%d batch=%d rotor=%d tccd=%d refreq=%d rfc=%d",
+                    cyc, int(pk.w_win_vld.value), int(pk.w_win_pair.value), int(pk.w_win_cls.value),
+                    int(pk.w_dmd_ok.value), int(pk.w_fire.value), int(pk.w_spec_vld.value),
+                    int(pk.w_class_ok.value), int(pk.w_timer_ok.value), int(pk.w_sel_hit.value),
+                    int(pk.r_req.value), int(pk.w_req_ok.value), int(pk.r_hint_vld.value),
+                    int(pk.r_hint_pair.value), int(pk.r_hint_cls.value), int(pk.r_shadow.value),
+                    int(pk.r_hold.value), int(pk.w_ovr_vld.value), int(pk.w_ovr_op.value),
+                    int(pk.wr_commit_ready_now_i.value), int(pk.rd_issue_ready_i.value),
+                    int(pk.r_dir.value), int(pk.r_dir_batch.value), int(pk.r_rotor.value),
+                    int(pk.r_tccd_fwd.value), int(sp.refresh_req.value), int(pk.w_rfc_busy.value))
+            except Exception as e:  # noqa: BLE001
+                dut._log.info("PK c%d probe error %r", cyc, e)
+        if cyc >= start + n:
+            return
 
 
 async def _cmd_probe(dut, log):
@@ -615,6 +653,9 @@ async def cocotb_test_pumice_perf(dut):
     tracing = os.environ.get("PERF_CMD_TRACE", "0") == "1"
     if tracing:
         cocotb.start_soon(_cmd_probe(dut, cmd_log))
+    if os.environ.get("PERF_PICK_TRACE", "0") == "1":
+        cocotb.start_soon(_pick_probe(dut, int(os.environ.get("PERF_PICK_TRACE_START", "400")),
+                                      int(os.environ.get("PERF_PICK_TRACE_N", "120"))))
     mism_log = []
     if os.environ.get("MISM_PROBE", "0") == "1":
         cocotb.start_soon(_mism_probe(dut, mism_log))

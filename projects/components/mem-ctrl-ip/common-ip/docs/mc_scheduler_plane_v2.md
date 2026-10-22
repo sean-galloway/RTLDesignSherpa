@@ -119,15 +119,35 @@ bank) "head sequencers" are a one-cycle decode over the REGISTERED records
 (`mc_head_rec_t`, [[plane-boundary-registered-snapshots]]) rather than
 skids over a live view; the cross-bank mux is a registered round-robin with
 aging and class-alternation overlays; the fire stage is unchanged in
-contract (live JEDEC re-check, hold on a closed timer). Two additions were
-needed to land dependent hops on the JEDEC floor through a two-stage pipe:
-a one-cycle pop shadow (the record lags a pop by a cycle; the fired pair is
-served from its second record) and a next-op hint (a fire tells the arbiter
-what the same pair wants next, bypassing the register when the hop is
-shorter than the pipe). Read the header of
+contract (live JEDEC re-check). Two additions were needed to land dependent
+hops on the JEDEC floor through a two-stage pipe: a one-cycle pop shadow
+(the record lags a pop by a cycle; the fired pair is served from its second
+record) and a next-op hint (a fire tells the arbiter what the same pair
+wants next when the hop equals the pipe depth). Read the header of
 `common-ip/rtl/fub/mc_bank_pick.sv` for the mechanism; the plan
 `docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md` section 2.2 for the
 reasoning.
+
+Phase 3 (timing, 2026-10-22) restructured the core so that no arc from the
+fire cone reaches the winner register: the record carries its hit
+(classified at the storage edge against the scheduler's registered row
+image, one cycle stale, ANDed with live row-active at fire); the pop shadow
+is one bit per pair (no slot compare); the pick register loads every cycle
+and the winner that waits on a timer holds through a register-to-register
+mux (a registered "waiting" bit selects last cycle's effective winner over
+the fresh pick, bounded by the bank's lookahead bit), so the oldest
+requester keeps its place without a fire-cone load enable, and the winner's
+own pair is masked out of the pick while its request is stale (a row
+command, or a column with nothing behind it); hops shorter than the pipe
+are speculated on the held winner from registers only (ACT->COL,
+PRE->ACT, last COL->PRE, and COL->COL on the same row when no other pair
+asks); the write sink is one register-only predicate from the CAM
+(`wr_commit_ready_now`, the CAM's own accept condition, no commit_valid and
+no drain-pop term), gated at the arbiter and re-checked at fire. Measured
+on `pumice_core` out of context, post-route, aclk 10 ns: the Phase 2 text
+missed by -3.175 ns at 75 MHz in the board build with the record-mux cone
+on the winner register; the Phase 3 text closes 75 MHz and sits within
+0.2 ns of 100 MHz (report `reports/regr/mem-ctrl-recovery-phase3-2026-10-22.md`).
 
 ## 6. Validation plan
 

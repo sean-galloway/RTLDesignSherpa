@@ -49,6 +49,22 @@ There, follow `clean-all` with the Makefile's own run target, or use `make
 clean` and keep the generated files; then check `git status` for `D` lines
 before committing.
 
+**A parameter change is not a source change: the same suite at a second
+geometry reuses the first geometry's models.** cocotb-test rebuilds a model
+only when a source file is newer than the binary; Verilator `-G` parameters
+(the DRAM beat width, burst length, device width of the pumice suite) are
+not in that check. `run-all-func-both` ran pumice's board geometry straight
+after the default one in the same `local_sim_build/`, finished 217 cells in
+113 seconds, and reported three failures against BL8 models the board
+expectations could not match (2026-10-22; the Phase 2 "216 passed at the
+board geometry" the day before was the same reuse reporting green). The fix
+is a build root per geometry: the pumice `BOARD_GEOM` sets
+`SIM_BUILD_ROOT=$(CURDIR)/local_sim_build_board`, which
+`sim_build_path()` honours and `clean-all` walks. Two runs of one suite in
+the same directories at the same time are the same trap with a race on top:
+give each run its own root. The tell is the wall time -- a geometry that
+compiles 40 tops cannot finish in two minutes.
+
 ## Running it is not the same as it working
 
 `make clean-all` **aborts** when `REPO_ROOT` is unset:
@@ -371,6 +387,15 @@ name is the most misleading thing in the log, since it points at whatever you
 touched most recently rather than at what broke. Then find the real error with
 `grep -iE "%Error|cannot|No space|Killed"` and check whether the file it names
 is even yours.
+
+Disk is part of that check. A full-level RAPIDS run (nine areas) plus STREAM
+left about 800 GB of `local_sim_build` behind on 2026-10-21 and filled
+`/mnt/data` to its last 376 MB; the last area to run (`top_g`) then failed
+nearly every cell with `cannot write PCH file: No space left on device` --
+cells that had passed at gate an hour earlier. Run `df -h` before a long run,
+and for multi-area runs either clean each area's builds once it has passed
+(keep the logs) or budget the space; `make clean-all` before the next run
+reclaims it, a full disk mid-run does not.
 
 The same reasoning covers load. A run of the same suite that reports reruns
 when the previous identical run reported none has a scheduling explanation

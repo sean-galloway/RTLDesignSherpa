@@ -27,6 +27,8 @@ module mc_bank_head_records_tb_top
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    sch_col,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  sch_older,
     input  logic [NUM_ENTRIES-1:0]              sch_age_exceed,
+    input  logic [NUM_BANKS-1:0]                bank_row_active,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      bank_open_row,
 
     output logic [NUM_BANKS-1:0]                head_vld,
     output logic [NUM_BANKS*MC_HEAD_ROW_W-1:0]  head_row,
@@ -35,13 +37,15 @@ module mc_bank_head_records_tb_top
     output logic [NUM_BANKS-1:0]                head_behind_empty,
     output logic [NUM_BANKS-1:0]                head_behind_same_row,
     output logic [NUM_BANKS-1:0]                head_age_exceed,
+    output logic [NUM_BANKS-1:0]                head_hit,
     output logic [NUM_BANKS-1:0]                head2_vld,
     output logic [NUM_BANKS*MC_HEAD_ROW_W-1:0]  head2_row,
     output logic [NUM_BANKS*MC_HEAD_COL_W-1:0]  head2_col,
     output logic [NUM_BANKS*MC_HEAD_SLOT_W-1:0] head2_slot,
     output logic [NUM_BANKS-1:0]                head2_behind_empty,
     output logic [NUM_BANKS-1:0]                head2_behind_same_row,
-    output logic [NUM_BANKS-1:0]                head2_age_exceed
+    output logic [NUM_BANKS-1:0]                head2_age_exceed,
+    output logic [NUM_BANKS-1:0]                head2_hit
 );
 
     mc_head_rec_t [NUM_BANKS-1:0] w_head, w_head2;
@@ -61,6 +65,8 @@ module mc_bank_head_records_tb_top
         .sch_col_i        (sch_col),
         .sch_older_i      (sch_older),
         .sch_age_exceed_i (sch_age_exceed),
+        .bank_row_active_i(bank_row_active),
+        .bank_open_row_i  (bank_open_row),
         .head_o           (w_head),
         .head2_o          (w_head2)
     );
@@ -74,6 +80,7 @@ module mc_bank_head_records_tb_top
             head_behind_empty[b]                              = w_head[b].behind_empty;
             head_behind_same_row[b]                           = w_head[b].behind_same_row;
             head_age_exceed[b]                                = w_head[b].age_exceed;
+            head_hit[b]                                       = w_head[b].hit;
             head2_vld[b]                                      = w_head2[b].vld;
             head2_row [b*MC_HEAD_ROW_W  +: MC_HEAD_ROW_W]     = w_head2[b].row;
             head2_col [b*MC_HEAD_COL_W  +: MC_HEAD_COL_W]     = w_head2[b].col;
@@ -81,6 +88,7 @@ module mc_bank_head_records_tb_top
             head2_behind_empty[b]                             = w_head2[b].behind_empty;
             head2_behind_same_row[b]                          = w_head2[b].behind_same_row;
             head2_age_exceed[b]                               = w_head2[b].age_exceed;
+            head2_hit[b]                                      = w_head2[b].hit;
         end
     end
 

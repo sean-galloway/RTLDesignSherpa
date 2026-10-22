@@ -133,6 +133,7 @@ module mc_store_arbiter_macro_tb_top
     // DUT wiring: store <-> core (the contract under test)
     // ------------------------------------------------------------------
     logic                     wr_commit_valid, wr_commit_ready;
+    logic                     wr_commit_ready_now;
     logic [PTRW-1:0]          wr_commit_slot;
     logic                     rd_issue_valid, rd_issue_ready;
     logic [PTRW-1:0]          rd_issue_slot;
@@ -209,6 +210,7 @@ module mc_store_arbiter_macro_tb_top
         .sched_age_thresh_i (8'd0),
         .wr_commit_valid_i  (wr_commit_valid),
         .wr_commit_ready_o  (wr_commit_ready),
+        .wr_commit_ready_now_o  (wr_commit_ready_now),
         .wr_commit_slot_i   (wr_commit_slot),
         .rd_issue_valid_i   (rd_issue_valid),
         .rd_issue_ready_o   (rd_issue_ready),
@@ -274,6 +276,7 @@ module mc_store_arbiter_macro_tb_top
             .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH)
         ) u_wr_heads (
             .clk(aclk), .rst_n(aresetn),
+            .bank_row_active_i(stub_row_active[0]), .bank_open_row_i('0),
             .sch_valid_i(wr_sch_valid), .sch_pend_i(wr_sch_pend),
             .sch_bank_i(wr_sch_bank), .sch_row_i(wr_sch_row), .sch_col_i(wr_sch_col),
             .sch_older_i(wr_sch_older), .sch_age_exceed_i(wr_age_exceed),
@@ -284,6 +287,7 @@ module mc_store_arbiter_macro_tb_top
             .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH)
         ) u_rd_heads (
             .clk(aclk), .rst_n(aresetn),
+            .bank_row_active_i(stub_row_active[0]), .bank_open_row_i('0),
             .sch_valid_i(rd_sch_valid), .sch_pend_i('0),
             .sch_bank_i(rd_sch_bank), .sch_row_i(rd_sch_row), .sch_col_i(rd_sch_col),
             .sch_older_i(rd_sch_older), .sch_age_exceed_i(rd_age_exceed),
@@ -310,7 +314,7 @@ module mc_store_arbiter_macro_tb_top
             .wr_head2_i         (w_wr_head2),
             .rd_head_i          (w_rd_head),
             .rd_head2_i         (w_rd_head2),
-            .wr_commit_ready_i  (wr_commit_ready),
+            .wr_commit_ready_now_i  (wr_commit_ready_now),
             .wr_commit_valid_o  (wr_commit_valid),
             .wr_commit_slot_o   (wr_commit_slot),
             .rd_issue_ready_i   (rd_issue_ready),
@@ -347,7 +351,6 @@ module mc_store_arbiter_macro_tb_top
             .bank_rdwr_ready_la_i(w_rdwr_la),
             .bank_pre_ready_la_i(w_pre_la),
             .bank_row_active_i  (stub_row_active),
-            .bank_open_row_i    ('0),
             .tfaw_ok_i          ('1),
             .trrd_ok_i          ('1),
             .twtr_ok_i          (1'b1),
@@ -384,7 +387,7 @@ module mc_store_arbiter_macro_tb_top
             .stall_noreq_o      (),
             .stall_zq_o         ()
         );
-        assign core_pick_valid = u_pick.r_win_vld;
+        assign core_pick_valid = u_pick.w_win_vld;
         assign cmd_slot = wr_commit_valid ? wr_commit_slot
                         : rd_issue_valid  ? rd_issue_slot
                         : PTRW'(u_pick.w_sel_cand.slot);
@@ -503,7 +506,7 @@ module mc_store_arbiter_macro_tb_top
         );
         assign core_pick_valid = u_arb.r_pick_valid;
         assign cmd_slot = u_arb.r_do_wr ? u_arb.r_commit_slot : u_arb.r_issue_slot;
-        wire _unused_arb = &{1'b0, wr_sch_pend};
+        wire _unused_arb = &{1'b0, wr_sch_pend, wr_commit_ready_now};
     end endgenerate
 
     assign pick_valid = core_pick_valid;
@@ -573,6 +576,6 @@ module mc_store_arbiter_macro_tb_top
     assign rd_issue_count = r_rd_issue_count;
     assign cmd_count      = r_cmd_count;
 
-    wire _unused_tb = &{1'b0, cm_data, cm_strb, cm_last, rd_cam_ins_ready};
+    wire _unused_tb = &{1'b0, cm_data, cm_strb, cm_last, rd_cam_ins_ready, wr_commit_ready};
 
 endmodule : mc_store_arbiter_macro_tb_top

@@ -121,6 +121,33 @@ own route.
       trace of its arrow. Any violation re-ranks the diagram — never shrinks
       text to fit.
 
+## Title
+
+**Every diagram carries its title at the top, in bold** (owner, 2026-10-22).
+The title is the graph label, so it is part of the drawing and travels with
+it into every render and every book:
+
+```dot
+graph [label=<<B>Write path through the storage records and mc_bank_pick</B>>,
+       labelloc=t, labeljust=c, fontname="Helvetica", fontsize=12];
+```
+
+- `labelloc=t` puts it above the drawing; dot's default is the bottom,
+  where a title reads as a caption and is the last thing seen.
+- Bold needs the HTML-like label form `label=<<B>...</B>>`. Inside it `&`,
+  `<` and `>` are written `&amp;`, `&lt;`, `&gt;`, and a line break is
+  `<BR/>`, not `\n`.
+- The title says what the drawing shows and what it fixes: the clock for a
+  single-clock block, "one of N channels", "(combinational)", "(planned)",
+  the generated-value list for a sized module -- the rules below name what
+  goes there. It never restates the module name alone; the block labels
+  carry the names.
+- `bin/render_block_diagram.py` reports the title state on every render
+  (`title: bold, top`); a missing, bottom or plain title is called out in
+  the same line. The 2026-10-22 census: 643 diagrams had a plain title at
+  the top, 14 at the bottom, 13 none; convert a diagram when you next touch
+  it, and always check the render.
+
 ## Labels
 
 Every block label has two lines:
@@ -780,6 +807,10 @@ Every `projects/components/*` HAS/MAS/GAS book was converted:
 - ECC (BCH, Reed-Solomon)
 - converters
 - kestrel
+- gatling (2026-10-21: datapath, register file, memory system, system
+  context, programmer's view, plus a rotation cycle grid and an address
+  map table; kestrel's MAS gained decode, ALU, block-RAM memory system,
+  load/store path and halt figures the same day)
 - fabric-gen-ip (bridge, delta, lattice)
 - dma-ip (RAPIDS, RAPIDS beats, STREAM)
 
@@ -834,6 +865,59 @@ not have. A figure drawn from the RTL is a check on the prose around it.
 - **An interrupt controller's acknowledge-by-read** is its own small box,
   feeding ISR/IRR. The vector climbs back to the register block.
 - **A bus decoder** (one-to-many route) is a plain box.
+
+**Processor cores** (kestrel, gatling, 2026-10-21)
+- **A pipeline's stages are the ranks, and the stage registers are
+  wide blue double-bordered rows between them** (`gatling_datapath`).
+  One rank per stage boundary, so a reader counts latency down the page.
+  A barrel's per-context state (PCs, halt bits) is ONE registered bank at
+  the top, read by the fetch stage and written back by the execute stage;
+  the write climbs the left edge as the one architectural feedback. No
+  hazard or forwarding lanes are drawn when the design has none, and the
+  title says why ("every stage holds a different context").
+- **The memory bar's landing points need the point scaffold** on a core
+  datapath: the fetch address lane (far left), the load/store beat
+  (center or right) and the instruction / load-data returns (far right)
+  all reach the same wide bar, and without pinned crossings dot lands
+  two of them on one spot and routes a return across the middle. Pin
+  `p_f` / `p_r` points in the last rank, as `kestrel_datapath` does.
+- **Decode is a truth table, not a pick:** a white box in the datapath
+  and, on its own page, insn port -> key split -> casez table (with the
+  default bundle feeding it dashed from the rank above) -> control
+  bundle bar. The earlier kestrel datapath drew decode as a cylinder; it
+  holds no state and was corrected to white.
+- **An OR-combined ALU draws its rows side by side in one rank** over an
+  "OR-Combine" box, with the row select dashed into the combine. Flag
+  outputs nobody consumes still get a lane to the result bar, labelled
+  "unconnected in <core>". Narrow the row labels before accepting a
+  strip wider than 2.5:1 (`rv32i_alu` went 3.7:1 -> 2.3:1 on labels
+  alone).
+- **A load/store path figure exists to show what is OFF the carry
+  chain:** the two-bit offset adder is its own column and the misalign
+  test, store lanes and load rotation hang from it; only the word address
+  waits for the ALU. Merge the size decode into the offset box, or the
+  size -> misalign and offset -> strobes diagonals form an unavoidable X.
+- **A halt figure is causes on top, one resolve box, the holding bit
+  beside the gates it feeds, and the gated state as the bar.** The
+  holding bit's feedback is the same edge as its load, `dir=both`
+  ("halt_now down; halt_q back up"), never a second parallel edge.
+- **A barrel rotation is a cycle grid with ONE context shaded**, so its
+  single instruction in flight reads down the diagonal and the "next
+  fetch is after its own writes" argument is visible. The ASCII sketch it
+  replaced showed every context and nothing stood out.
+- **A per-context memory system is the loader layout widened:** the
+  bank field goes in the port label ("addr[15:14] = context bank") and
+  the array label ("bank = context"), and the run/status bank is one
+  registered box with "one entry per context" in its label, not four.
+
+**Generator drift, found while adding figures (2026-10-21)**
+- `kestrel_mas/assets/wavedrom/wvf_4_1_basic_cycle.json` had been edited
+  by hand; `gen_kestrel_figures.py` still carried the older dict, so the
+  first regen churned a committed waveform. The committed asset was
+  restored and the dict back-ported. The rule from [[doc-pipeline]]
+  ("a regeneration script must be a no-op on unchanged sources") is the
+  check: run the generator and `git status` before trusting it, and fix
+  the script, not the asset, when they disagree.
 
 **Pins, clocks, crossings**
 - **Two engines sharing open-drain pads** (SMBus master and target): one

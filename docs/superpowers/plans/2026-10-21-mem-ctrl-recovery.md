@@ -381,6 +381,43 @@ proxy gains a `TEST_NUM_GEN` knob and reports both.
 
 ### Phase 3: timing (1 session, plus a checkpoint inside every RTL phase)
 
+**Status 2026-10-22: done** (one session; report
+`reports/regr/mem-ctrl-recovery-phase3-2026-10-22.md`). The Phase 2 text
+missed 75 MHz in the board build (`w_sys_i` WNS -3.175, 122 / 77 059
+endpoints, 17 in the controller) on one arc that bypassed the pipeline: the
+fire cone (record mux, hit compare, live timers) on the winner register's
+load enable and, through the stale-winner mask, on the arbiter. Restructured
+so that no fire-cone arc reaches the winner register: the record carries
+its hit (classified at the storage edge against the scheduler's REGISTERED
+row image, one cycle stale, ANDed with live row-active at fire); one-hot pop
+shadow; the pick register loads every cycle and a winner waiting on a timer
+holds through a register-to-register mux bounded by its lookahead bit, and
+its own pair is masked out of the pick while its request is stale (a
+no-hold core issued reads out of order under tCCD, +20 cycles on the return
+ring, and re-picked the stale request in the fire cycle: a bank-rotating
+single-entry write stream at 50%); hops shorter than the pipe are
+speculated from registers (ACT->COL, PRE->ACT, last
+COL->PRE, COL->COL same row when alone, hit-gated); the write sink is one
+register-only predicate (`wr_commit_ready_now`, the CAM's own accept
+condition, no drain-pop term -- the pop reaches both consumer readies and
+was the worst 100 MHz cone). `pumice_core` out of context, post-route:
+aclk 10 ns WNS -0.520 (23 / 16 320: two in the arbiter, 21 in the storage
+plane's snarf-match -> read-insert arc), dfi_clk 5 ns -2.067 (464 / 2 776,
+the aligner -> CDC cone, independent of the pick core). Board builds on the
+final text: 75 MHz `w_sys_i` +0.077, 0 / 77 093 (the gate, closed); 100 MHz
+-2.574, 3 463 / 77 128 (Phase 2 text -6.672 / 11 899; the FRFCFS control
+-2.555 / 6 296: the harness cannot close 100 MHz with any core). Perf:
+col_major 310.0 / 355.6 and row_major 577.7 / 576.9 at parity with Phase 2,
+the LiteDRAM profile 311.1 / 383.3, col_ilv 460.0 / 459.1 once the
+stale-winner mask was back (without it every row switch under interleaved
+traffic paid a bubble: 418 / 436, four generators 420 / 437; found with the
+proxy's new `PERF_PICK_TRACE`). OPEN: eight-generator streaming 461 / 458
+against Phase 2's 567 / 535 -- demand row switches once per eight columns
+(521 ACTs per 4 096 columns vs Phase 2's 108); not the hold, the sink, the
+re-pick or the idle-timeout policy (report §6). The miss deliverable (binned xlsx,
+rd / wr diagrams with the failing cones in red) is in the gitignored
+`projects/components/mem-ctrl-ip/debug/`.
+
 Target is **100 MHz** (owner, 2026-10-21); 75 MHz is the floor that must
 never be lost. Why the history looked flaky: no build ever closed 100 MHz on
 the real domain. The recorded "100 MHz pass, WNS +9.26" was the one-endpoint

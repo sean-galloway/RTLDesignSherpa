@@ -115,7 +115,18 @@ module ddr2_char_top #(
     // 75 MHz / DDR2-300 profile (VCO 600; needs its own DDR2 calibration).
     // Both are kept here so neither is lost when the other is worked on.
     // -----------------------------------------------------------------------
-`ifdef PUMICE_SYS_75
+`ifdef PUMICE_SYS_100
+    // 100 MHz / DDR2-400 TIMING profile (mem-ctrl recovery Phase 3, 2026-10-22):
+    // the 100 MHz target the scheduler rework is measured against. A timing
+    // build, not a board point: no DDR2 calibration tuple exists for it and
+    // the host's cycle-count CSR derivation is for 75 MHz. PUMICE_SYS_100=1
+    // selects it (create_project.tcl); it takes precedence over PUMICE_SYS_75.
+    localparam real MMCM_MULT = 8.0;   // VCO = 800 MHz
+    localparam real MMCM_CO0  = 8.0;   // sys       = 100 MHz
+    localparam int  MMCM_CO1  = 4;     // sys2x     = 200 MHz (DDR2-400)
+    localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 200 MHz
+    localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+`elsif PUMICE_SYS_75
     localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
     localparam real MMCM_CO0  = 8.0;   // sys       = 75 MHz
     localparam int  MMCM_CO1  = 4;     // sys2x     = 150 MHz (DDR2-300)
@@ -300,7 +311,17 @@ module ddr2_char_top #(
         .RD_DBG_FIFO_DEPTH(0),
 `endif
         .ROW_WIDTH       (ROW_WIDTH),
-`ifdef PUMICE_SYS_75
+        // Scheduler pick core (mc_common_pkg MC_SCHED_*): 1 = BANK_PICK (the
+        // default since recovery Phase 2), 0 = the FRFCFS research core.
+        // `PUMICE_SCHED_CORE overrides for A/B timing builds (create_project.tcl).
+`ifdef PUMICE_SCHED_CORE
+        .SCHED_CORE      (`PUMICE_SCHED_CORE),
+`else
+        .SCHED_CORE      (1),
+`endif
+`ifdef PUMICE_SYS_100
+        .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)
+`elsif PUMICE_SYS_75
         .FPGA_CLK_HZ     (75_000_000)   // sys = 75 MHz  -> UART baud divisor
 `else
         .FPGA_CLK_HZ     (66_666_667)   // sys = 66.67 MHz -> UART baud divisor

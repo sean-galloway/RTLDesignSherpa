@@ -145,7 +145,13 @@ help:
 # is read at import time into module constants that size the elaborated RTL, so
 # one process holds exactly one geometry. That is the same property that made
 # pumice BUG-016 (was PUMICE-041) invisible, used deliberately here.
-BOARD_GEOM := TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16
+# The geometry is a Verilator PARAMETER, and cocotb-test rebuilds a model only
+# when a SOURCE is newer than it -- a board-geometry run in the default
+# geometry's build directories reuses the default models and reports on the
+# wrong design (2026-10-22: the board pass of run-all-func-both ran in 113 s
+# and "failed" three cells against BL8 models). The board geometry therefore
+# gets its own build root; clean-all walks it too (it is under CURDIR).
+BOARD_GEOM := TEST_DRAM_BEAT=32 TEST_DRAM_BL=4 TEST_DRAM_DEVICE_W=16 SIM_BUILD_ROOT=$(CURDIR)/local_sim_build_board
 
 .PHONY: run-board-geom
 run-board-geom:     ## the top suite at the SHIPPING geometry (BL4 / x16 / 32b beat)

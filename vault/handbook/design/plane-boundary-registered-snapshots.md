@@ -49,16 +49,36 @@ sections 11 to 17.
   plane's decode starts one flop away from that record, inside its own
   plane. Any backend (CAM, entry store, per-bank FIFO) that produces the
   same record is a drop-in.
-- **Hit classification is sched-local.** The record carries row and column,
-  not "hit"; the scheduler compares against the open-row register it owns.
-  The earlier contract computed `*_bh_act_o` inside the store from the
-  scheduler's open row (comb in, comb out, two crossings in one cycle).
+- **Hit classification rides in the record, against a REGISTERED row
+  image.** The record carries row, column and a `hit` flag that the storage
+  edge computes against the scheduler plane's own registered open-row /
+  row-active flops (`bank_row_active_i`, `bank_open_row_i` on
+  `mc_bank_head_records`): register in, register out, one crossing, and the
+  flag is one cycle stale by construction. The consumer ANDs it with its
+  live row-active bit at fire and never recomputes the row compare. Two
+  earlier forms both failed timing: the original contract computed
+  `*_bh_act_o` inside the store from the scheduler's open row (comb in, comb
+  out, two crossings in one cycle), and the Phase 2 landing compared the
+  record's row against the live open row inside the scheduler (a 16:1
+  record mux feeding a row compare feeding the arbiter: the worst 75 MHz
+  post-route cone, -3.2 ns). Phase 3 (2026-10-22) moved the compare to the
+  storage edge; its staleness is paid by the consumer's speculation (below).
 - **Handshakes are flop-to-flop.** `wr_commit`, `rd_issue`, `rt_alloc`,
   tickets: a valid/ready pair where both sides register.
 - **The cost is one cycle at the boundary**, absorbed by a registered-winner
-  / hold-on-not-fired scheduler: the winner is decided a cycle before it
-  fires, so a push that becomes visible a cycle late is never on the
-  critical loop. The pop side costs bookkeeping, not latency -- see below.
+  scheduler: the winner is decided a cycle before it fires, so a push that
+  becomes visible a cycle late is never on the critical loop. The winner
+  that waits on a timer HOLDS -- but as a register-to-register mux, never a
+  load enable: the pick register loads every cycle, a second register keeps
+  last cycle's effective winner, and a registered "waiting" bit selects
+  between them in front of the fire stage. A hold implemented as the load
+  enable put the whole fire cone on the winner register's load path, which
+  is the arc that made a deeply pipelined core fail timing; a no-hold core
+  (re-arbitrate every cycle, search past the fresh pick) fired out of
+  request order under tCCD and re-picked the stale request in the fire
+  cycle. The hold is bounded by the winner's lookahead bit, so a bank gated
+  longer than the pipe depth releases it. The pop side costs bookkeeping,
+  not latency -- see below.
 
 ## What the one-cycle lag costs the consumer, and how to pay it
 
@@ -68,9 +88,10 @@ follow, both learned landing `mc_bank_pick` on the record contract
 (2026-10-22):
 
 - **The pop shadow.** In the cycle after the consumer pops an entry, the
-  record still shows it. The consumer remembers {which queue, which slot} it
-  just popped and, while the record's head still carries that slot, serves
-  the queue from its SECOND record. That is the whole reason the contract
+  record still shows it. The consumer remembers WHICH queue it popped last
+  cycle (one bit per queue, no slot compare: the slot compare was a record
+  mux on the arbiter's path) and, for that one cycle, serves the queue from
+  its SECOND record. That is the whole reason the contract
   carries a second record: it is what sustains one command per cycle from a
   single queue. It also means the consumer re-checks the entry it finally
   fires against live state (the entry may be two pops past the one its

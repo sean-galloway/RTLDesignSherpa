@@ -34,6 +34,12 @@
 //          fills them beat by beat; closing the row between two columns of
 //          the same burst re-activates it every few columns (BUG-027).
 //
+//          hit: the entry's row equals the scheduler's registered open row for
+//          its bank (bank_row_active_i / bank_open_row_i, the bank timers'
+//          flops) as of the cycle the record is formed -- one cycle stale by
+//          contract; the consumer ANDs it with its live safe bits. Living here
+//          keeps the row compare off the scheduler's fire cone.
+//
 //          Latency: one cycle. A push into an empty bank is visible the cycle
 //          after it lands in the backend; a pop (commit / issue) likewise.
 //          The scheduler's registered-winner rule absorbs that (the winner is
@@ -67,6 +73,11 @@ module mc_bank_head_records
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  sch_older_i,       // [j*N+i]: j older than i
     input  logic [NUM_ENTRIES-1:0]              sch_age_exceed_i,
 
+    // ---- scheduler's registered row image (bank timers' flops): the record's
+    //      hit flag is classified against it, one cycle stale by contract ----
+    input  logic [NUM_BANKS-1:0]                bank_row_active_i,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      bank_open_row_i,
+
     // ---- the contract: registered per-bank records ----
     output mc_head_rec_t [NUM_BANKS-1:0]        head_o,
     output mc_head_rec_t [NUM_BANKS-1:0]        head2_o
@@ -89,6 +100,18 @@ module mc_bank_head_records
                     && (sch_row_i[j*ROW_WIDTH +: ROW_WIDTH] == sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]))
                     w_bsr[i] = 1'b1;
             end
+        end
+    end
+
+    // ---- per-entry row hit against the scheduler's registered row image ----
+    // One compare per entry (N of them), picked up by the per-bank mux like
+    // any other field; registered with the record it describes.
+    logic [NUM_ENTRIES-1:0] w_hit;
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic [BKW-1:0] bk = sch_bank_i[i*BKW +: BKW];
+            w_hit[i] = bank_row_active_i[bk]
+                    && (sch_row_i[i*ROW_WIDTH +: ROW_WIDTH] == bank_open_row_i[bk*ROW_WIDTH +: ROW_WIDTH]);
         end
     end
 
@@ -125,6 +148,7 @@ module mc_bank_head_records
                     h.slot            = MC_HEAD_SLOT_W'(i);
                     h.behind_same_row = w_bsr[i];
                     h.age_exceed      = sch_age_exceed_i[i];
+                    h.hit             = w_hit[i];
                 end
                 if (cand[i] && (n_older == CNTW'(1))) begin
                     h2.vld             = 1'b1;
@@ -133,6 +157,7 @@ module mc_bank_head_records
                     h2.slot            = MC_HEAD_SLOT_W'(i);
                     h2.behind_same_row = w_bsr[i];
                     h2.age_exceed      = sch_age_exceed_i[i];
+                    h2.hit             = w_hit[i];
                 end
             end
             h.behind_empty  = h.vld  && (n_cand == CNTW'(1));

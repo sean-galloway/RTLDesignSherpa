@@ -30,28 +30,36 @@
 //   stream interleaves with another's columns) and a direction register that
 //   keeps columns in one direction until that direction runs dry or a batch
 //   limit is hit. The request register lags a fire by one cycle, so the
-//   winner's own pair is masked when its request cannot be the pair's next
-//   command (after a row command, or a column that empties the pair). The
-//   winner is a PAIR INDEX plus op class -- the payload is not in this loop.
+//   search starts past the effective winner's pair (its own request is
+//   stale in the fire cycle). The winner is a PAIR INDEX plus op class --
+//   the payload is not in this loop, and nothing in the loop reads a
+//   record. The write sink is one register-only predicate from the CAM (its
+//   own accept condition), gated here and re-checked at fire.
 //
 //   FIRE is the JEDEC authority: it re-reads the LIVE safe_* bits for the
-//   winner's bank, the live row image (the hit is re-checked against the
-//   open row), the forward tCCD counter, the direction turnarounds and the
-//   refresh / tRFC demand blocks. A winner whose timer is not yet open HOLDS
-//   (nothing is dropped, nothing re-picks); a winner whose class no longer
-//   applies (the row changed under it, or a demand block arrived) is DROPPED
-//   and the decode re-presents the pair -- the decode runs every cycle, so a
-//   drop costs no refill.
+//   winner's bank, the live row-active bit, the forward tCCD counter, the
+//   direction turnarounds and the refresh / tRFC demand blocks. A winner
+//   that is waiting on a timer HOLDS: the pick register loads every cycle
+//   from the arbiter (or the register-only speculation below), a second
+//   register keeps last cycle's effective winner, and a registered
+//   "waiting on a timer" bit selects between them in front of the fire
+//   stage. The oldest requester fires first (no walk under tCCD), and
+//   nothing in the fire cone reaches a register's load enable: the fire
+//   cone ends in D inputs only (hold bit, rotor, shadow, hint, timers).
+//   A winner whose class no longer applies, or that is demand-blocked, is
+//   released and re-arbitrated; the decode re-presents it.
 //
 //   Two mechanisms make the dependent hops land on the JEDEC floor:
 //
 //   * Pop shadow. The record lags the backend by one cycle (contract), so in
 //     the cycle after a column fires the record still shows the popped head.
-//     The fire stage remembers {pair, slot} of the column it just fired; a
-//     pair whose head still carries that slot is served from its 2nd record.
-//     That is what sustains one column per cycle on a single bank -- and it
-//     is why the fire stage re-checks the hit live: the entry it fires may
-//     be two pops past the one the decode classified.
+//     The fire stage remembers the pair (one-hot) whose column it just fired;
+//     that pair is served from its 2nd record for the cycle. That is what
+//     sustains one column per cycle on a single bank -- and it is why the
+//     fire stage re-checks the candidate's hit: the entry it fires may be
+//     two pops past the one the decode classified. The hit itself rides in
+//     the record (classified at the storage edge against the registered row
+//     image, one cycle stale) and is ANDed with the live safe bits here.
 //
 //   * Next-op hint. A fire tells the arbiter what the same pair wants next
 //     (ACT -> COL, PRE -> ACT, last-of-row COL -> PRE) one cycle before the
@@ -116,7 +124,18 @@ module mc_bank_pick
     input  mc_head_rec_t [NUM_BANKS-1:0] rd_head2_i,
 
     // ---- storage commit / issue handshake --------------------------------
-    input  logic                      wr_commit_ready_i,
+    // Write sink room, the CAM's own accept condition (registers only, no
+    // commit_valid and no drain-pop term). Used twice: the arbiter gates write
+    // column requests on it so a pick is never made into a full drain queue,
+    // and the fire stage re-checks it so two write columns picked back to
+    // back into one slot of room can never put a WR into the command FIFO
+    // that the CAM refused (a DRAM write whose data never drains). An earlier
+    // split "ready if the current winner commits now / if it does not" was
+    // pessimistic whenever the held winner was a write column blocked by a
+    // timer: it assumed that winner would commit, gated every other request,
+    // and cost one cycle per burst on the write ceiling (fires every 5
+    // cycles at tCCD 4).
+    input  logic                      wr_commit_ready_now_i,
     output logic                      wr_commit_valid_o,
     output logic [PTRW-1:0]           wr_commit_slot_o,
     input  logic                      rd_issue_ready_i,
@@ -164,8 +183,9 @@ module mc_bank_pick
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_act_ready_la_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_rdwr_ready_la_i,
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_pre_ready_la_i,
+    // (no open-row input: the row hit rides in the record, classified at the
+    //  storage edge against the timers' registered image)
     input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 bank_row_active_i,
-    input  logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0]  bank_open_row_i,
 
     // ---- global readiness ----
     input  logic [NUM_RANKS-1:0]      tfaw_ok_i,
@@ -231,11 +251,14 @@ module mc_bank_pick
     // timer row image, the one-cycle pop shadow)
     // ======================================================================
     mc_head_rec_t [NPAIR-1:0] w_rec1, w_rec2, w_cand;
-    logic         [NPAIR-1:0] w_use2, w_hit;
+    logic         [NPAIR-1:0] w_hit;
 
-    logic             r_shadow_vld;
-    logic [PAIRW-1:0] r_shadow_pair;
-    logic [MC_HEAD_SLOT_W-1:0] r_shadow_slot;
+    // One-hot: the pair whose column fired last cycle. Its record still shows
+    // the popped head this cycle (the contract's one-cycle latency, pinned by
+    // the records' fub test), so the pair is served from its second record.
+    // No slot compare: that was 8 x 16 compares on the record's slot field
+    // sitting at the head of the fire cone.
+    logic [NPAIR-1:0] r_shadow;
 
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
@@ -245,14 +268,12 @@ module mc_bank_pick
             w_rec2[2*b+1] = wr_head2_i[b];
         end
         for (int p = 0; p < NPAIR; p++) begin
-            automatic logic [BKW-1:0] pb = BKW'(p >> 1);   // the pair's bank
-            // The record still shows the head this core popped last cycle:
-            // serve the pair from its second record.
-            w_use2[p] = r_shadow_vld && (r_shadow_pair == PAIRW'(p))
-                     && w_rec1[p].vld && (w_rec1[p].slot == r_shadow_slot);
-            w_cand[p] = w_use2[p] ? w_rec2[p] : w_rec1[p];
-            w_hit [p] = w_cand[p].vld && bank_row_active_i[RK0][pb]
-                     && (w_cand[p].row[ROW_WIDTH-1:0] == bank_open_row_i[RK0][pb]);
+            w_cand[p] = r_shadow[p] ? w_rec2[p] : w_rec1[p];
+            // The record's hit is classified at the storage edge against the
+            // scheduler's REGISTERED row image, one cycle stale: a stale 1
+            // after a PRE is blocked by the live safe_rdwr below (row_valid
+            // is 0), a stale 0 after an ACT costs nothing while tRCD >= 2.
+            w_hit [p] = w_cand[p].vld && w_cand[p].hit;
         end
     end
 
@@ -323,12 +344,14 @@ module mc_bank_pick
     // Stage 1: per-pair decode -> registered request / class
     // ======================================================================
     logic [NPAIR-1:0] r_req, r_aged;
+    logic [NPAIR-1:0] r_bempty;     // the classified candidate had nothing behind it
     cls_e             r_cls [NPAIR];
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_req  <= '0;
-            r_aged <= '0;
+            r_req    <= '0;
+            r_aged   <= '0;
+            r_bempty <= '0;
             for (int p = 0; p < NPAIR; p++) r_cls[p] <= CL_NONE;
         end else begin
             for (int p = 0; p < NPAIR; p++) begin
@@ -366,9 +389,10 @@ module mc_bank_pick
                         end
                     end
                 end
-                r_req [p] <= req;
-                r_cls [p] <= cls;
-                r_aged[p] <= req && w_cand[p].age_exceed;
+                r_req   [p] <= req;
+                r_cls   [p] <= cls;
+                r_aged  [p] <= req && w_cand[p].age_exceed;
+                r_bempty[p] <= w_cand[p].behind_empty;
             end
         end
     )
@@ -376,9 +400,23 @@ module mc_bank_pick
     // ======================================================================
     // Stage 2: arbiter -> registered winner {vld, pair, class}
     // ======================================================================
-    logic             r_win_vld;
-    logic [PAIRW-1:0] r_win_pair;
-    cls_e             r_win_cls;
+    logic             r_pick_vld;       // the arbiter's (or the speculation's) pick, loaded EVERY cycle
+    logic [PAIRW-1:0] r_pick_pair;
+    cls_e             r_pick_cls;
+    logic             r_held_vld;       // last cycle's effective winner
+    logic [PAIRW-1:0] r_held_pair;
+    cls_e             r_held_cls;
+    logic             r_hold;           // it was waiting on a timer: serve it again
+    // The EFFECTIVE winner the fire stage serves: the held one while it waits
+    // on a timer, else the fresh pick. A 2:1 mux of registers by a registered
+    // bit -- the hold of the Phase 2 core (oldest requester fires first, no
+    // walk under tCCD) without the fire cone on any register's load path.
+    logic             w_win_vld;
+    logic [PAIRW-1:0] w_win_pair;
+    cls_e             w_win_cls;
+    assign w_win_vld  = r_hold ? r_held_vld  : r_pick_vld;
+    assign w_win_pair = r_hold ? r_held_pair : r_pick_pair;
+    assign w_win_cls  = r_hold ? r_held_cls  : r_pick_cls;
     logic [PAIRW-1:0] r_rotor;
     logic             r_dir;            // 0 = reads, 1 = writes
     logic [7:0]       r_dir_batch;
@@ -388,10 +426,26 @@ module mc_bank_pick
     logic [PAIRW-1:0] r_hint_pair;
     cls_e             r_hint_cls;
 
+    // Short-hop speculation (register-only): when the held winner is a column
+    // whose candidate is the last of its row and the following PRE's timer is
+    // shorter than the pipe (tRTP / tWR < LA), the NEXT winner is that PRE,
+    // assumed on the column firing now. If the column did not fire, the PRE
+    // fails its class check next cycle (the row still holds the hit) and
+    // costs nothing. Likewise ACT -> COL and PRE -> ACT for tRCD / tRP < LA.
+    // This replaces a bypass that loaded the winner register straight from
+    // the fire decision, i.e. put the whole fire cone on r_win's load path.
+    logic         w_spec_vld;
+    cls_e         w_spec_cls;
+    logic         w_win_bsr, w_win_bempty;   // the winner's CANDIDATE flags (record, or 2nd record under the pop shadow)
+    logic         w_win_hit;                 // the candidate's recorded hit (storage-edge register, one cycle stale)
+    logic         w_win_ap_policy;
+    logic         w_other_req;               // some pair other than the winner is requesting
+
     logic [NPAIR-1:0] w_req_ok, w_req_col, w_req_col_dir, w_req_row, w_req_aged;
     logic [NPAIR-1:0] w_sel, w_sel_above, w_below_mask, w_hint_vec;
+    logic [NPAIR-1:0] w_pick_final, w_pick_onehot;
     logic             w_rd_col_any, w_wr_col_any;
-    logic             w_hint_ok, w_hint_is_col, w_win_stale;
+    logic             w_hint_ok, w_hint_is_col;
     logic             w_pick_vld;
     logic [PAIRW-1:0] w_pick_pair;
     cls_e             w_pick_cls;
@@ -400,6 +454,7 @@ module mc_bank_pick
     // the held winner's candidate record and the class alternation bit.
     mc_head_rec_t     w_sel_cand;
     logic             r_last_was_row;     // last demand fire was ACT/PRE -> prefer columns now
+    logic [PAIRW-1:0] w_rotor_eff;
 
     // Sink room is checked HERE, one cycle before the fire, and not at the
     // fire stage: the write CAM's commit_ready answers "will a commit decided
@@ -410,22 +465,64 @@ module mc_bank_pick
     // happen in between). The FRFCFS core makes the same split at its
     // pre-pick.
     //
-    // The held winner's own pair is masked when its request cannot be the
-    // pair's NEXT command: r_req lags the fire by a cycle (decode -> request
-    // -> arbiter), so after a row command, or after a column that empties the
-    // pair (behind_empty), the stale request would be re-picked and dropped at
-    // the fire stage -- every other cycle wasted on a bank-rotating stream
-    // (write ceiling at the board geometry: 50%). A column with more entries
-    // behind it keeps its request: that is the one-column-per-cycle path.
-    // (If the winner is held rather than fired, this cycle's pick is discarded
-    // anyway, so the mask is never a loss.)
-    assign w_win_stale = r_win_vld && ((r_win_cls != CL_COL) || w_sel_cand.behind_empty);
+    // The search starts past the EFFECTIVE winner's pair, and the rotor
+    // follows a fire: r_req lags a fire by a cycle (decode -> request ->
+    // arbiter), so in the fire cycle the winner's own request is stale --
+    // after a row command, or a column that empties its pair, re-picking it
+    // costs a dropped cycle (a bank-rotating single-entry write stream ran
+    // at 50%, twice). Starting past it serves every other requester first;
+    // with no other requester the search wraps to the same pair, which is
+    // the one-column-per-cycle path (a stale re-pick then drops at the fire
+    // stage at no cost: the hint or the refreshed request lands in the same
+    // cycle). Because the effective winner HOLDS while it waits on a timer,
+    // the search start is stable while it waits: the next pick is the same
+    // pair every cycle, and the fire order is the request order. (A rotor
+    // that moved past the fresh pick every cycle walked on under tCCD and
+    // fired whichever pair it had reached: bank 0's second read before banks
+    // 1-3's first, +20 cycles on the return ring. A rotor that only moved on
+    // a fire re-picked the fired pair in the fire cycle, before anything
+    // registered could mask it.)
+    assign w_rotor_eff = w_win_vld ? (w_win_pair + PAIRW'(1)) : r_rotor;
+    // the write sink's room, registers only (see the port note)
+    logic w_wr_sink_ok;
+    assign w_wr_sink_ok = wr_commit_ready_now_i;
+    // The effective winner's OWN request is stale whenever it cannot be the
+    // pair's next command: a row command (the pair wants a column or an ACT
+    // next, which the hint / speculation carry), or a column with nothing
+    // behind it. That pair is masked out of the pick for one cycle. If the
+    // winner fires, the re-pick is avoided; if it does not, the hold serves
+    // it again regardless of the pick. Without this the class alternation
+    // (after a column, prefer row commands) re-picked the pair whose ACT was
+    // firing that very cycle, and every row switch under interleaved
+    // traffic paid a bubble (col_ilv 418 vs 459 MB/s, four generators 420
+    // vs 461). Keyed on "no same-row entry behind" and held two cycles it
+    // measured WORSE (col_major writes 291 vs 311, eight generators 446 vs
+    // 461): the write PRE lost a cycle and the eight-generator row closes
+    // are the page policy's idle-timeout closes, not re-picks. A streaming
+    // column (something behind it) is never masked: the search past the
+    // winner wraps to it when it is alone, the one-column-per-cycle path.
+    // The mask is REGISTERED, from NEXT cycle's effective winner, which this
+    // cycle already knows (hold, speculation or the fresh pick). Computed
+    // live from the effective-winner mux and a 4-to-16 decode it sat at the
+    // root of the arbiter cone (14 levels to the pick register). The three
+    // sources are registered SEPARATELY (the fresh pick as the one-hot the
+    // arbiter already isolates, never the encoded index; the held / the
+    // speculated winner from registers) and resolved next cycle by the
+    // registered hold and speculation bits: a mux of registers at the root,
+    // and no fire-cone select on any of the three load paths.
+    logic [NPAIR-1:0] r_stale_pick, r_stale_win, r_stale_spec;
+    logic             r_spec_taken;
+    logic [NPAIR-1:0] w_self_stale;
+    assign w_self_stale = r_hold ? r_stale_win : (r_spec_taken ? r_stale_spec : r_stale_pick);
+    logic [NPAIR-1:0] w_stale_if;               // per pair: its request would be stale after a fire
+    always_comb begin
+        for (int p = 0; p < NPAIR; p++) w_stale_if[p] = (r_cls[p] != CL_COL) || r_bempty[p];
+    end
     always_comb begin
         for (int p = 0; p < NPAIR; p++) begin
             automatic logic sink_ok = (r_cls[p] != CL_COL)
-                                   || (p[0] ? wr_commit_ready_i : rd_issue_ready_i);
-            w_req_ok     [p] = r_req[p] && sink_ok
-                            && !(w_win_stale && (r_win_pair == PAIRW'(p)));
+                                   || (p[0] ? w_wr_sink_ok : rd_issue_ready_i);
+            w_req_ok     [p] = r_req[p] && sink_ok && !w_self_stale[p];
             w_req_col    [p] = w_req_ok[p] && (r_cls[p] == CL_COL);
             w_req_col_dir[p] = w_req_col[p] && (p[0] == r_dir);
             w_req_row    [p] = w_req_ok[p] && (r_cls[p] != CL_COL);
@@ -441,7 +538,7 @@ module mc_bank_pick
         // has no room is dropped; the decode re-presents it)
         w_hint_is_col = (r_hint_cls == CL_COL);
         w_hint_ok     = r_hint_vld && (!w_hint_is_col
-                                       || (r_hint_pair[0] ? wr_commit_ready_i : rd_issue_ready_i));
+                                       || (r_hint_pair[0] ? w_wr_sink_ok : rd_issue_ready_i));
         w_hint_vec    = NPAIR'(1) << r_hint_pair;
 
         // Request set. Aged requests first (starvation relief). Then the two
@@ -469,8 +566,8 @@ module mc_bank_pick
             else                               w_sel = w_req_col;
         end
 
-        // round-robin: lowest index at or above the rotor, else lowest overall
-        for (int p = 0; p < NPAIR; p++) w_below_mask[p] = (PAIRW'(p) < r_rotor);
+        // round-robin: lowest index at or above the (effective) rotor, else lowest overall
+        for (int p = 0; p < NPAIR; p++) w_below_mask[p] = (PAIRW'(p) < w_rotor_eff);
         w_sel_above = w_sel & ~w_below_mask;
         w_pick_vld  = |w_sel;
         w_pick_pair = '0;
@@ -480,6 +577,58 @@ module mc_bank_pick
             for (int p = NPAIR-1; p >= 0; p--) if (w_sel[p])       w_pick_pair = PAIRW'(p);
         end
         w_pick_cls = (w_hint_ok && (w_sel == w_hint_vec)) ? r_hint_cls : r_cls[w_pick_pair];
+        // the same pick as a one-hot (lowest set bit of the searched vector):
+        // a carry chain in parallel with the encoder, for the stale mask
+        w_pick_final  = (|w_sel_above) ? w_sel_above : w_sel;
+        w_pick_onehot = w_pick_final & (~w_pick_final + NPAIR'(1));
+
+        // ---- short-hop speculation on the held winner (registers only) ----
+        // the candidate's flags, not the head record's: in a one-column-per-
+        // cycle stream every column after the first fires from the 2nd record
+        // (pop shadow), and the head's behind_same_row is 1 by definition --
+        // reading it here killed the speculation exactly where it matters
+        w_win_bsr       = w_sel_cand.behind_same_row;
+        w_win_bempty    = w_sel_cand.behind_empty;
+        w_win_hit       = w_sel_cand.hit;
+        w_other_req     = |(w_req_ok & ~(NPAIR'(1) << w_win_pair));
+        w_win_ap_policy = ap_mode_en_i ? ap_close_i[BKW'(w_win_pair >> 1)]
+                        : ((page_policy_i == PAGE_POLICY_CLOSE)
+                           || (CLOSE_ON_DRAIN && !w_win_bsr));
+        // Only when the current winner CAN be accepted now as far as the
+        // registered facts go (sink room): a column blocked by a full return
+        // ring or drain queue must not be followed by a speculated PRE, which
+        // would fail its class check and cost the pair a cycle each time.
+        w_spec_vld = 1'b0;
+        w_spec_cls = CL_NONE;
+        if ((LA > 0) && w_win_vld
+            && ((w_win_cls != CL_COL) || (w_win_pair[0] ? w_wr_sink_ok : rd_issue_ready_i))) begin
+            if ((w_win_cls == CL_ACT) && (t_rcd_i <= 8'(LA_SHORT))) begin
+                w_spec_vld = 1'b1; w_spec_cls = CL_COL;
+            end else if ((w_win_cls == CL_PRE) && (t_rp_i <= 8'(LA_SHORT))) begin
+                w_spec_vld = 1'b1; w_spec_cls = CL_ACT;
+            end else if ((w_win_cls == CL_COL) && !w_win_ap_policy
+                         && !w_win_bsr && !w_win_bempty
+                         && !w_hit[w_win_pair ^ 1]
+                         && ((w_win_pair[0] ? t_wr_i : t_rtp_i) <= 8'(LA_SHORT))) begin
+                w_spec_vld = 1'b1; w_spec_cls = CL_PRE;
+            end else if ((w_win_cls == CL_COL) && w_win_bsr && w_win_hit
+                         && !w_win_ap_policy
+                         && (t_ccd_i <= 8'(LA_SHORT)) && !w_other_req) begin
+                // COL -> COL on the same row, same pair, when nobody else is
+                // asking: covers the cycle in which the record's hit is still
+                // stale after the ACT (decode cannot request yet) and the
+                // steady one-column-per-cycle stream. With other requesters
+                // the arbiter interleaves them instead (no starvation).
+                // The candidate's own RECORDED hit is required: behind_same_row
+                // says the entry behind the candidate shares ITS row, so after
+                // the last column of a row the next entry (a miss) carries
+                // behind_same_row = 1 for the row after it, and a speculation
+                // keyed on that flag alone re-loaded a column for the pair
+                // every cycle while the decode's PRE never won (a 351k-cycle
+                // write hang on col_major).
+                w_spec_vld = 1'b1; w_spec_cls = CL_COL;
+            end
+        end
     end
 
     // ======================================================================
@@ -603,14 +752,14 @@ module mc_bank_pick
     logic            w_sel_is_wr;
     logic            w_sel_hit, w_sel_row_act;
     logic            w_fis_col, w_fis_act, w_fis_pre;
-    assign w_sel_bank    = BKW'(r_win_pair >> 1);
-    assign w_sel_is_wr   = r_win_pair[0];
-    assign w_sel_cand    = w_cand[r_win_pair];
-    assign w_sel_hit     = w_hit [r_win_pair];
+    assign w_sel_bank    = BKW'(w_win_pair >> 1);
+    assign w_sel_is_wr   = w_win_pair[0];
+    assign w_sel_cand    = w_cand[w_win_pair];
+    assign w_sel_hit     = w_hit [w_win_pair];
     assign w_sel_row_act = bank_row_active_i[RK0][w_sel_bank];
-    assign w_fis_col     = (r_win_cls == CL_COL);
-    assign w_fis_act     = (r_win_cls == CL_ACT);
-    assign w_fis_pre     = (r_win_cls == CL_PRE);
+    assign w_fis_col     = (w_win_cls == CL_COL);
+    assign w_fis_act     = (w_win_cls == CL_ACT);
+    assign w_fis_pre     = (w_win_cls == CL_PRE);
 
     // direction turnarounds: 1-deep fire history + the global windows
     logic r_wrfire0, r_rdfire0;
@@ -627,16 +776,18 @@ module mc_bank_pick
         else if (r_tccd_fwd != 8'd0) r_tccd_fwd <= r_tccd_fwd - 8'd1;
     )
 
-    // class still applies (else DROP) / timers open (else HOLD)
-    logic w_class_ok, w_timer_ok, w_blocked, w_dmd_ok, w_dmd_drop;
+    // class still applies and timers open -> fire; otherwise the winner is
+    // simply re-arbitrated next cycle (no hold: the winner register loads
+    // every cycle, so no fire-cone term sits on its load path)
+    logic w_class_ok, w_timer_ok, w_blocked, w_dmd_ok;
     always_comb begin
         w_class_ok = 1'b0;
         w_timer_ok = 1'b0;
         w_blocked  = w_ref_dmd_block[w_sel_bank] || w_rfc_dmd_block[w_sel_bank];
         if (w_fis_col) begin
-            // no sink term here: see the arbiter-stage note (commit_ready is
-            // a function of commit_valid; the decision a cycle earlier owns it)
-            w_class_ok = w_sel_cand.vld && w_sel_hit;
+            // the write sink re-check: registers only (see the port note)
+            w_class_ok = w_sel_cand.vld && w_sel_hit
+                      && (!w_sel_is_wr || wr_commit_ready_now_i);
             w_timer_ok = bank_rdwr_ready_i[RK0][w_sel_bank] && w_tccd_fwd_ok
                       && (w_sel_is_wr ? (trtw_ok_i && !r_rdfire0)
                                       : (twtr_ok_i && !r_wrfire0));
@@ -647,9 +798,28 @@ module mc_bank_pick
             w_class_ok = w_sel_cand.vld && w_sel_row_act && !w_sel_hit;
             w_timer_ok = bank_pre_ready_i[RK0][w_sel_bank];
         end
-        w_dmd_ok   = r_win_vld && w_class_ok && !w_blocked && w_timer_ok;
-        w_dmd_drop = r_win_vld && (!w_class_ok || w_blocked);
+        w_dmd_ok   = w_win_vld && w_class_ok && !w_blocked && w_timer_ok;
     end
+    // The winner's bank timer, as the lookahead sees it (registers only):
+    // bounds the hold to a timer that opens within the pipe depth. A bank
+    // gated longer than that (the contract bench's gate, a per-bank refresh)
+    // releases the winner so the next requester fires instead; the decode
+    // re-presents it when its lookahead opens.
+    logic w_win_la_ok;
+    always_comb begin
+        w_win_la_ok = 1'b0;
+        if (w_fis_col)      w_win_la_ok = bank_rdwr_ready_la_i[RK0][w_sel_bank];
+        else if (w_fis_act) w_win_la_ok = bank_act_ready_la_i [RK0][w_sel_bank];
+        else if (w_fis_pre) w_win_la_ok = bank_pre_ready_la_i [RK0][w_sel_bank];
+    end
+    // hold: the effective winner was a valid, applicable, unblocked request
+    // whose bank opens within the pipe depth and that did not fire (tCCD /
+    // turnaround / cmd_ready closed, or the override took the slot) -- serve
+    // it again next cycle. A winner whose class no longer applies, that is
+    // demand-blocked, or whose bank is gated beyond the lookahead is released
+    // and the decode re-presents it.
+    logic             w_hold_next;
+    assign w_hold_next = w_win_vld && w_class_ok && !w_blocked && w_win_la_ok && !w_dmd_fire;
 
     logic w_ovr_safe;
     assign w_ovr_safe = (w_ovr_op == OP_PRE) ? bank_pre_ready_i[RK0][w_ovr_bank] : 1'b1;
@@ -663,7 +833,7 @@ module mc_bank_pick
                    && bank_row_active_i[RK0][timeout_pre_bank_i]
                    && bank_pre_ready_i[RK0][timeout_pre_bank_i]
                    && !w_ref_dmd_block[timeout_pre_bank_i] && !w_rfc_dmd_block[timeout_pre_bank_i]
-                   && !(r_win_vld && (w_sel_bank == timeout_pre_bank_i));
+                   && !(w_win_vld && (w_sel_bank == timeout_pre_bank_i));
 
     assign w_fire      = cmd_ready_i && (w_ovr_vld ? w_ovr_safe : (w_dmd_ok || w_to_pre));
     assign w_dmd_fire  = w_fire && !w_ovr_vld && w_dmd_ok;
@@ -696,7 +866,7 @@ module mc_bank_pick
         end else if (!w_dmd_ok && w_to_pre) begin
             cmd_op_o    = OP_PRE;
             cmd_bank_o  = timeout_pre_bank_i;
-        end else if (r_win_vld) begin
+        end else if (w_win_vld) begin
             cmd_bank_o = w_sel_bank;
             cmd_row_o  = w_sel_cand.row[ROW_WIDTH-1:0];
             cmd_col_o  = w_sel_cand.col[COL_WIDTH-1:0];
@@ -719,7 +889,15 @@ module mc_bank_pick
     assign rd_issue_valid_o  = w_dmd_fire && w_fis_col && !w_sel_is_wr;
     assign rd_issue_slot_o   = PTRW'(w_sel_cand.slot);
 
-    assign refresh_grant_o = w_fire && w_ovr_vld
+    // A grant is a REF the refresh controller asked for. The init sequence's
+    // refreshes pass through the same override (DDR2 init issues two), and
+    // the controller banks any grant with no backlog as a PULL-IN credit;
+    // two init-time credits silently consumed the first two tREFI ticks
+    // after init on every run (pumice ISSUE-022: exactly 2 tREFI soft
+    // violations per BANK_PICK run, none on FRFCFS, whose grant is a
+    // registered request-side pulse) and left refresh_credit's strict arm
+    // one REF short once the core got faster.
+    assign refresh_grant_o = w_fire && w_ovr_vld && init_done_i
                           && ((w_ovr_op == OP_REF) || (w_ovr_op == OP_REFPB));
     assign zq_grant_o      = w_fire && w_ovr_vld && (w_ovr_op == OP_ZQCS);
     assign maint_grant_o   = w_fire && w_ovr_vld && maint_req_i
@@ -739,10 +917,10 @@ module mc_bank_pick
     //      the pipe depth (otherwise the lookahead decode lands it) ---------
     // A hop whose timer is SHORTER than the pipe (t < LA, e.g. tRTP = 1 at
     // the LiteDRAM-equivalent profile) cannot land through the arbiter
-    // register at all; it loads the winner register directly from the fire
-    // stage (w_hint_direct) and fires next cycle. A hop with t == LA takes
-    // the arbiter path and lands exactly; longer hops are the decode's.
-    logic w_hint_vld, w_hint_direct;
+    // register at all; the arbiter speculates it from the held winner
+    // (w_spec_*). A hop with t == LA takes the hint path and lands exactly;
+    // longer hops are the decode's.
+    logic w_hint_vld;
     cls_e w_hint_cls;
     logic [7:0] w_hop_t;
     always_comb begin
@@ -758,26 +936,33 @@ module mc_bank_pick
                 if (w_hop_t <= 8'(LA)) begin w_hint_vld = 1'b1; w_hint_cls = CL_ACT; end
             end else if (w_fis_col && !cmd_ap_o
                          && !w_sel_cand.behind_same_row && !w_sel_cand.behind_empty
-                         && !w_hit[r_win_pair ^ 1]) begin
+                         && !w_hit[w_win_pair ^ 1]) begin
                 w_hop_t = w_sel_is_wr ? t_wr_i : t_rtp_i;
                 if (w_hop_t <= 8'(LA)) begin w_hint_vld = 1'b1; w_hint_cls = CL_PRE; end
             end
         end
-        w_hint_direct = w_hint_vld && (LA > 0) && (w_hop_t <= 8'(LA_SHORT));
+        // hops shorter than the pipe are the arbiter's speculation, not a hint
+        w_hint_vld = w_hint_vld && !((LA > 0) && (w_hop_t <= 8'(LA_SHORT)));
     end
 
     // ---- registered state: winner, rotor, direction, shadow, hint, history --
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_win_vld   <= 1'b0;
-            r_win_pair  <= '0;
-            r_win_cls   <= CL_NONE;
+            r_pick_vld  <= 1'b0;
+            r_pick_pair <= '0;
+            r_pick_cls  <= CL_NONE;
+            r_held_vld  <= 1'b0;
+            r_held_pair <= '0;
+            r_held_cls  <= CL_NONE;
+            r_hold      <= 1'b0;
             r_rotor     <= '0;
             r_dir       <= 1'b0;
             r_dir_batch <= '0;
-            r_shadow_vld  <= 1'b0;
-            r_shadow_pair <= '0;
-            r_shadow_slot <= '0;
+            r_shadow    <= '0;
+            r_stale_pick  <= '0;
+            r_stale_win   <= '0;
+            r_stale_spec  <= '0;
+            r_spec_taken  <= 1'b0;
             r_hint_vld  <= 1'b0;
             r_hint_pair <= '0;
             r_hint_cls  <= CL_NONE;
@@ -787,21 +972,33 @@ module mc_bank_pick
             r_actfire0      <= 1'b0;
             r_actfire0_bank <= '0;
         end else begin
-            // winner: take the arbiter's result unless holding a timer-blocked
-            // one; a short-hop hint bypasses the arbiter register
-            if (w_hint_direct) begin
-                r_win_vld  <= 1'b1;
-                r_win_pair <= r_win_pair;
-                r_win_cls  <= w_hint_cls;
-            end else if (!r_win_vld || w_dmd_fire || w_dmd_drop) begin
-                r_win_vld  <= w_pick_vld;
-                r_win_pair <= w_pick_pair;
-                r_win_cls  <= w_pick_cls;
+            // pick: loads EVERY cycle from the arbiter (or the short-hop
+            // speculation on the effective winner); no fire-cone term on
+            // its load path
+            if (w_spec_vld) begin
+                r_pick_vld  <= 1'b1;
+                r_pick_pair <= w_win_pair;
+                r_pick_cls  <= w_spec_cls;
+            end else begin
+                r_pick_vld  <= w_pick_vld;
+                r_pick_pair <= w_pick_pair;
+                r_pick_cls  <= w_pick_cls;
             end
+            r_hold      <= w_hold_next;
+            r_held_vld  <= w_win_vld;
+            r_held_pair <= w_win_pair;
+            r_held_cls  <= w_win_cls;
+            // next cycle's effective winner is known now: hold, speculation
+            // or the fresh pick -- register each source's stale mask; the
+            // registered hold / speculation bits resolve them next cycle
+            r_spec_taken  <= w_spec_vld;
+            r_stale_win   <= (w_win_vld && ((w_win_cls != CL_COL) || r_bempty[w_win_pair]))
+                           ? (NPAIR'(1) << w_win_pair) : '0;
+            r_stale_spec  <= ((w_spec_cls != CL_COL) || r_bempty[w_win_pair]) ? (NPAIR'(1) << w_win_pair) : '0;
+            r_stale_pick  <= w_pick_onehot & w_stale_if;
             if (w_dmd_fire) r_last_was_row <= !w_fis_col;
-            // rotor moves past a pair that fired or was dropped
-            if (w_dmd_fire || w_dmd_drop)
-                r_rotor <= r_win_pair + PAIRW'(1);
+            // rotor: past the fired pair; unchanged while the winner waits
+            if (w_dmd_fire) r_rotor <= w_win_pair + PAIRW'(1);
 
             // direction: stick until the current direction runs dry or the
             // batch limit is hit while the other direction has columns
@@ -820,14 +1017,12 @@ module mc_bank_pick
                 r_dir_batch <= r_dir_batch + 8'd1;
             end
 
-            // pop shadow (one cycle)
-            r_shadow_vld  <= w_col_fire_now;
-            r_shadow_pair <= r_win_pair;
-            r_shadow_slot <= w_sel_cand.slot;
+            // pop shadow (one cycle, one-hot)
+            r_shadow <= w_col_fire_now ? (NPAIR'(1) << w_win_pair) : '0;
 
-            // next-op hint (one cycle; a direct-loaded hint does not also arbitrate)
-            r_hint_vld  <= w_hint_vld && !w_hint_direct;
-            r_hint_pair <= r_win_pair;
+            // next-op hint (one cycle)
+            r_hint_vld  <= w_hint_vld;
+            r_hint_pair <= w_win_pair;
             r_hint_cls  <= w_hint_cls;
 
             r_wrfire0 <= w_col_fire_now &&  w_sel_is_wr;

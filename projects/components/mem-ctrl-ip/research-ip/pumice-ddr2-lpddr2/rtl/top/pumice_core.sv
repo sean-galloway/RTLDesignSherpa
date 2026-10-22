@@ -318,6 +318,7 @@ module pumice_core
     logic [NUM_ENTRIES*4-1:0]           w_wr_sch_qos,   w_rd_sch_qos;
     logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
+    logic w_wr_commit_rdy_now;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
     logic [PTRW-1:0]           w_rd_issue_slot;
@@ -518,8 +519,12 @@ module pumice_core
     // ======================================================================
     // Plane 1b: storage plane (WR/RD CAMs + snarf)
     // ======================================================================
-    // storage -> scheduler per-bank head records (registered contract)
+    // storage -> scheduler per-bank head records (registered contract), and
+    // the scheduler's registered row image back to the storage edge (the
+    // records' hit flag is classified there)
     mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                w_bank_row_active;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0][ROW_WIDTH-1:0] w_bank_open_row;
 
     mc_storage_plane #(
         .AXI_ID_WIDTH  (IW),
@@ -586,6 +591,7 @@ module pumice_core
         .sched_age_thresh_i (sched_age_thresh_i),
         .wr_commit_valid_i  (w_wr_commit_v),
         .wr_commit_ready_o  (w_wr_commit_rdy),
+        .wr_commit_ready_now_o  (w_wr_commit_rdy_now),
         .wr_commit_slot_i   (w_wr_commit_slot),
         .rd_issue_valid_i   (w_rd_issue_v),
         .rd_issue_ready_o   (w_rd_issue_rdy),
@@ -613,6 +619,8 @@ module pumice_core
         .wr_cm_rd_strb_o    (w_cm_strb),
         .wr_cm_rd_last_o    (w_cm_last),
         // per-bank head records (storage -> scheduler contract, recovery Phase 1)
+        .bank_row_active_i  (w_bank_row_active[0]),
+        .bank_open_row_i    (w_bank_open_row[0]),
         .wr_head_o          (w_wr_head),
         .wr_head2_o         (w_wr_head2),
         .rd_head_o          (w_rd_head),
@@ -764,6 +772,7 @@ module pumice_core
         .wr_sch_qos_i       (w_wr_sch_qos),
         .wr_sch_head_rel_i  (w_wr_sch_hrel),
         .wr_commit_ready_i  (w_wr_commit_rdy),
+        .wr_commit_ready_now_i  (w_wr_commit_rdy_now),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
         // rd CAM per-entry vectors + issue
@@ -819,8 +828,8 @@ module pumice_core
         .zq_grant_o         (),
         .t_zqcs_i           (16'd0),
         .cmd_bg_o           (),
-        .bank_row_active_o  (),
-        .bank_open_row_o    (),
+        .bank_row_active_o  (w_bank_row_active),
+        .bank_open_row_o    (w_bank_open_row),
         .cmd_accept_o       (),
         .cmd_accept_op_o    ()
     );

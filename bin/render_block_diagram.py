@@ -6,6 +6,8 @@
     render_block_diagram.py X.dot [Y.dot ...] [--dpi 150] [--no-key]
 
 For each X.dot writes X.png: the drawing, with a key row centered beneath it.
+The result line also reports the title state ("title: bold, top" is the house
+rule; NONE / PLAIN / BOTTOM name the deviation, see block-diagrams.md "Title").
 The key is GENERATED from the drawing (vault/handbook/authoring/block-diagrams.md,
 "The key"): it samples exactly the node classes and line styles the drawing
 uses, so it cannot drift from the drawing or carry an absent class. dot cannot
@@ -60,6 +62,18 @@ GAP_PX = 25
 
 def _attrs(obj: dict) -> dict:
     return {k: str(v) for k, v in obj.items()}
+
+
+def title_state(dot_json: dict) -> str:
+    """How the drawing's title (the graph label) measures against the house
+    rule: bold, at the top (block-diagrams.md, "Title")."""
+    label = str(dot_json.get("label", "")).strip()
+    if not label:
+        return "title: NONE"
+    bold = bool(re.match(r"^<B>.*</B>$", label, re.S))
+    loc = str(dot_json.get("labelloc", "b")).lower()
+    where = "top" if loc.startswith("t") else "BOTTOM"
+    return f"title: {'bold' if bold else 'PLAIN'}, {where}"
 
 
 def classify(dot_json: dict) -> tuple[list[str], list[str]]:
@@ -170,9 +184,10 @@ def render(src: pathlib.Path, dpi: int, want_key: bool) -> str:
         main_png = tmp / "main.png"
         _run(["dot", "-Tpng", f"-Gdpi={dpi}", "-o", str(main_png), str(src)])
         classes, styles = ([], [])
+        js = json.loads(_run(["dot", "-Tjson", str(src)], text=True).stdout)
+        title = title_state(js)
         if want_key and not re.search(r"//\s*render:\s*no-key", src.read_text()):
-            js = _run(["dot", "-Tjson", str(src)], text=True).stdout
-            classes, styles = classify(json.loads(js))
+            classes, styles = classify(js)
         if classes or styles:
             kdot = tmp / "key.dot"
             # "(flopped)" only when the drawing itself annotates its interfaces
@@ -197,7 +212,7 @@ def render(src: pathlib.Path, dpi: int, want_key: bool) -> str:
     with Image.open(out) as im:
         w, h = im.size
     key_desc = ",".join(styles + classes) or "no key"
-    return f"{out.name}: {w}x{h} [{key_desc}]"
+    return f"{out.name}: {w}x{h} [{key_desc}] {title}"
 
 
 def main() -> int:

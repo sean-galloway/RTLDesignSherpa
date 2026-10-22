@@ -75,10 +75,15 @@ forward it; the perf proxy takes `TEST_SCHED_CORE`):
   `mc_bank_pick` on the storage plane's REGISTERED per-bank head records.
   Decode (per bank) -> round-robin arbiter -> fire, every stage fed by flops;
   `BANK_LA` = 2 = the pipe depth, so a request reaches the fire stage the
-  cycle its timer opens. A one-cycle pop shadow and a next-op hint land the
-  dependent hops of a row walk on the JEDEC floor (col_major inter-row gap
-  6 rd / 8 wr at the board timings). Hold on a closed timer, drop on a
-  class change; the decode re-presents every cycle so a drop costs nothing.
+  cycle its timer opens. A one-cycle pop shadow, a next-op hint (hop ==
+  pipe depth) and register-only speculation on the held winner (hop <
+  pipe depth) land the dependent hops of a row walk on the JEDEC floor
+  (col_major inter-row gap 6 rd / 8 wr at the board timings). The pick
+  register loads every cycle; a winner waiting on a timer holds through a
+  registered mux in front of the fire stage, bounded by its bank's
+  lookahead bit, and its own stale request is masked out of the pick
+  (Phase 3, 2026-10-22: no fire-cone arc reaches a register's
+  load enable; the record carries its hit, classified at the storage edge).
   The order modes / row-col selectors / QoS CSRs are no-ops on this core.
 - **FRFCFS (`SCHED_CORE=0`, research):** flat FR-FCFS arbiter with a
   3-stage pick pipeline (STAGE-1a snapshot -> STAGE-1b arg_sel -> pre-pick

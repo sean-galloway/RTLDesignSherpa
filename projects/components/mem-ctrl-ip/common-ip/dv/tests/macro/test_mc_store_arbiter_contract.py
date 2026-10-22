@@ -7,7 +7,9 @@ Macro contract test: mc_xddr2_entry_store + a REAL pick core.
 Parametrized over the two scheduler cores (tb_top SCHED_CORE):
   bank_pick -- mc_bank_head_records + mc_bank_pick (the family core; all five
                cells must pass -- the four pipeline-acceptance cells are the
-               Phase 2 gate of docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md)
+               Phase 2 gate of docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md;
+               the gate-block cell was restated in Phase 3: a blocked winner
+               is re-arbitrated, not held)
   frfcfs    -- mc_cmd_arbiter (research core). The baseline contract cell and
                the zero-bubble stream pass; hold-on-gate-block, post-pop
                winner and override-preempts fail by design on it and are kept
@@ -264,19 +266,23 @@ async def cocotb_test_store_arbiter_contract(dut):
 
 @cocotb.test()
 async def cocotb_test_hold_on_gate_block(dut):
-    """A blocked live JEDEC gate must HOLD the chosen winner, not drop/re-pick it.
+    """A blocked live JEDEC gate must cost no bubble and no double fire.
 
-    Old RTL: w_out_reject makes w_out_ready true, so the output register is
-    overwritten by a fresh pick next cycle. With a second candidate in bank 1
-    still ready, the bank/row/col of the output command changes while the gate
-    is closed -- the winner is not held.
+    Two candidates in different banks; bank 0 is picked first. Bank 0's
+    read/write gate is then closed for eight cycles with the command bus
+    released. Required: bank 1 fires while bank 0 is blocked (the blocked
+    winner is re-arbitrated, not held in front of everyone), bank 0 never
+    fires through its closed gate, and bank 0 fires exactly once, within two
+    cycles of the gate opening (its request is still standing).
+
+    The old FRFCFS core drops the pick on the reject and refills a 3-stage
+    pipe; the 2026-10-22 pick core before Phase 3 held the winner and the
+    whole pool behind it (the hold sat on the fire cone and was the 75 MHz
+    miss).
     """
     await _reset(dut)
     await _open_arbiter_gates(dut)
 
-    # Preload two candidates in different banks with the command bus held
-    # (never ready), so both are in the pool before anything fires and the
-    # round-robin pick lands on bank 0 first.
     _cmd_ready_never(dut)
     await _push_wr_chunk(dut, bank=0, row=0, col=10)
     await _push_wr_chunk(dut, bank=1, row=0, col=20)
@@ -284,31 +290,29 @@ async def cocotb_test_hold_on_gate_block(dut):
         await RisingEdge(dut.aclk)
     await Timer(1, "ns")
     held = await _sample(dut)
-    assert held["pick"] and held["bank"] == 0, f"expected bank 0 held in the output stage, got {held}"
-    chosen = (held["op"], held["bank"], held["row"], held["col"])
+    assert held["pick"] and held["bank"] == 0, f"expected bank 0 picked first, got {held}"
 
-    # Block bank 0's read/write ready path (live JEDEC gate), keep bank 1 open,
-    # and release the command bus. The held winner must stay bank 0 with its
-    # fields unchanged, and nothing may fire.
+    # Block bank 0's gate, release the bus.
     dut.bank_rdwr_ready.value = 0xFE   # bit 0 low
     _cmd_ready_every_cycle(dut)
+    fired = []
     for _ in range(8):
         sn = await _sample(dut)
-        assert sn["pick"], f"winner dropped while gate blocked: {sn}"
-        assert (sn["op"], sn["bank"], sn["row"], sn["col"]) == chosen, \
-            f"command changed while gate blocked: {sn} vs {chosen}"
-        assert not sn["fire"], f"fired while bank 0's gate was blocked: {sn}"
+        if sn["fire"]:
+            fired.append((sn["bank"], sn["col"]))
+    assert all(b != 0 for b, _ in fired), f"bank 0 fired through its closed gate: {fired}"
+    assert (1, 20) in fired, f"bank 1 did not fire while bank 0 was blocked: {fired}"
 
-    # Open the gate. The held winner fires exactly once, immediately, then
-    # bank 1 follows.
+    # Open the gate: bank 0 fires exactly once, promptly.
     dut.bank_rdwr_ready.value = 0xFF
-    first = await _sample(dut)
-    assert first["fire"], f"held winner did not fire the cycle the gate opened: {first}"
-    assert (first["op"], first["bank"], first["row"], first["col"]) == chosen, \
-        f"the fired command is not the held winner: {first} vs {chosen}"
-    second = await _sample(dut)
-    assert not (second["fire"] and second["bank"] == 0), \
-        f"the held winner fired twice: {second}"
+    after = []
+    for _ in range(4):
+        sn = await _sample(dut)
+        if sn["fire"]:
+            after.append((sn["bank"], sn["col"]))
+    assert after.count((0, 10)) == 1, f"bank 0 fired {after.count((0, 10))} times after the gate opened: {after}"
+    assert after and after[0] == (0, 10) or (len(after) > 1 and after[1] == (0, 10)), \
+        f"bank 0 did not fire within two cycles of the gate opening: {after}"
 
 
 @cocotb.test()
@@ -550,7 +554,7 @@ ACCEPTANCE_TESTS = CONTRACT_TESTS[1:]
 # (free-running AW/W streams) the research core also streamed bubble-free, so
 # its Phase 0 "4 idle in 16" was the old stimulus running dry, not the core.
 FRFCFS_XFAIL = {
-    "cocotb_test_hold_on_gate_block": "drop-on-reject: the output register is re-picked while the gate is closed",
+    "cocotb_test_hold_on_gate_block": "the reject drops the pick and refills the pipe: bank 1 does not fire during the block",
     "cocotb_test_post_pop_winner": "no speculative post-pop winner: the cycle after a pop is a bubble",
     "cocotb_test_override_preempts_speculation": "a held column fires before the init override",
 }

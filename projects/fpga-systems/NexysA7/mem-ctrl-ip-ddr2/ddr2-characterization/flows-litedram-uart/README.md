@@ -59,6 +59,19 @@ record is tagged `litedram`. The host waits on `STATUS.init_done`
 (`litedram_core.init_done`, asserted by the BIOS after calibration) before
 launching generators, as it waits on pumice's init.
 
+## Block diagrams
+
+`docs/graphviz/litedram_rd_path.png` and `litedram_wr_path.png` (sources
+beside them) draw the read and write paths from the AXI user port to the
+multiplexer's DFI command output, every register stage marked, in the
+house block-diagram style (`vault/handbook/authoring/block-diagrams.md`).
+They were read off the LiteX source (`mem-ctrl-ref/litedram`: frontend
+`axi.py`, core `crossbar.py`, `bankmachine.py`, `multiplexer.py`,
+`refresher.py`) for this build's settings (DDR2 1:2, two DFI phases,
+64-bit / 8-bit-id AXI, `cmd_buffer_depth` 16, `read_time` 32 /
+`write_time` 16, auto-precharge, ROW_BANK_COL). Regenerate with
+`bin/render_block_diagram.py --dpi 150 docs/graphviz/*.dot`.
+
 ## What LiteDRAM does not have
 
 - No controller CSRs: paging / scheduling / refresh sweeps are pumice-only.

@@ -154,6 +154,15 @@ package mc_common_pkg;
         // by an early AP (pumice BUG-027's mechanism).
         logic                      behind_same_row;
         logic                      age_exceed;   // backend aging policy flag (sched_age_thresh)
+        // Row hit against the scheduler's REGISTERED row image (bank_row_active
+        // / bank_open_row from the bank timers) as of the cycle the record was
+        // formed: one cycle stale by construction, so a consumer ANDs it with
+        // the live safe bits (a stale 1 after a PRE is blocked by row_valid; a
+        // stale 0 after an ACT costs nothing while tRCD >= 2). Computed here,
+        // where the NEXT record value is visible, so that a 14-bit compare and
+        // its 16-way open-row fan-in stay out of the scheduler's fire cone
+        // (Phase 3 measurement: that cone was the 75 MHz miss).
+        logic                      hit;
     } mc_head_rec_t;
 
     //=========================================================================

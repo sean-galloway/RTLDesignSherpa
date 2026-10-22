@@ -885,20 +885,21 @@ async def _pick_trace(dut, start, n, tag=""):
         if start <= cyc < start + n:
             try:
                 dut._log.info(
-                    "PT%s c%d win(v,pair,cls)=(%d,%d,%d) ok=%d fire=%d drop=%d cls_ok=%d tmr_ok=%d hit=%d "
-                    "req=%04x reqok=%04x hint=%d sh=%d ovr=%d(%d) wcr=%d dqocc=%d sch=%02x pend=%02x "
-                    "wv=%d wr=%d awv=%d awr=%d cmd_rdy=%d refreq=%d refsafe=%d allact=%d rfc=%d",
-                    tag, cyc, int(pk.r_win_vld.value), int(pk.r_win_pair.value), int(pk.r_win_cls.value),
-                    int(pk.w_dmd_ok.value), int(pk.w_fire.value), int(pk.w_dmd_drop.value),
+                    "PT%s c%d win(v,pair,cls)=(%d,%d,%d) ok=%d fire=%d spec=%d cls_ok=%d tmr_ok=%d hit=%d "
+                    "req=%04x reqok=%04x hint=%d sh=%04x ovr=%d(%d) wcr=%d dqocc=%d sch=%02x pend=%02x "
+                    "wv=%d wr=%d awv=%d awr=%d cmd_rdy=%d refreq=%d refsafe=%d allact=%d rfc=%d rdr=%d rotor=%d",
+                    tag, cyc, int(pk.w_win_vld.value), int(pk.w_win_pair.value), int(pk.w_win_cls.value),
+                    int(pk.w_dmd_ok.value), int(pk.w_fire.value), int(pk.w_spec_vld.value),
                     int(pk.w_class_ok.value), int(pk.w_timer_ok.value), int(pk.w_sel_hit.value),
                     int(pk.r_req.value), int(pk.w_req_ok.value), int(pk.r_hint_vld.value),
-                    int(pk.r_shadow_vld.value), int(pk.w_ovr_vld.value), int(pk.w_ovr_op.value),
-                    int(pk.wr_commit_ready_i.value), int(cam.r_dq_occ.value),
+                    int(pk.r_shadow.value), int(pk.w_ovr_vld.value), int(pk.w_ovr_op.value),
+                    int(pk.wr_commit_ready_now_i.value), int(cam.r_dq_occ.value),
                     int(cam.sch_valid_o.value), int(cam.sch_pend_o.value),
                     int(dut.s_axi_wvalid.value), int(dut.s_axi_wready.value),
                     int(dut.s_axi_awvalid.value), int(dut.s_axi_awready.value),
                     int(pk.cmd_ready_i.value), int(sp.refresh_req.value),
-                    int(pk.w_ref_safe.value), int(pk.w_all_act_ready.value), int(pk.w_rfc_busy.value))
+                    int(pk.w_ref_safe.value), int(pk.w_all_act_ready.value), int(pk.w_rfc_busy.value),
+                    int(pk.rd_issue_ready_i.value), int(pk.r_rotor.value))
             except Exception as e:  # noqa: BLE001
                 dut._log.info("PT%s c%d probe error %r", tag, cyc, e)
         if cyc >= start + n:
@@ -1192,6 +1193,8 @@ async def _measure_read_stream(dut, *, t_refi, t_rfc, label, title, n=256,
 
     # Start accounting only after the first R beat -- the AR->R fill is
     # unavoidable latency, not a datapath bubble.
+    cocotb.start_soon(_pick_trace(dut, int(os.environ.get("PICK_TRACE_START", "40")),
+                                  int(os.environ.get("PICK_TRACE_N", "100")), tag=label))
     trk = AxiChanTracker(dut, 'r', valid="s_axi_rvalid", ready="s_axi_rready",
                          last="s_axi_rlast", log=dut._log)
     async def _track_after_fill():

@@ -166,11 +166,29 @@ set _sys75 1
 if {[info exists ::env(PUMICE_SYS_75)] && $::env(PUMICE_SYS_75) ne ""} {
     set _sys75 [expr {$::env(PUMICE_SYS_75) ne "0"}]
 }
-if {$_sys75} {
+# PUMICE_SYS_100=1: the 100 MHz / DDR2-400 TIMING profile (recovery Phase 3).
+# Not a board point (no calibration tuple, CSR derivation is for 75 MHz); it
+# exists to measure the scheduler against the 100 MHz target. Wins over SYS_75.
+set _sys100 0
+if {[info exists ::env(PUMICE_SYS_100)] && $::env(PUMICE_SYS_100) ne ""} {
+    set _sys100 [expr {$::env(PUMICE_SYS_100) ne "0"}]
+}
+if {$_sys100} {
+    lappend current_defines "PUMICE_SYS_100"
+    set _freq_note "100.00 MHz (PUMICE_SYS_100 -- TIMING build, not a board point)"
+} elseif {$_sys75} {
     lappend current_defines "PUMICE_SYS_75"
     set _freq_note "75.00 MHz (PUMICE_SYS_75 -- the board design point)"
 } else {
     set _freq_note "66.67 MHz (PUMICE_SYS_75=0 -- NOT the board design point)"
+}
+# PUMICE_SCHED_CORE=0|1: pumice pick core for A/B timing builds (default 1 =
+# BANK_PICK, the shipping core since recovery Phase 2; 0 = FRFCFS research).
+if {[info exists ::env(PUMICE_SCHED_CORE)] && $::env(PUMICE_SCHED_CORE) ne ""} {
+    lappend current_defines "PUMICE_SCHED_CORE=$::env(PUMICE_SCHED_CORE)"
+    set _freq_note "$_freq_note, SCHED_CORE=$::env(PUMICE_SCHED_CORE)"
+} else {
+    set _freq_note "$_freq_note, SCHED_CORE=1 (BANK_PICK)"
 }
 # Say it loudly and unconditionally. "Which clock is this .bit" must never be
 # inferred from a board log two hundred lines in.

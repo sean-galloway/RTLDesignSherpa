@@ -9,7 +9,9 @@ older matrix, age_exceed} into one REGISTERED record pair per bank: head =
 the oldest schedulable entry of that bank, head2 = the one behind it, each
 with behind_empty (no younger schedulable entry of this bank behind it),
 behind_same_row (a younger same-bank same-row entry -- schedulable OR still
-pending -- exists behind it) and the aging flag.
+pending -- exists behind it), the aging flag, and hit (the entry's row equals
+the scheduler's registered open row for its bank, which the test drives as a
+moving image).
 
 Method: a Python reference holds a slot table with insertion order; every
 cycle it drives the DUT's vectors (the age matrix is derived from insertion
@@ -25,8 +27,8 @@ entry), which is the case the entry store's fill target once got wrong.
 
 Production change that fails this test: picking by slot index instead of
 age, miscounting behind_empty, ignoring pending entries in behind_same_row,
-dropping head2, or removing the output register (the check is against the
-PREVIOUS cycle's vectors).
+a hit that ignores row_active or the open row, dropping head2, or removing
+the output register (the check is against the PREVIOUS cycle's vectors).
 
 Levels: TEST_LEVEL gate = 300 cycles, func = 2000, full = 8000.
 """
@@ -61,6 +63,9 @@ class _Model:
         self.rng = rng
         self.slots = [None] * NUM_ENTRIES       # slot -> dict or None
         self.order = 0
+        # the scheduler's registered row image, as the DUT sees it this cycle
+        self.row_active = [0] * NUM_BANKS
+        self.open_row = [0] * NUM_BANKS
 
     def free_slots(self):
         return [i for i, e in enumerate(self.slots) if e is None]
@@ -104,8 +109,17 @@ class _Model:
                 # older[i][j] (bit i*N+j) = i inserted strictly before j
                 if f is not None and i != j and e["order"] < f["order"]:
                     older |= 1 << (i * NUM_ENTRIES + j)
+        ract = 0
+        orow = 0
+        for b in range(NUM_BANKS):
+            ract |= self.row_active[b] << b
+            orow |= self.open_row[b] << (b * ROW_WIDTH)
         return dict(valid=valid, pend=pend, bank=bank, row=row, col=col,
-                    older=older, agex=agex)
+                    older=older, agex=agex, ract=ract, orow=orow)
+
+    def hit(self, i):
+        e = self.slots[i]
+        return int(self.row_active[e["bank"]] and self.open_row[e["bank"]] == e["row"])
 
     def behind_same_row(self, i):
         e = self.slots[i]
@@ -126,10 +140,11 @@ class _Model:
                     i = cands[k]; e = self.slots[i]
                     recs.append(dict(vld=1, row=e["row"], col=e["col"], slot=i,
                                      behind_empty=int(n == k + 1),
-                                     bsr=self.behind_same_row(i), age=e["age"]))
+                                     bsr=self.behind_same_row(i), age=e["age"],
+                                     hit=self.hit(i)))
                 else:
                     recs.append(dict(vld=0, row=0, col=0, slot=0, behind_empty=0,
-                                     bsr=0, age=0))
+                                     bsr=0, age=0, hit=0))
             out[b] = recs
         return out
 
@@ -152,6 +167,7 @@ def _read_records(dut):
                 behind_empty=_field(getattr(dut, f"{pfx}_behind_empty").value, b, 1) if vld else 0,
                 bsr=_field(getattr(dut, f"{pfx}_behind_same_row").value, b, 1) if vld else 0,
                 age=_field(getattr(dut, f"{pfx}_age_exceed").value, b, 1) if vld else 0,
+                hit=_field(getattr(dut, f"{pfx}_hit").value, b, 1) if vld else 0,
             ))
         got[b] = recs
     return got
@@ -165,12 +181,14 @@ def _drive(dut, v):
     dut.sch_col.value = v["col"]
     dut.sch_older.value = v["older"]
     dut.sch_age_exceed.value = v["agex"]
+    dut.bank_row_active.value = v["ract"]
+    dut.bank_open_row.value = v["orow"]
 
 
 async def _reset(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
     dut.rst_n.value = 0
-    _drive(dut, dict(valid=0, pend=0, bank=0, row=0, col=0, older=0, agex=0))
+    _drive(dut, dict(valid=0, pend=0, bank=0, row=0, col=0, older=0, agex=0, ract=0, orow=0))
     for _ in range(5):
         await RisingEdge(dut.clk)
     dut.rst_n.value = 1
@@ -216,11 +234,20 @@ async def cocotb_test_bank_head_records(dut):
             vs = m.valid_slots()
             if vs:
                 m.pop(rng.choice(vs))
-        elif r < 0.90:
+        elif r < 0.88:
             vs = m.valid_slots()
             if vs:
                 e = m.slots[rng.choice(vs)]
                 e["age"] ^= 1
+        elif r < 0.96:
+            # the scheduler's row image moves: open a row from the row set
+            # (often one an entry carries, so hits happen) or close the bank
+            b = rng.randrange(NUM_BANKS)
+            if rng.random() < 0.7:
+                m.row_active[b] = 1
+                m.open_row[b] = rng.choice(rows)
+            else:
+                m.row_active[b] = 0
         # else: hold (records must not change)
         v = m.vectors()
         exp_now = m.expected()

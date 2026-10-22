@@ -116,6 +116,7 @@ module mc_storage_plane #(
 
     input  logic                wr_commit_valid_i,
     output logic                wr_commit_ready_o,
+    output logic                wr_commit_ready_now_o,    // the accept condition, registers only (no commit_valid term)
     input  logic [PTRW-1:0]     wr_commit_slot_i,
 
     input  logic                rd_issue_valid_i,
@@ -162,6 +163,9 @@ module mc_storage_plane #(
     // mc_bank_head_records. Additive beside the per-entry *_sch_* vectors
     // the FRFCFS research core still consumes.
     //=========================================================================
+    // scheduler's registered row image (bank timers), for the records' hit flag
+    input  logic [NUM_BANKS-1:0]                bank_row_active_i,
+    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      bank_open_row_i,
     output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] wr_head_o,
     output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] wr_head2_o,
     output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] rd_head_o,
@@ -244,6 +248,7 @@ module mc_storage_plane #(
         .sch_head_rel_o     (wr_sch_head_rel_o),
         .commit_valid_i     (wr_commit_valid_i),
         .commit_ready_o     (wr_commit_ready_o),
+        .commit_ready_now_o (wr_commit_ready_now_o),
         .commit_slot_i      (wr_commit_slot_i),
         .cm_rd_valid_o      (wr_cm_rd_valid_o),
         .cm_rd_ready_i      (wr_cm_rd_ready_i),
@@ -323,6 +328,8 @@ module mc_storage_plane #(
     ) u_wr_heads (
         .clk              (aclk),
         .rst_n            (aresetn),
+        .bank_row_active_i(bank_row_active_i),
+        .bank_open_row_i  (bank_open_row_i),
         .sch_valid_i      (wr_sch_valid_o),
         .sch_pend_i       (w_wr_sch_pend),
         .sch_bank_i       (wr_sch_bank_o),
@@ -342,6 +349,8 @@ module mc_storage_plane #(
     ) u_rd_heads (
         .clk              (aclk),
         .rst_n            (aresetn),
+        .bank_row_active_i(bank_row_active_i),
+        .bank_open_row_i  (bank_open_row_i),
         .sch_valid_i      (rd_sch_valid_o),
         .sch_pend_i       ('0),                 // a read is schedulable at insert
         .sch_bank_i       (rd_sch_bank_o),

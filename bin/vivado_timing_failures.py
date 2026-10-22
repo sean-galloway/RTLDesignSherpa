@@ -50,11 +50,21 @@ Two modes:
       256-endpoint hot spot is distinguishable from a 2). The prop/logic/route
       shown are the worst-slack representative's.
 
+  --xlsx <file>:
+      Write a workbook with three sheets: `raw` (every violation), `bins`
+      (the bucketized hot list) and `cones` (bins aggregated to the
+      start/end INSTANCE hierarchy -- the register names stripped -- with
+      endpoint count, worst slack and that path's logic/route split). The
+      cones sheet is the one a timing-miss post-mortem reads first: it names
+      the register-to-register cone by hierarchy, so the failing edge can be
+      drawn on a block diagram. Needs openpyxl.
+
 USAGE:
     bin/vivado_timing_failures.py <report.txt>
     bin/vivado_timing_failures.py <report.txt> --bucketize
     bin/vivado_timing_failures.py <report.txt> --format csv -o out.csv
     bin/vivado_timing_failures.py <report.txt> --include-met
+    bin/vivado_timing_failures.py <report.txt> --xlsx timing_bins.xlsx
 """
 
 import argparse
@@ -275,6 +285,85 @@ def write_json(rows: List[Violation], out: TextIO) -> None:
     out.write("\n")
 
 
+def _instance_of(pin_path: str) -> str:
+    """Strip the cell and pin from a Vivado pin path, keep the instance path.
+
+    `u_sched/u_pick/r_win_cls_reg[*]/D` -> `u_sched/u_pick`; a bare port
+    (`LED[*]`) stays as is."""
+    parts = pin_path.split("/")
+    return "/".join(parts[:-2]) if len(parts) > 2 else pin_path
+
+
+def cones(bins: List[Violation]) -> List[dict]:
+    """Aggregate bucketized violations to (path_group, src instance, dst
+    instance): endpoint count (sum of bucket counts), worst slack, and the
+    worst path's logic/route split."""
+    agg: dict = {}
+    for v in bins:
+        key = (v.violation_type, v.path_group,
+               _instance_of(v.source), _instance_of(v.destination))
+        a = agg.setdefault(key, {"violation_type": key[0], "path_group": key[1],
+                                 "source_instance": key[2], "destination_instance": key[3],
+                                 "endpoints": 0, "buckets": 0, "worst_slack_ns": 0.0,
+                                 "logic_ns": None, "route_ns": None, "worst_bucket": ""})
+        a["endpoints"] += (v.count or 1)
+        a["buckets"] += 1
+        if v.slack_ns < a["worst_slack_ns"]:
+            a["worst_slack_ns"] = v.slack_ns
+            a["logic_ns"] = v.logic_ns
+            a["route_ns"] = v.route_ns
+            a["worst_bucket"] = f"{v.source} -> {v.destination}"
+    return sorted(agg.values(), key=lambda a: a["worst_slack_ns"])
+
+
+def write_xlsx(raw: List[Violation], bins: List[Violation], path: Path,
+               title: str) -> None:
+    """Three sheets: raw, bins, cones. Negative slack cells are red."""
+    from openpyxl import Workbook                      # local: optional dependency
+    from openpyxl.styles import Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    red = PatternFill("solid", fgColor="FFC7CE")
+    bold = Font(bold=True)
+    wb = Workbook()
+
+    def sheet(ws, header, rows, slack_col):
+        ws.append(header)
+        for c in ws[1]:
+            c.font = bold
+        for r in rows:
+            ws.append(r)
+        for row in ws.iter_rows(min_row=2):
+            cell = row[slack_col]
+            if isinstance(cell.value, (int, float)) and cell.value < 0:
+                cell.fill = red
+        for i, h in enumerate(header, start=1):
+            width = max(len(str(h)), *(len(str(r[i - 1])) for r in rows)) if rows else len(str(h))
+            ws.column_dimensions[get_column_letter(i)].width = min(max(width + 2, 8), 90)
+        ws.freeze_panes = "A2"
+
+    ws = wb.active
+    ws.title = "cones"
+    cn = cones(bins)
+    sheet(ws, ["violation", "path_group", "source_instance", "destination_instance",
+               "endpoints", "buckets", "worst_slack_ns", "logic_ns", "route_ns", "worst_bucket"],
+          [[a["violation_type"], a["path_group"], a["source_instance"], a["destination_instance"],
+            a["endpoints"], a["buckets"], a["worst_slack_ns"], a["logic_ns"], a["route_ns"],
+            a["worst_bucket"]] for a in cn], slack_col=6)
+    ws.cell(row=1, column=12, value=title).font = bold
+
+    ws = wb.create_sheet("bins")
+    sheet(ws, Violation.field_order(),
+          [[v.violation_type, v.path_group, v.path_type, v.source, v.destination,
+            v.count, v.slack_ns, v.prop_ns, v.logic_ns, v.route_ns] for v in bins], slack_col=6)
+
+    ws = wb.create_sheet("raw")
+    sheet(ws, Violation.field_order(),
+          [[v.violation_type, v.path_group, v.path_type, v.source, v.destination,
+            v.count, v.slack_ns, v.prop_ns, v.logic_ns, v.route_ns] for v in raw], slack_col=6)
+    wb.save(path)
+
+
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
@@ -305,6 +394,11 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="Output format (default: tsv).")
     parser.add_argument("--output", "-o", type=Path,
                         help="Output file (default: stdout).")
+    parser.add_argument("--xlsx", type=Path,
+                        help=("Also write a workbook (sheets raw / bins / cones); "
+                              "implies the bucketized view for bins and cones."))
+    parser.add_argument("--title", default="",
+                        help="Label written on the cones sheet (build, clock, date).")
 
     args = parser.parse_args(argv)
 
@@ -314,6 +408,13 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     with args.input.open() as f:
         violations = list(parse_violations(f, include_met=args.include_met))
+
+    raw_sorted = sorted(violations, key=lambda v: v.slack_ns)
+    if args.xlsx:
+        bins = sorted(bucketize_worst(list(violations)), key=lambda v: v.slack_ns)
+        write_xlsx(raw_sorted, bins, args.xlsx, args.title or str(args.input))
+        print(f"# wrote {args.xlsx}: {len(raw_sorted)} raw, {len(bins)} bins, "
+              f"{len(cones(bins))} cones", file=sys.stderr)
 
     if args.bucketize:
         violations = bucketize_worst(violations)

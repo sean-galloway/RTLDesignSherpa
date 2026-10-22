@@ -461,6 +461,7 @@ module scoria_scheduler_plane
         .wr_sch_qos_i       (wr_sch_qos_i),
         .wr_sch_head_rel_i  (wr_sch_head_rel_i),
         .wr_commit_ready_i  (wr_commit_ready_i),
+        .wr_commit_ready_now_i  (1'b0),
         .wr_commit_valid_o  (wr_commit_valid_o),
         .wr_commit_slot_o   (wr_commit_slot_o),
         .rd_sch_valid_i     (rd_sch_valid_i),

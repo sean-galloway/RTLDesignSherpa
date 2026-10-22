@@ -143,6 +143,7 @@ module mc_wr_data_cam #(
     //=========================================================================
     input  logic                          commit_valid_i,
     output logic                          commit_ready_o,
+    output logic                          commit_ready_now_o,    // room for a commit THIS cycle, registers only (no commit_valid, no pop term)
     input  logic [PTRW-1:0]               commit_slot_i,
     output logic                          cm_rd_valid_o,
     input  logic                          cm_rd_ready_i,
@@ -536,6 +537,18 @@ module mc_wr_data_cam #(
     assign w_dq_occ_next = r_dq_occ + (w_commit_fire ? (PTRW+1)'(1) : (PTRW+1)'(0))
                                     - (w_dq_pop      ? (PTRW+1)'(1) : (PTRW+1)'(0));
     assign commit_ready_o = w_dq_wr_ready && (w_dq_occ_next < (PTRW+1)'(WR_DRAIN_AHEAD));
+    // The accept condition itself, exported for a core that must not read
+    // commit_valid back (mc_bank_pick, recovery Phase 3): registered
+    // occupancy and the queue's own ready, NO pop term. The drain pop reaches
+    // through the fetch arbitration to BOTH consumer readies (cm_rd_ready_i
+    // from the DFI plane, snarf_rd_ready_i from the AXI plane), so a
+    // predicate that subtracted it was the worst post-route cone at 100 MHz
+    // (AXI-plane order FIFO -> this pop -> the arbiter's winner register,
+    // 18 levels, -2.5 ns). Without the pop the predicate is pessimistic by
+    // one cycle only when the queue is full and emptying in the same cycle,
+    // which the rate-matched stream (one commit per BL_WORDS cycles, one pop
+    // per BL_WORDS cycles, occupancy steady at one) never reaches.
+    assign commit_ready_now_o = w_dq_wr_ready && (r_dq_occ < (PTRW+1)'(WR_DRAIN_AHEAD));
 
     gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_drain_q (
         .axi_aclk   (aclk),
