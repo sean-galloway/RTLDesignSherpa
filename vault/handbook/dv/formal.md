@@ -20,6 +20,17 @@ sv2v's output). `make check-flat` regenerates and compares content.
 CI enforces the rule: `bin/check_formal_flat_sources.py` fails on any
 formal Makefile that builds a `*_flat.v` without the include.
 
+**Regenerate a committed flat with `REPO_ROOT=/tmp/rds-canonical-repo-root`**
+(the symlink `bin/formal_status.py` maintains). sv2v writes every
+elaboration `$error` as a `$display` that carries the source's absolute
+path. So a flat built with plain `make -B <flat>` has your checkout's path
+in it, and it is stale on every other machine, CI included.
+`make check-flat` run locally doesn't catch this: it builds against the same
+path, so it says "current". Check with
+`bin/formal_status.py --check-flats --areas <area>`, which uses the
+canonical root. *Case (2026-10-22): the BUG-018/019 converter flats passed
+`check-flat` and failed CI's flat-staleness on the push.*
+
 Build the flat AFTER anything that recreates its directory. riscv-formal's
 `genchecks.py` does `rmtree(checks)` then `mkdir`, and the kestrel flat lives
 in `checks/rtl_v/`. Moving the sv2v call onto formal_flat.mk made the flat a

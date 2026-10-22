@@ -1692,9 +1692,9 @@ module axi_gen_addr (
 			;
 		casez (burst)
 			2'b00: next_addr = curr_addr;
-			2'b01: next_addr = curr_addr + increment;
+			2'b01: next_addr = aligned_addr;
 			2'b10: next_addr = wrap_addr;
-			default: next_addr = curr_addr + increment;
+			default: next_addr = aligned_addr;
 		endcase
 	end
 	wire [AW - 1:0] w_alignment_mask = sv2v_cast_DE851_signed(ODWBYTES) - 1;
