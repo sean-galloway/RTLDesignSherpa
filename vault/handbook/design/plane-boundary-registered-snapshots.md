@@ -97,12 +97,23 @@ follow, both learned landing `mc_bank_pick` on the record contract
   fires against live state (the entry may be two pops past the one its
   earlier stage classified); the registered decision is advisory.
 - **The stale request.** A request register derived from the snapshot lags
-  the fire by a cycle too. After a fire that changes what the queue wants
-  next (a row command, or a column that empties the queue) the stale request
-  must be masked for that cycle, or the arbiter re-picks it and the fire
-  stage drops it -- measured as every other cycle wasted on a bank-rotating
-  write stream. The consumer knows which fire does this; it masks that one
-  queue, not the request vector.
+  the fire by a cycle too -- and it describes the fired entry for TWO
+  cycles, not one: it was decoded from the snapshot the cycle before the
+  pick, and again from the snapshot in the fire cycle, which still shows the
+  entry (the pop shadow re-aims the candidate that cycle, not the request).
+  After a fire that changes what the queue wants next (a row command, or a
+  column that empties the queue) the stale request must be masked for both
+  cycles, or the arbiter re-picks it and the fire stage drops it -- measured
+  once as every other cycle wasted on a bank-rotating write stream (the
+  first cycle), and once as a free slot every burst that the page policy's
+  idle-timeout close took to shut another requester's open row, one ACT per
+  eight columns and 19% of streaming bandwidth with eight requesters (the
+  second cycle; mem-ctrl recovery Phase 3 follow-up, 2026-10-22). Both
+  masks are registers: the first from next cycle's known winner, the second
+  from the fire itself, keyed on the fired entry's "nothing behind" flag.
+  The consumer knows which fire does this; it masks that one queue, not the
+  request vector. A free slot is never harmless when something is waiting
+  to use it: trace what fired INTO the slot before calling it a bubble.
 
 Both are consumer-side bookkeeping, a handful of flops. Neither is a reason
 to move the pop or the decision back across the boundary.

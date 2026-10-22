@@ -419,7 +419,16 @@ rd / wr diagrams with the failing cones in red) is in the gitignored
 `projects/components/mem-ctrl-ip/debug/`.
 
 Target is **100 MHz** (owner, 2026-10-21); 75 MHz is the floor that must
-never be lost. Why the history looked flaky: no build ever closed 100 MHz on
+never be lost. **Owner, 2026-10-22, after the Phase 3 report: 100 MHz is a
+FUTURE goal, not this phase's gate; the requirement now is that each
+injector runs eight threads at once, so the eight-generator streaming loss
+(report §6) is the first item after this phase.** Done the same day: the
+loss was the second cycle of the stale request (the request register
+describes a fired entry for two cycles; the mask covered one; the free
+slot went to the idle-timeout close of another generator's row); a fourth
+registered mask source from the fire fixes it, four generators per
+direction measure 567 / 568 streaming against Phase 2's 567 / 535 (report
+§5 follow-up). Eight injectors is pumice TASK-043 (harness GO register). Why the history looked flaky: no build ever closed 100 MHz on
 the real domain. The recorded "100 MHz pass, WNS +9.26" was the one-endpoint
 `sys_clk_pin` input domain (MC-003 §2026-10-17 night correction); the
 73k-endpoint `w_sys_i` domain was red in that same build, and the -33/-40 ns

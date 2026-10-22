@@ -134,7 +134,7 @@ async def _pick_probe(dut, start, n):
                 dut._log.info(
                     "PK c%d win=(%d,%d,%d) ok=%d fire=%d spec=%d cls_ok=%d tmr_ok=%d hit=%d "
                     "req=%04x reqok=%04x hint=%d(%d,%d) sh=%04x hold=%d ovr=%d(%d) wcr=%d rdr=%d "
-                    "dir=%d batch=%d rotor=%d tccd=%d refreq=%d rfc=%d",
+                    "dir=%d batch=%d rotor=%d tccd=%d refreq=%d rfc=%d topre=%d treq=%d tbank=%d prerdy=%d",
                     cyc, int(pk.w_win_vld.value), int(pk.w_win_pair.value), int(pk.w_win_cls.value),
                     int(pk.w_dmd_ok.value), int(pk.w_fire.value), int(pk.w_spec_vld.value),
                     int(pk.w_class_ok.value), int(pk.w_timer_ok.value), int(pk.w_sel_hit.value),
@@ -143,7 +143,7 @@ async def _pick_probe(dut, start, n):
                     int(pk.r_hold.value), int(pk.w_ovr_vld.value), int(pk.w_ovr_op.value),
                     int(pk.wr_commit_ready_now_i.value), int(pk.rd_issue_ready_i.value),
                     int(pk.r_dir.value), int(pk.r_dir_batch.value), int(pk.r_rotor.value),
-                    int(pk.r_tccd_fwd.value), int(sp.refresh_req.value), int(pk.w_rfc_busy.value))
+                    int(pk.r_tccd_fwd.value), int(sp.refresh_req.value), int(pk.w_rfc_busy.value), int(pk.w_to_pre.value), int(pk.timeout_pre_req_i.value), int(pk.timeout_pre_bank_i.value), int(pk.bank_pre_ready_i.value))
             except Exception as e:  # noqa: BLE001
                 dut._log.info("PK c%d probe error %r", cyc, e)
         if cyc >= start + n:
@@ -829,6 +829,9 @@ def test_ddr2_char_perf(request):
     params = {"FPGA_CLK_HZ": str(FPGA_CLK_HZ),
               # pumice pick core A/B: 1 = BANK_PICK (default), 0 = FRFCFS research core
               "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "1"),
+              # injectors per direction: the macro default (4) unless the run
+              # asks for more (eight per direction is the owner's load point)
+              "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),
               "UART_BAUD": str(UART_BAUD),
               "DFI_RATE": str(dfi_rate),
               "DRAM_BL": str(dram_bl),

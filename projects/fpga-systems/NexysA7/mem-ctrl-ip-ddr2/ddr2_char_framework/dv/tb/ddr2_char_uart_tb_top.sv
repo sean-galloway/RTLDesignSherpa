@@ -58,6 +58,11 @@ module ddr2_char_uart_tb_top
     parameter int APB_ADDR_WIDTH = 12,
     parameter int APB_DATA_WIDTH = 32,
     parameter int NUM_BANKS      = 8,
+    // Generators per direction inside char_gen_unit (the injectors). The
+    // macro default is 4; the perf proxy raises it with TEST_NUM_GEN so eight
+    // injectors per direction can run at once (owner requirement,
+    // 2026-10-22). NUM_GEN <= NUM_BANKS.
+    parameter int NUM_GEN        = 4,
 
     // ---- DFI sizing (rate-2 loopback, GEAR=1 — the known-good macro config) ----
     parameter int DRAM_BEAT_WIDTH = AXI_DATA_WIDTH,
@@ -136,6 +141,7 @@ module ddr2_char_uart_tb_top
     ddr2_char_harness #(
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .SCHED_CORE       (SCHED_CORE),
+        .NUM_GEN          (NUM_GEN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),

@@ -32,6 +32,7 @@ closed timer) and, through the stale-winner mask, the arbiter.
 | Record carries `hit`, classified at the storage edge against the scheduler plane's REGISTERED row image (`bank_row_active_i`, `bank_open_row_i` on `mc_bank_head_records`); one cycle stale by construction; the fire stage ANDs it with live row-active | the 16:1 record mux -> 14-bit row compare was on the arbiter path | `mc_common_pkg.sv`, `mc_bank_head_records.sv`, `mc_storage_plane.sv`, `pumice_core.sv`, `granite_core.sv` (scoria / andesite tie the new inputs off) |
 | Pop shadow is one bit per pair, no slot compare | the slot compare was a record read on the arbiter path | `mc_bank_pick.sv` |
 | The pick register loads every cycle; a winner waiting on a timer holds through a register-to-register mux (a registered "waiting" bit selects last cycle's effective winner over the fresh pick), bounded by the bank's lookahead bit; the search starts past the effective winner, and the effective winner's own pair is masked out of the pick for one cycle when its request cannot be its next command (a row command, or a column with nothing behind it). The mask is registered from next cycle's effective winner, which this cycle already knows: three sources (held winner, speculation, fresh pick as the arbiter's one-hot) registered separately and resolved by the registered hold / speculation bits, so it is one AND at the arbiter's root; computed live it sat at the root of the arbiter cone (14 levels, -1.7 ns at synthesis) | the Phase 2 hold put the fire cone on the winner register's load enable; the first Phase 3 form (no hold, search past the fresh pick every cycle) walked on under tCCD and fired whichever pair the rotor had reached (bank 0's second read before banks 1-3's first; the return ring then held slots for the out-of-order tickets: +20 cycles on `perf_read_inflight`); a rotor that moved only on a fire re-picked the fired pair in the fire cycle, before anything registered could mask it (bank-rotating single-entry writes at 50% at the board geometry); an unbounded hold starved the next requester behind a long-gated bank (contract bench `hold_on_gate_block`) | `mc_bank_pick.sv` |
+| **Follow-up (same day, after the phase commit 5fc49292c):** the stale mask covers BOTH cycles the request register describes a fired entry. Cycle N (the fire) as above; cycle N+1 by a fourth registered source loaded from the column fire itself, keyed on the fired record's `behind_empty` (the same column-fire term the pop shadow loads from; the request register at N+1 was decoded from the record in the fire cycle, which still shows the entry) | with four generators per direction a column that emptied its pair was re-picked the cycle after it fired, failed its class at the fire stage, and the page policy's idle-timeout close (`tr_init` 2) took that free slot and closed another generator's open row: 187 closes in a 2 063-cycle trace, every one exactly two cycles after a column fire of the stale winner's pair; 199 ACTs against Phase 2's 21 in the same window. Phase 2 had the same timeout request asserted (1 926 of 2 063 cycles) and never served it, because its slot-compared shadow left no free slot. Keyed on `behind_empty` the mask is free (an empty pair has nothing to pick); keyed on "another row behind" and held two cycles it had cost the write PRE a cycle | `mc_bank_pick.sv` |
 | Hint only when the hop equals the pipe depth; hops shorter than the pipe are speculated on the held winner from registers only (ACT->COL, PRE->ACT, last COL->PRE, COL->COL on the same row when no other pair asks); the COL->COL speculation requires the candidate's own recorded hit | the direct winner load from the hint was a fire-cone arc; the stale record hit after an ACT cost one cycle per row on col_major (gap 2 before every inter-row hop); keyed on `behind_same_row` alone the COL->COL speculation re-loaded a column for a pair whose next entry was a miss and the PRE never won (351k-cycle write hang on col_major) | `mc_bank_pick.sv` |
 | Write sink: ONE register-only predicate from the CAM, `wr_commit_ready_now` (the CAM's own accept condition: queue ready and registered occupancy below `WR_DRAIN_AHEAD`; no commit_valid, no drain-pop term), gated at the arbiter and re-checked at fire | the earlier `commit_ready` was a function of commit_valid (loop); the interim acc / noacc split subtracted the drain pop, which reaches through the fetch arbitration to BOTH consumer readies (DFI `cm_rd_ready`, AXI `snarf_rd_ready`) -- the worst 100 MHz cone (AXI order FIFO -> drain pop -> arbiter -> winner, 18 levels, -2.5 ns) -- and it assumed the held winner would commit, which under tCCD gated every other request and cost one cycle per burst on `perf_write_ceiling` (83%) | `mc_wr_data_cam.sv`, `mc_xddr2_entry_store.sv`, `mc_storage_plane.sv`, `mc_scheduler_plane.sv`, `mc_bank_pick.sv`, both cores, the contract bench |
 | Refresh grant pulses only after init (`init_done_i`) | the init sequence's two REFs pass through the same override and the refresh controller banks any grant with no backlog as a pull-in credit; two init-time credits consumed the first two tREFI ticks of every run (pumice ISSUE-022: exactly 2 tREFI soft violations per BANK_PICK run, none on FRFCFS) and left `refresh_credit`'s strict arm one REF short once the core ran its stretch faster (16.5 vs Phase 2's 27 cycles per burst) | `mc_bank_pick.sv`; ISSUE-022 closed |
@@ -57,7 +58,18 @@ ordering loss by `perf_read_inflight` (R-channel burst cadence: Phase 2
 | dfi_clk | 5 ns (200 MHz) | -2.358 | 485 / 2 767 | `mc_dfi_rd_aligner` age -> rd CDC FIFO write: 362 endpoints; aligner -> credit 31; CDC -> cmd formatter 33; wr serializer -> wd CDC 12 |
 
 Synthesis estimate for the same run: aclk -0.383 (14 / 16 381), dfi_clk
--2.998 (404 / 2 763). The aclk cones are route-dominated (2-3 ns of logic
+-2.998 (404 / 2 763).
+
+The follow-up text (second-cycle mask, section 2), same flow: aclk -0.777,
+758 / 16 379 (synthesis -0.675 / 17): bank timer -> bank timer 435 at
+-0.777, write CAM snarf -> read CAM 276 at -0.63, the pick core 13 at
+-0.758 (hold bit -> arbiter root -> one-hot carry chain -> stale-mask
+register, 2.8 ns logic / 7.8 ns route, 14 levels -- the same cone as the
+-0.61 above, placed worse), bank timers -> decode 10 at -0.34; dfi_clk
+-2.303, 526 / 2 767 (aligner -> CDC, unchanged). The two large cones are
+untouched modules swinging with placement; the mask's fourth source is one
+more input to the register mux at the arbiter's root (a single LUT6) and
+adds no level. The aclk cones are route-dominated (2-3 ns of logic
 in 7-8 ns of route on a 20%-full part placed with no floorplan), and
 placements of near-identical text swung the post-route aclk WNS between
 -0.19 and -0.71 ns across this phase. The number to believe is the
@@ -85,6 +97,8 @@ arbiter's root); + the mask registered per source: -0.611, 156 (synthesis
 | build | clock | WNS (ns) | failing / total endpoints |
 |---|---|---|---|
 | `PUMICE_SYS_75=1`, BANK_PICK, final text | `w_sys_i` 75 MHz | +0.077 | 0 / 77 093 (the text before the stale mask: +0.102, 0 / 77 028; Phase 2 text: -3.175, 122) |
+| `PUMICE_SYS_75=1`, BANK_PICK, follow-up text (second-cycle mask) | `w_sys_i` 75 MHz | +0.021 | 0 / 77 114 (hold +0.022, 0 failing) |
+| `PUMICE_SYS_100=1`, BANK_PICK, follow-up text | `w_sys_i` 100 MHz | -2.716 | 2 553 / 77 114 (phase commit: -2.574, 3 463; hotspots read CAM 440, harness write engines 266 + 106 + 89 and W skid 252, read intake AR 133, the pick core 124, hist_rd 117 -- harness-dominated as before) |
 | `PUMICE_SYS_100=1`, BANK_PICK, final text | `w_sys_i` 100 MHz | -2.574 | 3 463 / 77 128 (the text before the stale mask: -2.537, 3 062 / 77 056; Phase 2 text: -6.672, 11 899; FRFCFS control: -2.555, 6 296). Hotspots: read CAM 442, write CAM 247, the pick core 238, bank timers ~100 each, then the harness (APB converter 140, generators, trace RAMs) |
 
 The 75 MHz build is the gate (WNS >= 0 on `w_sys_i`): closed, +0.077. The
@@ -123,6 +137,10 @@ post-route cones in red with their WNS and endpoint counts.
 | pumice `refresh_credit`, `refresh_collide`, `perf_write_ceiling`, `perf_paging_sweep`, `perf_read_inflight` at the board geometry, own build root | pass |
 | pumice `make clean-all && make run-all-func-both` on the final text (board geometry in its own build root; its write-ceiling output reads 256 beats / 257 cycles, one beat per burst, so the models ARE the board geometry) | 216 passed / 1 skipped default geometry (244 s); 216 passed / 1 skipped board geometry (75 s, 107 fresh models) |
 | granite `make clean-all && make run-all-func` (FRFCFS default, records wired, `wr_commit_ready_now` wired) | 6 passed, 1 xpassed (`top_geared[gate-8-12]`, non-strict xfail), as Phase 2 |
+| follow-up text (second-cycle mask): contract bench + records fub | 8 passed, 3 xfailed |
+| follow-up text: pumice `perf_write_ceiling`, `perf_read_inflight`, `refresh_credit`, `core_close*`, `core_waw`, `core_b2b`, default geometry, fresh build dirs | 6 passed; write ceiling 100.00% / 0 stalls (default geometry), 99.61% / 1 stall (board geometry, own build root); read in-flight 256 bursts, span 1 062 cycles, R cadence 248 x 4 + 7 x 10 -- all identical to the phase commit |
+| follow-up text: granite `make clean-all && make run-all-func` | 6 passed, 1 xpassed |
+| follow-up text: pumice `make clean-all && make run-all-func-both` | 216 passed / 1 skipped default geometry (238 s); 216 passed / 1 skipped board geometry, own build root (221 s fresh build, 69 s on the re-run the Makefile chains) |
 | lint -Wall on `mc_bank_pick`, `mc_wr_data_cam`, `mc_xddr2_entry_store`, `pumice_core`, `granite_core`, `scoria_core`, `andesite_core` | clean apart from the pre-existing `cal_busy_o` UNDRIVEN, SYNCASYNCNET on the reset trees, PINCONNECTEMPTY / UNUSEDSIGNAL in untouched modules, and the pre-existing `rd_ret_busy_o` PINMISSING in `mc_dfi_3p1_plane` / `mc_dfi_4p0_plane` |
 
 ## 5. Performance (pumice-CAM perf proxy, board geometry, 75 MHz, tREFI 585)
@@ -132,11 +150,12 @@ Programmed timings and floors as in the Phase 2 report §5 (col_major rd gap
 
 | run | Phase 2 text | Phase 3 final text |
 |---|---|---|
-| col_major, txn 256, wr / rd MB/s | 310.9 / 358.7 (txn 1024) | 310.0 / 355.6 (model violations: `tWR` 255, the Phase 0 §5 pre-existing note; no `tREFI` entry -- ISSUE-022 closed) |
+| col_major, txn 256, wr / rd MB/s | 310.9 / 358.7 (txn 1024) | 310.0 / 355.6 (model violations: `tWR` 255, the Phase 0 §5 pre-existing note; no `tREFI` entry -- ISSUE-022 closed); follow-up text 310.0 / 355.6, identical (`tWR` 259; incremental, one generator, txn 256: 568.2 / 563.0) |
 | col_major command gaps (RD / WR / ACT) | 1 and 6 / 1 and 8 / 13-15 | 1 and 6 (253 rows) / 1 and 8 (248) / 13-15 |
-| col_major, tRTP=1 (LiteDRAM profile), wr / rd | 311.3 / 387.6 (txn 1024) | 311.1 / 383.3 (txn 256; rd inter-row gap 5 on 252 of 256 rows, the floor; LiteDRAM in this harness 304 / 386) |
-| 4 wr + 4 rd generators, txn 256: incremental / row_major / col_ilv / col_major wr, rd | 566.8, 535.4 / 570.4, 531.5 / 536.3, 533.9 / 461.2, 460.3 | 461.0, 458.3 / 458.7, 458.3 / 477.6, 485.5 / 458.8, 459.0 (mism 0; `tWR` 143, no `tREFI`; before the stale mask: 420.2, 436.8 / 417.4, 435.0 / 453.2, 464.7 / 417.3, 434.6) |
-| one generator, txn 1024: col_major / col_ilv / row_major wr, rd | 310.9, 358.7 / 459.0, 457.3 / 577.7, 576.9 | 310.8, 359.2 / 460.0, 459.1 / 576.3, 578.2 (mism 0; `tWR` only, no `tREFI`) |
+| col_major, tRTP=1 (LiteDRAM profile), wr / rd | 311.3 / 387.6 (txn 1024) | 311.1 / 383.3 (txn 256; rd inter-row gap 5 on 252 of 256 rows, the floor; LiteDRAM in this harness 304 / 386); follow-up text 311.1 / 383.3, identical |
+| 4 wr + 4 rd generators, txn 256: incremental / row_major / col_ilv / col_major wr, rd | 566.8, 535.4 / 570.4, 531.5 / 536.3, 533.9 / 461.2, 460.3 | **follow-up text: 567.4, 568.4 / 568.4, 569.2 / 536.0, 534.1 / 461.0, 460.1** (mism 0; `tWR` 96, no `tREFI`; ACT 2 956 per run against 7 529). Phase commit: 461.0, 458.3 / 458.7, 458.3 / 477.6, 485.5 / 458.8, 459.0 (`tWR` 143; before the cycle-N mask: 420.2, 436.8 / 417.4, 435.0 / 453.2, 464.7 / 417.3, 434.6) |
+| one generator, txn 1024: col_major / col_ilv / row_major wr, rd | 310.9, 358.7 / 459.0, 457.3 / 577.7, 576.9 | 310.8, 359.2 / 460.0, 459.1 / 576.3, 578.2 (mism 0; `tWR` only, no `tREFI`); follow-up text 310.8, 359.2 / 458.5, 457.6 / 576.3, 578.2 (col_major and row_major bit-identical; col_ilv 35 cycles in 10.7k) |
+| **granite** (FRFCFS default, records + `wr_commit_ready_now` wired; `test_granite_char_perf.py`), txn 256: incremental / row_major / col_ilv / col_major wr, rd | 2026-10-20 baseline, txn 1024 (`reports/regr/pumice-100mhz-baseline-2026-10-20.md`): 556.1, 558.7 / 570.1, 568.7 / 307.2, 353.1 / 221.0, 245.2 | follow-up text, txn 256: 551.4, 556.4 / 570.9, 565.4 / 307.9, 350.4 / 221.4, 244.5 (mism 0); txn 1024: 556.1, 558.7 / 570.1, 568.7 / 307.2, 353.1 / 221.0, 245.2 -- bit-identical to the baseline. Granite's pick core is still FRFCFS, so the Phase 2 / 3 col_major gain is pumice-only until Phase 4 flips `SCHED_CORE` |
 
 Before the stale-winner mask (the last change of the phase) the
 many-requester families were below Phase 2: col_ilv 418 / 436 and the
@@ -154,33 +173,61 @@ was re-picked and every row switch paid a bubble. Phase 2's stale-winner
 mask had covered exactly that; it is back, from registers only, and
 col_ilv measures 460.0 / 459.1 (Phase 2 459.0 / 457.3). With eight
 generators the mask recovers col_major to parity (459 / 459) and lifts the
-streaming families from 420 / 437 to 461 / 458, which is still 19% / 14%
-below Phase 2's 567 / 535: a second many-requester mechanism remains
-(section 6). A wider mask (keyed on "no same-row entry behind", held two
-cycles) measured worse on both counts (col_major writes 291, eight
-generators 446) and was dropped.
+streaming families from 420 / 437 to 461 / 458, which was still 19% / 14%
+below Phase 2's 567 / 535 at the phase commit. A wider mask (keyed on "no
+same-row entry behind", held two cycles) measured worse on both counts
+(col_major writes 291, eight generators 446) and was dropped.
+
+**Follow-up, same day.** The owner's ruling after the phase report (100 MHz
+is a future goal; each injector must run eight threads at once) made the
+eight-generator loss the first item. Tracing the Phase 2 commit (in a
+worktree, with the proxy's `PERF_PICK_TRACE` probe ported into its test
+file) beside the phase text, both with the page policy's timeout fields in
+the probe: the two cores have the same ~80 free slots per 2 063 cycles and
+the same idle-timeout request asserted almost always (Phase 2: 1 926
+cycles, with a pre-ready bank for 806 of them), yet Phase 2 fires 0 timeout
+PREs and 21 ACTs where the phase text fires 187 and 199. Every one of the
+187 sits exactly two cycles after a column fire of the pair the stale
+winner names, with that pair's request gone (`req` bit 0, class mismatch,
+`cls_ok=0`): the request register describes a fired entry for TWO cycles
+(decoded from the record one cycle before the pick, and again from the
+record in the fire cycle, which still shows the entry while the pop shadow
+re-aims only the candidate), the cycle-N mask covered the first, and the
+re-pick at N+1 reached the fire stage with an empty candidate. That free
+slot satisfied `w_to_pre`, which closed the lowest expired open row -- a
+different generator's -- and the next access to it paid PRE + ACT + tRCD.
+The timeout PRE itself fires by design (fixed_open, `tr_init` 2); the slot
+was the bug. The second-cycle mask (section 2) removes it: 567.4 / 568.4
+streaming, 568.4 / 569.2 row_major, 536.0 / 534.1 col_ilv, 461.0 / 460.1
+col_major with four generators per direction -- at Phase 2 on writes and
+above it on reads (Phase 2's reads were 535 / 532), ACTs per run 7 529 ->
+2 956 (the remaining ones are col_major's row walks). The one-generator
+table is unchanged to the cycle on col_major and row_major and within 35
+cycles on col_ilv. The harness caps `NUM_GEN` at 4 per direction (the GO
+register's start bits): pumice TASK-043 carries the eight-injector point;
+`NUM_GEN` is plumbed through the sim top, the harness and the proxy
+(`"NUM_GEN": max(4, TEST_NUM_GEN)`) so `TEST_NUM_GEN=8` reaches the
+engine block the day the register widens.
 
 ## 6. Left for later phases
 
-- **Eight-generator streaming is 19% below Phase 2** (461 / 458 vs
-  567 / 535) while every one-generator family, col_major with eight
-  generators, and the LiteDRAM profile are at parity. Measured, not
-  guessed: the same traced stream issues 521 ACTs per 4 096 columns on this
-  text (7 529 per run of the four-generator proxy) (one row switch per eight columns, each generator's bank visit) and
-  108 on the Phase 2 commit (one per 38); the busy window is 96% firing, so
-  the loss is command slots, not bubbles. Not the hold (the loss predates
-  it), not the write sink (`WR_DRAIN_AHEAD` 3 is bit-identical), not the
-  stale re-pick (masked; the wider mask did not move it), and not the page
-  policy's idle-timeout close (`TEST_PAGE_POLICY=1`, static open, gives
-  bit-identical 461 / 459 with the same ACT count): the switches are demand
-  misses, the per-bank oldest-first head alternating between generators'
-  rows every eight columns, which the Phase 2 text somehow served in longer
-  same-row runs. The one decode difference left is the record's hit (one
-  cycle stale, classified at the storage edge) against Phase 2's live hit
-  in the decode; the Phase 2 text can be traced with the proxy's new
-  `PERF_PICK_TRACE` by adding the probe to its test file in a worktree.
-  Tools: `PERF_PICK_TRACE=1 TEST_NUM_GEN=4 TEST_FAMILIES=incremental
-  TEST_TXN=64` and the cycle classifier in this session's scratch.
+- **Eight injectors per direction** (owner's load point, pumice TASK-043):
+  the harness GO register has four start bits per direction; widen it
+  (`chargen_regs.rdl`, regenerate through `bin/peakrdl_generate.py -o`),
+  lift the `char_engine_block` check, the host's GO / config loops, then
+  `TEST_NUM_GEN=8` on the proxy and the board, with LiteDRAM's number at
+  eight in the same harness. The four-generator loss that stood here at the
+  phase commit is fixed (section 5, follow-up); with eight the thing to
+  watch is the same signature: `PERF_PICK_TRACE` cycles with `fire=1
+  topre=1 cls_ok=0`, i.e. a free slot handed to the idle-timeout close.
+- **The idle-timeout close under streaming load.** With `tr_init` 2 the
+  policy requests a close of some open row in most cycles of a
+  multi-generator stream; the pick core serves it only in a free slot, so
+  today the policy's reach depends on how bubble-free the core is, which is
+  accidental. Whether a row that another generator will revisit within a
+  few bursts should be closable at all (a per-bank "recently hit" guard, or
+  a larger `tr_init` default for the streaming profile) is a policy
+  question for the paging modes, not this core.
 - 100 MHz on the controller alone is 0.5 ns away on aclk with two endpoints
   in the arbiter (route-dominated) and 21 in the storage plane's snarf match
   -> read insert arc; the harness build cannot show it. A floorplanned

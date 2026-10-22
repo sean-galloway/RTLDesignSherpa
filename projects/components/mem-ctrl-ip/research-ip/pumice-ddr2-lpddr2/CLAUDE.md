@@ -81,9 +81,13 @@ forward it; the perf proxy takes `TEST_SCHED_CORE`):
   (col_major inter-row gap 6 rd / 8 wr at the board timings). The pick
   register loads every cycle; a winner waiting on a timer holds through a
   registered mux in front of the fire stage, bounded by its bank's
-  lookahead bit, and its own stale request is masked out of the pick
-  (Phase 3, 2026-10-22: no fire-cone arc reaches a register's
-  load enable; the record carries its hit, classified at the storage edge).
+  lookahead bit, and its own stale request is masked out of the pick for
+  the TWO cycles the request register still describes a fired entry
+  (Phase 3, 2026-10-22: no fire-cone arc reaches a register's load enable;
+  the record carries its hit, classified at the storage edge. The second
+  mask cycle, same day: without it a free slot per burst went to the
+  idle-timeout close of another generator's row, 461 vs 567 MB/s with four
+  generators per direction).
   The order modes / row-col selectors / QoS CSRs are no-ops on this core.
 - **FRFCFS (`SCHED_CORE=0`, research):** flat FR-FCFS arbiter with a
   3-stage pick pipeline (STAGE-1a snapshot -> STAGE-1b arg_sel -> pre-pick

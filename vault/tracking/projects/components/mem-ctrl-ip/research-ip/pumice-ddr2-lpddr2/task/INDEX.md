@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-043** — never recycle a number, even when its item closed.
+**Next ID: TASK-044** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,13 +12,19 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 34 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
+
+- **TASK-043** — ddr2_char harness: eight injectors per direction. The GO
+  register's four start bits per direction cap `NUM_GEN` at 4
+  (`char_engine_block` stops elaboration); widen the RDL, regenerate, lift
+  the check, teach the host. Owner's load point (2026-10-22): each injector
+  runs eight threads at once.
 
 - **TASK-042** — LPDDR2 board enablement: from "vaguely supported" to fully
   enabled for the incoming LPDDR2 board -- runtime ZQ calibration (first

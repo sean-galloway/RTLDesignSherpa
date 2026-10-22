@@ -344,14 +344,12 @@ module mc_bank_pick
     // Stage 1: per-pair decode -> registered request / class
     // ======================================================================
     logic [NPAIR-1:0] r_req, r_aged;
-    logic [NPAIR-1:0] r_bempty;     // the classified candidate had nothing behind it
     cls_e             r_cls [NPAIR];
 
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_req    <= '0;
             r_aged   <= '0;
-            r_bempty <= '0;
             for (int p = 0; p < NPAIR; p++) r_cls[p] <= CL_NONE;
         end else begin
             for (int p = 0; p < NPAIR; p++) begin
@@ -392,7 +390,6 @@ module mc_bank_pick
                 r_req   [p] <= req;
                 r_cls   [p] <= cls;
                 r_aged  [p] <= req && w_cand[p].age_exceed;
-                r_bempty[p] <= w_cand[p].behind_empty;
             end
         end
     )
@@ -488,35 +485,62 @@ module mc_bank_pick
     assign w_wr_sink_ok = wr_commit_ready_now_i;
     // The effective winner's OWN request is stale whenever it cannot be the
     // pair's next command: a row command (the pair wants a column or an ACT
-    // next, which the hint / speculation carry), or a column with nothing
-    // behind it. That pair is masked out of the pick for one cycle. If the
-    // winner fires, the re-pick is avoided; if it does not, the hold serves
-    // it again regardless of the pick. Without this the class alternation
-    // (after a column, prefer row commands) re-picked the pair whose ACT was
-    // firing that very cycle, and every row switch under interleaved
-    // traffic paid a bubble (col_ilv 418 vs 459 MB/s, four generators 420
-    // vs 461). Keyed on "no same-row entry behind" and held two cycles it
-    // measured WORSE (col_major writes 291 vs 311, eight generators 446 vs
-    // 461): the write PRE lost a cycle and the eight-generator row closes
-    // are the page policy's idle-timeout closes, not re-picks. A streaming
-    // column (something behind it) is never masked: the search past the
-    // winner wraps to it when it is alone, the one-column-per-cycle path.
-    // The mask is REGISTERED, from NEXT cycle's effective winner, which this
-    // cycle already knows (hold, speculation or the fresh pick). Computed
-    // live from the effective-winner mux and a 4-to-16 decode it sat at the
-    // root of the arbiter cone (14 levels to the pick register). The three
+    // next, which the hint / speculation carry), or a column with NO
+    // SAME-ROW entry behind it (the next entry is a miss, or there is none:
+    // a PRE or an ACT comes next, never this request again). The request
+    // register describes a fired entry for TWO cycles -- the fire cycle (it
+    // was decoded from the record the cycle before the pick) and the cycle
+    // after (decoded from the record in the fire cycle, which still shows
+    // the entry; the pop shadow re-aims the CANDIDATE that cycle, not the
+    // request) -- so the pair is masked out of the pick for both:
+    //
+    //   cycle N   (fire): r_stale_pick / r_stale_win / r_stale_spec, from
+    //             NEXT cycle's effective winner, which this cycle already
+    //             knows (hold, speculation or the fresh pick). Keyed on the
+    //             CANDIDATE's flag, read live through the pop shadow (w_cand
+    //             / w_sel_cand), never the decode's one-cycle-old copy,
+    //             which at a burst end still describes the previous entry.
+    //             Without it the class alternation (after a column, prefer
+    //             row commands) re-picked the pair whose ACT was firing that
+    //             very cycle, and every row switch under interleaved traffic
+    //             paid a bubble (col_ilv 418 vs 459 MB/s).
+    //   cycle N+1: r_stale_fire, from the FIRE, keyed on the fired record's
+    //             behind_empty. Without it a column that emptied its pair
+    //             was re-picked the cycle after it fired (the arbiter saw
+    //             its request, the fire stage saw an empty candidate),
+    //             failed its class, and that free slot went to the page
+    //             policy's idle-timeout close (tr_init 2 on this board),
+    //             which closed another generator's open row: one ACT per
+    //             eight columns with eight generators, 461 vs Phase 2's 567
+    //             MB/s. Phase 2's trace shows the same timeout request
+    //             asserted in 1 926 of 2 063 cycles and never served,
+    //             because its slot-compared shadow left no free slot; all
+    //             187 closes in the Phase 3 trace sit exactly two cycles
+    //             after a column fire of the stale winner's pair. An empty
+    //             pair has nothing legitimate to pick, so this cycle costs
+    //             nothing; a mask keyed on "another row behind" instead
+    //             cost the write PRE a cycle (col_major writes 291 vs 311),
+    //             since the hint / speculation carry that case.
+    //
+    // A streaming column (same row behind) is never masked: the search past
+    // the winner wraps to it when it is alone, the one-column-per-cycle
+    // path. Every source is REGISTERED: computed live from the effective-
+    // winner mux and a 4-to-16 decode the mask sat at the root of the
+    // arbiter cone (14 levels to the pick register). The three cycle-N
     // sources are registered SEPARATELY (the fresh pick as the one-hot the
     // arbiter already isolates, never the encoded index; the held / the
     // speculated winner from registers) and resolved next cycle by the
     // registered hold and speculation bits: a mux of registers at the root,
-    // and no fire-cone select on any of the three load paths.
-    logic [NPAIR-1:0] r_stale_pick, r_stale_win, r_stale_spec;
+    // and no fire-cone select on any load path (the N+1 mask's D input is
+    // the same column-fire term the pop shadow loads from).
+    logic [NPAIR-1:0] r_stale_pick, r_stale_win, r_stale_spec, r_stale_fire;
     logic             r_spec_taken;
     logic [NPAIR-1:0] w_self_stale;
-    assign w_self_stale = r_hold ? r_stale_win : (r_spec_taken ? r_stale_spec : r_stale_pick);
+    assign w_self_stale = (r_hold ? r_stale_win : (r_spec_taken ? r_stale_spec : r_stale_pick))
+                        | r_stale_fire;
     logic [NPAIR-1:0] w_stale_if;               // per pair: its request would be stale after a fire
     always_comb begin
-        for (int p = 0; p < NPAIR; p++) w_stale_if[p] = (r_cls[p] != CL_COL) || r_bempty[p];
+        for (int p = 0; p < NPAIR; p++) w_stale_if[p] = (r_cls[p] != CL_COL) || !w_cand[p].behind_same_row;
     end
     always_comb begin
         for (int p = 0; p < NPAIR; p++) begin
@@ -962,6 +986,7 @@ module mc_bank_pick
             r_stale_pick  <= '0;
             r_stale_win   <= '0;
             r_stale_spec  <= '0;
+            r_stale_fire  <= '0;
             r_spec_taken  <= 1'b0;
             r_hint_vld  <= 1'b0;
             r_hint_pair <= '0;
@@ -992,10 +1017,12 @@ module mc_bank_pick
             // or the fresh pick -- register each source's stale mask; the
             // registered hold / speculation bits resolve them next cycle
             r_spec_taken  <= w_spec_vld;
-            r_stale_win   <= (w_win_vld && ((w_win_cls != CL_COL) || r_bempty[w_win_pair]))
+            r_stale_win   <= (w_win_vld && ((w_win_cls != CL_COL) || !w_sel_cand.behind_same_row))
                            ? (NPAIR'(1) << w_win_pair) : '0;
-            r_stale_spec  <= ((w_spec_cls != CL_COL) || r_bempty[w_win_pair]) ? (NPAIR'(1) << w_win_pair) : '0;
+            r_stale_spec  <= ((w_spec_cls != CL_COL) || !w_sel_cand.behind_same_row) ? (NPAIR'(1) << w_win_pair) : '0;
             r_stale_pick  <= w_pick_onehot & w_stale_if;
+            // the cycle after a column fire that emptied its pair (see above)
+            r_stale_fire  <= (w_col_fire_now && w_sel_cand.behind_empty) ? (NPAIR'(1) << w_win_pair) : '0;
             if (w_dmd_fire) r_last_was_row <= !w_fis_col;
             // rotor: past the fired pair; unchanged while the winner waits
             if (w_dmd_fire) r_rotor <= w_win_pair + PAIRW'(1);
