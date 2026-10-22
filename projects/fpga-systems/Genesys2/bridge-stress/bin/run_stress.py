@@ -41,6 +41,23 @@ def _probe(link) -> bool:
     return v is not None and (v >> 16) == 0x4253
 
 
+def _port_perf(build, res: dict) -> list[dict]:
+    """Per stress-master direction: bursts, beats, MB/s, latency (cycles), peak
+    outstanding -- the figures StressHarness.summary prints, kept per run."""
+    t = res['ctl']['TIMER'] or 1
+    out = []
+    for m in build.stress_masters:
+        for dr in ('rd', 'wr'):
+            r = res[f'{m.name}.{dr}']
+            if not r['issued']:
+                continue
+            out.append(dict(port=m.name, dir=dr, dw=m.dw, bursts=r['completed'], beats=r['beats'],
+                            mbps=round(r['beats'] * (m.dw // 8) / (t / ACLK_HZ) / 1e6, 1),
+                            lat_mean=round(r['lat_sum'] / max(1, r['completed']), 1),
+                            lat_max=r['lat_max'], out_max=r['out_max']))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     ap.add_argument('--build', default='axi4', choices=sorted(BUILDS))
@@ -106,7 +123,7 @@ def main() -> int:
     out_dir = AREA / 'reports' / 'board'
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    rows, failed = [], 0
+    rows, perf, failed = [], [], 0
     t_end = time.monotonic() + args.soak
     seed = args.seed0
     while True:
@@ -130,6 +147,7 @@ def main() -> int:
         rows.append(dict(build=build.name, profile=name, seed=s, txns=args.txns,
                          full_axi=prof.full_axi, ok=ok, cycles=res['ctl']['TIMER'],
                          reasons=' | '.join(why)))
+        perf.append(dict(rows[-1], ports=_port_perf(h.build, res)))
         if not res['meta']['finished']:
             print('[bstress] run did not finish; the harness may need a reset (reprogram) '
                   'before another GO is accepted')
@@ -140,7 +158,8 @@ def main() -> int:
         w = csv.DictWriter(f, fieldnames=list(rows[0]) if rows else ['build'])
         w.writeheader()
         w.writerows(rows)
-    csv_path.with_suffix('.json').write_text(json.dumps(rows, indent=1))
+    # the JSON also carries each run's per-port figures (what h.summary prints)
+    csv_path.with_suffix('.json').write_text(json.dumps(perf, indent=1))
     print(f'[bstress] {len(rows) - failed}/{len(rows)} passed -> {csv_path}')
     return 1 if failed else 0
 

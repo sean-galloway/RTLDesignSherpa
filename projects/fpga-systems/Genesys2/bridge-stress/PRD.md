@@ -229,8 +229,26 @@ checks the blocks themselves against the model.
 | build-axi5, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_axi5_20261022_003411.csv` |
 | build-xil, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_xil_20261022_003706.csv` |
 | build-xmix, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_xmix_20261022_004216.csv` |
+| build-axi4, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 4.8 M bursts, 1.27 s of board time | `reports/board/bridge_bs_axi4_20261022_093552.csv` (per-port MB/s, latency and outstanding in the `.json`) |
+| build-axi3, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 4.8 M bursts, 0.74 s | `reports/board/bridge_bs_axi3_20261022_093846.csv` (per-port MB/s, latency and outstanding in the `.json`) |
+| build-axi5, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 4.8 M bursts, 1.19 s | `reports/board/bridge_bs_axi5_20261022_095510.csv` (per-port MB/s, latency and outstanding in the `.json`) |
+| build-xil, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 2.4 M bursts, 1.20 s | `reports/board/bridge_bs_xil_20261022_094222.csv` (per-port MB/s, latency and outstanding in the `.json`) |
+| build-xmix, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 3.6 M bursts, 0.77 s | `reports/board/bridge_bs_xmix_20261022_094737.csv` (per-port MB/s, latency and outstanding in the `.json`) |
 
 ## 8. Running
+
+The long runs belong on the board: one build's every profile x 3 seeds at
+20000 bursts takes about 1 s of board time. The same coverage in simulation
+takes hours (10 profiles x 400 bursts: 2.5 h per DUT), so the sim levels stay
+short (40 / 200 / 1000 bursts) and check behaviour; volume comes from
+`run_stress.py --txns`.
+
+Latency figures are issue-to-retire cycles, modulo 2^16: the stress master's
+stamps are 16 bits (`axi_stress_mst_{rd,wr}`), and its hang check is
+master-wide idle, not per-burst age. So a single burst slower than 65,535
+cycles reads wrapped, and a maximum near 65k is a floor, not a measurement.
+In the 2026-10-22 large runs only `backpressure`'s `dma` reads on build-axi4
+and build-axi5 came near it (62-65k); every other maximum was below 43k.
 
 ```
 bin/regen.sh                                   # bridges, regblocks, harness
