@@ -247,12 +247,15 @@ Bridge automates generation of AXI4 crossbar infrastructure:
       and `bridge_mix_e` ship as validation fixtures.
 
 **Performance:**
-- [ ] Latency ≤ 3 cycles for single-beat transactions. **Unverified for the
-  generated bridge.** The generated path crosses four skid buffers on the
-  round trip (adapter timing wrappers on both sides), and gaxi_skid_buffer
-  registers its output side, so an ideal zero-wait slave still costs >=4
-  cycles of bridge-added latency before arbitration. The 2-3 cycle figure in
-  6.1 describes the wrapperless flat crossbar, not what the generator emits.
+- [x] Latency: 2 cycles each way, 4 round trip, for a direct AXI4 path
+  (bridge-added, zero-wait slave). Re-baselined 2026-10-22 from the original
+  "<= 3 cycles": that figure described a wrapperless flat crossbar, and the
+  generated bridge is not one -- its adapters carry per-ID tracking, ID
+  remap, width conversion and the response CAMs behind a skid each side. The
+  owner accepted 4 on that basis. Measured, and asserted exactly by
+  `test_bridge_2x2_rw_latency` (HAS Table 5.7); `xbar_pipeline = true` makes
+  it 3 each way (`test_bridge_2x2_rw_pipe_latency`). Width converters and the
+  APB/AXIL shims add stages on their paths.
 - [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
 - [x] Performance models implemented (bridge_model.py - V1 Flat; in `deprecated/` since 2026-10-18, superseded by the measured perf suite)
 - [ ] Fmax ≥ 300 MHz on UltraScale+ FPGAs (pending synthesis validation)
@@ -498,8 +501,9 @@ address_map = {
 ### 4.1 Performance
 
 **NFR-1: Latency**
-- **Single-beat read:** ≤ 3 cycles (address decode + arbitration + mux)
-- **Single-beat write:** ≤ 3 cycles (address decode + arbitration + mux)
+- **Single-beat read and write:** 2 cycles request, 2 cycles response (4 round
+  trip) on a direct AXI4 path; was "<= 3 cycles", re-baselined 2026-10-22, see
+  the Performance checklist in 1.3
 - **Burst transfer:** No additional latency per beat (pipelined)
 
 **NFR-2: Throughput**
@@ -1048,7 +1052,7 @@ Configuration:
 
 ### 12.2 Performance Targets
 
-- [ ] Latency ≤ 3 cycles (measured in simulation)
+- [x] Latency 2 + 2 cycles round trip, direct AXI4 path (measured; was <= 3, re-baselined 2026-10-22)
 - [ ] Throughput = line-rate × M×S paths (measured)
 - [ ] Fmax ≥ 300 MHz (post-synthesis)
 
