@@ -116,6 +116,10 @@ module mc_wr_data_cam #(
     // Indexed by entry slot. sch_valid = schedulable (filled, not yet committed).
     //=========================================================================
     output logic [NUM_ENTRIES-1:0]              sch_valid_o,
+    // allocated but NOT yet schedulable (data still landing). Read by the
+    // per-bank head records' behind_same_row term only: a same-row write
+    // still filling behind a head must hold the row open (BUG-027).
+    output logic [NUM_ENTRIES-1:0]              sch_pend_o,
     output logic [NUM_ENTRIES*BKW-1:0]          sch_bank_o,
     output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    sch_row_o,
     output logic [NUM_ENTRIES*COL_WIDTH-1:0]    sch_col_o,
@@ -451,6 +455,7 @@ module mc_wr_data_cam #(
     always_comb begin
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             sch_valid_o[i]                       = r_valid[i] && r_fdone[i] && !r_sched[i];
+            sch_pend_o [i]                       = r_valid[i] && !r_fdone[i];
             sch_bank_o [i*BKW       +: BKW]      = r_bank[i];
             sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_row[i];
             sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_col[i];

@@ -32,7 +32,8 @@ module mc_bank_timers
     parameter int ROW_WIDTH = 14,
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
-    parameter int BANK_LA = 0   // advisory lookahead depth handed to mc_bank_timer
+    parameter int BANK_LA = 0,  // advisory lookahead depth handed to mc_bank_timer
+    parameter bit BANK_LA_AP = 1'b0  // extrapolate the AP self-close into safe_act_la (mc_bank_timer LA_AP)
 ) (
     input  logic                       aclk,
     input  logic                       aresetn,
@@ -80,7 +81,7 @@ module mc_bank_timers
             logic w_sel;
             assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
 
-            mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .LA(BANK_LA)) u_bt (
+            mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .LA(BANK_LA), .LA_AP(BANK_LA_AP)) u_bt (
                 .clk             (aclk),
                 .rst_n           (aresetn),
                 .t_rcd_i         (t_rcd_i),

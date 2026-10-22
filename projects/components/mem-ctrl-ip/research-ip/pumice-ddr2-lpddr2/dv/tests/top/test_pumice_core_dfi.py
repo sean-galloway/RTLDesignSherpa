@@ -22,7 +22,7 @@ import random
 import cocotb
 from cocotb.clock import Clock
 from cocotb.utils import get_sim_time
-from cocotb.triggers import RisingEdge, ClockCycles, with_timeout
+from cocotb.triggers import ReadOnly, RisingEdge, ClockCycles, with_timeout
 
 from cocotb_test.simulator import run
 from TBClasses.shared.utilities import get_paths, sim_build_path
@@ -647,6 +647,8 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
     from CocoTBFramework.components.dfi.dfi_packet import DRAMCommand as _DC
     _memory, slave = await _bring_up(dut, page_policy=0)
     dut.t_refi_i.value = 96
+    cocotb.start_soon(_pick_trace(dut, int(os.environ.get("PICK_TRACE_START", "40")),
+                                  int(os.environ.get("PICK_TRACE_N", "100")), tag="refcredit"))
     dut.t_rfc_i.value = 8
     # Force the tREFI counter to pick up the new interval NOW. It otherwise
     # reloads only on expiry, so the already-armed interval from bring-up
@@ -860,6 +862,49 @@ async def cocotb_test_pumice_core_b2b(dut):
 # units. Neither claim is worth much without the other.
 # ---------------------------------------------------------------------------
 
+async def _pick_trace(dut, start, n, tag=""):
+    """PICK_TRACE=1: log the mc_bank_pick core's per-cycle state for cycles
+    [start, start+n) of the current test -- the single-row view a stall
+    post-mortem needs (winner, fire/drop, gates, requests, CAM commit state,
+    refresh gates). Sampled in ReadOnly; silent when the pick core is not
+    built (SCHED_CORE=0)."""
+    if os.environ.get("PICK_TRACE", "0") != "1":
+        return
+    try:
+        pk = dut.u_core.u_sched_plane.g_bank_pick.u_bank_pick
+        cam = dut.u_core.u_store_plane.u_wr_cam
+        sp = dut.u_core.u_sched_plane
+    except AttributeError as e:
+        dut._log.info("PICK_TRACE: pick core absent (%r)", e)
+        return
+    cyc = 0
+    while True:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        cyc += 1
+        if start <= cyc < start + n:
+            try:
+                dut._log.info(
+                    "PT%s c%d win(v,pair,cls)=(%d,%d,%d) ok=%d fire=%d drop=%d cls_ok=%d tmr_ok=%d hit=%d "
+                    "req=%04x reqok=%04x hint=%d sh=%d ovr=%d(%d) wcr=%d dqocc=%d sch=%02x pend=%02x "
+                    "wv=%d wr=%d awv=%d awr=%d cmd_rdy=%d refreq=%d refsafe=%d allact=%d rfc=%d",
+                    tag, cyc, int(pk.r_win_vld.value), int(pk.r_win_pair.value), int(pk.r_win_cls.value),
+                    int(pk.w_dmd_ok.value), int(pk.w_fire.value), int(pk.w_dmd_drop.value),
+                    int(pk.w_class_ok.value), int(pk.w_timer_ok.value), int(pk.w_sel_hit.value),
+                    int(pk.r_req.value), int(pk.w_req_ok.value), int(pk.r_hint_vld.value),
+                    int(pk.r_shadow_vld.value), int(pk.w_ovr_vld.value), int(pk.w_ovr_op.value),
+                    int(pk.wr_commit_ready_i.value), int(cam.r_dq_occ.value),
+                    int(cam.sch_valid_o.value), int(cam.sch_pend_o.value),
+                    int(dut.s_axi_wvalid.value), int(dut.s_axi_wready.value),
+                    int(dut.s_axi_awvalid.value), int(dut.s_axi_awready.value),
+                    int(pk.cmd_ready_i.value), int(sp.refresh_req.value),
+                    int(pk.w_ref_safe.value), int(pk.w_all_act_ready.value), int(pk.w_rfc_busy.value))
+            except Exception as e:  # noqa: BLE001
+                dut._log.info("PT%s c%d probe error %r", tag, cyc, e)
+        if cyc >= start + n:
+            return
+
+
 async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
                                 page_mode=0, page_policy=0, sched=None,
                                 dump=True):
@@ -976,6 +1021,8 @@ async def _measure_write_stream(dut, *, t_refi, t_rfc, label, title, n=256,
     starv_tb0 = starv_tb[0]
     base = (trk.prod, trk.bp, trk.starv, trk.idle)
     ev0 = len(trk.events)
+    cocotb.start_soon(_pick_trace(dut, int(os.environ.get("PICK_TRACE_START", "40")),
+                                  int(os.environ.get("PICK_TRACE_N", "100")), tag=label))
 
     rng = random.Random(int(os.environ.get("SEED", "7")))
     reqs = []
@@ -2157,13 +2204,20 @@ def test_pumice_core_refresh_credit(request):
     _run(request, "cocotb_test_pumice_core_refresh_credit")
 
 
+# FRFCFS research-core cells. The order modes, row/col selectors, access
+# preference and QoS are features of mc_cmd_arbiter; the default BANK_PICK core
+# (recovery Phase 2) does not implement them, so these cells build with
+# SCHED_CORE=0 to keep exercising the research core.
+_FRFCFS = {"SCHED_CORE": "0"}
+
+
 def test_pumice_core_sched_order(request):
-    _run(request, "cocotb_test_pumice_core_sched_order", enhanced=True)
+    _run(request, "cocotb_test_pumice_core_sched_order", params_over=_FRFCFS, enhanced=True)
 def test_pumice_core_sched_order_base(request):
     # BASE build (no PUMICE_ENHANCED): in_order is per-channel FIFO and
     # age_threshold uses the CAMs' registered flags (2026-09-09). Same
     # parked-victim sweep, so the base bitstream's order modes are covered.
-    _run(request, "cocotb_test_pumice_core_sched_order", enhanced=False)
+    _run(request, "cocotb_test_pumice_core_sched_order", params_over=_FRFCFS, enhanced=False)
 
 
 def test_pumice_core_refresh_collide(request):
@@ -2190,7 +2244,7 @@ def test_pumice_core_perf_refresh_bubbles(request):
 def test_pumice_core_perf_paging_sweep(request):
     _run(request, "cocotb_test_pumice_core_perf_paging_sweep")
 def test_pumice_core_perf_paging_sched_cross(request):
-    _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross", enhanced=True)
+    _run(request, "cocotb_test_pumice_core_perf_paging_sched_cross", params_over=_FRFCFS, enhanced=True)
 
 # ---------------------------------------------------------------------------
 # adapt_access (paging mode 5) and its test RETIRED 2026-09-27, together with

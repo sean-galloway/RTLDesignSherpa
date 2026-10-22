@@ -324,6 +324,29 @@ Gate: pumice `run-all-func` byte-identical (records are additive).
 
 ### Phase 2: `mc_bank_pick` on pumice (2-3 sessions, the hard one)
 
+**Status 2026-10-22: done** (one session). `mc_bank_pick` landed as the
+default pumice core (`SCHED_CORE`, FRFCFS kept for research); `mc_bank_sched`,
+`BANK_FIFO`, `BANK_IN_ORDER` and the `*_bh_*` head-view ports retired. Beyond
+§2.2 the core needed three things to land dependent hops on the floor through
+a two-stage pipe: a one-cycle pop shadow (the record lags a pop), a next-op
+hint (ACT->COL, PRE->ACT, last-of-row COL->PRE; direct winner load when the
+hop is shorter than the pipe) and a stale-winner mask in the arbiter (the
+request register lags a fire). Found on the way: pumice BUG-029 (the plane fed
+the REFpb rotor mirror from the command FIFO head), the write CAM's
+commit_ready must be checked exactly one cycle before the fire (it is a
+function of commit_valid), and the REF all-idle gate belongs on the live
+activate-ready bits. Gates: contract bench 5/5 on BANK_PICK (FRFCFS 2 + 3
+strict xfails), pumice run-all-func 216/1 at both geometries, granite 6/1xpass
+on FRFCFS with the records wired. Perf proxy at the board timings: col_major
+195/195 -> 358.7 rd / 310.9 wr MB/s (inter-row gap at the floor, 6/8; the
+rest is refresh), col_ilv 307/354 -> 459/457, streaming held at 571-578; at
+the LiteDRAM-equivalent profile (tRTP=1) col_major rd 387.6 vs LiteDRAM's
+386, wr 311.3 vs 304 -- parity within the owner's 1-2%. Report:
+`reports/regr/mem-ctrl-recovery-phase2-2026-10-22.md`. Not done from the
+list below: item 4 (tREFI 100/200/400 cells on the pumice proxy; the pumice
+suite's refresh cells cover the corners at both geometries) and a BANK_PICK
+close-drain probe (`test_pumice_close_drain` still builds FRFCFS).
+
 1. New FUB per §2.2; `mc_scheduler_plane` gains `SCHED_CORE` = BANK_PICK |
    FRFCFS (retire the `BANK_FIFO` and `BANK_IN_ORDER` parameters; the
    constant-folded mask plumbing in `mc_cmd_arbiter` goes with them).

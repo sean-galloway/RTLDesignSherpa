@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-029** — never recycle a number, even when its item closed.
+**Next ID: BUG-030** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 25 | done (kept for history) |
+| [closed/](closed/) | 26 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -28,6 +28,15 @@ exactly one state by construction rather than by discipline.
   the item.
 
 ## Closed
+
+- **BUG-029** — the scheduler plane fed the refresh controller's REFpb
+  rotor mirror from the command FIFO HEAD (`cmd_op_o == OP_REFPB`) instead of
+  the command being granted; the mirror advanced only when the FIFO contents
+  lined up (they did on FRFCFS, never on mc_bank_pick), so the controller
+  precharged bank 0 ahead of every device refresh of banks 1..7 and the
+  readback through the REFpb stream returned zeros. Fixed 2026-10-22:
+  `grant_was_pb_i` is the push-side op. Found by the recovery Phase 2
+  regression.
 
 - **BUG-028** — FRFCFS refresh drain deadlocked behind a demand-PRE
   pre-pick to the same bank (col_major writer wedge at board timings,

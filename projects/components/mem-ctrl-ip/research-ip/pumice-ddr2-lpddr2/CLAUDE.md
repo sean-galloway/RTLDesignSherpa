@@ -67,17 +67,30 @@ equal streaming bandwidth. That is the deliberate research-controller trade.
 
 ## Scheduler shape
 
-Flat FR-FCFS arbiter with a 3-stage pick pipeline (STAGE-1a snapshot ->
-STAGE-1b arg_sel -> pre-pick -> output). Select-to-fire is 4 registered stages.
-Two consequences worth knowing before changing it:
+Two pick cores behind `pumice_core`'s `SCHED_CORE` parameter (mc_common_pkg
+`MC_SCHED_*`; the tb tops, `pumice_top_geared` and the ddr2_char harness
+forward it; the perf proxy takes `TEST_SCHED_CORE`):
 
-- **The pre-pick is in-order.** A selected command occupies the slot until it
-  fires, so speculative issue does not help — it blocks the command behind it
-  (measured: close-page 30.77% -> 28.57%). See [[BUG-002]].
-- **Lookahead beyond select-to-fire is unactionable.** `bank_timer` exports
-  advisory `safe_*_la_o` and the final stage enforces the live `safe_*`;
-  `BANK_LA` above the pipeline depth predicts readiness later than the command
-  arrives, so it is dropped. The LA sweep saturates at 3 for this reason.
+- **BANK_PICK (default since 2026-10-22, mem-ctrl recovery Phase 2):**
+  `mc_bank_pick` on the storage plane's REGISTERED per-bank head records.
+  Decode (per bank) -> round-robin arbiter -> fire, every stage fed by flops;
+  `BANK_LA` = 2 = the pipe depth, so a request reaches the fire stage the
+  cycle its timer opens. A one-cycle pop shadow and a next-op hint land the
+  dependent hops of a row walk on the JEDEC floor (col_major inter-row gap
+  6 rd / 8 wr at the board timings). Hold on a closed timer, drop on a
+  class change; the decode re-presents every cycle so a drop costs nothing.
+  The order modes / row-col selectors / QoS CSRs are no-ops on this core.
+- **FRFCFS (`SCHED_CORE=0`, research):** flat FR-FCFS arbiter with a
+  3-stage pick pipeline (STAGE-1a snapshot -> STAGE-1b arg_sel -> pre-pick
+  -> output); select-to-fire is 4 registered stages. The pre-pick is in-order
+  (speculative issue blocks the command behind it, [[BUG-002]]) and lookahead
+  beyond select-to-fire is unactionable (the LA sweep saturates at 3). The
+  sched_order / paging_sched_cross / close_drain cells build this core.
+
+One plane-level trap both cores share: a signal that must mean "the command
+being granted" (the REFpb rotor mirror's `grant_was_pb_i`) has to come from
+the core's output in the grant cycle, not from the command FIFO head
+([[BUG-029]]).
 
 ## Method — do not restate it here
 

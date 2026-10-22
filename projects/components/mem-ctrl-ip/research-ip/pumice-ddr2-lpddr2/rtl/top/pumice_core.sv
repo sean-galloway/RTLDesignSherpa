@@ -48,6 +48,11 @@ module pumice_core
     parameter int NUM_ENTRIES    = 8,
     parameter int N_SRAM_SLOTS   = NUM_ENTRIES,
     parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
+    // Scheduler pick core (mc_common_pkg MC_SCHED_*): BANK_PICK = the per-bank
+    // core on the storage plane's head records (recovery Phase 2, the family
+    // design); FRFCFS = the research arbiter on the CAM per-entry vectors
+    // (order modes, row/col selectors, QoS). DV overrides per test.
+    parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_BANK_PICK,
     parameter bit CLOSE_ON_DRAIN = 1'b0, // BUG-027: AP-on-drain chops pumice's
                                          // open-page streams; product-only feature
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
@@ -513,6 +518,9 @@ module pumice_core
     // ======================================================================
     // Plane 1b: storage plane (WR/RD CAMs + snarf)
     // ======================================================================
+    // storage -> scheduler per-bank head records (registered contract)
+    mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
+
     mc_storage_plane #(
         .AXI_ID_WIDTH  (IW),
         .AXI_DATA_WIDTH(DW),
@@ -604,12 +612,11 @@ module pumice_core
         .wr_cm_rd_data_o    (w_cm_data),
         .wr_cm_rd_strb_o    (w_cm_strb),
         .wr_cm_rd_last_o    (w_cm_last),
-        // per-bank head records (storage -> scheduler contract, recovery Phase 1);
-        // not consumed until mc_bank_pick lands -- explicit empty, not missing
-        .wr_head_o          (),
-        .wr_head2_o         (),
-        .rd_head_o          (),
-        .rd_head2_o         (),
+        // per-bank head records (storage -> scheduler contract, recovery Phase 1)
+        .wr_head_o          (w_wr_head),
+        .wr_head2_o         (w_wr_head2),
+        .rd_head_o          (w_rd_head),
+        .rd_head2_o         (w_rd_head2),
         .busy_o             ()
     );
 
@@ -669,7 +676,8 @@ module pumice_core
         // external-init mode (the same mode scoria's wrapper uses).
         .HAS_INIT_SEQUENCER(1'b0),
         .HAS_MODE_REGISTER (1'b0),
-        .CLOSE_ON_DRAIN    (CLOSE_ON_DRAIN)
+        .CLOSE_ON_DRAIN    (CLOSE_ON_DRAIN),
+        .SCHED_CORE        (SCHED_CORE)
     ) u_sched_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -767,30 +775,10 @@ module pumice_core
         .rd_sch_age_exceed_i(w_rd_sch_agex),
         .rd_sch_qos_i       (w_rd_sch_qos),
         .rd_sch_head_rel_i  (w_rd_sch_hrel),
-        .wr_bh_valid_i      ('0),
-        .wr_bh_slot_i       ('0),
-        .wr_bh_row_i        ('0),
-        .wr_bh_col_i        ('0),
-        .wr_bh_id_i         ('0),
-        .wr_bh_last_i       ('0),
-        .wr_bh_empty_i      ('0),
-        .rd_bh_valid_i      ('0),
-        .rd_bh_slot_i       ('0),
-        .rd_bh_row_i        ('0),
-        .rd_bh_col_i        ('0),
-        .rd_bh_id_i         ('0),
-        .rd_bh_empty_i      ('0),
-        .wr_bh2_valid_i     ('0),
-        .wr_bh2_slot_i      ('0),
-        .wr_bh2_row_i       ('0),
-        .wr_bh2_col_i       ('0),
-        .wr_bh2_id_i        ('0),
-        .wr_bh2_last_i      ('0),
-        .rd_bh2_valid_i     ('0),
-        .rd_bh2_slot_i      ('0),
-        .rd_bh2_row_i       ('0),
-        .rd_bh2_col_i       ('0),
-        .rd_bh2_id_i        ('0),
+        .wr_head_i          (w_wr_head),
+        .wr_head2_i         (w_wr_head2),
+        .rd_head_i          (w_rd_head),
+        .rd_head2_i         (w_rd_head2),
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),

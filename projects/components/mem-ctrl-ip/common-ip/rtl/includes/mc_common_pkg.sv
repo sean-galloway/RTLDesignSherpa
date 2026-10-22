@@ -132,6 +132,10 @@ package mc_common_pkg;
     // id/last (B consolidation stays in the backend), and any hit/miss flag
     // (hit classification is sched-local against the open row it owns --
     // MC-003 evidence section 17, the plane-boundary rule).
+    // mc_scheduler_plane SCHED_CORE values
+    parameter int MC_SCHED_FRFCFS    = 0;   // mc_cmd_arbiter, the research core (per-entry vectors)
+    parameter int MC_SCHED_BANK_PICK = 1;   // mc_bank_pick, the family core (per-bank head records)
+
     parameter int MC_HEAD_ROW_W  = 18;
     parameter int MC_HEAD_COL_W  = 14;
     parameter int MC_HEAD_SLOT_W = 8;   // NUM_ENTRIES <= 256
@@ -141,7 +145,14 @@ package mc_common_pkg;
         logic [MC_HEAD_ROW_W-1:0]  row;
         logic [MC_HEAD_COL_W-1:0]  col;
         logic [MC_HEAD_SLOT_W-1:0] slot;         // commit / issue handle
-        logic                      behind_empty; // no younger entry of this bank behind this one
+        logic                      behind_empty; // no younger SCHEDULABLE entry of this bank behind this one
+        // A younger entry of this bank with the SAME ROW exists behind this
+        // one -- schedulable or still pending (a write whose data has not
+        // landed). The exact close-on-drain term: a last-of-row column may
+        // carry auto-precharge only when this is 0. Counting pending entries
+        // is what keeps a half-filled same-row write burst from being chopped
+        // by an early AP (pumice BUG-027's mechanism).
+        logic                      behind_same_row;
         logic                      age_exceed;   // backend aging policy flag (sched_age_thresh)
     } mc_head_rec_t;
 

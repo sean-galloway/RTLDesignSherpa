@@ -35,7 +35,7 @@ What this test ADDS over the granite proxy:
 
 Knobs: TEST_TREFI (585 = board), TEST_TXN (256), TEST_GAP (0), TEST_BURST_LEN
 (8), TEST_FAMILIES, TEST_NUM_GEN (1), TEST_TIMING_OVERRIDES (""), PERF_DUMP,
-PERF_CMD_TRACE. Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
+PERF_CMD_TRACE, TEST_SCHED_CORE (1 = BANK_PICK, 0 = FRFCFS). Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
 (TEST_DFI_RATE, TEST_DRAM_BEAT_BYTES, TEST_DRAM_DEVICE_BYTES, TEST_DRAM_BL).
 Skipped at TEST_LEVEL=GATE (a multi-minute run is not a gate check).
 """
@@ -786,6 +786,8 @@ def test_ddr2_char_perf(request):
         "TEST_READ_LATENCY": os.environ.get("TEST_READ_LATENCY", "8"),
     }
     params = {"FPGA_CLK_HZ": str(FPGA_CLK_HZ),
+              # pumice pick core A/B: 1 = BANK_PICK (default), 0 = FRFCFS research core
+              "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "1"),
               "UART_BAUD": str(UART_BAUD),
               "DFI_RATE": str(dfi_rate),
               "DRAM_BL": str(dram_bl),

@@ -58,7 +58,33 @@ sections 11 to 17.
 - **The cost is one cycle at the boundary**, absorbed by a registered-winner
   / hold-on-not-fired scheduler: the winner is decided a cycle before it
   fires, so a push that becomes visible a cycle late is never on the
-  critical loop.
+  critical loop. The pop side costs bookkeeping, not latency -- see below.
+
+## What the one-cycle lag costs the consumer, and how to pay it
+
+A registered snapshot is one cycle behind the state it describes. The
+consumer that lives one register away cannot pretend otherwise; two things
+follow, both learned landing `mc_bank_pick` on the record contract
+(2026-10-22):
+
+- **The pop shadow.** In the cycle after the consumer pops an entry, the
+  record still shows it. The consumer remembers {which queue, which slot} it
+  just popped and, while the record's head still carries that slot, serves
+  the queue from its SECOND record. That is the whole reason the contract
+  carries a second record: it is what sustains one command per cycle from a
+  single queue. It also means the consumer re-checks the entry it finally
+  fires against live state (the entry may be two pops past the one its
+  earlier stage classified); the registered decision is advisory.
+- **The stale request.** A request register derived from the snapshot lags
+  the fire by a cycle too. After a fire that changes what the queue wants
+  next (a row command, or a column that empties the queue) the stale request
+  must be masked for that cycle, or the arbiter re-picks it and the fire
+  stage drops it -- measured as every other cycle wasted on a bank-rotating
+  write stream. The consumer knows which fire does this; it masks that one
+  queue, not the request vector.
+
+Both are consumer-side bookkeeping, a handful of flops. Neither is a reason
+to move the pop or the decision back across the boundary.
 
 ## How to check a design against it
 

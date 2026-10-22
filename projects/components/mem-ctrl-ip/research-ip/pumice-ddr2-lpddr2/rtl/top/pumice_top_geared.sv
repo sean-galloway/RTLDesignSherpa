@@ -66,6 +66,7 @@ module pumice_top_geared
     // board gate can watch spacing at the pins, which is where TASK-007's
     // defects lived and where the scheduler-side checker cannot see.
     parameter int CMD_HISTORY_EN  = 0,
+    parameter int SCHED_CORE      = 1,    // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK, 0 = FRFCFS
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,
@@ -343,6 +344,7 @@ module pumice_top_geared
     // ---- controller core (fixed DW width) ----
     pumice_top #(
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .SCHED_CORE       (SCHED_CORE),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),

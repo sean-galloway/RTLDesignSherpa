@@ -142,6 +142,7 @@ module mc_xddr2_entry_store
     // Scheduler vectors (NUM_ENTRIES-wide) — FRFCFS pick core
     //=========================================================================
     output logic [NUM_ENTRIES-1:0]              wr_sch_valid_o,
+    output logic [NUM_ENTRIES-1:0]              wr_sch_pend_o,   // allocated, data not yet landed
     output logic [NUM_ENTRIES*BKW-1:0]          wr_sch_bank_o,
     output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_o,
     output logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_o,
@@ -158,46 +159,6 @@ module mc_xddr2_entry_store
     output logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_o,
     output logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_o,
     output logic [15:0]                         rd_sch_head_rel_o,
-
-    //=========================================================================
-    // Per-bank head views — BANK_FIFO pick core (mc_scheduler_plane v2).
-    // Purely combinational off the entry arrays; the core latches a bank's
-    // head into its own sequencer register and drives the SAME commit/issue
-    // strobes above (head slot), so no store state changes here.
-    //   head  = oldest schedulable entry of the bank (wr: valid && fdone &&
-    //           !sched; rd: valid), via the age matrix.
-    //   empty = exactly one schedulable entry in the bank (CLOSE_ON_DRAIN:
-    //           the head's close is exact when its queue drains behind it).
-    //=========================================================================
-    output logic [NUM_BANKS-1:0]                wr_bh_valid_o,
-    output logic [NUM_BANKS*PTRW-1:0]           wr_bh_slot_o,
-    output logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh_row_o,
-    output logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh_col_o,
-    output logic [NUM_BANKS*IW-1:0]             wr_bh_id_o,
-    output logic [NUM_BANKS-1:0]                wr_bh_last_o,
-    output logic [NUM_BANKS-1:0]                wr_bh_empty_o,
-
-    output logic [NUM_BANKS-1:0]                rd_bh_valid_o,
-    output logic [NUM_BANKS*PTRW-1:0]           rd_bh_slot_o,
-    output logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh_row_o,
-    output logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh_col_o,
-    output logic [NUM_BANKS*IW-1:0]             rd_bh_id_o,
-    output logic [NUM_BANKS-1:0]                rd_bh_empty_o,
-
-    // Second-oldest per bank (the reserve behind the head). Fields mirror the
-    // head outputs; the BANK_FIFO core's 2-deep head skid needs it to sustain
-    // 1 command/cycle on a single bank without a store round-trip per pick.
-    output logic [NUM_BANKS-1:0]                wr_bh2_valid_o,
-    output logic [NUM_BANKS*PTRW-1:0]           wr_bh2_slot_o,
-    output logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh2_row_o,
-    output logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh2_col_o,
-    output logic [NUM_BANKS*IW-1:0]             wr_bh2_id_o,
-    output logic [NUM_BANKS-1:0]                wr_bh2_last_o,
-    output logic [NUM_BANKS-1:0]                rd_bh2_valid_o,
-    output logic [NUM_BANKS*PTRW-1:0]           rd_bh2_slot_o,
-    output logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh2_row_o,
-    output logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh2_col_o,
-    output logic [NUM_BANKS*IW-1:0]             rd_bh2_id_o,
 
     //=========================================================================
     // WR commit data to DFI plane
@@ -719,6 +680,7 @@ module mc_xddr2_entry_store
     always_comb begin
         for (int i = 0; i < NUM_ENTRIES; i++) begin
             wr_sch_valid_o[i]      = r_wr_valid[i] && r_wr_fdone[i] && !r_wr_sched[i];
+            wr_sch_pend_o [i]      = r_wr_valid[i] && !r_wr_fdone[i];
             wr_sch_bank_o [i*BKW       +: BKW]       = r_wr_bank[i];
             wr_sch_row_o  [i*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[i];
             wr_sch_col_o  [i*COL_WIDTH +: COL_WIDTH] = r_wr_col[i];
@@ -736,79 +698,6 @@ module mc_xddr2_entry_store
         end
         wr_sch_head_rel_o = w_wr_sho_found ? w_wr_rel[w_wr_sho_slot] : '0;
         rd_sch_head_rel_o = w_rd_sho_found ? w_rd_rel[w_rd_sho_slot] : '0;
-    end
-
-    // ======================================================================
-    // Per-bank head views (BANK_FIFO pick core) — oldest schedulable entry
-    // of each bank + queue-empty flags + the second-oldest (reserve). Purely
-    // combinational.
-    // ======================================================================
-    always_comb begin
-        for (int b = 0; b < NUM_BANKS; b++) begin
-            automatic logic            wv  = 1'b0;
-            automatic logic [PTRW-1:0] ws  = '0;
-            automatic logic            wv2 = 1'b0;
-            automatic logic [PTRW-1:0] ws2 = '0;
-            automatic int              wc  = 0;
-            automatic logic            rv  = 1'b0;
-            automatic logic [PTRW-1:0] rs  = '0;
-            automatic logic            rv2 = 1'b0;
-            automatic logic [PTRW-1:0] rs2 = '0;
-            automatic int              rc  = 0;
-            for (int i = 0; i < NUM_ENTRIES; i++) begin
-                if (r_wr_valid[i] && r_wr_fdone[i] && !r_wr_sched[i]
-                    && (int'(r_wr_bank[i]) == b)) begin
-                    automatic int n_older = 0;
-                    wc = wc + 1;
-                    for (int j = 0; j < NUM_ENTRIES; j++)
-                        if ((j != i) && r_wr_valid[j] && r_wr_fdone[j] && !r_wr_sched[j]
-                            && (int'(r_wr_bank[j]) == b) && r_wr_older[j][i])
-                            n_older = n_older + 1;
-                    if (n_older == 0) begin
-                        wv = 1'b1;  ws = PTRW'(i);
-                    end else if (n_older == 1) begin
-                        wv2 = 1'b1; ws2 = PTRW'(i);
-                    end
-                end
-                if (r_rd_valid[i] && (int'(r_rd_bank[i]) == b)) begin
-                    automatic int n_older = 0;
-                    rc = rc + 1;
-                    for (int j = 0; j < NUM_ENTRIES; j++)
-                        if ((j != i) && r_rd_valid[j]
-                            && (int'(r_rd_bank[j]) == b) && r_rd_older[j][i])
-                            n_older = n_older + 1;
-                    if (n_older == 0) begin
-                        rv = 1'b1;  rs = PTRW'(i);
-                    end else if (n_older == 1) begin
-                        rv2 = 1'b1; rs2 = PTRW'(i);
-                    end
-                end
-            end
-            wr_bh_valid_o[b] = wv;
-            wr_bh_slot_o [b*PTRW +: PTRW]           = ws;
-            wr_bh_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[ws];
-            wr_bh_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_wr_col[ws];
-            wr_bh_id_o   [b*IW +: IW]               = r_wr_id [ws];
-            wr_bh_last_o [b]                        = r_wr_last[ws];
-            wr_bh_empty_o[b]                        = wv && (wc == 1);
-            rd_bh_valid_o[b] = rv;
-            rd_bh_slot_o [b*PTRW +: PTRW]           = rs;
-            rd_bh_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[rs];
-            rd_bh_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_rd_col[rs];
-            rd_bh_id_o   [b*IW +: IW]               = r_rd_id [rs];
-            rd_bh_empty_o[b]                        = rv && (rc == 1);
-            wr_bh2_valid_o[b] = wv2;
-            wr_bh2_slot_o [b*PTRW +: PTRW]           = ws2;
-            wr_bh2_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[ws2];
-            wr_bh2_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_wr_col[ws2];
-            wr_bh2_id_o   [b*IW +: IW]               = r_wr_id [ws2];
-            wr_bh2_last_o [b]                        = r_wr_last[ws2];
-            rd_bh2_valid_o[b] = rv2;
-            rd_bh2_slot_o [b*PTRW +: PTRW]           = rs2;
-            rd_bh2_row_o  [b*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[rs2];
-            rd_bh2_col_o  [b*COL_WIDTH +: COL_WIDTH] = r_rd_col[rs2];
-            rd_bh2_id_o   [b*IW +: IW]               = r_rd_id [rs2];
-        end
     end
 
     // ======================================================================

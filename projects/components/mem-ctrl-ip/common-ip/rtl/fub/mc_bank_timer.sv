@@ -40,7 +40,12 @@ module mc_bank_timer
 #(
     parameter int ROW_WIDTH = 14,
     parameter int TW        = 8,      // timer width
-    parameter int LA        = 0       // advisory lookahead depth, cycles
+    parameter int LA        = 0,      // advisory lookahead depth, cycles
+    // Extrapolate the auto-precharge self-close into safe_act_la_o (see the
+    // LOOKAHEAD block). Off keeps the original conservative la for the FRFCFS
+    // research core; the per-bank pick core turns it on so an RDA/WRA row
+    // switch requests its ACT exactly tRP after the internal close.
+    parameter bit LA_AP     = 1'b0
 ) (
     input  logic                 clk,
     input  logic                 rst_n,
@@ -169,13 +174,26 @@ module mc_bank_timer
     //     from inside the timer.
     //   - the auto-precharge self-close IS autonomous, but it RELOADS tRP when
     //     it fires, so `r_rp <= LA` is WRONG for an AP-pending bank -- the true
-    //     condition is max(preblk,ras) + t_rp <= LA. Left out of this first
-    //     cut, so an AP-pending bank reads not-safe exactly as it does today.
+    //     condition is max(preblk,ras) + t_rp <= LA. With LA_AP=0 that term is
+    //     left out and an AP-pending bank reads not-safe (conservative).
+    //     With LA_AP=1 it is included EXACTLY: the close fires in the cycle
+    //     max(preblk,ras) reaches 0 (call it X), r_rp is loaded t_rp-1 at the
+    //     end of X and reaches 0 at X+t_rp, so "ACT safe within LA cycles"
+    //     is max(preblk,ras) + t_rp <= LA (and tRC, which keeps counting
+    //     through the close, must itself be within LA).
     // Both omissions are conservative: they can only UNDER-report safety.
     //
     // LA=0 collapses every term to its safe_*_o twin, so the plumbing can be
     // landed and gated as a provable no-op before the depth is turned up.
-    assign safe_act_la_o  = !r_row_valid && (r_rp  <= TW'(LA)) && (r_rc <= TW'(LA));
+    logic [TW:0]   w_ap_wait;       // cycles until the self-close fires
+    logic [TW+1:0] w_ap_act_in;     // ... plus tRP: cycles until ACT is safe
+    logic          w_ap_act_la;
+    assign w_ap_wait   = (r_preblk > r_ras) ? {1'b0, r_preblk} : {1'b0, r_ras};
+    assign w_ap_act_in = {1'b0, w_ap_wait} + {2'b00, t_rp_i};
+    assign w_ap_act_la = LA_AP && r_row_valid && r_ap_pending
+                      && (w_ap_act_in <= (TW+2)'(LA)) && (r_rc <= TW'(LA));
+    assign safe_act_la_o  = (!r_row_valid && (r_rp  <= TW'(LA)) && (r_rc <= TW'(LA)))
+                         || w_ap_act_la;
     assign safe_rdwr_la_o = r_row_valid  && (r_rcd <= TW'(LA)) && !r_ap_pending;
     assign safe_pre_la_o  = r_row_valid  && (r_ras <= TW'(LA))
                          && (r_preblk <= TW'(LA)) && !r_ap_pending;

@@ -40,6 +40,10 @@ module granite_core
     parameter int RD_RET_DEPTH   = 32,
     parameter int CMD_DELAY      = 0,
     parameter int AGE_WIDTH      = 16,
+    // Scheduler pick core (mc_common_pkg MC_SCHED_*). BANK_PICK is the product
+    // core on the per-bank head records (mem-ctrl recovery Phase 2); FRFCFS
+    // is the research arbiter the product shipped on until then.
+    parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_FRFCFS,
 
     parameter int BYTE_OFFSET_WIDTH = $clog2(DRAM_DEVICE_WIDTH / 8),
     parameter int BL_SHIFT   = (DRAM_BEAT_WIDTH > DRAM_DEVICE_WIDTH)
@@ -214,14 +218,10 @@ module granite_core
     logic [NUM_ENTRIES-1:0]             w_wr_sch_agex,  w_rd_sch_agex;
     logic [NUM_ENTRIES*4-1:0]           w_wr_sch_qos,   w_rd_sch_qos;
     logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
-    // per-bank head views (BANK_FIFO pick core)
-    localparam int BKW_LC = $clog2(NUM_BANKS);
-    logic [NUM_BANKS-1:0]               w_wr_bh_v,  w_rd_bh_v,  w_wr_bh2_v,  w_rd_bh2_v;
-    logic [NUM_BANKS*PTRW-1:0]          w_wr_bh_slot, w_rd_bh_slot, w_wr_bh2_slot, w_rd_bh2_slot;
-    logic [NUM_BANKS*ROW_WIDTH-1:0]     w_wr_bh_row, w_rd_bh_row, w_wr_bh2_row, w_rd_bh2_row;
-    logic [NUM_BANKS*COL_WIDTH-1:0]     w_wr_bh_col, w_rd_bh_col, w_wr_bh2_col, w_rd_bh2_col;
-    logic [NUM_BANKS*IW-1:0]            w_wr_bh_id,  w_rd_bh_id,  w_wr_bh2_id, w_rd_bh2_id;
-    logic [NUM_BANKS-1:0]               w_wr_bh_last, w_wr_bh_empty, w_rd_bh_empty, w_wr_bh2_last;
+    // per-bank head records (storage -> scheduler contract), derived from the
+    // entry store's per-entry vectors and registered by mc_bank_head_records
+    logic [NUM_ENTRIES-1:0]             w_wr_sch_pend;
+    mc_head_rec_t [NUM_BANKS-1:0]       w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
     logic                      w_wr_commit_v, w_wr_commit_rdy;
     logic [PTRW-1:0]           w_wr_commit_slot;
     logic                      w_rd_issue_v, w_rd_issue_rdy;
@@ -480,6 +480,7 @@ module granite_core
         .rd_issue_ready_o   (w_rd_issue_rdy),
         .rd_issue_slot_i    (w_rd_issue_slot),
         .wr_sch_valid_o     (w_wr_sch_v),
+        .wr_sch_pend_o      (w_wr_sch_pend),
         .wr_sch_bank_o      (w_wr_sch_bank),
         .wr_sch_row_o       (w_wr_sch_row),
         .wr_sch_col_o       (w_wr_sch_col),
@@ -495,36 +496,51 @@ module granite_core
         .rd_sch_age_exceed_o(w_rd_sch_agex),
         .rd_sch_qos_o       (w_rd_sch_qos),
         .rd_sch_head_rel_o  (w_rd_sch_hrel),
-        .wr_bh_valid_o      (w_wr_bh_v),
-        .wr_bh_slot_o       (w_wr_bh_slot),
-        .wr_bh_row_o        (w_wr_bh_row),
-        .wr_bh_col_o        (w_wr_bh_col),
-        .wr_bh_id_o         (w_wr_bh_id),
-        .wr_bh_last_o       (w_wr_bh_last),
-        .wr_bh_empty_o      (w_wr_bh_empty),
-        .rd_bh_valid_o      (w_rd_bh_v),
-        .rd_bh_slot_o       (w_rd_bh_slot),
-        .rd_bh_row_o        (w_rd_bh_row),
-        .rd_bh_col_o        (w_rd_bh_col),
-        .rd_bh_id_o         (w_rd_bh_id),
-        .rd_bh_empty_o      (w_rd_bh_empty),
-        .wr_bh2_valid_o     (w_wr_bh2_v),
-        .wr_bh2_slot_o      (w_wr_bh2_slot),
-        .wr_bh2_row_o       (w_wr_bh2_row),
-        .wr_bh2_col_o       (w_wr_bh2_col),
-        .wr_bh2_id_o        (w_wr_bh2_id),
-        .wr_bh2_last_o      (w_wr_bh2_last),
-        .rd_bh2_valid_o     (w_rd_bh2_v),
-        .rd_bh2_slot_o      (w_rd_bh2_slot),
-        .rd_bh2_row_o       (w_rd_bh2_row),
-        .rd_bh2_col_o       (w_rd_bh2_col),
-        .rd_bh2_id_o        (w_rd_bh2_id),
         .wr_cm_rd_valid_o   (w_cm_v),
         .wr_cm_rd_ready_i   (w_cm_rdy),
         .wr_cm_rd_data_o    (w_cm_data),
         .wr_cm_rd_strb_o    (w_cm_strb),
         .wr_cm_rd_last_o    (w_cm_last),
         .busy_o             ()
+    );
+
+    // ---- per-bank head records, registered at the storage edge ----
+    mc_bank_head_records #(
+        .NUM_ENTRIES (NUM_ENTRIES),
+        .NUM_BANKS   (NUM_BANKS),
+        .ROW_WIDTH   (ROW_WIDTH),
+        .COL_WIDTH   (COL_WIDTH)
+    ) u_wr_heads (
+        .clk              (aclk),
+        .rst_n            (aresetn),
+        .sch_valid_i      (w_wr_sch_v),
+        .sch_pend_i       (w_wr_sch_pend),
+        .sch_bank_i       (w_wr_sch_bank),
+        .sch_row_i        (w_wr_sch_row),
+        .sch_col_i        (w_wr_sch_col),
+        .sch_older_i      (w_wr_sch_older),
+        .sch_age_exceed_i (w_wr_sch_agex),
+        .head_o           (w_wr_head),
+        .head2_o          (w_wr_head2)
+    );
+
+    mc_bank_head_records #(
+        .NUM_ENTRIES (NUM_ENTRIES),
+        .NUM_BANKS   (NUM_BANKS),
+        .ROW_WIDTH   (ROW_WIDTH),
+        .COL_WIDTH   (COL_WIDTH)
+    ) u_rd_heads (
+        .clk              (aclk),
+        .rst_n            (aresetn),
+        .sch_valid_i      (w_rd_sch_v),
+        .sch_pend_i       ('0),
+        .sch_bank_i       (w_rd_sch_bank),
+        .sch_row_i        (w_rd_sch_row),
+        .sch_col_i        (w_rd_sch_col),
+        .sch_older_i      (w_rd_sch_older),
+        .sch_age_exceed_i (w_rd_sch_agex),
+        .head_o           (w_rd_head),
+        .head2_o          (w_rd_head2)
     );
 
     // ======================================================================
@@ -584,11 +600,7 @@ module granite_core
         .HAS_MODE_REGISTER (1'b0),
         .MAINT_EXTRA_WIDTH(1),
         .CLOSE_ON_DRAIN(1'b1),
-        // BANK_FIFO (the per-bank in-order product core): MC-003 next round —
-        // enabling to root-cause the refresh-adjacent residual
-        // (col_major_bl8_gap write hang / tREFI=50 read error). NOT the
-        // shipping value until 14/14.
-        .BANK_FIFO     (1'b0),
+        .SCHED_CORE    (SCHED_CORE),
         .HAS_CMD_HISTORY(1'b0),
         .REF_HAS_POSTPONE(1'b0),
         .REF_HAS_PULLIN  (1'b0),
@@ -679,19 +691,8 @@ module granite_core
         .wr_sch_age_exceed_i(w_wr_sch_agex),
         .wr_sch_qos_i       (w_wr_sch_qos),
         .wr_sch_head_rel_i  (w_wr_sch_hrel),
-        .wr_bh_valid_i      (w_wr_bh_v),
-        .wr_bh_slot_i       (w_wr_bh_slot),
-        .wr_bh_row_i        (w_wr_bh_row),
-        .wr_bh_col_i        (w_wr_bh_col),
-        .wr_bh_id_i         (w_wr_bh_id),
-        .wr_bh_last_i       (w_wr_bh_last),
-        .wr_bh_empty_i      (w_wr_bh_empty),
-        .wr_bh2_valid_i     (w_wr_bh2_v),
-        .wr_bh2_slot_i      (w_wr_bh2_slot),
-        .wr_bh2_row_i       (w_wr_bh2_row),
-        .wr_bh2_col_i       (w_wr_bh2_col),
-        .wr_bh2_id_i        (w_wr_bh2_id),
-        .wr_bh2_last_i      (w_wr_bh2_last),
+        .wr_head_i          (w_wr_head),
+        .wr_head2_i         (w_wr_head2),
         .wr_commit_ready_i  (w_wr_commit_rdy),
         .wr_commit_valid_o  (w_wr_commit_v),
         .wr_commit_slot_o   (w_wr_commit_slot),
@@ -703,17 +704,8 @@ module granite_core
         .rd_sch_age_exceed_i(w_rd_sch_agex),
         .rd_sch_qos_i       (w_rd_sch_qos),
         .rd_sch_head_rel_i  (w_rd_sch_hrel),
-        .rd_bh_valid_i      (w_rd_bh_v),
-        .rd_bh_slot_i       (w_rd_bh_slot),
-        .rd_bh_row_i        (w_rd_bh_row),
-        .rd_bh_col_i        (w_rd_bh_col),
-        .rd_bh_id_i         (w_rd_bh_id),
-        .rd_bh_empty_i      (w_rd_bh_empty),
-        .rd_bh2_valid_i     (w_rd_bh2_v),
-        .rd_bh2_slot_i      (w_rd_bh2_slot),
-        .rd_bh2_row_i       (w_rd_bh2_row),
-        .rd_bh2_col_i       (w_rd_bh2_col),
-        .rd_bh2_id_i        (w_rd_bh2_id),
+        .rd_head_i          (w_rd_head),
+        .rd_head2_i         (w_rd_head2),
         .rd_issue_ready_i   (w_rd_issue_rdy),
         .rd_issue_valid_o   (w_rd_issue_v),
         .rd_issue_slot_o    (w_rd_issue_slot),

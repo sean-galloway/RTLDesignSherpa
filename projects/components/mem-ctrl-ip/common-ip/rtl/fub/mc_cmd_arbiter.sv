@@ -53,11 +53,6 @@ module mc_cmd_arbiter
     // effect on rows with younger same-row demand still in the window, so
     // page-hit streams keep their open-row behavior.
     parameter bit CLOSE_ON_DRAIN = 1'b1,
-    // BANK_IN_ORDER: per-bank arrival-order issue (granite / LiteDRAM-class
-    // SKU). Under the mode an entry is masked out of every pick class unless
-    // it is the oldest valid entry of its own bank -- LiteDRAM's per-bank
-    // in-order machines + cross-bank mux, on the existing class pipeline.
-    parameter bit BANK_IN_ORDER  = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1, // width of maint_extra_i; pumice maps trn_cmd_mrr, andesite maps mpc[5:0]
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -586,36 +581,6 @@ module mc_cmd_arbiter
     end
     assign w_ap_fire = r_ap_out && !w_ap_sibling;
 
-    // ---- BANK_IN_ORDER: per-bank arrival-order issue (granite / LiteDRAM SKU) --
-    // Under the mode each bank's requests may only issue in arrival order: an
-    // entry is masked out of every pick class unless it is the OLDEST VALID
-    // ENTRY OF ITS OWN BANK (head-of-bank). Order comes from the live age
-    // matrix (same relation argmax already reads); the same-bank test uses the
-    // live bank fields. This is the behavioral match to LiteDRAM's per-bank
-    // in-order machines with a cross-bank mux -- no CAM, no FR-FCFS reorder,
-    // while the existing class pipeline, timers, fire-stage authority and
-    // CLOSE_ON_DRAIN all carry over unchanged. Off by default: pumice/scoria/
-    // andesite keep full FR-FCFS.
-    logic [NUM_ENTRIES-1:0] w_rd_bh, w_wr_bh;
-    always_comb begin
-        for (int i = 0; i < NUM_ENTRIES; i++) begin
-            automatic logic hr = 1'b1;
-            automatic logic hw = 1'b1;
-            for (int j = 0; j < NUM_ENTRIES; j++) begin
-                if ((j != i) && rd_sch_valid_i[j]
-                    && (f_bank(rd_sch_bank_i, PTRW'(j)) == f_bank(rd_sch_bank_i, PTRW'(i)))
-                    && rd_sch_older_i[j*NUM_ENTRIES + i])
-                    hr = 1'b0;
-                if ((j != i) && wr_sch_valid_i[j]
-                    && (f_bank(wr_sch_bank_i, PTRW'(j)) == f_bank(wr_sch_bank_i, PTRW'(i)))
-                    && wr_sch_older_i[j*NUM_ENTRIES + i])
-                    hw = 1'b0;
-            end
-            w_rd_bh[i] = hr;
-            w_wr_bh[i] = hw;
-        end
-    end
-
     // ---- unified rd/wr prospect pool (2N entries) ----------------------------
     localparam int POOL = 2*NUM_ENTRIES;
     localparam int PTXW = PTRW + 1;
@@ -663,17 +628,14 @@ module mc_cmd_arbiter
     // the close-biased paging modes. That mode's arbitration is a characterized
     // result (TASK-002), so it keeps the old gate and the old numbers.
     logic [POOL-1:0]        pool_col_m, pool_act_m, pool_pre_m;
-    // BANK_IN_ORDER-masked copies (single driver; collapse to the base masks
-    // when the mode is off)
-    logic [POOL-1:0]        pool_col_mi, pool_act_mi, pool_pre_mi;
     logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
     logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
-    assign rd_col_m = pool_col_mi[NUM_ENTRIES-1:0];
-    assign rd_act_m = pool_act_mi[NUM_ENTRIES-1:0];
-    assign rd_pre_m = pool_pre_mi[NUM_ENTRIES-1:0];
-    assign wr_col_m = pool_col_mi[POOL-1:NUM_ENTRIES];
-    assign wr_act_m = pool_act_mi[POOL-1:NUM_ENTRIES];
-    assign wr_pre_m = pool_pre_mi[POOL-1:NUM_ENTRIES];
+    assign rd_col_m = pool_col_m[NUM_ENTRIES-1:0];
+    assign rd_act_m = pool_act_m[NUM_ENTRIES-1:0];
+    assign rd_pre_m = pool_pre_m[NUM_ENTRIES-1:0];
+    assign wr_col_m = pool_col_m[POOL-1:NUM_ENTRIES];
+    assign wr_act_m = pool_act_m[POOL-1:NUM_ENTRIES];
+    assign wr_pre_m = pool_pre_m[POOL-1:NUM_ENTRIES];
     logic [NUM_BANKS-1:0] w_ref_col_block;
     always_comb begin
         pool_col_m = '0; pool_act_m = '0; pool_pre_m = '0;
@@ -726,19 +688,6 @@ module mc_cmd_arbiter
                 pool_pre_m[e] = r_bank_row_active[RK0][pbank] && !w_guarded[pbank] && !phit
                               && r_bank_pre_ready[RK0][pbank];
             end
-        end
-    end
-
-    // ---- BANK_IN_ORDER mask application ---------------------------------------
-    // Restrict every class to per-bank heads AFTER the base classify, so the
-    // base terms (phit, timers, guards, sink gates) stay single-sourced.
-    always_comb begin
-        for (int e = 0; e < POOL; e++) begin
-            automatic logic head = (e >= NUM_ENTRIES)
-                                 ? w_wr_bh[e - NUM_ENTRIES] : w_rd_bh[e];
-            pool_col_mi[e] = pool_col_m[e] && (!BANK_IN_ORDER || head);
-            pool_act_mi[e] = pool_act_m[e] && (!BANK_IN_ORDER || head);
-            pool_pre_mi[e] = pool_pre_m[e] && (!BANK_IN_ORDER || head);
         end
     end
 

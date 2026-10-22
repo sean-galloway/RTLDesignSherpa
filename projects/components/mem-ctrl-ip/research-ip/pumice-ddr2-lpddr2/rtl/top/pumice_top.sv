@@ -33,6 +33,7 @@ module pumice_top
     parameter int RD_RET_DEPTH   = 32,   // reads in flight (return ring), power of 2
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
+    parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
@@ -273,6 +274,7 @@ module pumice_top
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .CMD_DELAY        (CMD_DELAY),
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .SCHED_CORE       (SCHED_CORE),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE)

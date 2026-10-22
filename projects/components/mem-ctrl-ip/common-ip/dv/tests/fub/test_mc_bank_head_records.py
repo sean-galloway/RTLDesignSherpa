@@ -4,24 +4,29 @@
 FUB test: mc_bank_head_records (common-ip) -- the storage -> scheduler
 per-bank head-record contract (mem-ctrl recovery Phase 1, 2026-10-21).
 
-The DUT turns a backend's per-entry vectors {valid, bank, row, col, older
-matrix, age_exceed} into one REGISTERED record pair per bank: head = the
-oldest schedulable entry of that bank, head2 = the one behind it, each with
-behind_empty (no younger entry of this bank behind it) and the aging flag.
+The DUT turns a backend's per-entry vectors {valid, pend, bank, row, col,
+older matrix, age_exceed} into one REGISTERED record pair per bank: head =
+the oldest schedulable entry of that bank, head2 = the one behind it, each
+with behind_empty (no younger schedulable entry of this bank behind it),
+behind_same_row (a younger same-bank same-row entry -- schedulable OR still
+pending -- exists behind it) and the aging flag.
 
 Method: a Python reference holds a slot table with insertion order; every
 cycle it drives the DUT's vectors (the age matrix is derived from insertion
 order exactly as the CAMs build theirs: older[j][i] = j inserted before i)
 and, one cycle later, checks every bank's two records field by field.
-The stimulus is a random walk of inserts into free slots, pops of random
-valid slots (commit / issue), and aging-flag flips, with the bank mix
-skewed so that banks hold 0, 1, 2 and more candidates often. Slot
+The stimulus is a random walk of inserts into free slots (schedulable, or
+pending with a later "fill" flip), pops of random valid slots (commit /
+issue), fills, and aging-flag flips, with the bank mix skewed so that banks
+hold 0, 1, 2 and more candidates often, and rows drawn from a small set so
+same-row runs are common. Slot
 recycling is exercised by construction (a freed low slot takes a young
 entry), which is the case the entry store's fill target once got wrong.
 
 Production change that fails this test: picking by slot index instead of
-age, miscounting behind_empty, dropping head2, or removing the output
-register (the check is against the PREVIOUS cycle's vectors).
+age, miscounting behind_empty, ignoring pending entries in behind_same_row,
+dropping head2, or removing the output register (the check is against the
+PREVIOUS cycle's vectors).
 
 Levels: TEST_LEVEL gate = 300 cycles, func = 2000, full = 8000.
 """
@@ -63,25 +68,34 @@ class _Model:
     def valid_slots(self):
         return [i for i, e in enumerate(self.slots) if e is not None]
 
-    def insert(self, bank, row, col):
+    def insert(self, bank, row, col, pend=False):
         free = self.free_slots()
         if not free:
             return False
         slot = self.rng.choice(free)            # any free slot, not the lowest
         self.slots[slot] = {"bank": bank, "row": row, "col": col,
-                            "order": self.order, "age": 0}
+                            "order": self.order, "age": 0, "pend": pend}
         self.order += 1
         return True
+
+    def pending_slots(self):
+        return [i for i, e in enumerate(self.slots) if e is not None and e["pend"]]
+
+    def fill(self, slot):
+        self.slots[slot]["pend"] = False
 
     def pop(self, slot):
         self.slots[slot] = None
 
     def vectors(self):
-        valid = bank = row = col = older = agex = 0
+        valid = pend = bank = row = col = older = agex = 0
         for i, e in enumerate(self.slots):
             if e is None:
                 continue
-            valid |= 1 << i
+            if e["pend"]:
+                pend |= 1 << i
+            else:
+                valid |= 1 << i
             bank |= e["bank"] << (i * BKW)
             row |= e["row"] << (i * ROW_WIDTH)
             col |= e["col"] << (i * COL_WIDTH)
@@ -90,13 +104,20 @@ class _Model:
                 # older[i][j] (bit i*N+j) = i inserted strictly before j
                 if f is not None and i != j and e["order"] < f["order"]:
                     older |= 1 << (i * NUM_ENTRIES + j)
-        return dict(valid=valid, bank=bank, row=row, col=col, older=older, agex=agex)
+        return dict(valid=valid, pend=pend, bank=bank, row=row, col=col,
+                    older=older, agex=agex)
+
+    def behind_same_row(self, i):
+        e = self.slots[i]
+        return int(any(f is not None and j != i and f["order"] > e["order"]
+                       and f["bank"] == e["bank"] and f["row"] == e["row"]
+                       for j, f in enumerate(self.slots)))
 
     def expected(self):
         out = {}
         for b in range(NUM_BANKS):
             cands = sorted((i for i, e in enumerate(self.slots)
-                            if e is not None and e["bank"] == b),
+                            if e is not None and e["bank"] == b and not e["pend"]),
                            key=lambda i: self.slots[i]["order"])
             n = len(cands)
             recs = []
@@ -104,9 +125,11 @@ class _Model:
                 if k < n:
                     i = cands[k]; e = self.slots[i]
                     recs.append(dict(vld=1, row=e["row"], col=e["col"], slot=i,
-                                     behind_empty=int(n == k + 1), age=e["age"]))
+                                     behind_empty=int(n == k + 1),
+                                     bsr=self.behind_same_row(i), age=e["age"]))
                 else:
-                    recs.append(dict(vld=0, row=0, col=0, slot=0, behind_empty=0, age=0))
+                    recs.append(dict(vld=0, row=0, col=0, slot=0, behind_empty=0,
+                                     bsr=0, age=0))
             out[b] = recs
         return out
 
@@ -127,6 +150,7 @@ def _read_records(dut):
                 col=_field(getattr(dut, f"{pfx}_col").value, b, HEAD_COL_W) if vld else 0,
                 slot=_field(getattr(dut, f"{pfx}_slot").value, b, HEAD_SLOT_W) if vld else 0,
                 behind_empty=_field(getattr(dut, f"{pfx}_behind_empty").value, b, 1) if vld else 0,
+                bsr=_field(getattr(dut, f"{pfx}_behind_same_row").value, b, 1) if vld else 0,
                 age=_field(getattr(dut, f"{pfx}_age_exceed").value, b, 1) if vld else 0,
             ))
         got[b] = recs
@@ -135,6 +159,7 @@ def _read_records(dut):
 
 def _drive(dut, v):
     dut.sch_valid.value = v["valid"]
+    dut.sch_pend.value = v["pend"]
     dut.sch_bank.value = v["bank"]
     dut.sch_row.value = v["row"]
     dut.sch_col.value = v["col"]
@@ -145,7 +170,7 @@ def _drive(dut, v):
 async def _reset(dut):
     cocotb.start_soon(Clock(dut.clk, 10, unit="ns").start())
     dut.rst_n.value = 0
-    _drive(dut, dict(valid=0, bank=0, row=0, col=0, older=0, agex=0))
+    _drive(dut, dict(valid=0, pend=0, bank=0, row=0, col=0, older=0, agex=0))
     for _ in range(5):
         await RisingEdge(dut.clk)
     dut.rst_n.value = 1
@@ -171,15 +196,23 @@ async def cocotb_test_bank_head_records(dut):
     # Hot-bank mix: 60% of inserts go to two banks so 2+ candidates per
     # bank are common, the rest spread so 0/1 are common too.
     hot = rng.sample(range(NUM_BANKS), 2)
+    # Rows from a 3-entry set per bank so same-row runs (behind_same_row=1)
+    # and row switches (=0) both happen; ~30% of inserts land pending.
+    rows = [rng.randrange(1 << ROW_WIDTH) for _ in range(3)]
     checked = 0
     prev_expected = None
     for cyc in range(cycles):
         # ---- stimulus for this cycle ----
         r = rng.random()
-        if r < 0.45:
+        if r < 0.40:
             bank = rng.choice(hot) if rng.random() < 0.6 else rng.randrange(NUM_BANKS)
-            m.insert(bank, rng.randrange(1 << ROW_WIDTH), rng.randrange(1 << COL_WIDTH))
-        elif r < 0.80:
+            m.insert(bank, rng.choice(rows), rng.randrange(1 << COL_WIDTH),
+                     pend=(rng.random() < 0.3))
+        elif r < 0.52:
+            ps = m.pending_slots()
+            if ps:
+                m.fill(rng.choice(ps))
+        elif r < 0.82:
             vs = m.valid_slots()
             if vs:
                 m.pop(rng.choice(vs))
@@ -201,7 +234,7 @@ async def cocotb_test_bank_head_records(dut):
             for k, name in enumerate(("head", "head2")):
                 assert got[b][k] == exp_now[b][k], (
                     f"cycle {cyc} bank {b} {name}: got {got[b][k]} expected {exp_now[b][k]}; "
-                    f"slots={[(i, e['bank'], e['order']) for i, e in enumerate(m.slots) if e]}")
+                    f"slots={[(i, e['bank'], e['row'], e['order'], e['pend']) for i, e in enumerate(m.slots) if e]}")
         checked += 1
         prev_expected = exp_now
         await RisingEdge(dut.clk)

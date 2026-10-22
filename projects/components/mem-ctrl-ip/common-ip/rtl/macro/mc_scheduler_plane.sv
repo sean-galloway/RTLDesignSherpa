@@ -47,11 +47,11 @@ module mc_scheduler_plane
     parameter bit HAS_ZQ      = 1'b0,
     parameter int MAINT_EXTRA_WIDTH = 1,
     parameter bit CLOSE_ON_DRAIN = 1'b1,
-    parameter bit BANK_IN_ORDER  = 1'b0,
-    // SCHED_CORE select: BANK_FIFO = the per-bank in-order product core
-    // (mc_bank_sched, the family design); 0 = the FRFCFS research core
-    // (mc_cmd_arbiter). See common-ip/docs/mc_scheduler_plane_v2.md.
-    parameter bit BANK_FIFO      = 1'b0,
+    // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick, the family core on the
+    // per-bank head-record contract (wr/rd_head*_i); MC_SCHED_FRFCFS =
+    // mc_cmd_arbiter, the research core on the per-entry vectors (*_sch_*_i).
+    // See common-ip/docs/mc_scheduler_plane_v2.md.
+    parameter int SCHED_CORE     = MC_SCHED_BANK_PICK,
     // v2 children composition
     parameter bit HAS_INIT_SEQUENCER = 1'b1,
     parameter bit HAS_MODE_REGISTER  = 1'b1,
@@ -219,37 +219,18 @@ module mc_scheduler_plane
     input  logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_i,
     input  logic [15:0]                         rd_sch_head_rel_i,
 
-    // ---- BANK_FIFO storage head views (from mc_xddr2_entry_store; tied off
-    // when the FRFCFS core is selected) ------------------------------------
-    input  logic [NUM_BANKS-1:0]                wr_bh_valid_i,
-    input  logic [NUM_BANKS*PTRW-1:0]           wr_bh_slot_i,
-    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh_row_i,
-    input  logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh_col_i,
-    input  logic [NUM_BANKS*IW-1:0]             wr_bh_id_i,
-    input  logic [NUM_BANKS-1:0]                wr_bh_last_i,
-    input  logic [NUM_BANKS-1:0]                wr_bh_empty_i,
-    input  logic [NUM_BANKS-1:0]                rd_bh_valid_i,
-    input  logic [NUM_BANKS*PTRW-1:0]           rd_bh_slot_i,
-    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh_row_i,
-    input  logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh_col_i,
-    input  logic [NUM_BANKS*IW-1:0]             rd_bh_id_i,
-    input  logic [NUM_BANKS-1:0]                rd_bh_empty_i,
-    input  logic [NUM_BANKS-1:0]                wr_bh2_valid_i,
-    input  logic [NUM_BANKS*PTRW-1:0]           wr_bh2_slot_i,
-    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      wr_bh2_row_i,
-    input  logic [NUM_BANKS*COL_WIDTH-1:0]      wr_bh2_col_i,
-    input  logic [NUM_BANKS*IW-1:0]             wr_bh2_id_i,
-    input  logic [NUM_BANKS-1:0]                wr_bh2_last_i,
-    input  logic [NUM_BANKS-1:0]                rd_bh2_valid_i,
-    input  logic [NUM_BANKS*PTRW-1:0]           rd_bh2_slot_i,
-    input  logic [NUM_BANKS*ROW_WIDTH-1:0]      rd_bh2_row_i,
-    input  logic [NUM_BANKS*COL_WIDTH-1:0]      rd_bh2_col_i,
-    input  logic [NUM_BANKS*IW-1:0]             rd_bh2_id_i,
+    // ---- per-bank head records (storage -> scheduler contract; consumed by
+    // the BANK_PICK core, ignored by FRFCFS) ---------------------------------
+    input  mc_head_rec_t [NUM_BANKS-1:0]        wr_head_i,
+    input  mc_head_rec_t [NUM_BANKS-1:0]        wr_head2_i,
+    input  mc_head_rec_t [NUM_BANKS-1:0]        rd_head_i,
+    input  mc_head_rec_t [NUM_BANKS-1:0]        rd_head2_i,
     input  logic                                rd_issue_ready_i,
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
 
-    // ---- read-return busy from DFI plane (BANK_FIFO core only) ----
+    // ---- read-return busy from DFI plane (BANK_PICK core: REF stays out of
+    // an open read-return window) ----
     input  logic                                rd_ret_busy_i,
 
     // ---- output command stream (to DFI plane) ----
@@ -320,6 +301,19 @@ module mc_scheduler_plane
 
     logic                       w_refpb_en;
     assign w_refpb_en = (ref_mode_i == 2'd2) && (memtype_i == MEMTYPE_LPDDR2);
+
+    // demand (refresh postpone / page-policy telemetry): from whichever
+    // storage view this core consumes
+    logic                       w_demand;
+    generate if (SCHED_CORE == MC_SCHED_BANK_PICK) begin : g_demand_rec
+        always_comb begin
+            w_demand = 1'b0;
+            for (int b = 0; b < NUM_BANKS; b++)
+                if (wr_head_i[b].vld || rd_head_i[b].vld) w_demand = 1'b1;
+        end
+    end else begin : g_demand_vec
+        assign w_demand = |rd_sch_valid_i || |wr_sch_valid_i;
+    end endgenerate
 
     generate
         if (HAS_INIT_SEQUENCER) begin : g_init
@@ -429,10 +423,18 @@ module mc_scheduler_plane
                 .enable_i        (init_done),
                 .postpone_limit_i(ref_postpone_i),
                 .pullin_limit_i  (ref_pullin_i),
-                .demand_i        (|rd_sch_valid_i || |wr_sch_valid_i),
+                .demand_i        (w_demand),
                 .refresh_req_o   (refresh_req),
                 .refresh_grant_i (refresh_grant),
-                .grant_was_pb_i  (cmd_op_o == OP_REFPB),
+                // The kind of the command being GRANTED: both cores pulse
+                // refresh_grant in the cycle they push the REF/REFpb into the
+                // command FIFO, so it is the push-side op. (The FIFO-head op
+                // was used here before; at the push cycle the head is an older
+                // command or empty, so the REFpb rotor mirror only advanced
+                // by luck of the FIFO contents -- it never did on mc_bank_pick,
+                // and the controller then precharged the wrong bank ahead of
+                // every device refresh: pumice refpb read back zeros.)
+                .grant_was_pb_i  (a_cmd_op == OP_REFPB),
                 .pending_refreshes_o   (),
                 .refresh_drain_active_o(refresh_drain),
                 .refresh_kind_o        (w_refresh_kind),
@@ -482,7 +484,7 @@ module mc_scheduler_plane
                 .stat_act_o        (stat_act_o),
                 .stat_pre_o        (stat_pre_o),
                 .stat_ref_o        (stat_ref_o),
-                .demand_i          (|rd_sch_valid_i || |wr_sch_valid_i),
+                .demand_i          (w_demand),
                 .stat_ref_busy_o   (stat_ref_busy_o)
             );
         end else begin : g_no_page_policy
@@ -518,11 +520,18 @@ module mc_scheduler_plane
     // ======================================================================
     // mc_bank_timers — per-bank safe timers (open-page).
     // ======================================================================
+    // Lookahead depth = the pick core's decode-to-fire depth: 2 for
+    // mc_bank_pick (decode -> winner -> fire), 4 for the FRFCFS pipe (its LA
+    // sweep saturated at 3; see the pumice CLAUDE.md). The AP-aware term is
+    // what lets mc_bank_pick request the ACT exactly tRP after an RDA/WRA
+    // self-close; the research core keeps the original conservative la.
+    localparam int BANK_LA_EFF = (SCHED_CORE == MC_SCHED_BANK_PICK) ? 2 : 4;
     mc_bank_timers #(
-        .NUM_RANKS(NUM_RANKS),
-        .NUM_BANKS(NUM_BANKS),
-        .ROW_WIDTH(ROW_WIDTH),
-        .BANK_LA  (4)
+        .NUM_RANKS (NUM_RANKS),
+        .NUM_BANKS (NUM_BANKS),
+        .ROW_WIDTH (ROW_WIDTH),
+        .BANK_LA   (BANK_LA_EFF),
+        .BANK_LA_AP(SCHED_CORE == MC_SCHED_BANK_PICK)
     ) u_bank_timers (
         .aclk             (aclk),
         .aresetn          (aresetn),
@@ -606,12 +615,13 @@ module mc_scheduler_plane
     );
 
     // ======================================================================
-    // Pick core: BANK_FIFO = per-bank in-order product core (family design);
-    // else the FRFCFS research core. Both drive the plane outputs directly
-    // (exactly one branch elaborates).
+    // Pick core: MC_SCHED_BANK_PICK = mc_bank_pick on the head records (the
+    // family core); MC_SCHED_FRFCFS = mc_cmd_arbiter on the per-entry
+    // vectors (research). Both drive the plane outputs directly (exactly one
+    // branch elaborates).
     // ======================================================================
     // rd_ret_busy_i originates in the DFI plane's dfi_clk domain; synchronize
-    // to aclk before gating the per-bank scheduler's refresh grant.
+    // to aclk before gating the per-bank core's refresh grant.
     logic r_rd_ret_busy_sync0, r_rd_ret_busy_sync1;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
@@ -623,52 +633,35 @@ module mc_scheduler_plane
         end
     )
 
-    generate if (BANK_FIFO) begin : g_bank_sched
-        mc_bank_sched #(
+    generate if (SCHED_CORE == MC_SCHED_BANK_PICK) begin : g_bank_pick
+        mc_bank_pick #(
             .NUM_RANKS   (NUM_RANKS),
             .NUM_BANKS   (NUM_BANKS),
             .ROW_WIDTH   (ROW_WIDTH),
             .COL_WIDTH   (COL_WIDTH),
-            .AXI_ID_WIDTH(IW),
             .NUM_ENTRIES (NUM_ENTRIES),
             .HAS_ZQ      (HAS_ZQ),
             .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
-            .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH)
-        ) u_bank_sched (
+            .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
+            .LA          (BANK_LA_EFF)
+        ) u_bank_pick (
             .aclk               (aclk),
             .aresetn            (aresetn),
             .page_policy_i      (page_policy_i),
-            .wr_bh_valid_i      (wr_bh_valid_i),
-            .wr_bh_slot_i       (wr_bh_slot_i),
-            .wr_bh_row_i        (wr_bh_row_i),
-            .wr_bh_col_i        (wr_bh_col_i),
-            .wr_bh_id_i         (wr_bh_id_i),
-            .wr_bh_last_i       (wr_bh_last_i),
-            .wr_bh_empty_i      (wr_bh_empty_i),
-            .rd_bh_valid_i      (rd_bh_valid_i),
-            .rd_bh_slot_i       (rd_bh_slot_i),
-            .rd_bh_row_i        (rd_bh_row_i),
-            .rd_bh_col_i        (rd_bh_col_i),
-            .rd_bh_id_i         (rd_bh_id_i),
-            .rd_bh_empty_i      (rd_bh_empty_i),
-            .wr_bh2_valid_i     (wr_bh2_valid_i),
-            .wr_bh2_slot_i      (wr_bh2_slot_i),
-            .wr_bh2_row_i       (wr_bh2_row_i),
-            .wr_bh2_col_i       (wr_bh2_col_i),
-            .wr_bh2_id_i        (wr_bh2_id_i),
-            .wr_bh2_last_i      (wr_bh2_last_i),
-            .rd_bh2_valid_i     (rd_bh2_valid_i),
-            .rd_bh2_slot_i      (rd_bh2_slot_i),
-            .rd_bh2_row_i       (rd_bh2_row_i),
-            .rd_bh2_col_i       (rd_bh2_col_i),
-            .rd_bh2_id_i        (rd_bh2_id_i),
+            .ap_mode_en_i       (w_pp_ap_en),
+            .ap_close_i         (w_pp_ap_close),
+            .timeout_pre_req_i  (w_pp_to_req),
+            .timeout_pre_bank_i (w_pp_to_bank),
+            .wr_head_i          (wr_head_i),
+            .wr_head2_i         (wr_head2_i),
+            .rd_head_i          (rd_head_i),
+            .rd_head2_i         (rd_head2_i),
             .wr_commit_ready_i  (wr_commit_ready_i),
             .wr_commit_valid_o  (wr_commit_valid_o),
             .wr_commit_slot_o   (wr_commit_slot_o),
             .rd_issue_ready_i   (rd_issue_ready_i),
             .rd_issue_valid_o   (rd_issue_valid_o),
             .rd_issue_slot_o    (rd_issue_slot_o),
-            .rd_ret_busy_i      (r_rd_ret_busy_sync1),
             .init_done_i        (init_done),
             .init_cmd_valid_i   (init_cmd_valid),
             .init_cmd_op_i      (init_cmd_op),
@@ -681,6 +674,7 @@ module mc_scheduler_plane
             .refresh_grant_o    (refresh_grant),
             .t_rfc_i            (t_rfc_i),
             .t_rfc_pb_i         (ref_trfc_pb_i),
+            .rd_ret_busy_i      (r_rd_ret_busy_sync1),
             .zq_req_i           (zq_req_i),
             .zq_grant_o         (zq_grant_o),
             .t_zqcs_i           (t_zqcs_i),
@@ -705,6 +699,11 @@ module mc_scheduler_plane
             .twtr_ok_i          (w_twtr_ok),
             .trtw_ok_i          (w_trtw_ok),
             .t_ccd_i            (t_ccd_i),
+            .t_rcd_i            (t_rcd_i),
+            .t_rp_i             (t_rp_i),
+            .t_wr_i             (t_wr_i),
+            .t_rtp_i            (t_rtp_i),
+            .dir_batch_max_i    (sched_wr_batch_max_i),
             .evt_act_o          (evt_act),
             .evt_rd_o           (evt_rd),
             .evt_wr_o           (evt_wr),
@@ -732,6 +731,16 @@ module mc_scheduler_plane
             .stall_zq_o         (stall_zq_o)
         );
         assign a_cmd_bg = '0;
+        // research-core-only inputs
+        wire _unused_pick = &{1'b0, sched_order_mode_i, sched_row_sel_i, sched_col_sel_i,
+                              sched_access_pref_i, sched_wr_high_wm_i, sched_wr_low_wm_i,
+                              sched_prio_sub_i, sched_qos_en_i,
+                              w_tccd_ok, w_tccd_l_ok, w_trrd_l_ok,
+                              wr_sch_bank_i, wr_sch_row_i, wr_sch_col_i, wr_sch_older_i,
+                              wr_sch_age_exceed_i, wr_sch_qos_i, wr_sch_head_rel_i,
+                              rd_sch_bank_i, rd_sch_row_i, rd_sch_col_i, rd_sch_older_i,
+                              rd_sch_age_exceed_i, rd_sch_qos_i, rd_sch_head_rel_i,
+                              wr_sch_valid_i, rd_sch_valid_i};
     end else begin : g_arbiter
     // ======================================================================
     // mc_cmd_arbiter — the FRFCFS research pick core.
@@ -747,8 +756,7 @@ module mc_scheduler_plane
         .AGE_WIDTH   (AGE_WIDTH),
         .HAS_ZQ      (HAS_ZQ),
         .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
-        .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
-        .BANK_IN_ORDER (BANK_IN_ORDER)
+        .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN)
     ) u_arbiter (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -854,6 +862,8 @@ module mc_scheduler_plane
         .stall_noreq_o      (stall_noreq_o),
         .stall_zq_o         (stall_zq_o)
     );
+        wire _unused_arb = &{1'b0, wr_head_i, wr_head2_i, rd_head_i, rd_head2_i,
+                             r_rd_ret_busy_sync1, sched_wr_batch_max_i};
     end endgenerate
 
     assign maint_grant_o = w_maint_grant;

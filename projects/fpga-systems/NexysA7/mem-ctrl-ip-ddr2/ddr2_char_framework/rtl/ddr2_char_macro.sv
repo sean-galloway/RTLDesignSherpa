@@ -54,6 +54,7 @@ module ddr2_char_macro
     // watch spacing at the pins -- where TASK-007's defects lived, and where
     // the scheduler-side checker is structurally blind.
     parameter int CMD_HISTORY_EN  = 0,
+    parameter int SCHED_CORE      = 1,    // pumice pick core (mc_common_pkg MC_SCHED_*): 1 = BANK_PICK, 0 = FRFCFS
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,
@@ -508,6 +509,7 @@ module ddr2_char_macro
     // widths with the formal AXI dwidth converters.
     pumice_top_geared #(
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
+        .SCHED_CORE       (SCHED_CORE),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),

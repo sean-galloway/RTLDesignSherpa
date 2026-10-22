@@ -4,21 +4,30 @@
 // RTL Design Sherpa - Industry-Standard RTL Design and Verification
 // https://github.com/sean-galloway/RTLDesignSherpa
 //
-// Macro contract testbench: mc_xddr2_entry_store + the REAL mc_cmd_arbiter.
+// Macro contract testbench: mc_xddr2_entry_store + a REAL pick core.
 //
-// Why this exists: the store<->arbiter commit/issue ready contract is
-// STRUCTURAL ("sink has room"), and the arbiter's column mask gates the whole
-// pick pool on that one scalar. A slot-qualified ready closes a combinational
-// circle that permanently wedges the scheduler once a committed slot drains
-// while the arbiter's slot pointer still references it -- invisible at N=1
-// (the next push self-heals) and invisible to any fub-level test of the store
-// alone. Only store+arbiter co-simulation at NUM_ENTRIES>=2 with MORE than N
-// chunks per direction exercises it. See the 2026-10-13/14 granite hang:
-// 9 commits, then a permanent stall with 7 filled entries schedulable.
+// SCHED_CORE selects the core under test (mc_common_pkg MC_SCHED_*):
+//   MC_SCHED_BANK_PICK  entry store -> mc_bank_head_records (x2) -> mc_bank_pick
+//   MC_SCHED_FRFCFS     entry store -> mc_cmd_arbiter (per-entry vectors)
 //
-// All DRAM-side inputs are tied permissive (page always open to row 0 on
-// every bank, every timer ok, DFI command bus always ready) so the pick pool
-// lives or dies purely on the commit/issue contract under test.
+// Why this exists: the store<->core commit/issue ready contract is STRUCTURAL
+// ("sink has room"), and a core gates its column picks on that one scalar. A
+// slot-qualified ready closes a combinational circle that permanently wedges
+// the scheduler once a committed slot drains while the core's slot pointer
+// still references it -- invisible at N=1 (the next push self-heals) and
+// invisible to any fub-level test of the store alone. Only store+core
+// co-simulation at NUM_ENTRIES>=2 with MORE than N chunks per direction
+// exercises it. See the 2026-10-13/14 granite hang: 9 commits, then a
+// permanent stall with 7 filled entries schedulable.
+//
+// The four pipeline-acceptance cells (hold-on-not-fired, zero-bubble stream,
+// post-pop winner, override preempts a held pick) read the core through the
+// generic observability outputs below, never through core internals, so one
+// test file scores both cores.
+//
+// All DRAM-side inputs are tied permissive (page open to row 0 on every bank,
+// every timer ok) except the cocotb-driven live gates and the init override,
+// so the pick pool lives or dies purely on the contract under test.
 
 `timescale 1ns / 1ps
 
@@ -36,6 +45,11 @@ module mc_store_arbiter_macro_tb_top
     parameter int COL_WIDTH           = 10,
     parameter int AXI_BEATS_PER_BURST = 1,
     parameter int RD_RET_DEPTH        = 32,
+    parameter int SCHED_CORE          = MC_SCHED_BANK_PICK,
+    // The pick core's close-on-drain is exact (AP on the last same-row entry);
+    // off here so the stub bank model's AP close cannot manufacture bubbles in
+    // the streaming cells. The FRFCFS core keeps its own default.
+    parameter bit PICK_CLOSE_ON_DRAIN = 1'b0,
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
     parameter int DW   = AXI_DATA_WIDTH,
@@ -74,19 +88,27 @@ module mc_store_arbiter_macro_tb_top
     input  logic [IW-1:0]        ar_push_id,
     input  logic [3:0]           ar_push_qos,
 
-    // Observability
+    // Observability: contract counters
     output logic                 wr_done_valid,
     output logic [IW-1:0]        wr_done_id,
     output logic [31:0]          commit_count,
     output logic [31:0]          drain_count,
     output logic [31:0]          rd_issue_count,
     output logic [31:0]          cmd_count,
-    // Live JEDEC gate + init-override controls (from cocotb). These were
-    // constant-tied at the arbiter instantiation; Verilator folds a constant
-    // port away, so every cocotb deposit on u_arb.bank_*_ready_i / init_*
-    // was a silent no-op and cocotb_test_hold_on_gate_block could never
-    // create the block it asserts on (pumice-100mhz ledger, 2026-10-21).
-    // The _la twins mirror the live gates (BANK_LA=0 semantics).
+    // Observability: the core's output stage (generic across cores)
+    output logic                 pick_valid,     // a demand winner is held in the output stage
+    output logic                 cmd_valid,      // fires this cycle (with cmd_ready)
+    output logic                 cmd_ready,
+    output logic [4:0]           cmd_op,
+    output logic [BKW-1:0]       cmd_bank,
+    output logic [ROW_WIDTH-1:0] cmd_row,
+    output logic [COL_WIDTH-1:0] cmd_col,
+    output logic                 cmd_ap,
+    output logic [PTRW-1:0]      cmd_slot,       // commit / issue slot of the output command
+    // Live JEDEC gate + init-override controls (from cocotb). Real TB inputs:
+    // a constant-tied core port is folded by Verilator and a cocotb deposit
+    // on it is a silent no-op (pumice-100mhz ledger, 2026-10-21). The _la
+    // twins mirror the live gates (BANK_LA=0 semantics).
     input  logic [NUM_BANKS-1:0] bank_act_ready,
     input  logic [NUM_BANKS-1:0] bank_rdwr_ready,
     input  logic [NUM_BANKS-1:0] bank_pre_ready,
@@ -94,18 +116,28 @@ module mc_store_arbiter_macro_tb_top
     input  logic                 init_cmd_valid,
     input  logic [4:0]           init_cmd_op,
     input  logic [BKW-1:0]       init_cmd_bank,
-    input  logic [ROW_WIDTH-1:0] init_cmd_row
+    input  logic [ROW_WIDTH-1:0] init_cmd_row,
+    // Command-bus pacing (from cocotb): 0 = the TB's 1-in-4 drain pace (the
+    // real DFI acceptance shape), 1 = ready every cycle, 2 = never ready.
+    // A real input, not a deposit on the pacing counter: a register deposit
+    // is overtaken by the register's own next-state at the edge.
+    input  logic [1:0]           cmd_ready_mode,
+    // 1 = the lookahead twins read all-ready regardless of the live gates, so a
+    // live-gate dip models "the lookahead said ready, the fire stage said not
+    // yet" (a reload race) rather than an unphysical timer that re-arms. 0 =
+    // twins mirror the live gates (BANK_LA=0 semantics).
+    input  logic                 la_open
 );
 
     // ------------------------------------------------------------------
-    // DUT wiring: store <-> arbiter (the contract under test)
+    // DUT wiring: store <-> core (the contract under test)
     // ------------------------------------------------------------------
     logic                     wr_commit_valid, wr_commit_ready;
     logic [PTRW-1:0]          wr_commit_slot;
     logic                     rd_issue_valid, rd_issue_ready;
     logic [PTRW-1:0]          rd_issue_slot;
 
-    logic [NUM_ENTRIES-1:0]             wr_sch_valid, rd_sch_valid;
+    logic [NUM_ENTRIES-1:0]             wr_sch_valid, rd_sch_valid, wr_sch_pend;
     logic [NUM_ENTRIES*BKW-1:0]         wr_sch_bank,  rd_sch_bank;
     logic [NUM_ENTRIES*ROW_WIDTH-1:0]   wr_sch_row,   rd_sch_row;
     logic [NUM_ENTRIES*COL_WIDTH-1:0]   wr_sch_col,   rd_sch_col;
@@ -182,6 +214,7 @@ module mc_store_arbiter_macro_tb_top
         .rd_issue_ready_o   (rd_issue_ready),
         .rd_issue_slot_i    (rd_issue_slot),
         .wr_sch_valid_o     (wr_sch_valid),
+        .wr_sch_pend_o      (wr_sch_pend),
         .wr_sch_bank_o      (wr_sch_bank),
         .wr_sch_row_o       (wr_sch_row),
         .wr_sch_col_o       (wr_sch_col),
@@ -197,15 +230,6 @@ module mc_store_arbiter_macro_tb_top
         .rd_sch_age_exceed_o(rd_age_exceed),
         .rd_sch_qos_o       (rd_sch_qos),
         .rd_sch_head_rel_o  (rd_head_rel),
-        .wr_bh_valid_o      (), .wr_bh_slot_o      (), .wr_bh_row_o       (),
-        .wr_bh_col_o        (), .wr_bh_id_o        (), .wr_bh_last_o      (),
-        .wr_bh_empty_o      (),
-        .rd_bh_valid_o      (), .rd_bh_slot_o      (), .rd_bh_row_o       (),
-        .rd_bh_col_o        (), .rd_bh_id_o        (), .rd_bh_empty_o     (),
-        .wr_bh2_valid_o     (), .wr_bh2_slot_o     (), .wr_bh2_row_o      (),
-        .wr_bh2_col_o       (), .wr_bh2_id_o       (), .wr_bh2_last_o     (),
-        .rd_bh2_valid_o     (), .rd_bh2_slot_o     (), .rd_bh2_row_o      (),
-        .rd_bh2_col_o       (), .rd_bh2_id_o       (),
         .wr_cm_rd_valid_o   (cm_valid),
         .wr_cm_rd_ready_i   (cm_ready),
         .wr_cm_rd_data_o    (cm_data),
@@ -214,170 +238,307 @@ module mc_store_arbiter_macro_tb_top
         .busy_o             ()
     );
 
-    logic        cmd_valid;
-    dram_op_e    cmd_op;
-    logic        cmd_ap;
-    logic [BKW-1:0] cmd_bank;
-
-    // Close-on-AP bank model. The old stub held every row open forever
-    // ("page always open"), which was fine until CLOSE_ON_DRAIN: the
-    // arbiter's last-column auto-precharge (RDA/WRA) raises r_ap_closing,
-    // and that guard only clears when the row image drops -- with rows
-    // pinned open it never cleared and every column to the bank wedged.
-    // The real mc_bank_timer clears row_valid at its internal AP fire
-    // (preblk+tRAS after the column, ~6 cycles at this geometry). Model
-    // exactly that: an AP column (cmd_valid && cmd_ap) starts a per-bank
-    // countdown, the row drops at zero, and a subsequent ACT re-opens the
-    // row AND aborts the pending close (the timer's r_ap_pending clear).
-    // All *_ready stay permissive -- this TB verifies the commit/issue
-    // contract, not JEDEC timing.
+    // ------------------------------------------------------------------
+    // Stub bank model + cocotb-driven live gates
+    // ------------------------------------------------------------------
+    // Close-on-AP bank model: an AP column starts a per-bank countdown, the
+    // row drops at zero, an ACT re-opens it and aborts the pending close
+    // (the real mc_bank_timer's shape). Rows start open to row 0.
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0] stub_row_active;
     logic [NUM_BANKS-1:0][3:0]           stub_ap_cnt;
-    // cocotb-driven live gates, shaped for the arbiter's [rank][bank] ports.
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_act_rdy, w_rdwr_rdy, w_pre_rdy;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_act_la, w_rdwr_la, w_pre_la;
     always_comb begin
         w_act_rdy  = '0; w_rdwr_rdy = '0; w_pre_rdy = '0;
         w_act_rdy [0] = bank_act_ready;
         w_rdwr_rdy[0] = bank_rdwr_ready;
         w_pre_rdy [0] = bank_pre_ready;
+        w_act_la  = la_open ? '1 : w_act_rdy;
+        w_rdwr_la = la_open ? '1 : w_rdwr_rdy;
+        w_pre_la  = la_open ? '1 : w_pre_rdy;
     end
 
-    mc_cmd_arbiter #(
-        .NUM_RANKS  (NUM_RANKS),
-        .NUM_BANKS  (NUM_BANKS),
-        .ROW_WIDTH  (ROW_WIDTH),
-        .COL_WIDTH  (COL_WIDTH),
-        .AXI_ID_WIDTH(IW),
-        .NUM_ENTRIES(NUM_ENTRIES)
-    ) u_arb (
-        .aclk               (aclk),
-        .aresetn            (aresetn),
-        .page_policy_i      (PAGE_POLICY_OPEN),
-        .sched_order_mode_i (2'd0),
-        .sched_row_sel_i    (2'd0),
-        .sched_col_sel_i    (2'd0),
-        .sched_access_pref_i(2'd0),
-        .sched_wr_high_wm_i (8'd0),
-        .sched_wr_batch_max_i(8'd0),
-        .sched_wr_low_wm_i  (8'd0),
-        .sched_prio_sub_i   (2'd0),
-        .sched_qos_en_i     (1'b0),
-        .rd_sch_qos_i       (rd_sch_qos),
-        .wr_sch_qos_i       (wr_sch_qos),
-        .rd_sch_age_exceed_i(rd_age_exceed),
-        .wr_sch_age_exceed_i(wr_age_exceed),
-        .rd_sch_head_rel_i  (rd_head_rel),
-        .wr_sch_head_rel_i  (wr_head_rel),
-        .ap_mode_en_i       (1'b0),
-        .ap_close_i         ('0),
-        .timeout_pre_req_i  (1'b0),
-        .timeout_pre_bank_i ('0),
-        .init_done_i        (init_done),
-        .init_cmd_valid_i   (init_cmd_valid),
-        .init_cmd_op_i      (dram_op_e'(init_cmd_op)),
-        .init_cmd_bank_i    (init_cmd_bank),
-        .init_cmd_row_i     (init_cmd_row),
-        .refresh_req_i      (1'b0),
-        .refresh_drain_i    (1'b0),
-        .refresh_kind_i     (1'b0),
-        .refresh_bank_i     ('0),
-        .refresh_grant_o    (),
-        .t_rfc_i            (16'd0),
-        .t_rfc_pb_i         (8'd0),
-        .zq_req_i           (1'b0),
-        .zq_grant_o         (),
-        .t_zqcs_i           (16'd0),
-        .maint_req_i        (1'b0),
-        .maint_grant_o      (),
-        .maint_op_i         (dram_op_e'(0)),
-        .maint_bank_i       ('0),
-        .maint_row_i        ('0),
-        .maint_col_i        ('0),
-        .maint_extra_i      ('0),
-        .maint_busy_i       (1'b0),
-        .bank_act_ready_i   (w_act_rdy),
-        .bank_rdwr_ready_i  (w_rdwr_rdy),
-        .bank_pre_ready_i   (w_pre_rdy),
-        .bank_act_ready_la_i(w_act_rdy),
-        .bank_rdwr_ready_la_i(w_rdwr_rdy),
-        .bank_pre_ready_la_i(w_pre_rdy),
-        .bank_row_active_i  (stub_row_active),
-        .bank_open_row_i    ('0),
-        .tfaw_ok_i          ('1),
-        .trrd_ok_i          ('1),
-        .twtr_ok_i          (1'b1),
-        .trtw_ok_i          (1'b1),
-        .tccd_ok_i          (1'b1),
-        .tccd_l_ok_i        (1'b1),
-        .trrd_l_ok_i        (1'b1),
-        .pick_group_o       (),
-        .t_ccd_i            (8'd0),
-        .wr_sch_valid_i     (wr_sch_valid),
-        .wr_sch_bank_i      (wr_sch_bank),
-        .wr_sch_row_i       (wr_sch_row),
-        .wr_sch_col_i       (wr_sch_col),
-        .wr_sch_older_i     (wr_sch_older),
-        .wr_commit_ready_i  (wr_commit_ready),
-        .wr_commit_valid_o  (wr_commit_valid),
-        .wr_commit_slot_o   (wr_commit_slot),
-        .rd_sch_valid_i     (rd_sch_valid),
-        .rd_sch_bank_i      (rd_sch_bank),
-        .rd_sch_row_i       (rd_sch_row),
-        .rd_sch_col_i       (rd_sch_col),
-        .rd_sch_older_i     (rd_sch_older),
-        .rd_issue_ready_i   (rd_issue_ready),
-        .rd_issue_valid_o   (rd_issue_valid),
-        .rd_issue_slot_o    (rd_issue_slot),
-        .evt_act_o          (),
-        .evt_rd_o           (),
-        .evt_wr_o           (),
-        .evt_pre_o          (),
-        .evt_ap_o           (),
-        .evt_rank_o         (),
-        .evt_bank_o         (),
-        .evt_row_o          (),
-        .cmd_valid_o        (cmd_valid),
-        .cmd_ready_i        (cm_ready),   // real shape: cmd bus paces with the drain
-        .cmd_op_o           (cmd_op),
-        .cmd_rank_o         (),
-        .cmd_bank_o         (cmd_bank),
-        .cmd_row_o          (),
-        .cmd_col_o          (),
-        .cmd_ap_o           (cmd_ap),
-        .cmd_extra_o        (),
-        .stall_bp_o         (),
-        .stall_refresh_o    (),
-        .stall_turnaround_o (),
-        .stall_tccd_o       (),
-        .stall_actlimit_o   (),
-        .stall_banktimer_o  (),
-        .stall_noreq_o      (),
-        .stall_zq_o         ()
-    );
+    logic        core_cmd_valid;
+    dram_op_e    core_cmd_op;
+    logic        core_cmd_ap;
+    logic [BKW-1:0] core_cmd_bank;
+    logic [ROW_WIDTH-1:0] core_cmd_row;
+    logic [COL_WIDTH-1:0] core_cmd_col;
+    logic        core_pick_valid;
+
+    generate if (SCHED_CORE == MC_SCHED_BANK_PICK) begin : g_pick
+        mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
+
+        mc_bank_head_records #(
+            .NUM_ENTRIES(NUM_ENTRIES), .NUM_BANKS(NUM_BANKS),
+            .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH)
+        ) u_wr_heads (
+            .clk(aclk), .rst_n(aresetn),
+            .sch_valid_i(wr_sch_valid), .sch_pend_i(wr_sch_pend),
+            .sch_bank_i(wr_sch_bank), .sch_row_i(wr_sch_row), .sch_col_i(wr_sch_col),
+            .sch_older_i(wr_sch_older), .sch_age_exceed_i(wr_age_exceed),
+            .head_o(w_wr_head), .head2_o(w_wr_head2)
+        );
+        mc_bank_head_records #(
+            .NUM_ENTRIES(NUM_ENTRIES), .NUM_BANKS(NUM_BANKS),
+            .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH)
+        ) u_rd_heads (
+            .clk(aclk), .rst_n(aresetn),
+            .sch_valid_i(rd_sch_valid), .sch_pend_i('0),
+            .sch_bank_i(rd_sch_bank), .sch_row_i(rd_sch_row), .sch_col_i(rd_sch_col),
+            .sch_older_i(rd_sch_older), .sch_age_exceed_i(rd_age_exceed),
+            .head_o(w_rd_head), .head2_o(w_rd_head2)
+        );
+
+        mc_bank_pick #(
+            .NUM_RANKS  (NUM_RANKS),
+            .NUM_BANKS  (NUM_BANKS),
+            .ROW_WIDTH  (ROW_WIDTH),
+            .COL_WIDTH  (COL_WIDTH),
+            .NUM_ENTRIES(NUM_ENTRIES),
+            .CLOSE_ON_DRAIN(PICK_CLOSE_ON_DRAIN),
+            .LA         (0)              // the TB's la twins ARE the live gates
+        ) u_pick (
+            .aclk               (aclk),
+            .aresetn            (aresetn),
+            .page_policy_i      (PAGE_POLICY_OPEN),
+            .ap_mode_en_i       (1'b0),
+            .ap_close_i         ('0),
+            .timeout_pre_req_i  (1'b0),
+            .timeout_pre_bank_i ('0),
+            .wr_head_i          (w_wr_head),
+            .wr_head2_i         (w_wr_head2),
+            .rd_head_i          (w_rd_head),
+            .rd_head2_i         (w_rd_head2),
+            .wr_commit_ready_i  (wr_commit_ready),
+            .wr_commit_valid_o  (wr_commit_valid),
+            .wr_commit_slot_o   (wr_commit_slot),
+            .rd_issue_ready_i   (rd_issue_ready),
+            .rd_issue_valid_o   (rd_issue_valid),
+            .rd_issue_slot_o    (rd_issue_slot),
+            .init_done_i        (init_done),
+            .init_cmd_valid_i   (init_cmd_valid),
+            .init_cmd_op_i      (dram_op_e'(init_cmd_op)),
+            .init_cmd_bank_i    (init_cmd_bank),
+            .init_cmd_row_i     (init_cmd_row),
+            .refresh_req_i      (1'b0),
+            .refresh_drain_i    (1'b0),
+            .refresh_kind_i     (1'b0),
+            .refresh_bank_i     ('0),
+            .refresh_grant_o    (),
+            .t_rfc_i            (16'd0),
+            .t_rfc_pb_i         (8'd0),
+            .rd_ret_busy_i      (1'b0),
+            .zq_req_i           (1'b0),
+            .zq_grant_o         (),
+            .t_zqcs_i           (16'd0),
+            .maint_req_i        (1'b0),
+            .maint_grant_o      (),
+            .maint_op_i         (dram_op_e'(0)),
+            .maint_bank_i       ('0),
+            .maint_row_i        ('0),
+            .maint_col_i        ('0),
+            .maint_extra_i      ('0),
+            .maint_busy_i       (1'b0),
+            .bank_act_ready_i   (w_act_rdy),
+            .bank_rdwr_ready_i  (w_rdwr_rdy),
+            .bank_pre_ready_i   (w_pre_rdy),
+            .bank_act_ready_la_i(w_act_la),
+            .bank_rdwr_ready_la_i(w_rdwr_la),
+            .bank_pre_ready_la_i(w_pre_la),
+            .bank_row_active_i  (stub_row_active),
+            .bank_open_row_i    ('0),
+            .tfaw_ok_i          ('1),
+            .trrd_ok_i          ('1),
+            .twtr_ok_i          (1'b1),
+            .trtw_ok_i          (1'b1),
+            .t_ccd_i            (8'd0),
+            .t_rcd_i            (8'd0),
+            .t_rp_i             (8'd0),
+            .t_wr_i             (8'd0),
+            .t_rtp_i            (8'd0),
+            .dir_batch_max_i    (8'd0),
+            .evt_act_o          (),
+            .evt_rd_o           (),
+            .evt_wr_o           (),
+            .evt_pre_o          (),
+            .evt_ap_o           (),
+            .evt_rank_o         (),
+            .evt_bank_o         (),
+            .evt_row_o          (),
+            .cmd_valid_o        (core_cmd_valid),
+            .cmd_ready_i        (cm_ready),   // real shape: cmd bus paces with the drain
+            .cmd_op_o           (core_cmd_op),
+            .cmd_rank_o         (),
+            .cmd_bank_o         (core_cmd_bank),
+            .cmd_row_o          (core_cmd_row),
+            .cmd_col_o          (core_cmd_col),
+            .cmd_ap_o           (core_cmd_ap),
+            .cmd_extra_o        (),
+            .stall_bp_o         (),
+            .stall_refresh_o    (),
+            .stall_turnaround_o (),
+            .stall_tccd_o       (),
+            .stall_actlimit_o   (),
+            .stall_banktimer_o  (),
+            .stall_noreq_o      (),
+            .stall_zq_o         ()
+        );
+        assign core_pick_valid = u_pick.r_win_vld;
+        assign cmd_slot = wr_commit_valid ? wr_commit_slot
+                        : rd_issue_valid  ? rd_issue_slot
+                        : PTRW'(u_pick.w_sel_cand.slot);
+    end else begin : g_arb
+        mc_cmd_arbiter #(
+            .NUM_RANKS  (NUM_RANKS),
+            .NUM_BANKS  (NUM_BANKS),
+            .ROW_WIDTH  (ROW_WIDTH),
+            .COL_WIDTH  (COL_WIDTH),
+            .AXI_ID_WIDTH(IW),
+            .NUM_ENTRIES(NUM_ENTRIES)
+        ) u_arb (
+            .aclk               (aclk),
+            .aresetn            (aresetn),
+            .page_policy_i      (PAGE_POLICY_OPEN),
+            .sched_order_mode_i (2'd0),
+            .sched_row_sel_i    (2'd0),
+            .sched_col_sel_i    (2'd0),
+            .sched_access_pref_i(2'd0),
+            .sched_wr_high_wm_i (8'd0),
+            .sched_wr_batch_max_i(8'd0),
+            .sched_wr_low_wm_i  (8'd0),
+            .sched_prio_sub_i   (2'd0),
+            .sched_qos_en_i     (1'b0),
+            .rd_sch_qos_i       (rd_sch_qos),
+            .wr_sch_qos_i       (wr_sch_qos),
+            .rd_sch_age_exceed_i(rd_age_exceed),
+            .wr_sch_age_exceed_i(wr_age_exceed),
+            .rd_sch_head_rel_i  (rd_head_rel),
+            .wr_sch_head_rel_i  (wr_head_rel),
+            .ap_mode_en_i       (1'b0),
+            .ap_close_i         ('0),
+            .timeout_pre_req_i  (1'b0),
+            .timeout_pre_bank_i ('0),
+            .init_done_i        (init_done),
+            .init_cmd_valid_i   (init_cmd_valid),
+            .init_cmd_op_i      (dram_op_e'(init_cmd_op)),
+            .init_cmd_bank_i    (init_cmd_bank),
+            .init_cmd_row_i     (init_cmd_row),
+            .refresh_req_i      (1'b0),
+            .refresh_drain_i    (1'b0),
+            .refresh_kind_i     (1'b0),
+            .refresh_bank_i     ('0),
+            .refresh_grant_o    (),
+            .t_rfc_i            (16'd0),
+            .t_rfc_pb_i         (8'd0),
+            .zq_req_i           (1'b0),
+            .zq_grant_o         (),
+            .t_zqcs_i           (16'd0),
+            .maint_req_i        (1'b0),
+            .maint_grant_o      (),
+            .maint_op_i         (dram_op_e'(0)),
+            .maint_bank_i       ('0),
+            .maint_row_i        ('0),
+            .maint_col_i        ('0),
+            .maint_extra_i      ('0),
+            .maint_busy_i       (1'b0),
+            .bank_act_ready_i   (w_act_rdy),
+            .bank_rdwr_ready_i  (w_rdwr_rdy),
+            .bank_pre_ready_i   (w_pre_rdy),
+            .bank_act_ready_la_i(w_act_la),
+            .bank_rdwr_ready_la_i(w_rdwr_la),
+            .bank_pre_ready_la_i(w_pre_la),
+            .bank_row_active_i  (stub_row_active),
+            .bank_open_row_i    ('0),
+            .tfaw_ok_i          ('1),
+            .trrd_ok_i          ('1),
+            .twtr_ok_i          (1'b1),
+            .trtw_ok_i          (1'b1),
+            .tccd_ok_i          (1'b1),
+            .tccd_l_ok_i        (1'b1),
+            .trrd_l_ok_i        (1'b1),
+            .pick_group_o       (),
+            .t_ccd_i            (8'd0),
+            .wr_sch_valid_i     (wr_sch_valid),
+            .wr_sch_bank_i      (wr_sch_bank),
+            .wr_sch_row_i       (wr_sch_row),
+            .wr_sch_col_i       (wr_sch_col),
+            .wr_sch_older_i     (wr_sch_older),
+            .wr_commit_ready_i  (wr_commit_ready),
+            .wr_commit_valid_o  (wr_commit_valid),
+            .wr_commit_slot_o   (wr_commit_slot),
+            .rd_sch_valid_i     (rd_sch_valid),
+            .rd_sch_bank_i      (rd_sch_bank),
+            .rd_sch_row_i       (rd_sch_row),
+            .rd_sch_col_i       (rd_sch_col),
+            .rd_sch_older_i     (rd_sch_older),
+            .rd_issue_ready_i   (rd_issue_ready),
+            .rd_issue_valid_o   (rd_issue_valid),
+            .rd_issue_slot_o    (rd_issue_slot),
+            .evt_act_o          (),
+            .evt_rd_o           (),
+            .evt_wr_o           (),
+            .evt_pre_o          (),
+            .evt_ap_o           (),
+            .evt_rank_o         (),
+            .evt_bank_o         (),
+            .evt_row_o          (),
+            .cmd_valid_o        (core_cmd_valid),
+            .cmd_ready_i        (cm_ready),   // real shape: cmd bus paces with the drain
+            .cmd_op_o           (core_cmd_op),
+            .cmd_rank_o         (),
+            .cmd_bank_o         (core_cmd_bank),
+            .cmd_row_o          (core_cmd_row),
+            .cmd_col_o          (core_cmd_col),
+            .cmd_ap_o           (core_cmd_ap),
+            .cmd_extra_o        (),
+            .stall_bp_o         (),
+            .stall_refresh_o    (),
+            .stall_turnaround_o (),
+            .stall_tccd_o       (),
+            .stall_actlimit_o   (),
+            .stall_banktimer_o  (),
+            .stall_noreq_o      (),
+            .stall_zq_o         ()
+        );
+        assign core_pick_valid = u_arb.r_pick_valid;
+        assign cmd_slot = u_arb.r_do_wr ? u_arb.r_commit_slot : u_arb.r_issue_slot;
+        wire _unused_arb = &{1'b0, wr_sch_pend};
+    end endgenerate
+
+    assign pick_valid = core_pick_valid;
+    assign cmd_valid  = core_cmd_valid;
+    assign cmd_ready  = cm_ready;
+    assign cmd_op     = 5'(core_cmd_op);
+    assign cmd_bank   = core_cmd_bank;
+    assign cmd_row    = core_cmd_row;
+    assign cmd_col    = core_cmd_col;
+    assign cmd_ap     = core_cmd_ap;
 
     // DFI-side drain paced one beat per 4 cycles -- matching the real DFI
-    // acceptance rate. At full-speed (1/cycle) the arbiter's pick pipeline
-    // never empties between commits and the stale-pointer condition never
-    // co-occurs; the full-harness hang needed the real (slow) command pacing.
+    // acceptance rate. At full-speed (1/cycle) a pick pipeline never empties
+    // between commits and the stale-pointer condition never co-occurs; the
+    // full-harness hang needed the real (slow) command pacing.
     logic [1:0] r_cm_gate;
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) r_cm_gate <= '0;
         else                        r_cm_gate <= r_cm_gate + 1'b1;
     end)
-    assign cm_ready = (r_cm_gate == 2'd0);
+    assign cm_ready = (cmd_ready_mode == 2'd1) ? 1'b1
+                    : (cmd_ready_mode == 2'd2) ? 1'b0
+                    : (r_cm_gate == 2'd0);
 
-    // Close-on-AP bank model (see the declaration above the arbiter instance).
+    // Close-on-AP bank model (see above).
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
-            stub_row_active <= '1;   // every row starts open (the old stub)
+            stub_row_active <= '1;   // every row starts open
             stub_ap_cnt     <= '0;
         end else begin
             for (int b = 0; b < NUM_BANKS; b++) begin
-                if (cmd_valid && (cmd_op == OP_ACT) && (cmd_bank == BKW'(b))) begin
-                    // ACT wins over a pending close (timer: set_act > ap_fire)
+                if (core_cmd_valid && cm_ready && (core_cmd_op == OP_ACT) && (core_cmd_bank == BKW'(b))) begin
                     stub_row_active[0][b] <= 1'b1;
                     stub_ap_cnt[b]        <= '0;
-                end else if (cmd_valid && cmd_ap && (cmd_bank == BKW'(b))) begin
+                end else if (core_cmd_valid && cm_ready && core_cmd_ap && (core_cmd_bank == BKW'(b))) begin
                     stub_ap_cnt[b] <= 4'd6;
                 end else if (stub_ap_cnt[b] != 4'd0) begin
                     stub_ap_cnt[b] <= stub_ap_cnt[b] - 4'd1;
@@ -403,7 +564,7 @@ module mc_store_arbiter_macro_tb_top
             if (wr_commit_valid && wr_commit_ready) r_commit_count <= r_commit_count + 1;
             if (cm_valid && cm_ready)               r_drain_count  <= r_drain_count + 1;
             if (rd_iss_valid)                       r_rd_issue_count <= r_rd_issue_count + 1;
-            if (cmd_valid)                          r_cmd_count <= r_cmd_count + 1;
+            if (core_cmd_valid && cm_ready)         r_cmd_count <= r_cmd_count + 1;
         end
     end)
 
@@ -411,5 +572,7 @@ module mc_store_arbiter_macro_tb_top
     assign drain_count    = r_drain_count;
     assign rd_issue_count = r_rd_issue_count;
     assign cmd_count      = r_cmd_count;
+
+    wire _unused_tb = &{1'b0, cm_data, cm_strb, cm_last, rd_cam_ins_ready};
 
 endmodule : mc_store_arbiter_macro_tb_top

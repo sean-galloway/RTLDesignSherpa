@@ -21,6 +21,7 @@ module mc_bank_head_records_tb_top
     input  logic                                clk,
     input  logic                                rst_n,
     input  logic [NUM_ENTRIES-1:0]              sch_valid,
+    input  logic [NUM_ENTRIES-1:0]              sch_pend,
     input  logic [NUM_ENTRIES*BKW-1:0]          sch_bank,
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    sch_row,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    sch_col,
@@ -32,12 +33,14 @@ module mc_bank_head_records_tb_top
     output logic [NUM_BANKS*MC_HEAD_COL_W-1:0]  head_col,
     output logic [NUM_BANKS*MC_HEAD_SLOT_W-1:0] head_slot,
     output logic [NUM_BANKS-1:0]                head_behind_empty,
+    output logic [NUM_BANKS-1:0]                head_behind_same_row,
     output logic [NUM_BANKS-1:0]                head_age_exceed,
     output logic [NUM_BANKS-1:0]                head2_vld,
     output logic [NUM_BANKS*MC_HEAD_ROW_W-1:0]  head2_row,
     output logic [NUM_BANKS*MC_HEAD_COL_W-1:0]  head2_col,
     output logic [NUM_BANKS*MC_HEAD_SLOT_W-1:0] head2_slot,
     output logic [NUM_BANKS-1:0]                head2_behind_empty,
+    output logic [NUM_BANKS-1:0]                head2_behind_same_row,
     output logic [NUM_BANKS-1:0]                head2_age_exceed
 );
 
@@ -52,6 +55,7 @@ module mc_bank_head_records_tb_top
         .clk              (clk),
         .rst_n            (rst_n),
         .sch_valid_i      (sch_valid),
+        .sch_pend_i       (sch_pend),
         .sch_bank_i       (sch_bank),
         .sch_row_i        (sch_row),
         .sch_col_i        (sch_col),
@@ -68,12 +72,14 @@ module mc_bank_head_records_tb_top
             head_col [b*MC_HEAD_COL_W  +: MC_HEAD_COL_W]      = w_head[b].col;
             head_slot[b*MC_HEAD_SLOT_W +: MC_HEAD_SLOT_W]     = w_head[b].slot;
             head_behind_empty[b]                              = w_head[b].behind_empty;
+            head_behind_same_row[b]                           = w_head[b].behind_same_row;
             head_age_exceed[b]                                = w_head[b].age_exceed;
             head2_vld[b]                                      = w_head2[b].vld;
             head2_row [b*MC_HEAD_ROW_W  +: MC_HEAD_ROW_W]     = w_head2[b].row;
             head2_col [b*MC_HEAD_COL_W  +: MC_HEAD_COL_W]     = w_head2[b].col;
             head2_slot[b*MC_HEAD_SLOT_W +: MC_HEAD_SLOT_W]    = w_head2[b].slot;
             head2_behind_empty[b]                             = w_head2[b].behind_empty;
+            head2_behind_same_row[b]                          = w_head2[b].behind_same_row;
             head2_age_exceed[b]                               = w_head2[b].age_exceed;
         end
     end

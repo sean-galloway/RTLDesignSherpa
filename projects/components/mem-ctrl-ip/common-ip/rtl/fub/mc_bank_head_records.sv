@@ -25,10 +25,19 @@
 //          exactly one. behind_empty on head = b has exactly one candidate;
 //          on head2 = exactly two.
 //
+//          behind_same_row: a YOUNGER entry of the same bank and the same row
+//          exists behind this one -- schedulable (sch_valid) or pending
+//          (sch_pend: allocated, not yet schedulable; a write whose data has
+//          not landed). The scheduler's close-on-drain reads it as "do not
+//          auto-precharge, the row has more to come". Pending entries count
+//          because the write CAM allocates a burst's entries at AW time and
+//          fills them beat by beat; closing the row between two columns of
+//          the same burst re-activates it every few columns (BUG-027).
+//
 //          Latency: one cycle. A push into an empty bank is visible the cycle
 //          after it lands in the backend; a pop (commit / issue) likewise.
-//          The scheduler's registered-winner / hold-on-not-fired rule absorbs
-//          that (the winner is decided a cycle ahead of its fire anyway).
+//          The scheduler's registered-winner rule absorbs that (the winner is
+//          decided a cycle ahead of its fire anyway).
 //
 // Documentation: docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md (section 2.1)
 `timescale 1ns / 1ps
@@ -51,6 +60,7 @@ module mc_bank_head_records
 
     // ---- backend per-entry vectors (flops inside the backend) ----
     input  logic [NUM_ENTRIES-1:0]              sch_valid_i,       // schedulable
+    input  logic [NUM_ENTRIES-1:0]              sch_pend_i,        // allocated, not yet schedulable
     input  logic [NUM_ENTRIES*BKW-1:0]          sch_bank_i,
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    sch_col_i,
@@ -63,6 +73,24 @@ module mc_bank_head_records
 );
 
     localparam int CNTW = $clog2(NUM_ENTRIES + 1);
+
+    // ---- per-entry "a younger same-bank same-row entry exists behind me" --
+    // Bank- and row-equality over entry pairs, independent of which bank is
+    // being scanned, so it is computed once per entry (N*(N-1) compares) and
+    // picked up by the per-bank mux below like any other entry field.
+    logic [NUM_ENTRIES-1:0] w_bsr;
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            w_bsr[i] = 1'b0;
+            for (int j = 0; j < NUM_ENTRIES; j++) begin
+                if ((j != i) && (sch_valid_i[j] || sch_pend_i[j])
+                    && sch_older_i[i*NUM_ENTRIES + j]                       // i older than j
+                    && (sch_bank_i[j*BKW +: BKW] == sch_bank_i[i*BKW +: BKW])
+                    && (sch_row_i[j*ROW_WIDTH +: ROW_WIDTH] == sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]))
+                    w_bsr[i] = 1'b1;
+            end
+        end
+    end
 
     // ---- per-bank candidate masks and per-entry "older candidates" counts --
     // n_older[b][i] = number of candidates of bank b inserted before entry i.
@@ -91,18 +119,20 @@ module mc_bank_head_records
                         n_older = n_older + CNTW'(1);
                 end
                 if (cand[i] && (n_older == '0)) begin
-                    h.vld        = 1'b1;
-                    h.row        = MC_HEAD_ROW_W'(sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]);
-                    h.col        = MC_HEAD_COL_W'(sch_col_i[i*COL_WIDTH +: COL_WIDTH]);
-                    h.slot       = MC_HEAD_SLOT_W'(i);
-                    h.age_exceed = sch_age_exceed_i[i];
+                    h.vld             = 1'b1;
+                    h.row             = MC_HEAD_ROW_W'(sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]);
+                    h.col             = MC_HEAD_COL_W'(sch_col_i[i*COL_WIDTH +: COL_WIDTH]);
+                    h.slot            = MC_HEAD_SLOT_W'(i);
+                    h.behind_same_row = w_bsr[i];
+                    h.age_exceed      = sch_age_exceed_i[i];
                 end
                 if (cand[i] && (n_older == CNTW'(1))) begin
-                    h2.vld        = 1'b1;
-                    h2.row        = MC_HEAD_ROW_W'(sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]);
-                    h2.col        = MC_HEAD_COL_W'(sch_col_i[i*COL_WIDTH +: COL_WIDTH]);
-                    h2.slot       = MC_HEAD_SLOT_W'(i);
-                    h2.age_exceed = sch_age_exceed_i[i];
+                    h2.vld             = 1'b1;
+                    h2.row             = MC_HEAD_ROW_W'(sch_row_i[i*ROW_WIDTH +: ROW_WIDTH]);
+                    h2.col             = MC_HEAD_COL_W'(sch_col_i[i*COL_WIDTH +: COL_WIDTH]);
+                    h2.slot            = MC_HEAD_SLOT_W'(i);
+                    h2.behind_same_row = w_bsr[i];
+                    h2.age_exceed      = sch_age_exceed_i[i];
                 end
             end
             h.behind_empty  = h.vld  && (n_cand == CNTW'(1));

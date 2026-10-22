@@ -174,6 +174,7 @@ module mc_storage_plane #(
 
     // ---- WR data CAM ----
     logic w_wrc_busy;
+    logic [NUM_ENTRIES-1:0] w_wr_sch_pend;   // allocated, data not landed (records only)
     mc_wr_data_cam #(
         .NUM_ENTRIES   (NUM_ENTRIES),
         .N_SCHED_LU    (N_SCHED_LU),
@@ -232,6 +233,7 @@ module mc_storage_plane #(
         .sched_lu_id_o      (),
         .sched_lu_age_o     (),
         .sch_valid_o        (wr_sch_valid_o),
+        .sch_pend_o         (w_wr_sch_pend),
         .sch_bank_o         (wr_sch_bank_o),
         .sch_row_o          (wr_sch_row_o),
         .sch_col_o          (wr_sch_col_o),
@@ -322,6 +324,7 @@ module mc_storage_plane #(
         .clk              (aclk),
         .rst_n            (aresetn),
         .sch_valid_i      (wr_sch_valid_o),
+        .sch_pend_i       (w_wr_sch_pend),
         .sch_bank_i       (wr_sch_bank_o),
         .sch_row_i        (wr_sch_row_o),
         .sch_col_i        (wr_sch_col_o),
@@ -340,6 +343,7 @@ module mc_storage_plane #(
         .clk              (aclk),
         .rst_n            (aresetn),
         .sch_valid_i      (rd_sch_valid_o),
+        .sch_pend_i       ('0),                 // a read is schedulable at insert
         .sch_bank_i       (rd_sch_bank_o),
         .sch_row_i        (rd_sch_row_o),
         .sch_col_i        (rd_sch_col_o),

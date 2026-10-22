@@ -32,6 +32,7 @@ module pumice_core_tb_top
     parameter int N_SRAM_SLOTS   = 8,
     parameter int RD_RET_DEPTH   = 32,  // -G from DV: reads in flight (return ring)
     parameter int CMD_HISTORY_EN = 0,  // -G from DV: arm the history scoreboard
+    parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
 
     parameter int DW  = DRAM_BEAT_WIDTH * DFI_RATE,
     parameter int SW  = DW / 8,
@@ -175,7 +176,7 @@ module pumice_core_tb_top
         .NUM_BANKS(NUM_BANKS), .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH),
         .DFI_RATE(DFI_RATE), .DRAM_BEAT_WIDTH(DRAM_BEAT_WIDTH), .DRAM_BL(DRAM_BL), .DRAM_DEVICE_WIDTH(DRAM_DEVICE_WIDTH),
         .NUM_ENTRIES(NUM_ENTRIES), .N_SRAM_SLOTS(N_SRAM_SLOTS), .RD_RET_DEPTH(RD_RET_DEPTH),
-        .CMD_HISTORY_EN(CMD_HISTORY_EN)
+        .CMD_HISTORY_EN(CMD_HISTORY_EN), .SCHED_CORE(SCHED_CORE)
     ) u_core (
         .aclk(aclk), .aresetn(aresetn), .dfi_clk(dfi_clk), .dfi_rstn(dfi_rstn),
         .memtype_i(memtype_i), .page_policy_i(page_policy_i),

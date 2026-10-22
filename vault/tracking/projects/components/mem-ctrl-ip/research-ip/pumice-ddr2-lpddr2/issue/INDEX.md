@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-022** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-023** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,13 +12,17 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **ISSUE-022** — two tREFI soft violations per perf-proxy run on the
+  BANK_PICK core, none on FRFCFS in the same harness (every run, any length;
+  data golden). Filed from the recovery Phase 2 report.
 
 - **ISSUE-021** — mc_training_plane ties ZQ demand to 0, so the defer/ZQCL/
   overdue policy is unreachable.
