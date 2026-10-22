@@ -298,6 +298,17 @@ against the real gate; `make run-all-func` unchanged.
 
 ### Phase 1: the contract and the CAM backend's records (1-2 sessions)
 
+**Status 2026-10-21: done.** `mc_head_rec_t` in `mc_common_pkg` (no bank,
+id, last or hit flag -- see the type's comment), `mc_bank_head_records`
+(new fub, registered per-bank {head, 2nd} from any backend's per-entry
+vectors + age matrix), four record outputs on `mc_storage_plane` from the
+two CAMs, fub test with a Python slot/age model at one-cycle latency plus a
+hold-stability check (gate/func/full, two seeds), handbook note
+`design/plane-boundary-registered-snapshots.md`. Additive: pumice
+run-all-func unchanged. Decision carried into Phase 2: the record lags the
+backend by one cycle by contract; `mc_bank_pick` decodes from the record
+and never from the vectors.
+
 1. `mc_head_rec_t` in `mc_common_pkg.sv`; record ports on `mc_storage_plane`;
    per-bank oldest/second-oldest from the CAM `r_older` matrices, registered
    at the plane edge. Existing `*_sch_*` outputs stay for the research core.

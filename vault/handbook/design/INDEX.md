@@ -6,10 +6,12 @@ summary: RTL rules with the failures that taught them.
 # Design
 
 - [[what-is-a-plane]] - purpose-sliced functional layers; repo-unifying definition, membership and edge contract
+- [[plane-boundary-registered-snapshots]] - a plane's internal state never crosses to another plane combinationally; registered snapshots + handshakes, decision flags computed where the decision lives (the -35 ns mem-ctrl build, 2026-10-19)
 - [[reset-and-clocking]] - reset macros, aresetn, clock conventions
 - [[clock-gating-activity-terms]] - wake on peer VALIDs + pending output work, never peer READY; !gating mask; emission latency vs idle count
 - [[cdc]] - crossing rules, gray pointers, handshakes
 - [[valid-ready-contracts]] - stability rules; who may stall whom
+- [[arbitrate-at-the-acceptor]] - a pick that feeds a queue ahead of a slow slave is not round-robin: share follows outstanding (fabric benchmark W3 40%)
 - [[axi-burst-splitting]] - a burst cut into pieces restarts every later piece on the size grid; test the split with an UNALIGNED start (converters BUG-011)
 - [[observers-do-not-drive]] - a parallel snoop must not gate the bus it taps
 - [[new-monbus-protocol]] - a new PROTOCOL_* value must be passed by every monbus filter (the group core drops unknown ones silently)

@@ -6,5 +6,7 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 # CAMs owned by this plane
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_wr_data_cam.f
 -f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_rd_cmd_cam.f
+# per-bank head records (the storage -> scheduler contract), derived from the CAMs
+-f $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/filelists/fub/mc_bank_head_records.f
 # wrapper
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/macro/mc_storage_plane.sv

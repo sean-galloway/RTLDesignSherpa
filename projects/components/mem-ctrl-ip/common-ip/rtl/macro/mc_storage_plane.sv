@@ -155,6 +155,18 @@ module mc_storage_plane #(
     output logic [SW-1:0]       wr_cm_rd_strb_o,
     output logic                wr_cm_rd_last_o,
 
+    //=========================================================================
+    // Per-bank head records (the storage -> scheduler plane contract).
+    // REGISTERED snapshots, one cycle behind the CAM state: {head, 2nd} per
+    // (direction, bank), derived from the CAMs' vectors + age matrices by
+    // mc_bank_head_records. Additive beside the per-entry *_sch_* vectors
+    // the FRFCFS research core still consumes.
+    //=========================================================================
+    output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] wr_head_o,
+    output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] wr_head2_o,
+    output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] rd_head_o,
+    output mc_common_pkg::mc_head_rec_t [NUM_BANKS-1:0] rd_head2_o,
+
     output logic                busy_o
 );
 
@@ -298,6 +310,43 @@ module mc_storage_plane #(
         .iss_ready_i     (rd_iss_ready_i),
         .iss_ticket_o    (rd_iss_ticket_o),
         .busy_o          (w_rdc_busy)
+    );
+
+    // ---- per-bank head records, registered at the plane edge ----
+    mc_bank_head_records #(
+        .NUM_ENTRIES (NUM_ENTRIES),
+        .NUM_BANKS   (NUM_BANKS),
+        .ROW_WIDTH   (ROW_WIDTH),
+        .COL_WIDTH   (COL_WIDTH)
+    ) u_wr_heads (
+        .clk              (aclk),
+        .rst_n            (aresetn),
+        .sch_valid_i      (wr_sch_valid_o),
+        .sch_bank_i       (wr_sch_bank_o),
+        .sch_row_i        (wr_sch_row_o),
+        .sch_col_i        (wr_sch_col_o),
+        .sch_older_i      (wr_sch_older_o),
+        .sch_age_exceed_i (wr_sch_age_exceed_o),
+        .head_o           (wr_head_o),
+        .head2_o          (wr_head2_o)
+    );
+
+    mc_bank_head_records #(
+        .NUM_ENTRIES (NUM_ENTRIES),
+        .NUM_BANKS   (NUM_BANKS),
+        .ROW_WIDTH   (ROW_WIDTH),
+        .COL_WIDTH   (COL_WIDTH)
+    ) u_rd_heads (
+        .clk              (aclk),
+        .rst_n            (aresetn),
+        .sch_valid_i      (rd_sch_valid_o),
+        .sch_bank_i       (rd_sch_bank_o),
+        .sch_row_i        (rd_sch_row_o),
+        .sch_col_i        (rd_sch_col_o),
+        .sch_older_i      (rd_sch_older_o),
+        .sch_age_exceed_i (rd_sch_age_exceed_o),
+        .head_o           (rd_head_o),
+        .head2_o          (rd_head2_o)
     );
 
     assign busy_o = w_wrc_busy || w_rdc_busy;

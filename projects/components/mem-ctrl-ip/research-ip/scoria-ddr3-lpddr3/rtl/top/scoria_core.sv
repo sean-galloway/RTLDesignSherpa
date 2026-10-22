@@ -699,6 +699,12 @@ module scoria_core
         .wr_cm_rd_data_o    (w_cm_data),
         .wr_cm_rd_strb_o    (w_cm_strb),
         .wr_cm_rd_last_o    (w_cm_last),
+        // per-bank head records (storage -> scheduler contract, recovery Phase 1);
+        // not consumed until mc_bank_pick lands -- explicit empty, not missing
+        .wr_head_o          (),
+        .wr_head2_o         (),
+        .rd_head_o          (),
+        .rd_head2_o         (),
         .busy_o             ()
     );
 

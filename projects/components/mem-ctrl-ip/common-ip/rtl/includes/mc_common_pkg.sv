@@ -119,6 +119,33 @@ package mc_common_pkg;
     } decoded_addr_t;
 
     //=========================================================================
+    // Storage -> scheduler per-bank head record (the plane contract)
+    //=========================================================================
+    // One record per (direction, bank), REGISTERED at the storage-plane edge:
+    // the oldest schedulable entry of that bank (and, as a second record, the
+    // one behind it). Every storage backend presents the same record
+    // (mc_bank_head_records derives it from a CAM's or an entry store's
+    // per-entry vectors + age matrix; a per-bank FIFO backend reads it off its
+    // head register), so the scheduler plane never sees a backend's internal
+    // arrays. Padded like decoded_addr_t so the type can live in the package.
+    // What is NOT here, on purpose: bank (the record's index IS the bank),
+    // id/last (B consolidation stays in the backend), and any hit/miss flag
+    // (hit classification is sched-local against the open row it owns --
+    // MC-003 evidence section 17, the plane-boundary rule).
+    parameter int MC_HEAD_ROW_W  = 18;
+    parameter int MC_HEAD_COL_W  = 14;
+    parameter int MC_HEAD_SLOT_W = 8;   // NUM_ENTRIES <= 256
+
+    typedef struct packed {
+        logic                      vld;          // a schedulable entry exists
+        logic [MC_HEAD_ROW_W-1:0]  row;
+        logic [MC_HEAD_COL_W-1:0]  col;
+        logic [MC_HEAD_SLOT_W-1:0] slot;         // commit / issue handle
+        logic                      behind_empty; // no younger entry of this bank behind this one
+        logic                      age_exceed;   // backend aging policy flag (sched_age_thresh)
+    } mc_head_rec_t;
+
+    //=========================================================================
     // Helpers
     //=========================================================================
     // Each return is ONE LINE, deliberately: a multi-line return expression

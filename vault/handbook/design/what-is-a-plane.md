@@ -51,5 +51,6 @@ same idea: a layer you decide about as a unit.
   "silicon-perf" and "field-debug" are shorthand for which planes are kept and
   which options inside the output plane are enabled.
 
-Related: [[new-monbus-protocol]], [[observers-do-not-drive]],
+Related: [[plane-boundary-registered-snapshots]] (the timing half of the edge
+contract), [[new-monbus-protocol]], [[observers-do-not-drive]],
 [Ocelus plane map](../../../docs/markdown/rtl-amba/monitor/monitor_planes.md).
