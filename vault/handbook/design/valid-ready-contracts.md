@@ -133,6 +133,18 @@ summary: Stability rules; observers gate commands only, never responses.
   very same stream as beat-perfect -- because the comparator saw the retired
   beats and the checker saw the duplicated ones. The two symptoms disagreeing
   is the tell.*
+- **A one-entry holding register's input ready is `!full || drains`, even
+  when the FSM in front of it "never" refills it in time.** A forwarder that
+  registers a response and then moves on without waiting for it to be taken
+  has decoupled the two, so the next response can arrive while the first is
+  still held. *Case (2026-10-22, bridge BUG-025):
+  `axil_to_axi4_wide_align_wr` registered each B and went back to idle; its
+  `m_axi_bready` was just `state == S_B`. If the master held BREADY low for
+  longer than one write, the next B overwrote the held one and that write
+  never completed. One seed out of the bridge suite found it; the module had
+  no unit test. Its read twin was safe because its FSM waits for the
+  master to take R before it goes idle -- the same structure, with the hold
+  in the FSM instead of the ready.*
 - **A monitoring tap that cannot back-pressure will drop, and dropping makes
   its own verdict a lie.** The first version of that comparator wrote its two
   FIFOs with `wr_valid = valid && ready` and discarded `wr_ready` into an

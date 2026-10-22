@@ -292,7 +292,7 @@ module axil_to_axi4_wide_align_wr #(
     assign m_axi_wlast    = 1'b1;
     assign m_axi_wuser    = r_held_wuser;
     assign m_axi_wvalid   = (r_state == S_W);
-    assign m_axi_bready   = (r_state == S_B);
+    // m_axi_bready: below, with the B register it guards.
 
     // ----------------------------------------------------------------
     // B response back to slave-side. Forward bid/bresp/buser.
@@ -318,6 +318,13 @@ module axil_to_axi4_wide_align_wr #(
             end
         end
     )
+    // The FSM returns to S_IDLE without waiting for the master to take this
+    // B, so the next write can reach S_B while it is still held. Take a new
+    // B only when the register is empty or drains this cycle; taking it
+    // unconditionally overwrote the held one and lost that response (bridge
+    // BUG-025).
+    assign m_axi_bready = (r_state == S_B) && (!r_s_bvalid || s_axi_bready);
+
     assign s_axi_bvalid = r_s_bvalid;
     assign s_axi_bid    = r_s_bid;
     assign s_axi_bresp  = r_s_bresp;

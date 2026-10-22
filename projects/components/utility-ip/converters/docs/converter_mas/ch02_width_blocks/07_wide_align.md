@@ -55,3 +55,24 @@ Several AW/AR sideband inputs are declared and deliberately unused for the same
 reason -- `awlen`, `awsize`, `awburst`, `awlock`, `awqos`, `awregion` and
 `wlast` on the write side. A single-beat AXIL transfer carries no useful burst
 description, so the module ignores it rather than trusting it.
+
+## 2.7.3 Flow Control
+
+Both modules forward **one transfer at a time**. A one-entry slot holds the
+next AW (or AR) and, on the write side, its W, so the master can hand over
+the following transfer while the current one is on the wide bus.
+
+The write module registers each B in a one-entry register. It goes back to
+idle without waiting for the master to take that B, so the next write
+proceeds on the wide bus while the B is still held. It does not take the
+next write's B (it holds `m_axi_bready` low) until the held one is gone or
+leaves in the same cycle. So a master that is slow to assert BREADY delays
+the following write's completion, and never loses it. Until 2026-10-22,
+`m_axi_bready` ignored that register, and the next B overwrote a held one
+(bridge BUG-025).
+
+The read module stays in its last state until the master has taken R,
+so it holds at most one response at any time.
+
+`dv/tests/test_axil_to_axi4_wide_align_wr.py` checks lane placement and the
+held-B case at 32 -> 64 and 32 -> 128.
