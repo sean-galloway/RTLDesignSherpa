@@ -133,6 +133,7 @@ module bridge_1x2_wr_axi5_mon_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_wr_32b_wdest_full;
     logic cpu_wr_32b_w_to_ddr_wr;
     logic cpu_wr_32b_w_sel_ddr_wr;
     logic cpu_wr_32b_w_to_sram_wr;
@@ -181,7 +182,7 @@ module bridge_1x2_wr_axi5_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_ddr_wr = (cpu_wr_32b_aw.addr <= 32'h7fffffff);
-    wire cpu_wr_32b_aw_gnt_ddr_wr = cpu_wr_32b_aw_to_ddr_wr;
+    wire cpu_wr_32b_aw_gnt_ddr_wr = cpu_wr_32b_aw_to_ddr_wr && !cpu_wr_32b_wdest_full;
     assign ddr_wr_axi_awid     = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.id : '0;
     assign ddr_wr_axi_awaddr   = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.addr : '0;
     assign ddr_wr_axi_awlen    = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.len : '0;
@@ -193,7 +194,7 @@ module bridge_1x2_wr_axi5_mon_xbar
     assign ddr_wr_axi_awqos    = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.qos : '0;
     assign ddr_wr_axi_awregion = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.region : '0;
     assign ddr_wr_axi_awuser   = cpu_wr_32b_aw_to_ddr_wr ? cpu_wr_32b_aw.user : '0;
-    assign ddr_wr_axi_awvalid  = cpu_wr_32b_aw_to_ddr_wr && cpu_wr_32b_awvalid;
+    assign ddr_wr_axi_awvalid  = cpu_wr_32b_aw_gnt_ddr_wr && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_ddr_wr = cpu_wr_32b_w_to_ddr_wr;
 
@@ -221,7 +222,7 @@ module bridge_1x2_wr_axi5_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_sram_wr = (cpu_wr_32b_aw.addr >= 32'h80000000);
-    wire cpu_wr_32b_aw_gnt_sram_wr = cpu_wr_32b_aw_to_sram_wr;
+    wire cpu_wr_32b_aw_gnt_sram_wr = cpu_wr_32b_aw_to_sram_wr && !cpu_wr_32b_wdest_full;
     assign sram_wr_axi_awid     = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.id : '0;
     assign sram_wr_axi_awaddr   = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.addr : '0;
     assign sram_wr_axi_awlen    = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.len : '0;
@@ -233,7 +234,7 @@ module bridge_1x2_wr_axi5_mon_xbar
     assign sram_wr_axi_awqos    = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.qos : '0;
     assign sram_wr_axi_awregion = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.region : '0;
     assign sram_wr_axi_awuser   = cpu_wr_32b_aw_to_sram_wr ? cpu_wr_32b_aw.user : '0;
-    assign sram_wr_axi_awvalid  = cpu_wr_32b_aw_to_sram_wr && cpu_wr_32b_awvalid;
+    assign sram_wr_axi_awvalid  = cpu_wr_32b_aw_gnt_sram_wr && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_sram_wr = cpu_wr_32b_w_to_sram_wr;
 
@@ -261,7 +262,7 @@ module bridge_1x2_wr_axi5_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_subtractive = !(((cpu_wr_32b_aw.addr <= 32'h7fffffff)) || ((cpu_wr_32b_aw.addr >= 32'h80000000)));
-    wire cpu_wr_32b_aw_gnt_subtractive = cpu_wr_32b_aw_to_subtractive;
+    wire cpu_wr_32b_aw_gnt_subtractive = cpu_wr_32b_aw_to_subtractive && !cpu_wr_32b_wdest_full;
     assign subtractive_axi_awid     = cpu_wr_32b_aw_to_subtractive ? cpu_wr_32b_aw.id : '0;
     assign subtractive_axi_awaddr   = cpu_wr_32b_aw_to_subtractive ? cpu_wr_32b_aw.addr : '0;
     assign subtractive_axi_awlen    = cpu_wr_32b_aw_to_subtractive ? cpu_wr_32b_aw.len : '0;
@@ -273,7 +274,7 @@ module bridge_1x2_wr_axi5_mon_xbar
     assign subtractive_axi_awqos    = cpu_wr_32b_aw_to_subtractive ? cpu_wr_32b_aw.qos : '0;
     assign subtractive_axi_awregion = cpu_wr_32b_aw_to_subtractive ? cpu_wr_32b_aw.region : '0;
     assign subtractive_axi_awuser   = cpu_wr_32b_aw_to_subtractive ? cpu_wr_32b_aw.user : '0;
-    assign subtractive_axi_awvalid  = cpu_wr_32b_aw_to_subtractive && cpu_wr_32b_awvalid;
+    assign subtractive_axi_awvalid  = cpu_wr_32b_aw_gnt_subtractive && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_subtractive = cpu_wr_32b_w_to_subtractive;
 
@@ -316,6 +317,7 @@ module bridge_1x2_wr_axi5_mon_xbar
         end
     )
     wire cpu_wr_32b_wdest_valid = (cpu_wr_32b_wdest_wptr != cpu_wr_32b_wdest_rptr);
+    assign cpu_wr_32b_wdest_full = (cpu_wr_32b_wdest_wptr[4] != cpu_wr_32b_wdest_rptr[4]) && (cpu_wr_32b_wdest_wptr[3:0] == cpu_wr_32b_wdest_rptr[3:0]);
     wire [1:0] cpu_wr_32b_wdest_head = cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_rptr[3:0]];
     assign cpu_wr_32b_w_to_ddr_wr = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 2'd0);
     assign cpu_wr_32b_w_to_sram_wr = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 2'd1);

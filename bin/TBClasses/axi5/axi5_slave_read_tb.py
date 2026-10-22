@@ -349,10 +349,15 @@ class AXI5SlaveReadTB(TBBase):
             arid = random.randint(0, self.MAX_ID)
 
         # Get expected data from memory model if not provided
+        # A full-width beat at an unaligned address carries only the bytes
+        # from addr to the end of its aligned window, on their own lanes
+        # (AXI A3.4.1); the lanes below addr are not data. Compare those.
+        bytes_per_word = self.TEST_DATA_WIDTH // 8
+        lane = addr % bytes_per_word
+        valid_mask = ((1 << (8 * (bytes_per_word - lane))) - 1) << (8 * lane)
         if expected_data is None:
-            bytes_per_word = self.TEST_DATA_WIDTH // 8
-            expected_data_bytes = self.memory_model.read(addr, bytes_per_word)
-            expected_data = int.from_bytes(expected_data_bytes, byteorder='little')
+            expected_data_bytes = self.memory_model.read(addr, bytes_per_word - lane)
+            expected_data = int.from_bytes(expected_data_bytes, byteorder='little') << (8 * lane)
 
         # Track AXI5 features used
         axi5_features = {}
@@ -409,7 +414,7 @@ class AXI5SlaveReadTB(TBBase):
             actual_data = await self.axi5_master.single_read(**read_kwargs)
 
             # Check data match
-            if actual_data != expected_data:
+            if (actual_data & valid_mask) != (expected_data & valid_mask):
                 self.log.warning(f"Data mismatch at 0x{addr:08X}: "
                                f"got 0x{actual_data:08X}, expected 0x{expected_data:08X}")
                 self.stats['data_mismatches'] += 1

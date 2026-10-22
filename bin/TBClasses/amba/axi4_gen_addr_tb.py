@@ -161,10 +161,12 @@ class AxiGenAddrTB(TBBase):
         if self.DW != self.ODW:
             increment = min(increment, self.ODW_BYTES)
         # Calculate next address based on burst type
-        if burst == 0:  # FIXED
-            return curr_addr
+        if burst == 0:  # FIXED (the DUT's address is AW bits wide)
+            return curr_addr & self.MAX_ADDR
         elif burst == 1 or burst != 2:  # INCR
-            return (curr_addr + increment) & self.MAX_ADDR
+            # AXI A3.4.1: only the first beat may be unaligned; the next
+            # starts on the step grid (bridge BUG-019)
+            return ((curr_addr & ~(increment - 1)) + increment) & self.MAX_ADDR
         else:  # WRAP
             # Calculate wrap mask based on size and length
             wrap_mask = (1 << (size + self._clog2(length + 1))) - 1
@@ -206,7 +208,7 @@ class AxiGenAddrTB(TBBase):
         if self.TEST_LEVEL != 'gate':
             # Add more test cases for higher test levels
             sizes.extend([4, 5, 6, 7])
-            addrs.extend([0x55555555, 0xAAAAAAAA])
+            addrs.extend([a & self.MAX_ADDR for a in (0x55555555, 0xAAAAAAAA)])
             lengths.extend([7, 255])
 
         all_passed = True
@@ -257,7 +259,7 @@ class AxiGenAddrTB(TBBase):
         all_passed = True
 
         for addr, size, length in test_cases:
-            # For incr burst, expected_next should be curr_addr + increment
+            # For incr burst, expected_next is aligned(curr_addr) + increment
             test_passed = await self.drive_and_check(addr, size, 1, length)
 
             if not test_passed:

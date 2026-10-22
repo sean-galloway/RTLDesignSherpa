@@ -331,18 +331,22 @@ module bridge_mix_a_mon_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_axi4_32b_wdest_full;
     logic cpu_axi4_32b_w_to_axil_periph;
     logic cpu_axi4_32b_w_sel_axil_periph;
     logic cpu_axi4_32b_w_to_apb_periph;
     logic cpu_axi4_32b_w_sel_apb_periph;
+    logic cpu_axi4_64b_wdest_full;
     logic cpu_axi4_64b_w_to_ddr;
     logic cpu_axi4_64b_w_sel_ddr;
     logic cpu_axi4_64b_w_to_subtractive;
     logic cpu_axi4_64b_w_sel_subtractive;
+    logic host_axil_32b_wdest_full;
     logic host_axil_32b_w_to_axil_periph;
     logic host_axil_32b_w_sel_axil_periph;
     logic host_axil_32b_w_to_apb_periph;
     logic host_axil_32b_w_sel_apb_periph;
+    logic host_axil_64b_wdest_full;
     logic host_axil_64b_w_to_subtractive;
     logic host_axil_64b_w_sel_subtractive;
 
@@ -554,7 +558,7 @@ module bridge_mix_a_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_64b_aw_to_ddr = (cpu_axi4_64b_aw.addr <= 32'h3fffffff);
-    wire cpu_axi4_64b_aw_gnt_ddr = cpu_axi4_64b_aw_to_ddr && !cpu_axi4_64b_aw_hold_ddr;
+    wire cpu_axi4_64b_aw_gnt_ddr = cpu_axi4_64b_aw_to_ddr && !(cpu_axi4_64b_aw_hold_ddr || cpu_axi4_64b_wdest_full);
     assign ddr_axi_awid     = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.id : '0;
     assign ddr_axi_awaddr   = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.addr : '0;
     assign ddr_axi_awlen    = cpu_axi4_64b_aw_to_ddr ? cpu_axi4_64b_aw.len : '0;
@@ -621,7 +625,7 @@ module bridge_mix_a_mon_xbar
     wire host_axil_32b_ar_to_axil_periph = ((host_axil_32b_ar.addr >= 32'h40000000) && (host_axil_32b_ar.addr <= 32'h4000ffff));
 
     // AW request slots for axil_periph: arbitration at the slave pins
-    assign cpu_axi4_32b_aw_slot_axil_periph_in_valid = cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_axil_periph;
+    assign cpu_axi4_32b_aw_slot_axil_periph_in_valid = cpu_axi4_32b_aw_to_axil_periph && cpu_axi4_32b_awvalid && !(cpu_axi4_32b_aw_hold_axil_periph || cpu_axi4_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_32b_aw_slot_axil_periph (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_32b_aw_slot_axil_periph_in_valid), .wr_ready(cpu_axi4_32b_aw_slot_axil_periph_in_ready), .wr_data(cpu_axi4_32b_aw),
@@ -630,7 +634,7 @@ module bridge_mix_a_mon_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign host_axil_32b_aw_slot_axil_periph_in_valid = host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid && !host_axil_32b_aw_hold_axil_periph;
+    assign host_axil_32b_aw_slot_axil_periph_in_valid = host_axil_32b_aw_to_axil_periph && host_axil_32b_awvalid && !(host_axil_32b_aw_hold_axil_periph || host_axil_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_32b_aw_slot_axil_periph (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(host_axil_32b_aw_slot_axil_periph_in_valid), .wr_ready(host_axil_32b_aw_slot_axil_periph_in_ready), .wr_data(host_axil_32b_aw),
@@ -832,7 +836,7 @@ module bridge_mix_a_mon_xbar
     wire host_axil_32b_ar_to_apb_periph = ((host_axil_32b_ar.addr >= 32'h40010000) && (host_axil_32b_ar.addr <= 32'h4001ffff));
 
     // AW request slots for apb_periph: arbitration at the slave pins
-    assign cpu_axi4_32b_aw_slot_apb_periph_in_valid = cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_apb_periph;
+    assign cpu_axi4_32b_aw_slot_apb_periph_in_valid = cpu_axi4_32b_aw_to_apb_periph && cpu_axi4_32b_awvalid && !(cpu_axi4_32b_aw_hold_apb_periph || cpu_axi4_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_32b_aw_slot_apb_periph (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_32b_aw_slot_apb_periph_in_valid), .wr_ready(cpu_axi4_32b_aw_slot_apb_periph_in_ready), .wr_data(cpu_axi4_32b_aw),
@@ -841,7 +845,7 @@ module bridge_mix_a_mon_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign host_axil_32b_aw_slot_apb_periph_in_valid = host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid && !host_axil_32b_aw_hold_apb_periph;
+    assign host_axil_32b_aw_slot_apb_periph_in_valid = host_axil_32b_aw_to_apb_periph && host_axil_32b_awvalid && !(host_axil_32b_aw_hold_apb_periph || host_axil_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_32b_aw_slot_apb_periph (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(host_axil_32b_aw_slot_apb_periph_in_valid), .wr_ready(host_axil_32b_aw_slot_apb_periph_in_ready), .wr_data(host_axil_32b_aw),
@@ -1043,7 +1047,7 @@ module bridge_mix_a_mon_xbar
     wire host_axil_64b_ar_to_subtractive = !((((host_axil_64b_ar.addr >= 32'h40000000) && (host_axil_64b_ar.addr <= 32'h4000ffff))) || (((host_axil_64b_ar.addr >= 32'h40010000) && (host_axil_64b_ar.addr <= 32'h4001ffff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_subtractive;
+    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !(cpu_axi4_64b_aw_hold_subtractive || cpu_axi4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_64b_aw_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_aw),
@@ -1052,7 +1056,7 @@ module bridge_mix_a_mon_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign host_axil_64b_aw_slot_subtractive_in_valid = host_axil_64b_aw_to_subtractive && host_axil_64b_awvalid && !host_axil_64b_aw_hold_subtractive;
+    assign host_axil_64b_aw_slot_subtractive_in_valid = host_axil_64b_aw_to_subtractive && host_axil_64b_awvalid && !(host_axil_64b_aw_hold_subtractive || host_axil_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(host_axil_64b_aw_slot_subtractive_in_valid), .wr_ready(host_axil_64b_aw_slot_subtractive_in_ready), .wr_data(host_axil_64b_aw),
@@ -1275,6 +1279,7 @@ module bridge_mix_a_mon_xbar
         end
     )
     wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
+    assign cpu_axi4_32b_wdest_full = (cpu_axi4_32b_wdest_wptr[4] != cpu_axi4_32b_wdest_rptr[4]) && (cpu_axi4_32b_wdest_wptr[3:0] == cpu_axi4_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
     assign cpu_axi4_32b_w_to_axil_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
     assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
@@ -1300,6 +1305,7 @@ module bridge_mix_a_mon_xbar
         end
     )
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
+    assign cpu_axi4_64b_wdest_full = (cpu_axi4_64b_wdest_wptr[4] != cpu_axi4_64b_wdest_rptr[4]) && (cpu_axi4_64b_wdest_wptr[3:0] == cpu_axi4_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
     assign cpu_axi4_64b_w_to_subtractive = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd1);
@@ -1325,6 +1331,7 @@ module bridge_mix_a_mon_xbar
         end
     )
     wire host_axil_32b_wdest_valid = (host_axil_32b_wdest_wptr != host_axil_32b_wdest_rptr);
+    assign host_axil_32b_wdest_full = (host_axil_32b_wdest_wptr[4] != host_axil_32b_wdest_rptr[4]) && (host_axil_32b_wdest_wptr[3:0] == host_axil_32b_wdest_rptr[3:0]);
     wire [0:0] host_axil_32b_wdest_head = host_axil_32b_wdest_mem[host_axil_32b_wdest_rptr[3:0]];
     assign host_axil_32b_w_to_axil_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd0);
     assign host_axil_32b_w_to_apb_periph = host_axil_32b_wdest_valid && (host_axil_32b_wdest_head == 1'd1);
@@ -1350,6 +1357,7 @@ module bridge_mix_a_mon_xbar
         end
     )
     wire host_axil_64b_wdest_valid = (host_axil_64b_wdest_wptr != host_axil_64b_wdest_rptr);
+    assign host_axil_64b_wdest_full = (host_axil_64b_wdest_wptr[4] != host_axil_64b_wdest_rptr[4]) && (host_axil_64b_wdest_wptr[3:0] == host_axil_64b_wdest_rptr[3:0]);
     wire [0:0] host_axil_64b_wdest_head = host_axil_64b_wdest_mem[host_axil_64b_wdest_rptr[3:0]];
     assign host_axil_64b_w_to_subtractive = host_axil_64b_wdest_valid && (host_axil_64b_wdest_head == 1'd0);
 
@@ -1359,8 +1367,8 @@ module bridge_mix_a_mon_xbar
 
     // Master: cpu_axi4, Width path: 32b
     assign cpu_axi4_32b_awready = 
-        ((cpu_axi4_32b_aw_to_axil_periph && !cpu_axi4_32b_aw_hold_axil_periph) ? cpu_axi4_32b_aw_slot_axil_periph_in_ready : '0) |
-        ((cpu_axi4_32b_aw_to_apb_periph && !cpu_axi4_32b_aw_hold_apb_periph) ? cpu_axi4_32b_aw_slot_apb_periph_in_ready : '0);
+        ((cpu_axi4_32b_aw_to_axil_periph && !(cpu_axi4_32b_aw_hold_axil_periph || cpu_axi4_32b_wdest_full)) ? cpu_axi4_32b_aw_slot_axil_periph_in_ready : '0) |
+        ((cpu_axi4_32b_aw_to_apb_periph && !(cpu_axi4_32b_aw_hold_apb_periph || cpu_axi4_32b_wdest_full)) ? cpu_axi4_32b_aw_slot_apb_periph_in_ready : '0);
 
     assign cpu_axi4_32b_wready = 
         (cpu_axi4_32b_w_sel_axil_periph ? axil_periph_axi_wready : '0) |
@@ -1414,7 +1422,7 @@ module bridge_mix_a_mon_xbar
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
         (cpu_axi4_64b_aw_gnt_ddr ? ddr_axi_awready : '0) |
-        ((cpu_axi4_64b_aw_to_subtractive && !cpu_axi4_64b_aw_hold_subtractive) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_axi4_64b_aw_to_subtractive && !(cpu_axi4_64b_aw_hold_subtractive || cpu_axi4_64b_wdest_full)) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_wready = 
         (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1467,8 +1475,8 @@ module bridge_mix_a_mon_xbar
 
     // Master: host_axil, Width path: 32b
     assign host_axil_32b_awready = 
-        ((host_axil_32b_aw_to_axil_periph && !host_axil_32b_aw_hold_axil_periph) ? host_axil_32b_aw_slot_axil_periph_in_ready : '0) |
-        ((host_axil_32b_aw_to_apb_periph && !host_axil_32b_aw_hold_apb_periph) ? host_axil_32b_aw_slot_apb_periph_in_ready : '0);
+        ((host_axil_32b_aw_to_axil_periph && !(host_axil_32b_aw_hold_axil_periph || host_axil_32b_wdest_full)) ? host_axil_32b_aw_slot_axil_periph_in_ready : '0) |
+        ((host_axil_32b_aw_to_apb_periph && !(host_axil_32b_aw_hold_apb_periph || host_axil_32b_wdest_full)) ? host_axil_32b_aw_slot_apb_periph_in_ready : '0);
 
     assign host_axil_32b_wready = 
         (host_axil_32b_w_sel_axil_periph ? axil_periph_axi_wready : '0) |
@@ -1521,7 +1529,7 @@ module bridge_mix_a_mon_xbar
 
     // Master: host_axil, Width path: 64b
     assign host_axil_64b_awready = 
-        ((host_axil_64b_aw_to_subtractive && !host_axil_64b_aw_hold_subtractive) ? host_axil_64b_aw_slot_subtractive_in_ready : '0);
+        ((host_axil_64b_aw_to_subtractive && !(host_axil_64b_aw_hold_subtractive || host_axil_64b_wdest_full)) ? host_axil_64b_aw_slot_subtractive_in_ready : '0);
 
     assign host_axil_64b_wready = 
         (host_axil_64b_w_sel_subtractive ? subtractive_axi_wready : '0);

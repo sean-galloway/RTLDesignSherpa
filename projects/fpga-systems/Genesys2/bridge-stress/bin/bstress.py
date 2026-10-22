@@ -267,7 +267,7 @@ class Profile:
     timeout_lg2: int = 20
     poison_lg2: int = 3           # AXI5 poison paths: 1 beat in 8 poisoned
     atom_lg2: int = 3             # AXI5 atomic masters: 1 write burst in 8 an atomic
-    full_axi: bool = False        # ignore path_caps: drive every path with the full AXI4 set
+    full_axi: bool = False        # no-op since bridge BUG-018/019: path_caps lifts nothing
     s_w_first: bool = False       # stress slaves take AW only while WVALID is up (A3.3.1)
 
 
@@ -297,21 +297,15 @@ PROFILES: Dict[str, Profile] = {p.name: p for p in (
 def path_caps(m: Port, s: Port) -> Dict[str, int]:
     """What the bridge can carry from master m to slave s, as window limits.
 
-    A path whose data widths differ goes through axi4_dwidth_converter_{rd,wr}
-    (converters MAS 2.5/2.6), whose contract is full-width INCR: AxSIZE is
-    rewritten to the converter's own width and FIXED / WRAP keep a wide-aligned
-    requirement that only a simulation assertion checks. Driven with narrow,
-    FIXED or WRAP bursts it emits illegal AXI at the slave (WRAP of one beat,
-    FIXED of 24), and an unaligned INCR start comes out one narrow lane late:
-    the burst then crosses 4 KB and its first lane carries the wrong bytes --
-    all measured by this model on bridge_bs_axi4. Until the bridge filters or
-    converts those, a converted path is limited to aligned full-width INCR;
-    Profile.full_axi lifts the limit to reproduce the failures.
+    None: every path carries the full AXI4 burst set. A path whose data widths
+    differ goes through axi4_dwidth_converter_{rd,wr}, which until bridge
+    BUG-018/019 emitted illegal AXI for narrow, FIXED, WRAP and unaligned
+    bursts (measured by this model on bridge_bs_axi4), so this used to limit
+    converted paths to aligned full-width INCR. The converters now handle all
+    of them (converters MAS 2.5/2.6), so the limit is gone; Profile.full_axi
+    is kept for the CLI and the report column and no longer changes anything.
     """
-    if m.dw == s.dw:
-        return {}
-    full = (m.dw // 8).bit_length() - 1
-    return dict(bursts=0b010, size_min=full, unaligned=0)
+    return {}
 
 
 class BuildMismatch(RuntimeError):

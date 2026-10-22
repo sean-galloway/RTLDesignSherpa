@@ -241,12 +241,14 @@ module bridge_2x2_axi3_slaves_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_axi4_64b_wdest_full;
     logic cpu_axi4_64b_w_to_ddr_axi3;
     logic cpu_axi4_64b_w_sel_ddr_axi3;
     logic cpu_axi4_64b_w_to_sram_axi3;
     logic cpu_axi4_64b_w_sel_sram_axi3;
     logic cpu_axi4_64b_w_to_subtractive;
     logic cpu_axi4_64b_w_sel_subtractive;
+    logic host_axil_64b_wdest_full;
     logic host_axil_64b_w_to_ddr_axi3;
     logic host_axil_64b_w_sel_ddr_axi3;
     logic host_axil_64b_w_to_sram_axi3;
@@ -417,7 +419,7 @@ module bridge_2x2_axi3_slaves_xbar
     wire host_axil_64b_ar_to_ddr_axi3 = (host_axil_64b_ar.addr <= 32'h7fffffff);
 
     // AW request slots for ddr_axi3: arbitration at the slave pins
-    assign cpu_axi4_64b_aw_slot_ddr_axi3_in_valid = cpu_axi4_64b_aw_to_ddr_axi3 && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_ddr_axi3;
+    assign cpu_axi4_64b_aw_slot_ddr_axi3_in_valid = cpu_axi4_64b_aw_to_ddr_axi3 && cpu_axi4_64b_awvalid && !(cpu_axi4_64b_aw_hold_ddr_axi3 || cpu_axi4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_ddr_axi3 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_64b_aw_slot_ddr_axi3_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_ddr_axi3_in_ready), .wr_data(cpu_axi4_64b_aw),
@@ -426,7 +428,7 @@ module bridge_2x2_axi3_slaves_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign host_axil_64b_aw_slot_ddr_axi3_in_valid = host_axil_64b_aw_to_ddr_axi3 && host_axil_64b_awvalid && !host_axil_64b_aw_hold_ddr_axi3;
+    assign host_axil_64b_aw_slot_ddr_axi3_in_valid = host_axil_64b_aw_to_ddr_axi3 && host_axil_64b_awvalid && !(host_axil_64b_aw_hold_ddr_axi3 || host_axil_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_64b_aw_slot_ddr_axi3 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(host_axil_64b_aw_slot_ddr_axi3_in_valid), .wr_ready(host_axil_64b_aw_slot_ddr_axi3_in_ready), .wr_data(host_axil_64b_aw),
@@ -638,7 +640,7 @@ module bridge_2x2_axi3_slaves_xbar
     wire host_axil_64b_ar_to_sram_axi3 = (host_axil_64b_ar.addr >= 32'h80000000);
 
     // AW request slots for sram_axi3: arbitration at the slave pins
-    assign cpu_axi4_64b_aw_slot_sram_axi3_in_valid = cpu_axi4_64b_aw_to_sram_axi3 && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_sram_axi3;
+    assign cpu_axi4_64b_aw_slot_sram_axi3_in_valid = cpu_axi4_64b_aw_to_sram_axi3 && cpu_axi4_64b_awvalid && !(cpu_axi4_64b_aw_hold_sram_axi3 || cpu_axi4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_sram_axi3 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_64b_aw_slot_sram_axi3_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_sram_axi3_in_ready), .wr_data(cpu_axi4_64b_aw),
@@ -647,7 +649,7 @@ module bridge_2x2_axi3_slaves_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign host_axil_64b_aw_slot_sram_axi3_in_valid = host_axil_64b_aw_to_sram_axi3 && host_axil_64b_awvalid && !host_axil_64b_aw_hold_sram_axi3;
+    assign host_axil_64b_aw_slot_sram_axi3_in_valid = host_axil_64b_aw_to_sram_axi3 && host_axil_64b_awvalid && !(host_axil_64b_aw_hold_sram_axi3 || host_axil_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_64b_aw_slot_sram_axi3 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(host_axil_64b_aw_slot_sram_axi3_in_valid), .wr_ready(host_axil_64b_aw_slot_sram_axi3_in_ready), .wr_data(host_axil_64b_aw),
@@ -859,7 +861,7 @@ module bridge_2x2_axi3_slaves_xbar
     wire host_axil_64b_ar_to_subtractive = !(((host_axil_64b_ar.addr <= 32'h7fffffff)) || ((host_axil_64b_ar.addr >= 32'h80000000)));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_subtractive;
+    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !(cpu_axi4_64b_aw_hold_subtractive || cpu_axi4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_64b_aw_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_aw),
@@ -868,7 +870,7 @@ module bridge_2x2_axi3_slaves_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign host_axil_64b_aw_slot_subtractive_in_valid = host_axil_64b_aw_to_subtractive && host_axil_64b_awvalid && !host_axil_64b_aw_hold_subtractive;
+    assign host_axil_64b_aw_slot_subtractive_in_valid = host_axil_64b_aw_to_subtractive && host_axil_64b_awvalid && !(host_axil_64b_aw_hold_subtractive || host_axil_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_host_axil_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(host_axil_64b_aw_slot_subtractive_in_valid), .wr_ready(host_axil_64b_aw_slot_subtractive_in_ready), .wr_data(host_axil_64b_aw),
@@ -1091,6 +1093,7 @@ module bridge_2x2_axi3_slaves_xbar
         end
     )
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
+    assign cpu_axi4_64b_wdest_full = (cpu_axi4_64b_wdest_wptr[4] != cpu_axi4_64b_wdest_rptr[4]) && (cpu_axi4_64b_wdest_wptr[3:0] == cpu_axi4_64b_wdest_rptr[3:0]);
     wire [1:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_ddr_axi3 = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 2'd0);
     assign cpu_axi4_64b_w_to_sram_axi3 = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 2'd1);
@@ -1117,6 +1120,7 @@ module bridge_2x2_axi3_slaves_xbar
         end
     )
     wire host_axil_64b_wdest_valid = (host_axil_64b_wdest_wptr != host_axil_64b_wdest_rptr);
+    assign host_axil_64b_wdest_full = (host_axil_64b_wdest_wptr[4] != host_axil_64b_wdest_rptr[4]) && (host_axil_64b_wdest_wptr[3:0] == host_axil_64b_wdest_rptr[3:0]);
     wire [1:0] host_axil_64b_wdest_head = host_axil_64b_wdest_mem[host_axil_64b_wdest_rptr[3:0]];
     assign host_axil_64b_w_to_ddr_axi3 = host_axil_64b_wdest_valid && (host_axil_64b_wdest_head == 2'd0);
     assign host_axil_64b_w_to_sram_axi3 = host_axil_64b_wdest_valid && (host_axil_64b_wdest_head == 2'd1);
@@ -1128,9 +1132,9 @@ module bridge_2x2_axi3_slaves_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        ((cpu_axi4_64b_aw_to_ddr_axi3 && !cpu_axi4_64b_aw_hold_ddr_axi3) ? cpu_axi4_64b_aw_slot_ddr_axi3_in_ready : '0) |
-        ((cpu_axi4_64b_aw_to_sram_axi3 && !cpu_axi4_64b_aw_hold_sram_axi3) ? cpu_axi4_64b_aw_slot_sram_axi3_in_ready : '0) |
-        ((cpu_axi4_64b_aw_to_subtractive && !cpu_axi4_64b_aw_hold_subtractive) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_axi4_64b_aw_to_ddr_axi3 && !(cpu_axi4_64b_aw_hold_ddr_axi3 || cpu_axi4_64b_wdest_full)) ? cpu_axi4_64b_aw_slot_ddr_axi3_in_ready : '0) |
+        ((cpu_axi4_64b_aw_to_sram_axi3 && !(cpu_axi4_64b_aw_hold_sram_axi3 || cpu_axi4_64b_wdest_full)) ? cpu_axi4_64b_aw_slot_sram_axi3_in_ready : '0) |
+        ((cpu_axi4_64b_aw_to_subtractive && !(cpu_axi4_64b_aw_hold_subtractive || cpu_axi4_64b_wdest_full)) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_wready = 
         (cpu_axi4_64b_w_sel_ddr_axi3 ? ddr_axi3_axi_wready : '0) |
@@ -1195,9 +1199,9 @@ module bridge_2x2_axi3_slaves_xbar
 
     // Master: host_axil, Width path: 64b
     assign host_axil_64b_awready = 
-        ((host_axil_64b_aw_to_ddr_axi3 && !host_axil_64b_aw_hold_ddr_axi3) ? host_axil_64b_aw_slot_ddr_axi3_in_ready : '0) |
-        ((host_axil_64b_aw_to_sram_axi3 && !host_axil_64b_aw_hold_sram_axi3) ? host_axil_64b_aw_slot_sram_axi3_in_ready : '0) |
-        ((host_axil_64b_aw_to_subtractive && !host_axil_64b_aw_hold_subtractive) ? host_axil_64b_aw_slot_subtractive_in_ready : '0);
+        ((host_axil_64b_aw_to_ddr_axi3 && !(host_axil_64b_aw_hold_ddr_axi3 || host_axil_64b_wdest_full)) ? host_axil_64b_aw_slot_ddr_axi3_in_ready : '0) |
+        ((host_axil_64b_aw_to_sram_axi3 && !(host_axil_64b_aw_hold_sram_axi3 || host_axil_64b_wdest_full)) ? host_axil_64b_aw_slot_sram_axi3_in_ready : '0) |
+        ((host_axil_64b_aw_to_subtractive && !(host_axil_64b_aw_hold_subtractive || host_axil_64b_wdest_full)) ? host_axil_64b_aw_slot_subtractive_in_ready : '0);
 
     assign host_axil_64b_wready = 
         (host_axil_64b_w_sel_ddr_axi3 ? ddr_axi3_axi_wready : '0) |

@@ -1780,6 +1780,29 @@ def _generate_fixture(tmp_path, name):
     return out / name, tmp_path / "filelists" / f"{name}.f"
 
 
+def test_lane_slave_live_w_holds_other_aws(tmp_path):
+    """bridge BUG-024: a cdc slave several masters share picks AW, and so
+    orders W, on its own clock, which need not follow a master's issue
+    order. A master with a burst into that slave's lane whose W is not yet
+    in the lane must hold its AWs to every OTHER slave, or a crossed-W
+    deadlock with a slot slave follows (the bridge stress model's `reorder`
+    profile hung on the board and in sim, mem0 vs mem3)."""
+    gen, _ = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc")
+    x = (gen / "bridge_3x2_rw_mcdc_xbar.sv").read_text()
+    counters = re.findall(r"logic \[\d+:0\] (\w+_wlive_ddr);", x)
+    assert counters, "no live-W counters for the lane slave ddr"
+    for c in counters:
+        path = c[:-len("_wlive_ddr")]
+        assert re.search(rf"{c} <= {c} \+ \d+'\(\({path}_wdest_push", x), c
+        # every AW gate of this path toward a slave other than ddr carries it
+        gates = [ln for ln in x.splitlines()
+                 if ln.lstrip().startswith(("assign", "wire")) and f"{path}_aw_to_" in ln
+                 and f"{path}_aw_to_ddr" not in ln and ("_in_valid =" in ln or "_gnt_" in ln
+                                                         or "lane_awvalid" in ln)]
+        for ln in gates:
+            assert f"(|{c})" in ln, ln
+
+
 def test_lane_slave_monitor_on_its_own_clock(tmp_path):
     """bridge W9: a cdc slave several masters share has no aclk-side stream,
     so its monitors run on s_aclk after bridge_cdc_slave_arb and cross into
@@ -2644,6 +2667,35 @@ def test_max_outstanding_sizes_every_tracker(tmp_path):
     assert "rd_trk_full = (rd_out_cnt == 3'(4));" in (d / "sram_adapter.sv").read_text()
     assert "ddr_wowner_mem [32];" in x and "sram_wowner_mem [4];" in x
     assert "cpu_32b_wdest_mem [64];" in x and "dma_32b_wdest_mem [4];" in x
+
+
+def test_w_dest_fifo_full_holds_the_aw(tmp_path):
+    """bridge BUG-018 board hang: a width converter issues several AWs for
+    one master burst (one per beat for a wide FIXED / WRAP), so a path's W
+    destination FIFO can fill although the master adapter is under its
+    max_outstanding. A full FIFO must hold that path's AW off -- in the slot
+    input, the AWREADY term and a single-master slave's grant -- or the next
+    entry overwrites a live one and W goes to the wrong slave."""
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", _fixture("bridge_2x2_rw_depth.toml"),
+         "--connectivity", _fixture("bridge_2x2_rw_depth_connectivity.csv"),
+         "--name", "d", "--output-dir", str(out)],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout + r.stderr
+    x = (out / "d" / "d_xbar.sv").read_text()
+    assert "logic dma_32b_wdest_full;" in x
+    assert ("assign dma_32b_wdest_full = (dma_32b_wdest_wptr[2] != dma_32b_wdest_rptr[2]) && "
+            "(dma_32b_wdest_wptr[1:0] == dma_32b_wdest_rptr[1:0]);") in x
+    # every AW gate of that path carries the full term, and no AW gate lacks it
+    gates = [ln for ln in x.splitlines() if "dma_32b_aw" in ln and "awvalid" in ln and "assign" in ln
+             or ("dma_32b_aw_gnt_" in ln and ln.lstrip().startswith("wire"))]
+    assert gates, "no AW gating lines found for dma_32b"
+    for ln in gates:
+        if "_aw_to_" in ln and ("_in_valid" in ln or "_gnt_" in ln or "lane_awvalid" in ln):
+            assert "dma_32b_wdest_full" in ln, ln
 
 
 # --- bridge GitHub #119 L7: per-port latency modes, honoured skid depths ----

@@ -354,26 +354,31 @@ module bridge_5x3_channels_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic descr_wr_master_256b_wdest_full;
     logic descr_wr_master_256b_w_to_sram_buffer;
     logic descr_wr_master_256b_w_sel_sram_buffer;
     logic descr_wr_master_256b_w_to_ddr_controller;
     logic descr_wr_master_256b_w_sel_ddr_controller;
     logic descr_wr_master_256b_w_to_subtractive;
     logic descr_wr_master_256b_w_sel_subtractive;
+    logic sink_wr_master_256b_wdest_full;
     logic sink_wr_master_256b_w_to_sram_buffer;
     logic sink_wr_master_256b_w_sel_sram_buffer;
     logic sink_wr_master_256b_w_to_ddr_controller;
     logic sink_wr_master_256b_w_sel_ddr_controller;
     logic sink_wr_master_256b_w_to_subtractive;
     logic sink_wr_master_256b_w_sel_subtractive;
+    logic stream_master_256b_wdest_full;
     logic stream_master_256b_w_to_sram_buffer;
     logic stream_master_256b_w_sel_sram_buffer;
     logic stream_master_256b_w_to_ddr_controller;
     logic stream_master_256b_w_sel_ddr_controller;
     logic stream_master_256b_w_to_subtractive;
     logic stream_master_256b_w_sel_subtractive;
+    logic cpu_master_32b_wdest_full;
     logic cpu_master_32b_w_to_apb_periph;
     logic cpu_master_32b_w_sel_apb_periph;
+    logic cpu_master_256b_wdest_full;
     logic cpu_master_256b_w_to_sram_buffer;
     logic cpu_master_256b_w_sel_sram_buffer;
     logic cpu_master_256b_w_to_ddr_controller;
@@ -663,7 +668,7 @@ module bridge_5x3_channels_xbar
     wire cpu_master_256b_ar_to_sram_buffer = (cpu_master_256b_ar.addr <= 32'h3fffffff);
 
     // AW request slots for sram_buffer: arbitration at the slave pins
-    assign descr_wr_master_256b_aw_slot_sram_buffer_in_valid = descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid && !descr_wr_master_256b_aw_hold_sram_buffer;
+    assign descr_wr_master_256b_aw_slot_sram_buffer_in_valid = descr_wr_master_256b_aw_to_sram_buffer && descr_wr_master_256b_awvalid && !(descr_wr_master_256b_aw_hold_sram_buffer || descr_wr_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_descr_wr_master_256b_aw_slot_sram_buffer (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(descr_wr_master_256b_aw_slot_sram_buffer_in_valid), .wr_ready(descr_wr_master_256b_aw_slot_sram_buffer_in_ready), .wr_data(descr_wr_master_256b_aw),
@@ -672,7 +677,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign sink_wr_master_256b_aw_slot_sram_buffer_in_valid = sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid && !sink_wr_master_256b_aw_hold_sram_buffer;
+    assign sink_wr_master_256b_aw_slot_sram_buffer_in_valid = sink_wr_master_256b_aw_to_sram_buffer && sink_wr_master_256b_awvalid && !(sink_wr_master_256b_aw_hold_sram_buffer || sink_wr_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_sink_wr_master_256b_aw_slot_sram_buffer (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(sink_wr_master_256b_aw_slot_sram_buffer_in_valid), .wr_ready(sink_wr_master_256b_aw_slot_sram_buffer_in_ready), .wr_data(sink_wr_master_256b_aw),
@@ -681,7 +686,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign stream_master_256b_aw_slot_sram_buffer_in_valid = stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid && !stream_master_256b_aw_hold_sram_buffer;
+    assign stream_master_256b_aw_slot_sram_buffer_in_valid = stream_master_256b_aw_to_sram_buffer && stream_master_256b_awvalid && !(stream_master_256b_aw_hold_sram_buffer || stream_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_stream_master_256b_aw_slot_sram_buffer (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(stream_master_256b_aw_slot_sram_buffer_in_valid), .wr_ready(stream_master_256b_aw_slot_sram_buffer_in_ready), .wr_data(stream_master_256b_aw),
@@ -690,7 +695,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cpu_master_256b_aw_slot_sram_buffer_in_valid = cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid && !cpu_master_256b_aw_hold_sram_buffer;
+    assign cpu_master_256b_aw_slot_sram_buffer_in_valid = cpu_master_256b_aw_to_sram_buffer && cpu_master_256b_awvalid && !(cpu_master_256b_aw_hold_sram_buffer || cpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_256b_aw_slot_sram_buffer (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_256b_aw_slot_sram_buffer_in_valid), .wr_ready(cpu_master_256b_aw_slot_sram_buffer_in_ready), .wr_data(cpu_master_256b_aw),
@@ -975,7 +980,7 @@ module bridge_5x3_channels_xbar
     wire cpu_master_256b_ar_to_ddr_controller = ((cpu_master_256b_ar.addr >= 32'h40000000) && (cpu_master_256b_ar.addr <= 32'hbfffffff));
 
     // AW request slots for ddr_controller: arbitration at the slave pins
-    assign descr_wr_master_256b_aw_slot_ddr_controller_in_valid = descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid && !descr_wr_master_256b_aw_hold_ddr_controller;
+    assign descr_wr_master_256b_aw_slot_ddr_controller_in_valid = descr_wr_master_256b_aw_to_ddr_controller && descr_wr_master_256b_awvalid && !(descr_wr_master_256b_aw_hold_ddr_controller || descr_wr_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_descr_wr_master_256b_aw_slot_ddr_controller (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(descr_wr_master_256b_aw_slot_ddr_controller_in_valid), .wr_ready(descr_wr_master_256b_aw_slot_ddr_controller_in_ready), .wr_data(descr_wr_master_256b_aw),
@@ -984,7 +989,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign sink_wr_master_256b_aw_slot_ddr_controller_in_valid = sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid && !sink_wr_master_256b_aw_hold_ddr_controller;
+    assign sink_wr_master_256b_aw_slot_ddr_controller_in_valid = sink_wr_master_256b_aw_to_ddr_controller && sink_wr_master_256b_awvalid && !(sink_wr_master_256b_aw_hold_ddr_controller || sink_wr_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_sink_wr_master_256b_aw_slot_ddr_controller (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(sink_wr_master_256b_aw_slot_ddr_controller_in_valid), .wr_ready(sink_wr_master_256b_aw_slot_ddr_controller_in_ready), .wr_data(sink_wr_master_256b_aw),
@@ -993,7 +998,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign stream_master_256b_aw_slot_ddr_controller_in_valid = stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid && !stream_master_256b_aw_hold_ddr_controller;
+    assign stream_master_256b_aw_slot_ddr_controller_in_valid = stream_master_256b_aw_to_ddr_controller && stream_master_256b_awvalid && !(stream_master_256b_aw_hold_ddr_controller || stream_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_stream_master_256b_aw_slot_ddr_controller (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(stream_master_256b_aw_slot_ddr_controller_in_valid), .wr_ready(stream_master_256b_aw_slot_ddr_controller_in_ready), .wr_data(stream_master_256b_aw),
@@ -1002,7 +1007,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cpu_master_256b_aw_slot_ddr_controller_in_valid = cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid && !cpu_master_256b_aw_hold_ddr_controller;
+    assign cpu_master_256b_aw_slot_ddr_controller_in_valid = cpu_master_256b_aw_to_ddr_controller && cpu_master_256b_awvalid && !(cpu_master_256b_aw_hold_ddr_controller || cpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_256b_aw_slot_ddr_controller (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_256b_aw_slot_ddr_controller_in_valid), .wr_ready(cpu_master_256b_aw_slot_ddr_controller_in_ready), .wr_data(cpu_master_256b_aw),
@@ -1277,7 +1282,7 @@ module bridge_5x3_channels_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_master_32b_aw_to_apb_periph = ((cpu_master_32b_aw.addr >= 32'hc0000000) && (cpu_master_32b_aw.addr <= 32'hcfffffff));
-    wire cpu_master_32b_aw_gnt_apb_periph = cpu_master_32b_aw_to_apb_periph && !cpu_master_32b_aw_hold_apb_periph;
+    wire cpu_master_32b_aw_gnt_apb_periph = cpu_master_32b_aw_to_apb_periph && !(cpu_master_32b_aw_hold_apb_periph || cpu_master_32b_wdest_full);
     assign apb_periph_axi_awid     = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.id : '0;
     assign apb_periph_axi_awaddr   = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.addr : '0;
     assign apb_periph_axi_awlen    = cpu_master_32b_aw_to_apb_periph ? cpu_master_32b_aw.len : '0;
@@ -1350,7 +1355,7 @@ module bridge_5x3_channels_xbar
     wire cpu_master_256b_ar_to_subtractive = !(((cpu_master_256b_ar.addr <= 32'h3fffffff)) || (((cpu_master_256b_ar.addr >= 32'h40000000) && (cpu_master_256b_ar.addr <= 32'hbfffffff))) || (((cpu_master_256b_ar.addr >= 32'hc0000000) && (cpu_master_256b_ar.addr <= 32'hcfffffff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign descr_wr_master_256b_aw_slot_subtractive_in_valid = descr_wr_master_256b_aw_to_subtractive && descr_wr_master_256b_awvalid && !descr_wr_master_256b_aw_hold_subtractive;
+    assign descr_wr_master_256b_aw_slot_subtractive_in_valid = descr_wr_master_256b_aw_to_subtractive && descr_wr_master_256b_awvalid && !(descr_wr_master_256b_aw_hold_subtractive || descr_wr_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_descr_wr_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(descr_wr_master_256b_aw_slot_subtractive_in_valid), .wr_ready(descr_wr_master_256b_aw_slot_subtractive_in_ready), .wr_data(descr_wr_master_256b_aw),
@@ -1359,7 +1364,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign sink_wr_master_256b_aw_slot_subtractive_in_valid = sink_wr_master_256b_aw_to_subtractive && sink_wr_master_256b_awvalid && !sink_wr_master_256b_aw_hold_subtractive;
+    assign sink_wr_master_256b_aw_slot_subtractive_in_valid = sink_wr_master_256b_aw_to_subtractive && sink_wr_master_256b_awvalid && !(sink_wr_master_256b_aw_hold_subtractive || sink_wr_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_sink_wr_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(sink_wr_master_256b_aw_slot_subtractive_in_valid), .wr_ready(sink_wr_master_256b_aw_slot_subtractive_in_ready), .wr_data(sink_wr_master_256b_aw),
@@ -1368,7 +1373,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign stream_master_256b_aw_slot_subtractive_in_valid = stream_master_256b_aw_to_subtractive && stream_master_256b_awvalid && !stream_master_256b_aw_hold_subtractive;
+    assign stream_master_256b_aw_slot_subtractive_in_valid = stream_master_256b_aw_to_subtractive && stream_master_256b_awvalid && !(stream_master_256b_aw_hold_subtractive || stream_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_stream_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(stream_master_256b_aw_slot_subtractive_in_valid), .wr_ready(stream_master_256b_aw_slot_subtractive_in_ready), .wr_data(stream_master_256b_aw),
@@ -1377,7 +1382,7 @@ module bridge_5x3_channels_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cpu_master_256b_aw_slot_subtractive_in_valid = cpu_master_256b_aw_to_subtractive && cpu_master_256b_awvalid && !cpu_master_256b_aw_hold_subtractive;
+    assign cpu_master_256b_aw_slot_subtractive_in_valid = cpu_master_256b_aw_to_subtractive && cpu_master_256b_awvalid && !(cpu_master_256b_aw_hold_subtractive || cpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_256b_aw_slot_subtractive_in_valid), .wr_ready(cpu_master_256b_aw_slot_subtractive_in_ready), .wr_data(cpu_master_256b_aw),
@@ -1667,6 +1672,7 @@ module bridge_5x3_channels_xbar
         end
     )
     wire descr_wr_master_256b_wdest_valid = (descr_wr_master_256b_wdest_wptr != descr_wr_master_256b_wdest_rptr);
+    assign descr_wr_master_256b_wdest_full = (descr_wr_master_256b_wdest_wptr[4] != descr_wr_master_256b_wdest_rptr[4]) && (descr_wr_master_256b_wdest_wptr[3:0] == descr_wr_master_256b_wdest_rptr[3:0]);
     wire [1:0] descr_wr_master_256b_wdest_head = descr_wr_master_256b_wdest_mem[descr_wr_master_256b_wdest_rptr[3:0]];
     assign descr_wr_master_256b_w_to_sram_buffer = descr_wr_master_256b_wdest_valid && (descr_wr_master_256b_wdest_head == 2'd0);
     assign descr_wr_master_256b_w_to_ddr_controller = descr_wr_master_256b_wdest_valid && (descr_wr_master_256b_wdest_head == 2'd1);
@@ -1693,6 +1699,7 @@ module bridge_5x3_channels_xbar
         end
     )
     wire sink_wr_master_256b_wdest_valid = (sink_wr_master_256b_wdest_wptr != sink_wr_master_256b_wdest_rptr);
+    assign sink_wr_master_256b_wdest_full = (sink_wr_master_256b_wdest_wptr[4] != sink_wr_master_256b_wdest_rptr[4]) && (sink_wr_master_256b_wdest_wptr[3:0] == sink_wr_master_256b_wdest_rptr[3:0]);
     wire [1:0] sink_wr_master_256b_wdest_head = sink_wr_master_256b_wdest_mem[sink_wr_master_256b_wdest_rptr[3:0]];
     assign sink_wr_master_256b_w_to_sram_buffer = sink_wr_master_256b_wdest_valid && (sink_wr_master_256b_wdest_head == 2'd0);
     assign sink_wr_master_256b_w_to_ddr_controller = sink_wr_master_256b_wdest_valid && (sink_wr_master_256b_wdest_head == 2'd1);
@@ -1719,6 +1726,7 @@ module bridge_5x3_channels_xbar
         end
     )
     wire stream_master_256b_wdest_valid = (stream_master_256b_wdest_wptr != stream_master_256b_wdest_rptr);
+    assign stream_master_256b_wdest_full = (stream_master_256b_wdest_wptr[4] != stream_master_256b_wdest_rptr[4]) && (stream_master_256b_wdest_wptr[3:0] == stream_master_256b_wdest_rptr[3:0]);
     wire [1:0] stream_master_256b_wdest_head = stream_master_256b_wdest_mem[stream_master_256b_wdest_rptr[3:0]];
     assign stream_master_256b_w_to_sram_buffer = stream_master_256b_wdest_valid && (stream_master_256b_wdest_head == 2'd0);
     assign stream_master_256b_w_to_ddr_controller = stream_master_256b_wdest_valid && (stream_master_256b_wdest_head == 2'd1);
@@ -1745,6 +1753,7 @@ module bridge_5x3_channels_xbar
         end
     )
     wire cpu_master_32b_wdest_valid = (cpu_master_32b_wdest_wptr != cpu_master_32b_wdest_rptr);
+    assign cpu_master_32b_wdest_full = (cpu_master_32b_wdest_wptr[4] != cpu_master_32b_wdest_rptr[4]) && (cpu_master_32b_wdest_wptr[3:0] == cpu_master_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
     assign cpu_master_32b_w_to_apb_periph = cpu_master_32b_wdest_valid && (cpu_master_32b_wdest_head == 1'd0);
 
@@ -1769,6 +1778,7 @@ module bridge_5x3_channels_xbar
         end
     )
     wire cpu_master_256b_wdest_valid = (cpu_master_256b_wdest_wptr != cpu_master_256b_wdest_rptr);
+    assign cpu_master_256b_wdest_full = (cpu_master_256b_wdest_wptr[4] != cpu_master_256b_wdest_rptr[4]) && (cpu_master_256b_wdest_wptr[3:0] == cpu_master_256b_wdest_rptr[3:0]);
     wire [1:0] cpu_master_256b_wdest_head = cpu_master_256b_wdest_mem[cpu_master_256b_wdest_rptr[3:0]];
     assign cpu_master_256b_w_to_sram_buffer = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 2'd0);
     assign cpu_master_256b_w_to_ddr_controller = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 2'd1);
@@ -1780,9 +1790,9 @@ module bridge_5x3_channels_xbar
 
     // Master: descr_wr_master, Width path: 256b
     assign descr_wr_master_256b_awready = 
-        ((descr_wr_master_256b_aw_to_sram_buffer && !descr_wr_master_256b_aw_hold_sram_buffer) ? descr_wr_master_256b_aw_slot_sram_buffer_in_ready : '0) |
-        ((descr_wr_master_256b_aw_to_ddr_controller && !descr_wr_master_256b_aw_hold_ddr_controller) ? descr_wr_master_256b_aw_slot_ddr_controller_in_ready : '0) |
-        ((descr_wr_master_256b_aw_to_subtractive && !descr_wr_master_256b_aw_hold_subtractive) ? descr_wr_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((descr_wr_master_256b_aw_to_sram_buffer && !(descr_wr_master_256b_aw_hold_sram_buffer || descr_wr_master_256b_wdest_full)) ? descr_wr_master_256b_aw_slot_sram_buffer_in_ready : '0) |
+        ((descr_wr_master_256b_aw_to_ddr_controller && !(descr_wr_master_256b_aw_hold_ddr_controller || descr_wr_master_256b_wdest_full)) ? descr_wr_master_256b_aw_slot_ddr_controller_in_ready : '0) |
+        ((descr_wr_master_256b_aw_to_subtractive && !(descr_wr_master_256b_aw_hold_subtractive || descr_wr_master_256b_wdest_full)) ? descr_wr_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign descr_wr_master_256b_wready = 
         (descr_wr_master_256b_w_sel_sram_buffer ? sram_buffer_axi_wready : '0) |
@@ -1812,9 +1822,9 @@ module bridge_5x3_channels_xbar
 
     // Master: sink_wr_master, Width path: 256b
     assign sink_wr_master_256b_awready = 
-        ((sink_wr_master_256b_aw_to_sram_buffer && !sink_wr_master_256b_aw_hold_sram_buffer) ? sink_wr_master_256b_aw_slot_sram_buffer_in_ready : '0) |
-        ((sink_wr_master_256b_aw_to_ddr_controller && !sink_wr_master_256b_aw_hold_ddr_controller) ? sink_wr_master_256b_aw_slot_ddr_controller_in_ready : '0) |
-        ((sink_wr_master_256b_aw_to_subtractive && !sink_wr_master_256b_aw_hold_subtractive) ? sink_wr_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((sink_wr_master_256b_aw_to_sram_buffer && !(sink_wr_master_256b_aw_hold_sram_buffer || sink_wr_master_256b_wdest_full)) ? sink_wr_master_256b_aw_slot_sram_buffer_in_ready : '0) |
+        ((sink_wr_master_256b_aw_to_ddr_controller && !(sink_wr_master_256b_aw_hold_ddr_controller || sink_wr_master_256b_wdest_full)) ? sink_wr_master_256b_aw_slot_ddr_controller_in_ready : '0) |
+        ((sink_wr_master_256b_aw_to_subtractive && !(sink_wr_master_256b_aw_hold_subtractive || sink_wr_master_256b_wdest_full)) ? sink_wr_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign sink_wr_master_256b_wready = 
         (sink_wr_master_256b_w_sel_sram_buffer ? sram_buffer_axi_wready : '0) |
@@ -1881,9 +1891,9 @@ module bridge_5x3_channels_xbar
 
     // Master: stream_master, Width path: 256b
     assign stream_master_256b_awready = 
-        ((stream_master_256b_aw_to_sram_buffer && !stream_master_256b_aw_hold_sram_buffer) ? stream_master_256b_aw_slot_sram_buffer_in_ready : '0) |
-        ((stream_master_256b_aw_to_ddr_controller && !stream_master_256b_aw_hold_ddr_controller) ? stream_master_256b_aw_slot_ddr_controller_in_ready : '0) |
-        ((stream_master_256b_aw_to_subtractive && !stream_master_256b_aw_hold_subtractive) ? stream_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((stream_master_256b_aw_to_sram_buffer && !(stream_master_256b_aw_hold_sram_buffer || stream_master_256b_wdest_full)) ? stream_master_256b_aw_slot_sram_buffer_in_ready : '0) |
+        ((stream_master_256b_aw_to_ddr_controller && !(stream_master_256b_aw_hold_ddr_controller || stream_master_256b_wdest_full)) ? stream_master_256b_aw_slot_ddr_controller_in_ready : '0) |
+        ((stream_master_256b_aw_to_subtractive && !(stream_master_256b_aw_hold_subtractive || stream_master_256b_wdest_full)) ? stream_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign stream_master_256b_wready = 
         (stream_master_256b_w_sel_sram_buffer ? sram_buffer_axi_wready : '0) |
@@ -1989,9 +1999,9 @@ module bridge_5x3_channels_xbar
 
     // Master: cpu_master, Width path: 256b
     assign cpu_master_256b_awready = 
-        ((cpu_master_256b_aw_to_sram_buffer && !cpu_master_256b_aw_hold_sram_buffer) ? cpu_master_256b_aw_slot_sram_buffer_in_ready : '0) |
-        ((cpu_master_256b_aw_to_ddr_controller && !cpu_master_256b_aw_hold_ddr_controller) ? cpu_master_256b_aw_slot_ddr_controller_in_ready : '0) |
-        ((cpu_master_256b_aw_to_subtractive && !cpu_master_256b_aw_hold_subtractive) ? cpu_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_master_256b_aw_to_sram_buffer && !(cpu_master_256b_aw_hold_sram_buffer || cpu_master_256b_wdest_full)) ? cpu_master_256b_aw_slot_sram_buffer_in_ready : '0) |
+        ((cpu_master_256b_aw_to_ddr_controller && !(cpu_master_256b_aw_hold_ddr_controller || cpu_master_256b_wdest_full)) ? cpu_master_256b_aw_slot_ddr_controller_in_ready : '0) |
+        ((cpu_master_256b_aw_to_subtractive && !(cpu_master_256b_aw_hold_subtractive || cpu_master_256b_wdest_full)) ? cpu_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_master_256b_wready = 
         (cpu_master_256b_w_sel_sram_buffer ? sram_buffer_axi_wready : '0) |

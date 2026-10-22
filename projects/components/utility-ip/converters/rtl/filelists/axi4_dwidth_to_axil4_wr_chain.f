@@ -22,9 +22,9 @@
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 
-# Dependencies — validated data-sizing primitives (W path)
+# Dependencies — validated data-sizing primitive (UPSIZE W path; DOWNSIZE W
+# is sliced in axi4_dwidth_converter_wr itself)
 $CONVERTERS_ROOT/rtl/axi_data_upsize.sv
-$CONVERTERS_ROOT/rtl/axi_data_dnsize.sv
 
 # Stage 1: AXI4 width converter (wide → narrow on W)
 $CONVERTERS_ROOT/rtl/axi4_dwidth_converter_wr.sv

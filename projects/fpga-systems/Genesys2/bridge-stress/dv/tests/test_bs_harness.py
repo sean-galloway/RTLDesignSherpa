@@ -23,10 +23,14 @@ from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -
 
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
 DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil', 'bridge_bs_xmix']
-# build-xil's vendor slaves are BFM memories here, which model aligned INCR only
-# build-xil: the vendor-memory BFM models aligned INCR only; 'ocelus' is the
-# monitors' self-check (bs_harness_tb.BsHarnessTB.run)
-DUT_PROFILES = {'bridge_bs_xil': ['clean', 'ocelus'], 'bridge_bs_xmix': ['clean']}
+# build-xil / build-xmix vendor slaves are AXI slave BFM memories here; they
+# model every burst type (FIXED, INCR, WRAP, narrow, unaligned) since bridge
+# BUG-018/019, so both run every profile. build-xil adds 'ocelus', the
+# monitors' self-check (bs_harness_tb.BsHarnessTB.run).
+PROFILES = [
+    'clean', 'bursts', 'backpressure', 'reorder', 'narrow', 'single_id',
+    'errors', 'short', 'chaos', 'w_first']
+DUT_PROFILES = {'bridge_bs_xil': PROFILES + ['ocelus']}
 TXNS = {'gate': 40, 'func': 200, 'full': 1000}
 SIM_UART_CLKS_PER_BIT = 4
 
@@ -53,10 +57,7 @@ def _params():
     from_env = os.environ.get('BS_PROFILES')
     if from_env:
         return [(d, from_env) for d in DUTS]
-    profiles = [
-        'clean', 'bursts', 'backpressure', 'reorder', 'narrow', 'single_id',
-        'errors', 'short', 'chaos', 'w_first']
-    return [(d, p) for d in DUTS for p in DUT_PROFILES.get(d, profiles)]
+    return [(d, p) for d in DUTS for p in DUT_PROFILES.get(d, PROFILES)]
 
 
 @pytest.mark.parametrize("dut_bridge, profile", _params())

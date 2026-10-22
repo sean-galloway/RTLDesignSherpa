@@ -235,7 +235,7 @@ class AXI4ToAXIL4ReadTB(TBBase):
                         self.stats['address_errors'] += 1
                         self.stats['errors'] += 1
                         return False
-                    expected_addr += addr_incr
+                    expected_addr = (expected_addr & ~(addr_incr - 1)) + addr_incr  # aligned step (AXI A3.4.1)
 
             elif burst_type == 0:  # FIXED
                 # All beats should have same address
@@ -292,7 +292,7 @@ class AXI4ToAXIL4ReadTB(TBBase):
             addr = start_addr
             for _ in range(blen):
                 expected_addrs.append(addr)
-                addr += addr_incr
+                addr = (addr & ~(addr_incr - 1)) + addr_incr  # aligned step (AXI A3.4.1)
 
         total_expected = len(expected_addrs)
         initial_axil_count = len(self.axil_transactions)
@@ -404,7 +404,7 @@ class AXI4ToAXIL4ReadTB(TBBase):
                         self.stats['address_errors'] += 1
                         self.stats['errors'] += 1
                         success = False
-                    expected_addr += addr_incr
+                    expected_addr = (expected_addr & ~(addr_incr - 1)) + addr_incr  # aligned step (AXI A3.4.1)
             except Exception as e:
                 self.log.error(f"narrow_within_wide read raised: {e}")
                 self.stats['errors'] += 1
@@ -688,6 +688,13 @@ class AXI4ToAXIL4ReadTB(TBBase):
         # WRAP bursts -- see test_wrap_burst.
         if not await self.test_wrap_bursts():
             success = False
+
+        # Unaligned INCR start: beat 1 onward sits on the size grid
+        # (AXI A3.4.1, bridge BUG-019). 0x6003 at full width steps to
+        # aligned(0x6003) + bytes, not 0x6003 + bytes.
+        for addr in (0x6001, 0x6003, 0x6FFD):
+            if not await self.test_read_burst(addr, 4):
+                success = False
 
         # Lightweight b2b smoke
         b2b_smoke = [(0x5000, 2), (0x5010, 2)]

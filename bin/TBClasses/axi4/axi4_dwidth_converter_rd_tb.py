@@ -35,6 +35,7 @@ from cocotb.triggers import RisingEdge
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.axi_burst import beat_addr
 
 # AXI4 components
 from CocoTBFramework.components.axi4.axi4_factories import (
@@ -238,7 +239,9 @@ class AXI4DWidthConverterReadTB(TBBase):
         pkt_copy = type('obj', (object,), {
             'addr': int(getattr(ar_pkt, 'addr', 0)),
             'len': int(getattr(ar_pkt, 'len', 0)),
-            'id': int(getattr(ar_pkt, 'id', 0))
+            'id': int(getattr(ar_pkt, 'id', 0)),
+            'size': int(getattr(ar_pkt, 'size', 0)),
+            'burst': int(getattr(ar_pkt, 'burst', 1)),
         })()
         self.captured_ar_packets.append(pkt_copy)
         self.log.info(f"AR CALLBACK TRIGGERED: addr=0x{pkt_copy.addr:08X}, len={pkt_copy.len}, id={pkt_copy.id}")
@@ -639,6 +642,88 @@ class AXI4DWidthConverterReadTB(TBBase):
                     f"unaligned-start: {n_beats} narrow beats from lane {k} "
                     f"returned the addressed bytes across {exp_wide} wide "
                     f"beat(s)")
+            return ok
+        finally:
+            iface.memory_model = saved_mm
+
+    def check_master_ar_legal(self, ar, tag):
+        """One master-side AR against the AXI4 rules a converted burst must
+        keep (bridge BUG-018): size within the bus, FIXED <= 16 beats, WRAP
+        2/4/8/16 beats from a size-aligned address, INCR inside one 4 KB page."""
+        nb = 1 << ar.size
+        bad = []
+        if nb > self.M_STRB_WIDTH:
+            bad.append(f"size {nb} B > the {self.M_STRB_WIDTH} B bus")
+        if ar.burst == 0 and ar.len > 15:
+            bad.append(f"FIXED AxLEN {ar.len} > 15")
+        if ar.burst == 2:
+            if ar.len not in (1, 3, 7, 15):
+                bad.append(f"WRAP AxLEN {ar.len} not 1/3/7/15")
+            if ar.addr % nb:
+                bad.append("WRAP start not size-aligned")
+        if ar.burst == 1:
+            last = (ar.addr & ~(nb - 1)) + ar.len * nb
+            if (ar.addr >> 12) != (last >> 12):
+                bad.append("INCR crosses 4 KB")
+        if ar.burst == 3:
+            bad.append("reserved AxBURST")
+        for b in bad:
+            self.log.error(f"{tag}: illegal master AR addr=0x{ar.addr:X} len={ar.len} "
+                           f"size={ar.size} burst={ar.burst}: {b}")
+        return not bad
+
+    async def test_burst_matrix(self):
+        """Every burst type x size x alignment through the converter (bridge
+        BUG-018/019): each slave beat must carry the bytes of ITS address by
+        the AXI A3.4.1 rules (FIXED holds, INCR steps from the aligned start,
+        WRAP wraps), and every master AR must be legal AXI. Byte-addressed
+        pattern memory behind the master-side slave, as in
+        test_unaligned_wide_start; bytes of a beat outside its address range
+        are don't-care."""
+        FIXED, INCR, WRAP = 0, 1, 2
+        sb = self.S_STRB_WIDTH
+        base = 0x2000
+        span = 0x10000                  # ~165 bursts at a 0x100 stride
+        pat = bytearray(((0xA5 ^ o ^ (o >> 8) * 7) & 0xFF) for o in range(span))
+        mm = MemoryModel(num_lines=span // self.M_STRB_WIDTH, bytes_per_line=self.M_STRB_WIDTH,
+                         preset_values=list(pat), log=self.log)
+        iface = self.master_read_slave['interface']
+        saved_mm = getattr(iface, 'memory_model', None)
+        iface.memory_model = mm
+        lens = {FIXED: (1, 4, 16), INCR: (1, 3, 9), WRAP: (2, 4, 16)}
+        ok = True
+        n = 0
+        try:
+            for burst in (INCR, FIXED, WRAP):
+                for size in range(sb.bit_length()):
+                    nb = 1 << size
+                    for blen in lens[burst]:
+                        if burst == WRAP:
+                            offs = (0, nb, (blen - 1) * nb)    # aligned, mid and last in the container
+                        else:
+                            offs = (0, 1, nb + 1, sb - 1) if nb > 1 else (0, 3, sb - 1)
+                        for off in sorted(set(offs)):
+                            addr = base + 0x100 * n + off
+                            n += 1
+                            tag = (f"matrix {['FIXED','INCR','WRAP'][burst]} size={nb}B "
+                                   f"len={blen} addr=0x{addr:X}")
+                            got = await self.read_transaction(addr, blen, arsize=size, arburst=burst)
+                            for ar in list(self.captured_ar_packets):
+                                ok &= self.check_master_ar_legal(ar, tag)
+                            for i, g in enumerate(got):
+                                a = beat_addr(addr, i, size, burst, blen - 1)
+                                end = (a & ~(nb - 1)) + nb
+                                gb = [(int(g) >> (8 * (o % sb))) & 0xFF for o in range(a, end)]
+                                eb = [pat[o] for o in range(a, end)]
+                                if gb != eb:
+                                    self.log.error(f"{tag}: beat {i} (0x{a:X}) bytes "
+                                                   f"{bytes(gb).hex()} != {bytes(eb).hex()}")
+                                    self.errors += 1
+                                    ok = False
+                            if self.captured_r_packets and self.captured_r_packets[-1].last != 1:
+                                self.log.error(f"{tag}: last beat without RLAST")
+                                ok = False
+            self.log.info(f"burst matrix: {n} bursts, {'PASS' if ok else 'FAIL'}")
             return ok
         finally:
             iface.memory_model = saved_mm

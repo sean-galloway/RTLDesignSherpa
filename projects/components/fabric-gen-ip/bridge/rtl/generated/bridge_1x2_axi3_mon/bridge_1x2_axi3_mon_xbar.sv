@@ -219,6 +219,7 @@ module bridge_1x2_axi3_mon_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_64b_wdest_full;
     logic cpu_64b_w_to_s0;
     logic cpu_64b_w_sel_s0;
     logic cpu_64b_w_to_s1;
@@ -295,7 +296,7 @@ module bridge_1x2_axi3_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_64b_aw_to_s0 = (cpu_64b_aw.addr <= 32'h7fffffff);
-    wire cpu_64b_aw_gnt_s0 = cpu_64b_aw_to_s0;
+    wire cpu_64b_aw_gnt_s0 = cpu_64b_aw_to_s0 && !cpu_64b_wdest_full;
     assign s0_axi_awid     = cpu_64b_aw_to_s0 ? cpu_64b_aw.id : '0;
     assign s0_axi_awaddr   = cpu_64b_aw_to_s0 ? cpu_64b_aw.addr : '0;
     assign s0_axi_awlen    = cpu_64b_aw_to_s0 ? cpu_64b_aw.len : '0;
@@ -307,7 +308,7 @@ module bridge_1x2_axi3_mon_xbar
     assign s0_axi_awqos    = cpu_64b_aw_to_s0 ? cpu_64b_aw.qos : '0;
     assign s0_axi_awregion = cpu_64b_aw_to_s0 ? cpu_64b_aw.region : '0;
     assign s0_axi_awuser   = cpu_64b_aw_to_s0 ? cpu_64b_aw.user : '0;
-    assign s0_axi_awvalid  = cpu_64b_aw_to_s0 && cpu_64b_awvalid;
+    assign s0_axi_awvalid  = cpu_64b_aw_gnt_s0 && cpu_64b_awvalid;
 
     assign cpu_64b_w_sel_s0 = cpu_64b_w_to_s0;
 
@@ -358,7 +359,7 @@ module bridge_1x2_axi3_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_64b_aw_to_s1 = (cpu_64b_aw.addr >= 32'h80000000);
-    wire cpu_64b_aw_gnt_s1 = cpu_64b_aw_to_s1;
+    wire cpu_64b_aw_gnt_s1 = cpu_64b_aw_to_s1 && !cpu_64b_wdest_full;
     assign s1_axi_awid     = cpu_64b_aw_to_s1 ? cpu_64b_aw.id : '0;
     assign s1_axi_awaddr   = cpu_64b_aw_to_s1 ? cpu_64b_aw.addr : '0;
     assign s1_axi_awlen    = cpu_64b_aw_to_s1 ? cpu_64b_aw.len : '0;
@@ -370,7 +371,7 @@ module bridge_1x2_axi3_mon_xbar
     assign s1_axi_awqos    = cpu_64b_aw_to_s1 ? cpu_64b_aw.qos : '0;
     assign s1_axi_awregion = cpu_64b_aw_to_s1 ? cpu_64b_aw.region : '0;
     assign s1_axi_awuser   = cpu_64b_aw_to_s1 ? cpu_64b_aw.user : '0;
-    assign s1_axi_awvalid  = cpu_64b_aw_to_s1 && cpu_64b_awvalid;
+    assign s1_axi_awvalid  = cpu_64b_aw_gnt_s1 && cpu_64b_awvalid;
 
     assign cpu_64b_w_sel_s1 = cpu_64b_w_to_s1;
 
@@ -421,7 +422,7 @@ module bridge_1x2_axi3_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_64b_aw_to_subtractive = !(((cpu_64b_aw.addr <= 32'h7fffffff)) || ((cpu_64b_aw.addr >= 32'h80000000)));
-    wire cpu_64b_aw_gnt_subtractive = cpu_64b_aw_to_subtractive;
+    wire cpu_64b_aw_gnt_subtractive = cpu_64b_aw_to_subtractive && !cpu_64b_wdest_full;
     assign subtractive_axi_awid     = cpu_64b_aw_to_subtractive ? cpu_64b_aw.id : '0;
     assign subtractive_axi_awaddr   = cpu_64b_aw_to_subtractive ? cpu_64b_aw.addr : '0;
     assign subtractive_axi_awlen    = cpu_64b_aw_to_subtractive ? cpu_64b_aw.len : '0;
@@ -433,7 +434,7 @@ module bridge_1x2_axi3_mon_xbar
     assign subtractive_axi_awqos    = cpu_64b_aw_to_subtractive ? cpu_64b_aw.qos : '0;
     assign subtractive_axi_awregion = cpu_64b_aw_to_subtractive ? cpu_64b_aw.region : '0;
     assign subtractive_axi_awuser   = cpu_64b_aw_to_subtractive ? cpu_64b_aw.user : '0;
-    assign subtractive_axi_awvalid  = cpu_64b_aw_to_subtractive && cpu_64b_awvalid;
+    assign subtractive_axi_awvalid  = cpu_64b_aw_gnt_subtractive && cpu_64b_awvalid;
 
     assign cpu_64b_w_sel_subtractive = cpu_64b_w_to_subtractive;
 
@@ -499,6 +500,7 @@ module bridge_1x2_axi3_mon_xbar
         end
     )
     wire cpu_64b_wdest_valid = (cpu_64b_wdest_wptr != cpu_64b_wdest_rptr);
+    assign cpu_64b_wdest_full = (cpu_64b_wdest_wptr[4] != cpu_64b_wdest_rptr[4]) && (cpu_64b_wdest_wptr[3:0] == cpu_64b_wdest_rptr[3:0]);
     wire [1:0] cpu_64b_wdest_head = cpu_64b_wdest_mem[cpu_64b_wdest_rptr[3:0]];
     assign cpu_64b_w_to_s0 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 2'd0);
     assign cpu_64b_w_to_s1 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 2'd1);

@@ -215,45 +215,62 @@ still needs a final partial wide beat:
 assign m_axi_awlen = ((int_awlen + 8'(WIDTH_RATIO)) / 8'(WIDTH_RATIO)) - 8'd1;
 ```
 
-**Wide → narrow (downsize).** Each wide beat becomes RATIO narrow ones
-— and the product does not fit a burst. AXI4 allows 256 beats, so a
-full-length slave burst needs up to `256 * WIDTH_RATIO` narrow beats,
-which is neither expressible in the 8-bit AWLEN nor a legal burst. One
-slave burst is therefore **split** into as many master bursts of <= 256
-beats as it takes:
+**Every legal AXI4 burst is carried.** Each slave AW is classified into
+one of three modes (bridge BUG-018/019; AXI A3.4.1 burst addressing):
+
+| Mode | Direction | Bursts | Master side |
+| --- | --- | --- | --- |
+| CM_PACK | upsize | INCR at the slave's full width | one wide INCR, length divided by the ratio (rounded up, counting the start lane) |
+| CM_PACK | downsize | INCR wider than the master bus | narrow INCR pieces of <= 256 beats |
+| CM_PASS | both | AWSIZE no wider than the narrower bus (any burst type) | the AW unchanged; one master beat per slave beat |
+| CM_EXPAND | downsize | FIXED or WRAP wider than the master bus | one narrow INCR piece per slave beat, at that beat's address |
+
+: Table 2.16: Write Converter Burst Modes
+
+**Wide → narrow (downsize), CM_PACK.** Each wide beat of 2^AWSIZE bytes
+becomes 2^(AWSIZE - master size) narrow beats -- and the product does
+not fit a burst. AXI4 allows 256 beats, so a full-length slave burst
+needs up to `256 * WIDTH_RATIO` narrow beats, which is neither
+expressible in the 8-bit AWLEN nor a legal burst. One slave burst is
+therefore **split** into as many master bursts of <= 256 beats as it
+takes. The count starts from the burst's start lane: only the first beat
+of an INCR burst may be unaligned, and the narrow lanes below the start
+address are not transferred:
 
 ```systemverilog
 // remaining-beat counter, 9 + $clog2(WIDTH_RATIO) bits -- 8 is exactly
 // what a multiply-into-AWLEN overflows
-r_split_remaining <= (CNTW'(int_awlen) + CNTW'(1)) * CNTW'(WIDTH_RATIO);
+r_split_remaining <= ((CNTW'(int_awlen) + CNTW'(1)) << w_rlog)
+                     - CNTW'((int_awaddr & w_bmask) >> MASTER_SIZE);
 ...
-assign m_axi_awlen = 8'(w_this_beats - 9'd1);   // w_this_beats = min(remaining, 256)
+assign m_axi_awlen = 8'(w_this_beats - 9'd1);   // w_this_beats = min(remaining, 256 - lane)
 ```
 
-Each issued master burst is recorded in a split queue — its beat count
-frames that burst's WLAST on the W path, and a final-burst flag drives
+The first piece is `256 - lane` beats long, so every later piece starts on
+a slave-beat boundary, at `aligned(start) + n * 256 * M_STRB_WIDTH`. (The
+earlier step from the unaligned start ran every later piece one lane late,
+bridge BUG-019.)
+
+**CM_EXPAND.** FIXED and WRAP bursts wider than the narrow bus cannot be
+issued as one narrow burst: a narrow FIXED would repeat one narrow
+address, and a WRAP of `16 * RATIO` beats is illegal. Each slave beat
+instead becomes its own narrow INCR piece of `2^(AWSIZE - master size)`
+beats at that beat's address -- FIXED holds the address, WRAP walks it
+through its container. This is correct but serial: one master burst per
+slave beat, so FIXED and WRAP wide writes run far below the bus rate.
+
+Each issued master burst is recorded in a split queue -- `{mode, first
+chunk, chunks per slave beat - 1, beats}` -- which frames that burst's
+WLAST and chunk selection on the W path, and every piece is counted into
 the B fold (several master responses collapse into one slave response,
-worst case wins). The address advances by `256 * M_STRB_WIDTH` per burst
-for INCR and holds for FIXED; WRAP never reaches a split, since AXI4
-caps it at 16 beats and `16 * RATIO <= 256` for every supported ratio.
-The slave's AW is consumed only when its final master burst has been
-issued.
+worst case wins). The slave's AW is consumed only when its final master
+burst has been issued.
 
-Rounding up is the whole point of the `+ WIDTH_RATIO` term. A floor
-divide underflows: AWLEN=5 (6 beats) at RATIO=8 gives `(6 >> 3) - 1`,
-which is -1 — 8'hFF, a 256-beat burst — where the correct answer is 0,
-one wide beat.
-
-**Size** is not derived from the incoming AWSIZE. Both branches drive the
-master side at its own full width:
-
-```systemverilog
-assign m_axi_awsize = MASTER_SIZE[2:0];
-```
-
-Neither converter checks address alignment on the downsize path. The
-read converter aligns the address it issues on its UPSIZE path only —
-a wide access cannot start mid-word (see 2.6.5).
+**Narrow → wide (upsize), CM_PACK.** Rounding up is the whole point of
+the `+ WIDTH_RATIO` term. A floor divide underflows: AWLEN=5 (6 beats) at
+RATIO=8 gives `(6 >> 3) - 1`, which is -1 -- 8'hFF, a 256-beat burst --
+where the correct answer is 0, one wide beat. **Size** in CM_PACK is the
+master's own full width; in CM_PASS it is the slave's AWSIZE, unchanged.
 
 **Upsize INCR bursts may start mid-wide-word.** The AXI-correct
 behavior: the first wide beat carries the narrow data in the byte
@@ -262,21 +279,16 @@ lanes the ADDRESS selects, with WSTRB covering only those lanes
 
 - `m_axi_awlen` counts the lane offset:
   `ceil((start_lane + narrow_beats) / RATIO)` wide beats. AWADDR
-  passes through unchanged — unaligned is legal AXI; the first beat
+  passes through unchanged -- unaligned is legal AXI; the first beat
   is partial within its size container.
-- an AW-lane queue (same inline pattern as the read converter's
-  burst-length FIFO) records each accepted AW's start lane; W beats
-  are held off until their AW is queued (the packer's lane comes from
-  AWADDR), and the entry pops on the NARROW side's last beat — the
-  head must track the burst the CURRENT narrow beat belongs to, and a
-  wide-side pop raced back-to-back bursts.
+- an AW queue records each accepted AW's mode, start lane, low address,
+  size, burst and length; W beats are held off until their AW is queued,
+  and the entry pops on the NARROW side's last beat -- the head must
+  track the burst the CURRENT narrow beat belongs to, and a wide-side pop
+  raced back-to-back bursts.
 - `axi_data_upsize` takes a `start_lane` input: the first narrow beat
   of a burst lands at that lane (data AND WSTRB shifted, leading
   slots '0); later wide groups of the burst start at lane 0.
-
-FIXED and WRAP keep the wide-aligned requirement (asserted in
-simulation) — their lane semantics through the packer are not
-defined.
 
 ### Skid Buffer for AW
 
@@ -306,7 +318,29 @@ gaxi_skid_buffer #(
 
 ## 2.5.6 Write Data Channel
 
-### Upsize Instance
+### Downsize Slicer
+
+DOWNSIZE W is sliced in the wrapper rather than by `axi_data_dnsize`,
+because the chunk a narrow beat comes from depends on the burst: the split
+queue entry at the head gives the master burst's beat count (its WLAST),
+the chunk its first beat comes from (an unaligned start or a mid-burst
+piece is not chunk 0), and how many chunks one slave beat covers (a slave
+AWSIZE narrower than the slave bus covers fewer than WIDTH_RATIO). The
+wide beat is taken when its last covered chunk goes. In CM_PASS each wide
+beat gives one narrow beat, from the chunk that holds its strobes. The
+next entry loads on the current burst's last W handshake when it is
+already queued, so back-to-back bursts stream without a dead cycle.
+
+### Upsize Pass-Through
+
+In CM_PASS each narrow W beat becomes one wide beat: the data copied into
+every chunk and the strobes into the chunk the beat's address selects.
+That address walks by the burst rules (FIXED holds, INCR steps on the
+size grid, WRAP wraps in its container); only its low bits are kept. A
+PASS beat waits until the packer has sent every CM_PACK burst it took in,
+so the two never drive the master W channel at once.
+
+### Upsize Instance (CM_PACK)
 
 ```systemverilog
 axi_data_upsize #(
@@ -449,7 +483,7 @@ entries + two 5-bit pointers) -- see 2.5.5 for both.
 | W upsize | N cycles (accumulation) |
 | B passthrough | 1 cycle (skid) |
 
-: Table 2.16: Write Converter Latency
+: Table 2.17: Write Converter Latency
 
 ### Throughput
 

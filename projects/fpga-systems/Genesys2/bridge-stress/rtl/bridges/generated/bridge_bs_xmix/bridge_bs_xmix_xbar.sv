@@ -634,50 +634,66 @@ module bridge_bs_xmix_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_32b_wdest_full;
+    logic [4:0] cpu_32b_wlive_mem2;
     logic cpu_32b_w_to_mem2;
     logic cpu_32b_w_sel_mem2;
+    logic cpu_64b_wdest_full;
     logic cpu_64b_w_to_mem0;
     logic cpu_64b_w_sel_mem0;
     logic cpu_64b_w_to_mem1;
     logic cpu_64b_w_sel_mem1;
     logic cpu_64b_w_to_bram;
     logic cpu_64b_w_sel_bram;
+    logic cpu_128b_wdest_full;
     logic cpu_128b_w_to_ddr;
     logic cpu_128b_w_sel_ddr;
     logic cpu_128b_w_to_subtractive;
     logic cpu_128b_w_sel_subtractive;
+    logic io_32b_wdest_full;
+    logic [4:0] io_32b_wlive_mem2;
     logic io_32b_w_to_mem2;
     logic io_32b_w_sel_mem2;
+    logic io_64b_wdest_full;
     logic io_64b_w_to_mem0;
     logic io_64b_w_sel_mem0;
     logic io_64b_w_to_mem1;
     logic io_64b_w_sel_mem1;
     logic io_64b_w_to_bram;
     logic io_64b_w_sel_bram;
+    logic io_128b_wdest_full;
     logic io_128b_w_to_ddr;
     logic io_128b_w_sel_ddr;
     logic io_128b_w_to_subtractive;
     logic io_128b_w_sel_subtractive;
+    logic acc_32b_wdest_full;
+    logic [4:0] acc_32b_wlive_mem2;
     logic acc_32b_w_to_mem2;
     logic acc_32b_w_sel_mem2;
+    logic acc_64b_wdest_full;
     logic acc_64b_w_to_mem0;
     logic acc_64b_w_sel_mem0;
     logic acc_64b_w_to_mem1;
     logic acc_64b_w_sel_mem1;
     logic acc_64b_w_to_bram;
     logic acc_64b_w_sel_bram;
+    logic acc_128b_wdest_full;
     logic acc_128b_w_to_ddr;
     logic acc_128b_w_sel_ddr;
     logic acc_128b_w_to_subtractive;
     logic acc_128b_w_sel_subtractive;
+    logic atg_64b_wdest_full;
     logic atg_64b_w_to_bram;
     logic atg_64b_w_sel_bram;
+    logic atg_128b_wdest_full;
     logic atg_128b_w_to_ddr;
     logic atg_128b_w_sel_ddr;
     logic atg_128b_w_to_subtractive;
     logic atg_128b_w_sel_subtractive;
+    logic cdma_64b_wdest_full;
     logic cdma_64b_w_to_bram;
     logic cdma_64b_w_sel_bram;
+    logic cdma_128b_wdest_full;
     logic cdma_128b_w_to_ddr;
     logic cdma_128b_w_sel_ddr;
     logic cdma_128b_w_to_subtractive;
@@ -1263,7 +1279,7 @@ module bridge_bs_xmix_xbar
     wire acc_64b_ar_to_mem0 = (acc_64b_ar.addr <= 32'h0fffffff);
 
     // AW request slots for mem0: arbitration at the slave pins
-    assign cpu_64b_aw_slot_mem0_in_valid = cpu_64b_aw_to_mem0 && cpu_64b_awvalid && !cpu_64b_aw_hold_mem0;
+    assign cpu_64b_aw_slot_mem0_in_valid = cpu_64b_aw_to_mem0 && cpu_64b_awvalid && !(cpu_64b_aw_hold_mem0 || (|cpu_32b_wlive_mem2) || cpu_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_64b_aw_slot_mem0_in_valid), .wr_ready(cpu_64b_aw_slot_mem0_in_ready), .wr_data(cpu_64b_aw),
@@ -1272,7 +1288,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_64b_aw_slot_mem0_in_valid = io_64b_aw_to_mem0 && io_64b_awvalid && !io_64b_aw_hold_mem0;
+    assign io_64b_aw_slot_mem0_in_valid = io_64b_aw_to_mem0 && io_64b_awvalid && !(io_64b_aw_hold_mem0 || (|io_32b_wlive_mem2) || io_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_64b_aw_slot_mem0_in_valid), .wr_ready(io_64b_aw_slot_mem0_in_ready), .wr_data(io_64b_aw),
@@ -1281,7 +1297,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_64b_aw_slot_mem0_in_valid = acc_64b_aw_to_mem0 && acc_64b_awvalid && !acc_64b_aw_hold_mem0;
+    assign acc_64b_aw_slot_mem0_in_valid = acc_64b_aw_to_mem0 && acc_64b_awvalid && !(acc_64b_aw_hold_mem0 || (|acc_32b_wlive_mem2) || acc_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_64b_aw_slot_mem0_in_valid), .wr_ready(acc_64b_aw_slot_mem0_in_ready), .wr_data(acc_64b_aw),
@@ -1572,7 +1588,7 @@ module bridge_bs_xmix_xbar
     wire acc_64b_ar_to_mem1 = ((acc_64b_ar.addr >= 32'h10000000) && (acc_64b_ar.addr <= 32'h1fffffff));
 
     // AW request slots for mem1: arbitration at the slave pins
-    assign cpu_64b_aw_slot_mem1_in_valid = cpu_64b_aw_to_mem1 && cpu_64b_awvalid && !cpu_64b_aw_hold_mem1;
+    assign cpu_64b_aw_slot_mem1_in_valid = cpu_64b_aw_to_mem1 && cpu_64b_awvalid && !(cpu_64b_aw_hold_mem1 || (|cpu_32b_wlive_mem2) || cpu_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_64b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_64b_aw_slot_mem1_in_valid), .wr_ready(cpu_64b_aw_slot_mem1_in_ready), .wr_data(cpu_64b_aw),
@@ -1581,7 +1597,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_64b_aw_slot_mem1_in_valid = io_64b_aw_to_mem1 && io_64b_awvalid && !io_64b_aw_hold_mem1;
+    assign io_64b_aw_slot_mem1_in_valid = io_64b_aw_to_mem1 && io_64b_awvalid && !(io_64b_aw_hold_mem1 || (|io_32b_wlive_mem2) || io_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_64b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_64b_aw_slot_mem1_in_valid), .wr_ready(io_64b_aw_slot_mem1_in_ready), .wr_data(io_64b_aw),
@@ -1590,7 +1606,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_64b_aw_slot_mem1_in_valid = acc_64b_aw_to_mem1 && acc_64b_awvalid && !acc_64b_aw_hold_mem1;
+    assign acc_64b_aw_slot_mem1_in_valid = acc_64b_aw_to_mem1 && acc_64b_awvalid && !(acc_64b_aw_hold_mem1 || (|acc_32b_wlive_mem2) || acc_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_64b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_64b_aw_slot_mem1_in_valid), .wr_ready(acc_64b_aw_slot_mem1_in_ready), .wr_data(acc_64b_aw),
@@ -1845,21 +1861,21 @@ module bridge_bs_xmix_xbar
     wire io_32b_ar_to_mem2 = ((io_32b_ar.addr >= 32'h30000000) && (io_32b_ar.addr <= 32'h3fffffff));
     wire acc_32b_aw_to_mem2 = ((acc_32b_aw.addr >= 32'h30000000) && (acc_32b_aw.addr <= 32'h3fffffff));
     wire acc_32b_ar_to_mem2 = ((acc_32b_ar.addr >= 32'h30000000) && (acc_32b_ar.addr <= 32'h3fffffff));
-    assign mem2_axi_lane_awvalid[0] = cpu_32b_aw_to_mem2 && !cpu_32b_aw_hold_mem2 && cpu_32b_awvalid;
+    assign mem2_axi_lane_awvalid[0] = cpu_32b_aw_to_mem2 && !(cpu_32b_aw_hold_mem2 || cpu_32b_wdest_full) && cpu_32b_awvalid;
     assign mem2_axi_lane_aw[0*69 +: 69] = {cpu_32b_aw.id, cpu_32b_aw.addr, cpu_32b_aw.len, cpu_32b_aw.size, cpu_32b_aw.burst, cpu_32b_aw.lock, cpu_32b_aw.cache, cpu_32b_aw.prot, cpu_32b_aw.qos, cpu_32b_aw.region, cpu_32b_aw.user};
     assign cpu_32b_w_sel_mem2 = cpu_32b_w_to_mem2;
     assign mem2_axi_lane_wvalid[0] = cpu_32b_w_to_mem2 && cpu_32b_wvalid;
     assign mem2_axi_lane_w[0*38 +: 38] = {cpu_32b_w.data, cpu_32b_w.strb, cpu_32b_w.last, cpu_32b_w.user};
     assign mem2_axi_lane_arvalid[0] = cpu_32b_ar_to_mem2 && cpu_32b_arvalid;
     assign mem2_axi_lane_ar[0*69 +: 69] = {cpu_32b_ar.id, cpu_32b_ar.addr, cpu_32b_ar.len, cpu_32b_ar.size, cpu_32b_ar.burst, cpu_32b_ar.lock, cpu_32b_ar.cache, cpu_32b_ar.prot, cpu_32b_ar.qos, cpu_32b_ar.region, cpu_32b_ar.user};
-    assign mem2_axi_lane_awvalid[1] = io_32b_aw_to_mem2 && !io_32b_aw_hold_mem2 && io_32b_awvalid;
+    assign mem2_axi_lane_awvalid[1] = io_32b_aw_to_mem2 && !(io_32b_aw_hold_mem2 || io_32b_wdest_full) && io_32b_awvalid;
     assign mem2_axi_lane_aw[1*69 +: 69] = {io_32b_aw.id, io_32b_aw.addr, io_32b_aw.len, io_32b_aw.size, io_32b_aw.burst, io_32b_aw.lock, io_32b_aw.cache, io_32b_aw.prot, io_32b_aw.qos, io_32b_aw.region, io_32b_aw.user};
     assign io_32b_w_sel_mem2 = io_32b_w_to_mem2;
     assign mem2_axi_lane_wvalid[1] = io_32b_w_to_mem2 && io_32b_wvalid;
     assign mem2_axi_lane_w[1*38 +: 38] = {io_32b_w.data, io_32b_w.strb, io_32b_w.last, io_32b_w.user};
     assign mem2_axi_lane_arvalid[1] = io_32b_ar_to_mem2 && io_32b_arvalid;
     assign mem2_axi_lane_ar[1*69 +: 69] = {io_32b_ar.id, io_32b_ar.addr, io_32b_ar.len, io_32b_ar.size, io_32b_ar.burst, io_32b_ar.lock, io_32b_ar.cache, io_32b_ar.prot, io_32b_ar.qos, io_32b_ar.region, io_32b_ar.user};
-    assign mem2_axi_lane_awvalid[2] = acc_32b_aw_to_mem2 && !acc_32b_aw_hold_mem2 && acc_32b_awvalid;
+    assign mem2_axi_lane_awvalid[2] = acc_32b_aw_to_mem2 && !(acc_32b_aw_hold_mem2 || acc_32b_wdest_full) && acc_32b_awvalid;
     assign mem2_axi_lane_aw[2*69 +: 69] = {acc_32b_aw.id, acc_32b_aw.addr, acc_32b_aw.len, acc_32b_aw.size, acc_32b_aw.burst, acc_32b_aw.lock, acc_32b_aw.cache, acc_32b_aw.prot, acc_32b_aw.qos, acc_32b_aw.region, acc_32b_aw.user};
     assign acc_32b_w_sel_mem2 = acc_32b_w_to_mem2;
     assign mem2_axi_lane_wvalid[2] = acc_32b_w_to_mem2 && acc_32b_wvalid;
@@ -1927,7 +1943,7 @@ module bridge_bs_xmix_xbar
     wire cdma_64b_ar_to_bram = ((cdma_64b_ar.addr >= 32'h20000000) && (cdma_64b_ar.addr <= 32'h2000ffff));
 
     // AW request slots for bram: arbitration at the slave pins
-    assign cpu_64b_aw_slot_bram_in_valid = cpu_64b_aw_to_bram && cpu_64b_awvalid && !cpu_64b_aw_hold_bram;
+    assign cpu_64b_aw_slot_bram_in_valid = cpu_64b_aw_to_bram && cpu_64b_awvalid && !(cpu_64b_aw_hold_bram || (|cpu_32b_wlive_mem2) || cpu_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_64b_aw_slot_bram (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_64b_aw_slot_bram_in_valid), .wr_ready(cpu_64b_aw_slot_bram_in_ready), .wr_data(cpu_64b_aw),
@@ -1936,7 +1952,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_64b_aw_slot_bram_in_valid = io_64b_aw_to_bram && io_64b_awvalid && !io_64b_aw_hold_bram;
+    assign io_64b_aw_slot_bram_in_valid = io_64b_aw_to_bram && io_64b_awvalid && !(io_64b_aw_hold_bram || (|io_32b_wlive_mem2) || io_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_64b_aw_slot_bram (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_64b_aw_slot_bram_in_valid), .wr_ready(io_64b_aw_slot_bram_in_ready), .wr_data(io_64b_aw),
@@ -1945,7 +1961,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_64b_aw_slot_bram_in_valid = acc_64b_aw_to_bram && acc_64b_awvalid && !acc_64b_aw_hold_bram;
+    assign acc_64b_aw_slot_bram_in_valid = acc_64b_aw_to_bram && acc_64b_awvalid && !(acc_64b_aw_hold_bram || (|acc_32b_wlive_mem2) || acc_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_64b_aw_slot_bram (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_64b_aw_slot_bram_in_valid), .wr_ready(acc_64b_aw_slot_bram_in_ready), .wr_data(acc_64b_aw),
@@ -1954,7 +1970,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign atg_64b_aw_slot_bram_in_valid = atg_64b_aw_to_bram && atg_64b_awvalid && !atg_64b_aw_hold_bram;
+    assign atg_64b_aw_slot_bram_in_valid = atg_64b_aw_to_bram && atg_64b_awvalid && !(atg_64b_aw_hold_bram || atg_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_atg_64b_aw_slot_bram (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(atg_64b_aw_slot_bram_in_valid), .wr_ready(atg_64b_aw_slot_bram_in_ready), .wr_data(atg_64b_aw),
@@ -1963,7 +1979,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cdma_64b_aw_slot_bram_in_valid = cdma_64b_aw_to_bram && cdma_64b_awvalid && !cdma_64b_aw_hold_bram;
+    assign cdma_64b_aw_slot_bram_in_valid = cdma_64b_aw_to_bram && cdma_64b_awvalid && !(cdma_64b_aw_hold_bram || cdma_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cdma_64b_aw_slot_bram (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cdma_64b_aw_slot_bram_in_valid), .wr_ready(cdma_64b_aw_slot_bram_in_ready), .wr_data(cdma_64b_aw),
@@ -2322,7 +2338,7 @@ module bridge_bs_xmix_xbar
     wire cdma_128b_ar_to_ddr = ((cdma_128b_ar.addr >= 32'h40000000) && (cdma_128b_ar.addr <= 32'h7fffffff));
 
     // AW request slots for ddr: arbitration at the slave pins
-    assign cpu_128b_aw_slot_ddr_in_valid = cpu_128b_aw_to_ddr && cpu_128b_awvalid && !cpu_128b_aw_hold_ddr;
+    assign cpu_128b_aw_slot_ddr_in_valid = cpu_128b_aw_to_ddr && cpu_128b_awvalid && !(cpu_128b_aw_hold_ddr || (|cpu_32b_wlive_mem2) || cpu_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_128b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_128b_aw_slot_ddr_in_valid), .wr_ready(cpu_128b_aw_slot_ddr_in_ready), .wr_data(cpu_128b_aw),
@@ -2331,7 +2347,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_128b_aw_slot_ddr_in_valid = io_128b_aw_to_ddr && io_128b_awvalid && !io_128b_aw_hold_ddr;
+    assign io_128b_aw_slot_ddr_in_valid = io_128b_aw_to_ddr && io_128b_awvalid && !(io_128b_aw_hold_ddr || (|io_32b_wlive_mem2) || io_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_128b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_128b_aw_slot_ddr_in_valid), .wr_ready(io_128b_aw_slot_ddr_in_ready), .wr_data(io_128b_aw),
@@ -2340,7 +2356,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_128b_aw_slot_ddr_in_valid = acc_128b_aw_to_ddr && acc_128b_awvalid && !acc_128b_aw_hold_ddr;
+    assign acc_128b_aw_slot_ddr_in_valid = acc_128b_aw_to_ddr && acc_128b_awvalid && !(acc_128b_aw_hold_ddr || (|acc_32b_wlive_mem2) || acc_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_128b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_128b_aw_slot_ddr_in_valid), .wr_ready(acc_128b_aw_slot_ddr_in_ready), .wr_data(acc_128b_aw),
@@ -2349,7 +2365,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign atg_128b_aw_slot_ddr_in_valid = atg_128b_aw_to_ddr && atg_128b_awvalid && !atg_128b_aw_hold_ddr;
+    assign atg_128b_aw_slot_ddr_in_valid = atg_128b_aw_to_ddr && atg_128b_awvalid && !(atg_128b_aw_hold_ddr || atg_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_atg_128b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(atg_128b_aw_slot_ddr_in_valid), .wr_ready(atg_128b_aw_slot_ddr_in_ready), .wr_data(atg_128b_aw),
@@ -2358,7 +2374,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cdma_128b_aw_slot_ddr_in_valid = cdma_128b_aw_to_ddr && cdma_128b_awvalid && !cdma_128b_aw_hold_ddr;
+    assign cdma_128b_aw_slot_ddr_in_valid = cdma_128b_aw_to_ddr && cdma_128b_awvalid && !(cdma_128b_aw_hold_ddr || cdma_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cdma_128b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cdma_128b_aw_slot_ddr_in_valid), .wr_ready(cdma_128b_aw_slot_ddr_in_ready), .wr_data(cdma_128b_aw),
@@ -2717,7 +2733,7 @@ module bridge_bs_xmix_xbar
     wire cdma_128b_ar_to_subtractive = !((((cdma_128b_ar.addr >= 32'h20000000) && (cdma_128b_ar.addr <= 32'h2000ffff))) || (((cdma_128b_ar.addr >= 32'h40000000) && (cdma_128b_ar.addr <= 32'h7fffffff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign cpu_128b_aw_slot_subtractive_in_valid = cpu_128b_aw_to_subtractive && cpu_128b_awvalid && !cpu_128b_aw_hold_subtractive;
+    assign cpu_128b_aw_slot_subtractive_in_valid = cpu_128b_aw_to_subtractive && cpu_128b_awvalid && !(cpu_128b_aw_hold_subtractive || (|cpu_32b_wlive_mem2) || cpu_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_128b_aw_slot_subtractive_in_valid), .wr_ready(cpu_128b_aw_slot_subtractive_in_ready), .wr_data(cpu_128b_aw),
@@ -2726,7 +2742,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_128b_aw_slot_subtractive_in_valid = io_128b_aw_to_subtractive && io_128b_awvalid && !io_128b_aw_hold_subtractive;
+    assign io_128b_aw_slot_subtractive_in_valid = io_128b_aw_to_subtractive && io_128b_awvalid && !(io_128b_aw_hold_subtractive || (|io_32b_wlive_mem2) || io_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_128b_aw_slot_subtractive_in_valid), .wr_ready(io_128b_aw_slot_subtractive_in_ready), .wr_data(io_128b_aw),
@@ -2735,7 +2751,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_128b_aw_slot_subtractive_in_valid = acc_128b_aw_to_subtractive && acc_128b_awvalid && !acc_128b_aw_hold_subtractive;
+    assign acc_128b_aw_slot_subtractive_in_valid = acc_128b_aw_to_subtractive && acc_128b_awvalid && !(acc_128b_aw_hold_subtractive || (|acc_32b_wlive_mem2) || acc_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_128b_aw_slot_subtractive_in_valid), .wr_ready(acc_128b_aw_slot_subtractive_in_ready), .wr_data(acc_128b_aw),
@@ -2744,7 +2760,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign atg_128b_aw_slot_subtractive_in_valid = atg_128b_aw_to_subtractive && atg_128b_awvalid && !atg_128b_aw_hold_subtractive;
+    assign atg_128b_aw_slot_subtractive_in_valid = atg_128b_aw_to_subtractive && atg_128b_awvalid && !(atg_128b_aw_hold_subtractive || atg_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_atg_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(atg_128b_aw_slot_subtractive_in_valid), .wr_ready(atg_128b_aw_slot_subtractive_in_ready), .wr_data(atg_128b_aw),
@@ -2753,7 +2769,7 @@ module bridge_bs_xmix_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cdma_128b_aw_slot_subtractive_in_valid = cdma_128b_aw_to_subtractive && cdma_128b_awvalid && !cdma_128b_aw_hold_subtractive;
+    assign cdma_128b_aw_slot_subtractive_in_valid = cdma_128b_aw_to_subtractive && cdma_128b_awvalid && !(cdma_128b_aw_hold_subtractive || cdma_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cdma_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cdma_128b_aw_slot_subtractive_in_valid), .wr_ready(cdma_128b_aw_slot_subtractive_in_ready), .wr_data(cdma_128b_aw),
@@ -3114,8 +3130,13 @@ module bridge_bs_xmix_xbar
         end
     )
     wire cpu_32b_wdest_valid = (cpu_32b_wdest_wptr != cpu_32b_wdest_rptr);
+    assign cpu_32b_wdest_full = (cpu_32b_wdest_wptr[4] != cpu_32b_wdest_rptr[4]) && (cpu_32b_wdest_wptr[3:0] == cpu_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
     assign cpu_32b_w_to_mem2 = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd0);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) cpu_32b_wlive_mem2 <= '0;
+        else cpu_32b_wlive_mem2 <= cpu_32b_wlive_mem2 + 5'((cpu_32b_wdest_push && (cpu_32b_wdest_enc == 1'd0))) - 5'((cpu_32b_wdest_pop && (cpu_32b_wdest_head == 1'd0)));
+    )
 
     // cpu 64b path -> mem0, mem1, bram (16 deep: max_outstanding)
     logic [1:0] cpu_64b_wdest_mem [16];
@@ -3138,6 +3159,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire cpu_64b_wdest_valid = (cpu_64b_wdest_wptr != cpu_64b_wdest_rptr);
+    assign cpu_64b_wdest_full = (cpu_64b_wdest_wptr[4] != cpu_64b_wdest_rptr[4]) && (cpu_64b_wdest_wptr[3:0] == cpu_64b_wdest_rptr[3:0]);
     wire [1:0] cpu_64b_wdest_head = cpu_64b_wdest_mem[cpu_64b_wdest_rptr[3:0]];
     assign cpu_64b_w_to_mem0 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 2'd0);
     assign cpu_64b_w_to_mem1 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 2'd1);
@@ -3164,6 +3186,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire cpu_128b_wdest_valid = (cpu_128b_wdest_wptr != cpu_128b_wdest_rptr);
+    assign cpu_128b_wdest_full = (cpu_128b_wdest_wptr[4] != cpu_128b_wdest_rptr[4]) && (cpu_128b_wdest_wptr[3:0] == cpu_128b_wdest_rptr[3:0]);
     wire [0:0] cpu_128b_wdest_head = cpu_128b_wdest_mem[cpu_128b_wdest_rptr[3:0]];
     assign cpu_128b_w_to_ddr = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 1'd0);
     assign cpu_128b_w_to_subtractive = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 1'd1);
@@ -3189,8 +3212,13 @@ module bridge_bs_xmix_xbar
         end
     )
     wire io_32b_wdest_valid = (io_32b_wdest_wptr != io_32b_wdest_rptr);
+    assign io_32b_wdest_full = (io_32b_wdest_wptr[4] != io_32b_wdest_rptr[4]) && (io_32b_wdest_wptr[3:0] == io_32b_wdest_rptr[3:0]);
     wire [0:0] io_32b_wdest_head = io_32b_wdest_mem[io_32b_wdest_rptr[3:0]];
     assign io_32b_w_to_mem2 = io_32b_wdest_valid && (io_32b_wdest_head == 1'd0);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) io_32b_wlive_mem2 <= '0;
+        else io_32b_wlive_mem2 <= io_32b_wlive_mem2 + 5'((io_32b_wdest_push && (io_32b_wdest_enc == 1'd0))) - 5'((io_32b_wdest_pop && (io_32b_wdest_head == 1'd0)));
+    )
 
     // io 64b path -> mem0, mem1, bram (16 deep: max_outstanding)
     logic [1:0] io_64b_wdest_mem [16];
@@ -3213,6 +3241,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire io_64b_wdest_valid = (io_64b_wdest_wptr != io_64b_wdest_rptr);
+    assign io_64b_wdest_full = (io_64b_wdest_wptr[4] != io_64b_wdest_rptr[4]) && (io_64b_wdest_wptr[3:0] == io_64b_wdest_rptr[3:0]);
     wire [1:0] io_64b_wdest_head = io_64b_wdest_mem[io_64b_wdest_rptr[3:0]];
     assign io_64b_w_to_mem0 = io_64b_wdest_valid && (io_64b_wdest_head == 2'd0);
     assign io_64b_w_to_mem1 = io_64b_wdest_valid && (io_64b_wdest_head == 2'd1);
@@ -3239,6 +3268,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire io_128b_wdest_valid = (io_128b_wdest_wptr != io_128b_wdest_rptr);
+    assign io_128b_wdest_full = (io_128b_wdest_wptr[4] != io_128b_wdest_rptr[4]) && (io_128b_wdest_wptr[3:0] == io_128b_wdest_rptr[3:0]);
     wire [0:0] io_128b_wdest_head = io_128b_wdest_mem[io_128b_wdest_rptr[3:0]];
     assign io_128b_w_to_ddr = io_128b_wdest_valid && (io_128b_wdest_head == 1'd0);
     assign io_128b_w_to_subtractive = io_128b_wdest_valid && (io_128b_wdest_head == 1'd1);
@@ -3264,8 +3294,13 @@ module bridge_bs_xmix_xbar
         end
     )
     wire acc_32b_wdest_valid = (acc_32b_wdest_wptr != acc_32b_wdest_rptr);
+    assign acc_32b_wdest_full = (acc_32b_wdest_wptr[4] != acc_32b_wdest_rptr[4]) && (acc_32b_wdest_wptr[3:0] == acc_32b_wdest_rptr[3:0]);
     wire [0:0] acc_32b_wdest_head = acc_32b_wdest_mem[acc_32b_wdest_rptr[3:0]];
     assign acc_32b_w_to_mem2 = acc_32b_wdest_valid && (acc_32b_wdest_head == 1'd0);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) acc_32b_wlive_mem2 <= '0;
+        else acc_32b_wlive_mem2 <= acc_32b_wlive_mem2 + 5'((acc_32b_wdest_push && (acc_32b_wdest_enc == 1'd0))) - 5'((acc_32b_wdest_pop && (acc_32b_wdest_head == 1'd0)));
+    )
 
     // acc 64b path -> mem0, mem1, bram (16 deep: max_outstanding)
     logic [1:0] acc_64b_wdest_mem [16];
@@ -3288,6 +3323,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire acc_64b_wdest_valid = (acc_64b_wdest_wptr != acc_64b_wdest_rptr);
+    assign acc_64b_wdest_full = (acc_64b_wdest_wptr[4] != acc_64b_wdest_rptr[4]) && (acc_64b_wdest_wptr[3:0] == acc_64b_wdest_rptr[3:0]);
     wire [1:0] acc_64b_wdest_head = acc_64b_wdest_mem[acc_64b_wdest_rptr[3:0]];
     assign acc_64b_w_to_mem0 = acc_64b_wdest_valid && (acc_64b_wdest_head == 2'd0);
     assign acc_64b_w_to_mem1 = acc_64b_wdest_valid && (acc_64b_wdest_head == 2'd1);
@@ -3314,6 +3350,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire acc_128b_wdest_valid = (acc_128b_wdest_wptr != acc_128b_wdest_rptr);
+    assign acc_128b_wdest_full = (acc_128b_wdest_wptr[4] != acc_128b_wdest_rptr[4]) && (acc_128b_wdest_wptr[3:0] == acc_128b_wdest_rptr[3:0]);
     wire [0:0] acc_128b_wdest_head = acc_128b_wdest_mem[acc_128b_wdest_rptr[3:0]];
     assign acc_128b_w_to_ddr = acc_128b_wdest_valid && (acc_128b_wdest_head == 1'd0);
     assign acc_128b_w_to_subtractive = acc_128b_wdest_valid && (acc_128b_wdest_head == 1'd1);
@@ -3339,6 +3376,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire atg_64b_wdest_valid = (atg_64b_wdest_wptr != atg_64b_wdest_rptr);
+    assign atg_64b_wdest_full = (atg_64b_wdest_wptr[4] != atg_64b_wdest_rptr[4]) && (atg_64b_wdest_wptr[3:0] == atg_64b_wdest_rptr[3:0]);
     wire [0:0] atg_64b_wdest_head = atg_64b_wdest_mem[atg_64b_wdest_rptr[3:0]];
     assign atg_64b_w_to_bram = atg_64b_wdest_valid && (atg_64b_wdest_head == 1'd0);
 
@@ -3363,6 +3401,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire atg_128b_wdest_valid = (atg_128b_wdest_wptr != atg_128b_wdest_rptr);
+    assign atg_128b_wdest_full = (atg_128b_wdest_wptr[4] != atg_128b_wdest_rptr[4]) && (atg_128b_wdest_wptr[3:0] == atg_128b_wdest_rptr[3:0]);
     wire [0:0] atg_128b_wdest_head = atg_128b_wdest_mem[atg_128b_wdest_rptr[3:0]];
     assign atg_128b_w_to_ddr = atg_128b_wdest_valid && (atg_128b_wdest_head == 1'd0);
     assign atg_128b_w_to_subtractive = atg_128b_wdest_valid && (atg_128b_wdest_head == 1'd1);
@@ -3388,6 +3427,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire cdma_64b_wdest_valid = (cdma_64b_wdest_wptr != cdma_64b_wdest_rptr);
+    assign cdma_64b_wdest_full = (cdma_64b_wdest_wptr[4] != cdma_64b_wdest_rptr[4]) && (cdma_64b_wdest_wptr[3:0] == cdma_64b_wdest_rptr[3:0]);
     wire [0:0] cdma_64b_wdest_head = cdma_64b_wdest_mem[cdma_64b_wdest_rptr[3:0]];
     assign cdma_64b_w_to_bram = cdma_64b_wdest_valid && (cdma_64b_wdest_head == 1'd0);
 
@@ -3412,6 +3452,7 @@ module bridge_bs_xmix_xbar
         end
     )
     wire cdma_128b_wdest_valid = (cdma_128b_wdest_wptr != cdma_128b_wdest_rptr);
+    assign cdma_128b_wdest_full = (cdma_128b_wdest_wptr[4] != cdma_128b_wdest_rptr[4]) && (cdma_128b_wdest_wptr[3:0] == cdma_128b_wdest_rptr[3:0]);
     wire [0:0] cdma_128b_wdest_head = cdma_128b_wdest_mem[cdma_128b_wdest_rptr[3:0]];
     assign cdma_128b_w_to_ddr = cdma_128b_wdest_valid && (cdma_128b_wdest_head == 1'd0);
     assign cdma_128b_w_to_subtractive = cdma_128b_wdest_valid && (cdma_128b_wdest_head == 1'd1);
@@ -3422,7 +3463,7 @@ module bridge_bs_xmix_xbar
 
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
-        ((cpu_32b_aw_to_mem2 && !cpu_32b_aw_hold_mem2) ? mem2_axi_lane_awready[0] : '0);
+        ((cpu_32b_aw_to_mem2 && !(cpu_32b_aw_hold_mem2 || cpu_32b_wdest_full)) ? mem2_axi_lane_awready[0] : '0);
 
     assign cpu_32b_wready = 
         (cpu_32b_w_sel_mem2 ? mem2_axi_lane_wready[0] : '0);
@@ -3469,9 +3510,9 @@ module bridge_bs_xmix_xbar
 
     // Master: cpu, Width path: 64b
     assign cpu_64b_awready = 
-        ((cpu_64b_aw_to_mem0 && !cpu_64b_aw_hold_mem0) ? cpu_64b_aw_slot_mem0_in_ready : '0) |
-        ((cpu_64b_aw_to_mem1 && !cpu_64b_aw_hold_mem1) ? cpu_64b_aw_slot_mem1_in_ready : '0) |
-        ((cpu_64b_aw_to_bram && !cpu_64b_aw_hold_bram) ? cpu_64b_aw_slot_bram_in_ready : '0);
+        ((cpu_64b_aw_to_mem0 && !(cpu_64b_aw_hold_mem0 || (|cpu_32b_wlive_mem2) || cpu_64b_wdest_full)) ? cpu_64b_aw_slot_mem0_in_ready : '0) |
+        ((cpu_64b_aw_to_mem1 && !(cpu_64b_aw_hold_mem1 || (|cpu_32b_wlive_mem2) || cpu_64b_wdest_full)) ? cpu_64b_aw_slot_mem1_in_ready : '0) |
+        ((cpu_64b_aw_to_bram && !(cpu_64b_aw_hold_bram || (|cpu_32b_wlive_mem2) || cpu_64b_wdest_full)) ? cpu_64b_aw_slot_bram_in_ready : '0);
 
     assign cpu_64b_wready = 
         (cpu_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -3542,8 +3583,8 @@ module bridge_bs_xmix_xbar
 
     // Master: cpu, Width path: 128b
     assign cpu_128b_awready = 
-        ((cpu_128b_aw_to_ddr && !cpu_128b_aw_hold_ddr) ? cpu_128b_aw_slot_ddr_in_ready : '0) |
-        ((cpu_128b_aw_to_subtractive && !cpu_128b_aw_hold_subtractive) ? cpu_128b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_128b_aw_to_ddr && !(cpu_128b_aw_hold_ddr || (|cpu_32b_wlive_mem2) || cpu_128b_wdest_full)) ? cpu_128b_aw_slot_ddr_in_ready : '0) |
+        ((cpu_128b_aw_to_subtractive && !(cpu_128b_aw_hold_subtractive || (|cpu_32b_wlive_mem2) || cpu_128b_wdest_full)) ? cpu_128b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_128b_wready = 
         (cpu_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -3602,7 +3643,7 @@ module bridge_bs_xmix_xbar
 
     // Master: io, Width path: 32b
     assign io_32b_awready = 
-        ((io_32b_aw_to_mem2 && !io_32b_aw_hold_mem2) ? mem2_axi_lane_awready[1] : '0);
+        ((io_32b_aw_to_mem2 && !(io_32b_aw_hold_mem2 || io_32b_wdest_full)) ? mem2_axi_lane_awready[1] : '0);
 
     assign io_32b_wready = 
         (io_32b_w_sel_mem2 ? mem2_axi_lane_wready[1] : '0);
@@ -3649,9 +3690,9 @@ module bridge_bs_xmix_xbar
 
     // Master: io, Width path: 64b
     assign io_64b_awready = 
-        ((io_64b_aw_to_mem0 && !io_64b_aw_hold_mem0) ? io_64b_aw_slot_mem0_in_ready : '0) |
-        ((io_64b_aw_to_mem1 && !io_64b_aw_hold_mem1) ? io_64b_aw_slot_mem1_in_ready : '0) |
-        ((io_64b_aw_to_bram && !io_64b_aw_hold_bram) ? io_64b_aw_slot_bram_in_ready : '0);
+        ((io_64b_aw_to_mem0 && !(io_64b_aw_hold_mem0 || (|io_32b_wlive_mem2) || io_64b_wdest_full)) ? io_64b_aw_slot_mem0_in_ready : '0) |
+        ((io_64b_aw_to_mem1 && !(io_64b_aw_hold_mem1 || (|io_32b_wlive_mem2) || io_64b_wdest_full)) ? io_64b_aw_slot_mem1_in_ready : '0) |
+        ((io_64b_aw_to_bram && !(io_64b_aw_hold_bram || (|io_32b_wlive_mem2) || io_64b_wdest_full)) ? io_64b_aw_slot_bram_in_ready : '0);
 
     assign io_64b_wready = 
         (io_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -3722,8 +3763,8 @@ module bridge_bs_xmix_xbar
 
     // Master: io, Width path: 128b
     assign io_128b_awready = 
-        ((io_128b_aw_to_ddr && !io_128b_aw_hold_ddr) ? io_128b_aw_slot_ddr_in_ready : '0) |
-        ((io_128b_aw_to_subtractive && !io_128b_aw_hold_subtractive) ? io_128b_aw_slot_subtractive_in_ready : '0);
+        ((io_128b_aw_to_ddr && !(io_128b_aw_hold_ddr || (|io_32b_wlive_mem2) || io_128b_wdest_full)) ? io_128b_aw_slot_ddr_in_ready : '0) |
+        ((io_128b_aw_to_subtractive && !(io_128b_aw_hold_subtractive || (|io_32b_wlive_mem2) || io_128b_wdest_full)) ? io_128b_aw_slot_subtractive_in_ready : '0);
 
     assign io_128b_wready = 
         (io_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -3782,7 +3823,7 @@ module bridge_bs_xmix_xbar
 
     // Master: acc, Width path: 32b
     assign acc_32b_awready = 
-        ((acc_32b_aw_to_mem2 && !acc_32b_aw_hold_mem2) ? mem2_axi_lane_awready[2] : '0);
+        ((acc_32b_aw_to_mem2 && !(acc_32b_aw_hold_mem2 || acc_32b_wdest_full)) ? mem2_axi_lane_awready[2] : '0);
 
     assign acc_32b_wready = 
         (acc_32b_w_sel_mem2 ? mem2_axi_lane_wready[2] : '0);
@@ -3829,9 +3870,9 @@ module bridge_bs_xmix_xbar
 
     // Master: acc, Width path: 64b
     assign acc_64b_awready = 
-        ((acc_64b_aw_to_mem0 && !acc_64b_aw_hold_mem0) ? acc_64b_aw_slot_mem0_in_ready : '0) |
-        ((acc_64b_aw_to_mem1 && !acc_64b_aw_hold_mem1) ? acc_64b_aw_slot_mem1_in_ready : '0) |
-        ((acc_64b_aw_to_bram && !acc_64b_aw_hold_bram) ? acc_64b_aw_slot_bram_in_ready : '0);
+        ((acc_64b_aw_to_mem0 && !(acc_64b_aw_hold_mem0 || (|acc_32b_wlive_mem2) || acc_64b_wdest_full)) ? acc_64b_aw_slot_mem0_in_ready : '0) |
+        ((acc_64b_aw_to_mem1 && !(acc_64b_aw_hold_mem1 || (|acc_32b_wlive_mem2) || acc_64b_wdest_full)) ? acc_64b_aw_slot_mem1_in_ready : '0) |
+        ((acc_64b_aw_to_bram && !(acc_64b_aw_hold_bram || (|acc_32b_wlive_mem2) || acc_64b_wdest_full)) ? acc_64b_aw_slot_bram_in_ready : '0);
 
     assign acc_64b_wready = 
         (acc_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -3902,8 +3943,8 @@ module bridge_bs_xmix_xbar
 
     // Master: acc, Width path: 128b
     assign acc_128b_awready = 
-        ((acc_128b_aw_to_ddr && !acc_128b_aw_hold_ddr) ? acc_128b_aw_slot_ddr_in_ready : '0) |
-        ((acc_128b_aw_to_subtractive && !acc_128b_aw_hold_subtractive) ? acc_128b_aw_slot_subtractive_in_ready : '0);
+        ((acc_128b_aw_to_ddr && !(acc_128b_aw_hold_ddr || (|acc_32b_wlive_mem2) || acc_128b_wdest_full)) ? acc_128b_aw_slot_ddr_in_ready : '0) |
+        ((acc_128b_aw_to_subtractive && !(acc_128b_aw_hold_subtractive || (|acc_32b_wlive_mem2) || acc_128b_wdest_full)) ? acc_128b_aw_slot_subtractive_in_ready : '0);
 
     assign acc_128b_wready = 
         (acc_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -3962,7 +4003,7 @@ module bridge_bs_xmix_xbar
 
     // Master: atg, Width path: 64b
     assign atg_64b_awready = 
-        ((atg_64b_aw_to_bram && !atg_64b_aw_hold_bram) ? atg_64b_aw_slot_bram_in_ready : '0);
+        ((atg_64b_aw_to_bram && !(atg_64b_aw_hold_bram || atg_64b_wdest_full)) ? atg_64b_aw_slot_bram_in_ready : '0);
 
     assign atg_64b_wready = 
         (atg_64b_w_sel_bram ? bram_axi_wready : '0);
@@ -4009,8 +4050,8 @@ module bridge_bs_xmix_xbar
 
     // Master: atg, Width path: 128b
     assign atg_128b_awready = 
-        ((atg_128b_aw_to_ddr && !atg_128b_aw_hold_ddr) ? atg_128b_aw_slot_ddr_in_ready : '0) |
-        ((atg_128b_aw_to_subtractive && !atg_128b_aw_hold_subtractive) ? atg_128b_aw_slot_subtractive_in_ready : '0);
+        ((atg_128b_aw_to_ddr && !(atg_128b_aw_hold_ddr || atg_128b_wdest_full)) ? atg_128b_aw_slot_ddr_in_ready : '0) |
+        ((atg_128b_aw_to_subtractive && !(atg_128b_aw_hold_subtractive || atg_128b_wdest_full)) ? atg_128b_aw_slot_subtractive_in_ready : '0);
 
     assign atg_128b_wready = 
         (atg_128b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -4069,7 +4110,7 @@ module bridge_bs_xmix_xbar
 
     // Master: cdma, Width path: 64b
     assign cdma_64b_awready = 
-        ((cdma_64b_aw_to_bram && !cdma_64b_aw_hold_bram) ? cdma_64b_aw_slot_bram_in_ready : '0);
+        ((cdma_64b_aw_to_bram && !(cdma_64b_aw_hold_bram || cdma_64b_wdest_full)) ? cdma_64b_aw_slot_bram_in_ready : '0);
 
     assign cdma_64b_wready = 
         (cdma_64b_w_sel_bram ? bram_axi_wready : '0);
@@ -4116,8 +4157,8 @@ module bridge_bs_xmix_xbar
 
     // Master: cdma, Width path: 128b
     assign cdma_128b_awready = 
-        ((cdma_128b_aw_to_ddr && !cdma_128b_aw_hold_ddr) ? cdma_128b_aw_slot_ddr_in_ready : '0) |
-        ((cdma_128b_aw_to_subtractive && !cdma_128b_aw_hold_subtractive) ? cdma_128b_aw_slot_subtractive_in_ready : '0);
+        ((cdma_128b_aw_to_ddr && !(cdma_128b_aw_hold_ddr || cdma_128b_wdest_full)) ? cdma_128b_aw_slot_ddr_in_ready : '0) |
+        ((cdma_128b_aw_to_subtractive && !(cdma_128b_aw_hold_subtractive || cdma_128b_wdest_full)) ? cdma_128b_aw_slot_subtractive_in_ready : '0);
 
     assign cdma_128b_wready = 
         (cdma_128b_w_sel_ddr ? ddr_axi_wready : '0) |

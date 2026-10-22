@@ -84,6 +84,7 @@ module axi4_dwidth_converter_rd #(
     localparam bit DOWNSIZE     = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH) ? 1'b1 : 1'b0,
 
     localparam int NUM_IDS      = 1 << AXI_ID_WIDTH,
+    localparam int LANE_W       = $clog2(WIDTH_RATIO),
     // Primitive sideband (R_INTERLEAVE = 0, the only mode that builds the
     // primitives): {RRESP, RID, RUSER}, so every converted beat carries its
     // own burst's ID; 2 bits otherwise, tied off.  RRESP is the MSB field: the upsize
@@ -234,7 +235,26 @@ module axi4_dwidth_converter_rd #(
     logic [8:0]                  rasm_rec_beats [NUM_IDS];
     // UPSIZE fields
     logic [7:0]                  rasm_rec_nlen  [NUM_IDS];
-    logic [$clog2(WIDTH_RATIO)-1:0] rasm_rec_lane [NUM_IDS];
+    logic [$clog2(WIDTH_RATIO)-1:0] rasm_rec_lane [NUM_IDS];   // both: first narrow lane / chunk
+
+    // Conversion mode of each master burst (bridge BUG-018/019). A burst is
+    // converted only in a way that is legal AXI for every burst type, size
+    // and alignment:
+    //   CM_PACK   UPSIZE: full-width INCR, packed into wide beats (start lane
+    //             counted). DOWNSIZE: INCR wider than the narrow bus, as
+    //             narrow INCR pieces of <= 256 beats.
+    //   CM_PASS   a burst no wider than the narrower bus: issued unchanged
+    //             (same address, length, size and type), one beat for one.
+    //   CM_EXPAND DOWNSIZE FIXED / WRAP wider than the narrow bus: one narrow
+    //             INCR piece per slave beat, at that beat's address.
+    localparam logic [1:0] CM_PACK = 2'd0, CM_PASS = 2'd1, CM_EXPAND = 2'd2;
+    logic [1:0]                  rasm_rec_mode  [NUM_IDS];
+    logic [LANE_W-1:0]           rasm_rec_rmask [NUM_IDS];   // DOWNSIZE: narrow beats per slave beat - 1
+    logic [2:0]                  rasm_rec_size  [NUM_IDS];   // UPSIZE CM_PASS: ARSIZE
+    logic [1:0]                  rasm_rec_burst [NUM_IDS];   // UPSIZE CM_PASS: ARBURST
+    logic [AXI_ADDR_WIDTH-1:0]   w_rasm_push_addr;           // UPSIZE CM_PASS: its first beat address
+    logic [LANE_W-1:0]           w_rasm_push_lane;           // DOWNSIZE: the piece's first chunk
+    logic                        w_rasm_push_plain;          // aligned full-width INCR (R_INTERLEAVE=0's contract)
 
     // Burst-length FIFO handshake (used only in UPSIZE mode).  Replaced by
     // the per-ID record above; the shared wires remain for gen_r_upsize.
@@ -323,53 +343,104 @@ module axi4_dwidth_converter_rd #(
 
     generate
         if (DOWNSIZE) begin : gen_ar_downsize
-            // Downsize: slave (wide) → master (narrow). One wide beat
-            // becomes WIDTH_RATIO narrow beats, and the product does not
-            // fit a burst: a full-length slave burst needs up to
-            // 256*WIDTH_RATIO narrow beats, which is neither expressible
-            // in the 8-bit ARLEN nor a legal AXI4 burst. The old
-            // ((arlen+1)*RATIO)-1 wrapped -- 511 truncated to 255 and
-            // half the read went missing (same defect the write
-            // converter had; see its gen_aw_downsize).
+            // Downsize: slave (wide) -> master (narrow). Every slave burst
+            // becomes one or more master bursts, each legal AXI on the
+            // narrow bus (bridge BUG-018/019):
             //
-            // So one slave burst is SPLIT into as many master bursts of
-            // <= 256 beats as it takes. WRAP never gets here: AXI4 caps
-            // it at 16 beats, and 16*RATIO <= 256 for every supported
-            // ratio.
+            //   CM_PASS   ARSIZE fits the narrow bus: the burst is issued
+            //             unchanged, any type, any alignment.
+            //   CM_PACK   INCR wider than the narrow bus: narrow INCR pieces
+            //             of <= 256 beats covering the burst's bytes from
+            //             its (possibly unaligned) start. One wide beat of
+            //             2^size bytes is 2^(size - narrow size) narrow beats,
+            //             the first beat fewer by its start lane. The first
+            //             piece is shortened by that lane too, so every
+            //             later piece starts on a slave-beat boundary, at
+            //             aligned(start) + n * 256 narrow beats (BUG-019:
+            //             the old step walked on from the unaligned start).
+            //             256 narrow beats would not fit one burst anyway:
+            //             a full-length slave burst needs up to
+            //             256 * WIDTH_RATIO (the old ((arlen+1)*RATIO)-1
+            //             wrapped 511 to 255 and lost half the read).
+            //   CM_EXPAND FIXED / WRAP wider than the narrow bus: there is no
+            //             narrow FIXED or WRAP that covers the same bytes in
+            //             the same order (a narrow FIXED repeats one narrow
+            //             word; a narrow WRAP may exceed 16 beats), so each
+            //             slave beat is its own narrow INCR piece at that
+            //             beat's address.
             //
-            // Each issued master AR pushes its {final, beats} record into
-            // a per-ID slot.  Master AR issue for an ID is blocked while
-            // that slot is occupied, so the split master bursts of one
-            // slave burst go out one after another, each once the previous
-            // has arrived.
+            // Each issued master AR pushes its record into a per-ID slot.
+            // Master AR issue for an ID is blocked while that slot is
+            // occupied, so the pieces of one slave burst go out one after
+            // another, each once the previous has arrived.
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
             localparam int MAX_BEATS   = 256;
             localparam int CNTW        = 9 + $clog2(WIDTH_RATIO);
+            localparam int AW          = AXI_ADDR_WIDTH;
 
-            logic [CNTW-1:0]           r_split_remaining;
-            logic [AXI_ADDR_WIDTH-1:0] r_split_addr;
+            logic [CNTW-1:0]           r_split_remaining;  // CM_PACK: narrow beats left
+            logic [AW-1:0]             r_split_addr;       // the next master burst's address
+            logic [8:0]                r_beats_left;       // CM_EXPAND: slave beats left
             logic                      r_split_active;
+            logic [1:0]                w_mode;
+            logic [2:0]                w_rlog;             // log2(narrow beats per slave beat)
+            logic [AW-1:0]             w_bmask;            // slave beat bytes - 1
+            logic [AW-1:0]             w_wmask;            // WRAP container bytes - 1
+            logic [AW-1:0]             w_next_beat;        // CM_EXPAND: the next slave beat's address
+            logic [8:0]                w_lane_in_beat;     // narrow lane of r_split_addr in its beat
+            logic [8:0]                w_cap;
             logic [8:0]                w_this_beats;
             logic                      w_this_last;
             logic                      w_ar_issue;
             logic                      w_id_free;
 
-            assign w_this_beats = (r_split_remaining > CNTW'(MAX_BEATS))
-                                  ? 9'(MAX_BEATS) : 9'(r_split_remaining);
-            assign w_this_last  = (r_split_remaining <= CNTW'(MAX_BEATS));
-            assign w_ar_issue   = m_axi_arvalid && m_axi_arready;
-            assign w_id_free    = !rasm_rec_valid[int_arid];
+            assign w_mode = (int_arsize <= 3'(MASTER_SIZE)) ? CM_PASS
+                          : (int_arburst == 2'b01)          ? CM_PACK : CM_EXPAND;
+            assign w_rlog         = int_arsize - 3'(MASTER_SIZE);   // unused in CM_PASS
+            assign w_bmask        = (AW'(1) << int_arsize) - AW'(1);
+            assign w_wmask        = ((AW'(int_arlen) + AW'(1)) << int_arsize) - AW'(1);
+            assign w_lane_in_beat = 9'((r_split_addr & w_bmask) >> MASTER_SIZE);
+            // 0 after the first piece: later pieces start beat-aligned
+            assign w_cap          = 9'(MAX_BEATS) - w_lane_in_beat;
+            assign w_next_beat    = (int_arburst == 2'b10)
+                ? ((r_split_addr & ~w_wmask) |
+                   (((r_split_addr & ~w_bmask) + w_bmask + AW'(1)) & w_wmask))
+                : r_split_addr;                                     // FIXED holds
+
+            always_comb begin
+                case (w_mode)
+                    CM_PASS: begin
+                        w_this_beats = 9'(int_arlen) + 9'd1;
+                        w_this_last  = 1'b1;
+                    end
+                    CM_EXPAND: begin
+                        w_this_beats = (9'd1 << w_rlog) - w_lane_in_beat;
+                        w_this_last  = (r_beats_left == 9'd1);
+                    end
+                    default: begin
+                        w_this_beats = (r_split_remaining > CNTW'(w_cap))
+                                       ? w_cap : 9'(r_split_remaining);
+                        w_this_last  = (r_split_remaining <= CNTW'(w_cap));
+                    end
+                endcase
+            end
+            assign w_ar_issue = m_axi_arvalid && m_axi_arready;
+            assign w_id_free  = !rasm_rec_valid[int_arid];
 
             `ALWAYS_FF_RST(aclk, w_aresetn,
                 if (`RST_ASSERTED(w_aresetn)) begin
                     r_split_remaining <= '0;
                     r_split_addr      <= '0;
+                    r_beats_left      <= '0;
                     r_split_active    <= 1'b0;
                 end else if (!r_split_active) begin
                     if (int_ar_valid) begin
-                        r_split_remaining <= (CNTW'(int_arlen) + CNTW'(1))
-                                             * CNTW'(WIDTH_RATIO);
+                        // narrow beats from the start lane to the end of the
+                        // last slave beat
+                        r_split_remaining <= ((CNTW'(int_arlen) + CNTW'(1)) << w_rlog)
+                                             - CNTW'((int_araddr & w_bmask) >> MASTER_SIZE);
                         r_split_addr      <= int_araddr;
+                        r_beats_left      <= 9'(int_arlen) + 9'd1;
                         r_split_active    <= 1'b1;
                     end
                 end else if (w_ar_issue) begin
@@ -377,13 +448,10 @@ module axi4_dwidth_converter_rd #(
                         r_split_remaining <= '0;
                         r_split_active    <= 1'b0;
                     end else begin
-                        r_split_remaining <= r_split_remaining
-                                             - CNTW'(MAX_BEATS);
-                        // FIXED holds the address; INCR walks on. WRAP
-                        // cannot reach a split (see above).
-                        if (int_arburst != 2'b00)
-                            r_split_addr <= r_split_addr
-                                + AXI_ADDR_WIDTH'(MAX_BEATS * M_STRB_WIDTH);
+                        r_split_remaining <= r_split_remaining - CNTW'(w_this_beats);
+                        r_beats_left      <= r_beats_left - 9'd1;
+                        r_split_addr      <= (w_mode == CM_EXPAND) ? w_next_beat
+                            : ((r_split_addr & ~w_bmask) + AW'(MAX_BEATS * M_STRB_WIDTH));
                     end
                 end
             )
@@ -391,15 +459,15 @@ module axi4_dwidth_converter_rd #(
             assign m_axi_arid     = int_arid;
             assign m_axi_araddr   = r_split_addr;
             assign m_axi_arlen    = 8'(w_this_beats - 9'd1);
-            assign m_axi_arsize   = MASTER_SIZE[2:0];
-            assign m_axi_arburst  = int_arburst;
+            assign m_axi_arsize   = (w_mode == CM_PASS) ? int_arsize  : MASTER_SIZE[2:0];
+            assign m_axi_arburst  = (w_mode == CM_PASS) ? int_arburst : 2'b01;
             assign m_axi_arlock   = int_arlock;
             assign m_axi_arcache  = int_arcache;
             assign m_axi_arprot   = int_arprot;
             assign m_axi_arqos    = int_arqos;
             assign m_axi_arregion = int_arregion;
             assign m_axi_aruser   = int_aruser;
-            // Issue the next split only when the per-ID slot is free.
+            // Issue the next piece only when the per-ID slot is free.
             assign m_axi_arvalid  = r_split_active && w_id_free;
             // the slave's AR is consumed only when its FINAL master
             // burst is issued
@@ -408,32 +476,61 @@ module axi4_dwidth_converter_rd #(
             // Push the per-ID record on every accepted master AR.  The R
             // front end owns rasm_rec_valid (single driver); this block
             // owns the payload fields.
-            assign w_rasm_push    = w_ar_issue;
-            assign w_rasm_push_id = int_arid;
+            assign w_rasm_push       = w_ar_issue;
+            assign w_rasm_push_id    = int_arid;
+            assign w_rasm_push_addr  = r_split_addr;
+            assign w_rasm_push_lane  = LANE_W'(r_split_addr[$clog2(S_STRB_WIDTH)-1:0] >> MASTER_SIZE);
+            assign w_rasm_push_plain = (w_mode == CM_PACK) &&
+                                       (int_arsize == 3'($clog2(S_STRB_WIDTH))) &&
+                                       (w_rasm_push_lane == '0);
             `ALWAYS_FF_RST(aclk, w_aresetn,
                 if (`RST_ASSERTED(w_aresetn)) begin
                     for (int i = 0; i < NUM_IDS; i++) begin
                         rasm_rec_final[i] <= 1'b0;
                         rasm_rec_beats[i] <= '0;
+                        rasm_rec_mode[i]  <= CM_PACK;
+                        rasm_rec_rmask[i] <= '0;
+                        rasm_rec_lane[i]  <= '0;
+                        rasm_rec_nlen[i]  <= '0;   // UPSIZE only
+                        rasm_rec_size[i]  <= '0;   // UPSIZE only
+                        rasm_rec_burst[i] <= '0;   // UPSIZE only
                     end
                 end else if (w_ar_issue) begin
                     rasm_rec_final[int_arid] <= w_this_last;
                     rasm_rec_beats[int_arid] <= w_this_beats;
+                    rasm_rec_mode[int_arid]  <= w_mode;
+                    rasm_rec_rmask[int_arid] <= (w_mode == CM_PASS) ? '0
+                                              : LANE_W'((9'd1 << w_rlog) - 9'd1);
+                    rasm_rec_lane[int_arid]  <= w_rasm_push_lane;
                 end
             )
 
         end else begin : gen_ar_upsize
-            // Upsize: slave (narrow) → master (wide). Divide burst length
-            // by ratio (round up) and align address down to wide boundary.
-            // Division can never overflow ARLEN; the split queue is inert.
+            // Upsize: slave (narrow) -> master (wide) (bridge BUG-018/019).
+            //   CM_PACK  full-width INCR: divide the burst length by the ratio
+            //            (round up, counting the start lane) and align the
+            //            address down to the wide boundary. Division can
+            //            never overflow ARLEN, so nothing splits.
+            //   CM_PASS  everything else -- FIXED, WRAP, and INCR narrower
+            //            than the slave bus: a burst of size 2^ARSIZE is
+            //            already legal on the wider bus, so it is issued
+            //            unchanged and each wide beat returns one narrow
+            //            beat, from the lane that beat's address selects.
+            //            (Packing these was the defect: a 2-beat WRAP became
+            //            a 1-beat WRAP, narrow INCR was rewritten to full
+            //            width and miscounted.)
             localparam int MASTER_SIZE = $clog2(M_STRB_WIDTH);
             localparam int ALIGN_BITS  = $clog2(M_STRB_WIDTH);
             localparam int R_LANE_W    = $clog2(WIDTH_RATIO);
 
             assign arsplit_final = 1'b1;
 
+            logic [1:0] w_mode;
             logic [7:0] master_arlen;
             logic [AXI_ADDR_WIDTH-1:0] aligned_araddr;
+
+            assign w_mode = ((int_arburst == 2'b01) &&
+                             (int_arsize == 3'($clog2(S_STRB_WIDTH)))) ? CM_PACK : CM_PASS;
 
             // Narrow-lane offset of the burst start inside the wide word.
             // The issued address stays aligned DOWN (the slave returns
@@ -449,9 +546,9 @@ module axi4_dwidth_converter_rd #(
             assign aligned_araddr = {int_araddr[AXI_ADDR_WIDTH-1:ALIGN_BITS], {ALIGN_BITS{1'b0}}};
 
             assign m_axi_arid     = int_arid;
-            assign m_axi_araddr   = aligned_araddr;
-            assign m_axi_arlen    = master_arlen;
-            assign m_axi_arsize   = MASTER_SIZE[2:0];
+            assign m_axi_araddr   = (w_mode == CM_PASS) ? int_araddr  : aligned_araddr;
+            assign m_axi_arlen    = (w_mode == CM_PASS) ? int_arlen   : master_arlen;
+            assign m_axi_arsize   = (w_mode == CM_PASS) ? int_arsize  : MASTER_SIZE[2:0];
             assign m_axi_arburst  = int_arburst;
             assign m_axi_arlock   = int_arlock;
             assign m_axi_arcache  = int_arcache;
@@ -468,37 +565,33 @@ module axi4_dwidth_converter_rd #(
             // rasm_rec_nlen is the narrow length that frames the output.
             // The R front end owns rasm_rec_valid (single driver); this
             // block owns these payload fields.
-            assign w_rasm_push    = int_ar_valid && int_ar_ready;
-            assign w_rasm_push_id = int_arid;
+            assign w_rasm_push       = int_ar_valid && int_ar_ready;
+            assign w_rasm_push_id    = int_arid;
+            assign w_rasm_push_addr  = int_araddr;
+            assign w_rasm_push_lane  = '0;                      // DOWNSIZE only
+            assign w_rasm_push_plain = (w_mode == CM_PACK);
             `ALWAYS_FF_RST(aclk, w_aresetn,
                 if (`RST_ASSERTED(w_aresetn)) begin
                     for (int i = 0; i < NUM_IDS; i++) begin
                         rasm_rec_beats[i] <= '0;
                         rasm_rec_nlen[i]  <= '0;
                         rasm_rec_lane[i]  <= '0;
+                        rasm_rec_mode[i]  <= CM_PACK;
+                        rasm_rec_size[i]  <= '0;
+                        rasm_rec_burst[i] <= '0;
+                        rasm_rec_final[i] <= 1'b1;  // DOWNSIZE only
+                        rasm_rec_rmask[i] <= '0;    // DOWNSIZE only
                     end
                 end else if (int_ar_valid && int_ar_ready) begin
-                    rasm_rec_beats[int_arid] <= 9'(master_arlen) + 9'd1;
+                    rasm_rec_beats[int_arid] <= (w_mode == CM_PASS) ? (9'(int_arlen) + 9'd1)
+                                                                    : (9'(master_arlen) + 9'd1);
                     rasm_rec_nlen[int_arid]  <= int_arlen;
                     rasm_rec_lane[int_arid]  <= w_ar_lane;
+                    rasm_rec_mode[int_arid]  <= w_mode;
+                    rasm_rec_size[int_arid]  <= int_arsize;
+                    rasm_rec_burst[int_arid] <= int_arburst;
                 end
             )
-
-`ifdef SIMULATION
-            // Mid-word starts are supported for INCR (the slicer starts at
-            // the addressed lane). FIXED/WRAP keep the wide-aligned
-            // requirement -- their lane semantics through the slicer are
-            // not defined here.
-            always_ff @(posedge aclk) begin
-                if (w_aresetn && int_ar_valid && int_ar_ready &&
-                    (int_arburst != 2'b01) &&
-                    (int_araddr[ALIGN_BITS-1:0] != '0)) begin
-                    $error("axi4_dwidth_converter_rd: upsize %s AR addr 0x%h is not aligned to the %0d-byte wide bus",
-                           (int_arburst == 2'b00) ? "FIXED" : "WRAP",
-                           int_araddr, M_STRB_WIDTH);
-                end
-            end
-`endif
         end
     endgenerate
 
@@ -583,22 +676,37 @@ module axi4_dwidth_converter_rd #(
             logic [LW-1:0]               cnt   [NUM_IDS];
             logic [1:0]                  worst [NUM_IDS];
             logic [LW-1:0]               w_lane;
+            logic [LW-1:0]               w_rmask;
+            logic                        w_pass;
             logic                        w_final, w_emit, w_take;
             logic [1:0]                  w_resp;
 
+            // cnt is the arriving narrow beat's chunk in the wide word. It
+            // is set from the master burst's record when that burst issues
+            // and steps by one per beat; a slave beat of 2^size bytes spans
+            // rmask+1 chunks (bridge BUG-018: the old count assumed a
+            // full-width beat starting at chunk 0).
             assign w_lane  = cnt[q_rid];
+            assign w_rmask = LW'(rasm_rec_rmask[q_rid]);
+            assign w_pass  = (rasm_rec_mode[q_rid] == CM_PASS);
             assign w_final = q_rlast && rasm_rec_final[q_rid];
-            // The arriving beat completes a wide beat: last lane, or the end
-            // of the s_axi burst.
-            assign w_emit  = (w_lane == LW'(WIDTH_RATIO - 1)) || w_final;
+            // The arriving beat completes a wide beat: CM_PASS (one narrow
+            // beat is one slave beat), the last chunk of the slave beat, or
+            // the end of the s_axi burst.
+            assign w_emit  = w_pass || ((w_lane & w_rmask) == w_rmask) || w_final;
             assign w_take  = q_rvalid && (!w_emit || int_r_ready);
             assign q_rready = !w_emit || int_r_ready;
             assign w_resp  = (q_rresp > worst[q_rid]) ? q_rresp : worst[q_rid];
 
+            // CM_PASS: the narrow beat's bytes are in the lanes its address
+            // selects within the narrow word, so copying it into every chunk
+            // puts them in the right wide lanes whatever the address.
+            // Otherwise chunks below the arriving one come from this ID's
+            // partial wide beat; chunks outside the slave beat are don't-care.
             always_comb begin
                 int_rdata = '0;
                 for (int k = 0; k < WIDTH_RATIO; k++) begin
-                    if (LW'(k) == w_lane)
+                    if (w_pass || (LW'(k) == w_lane))
                         int_rdata[k*M_AXI_DATA_WIDTH +: M_AXI_DATA_WIDTH] = q_rdata;
                     else if ((k < WIDTH_RATIO - 1) && (LW'(k) < w_lane))
                         int_rdata[k*M_AXI_DATA_WIDTH +: M_AXI_DATA_WIDTH] = w_acc_rd[k];
@@ -633,15 +741,19 @@ module axi4_dwidth_converter_rd #(
                     end
                 end else begin
                     if (w_take) begin
-                        cnt[q_rid]   <= w_emit ? '0 : w_lane + LW'(1);
+                        cnt[q_rid]   <= w_lane + LW'(1);
                         worst[q_rid] <= w_emit ? 2'b00 : w_resp;
                         // A master burst (one split) has fully arrived: its
                         // reservation frees and the next split may issue.
                         if (q_rlast)
                             rasm_rec_valid[q_rid] <= 1'b0;
                     end
-                    if (w_rasm_push)
+                    if (w_rasm_push) begin
                         rasm_rec_valid[w_rasm_push_id] <= 1'b1;
+                        // The slot was free, so none of this ID's beats is
+                        // in flight: the count starts at the piece's chunk.
+                        cnt[w_rasm_push_id]            <= LW'(w_rasm_push_lane);
+                    end
                 end
             )
         end else begin : gen_slice
@@ -660,15 +772,40 @@ module axi4_dwidth_converter_rd #(
             logic [LW-1:0]               w_ld_lane;
             logic [8:0]                  w_ld_rem;
 
-            assign w_last_narrow = (cur_rem == 9'd1);
-            assign w_wide_done   = w_last_narrow || (cur_lane == LW'(WIDTH_RATIO - 1));
+            // CM_PASS (FIXED, WRAP, narrow INCR): one narrow beat per wide
+            // beat, from the lane the beat's own address selects. pa holds
+            // each ID's next beat address within the wide word and follows
+            // the burst rules (AXI A3.4.1): FIXED holds, INCR steps from the
+            // aligned address, WRAP wraps in its (len+1) << size container
+            // (only its low bits matter here: a container of a wide word or
+            // more wraps outside them).
+            localparam int PAW = $clog2(M_STRB_WIDTH);
+            logic [PAW-1:0]              pa [NUM_IDS];
+            logic                        cur_pass, cur_rlast;
+            logic                        w_ld_pass;
+            logic [PAW-1:0]              w_pa, w_pa_bm, w_pa_wm, w_pa_step, w_pa_next;
+            logic [15:0]                 w_pa_span;
+
+            assign w_ld_pass = (rasm_rec_mode[q_rid] == CM_PASS);
+            assign w_pa      = pa[q_rid];
+            assign w_pa_bm   = PAW'((16'd1 << rasm_rec_size[q_rid]) - 16'd1);
+            assign w_pa_span = (16'(rasm_rec_nlen[q_rid]) + 16'd1) << rasm_rec_size[q_rid];
+            assign w_pa_wm   = PAW'(w_pa_span - 16'd1);
+            assign w_pa_step = (w_pa & ~w_pa_bm) + w_pa_bm + PAW'(1);
+            assign w_pa_next = (rasm_rec_burst[q_rid] == 2'b00) ? w_pa
+                             : (rasm_rec_burst[q_rid] == 2'b10) ? ((w_pa & ~w_pa_wm) | (w_pa_step & w_pa_wm))
+                             :                                     w_pa_step;
+
+            assign w_last_narrow = cur_pass ? cur_rlast : (cur_rem == 9'd1);
+            assign w_wide_done   = cur_pass || w_last_narrow || (cur_lane == LW'(WIDTH_RATIO - 1));
             assign w_cur_free    = !cur_valid || (w_out_hs && w_wide_done);
             assign q_rready      = w_cur_free;
             assign w_load        = q_rvalid && w_cur_free;
             // cur finishes a wide beat of the same ID this cycle without
             // ending its burst: take its count, not the table's stale one.
-            assign w_byp         = cur_valid && (cur_rid == q_rid) && !w_last_narrow;
-            assign w_ld_lane     = (start[q_rid] || w_byp) ? '0 : LW'(rasm_rec_lane[q_rid]);
+            assign w_byp         = cur_valid && !cur_pass && (cur_rid == q_rid) && !w_last_narrow;
+            assign w_ld_lane     = w_ld_pass ? LW'(w_pa >> $clog2(S_STRB_WIDTH))
+                                 : (start[q_rid] || w_byp) ? '0 : LW'(rasm_rec_lane[q_rid]);
             assign w_ld_rem      = w_byp         ? (cur_rem - 9'd1)
                                  : start[q_rid] ? rem[q_rid]
                                  :                9'(rasm_rec_nlen[q_rid]) + 9'd1;
@@ -689,9 +826,12 @@ module axi4_dwidth_converter_rd #(
                     cur_user  <= '0;
                     cur_lane  <= '0;
                     cur_rem   <= '0;
+                    cur_pass  <= 1'b0;
+                    cur_rlast <= 1'b0;
                     for (int i = 0; i < NUM_IDS; i++) begin
                         rem[i]            <= '0;
                         start[i]          <= 1'b0;
+                        pa[i]             <= '0;
                         rasm_rec_valid[i] <= 1'b0;
                     end
                 end else begin
@@ -703,7 +843,7 @@ module axi4_dwidth_converter_rd #(
                             // frees and the ID starts afresh.
                             start[cur_rid]          <= 1'b0;
                             rasm_rec_valid[cur_rid] <= 1'b0;
-                        end else if (w_wide_done) begin
+                        end else if (w_wide_done && !cur_pass) begin
                             rem[cur_rid] <= cur_rem - 9'd1;
                         end
                         if (w_wide_done)
@@ -717,10 +857,17 @@ module axi4_dwidth_converter_rd #(
                         cur_user     <= q_ruser;
                         cur_lane     <= w_ld_lane;
                         cur_rem      <= w_ld_rem;
-                        start[q_rid] <= 1'b1;
+                        cur_pass     <= w_ld_pass;
+                        cur_rlast    <= q_rlast;
+                        if (w_ld_pass)
+                            pa[q_rid]    <= w_pa_next;
+                        else
+                            start[q_rid] <= 1'b1;
                     end
-                    if (w_rasm_push)
+                    if (w_rasm_push) begin
                         rasm_rec_valid[w_rasm_push_id] <= 1'b1;
+                        pa[w_rasm_push_id]             <= PAW'(w_rasm_push_addr);
+                    end
                 end
             )
         end
@@ -849,6 +996,14 @@ module axi4_dwidth_converter_rd #(
         )
 
 `ifdef SIMULATION
+        // The primitives frame aligned full-width INCR only. Every instance
+        // the bridge builds is R_INTERLEAVE = 1, which converts all burst
+        // types (bridge BUG-018/019).
+        always_ff @(posedge aclk) begin
+            if (w_aresetn && w_rasm_push && !w_rasm_push_plain)
+                $error("axi4_dwidth_converter_rd: R_INTERLEAVE=0 supports aligned full-width INCR only (ID %0d); use R_INTERLEAVE=1",
+                       w_rasm_push_id);
+        end
         logic [AXI_ID_WIDTH-1:0] r_in_id;
         always_ff @(posedge aclk)
             if (q_rvalid && q_rready && !r_in_open)

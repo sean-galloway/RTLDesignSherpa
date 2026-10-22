@@ -22,8 +22,8 @@ slave (a real memory on the board) is the framework's AXI4 slave BFM with a
 memory model, each vendor master is held idle, the vendor control windows
 are left unanswered (the host does not drive them here) and EXT_STS0 reports
 DDR3 calibrated. What this proves is the harness plumbing, the mem windows
-through the bridge and the fill / read sweeps; the BFM models aligned INCR
-only, so build-xil sims run the clean profile.
+through the bridge and the fill / read sweeps; the BFM models every AXI4
+burst type, so build-xil sims run every profile.
 """
 from __future__ import annotations
 
@@ -348,7 +348,7 @@ class BsHarnessTB(TBBase):
         prof = bstress.PROFILES[profile]
         if os.environ.get('BS_BURSTS'):          # e.g. 2 = INCR only, for triage
             prof = bstress.replace(prof, bursts=int(os.environ['BS_BURSTS'], 0))
-        if os.environ.get('BS_FULL_AXI') == '1':  # lift path_caps (bridge BUG-018 repro)
+        if os.environ.get('BS_FULL_AXI') == '1':  # no-op since bridge BUG-018/019
             prof = bstress.replace(prof, full_axi=True)
         for c in self.cov.values():
             c.clear()

@@ -273,14 +273,18 @@ module bridge_2x2_lite_req_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic lite4_32b_wdest_full;
     logic lite4_32b_w_to_regs;
     logic lite4_32b_w_sel_regs;
+    logic lite4_64b_wdest_full;
     logic lite4_64b_w_to_mem;
     logic lite4_64b_w_sel_mem;
     logic lite4_64b_w_to_subtractive;
     logic lite4_64b_w_sel_subtractive;
+    logic lite5_32b_wdest_full;
     logic lite5_32b_w_to_regs;
     logic lite5_32b_w_sel_regs;
+    logic lite5_64b_wdest_full;
     logic lite5_64b_w_to_mem;
     logic lite5_64b_w_sel_mem;
     logic lite5_64b_w_to_subtractive;
@@ -449,7 +453,7 @@ module bridge_2x2_lite_req_xbar
     wire lite5_64b_ar_to_mem = (lite5_64b_ar.addr <= 32'h0fffffff);
 
     // AW request slots for mem: arbitration at the slave pins
-    assign lite4_64b_aw_slot_mem_in_valid = lite4_64b_aw_to_mem && lite4_64b_awvalid && !lite4_64b_aw_hold_mem;
+    assign lite4_64b_aw_slot_mem_in_valid = lite4_64b_aw_to_mem && lite4_64b_awvalid && !(lite4_64b_aw_hold_mem || lite4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite4_64b_aw_slot_mem (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(lite4_64b_aw_slot_mem_in_valid), .wr_ready(lite4_64b_aw_slot_mem_in_ready), .wr_data(lite4_64b_aw),
@@ -458,7 +462,7 @@ module bridge_2x2_lite_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign lite5_64b_aw_slot_mem_in_valid = lite5_64b_aw_to_mem && lite5_64b_awvalid && !lite5_64b_aw_hold_mem;
+    assign lite5_64b_aw_slot_mem_in_valid = lite5_64b_aw_to_mem && lite5_64b_awvalid && !(lite5_64b_aw_hold_mem || lite5_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite5_64b_aw_slot_mem (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(lite5_64b_aw_slot_mem_in_valid), .wr_ready(lite5_64b_aw_slot_mem_in_ready), .wr_data(lite5_64b_aw),
@@ -670,7 +674,7 @@ module bridge_2x2_lite_req_xbar
     wire lite5_32b_ar_to_regs = ((lite5_32b_ar.addr >= 32'h40000000) && (lite5_32b_ar.addr <= 32'h4000ffff));
 
     // AW request slots for regs: arbitration at the slave pins
-    assign lite4_32b_aw_slot_regs_in_valid = lite4_32b_aw_to_regs && lite4_32b_awvalid && !lite4_32b_aw_hold_regs;
+    assign lite4_32b_aw_slot_regs_in_valid = lite4_32b_aw_to_regs && lite4_32b_awvalid && !(lite4_32b_aw_hold_regs || lite4_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite4_32b_aw_slot_regs (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(lite4_32b_aw_slot_regs_in_valid), .wr_ready(lite4_32b_aw_slot_regs_in_ready), .wr_data(lite4_32b_aw),
@@ -679,7 +683,7 @@ module bridge_2x2_lite_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign lite5_32b_aw_slot_regs_in_valid = lite5_32b_aw_to_regs && lite5_32b_awvalid && !lite5_32b_aw_hold_regs;
+    assign lite5_32b_aw_slot_regs_in_valid = lite5_32b_aw_to_regs && lite5_32b_awvalid && !(lite5_32b_aw_hold_regs || lite5_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite5_32b_aw_slot_regs (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(lite5_32b_aw_slot_regs_in_valid), .wr_ready(lite5_32b_aw_slot_regs_in_ready), .wr_data(lite5_32b_aw),
@@ -881,7 +885,7 @@ module bridge_2x2_lite_req_xbar
     wire lite5_64b_ar_to_subtractive = !(((lite5_64b_ar.addr <= 32'h0fffffff)) || (((lite5_64b_ar.addr >= 32'h40000000) && (lite5_64b_ar.addr <= 32'h4000ffff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign lite4_64b_aw_slot_subtractive_in_valid = lite4_64b_aw_to_subtractive && lite4_64b_awvalid && !lite4_64b_aw_hold_subtractive;
+    assign lite4_64b_aw_slot_subtractive_in_valid = lite4_64b_aw_to_subtractive && lite4_64b_awvalid && !(lite4_64b_aw_hold_subtractive || lite4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite4_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(lite4_64b_aw_slot_subtractive_in_valid), .wr_ready(lite4_64b_aw_slot_subtractive_in_ready), .wr_data(lite4_64b_aw),
@@ -890,7 +894,7 @@ module bridge_2x2_lite_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign lite5_64b_aw_slot_subtractive_in_valid = lite5_64b_aw_to_subtractive && lite5_64b_awvalid && !lite5_64b_aw_hold_subtractive;
+    assign lite5_64b_aw_slot_subtractive_in_valid = lite5_64b_aw_to_subtractive && lite5_64b_awvalid && !(lite5_64b_aw_hold_subtractive || lite5_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_lite5_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(lite5_64b_aw_slot_subtractive_in_valid), .wr_ready(lite5_64b_aw_slot_subtractive_in_ready), .wr_data(lite5_64b_aw),
@@ -1113,6 +1117,7 @@ module bridge_2x2_lite_req_xbar
         end
     )
     wire lite4_32b_wdest_valid = (lite4_32b_wdest_wptr != lite4_32b_wdest_rptr);
+    assign lite4_32b_wdest_full = (lite4_32b_wdest_wptr[4] != lite4_32b_wdest_rptr[4]) && (lite4_32b_wdest_wptr[3:0] == lite4_32b_wdest_rptr[3:0]);
     wire [0:0] lite4_32b_wdest_head = lite4_32b_wdest_mem[lite4_32b_wdest_rptr[3:0]];
     assign lite4_32b_w_to_regs = lite4_32b_wdest_valid && (lite4_32b_wdest_head == 1'd0);
 
@@ -1137,6 +1142,7 @@ module bridge_2x2_lite_req_xbar
         end
     )
     wire lite4_64b_wdest_valid = (lite4_64b_wdest_wptr != lite4_64b_wdest_rptr);
+    assign lite4_64b_wdest_full = (lite4_64b_wdest_wptr[4] != lite4_64b_wdest_rptr[4]) && (lite4_64b_wdest_wptr[3:0] == lite4_64b_wdest_rptr[3:0]);
     wire [0:0] lite4_64b_wdest_head = lite4_64b_wdest_mem[lite4_64b_wdest_rptr[3:0]];
     assign lite4_64b_w_to_mem = lite4_64b_wdest_valid && (lite4_64b_wdest_head == 1'd0);
     assign lite4_64b_w_to_subtractive = lite4_64b_wdest_valid && (lite4_64b_wdest_head == 1'd1);
@@ -1162,6 +1168,7 @@ module bridge_2x2_lite_req_xbar
         end
     )
     wire lite5_32b_wdest_valid = (lite5_32b_wdest_wptr != lite5_32b_wdest_rptr);
+    assign lite5_32b_wdest_full = (lite5_32b_wdest_wptr[4] != lite5_32b_wdest_rptr[4]) && (lite5_32b_wdest_wptr[3:0] == lite5_32b_wdest_rptr[3:0]);
     wire [0:0] lite5_32b_wdest_head = lite5_32b_wdest_mem[lite5_32b_wdest_rptr[3:0]];
     assign lite5_32b_w_to_regs = lite5_32b_wdest_valid && (lite5_32b_wdest_head == 1'd0);
 
@@ -1186,6 +1193,7 @@ module bridge_2x2_lite_req_xbar
         end
     )
     wire lite5_64b_wdest_valid = (lite5_64b_wdest_wptr != lite5_64b_wdest_rptr);
+    assign lite5_64b_wdest_full = (lite5_64b_wdest_wptr[4] != lite5_64b_wdest_rptr[4]) && (lite5_64b_wdest_wptr[3:0] == lite5_64b_wdest_rptr[3:0]);
     wire [0:0] lite5_64b_wdest_head = lite5_64b_wdest_mem[lite5_64b_wdest_rptr[3:0]];
     assign lite5_64b_w_to_mem = lite5_64b_wdest_valid && (lite5_64b_wdest_head == 1'd0);
     assign lite5_64b_w_to_subtractive = lite5_64b_wdest_valid && (lite5_64b_wdest_head == 1'd1);
@@ -1196,7 +1204,7 @@ module bridge_2x2_lite_req_xbar
 
     // Master: lite4, Width path: 32b
     assign lite4_32b_awready = 
-        ((lite4_32b_aw_to_regs && !lite4_32b_aw_hold_regs) ? lite4_32b_aw_slot_regs_in_ready : '0);
+        ((lite4_32b_aw_to_regs && !(lite4_32b_aw_hold_regs || lite4_32b_wdest_full)) ? lite4_32b_aw_slot_regs_in_ready : '0);
 
     assign lite4_32b_wready = 
         (lite4_32b_w_sel_regs ? regs_axi_wready : '0);
@@ -1237,8 +1245,8 @@ module bridge_2x2_lite_req_xbar
 
     // Master: lite4, Width path: 64b
     assign lite4_64b_awready = 
-        ((lite4_64b_aw_to_mem && !lite4_64b_aw_hold_mem) ? lite4_64b_aw_slot_mem_in_ready : '0) |
-        ((lite4_64b_aw_to_subtractive && !lite4_64b_aw_hold_subtractive) ? lite4_64b_aw_slot_subtractive_in_ready : '0);
+        ((lite4_64b_aw_to_mem && !(lite4_64b_aw_hold_mem || lite4_64b_wdest_full)) ? lite4_64b_aw_slot_mem_in_ready : '0) |
+        ((lite4_64b_aw_to_subtractive && !(lite4_64b_aw_hold_subtractive || lite4_64b_wdest_full)) ? lite4_64b_aw_slot_subtractive_in_ready : '0);
 
     assign lite4_64b_wready = 
         (lite4_64b_w_sel_mem ? mem_axi_wready : '0) |
@@ -1291,7 +1299,7 @@ module bridge_2x2_lite_req_xbar
 
     // Master: lite5, Width path: 32b
     assign lite5_32b_awready = 
-        ((lite5_32b_aw_to_regs && !lite5_32b_aw_hold_regs) ? lite5_32b_aw_slot_regs_in_ready : '0);
+        ((lite5_32b_aw_to_regs && !(lite5_32b_aw_hold_regs || lite5_32b_wdest_full)) ? lite5_32b_aw_slot_regs_in_ready : '0);
 
     assign lite5_32b_wready = 
         (lite5_32b_w_sel_regs ? regs_axi_wready : '0);
@@ -1332,8 +1340,8 @@ module bridge_2x2_lite_req_xbar
 
     // Master: lite5, Width path: 64b
     assign lite5_64b_awready = 
-        ((lite5_64b_aw_to_mem && !lite5_64b_aw_hold_mem) ? lite5_64b_aw_slot_mem_in_ready : '0) |
-        ((lite5_64b_aw_to_subtractive && !lite5_64b_aw_hold_subtractive) ? lite5_64b_aw_slot_subtractive_in_ready : '0);
+        ((lite5_64b_aw_to_mem && !(lite5_64b_aw_hold_mem || lite5_64b_wdest_full)) ? lite5_64b_aw_slot_mem_in_ready : '0) |
+        ((lite5_64b_aw_to_subtractive && !(lite5_64b_aw_hold_subtractive || lite5_64b_wdest_full)) ? lite5_64b_aw_slot_subtractive_in_ready : '0);
 
     assign lite5_64b_wready = 
         (lite5_64b_w_sel_mem ? mem_axi_wready : '0) |

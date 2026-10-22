@@ -249,14 +249,17 @@ module bridge_1x5_wr_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_wr_32b_wdest_full;
     logic cpu_wr_32b_w_to_periph_wr;
     logic cpu_wr_32b_w_sel_periph_wr;
     logic cpu_wr_32b_w_to_apb_periph;
     logic cpu_wr_32b_w_sel_apb_periph;
     logic cpu_wr_32b_w_to_axil_periph;
     logic cpu_wr_32b_w_sel_axil_periph;
+    logic cpu_wr_64b_wdest_full;
     logic cpu_wr_64b_w_to_ddr_wr;
     logic cpu_wr_64b_w_sel_ddr_wr;
+    logic cpu_wr_128b_wdest_full;
     logic cpu_wr_128b_w_to_hbm_wr;
     logic cpu_wr_128b_w_sel_hbm_wr;
     logic cpu_wr_128b_w_to_subtractive;
@@ -331,7 +334,7 @@ module bridge_1x5_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_periph_wr = (cpu_wr_32b_aw.addr <= 32'h0fffffff);
-    wire cpu_wr_32b_aw_gnt_periph_wr = cpu_wr_32b_aw_to_periph_wr;
+    wire cpu_wr_32b_aw_gnt_periph_wr = cpu_wr_32b_aw_to_periph_wr && !cpu_wr_32b_wdest_full;
     assign periph_wr_axi_awid     = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.id : '0;
     assign periph_wr_axi_awaddr   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.addr : '0;
     assign periph_wr_axi_awlen    = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.len : '0;
@@ -343,7 +346,7 @@ module bridge_1x5_wr_xbar
     assign periph_wr_axi_awqos    = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.qos : '0;
     assign periph_wr_axi_awregion = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.region : '0;
     assign periph_wr_axi_awuser   = cpu_wr_32b_aw_to_periph_wr ? cpu_wr_32b_aw.user : '0;
-    assign periph_wr_axi_awvalid  = cpu_wr_32b_aw_to_periph_wr && cpu_wr_32b_awvalid;
+    assign periph_wr_axi_awvalid  = cpu_wr_32b_aw_gnt_periph_wr && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_periph_wr = cpu_wr_32b_w_to_periph_wr;
 
@@ -371,7 +374,7 @@ module bridge_1x5_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_64b_aw_to_ddr_wr = ((cpu_wr_64b_aw.addr >= 32'h10000000) && (cpu_wr_64b_aw.addr <= 32'h4fffffff));
-    wire cpu_wr_64b_aw_gnt_ddr_wr = cpu_wr_64b_aw_to_ddr_wr;
+    wire cpu_wr_64b_aw_gnt_ddr_wr = cpu_wr_64b_aw_to_ddr_wr && !cpu_wr_64b_wdest_full;
     assign ddr_wr_axi_awid     = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.id : '0;
     assign ddr_wr_axi_awaddr   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.addr : '0;
     assign ddr_wr_axi_awlen    = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.len : '0;
@@ -383,7 +386,7 @@ module bridge_1x5_wr_xbar
     assign ddr_wr_axi_awqos    = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.qos : '0;
     assign ddr_wr_axi_awregion = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.region : '0;
     assign ddr_wr_axi_awuser   = cpu_wr_64b_aw_to_ddr_wr ? cpu_wr_64b_aw.user : '0;
-    assign ddr_wr_axi_awvalid  = cpu_wr_64b_aw_to_ddr_wr && cpu_wr_64b_awvalid;
+    assign ddr_wr_axi_awvalid  = cpu_wr_64b_aw_gnt_ddr_wr && cpu_wr_64b_awvalid;
 
     assign cpu_wr_64b_w_sel_ddr_wr = cpu_wr_64b_w_to_ddr_wr;
 
@@ -411,7 +414,7 @@ module bridge_1x5_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_128b_aw_to_hbm_wr = ((cpu_wr_128b_aw.addr >= 32'h50000000) && (cpu_wr_128b_aw.addr <= 32'h7fffffff));
-    wire cpu_wr_128b_aw_gnt_hbm_wr = cpu_wr_128b_aw_to_hbm_wr;
+    wire cpu_wr_128b_aw_gnt_hbm_wr = cpu_wr_128b_aw_to_hbm_wr && !cpu_wr_128b_wdest_full;
     assign hbm_wr_axi_awid     = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.id : '0;
     assign hbm_wr_axi_awaddr   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.addr : '0;
     assign hbm_wr_axi_awlen    = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.len : '0;
@@ -423,7 +426,7 @@ module bridge_1x5_wr_xbar
     assign hbm_wr_axi_awqos    = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.qos : '0;
     assign hbm_wr_axi_awregion = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.region : '0;
     assign hbm_wr_axi_awuser   = cpu_wr_128b_aw_to_hbm_wr ? cpu_wr_128b_aw.user : '0;
-    assign hbm_wr_axi_awvalid  = cpu_wr_128b_aw_to_hbm_wr && cpu_wr_128b_awvalid;
+    assign hbm_wr_axi_awvalid  = cpu_wr_128b_aw_gnt_hbm_wr && cpu_wr_128b_awvalid;
 
     assign cpu_wr_128b_w_sel_hbm_wr = cpu_wr_128b_w_to_hbm_wr;
 
@@ -451,7 +454,7 @@ module bridge_1x5_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_apb_periph = ((cpu_wr_32b_aw.addr >= 32'h80000000) && (cpu_wr_32b_aw.addr <= 32'h8000ffff));
-    wire cpu_wr_32b_aw_gnt_apb_periph = cpu_wr_32b_aw_to_apb_periph;
+    wire cpu_wr_32b_aw_gnt_apb_periph = cpu_wr_32b_aw_to_apb_periph && !cpu_wr_32b_wdest_full;
     assign apb_periph_axi_awid     = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.id : '0;
     assign apb_periph_axi_awaddr   = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.addr : '0;
     assign apb_periph_axi_awlen    = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.len : '0;
@@ -463,7 +466,7 @@ module bridge_1x5_wr_xbar
     assign apb_periph_axi_awqos    = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.qos : '0;
     assign apb_periph_axi_awregion = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.region : '0;
     assign apb_periph_axi_awuser   = cpu_wr_32b_aw_to_apb_periph ? cpu_wr_32b_aw.user : '0;
-    assign apb_periph_axi_awvalid  = cpu_wr_32b_aw_to_apb_periph && cpu_wr_32b_awvalid;
+    assign apb_periph_axi_awvalid  = cpu_wr_32b_aw_gnt_apb_periph && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_apb_periph = cpu_wr_32b_w_to_apb_periph;
 
@@ -491,7 +494,7 @@ module bridge_1x5_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_32b_aw_to_axil_periph = ((cpu_wr_32b_aw.addr >= 32'h90000000) && (cpu_wr_32b_aw.addr <= 32'h9000ffff));
-    wire cpu_wr_32b_aw_gnt_axil_periph = cpu_wr_32b_aw_to_axil_periph;
+    wire cpu_wr_32b_aw_gnt_axil_periph = cpu_wr_32b_aw_to_axil_periph && !cpu_wr_32b_wdest_full;
     assign axil_periph_axi_awid     = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.id : '0;
     assign axil_periph_axi_awaddr   = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.addr : '0;
     assign axil_periph_axi_awlen    = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.len : '0;
@@ -503,7 +506,7 @@ module bridge_1x5_wr_xbar
     assign axil_periph_axi_awqos    = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.qos : '0;
     assign axil_periph_axi_awregion = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.region : '0;
     assign axil_periph_axi_awuser   = cpu_wr_32b_aw_to_axil_periph ? cpu_wr_32b_aw.user : '0;
-    assign axil_periph_axi_awvalid  = cpu_wr_32b_aw_to_axil_periph && cpu_wr_32b_awvalid;
+    assign axil_periph_axi_awvalid  = cpu_wr_32b_aw_gnt_axil_periph && cpu_wr_32b_awvalid;
 
     assign cpu_wr_32b_w_sel_axil_periph = cpu_wr_32b_w_to_axil_periph;
 
@@ -531,7 +534,7 @@ module bridge_1x5_wr_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_wr_128b_aw_to_subtractive = !(((cpu_wr_128b_aw.addr <= 32'h0fffffff)) || (((cpu_wr_128b_aw.addr >= 32'h10000000) && (cpu_wr_128b_aw.addr <= 32'h4fffffff))) || (((cpu_wr_128b_aw.addr >= 32'h50000000) && (cpu_wr_128b_aw.addr <= 32'h7fffffff))) || (((cpu_wr_128b_aw.addr >= 32'h80000000) && (cpu_wr_128b_aw.addr <= 32'h8000ffff))) || (((cpu_wr_128b_aw.addr >= 32'h90000000) && (cpu_wr_128b_aw.addr <= 32'h9000ffff))));
-    wire cpu_wr_128b_aw_gnt_subtractive = cpu_wr_128b_aw_to_subtractive;
+    wire cpu_wr_128b_aw_gnt_subtractive = cpu_wr_128b_aw_to_subtractive && !cpu_wr_128b_wdest_full;
     assign subtractive_axi_awid     = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.id : '0;
     assign subtractive_axi_awaddr   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.addr : '0;
     assign subtractive_axi_awlen    = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.len : '0;
@@ -543,7 +546,7 @@ module bridge_1x5_wr_xbar
     assign subtractive_axi_awqos    = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.qos : '0;
     assign subtractive_axi_awregion = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.region : '0;
     assign subtractive_axi_awuser   = cpu_wr_128b_aw_to_subtractive ? cpu_wr_128b_aw.user : '0;
-    assign subtractive_axi_awvalid  = cpu_wr_128b_aw_to_subtractive && cpu_wr_128b_awvalid;
+    assign subtractive_axi_awvalid  = cpu_wr_128b_aw_gnt_subtractive && cpu_wr_128b_awvalid;
 
     assign cpu_wr_128b_w_sel_subtractive = cpu_wr_128b_w_to_subtractive;
 
@@ -586,6 +589,7 @@ module bridge_1x5_wr_xbar
         end
     )
     wire cpu_wr_32b_wdest_valid = (cpu_wr_32b_wdest_wptr != cpu_wr_32b_wdest_rptr);
+    assign cpu_wr_32b_wdest_full = (cpu_wr_32b_wdest_wptr[4] != cpu_wr_32b_wdest_rptr[4]) && (cpu_wr_32b_wdest_wptr[3:0] == cpu_wr_32b_wdest_rptr[3:0]);
     wire [1:0] cpu_wr_32b_wdest_head = cpu_wr_32b_wdest_mem[cpu_wr_32b_wdest_rptr[3:0]];
     assign cpu_wr_32b_w_to_periph_wr = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 2'd0);
     assign cpu_wr_32b_w_to_apb_periph = cpu_wr_32b_wdest_valid && (cpu_wr_32b_wdest_head == 2'd1);
@@ -612,6 +616,7 @@ module bridge_1x5_wr_xbar
         end
     )
     wire cpu_wr_64b_wdest_valid = (cpu_wr_64b_wdest_wptr != cpu_wr_64b_wdest_rptr);
+    assign cpu_wr_64b_wdest_full = (cpu_wr_64b_wdest_wptr[4] != cpu_wr_64b_wdest_rptr[4]) && (cpu_wr_64b_wdest_wptr[3:0] == cpu_wr_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_wr_64b_wdest_head = cpu_wr_64b_wdest_mem[cpu_wr_64b_wdest_rptr[3:0]];
     assign cpu_wr_64b_w_to_ddr_wr = cpu_wr_64b_wdest_valid && (cpu_wr_64b_wdest_head == 1'd0);
 
@@ -636,6 +641,7 @@ module bridge_1x5_wr_xbar
         end
     )
     wire cpu_wr_128b_wdest_valid = (cpu_wr_128b_wdest_wptr != cpu_wr_128b_wdest_rptr);
+    assign cpu_wr_128b_wdest_full = (cpu_wr_128b_wdest_wptr[4] != cpu_wr_128b_wdest_rptr[4]) && (cpu_wr_128b_wdest_wptr[3:0] == cpu_wr_128b_wdest_rptr[3:0]);
     wire [0:0] cpu_wr_128b_wdest_head = cpu_wr_128b_wdest_mem[cpu_wr_128b_wdest_rptr[3:0]];
     assign cpu_wr_128b_w_to_hbm_wr = cpu_wr_128b_wdest_valid && (cpu_wr_128b_wdest_head == 1'd0);
     assign cpu_wr_128b_w_to_subtractive = cpu_wr_128b_wdest_valid && (cpu_wr_128b_wdest_head == 1'd1);

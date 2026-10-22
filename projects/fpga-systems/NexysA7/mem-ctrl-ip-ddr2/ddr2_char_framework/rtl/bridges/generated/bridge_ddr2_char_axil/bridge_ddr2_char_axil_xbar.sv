@@ -467,6 +467,7 @@ module bridge_ddr2_char_axil_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic host_32b_wdest_full;
     logic host_32b_w_to_ddr2_apb;
     logic host_32b_w_sel_ddr2_apb;
     logic host_32b_w_to_harness_csr;
@@ -477,6 +478,7 @@ module bridge_ddr2_char_axil_xbar
     logic host_32b_w_sel_obs_apb;
     logic host_32b_w_to_chargen_apb;
     logic host_32b_w_sel_chargen_apb;
+    logic host_64b_wdest_full;
     logic host_64b_w_to_debug_sram;
     logic host_64b_w_sel_debug_sram;
     logic host_64b_w_to_subtractive;
@@ -611,7 +613,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ddr2_apb = (host_32b_aw.addr <= 32'h00000fff);
-    wire host_32b_aw_gnt_ddr2_apb = host_32b_aw_to_ddr2_apb;
+    wire host_32b_aw_gnt_ddr2_apb = host_32b_aw_to_ddr2_apb && !host_32b_wdest_full;
     assign ddr2_apb_axi_awid     = host_32b_aw_to_ddr2_apb ? host_32b_aw.id : '0;
     assign ddr2_apb_axi_awaddr   = host_32b_aw_to_ddr2_apb ? host_32b_aw.addr : '0;
     assign ddr2_apb_axi_awlen    = host_32b_aw_to_ddr2_apb ? host_32b_aw.len : '0;
@@ -623,7 +625,7 @@ module bridge_ddr2_char_axil_xbar
     assign ddr2_apb_axi_awqos    = host_32b_aw_to_ddr2_apb ? host_32b_aw.qos : '0;
     assign ddr2_apb_axi_awregion = host_32b_aw_to_ddr2_apb ? host_32b_aw.region : '0;
     assign ddr2_apb_axi_awuser   = host_32b_aw_to_ddr2_apb ? host_32b_aw.user : '0;
-    assign ddr2_apb_axi_awvalid  = host_32b_aw_to_ddr2_apb && host_32b_awvalid;
+    assign ddr2_apb_axi_awvalid  = host_32b_aw_gnt_ddr2_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_ddr2_apb = host_32b_w_to_ddr2_apb;
 
@@ -674,7 +676,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
-    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr;
+    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr && !host_32b_wdest_full;
     assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
     assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
     assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
@@ -686,7 +688,7 @@ module bridge_ddr2_char_axil_xbar
     assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
     assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
     assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
-    assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
+    assign harness_csr_axi_awvalid  = host_32b_aw_gnt_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
 
@@ -737,7 +739,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_debug_sram = ((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h0007ffff));
-    wire host_64b_aw_gnt_debug_sram = host_64b_aw_to_debug_sram;
+    wire host_64b_aw_gnt_debug_sram = host_64b_aw_to_debug_sram && !host_64b_wdest_full;
     assign debug_sram_axi_awid     = host_64b_aw_to_debug_sram ? host_64b_aw.id : '0;
     assign debug_sram_axi_awaddr   = host_64b_aw_to_debug_sram ? host_64b_aw.addr : '0;
     assign debug_sram_axi_awlen    = host_64b_aw_to_debug_sram ? host_64b_aw.len : '0;
@@ -749,7 +751,7 @@ module bridge_ddr2_char_axil_xbar
     assign debug_sram_axi_awqos    = host_64b_aw_to_debug_sram ? host_64b_aw.qos : '0;
     assign debug_sram_axi_awregion = host_64b_aw_to_debug_sram ? host_64b_aw.region : '0;
     assign debug_sram_axi_awuser   = host_64b_aw_to_debug_sram ? host_64b_aw.user : '0;
-    assign debug_sram_axi_awvalid  = host_64b_aw_to_debug_sram && host_64b_awvalid;
+    assign debug_sram_axi_awvalid  = host_64b_aw_gnt_debug_sram && host_64b_awvalid;
 
     assign host_64b_w_sel_debug_sram = host_64b_w_to_debug_sram;
 
@@ -800,7 +802,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_dfi_mon_ram = ((host_32b_aw.addr >= 32'h00080000) && (host_32b_aw.addr <= 32'h00080fff));
-    wire host_32b_aw_gnt_dfi_mon_ram = host_32b_aw_to_dfi_mon_ram;
+    wire host_32b_aw_gnt_dfi_mon_ram = host_32b_aw_to_dfi_mon_ram && !host_32b_wdest_full;
     assign dfi_mon_ram_axi_awid     = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.id : '0;
     assign dfi_mon_ram_axi_awaddr   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.addr : '0;
     assign dfi_mon_ram_axi_awlen    = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.len : '0;
@@ -812,7 +814,7 @@ module bridge_ddr2_char_axil_xbar
     assign dfi_mon_ram_axi_awqos    = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.qos : '0;
     assign dfi_mon_ram_axi_awregion = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.region : '0;
     assign dfi_mon_ram_axi_awuser   = host_32b_aw_to_dfi_mon_ram ? host_32b_aw.user : '0;
-    assign dfi_mon_ram_axi_awvalid  = host_32b_aw_to_dfi_mon_ram && host_32b_awvalid;
+    assign dfi_mon_ram_axi_awvalid  = host_32b_aw_gnt_dfi_mon_ram && host_32b_awvalid;
 
     assign host_32b_w_sel_dfi_mon_ram = host_32b_w_to_dfi_mon_ram;
 
@@ -863,7 +865,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_obs_apb = ((host_32b_aw.addr >= 32'h00090000) && (host_32b_aw.addr <= 32'h00090fff));
-    wire host_32b_aw_gnt_obs_apb = host_32b_aw_to_obs_apb;
+    wire host_32b_aw_gnt_obs_apb = host_32b_aw_to_obs_apb && !host_32b_wdest_full;
     assign obs_apb_axi_awid     = host_32b_aw_to_obs_apb ? host_32b_aw.id : '0;
     assign obs_apb_axi_awaddr   = host_32b_aw_to_obs_apb ? host_32b_aw.addr : '0;
     assign obs_apb_axi_awlen    = host_32b_aw_to_obs_apb ? host_32b_aw.len : '0;
@@ -875,7 +877,7 @@ module bridge_ddr2_char_axil_xbar
     assign obs_apb_axi_awqos    = host_32b_aw_to_obs_apb ? host_32b_aw.qos : '0;
     assign obs_apb_axi_awregion = host_32b_aw_to_obs_apb ? host_32b_aw.region : '0;
     assign obs_apb_axi_awuser   = host_32b_aw_to_obs_apb ? host_32b_aw.user : '0;
-    assign obs_apb_axi_awvalid  = host_32b_aw_to_obs_apb && host_32b_awvalid;
+    assign obs_apb_axi_awvalid  = host_32b_aw_gnt_obs_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_obs_apb = host_32b_w_to_obs_apb;
 
@@ -926,7 +928,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_chargen_apb = ((host_32b_aw.addr >= 32'h000a0000) && (host_32b_aw.addr <= 32'h000a0fff));
-    wire host_32b_aw_gnt_chargen_apb = host_32b_aw_to_chargen_apb;
+    wire host_32b_aw_gnt_chargen_apb = host_32b_aw_to_chargen_apb && !host_32b_wdest_full;
     assign chargen_apb_axi_awid     = host_32b_aw_to_chargen_apb ? host_32b_aw.id : '0;
     assign chargen_apb_axi_awaddr   = host_32b_aw_to_chargen_apb ? host_32b_aw.addr : '0;
     assign chargen_apb_axi_awlen    = host_32b_aw_to_chargen_apb ? host_32b_aw.len : '0;
@@ -938,7 +940,7 @@ module bridge_ddr2_char_axil_xbar
     assign chargen_apb_axi_awqos    = host_32b_aw_to_chargen_apb ? host_32b_aw.qos : '0;
     assign chargen_apb_axi_awregion = host_32b_aw_to_chargen_apb ? host_32b_aw.region : '0;
     assign chargen_apb_axi_awuser   = host_32b_aw_to_chargen_apb ? host_32b_aw.user : '0;
-    assign chargen_apb_axi_awvalid  = host_32b_aw_to_chargen_apb && host_32b_awvalid;
+    assign chargen_apb_axi_awvalid  = host_32b_aw_gnt_chargen_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_chargen_apb = host_32b_w_to_chargen_apb;
 
@@ -989,7 +991,7 @@ module bridge_ddr2_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_subtractive = !(((host_64b_aw.addr <= 32'h00000fff)) || (((host_64b_aw.addr >= 32'h00010000) && (host_64b_aw.addr <= 32'h00010fff))) || (((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h0007ffff))) || (((host_64b_aw.addr >= 32'h00080000) && (host_64b_aw.addr <= 32'h00080fff))) || (((host_64b_aw.addr >= 32'h00090000) && (host_64b_aw.addr <= 32'h00090fff))) || (((host_64b_aw.addr >= 32'h000a0000) && (host_64b_aw.addr <= 32'h000a0fff))));
-    wire host_64b_aw_gnt_subtractive = host_64b_aw_to_subtractive;
+    wire host_64b_aw_gnt_subtractive = host_64b_aw_to_subtractive && !host_64b_wdest_full;
     assign subtractive_axi_awid     = host_64b_aw_to_subtractive ? host_64b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_64b_aw_to_subtractive ? host_64b_aw.addr : '0;
     assign subtractive_axi_awlen    = host_64b_aw_to_subtractive ? host_64b_aw.len : '0;
@@ -1001,7 +1003,7 @@ module bridge_ddr2_char_axil_xbar
     assign subtractive_axi_awqos    = host_64b_aw_to_subtractive ? host_64b_aw.qos : '0;
     assign subtractive_axi_awregion = host_64b_aw_to_subtractive ? host_64b_aw.region : '0;
     assign subtractive_axi_awuser   = host_64b_aw_to_subtractive ? host_64b_aw.user : '0;
-    assign subtractive_axi_awvalid  = host_64b_aw_to_subtractive && host_64b_awvalid;
+    assign subtractive_axi_awvalid  = host_64b_aw_gnt_subtractive && host_64b_awvalid;
 
     assign host_64b_w_sel_subtractive = host_64b_w_to_subtractive;
 
@@ -1067,6 +1069,7 @@ module bridge_ddr2_char_axil_xbar
         end
     )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
+    assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [2:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_ddr2_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd0);
     assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 3'd1);
@@ -1095,6 +1098,7 @@ module bridge_ddr2_char_axil_xbar
         end
     )
     wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
+    assign host_64b_wdest_full = (host_64b_wdest_wptr[4] != host_64b_wdest_rptr[4]) && (host_64b_wdest_wptr[3:0] == host_64b_wdest_rptr[3:0]);
     wire [0:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
     assign host_64b_w_to_debug_sram = host_64b_wdest_valid && (host_64b_wdest_head == 1'd0);
     assign host_64b_w_to_subtractive = host_64b_wdest_valid && (host_64b_wdest_head == 1'd1);

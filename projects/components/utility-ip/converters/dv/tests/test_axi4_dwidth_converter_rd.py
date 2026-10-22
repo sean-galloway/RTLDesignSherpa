@@ -156,6 +156,17 @@ async def axi4_dwidth_converter_rd_ooo_r_test(dut):
         await tb.wait_clocks('aclk', 10)
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def axi4_dwidth_converter_rd_burst_matrix_test(dut):
+    """bridge BUG-018/019: FIXED / INCR / WRAP x every size x aligned and
+    unaligned starts, data checked by address and every master AR legal."""
+    tb = AXI4DWidthConverterReadTB(dut)
+    await tb.setup_clocks_and_reset()
+    ok = await tb.test_burst_matrix()
+    await tb.wait_clocks('aclk', 20)
+    assert ok and tb.errors == 0, f"burst matrix failed ({tb.errors} data errors)"
+
+
 def generate_test_params():
     """
     Generate test parameters for different width conversion scenarios.
@@ -225,6 +236,12 @@ def generate_test_params():
                        'testcase': 'axi4_dwidth_converter_rd_interleave_test'})
         params.append({'s_data_width': s, 'm_data_width': m, 'test_level': 'gate',
                        'testcase': 'axi4_dwidth_converter_rd_ooo_r_test'})
+
+    # bridge BUG-018/019: every burst type, size and alignment, both
+    # directions, 2:1 and 4:1 (R_INTERLEAVE = 1, the bridge's build).
+    for (s, m) in [(32, 128), (64, 128), (32, 64), (128, 32), (128, 64), (64, 32)]:
+        params.append({'s_data_width': s, 'm_data_width': m, 'test_level': 'gate',
+                       'testcase': 'axi4_dwidth_converter_rd_burst_matrix_test'})
 
     # R_INTERLEAVE = 0 (no reassembly pool; the bridge's setting, GitHub
     # #119): R bursts arrive contiguously but may complete out of order

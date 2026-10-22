@@ -57,7 +57,7 @@ The read converter combines the generic `axi_data_dnsize` with AXI4 protocol han
 | RASM_MAX_OUTSTANDING | int | 16 | Unused, as RASM_DEPTH |
 | R_INTERLEAVE | bit | 1 | 1: the `m_axi` R source may interleave beats across IDs; each beat is converted per ID as it arrives (2.6.9). 0: R bursts arrive contiguously (in any order across IDs); beats pass straight to the data primitive (2.6.9a) |
 
-: Table 2.17: Read Converter Parameters
+: Table 2.18: Read Converter Parameters
 
 ### Ports
 
@@ -175,57 +175,66 @@ localparam int RATIO_LOG2 = $clog2(RATIO);
 | 64 | 512 | 8 | 15 | 16 | 1 | 2 |
 | 64 | 512 | 8 | 31 | 32 | 3 | 4 |
 
-: Table 2.18: Read Burst Length Conversion
+: Table 2.19: Read Burst Length Conversion
 
 ## 2.6.5 Address Channel Handling
 
 ### AR Passthrough with Adjustment
 
-Same two directions as the write converter (see 2.5.4 for why the upsize
-divide rounds up):
+Every legal AXI4 read burst is carried, in the same three modes as the
+write converter (Table 2.16; bridge BUG-018/019):
+
+| Mode | Direction | Bursts | Master side | R path |
+| --- | --- | --- | --- | --- |
+| CM_PACK | upsize | INCR at the slave's full width | one wide INCR, address aligned down | each wide beat sliced into narrow beats from the start lane |
+| CM_PACK | downsize | INCR wider than the master bus | narrow INCR pieces of <= 256 beats | narrow beats packed into wide beats |
+| CM_PASS | both | ARSIZE no wider than the narrower bus | the AR unchanged | one slave beat per master beat; downsize replicates the data across chunks, upsize takes the lane the beat's address selects |
+| CM_EXPAND | downsize | FIXED or WRAP wider than the master bus | one narrow INCR piece per slave beat | each piece packed into one wide beat |
+
+: Table 2.20: Read Converter Burst Modes
+
+The CM_PACK rewrites (see 2.5.5 for why the upsize divide rounds up):
 
 ```systemverilog
 // narrow -> wide (upsize): beats combine, round up; the start lane
 // counts toward the wide total for mid-word bursts
-assign m_axi_arlen  = 8'(((w_ar_lane + 10'(int_arlen) + 10'(WIDTH_RATIO))
+assign master_arlen = 8'(((10'(w_ar_lane) + 10'(int_arlen) + 10'(WIDTH_RATIO))
                           / 10'(WIDTH_RATIO)) - 10'd1);
 
-// wide -> narrow (downsize): each wide beat becomes RATIO narrow beats,
-// and the product can exceed both AWLEN's 8 bits and the 256-beat legal
-// maximum -- so one slave burst is SPLIT into master bursts of <= 256
-// beats (same mechanism as the write converter, see 2.5.5)
-assign m_axi_arlen  = 8'(w_this_beats - 9'd1);  // min(remaining, 256)
-
-// size is the master's own full width, not a shift of ARSIZE
-assign m_axi_arsize = MASTER_SIZE[2:0];
+// wide -> narrow (downsize): each wide beat becomes 2^(ARSIZE - master
+// size) narrow beats, less the start lane in the first one, and the
+// total can exceed both ARLEN's 8 bits and the 256-beat legal maximum --
+// so one slave burst is SPLIT into master bursts of <= 256 beats (same
+// sequencer as the write converter, see 2.5.5)
+assign m_axi_arlen  = 8'(w_this_beats - 9'd1);  // min(remaining, 256 - lane)
 ```
+
+In CM_PACK the size is the master's own full width; in CM_PASS it is the
+slave's ARSIZE, unchanged.
 
 For a split read the slave must still see ONE burst: each master burst
 returns its own RLAST, and every one except the final master burst's is
-masked out of the upsize, whose accumulation simply continues across the
-boundary. The masking is safe by construction — 256 narrow beats is a
-whole number of wide beats at every ratio, so a masked boundary can never
-land mid-accumulation. A one-bit flag queue, pushed per issued AR and
-popped per master RLAST, says which burst is final.
+masked out. The masking is safe by construction: the first piece is
+`256 - lane` narrow beats, so every piece boundary lands on a slave-beat
+boundary and never mid-accumulation, and each later piece starts at
+`aligned(start) + n * 256 * M_STRB_WIDTH` (the earlier step from the
+unaligned start ran every later piece one lane late, bridge BUG-019). The
+per-ID record says which piece is final.
 
-On the UPSIZE path the issued address is aligned down to the master
-data width — the slave returns whole wide words — and mid-word INCR
-starts are handled by the R slicer: the burst-length FIFO carries the
-start lane alongside the narrow length, `m_axi_arlen` counts it
-(`ceil((start_lane + narrow_beats) / RATIO)` wide beats), and
-`axi_data_dnsize` slices the burst's FIRST wide word from that lane,
-so the narrow master receives the bytes it actually addressed. Later
-wide words slice from lane 0. FIXED/WRAP keep the wide-aligned
-requirement (asserted in simulation). The downsize path issues narrow
-accesses and passes the address through the splitter unmodified apart
-from the per-burst advance:
+**CM_EXPAND** is correct but serial: each slave beat is its own master
+burst, and each ID has one master burst outstanding (2.6.9), so a wide
+FIXED or WRAP read through a downsizer costs one round trip per beat.
 
-```systemverilog
-localparam int ALIGN_BITS = $clog2(M_STRB_WIDTH);
-assign aligned_araddr = {int_araddr[AXI_ADDR_WIDTH-1:ALIGN_BITS],
-                         {ALIGN_BITS{1'b0}}};
-assign m_axi_araddr   = aligned_araddr;
-```
+On the UPSIZE path a CM_PACK address is aligned down to the master data
+width -- the slave returns whole wide words -- and mid-word INCR starts
+are handled by the R slicer: the per-ID record carries the start lane,
+`m_axi_arlen` counts it (`ceil((start_lane + narrow_beats) / RATIO)` wide
+beats), and the slicer takes the burst's FIRST wide word from that lane,
+so the narrow master receives the bytes it actually addressed. Later wide
+words slice from lane 0. A CM_PASS burst is issued at its own address; the
+slicer walks the beat's low address by the burst rules (FIXED holds, INCR
+steps on the size grid, WRAP wraps in its container) to pick each beat's
+lane.
 
 ### Burst-Length Tracking
 
@@ -396,8 +405,12 @@ beats go straight to the data primitive as they arrive:
    from `burst_len`, so a new burst enters once the previous one is
    leaving it.
 
-A `SIMULATION` check flags an interleaved beat. Covered by the converter
-suite's `_ri0` rows. The bridge used this mode from 2026-10-16 to
+A `SIMULATION` check flags an interleaved beat. The data primitives frame
+aligned full-width INCR only, so `R_INTERLEAVE = 0` carries CM_PACK bursts
+that start on the wide boundary and nothing else: a narrow, FIXED, WRAP or
+unaligned burst is flagged by a second `SIMULATION` check (`$error`), and
+there is no hardware fallback. Use `R_INTERLEAVE = 1` for full AXI4.
+Covered by the converter suite's `_ri0` rows. The bridge used this mode from 2026-10-16 to
 2026-10-18; it now builds every read converter with `R_INTERLEAVE = 1`.
 
 ## 2.6.10 Resource Utilization
@@ -435,7 +448,7 @@ its ping-pong `DUAL_BUFFER` variant was removed, see 2.3.8.
 | First R beat | 1 cycle (load buffer) |
 | Subsequent R beats | 1 beat/cycle |
 
-: Table 2.20: Read Converter Latency
+: Table 2.21: Read Converter Latency
 
 ### Throughput
 

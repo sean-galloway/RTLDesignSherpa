@@ -561,36 +561,50 @@ module bridge_4x4_rw_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_master_32b_wdest_full;
     logic cpu_master_32b_w_to_periph_slave;
     logic cpu_master_32b_w_sel_periph_slave;
+    logic cpu_master_64b_wdest_full;
     logic cpu_master_64b_w_to_ddr0_slave;
     logic cpu_master_64b_w_sel_ddr0_slave;
+    logic cpu_master_128b_wdest_full;
     logic cpu_master_128b_w_to_sram_slave;
     logic cpu_master_128b_w_sel_sram_slave;
+    logic cpu_master_256b_wdest_full;
     logic cpu_master_256b_w_to_gpu_mem_slave;
     logic cpu_master_256b_w_sel_gpu_mem_slave;
     logic cpu_master_256b_w_to_subtractive;
     logic cpu_master_256b_w_sel_subtractive;
+    logic dma0_master_32b_wdest_full;
     logic dma0_master_32b_w_to_periph_slave;
     logic dma0_master_32b_w_sel_periph_slave;
+    logic dma0_master_64b_wdest_full;
     logic dma0_master_64b_w_to_ddr0_slave;
     logic dma0_master_64b_w_sel_ddr0_slave;
+    logic dma0_master_128b_wdest_full;
     logic dma0_master_128b_w_to_sram_slave;
     logic dma0_master_128b_w_sel_sram_slave;
+    logic dma0_master_256b_wdest_full;
     logic dma0_master_256b_w_to_subtractive;
     logic dma0_master_256b_w_sel_subtractive;
+    logic dma1_master_64b_wdest_full;
     logic dma1_master_64b_w_to_ddr0_slave;
     logic dma1_master_64b_w_sel_ddr0_slave;
+    logic dma1_master_128b_wdest_full;
     logic dma1_master_128b_w_to_sram_slave;
     logic dma1_master_128b_w_sel_sram_slave;
+    logic dma1_master_256b_wdest_full;
     logic dma1_master_256b_w_to_gpu_mem_slave;
     logic dma1_master_256b_w_sel_gpu_mem_slave;
     logic dma1_master_256b_w_to_subtractive;
     logic dma1_master_256b_w_sel_subtractive;
+    logic gpu_master_32b_wdest_full;
     logic gpu_master_32b_w_to_periph_slave;
     logic gpu_master_32b_w_sel_periph_slave;
+    logic gpu_master_64b_wdest_full;
     logic gpu_master_64b_w_to_ddr0_slave;
     logic gpu_master_64b_w_sel_ddr0_slave;
+    logic gpu_master_256b_wdest_full;
     logic gpu_master_256b_w_to_gpu_mem_slave;
     logic gpu_master_256b_w_sel_gpu_mem_slave;
     logic gpu_master_256b_w_to_subtractive;
@@ -905,7 +919,7 @@ module bridge_4x4_rw_xbar
     wire gpu_master_32b_ar_to_periph_slave = (gpu_master_32b_ar.addr <= 32'h3fffffff);
 
     // AW request slots for periph_slave: arbitration at the slave pins
-    assign cpu_master_32b_aw_slot_periph_slave_in_valid = cpu_master_32b_aw_to_periph_slave && cpu_master_32b_awvalid && !cpu_master_32b_aw_hold_periph_slave;
+    assign cpu_master_32b_aw_slot_periph_slave_in_valid = cpu_master_32b_aw_to_periph_slave && cpu_master_32b_awvalid && !(cpu_master_32b_aw_hold_periph_slave || cpu_master_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_32b_aw_slot_periph_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_32b_aw_slot_periph_slave_in_valid), .wr_ready(cpu_master_32b_aw_slot_periph_slave_in_ready), .wr_data(cpu_master_32b_aw),
@@ -914,7 +928,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma0_master_32b_aw_slot_periph_slave_in_valid = dma0_master_32b_aw_to_periph_slave && dma0_master_32b_awvalid && !dma0_master_32b_aw_hold_periph_slave;
+    assign dma0_master_32b_aw_slot_periph_slave_in_valid = dma0_master_32b_aw_to_periph_slave && dma0_master_32b_awvalid && !(dma0_master_32b_aw_hold_periph_slave || dma0_master_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma0_master_32b_aw_slot_periph_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma0_master_32b_aw_slot_periph_slave_in_valid), .wr_ready(dma0_master_32b_aw_slot_periph_slave_in_ready), .wr_data(dma0_master_32b_aw),
@@ -923,7 +937,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign gpu_master_32b_aw_slot_periph_slave_in_valid = gpu_master_32b_aw_to_periph_slave && gpu_master_32b_awvalid && !gpu_master_32b_aw_hold_periph_slave;
+    assign gpu_master_32b_aw_slot_periph_slave_in_valid = gpu_master_32b_aw_to_periph_slave && gpu_master_32b_awvalid && !(gpu_master_32b_aw_hold_periph_slave || gpu_master_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_gpu_master_32b_aw_slot_periph_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(gpu_master_32b_aw_slot_periph_slave_in_valid), .wr_ready(gpu_master_32b_aw_slot_periph_slave_in_ready), .wr_data(gpu_master_32b_aw),
@@ -1187,7 +1201,7 @@ module bridge_4x4_rw_xbar
     wire gpu_master_64b_ar_to_ddr0_slave = ((gpu_master_64b_ar.addr >= 32'h40000000) && (gpu_master_64b_ar.addr <= 32'h7fffffff));
 
     // AW request slots for ddr0_slave: arbitration at the slave pins
-    assign cpu_master_64b_aw_slot_ddr0_slave_in_valid = cpu_master_64b_aw_to_ddr0_slave && cpu_master_64b_awvalid && !cpu_master_64b_aw_hold_ddr0_slave;
+    assign cpu_master_64b_aw_slot_ddr0_slave_in_valid = cpu_master_64b_aw_to_ddr0_slave && cpu_master_64b_awvalid && !(cpu_master_64b_aw_hold_ddr0_slave || cpu_master_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_64b_aw_slot_ddr0_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_64b_aw_slot_ddr0_slave_in_valid), .wr_ready(cpu_master_64b_aw_slot_ddr0_slave_in_ready), .wr_data(cpu_master_64b_aw),
@@ -1196,7 +1210,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma0_master_64b_aw_slot_ddr0_slave_in_valid = dma0_master_64b_aw_to_ddr0_slave && dma0_master_64b_awvalid && !dma0_master_64b_aw_hold_ddr0_slave;
+    assign dma0_master_64b_aw_slot_ddr0_slave_in_valid = dma0_master_64b_aw_to_ddr0_slave && dma0_master_64b_awvalid && !(dma0_master_64b_aw_hold_ddr0_slave || dma0_master_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma0_master_64b_aw_slot_ddr0_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma0_master_64b_aw_slot_ddr0_slave_in_valid), .wr_ready(dma0_master_64b_aw_slot_ddr0_slave_in_ready), .wr_data(dma0_master_64b_aw),
@@ -1205,7 +1219,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma1_master_64b_aw_slot_ddr0_slave_in_valid = dma1_master_64b_aw_to_ddr0_slave && dma1_master_64b_awvalid && !dma1_master_64b_aw_hold_ddr0_slave;
+    assign dma1_master_64b_aw_slot_ddr0_slave_in_valid = dma1_master_64b_aw_to_ddr0_slave && dma1_master_64b_awvalid && !(dma1_master_64b_aw_hold_ddr0_slave || dma1_master_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma1_master_64b_aw_slot_ddr0_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma1_master_64b_aw_slot_ddr0_slave_in_valid), .wr_ready(dma1_master_64b_aw_slot_ddr0_slave_in_ready), .wr_data(dma1_master_64b_aw),
@@ -1214,7 +1228,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign gpu_master_64b_aw_slot_ddr0_slave_in_valid = gpu_master_64b_aw_to_ddr0_slave && gpu_master_64b_awvalid && !gpu_master_64b_aw_hold_ddr0_slave;
+    assign gpu_master_64b_aw_slot_ddr0_slave_in_valid = gpu_master_64b_aw_to_ddr0_slave && gpu_master_64b_awvalid && !(gpu_master_64b_aw_hold_ddr0_slave || gpu_master_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_gpu_master_64b_aw_slot_ddr0_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(gpu_master_64b_aw_slot_ddr0_slave_in_valid), .wr_ready(gpu_master_64b_aw_slot_ddr0_slave_in_ready), .wr_data(gpu_master_64b_aw),
@@ -1521,7 +1535,7 @@ module bridge_4x4_rw_xbar
     wire dma1_master_128b_ar_to_sram_slave = ((dma1_master_128b_ar.addr >= 32'h80000000) && (dma1_master_128b_ar.addr <= 32'hbfffffff));
 
     // AW request slots for sram_slave: arbitration at the slave pins
-    assign cpu_master_128b_aw_slot_sram_slave_in_valid = cpu_master_128b_aw_to_sram_slave && cpu_master_128b_awvalid && !cpu_master_128b_aw_hold_sram_slave;
+    assign cpu_master_128b_aw_slot_sram_slave_in_valid = cpu_master_128b_aw_to_sram_slave && cpu_master_128b_awvalid && !(cpu_master_128b_aw_hold_sram_slave || cpu_master_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_128b_aw_slot_sram_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_128b_aw_slot_sram_slave_in_valid), .wr_ready(cpu_master_128b_aw_slot_sram_slave_in_ready), .wr_data(cpu_master_128b_aw),
@@ -1530,7 +1544,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma0_master_128b_aw_slot_sram_slave_in_valid = dma0_master_128b_aw_to_sram_slave && dma0_master_128b_awvalid && !dma0_master_128b_aw_hold_sram_slave;
+    assign dma0_master_128b_aw_slot_sram_slave_in_valid = dma0_master_128b_aw_to_sram_slave && dma0_master_128b_awvalid && !(dma0_master_128b_aw_hold_sram_slave || dma0_master_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma0_master_128b_aw_slot_sram_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma0_master_128b_aw_slot_sram_slave_in_valid), .wr_ready(dma0_master_128b_aw_slot_sram_slave_in_ready), .wr_data(dma0_master_128b_aw),
@@ -1539,7 +1553,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma1_master_128b_aw_slot_sram_slave_in_valid = dma1_master_128b_aw_to_sram_slave && dma1_master_128b_awvalid && !dma1_master_128b_aw_hold_sram_slave;
+    assign dma1_master_128b_aw_slot_sram_slave_in_valid = dma1_master_128b_aw_to_sram_slave && dma1_master_128b_awvalid && !(dma1_master_128b_aw_hold_sram_slave || dma1_master_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma1_master_128b_aw_slot_sram_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma1_master_128b_aw_slot_sram_slave_in_valid), .wr_ready(dma1_master_128b_aw_slot_sram_slave_in_ready), .wr_data(dma1_master_128b_aw),
@@ -1800,7 +1814,7 @@ module bridge_4x4_rw_xbar
     wire gpu_master_256b_ar_to_gpu_mem_slave = (gpu_master_256b_ar.addr >= 32'hc0000000);
 
     // AW request slots for gpu_mem_slave: arbitration at the slave pins
-    assign cpu_master_256b_aw_slot_gpu_mem_slave_in_valid = cpu_master_256b_aw_to_gpu_mem_slave && cpu_master_256b_awvalid && !cpu_master_256b_aw_hold_gpu_mem_slave;
+    assign cpu_master_256b_aw_slot_gpu_mem_slave_in_valid = cpu_master_256b_aw_to_gpu_mem_slave && cpu_master_256b_awvalid && !(cpu_master_256b_aw_hold_gpu_mem_slave || cpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_256b_aw_slot_gpu_mem_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_256b_aw_slot_gpu_mem_slave_in_valid), .wr_ready(cpu_master_256b_aw_slot_gpu_mem_slave_in_ready), .wr_data(cpu_master_256b_aw),
@@ -1809,7 +1823,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma1_master_256b_aw_slot_gpu_mem_slave_in_valid = dma1_master_256b_aw_to_gpu_mem_slave && dma1_master_256b_awvalid && !dma1_master_256b_aw_hold_gpu_mem_slave;
+    assign dma1_master_256b_aw_slot_gpu_mem_slave_in_valid = dma1_master_256b_aw_to_gpu_mem_slave && dma1_master_256b_awvalid && !(dma1_master_256b_aw_hold_gpu_mem_slave || dma1_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma1_master_256b_aw_slot_gpu_mem_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma1_master_256b_aw_slot_gpu_mem_slave_in_valid), .wr_ready(dma1_master_256b_aw_slot_gpu_mem_slave_in_ready), .wr_data(dma1_master_256b_aw),
@@ -1818,7 +1832,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign gpu_master_256b_aw_slot_gpu_mem_slave_in_valid = gpu_master_256b_aw_to_gpu_mem_slave && gpu_master_256b_awvalid && !gpu_master_256b_aw_hold_gpu_mem_slave;
+    assign gpu_master_256b_aw_slot_gpu_mem_slave_in_valid = gpu_master_256b_aw_to_gpu_mem_slave && gpu_master_256b_awvalid && !(gpu_master_256b_aw_hold_gpu_mem_slave || gpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_gpu_master_256b_aw_slot_gpu_mem_slave (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(gpu_master_256b_aw_slot_gpu_mem_slave_in_valid), .wr_ready(gpu_master_256b_aw_slot_gpu_mem_slave_in_ready), .wr_data(gpu_master_256b_aw),
@@ -2082,7 +2096,7 @@ module bridge_4x4_rw_xbar
     wire gpu_master_256b_ar_to_subtractive = !(((gpu_master_256b_ar.addr <= 32'h3fffffff)) || (((gpu_master_256b_ar.addr >= 32'h40000000) && (gpu_master_256b_ar.addr <= 32'h7fffffff))) || ((gpu_master_256b_ar.addr >= 32'hc0000000)));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign cpu_master_256b_aw_slot_subtractive_in_valid = cpu_master_256b_aw_to_subtractive && cpu_master_256b_awvalid && !cpu_master_256b_aw_hold_subtractive;
+    assign cpu_master_256b_aw_slot_subtractive_in_valid = cpu_master_256b_aw_to_subtractive && cpu_master_256b_awvalid && !(cpu_master_256b_aw_hold_subtractive || cpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_master_256b_aw_slot_subtractive_in_valid), .wr_ready(cpu_master_256b_aw_slot_subtractive_in_ready), .wr_data(cpu_master_256b_aw),
@@ -2091,7 +2105,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma0_master_256b_aw_slot_subtractive_in_valid = dma0_master_256b_aw_to_subtractive && dma0_master_256b_awvalid && !dma0_master_256b_aw_hold_subtractive;
+    assign dma0_master_256b_aw_slot_subtractive_in_valid = dma0_master_256b_aw_to_subtractive && dma0_master_256b_awvalid && !(dma0_master_256b_aw_hold_subtractive || dma0_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma0_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma0_master_256b_aw_slot_subtractive_in_valid), .wr_ready(dma0_master_256b_aw_slot_subtractive_in_ready), .wr_data(dma0_master_256b_aw),
@@ -2100,7 +2114,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma1_master_256b_aw_slot_subtractive_in_valid = dma1_master_256b_aw_to_subtractive && dma1_master_256b_awvalid && !dma1_master_256b_aw_hold_subtractive;
+    assign dma1_master_256b_aw_slot_subtractive_in_valid = dma1_master_256b_aw_to_subtractive && dma1_master_256b_awvalid && !(dma1_master_256b_aw_hold_subtractive || dma1_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma1_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma1_master_256b_aw_slot_subtractive_in_valid), .wr_ready(dma1_master_256b_aw_slot_subtractive_in_ready), .wr_data(dma1_master_256b_aw),
@@ -2109,7 +2123,7 @@ module bridge_4x4_rw_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign gpu_master_256b_aw_slot_subtractive_in_valid = gpu_master_256b_aw_to_subtractive && gpu_master_256b_awvalid && !gpu_master_256b_aw_hold_subtractive;
+    assign gpu_master_256b_aw_slot_subtractive_in_valid = gpu_master_256b_aw_to_subtractive && gpu_master_256b_awvalid && !(gpu_master_256b_aw_hold_subtractive || gpu_master_256b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_gpu_master_256b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(gpu_master_256b_aw_slot_subtractive_in_valid), .wr_ready(gpu_master_256b_aw_slot_subtractive_in_ready), .wr_data(gpu_master_256b_aw),
@@ -2424,6 +2438,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire cpu_master_32b_wdest_valid = (cpu_master_32b_wdest_wptr != cpu_master_32b_wdest_rptr);
+    assign cpu_master_32b_wdest_full = (cpu_master_32b_wdest_wptr[4] != cpu_master_32b_wdest_rptr[4]) && (cpu_master_32b_wdest_wptr[3:0] == cpu_master_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_32b_wdest_head = cpu_master_32b_wdest_mem[cpu_master_32b_wdest_rptr[3:0]];
     assign cpu_master_32b_w_to_periph_slave = cpu_master_32b_wdest_valid && (cpu_master_32b_wdest_head == 1'd0);
 
@@ -2448,6 +2463,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire cpu_master_64b_wdest_valid = (cpu_master_64b_wdest_wptr != cpu_master_64b_wdest_rptr);
+    assign cpu_master_64b_wdest_full = (cpu_master_64b_wdest_wptr[4] != cpu_master_64b_wdest_rptr[4]) && (cpu_master_64b_wdest_wptr[3:0] == cpu_master_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_64b_wdest_head = cpu_master_64b_wdest_mem[cpu_master_64b_wdest_rptr[3:0]];
     assign cpu_master_64b_w_to_ddr0_slave = cpu_master_64b_wdest_valid && (cpu_master_64b_wdest_head == 1'd0);
 
@@ -2472,6 +2488,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire cpu_master_128b_wdest_valid = (cpu_master_128b_wdest_wptr != cpu_master_128b_wdest_rptr);
+    assign cpu_master_128b_wdest_full = (cpu_master_128b_wdest_wptr[4] != cpu_master_128b_wdest_rptr[4]) && (cpu_master_128b_wdest_wptr[3:0] == cpu_master_128b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_128b_wdest_head = cpu_master_128b_wdest_mem[cpu_master_128b_wdest_rptr[3:0]];
     assign cpu_master_128b_w_to_sram_slave = cpu_master_128b_wdest_valid && (cpu_master_128b_wdest_head == 1'd0);
 
@@ -2496,6 +2513,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire cpu_master_256b_wdest_valid = (cpu_master_256b_wdest_wptr != cpu_master_256b_wdest_rptr);
+    assign cpu_master_256b_wdest_full = (cpu_master_256b_wdest_wptr[4] != cpu_master_256b_wdest_rptr[4]) && (cpu_master_256b_wdest_wptr[3:0] == cpu_master_256b_wdest_rptr[3:0]);
     wire [0:0] cpu_master_256b_wdest_head = cpu_master_256b_wdest_mem[cpu_master_256b_wdest_rptr[3:0]];
     assign cpu_master_256b_w_to_gpu_mem_slave = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 1'd0);
     assign cpu_master_256b_w_to_subtractive = cpu_master_256b_wdest_valid && (cpu_master_256b_wdest_head == 1'd1);
@@ -2521,6 +2539,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma0_master_32b_wdest_valid = (dma0_master_32b_wdest_wptr != dma0_master_32b_wdest_rptr);
+    assign dma0_master_32b_wdest_full = (dma0_master_32b_wdest_wptr[4] != dma0_master_32b_wdest_rptr[4]) && (dma0_master_32b_wdest_wptr[3:0] == dma0_master_32b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_32b_wdest_head = dma0_master_32b_wdest_mem[dma0_master_32b_wdest_rptr[3:0]];
     assign dma0_master_32b_w_to_periph_slave = dma0_master_32b_wdest_valid && (dma0_master_32b_wdest_head == 1'd0);
 
@@ -2545,6 +2564,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma0_master_64b_wdest_valid = (dma0_master_64b_wdest_wptr != dma0_master_64b_wdest_rptr);
+    assign dma0_master_64b_wdest_full = (dma0_master_64b_wdest_wptr[4] != dma0_master_64b_wdest_rptr[4]) && (dma0_master_64b_wdest_wptr[3:0] == dma0_master_64b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_64b_wdest_head = dma0_master_64b_wdest_mem[dma0_master_64b_wdest_rptr[3:0]];
     assign dma0_master_64b_w_to_ddr0_slave = dma0_master_64b_wdest_valid && (dma0_master_64b_wdest_head == 1'd0);
 
@@ -2569,6 +2589,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma0_master_128b_wdest_valid = (dma0_master_128b_wdest_wptr != dma0_master_128b_wdest_rptr);
+    assign dma0_master_128b_wdest_full = (dma0_master_128b_wdest_wptr[4] != dma0_master_128b_wdest_rptr[4]) && (dma0_master_128b_wdest_wptr[3:0] == dma0_master_128b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_128b_wdest_head = dma0_master_128b_wdest_mem[dma0_master_128b_wdest_rptr[3:0]];
     assign dma0_master_128b_w_to_sram_slave = dma0_master_128b_wdest_valid && (dma0_master_128b_wdest_head == 1'd0);
 
@@ -2593,6 +2614,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma0_master_256b_wdest_valid = (dma0_master_256b_wdest_wptr != dma0_master_256b_wdest_rptr);
+    assign dma0_master_256b_wdest_full = (dma0_master_256b_wdest_wptr[4] != dma0_master_256b_wdest_rptr[4]) && (dma0_master_256b_wdest_wptr[3:0] == dma0_master_256b_wdest_rptr[3:0]);
     wire [0:0] dma0_master_256b_wdest_head = dma0_master_256b_wdest_mem[dma0_master_256b_wdest_rptr[3:0]];
     assign dma0_master_256b_w_to_subtractive = dma0_master_256b_wdest_valid && (dma0_master_256b_wdest_head == 1'd0);
 
@@ -2617,6 +2639,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma1_master_64b_wdest_valid = (dma1_master_64b_wdest_wptr != dma1_master_64b_wdest_rptr);
+    assign dma1_master_64b_wdest_full = (dma1_master_64b_wdest_wptr[4] != dma1_master_64b_wdest_rptr[4]) && (dma1_master_64b_wdest_wptr[3:0] == dma1_master_64b_wdest_rptr[3:0]);
     wire [0:0] dma1_master_64b_wdest_head = dma1_master_64b_wdest_mem[dma1_master_64b_wdest_rptr[3:0]];
     assign dma1_master_64b_w_to_ddr0_slave = dma1_master_64b_wdest_valid && (dma1_master_64b_wdest_head == 1'd0);
 
@@ -2641,6 +2664,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma1_master_128b_wdest_valid = (dma1_master_128b_wdest_wptr != dma1_master_128b_wdest_rptr);
+    assign dma1_master_128b_wdest_full = (dma1_master_128b_wdest_wptr[4] != dma1_master_128b_wdest_rptr[4]) && (dma1_master_128b_wdest_wptr[3:0] == dma1_master_128b_wdest_rptr[3:0]);
     wire [0:0] dma1_master_128b_wdest_head = dma1_master_128b_wdest_mem[dma1_master_128b_wdest_rptr[3:0]];
     assign dma1_master_128b_w_to_sram_slave = dma1_master_128b_wdest_valid && (dma1_master_128b_wdest_head == 1'd0);
 
@@ -2665,6 +2689,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire dma1_master_256b_wdest_valid = (dma1_master_256b_wdest_wptr != dma1_master_256b_wdest_rptr);
+    assign dma1_master_256b_wdest_full = (dma1_master_256b_wdest_wptr[4] != dma1_master_256b_wdest_rptr[4]) && (dma1_master_256b_wdest_wptr[3:0] == dma1_master_256b_wdest_rptr[3:0]);
     wire [0:0] dma1_master_256b_wdest_head = dma1_master_256b_wdest_mem[dma1_master_256b_wdest_rptr[3:0]];
     assign dma1_master_256b_w_to_gpu_mem_slave = dma1_master_256b_wdest_valid && (dma1_master_256b_wdest_head == 1'd0);
     assign dma1_master_256b_w_to_subtractive = dma1_master_256b_wdest_valid && (dma1_master_256b_wdest_head == 1'd1);
@@ -2690,6 +2715,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire gpu_master_32b_wdest_valid = (gpu_master_32b_wdest_wptr != gpu_master_32b_wdest_rptr);
+    assign gpu_master_32b_wdest_full = (gpu_master_32b_wdest_wptr[4] != gpu_master_32b_wdest_rptr[4]) && (gpu_master_32b_wdest_wptr[3:0] == gpu_master_32b_wdest_rptr[3:0]);
     wire [0:0] gpu_master_32b_wdest_head = gpu_master_32b_wdest_mem[gpu_master_32b_wdest_rptr[3:0]];
     assign gpu_master_32b_w_to_periph_slave = gpu_master_32b_wdest_valid && (gpu_master_32b_wdest_head == 1'd0);
 
@@ -2714,6 +2740,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire gpu_master_64b_wdest_valid = (gpu_master_64b_wdest_wptr != gpu_master_64b_wdest_rptr);
+    assign gpu_master_64b_wdest_full = (gpu_master_64b_wdest_wptr[4] != gpu_master_64b_wdest_rptr[4]) && (gpu_master_64b_wdest_wptr[3:0] == gpu_master_64b_wdest_rptr[3:0]);
     wire [0:0] gpu_master_64b_wdest_head = gpu_master_64b_wdest_mem[gpu_master_64b_wdest_rptr[3:0]];
     assign gpu_master_64b_w_to_ddr0_slave = gpu_master_64b_wdest_valid && (gpu_master_64b_wdest_head == 1'd0);
 
@@ -2738,6 +2765,7 @@ module bridge_4x4_rw_xbar
         end
     )
     wire gpu_master_256b_wdest_valid = (gpu_master_256b_wdest_wptr != gpu_master_256b_wdest_rptr);
+    assign gpu_master_256b_wdest_full = (gpu_master_256b_wdest_wptr[4] != gpu_master_256b_wdest_rptr[4]) && (gpu_master_256b_wdest_wptr[3:0] == gpu_master_256b_wdest_rptr[3:0]);
     wire [0:0] gpu_master_256b_wdest_head = gpu_master_256b_wdest_mem[gpu_master_256b_wdest_rptr[3:0]];
     assign gpu_master_256b_w_to_gpu_mem_slave = gpu_master_256b_wdest_valid && (gpu_master_256b_wdest_head == 1'd0);
     assign gpu_master_256b_w_to_subtractive = gpu_master_256b_wdest_valid && (gpu_master_256b_wdest_head == 1'd1);
@@ -2748,7 +2776,7 @@ module bridge_4x4_rw_xbar
 
     // Master: cpu_master, Width path: 32b
     assign cpu_master_32b_awready = 
-        ((cpu_master_32b_aw_to_periph_slave && !cpu_master_32b_aw_hold_periph_slave) ? cpu_master_32b_aw_slot_periph_slave_in_ready : '0);
+        ((cpu_master_32b_aw_to_periph_slave && !(cpu_master_32b_aw_hold_periph_slave || cpu_master_32b_wdest_full)) ? cpu_master_32b_aw_slot_periph_slave_in_ready : '0);
 
     assign cpu_master_32b_wready = 
         (cpu_master_32b_w_sel_periph_slave ? periph_slave_axi_wready : '0);
@@ -2789,7 +2817,7 @@ module bridge_4x4_rw_xbar
 
     // Master: cpu_master, Width path: 64b
     assign cpu_master_64b_awready = 
-        ((cpu_master_64b_aw_to_ddr0_slave && !cpu_master_64b_aw_hold_ddr0_slave) ? cpu_master_64b_aw_slot_ddr0_slave_in_ready : '0);
+        ((cpu_master_64b_aw_to_ddr0_slave && !(cpu_master_64b_aw_hold_ddr0_slave || cpu_master_64b_wdest_full)) ? cpu_master_64b_aw_slot_ddr0_slave_in_ready : '0);
 
     assign cpu_master_64b_wready = 
         (cpu_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
@@ -2830,7 +2858,7 @@ module bridge_4x4_rw_xbar
 
     // Master: cpu_master, Width path: 128b
     assign cpu_master_128b_awready = 
-        ((cpu_master_128b_aw_to_sram_slave && !cpu_master_128b_aw_hold_sram_slave) ? cpu_master_128b_aw_slot_sram_slave_in_ready : '0);
+        ((cpu_master_128b_aw_to_sram_slave && !(cpu_master_128b_aw_hold_sram_slave || cpu_master_128b_wdest_full)) ? cpu_master_128b_aw_slot_sram_slave_in_ready : '0);
 
     assign cpu_master_128b_wready = 
         (cpu_master_128b_w_sel_sram_slave ? sram_slave_axi_wready : '0);
@@ -2871,8 +2899,8 @@ module bridge_4x4_rw_xbar
 
     // Master: cpu_master, Width path: 256b
     assign cpu_master_256b_awready = 
-        ((cpu_master_256b_aw_to_gpu_mem_slave && !cpu_master_256b_aw_hold_gpu_mem_slave) ? cpu_master_256b_aw_slot_gpu_mem_slave_in_ready : '0) |
-        ((cpu_master_256b_aw_to_subtractive && !cpu_master_256b_aw_hold_subtractive) ? cpu_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_master_256b_aw_to_gpu_mem_slave && !(cpu_master_256b_aw_hold_gpu_mem_slave || cpu_master_256b_wdest_full)) ? cpu_master_256b_aw_slot_gpu_mem_slave_in_ready : '0) |
+        ((cpu_master_256b_aw_to_subtractive && !(cpu_master_256b_aw_hold_subtractive || cpu_master_256b_wdest_full)) ? cpu_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_master_256b_wready = 
         (cpu_master_256b_w_sel_gpu_mem_slave ? gpu_mem_slave_axi_wready : '0) |
@@ -2925,7 +2953,7 @@ module bridge_4x4_rw_xbar
 
     // Master: dma0_master, Width path: 32b
     assign dma0_master_32b_awready = 
-        ((dma0_master_32b_aw_to_periph_slave && !dma0_master_32b_aw_hold_periph_slave) ? dma0_master_32b_aw_slot_periph_slave_in_ready : '0);
+        ((dma0_master_32b_aw_to_periph_slave && !(dma0_master_32b_aw_hold_periph_slave || dma0_master_32b_wdest_full)) ? dma0_master_32b_aw_slot_periph_slave_in_ready : '0);
 
     assign dma0_master_32b_wready = 
         (dma0_master_32b_w_sel_periph_slave ? periph_slave_axi_wready : '0);
@@ -2966,7 +2994,7 @@ module bridge_4x4_rw_xbar
 
     // Master: dma0_master, Width path: 64b
     assign dma0_master_64b_awready = 
-        ((dma0_master_64b_aw_to_ddr0_slave && !dma0_master_64b_aw_hold_ddr0_slave) ? dma0_master_64b_aw_slot_ddr0_slave_in_ready : '0);
+        ((dma0_master_64b_aw_to_ddr0_slave && !(dma0_master_64b_aw_hold_ddr0_slave || dma0_master_64b_wdest_full)) ? dma0_master_64b_aw_slot_ddr0_slave_in_ready : '0);
 
     assign dma0_master_64b_wready = 
         (dma0_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
@@ -3007,7 +3035,7 @@ module bridge_4x4_rw_xbar
 
     // Master: dma0_master, Width path: 128b
     assign dma0_master_128b_awready = 
-        ((dma0_master_128b_aw_to_sram_slave && !dma0_master_128b_aw_hold_sram_slave) ? dma0_master_128b_aw_slot_sram_slave_in_ready : '0);
+        ((dma0_master_128b_aw_to_sram_slave && !(dma0_master_128b_aw_hold_sram_slave || dma0_master_128b_wdest_full)) ? dma0_master_128b_aw_slot_sram_slave_in_ready : '0);
 
     assign dma0_master_128b_wready = 
         (dma0_master_128b_w_sel_sram_slave ? sram_slave_axi_wready : '0);
@@ -3048,7 +3076,7 @@ module bridge_4x4_rw_xbar
 
     // Master: dma0_master, Width path: 256b
     assign dma0_master_256b_awready = 
-        ((dma0_master_256b_aw_to_subtractive && !dma0_master_256b_aw_hold_subtractive) ? dma0_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((dma0_master_256b_aw_to_subtractive && !(dma0_master_256b_aw_hold_subtractive || dma0_master_256b_wdest_full)) ? dma0_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign dma0_master_256b_wready = 
         (dma0_master_256b_w_sel_subtractive ? subtractive_axi_wready : '0);
@@ -3089,7 +3117,7 @@ module bridge_4x4_rw_xbar
 
     // Master: dma1_master, Width path: 64b
     assign dma1_master_64b_awready = 
-        ((dma1_master_64b_aw_to_ddr0_slave && !dma1_master_64b_aw_hold_ddr0_slave) ? dma1_master_64b_aw_slot_ddr0_slave_in_ready : '0);
+        ((dma1_master_64b_aw_to_ddr0_slave && !(dma1_master_64b_aw_hold_ddr0_slave || dma1_master_64b_wdest_full)) ? dma1_master_64b_aw_slot_ddr0_slave_in_ready : '0);
 
     assign dma1_master_64b_wready = 
         (dma1_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
@@ -3130,7 +3158,7 @@ module bridge_4x4_rw_xbar
 
     // Master: dma1_master, Width path: 128b
     assign dma1_master_128b_awready = 
-        ((dma1_master_128b_aw_to_sram_slave && !dma1_master_128b_aw_hold_sram_slave) ? dma1_master_128b_aw_slot_sram_slave_in_ready : '0);
+        ((dma1_master_128b_aw_to_sram_slave && !(dma1_master_128b_aw_hold_sram_slave || dma1_master_128b_wdest_full)) ? dma1_master_128b_aw_slot_sram_slave_in_ready : '0);
 
     assign dma1_master_128b_wready = 
         (dma1_master_128b_w_sel_sram_slave ? sram_slave_axi_wready : '0);
@@ -3171,8 +3199,8 @@ module bridge_4x4_rw_xbar
 
     // Master: dma1_master, Width path: 256b
     assign dma1_master_256b_awready = 
-        ((dma1_master_256b_aw_to_gpu_mem_slave && !dma1_master_256b_aw_hold_gpu_mem_slave) ? dma1_master_256b_aw_slot_gpu_mem_slave_in_ready : '0) |
-        ((dma1_master_256b_aw_to_subtractive && !dma1_master_256b_aw_hold_subtractive) ? dma1_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((dma1_master_256b_aw_to_gpu_mem_slave && !(dma1_master_256b_aw_hold_gpu_mem_slave || dma1_master_256b_wdest_full)) ? dma1_master_256b_aw_slot_gpu_mem_slave_in_ready : '0) |
+        ((dma1_master_256b_aw_to_subtractive && !(dma1_master_256b_aw_hold_subtractive || dma1_master_256b_wdest_full)) ? dma1_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign dma1_master_256b_wready = 
         (dma1_master_256b_w_sel_gpu_mem_slave ? gpu_mem_slave_axi_wready : '0) |
@@ -3225,7 +3253,7 @@ module bridge_4x4_rw_xbar
 
     // Master: gpu_master, Width path: 32b
     assign gpu_master_32b_awready = 
-        ((gpu_master_32b_aw_to_periph_slave && !gpu_master_32b_aw_hold_periph_slave) ? gpu_master_32b_aw_slot_periph_slave_in_ready : '0);
+        ((gpu_master_32b_aw_to_periph_slave && !(gpu_master_32b_aw_hold_periph_slave || gpu_master_32b_wdest_full)) ? gpu_master_32b_aw_slot_periph_slave_in_ready : '0);
 
     assign gpu_master_32b_wready = 
         (gpu_master_32b_w_sel_periph_slave ? periph_slave_axi_wready : '0);
@@ -3266,7 +3294,7 @@ module bridge_4x4_rw_xbar
 
     // Master: gpu_master, Width path: 64b
     assign gpu_master_64b_awready = 
-        ((gpu_master_64b_aw_to_ddr0_slave && !gpu_master_64b_aw_hold_ddr0_slave) ? gpu_master_64b_aw_slot_ddr0_slave_in_ready : '0);
+        ((gpu_master_64b_aw_to_ddr0_slave && !(gpu_master_64b_aw_hold_ddr0_slave || gpu_master_64b_wdest_full)) ? gpu_master_64b_aw_slot_ddr0_slave_in_ready : '0);
 
     assign gpu_master_64b_wready = 
         (gpu_master_64b_w_sel_ddr0_slave ? ddr0_slave_axi_wready : '0);
@@ -3307,8 +3335,8 @@ module bridge_4x4_rw_xbar
 
     // Master: gpu_master, Width path: 256b
     assign gpu_master_256b_awready = 
-        ((gpu_master_256b_aw_to_gpu_mem_slave && !gpu_master_256b_aw_hold_gpu_mem_slave) ? gpu_master_256b_aw_slot_gpu_mem_slave_in_ready : '0) |
-        ((gpu_master_256b_aw_to_subtractive && !gpu_master_256b_aw_hold_subtractive) ? gpu_master_256b_aw_slot_subtractive_in_ready : '0);
+        ((gpu_master_256b_aw_to_gpu_mem_slave && !(gpu_master_256b_aw_hold_gpu_mem_slave || gpu_master_256b_wdest_full)) ? gpu_master_256b_aw_slot_gpu_mem_slave_in_ready : '0) |
+        ((gpu_master_256b_aw_to_subtractive && !(gpu_master_256b_aw_hold_subtractive || gpu_master_256b_wdest_full)) ? gpu_master_256b_aw_slot_subtractive_in_ready : '0);
 
     assign gpu_master_256b_wready = 
         (gpu_master_256b_w_sel_gpu_mem_slave ? gpu_mem_slave_axi_wready : '0) |

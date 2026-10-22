@@ -317,17 +317,17 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   | --- | ---: | ---: | ---: |
   | f3, 50/50, 2 or 4 | 50.0% | 50.0% | 50.0% |
   | f3, 90/10, 2 or 4 | 10.1% | 10.1% | 10.1% |
-  | mirror, 50/50, 2 | 40.0% | 50.0% | 11.1% |
+  | mirror, 50/50, 2 | 50.0% (40.0% on 2026-10-16) | 50.0% | 11.1% |
   | mirror, 50/50, 4 | 50.0% | 50.0% | 20.0% |
-  | mirror, 90/10, 2 | 10.6% | 11.9% | 11.1% |
-  | mirror, 90/10, 4 | 10.6% | 11.9% | 13.4% |
+  | mirror, 90/10, 2 | 12.5% (10.6% on 2026-10-16) | 11.9% | 11.1% |
+  | mirror, 90/10, 4 | 12.5% (10.6% on 2026-10-16) | 11.9% | 13.4% |
 
   **f3 does not measure the fabric**: STREAM's reads and the injector's
   writes travel on different AXI channels, so no fabric arbitrates between
   them; the identical split on every leg is S0's controller alternating
   reads and writes. **The mirror is the fabric's arbitration** (two writers
-  into one slave) and the legs differ: B1 splits evenly; A splits evenly at
-  4 outstanding but gives the injector 40% at 2; SmartConnect favours
+  into one slave): B1 and A split evenly (A gave a 2-outstanding injector
+  40% until the 2026-10-21 re-measurement, section 8.3); SmartConnect favours
   STREAM heavily when both offer full load (injector 11-20% where B1 gives
   50%). S0's total write rate is about the same on every leg (~365-375
   MiB/s), so the difference is who gets the slave, not how much it moves.
@@ -442,10 +442,10 @@ runs (min-max shown only where they differ). 50/50 = injector unthrottled;
 | --- | ---: | ---: | ---: |
 | f3, 50/50, 2 or 4 | 50.0% | 50.0% | 50.0% |
 | f3, 90/10, 2 or 4 | 10.1% | 10.1% | 10.1% |
-| mirror, 50/50, 2 | 40.0% | 50.0% | 11.1% |
+| mirror, 50/50, 2 | 50.0% (40.0% on 2026-10-16) | 50.0% | 11.1% |
 | mirror, 50/50, 4 | 50.0% | 50.0% | 20.0% |
-| mirror, 90/10, 2 | 10.6% | 11.8% (11.8-11.9) | 11.1% |
-| mirror, 90/10, 4 | 10.6% | 11.8% (11.8-11.9) | 13.4% |
+| mirror, 90/10, 2 | 12.5% (10.6% on 2026-10-16) | 11.8% (11.8-11.9) | 11.1% |
+| mirror, 90/10, 4 | 12.5% (10.6% on 2026-10-16) | 11.8% (11.8-11.9) | 13.4% |
 
 f3 is the controller's split, not the fabric's: STREAM's reads and the
 injector's writes travel on different AXI channels, so no fabric
@@ -453,10 +453,26 @@ arbitrates between them. The mirror -- two writers into one slave -- is
 the fabric's arbitration, and the outcome is deterministic per leg:
 
 - B1 splits a contended slave evenly regardless of outstanding.
-- A splits evenly when the injector may keep 4 writes outstanding, and
-  gives it 40% at 2. Why the limit moves A's split and not B1's is not
-  established; it is the first thing to look at in the bridge's write
-  arbitration.
+- A splits evenly at either limit. On 2026-10-16 it gave a 2-outstanding
+  injector 40%. Root cause, bisected on the board (leg A rebuilt from each
+  commit's own tree, same LiteDRAM, `mirror` at 2 outstanding: 4fc23c275
+  40.0%, c98ed071e 40.0%, 73467609f 50.0%, 77ae05054 50.0%, ecebdada5
+  50.0%, HEAD 50.0%): the bridge's shared-slave arbiter picked from the raw
+  master requests into a 2-deep AW stage (the DDR adapter's AW skid) ahead of
+  the slave. LiteDRAM holds AWREADY until that burst's W is buffered, so
+  the stage sat full of AWs that had already won. Arbitration therefore
+  happened when a stage slot freed, and STREAM, whose 8 channels always
+  have an AW waiting, took every slot that freed while the injector was
+  between bursts waiting for a B. The injector's share followed its
+  outstanding count, not the round-robin. Bridge commit 73467609f
+  (2026-10-17) moved the pick to the slave pins from per-master request
+  slots with nothing queued past it (the DDR adapter's AW stage is depth
+  0), which is also how the AXI Crossbar is built here (no register
+  slices). It was measured in the bridge's own perf suite at the time
+  (share 0.34 -> 0.50) but this benchmark was not re-run until 2026-10-21
+  (`reports/board/w3_a_20261021_175411.csv`: 50.0%, five identical runs, and
+  again after bridge BUG-023). Simulation cannot show the effect with the
+  BFM S0, which accepts AW without waiting for W.
 - B2 favours STREAM heavily under full load: the injector gets 11-20%
   where B1 gives it 50%. Total S0 write throughput is about the same on
   every leg (~365-375 MiB/s), so this is who gets the slave, not how much
@@ -474,7 +490,7 @@ nothing about the fabrics.
 | --- | --- | --- | --- |
 | Steady-state bandwidth | 100% of peak | 100% of peak | 100% of peak |
 | Small-transfer cost | baseline | = A | 4.1% slower at 1 ch x 4 KB |
-| Contended-slave fairness | even at 4 outstanding, 40/60 at 2 | even | biased to STREAM (11-20%) |
+| Contended-slave fairness | even (40/60 at 2 outstanding before 2026-10-21) | even | biased to STREAM (11-20%) |
 | Size (fabric, OOC) | 10.5k LUT, 7.5k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
 | Fmax est. (fabric, OOC) | ~179 MHz | ~256 MHz | ~268 MHz |
 | Simulatable | yes | yes | no (encrypted) |

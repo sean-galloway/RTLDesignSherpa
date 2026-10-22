@@ -864,12 +864,10 @@ class AXI4ToAXI3ReadTB(TBBase):
             self.stats['errors'] += 1
             return False
 
-        # The BFM returns address + beat_offset within each chunk even for FIXED,
-        # so the merged data repeats the first-chunk pattern across chunks.
+        # FIXED reads the same address on every beat of every chunk (AXI
+        # A3.4.1), so every beat returns the pattern at the start address.
         for i, data in enumerate(read_data):
-            beat_in_chunk = i % self.axi3_max_beats
-            expected_addr = address + (beat_in_chunk * self.bytes_per_beat)
-            expected_data = expected_addr & ((1 << self.data_width) - 1)
+            expected_data = address & ((1 << self.data_width) - 1)
             if data != expected_data:
                 self.log.error(f"fixed_burst_long: data mismatch beat {i} got 0x{data:08X}, "
                               f"expected 0x{expected_data:08X}")

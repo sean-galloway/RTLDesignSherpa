@@ -1,0 +1,5 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_axi4,clean,1,4000,False,True,1167197,
+bridge_bs_axi4,clean,2,4000,False,True,1118956,
+bridge_bs_axi4,clean,3,4000,False,True,1150016,
+bridge_bs_axi4,bursts,1,4000,False,False,3418172530,"timed out before ALL_DONE | cpu.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000006) | cpu.wr: issued 682 completed 676 of 4000 | dma.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000007) | dma.wr: issued 541 completed 534 of 4000 | acc.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x0000000e) | acc.wr: issued 705 completed 691 of 4000 | io.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000006) | io.wr: issued 662 completed 656 of 4000 | mem0.wr: ['S_WDATA', 'S_WLAST'] x226 (first S_WDATA id=0x18 addr=0x044ae160 exp=0x7b88dab3 act=0xcb76b036) | mem3.wr: ['S_WDATA', 'S_WLAST'] x597 (first S_WDATA id=0x10 addr=0x4498d270 exp=0x4d85883f act=0x7b88dab3)"

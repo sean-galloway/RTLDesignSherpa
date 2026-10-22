@@ -2,7 +2,7 @@
 
 # bridge — bugs
 
-**Next ID: BUG-023** — never recycle a number, even when its item closed.
+**Next ID: BUG-026** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,19 +12,26 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 20 | done (kept for history) |
+| [closed/](closed/) | 24 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-019** — unaligned INCR bursts keep their start misalignment past the first beat: axi4_to_axi3 (fixed, converters BUG-011), dwidth downsize, axi4_to_axil4/axil5/wb4, axi_gen_addr (APB)
-- **BUG-018** — width-converted paths emit illegal AXI for FIXED, WRAP, narrow and unaligned bursts (found by the Genesys 2 bridge stress model)
+- **BUG-025** — bridge_2x2_lite_req concurrent AXI4-Lite write times out at SEED=65563 (pre-existing on HEAD; not root-caused)
 
 
 ## Closed
+
+- **BUG-024** — crossed-W deadlock between a CDC (lane) slave and a slot slave — RESOLVED 2026-10-22: per-path live-W counts toward lane slaves hold the master's other AWs; board 150/150 (reorder 3/3 on every build)
+
+- **BUG-023** — a path's W destination FIFO overflowed when a width converter issued several AWs per master burst — RESOLVED 2026-10-22: FIFO full-checked and the full flag gates the AW; board 150/150
+
+- **BUG-019** — unaligned INCR bursts kept their start misalignment past the first beat — RESOLVED 2026-10-22: every converter steps INCR from the aligned start; downsize start-lane accounting; board 150/150 with no path limits
+
+- **BUG-018** — width-converted paths emitted illegal AXI for FIXED, WRAP, narrow and unaligned bursts — RESOLVED 2026-10-22: dwidth converters rewritten (PACK / PASS / EXPAND modes), BFMs fixed in RDS-DV 1.2.9, `path_caps` workaround removed; board 150/150 on all five stress builds
 
 - **BUG-022** — AXI5 sideband on a rate-buffered width-converted path had two drivers (the buffer and a tie) — RESOLVED 2026-10-20: ties moved to the buffer input; bridge_bs_xmix 60 MULTIDRIVEN -> 0
 

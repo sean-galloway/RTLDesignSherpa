@@ -102,8 +102,9 @@ def make_harness(dut, tb, block_node=None):
 
 
 def stress_read_plan(tb, n, *, slaves=None, seed=0xC0FFEE, master_idx=0):
-    """n (slave_idx, addr) pairs, word-aligned within each slave's seeded
-    window so tb.slave_mem_read yields golden data.
+    """n (slave_idx, addr) pairs, aligned to the master's access width and
+    the slave word, within each slave's seeded window so tb.slave_mem_read
+    yields golden data.
 
     Offsets step by the SLAVE word but the expected-value read consumes
     MASTER-width bytes (tb.slave_mem_read derives byte_count from
@@ -119,13 +120,19 @@ def stress_read_plan(tb, n, *, slaves=None, seed=0xC0FFEE, master_idx=0):
     rng = random.Random(seed)
     idxs = list(slaves) if slaves is not None else sorted(tb.slave_info.keys())
     access = tb.master_data_width.get(master_idx, tb.data_width) // 8
-    # Largest k with k*WORD + access <= CAP, inclusive -> +1 for randrange.
-    max_word = (_SLAVE_CAP_BYTES - access) // _SLAVE_WORD_BYTES + 1
+    # Aligned to the access as well as the slave word: a full-width read at
+    # an address that is not, carries only the bytes up to the end of its
+    # aligned window (AXI A3.4.1), so a master-width golden read from that
+    # address compares bytes the beat never had. The old AXI slave BFM
+    # returned them anyway, which is what let mis-aligned draws pass.
+    step = max(_SLAVE_WORD_BYTES, access)
+    # Largest k with k*step + access <= CAP, inclusive -> +1 for randrange.
+    max_word = (_SLAVE_CAP_BYTES - access) // step + 1
     plan = []
     for _ in range(n):
         s = rng.choice(idxs)
         base = tb.slave_info[s][1]
-        off = rng.randrange(max_word) * _SLAVE_WORD_BYTES
+        off = rng.randrange(max_word) * step
         plan.append((s, base + off))
     return plan
 

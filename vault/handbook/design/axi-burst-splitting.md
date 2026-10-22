@@ -28,3 +28,27 @@ summary: A block that cuts one burst into several must restart every later piece
 - A responder that returns every byte lane hides the read-side half of the
   bug; it was found from the write side. Check strobes and lanes against the
   slave's OWN view of the burst, not the master's.
+- **The same rule applies per beat, not only per piece.** An address
+  generator that walks a burst one beat at a time steps INCR from the
+  aligned address, `(addr & ~(bytes - 1)) + bytes`, exactly as WRAP already
+  must. *Case (2026-10-21, bridge BUG-019):* `axi_gen_addr` (so every
+  AXI4 -> APB shim and the `sdpram_slave_*` blocks) and
+  `axi4_to_axil4_{rd,wr}` both stepped `addr + bytes`.
+- **A width converter may rewrite AxSIZE only for full-width INCR.** FIXED,
+  WRAP and narrow bursts are legal on any bus at least as wide as their
+  beats, so the converter must pass them through (one beat for one beat) or,
+  when they are wider than the narrow bus, expand them into one narrow INCR
+  piece per beat. Packing them produced a one-beat WRAP, a 24-beat FIXED and
+  miscounted narrow INCR (bridge BUG-018). A documented contract
+  ("full-width INCR only") that nothing at the port enforces is the defect,
+  not a limitation.
+- **Check the BFM against the spec before trusting a green suite.** The AXI
+  slave BFMs stepped INCR from the unaligned start and walked FIXED, so the
+  converters' own tests agreed with the broken RTL. One test even wrote the
+  BFM's bug into its expected data ("the BFM returns address + beat_offset
+  even for FIXED"). A reference with the same bug as the design hides it.
+  The BFMs now take every beat address from one shared helper
+  (`CocoTBFramework/components/shared/axi_burst.py`, `beat_addr` /
+  `beat_lanes`), unit-tested against A3.4.1. The converter matrix tests
+  (`*_burst_matrix`) drive every burst type x size x alignment and check
+  the slave-side AXI is legal as well as the bytes.

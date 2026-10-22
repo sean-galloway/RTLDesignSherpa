@@ -331,16 +331,20 @@ module bridge_mix_d_mon_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_axi4_32b_wdest_full;
     logic cpu_axi4_32b_w_to_doorbell;
     logic cpu_axi4_32b_w_sel_doorbell;
     logic cpu_axi4_32b_w_to_apb_periph;
     logic cpu_axi4_32b_w_sel_apb_periph;
+    logic cpu_axi4_64b_wdest_full;
     logic cpu_axi4_64b_w_to_ddr;
     logic cpu_axi4_64b_w_sel_ddr;
     logic cpu_axi4_64b_w_to_subtractive;
     logic cpu_axi4_64b_w_sel_subtractive;
+    logic trace_axil_32b_wdest_full;
     logic trace_axil_32b_w_to_doorbell;
     logic trace_axil_32b_w_sel_doorbell;
+    logic trace_axil_64b_wdest_full;
     logic trace_axil_64b_w_to_ddr;
     logic trace_axil_64b_w_sel_ddr;
     logic trace_axil_64b_w_to_subtractive;
@@ -558,7 +562,7 @@ module bridge_mix_d_mon_xbar
     wire trace_axil_64b_ar_to_ddr = (trace_axil_64b_ar.addr <= 32'h3fffffff);
 
     // AW request slots for ddr: arbitration at the slave pins
-    assign cpu_axi4_64b_aw_slot_ddr_in_valid = cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_ddr;
+    assign cpu_axi4_64b_aw_slot_ddr_in_valid = cpu_axi4_64b_aw_to_ddr && cpu_axi4_64b_awvalid && !(cpu_axi4_64b_aw_hold_ddr || cpu_axi4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_64b_aw_slot_ddr_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_ddr_in_ready), .wr_data(cpu_axi4_64b_aw),
@@ -567,7 +571,7 @@ module bridge_mix_d_mon_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign trace_axil_64b_aw_slot_ddr_in_valid = trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid && !trace_axil_64b_aw_hold_ddr;
+    assign trace_axil_64b_aw_slot_ddr_in_valid = trace_axil_64b_aw_to_ddr && trace_axil_64b_awvalid && !(trace_axil_64b_aw_hold_ddr || trace_axil_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_trace_axil_64b_aw_slot_ddr (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(trace_axil_64b_aw_slot_ddr_in_valid), .wr_ready(trace_axil_64b_aw_slot_ddr_in_ready), .wr_data(trace_axil_64b_aw),
@@ -779,7 +783,7 @@ module bridge_mix_d_mon_xbar
     wire trace_axil_32b_ar_to_doorbell = ((trace_axil_32b_ar.addr >= 32'h40000000) && (trace_axil_32b_ar.addr <= 32'h40000fff));
 
     // AW request slots for doorbell: arbitration at the slave pins
-    assign cpu_axi4_32b_aw_slot_doorbell_in_valid = cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid && !cpu_axi4_32b_aw_hold_doorbell;
+    assign cpu_axi4_32b_aw_slot_doorbell_in_valid = cpu_axi4_32b_aw_to_doorbell && cpu_axi4_32b_awvalid && !(cpu_axi4_32b_aw_hold_doorbell || cpu_axi4_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_32b_aw_slot_doorbell (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_32b_aw_slot_doorbell_in_valid), .wr_ready(cpu_axi4_32b_aw_slot_doorbell_in_ready), .wr_data(cpu_axi4_32b_aw),
@@ -788,7 +792,7 @@ module bridge_mix_d_mon_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign trace_axil_32b_aw_slot_doorbell_in_valid = trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid && !trace_axil_32b_aw_hold_doorbell;
+    assign trace_axil_32b_aw_slot_doorbell_in_valid = trace_axil_32b_aw_to_doorbell && trace_axil_32b_awvalid && !(trace_axil_32b_aw_hold_doorbell || trace_axil_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_trace_axil_32b_aw_slot_doorbell (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(trace_axil_32b_aw_slot_doorbell_in_valid), .wr_ready(trace_axil_32b_aw_slot_doorbell_in_ready), .wr_data(trace_axil_32b_aw),
@@ -986,7 +990,7 @@ module bridge_mix_d_mon_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire cpu_axi4_32b_aw_to_apb_periph = ((cpu_axi4_32b_aw.addr >= 32'h40001000) && (cpu_axi4_32b_aw.addr <= 32'h40010fff));
-    wire cpu_axi4_32b_aw_gnt_apb_periph = cpu_axi4_32b_aw_to_apb_periph && !cpu_axi4_32b_aw_hold_apb_periph;
+    wire cpu_axi4_32b_aw_gnt_apb_periph = cpu_axi4_32b_aw_to_apb_periph && !(cpu_axi4_32b_aw_hold_apb_periph || cpu_axi4_32b_wdest_full);
     assign apb_periph_axi_awid     = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.id : '0;
     assign apb_periph_axi_awaddr   = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.addr : '0;
     assign apb_periph_axi_awlen    = cpu_axi4_32b_aw_to_apb_periph ? cpu_axi4_32b_aw.len : '0;
@@ -1053,7 +1057,7 @@ module bridge_mix_d_mon_xbar
     wire trace_axil_64b_ar_to_subtractive = !(((trace_axil_64b_ar.addr <= 32'h3fffffff)) || (((trace_axil_64b_ar.addr >= 32'h40000000) && (trace_axil_64b_ar.addr <= 32'h40000fff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !cpu_axi4_64b_aw_hold_subtractive;
+    assign cpu_axi4_64b_aw_slot_subtractive_in_valid = cpu_axi4_64b_aw_to_subtractive && cpu_axi4_64b_awvalid && !(cpu_axi4_64b_aw_hold_subtractive || cpu_axi4_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_axi4_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_axi4_64b_aw_slot_subtractive_in_valid), .wr_ready(cpu_axi4_64b_aw_slot_subtractive_in_ready), .wr_data(cpu_axi4_64b_aw),
@@ -1062,7 +1066,7 @@ module bridge_mix_d_mon_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign trace_axil_64b_aw_slot_subtractive_in_valid = trace_axil_64b_aw_to_subtractive && trace_axil_64b_awvalid && !trace_axil_64b_aw_hold_subtractive;
+    assign trace_axil_64b_aw_slot_subtractive_in_valid = trace_axil_64b_aw_to_subtractive && trace_axil_64b_awvalid && !(trace_axil_64b_aw_hold_subtractive || trace_axil_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_trace_axil_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(trace_axil_64b_aw_slot_subtractive_in_valid), .wr_ready(trace_axil_64b_aw_slot_subtractive_in_ready), .wr_data(trace_axil_64b_aw),
@@ -1285,6 +1289,7 @@ module bridge_mix_d_mon_xbar
         end
     )
     wire cpu_axi4_32b_wdest_valid = (cpu_axi4_32b_wdest_wptr != cpu_axi4_32b_wdest_rptr);
+    assign cpu_axi4_32b_wdest_full = (cpu_axi4_32b_wdest_wptr[4] != cpu_axi4_32b_wdest_rptr[4]) && (cpu_axi4_32b_wdest_wptr[3:0] == cpu_axi4_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_axi4_32b_wdest_head = cpu_axi4_32b_wdest_mem[cpu_axi4_32b_wdest_rptr[3:0]];
     assign cpu_axi4_32b_w_to_doorbell = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd0);
     assign cpu_axi4_32b_w_to_apb_periph = cpu_axi4_32b_wdest_valid && (cpu_axi4_32b_wdest_head == 1'd1);
@@ -1310,6 +1315,7 @@ module bridge_mix_d_mon_xbar
         end
     )
     wire cpu_axi4_64b_wdest_valid = (cpu_axi4_64b_wdest_wptr != cpu_axi4_64b_wdest_rptr);
+    assign cpu_axi4_64b_wdest_full = (cpu_axi4_64b_wdest_wptr[4] != cpu_axi4_64b_wdest_rptr[4]) && (cpu_axi4_64b_wdest_wptr[3:0] == cpu_axi4_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_axi4_64b_wdest_head = cpu_axi4_64b_wdest_mem[cpu_axi4_64b_wdest_rptr[3:0]];
     assign cpu_axi4_64b_w_to_ddr = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd0);
     assign cpu_axi4_64b_w_to_subtractive = cpu_axi4_64b_wdest_valid && (cpu_axi4_64b_wdest_head == 1'd1);
@@ -1335,6 +1341,7 @@ module bridge_mix_d_mon_xbar
         end
     )
     wire trace_axil_32b_wdest_valid = (trace_axil_32b_wdest_wptr != trace_axil_32b_wdest_rptr);
+    assign trace_axil_32b_wdest_full = (trace_axil_32b_wdest_wptr[4] != trace_axil_32b_wdest_rptr[4]) && (trace_axil_32b_wdest_wptr[3:0] == trace_axil_32b_wdest_rptr[3:0]);
     wire [0:0] trace_axil_32b_wdest_head = trace_axil_32b_wdest_mem[trace_axil_32b_wdest_rptr[3:0]];
     assign trace_axil_32b_w_to_doorbell = trace_axil_32b_wdest_valid && (trace_axil_32b_wdest_head == 1'd0);
 
@@ -1359,6 +1366,7 @@ module bridge_mix_d_mon_xbar
         end
     )
     wire trace_axil_64b_wdest_valid = (trace_axil_64b_wdest_wptr != trace_axil_64b_wdest_rptr);
+    assign trace_axil_64b_wdest_full = (trace_axil_64b_wdest_wptr[4] != trace_axil_64b_wdest_rptr[4]) && (trace_axil_64b_wdest_wptr[3:0] == trace_axil_64b_wdest_rptr[3:0]);
     wire [0:0] trace_axil_64b_wdest_head = trace_axil_64b_wdest_mem[trace_axil_64b_wdest_rptr[3:0]];
     assign trace_axil_64b_w_to_ddr = trace_axil_64b_wdest_valid && (trace_axil_64b_wdest_head == 1'd0);
     assign trace_axil_64b_w_to_subtractive = trace_axil_64b_wdest_valid && (trace_axil_64b_wdest_head == 1'd1);
@@ -1369,7 +1377,7 @@ module bridge_mix_d_mon_xbar
 
     // Master: cpu_axi4, Width path: 32b
     assign cpu_axi4_32b_awready = 
-        ((cpu_axi4_32b_aw_to_doorbell && !cpu_axi4_32b_aw_hold_doorbell) ? cpu_axi4_32b_aw_slot_doorbell_in_ready : '0) |
+        ((cpu_axi4_32b_aw_to_doorbell && !(cpu_axi4_32b_aw_hold_doorbell || cpu_axi4_32b_wdest_full)) ? cpu_axi4_32b_aw_slot_doorbell_in_ready : '0) |
         (cpu_axi4_32b_aw_gnt_apb_periph ? apb_periph_axi_awready : '0);
 
     assign cpu_axi4_32b_wready = 
@@ -1423,8 +1431,8 @@ module bridge_mix_d_mon_xbar
 
     // Master: cpu_axi4, Width path: 64b
     assign cpu_axi4_64b_awready = 
-        ((cpu_axi4_64b_aw_to_ddr && !cpu_axi4_64b_aw_hold_ddr) ? cpu_axi4_64b_aw_slot_ddr_in_ready : '0) |
-        ((cpu_axi4_64b_aw_to_subtractive && !cpu_axi4_64b_aw_hold_subtractive) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_axi4_64b_aw_to_ddr && !(cpu_axi4_64b_aw_hold_ddr || cpu_axi4_64b_wdest_full)) ? cpu_axi4_64b_aw_slot_ddr_in_ready : '0) |
+        ((cpu_axi4_64b_aw_to_subtractive && !(cpu_axi4_64b_aw_hold_subtractive || cpu_axi4_64b_wdest_full)) ? cpu_axi4_64b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_axi4_64b_wready = 
         (cpu_axi4_64b_w_sel_ddr ? ddr_axi_wready : '0) |
@@ -1477,7 +1485,7 @@ module bridge_mix_d_mon_xbar
 
     // Master: trace_axil, Width path: 32b
     assign trace_axil_32b_awready = 
-        ((trace_axil_32b_aw_to_doorbell && !trace_axil_32b_aw_hold_doorbell) ? trace_axil_32b_aw_slot_doorbell_in_ready : '0);
+        ((trace_axil_32b_aw_to_doorbell && !(trace_axil_32b_aw_hold_doorbell || trace_axil_32b_wdest_full)) ? trace_axil_32b_aw_slot_doorbell_in_ready : '0);
 
     assign trace_axil_32b_wready = 
         (trace_axil_32b_w_sel_doorbell ? doorbell_axi_wready : '0);
@@ -1518,8 +1526,8 @@ module bridge_mix_d_mon_xbar
 
     // Master: trace_axil, Width path: 64b
     assign trace_axil_64b_awready = 
-        ((trace_axil_64b_aw_to_ddr && !trace_axil_64b_aw_hold_ddr) ? trace_axil_64b_aw_slot_ddr_in_ready : '0) |
-        ((trace_axil_64b_aw_to_subtractive && !trace_axil_64b_aw_hold_subtractive) ? trace_axil_64b_aw_slot_subtractive_in_ready : '0);
+        ((trace_axil_64b_aw_to_ddr && !(trace_axil_64b_aw_hold_ddr || trace_axil_64b_wdest_full)) ? trace_axil_64b_aw_slot_ddr_in_ready : '0) |
+        ((trace_axil_64b_aw_to_subtractive && !(trace_axil_64b_aw_hold_subtractive || trace_axil_64b_wdest_full)) ? trace_axil_64b_aw_slot_subtractive_in_ready : '0);
 
     assign trace_axil_64b_wready = 
         (trace_axil_64b_w_sel_ddr ? ddr_axi_wready : '0) |

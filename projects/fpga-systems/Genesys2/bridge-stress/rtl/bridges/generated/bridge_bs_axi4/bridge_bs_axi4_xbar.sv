@@ -540,42 +540,58 @@ module bridge_bs_axi4_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic cpu_32b_wdest_full;
     logic cpu_32b_w_to_mem2;
     logic cpu_32b_w_sel_mem2;
+    logic cpu_64b_wdest_full;
+    logic [4:0] cpu_64b_wlive_mem3;
     logic cpu_64b_w_to_mem0;
     logic cpu_64b_w_sel_mem0;
     logic cpu_64b_w_to_mem3;
     logic cpu_64b_w_sel_mem3;
+    logic cpu_128b_wdest_full;
     logic cpu_128b_w_to_mem1;
     logic cpu_128b_w_sel_mem1;
     logic cpu_128b_w_to_subtractive;
     logic cpu_128b_w_sel_subtractive;
+    logic dma_32b_wdest_full;
     logic dma_32b_w_to_mem2;
     logic dma_32b_w_sel_mem2;
+    logic dma_64b_wdest_full;
+    logic [4:0] dma_64b_wlive_mem3;
     logic dma_64b_w_to_mem0;
     logic dma_64b_w_sel_mem0;
     logic dma_64b_w_to_mem3;
     logic dma_64b_w_sel_mem3;
+    logic dma_128b_wdest_full;
     logic dma_128b_w_to_mem1;
     logic dma_128b_w_sel_mem1;
     logic dma_128b_w_to_subtractive;
     logic dma_128b_w_sel_subtractive;
+    logic acc_32b_wdest_full;
     logic acc_32b_w_to_mem2;
     logic acc_32b_w_sel_mem2;
+    logic acc_64b_wdest_full;
+    logic [4:0] acc_64b_wlive_mem3;
     logic acc_64b_w_to_mem0;
     logic acc_64b_w_sel_mem0;
     logic acc_64b_w_to_mem3;
     logic acc_64b_w_sel_mem3;
+    logic acc_128b_wdest_full;
     logic acc_128b_w_to_mem1;
     logic acc_128b_w_sel_mem1;
     logic acc_128b_w_to_subtractive;
     logic acc_128b_w_sel_subtractive;
+    logic io_32b_wdest_full;
     logic io_32b_w_to_mem2;
     logic io_32b_w_sel_mem2;
+    logic io_64b_wdest_full;
+    logic [4:0] io_64b_wlive_mem3;
     logic io_64b_w_to_mem0;
     logic io_64b_w_sel_mem0;
     logic io_64b_w_to_mem3;
     logic io_64b_w_sel_mem3;
+    logic io_128b_wdest_full;
     logic io_128b_w_to_mem1;
     logic io_128b_w_sel_mem1;
     logic io_128b_w_to_subtractive;
@@ -1124,7 +1140,7 @@ module bridge_bs_axi4_xbar
     wire io_64b_ar_to_mem0 = (io_64b_ar.addr <= 32'h0fffffff);
 
     // AW request slots for mem0: arbitration at the slave pins
-    assign cpu_64b_aw_slot_mem0_in_valid = cpu_64b_aw_to_mem0 && cpu_64b_awvalid && !cpu_64b_aw_hold_mem0;
+    assign cpu_64b_aw_slot_mem0_in_valid = cpu_64b_aw_to_mem0 && cpu_64b_awvalid && !(cpu_64b_aw_hold_mem0 || (|cpu_64b_wlive_mem3) || cpu_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_64b_aw_slot_mem0_in_valid), .wr_ready(cpu_64b_aw_slot_mem0_in_ready), .wr_data(cpu_64b_aw),
@@ -1133,7 +1149,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma_64b_aw_slot_mem0_in_valid = dma_64b_aw_to_mem0 && dma_64b_awvalid && !dma_64b_aw_hold_mem0;
+    assign dma_64b_aw_slot_mem0_in_valid = dma_64b_aw_to_mem0 && dma_64b_awvalid && !(dma_64b_aw_hold_mem0 || (|dma_64b_wlive_mem3) || dma_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma_64b_aw_slot_mem0_in_valid), .wr_ready(dma_64b_aw_slot_mem0_in_ready), .wr_data(dma_64b_aw),
@@ -1142,7 +1158,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_64b_aw_slot_mem0_in_valid = acc_64b_aw_to_mem0 && acc_64b_awvalid && !acc_64b_aw_hold_mem0;
+    assign acc_64b_aw_slot_mem0_in_valid = acc_64b_aw_to_mem0 && acc_64b_awvalid && !(acc_64b_aw_hold_mem0 || (|acc_64b_wlive_mem3) || acc_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_64b_aw_slot_mem0_in_valid), .wr_ready(acc_64b_aw_slot_mem0_in_ready), .wr_data(acc_64b_aw),
@@ -1151,7 +1167,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_64b_aw_slot_mem0_in_valid = io_64b_aw_to_mem0 && io_64b_awvalid && !io_64b_aw_hold_mem0;
+    assign io_64b_aw_slot_mem0_in_valid = io_64b_aw_to_mem0 && io_64b_awvalid && !(io_64b_aw_hold_mem0 || (|io_64b_wlive_mem3) || io_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_64b_aw_slot_mem0 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_64b_aw_slot_mem0_in_valid), .wr_ready(io_64b_aw_slot_mem0_in_ready), .wr_data(io_64b_aw),
@@ -1461,7 +1477,7 @@ module bridge_bs_axi4_xbar
     wire io_128b_ar_to_mem1 = ((io_128b_ar.addr >= 32'h10000000) && (io_128b_ar.addr <= 32'h1fffffff));
 
     // AW request slots for mem1: arbitration at the slave pins
-    assign cpu_128b_aw_slot_mem1_in_valid = cpu_128b_aw_to_mem1 && cpu_128b_awvalid && !cpu_128b_aw_hold_mem1;
+    assign cpu_128b_aw_slot_mem1_in_valid = cpu_128b_aw_to_mem1 && cpu_128b_awvalid && !(cpu_128b_aw_hold_mem1 || (|cpu_64b_wlive_mem3) || cpu_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_128b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_128b_aw_slot_mem1_in_valid), .wr_ready(cpu_128b_aw_slot_mem1_in_ready), .wr_data(cpu_128b_aw),
@@ -1470,7 +1486,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma_128b_aw_slot_mem1_in_valid = dma_128b_aw_to_mem1 && dma_128b_awvalid && !dma_128b_aw_hold_mem1;
+    assign dma_128b_aw_slot_mem1_in_valid = dma_128b_aw_to_mem1 && dma_128b_awvalid && !(dma_128b_aw_hold_mem1 || (|dma_64b_wlive_mem3) || dma_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_128b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma_128b_aw_slot_mem1_in_valid), .wr_ready(dma_128b_aw_slot_mem1_in_ready), .wr_data(dma_128b_aw),
@@ -1479,7 +1495,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_128b_aw_slot_mem1_in_valid = acc_128b_aw_to_mem1 && acc_128b_awvalid && !acc_128b_aw_hold_mem1;
+    assign acc_128b_aw_slot_mem1_in_valid = acc_128b_aw_to_mem1 && acc_128b_awvalid && !(acc_128b_aw_hold_mem1 || (|acc_64b_wlive_mem3) || acc_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_128b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_128b_aw_slot_mem1_in_valid), .wr_ready(acc_128b_aw_slot_mem1_in_ready), .wr_data(acc_128b_aw),
@@ -1488,7 +1504,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_128b_aw_slot_mem1_in_valid = io_128b_aw_to_mem1 && io_128b_awvalid && !io_128b_aw_hold_mem1;
+    assign io_128b_aw_slot_mem1_in_valid = io_128b_aw_to_mem1 && io_128b_awvalid && !(io_128b_aw_hold_mem1 || (|io_64b_wlive_mem3) || io_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_128b_aw_slot_mem1 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_128b_aw_slot_mem1_in_valid), .wr_ready(io_128b_aw_slot_mem1_in_ready), .wr_data(io_128b_aw),
@@ -1798,7 +1814,7 @@ module bridge_bs_axi4_xbar
     wire io_32b_ar_to_mem2 = ((io_32b_ar.addr >= 32'h30000000) && (io_32b_ar.addr <= 32'h3fffffff));
 
     // AW request slots for mem2: arbitration at the slave pins
-    assign cpu_32b_aw_slot_mem2_in_valid = cpu_32b_aw_to_mem2 && cpu_32b_awvalid && !cpu_32b_aw_hold_mem2;
+    assign cpu_32b_aw_slot_mem2_in_valid = cpu_32b_aw_to_mem2 && cpu_32b_awvalid && !(cpu_32b_aw_hold_mem2 || (|cpu_64b_wlive_mem3) || cpu_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_mem2 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_32b_aw_slot_mem2_in_valid), .wr_ready(cpu_32b_aw_slot_mem2_in_ready), .wr_data(cpu_32b_aw),
@@ -1807,7 +1823,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma_32b_aw_slot_mem2_in_valid = dma_32b_aw_to_mem2 && dma_32b_awvalid && !dma_32b_aw_hold_mem2;
+    assign dma_32b_aw_slot_mem2_in_valid = dma_32b_aw_to_mem2 && dma_32b_awvalid && !(dma_32b_aw_hold_mem2 || (|dma_64b_wlive_mem3) || dma_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_32b_aw_slot_mem2 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma_32b_aw_slot_mem2_in_valid), .wr_ready(dma_32b_aw_slot_mem2_in_ready), .wr_data(dma_32b_aw),
@@ -1816,7 +1832,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_32b_aw_slot_mem2_in_valid = acc_32b_aw_to_mem2 && acc_32b_awvalid && !acc_32b_aw_hold_mem2;
+    assign acc_32b_aw_slot_mem2_in_valid = acc_32b_aw_to_mem2 && acc_32b_awvalid && !(acc_32b_aw_hold_mem2 || (|acc_64b_wlive_mem3) || acc_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_32b_aw_slot_mem2 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_32b_aw_slot_mem2_in_valid), .wr_ready(acc_32b_aw_slot_mem2_in_ready), .wr_data(acc_32b_aw),
@@ -1825,7 +1841,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_32b_aw_slot_mem2_in_valid = io_32b_aw_to_mem2 && io_32b_awvalid && !io_32b_aw_hold_mem2;
+    assign io_32b_aw_slot_mem2_in_valid = io_32b_aw_to_mem2 && io_32b_awvalid && !(io_32b_aw_hold_mem2 || (|io_64b_wlive_mem3) || io_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_32b_aw_slot_mem2 (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_32b_aw_slot_mem2_in_valid), .wr_ready(io_32b_aw_slot_mem2_in_ready), .wr_data(io_32b_aw),
@@ -2128,28 +2144,28 @@ module bridge_bs_axi4_xbar
     wire acc_64b_ar_to_mem3 = ((acc_64b_ar.addr >= 32'h40000000) && (acc_64b_ar.addr <= 32'h4fffffff));
     wire io_64b_aw_to_mem3 = ((io_64b_aw.addr >= 32'h40000000) && (io_64b_aw.addr <= 32'h4fffffff));
     wire io_64b_ar_to_mem3 = ((io_64b_ar.addr >= 32'h40000000) && (io_64b_ar.addr <= 32'h4fffffff));
-    assign mem3_axi_lane_awvalid[0] = cpu_64b_aw_to_mem3 && !cpu_64b_aw_hold_mem3 && cpu_64b_awvalid;
+    assign mem3_axi_lane_awvalid[0] = cpu_64b_aw_to_mem3 && !(cpu_64b_aw_hold_mem3 || cpu_64b_wdest_full) && cpu_64b_awvalid;
     assign mem3_axi_lane_aw[0*68 +: 68] = {cpu_64b_aw.id, cpu_64b_aw.addr, cpu_64b_aw.len, cpu_64b_aw.size, cpu_64b_aw.burst, cpu_64b_aw.lock, cpu_64b_aw.cache, cpu_64b_aw.prot, cpu_64b_aw.qos, cpu_64b_aw.region, cpu_64b_aw.user};
     assign cpu_64b_w_sel_mem3 = cpu_64b_w_to_mem3;
     assign mem3_axi_lane_wvalid[0] = cpu_64b_w_to_mem3 && cpu_64b_wvalid;
     assign mem3_axi_lane_w[0*74 +: 74] = {cpu_64b_w.data, cpu_64b_w.strb, cpu_64b_w.last, cpu_64b_w.user};
     assign mem3_axi_lane_arvalid[0] = cpu_64b_ar_to_mem3 && cpu_64b_arvalid;
     assign mem3_axi_lane_ar[0*68 +: 68] = {cpu_64b_ar.id, cpu_64b_ar.addr, cpu_64b_ar.len, cpu_64b_ar.size, cpu_64b_ar.burst, cpu_64b_ar.lock, cpu_64b_ar.cache, cpu_64b_ar.prot, cpu_64b_ar.qos, cpu_64b_ar.region, cpu_64b_ar.user};
-    assign mem3_axi_lane_awvalid[1] = dma_64b_aw_to_mem3 && !dma_64b_aw_hold_mem3 && dma_64b_awvalid;
+    assign mem3_axi_lane_awvalid[1] = dma_64b_aw_to_mem3 && !(dma_64b_aw_hold_mem3 || dma_64b_wdest_full) && dma_64b_awvalid;
     assign mem3_axi_lane_aw[1*68 +: 68] = {dma_64b_aw.id, dma_64b_aw.addr, dma_64b_aw.len, dma_64b_aw.size, dma_64b_aw.burst, dma_64b_aw.lock, dma_64b_aw.cache, dma_64b_aw.prot, dma_64b_aw.qos, dma_64b_aw.region, dma_64b_aw.user};
     assign dma_64b_w_sel_mem3 = dma_64b_w_to_mem3;
     assign mem3_axi_lane_wvalid[1] = dma_64b_w_to_mem3 && dma_64b_wvalid;
     assign mem3_axi_lane_w[1*74 +: 74] = {dma_64b_w.data, dma_64b_w.strb, dma_64b_w.last, dma_64b_w.user};
     assign mem3_axi_lane_arvalid[1] = dma_64b_ar_to_mem3 && dma_64b_arvalid;
     assign mem3_axi_lane_ar[1*68 +: 68] = {dma_64b_ar.id, dma_64b_ar.addr, dma_64b_ar.len, dma_64b_ar.size, dma_64b_ar.burst, dma_64b_ar.lock, dma_64b_ar.cache, dma_64b_ar.prot, dma_64b_ar.qos, dma_64b_ar.region, dma_64b_ar.user};
-    assign mem3_axi_lane_awvalid[2] = acc_64b_aw_to_mem3 && !acc_64b_aw_hold_mem3 && acc_64b_awvalid;
+    assign mem3_axi_lane_awvalid[2] = acc_64b_aw_to_mem3 && !(acc_64b_aw_hold_mem3 || acc_64b_wdest_full) && acc_64b_awvalid;
     assign mem3_axi_lane_aw[2*68 +: 68] = {acc_64b_aw.id, acc_64b_aw.addr, acc_64b_aw.len, acc_64b_aw.size, acc_64b_aw.burst, acc_64b_aw.lock, acc_64b_aw.cache, acc_64b_aw.prot, acc_64b_aw.qos, acc_64b_aw.region, acc_64b_aw.user};
     assign acc_64b_w_sel_mem3 = acc_64b_w_to_mem3;
     assign mem3_axi_lane_wvalid[2] = acc_64b_w_to_mem3 && acc_64b_wvalid;
     assign mem3_axi_lane_w[2*74 +: 74] = {acc_64b_w.data, acc_64b_w.strb, acc_64b_w.last, acc_64b_w.user};
     assign mem3_axi_lane_arvalid[2] = acc_64b_ar_to_mem3 && acc_64b_arvalid;
     assign mem3_axi_lane_ar[2*68 +: 68] = {acc_64b_ar.id, acc_64b_ar.addr, acc_64b_ar.len, acc_64b_ar.size, acc_64b_ar.burst, acc_64b_ar.lock, acc_64b_ar.cache, acc_64b_ar.prot, acc_64b_ar.qos, acc_64b_ar.region, acc_64b_ar.user};
-    assign mem3_axi_lane_awvalid[3] = io_64b_aw_to_mem3 && !io_64b_aw_hold_mem3 && io_64b_awvalid;
+    assign mem3_axi_lane_awvalid[3] = io_64b_aw_to_mem3 && !(io_64b_aw_hold_mem3 || io_64b_wdest_full) && io_64b_awvalid;
     assign mem3_axi_lane_aw[3*68 +: 68] = {io_64b_aw.id, io_64b_aw.addr, io_64b_aw.len, io_64b_aw.size, io_64b_aw.burst, io_64b_aw.lock, io_64b_aw.cache, io_64b_aw.prot, io_64b_aw.qos, io_64b_aw.region, io_64b_aw.user};
     assign io_64b_w_sel_mem3 = io_64b_w_to_mem3;
     assign mem3_axi_lane_wvalid[3] = io_64b_w_to_mem3 && io_64b_wvalid;
@@ -2216,7 +2232,7 @@ module bridge_bs_axi4_xbar
     wire io_128b_ar_to_subtractive = !(((io_128b_ar.addr <= 32'h0fffffff)) || (((io_128b_ar.addr >= 32'h10000000) && (io_128b_ar.addr <= 32'h1fffffff))) || (((io_128b_ar.addr >= 32'h30000000) && (io_128b_ar.addr <= 32'h3fffffff))) || (((io_128b_ar.addr >= 32'h40000000) && (io_128b_ar.addr <= 32'h4fffffff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign cpu_128b_aw_slot_subtractive_in_valid = cpu_128b_aw_to_subtractive && cpu_128b_awvalid && !cpu_128b_aw_hold_subtractive;
+    assign cpu_128b_aw_slot_subtractive_in_valid = cpu_128b_aw_to_subtractive && cpu_128b_awvalid && !(cpu_128b_aw_hold_subtractive || (|cpu_64b_wlive_mem3) || cpu_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_128b_aw_slot_subtractive_in_valid), .wr_ready(cpu_128b_aw_slot_subtractive_in_ready), .wr_data(cpu_128b_aw),
@@ -2225,7 +2241,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign dma_128b_aw_slot_subtractive_in_valid = dma_128b_aw_to_subtractive && dma_128b_awvalid && !dma_128b_aw_hold_subtractive;
+    assign dma_128b_aw_slot_subtractive_in_valid = dma_128b_aw_to_subtractive && dma_128b_awvalid && !(dma_128b_aw_hold_subtractive || (|dma_64b_wlive_mem3) || dma_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_dma_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(dma_128b_aw_slot_subtractive_in_valid), .wr_ready(dma_128b_aw_slot_subtractive_in_ready), .wr_data(dma_128b_aw),
@@ -2234,7 +2250,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign acc_128b_aw_slot_subtractive_in_valid = acc_128b_aw_to_subtractive && acc_128b_awvalid && !acc_128b_aw_hold_subtractive;
+    assign acc_128b_aw_slot_subtractive_in_valid = acc_128b_aw_to_subtractive && acc_128b_awvalid && !(acc_128b_aw_hold_subtractive || (|acc_64b_wlive_mem3) || acc_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_acc_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(acc_128b_aw_slot_subtractive_in_valid), .wr_ready(acc_128b_aw_slot_subtractive_in_ready), .wr_data(acc_128b_aw),
@@ -2243,7 +2259,7 @@ module bridge_bs_axi4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign io_128b_aw_slot_subtractive_in_valid = io_128b_aw_to_subtractive && io_128b_awvalid && !io_128b_aw_hold_subtractive;
+    assign io_128b_aw_slot_subtractive_in_valid = io_128b_aw_to_subtractive && io_128b_awvalid && !(io_128b_aw_hold_subtractive || (|io_64b_wlive_mem3) || io_128b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_io_128b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(io_128b_aw_slot_subtractive_in_valid), .wr_ready(io_128b_aw_slot_subtractive_in_ready), .wr_data(io_128b_aw),
@@ -2558,6 +2574,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire cpu_32b_wdest_valid = (cpu_32b_wdest_wptr != cpu_32b_wdest_rptr);
+    assign cpu_32b_wdest_full = (cpu_32b_wdest_wptr[4] != cpu_32b_wdest_rptr[4]) && (cpu_32b_wdest_wptr[3:0] == cpu_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
     assign cpu_32b_w_to_mem2 = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd0);
 
@@ -2582,9 +2599,14 @@ module bridge_bs_axi4_xbar
         end
     )
     wire cpu_64b_wdest_valid = (cpu_64b_wdest_wptr != cpu_64b_wdest_rptr);
+    assign cpu_64b_wdest_full = (cpu_64b_wdest_wptr[4] != cpu_64b_wdest_rptr[4]) && (cpu_64b_wdest_wptr[3:0] == cpu_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_64b_wdest_head = cpu_64b_wdest_mem[cpu_64b_wdest_rptr[3:0]];
     assign cpu_64b_w_to_mem0 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 1'd0);
     assign cpu_64b_w_to_mem3 = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 1'd1);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) cpu_64b_wlive_mem3 <= '0;
+        else cpu_64b_wlive_mem3 <= cpu_64b_wlive_mem3 + 5'((cpu_64b_wdest_push && (cpu_64b_wdest_enc == 1'd1))) - 5'((cpu_64b_wdest_pop && (cpu_64b_wdest_head == 1'd1)));
+    )
 
     // cpu 128b path -> mem1, subtractive (16 deep: max_outstanding)
     logic [0:0] cpu_128b_wdest_mem [16];
@@ -2607,6 +2629,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire cpu_128b_wdest_valid = (cpu_128b_wdest_wptr != cpu_128b_wdest_rptr);
+    assign cpu_128b_wdest_full = (cpu_128b_wdest_wptr[4] != cpu_128b_wdest_rptr[4]) && (cpu_128b_wdest_wptr[3:0] == cpu_128b_wdest_rptr[3:0]);
     wire [0:0] cpu_128b_wdest_head = cpu_128b_wdest_mem[cpu_128b_wdest_rptr[3:0]];
     assign cpu_128b_w_to_mem1 = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 1'd0);
     assign cpu_128b_w_to_subtractive = cpu_128b_wdest_valid && (cpu_128b_wdest_head == 1'd1);
@@ -2632,6 +2655,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire dma_32b_wdest_valid = (dma_32b_wdest_wptr != dma_32b_wdest_rptr);
+    assign dma_32b_wdest_full = (dma_32b_wdest_wptr[4] != dma_32b_wdest_rptr[4]) && (dma_32b_wdest_wptr[3:0] == dma_32b_wdest_rptr[3:0]);
     wire [0:0] dma_32b_wdest_head = dma_32b_wdest_mem[dma_32b_wdest_rptr[3:0]];
     assign dma_32b_w_to_mem2 = dma_32b_wdest_valid && (dma_32b_wdest_head == 1'd0);
 
@@ -2656,9 +2680,14 @@ module bridge_bs_axi4_xbar
         end
     )
     wire dma_64b_wdest_valid = (dma_64b_wdest_wptr != dma_64b_wdest_rptr);
+    assign dma_64b_wdest_full = (dma_64b_wdest_wptr[4] != dma_64b_wdest_rptr[4]) && (dma_64b_wdest_wptr[3:0] == dma_64b_wdest_rptr[3:0]);
     wire [0:0] dma_64b_wdest_head = dma_64b_wdest_mem[dma_64b_wdest_rptr[3:0]];
     assign dma_64b_w_to_mem0 = dma_64b_wdest_valid && (dma_64b_wdest_head == 1'd0);
     assign dma_64b_w_to_mem3 = dma_64b_wdest_valid && (dma_64b_wdest_head == 1'd1);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) dma_64b_wlive_mem3 <= '0;
+        else dma_64b_wlive_mem3 <= dma_64b_wlive_mem3 + 5'((dma_64b_wdest_push && (dma_64b_wdest_enc == 1'd1))) - 5'((dma_64b_wdest_pop && (dma_64b_wdest_head == 1'd1)));
+    )
 
     // dma 128b path -> mem1, subtractive (16 deep: max_outstanding)
     logic [0:0] dma_128b_wdest_mem [16];
@@ -2681,6 +2710,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire dma_128b_wdest_valid = (dma_128b_wdest_wptr != dma_128b_wdest_rptr);
+    assign dma_128b_wdest_full = (dma_128b_wdest_wptr[4] != dma_128b_wdest_rptr[4]) && (dma_128b_wdest_wptr[3:0] == dma_128b_wdest_rptr[3:0]);
     wire [0:0] dma_128b_wdest_head = dma_128b_wdest_mem[dma_128b_wdest_rptr[3:0]];
     assign dma_128b_w_to_mem1 = dma_128b_wdest_valid && (dma_128b_wdest_head == 1'd0);
     assign dma_128b_w_to_subtractive = dma_128b_wdest_valid && (dma_128b_wdest_head == 1'd1);
@@ -2706,6 +2736,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire acc_32b_wdest_valid = (acc_32b_wdest_wptr != acc_32b_wdest_rptr);
+    assign acc_32b_wdest_full = (acc_32b_wdest_wptr[4] != acc_32b_wdest_rptr[4]) && (acc_32b_wdest_wptr[3:0] == acc_32b_wdest_rptr[3:0]);
     wire [0:0] acc_32b_wdest_head = acc_32b_wdest_mem[acc_32b_wdest_rptr[3:0]];
     assign acc_32b_w_to_mem2 = acc_32b_wdest_valid && (acc_32b_wdest_head == 1'd0);
 
@@ -2730,9 +2761,14 @@ module bridge_bs_axi4_xbar
         end
     )
     wire acc_64b_wdest_valid = (acc_64b_wdest_wptr != acc_64b_wdest_rptr);
+    assign acc_64b_wdest_full = (acc_64b_wdest_wptr[4] != acc_64b_wdest_rptr[4]) && (acc_64b_wdest_wptr[3:0] == acc_64b_wdest_rptr[3:0]);
     wire [0:0] acc_64b_wdest_head = acc_64b_wdest_mem[acc_64b_wdest_rptr[3:0]];
     assign acc_64b_w_to_mem0 = acc_64b_wdest_valid && (acc_64b_wdest_head == 1'd0);
     assign acc_64b_w_to_mem3 = acc_64b_wdest_valid && (acc_64b_wdest_head == 1'd1);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) acc_64b_wlive_mem3 <= '0;
+        else acc_64b_wlive_mem3 <= acc_64b_wlive_mem3 + 5'((acc_64b_wdest_push && (acc_64b_wdest_enc == 1'd1))) - 5'((acc_64b_wdest_pop && (acc_64b_wdest_head == 1'd1)));
+    )
 
     // acc 128b path -> mem1, subtractive (16 deep: max_outstanding)
     logic [0:0] acc_128b_wdest_mem [16];
@@ -2755,6 +2791,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire acc_128b_wdest_valid = (acc_128b_wdest_wptr != acc_128b_wdest_rptr);
+    assign acc_128b_wdest_full = (acc_128b_wdest_wptr[4] != acc_128b_wdest_rptr[4]) && (acc_128b_wdest_wptr[3:0] == acc_128b_wdest_rptr[3:0]);
     wire [0:0] acc_128b_wdest_head = acc_128b_wdest_mem[acc_128b_wdest_rptr[3:0]];
     assign acc_128b_w_to_mem1 = acc_128b_wdest_valid && (acc_128b_wdest_head == 1'd0);
     assign acc_128b_w_to_subtractive = acc_128b_wdest_valid && (acc_128b_wdest_head == 1'd1);
@@ -2780,6 +2817,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire io_32b_wdest_valid = (io_32b_wdest_wptr != io_32b_wdest_rptr);
+    assign io_32b_wdest_full = (io_32b_wdest_wptr[4] != io_32b_wdest_rptr[4]) && (io_32b_wdest_wptr[3:0] == io_32b_wdest_rptr[3:0]);
     wire [0:0] io_32b_wdest_head = io_32b_wdest_mem[io_32b_wdest_rptr[3:0]];
     assign io_32b_w_to_mem2 = io_32b_wdest_valid && (io_32b_wdest_head == 1'd0);
 
@@ -2804,9 +2842,14 @@ module bridge_bs_axi4_xbar
         end
     )
     wire io_64b_wdest_valid = (io_64b_wdest_wptr != io_64b_wdest_rptr);
+    assign io_64b_wdest_full = (io_64b_wdest_wptr[4] != io_64b_wdest_rptr[4]) && (io_64b_wdest_wptr[3:0] == io_64b_wdest_rptr[3:0]);
     wire [0:0] io_64b_wdest_head = io_64b_wdest_mem[io_64b_wdest_rptr[3:0]];
     assign io_64b_w_to_mem0 = io_64b_wdest_valid && (io_64b_wdest_head == 1'd0);
     assign io_64b_w_to_mem3 = io_64b_wdest_valid && (io_64b_wdest_head == 1'd1);
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) io_64b_wlive_mem3 <= '0;
+        else io_64b_wlive_mem3 <= io_64b_wlive_mem3 + 5'((io_64b_wdest_push && (io_64b_wdest_enc == 1'd1))) - 5'((io_64b_wdest_pop && (io_64b_wdest_head == 1'd1)));
+    )
 
     // io 128b path -> mem1, subtractive (16 deep: max_outstanding)
     logic [0:0] io_128b_wdest_mem [16];
@@ -2829,6 +2872,7 @@ module bridge_bs_axi4_xbar
         end
     )
     wire io_128b_wdest_valid = (io_128b_wdest_wptr != io_128b_wdest_rptr);
+    assign io_128b_wdest_full = (io_128b_wdest_wptr[4] != io_128b_wdest_rptr[4]) && (io_128b_wdest_wptr[3:0] == io_128b_wdest_rptr[3:0]);
     wire [0:0] io_128b_wdest_head = io_128b_wdest_mem[io_128b_wdest_rptr[3:0]];
     assign io_128b_w_to_mem1 = io_128b_wdest_valid && (io_128b_wdest_head == 1'd0);
     assign io_128b_w_to_subtractive = io_128b_wdest_valid && (io_128b_wdest_head == 1'd1);
@@ -2839,7 +2883,7 @@ module bridge_bs_axi4_xbar
 
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
-        ((cpu_32b_aw_to_mem2 && !cpu_32b_aw_hold_mem2) ? cpu_32b_aw_slot_mem2_in_ready : '0);
+        ((cpu_32b_aw_to_mem2 && !(cpu_32b_aw_hold_mem2 || (|cpu_64b_wlive_mem3) || cpu_32b_wdest_full)) ? cpu_32b_aw_slot_mem2_in_ready : '0);
 
     assign cpu_32b_wready = 
         (cpu_32b_w_sel_mem2 ? mem2_axi_wready : '0);
@@ -2880,8 +2924,8 @@ module bridge_bs_axi4_xbar
 
     // Master: cpu, Width path: 64b
     assign cpu_64b_awready = 
-        ((cpu_64b_aw_to_mem0 && !cpu_64b_aw_hold_mem0) ? cpu_64b_aw_slot_mem0_in_ready : '0) |
-        ((cpu_64b_aw_to_mem3 && !cpu_64b_aw_hold_mem3) ? mem3_axi_lane_awready[0] : '0);
+        ((cpu_64b_aw_to_mem0 && !(cpu_64b_aw_hold_mem0 || (|cpu_64b_wlive_mem3) || cpu_64b_wdest_full)) ? cpu_64b_aw_slot_mem0_in_ready : '0) |
+        ((cpu_64b_aw_to_mem3 && !(cpu_64b_aw_hold_mem3 || cpu_64b_wdest_full)) ? mem3_axi_lane_awready[0] : '0);
 
     assign cpu_64b_wready = 
         (cpu_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -2934,8 +2978,8 @@ module bridge_bs_axi4_xbar
 
     // Master: cpu, Width path: 128b
     assign cpu_128b_awready = 
-        ((cpu_128b_aw_to_mem1 && !cpu_128b_aw_hold_mem1) ? cpu_128b_aw_slot_mem1_in_ready : '0) |
-        ((cpu_128b_aw_to_subtractive && !cpu_128b_aw_hold_subtractive) ? cpu_128b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_128b_aw_to_mem1 && !(cpu_128b_aw_hold_mem1 || (|cpu_64b_wlive_mem3) || cpu_128b_wdest_full)) ? cpu_128b_aw_slot_mem1_in_ready : '0) |
+        ((cpu_128b_aw_to_subtractive && !(cpu_128b_aw_hold_subtractive || (|cpu_64b_wlive_mem3) || cpu_128b_wdest_full)) ? cpu_128b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_128b_wready = 
         (cpu_128b_w_sel_mem1 ? mem1_axi_wready : '0) |
@@ -2988,7 +3032,7 @@ module bridge_bs_axi4_xbar
 
     // Master: dma, Width path: 32b
     assign dma_32b_awready = 
-        ((dma_32b_aw_to_mem2 && !dma_32b_aw_hold_mem2) ? dma_32b_aw_slot_mem2_in_ready : '0);
+        ((dma_32b_aw_to_mem2 && !(dma_32b_aw_hold_mem2 || (|dma_64b_wlive_mem3) || dma_32b_wdest_full)) ? dma_32b_aw_slot_mem2_in_ready : '0);
 
     assign dma_32b_wready = 
         (dma_32b_w_sel_mem2 ? mem2_axi_wready : '0);
@@ -3029,8 +3073,8 @@ module bridge_bs_axi4_xbar
 
     // Master: dma, Width path: 64b
     assign dma_64b_awready = 
-        ((dma_64b_aw_to_mem0 && !dma_64b_aw_hold_mem0) ? dma_64b_aw_slot_mem0_in_ready : '0) |
-        ((dma_64b_aw_to_mem3 && !dma_64b_aw_hold_mem3) ? mem3_axi_lane_awready[1] : '0);
+        ((dma_64b_aw_to_mem0 && !(dma_64b_aw_hold_mem0 || (|dma_64b_wlive_mem3) || dma_64b_wdest_full)) ? dma_64b_aw_slot_mem0_in_ready : '0) |
+        ((dma_64b_aw_to_mem3 && !(dma_64b_aw_hold_mem3 || dma_64b_wdest_full)) ? mem3_axi_lane_awready[1] : '0);
 
     assign dma_64b_wready = 
         (dma_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -3083,8 +3127,8 @@ module bridge_bs_axi4_xbar
 
     // Master: dma, Width path: 128b
     assign dma_128b_awready = 
-        ((dma_128b_aw_to_mem1 && !dma_128b_aw_hold_mem1) ? dma_128b_aw_slot_mem1_in_ready : '0) |
-        ((dma_128b_aw_to_subtractive && !dma_128b_aw_hold_subtractive) ? dma_128b_aw_slot_subtractive_in_ready : '0);
+        ((dma_128b_aw_to_mem1 && !(dma_128b_aw_hold_mem1 || (|dma_64b_wlive_mem3) || dma_128b_wdest_full)) ? dma_128b_aw_slot_mem1_in_ready : '0) |
+        ((dma_128b_aw_to_subtractive && !(dma_128b_aw_hold_subtractive || (|dma_64b_wlive_mem3) || dma_128b_wdest_full)) ? dma_128b_aw_slot_subtractive_in_ready : '0);
 
     assign dma_128b_wready = 
         (dma_128b_w_sel_mem1 ? mem1_axi_wready : '0) |
@@ -3137,7 +3181,7 @@ module bridge_bs_axi4_xbar
 
     // Master: acc, Width path: 32b
     assign acc_32b_awready = 
-        ((acc_32b_aw_to_mem2 && !acc_32b_aw_hold_mem2) ? acc_32b_aw_slot_mem2_in_ready : '0);
+        ((acc_32b_aw_to_mem2 && !(acc_32b_aw_hold_mem2 || (|acc_64b_wlive_mem3) || acc_32b_wdest_full)) ? acc_32b_aw_slot_mem2_in_ready : '0);
 
     assign acc_32b_wready = 
         (acc_32b_w_sel_mem2 ? mem2_axi_wready : '0);
@@ -3178,8 +3222,8 @@ module bridge_bs_axi4_xbar
 
     // Master: acc, Width path: 64b
     assign acc_64b_awready = 
-        ((acc_64b_aw_to_mem0 && !acc_64b_aw_hold_mem0) ? acc_64b_aw_slot_mem0_in_ready : '0) |
-        ((acc_64b_aw_to_mem3 && !acc_64b_aw_hold_mem3) ? mem3_axi_lane_awready[2] : '0);
+        ((acc_64b_aw_to_mem0 && !(acc_64b_aw_hold_mem0 || (|acc_64b_wlive_mem3) || acc_64b_wdest_full)) ? acc_64b_aw_slot_mem0_in_ready : '0) |
+        ((acc_64b_aw_to_mem3 && !(acc_64b_aw_hold_mem3 || acc_64b_wdest_full)) ? mem3_axi_lane_awready[2] : '0);
 
     assign acc_64b_wready = 
         (acc_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -3232,8 +3276,8 @@ module bridge_bs_axi4_xbar
 
     // Master: acc, Width path: 128b
     assign acc_128b_awready = 
-        ((acc_128b_aw_to_mem1 && !acc_128b_aw_hold_mem1) ? acc_128b_aw_slot_mem1_in_ready : '0) |
-        ((acc_128b_aw_to_subtractive && !acc_128b_aw_hold_subtractive) ? acc_128b_aw_slot_subtractive_in_ready : '0);
+        ((acc_128b_aw_to_mem1 && !(acc_128b_aw_hold_mem1 || (|acc_64b_wlive_mem3) || acc_128b_wdest_full)) ? acc_128b_aw_slot_mem1_in_ready : '0) |
+        ((acc_128b_aw_to_subtractive && !(acc_128b_aw_hold_subtractive || (|acc_64b_wlive_mem3) || acc_128b_wdest_full)) ? acc_128b_aw_slot_subtractive_in_ready : '0);
 
     assign acc_128b_wready = 
         (acc_128b_w_sel_mem1 ? mem1_axi_wready : '0) |
@@ -3286,7 +3330,7 @@ module bridge_bs_axi4_xbar
 
     // Master: io, Width path: 32b
     assign io_32b_awready = 
-        ((io_32b_aw_to_mem2 && !io_32b_aw_hold_mem2) ? io_32b_aw_slot_mem2_in_ready : '0);
+        ((io_32b_aw_to_mem2 && !(io_32b_aw_hold_mem2 || (|io_64b_wlive_mem3) || io_32b_wdest_full)) ? io_32b_aw_slot_mem2_in_ready : '0);
 
     assign io_32b_wready = 
         (io_32b_w_sel_mem2 ? mem2_axi_wready : '0);
@@ -3327,8 +3371,8 @@ module bridge_bs_axi4_xbar
 
     // Master: io, Width path: 64b
     assign io_64b_awready = 
-        ((io_64b_aw_to_mem0 && !io_64b_aw_hold_mem0) ? io_64b_aw_slot_mem0_in_ready : '0) |
-        ((io_64b_aw_to_mem3 && !io_64b_aw_hold_mem3) ? mem3_axi_lane_awready[3] : '0);
+        ((io_64b_aw_to_mem0 && !(io_64b_aw_hold_mem0 || (|io_64b_wlive_mem3) || io_64b_wdest_full)) ? io_64b_aw_slot_mem0_in_ready : '0) |
+        ((io_64b_aw_to_mem3 && !(io_64b_aw_hold_mem3 || io_64b_wdest_full)) ? mem3_axi_lane_awready[3] : '0);
 
     assign io_64b_wready = 
         (io_64b_w_sel_mem0 ? mem0_axi_wready : '0) |
@@ -3381,8 +3425,8 @@ module bridge_bs_axi4_xbar
 
     // Master: io, Width path: 128b
     assign io_128b_awready = 
-        ((io_128b_aw_to_mem1 && !io_128b_aw_hold_mem1) ? io_128b_aw_slot_mem1_in_ready : '0) |
-        ((io_128b_aw_to_subtractive && !io_128b_aw_hold_subtractive) ? io_128b_aw_slot_subtractive_in_ready : '0);
+        ((io_128b_aw_to_mem1 && !(io_128b_aw_hold_mem1 || (|io_64b_wlive_mem3) || io_128b_wdest_full)) ? io_128b_aw_slot_mem1_in_ready : '0) |
+        ((io_128b_aw_to_subtractive && !(io_128b_aw_hold_subtractive || (|io_64b_wlive_mem3) || io_128b_wdest_full)) ? io_128b_aw_slot_subtractive_in_ready : '0);
 
     assign io_128b_wready = 
         (io_128b_w_sel_mem1 ? mem1_axi_wready : '0) |

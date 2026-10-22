@@ -33,9 +33,10 @@ class AxiGenAddrTB(TBBase):
     against the implementation, so the model is an independent opinion:
 
     * FIXED never moves.
-    * INCR advances 1<<size, except that a narrower output bus caps the
-      step at the output width in bytes — the cap the width converters
-      rely on.
+    * INCR advances 1<<size from the ALIGNED address (AXI A3.4.1: only
+      the first beat of a burst may be unaligned; bridge BUG-019), except
+      that a narrower output bus caps the step at the output width in
+      bytes — the cap the width converters rely on.
     * WRAP keeps the high bits and wraps inside a
       (1<<size) * (len+1) byte container.
     * next_addr_align masks off the output-width byte offset.
@@ -103,7 +104,7 @@ class AxiGenAddrTB(TBBase):
             aligned = ((curr_addr + increment) & ~(increment - 1)) & self.addr_mask
             nxt = (curr_addr & ~wrap_mask) | (aligned & wrap_mask)
         else:                                   # INCR and the reserved arm
-            nxt = curr_addr + increment
+            nxt = (curr_addr & ~(increment - 1)) + increment
 
         nxt &= self.addr_mask
         return nxt, nxt & ~((self.odw_bytes - 1) & self.addr_mask)
@@ -152,6 +153,16 @@ class AxiGenAddrTB(TBBase):
             await self.check(0x0000_1000 - (1 << size), size, INCR, 0,
                              note="pre-4k")
             await self.check(0x0000_0FFF, size, INCR, 0, note="unaligned-4k")
+
+    async def test_incr_unaligned_start_realigns(self):
+        """The beat after an unaligned first beat sits on the step grid
+        (bridge BUG-019): 0x...03 at size 2 steps to 0x...04, not 0x...07."""
+        for size in range(1, self.max_size + 1):
+            for off in (1, (1 << size) - 1):
+                await self.check(0x0000_2000 + off, size, INCR, 7,
+                                 note="unaligned-start")
+                await self.check(0x0000_2FFF - (1 << size) + 1 + off - 1, size, INCR, 3,
+                                 note="unaligned-pre-4k")
 
     async def test_wrap_containers(self):
         """WRAP stays inside (1<<size)*(len+1) bytes. AXI permits wrap
@@ -216,6 +227,7 @@ class AxiGenAddrTB(TBBase):
         await self.test_fixed_never_moves()
         await self.test_incr_steps_by_size()
         await self.test_incr_crosses_4k()
+        await self.test_incr_unaligned_start_realigns()
         await self.test_wrap_containers()
         await self.test_wrap_returns_to_base()
         await self.test_reserved_burst_behaves_as_incr()

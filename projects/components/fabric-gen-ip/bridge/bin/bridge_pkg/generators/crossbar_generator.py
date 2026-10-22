@@ -505,11 +505,25 @@ class CrossbarGenerator:
                 if slaves:
                     yield master, f"{width}b", slaves
 
+    @staticmethod
+    def _wdest_depth(m) -> int:
+        """W destination FIFO depth: max_outstanding, a power of two >= 2."""
+        return max(2, 1 << (int(getattr(m, 'max_outstanding', 16)) - 1).bit_length())
+
+    def _wlive(self, m, suffix: str, slave) -> str:
+        """Live W-destination entries of m's `suffix` path bound for lane slave `slave`."""
+        return f"{m.name}_{suffix}_wlive_{slave.name}"
+
     def _generate_w_follow_decls(self) -> List[str]:
         """Declare the W-follow wires assigned by _generate_w_dest_fifos
         and the slave routing blocks."""
         lines = ["    // W-follow declarations (assigned below)"]
         for m, suffix, slaves in self._wr_paths():
+            lines.append(f"    logic {m.name}_{suffix}_wdest_full;")
+            db = self._wdest_depth(m).bit_length() - 1
+            for s in slaves:
+                if self._is_lane(s):
+                    lines.append(f"    logic [{db}:0] {self._wlive(m, suffix, s)};")
             for s in slaves:
                 lines.append(f"    logic {m.name}_{suffix}_w_to_{s.name};")
                 lines.append(f"    logic {m.name}_{suffix}_w_sel_{s.name};")
@@ -532,11 +546,15 @@ class CrossbarGenerator:
             n = len(slaves)
             j = max(1, (n - 1).bit_length())
             # An entry lives from this path's AW handshake to its WLAST, both
-            # here; the B that frees the master adapter's outstanding slot
-            # comes after that WLAST, so live entries <= the master's
-            # max_outstanding. No full check, so the FIFO covers that bound
-            # (a fixed 16 until bridge GitHub #119 L5).
-            ddepth = 1 << (int(getattr(m, 'max_outstanding', 16)) - 1).bit_length()
+            # here. The master adapter's max_outstanding counts the MASTER's
+            # bursts, but a width converter on this path may issue several
+            # AWs for one of them (a > 256-beat split; one AW per beat for
+            # FIXED / WRAP wider than the path, bridge BUG-018), so that
+            # bound does not hold here. The FIFO is sized to max_outstanding
+            # and is FULL-CHECKED: a full FIFO holds the path's AW off
+            # (_aw_gate). Without the check the 17th entry overwrote a live
+            # one and that path's W beats went to the wrong slave.
+            ddepth = self._wdest_depth(m)
             db = ddepth.bit_length() - 1
             lines.append(f"    // {m.name} {suffix} path -> {', '.join(s.name for s in slaves)}"
                          f" ({ddepth} deep: max_outstanding)")
@@ -565,9 +583,29 @@ class CrossbarGenerator:
             lines.append(f"        end")
             lines.append(f"    )")
             lines.append(f"    wire {base}_valid = ({base}_wptr != {base}_rptr);")
+            lines.append(f"    assign {base}_full = ({base}_wptr[{db}] != {base}_rptr[{db}]) && "
+                         f"({base}_wptr[{db-1}:0] == {base}_rptr[{db-1}:0]);")
             lines.append(f"    wire [{j-1}:0] {base}_head = {base}_mem[{base}_rptr[{db-1}:0]];")
             for code, s in enumerate(slaves):
                 lines.append(f"    assign {m.name}_{suffix}_w_to_{s.name} = {base}_valid && ({base}_head == {j}'d{code});")
+            # Live entries bound for each CDC (lane) slave: from the AW
+            # handshake to the burst's WLAST into the lane. While any is
+            # live, this master's AWs to OTHER slaves wait (_aw_gate): a lane
+            # slave orders W by its own pick on its own clock, which need not
+            # follow this master's issue order, so an AW of this master
+            # granted elsewhere meanwhile could close a crossed-W cycle
+            # (bridge BUG-024). Once its W is in the lane, the master's W
+            # stream no longer waits on the lane slave's order.
+            for code, s in enumerate(slaves):
+                if not self._is_lane(s):
+                    continue
+                c = self._wlive(m, suffix, s)
+                inc = f"({base}_push && ({base}_enc == {j}'d{code}))"
+                dec = f"({base}_pop && ({base}_head == {j}'d{code}))"
+                lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
+                lines.append(f"        if (`RST_ASSERTED(aresetn)) {c} <= '0;")
+                lines.append(f"        else {c} <= {c} + {db+1}'({inc}) - {db+1}'({dec});")
+                lines.append(f"    )")
             lines.append("")
         return lines
 
@@ -677,12 +715,26 @@ class CrossbarGenerator:
         return f"{m.name}_{suffix}_aw_hold_{slave.name}"
 
     def _aw_gate(self, m: MasterConfig, suffix: str, slave: SlaveInfo) -> str:
-        """' && !hold' for an AW from m toward `slave`, or '' when m has no
-        other slot. Applies to EVERY path an AW takes -- a slot, a
+        """' && !(hold || lane_live || wdest_full)' for an AW from m toward
+        `slave`: the write-ordering hold when m has another slot, a live
+        burst of m into a lane slave other than `slave` (bridge BUG-024), and
+        always the path's W destination FIFO being full
+        (_generate_w_dest_fifos). Applies to EVERY path an AW takes -- a slot, a
         grant-on-entry arbiter, a single-master slave -- because an AW
         accepted elsewhere while an earlier one still waits in a slot can
         close the same ordering cycle."""
-        return f" && !{self._aw_hold(m, suffix, slave)}" if self._aw_other_slots(m, slave) else ""
+        terms = [f"{m.name}_{suffix}_wdest_full"]
+        terms[:0] = [f"(|{self._wlive(om, osfx, ls)})" for om, osfx, ls in self._lane_live(m, slave)]
+        if self._aw_other_slots(m, slave):
+            terms.insert(0, self._aw_hold(m, suffix, slave))
+        return " && !" + (terms[0] if len(terms) == 1 else "(" + " || ".join(terms) + ")")
+
+    def _lane_live(self, m: MasterConfig, slave: SlaveInfo):
+        """(master, path, lane slave) for every lane slave other than `slave`
+        that one of m's write paths reaches: its live-W counter holds m's AWs
+        toward `slave` (bridge BUG-024)."""
+        return [(om, osfx, ls) for om, osfx, sls in self._wr_paths() if om is m
+                for ls in sls if self._is_lane(ls) and ls is not slave]
 
     def _generate_request_slots(self, slave: SlaveInfo, suffix: str, ch: str,
                                 masters: List[MasterConfig]) -> List[str]:
@@ -790,7 +842,11 @@ class CrossbarGenerator:
     # queued in the one crossing behind the pick and a master's share
     # followed its outstanding count.) W needs no owner here: each lane
     # carries only its master's W, in that master's AW order (its W
-    # destination FIFO), and the slave side follows its own AW pick.
+    # destination FIFO), and the slave side follows its own AW pick. That
+    # pick need not follow the masters' issue order, though, so a master
+    # with a lane burst whose W is not yet in the lane holds its AWs to
+    # every other slave (_lane_live; bridge BUG-024, a crossed-W deadlock
+    # between a lane slave and a slot slave).
 
     def _is_lane(self, slave: SlaveInfo) -> bool:
         return cdc_lanes.is_lane_slave(slave, self.slaves.index(slave), self.masters)

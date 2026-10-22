@@ -11,8 +11,7 @@ before anything is programmed.
     python3 bin/run_stress.py                          # every profile, 3 seeds
     python3 bin/run_stress.py --profiles chaos --seeds 20 --txns 20000
     python3 bin/run_stress.py --soak 600               # chaos, new seed per run, 10 min
-    python3 bin/run_stress.py --profiles bursts --full-axi   # drive converted paths with
-                                                             # FIXED/WRAP/narrow anyway
+    python3 bin/run_stress.py --profiles bursts        # every path carries FIXED/WRAP/narrow
 
 Output: reports/board/<build>_<YYYYMMDD_HHMMSS>.csv and .json (one row per
 run). Exit code 1 if any run fails.
@@ -54,7 +53,7 @@ def main() -> int:
     ap.add_argument('--soak', type=float, default=0.0,
                     help='seconds: repeat chaos with a fresh seed until the time is up')
     ap.add_argument('--full-axi', action='store_true',
-                    help='ignore path limits (reproduces the converter findings)')
+                    help='no-op since bridge BUG-018/019: every path already carries full AXI4')
     ap.add_argument('--timeout', type=float, default=120.0, help='seconds per run')
     ap.add_argument('--exclude', nargs='+', default=[],
                     help='slaves to leave out of the plan (e.g. mig): no window targets them')

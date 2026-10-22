@@ -1321,6 +1321,7 @@ module bridge_bs_cfg_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic host_32b_wdest_full;
     logic host_32b_w_to_ctl;
     logic host_32b_w_sel_ctl;
     logic host_32b_w_to_mst0;
@@ -1511,7 +1512,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ctl = (host_32b_aw.addr <= 32'h00000fff);
-    wire host_32b_aw_gnt_ctl = host_32b_aw_to_ctl;
+    wire host_32b_aw_gnt_ctl = host_32b_aw_to_ctl && !host_32b_wdest_full;
     assign ctl_axi_awid     = host_32b_aw_to_ctl ? host_32b_aw.id : '0;
     assign ctl_axi_awaddr   = host_32b_aw_to_ctl ? host_32b_aw.addr : '0;
     assign ctl_axi_awlen    = host_32b_aw_to_ctl ? host_32b_aw.len : '0;
@@ -1523,7 +1524,7 @@ module bridge_bs_cfg_xbar
     assign ctl_axi_awqos    = host_32b_aw_to_ctl ? host_32b_aw.qos : '0;
     assign ctl_axi_awregion = host_32b_aw_to_ctl ? host_32b_aw.region : '0;
     assign ctl_axi_awuser   = host_32b_aw_to_ctl ? host_32b_aw.user : '0;
-    assign ctl_axi_awvalid  = host_32b_aw_to_ctl && host_32b_awvalid;
+    assign ctl_axi_awvalid  = host_32b_aw_gnt_ctl && host_32b_awvalid;
 
     assign host_32b_w_sel_ctl = host_32b_w_to_ctl;
 
@@ -1574,7 +1575,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst0 = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
-    wire host_32b_aw_gnt_mst0 = host_32b_aw_to_mst0;
+    wire host_32b_aw_gnt_mst0 = host_32b_aw_to_mst0 && !host_32b_wdest_full;
     assign mst0_axi_awid     = host_32b_aw_to_mst0 ? host_32b_aw.id : '0;
     assign mst0_axi_awaddr   = host_32b_aw_to_mst0 ? host_32b_aw.addr : '0;
     assign mst0_axi_awlen    = host_32b_aw_to_mst0 ? host_32b_aw.len : '0;
@@ -1586,7 +1587,7 @@ module bridge_bs_cfg_xbar
     assign mst0_axi_awqos    = host_32b_aw_to_mst0 ? host_32b_aw.qos : '0;
     assign mst0_axi_awregion = host_32b_aw_to_mst0 ? host_32b_aw.region : '0;
     assign mst0_axi_awuser   = host_32b_aw_to_mst0 ? host_32b_aw.user : '0;
-    assign mst0_axi_awvalid  = host_32b_aw_to_mst0 && host_32b_awvalid;
+    assign mst0_axi_awvalid  = host_32b_aw_gnt_mst0 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst0 = host_32b_w_to_mst0;
 
@@ -1637,7 +1638,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst1 = ((host_32b_aw.addr >= 32'h00011000) && (host_32b_aw.addr <= 32'h00011fff));
-    wire host_32b_aw_gnt_mst1 = host_32b_aw_to_mst1;
+    wire host_32b_aw_gnt_mst1 = host_32b_aw_to_mst1 && !host_32b_wdest_full;
     assign mst1_axi_awid     = host_32b_aw_to_mst1 ? host_32b_aw.id : '0;
     assign mst1_axi_awaddr   = host_32b_aw_to_mst1 ? host_32b_aw.addr : '0;
     assign mst1_axi_awlen    = host_32b_aw_to_mst1 ? host_32b_aw.len : '0;
@@ -1649,7 +1650,7 @@ module bridge_bs_cfg_xbar
     assign mst1_axi_awqos    = host_32b_aw_to_mst1 ? host_32b_aw.qos : '0;
     assign mst1_axi_awregion = host_32b_aw_to_mst1 ? host_32b_aw.region : '0;
     assign mst1_axi_awuser   = host_32b_aw_to_mst1 ? host_32b_aw.user : '0;
-    assign mst1_axi_awvalid  = host_32b_aw_to_mst1 && host_32b_awvalid;
+    assign mst1_axi_awvalid  = host_32b_aw_gnt_mst1 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst1 = host_32b_w_to_mst1;
 
@@ -1700,7 +1701,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst2 = ((host_32b_aw.addr >= 32'h00012000) && (host_32b_aw.addr <= 32'h00012fff));
-    wire host_32b_aw_gnt_mst2 = host_32b_aw_to_mst2;
+    wire host_32b_aw_gnt_mst2 = host_32b_aw_to_mst2 && !host_32b_wdest_full;
     assign mst2_axi_awid     = host_32b_aw_to_mst2 ? host_32b_aw.id : '0;
     assign mst2_axi_awaddr   = host_32b_aw_to_mst2 ? host_32b_aw.addr : '0;
     assign mst2_axi_awlen    = host_32b_aw_to_mst2 ? host_32b_aw.len : '0;
@@ -1712,7 +1713,7 @@ module bridge_bs_cfg_xbar
     assign mst2_axi_awqos    = host_32b_aw_to_mst2 ? host_32b_aw.qos : '0;
     assign mst2_axi_awregion = host_32b_aw_to_mst2 ? host_32b_aw.region : '0;
     assign mst2_axi_awuser   = host_32b_aw_to_mst2 ? host_32b_aw.user : '0;
-    assign mst2_axi_awvalid  = host_32b_aw_to_mst2 && host_32b_awvalid;
+    assign mst2_axi_awvalid  = host_32b_aw_gnt_mst2 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst2 = host_32b_w_to_mst2;
 
@@ -1763,7 +1764,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst3 = ((host_32b_aw.addr >= 32'h00013000) && (host_32b_aw.addr <= 32'h00013fff));
-    wire host_32b_aw_gnt_mst3 = host_32b_aw_to_mst3;
+    wire host_32b_aw_gnt_mst3 = host_32b_aw_to_mst3 && !host_32b_wdest_full;
     assign mst3_axi_awid     = host_32b_aw_to_mst3 ? host_32b_aw.id : '0;
     assign mst3_axi_awaddr   = host_32b_aw_to_mst3 ? host_32b_aw.addr : '0;
     assign mst3_axi_awlen    = host_32b_aw_to_mst3 ? host_32b_aw.len : '0;
@@ -1775,7 +1776,7 @@ module bridge_bs_cfg_xbar
     assign mst3_axi_awqos    = host_32b_aw_to_mst3 ? host_32b_aw.qos : '0;
     assign mst3_axi_awregion = host_32b_aw_to_mst3 ? host_32b_aw.region : '0;
     assign mst3_axi_awuser   = host_32b_aw_to_mst3 ? host_32b_aw.user : '0;
-    assign mst3_axi_awvalid  = host_32b_aw_to_mst3 && host_32b_awvalid;
+    assign mst3_axi_awvalid  = host_32b_aw_gnt_mst3 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst3 = host_32b_w_to_mst3;
 
@@ -1826,7 +1827,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst4 = ((host_32b_aw.addr >= 32'h00014000) && (host_32b_aw.addr <= 32'h00014fff));
-    wire host_32b_aw_gnt_mst4 = host_32b_aw_to_mst4;
+    wire host_32b_aw_gnt_mst4 = host_32b_aw_to_mst4 && !host_32b_wdest_full;
     assign mst4_axi_awid     = host_32b_aw_to_mst4 ? host_32b_aw.id : '0;
     assign mst4_axi_awaddr   = host_32b_aw_to_mst4 ? host_32b_aw.addr : '0;
     assign mst4_axi_awlen    = host_32b_aw_to_mst4 ? host_32b_aw.len : '0;
@@ -1838,7 +1839,7 @@ module bridge_bs_cfg_xbar
     assign mst4_axi_awqos    = host_32b_aw_to_mst4 ? host_32b_aw.qos : '0;
     assign mst4_axi_awregion = host_32b_aw_to_mst4 ? host_32b_aw.region : '0;
     assign mst4_axi_awuser   = host_32b_aw_to_mst4 ? host_32b_aw.user : '0;
-    assign mst4_axi_awvalid  = host_32b_aw_to_mst4 && host_32b_awvalid;
+    assign mst4_axi_awvalid  = host_32b_aw_gnt_mst4 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst4 = host_32b_w_to_mst4;
 
@@ -1889,7 +1890,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst5 = ((host_32b_aw.addr >= 32'h00015000) && (host_32b_aw.addr <= 32'h00015fff));
-    wire host_32b_aw_gnt_mst5 = host_32b_aw_to_mst5;
+    wire host_32b_aw_gnt_mst5 = host_32b_aw_to_mst5 && !host_32b_wdest_full;
     assign mst5_axi_awid     = host_32b_aw_to_mst5 ? host_32b_aw.id : '0;
     assign mst5_axi_awaddr   = host_32b_aw_to_mst5 ? host_32b_aw.addr : '0;
     assign mst5_axi_awlen    = host_32b_aw_to_mst5 ? host_32b_aw.len : '0;
@@ -1901,7 +1902,7 @@ module bridge_bs_cfg_xbar
     assign mst5_axi_awqos    = host_32b_aw_to_mst5 ? host_32b_aw.qos : '0;
     assign mst5_axi_awregion = host_32b_aw_to_mst5 ? host_32b_aw.region : '0;
     assign mst5_axi_awuser   = host_32b_aw_to_mst5 ? host_32b_aw.user : '0;
-    assign mst5_axi_awvalid  = host_32b_aw_to_mst5 && host_32b_awvalid;
+    assign mst5_axi_awvalid  = host_32b_aw_gnt_mst5 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst5 = host_32b_w_to_mst5;
 
@@ -1952,7 +1953,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst6 = ((host_32b_aw.addr >= 32'h00016000) && (host_32b_aw.addr <= 32'h00016fff));
-    wire host_32b_aw_gnt_mst6 = host_32b_aw_to_mst6;
+    wire host_32b_aw_gnt_mst6 = host_32b_aw_to_mst6 && !host_32b_wdest_full;
     assign mst6_axi_awid     = host_32b_aw_to_mst6 ? host_32b_aw.id : '0;
     assign mst6_axi_awaddr   = host_32b_aw_to_mst6 ? host_32b_aw.addr : '0;
     assign mst6_axi_awlen    = host_32b_aw_to_mst6 ? host_32b_aw.len : '0;
@@ -1964,7 +1965,7 @@ module bridge_bs_cfg_xbar
     assign mst6_axi_awqos    = host_32b_aw_to_mst6 ? host_32b_aw.qos : '0;
     assign mst6_axi_awregion = host_32b_aw_to_mst6 ? host_32b_aw.region : '0;
     assign mst6_axi_awuser   = host_32b_aw_to_mst6 ? host_32b_aw.user : '0;
-    assign mst6_axi_awvalid  = host_32b_aw_to_mst6 && host_32b_awvalid;
+    assign mst6_axi_awvalid  = host_32b_aw_gnt_mst6 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst6 = host_32b_w_to_mst6;
 
@@ -2015,7 +2016,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_mst7 = ((host_32b_aw.addr >= 32'h00017000) && (host_32b_aw.addr <= 32'h00017fff));
-    wire host_32b_aw_gnt_mst7 = host_32b_aw_to_mst7;
+    wire host_32b_aw_gnt_mst7 = host_32b_aw_to_mst7 && !host_32b_wdest_full;
     assign mst7_axi_awid     = host_32b_aw_to_mst7 ? host_32b_aw.id : '0;
     assign mst7_axi_awaddr   = host_32b_aw_to_mst7 ? host_32b_aw.addr : '0;
     assign mst7_axi_awlen    = host_32b_aw_to_mst7 ? host_32b_aw.len : '0;
@@ -2027,7 +2028,7 @@ module bridge_bs_cfg_xbar
     assign mst7_axi_awqos    = host_32b_aw_to_mst7 ? host_32b_aw.qos : '0;
     assign mst7_axi_awregion = host_32b_aw_to_mst7 ? host_32b_aw.region : '0;
     assign mst7_axi_awuser   = host_32b_aw_to_mst7 ? host_32b_aw.user : '0;
-    assign mst7_axi_awvalid  = host_32b_aw_to_mst7 && host_32b_awvalid;
+    assign mst7_axi_awvalid  = host_32b_aw_gnt_mst7 && host_32b_awvalid;
 
     assign host_32b_w_sel_mst7 = host_32b_w_to_mst7;
 
@@ -2078,7 +2079,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv0 = ((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff));
-    wire host_32b_aw_gnt_slv0 = host_32b_aw_to_slv0;
+    wire host_32b_aw_gnt_slv0 = host_32b_aw_to_slv0 && !host_32b_wdest_full;
     assign slv0_axi_awid     = host_32b_aw_to_slv0 ? host_32b_aw.id : '0;
     assign slv0_axi_awaddr   = host_32b_aw_to_slv0 ? host_32b_aw.addr : '0;
     assign slv0_axi_awlen    = host_32b_aw_to_slv0 ? host_32b_aw.len : '0;
@@ -2090,7 +2091,7 @@ module bridge_bs_cfg_xbar
     assign slv0_axi_awqos    = host_32b_aw_to_slv0 ? host_32b_aw.qos : '0;
     assign slv0_axi_awregion = host_32b_aw_to_slv0 ? host_32b_aw.region : '0;
     assign slv0_axi_awuser   = host_32b_aw_to_slv0 ? host_32b_aw.user : '0;
-    assign slv0_axi_awvalid  = host_32b_aw_to_slv0 && host_32b_awvalid;
+    assign slv0_axi_awvalid  = host_32b_aw_gnt_slv0 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv0 = host_32b_w_to_slv0;
 
@@ -2141,7 +2142,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv1 = ((host_32b_aw.addr >= 32'h00021000) && (host_32b_aw.addr <= 32'h00021fff));
-    wire host_32b_aw_gnt_slv1 = host_32b_aw_to_slv1;
+    wire host_32b_aw_gnt_slv1 = host_32b_aw_to_slv1 && !host_32b_wdest_full;
     assign slv1_axi_awid     = host_32b_aw_to_slv1 ? host_32b_aw.id : '0;
     assign slv1_axi_awaddr   = host_32b_aw_to_slv1 ? host_32b_aw.addr : '0;
     assign slv1_axi_awlen    = host_32b_aw_to_slv1 ? host_32b_aw.len : '0;
@@ -2153,7 +2154,7 @@ module bridge_bs_cfg_xbar
     assign slv1_axi_awqos    = host_32b_aw_to_slv1 ? host_32b_aw.qos : '0;
     assign slv1_axi_awregion = host_32b_aw_to_slv1 ? host_32b_aw.region : '0;
     assign slv1_axi_awuser   = host_32b_aw_to_slv1 ? host_32b_aw.user : '0;
-    assign slv1_axi_awvalid  = host_32b_aw_to_slv1 && host_32b_awvalid;
+    assign slv1_axi_awvalid  = host_32b_aw_gnt_slv1 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv1 = host_32b_w_to_slv1;
 
@@ -2204,7 +2205,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv2 = ((host_32b_aw.addr >= 32'h00022000) && (host_32b_aw.addr <= 32'h00022fff));
-    wire host_32b_aw_gnt_slv2 = host_32b_aw_to_slv2;
+    wire host_32b_aw_gnt_slv2 = host_32b_aw_to_slv2 && !host_32b_wdest_full;
     assign slv2_axi_awid     = host_32b_aw_to_slv2 ? host_32b_aw.id : '0;
     assign slv2_axi_awaddr   = host_32b_aw_to_slv2 ? host_32b_aw.addr : '0;
     assign slv2_axi_awlen    = host_32b_aw_to_slv2 ? host_32b_aw.len : '0;
@@ -2216,7 +2217,7 @@ module bridge_bs_cfg_xbar
     assign slv2_axi_awqos    = host_32b_aw_to_slv2 ? host_32b_aw.qos : '0;
     assign slv2_axi_awregion = host_32b_aw_to_slv2 ? host_32b_aw.region : '0;
     assign slv2_axi_awuser   = host_32b_aw_to_slv2 ? host_32b_aw.user : '0;
-    assign slv2_axi_awvalid  = host_32b_aw_to_slv2 && host_32b_awvalid;
+    assign slv2_axi_awvalid  = host_32b_aw_gnt_slv2 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv2 = host_32b_w_to_slv2;
 
@@ -2267,7 +2268,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv3 = ((host_32b_aw.addr >= 32'h00023000) && (host_32b_aw.addr <= 32'h00023fff));
-    wire host_32b_aw_gnt_slv3 = host_32b_aw_to_slv3;
+    wire host_32b_aw_gnt_slv3 = host_32b_aw_to_slv3 && !host_32b_wdest_full;
     assign slv3_axi_awid     = host_32b_aw_to_slv3 ? host_32b_aw.id : '0;
     assign slv3_axi_awaddr   = host_32b_aw_to_slv3 ? host_32b_aw.addr : '0;
     assign slv3_axi_awlen    = host_32b_aw_to_slv3 ? host_32b_aw.len : '0;
@@ -2279,7 +2280,7 @@ module bridge_bs_cfg_xbar
     assign slv3_axi_awqos    = host_32b_aw_to_slv3 ? host_32b_aw.qos : '0;
     assign slv3_axi_awregion = host_32b_aw_to_slv3 ? host_32b_aw.region : '0;
     assign slv3_axi_awuser   = host_32b_aw_to_slv3 ? host_32b_aw.user : '0;
-    assign slv3_axi_awvalid  = host_32b_aw_to_slv3 && host_32b_awvalid;
+    assign slv3_axi_awvalid  = host_32b_aw_gnt_slv3 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv3 = host_32b_w_to_slv3;
 
@@ -2330,7 +2331,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv4 = ((host_32b_aw.addr >= 32'h00024000) && (host_32b_aw.addr <= 32'h00024fff));
-    wire host_32b_aw_gnt_slv4 = host_32b_aw_to_slv4;
+    wire host_32b_aw_gnt_slv4 = host_32b_aw_to_slv4 && !host_32b_wdest_full;
     assign slv4_axi_awid     = host_32b_aw_to_slv4 ? host_32b_aw.id : '0;
     assign slv4_axi_awaddr   = host_32b_aw_to_slv4 ? host_32b_aw.addr : '0;
     assign slv4_axi_awlen    = host_32b_aw_to_slv4 ? host_32b_aw.len : '0;
@@ -2342,7 +2343,7 @@ module bridge_bs_cfg_xbar
     assign slv4_axi_awqos    = host_32b_aw_to_slv4 ? host_32b_aw.qos : '0;
     assign slv4_axi_awregion = host_32b_aw_to_slv4 ? host_32b_aw.region : '0;
     assign slv4_axi_awuser   = host_32b_aw_to_slv4 ? host_32b_aw.user : '0;
-    assign slv4_axi_awvalid  = host_32b_aw_to_slv4 && host_32b_awvalid;
+    assign slv4_axi_awvalid  = host_32b_aw_gnt_slv4 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv4 = host_32b_w_to_slv4;
 
@@ -2393,7 +2394,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv5 = ((host_32b_aw.addr >= 32'h00025000) && (host_32b_aw.addr <= 32'h00025fff));
-    wire host_32b_aw_gnt_slv5 = host_32b_aw_to_slv5;
+    wire host_32b_aw_gnt_slv5 = host_32b_aw_to_slv5 && !host_32b_wdest_full;
     assign slv5_axi_awid     = host_32b_aw_to_slv5 ? host_32b_aw.id : '0;
     assign slv5_axi_awaddr   = host_32b_aw_to_slv5 ? host_32b_aw.addr : '0;
     assign slv5_axi_awlen    = host_32b_aw_to_slv5 ? host_32b_aw.len : '0;
@@ -2405,7 +2406,7 @@ module bridge_bs_cfg_xbar
     assign slv5_axi_awqos    = host_32b_aw_to_slv5 ? host_32b_aw.qos : '0;
     assign slv5_axi_awregion = host_32b_aw_to_slv5 ? host_32b_aw.region : '0;
     assign slv5_axi_awuser   = host_32b_aw_to_slv5 ? host_32b_aw.user : '0;
-    assign slv5_axi_awvalid  = host_32b_aw_to_slv5 && host_32b_awvalid;
+    assign slv5_axi_awvalid  = host_32b_aw_gnt_slv5 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv5 = host_32b_w_to_slv5;
 
@@ -2456,7 +2457,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv6 = ((host_32b_aw.addr >= 32'h00026000) && (host_32b_aw.addr <= 32'h00026fff));
-    wire host_32b_aw_gnt_slv6 = host_32b_aw_to_slv6;
+    wire host_32b_aw_gnt_slv6 = host_32b_aw_to_slv6 && !host_32b_wdest_full;
     assign slv6_axi_awid     = host_32b_aw_to_slv6 ? host_32b_aw.id : '0;
     assign slv6_axi_awaddr   = host_32b_aw_to_slv6 ? host_32b_aw.addr : '0;
     assign slv6_axi_awlen    = host_32b_aw_to_slv6 ? host_32b_aw.len : '0;
@@ -2468,7 +2469,7 @@ module bridge_bs_cfg_xbar
     assign slv6_axi_awqos    = host_32b_aw_to_slv6 ? host_32b_aw.qos : '0;
     assign slv6_axi_awregion = host_32b_aw_to_slv6 ? host_32b_aw.region : '0;
     assign slv6_axi_awuser   = host_32b_aw_to_slv6 ? host_32b_aw.user : '0;
-    assign slv6_axi_awvalid  = host_32b_aw_to_slv6 && host_32b_awvalid;
+    assign slv6_axi_awvalid  = host_32b_aw_gnt_slv6 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv6 = host_32b_w_to_slv6;
 
@@ -2519,7 +2520,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slv7 = ((host_32b_aw.addr >= 32'h00027000) && (host_32b_aw.addr <= 32'h00027fff));
-    wire host_32b_aw_gnt_slv7 = host_32b_aw_to_slv7;
+    wire host_32b_aw_gnt_slv7 = host_32b_aw_to_slv7 && !host_32b_wdest_full;
     assign slv7_axi_awid     = host_32b_aw_to_slv7 ? host_32b_aw.id : '0;
     assign slv7_axi_awaddr   = host_32b_aw_to_slv7 ? host_32b_aw.addr : '0;
     assign slv7_axi_awlen    = host_32b_aw_to_slv7 ? host_32b_aw.len : '0;
@@ -2531,7 +2532,7 @@ module bridge_bs_cfg_xbar
     assign slv7_axi_awqos    = host_32b_aw_to_slv7 ? host_32b_aw.qos : '0;
     assign slv7_axi_awregion = host_32b_aw_to_slv7 ? host_32b_aw.region : '0;
     assign slv7_axi_awuser   = host_32b_aw_to_slv7 ? host_32b_aw.user : '0;
-    assign slv7_axi_awvalid  = host_32b_aw_to_slv7 && host_32b_awvalid;
+    assign slv7_axi_awvalid  = host_32b_aw_gnt_slv7 && host_32b_awvalid;
 
     assign host_32b_w_sel_slv7 = host_32b_w_to_slv7;
 
@@ -2582,7 +2583,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ext0 = ((host_32b_aw.addr >= 32'h00100000) && (host_32b_aw.addr <= 32'h0010ffff));
-    wire host_32b_aw_gnt_ext0 = host_32b_aw_to_ext0;
+    wire host_32b_aw_gnt_ext0 = host_32b_aw_to_ext0 && !host_32b_wdest_full;
     assign ext0_axi_awid     = host_32b_aw_to_ext0 ? host_32b_aw.id : '0;
     assign ext0_axi_awaddr   = host_32b_aw_to_ext0 ? host_32b_aw.addr : '0;
     assign ext0_axi_awlen    = host_32b_aw_to_ext0 ? host_32b_aw.len : '0;
@@ -2594,7 +2595,7 @@ module bridge_bs_cfg_xbar
     assign ext0_axi_awqos    = host_32b_aw_to_ext0 ? host_32b_aw.qos : '0;
     assign ext0_axi_awregion = host_32b_aw_to_ext0 ? host_32b_aw.region : '0;
     assign ext0_axi_awuser   = host_32b_aw_to_ext0 ? host_32b_aw.user : '0;
-    assign ext0_axi_awvalid  = host_32b_aw_to_ext0 && host_32b_awvalid;
+    assign ext0_axi_awvalid  = host_32b_aw_gnt_ext0 && host_32b_awvalid;
 
     assign host_32b_w_sel_ext0 = host_32b_w_to_ext0;
 
@@ -2645,7 +2646,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ext1 = ((host_32b_aw.addr >= 32'h00110000) && (host_32b_aw.addr <= 32'h0011ffff));
-    wire host_32b_aw_gnt_ext1 = host_32b_aw_to_ext1;
+    wire host_32b_aw_gnt_ext1 = host_32b_aw_to_ext1 && !host_32b_wdest_full;
     assign ext1_axi_awid     = host_32b_aw_to_ext1 ? host_32b_aw.id : '0;
     assign ext1_axi_awaddr   = host_32b_aw_to_ext1 ? host_32b_aw.addr : '0;
     assign ext1_axi_awlen    = host_32b_aw_to_ext1 ? host_32b_aw.len : '0;
@@ -2657,7 +2658,7 @@ module bridge_bs_cfg_xbar
     assign ext1_axi_awqos    = host_32b_aw_to_ext1 ? host_32b_aw.qos : '0;
     assign ext1_axi_awregion = host_32b_aw_to_ext1 ? host_32b_aw.region : '0;
     assign ext1_axi_awuser   = host_32b_aw_to_ext1 ? host_32b_aw.user : '0;
-    assign ext1_axi_awvalid  = host_32b_aw_to_ext1 && host_32b_awvalid;
+    assign ext1_axi_awvalid  = host_32b_aw_gnt_ext1 && host_32b_awvalid;
 
     assign host_32b_w_sel_ext1 = host_32b_w_to_ext1;
 
@@ -2708,7 +2709,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ext2 = ((host_32b_aw.addr >= 32'h00120000) && (host_32b_aw.addr <= 32'h0012ffff));
-    wire host_32b_aw_gnt_ext2 = host_32b_aw_to_ext2;
+    wire host_32b_aw_gnt_ext2 = host_32b_aw_to_ext2 && !host_32b_wdest_full;
     assign ext2_axi_awid     = host_32b_aw_to_ext2 ? host_32b_aw.id : '0;
     assign ext2_axi_awaddr   = host_32b_aw_to_ext2 ? host_32b_aw.addr : '0;
     assign ext2_axi_awlen    = host_32b_aw_to_ext2 ? host_32b_aw.len : '0;
@@ -2720,7 +2721,7 @@ module bridge_bs_cfg_xbar
     assign ext2_axi_awqos    = host_32b_aw_to_ext2 ? host_32b_aw.qos : '0;
     assign ext2_axi_awregion = host_32b_aw_to_ext2 ? host_32b_aw.region : '0;
     assign ext2_axi_awuser   = host_32b_aw_to_ext2 ? host_32b_aw.user : '0;
-    assign ext2_axi_awvalid  = host_32b_aw_to_ext2 && host_32b_awvalid;
+    assign ext2_axi_awvalid  = host_32b_aw_gnt_ext2 && host_32b_awvalid;
 
     assign host_32b_w_sel_ext2 = host_32b_w_to_ext2;
 
@@ -2771,7 +2772,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_ext3 = ((host_32b_aw.addr >= 32'h00130000) && (host_32b_aw.addr <= 32'h0013ffff));
-    wire host_32b_aw_gnt_ext3 = host_32b_aw_to_ext3;
+    wire host_32b_aw_gnt_ext3 = host_32b_aw_to_ext3 && !host_32b_wdest_full;
     assign ext3_axi_awid     = host_32b_aw_to_ext3 ? host_32b_aw.id : '0;
     assign ext3_axi_awaddr   = host_32b_aw_to_ext3 ? host_32b_aw.addr : '0;
     assign ext3_axi_awlen    = host_32b_aw_to_ext3 ? host_32b_aw.len : '0;
@@ -2783,7 +2784,7 @@ module bridge_bs_cfg_xbar
     assign ext3_axi_awqos    = host_32b_aw_to_ext3 ? host_32b_aw.qos : '0;
     assign ext3_axi_awregion = host_32b_aw_to_ext3 ? host_32b_aw.region : '0;
     assign ext3_axi_awuser   = host_32b_aw_to_ext3 ? host_32b_aw.user : '0;
-    assign ext3_axi_awvalid  = host_32b_aw_to_ext3 && host_32b_awvalid;
+    assign ext3_axi_awvalid  = host_32b_aw_gnt_ext3 && host_32b_awvalid;
 
     assign host_32b_w_sel_ext3 = host_32b_w_to_ext3;
 
@@ -2834,7 +2835,7 @@ module bridge_bs_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_subtractive = !(((host_32b_aw.addr <= 32'h00000fff)) || (((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff))) || (((host_32b_aw.addr >= 32'h00011000) && (host_32b_aw.addr <= 32'h00011fff))) || (((host_32b_aw.addr >= 32'h00012000) && (host_32b_aw.addr <= 32'h00012fff))) || (((host_32b_aw.addr >= 32'h00013000) && (host_32b_aw.addr <= 32'h00013fff))) || (((host_32b_aw.addr >= 32'h00014000) && (host_32b_aw.addr <= 32'h00014fff))) || (((host_32b_aw.addr >= 32'h00015000) && (host_32b_aw.addr <= 32'h00015fff))) || (((host_32b_aw.addr >= 32'h00016000) && (host_32b_aw.addr <= 32'h00016fff))) || (((host_32b_aw.addr >= 32'h00017000) && (host_32b_aw.addr <= 32'h00017fff))) || (((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff))) || (((host_32b_aw.addr >= 32'h00021000) && (host_32b_aw.addr <= 32'h00021fff))) || (((host_32b_aw.addr >= 32'h00022000) && (host_32b_aw.addr <= 32'h00022fff))) || (((host_32b_aw.addr >= 32'h00023000) && (host_32b_aw.addr <= 32'h00023fff))) || (((host_32b_aw.addr >= 32'h00024000) && (host_32b_aw.addr <= 32'h00024fff))) || (((host_32b_aw.addr >= 32'h00025000) && (host_32b_aw.addr <= 32'h00025fff))) || (((host_32b_aw.addr >= 32'h00026000) && (host_32b_aw.addr <= 32'h00026fff))) || (((host_32b_aw.addr >= 32'h00027000) && (host_32b_aw.addr <= 32'h00027fff))) || (((host_32b_aw.addr >= 32'h00100000) && (host_32b_aw.addr <= 32'h0010ffff))) || (((host_32b_aw.addr >= 32'h00110000) && (host_32b_aw.addr <= 32'h0011ffff))) || (((host_32b_aw.addr >= 32'h00120000) && (host_32b_aw.addr <= 32'h0012ffff))) || (((host_32b_aw.addr >= 32'h00130000) && (host_32b_aw.addr <= 32'h0013ffff))));
-    wire host_32b_aw_gnt_subtractive = host_32b_aw_to_subtractive;
+    wire host_32b_aw_gnt_subtractive = host_32b_aw_to_subtractive && !host_32b_wdest_full;
     assign subtractive_axi_awid     = host_32b_aw_to_subtractive ? host_32b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_32b_aw_to_subtractive ? host_32b_aw.addr : '0;
     assign subtractive_axi_awlen    = host_32b_aw_to_subtractive ? host_32b_aw.len : '0;
@@ -2846,7 +2847,7 @@ module bridge_bs_cfg_xbar
     assign subtractive_axi_awqos    = host_32b_aw_to_subtractive ? host_32b_aw.qos : '0;
     assign subtractive_axi_awregion = host_32b_aw_to_subtractive ? host_32b_aw.region : '0;
     assign subtractive_axi_awuser   = host_32b_aw_to_subtractive ? host_32b_aw.user : '0;
-    assign subtractive_axi_awvalid  = host_32b_aw_to_subtractive && host_32b_awvalid;
+    assign subtractive_axi_awvalid  = host_32b_aw_gnt_subtractive && host_32b_awvalid;
 
     assign host_32b_w_sel_subtractive = host_32b_w_to_subtractive;
 
@@ -2912,6 +2913,7 @@ module bridge_bs_cfg_xbar
         end
     )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
+    assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [4:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_ctl = host_32b_wdest_valid && (host_32b_wdest_head == 5'd0);
     assign host_32b_w_to_mst0 = host_32b_wdest_valid && (host_32b_wdest_head == 5'd1);

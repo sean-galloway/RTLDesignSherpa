@@ -14,7 +14,7 @@ module reset_sync (
 	output reg sync_rst_n;
 	generate
 		if (N < 2) begin : g_illegal
-			initial $display("Error [%0t] /tmp/rds-canonical-repo-root/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
+			initial $display("Error [%0t] /mnt/data/github/RTLDesignSherpa/rtl/cdc/reset_sync.sv:248:17 - reset_sync.g_illegal.<unnamed_block>\n msg: ", $time, "reset_sync: N must be >= 2 (got %0d)", N);
 		end
 	endgenerate
 	wire rst_in_h = (IN_ACTIVE_LOW ? ~rst_n : rst_n);
@@ -156,7 +156,7 @@ module gaxi_skid_buffer (
 	assign w_rd_xfer = rd_valid & rd_ready;
 	generate
 		if ((DEPTH != 0) && ((DEPTH < 2) || (DEPTH > 8))) begin : gen_depth_guard
-			initial $display("Error [elaboration] /tmp/rds-canonical-repo-root/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
+			initial $display("Error [elaboration] /mnt/data/github/RTLDesignSherpa/rtl/amba/gaxi/gaxi_skid_buffer.sv:107:13 - gaxi_skid_buffer.gen_depth_guard\n msg: ", "gaxi_skid_buffer: DEPTH=%0d unsupported -- must be 2..8 inclusive, or 0 (pass-through)", DEPTH);
 		end
 	endgenerate
 	function automatic [31:0] sv2v_cast_32;
@@ -277,11 +277,11 @@ module axi_data_upsize (
 	output wire wide_last;
 	initial begin
 		if (WIDE_WIDTH <= NARROW_WIDTH)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:87:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be > NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:89:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_upsize.sv:91:13 - axi_data_upsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [WIDE_WIDTH - 1:0] r_data_accumulator;
 	reg [WIDE_SB_PORT_WIDTH - 1:0] r_sideband_accumulator;
@@ -409,11 +409,11 @@ module axi_data_dnsize (
 	output wire narrow_last;
 	initial begin
 		if (NARROW_WIDTH >= WIDE_WIDTH)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:91:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "NARROW_WIDTH (%0d) must be < WIDE_WIDTH (%0d)", NARROW_WIDTH, WIDE_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:91:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "NARROW_WIDTH (%0d) must be < WIDE_WIDTH (%0d)", NARROW_WIDTH, WIDE_WIDTH);
 		if ((WIDE_WIDTH % NARROW_WIDTH) != 0)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:93:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:93:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDE_WIDTH (%0d) must be integer multiple of NARROW_WIDTH (%0d)", WIDE_WIDTH, NARROW_WIDTH);
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi_data_dnsize.sv:95:13 - axi_data_dnsize.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 	end
 	reg [PTR_WIDTH - 1:0] r_beat_ptr;
 	reg [BURST_LEN_WIDTH:0] r_slave_beat_count;
@@ -603,6 +603,7 @@ module axi4_dwidth_converter_rd (
 	localparam [0:0] UPSIZE = (S_AXI_DATA_WIDTH < M_AXI_DATA_WIDTH ? 1'b1 : 1'b0);
 	localparam [0:0] DOWNSIZE = (S_AXI_DATA_WIDTH > M_AXI_DATA_WIDTH ? 1'b1 : 1'b0);
 	localparam signed [31:0] NUM_IDS = 1 << AXI_ID_WIDTH;
+	localparam signed [31:0] LANE_W = $clog2(WIDTH_RATIO);
 	localparam signed [31:0] PSB_W = (R_INTERLEAVE ? 2 : (2 + AXI_ID_WIDTH) + AXI_USER_WIDTH);
 	localparam signed [31:0] AR_WIDTH = ((AXI_ID_WIDTH + AXI_ADDR_WIDTH) + 29) + AXI_USER_WIDTH;
 	localparam signed [31:0] R_WIDTH = (((S_AXI_DATA_WIDTH + 2) + AXI_USER_WIDTH) + 1) + AXI_ID_WIDTH;
@@ -662,13 +663,13 @@ module axi4_dwidth_converter_rd (
 	);
 	initial begin
 		if (S_AXI_DATA_WIDTH != (2 ** $clog2(S_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:181:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:182:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "S_AXI_DATA_WIDTH must be power of 2");
 		if (M_AXI_DATA_WIDTH != (2 ** $clog2(M_AXI_DATA_WIDTH)))
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:183:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:184:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "M_AXI_DATA_WIDTH must be power of 2");
 		if (WIDTH_RATIO < 2)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:185:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:186:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "WIDTH_RATIO must be >= 2");
 		if (!UPSIZE && !DOWNSIZE)
-			$display("Error [%0t] /tmp/rds-canonical-repo-root/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:187:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
+			$display("Error [%0t] /mnt/data/github/RTLDesignSherpa/projects/components/utility-ip/converters/rtl/axi4_dwidth_converter_rd.sv:188:13 - axi4_dwidth_converter_rd.<unnamed_block>.<unnamed_block>\n msg: ", $time, "Must be either UPSIZE or DOWNSIZE mode");
 	end
 	wire [AR_WIDTH - 1:0] int_ar_data;
 	wire int_ar_valid;
@@ -699,6 +700,16 @@ module axi4_dwidth_converter_rd (
 	reg [8:0] rasm_rec_beats [0:NUM_IDS - 1];
 	reg [7:0] rasm_rec_nlen [0:NUM_IDS - 1];
 	reg [$clog2(WIDTH_RATIO) - 1:0] rasm_rec_lane [0:NUM_IDS - 1];
+	localparam [1:0] CM_PACK = 2'd0;
+	localparam [1:0] CM_PASS = 2'd1;
+	localparam [1:0] CM_EXPAND = 2'd2;
+	reg [1:0] rasm_rec_mode [0:NUM_IDS - 1];
+	reg [LANE_W - 1:0] rasm_rec_rmask [0:NUM_IDS - 1];
+	reg [2:0] rasm_rec_size [0:NUM_IDS - 1];
+	reg [1:0] rasm_rec_burst [0:NUM_IDS - 1];
+	wire [AXI_ADDR_WIDTH - 1:0] w_rasm_push_addr;
+	wire [LANE_W - 1:0] w_rasm_push_lane;
+	wire w_rasm_push_plain;
 	wire w_blen_wr_ready;
 	wire w_blen_rd_valid;
 	wire [7:0] w_blen_rd_data;
@@ -751,6 +762,10 @@ module axi4_dwidth_converter_rd (
 		.rd_count()
 	);
 	assign int_r_data = {int_rid, int_rdata, int_rresp, int_rlast, int_ruser};
+	function automatic signed [2:0] sv2v_cast_3_signed;
+		input reg signed [2:0] inp;
+		sv2v_cast_3_signed = inp;
+	endfunction
 	function automatic [9:0] sv2v_cast_10;
 		input reg [9:0] inp;
 		sv2v_cast_10 = inp;
@@ -771,48 +786,94 @@ module axi4_dwidth_converter_rd (
 		input reg signed [8:0] inp;
 		sv2v_cast_9_signed = inp;
 	endfunction
-	function automatic signed [AXI_ADDR_WIDTH - 1:0] sv2v_cast_6D0DE_signed;
-		input reg signed [AXI_ADDR_WIDTH - 1:0] inp;
-		sv2v_cast_6D0DE_signed = inp;
+	function automatic [LANE_W - 1:0] sv2v_cast_3FA0D;
+		input reg [LANE_W - 1:0] inp;
+		sv2v_cast_3FA0D = inp;
 	endfunction
 	generate
 		if (DOWNSIZE) begin : gen_ar_downsize
 			localparam signed [31:0] MASTER_SIZE = $clog2(M_STRB_WIDTH);
 			localparam signed [31:0] MAX_BEATS = 256;
 			localparam signed [31:0] CNTW = 9 + $clog2(WIDTH_RATIO);
+			localparam signed [31:0] AW = AXI_ADDR_WIDTH;
 			reg [CNTW - 1:0] r_split_remaining;
-			reg [AXI_ADDR_WIDTH - 1:0] r_split_addr;
+			reg [AW - 1:0] r_split_addr;
+			reg [8:0] r_beats_left;
 			reg r_split_active;
-			wire [8:0] w_this_beats;
-			wire w_this_last;
+			wire [1:0] w_mode;
+			wire [2:0] w_rlog;
+			wire [AW - 1:0] w_bmask;
+			wire [AW - 1:0] w_wmask;
+			wire [AW - 1:0] w_next_beat;
+			wire [8:0] w_lane_in_beat;
+			wire [8:0] w_cap;
+			reg [8:0] w_this_beats;
+			reg w_this_last;
 			wire w_ar_issue;
 			wire w_id_free;
-			function automatic signed [CNTW - 1:0] sv2v_cast_1954F_signed;
-				input reg signed [CNTW - 1:0] inp;
-				sv2v_cast_1954F_signed = inp;
+			assign w_mode = (int_arsize <= sv2v_cast_3_signed(MASTER_SIZE) ? CM_PASS : (int_arburst == 2'b01 ? CM_PACK : CM_EXPAND));
+			assign w_rlog = int_arsize - sv2v_cast_3_signed(MASTER_SIZE);
+			function automatic signed [AW - 1:0] sv2v_cast_DE851_signed;
+				input reg signed [AW - 1:0] inp;
+				sv2v_cast_DE851_signed = inp;
 			endfunction
-			assign w_this_beats = (r_split_remaining > sv2v_cast_1954F_signed(MAX_BEATS) ? sv2v_cast_9_signed(MAX_BEATS) : sv2v_cast_9(r_split_remaining));
-			assign w_this_last = r_split_remaining <= sv2v_cast_1954F_signed(MAX_BEATS);
+			assign w_bmask = (sv2v_cast_DE851_signed(1) << int_arsize) - sv2v_cast_DE851_signed(1);
+			function automatic [AW - 1:0] sv2v_cast_DE851;
+				input reg [AW - 1:0] inp;
+				sv2v_cast_DE851 = inp;
+			endfunction
+			assign w_wmask = ((sv2v_cast_DE851(int_arlen) + sv2v_cast_DE851_signed(1)) << int_arsize) - sv2v_cast_DE851_signed(1);
+			assign w_lane_in_beat = sv2v_cast_9((r_split_addr & w_bmask) >> MASTER_SIZE);
+			assign w_cap = sv2v_cast_9_signed(MAX_BEATS) - w_lane_in_beat;
+			assign w_next_beat = (int_arburst == 2'b10 ? (r_split_addr & ~w_wmask) | ((((r_split_addr & ~w_bmask) + w_bmask) + sv2v_cast_DE851_signed(1)) & w_wmask) : r_split_addr);
+			always @(*) begin
+				if (_sv2v_0)
+					;
+				case (w_mode)
+					CM_PASS: begin
+						w_this_beats = sv2v_cast_9(int_arlen) + 9'd1;
+						w_this_last = 1'b1;
+					end
+					CM_EXPAND: begin
+						w_this_beats = (9'd1 << w_rlog) - w_lane_in_beat;
+						w_this_last = r_beats_left == 9'd1;
+					end
+					default: begin
+						begin : sv2v_autoblock_1
+							reg [CNTW - 1:0] sv2v_tmp_cast;
+							sv2v_tmp_cast = w_cap;
+							w_this_beats = (r_split_remaining > sv2v_tmp_cast ? w_cap : sv2v_cast_9(r_split_remaining));
+						end
+						begin : sv2v_autoblock_2
+							reg [CNTW - 1:0] sv2v_tmp_cast_1;
+							sv2v_tmp_cast_1 = w_cap;
+							w_this_last = r_split_remaining <= sv2v_tmp_cast_1;
+						end
+					end
+				endcase
+			end
 			assign w_ar_issue = m_axi_arvalid && m_axi_arready;
 			assign w_id_free = !rasm_rec_valid[int_arid];
 			always @(posedge aclk or negedge w_aresetn)
 				if (!w_aresetn) begin
 					r_split_remaining <= 1'sb0;
 					r_split_addr <= 1'sb0;
+					r_beats_left <= 1'sb0;
 					r_split_active <= 1'b0;
 				end
 				else if (!r_split_active) begin
 					if (int_ar_valid) begin
-						begin : sv2v_autoblock_1
+						begin : sv2v_autoblock_3
 							reg [CNTW - 1:0] sv2v_tmp_cast;
 							reg signed [CNTW - 1:0] sv2v_tmp_cast_1;
-							reg signed [CNTW - 1:0] sv2v_tmp_cast_2;
+							reg [CNTW - 1:0] sv2v_tmp_cast_2;
 							sv2v_tmp_cast = int_arlen;
 							sv2v_tmp_cast_1 = 1;
-							sv2v_tmp_cast_2 = WIDTH_RATIO;
-							r_split_remaining <= (sv2v_tmp_cast + sv2v_tmp_cast_1) * sv2v_tmp_cast_2;
+							sv2v_tmp_cast_2 = (int_araddr & w_bmask) >> MASTER_SIZE;
+							r_split_remaining <= ((sv2v_tmp_cast + sv2v_tmp_cast_1) << w_rlog) - sv2v_tmp_cast_2;
 						end
 						r_split_addr <= int_araddr;
+						r_beats_left <= sv2v_cast_9(int_arlen) + 9'd1;
 						r_split_active <= 1'b1;
 					end
 				end
@@ -822,20 +883,24 @@ module axi4_dwidth_converter_rd (
 						r_split_active <= 1'b0;
 					end
 					else begin
-						begin : sv2v_autoblock_2
-							reg signed [CNTW - 1:0] sv2v_tmp_cast;
-							sv2v_tmp_cast = MAX_BEATS;
+						begin : sv2v_autoblock_4
+							reg [CNTW - 1:0] sv2v_tmp_cast;
+							sv2v_tmp_cast = w_this_beats;
 							r_split_remaining <= r_split_remaining - sv2v_tmp_cast;
 						end
-						if (int_arburst != 2'b00)
-							r_split_addr <= r_split_addr + sv2v_cast_6D0DE_signed(MAX_BEATS * M_STRB_WIDTH);
+						r_beats_left <= r_beats_left - 9'd1;
+						begin : sv2v_autoblock_5
+							reg signed [AW - 1:0] sv2v_tmp_cast_1;
+							sv2v_tmp_cast_1 = MAX_BEATS * M_STRB_WIDTH;
+							r_split_addr <= (w_mode == CM_EXPAND ? w_next_beat : (r_split_addr & ~w_bmask) + sv2v_tmp_cast_1);
+						end
 					end
 				end
 			assign m_axi_arid = int_arid;
 			assign m_axi_araddr = r_split_addr;
 			assign m_axi_arlen = sv2v_cast_8(w_this_beats - 9'd1);
-			assign m_axi_arsize = MASTER_SIZE[2:0];
-			assign m_axi_arburst = int_arburst;
+			assign m_axi_arsize = (w_mode == CM_PASS ? int_arsize : MASTER_SIZE[2:0]);
+			assign m_axi_arburst = (w_mode == CM_PASS ? int_arburst : 2'b01);
 			assign m_axi_arlock = int_arlock;
 			assign m_axi_arcache = int_arcache;
 			assign m_axi_arprot = int_arprot;
@@ -846,18 +911,30 @@ module axi4_dwidth_converter_rd (
 			assign int_ar_ready = w_ar_issue && w_this_last;
 			assign w_rasm_push = w_ar_issue;
 			assign w_rasm_push_id = int_arid;
+			assign w_rasm_push_addr = r_split_addr;
+			assign w_rasm_push_lane = sv2v_cast_3FA0D(r_split_addr[$clog2(S_STRB_WIDTH) - 1:0] >> MASTER_SIZE);
+			assign w_rasm_push_plain = ((w_mode == CM_PACK) && (int_arsize == sv2v_cast_3_signed($clog2(S_STRB_WIDTH)))) && (w_rasm_push_lane == {LANE_W {1'sb0}});
 			always @(posedge aclk or negedge w_aresetn)
-				if (!w_aresetn) begin : sv2v_autoblock_3
+				if (!w_aresetn) begin : sv2v_autoblock_6
 					reg signed [31:0] i;
 					for (i = 0; i < NUM_IDS; i = i + 1)
 						begin
 							rasm_rec_final[i] <= 1'b0;
 							rasm_rec_beats[i] <= 1'sb0;
+							rasm_rec_mode[i] <= CM_PACK;
+							rasm_rec_rmask[i] <= 1'sb0;
+							rasm_rec_lane[i] <= 1'sb0;
+							rasm_rec_nlen[i] <= 1'sb0;
+							rasm_rec_size[i] <= 1'sb0;
+							rasm_rec_burst[i] <= 1'sb0;
 						end
 				end
 				else if (w_ar_issue) begin
 					rasm_rec_final[int_arid] <= w_this_last;
 					rasm_rec_beats[int_arid] <= w_this_beats;
+					rasm_rec_mode[int_arid] <= w_mode;
+					rasm_rec_rmask[int_arid] <= (w_mode == CM_PASS ? {LANE_W {1'sb0}} : sv2v_cast_3FA0D((9'd1 << w_rlog) - 9'd1));
+					rasm_rec_lane[int_arid] <= w_rasm_push_lane;
 				end
 		end
 		else begin : gen_ar_upsize
@@ -865,8 +942,10 @@ module axi4_dwidth_converter_rd (
 			localparam signed [31:0] ALIGN_BITS = $clog2(M_STRB_WIDTH);
 			localparam signed [31:0] R_LANE_W = $clog2(WIDTH_RATIO);
 			assign arsplit_final = 1'b1;
+			wire [1:0] w_mode;
 			wire [7:0] master_arlen;
 			wire [AXI_ADDR_WIDTH - 1:0] aligned_araddr;
+			assign w_mode = ((int_arburst == 2'b01) && (int_arsize == sv2v_cast_3_signed($clog2(S_STRB_WIDTH))) ? CM_PACK : CM_PASS);
 			wire [R_LANE_W - 1:0] w_ar_lane;
 			function automatic [R_LANE_W - 1:0] sv2v_cast_DBCFE;
 				input reg [R_LANE_W - 1:0] inp;
@@ -876,9 +955,9 @@ module axi4_dwidth_converter_rd (
 			assign master_arlen = sv2v_cast_8((((sv2v_cast_10(w_ar_lane) + sv2v_cast_10(int_arlen)) + sv2v_cast_10_signed(WIDTH_RATIO)) / sv2v_cast_10_signed(WIDTH_RATIO)) - 10'd1);
 			assign aligned_araddr = {int_araddr[AXI_ADDR_WIDTH - 1:ALIGN_BITS], {ALIGN_BITS {1'b0}}};
 			assign m_axi_arid = int_arid;
-			assign m_axi_araddr = aligned_araddr;
-			assign m_axi_arlen = master_arlen;
-			assign m_axi_arsize = MASTER_SIZE[2:0];
+			assign m_axi_araddr = (w_mode == CM_PASS ? int_araddr : aligned_araddr);
+			assign m_axi_arlen = (w_mode == CM_PASS ? int_arlen : master_arlen);
+			assign m_axi_arsize = (w_mode == CM_PASS ? int_arsize : MASTER_SIZE[2:0]);
 			assign m_axi_arburst = int_arburst;
 			assign m_axi_arlock = int_arlock;
 			assign m_axi_arcache = int_arcache;
@@ -890,22 +969,39 @@ module axi4_dwidth_converter_rd (
 			assign int_ar_ready = m_axi_arready && !rasm_rec_valid[int_arid];
 			assign w_rasm_push = int_ar_valid && int_ar_ready;
 			assign w_rasm_push_id = int_arid;
+			assign w_rasm_push_addr = int_araddr;
+			assign w_rasm_push_lane = 1'sb0;
+			assign w_rasm_push_plain = w_mode == CM_PACK;
 			always @(posedge aclk or negedge w_aresetn)
-				if (!w_aresetn) begin : sv2v_autoblock_4
+				if (!w_aresetn) begin : sv2v_autoblock_7
 					reg signed [31:0] i;
 					for (i = 0; i < NUM_IDS; i = i + 1)
 						begin
 							rasm_rec_beats[i] <= 1'sb0;
 							rasm_rec_nlen[i] <= 1'sb0;
 							rasm_rec_lane[i] <= 1'sb0;
+							rasm_rec_mode[i] <= CM_PACK;
+							rasm_rec_size[i] <= 1'sb0;
+							rasm_rec_burst[i] <= 1'sb0;
+							rasm_rec_final[i] <= 1'b1;
+							rasm_rec_rmask[i] <= 1'sb0;
 						end
 				end
 				else if (int_ar_valid && int_ar_ready) begin
-					rasm_rec_beats[int_arid] <= sv2v_cast_9(master_arlen) + 9'd1;
+					rasm_rec_beats[int_arid] <= (w_mode == CM_PASS ? sv2v_cast_9(int_arlen) + 9'd1 : sv2v_cast_9(master_arlen) + 9'd1);
 					rasm_rec_nlen[int_arid] <= int_arlen;
 					rasm_rec_lane[int_arid] <= w_ar_lane;
+					rasm_rec_mode[int_arid] <= w_mode;
+					rasm_rec_size[int_arid] <= int_arsize;
+					rasm_rec_burst[int_arid] <= int_arburst;
 				end
 		end
+	endgenerate
+	function automatic [15:0] sv2v_cast_16;
+		input reg [15:0] inp;
+		sv2v_cast_16 = inp;
+	endfunction
+	generate
 		if (R_INTERLEAVE) begin : gen_rilv
 			localparam signed [31:0] LW = (WIDTH_RATIO > 1 ? $clog2(WIDTH_RATIO) : 1);
 			localparam signed [31:0] RQ_W = ((AXI_ID_WIDTH + M_AXI_DATA_WIDTH) + 3) + AXI_USER_WIDTH;
@@ -952,17 +1048,21 @@ module axi4_dwidth_converter_rd (
 				reg [LW - 1:0] cnt [0:NUM_IDS - 1];
 				reg [1:0] worst [0:NUM_IDS - 1];
 				wire [LW - 1:0] w_lane;
+				wire [LW - 1:0] w_rmask;
+				wire w_pass;
 				wire w_final;
 				wire w_emit;
 				wire w_take;
 				wire [1:0] w_resp;
 				assign w_lane = cnt[q_rid];
-				assign w_final = q_rlast && rasm_rec_final[q_rid];
-				function automatic signed [LW - 1:0] sv2v_cast_4587C_signed;
-					input reg signed [LW - 1:0] inp;
-					sv2v_cast_4587C_signed = inp;
+				function automatic [LW - 1:0] sv2v_cast_4587C;
+					input reg [LW - 1:0] inp;
+					sv2v_cast_4587C = inp;
 				endfunction
-				assign w_emit = (w_lane == sv2v_cast_4587C_signed(WIDTH_RATIO - 1)) || w_final;
+				assign w_rmask = sv2v_cast_4587C(rasm_rec_rmask[q_rid]);
+				assign w_pass = rasm_rec_mode[q_rid] == CM_PASS;
+				assign w_final = q_rlast && rasm_rec_final[q_rid];
+				assign w_emit = (w_pass || ((w_lane & w_rmask) == w_rmask)) || w_final;
 				assign w_take = q_rvalid && (!w_emit || int_r_ready);
 				assign q_rready = !w_emit || int_r_ready;
 				assign w_resp = (q_rresp > worst[q_rid] ? q_rresp : worst[q_rid]);
@@ -970,15 +1070,15 @@ module axi4_dwidth_converter_rd (
 					if (_sv2v_0)
 						;
 					int_rdata = 1'sb0;
-					begin : sv2v_autoblock_5
+					begin : sv2v_autoblock_8
 						reg signed [31:0] k;
 						for (k = 0; k < WIDTH_RATIO; k = k + 1)
-							begin : sv2v_autoblock_6
+							begin : sv2v_autoblock_9
 								reg signed [LW - 1:0] sv2v_tmp_cast;
 								sv2v_tmp_cast = k;
-								if (sv2v_tmp_cast == w_lane)
+								if (w_pass || (sv2v_tmp_cast == w_lane))
 									int_rdata[k * M_AXI_DATA_WIDTH+:M_AXI_DATA_WIDTH] = q_rdata;
-								else begin : sv2v_autoblock_7
+								else begin : sv2v_autoblock_10
 									reg signed [LW - 1:0] sv2v_tmp_cast_1;
 									sv2v_tmp_cast_1 = k;
 									if ((k < (WIDTH_RATIO - 1)) && (sv2v_tmp_cast_1 < w_lane))
@@ -996,7 +1096,7 @@ module axi4_dwidth_converter_rd (
 				for (_gv_k_1 = 0; _gv_k_1 < (WIDTH_RATIO - 1); _gv_k_1 = _gv_k_1 + 1) begin : gen_lane
 					localparam k = _gv_k_1;
 					reg [M_AXI_DATA_WIDTH - 1:0] acc [0:NUM_IDS - 1];
-					always @(posedge aclk) begin : sv2v_autoblock_8
+					always @(posedge aclk) begin : sv2v_autoblock_11
 						reg signed [LW - 1:0] sv2v_tmp_cast;
 						sv2v_tmp_cast = k;
 						if ((w_take && !w_emit) && (w_lane == sv2v_tmp_cast))
@@ -1005,7 +1105,7 @@ module axi4_dwidth_converter_rd (
 					assign w_acc_rd[k] = acc[q_rid];
 				end
 				always @(posedge aclk or negedge w_aresetn)
-					if (!w_aresetn) begin : sv2v_autoblock_9
+					if (!w_aresetn) begin : sv2v_autoblock_12
 						reg signed [31:0] i;
 						for (i = 0; i < NUM_IDS; i = i + 1)
 							begin
@@ -1016,17 +1116,23 @@ module axi4_dwidth_converter_rd (
 					end
 					else begin
 						if (w_take) begin
-							begin : sv2v_autoblock_10
+							begin : sv2v_autoblock_13
 								reg signed [LW - 1:0] sv2v_tmp_cast;
 								sv2v_tmp_cast = 1;
-								cnt[q_rid] <= (w_emit ? {LW {1'sb0}} : w_lane + sv2v_tmp_cast);
+								cnt[q_rid] <= w_lane + sv2v_tmp_cast;
 							end
 							worst[q_rid] <= (w_emit ? 2'b00 : w_resp);
 							if (q_rlast)
 								rasm_rec_valid[q_rid] <= 1'b0;
 						end
-						if (w_rasm_push)
+						if (w_rasm_push) begin
 							rasm_rec_valid[w_rasm_push_id] <= 1'b1;
+							begin : sv2v_autoblock_14
+								reg [LW - 1:0] sv2v_tmp_cast;
+								sv2v_tmp_cast = w_rasm_push_lane;
+								cnt[w_rasm_push_id] <= sv2v_tmp_cast;
+							end
+						end
 					end
 			end
 			else begin : gen_slice
@@ -1046,21 +1152,47 @@ module axi4_dwidth_converter_rd (
 				wire w_byp;
 				wire [LW - 1:0] w_ld_lane;
 				wire [8:0] w_ld_rem;
-				assign w_last_narrow = cur_rem == 9'd1;
+				localparam signed [31:0] PAW = $clog2(M_STRB_WIDTH);
+				reg [PAW - 1:0] pa [0:NUM_IDS - 1];
+				reg cur_pass;
+				reg cur_rlast;
+				wire w_ld_pass;
+				wire [PAW - 1:0] w_pa;
+				wire [PAW - 1:0] w_pa_bm;
+				wire [PAW - 1:0] w_pa_wm;
+				wire [PAW - 1:0] w_pa_step;
+				wire [PAW - 1:0] w_pa_next;
+				wire [15:0] w_pa_span;
+				assign w_ld_pass = rasm_rec_mode[q_rid] == CM_PASS;
+				assign w_pa = pa[q_rid];
+				function automatic [PAW - 1:0] sv2v_cast_B30D0;
+					input reg [PAW - 1:0] inp;
+					sv2v_cast_B30D0 = inp;
+				endfunction
+				assign w_pa_bm = sv2v_cast_B30D0((16'd1 << rasm_rec_size[q_rid]) - 16'd1);
+				assign w_pa_span = (sv2v_cast_16(rasm_rec_nlen[q_rid]) + 16'd1) << rasm_rec_size[q_rid];
+				assign w_pa_wm = sv2v_cast_B30D0(w_pa_span - 16'd1);
+				function automatic signed [PAW - 1:0] sv2v_cast_B30D0_signed;
+					input reg signed [PAW - 1:0] inp;
+					sv2v_cast_B30D0_signed = inp;
+				endfunction
+				assign w_pa_step = ((w_pa & ~w_pa_bm) + w_pa_bm) + sv2v_cast_B30D0_signed(1);
+				assign w_pa_next = (rasm_rec_burst[q_rid] == 2'b00 ? w_pa : (rasm_rec_burst[q_rid] == 2'b10 ? (w_pa & ~w_pa_wm) | (w_pa_step & w_pa_wm) : w_pa_step));
+				assign w_last_narrow = (cur_pass ? cur_rlast : cur_rem == 9'd1);
 				function automatic signed [LW - 1:0] sv2v_cast_4587C_signed;
 					input reg signed [LW - 1:0] inp;
 					sv2v_cast_4587C_signed = inp;
 				endfunction
-				assign w_wide_done = w_last_narrow || (cur_lane == sv2v_cast_4587C_signed(WIDTH_RATIO - 1));
+				assign w_wide_done = (cur_pass || w_last_narrow) || (cur_lane == sv2v_cast_4587C_signed(WIDTH_RATIO - 1));
 				assign w_cur_free = !cur_valid || (w_out_hs && w_wide_done);
 				assign q_rready = w_cur_free;
 				assign w_load = q_rvalid && w_cur_free;
-				assign w_byp = (cur_valid && (cur_rid == q_rid)) && !w_last_narrow;
+				assign w_byp = ((cur_valid && !cur_pass) && (cur_rid == q_rid)) && !w_last_narrow;
 				function automatic [LW - 1:0] sv2v_cast_4587C;
 					input reg [LW - 1:0] inp;
 					sv2v_cast_4587C = inp;
 				endfunction
-				assign w_ld_lane = (start[q_rid] || w_byp ? {LW {1'sb0}} : sv2v_cast_4587C(rasm_rec_lane[q_rid]));
+				assign w_ld_lane = (w_ld_pass ? sv2v_cast_4587C(w_pa >> $clog2(S_STRB_WIDTH)) : (start[q_rid] || w_byp ? {LW {1'sb0}} : sv2v_cast_4587C(rasm_rec_lane[q_rid])));
 				assign w_ld_rem = (w_byp ? cur_rem - 9'd1 : (start[q_rid] ? rem[q_rid] : sv2v_cast_9(rasm_rec_nlen[q_rid]) + 9'd1));
 				assign int_r_valid = cur_valid;
 				wire [S_AXI_DATA_WIDTH:1] sv2v_tmp_EC17E;
@@ -1079,19 +1211,22 @@ module axi4_dwidth_converter_rd (
 						cur_user <= 1'sb0;
 						cur_lane <= 1'sb0;
 						cur_rem <= 1'sb0;
-						begin : sv2v_autoblock_11
+						cur_pass <= 1'b0;
+						cur_rlast <= 1'b0;
+						begin : sv2v_autoblock_15
 							reg signed [31:0] i;
 							for (i = 0; i < NUM_IDS; i = i + 1)
 								begin
 									rem[i] <= 1'sb0;
 									start[i] <= 1'b0;
+									pa[i] <= 1'sb0;
 									rasm_rec_valid[i] <= 1'b0;
 								end
 						end
 					end
 					else begin
 						if (w_out_hs) begin
-							begin : sv2v_autoblock_12
+							begin : sv2v_autoblock_16
 								reg signed [LW - 1:0] sv2v_tmp_cast;
 								sv2v_tmp_cast = 1;
 								cur_lane <= cur_lane + sv2v_tmp_cast;
@@ -1101,7 +1236,7 @@ module axi4_dwidth_converter_rd (
 								start[cur_rid] <= 1'b0;
 								rasm_rec_valid[cur_rid] <= 1'b0;
 							end
-							else if (w_wide_done)
+							else if (w_wide_done && !cur_pass)
 								rem[cur_rid] <= cur_rem - 9'd1;
 							if (w_wide_done)
 								cur_valid <= 1'b0;
@@ -1114,10 +1249,21 @@ module axi4_dwidth_converter_rd (
 							cur_user <= q_ruser;
 							cur_lane <= w_ld_lane;
 							cur_rem <= w_ld_rem;
-							start[q_rid] <= 1'b1;
+							cur_pass <= w_ld_pass;
+							cur_rlast <= q_rlast;
+							if (w_ld_pass)
+								pa[q_rid] <= w_pa_next;
+							else
+								start[q_rid] <= 1'b1;
 						end
-						if (w_rasm_push)
+						if (w_rasm_push) begin
 							rasm_rec_valid[w_rasm_push_id] <= 1'b1;
+							begin : sv2v_autoblock_17
+								reg [PAW - 1:0] sv2v_tmp_cast;
+								sv2v_tmp_cast = w_rasm_push_addr;
+								pa[w_rasm_push_id] <= sv2v_tmp_cast;
+							end
+						end
 					end
 			end
 		end
@@ -1172,7 +1318,7 @@ module axi4_dwidth_converter_rd (
 			assign int_rresp = int_sb[PSB_W - 1-:2];
 			always @(posedge aclk or negedge w_aresetn)
 				if (!w_aresetn) begin
-					begin : sv2v_autoblock_13
+					begin : sv2v_autoblock_18
 						reg signed [31:0] i;
 						for (i = 0; i < NUM_IDS; i = i + 1)
 							rasm_rec_valid[i] <= 1'b0;

@@ -75,6 +75,15 @@ summary: Shared-resource capacity math lives in ONE place, never a comment.
   XFER_DATA. The tell was in the bus counts, not the engine: 128 AWs
   (1024 beats) against 776 W beats. STREAM's and RAPIDS Beats' write engines
   carried the same ungated push; all three are gated now.*
+  *Case (2026-10-21, bridge BUG-023): the generated crossbar's per-path W
+  destination FIFO was sized to the master's max_outstanding with no full
+  check, because "the master adapter never has more in flight". That counts
+  the master's bursts; a width converter between them multiplies the AWs (one
+  per beat for a wide FIXED/WRAP after BUG-018). Nothing in the crossbar
+  changed -- a block upstream started issuing more requests per request, and
+  the 17th entry sent W beats to the wrong slave. A limit counted at one
+  interface does not bound a queue behind a block that can expand
+  requests. The FIFO is full-checked now.*
 
 - **A field packed with a literal-width cast does not grow with the parameter
   it holds.** `3'(channel)` (or `{28'b0, x[35:32]}`) is correct while the

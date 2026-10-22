@@ -124,7 +124,10 @@ module axi4_to_axil4_rd #(
         (r_ar_burst == 2'b10)
             ? ((r_ar_addr & ~w_ar_wrap_mask) |
                ((r_ar_addr + w_ar_addr_incr) & w_ar_wrap_mask))
-            : (r_ar_addr + w_ar_addr_incr);
+            : ((r_ar_addr & ~(w_ar_addr_incr - 1)) + w_ar_addr_incr);
+    // INCR steps from the aligned address: only the first beat of a burst
+    // may be unaligned (AXI A3.4.1, bridge BUG-019). A WRAP start is aligned
+    // by rule, so its arm needs no mask.
 
     // Read state machine
     typedef enum logic [1:0] {

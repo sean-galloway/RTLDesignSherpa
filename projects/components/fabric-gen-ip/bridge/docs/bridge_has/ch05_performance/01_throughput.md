@@ -90,19 +90,26 @@ one direction.
 | One DMA, 8 ch x 4 x 1 MB, MiB/s | 1525.8 | 1525.8 | 1525.8 |
 | One DMA, 1 ch x 4 x 4 KB, MiB/s | 1416.6 | 1420.7 | 1358.5 |
 | Two writers into one slave, both full rate, writer B limited to 4 outstanding: B's share | 50.0% | 50.0% | 20.0% |
-| The same, writer B limited to 2 outstanding: B's share | 40.0% | 50.0% | 11.1% |
+| The same, writer B limited to 2 outstanding: B's share | 50.0% | 50.0% | 11.1% |
 
 : The bridge against the vendor fabrics on the Genesys 2
 
 In steady state the bridge costs no bandwidth, and its per-transfer
-overhead matches the Xilinx crossbar. Under contention it is fairer than
-SmartConnect. One case is not at parity with the crossbar: a writer limited
-to 2 outstanding transactions gets 40% of a contended slave rather than 50%.
-The cause measured so far is a longer write round trip. STREAM's AW-to-B
-time is 256-511 cycles through the bridge against 64-127 through the
-crossbar at the same throughput, which bounds a 2-outstanding writer. It is
-not the slave tracker's depth: capping it at 4 changed nothing. Where the
-extra time goes is open (GitHub #119).
+overhead matches the Xilinx crossbar. Under contention it splits a slave as
+evenly as the crossbar, and more evenly than SmartConnect.
+
+The 2-outstanding case was not at parity when the benchmark first ran
+(2026-10-16): the bridge gave that writer 40% of the slave. The arbiter
+then picked from the raw requests into a 2-deep AW stage in front of the
+slave. The board's DDR controller (LiteDRAM) accepts an AW only once that
+burst's write data is in its buffer, so the stage stayed full of AWs that
+had already been granted. Each slot that freed went to whichever master
+had an AW waiting at that moment, which was almost always the 8-channel
+DMA and seldom the writer between bursts. Arbitrating at the slave pins
+from per-master request slots, with nothing queued past the pick (bridge
+commit 73467609f, 2026-10-17), removed it. A board bisect over the leg's
+history confirms the step at that commit (40.0% before, 50.0% from it on),
+and the current bridge gives 50.0% in five identical runs.
 
 The fabric is also larger and slower than the crossbar. Placed and routed
 alone, out of context on the Genesys 2's part, the bridge is 10,450 LUTs and

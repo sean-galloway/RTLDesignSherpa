@@ -17,5 +17,8 @@ is checked at both ends.
   protocol checker on each memory link -- and is in bring-up. It has
   found bridge BUG-018 (width converters vs FIXED / WRAP / narrow / unaligned
   bursts, confirmed in silicon), bridge BUG-019 (unaligned INCR steps across
-  several converters), converters BUG-010 (every CSR write lands twice) and
-  converters BUG-011 (AXI4-to-AXI3 chopping of an unaligned burst, fixed).
+  several converters), bridge BUG-023 / BUG-024 (two crossbar W-routing
+  hangs the BUG-018 fix exposed), converters BUG-010 (every CSR write lands
+  twice) and converters BUG-011 (AXI4-to-AXI3 chopping of an unaligned
+  burst). All are fixed; every build passes 30/30 on the board with no path
+  limits (2026-10-22).

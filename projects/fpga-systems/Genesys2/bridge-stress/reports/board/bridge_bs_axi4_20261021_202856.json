@@ -1,0 +1,102 @@
+[
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 1164654,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 1135783,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "clean",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 1133115,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "bursts",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 737149,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "bursts",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 723007,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "bursts",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 717865,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "backpressure",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 1399045,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "backpressure",
+  "seed": 2,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 1359580,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "backpressure",
+  "seed": 3,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 1383797,
+  "reasons": ""
+ },
+ {
+  "build": "bridge_bs_axi4",
+  "profile": "reorder",
+  "seed": 1,
+  "txns": 4000,
+  "full_axi": false,
+  "ok": false,
+  "cycles": 3418284648,
+  "reasons": "timed out before ALL_DONE | cpu.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000007) | cpu.wr: issued 104 completed 97 of 4000 | dma.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x0000000a) | dma.wr: issued 62 completed 52 of 4000 | acc.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x0000000f) | acc.wr: issued 126 completed 111 of 4000 | io.wr: ['HANG'] x1 (first HANG id=0x0 addr=0x00000000 exp=0x00000000 act=0x00000007) | io.wr: issued 99 completed 92 of 4000"
+ }
+]

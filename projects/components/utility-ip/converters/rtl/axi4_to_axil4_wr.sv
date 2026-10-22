@@ -142,7 +142,10 @@ module axi4_to_axil4_wr #(
         (r_aw_burst == 2'b10)
             ? ((r_aw_addr & ~w_aw_wrap_mask) |
                ((r_aw_addr + w_aw_addr_incr) & w_aw_wrap_mask))
-            : (r_aw_addr + w_aw_addr_incr);
+            : ((r_aw_addr & ~(w_aw_addr_incr - 1)) + w_aw_addr_incr);
+    // INCR steps from the aligned address: only the first beat of a burst
+    // may be unaligned (AXI A3.4.1, bridge BUG-019). A WRAP start is aligned
+    // by rule, so its arm needs no mask.
 
     // Write sequencing. Every AW, single-beat or burst, is taken into the
     // r_aw_* registers and then issued as AXI4-Lite beats, one at a time.

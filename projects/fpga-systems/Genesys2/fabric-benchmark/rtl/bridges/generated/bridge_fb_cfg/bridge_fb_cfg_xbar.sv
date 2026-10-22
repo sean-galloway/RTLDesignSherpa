@@ -583,6 +583,7 @@ module bridge_fb_cfg_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic host_32b_wdest_full;
     logic host_32b_w_to_stream_apb;
     logic host_32b_w_sel_stream_apb;
     logic host_32b_w_to_harness_csr;
@@ -597,6 +598,7 @@ module bridge_fb_cfg_xbar
     logic host_32b_w_sel_fb_ctl;
     logic host_32b_w_to_chargen;
     logic host_32b_w_sel_chargen;
+    logic host_128b_wdest_full;
     logic host_128b_w_to_desc_ram;
     logic host_128b_w_sel_desc_ram;
     logic host_128b_w_to_subtractive;
@@ -739,7 +741,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_stream_apb = (host_32b_aw.addr <= 32'h00001fff);
-    wire host_32b_aw_gnt_stream_apb = host_32b_aw_to_stream_apb;
+    wire host_32b_aw_gnt_stream_apb = host_32b_aw_to_stream_apb && !host_32b_wdest_full;
     assign stream_apb_axi_awid     = host_32b_aw_to_stream_apb ? host_32b_aw.id : '0;
     assign stream_apb_axi_awaddr   = host_32b_aw_to_stream_apb ? host_32b_aw.addr : '0;
     assign stream_apb_axi_awlen    = host_32b_aw_to_stream_apb ? host_32b_aw.len : '0;
@@ -751,7 +753,7 @@ module bridge_fb_cfg_xbar
     assign stream_apb_axi_awqos    = host_32b_aw_to_stream_apb ? host_32b_aw.qos : '0;
     assign stream_apb_axi_awregion = host_32b_aw_to_stream_apb ? host_32b_aw.region : '0;
     assign stream_apb_axi_awuser   = host_32b_aw_to_stream_apb ? host_32b_aw.user : '0;
-    assign stream_apb_axi_awvalid  = host_32b_aw_to_stream_apb && host_32b_awvalid;
+    assign stream_apb_axi_awvalid  = host_32b_aw_gnt_stream_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_stream_apb = host_32b_w_to_stream_apb;
 
@@ -802,7 +804,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
-    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr;
+    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr && !host_32b_wdest_full;
     assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
     assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
     assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
@@ -814,7 +816,7 @@ module bridge_fb_cfg_xbar
     assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
     assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
     assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
-    assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
+    assign harness_csr_axi_awvalid  = host_32b_aw_gnt_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
 
@@ -865,7 +867,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_128b_aw_to_desc_ram = ((host_128b_aw.addr >= 32'h00020000) && (host_128b_aw.addr <= 32'h0002ffff));
-    wire host_128b_aw_gnt_desc_ram = host_128b_aw_to_desc_ram;
+    wire host_128b_aw_gnt_desc_ram = host_128b_aw_to_desc_ram && !host_128b_wdest_full;
     assign desc_ram_axi_awid     = host_128b_aw_to_desc_ram ? host_128b_aw.id : '0;
     assign desc_ram_axi_awaddr   = host_128b_aw_to_desc_ram ? host_128b_aw.addr : '0;
     assign desc_ram_axi_awlen    = host_128b_aw_to_desc_ram ? host_128b_aw.len : '0;
@@ -877,7 +879,7 @@ module bridge_fb_cfg_xbar
     assign desc_ram_axi_awqos    = host_128b_aw_to_desc_ram ? host_128b_aw.qos : '0;
     assign desc_ram_axi_awregion = host_128b_aw_to_desc_ram ? host_128b_aw.region : '0;
     assign desc_ram_axi_awuser   = host_128b_aw_to_desc_ram ? host_128b_aw.user : '0;
-    assign desc_ram_axi_awvalid  = host_128b_aw_to_desc_ram && host_128b_awvalid;
+    assign desc_ram_axi_awvalid  = host_128b_aw_gnt_desc_ram && host_128b_awvalid;
 
     assign host_128b_w_sel_desc_ram = host_128b_w_to_desc_ram;
 
@@ -928,7 +930,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_stream_err = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
-    wire host_32b_aw_gnt_stream_err = host_32b_aw_to_stream_err;
+    wire host_32b_aw_gnt_stream_err = host_32b_aw_to_stream_err && !host_32b_wdest_full;
     assign stream_err_axi_awid     = host_32b_aw_to_stream_err ? host_32b_aw.id : '0;
     assign stream_err_axi_awaddr   = host_32b_aw_to_stream_err ? host_32b_aw.addr : '0;
     assign stream_err_axi_awlen    = host_32b_aw_to_stream_err ? host_32b_aw.len : '0;
@@ -940,7 +942,7 @@ module bridge_fb_cfg_xbar
     assign stream_err_axi_awqos    = host_32b_aw_to_stream_err ? host_32b_aw.qos : '0;
     assign stream_err_axi_awregion = host_32b_aw_to_stream_err ? host_32b_aw.region : '0;
     assign stream_err_axi_awuser   = host_32b_aw_to_stream_err ? host_32b_aw.user : '0;
-    assign stream_err_axi_awvalid  = host_32b_aw_to_stream_err && host_32b_awvalid;
+    assign stream_err_axi_awvalid  = host_32b_aw_gnt_stream_err && host_32b_awvalid;
 
     assign host_32b_w_sel_stream_err = host_32b_w_to_stream_err;
 
@@ -991,7 +993,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_slvmon_apb = ((host_32b_aw.addr >= 32'h00180000) && (host_32b_aw.addr <= 32'h00180fff));
-    wire host_32b_aw_gnt_slvmon_apb = host_32b_aw_to_slvmon_apb;
+    wire host_32b_aw_gnt_slvmon_apb = host_32b_aw_to_slvmon_apb && !host_32b_wdest_full;
     assign slvmon_apb_axi_awid     = host_32b_aw_to_slvmon_apb ? host_32b_aw.id : '0;
     assign slvmon_apb_axi_awaddr   = host_32b_aw_to_slvmon_apb ? host_32b_aw.addr : '0;
     assign slvmon_apb_axi_awlen    = host_32b_aw_to_slvmon_apb ? host_32b_aw.len : '0;
@@ -1003,7 +1005,7 @@ module bridge_fb_cfg_xbar
     assign slvmon_apb_axi_awqos    = host_32b_aw_to_slvmon_apb ? host_32b_aw.qos : '0;
     assign slvmon_apb_axi_awregion = host_32b_aw_to_slvmon_apb ? host_32b_aw.region : '0;
     assign slvmon_apb_axi_awuser   = host_32b_aw_to_slvmon_apb ? host_32b_aw.user : '0;
-    assign slvmon_apb_axi_awvalid  = host_32b_aw_to_slvmon_apb && host_32b_awvalid;
+    assign slvmon_apb_axi_awvalid  = host_32b_aw_gnt_slvmon_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_slvmon_apb = host_32b_w_to_slvmon_apb;
 
@@ -1054,7 +1056,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_obs_apb = ((host_32b_aw.addr >= 32'h00190000) && (host_32b_aw.addr <= 32'h00190fff));
-    wire host_32b_aw_gnt_obs_apb = host_32b_aw_to_obs_apb;
+    wire host_32b_aw_gnt_obs_apb = host_32b_aw_to_obs_apb && !host_32b_wdest_full;
     assign obs_apb_axi_awid     = host_32b_aw_to_obs_apb ? host_32b_aw.id : '0;
     assign obs_apb_axi_awaddr   = host_32b_aw_to_obs_apb ? host_32b_aw.addr : '0;
     assign obs_apb_axi_awlen    = host_32b_aw_to_obs_apb ? host_32b_aw.len : '0;
@@ -1066,7 +1068,7 @@ module bridge_fb_cfg_xbar
     assign obs_apb_axi_awqos    = host_32b_aw_to_obs_apb ? host_32b_aw.qos : '0;
     assign obs_apb_axi_awregion = host_32b_aw_to_obs_apb ? host_32b_aw.region : '0;
     assign obs_apb_axi_awuser   = host_32b_aw_to_obs_apb ? host_32b_aw.user : '0;
-    assign obs_apb_axi_awvalid  = host_32b_aw_to_obs_apb && host_32b_awvalid;
+    assign obs_apb_axi_awvalid  = host_32b_aw_gnt_obs_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_obs_apb = host_32b_w_to_obs_apb;
 
@@ -1117,7 +1119,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_fb_ctl = ((host_32b_aw.addr >= 32'h00200000) && (host_32b_aw.addr <= 32'h00200fff));
-    wire host_32b_aw_gnt_fb_ctl = host_32b_aw_to_fb_ctl;
+    wire host_32b_aw_gnt_fb_ctl = host_32b_aw_to_fb_ctl && !host_32b_wdest_full;
     assign fb_ctl_axi_awid     = host_32b_aw_to_fb_ctl ? host_32b_aw.id : '0;
     assign fb_ctl_axi_awaddr   = host_32b_aw_to_fb_ctl ? host_32b_aw.addr : '0;
     assign fb_ctl_axi_awlen    = host_32b_aw_to_fb_ctl ? host_32b_aw.len : '0;
@@ -1129,7 +1131,7 @@ module bridge_fb_cfg_xbar
     assign fb_ctl_axi_awqos    = host_32b_aw_to_fb_ctl ? host_32b_aw.qos : '0;
     assign fb_ctl_axi_awregion = host_32b_aw_to_fb_ctl ? host_32b_aw.region : '0;
     assign fb_ctl_axi_awuser   = host_32b_aw_to_fb_ctl ? host_32b_aw.user : '0;
-    assign fb_ctl_axi_awvalid  = host_32b_aw_to_fb_ctl && host_32b_awvalid;
+    assign fb_ctl_axi_awvalid  = host_32b_aw_gnt_fb_ctl && host_32b_awvalid;
 
     assign host_32b_w_sel_fb_ctl = host_32b_w_to_fb_ctl;
 
@@ -1180,7 +1182,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_chargen = ((host_32b_aw.addr >= 32'h00210000) && (host_32b_aw.addr <= 32'h00210fff));
-    wire host_32b_aw_gnt_chargen = host_32b_aw_to_chargen;
+    wire host_32b_aw_gnt_chargen = host_32b_aw_to_chargen && !host_32b_wdest_full;
     assign chargen_axi_awid     = host_32b_aw_to_chargen ? host_32b_aw.id : '0;
     assign chargen_axi_awaddr   = host_32b_aw_to_chargen ? host_32b_aw.addr : '0;
     assign chargen_axi_awlen    = host_32b_aw_to_chargen ? host_32b_aw.len : '0;
@@ -1192,7 +1194,7 @@ module bridge_fb_cfg_xbar
     assign chargen_axi_awqos    = host_32b_aw_to_chargen ? host_32b_aw.qos : '0;
     assign chargen_axi_awregion = host_32b_aw_to_chargen ? host_32b_aw.region : '0;
     assign chargen_axi_awuser   = host_32b_aw_to_chargen ? host_32b_aw.user : '0;
-    assign chargen_axi_awvalid  = host_32b_aw_to_chargen && host_32b_awvalid;
+    assign chargen_axi_awvalid  = host_32b_aw_gnt_chargen && host_32b_awvalid;
 
     assign host_32b_w_sel_chargen = host_32b_w_to_chargen;
 
@@ -1243,7 +1245,7 @@ module bridge_fb_cfg_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_128b_aw_to_subtractive = !(((host_128b_aw.addr <= 32'h00001fff)) || (((host_128b_aw.addr >= 32'h00010000) && (host_128b_aw.addr <= 32'h00010fff))) || (((host_128b_aw.addr >= 32'h00020000) && (host_128b_aw.addr <= 32'h0002ffff))) || (((host_128b_aw.addr >= 32'h00030000) && (host_128b_aw.addr <= 32'h00030fff))) || (((host_128b_aw.addr >= 32'h00180000) && (host_128b_aw.addr <= 32'h00180fff))) || (((host_128b_aw.addr >= 32'h00190000) && (host_128b_aw.addr <= 32'h00190fff))) || (((host_128b_aw.addr >= 32'h00200000) && (host_128b_aw.addr <= 32'h00200fff))) || (((host_128b_aw.addr >= 32'h00210000) && (host_128b_aw.addr <= 32'h00210fff))));
-    wire host_128b_aw_gnt_subtractive = host_128b_aw_to_subtractive;
+    wire host_128b_aw_gnt_subtractive = host_128b_aw_to_subtractive && !host_128b_wdest_full;
     assign subtractive_axi_awid     = host_128b_aw_to_subtractive ? host_128b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_128b_aw_to_subtractive ? host_128b_aw.addr : '0;
     assign subtractive_axi_awlen    = host_128b_aw_to_subtractive ? host_128b_aw.len : '0;
@@ -1255,7 +1257,7 @@ module bridge_fb_cfg_xbar
     assign subtractive_axi_awqos    = host_128b_aw_to_subtractive ? host_128b_aw.qos : '0;
     assign subtractive_axi_awregion = host_128b_aw_to_subtractive ? host_128b_aw.region : '0;
     assign subtractive_axi_awuser   = host_128b_aw_to_subtractive ? host_128b_aw.user : '0;
-    assign subtractive_axi_awvalid  = host_128b_aw_to_subtractive && host_128b_awvalid;
+    assign subtractive_axi_awvalid  = host_128b_aw_gnt_subtractive && host_128b_awvalid;
 
     assign host_128b_w_sel_subtractive = host_128b_w_to_subtractive;
 
@@ -1321,6 +1323,7 @@ module bridge_fb_cfg_xbar
         end
     )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
+    assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [2:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_stream_apb = host_32b_wdest_valid && (host_32b_wdest_head == 3'd0);
     assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 3'd1);
@@ -1351,6 +1354,7 @@ module bridge_fb_cfg_xbar
         end
     )
     wire host_128b_wdest_valid = (host_128b_wdest_wptr != host_128b_wdest_rptr);
+    assign host_128b_wdest_full = (host_128b_wdest_wptr[4] != host_128b_wdest_rptr[4]) && (host_128b_wdest_wptr[3:0] == host_128b_wdest_rptr[3:0]);
     wire [0:0] host_128b_wdest_head = host_128b_wdest_mem[host_128b_wdest_rptr[3:0]];
     assign host_128b_w_to_desc_ram = host_128b_wdest_valid && (host_128b_wdest_head == 1'd0);
     assign host_128b_w_to_subtractive = host_128b_wdest_valid && (host_128b_wdest_head == 1'd1);

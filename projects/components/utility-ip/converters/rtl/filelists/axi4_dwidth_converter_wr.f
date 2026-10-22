@@ -20,10 +20,10 @@
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 
-# Dependencies - Validated data-sizing primitives (wr uses both:
-# DOWNSIZE direction → axi_data_dnsize; UPSIZE direction → axi_data_upsize).
+# Dependencies - validated data-sizing primitive: UPSIZE CM_PACK W uses
+# axi_data_upsize. DOWNSIZE W is sliced in the wrapper (bridge BUG-018), so
+# axi_data_dnsize is not part of this closure.
 $CONVERTERS_ROOT/rtl/axi_data_upsize.sv
-$CONVERTERS_ROOT/rtl/axi_data_dnsize.sv
 
 # AXI4 write data width converter
 $CONVERTERS_ROOT/rtl/axi4_dwidth_converter_wr.sv

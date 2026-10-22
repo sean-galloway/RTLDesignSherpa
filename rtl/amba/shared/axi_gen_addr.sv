@@ -86,7 +86,9 @@ always_comb begin
     // Calculate the wrap mask based on size and len
     wrap_mask = (1 << (32'(size) + 32'(len_log2))) - 1;
 
-    // Calculate the aligned address
+    // The next beat's address on the step grid: aligned(curr) + increment.
+    // Both INCR and WRAP use it -- AXI A3.4.1: only the first beat of a burst
+    // may be unaligned (bridge BUG-019).
     aligned_addr = (curr_addr + increment) & ~(increment - 1);
 
     // Calculate the wrap address
@@ -96,9 +98,9 @@ end
 always_comb begin
     casez (burst)
         2'b00: next_addr = curr_addr;               // FIXED burst
-        2'b01: next_addr = curr_addr + increment;   // INCR burst
-        2'b10: next_addr = wrap_addr;                 // WRAP burst
-        default: next_addr = curr_addr + increment; // Default to INCR burst
+        2'b01: next_addr = aligned_addr;            // INCR burst
+        2'b10: next_addr = wrap_addr;               // WRAP burst
+        default: next_addr = aligned_addr;          // Default to INCR burst
     endcase
 end
 

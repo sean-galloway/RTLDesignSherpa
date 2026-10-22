@@ -1,0 +1,3 @@
+leg,flavor,idle_cycles,gap,gap_shift,outstanding,channels,descriptors,bytes_per_desc,pass,inj_share,stream_beats,inj_beats,window_cycles,stream_mibs,inj_mibs,inj_bp,inj_starv,error
+a,mirror,0,0,0,2,8,4,131072,True,0.5,262144,262188,2136649,187.2,187.2,1874408,51,
+a,mirror,0,0,0,4,8,4,131072,True,0.5,262144,262189,2136605,187.2,187.2,1874416,0,

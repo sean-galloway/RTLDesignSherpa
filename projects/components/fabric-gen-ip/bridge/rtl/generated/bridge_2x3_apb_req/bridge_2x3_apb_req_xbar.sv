@@ -299,6 +299,7 @@ module bridge_2x3_apb_req_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic apb4m_32b_wdest_full;
     logic apb4m_32b_w_to_mem;
     logic apb4m_32b_w_sel_mem;
     logic apb4m_32b_w_to_lregs;
@@ -307,6 +308,7 @@ module bridge_2x3_apb_req_xbar
     logic apb4m_32b_w_sel_periph;
     logic apb4m_32b_w_to_subtractive;
     logic apb4m_32b_w_sel_subtractive;
+    logic apb5m_32b_wdest_full;
     logic apb5m_32b_w_to_mem;
     logic apb5m_32b_w_sel_mem;
     logic apb5m_32b_w_to_lregs;
@@ -497,7 +499,7 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_ar_to_mem = (apb5m_32b_ar.addr <= 32'h0fffffff);
 
     // AW request slots for mem: arbitration at the slave pins
-    assign apb4m_32b_aw_slot_mem_in_valid = apb4m_32b_aw_to_mem && apb4m_32b_awvalid && !apb4m_32b_aw_hold_mem;
+    assign apb4m_32b_aw_slot_mem_in_valid = apb4m_32b_aw_to_mem && apb4m_32b_awvalid && !(apb4m_32b_aw_hold_mem || apb4m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_mem (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb4m_32b_aw_slot_mem_in_valid), .wr_ready(apb4m_32b_aw_slot_mem_in_ready), .wr_data(apb4m_32b_aw),
@@ -506,7 +508,7 @@ module bridge_2x3_apb_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign apb5m_32b_aw_slot_mem_in_valid = apb5m_32b_aw_to_mem && apb5m_32b_awvalid && !apb5m_32b_aw_hold_mem;
+    assign apb5m_32b_aw_slot_mem_in_valid = apb5m_32b_aw_to_mem && apb5m_32b_awvalid && !(apb5m_32b_aw_hold_mem || apb5m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_mem (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb5m_32b_aw_slot_mem_in_valid), .wr_ready(apb5m_32b_aw_slot_mem_in_ready), .wr_data(apb5m_32b_aw),
@@ -718,7 +720,7 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_ar_to_lregs = ((apb5m_32b_ar.addr >= 32'h40000000) && (apb5m_32b_ar.addr <= 32'h4000ffff));
 
     // AW request slots for lregs: arbitration at the slave pins
-    assign apb4m_32b_aw_slot_lregs_in_valid = apb4m_32b_aw_to_lregs && apb4m_32b_awvalid && !apb4m_32b_aw_hold_lregs;
+    assign apb4m_32b_aw_slot_lregs_in_valid = apb4m_32b_aw_to_lregs && apb4m_32b_awvalid && !(apb4m_32b_aw_hold_lregs || apb4m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_lregs (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb4m_32b_aw_slot_lregs_in_valid), .wr_ready(apb4m_32b_aw_slot_lregs_in_ready), .wr_data(apb4m_32b_aw),
@@ -727,7 +729,7 @@ module bridge_2x3_apb_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign apb5m_32b_aw_slot_lregs_in_valid = apb5m_32b_aw_to_lregs && apb5m_32b_awvalid && !apb5m_32b_aw_hold_lregs;
+    assign apb5m_32b_aw_slot_lregs_in_valid = apb5m_32b_aw_to_lregs && apb5m_32b_awvalid && !(apb5m_32b_aw_hold_lregs || apb5m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_lregs (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb5m_32b_aw_slot_lregs_in_valid), .wr_ready(apb5m_32b_aw_slot_lregs_in_ready), .wr_data(apb5m_32b_aw),
@@ -929,7 +931,7 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_ar_to_periph = ((apb5m_32b_ar.addr >= 32'h50000000) && (apb5m_32b_ar.addr <= 32'h50000fff));
 
     // AW request slots for periph: arbitration at the slave pins
-    assign apb4m_32b_aw_slot_periph_in_valid = apb4m_32b_aw_to_periph && apb4m_32b_awvalid && !apb4m_32b_aw_hold_periph;
+    assign apb4m_32b_aw_slot_periph_in_valid = apb4m_32b_aw_to_periph && apb4m_32b_awvalid && !(apb4m_32b_aw_hold_periph || apb4m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_periph (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb4m_32b_aw_slot_periph_in_valid), .wr_ready(apb4m_32b_aw_slot_periph_in_ready), .wr_data(apb4m_32b_aw),
@@ -938,7 +940,7 @@ module bridge_2x3_apb_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign apb5m_32b_aw_slot_periph_in_valid = apb5m_32b_aw_to_periph && apb5m_32b_awvalid && !apb5m_32b_aw_hold_periph;
+    assign apb5m_32b_aw_slot_periph_in_valid = apb5m_32b_aw_to_periph && apb5m_32b_awvalid && !(apb5m_32b_aw_hold_periph || apb5m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_periph (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb5m_32b_aw_slot_periph_in_valid), .wr_ready(apb5m_32b_aw_slot_periph_in_ready), .wr_data(apb5m_32b_aw),
@@ -1140,7 +1142,7 @@ module bridge_2x3_apb_req_xbar
     wire apb5m_32b_ar_to_subtractive = !(((apb5m_32b_ar.addr <= 32'h0fffffff)) || (((apb5m_32b_ar.addr >= 32'h40000000) && (apb5m_32b_ar.addr <= 32'h4000ffff))) || (((apb5m_32b_ar.addr >= 32'h50000000) && (apb5m_32b_ar.addr <= 32'h50000fff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign apb4m_32b_aw_slot_subtractive_in_valid = apb4m_32b_aw_to_subtractive && apb4m_32b_awvalid && !apb4m_32b_aw_hold_subtractive;
+    assign apb4m_32b_aw_slot_subtractive_in_valid = apb4m_32b_aw_to_subtractive && apb4m_32b_awvalid && !(apb4m_32b_aw_hold_subtractive || apb4m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb4m_32b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb4m_32b_aw_slot_subtractive_in_valid), .wr_ready(apb4m_32b_aw_slot_subtractive_in_ready), .wr_data(apb4m_32b_aw),
@@ -1149,7 +1151,7 @@ module bridge_2x3_apb_req_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign apb5m_32b_aw_slot_subtractive_in_valid = apb5m_32b_aw_to_subtractive && apb5m_32b_awvalid && !apb5m_32b_aw_hold_subtractive;
+    assign apb5m_32b_aw_slot_subtractive_in_valid = apb5m_32b_aw_to_subtractive && apb5m_32b_awvalid && !(apb5m_32b_aw_hold_subtractive || apb5m_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_apb5m_32b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(apb5m_32b_aw_slot_subtractive_in_valid), .wr_ready(apb5m_32b_aw_slot_subtractive_in_ready), .wr_data(apb5m_32b_aw),
@@ -1372,6 +1374,7 @@ module bridge_2x3_apb_req_xbar
         end
     )
     wire apb4m_32b_wdest_valid = (apb4m_32b_wdest_wptr != apb4m_32b_wdest_rptr);
+    assign apb4m_32b_wdest_full = (apb4m_32b_wdest_wptr[4] != apb4m_32b_wdest_rptr[4]) && (apb4m_32b_wdest_wptr[3:0] == apb4m_32b_wdest_rptr[3:0]);
     wire [1:0] apb4m_32b_wdest_head = apb4m_32b_wdest_mem[apb4m_32b_wdest_rptr[3:0]];
     assign apb4m_32b_w_to_mem = apb4m_32b_wdest_valid && (apb4m_32b_wdest_head == 2'd0);
     assign apb4m_32b_w_to_lregs = apb4m_32b_wdest_valid && (apb4m_32b_wdest_head == 2'd1);
@@ -1399,6 +1402,7 @@ module bridge_2x3_apb_req_xbar
         end
     )
     wire apb5m_32b_wdest_valid = (apb5m_32b_wdest_wptr != apb5m_32b_wdest_rptr);
+    assign apb5m_32b_wdest_full = (apb5m_32b_wdest_wptr[4] != apb5m_32b_wdest_rptr[4]) && (apb5m_32b_wdest_wptr[3:0] == apb5m_32b_wdest_rptr[3:0]);
     wire [1:0] apb5m_32b_wdest_head = apb5m_32b_wdest_mem[apb5m_32b_wdest_rptr[3:0]];
     assign apb5m_32b_w_to_mem = apb5m_32b_wdest_valid && (apb5m_32b_wdest_head == 2'd0);
     assign apb5m_32b_w_to_lregs = apb5m_32b_wdest_valid && (apb5m_32b_wdest_head == 2'd1);
@@ -1411,10 +1415,10 @@ module bridge_2x3_apb_req_xbar
 
     // Master: apb4m, Width path: 32b
     assign apb4m_32b_awready = 
-        ((apb4m_32b_aw_to_mem && !apb4m_32b_aw_hold_mem) ? apb4m_32b_aw_slot_mem_in_ready : '0) |
-        ((apb4m_32b_aw_to_lregs && !apb4m_32b_aw_hold_lregs) ? apb4m_32b_aw_slot_lregs_in_ready : '0) |
-        ((apb4m_32b_aw_to_periph && !apb4m_32b_aw_hold_periph) ? apb4m_32b_aw_slot_periph_in_ready : '0) |
-        ((apb4m_32b_aw_to_subtractive && !apb4m_32b_aw_hold_subtractive) ? apb4m_32b_aw_slot_subtractive_in_ready : '0);
+        ((apb4m_32b_aw_to_mem && !(apb4m_32b_aw_hold_mem || apb4m_32b_wdest_full)) ? apb4m_32b_aw_slot_mem_in_ready : '0) |
+        ((apb4m_32b_aw_to_lregs && !(apb4m_32b_aw_hold_lregs || apb4m_32b_wdest_full)) ? apb4m_32b_aw_slot_lregs_in_ready : '0) |
+        ((apb4m_32b_aw_to_periph && !(apb4m_32b_aw_hold_periph || apb4m_32b_wdest_full)) ? apb4m_32b_aw_slot_periph_in_ready : '0) |
+        ((apb4m_32b_aw_to_subtractive && !(apb4m_32b_aw_hold_subtractive || apb4m_32b_wdest_full)) ? apb4m_32b_aw_slot_subtractive_in_ready : '0);
 
     assign apb4m_32b_wready = 
         (apb4m_32b_w_sel_mem ? mem_axi_wready : '0) |
@@ -1491,10 +1495,10 @@ module bridge_2x3_apb_req_xbar
 
     // Master: apb5m, Width path: 32b
     assign apb5m_32b_awready = 
-        ((apb5m_32b_aw_to_mem && !apb5m_32b_aw_hold_mem) ? apb5m_32b_aw_slot_mem_in_ready : '0) |
-        ((apb5m_32b_aw_to_lregs && !apb5m_32b_aw_hold_lregs) ? apb5m_32b_aw_slot_lregs_in_ready : '0) |
-        ((apb5m_32b_aw_to_periph && !apb5m_32b_aw_hold_periph) ? apb5m_32b_aw_slot_periph_in_ready : '0) |
-        ((apb5m_32b_aw_to_subtractive && !apb5m_32b_aw_hold_subtractive) ? apb5m_32b_aw_slot_subtractive_in_ready : '0);
+        ((apb5m_32b_aw_to_mem && !(apb5m_32b_aw_hold_mem || apb5m_32b_wdest_full)) ? apb5m_32b_aw_slot_mem_in_ready : '0) |
+        ((apb5m_32b_aw_to_lregs && !(apb5m_32b_aw_hold_lregs || apb5m_32b_wdest_full)) ? apb5m_32b_aw_slot_lregs_in_ready : '0) |
+        ((apb5m_32b_aw_to_periph && !(apb5m_32b_aw_hold_periph || apb5m_32b_wdest_full)) ? apb5m_32b_aw_slot_periph_in_ready : '0) |
+        ((apb5m_32b_aw_to_subtractive && !(apb5m_32b_aw_hold_subtractive || apb5m_32b_wdest_full)) ? apb5m_32b_aw_slot_subtractive_in_ready : '0);
 
     assign apb5m_32b_wready = 
         (apb5m_32b_w_sel_mem ? mem_axi_wready : '0) |

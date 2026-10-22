@@ -176,7 +176,7 @@ checks the blocks themselves against the model.
 
 | ID | Where | Finding |
 |---|---|---|
-| bridge BUG-018 | DUT | width-converted paths emit illegal AXI for FIXED, WRAP, narrow and unaligned bursts -- in sim and on the board; the host limits those paths to aligned full-width INCR (`bstress.path_caps`) until it is fixed |
+| bridge BUG-018 (fixed) | DUT | width-converted paths emitted illegal AXI for FIXED, WRAP, narrow and unaligned bursts -- in sim and on the board. Fixed: the dwidth converters take every legal burst (PACK / PASS / EXPAND per burst; downsize FIXED / WRAP is correct but slow), and the framework BFMs walk bursts by AXI A3.4.1 (RDS-DV 1.2.9). The host's `bstress.path_caps` limit is gone and `--full-axi` is a no-op; board 150/150 with no limits |
 | converters BUG-010 | shared CSR path | `peakrdl_to_cmdrsp` hands the regblock every access twice: a singlepulse is two cycles. Through a toggle synchronizer that lost the cclk domain's GO; the harness edge-detects GO / STOP |
 | (fixed here) | stress master | `32'(now - stamp)` on 16-bit stamps saturated LAT_SUM in Vivado, not in Verilator; the latency is a 16-bit wire now |
 | converters BUG-011 (fixed) | DUT, AXI3 slave adapters | `axi4_to_axi3` chopped an unaligned INCR longer than 16 beats into chunks that all stayed unaligned (AXI: every beat after the first is aligned), so the AXI3 slave took the first beat of each later chunk for a partial one. `S_WSTRB` in sim and on the board (0/4 runs on the pre-fix bitstream); the chunk address is aligned now, with regressions in the converter suite |
@@ -195,7 +195,9 @@ checks the blocks themselves against the model.
 | (vendor IP) | AXI Traffic Generator | with one ARID outstanding to two slaves at once (DDR and BRAM) its read list never finishes: no error, MSTDONE never sets, the bus idle. A protocol checker on its own link (bs_pc_atg) passes every response the bridge gave it, so the bridge is not at fault; its read-completion pointer advances only on a one-cycle completion vector (the `| vec_ff` term is commented out in the shipped source). The host keeps each memory on its own read IDs |
 | (host) | AXI Traffic Generator | a command's master-RAM index (PG125 CMDRAM bits 76:64) is a BYTE address into the 8 KB master RAM; read as a beat index it pointed every command at the wrong data, and the read sweep after the run caught the zeros it wrote |
 | (vendor IP) | AXI Protocol Checker | flags AXI_ERRM_WDATA_NUM and AXI_ERRM_WSTRB whenever a slave takes W before its AW (allowed by AXI; its source says it cannot check strobes for write data before address): the single-port BRAM link, and LiteDRAM on every fill (ILA, 2026-10-20: 256 correct beats, W 60 cycles ahead of the AW handshake). The host logs these two instead of failing; the sim judges them with the framework checker on the same links |
-| bridge BUG-019 | DUT, several converters | unaligned INCR bursts keep their start misalignment past the first beat in the dwidth downsize, `axi4_to_axil4` (and AXI5-Lite / WB4) and `axi_gen_addr` (APB) paths; `axi4_to_axi3` was fixed as converters BUG-011 |
+| bridge BUG-019 (fixed) | DUT, several converters | unaligned INCR bursts kept their start misalignment past the first beat in the dwidth downsize, `axi4_to_axil4` (and AXI5-Lite / WB4) and `axi_gen_addr` (APB) paths; `axi4_to_axi3` was fixed as converters BUG-011. Fixed: every converter steps INCR from the aligned start, and the downsize does start-lane accounting |
+| bridge BUG-023 (fixed) | DUT, every crossbar | a path's W destination FIFO was sized to the master's outstanding limit and had no full check, but a width converter issues several AWs per master burst (one per beat for a wide FIXED / WRAP after BUG-018), so the 17th entry sent W beats to the wrong slave. Found on the board as a `bursts` hang plus S_WDATA errors on build-axi4, right after the BUG-018 fix. Fixed: the FIFO's full flag gates the AW |
+| bridge BUG-024 (fixed) | DUT, crossbars with CDC slaves | crossed-W deadlock: a master's AW to a CDC (lane) slave and a later AW to a slot slave could be ordered one way in the master's W stream and the other way at a slave, so each slave waited on the other's W. Found on the board as a `reorder` hang on build-axi4. Fixed: while a master has W live toward a lane slave, its AWs to every other slave wait |
 
 ## 7. Board results
 
@@ -222,6 +224,11 @@ checks the blocks themselves against the model.
 | build-xil, LiteDRAM + Ocelus: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_xil_20261020_171812.csv` |
 | build-xmix (AXI3 / AXI4 / AXI5 + third-party IP), before converters BUG-013: every profile x seeds 1-3 | 27/28: `w_first` hung at once | `reports/board/bridge_bs_xmix_20261020_195840.csv` |
 | build-xmix, converters BUG-013 fixed: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_xmix_20261020_210344.csv` |
+| build-axi4, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_axi4_20261022_002825.csv` |
+| build-axi3, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_axi3_20261022_003122.csv` |
+| build-axi5, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_axi5_20261022_003411.csv` |
+| build-xil, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_xil_20261022_003706.csv` |
+| build-xmix, bridge BUG-018/019/023/024 fixed, no path limits: every profile x seeds 1-3, 4000 bursts | 30/30 PASS | `reports/board/bridge_bs_xmix_20261022_004216.csv` |
 
 ## 8. Running
 

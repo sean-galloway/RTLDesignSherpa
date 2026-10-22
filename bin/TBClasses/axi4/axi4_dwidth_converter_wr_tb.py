@@ -34,6 +34,7 @@ import cocotb
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.axi_burst import beat_addr, beat_lanes
 
 # AXI4 components
 from CocoTBFramework.components.axi4.axi4_factories import (
@@ -254,7 +255,9 @@ class AXI4DWidthConverterWriteTB(TBBase):
         pkt_copy = type('obj', (object,), {
             'addr': int(getattr(aw_pkt, 'addr', 0)),
             'len': int(getattr(aw_pkt, 'len', 0)),
-            'id': int(getattr(aw_pkt, 'id', 0))
+            'id': int(getattr(aw_pkt, 'id', 0)),
+            'size': int(getattr(aw_pkt, 'size', 0)),
+            'burst': int(getattr(aw_pkt, 'burst', 1)),
         })()
         self.captured_aw_packets.append(pkt_copy)
         self.log.debug(f"Captured AW: addr=0x{pkt_copy.addr:08X}, len={pkt_copy.len}, id={pkt_copy.id}")
@@ -367,6 +370,15 @@ class AXI4DWidthConverterWriteTB(TBBase):
         lane = (addr % self.M_STRB_WIDTH) // self.S_STRB_WIDTH
         return (lane + narrow_beats + self.WIDTH_RATIO - 1) // self.WIDTH_RATIO
 
+    def expected_narrow_beats(self, addr, wide_beats):
+        """Narrow beats for a full-width DOWNSIZE INCR burst: RATIO per wide
+        beat, less the narrow lanes below the start address in the first
+        one (only the first beat may be unaligned, AXI A3.4.1; bridge
+        BUG-019). UPSIZE callers don't use this.
+        """
+        lane = (addr % self.S_STRB_WIDTH) // self.M_STRB_WIDTH
+        return wide_beats * self.WIDTH_RATIO - lane
+
     async def write_transaction(self, addr, data_list, awid=0, awsize=None, awburst=1):
         """
         Perform write transaction - just send data, don't verify here.
@@ -471,7 +483,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         # (Callbacks capture packets as they arrive at master side)
         # Large timeout to handle worst-case backpressure scenarios
         timeout_cycles = 2000  # 2us @ 10ns period
-        expected_beats = len(data) * self.WIDTH_RATIO if self.DOWNSIZE else self.expected_wide_beats(addr, len(data))
+        expected_beats = self.expected_narrow_beats(addr, len(data)) if self.DOWNSIZE else self.expected_wide_beats(addr, len(data))
 
         self.log.info(f"Waiting for converted data (expecting {expected_beats} beats)")
 
@@ -524,7 +536,7 @@ class AXI4DWidthConverterWriteTB(TBBase):
         await self.write_transaction(addr, data)
 
         # Calculate expected beats
-        expected_beats = len(data) * self.WIDTH_RATIO if self.DOWNSIZE else self.expected_wide_beats(addr, len(data))
+        expected_beats = self.expected_narrow_beats(addr, len(data)) if self.DOWNSIZE else self.expected_wide_beats(addr, len(data))
 
         if debug:
             self.log.info(f"   B response received at {cocotb.utils.get_sim_time('ns')}ns, captured {len(self.captured_w_packets)}/{expected_beats} packets")
@@ -751,6 +763,121 @@ class AXI4DWidthConverterWriteTB(TBBase):
                 f"unaligned-start: {n_beats} narrow beats at lane {k} packed "
                 f"into {exp_wide} wide beat(s) with lane-correct data+WSTRB")
         return ok
+
+    def check_master_aw_legal(self, aw, tag):
+        """One master-side AW against the AXI4 rules a converted burst must
+        keep (bridge BUG-018): size within the bus, FIXED <= 16 beats, WRAP
+        2/4/8/16 beats from a size-aligned address, INCR inside one 4 KB page."""
+        nb = 1 << aw.size
+        bad = []
+        if nb > self.M_STRB_WIDTH:
+            bad.append(f"size {nb} B > the {self.M_STRB_WIDTH} B bus")
+        if aw.burst == 0 and aw.len > 15:
+            bad.append(f"FIXED AxLEN {aw.len} > 15")
+        if aw.burst == 2:
+            if aw.len not in (1, 3, 7, 15):
+                bad.append(f"WRAP AxLEN {aw.len} not 1/3/7/15")
+            if aw.addr % nb:
+                bad.append("WRAP start not size-aligned")
+        if aw.burst == 1:
+            last = (aw.addr & ~(nb - 1)) + aw.len * nb
+            if (aw.addr >> 12) != (last >> 12):
+                bad.append("INCR crosses 4 KB")
+        if aw.burst == 3:
+            bad.append("reserved AxBURST")
+        for b in bad:
+            self.log.error(f"{tag}: illegal master AW addr=0x{aw.addr:X} len={aw.len} "
+                           f"size={aw.size} burst={aw.burst}: {b}")
+        return not bad
+
+    async def test_burst_matrix(self):
+        """Every burst type x size x alignment through the converter (bridge
+        BUG-018/019). The memory behind the master-side slave must end up
+        holding exactly the bytes the slave-side beats wrote by the AXI
+        A3.4.1 rules (FIXED rewrites one window, INCR steps from the aligned
+        start, WRAP wraps), and nothing else; every master AW must be legal,
+        and every master W beat must strobe only bytes of its own beat."""
+        FIXED, INCR, WRAP = 0, 1, 2
+        sb, mb = self.S_STRB_WIDTH, self.M_STRB_WIDTH
+        base, stride, span = 0x2000, 0x100, 0x10000
+        mm = MemoryModel(num_lines=span // mb, bytes_per_line=mb, log=self.log)
+        iface = self.master_write_slave['interface']
+        saved_mm = getattr(iface, 'memory_model', None)
+        iface.memory_model = mm
+        lens = {FIXED: (1, 4, 16), INCR: (1, 3, 9), WRAP: (2, 4, 16)}
+        ok = True
+        n = 0
+        try:
+            for burst in (INCR, FIXED, WRAP):
+                for size in range(sb.bit_length()):
+                    nb = 1 << size
+                    for blen in lens[burst]:
+                        if burst == WRAP:
+                            offs = (0, nb, (blen - 1) * nb)
+                        else:
+                            offs = (0, 1, nb + 1, sb - 1) if nb > 1 else (0, 3, sb - 1)
+                        for off in sorted(set(offs)):
+                            region = base + stride * n
+                            addr = region + off
+                            n += 1
+                            tag = (f"matrix {['FIXED','INCR','WRAP'][burst]} size={nb}B "
+                                   f"len={blen} addr=0x{addr:X}")
+                            data = [int.from_bytes(bytes(((0x11 * (i + 1) + k * 3 + n) & 0xFF)
+                                                         for k in range(sb)), 'little')
+                                    for i in range(blen)]
+                            self.captured_aw_packets.clear()
+                            self.captured_w_packets.clear()
+                            await self.write_transaction(addr, data, awsize=size, awburst=burst)
+                            await self.wait_clocks('aclk', 4)
+                            # the wire beats the master BFM sent, replayed by the rules
+                            want = {}
+                            for i, dv in enumerate(data):
+                                strb, lane = beat_lanes(addr, i, size, burst, blen - 1, sb)
+                                wire = dv if nb >= sb else (dv & ((1 << (8 * nb)) - 1)) << (8 * lane)
+                                a = beat_addr(addr, i, size, burst, blen - 1)
+                                for o in range(a, (a & ~(nb - 1)) + nb):
+                                    want[o] = (wire >> (8 * (o % sb))) & 0xFF
+                            for o in range(region, region + stride):
+                                got = mm.read(o, 1)[0]
+                                exp = want.get(o, 0)
+                                if got != exp:
+                                    self.log.error(f"{tag}: byte 0x{o:X} = 0x{got:02X}, "
+                                                   f"expected 0x{exp:02X}")
+                                    self.errors += 1
+                                    ok = False
+                                    break
+                            # master AW legality, and each W beat's strobes
+                            # inside its own beat window
+                            ws = list(self.captured_w_packets)
+                            wi = 0
+                            for aw in list(self.captured_aw_packets):
+                                ok &= self.check_master_aw_legal(aw, tag)
+                                anb = 1 << aw.size
+                                for j in range(aw.len + 1):
+                                    if wi >= len(ws):
+                                        self.log.error(f"{tag}: master W beat {wi} missing")
+                                        ok = False
+                                        break
+                                    w = ws[wi]
+                                    wi += 1
+                                    a = beat_addr(aw.addr, j, aw.size, aw.burst, aw.len)
+                                    allowed = 0
+                                    for o in range(a, (a & ~(anb - 1)) + anb):
+                                        allowed |= 1 << (o % mb)
+                                    if w.strb & ~allowed:
+                                        self.log.error(f"{tag}: master W beat {j} of AW 0x{aw.addr:X} "
+                                                       f"strobes 0x{w.strb:X} outside its beat 0x{allowed:X}")
+                                        ok = False
+                                    if w.last != (j == aw.len):
+                                        self.log.error(f"{tag}: master WLAST wrong on beat {j}/{aw.len}")
+                                        ok = False
+                            if wi != len(ws):
+                                self.log.error(f"{tag}: {len(ws)} master W beats for {wi} AW beats")
+                                ok = False
+            self.log.info(f"burst matrix: {n} bursts, {'PASS' if ok else 'FAIL'}")
+            return ok
+        finally:
+            iface.memory_model = saved_mm
 
     async def test_max_length_burst(self):
         """A maximum-length slave burst must survive downsizing.

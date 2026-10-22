@@ -173,6 +173,18 @@ async def axi4_dwidth_converter_wr_b_cam_flood_test(dut):
         await tb.wait_clocks('aclk', 10)
 
 
+@cocotb.test(timeout_time=60, timeout_unit="ms")
+async def axi4_dwidth_converter_wr_burst_matrix_test(dut):
+    """bridge BUG-018/019: FIXED / INCR / WRAP x every size x aligned and
+    unaligned starts; memory checked byte for byte, every master AW legal,
+    every master W beat's strobes inside its own beat."""
+    tb = AXI4DWidthConverterWriteTB(dut)
+    await tb.setup_clocks_and_reset()
+    ok = await tb.test_burst_matrix()
+    await tb.wait_clocks('aclk', 20)
+    assert ok and tb.errors == 0, f"burst matrix failed ({tb.errors} data errors)"
+
+
 def generate_test_params():
     """
     Generate test parameters for different width conversion scenarios.
@@ -705,3 +717,31 @@ def test_axi4_dwidth_converter_wr_b_cam_flood(request):
         print(f"   Logs: {log_path}")
         print(f"   Waveforms: {cmd_filename}")
         raise
+
+
+@pytest.mark.parametrize("s_data_width, m_data_width",
+                         [(32, 128), (64, 128), (32, 64), (128, 32), (128, 64), (64, 32)])
+def test_axi4_dwidth_converter_wr_burst_matrix(request, s_data_width, m_data_width):
+    """Every burst type, size and alignment through the write converter (bridge BUG-018/019)."""
+    module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({})
+    dut_name = "axi4_dwidth_converter_wr"
+    test_name_plus_params = f"test_axi4_dwidth_converter_wr_burst_matrix_{s_data_width}to{m_data_width}"
+    log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
+    sim_build = sim_build_path(tests_dir, test_name_plus_params)
+    os.makedirs(sim_build, exist_ok=True)
+    os.makedirs(log_dir, exist_ok=True)
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/utility-ip/converters/rtl/filelists/axi4_dwidth_converter_wr.f')
+    widths = {'S_AXI_DATA_WIDTH': str(s_data_width), 'M_AXI_DATA_WIDTH': str(m_data_width),
+              'AXI_ID_WIDTH': '8', 'AXI_ADDR_WIDTH': '32', 'AXI_USER_WIDTH': '1'}
+    extra_env = dict(widths, DUT=dut_name, LOG_PATH=log_path, COCOTB_LOG_LEVEL='INFO',
+                     COCOTB_RESULTS_FILE=os.path.join(log_dir, f'results_{test_name_plus_params}.xml'),
+                     SEED=os.environ.get('SEED', str(random.randint(0, 1000000))),
+                     TEST_CLK_PERIOD='10')
+    create_view_cmd(log_dir, log_path, sim_build, module, test_name_plus_params)
+    run(python_search=[tests_dir], verilog_sources=verilog_sources, includes=includes,
+        toplevel=dut_name, module=module,
+        testcase='axi4_dwidth_converter_wr_burst_matrix_test',      # one cocotb test per wrapper
+        parameters=widths, sim_build=sim_build, extra_env=extra_env, keep_files=True,
+        compile_args=[])

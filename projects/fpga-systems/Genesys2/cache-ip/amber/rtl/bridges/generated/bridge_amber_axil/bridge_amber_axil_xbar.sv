@@ -467,12 +467,14 @@ module bridge_amber_axil_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic host_32b_wdest_full;
     logic host_32b_w_to_harness_csr;
     logic host_32b_w_sel_harness_csr;
     logic host_32b_w_to_cycle_injector0;
     logic host_32b_w_sel_cycle_injector0;
     logic host_32b_w_to_cycle_injector1;
     logic host_32b_w_sel_cycle_injector1;
+    logic host_64b_wdest_full;
     logic host_64b_w_to_tally_cnt;
     logic host_64b_w_sel_tally_cnt;
     logic host_64b_w_to_tally_cfgw;
@@ -611,7 +613,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
-    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr;
+    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr && !host_32b_wdest_full;
     assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
     assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
     assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
@@ -623,7 +625,7 @@ module bridge_amber_axil_xbar
     assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
     assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
     assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
-    assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
+    assign harness_csr_axi_awvalid  = host_32b_aw_gnt_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
 
@@ -674,7 +676,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_cycle_injector0 = ((host_32b_aw.addr >= 32'h00020000) && (host_32b_aw.addr <= 32'h00020fff));
-    wire host_32b_aw_gnt_cycle_injector0 = host_32b_aw_to_cycle_injector0;
+    wire host_32b_aw_gnt_cycle_injector0 = host_32b_aw_to_cycle_injector0 && !host_32b_wdest_full;
     assign cycle_injector0_axi_awid     = host_32b_aw_to_cycle_injector0 ? host_32b_aw.id : '0;
     assign cycle_injector0_axi_awaddr   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.addr : '0;
     assign cycle_injector0_axi_awlen    = host_32b_aw_to_cycle_injector0 ? host_32b_aw.len : '0;
@@ -686,7 +688,7 @@ module bridge_amber_axil_xbar
     assign cycle_injector0_axi_awqos    = host_32b_aw_to_cycle_injector0 ? host_32b_aw.qos : '0;
     assign cycle_injector0_axi_awregion = host_32b_aw_to_cycle_injector0 ? host_32b_aw.region : '0;
     assign cycle_injector0_axi_awuser   = host_32b_aw_to_cycle_injector0 ? host_32b_aw.user : '0;
-    assign cycle_injector0_axi_awvalid  = host_32b_aw_to_cycle_injector0 && host_32b_awvalid;
+    assign cycle_injector0_axi_awvalid  = host_32b_aw_gnt_cycle_injector0 && host_32b_awvalid;
 
     assign host_32b_w_sel_cycle_injector0 = host_32b_w_to_cycle_injector0;
 
@@ -737,7 +739,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_cycle_injector1 = ((host_32b_aw.addr >= 32'h00030000) && (host_32b_aw.addr <= 32'h00030fff));
-    wire host_32b_aw_gnt_cycle_injector1 = host_32b_aw_to_cycle_injector1;
+    wire host_32b_aw_gnt_cycle_injector1 = host_32b_aw_to_cycle_injector1 && !host_32b_wdest_full;
     assign cycle_injector1_axi_awid     = host_32b_aw_to_cycle_injector1 ? host_32b_aw.id : '0;
     assign cycle_injector1_axi_awaddr   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.addr : '0;
     assign cycle_injector1_axi_awlen    = host_32b_aw_to_cycle_injector1 ? host_32b_aw.len : '0;
@@ -749,7 +751,7 @@ module bridge_amber_axil_xbar
     assign cycle_injector1_axi_awqos    = host_32b_aw_to_cycle_injector1 ? host_32b_aw.qos : '0;
     assign cycle_injector1_axi_awregion = host_32b_aw_to_cycle_injector1 ? host_32b_aw.region : '0;
     assign cycle_injector1_axi_awuser   = host_32b_aw_to_cycle_injector1 ? host_32b_aw.user : '0;
-    assign cycle_injector1_axi_awvalid  = host_32b_aw_to_cycle_injector1 && host_32b_awvalid;
+    assign cycle_injector1_axi_awvalid  = host_32b_aw_gnt_cycle_injector1 && host_32b_awvalid;
 
     assign host_32b_w_sel_cycle_injector1 = host_32b_w_to_cycle_injector1;
 
@@ -800,7 +802,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_tally_cnt = ((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h00040fff));
-    wire host_64b_aw_gnt_tally_cnt = host_64b_aw_to_tally_cnt;
+    wire host_64b_aw_gnt_tally_cnt = host_64b_aw_to_tally_cnt && !host_64b_wdest_full;
     assign tally_cnt_axi_awid     = host_64b_aw_to_tally_cnt ? host_64b_aw.id : '0;
     assign tally_cnt_axi_awaddr   = host_64b_aw_to_tally_cnt ? host_64b_aw.addr : '0;
     assign tally_cnt_axi_awlen    = host_64b_aw_to_tally_cnt ? host_64b_aw.len : '0;
@@ -812,7 +814,7 @@ module bridge_amber_axil_xbar
     assign tally_cnt_axi_awqos    = host_64b_aw_to_tally_cnt ? host_64b_aw.qos : '0;
     assign tally_cnt_axi_awregion = host_64b_aw_to_tally_cnt ? host_64b_aw.region : '0;
     assign tally_cnt_axi_awuser   = host_64b_aw_to_tally_cnt ? host_64b_aw.user : '0;
-    assign tally_cnt_axi_awvalid  = host_64b_aw_to_tally_cnt && host_64b_awvalid;
+    assign tally_cnt_axi_awvalid  = host_64b_aw_gnt_tally_cnt && host_64b_awvalid;
 
     assign host_64b_w_sel_tally_cnt = host_64b_w_to_tally_cnt;
 
@@ -863,7 +865,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_tally_cfgw = ((host_64b_aw.addr >= 32'h00050000) && (host_64b_aw.addr <= 32'h00050fff));
-    wire host_64b_aw_gnt_tally_cfgw = host_64b_aw_to_tally_cfgw;
+    wire host_64b_aw_gnt_tally_cfgw = host_64b_aw_to_tally_cfgw && !host_64b_wdest_full;
     assign tally_cfgw_axi_awid     = host_64b_aw_to_tally_cfgw ? host_64b_aw.id : '0;
     assign tally_cfgw_axi_awaddr   = host_64b_aw_to_tally_cfgw ? host_64b_aw.addr : '0;
     assign tally_cfgw_axi_awlen    = host_64b_aw_to_tally_cfgw ? host_64b_aw.len : '0;
@@ -875,7 +877,7 @@ module bridge_amber_axil_xbar
     assign tally_cfgw_axi_awqos    = host_64b_aw_to_tally_cfgw ? host_64b_aw.qos : '0;
     assign tally_cfgw_axi_awregion = host_64b_aw_to_tally_cfgw ? host_64b_aw.region : '0;
     assign tally_cfgw_axi_awuser   = host_64b_aw_to_tally_cfgw ? host_64b_aw.user : '0;
-    assign tally_cfgw_axi_awvalid  = host_64b_aw_to_tally_cfgw && host_64b_awvalid;
+    assign tally_cfgw_axi_awvalid  = host_64b_aw_gnt_tally_cfgw && host_64b_awvalid;
 
     assign host_64b_w_sel_tally_cfgw = host_64b_w_to_tally_cfgw;
 
@@ -926,7 +928,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_tally_cfgr = ((host_64b_aw.addr >= 32'h00060000) && (host_64b_aw.addr <= 32'h00060fff));
-    wire host_64b_aw_gnt_tally_cfgr = host_64b_aw_to_tally_cfgr;
+    wire host_64b_aw_gnt_tally_cfgr = host_64b_aw_to_tally_cfgr && !host_64b_wdest_full;
     assign tally_cfgr_axi_awid     = host_64b_aw_to_tally_cfgr ? host_64b_aw.id : '0;
     assign tally_cfgr_axi_awaddr   = host_64b_aw_to_tally_cfgr ? host_64b_aw.addr : '0;
     assign tally_cfgr_axi_awlen    = host_64b_aw_to_tally_cfgr ? host_64b_aw.len : '0;
@@ -938,7 +940,7 @@ module bridge_amber_axil_xbar
     assign tally_cfgr_axi_awqos    = host_64b_aw_to_tally_cfgr ? host_64b_aw.qos : '0;
     assign tally_cfgr_axi_awregion = host_64b_aw_to_tally_cfgr ? host_64b_aw.region : '0;
     assign tally_cfgr_axi_awuser   = host_64b_aw_to_tally_cfgr ? host_64b_aw.user : '0;
-    assign tally_cfgr_axi_awvalid  = host_64b_aw_to_tally_cfgr && host_64b_awvalid;
+    assign tally_cfgr_axi_awvalid  = host_64b_aw_gnt_tally_cfgr && host_64b_awvalid;
 
     assign host_64b_w_sel_tally_cfgr = host_64b_w_to_tally_cfgr;
 
@@ -989,7 +991,7 @@ module bridge_amber_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_64b_aw_to_subtractive = !((((host_64b_aw.addr >= 32'h00010000) && (host_64b_aw.addr <= 32'h00010fff))) || (((host_64b_aw.addr >= 32'h00020000) && (host_64b_aw.addr <= 32'h00020fff))) || (((host_64b_aw.addr >= 32'h00030000) && (host_64b_aw.addr <= 32'h00030fff))) || (((host_64b_aw.addr >= 32'h00040000) && (host_64b_aw.addr <= 32'h00040fff))) || (((host_64b_aw.addr >= 32'h00050000) && (host_64b_aw.addr <= 32'h00050fff))) || (((host_64b_aw.addr >= 32'h00060000) && (host_64b_aw.addr <= 32'h00060fff))));
-    wire host_64b_aw_gnt_subtractive = host_64b_aw_to_subtractive;
+    wire host_64b_aw_gnt_subtractive = host_64b_aw_to_subtractive && !host_64b_wdest_full;
     assign subtractive_axi_awid     = host_64b_aw_to_subtractive ? host_64b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_64b_aw_to_subtractive ? host_64b_aw.addr : '0;
     assign subtractive_axi_awlen    = host_64b_aw_to_subtractive ? host_64b_aw.len : '0;
@@ -1001,7 +1003,7 @@ module bridge_amber_axil_xbar
     assign subtractive_axi_awqos    = host_64b_aw_to_subtractive ? host_64b_aw.qos : '0;
     assign subtractive_axi_awregion = host_64b_aw_to_subtractive ? host_64b_aw.region : '0;
     assign subtractive_axi_awuser   = host_64b_aw_to_subtractive ? host_64b_aw.user : '0;
-    assign subtractive_axi_awvalid  = host_64b_aw_to_subtractive && host_64b_awvalid;
+    assign subtractive_axi_awvalid  = host_64b_aw_gnt_subtractive && host_64b_awvalid;
 
     assign host_64b_w_sel_subtractive = host_64b_w_to_subtractive;
 
@@ -1067,6 +1069,7 @@ module bridge_amber_axil_xbar
         end
     )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
+    assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [1:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 2'd0);
     assign host_32b_w_to_cycle_injector0 = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);
@@ -1093,6 +1096,7 @@ module bridge_amber_axil_xbar
         end
     )
     wire host_64b_wdest_valid = (host_64b_wdest_wptr != host_64b_wdest_rptr);
+    assign host_64b_wdest_full = (host_64b_wdest_wptr[4] != host_64b_wdest_rptr[4]) && (host_64b_wdest_wptr[3:0] == host_64b_wdest_rptr[3:0]);
     wire [1:0] host_64b_wdest_head = host_64b_wdest_mem[host_64b_wdest_rptr[3:0]];
     assign host_64b_w_to_tally_cnt = host_64b_wdest_valid && (host_64b_wdest_head == 2'd0);
     assign host_64b_w_to_tally_cfgw = host_64b_wdest_valid && (host_64b_wdest_head == 2'd1);

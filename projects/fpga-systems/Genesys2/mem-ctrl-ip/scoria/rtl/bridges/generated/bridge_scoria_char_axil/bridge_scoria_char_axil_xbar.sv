@@ -277,6 +277,7 @@ module bridge_scoria_char_axil_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic host_32b_wdest_full;
     logic host_32b_w_to_scoria_apb;
     logic host_32b_w_sel_scoria_apb;
     logic host_32b_w_to_harness_csr;
@@ -359,7 +360,7 @@ module bridge_scoria_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_scoria_apb = (host_32b_aw.addr <= 32'h00000fff);
-    wire host_32b_aw_gnt_scoria_apb = host_32b_aw_to_scoria_apb;
+    wire host_32b_aw_gnt_scoria_apb = host_32b_aw_to_scoria_apb && !host_32b_wdest_full;
     assign scoria_apb_axi_awid     = host_32b_aw_to_scoria_apb ? host_32b_aw.id : '0;
     assign scoria_apb_axi_awaddr   = host_32b_aw_to_scoria_apb ? host_32b_aw.addr : '0;
     assign scoria_apb_axi_awlen    = host_32b_aw_to_scoria_apb ? host_32b_aw.len : '0;
@@ -371,7 +372,7 @@ module bridge_scoria_char_axil_xbar
     assign scoria_apb_axi_awqos    = host_32b_aw_to_scoria_apb ? host_32b_aw.qos : '0;
     assign scoria_apb_axi_awregion = host_32b_aw_to_scoria_apb ? host_32b_aw.region : '0;
     assign scoria_apb_axi_awuser   = host_32b_aw_to_scoria_apb ? host_32b_aw.user : '0;
-    assign scoria_apb_axi_awvalid  = host_32b_aw_to_scoria_apb && host_32b_awvalid;
+    assign scoria_apb_axi_awvalid  = host_32b_aw_gnt_scoria_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_scoria_apb = host_32b_w_to_scoria_apb;
 
@@ -422,7 +423,7 @@ module bridge_scoria_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_harness_csr = ((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff));
-    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr;
+    wire host_32b_aw_gnt_harness_csr = host_32b_aw_to_harness_csr && !host_32b_wdest_full;
     assign harness_csr_axi_awid     = host_32b_aw_to_harness_csr ? host_32b_aw.id : '0;
     assign harness_csr_axi_awaddr   = host_32b_aw_to_harness_csr ? host_32b_aw.addr : '0;
     assign harness_csr_axi_awlen    = host_32b_aw_to_harness_csr ? host_32b_aw.len : '0;
@@ -434,7 +435,7 @@ module bridge_scoria_char_axil_xbar
     assign harness_csr_axi_awqos    = host_32b_aw_to_harness_csr ? host_32b_aw.qos : '0;
     assign harness_csr_axi_awregion = host_32b_aw_to_harness_csr ? host_32b_aw.region : '0;
     assign harness_csr_axi_awuser   = host_32b_aw_to_harness_csr ? host_32b_aw.user : '0;
-    assign harness_csr_axi_awvalid  = host_32b_aw_to_harness_csr && host_32b_awvalid;
+    assign harness_csr_axi_awvalid  = host_32b_aw_gnt_harness_csr && host_32b_awvalid;
 
     assign host_32b_w_sel_harness_csr = host_32b_w_to_harness_csr;
 
@@ -485,7 +486,7 @@ module bridge_scoria_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_chargen_apb = ((host_32b_aw.addr >= 32'h000a0000) && (host_32b_aw.addr <= 32'h000a0fff));
-    wire host_32b_aw_gnt_chargen_apb = host_32b_aw_to_chargen_apb;
+    wire host_32b_aw_gnt_chargen_apb = host_32b_aw_to_chargen_apb && !host_32b_wdest_full;
     assign chargen_apb_axi_awid     = host_32b_aw_to_chargen_apb ? host_32b_aw.id : '0;
     assign chargen_apb_axi_awaddr   = host_32b_aw_to_chargen_apb ? host_32b_aw.addr : '0;
     assign chargen_apb_axi_awlen    = host_32b_aw_to_chargen_apb ? host_32b_aw.len : '0;
@@ -497,7 +498,7 @@ module bridge_scoria_char_axil_xbar
     assign chargen_apb_axi_awqos    = host_32b_aw_to_chargen_apb ? host_32b_aw.qos : '0;
     assign chargen_apb_axi_awregion = host_32b_aw_to_chargen_apb ? host_32b_aw.region : '0;
     assign chargen_apb_axi_awuser   = host_32b_aw_to_chargen_apb ? host_32b_aw.user : '0;
-    assign chargen_apb_axi_awvalid  = host_32b_aw_to_chargen_apb && host_32b_awvalid;
+    assign chargen_apb_axi_awvalid  = host_32b_aw_gnt_chargen_apb && host_32b_awvalid;
 
     assign host_32b_w_sel_chargen_apb = host_32b_w_to_chargen_apb;
 
@@ -548,7 +549,7 @@ module bridge_scoria_char_axil_xbar
 
     // AW channel (gated by address re-decode -- see _addr_decode_expr)
     wire host_32b_aw_to_subtractive = !(((host_32b_aw.addr <= 32'h00000fff)) || (((host_32b_aw.addr >= 32'h00010000) && (host_32b_aw.addr <= 32'h00010fff))) || (((host_32b_aw.addr >= 32'h000a0000) && (host_32b_aw.addr <= 32'h000a0fff))));
-    wire host_32b_aw_gnt_subtractive = host_32b_aw_to_subtractive;
+    wire host_32b_aw_gnt_subtractive = host_32b_aw_to_subtractive && !host_32b_wdest_full;
     assign subtractive_axi_awid     = host_32b_aw_to_subtractive ? host_32b_aw.id : '0;
     assign subtractive_axi_awaddr   = host_32b_aw_to_subtractive ? host_32b_aw.addr : '0;
     assign subtractive_axi_awlen    = host_32b_aw_to_subtractive ? host_32b_aw.len : '0;
@@ -560,7 +561,7 @@ module bridge_scoria_char_axil_xbar
     assign subtractive_axi_awqos    = host_32b_aw_to_subtractive ? host_32b_aw.qos : '0;
     assign subtractive_axi_awregion = host_32b_aw_to_subtractive ? host_32b_aw.region : '0;
     assign subtractive_axi_awuser   = host_32b_aw_to_subtractive ? host_32b_aw.user : '0;
-    assign subtractive_axi_awvalid  = host_32b_aw_to_subtractive && host_32b_awvalid;
+    assign subtractive_axi_awvalid  = host_32b_aw_gnt_subtractive && host_32b_awvalid;
 
     assign host_32b_w_sel_subtractive = host_32b_w_to_subtractive;
 
@@ -626,6 +627,7 @@ module bridge_scoria_char_axil_xbar
         end
     )
     wire host_32b_wdest_valid = (host_32b_wdest_wptr != host_32b_wdest_rptr);
+    assign host_32b_wdest_full = (host_32b_wdest_wptr[4] != host_32b_wdest_rptr[4]) && (host_32b_wdest_wptr[3:0] == host_32b_wdest_rptr[3:0]);
     wire [1:0] host_32b_wdest_head = host_32b_wdest_mem[host_32b_wdest_rptr[3:0]];
     assign host_32b_w_to_scoria_apb = host_32b_wdest_valid && (host_32b_wdest_head == 2'd0);
     assign host_32b_w_to_harness_csr = host_32b_wdest_valid && (host_32b_wdest_head == 2'd1);

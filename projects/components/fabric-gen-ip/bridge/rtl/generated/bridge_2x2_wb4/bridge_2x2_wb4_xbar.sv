@@ -273,14 +273,18 @@ module bridge_2x2_wb4_xbar
     // ================================================================
 
     // W-follow declarations (assigned below)
+    logic wbm_32b_wdest_full;
     logic wbm_32b_w_to_wbp;
     logic wbm_32b_w_sel_wbp;
+    logic wbm_64b_wdest_full;
     logic wbm_64b_w_to_mem;
     logic wbm_64b_w_sel_mem;
     logic wbm_64b_w_to_subtractive;
     logic wbm_64b_w_sel_subtractive;
+    logic cpu_32b_wdest_full;
     logic cpu_32b_w_to_wbp;
     logic cpu_32b_w_sel_wbp;
+    logic cpu_64b_wdest_full;
     logic cpu_64b_w_to_mem;
     logic cpu_64b_w_sel_mem;
     logic cpu_64b_w_to_subtractive;
@@ -449,7 +453,7 @@ module bridge_2x2_wb4_xbar
     wire cpu_64b_ar_to_mem = (cpu_64b_ar.addr <= 32'h0fffffff);
 
     // AW request slots for mem: arbitration at the slave pins
-    assign wbm_64b_aw_slot_mem_in_valid = wbm_64b_aw_to_mem && wbm_64b_awvalid && !wbm_64b_aw_hold_mem;
+    assign wbm_64b_aw_slot_mem_in_valid = wbm_64b_aw_to_mem && wbm_64b_awvalid && !(wbm_64b_aw_hold_mem || wbm_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_wbm_64b_aw_slot_mem (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(wbm_64b_aw_slot_mem_in_valid), .wr_ready(wbm_64b_aw_slot_mem_in_ready), .wr_data(wbm_64b_aw),
@@ -458,7 +462,7 @@ module bridge_2x2_wb4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cpu_64b_aw_slot_mem_in_valid = cpu_64b_aw_to_mem && cpu_64b_awvalid && !cpu_64b_aw_hold_mem;
+    assign cpu_64b_aw_slot_mem_in_valid = cpu_64b_aw_to_mem && cpu_64b_awvalid && !(cpu_64b_aw_hold_mem || cpu_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_64b_aw_slot_mem (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_64b_aw_slot_mem_in_valid), .wr_ready(cpu_64b_aw_slot_mem_in_ready), .wr_data(cpu_64b_aw),
@@ -670,7 +674,7 @@ module bridge_2x2_wb4_xbar
     wire cpu_32b_ar_to_wbp = ((cpu_32b_ar.addr >= 32'h50000000) && (cpu_32b_ar.addr <= 32'h5000ffff));
 
     // AW request slots for wbp: arbitration at the slave pins
-    assign wbm_32b_aw_slot_wbp_in_valid = wbm_32b_aw_to_wbp && wbm_32b_awvalid && !wbm_32b_aw_hold_wbp;
+    assign wbm_32b_aw_slot_wbp_in_valid = wbm_32b_aw_to_wbp && wbm_32b_awvalid && !(wbm_32b_aw_hold_wbp || wbm_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_wbm_32b_aw_slot_wbp (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(wbm_32b_aw_slot_wbp_in_valid), .wr_ready(wbm_32b_aw_slot_wbp_in_ready), .wr_data(wbm_32b_aw),
@@ -679,7 +683,7 @@ module bridge_2x2_wb4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cpu_32b_aw_slot_wbp_in_valid = cpu_32b_aw_to_wbp && cpu_32b_awvalid && !cpu_32b_aw_hold_wbp;
+    assign cpu_32b_aw_slot_wbp_in_valid = cpu_32b_aw_to_wbp && cpu_32b_awvalid && !(cpu_32b_aw_hold_wbp || cpu_32b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_32b_aw_slot_wbp (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_32b_aw_slot_wbp_in_valid), .wr_ready(cpu_32b_aw_slot_wbp_in_ready), .wr_data(cpu_32b_aw),
@@ -881,7 +885,7 @@ module bridge_2x2_wb4_xbar
     wire cpu_64b_ar_to_subtractive = !(((cpu_64b_ar.addr <= 32'h0fffffff)) || (((cpu_64b_ar.addr >= 32'h50000000) && (cpu_64b_ar.addr <= 32'h5000ffff))));
 
     // AW request slots for subtractive: arbitration at the slave pins
-    assign wbm_64b_aw_slot_subtractive_in_valid = wbm_64b_aw_to_subtractive && wbm_64b_awvalid && !wbm_64b_aw_hold_subtractive;
+    assign wbm_64b_aw_slot_subtractive_in_valid = wbm_64b_aw_to_subtractive && wbm_64b_awvalid && !(wbm_64b_aw_hold_subtractive || wbm_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_wbm_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(wbm_64b_aw_slot_subtractive_in_valid), .wr_ready(wbm_64b_aw_slot_subtractive_in_ready), .wr_data(wbm_64b_aw),
@@ -890,7 +894,7 @@ module bridge_2x2_wb4_xbar
         .count(), .rd_count()
         /* verilator lint_on PINCONNECTEMPTY */
     );
-    assign cpu_64b_aw_slot_subtractive_in_valid = cpu_64b_aw_to_subtractive && cpu_64b_awvalid && !cpu_64b_aw_hold_subtractive;
+    assign cpu_64b_aw_slot_subtractive_in_valid = cpu_64b_aw_to_subtractive && cpu_64b_awvalid && !(cpu_64b_aw_hold_subtractive || cpu_64b_wdest_full);
     gaxi_skid_buffer #(.DEPTH(2), .DATA_WIDTH($bits(axi4_aw_t))) u_cpu_64b_aw_slot_subtractive (
         .axi_aclk(aclk), .axi_aresetn(aresetn),
         .wr_valid(cpu_64b_aw_slot_subtractive_in_valid), .wr_ready(cpu_64b_aw_slot_subtractive_in_ready), .wr_data(cpu_64b_aw),
@@ -1113,6 +1117,7 @@ module bridge_2x2_wb4_xbar
         end
     )
     wire wbm_32b_wdest_valid = (wbm_32b_wdest_wptr != wbm_32b_wdest_rptr);
+    assign wbm_32b_wdest_full = (wbm_32b_wdest_wptr[4] != wbm_32b_wdest_rptr[4]) && (wbm_32b_wdest_wptr[3:0] == wbm_32b_wdest_rptr[3:0]);
     wire [0:0] wbm_32b_wdest_head = wbm_32b_wdest_mem[wbm_32b_wdest_rptr[3:0]];
     assign wbm_32b_w_to_wbp = wbm_32b_wdest_valid && (wbm_32b_wdest_head == 1'd0);
 
@@ -1137,6 +1142,7 @@ module bridge_2x2_wb4_xbar
         end
     )
     wire wbm_64b_wdest_valid = (wbm_64b_wdest_wptr != wbm_64b_wdest_rptr);
+    assign wbm_64b_wdest_full = (wbm_64b_wdest_wptr[4] != wbm_64b_wdest_rptr[4]) && (wbm_64b_wdest_wptr[3:0] == wbm_64b_wdest_rptr[3:0]);
     wire [0:0] wbm_64b_wdest_head = wbm_64b_wdest_mem[wbm_64b_wdest_rptr[3:0]];
     assign wbm_64b_w_to_mem = wbm_64b_wdest_valid && (wbm_64b_wdest_head == 1'd0);
     assign wbm_64b_w_to_subtractive = wbm_64b_wdest_valid && (wbm_64b_wdest_head == 1'd1);
@@ -1162,6 +1168,7 @@ module bridge_2x2_wb4_xbar
         end
     )
     wire cpu_32b_wdest_valid = (cpu_32b_wdest_wptr != cpu_32b_wdest_rptr);
+    assign cpu_32b_wdest_full = (cpu_32b_wdest_wptr[4] != cpu_32b_wdest_rptr[4]) && (cpu_32b_wdest_wptr[3:0] == cpu_32b_wdest_rptr[3:0]);
     wire [0:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
     assign cpu_32b_w_to_wbp = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 1'd0);
 
@@ -1186,6 +1193,7 @@ module bridge_2x2_wb4_xbar
         end
     )
     wire cpu_64b_wdest_valid = (cpu_64b_wdest_wptr != cpu_64b_wdest_rptr);
+    assign cpu_64b_wdest_full = (cpu_64b_wdest_wptr[4] != cpu_64b_wdest_rptr[4]) && (cpu_64b_wdest_wptr[3:0] == cpu_64b_wdest_rptr[3:0]);
     wire [0:0] cpu_64b_wdest_head = cpu_64b_wdest_mem[cpu_64b_wdest_rptr[3:0]];
     assign cpu_64b_w_to_mem = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 1'd0);
     assign cpu_64b_w_to_subtractive = cpu_64b_wdest_valid && (cpu_64b_wdest_head == 1'd1);
@@ -1196,7 +1204,7 @@ module bridge_2x2_wb4_xbar
 
     // Master: wbm, Width path: 32b
     assign wbm_32b_awready = 
-        ((wbm_32b_aw_to_wbp && !wbm_32b_aw_hold_wbp) ? wbm_32b_aw_slot_wbp_in_ready : '0);
+        ((wbm_32b_aw_to_wbp && !(wbm_32b_aw_hold_wbp || wbm_32b_wdest_full)) ? wbm_32b_aw_slot_wbp_in_ready : '0);
 
     assign wbm_32b_wready = 
         (wbm_32b_w_sel_wbp ? wbp_axi_wready : '0);
@@ -1237,8 +1245,8 @@ module bridge_2x2_wb4_xbar
 
     // Master: wbm, Width path: 64b
     assign wbm_64b_awready = 
-        ((wbm_64b_aw_to_mem && !wbm_64b_aw_hold_mem) ? wbm_64b_aw_slot_mem_in_ready : '0) |
-        ((wbm_64b_aw_to_subtractive && !wbm_64b_aw_hold_subtractive) ? wbm_64b_aw_slot_subtractive_in_ready : '0);
+        ((wbm_64b_aw_to_mem && !(wbm_64b_aw_hold_mem || wbm_64b_wdest_full)) ? wbm_64b_aw_slot_mem_in_ready : '0) |
+        ((wbm_64b_aw_to_subtractive && !(wbm_64b_aw_hold_subtractive || wbm_64b_wdest_full)) ? wbm_64b_aw_slot_subtractive_in_ready : '0);
 
     assign wbm_64b_wready = 
         (wbm_64b_w_sel_mem ? mem_axi_wready : '0) |
@@ -1291,7 +1299,7 @@ module bridge_2x2_wb4_xbar
 
     // Master: cpu, Width path: 32b
     assign cpu_32b_awready = 
-        ((cpu_32b_aw_to_wbp && !cpu_32b_aw_hold_wbp) ? cpu_32b_aw_slot_wbp_in_ready : '0);
+        ((cpu_32b_aw_to_wbp && !(cpu_32b_aw_hold_wbp || cpu_32b_wdest_full)) ? cpu_32b_aw_slot_wbp_in_ready : '0);
 
     assign cpu_32b_wready = 
         (cpu_32b_w_sel_wbp ? wbp_axi_wready : '0);
@@ -1332,8 +1340,8 @@ module bridge_2x2_wb4_xbar
 
     // Master: cpu, Width path: 64b
     assign cpu_64b_awready = 
-        ((cpu_64b_aw_to_mem && !cpu_64b_aw_hold_mem) ? cpu_64b_aw_slot_mem_in_ready : '0) |
-        ((cpu_64b_aw_to_subtractive && !cpu_64b_aw_hold_subtractive) ? cpu_64b_aw_slot_subtractive_in_ready : '0);
+        ((cpu_64b_aw_to_mem && !(cpu_64b_aw_hold_mem || cpu_64b_wdest_full)) ? cpu_64b_aw_slot_mem_in_ready : '0) |
+        ((cpu_64b_aw_to_subtractive && !(cpu_64b_aw_hold_subtractive || cpu_64b_wdest_full)) ? cpu_64b_aw_slot_subtractive_in_ready : '0);
 
     assign cpu_64b_wready = 
         (cpu_64b_w_sel_mem ? mem_axi_wready : '0) |
