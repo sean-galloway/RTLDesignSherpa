@@ -193,11 +193,11 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
 - First size and timing comparison, every leg alone out of context on the
   board's part: [reports/ooc/README.md](reports/ooc/README.md) (`make ooc-all`).
   At the 100 MHz board clock all three close; at a 4 ns target B1 and B2
-  close (est. Fmax ~256 and ~268 MHz) and Leg A does not (~179 MHz on
-  2026-10-16 after the registered CAM insert and free, GitHub #119, an
-  11-level path from a master's R skid into the DDR slave's read CAM; ~148
-  MHz / 15 levels before them, ~161 MHz after GitHub #119 L1 and ~186 MHz /
-  12 levels before it -- §8). Leg A is ~3.9x B1's LUTs; B2 is ~3.1x B1's LUTs plus
+  close (est. Fmax ~256 and ~268 MHz) and Leg A misses by 1 ps (-0.001 ns,
+  ~250 MHz on 2026-10-22, a 7-level path through a master's ID remap into a
+  slave's AW stage; ~179 MHz on 2026-10-16, ~148 MHz / 15 levels before the
+  registered CAM insert and free, ~186 MHz / 12 levels before GitHub #119 L1
+  -- §8). Leg A is ~3.9x B1's LUTs; B2 is ~3.1x B1's LUTs plus
   3,959 LUTRAM and ~5.3x its flops.
 - S0's DDR3 controller is LiteDRAM, generated (`fb_litedram`,
   `rtl/litedram/fb_litedram.yml`, `bin/gen_litedram.sh`; the core is
@@ -376,16 +376,16 @@ per-run files they summarize in `reports/board/`, and the fabric alone in
 
 ### 8.1 Size and timing
 
-The fabric alone, placed and routed out of context (`make ooc-all`,
-2026-10-16):
+The fabric alone, placed and routed out of context (`make ooc-all`; legs B1
+and B2 2026-10-16, leg A re-run 2026-10-22):
 
 | Leg | LUT | LUTRAM | FF | WNS at 10 ns | WNS at 4 ns | Fmax est. |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A (bridge) | 10,450 | 0 | 7,479 | +2.225 | -1.599 | ~179 MHz |
+| A (bridge) | 8,449 | 0 | 6,722 | +3.889 | -0.001 | ~250 MHz |
 | B1 (AXI Crossbar) | 2,688 | 10 | 2,190 | +4.658 | +0.088 | ~256 MHz |
 | B2 (SmartConnect) | 8,333 | 3,959 | 11,616 | +4.286 | +0.268 | ~268 MHz |
 
-The whole board design, post-route (harness, STREAM, the injector and
+The whole board design, post-route on 2026-10-16 (not rebuilt since; harness, STREAM, the injector and
 LiteDRAM are the same in every leg; the differences are the fabric's):
 
 | Leg | WNS (ns) | WHS (ns) | LUTs | LUTRAM | FFs | BRAM | DSP |
@@ -394,19 +394,21 @@ LiteDRAM are the same in every leg; the differences are the fabric's):
 | B1 (AXI Crossbar) | +0.285 | +0.047 | 107,283 | 10,166 | 75,356 | 43.5 | 71 |
 | B2 (SmartConnect) | +0.378 | +0.023 | 112,491 | 12,009 | 83,133 | 43.5 | 71 |
 
-Leg A is the largest fabric in logic (3.9x B1's LUTs) and the only one
-that does not reach 4 ns; B2 spends fewer LUTs than A but adds 3,959
-LUTRAM and the most flops. Leg A's estimate fell from ~161 to ~148 MHz between
-2026-10-15 and 2026-10-16 with its size unchanged: the generated fabric
-took the bridge's per-port latency modes and outstanding limits (#119 L5,
-L7, L1b), and the worst path now starts at the injector port's per-ID
-tracking pointer rather than its AW skid -- still 15 levels into the DDR
-slave's write CAM count. Registering the slave adapters' CAM insert and
-free (GitHub #119, `bridge_cam` `PIPELINE_ALLOC` / `PIPELINE_FREE`) took
-that path out: ~148 -> ~165 -> ~179 MHz (WNS at 4 ns -2.753 -> -2.056 ->
--1.599 ns) for ~110 LUTs and ~210 flops. The worst path is now 11 levels,
-from a master's R skid through the response routing into the read CAM's
-tag-array enable.
+Leg A is the largest fabric in logic (3.1x B1's LUTs) and misses 4 ns by
+1 ps; B2 spends about as many LUTs as A but adds 3,959 LUTRAM and the most
+flops. Leg A's history at 4 ns: ~161 -> ~148 MHz (2026-10-15 to 10-16, the
+port latency modes and outstanding limits, #119 L5/L7/L1b, put a 15-level
+path into the DDR slave's write CAM count); ~165 -> ~179 MHz (registered CAM
+insert and free); then bridge W12 removed the slave-side CAMs altogether
+(responses route by the ID's master-index bits) and TASK-018 added the
+per-master ID remap, which re-measured on 2026-10-22 at -0.189 ns, ~239 MHz,
+8,253 LUTs, worst path 6 levels from a master's AR skid into its remap
+table. Two edits to `bridge_id_remap` that day -- the table writes its
+lowest free entry every cycle instead of decoding the request's slot, and
+`req_ok` is one flat reduction over (hit and disagrees) -- took it to
+-0.001 ns (~250 MHz). The worst path is now 7 levels: a master's AW skid,
+the remap ID compare, `req_ok` into AW valid, and the slave's AW stage
+enable.
 
 ### 8.2 W2 -- the fabric alone (5 runs per point)
 
@@ -491,13 +493,15 @@ nothing about the fabrics.
 | Steady-state bandwidth | 100% of peak | 100% of peak | 100% of peak |
 | Small-transfer cost | baseline | = A | 4.1% slower at 1 ch x 4 KB |
 | Contended-slave fairness | even (40/60 at 2 outstanding before 2026-10-21) | even | biased to STREAM (11-20%) |
-| Size (fabric, OOC) | 10.5k LUT, 7.5k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
-| Fmax est. (fabric, OOC) | ~179 MHz | ~256 MHz | ~268 MHz |
+| Size (fabric, OOC) | 8.4k LUT, 6.7k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
+| Fmax est. (fabric, OOC) | ~250 MHz | ~256 MHz | ~268 MHz |
 | Simulatable | yes | yes | no (encrypted) |
 
 On this port set and clock, the generated bridge matches the Xilinx
 crossbar on bandwidth and per-transfer latency, is fairer than
-SmartConnect under contention, and costs about 3.9x B1's logic and the
-lowest Fmax of the three. The 15-level write-CAM path found here went back
-to the bridge as the registered CAM insert and free (~148 -> ~179 MHz);
-the remaining gap to B1 is the response routing into the read CAM.
+SmartConnect under contention, and costs about 3.1x B1's logic at nearly
+the same Fmax (~250 vs ~256 MHz). The paths found here went back to the
+bridge: the registered CAM insert and free, then the ID remap edits (~179
+-> ~250 MHz). The logic gap is mostly the bridge's default of registering
+every channel at both ends of every port, which B1 here does not do (no
+register slices), plus the remap tables.

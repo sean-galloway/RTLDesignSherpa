@@ -46,6 +46,11 @@
 //     cycle late (out_cnt then includes it): conservative, never early.
 //   - rsp_id/rsp_meta are combinational from rsp_slot; a response must carry
 //     a slot that has a request outstanding.
+//   - The table is written into the lowest free slot every cycle, with no
+//     dependence on the request: a free entry's contents are don't-care, and
+//     the push that makes it live is the cycle it captures. Keeping the ID
+//     compare out of the write enable is what timing needs (it was the
+//     fabric's worst path, ID -> hit -> slot encode -> decode -> CE).
 //   - Properties are proven in formal/bridge/bridge_id_remap.
 //==============================================================================
 
@@ -86,36 +91,40 @@ module bridge_id_remap #(
 
     // ---- request lookup ----------------------------------------------------
     // At most one live entry holds a given ID, so w_hit is one-hot or zero and
-    // the hit fields are an AND-OR over it rather than an encoded index mux.
+    // the hit slot is an AND-OR over it rather than an encoded index mux.
     logic [DEPTH-1:0]      w_hit;
+    logic [DEPTH-1:0]      w_bad;         // hit, but toward another target/meta
     logic                  w_any_hit;
     logic [SW-1:0]         w_hit_slot, w_free_slot;
-    logic [NUM_TGT-1:0]    w_hit_tgt;
-    logic [META_WIDTH-1:0] w_hit_meta;
+    logic [DEPTH-1:0]      w_free_oh;     // lowest free entry, one-hot (or 0)
 
     always_comb begin
         w_hit_slot = '0;
-        w_hit_tgt  = '0;
-        w_hit_meta = '0;
         for (int i = 0; i < DEPTH; i++) begin
             w_hit[i] = r_live[i] && (r_id[i] == req_id);
+            w_bad[i] = w_hit[i] &&
+                       (!(|(r_tgt[i] & req_tgt)) || (r_meta[i] != req_meta));
             if (w_hit[i]) begin
                 w_hit_slot = w_hit_slot | SW'(i);
-                w_hit_tgt  = w_hit_tgt  | r_tgt[i];
-                w_hit_meta = w_hit_meta | r_meta[i];
             end
         end
         w_any_hit = |w_hit;
-        // Lowest free slot
+        // Lowest free slot, encoded and one-hot (registered state only)
         w_free_slot = '0;
+        w_free_oh   = '0;
         for (int i = DEPTH - 1; i >= 0; i--) begin
-            if (!r_live[i]) w_free_slot = SW'(i);
+            if (!r_live[i]) begin
+                w_free_slot = SW'(i);
+                w_free_oh   = DEPTH'(1) << i;
+            end
         end
     end
 
     assign req_slot = w_any_hit ? w_hit_slot : w_free_slot;
-    assign req_ok   = !w_any_hit ||
-                      ((|(w_hit_tgt & req_tgt)) && (w_hit_meta == req_meta));
+    // At most one entry hits, so "the hit agrees" is "no entry hits and
+    // disagrees": one flat reduction, not an AND-OR mux of the hit's fields
+    // followed by the compare (this gates AW/AR valid into the fabric).
+    assign req_ok   = !(|w_bad);
 
     // ---- response restore --------------------------------------------------
     assign rsp_id   = r_id[rsp_slot];
@@ -134,7 +143,8 @@ module bridge_id_remap #(
 
     always_comb begin
         for (int i = 0; i < DEPTH; i++) begin
-            w_inc[i] = req_push && (req_slot == SW'(i));
+            // one-hot direct: no encode of req_slot and compare back
+            w_inc[i] = req_push && (w_any_hit ? w_hit[i] : w_free_oh[i]);
             w_dec[i] = r_pop    && (r_pop_slot == SW'(i));
         end
     end
@@ -170,13 +180,19 @@ module bridge_id_remap #(
         end
     )
 
-    // ID, target and metadata are written on a push and only read while the
-    // entry is live; a hit rewrites the same values. No reset needed.
+    // ID, target and metadata are only read while the entry is live, so the
+    // lowest FREE entry is written every cycle with the current request: on
+    // a miss push it captures the request as it goes live; on any other
+    // cycle it writes an entry nobody reads. A hit leaves its live entry
+    // alone (it already holds this ID, target and metadata -- req_ok). No
+    // reset needed.
     always_ff @(posedge aclk) begin
-        if (req_push) begin
-            r_id[req_slot]   <= req_id;
-            r_tgt[req_slot]  <= req_tgt;
-            r_meta[req_slot] <= req_meta;
+        for (int i = 0; i < DEPTH; i++) begin
+            if (w_free_oh[i]) begin
+                r_id[i]   <= req_id;
+                r_tgt[i]  <= req_tgt;
+                r_meta[i] <= req_meta;
+            end
         end
     end
 

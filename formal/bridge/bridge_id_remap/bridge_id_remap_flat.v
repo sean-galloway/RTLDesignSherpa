@@ -40,44 +40,47 @@ module bridge_id_remap (
 	reg [SW:0] r_cnt [0:DEPTH - 1];
 	reg [DEPTH - 1:0] r_live;
 	reg [DEPTH - 1:0] w_hit;
+	reg [DEPTH - 1:0] w_bad;
 	reg w_any_hit;
 	reg [SW - 1:0] w_hit_slot;
 	reg [SW - 1:0] w_free_slot;
-	reg [NUM_TGT - 1:0] w_hit_tgt;
-	reg [META_WIDTH - 1:0] w_hit_meta;
+	reg [DEPTH - 1:0] w_free_oh;
 	function automatic signed [SW - 1:0] sv2v_cast_6C2E3_signed;
 		input reg signed [SW - 1:0] inp;
 		sv2v_cast_6C2E3_signed = inp;
+	endfunction
+	function automatic signed [DEPTH - 1:0] sv2v_cast_758CD_signed;
+		input reg signed [DEPTH - 1:0] inp;
+		sv2v_cast_758CD_signed = inp;
 	endfunction
 	always @(*) begin
 		if (_sv2v_0)
 			;
 		w_hit_slot = 1'sb0;
-		w_hit_tgt = 1'sb0;
-		w_hit_meta = 1'sb0;
 		begin : sv2v_autoblock_1
 			reg signed [31:0] i;
 			for (i = 0; i < DEPTH; i = i + 1)
 				begin
 					w_hit[i] = r_live[i] && (r_id[i] == req_id);
-					if (w_hit[i]) begin
+					w_bad[i] = w_hit[i] && (!(|(r_tgt[i] & req_tgt)) || (r_meta[i] != req_meta));
+					if (w_hit[i])
 						w_hit_slot = w_hit_slot | sv2v_cast_6C2E3_signed(i);
-						w_hit_tgt = w_hit_tgt | r_tgt[i];
-						w_hit_meta = w_hit_meta | r_meta[i];
-					end
 				end
 		end
 		w_any_hit = |w_hit;
 		w_free_slot = 1'sb0;
+		w_free_oh = 1'sb0;
 		begin : sv2v_autoblock_2
 			reg signed [31:0] i;
 			for (i = DEPTH - 1; i >= 0; i = i - 1)
-				if (!r_live[i])
+				if (!r_live[i]) begin
 					w_free_slot = sv2v_cast_6C2E3_signed(i);
+					w_free_oh = sv2v_cast_758CD_signed(1) << i;
+				end
 		end
 	end
 	assign req_slot = (w_any_hit ? w_hit_slot : w_free_slot);
-	assign req_ok = !w_any_hit || (|(w_hit_tgt & req_tgt) && (w_hit_meta == req_meta));
+	assign req_ok = !(|w_bad);
 	assign rsp_id = r_id[rsp_slot];
 	assign rsp_meta = r_meta[rsp_slot];
 	reg [SW:0] r_out_cnt;
@@ -93,7 +96,7 @@ module bridge_id_remap (
 			reg signed [31:0] i;
 			for (i = 0; i < DEPTH; i = i + 1)
 				begin
-					w_inc[i] = req_push && (req_slot == sv2v_cast_6C2E3_signed(i));
+					w_inc[i] = req_push && (w_any_hit ? w_hit[i] : w_free_oh[i]);
 					w_dec[i] = r_pop && (r_pop_slot == sv2v_cast_6C2E3_signed(i));
 				end
 		end
@@ -139,11 +142,14 @@ module bridge_id_remap (
 			endcase
 			full <= ((r_out_cnt == sv2v_cast_1DCD7_signed(DEPTH)) && (w_net != 2'b01)) || ((r_out_cnt == sv2v_cast_1DCD7_signed(DEPTH - 1)) && (w_net == 2'b10));
 		end
-	always @(posedge aclk)
-		if (req_push) begin
-			r_id[req_slot] <= req_id;
-			r_tgt[req_slot] <= req_tgt;
-			r_meta[req_slot] <= req_meta;
-		end
+	always @(posedge aclk) begin : sv2v_autoblock_6
+		reg signed [31:0] i;
+		for (i = 0; i < DEPTH; i = i + 1)
+			if (w_free_oh[i]) begin
+				r_id[i] <= req_id;
+				r_tgt[i] <= req_tgt;
+				r_meta[i] <= req_meta;
+			end
+	end
 	initial _sv2v_0 = 0;
 endmodule

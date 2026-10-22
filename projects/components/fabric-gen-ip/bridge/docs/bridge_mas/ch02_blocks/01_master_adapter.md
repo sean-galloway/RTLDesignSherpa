@@ -298,7 +298,7 @@ count of its requests in flight.
 The request lookup is a `max_outstanding`-way compare against registered
 entries. The response restore is a `max_outstanding`:1 read after the path
 arbiter, ahead of the wrapper's B / R skid buffer. The table is proven in
-`formal/bridge/bridge_id_remap` (unbounded, PDR), and
+`formal/bridge/bridge_id_remap` (unbounded, suprove), and
 `test_bridge_2x2_rw_id_remap` drives three times as many IDs as slots through
 both masters and checks the mapping at all four ports.
 

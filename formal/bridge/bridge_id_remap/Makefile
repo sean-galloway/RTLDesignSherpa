@@ -20,7 +20,7 @@ all: prove bmc cover
 prove: bridge_id_remap_flat.v
 	sby -f bridge_id_remap.sby prove
 
-# bmc names the failing property in a trace; pdr (prove) only reports FAIL.
+# bmc names the failing property in a trace; the prove engine (suprove) only reports FAIL.
 bmc: bridge_id_remap_flat.v
 	sby -f bridge_id_remap.sby bmc
 

@@ -111,14 +111,19 @@ commit 73467609f, 2026-10-17), removed it. A board bisect over the leg's
 history confirms the step at that commit (40.0% before, 50.0% from it on),
 and the current bridge gives 50.0% in five identical runs.
 
-The fabric is also larger and slower than the crossbar. Placed and routed
-alone, out of context on the Genesys 2's part, the bridge is 10,450 LUTs and
-7,479 flops with an estimated Fmax of ~179 MHz; the AXI Crossbar is 2,688
-LUTs and 2,190 flops at ~256 MHz; SmartConnect is 8,333 LUTs, 3,959 LUTRAM
-and 11,616 flops at ~268 MHz. The bridge's estimate was ~148 MHz before the
-slave adapters' CAM insert and free were registered; its worst path then ran
-from a master's R skid through the response routing into the read CAM. (That
-build predates W12, which removed the CAM; it has not been re-measured.) All three close at the board's 100 MHz.
+The fabric is also larger than the crossbar, and now about as fast. Placed
+and routed alone, out of context on the Genesys 2's part (2026-10-22), the
+bridge is 8,449 LUTs and 6,722 flops with an estimated Fmax of ~250 MHz
+(-0.001 ns at 4 ns); the AXI Crossbar is 2,688 LUTs and 2,190 flops at ~256
+MHz; SmartConnect is 8,333 LUTs, 3,959 LUTRAM and 11,616 flops at ~268 MHz.
+The bridge was ~179 MHz on 2026-10-16, with the slave-side CAMs that W12
+later removed; re-measured without them it was ~239 MHz, and two timing
+edits to `bridge_id_remap` (write the lowest free entry unconditionally;
+`req_ok` as one flat reduction) gave the rest. Its worst path is 7 levels,
+from a master's AW skid through the remap ID compare into a slave's AW
+stage. Most of the size difference is the default of a registered stage
+on every channel at both ends of every port, which the crossbar there does
+not have. All three close at the board's 100 MHz.
 
 ### Factors Affecting Throughput
 
