@@ -509,3 +509,17 @@ too, and `abc pdr` (run with the task in `mode prove`) found no proof in 2 h.*
 kind: a write the core makes on its own halting cycle is invisible to every
 RVFI check (nothing retires after a halt), so that mutant passes and proves
 nothing -- dropping `~mem_wait` from the write gate fails `reg`.*
+
+*Unbounded proofs too (2026-10-22): two timing edits to bridge
+`bridge_id_remap` (a table written at its lowest free entry every cycle; a
+flattened gate) took `abc pdr` from ~1 min to a 50-min timeout -- and each
+edit alone stalled it, while BMC 20 and cover still passed. `aiger
+suprove` proved the edited RTL in 139 s. PDR is sensitive to how the logic
+is structured, not just to what it means: when an RTL edit makes it stall,
+run the HEAD RTL through the same pipeline as a control (it proved in 66 s,
+flat byte-identical to the committed one) and try suprove before
+restructuring the RTL for the prover. As with `abc bmc3`, a suprove FAIL on
+an sv2v flat ends in ERROR at witness replay ("signal not found"): read
+`Status returned by engine: FAIL` in the log, and use `smtbmc` bmc for the
+trace. Mutation-check the new engine too -- it must return FAIL on a broken
+copy, not just PASS on the real one.*
