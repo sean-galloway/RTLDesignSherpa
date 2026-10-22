@@ -137,7 +137,7 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__msts_u32_t__in_t RD_FE_ADDR;
         bstress_mst_regs__msts_u32_t__in_t RD_FE_EXP;
         bstress_mst_regs__msts_u32_t__in_t RD_FE_ACT;
-        bstress_mst_regs__msts_u16_t__in_t RD_LAT_MAX;
+        bstress_mst_regs__msts_u32_t__in_t RD_LAT_MAX;
         bstress_mst_regs__msts_u32_t__in_t RD_LAT_SUM;
         bstress_mst_regs__msts_status_t__in_t WR_STATUS;
         bstress_mst_regs__msts_u32_t__in_t WR_ISSUED;
@@ -148,7 +148,7 @@ package bstress_mst_regs_pkg;
         bstress_mst_regs__msts_u32_t__in_t WR_FE_ADDR;
         bstress_mst_regs__msts_u32_t__in_t WR_FE_EXP;
         bstress_mst_regs__msts_u32_t__in_t WR_FE_ACT;
-        bstress_mst_regs__msts_u16_t__in_t WR_LAT_MAX;
+        bstress_mst_regs__msts_u32_t__in_t WR_LAT_MAX;
         bstress_mst_regs__msts_u32_t__in_t WR_LAT_SUM;
     } bstress_mst_regs__in_t;
 

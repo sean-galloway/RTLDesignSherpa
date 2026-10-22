@@ -233,7 +233,7 @@ module axi_stress_mst_rd
     logic [1:0]  r_s_resp  [DEPTH];
     logic [7:0]  r_s_tag   [DEPTH];
     logic [DEPTH-1:0] r_s_mem;        // a mem window: hashed by f_maddr
-    logic [15:0] r_s_ts    [DEPTH];
+    logic [31:0] r_s_ts    [DEPTH];
     logic [7:0]  r_s_rsb   [DEPTH];   // AXI5: the response sideband expected
     logic [3:0]  r_s_plg2  [DEPTH];   // AXI5: poison rate
     logic [DEPTH-1:0] r_s_uq;         // AXI5: issued with ARIDUNQ
@@ -253,7 +253,7 @@ module axi_stress_mst_rd
     // =========================================================================
     logic        r_ar_valid;
     logic [7:0]  r_gap_cnt;
-    logic [15:0] r_now;
+    logic [31:0] r_now;
 
     assign w_issue = r_run && t_valid && w_budget_left && (r_gap_cnt == '0)
                   && !tb_full && (tb_count < w_max_out) && !w_uq_blk
@@ -509,12 +509,17 @@ module axi_stress_mst_rd
     logic [31:0] r_idle;
     logic        w_hang;
 
-    // Issue-to-retire latency, modulo 2^16. A 16-bit wire on purpose: inside
-    // a 32'() cast the subtraction is context-sized, and Vivado extends both
-    // stamps to 32 bits first -- a wrapped stamp then reads ~4 billion and
-    // saturates LAT_SUM on the board, while Verilator computed it at 16 bits.
-    logic [15:0] w_lat;
+    // Issue-to-retire latency, modulo 2^32 (43 s at 100 MHz). The stamps, the
+    // clock and the difference are all 32 bits, so no tool can widen the
+    // subtraction past its operands: with 16-bit stamps inside a 32'() cast,
+    // Vivado extended both to 32 bits first and a wrapped stamp read ~4 billion,
+    // while Verilator computed it at 16 bits. They were 16 bits until
+    // 2026-10-22, and a burst slower than 65,535 cycles read wrapped.
+    logic [31:0] w_lat;
     assign w_lat = r_now - r_s_ts[tb_lk_idx];
+    // LAT_SUM saturates; a 33-bit sum, because one latency can now be large
+    logic [32:0] w_lat_sum;
+    assign w_lat_sum = {1'b0, sts.lat_sum} + {1'b0, w_lat};
     assign w_hang = (cfg.timeout_lg2 != '0) && r_idle[cfg.timeout_lg2]
                  && !sts.err_mask[ERR_HANG];
 
@@ -532,7 +537,7 @@ module axi_stress_mst_rd
             r_idle       <= '0;
             sts          <= '0;
         end else begin
-            r_now <= r_now + 16'd1;
+            r_now <= r_now + 32'd1;
             if (w_go) begin
                 r_run       <= cfg.enable && (|w_win_en);
                 r_started   <= 1'b1;
@@ -597,8 +602,7 @@ module axi_stress_mst_rd
 
                 if (tb_retire) begin
                     if (w_lat > sts.lat_max) sts.lat_max <= w_lat;
-                    sts.lat_sum <= (sts.lat_sum > 32'hFFFE_FFFF) ? 32'hFFFF_FFFF
-                                 : sts.lat_sum + 32'(w_lat);
+                    sts.lat_sum <= w_lat_sum[32] ? 32'hFFFF_FFFF : w_lat_sum[31:0];
                 end
                 if (8'(tb_count) > sts.out_max) sts.out_max <= 8'(tb_count);
             end

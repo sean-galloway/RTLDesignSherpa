@@ -44,6 +44,8 @@
 //  [22] B:  flip BTAGMATCH bit 0 (AXI5 only) -> master ERR_M_SB
 //  [23] AR: flip ARTAGOP bit 0  (AXI5 only)  -> slave  ERR_S_SB
 // flt_done shows which armed faults have been applied.
+// hold_b (level) holds every B between the slave and the master: a test makes
+// one burst outlast the stress master's latency counter with it.
 //
 // Struct widths are exported (o_w_*) so the Python packer can check its
 // field layout against the RTL instead of trusting it.
@@ -79,6 +81,7 @@ module tb_axi_stress_pair
 
     input  logic [23:0]                       flt_arm,     // pulse: arm a fault
     output logic [23:0]                       flt_done,
+    input  logic                              hold_b,      // hold every B between slave and master
 
     output logic [15:0]                       o_w_win,
     output logic [15:0]                       o_w_mcfg,
@@ -276,6 +279,12 @@ module tb_axi_stress_pair
     wire w_r_hs  = m_rvalid  && m_rready;
     wire w_w_hs  = m_wvalid  && m_wready;
     wire w_b_hs  = m_bvalid  && m_bready;
+
+    // hold_b: the slave keeps its B and the master sees none, for as long as
+    // a test holds it -- a single burst can then outlast any latency counter
+    logic s_bvalid, s_bready;
+    assign m_bvalid = s_bvalid && !hold_b;
+    assign s_bready = m_bready && !hold_b;
     wire w_ar_hs = m_arvalid && m_arready;
 
     wire w_aw_hs = m_awvalid && m_awready;
@@ -363,7 +372,7 @@ module tb_axi_stress_pair
             .s_axi_wdata(s_wdata), .s_axi_wstrb(m_wstrb), .s_axi_wlast(m_wlast),
             .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
             .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
-            .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
+            .s_axi_bvalid(s_bvalid), .s_axi_bready(s_bready),
             .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen),
             .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock(m_arlock),
             .s_axi_arcache(m_arcache), .s_axi_arprot(m_arprot), .s_axi_arqos(m_arqos),
@@ -388,7 +397,7 @@ module tb_axi_stress_pair
             .s_axi_wdata(s_wdata), .s_axi_wstrb(m_wstrb), .s_axi_wlast(m_wlast),
             .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
             .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
-            .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
+            .s_axi_bvalid(s_bvalid), .s_axi_bready(s_bready),
             .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen[3:0]),
             .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock({1'b0, m_arlock}),
             .s_axi_arcache(m_arcache), .s_axi_arprot(m_arprot), .s_axi_aruser(m_aruser),
@@ -418,7 +427,7 @@ module tb_axi_stress_pair
             .s_axi_wuser(m_wuser), .s_axi_wvalid(m_wvalid), .s_axi_wready(m_wready),
             .s_axi_wpoison(s_wpoison), .s_axi_wtag(s_wtag), .s_axi_wtagupdate(m_wtagupdate),
             .s_axi_bid(s_bid), .s_axi_bresp(s_bresp), .s_axi_buser(m_buser),
-            .s_axi_bvalid(m_bvalid), .s_axi_bready(m_bready),
+            .s_axi_bvalid(s_bvalid), .s_axi_bready(s_bready),
             .s_axi_btrace(s_btrace), .s_axi_bidunq(s_bidunq), .s_axi_btagmatch(s_btagmatch),
             .s_axi_arid(m_arid), .s_axi_araddr(s_araddr), .s_axi_arlen(m_arlen),
             .s_axi_arsize(m_arsize), .s_axi_arburst(m_arburst), .s_axi_arlock(m_arlock),

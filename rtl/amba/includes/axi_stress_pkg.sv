@@ -140,7 +140,7 @@ package axi_stress_pkg;
         logic [31:0] fe_addr;
         logic [31:0] fe_exp;
         logic [31:0] fe_act;
-        logic [15:0] lat_max;      // cycles, issue to retire
+        logic [31:0] lat_max;      // cycles, issue to retire (modulo 2^32)
         logic [31:0] lat_sum;      // saturating; / completed = mean
         logic [7:0]  out_now;
         logic [7:0]  out_max;

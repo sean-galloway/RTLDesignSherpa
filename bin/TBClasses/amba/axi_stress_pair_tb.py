@@ -97,7 +97,7 @@ class AxiStressPairTB(TBBase):
 
     def _park(self):
         d = self.dut
-        for s in ('go', 'stop', 'clear', 'flt_arm'):
+        for s in ('go', 'stop', 'clear', 'flt_arm', 'hold_b'):
             getattr(d, s).value = 0
         for s in ('cfg_mrd', 'cfg_mwr', 'cfg_win_flat', 'cfg_srd', 'cfg_swr'):
             getattr(d, s).value = 0

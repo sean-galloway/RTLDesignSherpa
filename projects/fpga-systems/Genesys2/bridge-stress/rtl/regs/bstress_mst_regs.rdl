@@ -137,7 +137,7 @@ addrmap bstress_mst_regs {
     msts_u32_t     RD_FE_ADDR    @ 0x218;  // First error: the beat (word) address.
     msts_u32_t     RD_FE_EXP     @ 0x21C;  // First error: expected word / field.
     msts_u32_t     RD_FE_ACT     @ 0x220;  // First error: actual word / field.
-    msts_u16_t     RD_LAT_MAX    @ 0x224;  // Longest issue-to-retire latency, cycles.
+    msts_u32_t     RD_LAT_MAX    @ 0x224;  // Longest issue-to-retire latency, cycles (modulo 2^32).
     msts_u32_t     RD_LAT_SUM    @ 0x228;  // Sum of latencies (saturating); / COMPLETED = mean.
 
     msts_status_t  WR_STATUS     @ 0x240;
@@ -149,7 +149,7 @@ addrmap bstress_mst_regs {
     msts_u32_t     WR_FE_ADDR    @ 0x258;  // First error: the beat (word) address.
     msts_u32_t     WR_FE_EXP     @ 0x25C;  // First error: expected word / field.
     msts_u32_t     WR_FE_ACT     @ 0x260;  // First error: actual word / field.
-    msts_u16_t     WR_LAT_MAX    @ 0x264;  // Longest issue-to-retire latency, cycles.
+    msts_u32_t     WR_LAT_MAX    @ 0x264;  // Longest issue-to-retire latency, cycles (modulo 2^32).
     msts_u32_t     WR_LAT_SUM    @ 0x268;  // Sum of latencies (saturating); / COMPLETED = mean.
 
 };

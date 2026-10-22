@@ -260,7 +260,7 @@ MCFG_FIELDS = (('enable', 1), ('txn_count', 32), ('seed', 32), ('id_base', 16),
 MSTS_FIELDS = (('busy', 1), ('done', 1), ('runs', 8), ('issued', 32), ('completed', 32),
                ('beats', 32), ('err_mask', 16), ('err_cnt', 16), ('fe_valid', 1),
                ('fe_kind', 4), ('fe_id', 16), ('fe_addr', 32), ('fe_exp', 32),
-               ('fe_act', 32), ('lat_max', 16), ('lat_sum', 32), ('out_now', 8),
+               ('fe_act', 32), ('lat_max', 32), ('lat_sum', 32), ('out_now', 8),
                ('out_max', 8))
 
 SCFG_FIELDS = (('base', 32), ('size_lg2', 6), ('offset_mode', 1), ('tag', 8),

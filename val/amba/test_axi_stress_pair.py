@@ -2,7 +2,7 @@
 # SPDX-FileCopyrightText: 2026 sean galloway
 """axi{4,3,5}_master_stress -> axi{4,3,5}_slave_stress, back to back.
 
-Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
+Three cocotb tests, all through bin/TBClasses/amba/axi_stress_pair_tb.py:
 
   cocotb_test_axi_stress_clean   one traffic scenario (TEST_TYPE) at the
       TEST_LEVEL budget; passes only if both blocks report zero errors, the
@@ -16,6 +16,9 @@ Two cocotb tests, both through bin/TBClasses/amba/axi_stress_pair_tb.py:
       a forced ARIDUNQ on a busy ID, a corrupted atomic read-return, a
       reserved AWATOP and flipped WTAG, RTAG, BTAGMATCH and ARTAGOP) must
       raise the error the blocks claim it raises.
+  cocotb_test_axi_stress_long_lat  one write's B held 70,000 cycles (the TB
+      top's hold_b): the master's LAT_MAX must read at least that, past the
+      2^16 its latency counter wrapped at until 2026-10-22.
 
 TEST_PROTO picks the shells (axi4 | axi3 | axi5); the cores and every check
 are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
@@ -227,6 +230,43 @@ async def cocotb_test_axi_stress_faults(dut):
         tb.reset_monitor()
 
 
+LONG_HOLD = 70_000       # cycles: past 2^16, which the latency counter wrapped at until 2026-10-22
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_axi_stress_long_lat(dut):
+    """One write's B held LONG_HOLD cycles: LAT_MAX must read at least that
+    (a 16-bit counter reads LONG_HOLD - 65536), and the mean <= max check
+    must still hold."""
+    tb = AxiStressPairTB(dut)
+    await tb.setup_clocks_and_reset()
+    n = 20
+    wins, mrd, mwr, srd, swr = _scenario('ooo', n, tag=0x5A, proto=tb.PROTO)
+    for m in (mrd, mwr):
+        m.update(timeout_lg2=18)       # the hang check must outlast the hold
+    tb.configure(wins, mrd, mwr, srd, swr)
+    await tb.wait_clocks('aclk', 2)
+    await tb.go()
+    for _ in range(20_000):
+        await tb.wait_clocks('aclk', 1)
+        if int(dut.s_bvalid.value):
+            break
+    else:
+        raise AssertionError('no B ever came back to hold')
+    dut.hold_b.value = 1
+    await tb.wait_clocks('aclk', LONG_HOLD)
+    dut.hold_b.value = 0
+    s = await tb.wait_done(timeout_cycles=200_000)
+    tb.log.info(f'long_lat:\n{tb.describe(s)}')
+    for k in ('mrd', 'mwr', 'srd', 'swr'):
+        assert s[k]['err_mask'] == 0, f'{k} reported errors:\n{tb.describe(s)}'
+    assert s['mwr']['completed'] == n
+    assert s['mwr']['lat_max'] >= LONG_HOLD, \
+        f"mwr lat_max {s['mwr']['lat_max']} after a {LONG_HOLD}-cycle B hold"
+    assert s['mwr']['lat_max'] < LONG_HOLD + 20_000, f"mwr lat_max {s['mwr']['lat_max']}"
+    assert 0 < s['mwr']['lat_sum'] <= s['mwr']['lat_max'] * s['mwr']['completed']
+
+
 PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2}
 
 
@@ -238,6 +278,7 @@ def _params():
     for proto in PROTO_CODE:
         out += [(proto, dw, 'clean', sc) for dw in dws for sc in scen]
         out += [(proto, dw, 'faults', '-') for dw in dws]
+        out.append((proto, 64, 'long_lat', '-'))
     return out
 
 
@@ -256,7 +297,7 @@ def test_axi_stress_pair(request, proto, dw, kind, scenario):
     includes = list(dict.fromkeys(list(m_inc) + list(s_inc)))
 
     test_level = os.environ.get('TEST_LEVEL', 'gate')
-    tag = scenario if kind == 'clean' else 'faults'
+    tag = scenario if kind == 'clean' else kind
     test_name_plus_params = f"test_{worker_id}_axi_stress_pair_{proto}_dw{dw:03d}_{tag}_{test_level}"
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)

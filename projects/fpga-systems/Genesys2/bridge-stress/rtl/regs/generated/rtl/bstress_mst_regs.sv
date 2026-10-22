@@ -1721,8 +1721,7 @@ module bstress_mst_regs (
     assign readback_array[43][31:0] = (decoded_reg_strb.RD_FE_ADDR && !decoded_req_is_wr) ? hwif_in.RD_FE_ADDR.VALUE.next : '0;
     assign readback_array[44][31:0] = (decoded_reg_strb.RD_FE_EXP && !decoded_req_is_wr) ? hwif_in.RD_FE_EXP.VALUE.next : '0;
     assign readback_array[45][31:0] = (decoded_reg_strb.RD_FE_ACT && !decoded_req_is_wr) ? hwif_in.RD_FE_ACT.VALUE.next : '0;
-    assign readback_array[46][15:0] = (decoded_reg_strb.RD_LAT_MAX && !decoded_req_is_wr) ? hwif_in.RD_LAT_MAX.VALUE.next : '0;
-    assign readback_array[46][31:16] = '0;
+    assign readback_array[46][31:0] = (decoded_reg_strb.RD_LAT_MAX && !decoded_req_is_wr) ? hwif_in.RD_LAT_MAX.VALUE.next : '0;
     assign readback_array[47][31:0] = (decoded_reg_strb.RD_LAT_SUM && !decoded_req_is_wr) ? hwif_in.RD_LAT_SUM.VALUE.next : '0;
     assign readback_array[48][0:0] = (decoded_reg_strb.WR_STATUS && !decoded_req_is_wr) ? hwif_in.WR_STATUS.BUSY.next : '0;
     assign readback_array[48][1:1] = (decoded_reg_strb.WR_STATUS && !decoded_req_is_wr) ? hwif_in.WR_STATUS.DONE.next : '0;
@@ -1742,8 +1741,7 @@ module bstress_mst_regs (
     assign readback_array[54][31:0] = (decoded_reg_strb.WR_FE_ADDR && !decoded_req_is_wr) ? hwif_in.WR_FE_ADDR.VALUE.next : '0;
     assign readback_array[55][31:0] = (decoded_reg_strb.WR_FE_EXP && !decoded_req_is_wr) ? hwif_in.WR_FE_EXP.VALUE.next : '0;
     assign readback_array[56][31:0] = (decoded_reg_strb.WR_FE_ACT && !decoded_req_is_wr) ? hwif_in.WR_FE_ACT.VALUE.next : '0;
-    assign readback_array[57][15:0] = (decoded_reg_strb.WR_LAT_MAX && !decoded_req_is_wr) ? hwif_in.WR_LAT_MAX.VALUE.next : '0;
-    assign readback_array[57][31:16] = '0;
+    assign readback_array[57][31:0] = (decoded_reg_strb.WR_LAT_MAX && !decoded_req_is_wr) ? hwif_in.WR_LAT_MAX.VALUE.next : '0;
     assign readback_array[58][31:0] = (decoded_reg_strb.WR_LAT_SUM && !decoded_req_is_wr) ? hwif_in.WR_LAT_SUM.VALUE.next : '0;
 
     // Reduce the array

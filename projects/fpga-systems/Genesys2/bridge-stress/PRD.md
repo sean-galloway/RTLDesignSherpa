@@ -234,6 +234,11 @@ checks the blocks themselves against the model.
 | build-axi5, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 4.8 M bursts, 1.19 s | `reports/board/bridge_bs_axi5_20261022_095510.csv` (per-port MB/s, latency and outstanding in the `.json`) |
 | build-xil, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 2.4 M bursts, 1.20 s | `reports/board/bridge_bs_xil_20261022_094222.csv` (per-port MB/s, latency and outstanding in the `.json`) |
 | build-xmix, large run: every profile x seeds 1-3, 20000 bursts per master direction | 30/30 PASS; 3.6 M bursts, 0.77 s | `reports/board/bridge_bs_xmix_20261022_094737.csv` (per-port MB/s, latency and outstanding in the `.json`) |
+| build-axi4, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 89,029 cycles (backpressure, dma rd) | `reports/board/bridge_bs_axi4_20261022_124511.csv` |
+| build-axi3, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 34,860 cycles | `reports/board/bridge_bs_axi3_20261022_124814.csv` |
+| build-axi5, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 87,499 cycles (backpressure, dma rd) | `reports/board/bridge_bs_axi5_20261022_125132.csv` |
+| build-xil, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 17,907 cycles | `reports/board/bridge_bs_xil_20261022_125438.csv` |
+| build-xmix, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 20,623 cycles | `reports/board/bridge_bs_xmix_20261022_130936.csv` |
 
 ## 8. Running
 
@@ -243,12 +248,17 @@ takes hours (10 profiles x 400 bursts: 2.5 h per DUT), so the sim levels stay
 short (40 / 200 / 1000 bursts) and check behaviour; volume comes from
 `run_stress.py --txns`.
 
-Latency figures are issue-to-retire cycles, modulo 2^16: the stress master's
-stamps are 16 bits (`axi_stress_mst_{rd,wr}`), and its hang check is
-master-wide idle, not per-burst age. So a single burst slower than 65,535
-cycles reads wrapped, and a maximum near 65k is a floor, not a measurement.
-In the 2026-10-22 large runs only `backpressure`'s `dma` reads on build-axi4
-and build-axi5 came near it (62-65k); every other maximum was below 43k.
+Latency figures are issue-to-retire cycles, modulo 2^32 (43 s at 100 MHz):
+the stress master's stamps, `LAT_MAX` and the saturating `LAT_SUM` are all 32
+bits (`axi_stress_mst_{rd,wr}`). Its hang check is master-wide idle, not
+per-burst age, so one slow burst does not trip it; the width is what bounds the
+reading. The stamps were 16 bits until 2026-10-22, and a burst slower than
+65,535 cycles then read wrapped -- the morning's large runs (rows above marked
+"large run" without "32-bit latency") carry that limit. With 32 bits,
+`backpressure`'s `dma` reads on build-axi4 and build-axi5 measured
+57-89k cycles (five of six runs over 2^16); every other maximum on every build
+stayed below 43k. `val/amba/test_axi_stress_pair.py` `long_lat` holds a B for
+70,000 cycles and checks the reading.
 
 ```
 bin/regen.sh                                   # bridges, regblocks, harness

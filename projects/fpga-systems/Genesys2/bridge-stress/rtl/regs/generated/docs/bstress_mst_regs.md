@@ -1518,7 +1518,7 @@ Don't override. Generated from: $root
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|15:0|   VALUE  |   r  | 0x0 |  — |
+|31:0|   VALUE  |   r  | 0x0 |  — |
 
 ### RD_LAT_SUM register
 
@@ -1671,7 +1671,7 @@ Don't override. Generated from: $root
 
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
-|15:0|   VALUE  |   r  | 0x0 |  — |
+|31:0|   VALUE  |   r  | 0x0 |  — |
 
 ### WR_LAT_SUM register
 

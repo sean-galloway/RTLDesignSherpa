@@ -652,7 +652,7 @@ class StressHarness:
                 mb = r['beats'] * (m.dw // 8) / (t / hz) / 1e6
                 lat = r['lat_sum'] / max(1, r['completed'])
                 lines.append(f"  {m.name:>6}.{dr} {r['completed']:>7} bursts {r['beats']:>8} beats "
-                             f"{mb:8.1f} MB/s  lat mean {lat:6.1f} max {r['lat_max']:>5}  "
+                             f"{mb:8.1f} MB/s  lat mean {lat:8.1f} max {r['lat_max']:>9}  "
                              f"out max {r['out_max']}")
         for s in b.stress_slaves:
             rd, wr = res[f'{s.name}.rd'], res[f'{s.name}.wr']
