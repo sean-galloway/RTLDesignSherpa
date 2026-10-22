@@ -768,9 +768,19 @@ async def cocotb_test_pumice_core_refresh_credit(dut):
         assert got[:BL_WORDS] == written[addr], f"data mismatch @ {addr:#x}"
 
     # ---- arm D: disarm ------------------------------------------------------
+    # The stretch must outlast the FULL credit bank, not a "leftover": the
+    # integrity spot-check reads above are idle time with pullin still armed,
+    # so the controller re-banks to the 8-credit cap right before this arm
+    # (waves 2026-10-21: six early REF grants in the spot-check gap, then no
+    # request for 8 ticks). 800 cycles = 8.3 ticks therefore held exactly one
+    # genuine strict REF, and the ">= 3" passed only on two pull-in REFs
+    # granted ~150 ns before the window whose DFI commands landed inside it.
+    # A one-cycle change in refresh-drain speed (pumice BUG-028 fix) moved
+    # that boundary and the count fell to 2. 1300 cycles = 13.5 ticks: 8 burn
+    # the credits, >= 5 are strict, >= 3 asserted with margin on either side.
     dut.ref_pullin_i.value = 0
     b = _refs()
-    await _demand(800, 41)                       # leftover credit burns first
+    await _demand(1300, 41)                      # 8 ticks burn the bank, then strict
     refs_d = _refs() - b
     assert refs_d >= 3, (f"disarm: only {refs_d} REFs -- strict behaviour "
                          f"did not return after the credits burned")

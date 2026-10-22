@@ -80,7 +80,21 @@ module mc_store_arbiter_macro_tb_top
     output logic [31:0]          commit_count,
     output logic [31:0]          drain_count,
     output logic [31:0]          rd_issue_count,
-    output logic [31:0]          cmd_count
+    output logic [31:0]          cmd_count,
+    // Live JEDEC gate + init-override controls (from cocotb). These were
+    // constant-tied at the arbiter instantiation; Verilator folds a constant
+    // port away, so every cocotb deposit on u_arb.bank_*_ready_i / init_*
+    // was a silent no-op and cocotb_test_hold_on_gate_block could never
+    // create the block it asserts on (pumice-100mhz ledger, 2026-10-21).
+    // The _la twins mirror the live gates (BANK_LA=0 semantics).
+    input  logic [NUM_BANKS-1:0] bank_act_ready,
+    input  logic [NUM_BANKS-1:0] bank_rdwr_ready,
+    input  logic [NUM_BANKS-1:0] bank_pre_ready,
+    input  logic                 init_done,
+    input  logic                 init_cmd_valid,
+    input  logic [4:0]           init_cmd_op,
+    input  logic [BKW-1:0]       init_cmd_bank,
+    input  logic [ROW_WIDTH-1:0] init_cmd_row
 );
 
     // ------------------------------------------------------------------
@@ -219,6 +233,14 @@ module mc_store_arbiter_macro_tb_top
     // contract, not JEDEC timing.
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0] stub_row_active;
     logic [NUM_BANKS-1:0][3:0]           stub_ap_cnt;
+    // cocotb-driven live gates, shaped for the arbiter's [rank][bank] ports.
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_act_rdy, w_rdwr_rdy, w_pre_rdy;
+    always_comb begin
+        w_act_rdy  = '0; w_rdwr_rdy = '0; w_pre_rdy = '0;
+        w_act_rdy [0] = bank_act_ready;
+        w_rdwr_rdy[0] = bank_rdwr_ready;
+        w_pre_rdy [0] = bank_pre_ready;
+    end
 
     mc_cmd_arbiter #(
         .NUM_RANKS  (NUM_RANKS),
@@ -250,11 +272,11 @@ module mc_store_arbiter_macro_tb_top
         .ap_close_i         ('0),
         .timeout_pre_req_i  (1'b0),
         .timeout_pre_bank_i ('0),
-        .init_done_i        (1'b1),
-        .init_cmd_valid_i   (1'b0),
-        .init_cmd_op_i      (dram_op_e'(0)),
-        .init_cmd_bank_i    ('0),
-        .init_cmd_row_i     ('0),
+        .init_done_i        (init_done),
+        .init_cmd_valid_i   (init_cmd_valid),
+        .init_cmd_op_i      (dram_op_e'(init_cmd_op)),
+        .init_cmd_bank_i    (init_cmd_bank),
+        .init_cmd_row_i     (init_cmd_row),
         .refresh_req_i      (1'b0),
         .refresh_drain_i    (1'b0),
         .refresh_kind_i     (1'b0),
@@ -273,12 +295,12 @@ module mc_store_arbiter_macro_tb_top
         .maint_col_i        ('0),
         .maint_extra_i      ('0),
         .maint_busy_i       (1'b0),
-        .bank_act_ready_i   ('1),
-        .bank_rdwr_ready_i  ('1),
-        .bank_pre_ready_i   ('1),
-        .bank_act_ready_la_i('1),
-        .bank_rdwr_ready_la_i('1),
-        .bank_pre_ready_la_i('1),
+        .bank_act_ready_i   (w_act_rdy),
+        .bank_rdwr_ready_i  (w_rdwr_rdy),
+        .bank_pre_ready_i   (w_pre_rdy),
+        .bank_act_ready_la_i(w_act_rdy),
+        .bank_rdwr_ready_la_i(w_rdwr_rdy),
+        .bank_pre_ready_la_i(w_pre_rdy),
         .bank_row_active_i  (stub_row_active),
         .bank_open_row_i    ('0),
         .tfaw_ok_i          ('1),

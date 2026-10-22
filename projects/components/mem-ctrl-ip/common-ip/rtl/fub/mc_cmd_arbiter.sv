@@ -175,16 +175,6 @@ module mc_cmd_arbiter
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
 
-`ifdef MC_ARB_BANK_OH
-    // Task 4 (pumice 100MHz): per-entry one-hot bank pre-decode, registered
-    // at CAM push/fill time. Compile-gated so the arbiter compiles standalone
-    // until the CAMs/planes drive these; when the define is absent Stage A
-    // falls back to decoding one-hot from the bank field (identical masks).
-    // Task 4 removes this guard.
-    input  logic [NUM_ENTRIES*NUM_BANKS-1:0]    wr_sch_bank_oh_i,
-    input  logic [NUM_ENTRIES*NUM_BANKS-1:0]    rd_sch_bank_oh_i,
-`endif
-
     // ---- event strobes to bank + global timers ----
     output logic                      evt_act_o,
     output logic                      evt_rd_o,
@@ -376,7 +366,19 @@ module mc_cmd_arbiter
     // =====================================================================
     logic [NUM_BANKS-1:0] w_if_preact_sel, w_if_preact_pre, w_if_preact_out;
     logic [NUM_BANKS-1:0] w_if_col_sel,    w_if_col_pre,    w_if_col_out;
+    // ACT-only halves of the two shadow vectors above, for the refresh/ZQ
+    // DRAIN-PRE guard (w_guarded_drain below).
+    logic [NUM_BANKS-1:0] w_if_act_sel,    w_if_act_pre;
     always_comb begin
+        w_if_act_sel = '0;
+        if (w_sel_rd_act_f)
+            w_if_act_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
+        if (w_sel_wr_act_f)
+            w_if_act_sel |= (NUM_BANKS'(1) << f_bank(wr_sch_bank_i, w_sel_wr_act_s));
+        w_if_act_pre = '0;
+        if (rd_act_f) w_if_act_pre |= (NUM_BANKS'(1) << rd_act_bank);
+        if (wr_act_f) w_if_act_pre |= (NUM_BANKS'(1) << wr_act_bank);
+
         w_if_preact_sel = '0;
         if (w_sel_rd_act_f)
             w_if_preact_sel |= (NUM_BANKS'(1) << f_bank(rd_sch_bank_i, w_sel_rd_act_s));
@@ -414,66 +416,70 @@ module mc_cmd_arbiter
     logic [NUM_BANKS-1:0] w_col_inflight_guard;
     assign w_col_inflight_guard = w_if_col_sel | w_if_col_pre;
 
+    // Per-entry double-issue mask
+    logic [NUM_ENTRIES-1:0] w_rd_col_inflight_ent, w_wr_col_inflight_ent;
+    always_comb begin
+        w_rd_col_inflight_ent = '0;
+        w_wr_col_inflight_ent = '0;
+        if (w_sel_rd_col_f) w_rd_col_inflight_ent[w_sel_rd_col_s] = 1'b1;
+        if (w_sel_wr_col_f) w_wr_col_inflight_ent[w_sel_wr_col_s] = 1'b1;
+        if (rd_col_f)       w_rd_col_inflight_ent[rd_col_s]       = 1'b1;
+        if (wr_col_f)       w_wr_col_inflight_ent[wr_col_s]       = 1'b1;
+        if (r_pick_valid && r_do_rd) w_rd_col_inflight_ent[r_issue_slot]  = 1'b1;
+        if (r_pick_valid && r_do_wr) w_wr_col_inflight_ent[r_commit_slot] = 1'b1;
+    end
+
     // Classify-time ACT gate, retained ONLY under row_first (access_pref == 2).
     // See the ISSUE-002 rationale in the classify block below.
     logic w_act_classify_gate;
     assign w_act_classify_gate = (sched_access_pref_i == 2'd2)
                                ? (tfaw_ok_i[RK0] && trrd_ok_i[RK0]) : 1'b1;
 
+    logic [NUM_BANKS-1:0] w_col_inflight_bank;
+    assign w_col_inflight_bank = w_col_inflight_guard
+                               | (w_inflight_col ? (NUM_BANKS'(1) << r_bank) : '0);
+
     // ---- FORWARD tCCD (column spacing at classify time) --------------------
-    // Fire-anchored: the counter loads when a column command FIRES and gates
-    // later column overlays until t_ccd_i MC cycles have passed. Inert when
-    // t_ccd_i <= 1 (pumice DDR2: tCCD = 2 nCK < 1 MC cycle), so back-to-back
-    // column streams are unaffected. The term used to also read the live
-    // Stage-1b selection (w_col_sel_now); after the cone split the overlay
-    // runs INSIDE the Stage-1b comb, so reading the selection being computed
-    // would close a comb loop -- the fire anchor is the loop-free equivalent
-    // (conservative by up to one pick-pipeline cycle when t_ccd_i > 1).
     logic [7:0] r_tccd_fwd;
-    logic       w_col_fire, w_tccd_fwd_ok;
-    assign w_col_fire    = w_fire_out && (r_do_rd || r_do_wr);
-    assign w_tccd_fwd_ok = (r_tccd_fwd <= 8'd1);
+    logic       w_col_sel_now, w_tccd_fwd_ok;
+    assign w_col_sel_now = w_sel_rd_col_f || w_sel_wr_col_f;
+    assign w_tccd_fwd_ok = (r_tccd_fwd <= 8'd1) && !(w_col_sel_now && (t_ccd_i > 8'd1));
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn))      r_tccd_fwd <= '0;
-        else if (w_col_fire)             r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
+        else if (w_col_sel_now)          r_tccd_fwd <= (t_ccd_i > 8'd1) ? (t_ccd_i - 8'd1) : 8'd0;
         else if (r_tccd_fwd != 8'd0)     r_tccd_fwd <= r_tccd_fwd - 8'd1;
     )
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard | w_col_inflight_guard
                      | w_if_preact_out | w_if_col_out;
 
+    // DRAIN-PRE guard (refresh / ZQ all-banks-idle drains). Same as w_guarded
+    // MINUS the pre-pick/Stage-1b shadow of a DEMAND PRE to the same bank.
+    //
+    // pumice BUG-028 (2026-10-21, col_major at board timings, CLOSE_ON_DRAIN=0):
+    // a row-miss entry behind an open row keeps a demand-PRE candidate for
+    // that bank in the pre-pick register every cycle. When a refresh is then
+    // requested, the refresh branch (higher in the priority chain) wants a
+    // drain PRE on that bank but w_guarded carries the demand-PRE shadow, so
+    // w_rfsh_pre_found stays 0; the refresh branch shadows every demand class,
+    // so the demand PRE never fires either. Nothing is ever picked: writer
+    // deadlock with the CAM full (snapshot: refresh_req=drain=1,
+    // row_active=0x1, pre_ready=0x1, w_guarded=0x1, r_guard0/1=0,
+    // w_inflight_preact=0, r_pick_valid=0). CLOSE_ON_DRAIN=1 hid it because the
+    // last column was an AP and no demand PRE existed.
+    //
+    // A drain PRE and a pending demand PRE for the same bank are the same
+    // command, not a hazard: once the drain PRE fires, r_guard0 masks the bank
+    // and the row image drops, so the demand-PRE candidate dies in the mask
+    // before the refresh branch ever lets a demand class through. The ACT
+    // shadows and every fired/in-flight guard are kept.
+    logic [NUM_BANKS-1:0] w_guarded_drain;
+    assign w_guarded_drain = r_guard0 | r_guard1 | w_if_act_sel | w_if_act_pre
+                           | w_col_inflight_guard | w_if_preact_out | w_if_col_out;
+
     // in-flight ACT/PRE bank guard for the COLUMN masks
     logic [NUM_BANKS-1:0] w_preact_bank_guard;
     assign w_preact_bank_guard = w_prepick_guard | w_if_preact_out;
-
-    // Overlay guard variants WITHOUT the Stage-1b (w_sel_*) shadow terms.
-    // After the cone split (Stage A), the live window overlay runs INSIDE the
-    // Stage-1b combinational stage, so it cannot read the selection it is
-    // producing (that would close a comb loop through arg_sel). The sel terms
-    // are redundant there: the command being selected this cycle is the
-    // OUTPUT of the overlay, not an input, and a selection made last cycle is
-    // covered by the pre-pick/output terms below. The full-signal versions
-    // (w_guarded, w_preact_bank_guard) are kept for the refresh/timeout cone,
-    // which legitimately reads w_sel_*.
-    logic [NUM_BANKS-1:0] w_guarded_ov;
-    assign w_guarded_ov = r_guard0 | r_guard1
-                        | w_if_preact_pre | w_if_preact_out
-                        | w_if_col_pre    | w_if_col_out;
-    logic [NUM_BANKS-1:0] w_preact_bank_guard_ov;
-    assign w_preact_bank_guard_ov = w_if_preact_pre | w_if_preact_out;
-    logic [NUM_BANKS-1:0] w_col_inflight_bank_ov;
-    assign w_col_inflight_bank_ov = w_if_col_pre | w_if_col_out;
-
-    // Per-entry double-issue mask, overlay variant (pre-pick + output stages)
-    logic [NUM_ENTRIES-1:0] w_rd_col_inflight_ov, w_wr_col_inflight_ov;
-    always_comb begin
-        w_rd_col_inflight_ov = '0;
-        w_wr_col_inflight_ov = '0;
-        if (rd_col_f)       w_rd_col_inflight_ov[rd_col_s]       = 1'b1;
-        if (wr_col_f)       w_wr_col_inflight_ov[wr_col_s]       = 1'b1;
-        if (r_pick_valid && r_do_rd) w_rd_col_inflight_ov[r_issue_slot]  = 1'b1;
-        if (r_pick_valid && r_do_wr) w_wr_col_inflight_ov[r_commit_slot] = 1'b1;
-    end
 
     // ---- direction-turnaround guard ----------------------------------------
     logic r_wrfire0, r_wrfire1, r_rdfire0, r_rdfire1;
@@ -485,10 +491,10 @@ module mc_cmd_arbiter
     // AUTO-PRECHARGE same-bank serialization (CLOSE/AP): each RDA/WRA closes its
     // bank, so a same-bank column may not issue until the close lands and the row
     // is re-ACTed. Two spans, column masks ONLY, gated by f_ap(b):
-    //   * w_col_inflight_bank_ov: a column to b anywhere in the pick pipeline
-    //     downstream of the overlay (pre-pick + output stages -- the overlay
-    //     cannot read the selection it is computing; see the *_ov note above).
-    //     Covers RDA1's ~2 remaining pipeline cycles.
+    //   * w_col_inflight_bank: a column to b anywhere in the pick pipeline --
+    //     reuses w_col_inflight_guard (selection + pre-pick; reads the REGISTERED
+    //     STAGE-1a snapshot for the selection term, so NO comb loop) plus the
+    //     output stage. Covers RDA1's ~3 pipeline cycles.
     //   * r_ap_closing[b]: set on an AP-column fire, HELD until
     //     r_bank_row_active[b] drops (measured 6 cyc RDA-fire->drop, > the
     //     pipeline depth) -- bridges the stale-row window the pipeline span alone
@@ -631,79 +637,7 @@ module mc_cmd_arbiter
         return pool_col[e*COL_WIDTH +: COL_WIDTH];
     endfunction
 
-    // ---- STAGE A: registered pool qualify vs the registered bank image ------
-    // mask_A = valid && class(bank,row) && bank_image_ok, per pool entry per
-    // class, flopped into r_cls_a_*. The qualify cone reads ONLY flops (the CAM
-    // vectors, the r_bank_* image, r_ap_closing), so the bank-timer -> pick
-    // cone and the pool-build depth are absorbed by this register stage
-    // (pumice 100MHz spec section 3.2). r_cls_a IS the mask snapshot register
-    // of the pick pipeline (it replaces the old Stage-1a full-classify capture
-    // -- the pick keeps the same number of pipeline hops as before); it holds
-    // under output-stage backpressure (w_out_ready) exactly like the old
-    // snapshot did. Every live-window guard (turnaround, tCCD-forward, AP/REF,
-    // in-flight, sink-ready) is applied DOWNSTREAM of the register, in the
-    // overlay below that feeds the Stage-1b argmax.
-    logic [POOL-1:0] w_cls_a_col, w_cls_a_act, w_cls_a_pre;
-    logic [POOL-1:0] r_cls_a_col, r_cls_a_act, r_cls_a_pre;
-    always_comb begin
-        w_cls_a_col = '0; w_cls_a_act = '0; w_cls_a_pre = '0;
-        for (int e = 0; e < POOL; e++) begin
-            automatic logic           pdir = (e >= NUM_ENTRIES);
-            automatic int             pslot = pdir ? (e - NUM_ENTRIES) : e;
-            automatic logic [BKW-1:0] pbank = f_pool_bank(PTXW'(e));
-            automatic logic [NUM_BANKS-1:0] boh;
-            automatic logic           phit;
-`ifdef MC_ARB_BANK_OH
-            boh = pdir ? wr_sch_bank_oh_i[pslot*NUM_BANKS +: NUM_BANKS]
-                       : rd_sch_bank_oh_i[pslot*NUM_BANKS +: NUM_BANKS];
-`else
-            boh = NUM_BANKS'(1) << pbank;
-`endif
-            phit = r_bank_row_active[RK0][pbank]
-                 && (f_pool_row(PTXW'(e)) == r_bank_open_row[RK0][pbank]);
-            w_cls_a_col[e] = pool_valid[e] && phit
-                           && |(r_bank_rdwr_ready[RK0] & boh);
-            // CLOSE_ON_DRAIN early-ACT qualify: when this bank is closing via
-            // an auto-precharge (r_ap_closing holds from the AP column's fire
-            // until the row image drops), a pending next-row entry may
-            // classify as ACT immediately and pipeline through the pick stages
-            // DURING the AP drain. The fire stage stays the JEDEC authority:
-            // bank_act_ready_i (live) still requires tRP/tRC, so an early ACT
-            // holds (w_out_hold) until truly safe.
-            w_cls_a_act[e] = pool_valid[e]
-                           && (!r_bank_row_active[RK0][pbank]
-                               || (CLOSE_ON_DRAIN && r_ap_closing[pbank]))
-                           && |(r_bank_act_ready[RK0] & boh);
-            w_cls_a_pre[e] = pool_valid[e] && r_bank_row_active[RK0][pbank]
-                           && !phit && |(r_bank_pre_ready[RK0] & boh);
-        end
-    end
-    `ALWAYS_FF_RST(aclk, aresetn,
-        if (`RST_ASSERTED(aresetn)) begin
-            r_cls_a_col <= '0; r_cls_a_act <= '0; r_cls_a_pre <= '0;
-        end else if (w_out_ready) begin
-            r_cls_a_col <= w_cls_a_col;
-            r_cls_a_act <= w_cls_a_act;
-            r_cls_a_pre <= w_cls_a_pre;
-        end
-    )
-
-    // ---- live window overlay on the Stage-A qualify -------------------------
-    // Mask signals (driven by the overlay comb and the BANK_IN_ORDER block
-    // below; declared ahead of both per the decl-order lint).
-    logic [POOL-1:0]        pool_col_m, pool_act_m, pool_pre_m;
-    // BANK_IN_ORDER-masked copies (single driver; collapse to the base masks
-    // when the mode is off)
-    logic [POOL-1:0]        pool_col_mi, pool_act_mi, pool_pre_mi;
-    logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
-    logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
-    assign rd_col_m = pool_col_mi[NUM_ENTRIES-1:0];
-    assign rd_act_m = pool_act_mi[NUM_ENTRIES-1:0];
-    assign rd_pre_m = pool_pre_mi[NUM_ENTRIES-1:0];
-    assign wr_col_m = pool_col_mi[POOL-1:NUM_ENTRIES];
-    assign wr_act_m = pool_act_mi[POOL-1:NUM_ENTRIES];
-    assign wr_pre_m = pool_pre_mi[POOL-1:NUM_ENTRIES];
-    logic [NUM_BANKS-1:0] w_ref_col_block;
+    // ---- classify each pool entry into column / activate / precharge --------
     // ISSUE-002: tFAW/tRRD gate the FIRE, not the classify. Both are rank-global
     // (not per-bank), so gating the MASK zeroed every ACT candidate the moment
     // tRRD closed; the 3-stage pick pipeline then drained completely and cost 3
@@ -728,50 +662,70 @@ module mc_cmd_arbiter
     // used to leave to them, and pref_row_first drops from ~80% to 72.45% under
     // the close-biased paging modes. That mode's arbitration is a characterized
     // result (TASK-002), so it keeps the old gate and the old numbers.
-    //
-    // The overlay reads the REGISTERED qualify (r_cls_a_*) and applies the
-    // live guards one pick-pipeline stage later than the old single-shot
-    // classify did -- strictly fresher guard reads against the same mask
-    // snapshot, i.e. never less conservative.
+    logic [POOL-1:0]        pool_col_m, pool_act_m, pool_pre_m;
+    // BANK_IN_ORDER-masked copies (single driver; collapse to the base masks
+    // when the mode is off)
+    logic [POOL-1:0]        pool_col_mi, pool_act_mi, pool_pre_mi;
+    logic [NUM_ENTRIES-1:0] rd_col_m, rd_act_m, rd_pre_m;
+    logic [NUM_ENTRIES-1:0] wr_col_m, wr_act_m, wr_pre_m;
+    assign rd_col_m = pool_col_mi[NUM_ENTRIES-1:0];
+    assign rd_act_m = pool_act_mi[NUM_ENTRIES-1:0];
+    assign rd_pre_m = pool_pre_mi[NUM_ENTRIES-1:0];
+    assign wr_col_m = pool_col_mi[POOL-1:NUM_ENTRIES];
+    assign wr_act_m = pool_act_mi[POOL-1:NUM_ENTRIES];
+    assign wr_pre_m = pool_pre_mi[POOL-1:NUM_ENTRIES];
+    logic [NUM_BANKS-1:0] w_ref_col_block;
     always_comb begin
         pool_col_m = '0; pool_act_m = '0; pool_pre_m = '0;
         for (int e = 0; e < POOL; e++) begin
             automatic logic           pdir = (e >= NUM_ENTRIES);
             automatic int             pslot = pdir ? (e - NUM_ENTRIES) : e;
             automatic logic [BKW-1:0] pbank = f_pool_bank(PTXW'(e));
-            // COLUMN. The sink-FIFO gate is direction-specific and
-            // correctness-critical: an RD may only fire when the rd CAM's
-            // issue-order FIFO has room (rd_issue_ready_i), a WR only when
-            // the wr CAM's drain FIFO has room (wr_commit_ready_i) --
-            // otherwise the column issues to DRAM but its CAM drops it
-            // (double-issue + misrouted return for RD, stale-DRAM write for
-            // WR). ACT/PRE touch no CAM and stay free, so the arbiter keeps
-            // working while a sink is full. The pdir-conditioned turnaround
-            // terms are the tWTR (RD-after-WR) / tRTW (WR-after-RD)
-            // direction-crossing masks; the per-entry inflight term stops a
-            // slot queued anywhere in the pick pipeline being re-selected;
-            // !w_pre_col_guard covers a PRE fired on this bank within the
-            // last 3 cycles (the registered row image is stale -- a column
-            // picked against it lands on the just-closed row and the
-            // AR-order drain wedges behind it forever: parked-victim pattern
-            // in test_pumice_core_sched_order). The *_ov guard variants are
-            // the loop-free (no w_sel_* readback) forms -- see their
-            // definitions.
-            pool_col_m[e] = r_cls_a_col[e] && w_tccd_fwd_ok
-                          && (pdir ? trtw_ok_i : twtr_ok_i)
-                          && (pdir ? wr_commit_ready_i : rd_issue_ready_i)
-                          && !(f_ap(pbank) && w_col_inflight_bank_ov[pbank]) && !r_ap_closing[pbank]
-                          && !(pdir ? w_wr_col_inflight_ov[pslot] : w_rd_col_inflight_ov[pslot])
-                          && !w_ref_col_block[pbank]
-                          && (pdir ? !w_wr_turn_block : !w_rd_turn_block)
-                          && !w_ap_col_guard[pbank] && !w_pre_col_guard[pbank]
-                          && !w_preact_bank_guard_ov[pbank]
-                          && w_tccd_ls_ok;
-            pool_act_m[e] = r_cls_a_act[e]
-                          && !w_guarded_ov[pbank]
-                          && w_act_classify_gate
-                          && !w_rfc_busy;
-            pool_pre_m[e] = r_cls_a_pre[e] && !w_guarded_ov[pbank];
+            automatic logic           phit = r_bank_row_active[RK0][pbank]
+                                             && (f_pool_row(PTXW'(e)) == r_bank_open_row[RK0][pbank]);
+            if (pool_valid[e]) begin
+                // COLUMN. The sink-FIFO gate is direction-specific and
+                // correctness-critical: an RD may only fire when the rd CAM's
+                // issue-order FIFO has room (rd_issue_ready_i), a WR only when
+                // the wr CAM's drain FIFO has room (wr_commit_ready_i) --
+                // otherwise the column issues to DRAM but its CAM drops it
+                // (double-issue + misrouted return for RD, stale-DRAM write for
+                // WR). ACT/PRE touch no CAM and stay free, so the arbiter keeps
+                // working while a sink is full. The pdir-conditioned turnaround
+                // terms are the tWTR (RD-after-WR) / tRTW (WR-after-RD)
+                // direction-crossing masks; the per-entry inflight term stops a
+                // slot queued anywhere in the pick pipeline being re-selected;
+                // !w_pre_col_guard covers a PRE fired on this bank within the
+                // last 3 cycles (the registered row image is stale -- a column
+                // picked against it lands on the just-closed row and the
+                // AR-order drain wedges behind it forever: parked-victim pattern
+                // in test_pumice_core_sched_order).
+                pool_col_m[e] = phit && r_bank_rdwr_ready[RK0][pbank] && w_tccd_fwd_ok
+                              && (pdir ? trtw_ok_i : twtr_ok_i)
+                              && (pdir ? wr_commit_ready_i : rd_issue_ready_i)
+                              && !(f_ap(pbank) && w_col_inflight_bank[pbank]) && !r_ap_closing[pbank]
+                              && !(pdir ? w_wr_col_inflight_ent[pslot] : w_rd_col_inflight_ent[pslot])
+                              && !w_ref_col_block[pbank]
+                              && (pdir ? !w_wr_turn_block : !w_rd_turn_block)
+                              && !w_ap_col_guard[pbank] && !w_pre_col_guard[pbank]
+                              && !w_preact_bank_guard[pbank]
+                              && w_tccd_ls_ok;
+                // CLOSE_ON_DRAIN early-ACT: when this bank is closing via an
+                // auto-precharge (r_ap_closing holds from the AP column's fire
+                // until the row image drops), a pending next-row entry may
+                // classify as ACT immediately and pipeline through the pick
+                // stages DURING the AP drain, instead of waiting for the row
+                // image to drop and then walking the pipe. The fire stage is
+                // the JEDEC authority: bank_act_ready_i (live) still requires
+                // tRP/tRC, so an early ACT holds (w_out_hold) until truly safe.
+                pool_act_m[e] = (!r_bank_row_active[RK0][pbank]
+                                 || (CLOSE_ON_DRAIN && r_ap_closing[pbank]))
+                              && !w_guarded[pbank]
+                              && r_bank_act_ready[RK0][pbank] && w_act_classify_gate
+                              && !w_rfc_busy;
+                pool_pre_m[e] = r_bank_row_active[RK0][pbank] && !w_guarded[pbank] && !phit
+                              && r_bank_pre_ready[RK0][pbank];
+            end
         end
     end
 
@@ -996,12 +950,9 @@ module mc_cmd_arbiter
         wr_pre_q = sched_qos_en_i ? qos_top(wr_pre_me, wr_sch_qos_i) : wr_pre_me;
     end
 
-    // ---- STAGE A auxiliaries -------------------------------------------------
-    // The class-mask snapshot register of the pick pipeline is r_cls_a_* (the
-    // registered pool qualify, above); this block captures the remaining
-    // snapshot operands the Stage-1b argmax needs -- age matrix, populations,
-    // sel knobs, per-bank AP policy -- on the same w_out_ready gate, so the
-    // snapshot stays self-consistent.
+    // ---- STAGE 1a ----------------------------------------------------------
+    logic [NUM_ENTRIES-1:0]             r_rd_col_q, r_rd_act_q, r_rd_pre_q;
+    logic [NUM_ENTRIES-1:0]             r_wr_col_q, r_wr_act_q, r_wr_pre_q;
     logic [NUM_ENTRIES*NUM_ENTRIES-1:0] r_rd_older, r_wr_older;
     logic [POPW-1:0]                    r_rd_pop [NUM_ENTRIES];
     logic [POPW-1:0]                    r_wr_pop [NUM_ENTRIES];
@@ -1011,6 +962,8 @@ module mc_cmd_arbiter
     logic [NUM_BANKS-1:0]               r_ap_snap;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
+            r_rd_col_q <= '0; r_rd_act_q <= '0; r_rd_pre_q <= '0;
+            r_wr_col_q <= '0; r_wr_act_q <= '0; r_wr_pre_q <= '0;
             r_rd_older <= '0; r_wr_older <= '0;
             r_col_sel  <= '0; r_row_sel  <= '0;
             r_ap_snap  <= '0;
@@ -1018,6 +971,8 @@ module mc_cmd_arbiter
                 r_rd_pop[i] <= '0; r_wr_pop[i] <= '0;
             end
         end else if (w_out_ready) begin
+            r_rd_col_q <= rd_col_q; r_rd_act_q <= rd_act_q; r_rd_pre_q <= rd_pre_q;
+            r_wr_col_q <= wr_col_q; r_wr_act_q <= wr_act_q; r_wr_pre_q <= wr_pre_q;
             r_rd_older <= rd_sch_older_i; r_wr_older <= wr_sch_older_i;
             r_col_sel  <= sched_col_sel_i; r_row_sel <= sched_row_sel_i;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
@@ -1029,13 +984,11 @@ module mc_cmd_arbiter
     )
 
     // ---- STAGE 1b ----------------------------------------------------------
-    // Per-class selection (the deep argmax) on the STAGE-A snapshot: the
-    // overlay chain (r_cls_a_* -> live guards -> BANK_IN_ORDER -> ORDER ->
-    // QoS -> rd/wr_*_q) is combinational off the register, so the argmax cone
-    // is a clean register-to-register hop. The result (w_sel_*) feeds the
-    // registered pre-pick flop, so the pick is now CAM-match -> FLOP(r_cls_a)
-    // -> overlay+arg_sel -> FLOP(pre-pick). See pumice ISSUE-005 (was
-    // PUMICE-017)/018.
+    // Per-class selection (the deep argmax, now on registers). arg_sel/
+    // arg_oldest run on the STAGE-1a snapshot, so the argmax cone is a clean
+    // register-to-register hop. The result (w_sel_*) feeds the registered
+    // pre-pick flop, so the pick is now CAM-match+mask -> FLOP(1a) -> arg_sel
+    // -> FLOP(pre-pick). See pumice ISSUE-005 (was PUMICE-017)/018.
     //
     // DOUBLE-ISSUE RE-VALIDATION (critical). The snapshot mask is 1 cycle stale,
     // so a slot committed/issued in the gap -- its CAM sch_valid dropped -- must
@@ -1090,15 +1043,15 @@ module mc_cmd_arbiter
                          && !(w_fire_out && r_do_rd);
     always_comb begin
         {w_sel_rd_col_f, w_sel_rd_col_s} =
-            arg_sel(r_col_sel, rd_col_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
+            arg_sel(r_col_sel, r_rd_col_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
         {w_sel_wr_col_f, w_sel_wr_col_s} =
-            arg_sel(r_col_sel, wr_col_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
+            arg_sel(r_col_sel, r_wr_col_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
         {w_sel_rd_act_f, w_sel_rd_act_s} =
-            arg_sel(r_row_sel, rd_act_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
+            arg_sel(r_row_sel, r_rd_act_q & rd_sch_valid_i, r_rd_older, r_rd_pop);
         {w_sel_wr_act_f, w_sel_wr_act_s} =
-            arg_sel(r_row_sel, wr_act_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
-        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(rd_pre_q & rd_sch_valid_i, r_rd_older);
-        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(wr_pre_q & wr_sch_valid_i, r_wr_older);
+            arg_sel(r_row_sel, r_wr_act_q & wr_sch_valid_i, r_wr_older, r_wr_pop);
+        {w_sel_rd_pre_f, w_sel_rd_pre_s} = arg_oldest(r_rd_pre_q & rd_sch_valid_i, r_rd_older);
+        {w_sel_wr_pre_f, w_sel_wr_pre_s} = arg_oldest(r_wr_pre_q & wr_sch_valid_i, r_wr_older);
         if (!w_act_gate_live) begin
             w_sel_rd_act_f = 1'b0;
             w_sel_wr_act_f = 1'b0;
@@ -1329,7 +1282,7 @@ module mc_cmd_arbiter
         w_rfsh_pre_found = 1'b0;
         w_rfsh_pre_bank  = '0;
         for (int j = NUM_BANKS-1; j >= 0; j--)
-            if (r_bank_row_active[RK0][j] && r_bank_pre_ready[RK0][j] && !w_guarded[j]) begin
+            if (r_bank_row_active[RK0][j] && r_bank_pre_ready[RK0][j] && !w_guarded_drain[j]) begin
                 w_rfsh_pre_found = 1'b1;
                 w_rfsh_pre_bank  = BKW'(j);
             end

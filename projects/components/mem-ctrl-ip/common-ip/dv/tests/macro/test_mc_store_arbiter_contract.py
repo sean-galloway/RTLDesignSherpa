@@ -133,6 +133,15 @@ async def _reset(dut):
     dut.aw_push_valid.value = 0
     dut.wd_valid.value = 0
     dut.ar_push_valid.value = 0
+    # TB-level live-gate / override ports (real inputs, not folded constants).
+    dut.bank_act_ready.value = 0xFF
+    dut.bank_rdwr_ready.value = 0xFF
+    dut.bank_pre_ready.value = 0xFF
+    dut.init_done.value = 1
+    dut.init_cmd_valid.value = 0
+    dut.init_cmd_op.value = 0
+    dut.init_cmd_bank.value = 0
+    dut.init_cmd_row.value = 0
     for _ in range(10):
         await RisingEdge(dut.aclk)
     dut.aresetn.value = 1
@@ -141,27 +150,19 @@ async def _reset(dut):
 
 
 async def _open_arbiter_gates(dut):
-    """Make every JEDEC readiness input permissive so the pick pool is live."""
-    dut.u_arb.bank_act_ready_i.value = 0xFF
-    dut.u_arb.bank_rdwr_ready_i.value = 0xFF
-    dut.u_arb.bank_pre_ready_i.value = 0xFF
-    dut.u_arb.bank_act_ready_la_i.value = 0xFF
-    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
-    dut.u_arb.bank_pre_ready_la_i.value = 0xFF
-    dut.u_arb.bank_row_active_i.value = 0xFF
-    dut.u_arb.bank_open_row_i.value = 0
-    dut.u_arb.tfaw_ok_i.value = 1
-    dut.u_arb.trrd_ok_i.value = 1
-    dut.u_arb.twtr_ok_i.value = 1
-    dut.u_arb.trtw_ok_i.value = 1
-    dut.u_arb.tccd_ok_i.value = 1
-    dut.u_arb.tccd_l_ok_i.value = 1
-    dut.u_arb.trrd_l_ok_i.value = 1
-    dut.u_arb.refresh_req_i.value = 0
-    dut.u_arb.refresh_drain_i.value = 0
-    dut.u_arb.maint_req_i.value = 0
-    dut.u_arb.init_done_i.value = 1
-    dut.u_arb.init_cmd_valid_i.value = 0
+    """Make every JEDEC readiness input permissive so the pick pool is live.
+
+    Only the TB-level ports are driven. The global windows (tFAW/tRRD/tWTR/
+    tRTW/tCCD), refresh and maintenance requests are constant-permissive in
+    the tb_top; a cocotb deposit on a constant-tied arbiter port is folded
+    away by Verilator and does nothing (that is how the hold cell went
+    unverifiable, 2026-10-21).
+    """
+    dut.bank_act_ready.value = 0xFF
+    dut.bank_rdwr_ready.value = 0xFF
+    dut.bank_pre_ready.value = 0xFF
+    dut.init_done.value = 1
+    dut.init_cmd_valid.value = 0
 
 
 async def _cmd_ready_every_cycle(dut):
@@ -250,8 +251,7 @@ async def cocotb_test_hold_on_gate_block(dut):
     chosen_col = int(dut.u_arb.cmd_col_o.value)
 
     # Block bank 0's read/write ready path (live JEDEC gate), keep bank 1 open.
-    dut.u_arb.bank_rdwr_ready_i.value = 0xFE   # bit 0 low
-    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFE
+    dut.bank_rdwr_ready.value = 0xFE   # bit 0 low
 
     held_cycles = 0
     for _ in range(8):
@@ -272,8 +272,7 @@ async def cocotb_test_hold_on_gate_block(dut):
 
     # Open the gate. The held winner should fire exactly once.
     before = int(dut.drain_count.value)
-    dut.u_arb.bank_rdwr_ready_i.value = 0xFF
-    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
+    dut.bank_rdwr_ready.value = 0xFF
 
     for _ in range(4):
         await _cmd_ready_every_cycle(dut)
@@ -335,12 +334,10 @@ async def cocotb_test_zero_bubble_stream(dut):
             steady_idle += 1
 
     # Inject a one-cycle gate block; new core holds, old core drops -> bubble.
-    dut.u_arb.bank_rdwr_ready_i.value = 0xFE
-    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFE
+    dut.bank_rdwr_ready.value = 0xFE
     await _cmd_ready_every_cycle(dut)
     await RisingEdge(dut.aclk)
-    dut.u_arb.bank_rdwr_ready_i.value = 0xFF
-    dut.u_arb.bank_rdwr_ready_la_i.value = 0xFF
+    dut.bank_rdwr_ready.value = 0xFF
 
     # Measure recovery: with hold-on-not-fired, the blocked winner is still
     # valid the cycle the gate reopens, so the very next cycle must fire it
@@ -429,20 +426,25 @@ async def cocotb_test_override_preempts_speculation(dut):
             break
 
     # Raise init-passthrough override.
-    dut.u_arb.init_done_i.value = 0
-    dut.u_arb.init_cmd_valid_i.value = 1
-    dut.u_arb.init_cmd_op_i.value = OP_ACT
-    dut.u_arb.init_cmd_bank_i.value = 0
-    dut.u_arb.init_cmd_row_i.value = 0
+    dut.init_done.value = 0
+    dut.init_cmd_valid.value = 1
+    dut.init_cmd_op.value = OP_ACT
+    dut.init_cmd_bank.value = 0
+    dut.init_cmd_row.value = 0
 
     # Release cmd_ready_i; the very next valid command must be the override.
+    # 16 cycles covers a registered-winner core (override visible in 1-2) and
+    # the old 4-stage pipe (its init passthrough takes ~5); the trace lets a
+    # failure be read as "fired the WR first" vs "emitted nothing".
     saw_override = False
     speculative_fired = False
-    for i in range(8):
+    trace = []
+    for i in range(16):
         dut.r_cm_gate.value = 0          # cm_ready = 1
         await RisingEdge(dut.aclk)
         op = int(dut.u_arb.cmd_op_o.value)
         valid = int(dut.u_arb.cmd_valid_o.value)
+        trace.append((i, valid, op))
         if valid:
             if op in (OP_WR, OP_WRA):
                 speculative_fired = True
@@ -451,12 +453,16 @@ async def cocotb_test_override_preempts_speculation(dut):
             if saw_override or speculative_fired:
                 break
 
-    assert saw_override, "init override did not preempt the speculative column"
+    dut._log.info("override window (cycle, valid, op): %s", trace)
+    # Check the WR first: the old core's actual failure is the held WRA firing
+    # in the cycle cmd_ready returns (trace [(0, 1, OP_WRA)]); testing
+    # saw_override first mislabelled it as "nothing emitted".
     assert not speculative_fired, "speculative WR fired before/instead of override"
+    assert saw_override, "init override did not preempt the speculative column"
 
     # Drain the override and drop init passthrough.
-    dut.u_arb.init_cmd_valid_i.value = 0
-    dut.u_arb.init_done_i.value = 1
+    dut.init_cmd_valid.value = 0
+    dut.init_done.value = 1
 
     # Normal picking must resume from the live pool (the original WR).
     saw_wr = False

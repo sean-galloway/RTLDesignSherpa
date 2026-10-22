@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-028** — never recycle a number, even when its item closed.
+**Next ID: BUG-029** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 24 | done (kept for history) |
+| [closed/](closed/) | 25 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -28,6 +28,13 @@ exactly one state by construction rather than by discipline.
   the item.
 
 ## Closed
+
+- **BUG-028** — FRFCFS refresh drain deadlocked behind a demand-PRE
+  pre-pick to the same bank (col_major writer wedge at board timings,
+  exposed by the BUG-027 CLOSE_ON_DRAIN flip). Fixed 2026-10-21:
+  `w_guarded_drain` in `mc_cmd_arbiter`; verified by the pumice-CAM perf
+  proxy and run-all-func 216/1 at both geometries. Found by the mem-ctrl
+  recovery Phase 0 proxy.
 
 - **BUG-027** (2026-10-20) — six perf-shape cells red; root cause
   CLOSE_ON_DRAIN auto-precharge in mc_cmd_arbiter; fixed by pumice
