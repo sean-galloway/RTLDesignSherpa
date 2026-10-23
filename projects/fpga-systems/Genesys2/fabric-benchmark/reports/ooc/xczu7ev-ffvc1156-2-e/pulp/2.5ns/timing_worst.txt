@@ -1,0 +1,1405 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version      : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date              : Fri Oct 23 07:37:37 2026
+| Host              : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command           : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xczu7ev-ffvc1156-2-e/pulp/2.5ns/timing_worst.txt
+| Design            : fb_data_fabric
+| Device            : xczu7ev-ffvc1156
+| Speed File        : -2  PRODUCTION 1.30 05-15-2022
+| Design State      : Routed
+| Temperature Grade : E
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.168ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.226ns  (logic 0.759ns (34.091%)  route 1.467ns (65.909%))
+  Logic Levels:           8  (LUT4=1 LUT6=6 MUXF7=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/aclk
+    SLICE_X63Y77         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X63Y77         FDCE (Prop_GFF2_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/Q
+                         net (fo=1, routed)           0.166     0.275    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22_1[1]
+    SLICE_X62Y77         LUT6 (Prop_H6LUT_SLICEL_I1_O)
+                                                      0.150     0.425 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100/O
+                         net (fo=1, routed)           0.010     0.435    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100_n_0
+    SLICE_X62Y77         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     0.499 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22/O
+                         net (fo=2, routed)           0.144     0.643    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awid[2]_1
+    SLICE_X62Y76         LUT6 (Prop_C6LUT_SLICEL_I0_O)
+                                                      0.146     0.789 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_7/O
+                         net (fo=4, routed)           0.295     1.084    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[1].i_in_flight_cnt/counter_q_reg[4]_1
+    SLICE_X61Y74         LUT6 (Prop_C6LUT_SLICEM_I3_O)
+                                                      0.145     1.229 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[1].i_in_flight_cnt/inj_wr_wready_INST_0_i_7/O
+                         net (fo=17, routed)          0.160     1.389    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/mem_q_reg[1][7]_0
+    SLICE_X61Y75         LUT6 (Prop_G6LUT_SLICEM_I3_O)
+                                                      0.052     1.441 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/inj_wr_wready_INST_0_i_16/O
+                         net (fo=3, routed)           0.253     1.694    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/w_select_q_reg[1]
+    SLICE_X58Y78         LUT6 (Prop_A6LUT_SLICEL_I4_O)
+                                                      0.050     1.744 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/status_cnt_q[1]_i_3__9/O
+                         net (fo=4, routed)           0.044     1.788    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]_3
+    SLICE_X58Y78         LUT6 (Prop_C6LUT_SLICEL_I5_O)
+                                                      0.035     1.823 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q[1]_i_3__8/O
+                         net (fo=4, routed)           0.191     2.014    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/w_fifo_pop
+    SLICE_X57Y78         LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.038     2.052 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q[1]_i_1__13/O
+                         net (fo=2, routed)           0.204     2.256    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_n
+    SLICE_X57Y78         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/aclk
+    SLICE_X57Y78         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y78         FDCE (Setup_HFF_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.256    
+  -------------------------------------------------------------------
+                         slack                                  0.168    
+
+Slack (MET) :             0.168ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.226ns  (logic 0.759ns (34.091%)  route 1.467ns (65.909%))
+  Logic Levels:           8  (LUT4=1 LUT6=6 MUXF7=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/aclk
+    SLICE_X63Y77         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X63Y77         FDCE (Prop_GFF2_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/Q
+                         net (fo=1, routed)           0.166     0.275    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22_1[1]
+    SLICE_X62Y77         LUT6 (Prop_H6LUT_SLICEL_I1_O)
+                                                      0.150     0.425 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100/O
+                         net (fo=1, routed)           0.010     0.435    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100_n_0
+    SLICE_X62Y77         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     0.499 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22/O
+                         net (fo=2, routed)           0.144     0.643    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awid[2]_1
+    SLICE_X62Y76         LUT6 (Prop_C6LUT_SLICEL_I0_O)
+                                                      0.146     0.789 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_7/O
+                         net (fo=4, routed)           0.295     1.084    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[1].i_in_flight_cnt/counter_q_reg[4]_1
+    SLICE_X61Y74         LUT6 (Prop_C6LUT_SLICEM_I3_O)
+                                                      0.145     1.229 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[1].i_in_flight_cnt/inj_wr_wready_INST_0_i_7/O
+                         net (fo=17, routed)          0.160     1.389    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/mem_q_reg[1][7]_0
+    SLICE_X61Y75         LUT6 (Prop_G6LUT_SLICEM_I3_O)
+                                                      0.052     1.441 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/inj_wr_wready_INST_0_i_16/O
+                         net (fo=3, routed)           0.253     1.694    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/w_select_q_reg[1]
+    SLICE_X58Y78         LUT6 (Prop_A6LUT_SLICEL_I4_O)
+                                                      0.050     1.744 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/status_cnt_q[1]_i_3__9/O
+                         net (fo=4, routed)           0.044     1.788    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]_3
+    SLICE_X58Y78         LUT6 (Prop_C6LUT_SLICEL_I5_O)
+                                                      0.035     1.823 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q[1]_i_3__8/O
+                         net (fo=4, routed)           0.191     2.014    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/w_fifo_pop
+    SLICE_X57Y78         LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.038     2.052 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q[1]_i_1__13/O
+                         net (fo=2, routed)           0.204     2.256    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_n
+    SLICE_X57Y78         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/aclk
+    SLICE_X57Y78         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y78         FDCE (Setup_GFF_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.256    
+  -------------------------------------------------------------------
+                         slack                                  0.168    
+
+Slack (MET) :             0.173ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.307ns  (logic 0.715ns (30.992%)  route 1.592ns (69.008%))
+  Logic Levels:           7  (LUT4=1 LUT6=5 MUXF7=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/aclk
+    SLICE_X63Y77         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X63Y77         FDCE (Prop_GFF2_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/Q
+                         net (fo=1, routed)           0.166     0.275    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22_1[1]
+    SLICE_X62Y77         LUT6 (Prop_H6LUT_SLICEL_I1_O)
+                                                      0.150     0.425 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100/O
+                         net (fo=1, routed)           0.010     0.435    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100_n_0
+    SLICE_X62Y77         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     0.499 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22/O
+                         net (fo=2, routed)           0.144     0.643    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awid[2]_1
+    SLICE_X62Y76         LUT6 (Prop_C6LUT_SLICEL_I0_O)
+                                                      0.146     0.789 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_7/O
+                         net (fo=4, routed)           0.255     1.044    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[5].i_in_flight_cnt/gen_counters[6].mst_select_q_reg[6][0]_2
+    SLICE_X61Y76         LUT6 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.152     1.196 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[5].i_in_flight_cnt/gen_counters[7].mst_select_q[7][2]_i_2__0/O
+                         net (fo=10, routed)          0.351     1.546    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[5].i_in_flight_cnt/gen_counters[7].mst_select_q[7][2]_i_2__0_n_0
+    SLICE_X62Y78         LUT6 (Prop_A6LUT_SLICEL_I1_O)
+                                                      0.050     1.596 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[5].i_in_flight_cnt/gen_counters[4].mst_select_q[4][2]_i_1__2/O
+                         net (fo=4, routed)           0.335     1.931    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/E[0]
+    SLICE_X61Y74         LUT6 (Prop_A6LUT_SLICEM_I5_O)
+                                                      0.038     1.969 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_5__16/O
+                         net (fo=1, routed)           0.283     2.252    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_5__16_n_0
+    SLICE_X62Y74         LUT4 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.036     2.288 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_2__25/O
+                         net (fo=1, routed)           0.049     2.337    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_2__25_n_0
+    SLICE_X62Y74         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/aclk
+    SLICE_X62Y74         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X62Y74         FDCE (Setup_BFF_SLICEL_C_D)
+                                                      0.025     2.510    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]
+  -------------------------------------------------------------------
+                         required time                          2.510    
+                         arrival time                          -2.337    
+  -------------------------------------------------------------------
+                         slack                                  0.173    
+
+Slack (MET) :             0.187ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][2]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.207ns  (logic 0.783ns (35.475%)  route 1.424ns (64.525%))
+  Logic Levels:           9  (LUT4=1 LUT5=1 LUT6=5 MUXF7=2)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.058     1.154    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X64Y102        LUT6 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.039     1.193 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0/O
+                         net (fo=69, routed)          0.097     1.290    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_1
+    SLICE_X64Y101        LUT5 (Prop_F6LUT_SLICEM_I4_O)
+                                                      0.088     1.378 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_6/O
+                         net (fo=1, routed)           0.023     1.401    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready
+    SLICE_X64Y101        MUXF7 (Prop_F7MUX_EF_SLICEM_I0_O)
+                                                      0.068     1.469 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready_INST_0_i_1/O
+                         net (fo=2, routed)           0.149     1.618    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_0
+    SLICE_X64Y103        LUT6 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.037     1.655 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_INST_0/O
+                         net (fo=32, routed)          0.194     1.849    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/lock_ar_valid_q_reg
+    SLICE_X64Y103        LUT4 (Prop_B6LUT_SLICEM_I0_O)
+                                                      0.100     1.949 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/gen_counters[4].mst_select_q[4][2]_i_1__0/O
+                         net (fo=3, routed)           0.288     2.237    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt_n_31
+    SLICE_X65Y99         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X65Y99         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][2]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X65Y99         FDCE (Setup_HFF_SLICEL_C_CE)
+                                                     -0.060     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][2]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.237    
+  -------------------------------------------------------------------
+                         slack                                  0.187    
+
+Slack (MET) :             0.189ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][0]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.206ns  (logic 0.783ns (35.489%)  route 1.423ns (64.511%))
+  Logic Levels:           9  (LUT4=1 LUT5=1 LUT6=5 MUXF7=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.058     1.154    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X64Y102        LUT6 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.039     1.193 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0/O
+                         net (fo=69, routed)          0.097     1.290    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_1
+    SLICE_X64Y101        LUT5 (Prop_F6LUT_SLICEM_I4_O)
+                                                      0.088     1.378 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_6/O
+                         net (fo=1, routed)           0.023     1.401    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready
+    SLICE_X64Y101        MUXF7 (Prop_F7MUX_EF_SLICEM_I0_O)
+                                                      0.068     1.469 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready_INST_0_i_1/O
+                         net (fo=2, routed)           0.149     1.618    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_0
+    SLICE_X64Y103        LUT6 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.037     1.655 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_INST_0/O
+                         net (fo=32, routed)          0.194     1.849    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/lock_ar_valid_q_reg
+    SLICE_X64Y103        LUT4 (Prop_B6LUT_SLICEM_I0_O)
+                                                      0.100     1.949 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/gen_counters[4].mst_select_q[4][2]_i_1__0/O
+                         net (fo=3, routed)           0.287     2.236    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt_n_31
+    SLICE_X64Y99         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y99         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][0]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X64Y99         FDCE (Setup_DFF2_SLICEM_C_CE)
+                                                     -0.060     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[4].mst_select_q_reg[4][0]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.236    
+  -------------------------------------------------------------------
+                         slack                                  0.189    
+
+Slack (MET) :             0.211ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[2]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.185ns  (logic 0.641ns (29.338%)  route 1.544ns (70.662%))
+  Logic Levels:           7  (LUT5=4 LUT6=2 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.029     0.029    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/aclk
+    SLICE_X59Y87         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y87         FDCE (Prop_EFF_SLICEL_C_Q)
+                                                      0.079     0.108 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/Q
+                         net (fo=10, routed)          0.218     0.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg_n_0
+    SLICE_X59Y85         LUT5 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.124     0.450 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1/O
+                         net (fo=14, routed)          0.151     0.601    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1_n_0
+    SLICE_X60Y87         LUT5 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     0.636 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3/O
+                         net (fo=1, routed)           0.108     0.744    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3_n_0
+    SLICE_X60Y87         LUT6 (Prop_G6LUT_SLICEL_I2_O)
+                                                      0.149     0.893 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1/O
+                         net (fo=10, routed)          0.217     1.110    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1_n_0
+    SLICE_X59Y86         MUXF7 (Prop_F7MUX_CD_SLICEL_S_O)
+                                                      0.070     1.180 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1/O
+                         net (fo=1, routed)           0.175     1.355    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1_n_0
+    SLICE_X59Y85         LUT6 (Prop_G6LUT_SLICEL_I0_O)
+                                                      0.050     1.405 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0/O
+                         net (fo=11, routed)          0.154     1.559    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_0
+    SLICE_X58Y84         LUT5 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.097     1.656 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_3__21/O
+                         net (fo=6, routed)           0.229     1.885    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]_5
+    SLICE_X57Y85         LUT5 (Prop_G6LUT_SLICEM_I4_O)
+                                                      0.037     1.922 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_1__35/O
+                         net (fo=5, routed)           0.292     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/E[0]
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/aclk
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[2]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y86         FDCE (Setup_AFF_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[2]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.211    
+
+Slack (MET) :             0.211ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[3]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.185ns  (logic 0.641ns (29.338%)  route 1.544ns (70.662%))
+  Logic Levels:           7  (LUT5=4 LUT6=2 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.029     0.029    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/aclk
+    SLICE_X59Y87         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y87         FDCE (Prop_EFF_SLICEL_C_Q)
+                                                      0.079     0.108 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/Q
+                         net (fo=10, routed)          0.218     0.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg_n_0
+    SLICE_X59Y85         LUT5 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.124     0.450 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1/O
+                         net (fo=14, routed)          0.151     0.601    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1_n_0
+    SLICE_X60Y87         LUT5 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     0.636 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3/O
+                         net (fo=1, routed)           0.108     0.744    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3_n_0
+    SLICE_X60Y87         LUT6 (Prop_G6LUT_SLICEL_I2_O)
+                                                      0.149     0.893 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1/O
+                         net (fo=10, routed)          0.217     1.110    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1_n_0
+    SLICE_X59Y86         MUXF7 (Prop_F7MUX_CD_SLICEL_S_O)
+                                                      0.070     1.180 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1/O
+                         net (fo=1, routed)           0.175     1.355    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1_n_0
+    SLICE_X59Y85         LUT6 (Prop_G6LUT_SLICEL_I0_O)
+                                                      0.050     1.405 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0/O
+                         net (fo=11, routed)          0.154     1.559    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_0
+    SLICE_X58Y84         LUT5 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.097     1.656 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_3__21/O
+                         net (fo=6, routed)           0.229     1.885    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]_5
+    SLICE_X57Y85         LUT5 (Prop_G6LUT_SLICEM_I4_O)
+                                                      0.037     1.922 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_1__35/O
+                         net (fo=5, routed)           0.292     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/E[0]
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/aclk
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[3]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y86         FDCE (Setup_DFF_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[3]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.211    
+
+Slack (MET) :             0.211ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][0]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.184ns  (logic 0.783ns (35.859%)  route 1.401ns (64.141%))
+  Logic Levels:           9  (LUT4=1 LUT5=1 LUT6=5 MUXF7=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.058     1.154    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X64Y102        LUT6 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.039     1.193 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0/O
+                         net (fo=69, routed)          0.097     1.290    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_1
+    SLICE_X64Y101        LUT5 (Prop_F6LUT_SLICEM_I4_O)
+                                                      0.088     1.378 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_6/O
+                         net (fo=1, routed)           0.023     1.401    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready
+    SLICE_X64Y101        MUXF7 (Prop_F7MUX_EF_SLICEM_I0_O)
+                                                      0.068     1.469 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready_INST_0_i_1/O
+                         net (fo=2, routed)           0.149     1.618    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_0
+    SLICE_X64Y103        LUT6 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.037     1.655 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_INST_0/O
+                         net (fo=32, routed)          0.181     1.837    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/lock_ar_valid_q_reg
+    SLICE_X64Y100        LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.100     1.937 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/gen_counters[7].mst_select_q[7][2]_i_1__0/O
+                         net (fo=3, routed)           0.277     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt_n_34
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][0]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X64Y100        FDCE (Setup_HFF2_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][0]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.211    
+
+Slack (MET) :             0.211ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][1]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.184ns  (logic 0.783ns (35.859%)  route 1.401ns (64.141%))
+  Logic Levels:           9  (LUT4=1 LUT5=1 LUT6=5 MUXF7=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.058     1.154    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X64Y102        LUT6 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.039     1.193 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0/O
+                         net (fo=69, routed)          0.097     1.290    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_1
+    SLICE_X64Y101        LUT5 (Prop_F6LUT_SLICEM_I4_O)
+                                                      0.088     1.378 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_6/O
+                         net (fo=1, routed)           0.023     1.401    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready
+    SLICE_X64Y101        MUXF7 (Prop_F7MUX_EF_SLICEM_I0_O)
+                                                      0.068     1.469 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready_INST_0_i_1/O
+                         net (fo=2, routed)           0.149     1.618    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_0
+    SLICE_X64Y103        LUT6 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.037     1.655 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_INST_0/O
+                         net (fo=32, routed)          0.181     1.837    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/lock_ar_valid_q_reg
+    SLICE_X64Y100        LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.100     1.937 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/gen_counters[7].mst_select_q[7][2]_i_1__0/O
+                         net (fo=3, routed)           0.277     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt_n_34
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][1]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X64Y100        FDCE (Setup_GFF2_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][1]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.211    
+
+Slack (MET) :             0.211ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][2]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.184ns  (logic 0.783ns (35.859%)  route 1.401ns (64.141%))
+  Logic Levels:           9  (LUT4=1 LUT5=1 LUT6=5 MUXF7=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.058     1.154    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X64Y102        LUT6 (Prop_H6LUT_SLICEM_I3_O)
+                                                      0.039     1.193 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0/O
+                         net (fo=69, routed)          0.097     1.290    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_1
+    SLICE_X64Y101        LUT5 (Prop_F6LUT_SLICEM_I4_O)
+                                                      0.088     1.378 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[1].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_r_fifo/stream_rd_arready_INST_0_i_6/O
+                         net (fo=1, routed)           0.023     1.401    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready
+    SLICE_X64Y101        MUXF7 (Prop_F7MUX_EF_SLICEM_I0_O)
+                                                      0.068     1.469 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/stream_rd_arready_INST_0_i_1/O
+                         net (fo=2, routed)           0.149     1.618    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_0
+    SLICE_X64Y103        LUT6 (Prop_C6LUT_SLICEM_I1_O)
+                                                      0.037     1.655 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/stream_rd_arready_INST_0/O
+                         net (fo=32, routed)          0.181     1.837    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/lock_ar_valid_q_reg
+    SLICE_X64Y100        LUT4 (Prop_A6LUT_SLICEM_I0_O)
+                                                      0.100     1.937 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt/gen_counters[7].mst_select_q[7][2]_i_1__0/O
+                         net (fo=3, routed)           0.277     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].i_in_flight_cnt_n_34
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][2]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X64Y100        FDCE (Setup_FFF2_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[7].mst_select_q_reg[7][2]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.211    
+
+Slack (MET) :             0.212ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[0]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.185ns  (logic 0.641ns (29.338%)  route 1.544ns (70.662%))
+  Logic Levels:           7  (LUT5=4 LUT6=2 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.029     0.029    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/aclk
+    SLICE_X59Y87         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y87         FDCE (Prop_EFF_SLICEL_C_Q)
+                                                      0.079     0.108 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/Q
+                         net (fo=10, routed)          0.218     0.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg_n_0
+    SLICE_X59Y85         LUT5 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.124     0.450 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1/O
+                         net (fo=14, routed)          0.151     0.601    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1_n_0
+    SLICE_X60Y87         LUT5 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     0.636 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3/O
+                         net (fo=1, routed)           0.108     0.744    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3_n_0
+    SLICE_X60Y87         LUT6 (Prop_G6LUT_SLICEL_I2_O)
+                                                      0.149     0.893 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1/O
+                         net (fo=10, routed)          0.217     1.110    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1_n_0
+    SLICE_X59Y86         MUXF7 (Prop_F7MUX_CD_SLICEL_S_O)
+                                                      0.070     1.180 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1/O
+                         net (fo=1, routed)           0.175     1.355    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1_n_0
+    SLICE_X59Y85         LUT6 (Prop_G6LUT_SLICEL_I0_O)
+                                                      0.050     1.405 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0/O
+                         net (fo=11, routed)          0.154     1.559    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_0
+    SLICE_X58Y84         LUT5 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.097     1.656 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_3__21/O
+                         net (fo=6, routed)           0.229     1.885    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]_5
+    SLICE_X57Y85         LUT5 (Prop_G6LUT_SLICEM_I4_O)
+                                                      0.037     1.922 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_1__35/O
+                         net (fo=5, routed)           0.292     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/E[0]
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/aclk
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[0]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y86         FDCE (Setup_CFF2_SLICEM_C_CE)
+                                                     -0.060     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[0]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.212    
+
+Slack (MET) :             0.212ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[1]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.185ns  (logic 0.641ns (29.338%)  route 1.544ns (70.662%))
+  Logic Levels:           7  (LUT5=4 LUT6=2 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.029     0.029    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/aclk
+    SLICE_X59Y87         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y87         FDCE (Prop_EFF_SLICEL_C_Q)
+                                                      0.079     0.108 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg/Q
+                         net (fo=10, routed)          0.218     0.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.lock_q_reg_n_0
+    SLICE_X59Y85         LUT5 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.124     0.450 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1/O
+                         net (fo=14, routed)          0.151     0.601    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[3]_i_1_n_0
+    SLICE_X60Y87         LUT5 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     0.636 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3/O
+                         net (fo=1, routed)           0.108     0.744    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_3_n_0
+    SLICE_X60Y87         LUT6 (Prop_G6LUT_SLICEL_I2_O)
+                                                      0.149     0.893 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1/O
+                         net (fo=10, routed)          0.217     1.110    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_1_n_0
+    SLICE_X59Y86         MUXF7 (Prop_F7MUX_CD_SLICEL_S_O)
+                                                      0.070     1.180 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1/O
+                         net (fo=1, routed)           0.175     1.355    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0_i_1_n_0
+    SLICE_X59Y85         LUT6 (Prop_G6LUT_SLICEL_I0_O)
+                                                      0.050     1.405 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[1]_INST_0/O
+                         net (fo=11, routed)          0.154     1.559    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_0
+    SLICE_X58Y84         LUT5 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.097     1.656 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_3__21/O
+                         net (fo=6, routed)           0.229     1.885    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]_5
+    SLICE_X57Y85         LUT5 (Prop_G6LUT_SLICEM_I4_O)
+                                                      0.037     1.922 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q[4]_i_1__35/O
+                         net (fo=5, routed)           0.292     2.214    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/E[0]
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/aclk
+    SLICE_X57Y86         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[1]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y86         FDCE (Setup_BFF2_SLICEM_C_CE)
+                                                     -0.060     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].i_in_flight_cnt/counter_q_reg[1]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.214    
+  -------------------------------------------------------------------
+                         slack                                  0.212    
+
+Slack (MET) :             0.222ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.176ns  (logic 0.778ns (35.757%)  route 1.398ns (64.243%))
+  Logic Levels:           7  (LUT2=1 LUT4=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.028ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.028     0.028    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/aclk
+    SLICE_X62Y83         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X62Y83         FDCE (Prop_CFF_SLICEL_C_Q)
+                                                      0.079     0.107 f  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/Q
+                         net (fo=15, routed)          0.371     0.478    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q_reg[1]_0[0]
+    SLICE_X60Y87         LUT4 (Prop_D6LUT_SLICEL_I2_O)
+                                                      0.089     0.567 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[1]_i_1__0/O
+                         net (fo=14, routed)          0.179     0.746    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[1]_i_1__0_n_0
+    SLICE_X59Y87         LUT6 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.149     0.895 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_2/O
+                         net (fo=18, routed)          0.098     0.993    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[2].gen_no_connection.i_axi_err_slv/i_b_fifo/stream_wr_bid[3]_INST_0_i_1
+    SLICE_X58Y87         LUT5 (Prop_H6LUT_SLICEL_I3_O)
+                                                      0.090     1.083 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[2].gen_no_connection.i_axi_err_slv/i_b_fifo/stream_wr_bid[0]_INST_0_i_2/O
+                         net (fo=1, routed)           0.010     1.093    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid_0_sn_1
+    SLICE_X58Y87         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     1.157 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0_i_1/O
+                         net (fo=1, routed)           0.169     1.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0_i_1_n_0
+    SLICE_X59Y86         LUT6 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     1.361 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0/O
+                         net (fo=11, routed)          0.102     1.463    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_1
+    SLICE_X59Y85         LUT2 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.123     1.586 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_4__6/O
+                         net (fo=3, routed)           0.255     1.841    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]
+    SLICE_X60Y84         LUT6 (Prop_A6LUT_SLICEL_I1_O)
+                                                      0.149     1.990 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_1__27/O
+                         net (fo=5, routed)           0.213     2.204    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]_0[0]
+    SLICE_X59Y84         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/aclk
+    SLICE_X59Y84         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y84         FDCE (Setup_DFF2_SLICEL_C_CE)
+                                                     -0.059     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.204    
+  -------------------------------------------------------------------
+                         slack                                  0.222    
+
+Slack (MET) :             0.222ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[3]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.175ns  (logic 0.778ns (35.774%)  route 1.397ns (64.226%))
+  Logic Levels:           7  (LUT2=1 LUT4=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.028ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.028     0.028    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/aclk
+    SLICE_X62Y83         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X62Y83         FDCE (Prop_CFF_SLICEL_C_Q)
+                                                      0.079     0.107 f  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/Q
+                         net (fo=15, routed)          0.371     0.478    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q_reg[1]_0[0]
+    SLICE_X60Y87         LUT4 (Prop_D6LUT_SLICEL_I2_O)
+                                                      0.089     0.567 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[1]_i_1__0/O
+                         net (fo=14, routed)          0.179     0.746    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[1]_i_1__0_n_0
+    SLICE_X59Y87         LUT6 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.149     0.895 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_2/O
+                         net (fo=18, routed)          0.098     0.993    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[2].gen_no_connection.i_axi_err_slv/i_b_fifo/stream_wr_bid[3]_INST_0_i_1
+    SLICE_X58Y87         LUT5 (Prop_H6LUT_SLICEL_I3_O)
+                                                      0.090     1.083 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[2].gen_no_connection.i_axi_err_slv/i_b_fifo/stream_wr_bid[0]_INST_0_i_2/O
+                         net (fo=1, routed)           0.010     1.093    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid_0_sn_1
+    SLICE_X58Y87         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     1.157 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0_i_1/O
+                         net (fo=1, routed)           0.169     1.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0_i_1_n_0
+    SLICE_X59Y86         LUT6 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     1.361 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0/O
+                         net (fo=11, routed)          0.102     1.463    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_1
+    SLICE_X59Y85         LUT2 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.123     1.586 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_4__6/O
+                         net (fo=3, routed)           0.255     1.841    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]
+    SLICE_X60Y84         LUT6 (Prop_A6LUT_SLICEL_I1_O)
+                                                      0.149     1.990 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_1__27/O
+                         net (fo=5, routed)           0.212     2.203    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]_0[0]
+    SLICE_X59Y84         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/aclk
+    SLICE_X59Y84         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[3]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y84         FDCE (Setup_BFF_SLICEL_C_CE)
+                                                     -0.060     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[3]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.203    
+  -------------------------------------------------------------------
+                         slack                                  0.222    
+
+Slack (MET) :             0.222ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.175ns  (logic 0.778ns (35.774%)  route 1.397ns (64.226%))
+  Logic Levels:           7  (LUT2=1 LUT4=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.028ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.028     0.028    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/aclk
+    SLICE_X62Y83         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X62Y83         FDCE (Prop_CFF_SLICEL_C_Q)
+                                                      0.079     0.107 f  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/Q
+                         net (fo=15, routed)          0.371     0.478    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q_reg[1]_0[0]
+    SLICE_X60Y87         LUT4 (Prop_D6LUT_SLICEL_I2_O)
+                                                      0.089     0.567 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[1]_i_1__0/O
+                         net (fo=14, routed)          0.179     0.746    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/gen_arbiter.gen_int_rr.gen_lock.req_q[1]_i_1__0_n_0
+    SLICE_X59Y87         LUT6 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.149     0.895 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bresp[1]_INST_0_i_2/O
+                         net (fo=18, routed)          0.098     0.993    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[2].gen_no_connection.i_axi_err_slv/i_b_fifo/stream_wr_bid[3]_INST_0_i_1
+    SLICE_X58Y87         LUT5 (Prop_H6LUT_SLICEL_I3_O)
+                                                      0.090     1.083 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[2].gen_xbar_mst_cross[2].gen_no_connection.i_axi_err_slv/i_b_fifo/stream_wr_bid[0]_INST_0_i_2/O
+                         net (fo=1, routed)           0.010     1.093    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid_0_sn_1
+    SLICE_X58Y87         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     1.157 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0_i_1/O
+                         net (fo=1, routed)           0.169     1.326    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0_i_1_n_0
+    SLICE_X59Y86         LUT6 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.035     1.361 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/stream_wr_bid[0]_INST_0/O
+                         net (fo=11, routed)          0.102     1.463    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]_1
+    SLICE_X59Y85         LUT2 (Prop_E6LUT_SLICEL_I0_O)
+                                                      0.123     1.586 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_4__6/O
+                         net (fo=3, routed)           0.255     1.841    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/read_pointer_q_reg[0]
+    SLICE_X60Y84         LUT6 (Prop_A6LUT_SLICEL_I1_O)
+                                                      0.149     1.990 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_b_mux/counter_q[4]_i_1__27/O
+                         net (fo=5, routed)           0.212     2.203    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[0]_0[0]
+    SLICE_X59Y84         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/aclk
+    SLICE_X59Y84         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y84         FDCE (Setup_CFF_SLICEL_C_CE)
+                                                     -0.060     2.425    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[4].i_in_flight_cnt/counter_q_reg[4]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.203    
+  -------------------------------------------------------------------
+                         slack                                  0.222    
+
+Slack (MET) :             0.227ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][0]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.169ns  (logic 0.585ns (26.975%)  route 1.584ns (73.025%))
+  Logic Levels:           6  (LUT3=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.163     1.259    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X63Y103        LUT5 (Prop_D6LUT_SLICEM_I3_O)
+                                                      0.037     1.296 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/write_pointer_q[1]_i_1__2/O
+                         net (fo=7, routed)           0.484     1.780    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/write_pointer_q0
+    SLICE_X59Y111        LUT3 (Prop_F6LUT_SLICEL_I2_O)
+                                                      0.097     1.877 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0/O
+                         net (fo=16, routed)          0.321     2.199    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0_n_0
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/aclk
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][0]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y109        FDCE (Setup_DFF2_SLICEL_C_CE)
+                                                     -0.059     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][0]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.199    
+  -------------------------------------------------------------------
+                         slack                                  0.227    
+
+Slack (MET) :             0.227ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][3]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.169ns  (logic 0.585ns (26.975%)  route 1.584ns (73.025%))
+  Logic Levels:           6  (LUT3=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.163     1.259    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X63Y103        LUT5 (Prop_D6LUT_SLICEM_I3_O)
+                                                      0.037     1.296 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/write_pointer_q[1]_i_1__2/O
+                         net (fo=7, routed)           0.484     1.780    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/write_pointer_q0
+    SLICE_X59Y111        LUT3 (Prop_F6LUT_SLICEL_I2_O)
+                                                      0.097     1.877 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0/O
+                         net (fo=16, routed)          0.321     2.199    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0_n_0
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/aclk
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][3]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y109        FDCE (Setup_CFF2_SLICEL_C_CE)
+                                                     -0.059     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][id][3]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.199    
+  -------------------------------------------------------------------
+                         slack                                  0.227    
+
+Slack (MET) :             0.227ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][4]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.169ns  (logic 0.585ns (26.975%)  route 1.584ns (73.025%))
+  Logic Levels:           6  (LUT3=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.163     1.259    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X63Y103        LUT5 (Prop_D6LUT_SLICEM_I3_O)
+                                                      0.037     1.296 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/write_pointer_q[1]_i_1__2/O
+                         net (fo=7, routed)           0.484     1.780    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/write_pointer_q0
+    SLICE_X59Y111        LUT3 (Prop_F6LUT_SLICEL_I2_O)
+                                                      0.097     1.877 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0/O
+                         net (fo=16, routed)          0.321     2.199    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0_n_0
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][4]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/aclk
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][4]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y109        FDCE (Setup_BFF2_SLICEL_C_CE)
+                                                     -0.059     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][4]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.199    
+  -------------------------------------------------------------------
+                         slack                                  0.227    
+
+Slack (MET) :             0.227ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][6]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.169ns  (logic 0.585ns (26.975%)  route 1.584ns (73.025%))
+  Logic Levels:           6  (LUT3=1 LUT5=1 LUT6=3 MUXF7=1)
+  Clock Path Skew:        -0.010ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.520 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/aclk
+    SLICE_X64Y100        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X64Y100        FDCE (Prop_HFF_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6][0]/Q
+                         net (fo=1, routed)           0.234     0.343    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[6].mst_select_q_reg[6]_42[0]
+    SLICE_X65Y100        LUT6 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.123     0.466 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26/O
+                         net (fo=1, routed)           0.010     0.476    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_26_n_0
+    SLICE_X65Y100        MUXF7 (Prop_F7MUX_CD_SLICEL_I1_O)
+                                                      0.064     0.540 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/stream_rd_arready_INST_0_i_10/O
+                         net (fo=2, routed)           0.312     0.852    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/lookup_ar_select[0]
+    SLICE_X64Y102        LUT6 (Prop_E6LUT_SLICEM_I0_O)
+                                                      0.037     0.889 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ddr_arvalid_INST_0_i_5/O
+                         net (fo=1, routed)           0.059     0.948    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/write_pointer_q_reg[0]
+    SLICE_X64Y102        LUT6 (Prop_F6LUT_SLICEM_I3_O)
+                                                      0.148     1.096 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_demux/i_demux_simple/gen_ar_id_counter.i_ar_id_counter/gen_counters[2].i_in_flight_cnt/ddr_arvalid_INST_0_i_2/O
+                         net (fo=6, routed)           0.163     1.259    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/ar_valid37_in
+    SLICE_X63Y103        LUT5 (Prop_D6LUT_SLICEM_I3_O)
+                                                      0.037     1.296 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_ar_decode/i_addr_decode_dync/write_pointer_q[1]_i_1__2/O
+                         net (fo=7, routed)           0.484     1.780    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/write_pointer_q0
+    SLICE_X59Y111        LUT3 (Prop_F6LUT_SLICEL_I2_O)
+                                                      0.097     1.877 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0/O
+                         net (fo=16, routed)          0.321     2.199    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q[2][id][7]_i_1__0_n_0
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][6]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.020     2.520    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/aclk
+    SLICE_X59Y109        FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][6]/C
+                         clock pessimism              0.000     2.520    
+                         clock uncertainty           -0.035     2.485    
+    SLICE_X59Y109        FDCE (Setup_AFF2_SLICEL_C_CE)
+                                                     -0.059     2.426    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[1].i_axi_err_slv/i_r_fifo/mem_q_reg[2][len][6]
+  -------------------------------------------------------------------
+                         required time                          2.426    
+                         arrival time                          -2.199    
+  -------------------------------------------------------------------
+                         slack                                  0.227    
+
+Slack (MET) :             0.229ns  (required time - arrival time)
+  Source:                 u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Destination:            u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/mem_q_reg[1][1]/CE
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@1.250ns period=2.500ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.500ns  (aclk rise@2.500ns - aclk rise@0.000ns)
+  Data Path Delay:        2.166ns  (logic 0.757ns (34.950%)  route 1.409ns (65.050%))
+  Logic Levels:           8  (LUT4=1 LUT6=6 MUXF7=1)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.021ns = ( 2.521 - 2.500 ) 
+    Source Clock Delay      (SCD):    0.030ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1071, unset)         0.030     0.030    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/aclk
+    SLICE_X63Y77         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X63Y77         FDCE (Prop_GFF2_SLICEM_C_Q)
+                                                      0.079     0.109 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/Q
+                         net (fo=1, routed)           0.166     0.275    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22_1[1]
+    SLICE_X62Y77         LUT6 (Prop_H6LUT_SLICEL_I1_O)
+                                                      0.150     0.425 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100/O
+                         net (fo=1, routed)           0.010     0.435    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_100_n_0
+    SLICE_X62Y77         MUXF7 (Prop_F7MUX_GH_SLICEL_I0_O)
+                                                      0.064     0.499 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_22/O
+                         net (fo=2, routed)           0.144     0.643    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awid[2]_1
+    SLICE_X62Y76         LUT6 (Prop_C6LUT_SLICEL_I0_O)
+                                                      0.146     0.789 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[7].i_in_flight_cnt/inj_wr_awready_INST_0_i_7/O
+                         net (fo=4, routed)           0.295     1.084    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[1].i_in_flight_cnt/counter_q_reg[4]_1
+    SLICE_X61Y74         LUT6 (Prop_C6LUT_SLICEM_I3_O)
+                                                      0.145     1.229 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[1].i_in_flight_cnt/inj_wr_wready_INST_0_i_7/O
+                         net (fo=17, routed)          0.160     1.389    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/mem_q_reg[1][7]_0
+    SLICE_X61Y75         LUT6 (Prop_G6LUT_SLICEM_I3_O)
+                                                      0.052     1.441 f  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/inj_wr_wready_INST_0_i_16/O
+                         net (fo=3, routed)           0.253     1.694    u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/w_select_q_reg[1]
+    SLICE_X58Y78         LUT6 (Prop_A6LUT_SLICEL_I4_O)
+                                                      0.050     1.744 r  u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/status_cnt_q[1]_i_3__9/O
+                         net (fo=4, routed)           0.044     1.788    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[1]_3
+    SLICE_X58Y78         LUT6 (Prop_C6LUT_SLICEL_I5_O)
+                                                      0.035     1.823 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q[1]_i_3__8/O
+                         net (fo=4, routed)           0.143     1.966    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/w_fifo_pop
+    SLICE_X58Y76         LUT4 (Prop_H6LUT_SLICEL_I1_O)
+                                                      0.036     2.002 r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/mem_q[1][7]_i_1__1/O
+                         net (fo=8, routed)           0.194     2.196    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/mem_q
+    SLICE_X57Y76         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/mem_q_reg[1][1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.500     2.500 r  
+                                                      0.000     2.500 r  aclk (IN)
+                         net (fo=1071, unset)         0.021     2.521    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/aclk
+    SLICE_X57Y76         FDCE                                         r  u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/mem_q_reg[1][1]/C
+                         clock pessimism              0.000     2.521    
+                         clock uncertainty           -0.035     2.486    
+    SLICE_X57Y76         FDCE (Setup_EFF2_SLICEM_C_CE)
+                                                     -0.061     2.425    u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/mem_q_reg[1][1]
+  -------------------------------------------------------------------
+                         required time                          2.425    
+                         arrival time                          -2.196    
+  -------------------------------------------------------------------
+                         slack                                  0.229    
+
+
+
+

@@ -1,0 +1,1311 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version      : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date              : Fri Oct 23 07:36:28 2026
+| Host              : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command           : report_timing_summary -max_paths 10 -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xczu7ev-ffvc1156-2-e/litex/2.0ns/timing_summary.txt
+| Design            : fb_data_fabric
+| Device            : xczu7ev-ffvc1156
+| Speed File        : -2  PRODUCTION 1.30 05-15-2022
+| Design State      : Routed
+| Temperature Grade : E
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Summary Report
+
+------------------------------------------------------------------------------------------------
+| Timer Settings
+| --------------
+------------------------------------------------------------------------------------------------
+
+  Enable Multi Corner Analysis               :  Yes
+  Enable Pessimism Removal                   :  Yes
+  Pessimism Removal Resolution               :  Nearest Common Node
+  Enable Input Delay Default Clock           :  No
+  Enable Preset / Clear Arcs                 :  No
+  Disable Flight Delays                      :  No
+  Ignore I/O Paths                           :  No
+  Timing Early Launch at Borrowing Latches   :  No
+  Borrow Time for Max Delay Exceptions       :  Yes
+  Merge Timing Exceptions                    :  Yes
+  Inter-SLR Compensation                     :  Conservative
+
+  Corner  Analyze    Analyze    
+  Name    Max Paths  Min Paths  
+  ------  ---------  ---------  
+  Slow    Yes        Yes        
+  Fast    Yes        Yes        
+
+
+------------------------------------------------------------------------------------------------
+| Report Methodology
+| ------------------
+------------------------------------------------------------------------------------------------
+
+No report available as report_methodology has not been run prior. Run report_methodology on the current design for the summary of methodology violations.
+
+
+
+check_timing report
+
+Table of Contents
+-----------------
+1. checking no_clock (0)
+2. checking constant_clock (0)
+3. checking pulse_width_clock (0)
+4. checking unconstrained_internal_endpoints (0)
+5. checking no_input_delay (50)
+6. checking no_output_delay (595)
+7. checking multiple_clock (0)
+8. checking generated_clocks (0)
+9. checking loops (0)
+10. checking partial_input_delay (0)
+11. checking partial_output_delay (0)
+12. checking latch_loops (0)
+
+1. checking no_clock (0)
+------------------------
+ There are 0 register/latch pins with no clock.
+
+
+2. checking constant_clock (0)
+------------------------------
+ There are 0 register/latch pins with constant_clock.
+
+
+3. checking pulse_width_clock (0)
+---------------------------------
+ There are 0 register/latch pins which need pulse_width check
+
+
+4. checking unconstrained_internal_endpoints (0)
+------------------------------------------------
+ There are 0 pins that are not constrained for maximum delay.
+
+ There are 0 pins that are not constrained for maximum delay due to constant clock.
+
+
+5. checking no_input_delay (50)
+-------------------------------
+ There are 50 input ports with no input delay specified. (HIGH)
+
+ There are 0 input ports with no input delay but user has a false path constraint.
+
+
+6. checking no_output_delay (595)
+---------------------------------
+ There are 595 ports with no output delay specified. (HIGH)
+
+ There are 0 ports with no output delay but user has a false path constraint
+
+ There are 0 ports with no output delay but with a timing clock defined on it or propagating through it
+
+
+7. checking multiple_clock (0)
+------------------------------
+ There are 0 register/latch pins with multiple clocks.
+
+
+8. checking generated_clocks (0)
+--------------------------------
+ There are 0 generated clocks that are not connected to a clock source.
+
+
+9. checking loops (0)
+---------------------
+ There are 0 combinational loops in the design.
+
+
+10. checking partial_input_delay (0)
+------------------------------------
+ There are 0 input ports with partial input delay specified.
+
+
+11. checking partial_output_delay (0)
+-------------------------------------
+ There are 0 ports with partial output delay specified.
+
+
+12. checking latch_loops (0)
+----------------------------
+ There are 0 combinational latch loops in the design through latch input
+
+
+
+------------------------------------------------------------------------------------------------
+| Design Timing Summary
+| ---------------------
+------------------------------------------------------------------------------------------------
+
+    WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+    -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+      0.359        0.000                      0                  110        0.042        0.000                      0                  110        0.725        0.000                       0                    58  
+
+
+All user specified timing constraints are met.
+
+
+------------------------------------------------------------------------------------------------
+| Clock Summary
+| -------------
+------------------------------------------------------------------------------------------------
+
+Clock  Waveform(ns)         Period(ns)      Frequency(MHz)
+-----  ------------         ----------      --------------
+aclk   {0.000 1.000}        2.000           500.000         
+
+
+------------------------------------------------------------------------------------------------
+| Intra Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+Clock             WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints     WPWS(ns)     TPWS(ns)  TPWS Failing Endpoints  TPWS Total Endpoints  
+-----             -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------     --------     --------  ----------------------  --------------------  
+aclk                0.359        0.000                      0                  110        0.042        0.000                      0                  110        0.725        0.000                       0                    58  
+
+
+------------------------------------------------------------------------------------------------
+| Inter Clock Table
+| -----------------
+------------------------------------------------------------------------------------------------
+
+From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Other Path Groups Table
+| -----------------------
+------------------------------------------------------------------------------------------------
+
+Path Group    From Clock    To Clock          WNS(ns)      TNS(ns)  TNS Failing Endpoints  TNS Total Endpoints      WHS(ns)      THS(ns)  THS Failing Endpoints  THS Total Endpoints  
+----------    ----------    --------          -------      -------  ---------------------  -------------------      -------      -------  ---------------------  -------------------  
+
+
+------------------------------------------------------------------------------------------------
+| Timing Details
+| --------------
+------------------------------------------------------------------------------------------------
+
+
+---------------------------------------------------------------------------------------------------
+From Clock:  aclk
+  To Clock:  aclk
+
+Setup :            0  Failing Endpoints,  Worst Slack        0.359ns,  Total Violation        0.000ns
+Hold  :            0  Failing Endpoints,  Worst Slack        0.042ns,  Total Violation        0.000ns
+PW    :            0  Failing Endpoints,  Worst Slack        0.725ns,  Total Violation        0.000ns
+---------------------------------------------------------------------------------------------------
+
+
+Max Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.359ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[5]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.537ns  (logic 0.641ns (41.701%)  route 0.896ns (58.299%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.227     1.566    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[5]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[5]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_EFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[5]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.566    
+  -------------------------------------------------------------------
+                         slack                                  0.359    
+
+Slack (MET) :             0.359ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[6]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.537ns  (logic 0.641ns (41.701%)  route 0.896ns (58.299%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.227     1.566    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[6]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[6]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_FFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[6]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.566    
+  -------------------------------------------------------------------
+                         slack                                  0.359    
+
+Slack (MET) :             0.359ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.537ns  (logic 0.641ns (41.701%)  route 0.896ns (58.299%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.227     1.566    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_GFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.566    
+  -------------------------------------------------------------------
+                         slack                                  0.359    
+
+Slack (MET) :             0.396ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[1]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.500ns  (logic 0.641ns (42.730%)  route 0.859ns (57.270%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.190     1.529    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[1]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_AFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[1]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.529    
+  -------------------------------------------------------------------
+                         slack                                  0.396    
+
+Slack (MET) :             0.396ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.500ns  (logic 0.641ns (42.730%)  route 0.859ns (57.270%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.190     1.529    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_BFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.529    
+  -------------------------------------------------------------------
+                         slack                                  0.396    
+
+Slack (MET) :             0.396ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.500ns  (logic 0.641ns (42.730%)  route 0.859ns (57.270%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.190     1.529    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_CFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.529    
+  -------------------------------------------------------------------
+                         slack                                  0.396    
+
+Slack (MET) :             0.396ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.500ns  (logic 0.641ns (42.730%)  route 0.859ns (57.270%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.190     1.529    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y244        FDRE (Setup_DFF_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.529    
+  -------------------------------------------------------------------
+                         slack                                  0.396    
+
+Slack (MET) :             0.401ns  (required time - arrival time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.495ns  (logic 0.641ns (42.881%)  route 0.854ns (57.119%))
+  Logic Levels:           4  (LUT4=1 LUT5=1 LUT6=2)
+  Clock Path Skew:        -0.009ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.029ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.029     0.029    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y243        FDRE (Prop_HFF2_SLICEL_C_Q)
+                                                      0.080     0.109 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/Q
+                         net (fo=4, routed)           0.149     0.258    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+    SLICE_X68Y243        LUT4 (Prop_C5LUT_SLICEL_I2_O)
+                                                      0.158     0.416 r  u_fabric/stream_wr_awready_INST_0_i_5/O
+                         net (fo=6, routed)           0.299     0.715    u_fabric/stream_wr_awready_INST_0_i_5_n_0
+    SLICE_X68Y243        LUT5 (Prop_D5LUT_SLICEL_I4_O)
+                                                      0.157     0.872 r  u_fabric/stream_wr_awready_INST_0_i_2/O
+                         net (fo=3, routed)           0.159     1.031    u_fabric/stream_wr_awready_INST_0_i_2_n_0
+    SLICE_X68Y243        LUT6 (Prop_A6LUT_SLICEL_I2_O)
+                                                      0.098     1.129 r  u_fabric/crc_snk_awvalid_INST_0_i_1/O
+                         net (fo=2, routed)           0.062     1.191    u_fabric/crc_snk_awvalid_INST_0_i_1_n_0
+    SLICE_X68Y243        LUT6 (Prop_F6LUT_SLICEL_I1_O)
+                                                      0.148     1.339 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_1/O
+                         net (fo=8, routed)           0.185     1.524    u_fabric/axidecoder2_axirequestcounter4_counter
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X68Y243        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X68Y243        FDRE (Setup_HFF2_SLICEL_C_CE)
+                                                     -0.060     1.925    u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]
+  -------------------------------------------------------------------
+                         required time                          1.925    
+                         arrival time                          -1.524    
+  -------------------------------------------------------------------
+                         slack                                  0.401    
+
+Slack (MET) :             0.453ns  (required time - arrival time)
+  Source:                 u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axiarbiter0_rd_lock_counter_reg[6]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.528ns  (logic 0.751ns (49.142%)  route 0.777ns (50.858%))
+  Logic Levels:           4  (CARRY8=1 LUT4=1 LUT5=2)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.028ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.028     0.028    u_fabric/aclk
+    SLICE_X60Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X60Y215        FDRE (Prop_DFF2_SLICEL_C_Q)
+                                                      0.081     0.109 r  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/Q
+                         net (fo=4, routed)           0.247     0.356    u_fabric/axiarbiter0_rd_lock_counter_reg[0]
+    SLICE_X60Y215        LUT4 (Prop_C5LUT_SLICEL_I1_O)
+                                                      0.136     0.492 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_13/O
+                         net (fo=1, routed)           0.131     0.623    u_fabric/axiarbiter0_rd_lock_counter[7]_i_13_n_0
+    SLICE_X60Y215        LUT5 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.149     0.772 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_4/O
+                         net (fo=3, routed)           0.209     0.981    u_fabric/axiarbiter0_rd_lock_counter[7]_i_4_n_0
+    SLICE_X59Y214        LUT5 (Prop_E6LUT_SLICEL_I1_O)
+                                                      0.147     1.128 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_12/O
+                         net (fo=1, routed)           0.165     1.293    u_fabric/axiarbiter0_rd_lock_counter[7]_i_12_n_0
+    SLICE_X59Y215        CARRY8 (Prop_CARRY8_SLICEL_S[0]_O[5])
+                                                      0.238     1.531 r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2/O[5]
+                         net (fo=1, routed)           0.025     1.556    u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2_n_10
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[6]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X59Y215        FDRE (Setup_FFF_SLICEL_C_D)
+                                                      0.025     2.010    u_fabric/axiarbiter0_rd_lock_counter_reg[6]
+  -------------------------------------------------------------------
+                         required time                          2.010    
+                         arrival time                          -1.556    
+  -------------------------------------------------------------------
+                         slack                                  0.453    
+
+Slack (MET) :             0.466ns  (required time - arrival time)
+  Source:                 u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axiarbiter0_rd_lock_counter_reg[7]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            2.000ns  (aclk rise@2.000ns - aclk rise@0.000ns)
+  Data Path Delay:        1.515ns  (logic 0.737ns (48.640%)  route 0.778ns (51.360%))
+  Logic Levels:           4  (CARRY8=1 LUT4=1 LUT5=2)
+  Clock Path Skew:        -0.008ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.020ns = ( 2.020 - 2.000 ) 
+    Source Clock Delay      (SCD):    0.028ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.028     0.028    u_fabric/aclk
+    SLICE_X60Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X60Y215        FDRE (Prop_DFF2_SLICEL_C_Q)
+                                                      0.081     0.109 r  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/Q
+                         net (fo=4, routed)           0.247     0.356    u_fabric/axiarbiter0_rd_lock_counter_reg[0]
+    SLICE_X60Y215        LUT4 (Prop_C5LUT_SLICEL_I1_O)
+                                                      0.136     0.492 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_13/O
+                         net (fo=1, routed)           0.131     0.623    u_fabric/axiarbiter0_rd_lock_counter[7]_i_13_n_0
+    SLICE_X60Y215        LUT5 (Prop_G6LUT_SLICEL_I4_O)
+                                                      0.149     0.772 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_4/O
+                         net (fo=3, routed)           0.209     0.981    u_fabric/axiarbiter0_rd_lock_counter[7]_i_4_n_0
+    SLICE_X59Y214        LUT5 (Prop_E6LUT_SLICEL_I1_O)
+                                                      0.147     1.128 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_12/O
+                         net (fo=1, routed)           0.165     1.293    u_fabric/axiarbiter0_rd_lock_counter[7]_i_12_n_0
+    SLICE_X59Y215        CARRY8 (Prop_CARRY8_SLICEL_S[0]_O[6])
+                                                      0.224     1.517 r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2/O[6]
+                         net (fo=1, routed)           0.026     1.543    u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2_n_9
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       2.000     2.000 r  
+                                                      0.000     2.000 r  aclk (IN)
+                         net (fo=57, unset)           0.020     2.020    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]/C
+                         clock pessimism              0.000     2.020    
+                         clock uncertainty           -0.035     1.985    
+    SLICE_X59Y215        FDRE (Setup_GFF_SLICEL_C_D)
+                                                      0.025     2.010    u_fabric/axiarbiter0_rd_lock_counter_reg[7]
+  -------------------------------------------------------------------
+                         required time                          2.010    
+                         arrival time                          -1.543    
+  -------------------------------------------------------------------
+                         slack                                  0.466    
+
+
+
+
+
+Min Delay Paths
+--------------------------------------------------------------------------------------
+Slack (MET) :             0.042ns  (arrival time - required time)
+  Source:                 u_fabric/axidecoder0_slave_sel_reg1_reg/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder0_slave_sel_reg1_reg/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.094ns  (logic 0.053ns (56.327%)  route 0.041ns (43.673%))
+  Logic Levels:           1  (LUT6=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X60Y271        FDRE                                         r  u_fabric/axidecoder0_slave_sel_reg1_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X60Y271        FDRE (Prop_DFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axidecoder0_slave_sel_reg1_reg/Q
+                         net (fo=3, routed)           0.025     0.076    u_fabric/axidecoder0_slave_sel_reg1
+    SLICE_X60Y271        LUT6 (Prop_D6LUT_SLICEL_I4_O)
+                                                      0.014     0.090 r  u_fabric/axidecoder0_slave_sel_reg1_i_1/O
+                         net (fo=1, routed)           0.016     0.106    u_fabric/axidecoder0_slave_sel1
+    SLICE_X60Y271        FDRE                                         r  u_fabric/axidecoder0_slave_sel_reg1_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X60Y271        FDRE                                         r  u_fabric/axidecoder0_slave_sel_reg1_reg/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X60Y271        FDRE (Hold_DFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axidecoder0_slave_sel_reg1_reg
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.106    
+  -------------------------------------------------------------------
+                         slack                                  0.042    
+
+Slack (MET) :             0.061ns  (arrival time - required time)
+  Source:                 u_fabric/axiarbiter0_rd_lock_counter_reg[4]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axiarbiter0_rd_lock_counter_reg[4]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.113ns  (logic 0.070ns (62.205%)  route 0.043ns (37.795%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y215        FDRE (Prop_DFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axiarbiter0_rd_lock_counter_reg[4]/Q
+                         net (fo=5, routed)           0.029     0.080    u_fabric/axiarbiter0_rd_lock_counter_reg[4]
+    SLICE_X59Y215        LUT2 (Prop_D6LUT_SLICEL_I1_O)
+                                                      0.014     0.094 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_9/O
+                         net (fo=1, routed)           0.007     0.101    u_fabric/axiarbiter0_rd_lock_counter[7]_i_9_n_0
+    SLICE_X59Y215        CARRY8 (Prop_CARRY8_SLICEL_S[3]_O[3])
+                                                      0.017     0.118 r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2/O[3]
+                         net (fo=1, routed)           0.007     0.125    u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2_n_12
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[4]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X59Y215        FDRE (Hold_DFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axiarbiter0_rd_lock_counter_reg[4]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.125    
+  -------------------------------------------------------------------
+                         slack                                  0.061    
+
+Slack (MET) :             0.063ns  (arrival time - required time)
+  Source:                 u_fabric/axiarbiter0_rd_lock_counter_reg[3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axiarbiter0_rd_lock_counter_reg[3]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.115ns  (logic 0.070ns (61.119%)  route 0.045ns (38.881%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y215        FDRE (Prop_CFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axiarbiter0_rd_lock_counter_reg[3]/Q
+                         net (fo=5, routed)           0.030     0.081    u_fabric/axiarbiter0_rd_lock_counter_reg[3]
+    SLICE_X59Y215        LUT2 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.014     0.095 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_10/O
+                         net (fo=1, routed)           0.008     0.103    u_fabric/axiarbiter0_rd_lock_counter[7]_i_10_n_0
+    SLICE_X59Y215        CARRY8 (Prop_CARRY8_SLICEL_S[2]_O[2])
+                                                      0.017     0.120 r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2/O[2]
+                         net (fo=1, routed)           0.007     0.127    u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2_n_13
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[3]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X59Y215        FDRE (Hold_CFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axiarbiter0_rd_lock_counter_reg[3]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.127    
+  -------------------------------------------------------------------
+                         slack                                  0.063    
+
+Slack (MET) :             0.063ns  (arrival time - required time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.115ns  (logic 0.070ns (61.119%)  route 0.045ns (38.881%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y244        FDRE (Prop_CFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/Q
+                         net (fo=5, routed)           0.030     0.081    u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]
+    SLICE_X68Y244        LUT2 (Prop_C6LUT_SLICEL_I1_O)
+                                                      0.014     0.095 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_10/O
+                         net (fo=1, routed)           0.008     0.103    u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_10_n_0
+    SLICE_X68Y244        CARRY8 (Prop_CARRY8_SLICEL_S[2]_O[2])
+                                                      0.017     0.120 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]_i_2/O[2]
+                         net (fo=1, routed)           0.007     0.127    u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]_i_2_n_13
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X68Y244        FDRE (Hold_CFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axidecoder2_axirequestcounter4_counter_reg[3]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.127    
+  -------------------------------------------------------------------
+                         slack                                  0.063    
+
+Slack (MET) :             0.063ns  (arrival time - required time)
+  Source:                 u_fabric/axiarbiter0_wr_lock_counter_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axiarbiter0_wr_lock_counter_reg[2]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.115ns  (logic 0.071ns (61.536%)  route 0.044ns (38.464%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X66Y241        FDRE                                         r  u_fabric/axiarbiter0_wr_lock_counter_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X66Y241        FDRE (Prop_BFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axiarbiter0_wr_lock_counter_reg[2]/Q
+                         net (fo=5, routed)           0.030     0.081    u_fabric/axiarbiter0_wr_lock_counter_reg[2]
+    SLICE_X66Y241        LUT2 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.015     0.096 r  u_fabric/axiarbiter0_wr_lock_counter[7]_i_12/O
+                         net (fo=1, routed)           0.007     0.103    u_fabric/axiarbiter0_wr_lock_counter[7]_i_12_n_0
+    SLICE_X66Y241        CARRY8 (Prop_CARRY8_SLICEL_S[1]_O[1])
+                                                      0.017     0.120 r  u_fabric/axiarbiter0_wr_lock_counter_reg[7]_i_2/O[1]
+                         net (fo=1, routed)           0.007     0.127    u_fabric/axiarbiter0_wr_lock_counter_reg[7]_i_2_n_14
+    SLICE_X66Y241        FDRE                                         r  u_fabric/axiarbiter0_wr_lock_counter_reg[2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X66Y241        FDRE                                         r  u_fabric/axiarbiter0_wr_lock_counter_reg[2]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X66Y241        FDRE (Hold_BFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axiarbiter0_wr_lock_counter_reg[2]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.127    
+  -------------------------------------------------------------------
+                         slack                                  0.063    
+
+Slack (MET) :             0.064ns  (arrival time - required time)
+  Source:                 u_fabric/axiarbiter0_rd_lock_counter_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axiarbiter0_rd_lock_counter_reg[2]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.116ns  (logic 0.071ns (61.406%)  route 0.045ns (38.594%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X59Y215        FDRE (Prop_BFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axiarbiter0_rd_lock_counter_reg[2]/Q
+                         net (fo=5, routed)           0.031     0.082    u_fabric/axiarbiter0_rd_lock_counter_reg[2]
+    SLICE_X59Y215        LUT2 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.015     0.097 r  u_fabric/axiarbiter0_rd_lock_counter[7]_i_11/O
+                         net (fo=1, routed)           0.007     0.104    u_fabric/axiarbiter0_rd_lock_counter[7]_i_11_n_0
+    SLICE_X59Y215        CARRY8 (Prop_CARRY8_SLICEL_S[1]_O[1])
+                                                      0.017     0.121 r  u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2/O[1]
+                         net (fo=1, routed)           0.007     0.128    u_fabric/axiarbiter0_rd_lock_counter_reg[7]_i_2_n_14
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X59Y215        FDRE                                         r  u_fabric/axiarbiter0_rd_lock_counter_reg[2]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X59Y215        FDRE (Hold_BFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axiarbiter0_rd_lock_counter_reg[2]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.128    
+  -------------------------------------------------------------------
+                         slack                                  0.064    
+
+Slack (MET) :             0.064ns  (arrival time - required time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.116ns  (logic 0.071ns (61.406%)  route 0.045ns (38.594%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y244        FDRE (Prop_BFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/Q
+                         net (fo=6, routed)           0.031     0.082    u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]
+    SLICE_X68Y244        LUT2 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.015     0.097 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_11/O
+                         net (fo=1, routed)           0.007     0.104    u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_11_n_0
+    SLICE_X68Y244        CARRY8 (Prop_CARRY8_SLICEL_S[1]_O[1])
+                                                      0.017     0.121 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]_i_2/O[1]
+                         net (fo=1, routed)           0.007     0.128    u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]_i_2_n_14
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X68Y244        FDRE (Hold_BFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axidecoder2_axirequestcounter4_counter_reg[2]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.128    
+  -------------------------------------------------------------------
+                         slack                                  0.064    
+
+Slack (MET) :             0.064ns  (arrival time - required time)
+  Source:                 u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.116ns  (logic 0.071ns (61.406%)  route 0.045ns (38.594%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X66Y248        FDRE                                         r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X66Y248        FDRE (Prop_BFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]/Q
+                         net (fo=6, routed)           0.031     0.082    u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]
+    SLICE_X66Y248        LUT2 (Prop_B6LUT_SLICEL_I1_O)
+                                                      0.015     0.097 r  u_fabric/axidecoder3_axirequestcounter6_counter[7]_i_12/O
+                         net (fo=1, routed)           0.007     0.104    u_fabric/axidecoder3_axirequestcounter6_counter[7]_i_12_n_0
+    SLICE_X66Y248        CARRY8 (Prop_CARRY8_SLICEL_S[1]_O[1])
+                                                      0.017     0.121 r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[7]_i_2/O[1]
+                         net (fo=1, routed)           0.007     0.128    u_fabric/axidecoder3_axirequestcounter6_counter_reg[7]_i_2_n_14
+    SLICE_X66Y248        FDRE                                         r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X66Y248        FDRE                                         r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X66Y248        FDRE (Hold_BFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axidecoder3_axirequestcounter6_counter_reg[2]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.128    
+  -------------------------------------------------------------------
+                         slack                                  0.064    
+
+Slack (MET) :             0.064ns  (arrival time - required time)
+  Source:                 u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.116ns  (logic 0.070ns (60.234%)  route 0.046ns (39.766%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X68Y244        FDRE (Prop_DFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/Q
+                         net (fo=5, routed)           0.032     0.083    u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]
+    SLICE_X68Y244        LUT2 (Prop_D6LUT_SLICEL_I1_O)
+                                                      0.014     0.097 r  u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_9/O
+                         net (fo=1, routed)           0.007     0.104    u_fabric/axidecoder2_axirequestcounter4_counter[7]_i_9_n_0
+    SLICE_X68Y244        CARRY8 (Prop_CARRY8_SLICEL_S[3]_O[3])
+                                                      0.017     0.121 r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]_i_2/O[3]
+                         net (fo=1, routed)           0.007     0.128    u_fabric/axidecoder2_axirequestcounter4_counter_reg[7]_i_2_n_12
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X68Y244        FDRE                                         r  u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X68Y244        FDRE (Hold_DFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axidecoder2_axirequestcounter4_counter_reg[4]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.128    
+  -------------------------------------------------------------------
+                         slack                                  0.064    
+
+Slack (MET) :             0.064ns  (arrival time - required time)
+  Source:                 u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Destination:            u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]/D
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@1.000ns period=2.000ns})
+  Path Group:             aclk
+  Path Type:              Hold (Min at Fast Process Corner)
+  Requirement:            0.000ns  (aclk rise@0.000ns - aclk rise@0.000ns)
+  Data Path Delay:        0.116ns  (logic 0.070ns (60.234%)  route 0.046ns (39.766%))
+  Logic Levels:           2  (CARRY8=1 LUT2=1)
+  Clock Path Skew:        0.006ns (DCD - SCD - CPR)
+    Destination Clock Delay (DCD):    0.018ns
+    Source Clock Delay      (SCD):    0.012ns
+    Clock Pessimism Removal (CPR):    -0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.012     0.012    u_fabric/aclk
+    SLICE_X66Y248        FDRE                                         r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X66Y248        FDRE (Prop_DFF_SLICEL_C_Q)
+                                                      0.039     0.051 r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]/Q
+                         net (fo=7, routed)           0.032     0.083    u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]
+    SLICE_X66Y248        LUT2 (Prop_D6LUT_SLICEL_I1_O)
+                                                      0.014     0.097 r  u_fabric/axidecoder3_axirequestcounter6_counter[7]_i_10/O
+                         net (fo=1, routed)           0.007     0.104    u_fabric/axidecoder3_axirequestcounter6_counter[7]_i_10_n_0
+    SLICE_X66Y248        CARRY8 (Prop_CARRY8_SLICEL_S[3]_O[3])
+                                                      0.017     0.121 r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[7]_i_2/O[3]
+                         net (fo=1, routed)           0.007     0.128    u_fabric/axidecoder3_axirequestcounter6_counter_reg[7]_i_2_n_12
+    SLICE_X66Y248        FDRE                                         r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=57, unset)           0.018     0.018    u_fabric/aclk
+    SLICE_X66Y248        FDRE                                         r  u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]/C
+                         clock pessimism              0.000     0.018    
+    SLICE_X66Y248        FDRE (Hold_DFF_SLICEL_C_D)
+                                                      0.046     0.064    u_fabric/axidecoder3_axirequestcounter6_counter_reg[4]
+  -------------------------------------------------------------------
+                         required time                         -0.064    
+                         arrival time                           0.128    
+  -------------------------------------------------------------------
+                         slack                                  0.064    
+
+
+
+
+
+Pulse Width Checks
+--------------------------------------------------------------------------------------
+Clock Name:         aclk
+Waveform(ns):       { 0.000 1.000 }
+Period(ns):         2.000
+Sources:            { aclk }
+
+Check Type        Corner  Lib Pin  Reference Pin  Required(ns)  Actual(ns)  Slack(ns)  Location       Pin
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X59Y214  u_fabric/FSM_sequential_axiarbiter0_rr_read_grant_reg[0]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X66Y242  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]_rep/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[1]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X60Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X59Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[1]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X59Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[2]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X59Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[3]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X59Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[4]/C
+Min Period        n/a     FDRE/C   n/a            0.550         2.000       1.450      SLICE_X59Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[5]/C
+Low Pulse Width   Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X59Y214  u_fabric/FSM_sequential_axiarbiter0_rr_read_grant_reg[0]/C
+Low Pulse Width   Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X59Y214  u_fabric/FSM_sequential_axiarbiter0_rr_read_grant_reg[0]/C
+Low Pulse Width   Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y242  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]/C
+Low Pulse Width   Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y242  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]/C
+Low Pulse Width   Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]_rep/C
+Low Pulse Width   Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]_rep/C
+Low Pulse Width   Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[1]/C
+Low Pulse Width   Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[1]/C
+Low Pulse Width   Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X60Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+Low Pulse Width   Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X60Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+High Pulse Width  Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X59Y214  u_fabric/FSM_sequential_axiarbiter0_rr_read_grant_reg[0]/C
+High Pulse Width  Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X59Y214  u_fabric/FSM_sequential_axiarbiter0_rr_read_grant_reg[0]/C
+High Pulse Width  Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y242  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]/C
+High Pulse Width  Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y242  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]/C
+High Pulse Width  Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]_rep/C
+High Pulse Width  Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[0]_rep/C
+High Pulse Width  Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[1]/C
+High Pulse Width  Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X66Y243  u_fabric/FSM_sequential_axiarbiter0_rr_write_grant_reg[1]/C
+High Pulse Width  Slow    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X60Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+High Pulse Width  Fast    FDRE/C   n/a            0.275         1.000       0.725      SLICE_X60Y215  u_fabric/axiarbiter0_rd_lock_counter_reg[0]/C
+
+
+

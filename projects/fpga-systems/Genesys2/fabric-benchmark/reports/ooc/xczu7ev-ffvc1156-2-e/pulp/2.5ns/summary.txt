@@ -1,0 +1,15 @@
+leg pulp
+part xczu7ev-ffvc1156-2-e
+period_ns 2.5
+wns_ns 0.168
+whs_ns 0.042
+worst_levels 8
+worst_start u_fabric/i_xbar_unmuxed/gen_slv_port_demux[3].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[2].mst_select_q_reg[2][1]/C
+worst_end u_fabric/i_xbar_unmuxed/gen_xbar_slv_cross[3].gen_xbar_mst_cross[1].gen_no_connection.i_axi_err_slv/i_b_fifo/status_cnt_q_reg[0]/CE
+lut 2992
+lutram 0
+srl 0
+ff 1072
+bram_tile 0.0
+carry4 44
+muxf 52

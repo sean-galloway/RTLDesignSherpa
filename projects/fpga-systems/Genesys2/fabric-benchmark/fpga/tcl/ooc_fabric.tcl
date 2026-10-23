@@ -2,15 +2,18 @@
 # ooc_fabric.tcl -- one leg's data fabric, out of context, placed and routed
 #==============================================================================
 # The fabric under test alone (top fb_data_fabric) on the Genesys 2 part, so the
-# three legs are compared on size and timing with nothing else in the device:
+# legs are compared on size and timing with nothing else in the device:
 #
 #   bridge  rtl/filelists/fb_data_fabric_bridge.f
 #   bridge_plain  rtl/filelists/fb_data_fabric_bridge_plain.f  (leg A2, preset = "xbar")
 #   xbar    rtl/filelists/fb_data_fabric_xbar.f   (needs XILINX_VIVADO)
 #   sc      the fb_sc block design from fpga/tcl/vendor_ip.tcl + its leg wrapper
+#   forencich  rtl/filelists/fb_data_fabric_forencich.f  (leg C1, vendored)
+#   pulp    rtl/filelists/fb_data_fabric_pulp.f   (leg C2, vendored)
+#   litex   rtl/filelists/fb_data_fabric_litex.f  (leg C3, bin/gen_litex_xbar.py)
 #
 # Environment:
-#   FB_LEG        bridge | bridge_plain | xbar | sc      (required)
+#   FB_LEG        bridge | bridge_plain | xbar | sc | forencich | pulp | litex  (required)
 #   FB_PERIOD_NS  aclk period, default 10.0 (the 100 MHz board target)
 #   FB_OUT        report directory, default reports/ooc/<leg>/<period>ns
 #   FB_PART       another part instead of the Genesys 2's (e.g. an UltraScale+
@@ -45,7 +48,7 @@ create_project -in_memory -part $FB_PART
 set_property target_language Verilog [current_project]
 
 switch -- $leg {
-    bridge - bridge_plain - xbar {
+    bridge - bridge_plain - xbar - forencich - pulp - litex {
         lassign [filelist::flatten "$area/rtl/filelists/fb_data_fabric_$leg.f"] srcs incdirs defines
         foreach f $srcs {
             if {![file exists $f]} { puts stderr "ERROR: source not found: $f"; exit 1 }
@@ -62,7 +65,7 @@ switch -- $leg {
         read_verilog [glob "$area/fpga/ip/build/fb_vendor_ip.gen/sources_1/bd/fb_sc/hdl/fb_sc_wrapper.v"]
         read_verilog -sv "$area/rtl/generated/fb_data_fabric_sc/fb_data_fabric.sv"
     }
-    default { puts stderr "ERROR: FB_LEG must be bridge, bridge_plain, xbar or sc, got $leg"; exit 1 }
+    default { puts stderr "ERROR: FB_LEG must be bridge, bridge_plain, xbar, sc, forencich, pulp or litex, got $leg"; exit 1 }
 }
 
 set xdc "$out/ooc_clock.xdc"

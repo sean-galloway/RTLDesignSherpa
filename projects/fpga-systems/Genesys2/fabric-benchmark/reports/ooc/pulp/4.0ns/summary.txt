@@ -1,0 +1,15 @@
+leg pulp
+part xc7k325tffg900-2
+period_ns 4.0
+wns_ns -0.038
+whs_ns 0.110
+worst_levels 10
+worst_start u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/gen_aw_id_counter.i_aw_id_counter/gen_counters[0].i_in_flight_cnt/counter_q_reg[3]/C
+worst_end u_fabric/i_xbar_unmuxed/gen_slv_port_demux[2].i_axi_demux/i_demux_simple/i_counter_open_w/i_counter/counter_q_reg[3]/D
+lut 3091
+lutram 0
+srl 0
+ff 1074
+bram_tile 0.0
+carry4 80
+muxf 46

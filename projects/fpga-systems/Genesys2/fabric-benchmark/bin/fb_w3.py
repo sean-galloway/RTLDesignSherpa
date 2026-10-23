@@ -28,7 +28,9 @@ uncontended, with the same check.
 The share is measured over one window -- the STREAM observers' window, which
 the injector's own bus meter shares -- as productive beats: STREAM's on the
 side it uses at S0 (reads for f3, writes for the mirror) and the injector's
-writes. inj_share = injector / (injector + STREAM).
+writes. inj_share = injector / (injector + STREAM). STREAM's latency
+histograms (bin/fb_latency.py) are read over the same window, before the
+mirror's drain opens the next one.
 """
 from __future__ import annotations
 
@@ -38,6 +40,7 @@ from typing import Optional
 
 import fb_map
 import fb_workloads as fw
+from fb_latency import read_latency
 
 CHARGEN_BASE = 0x0021_0000          # bridge_fb_cfg.toml, window chargen
 INJ_SPAN = 16 << 20                 # the injector's whole reach: INJ_TXN_MAX x 16-beat bursts
@@ -173,6 +176,7 @@ def run_point(runner, bridge, cfg, flavor: str, inj: Inj, log=print) -> dict:
         fill = fw.run_step(runner, bridge, cfg, 'lfsr', 'A')
         res = fw.run_step(runner, bridge, cfg, 'A', 'snk', pre_kick=go, inj_sync=True)
         inj_done = chargen(bridge).field("DONE", "wr_done") & 1
+        lat = read_latency(bridge)
         if not quiesce(bridge):
             why.append("S0 never drained after the contended run")
         side, src_crc, drain = 'r', fill, res
@@ -182,6 +186,7 @@ def run_point(runner, bridge, cfg, flavor: str, inj: Inj, log=print) -> dict:
         inj_done = chargen(bridge).field("DONE", "wr_done") & 1
         side, src_crc = 'w', res
         share_now = _share(res, side, bridge, runner.aclk_hz)   # before the drain clears it
+        lat = read_latency(bridge)
         if not quiesce(bridge):                  # the fill must be committed before its drain
             why.append("S0 never drained after the contended fill")
         runner.reset_stream()                    # stop the injector before INJ_SYNC drops
@@ -205,7 +210,7 @@ def run_point(runner, bridge, cfg, flavor: str, inj: Inj, log=print) -> dict:
         y = b[ch] if ch < len(b) else None
         if not x or x != y:
             why.append(f"ch{ch}: drained CRC 0x{(y or 0):08X} != LFSR CRC 0x{(x or 0):08X}")
-    out.update(flavor=flavor, inj=inj, verdict=not why, why=why)
+    out.update(flavor=flavor, inj=inj, verdict=not why, why=why, lat=lat)
     # Stop the injector: it runs to INJ_TXN_MAX otherwise (it sits in the soft
     # reset domain, so the runner's reset does it).
     runner.reset_stream()

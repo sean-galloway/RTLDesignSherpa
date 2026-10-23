@@ -41,6 +41,13 @@ W3S = {
     'full': [('f3', 0, 4, 1, 1, 4096), ('mirror', 0, 4, 1, 1, 4096),
              ('f3', 15, 2, 2, 2, 8192), ('mirror', 15, 2, 2, 2, 8192)],
 }
+# Leg C3 (LiteX) starves a write master at S0 by design: AXIArbiter keeps its
+# write grant until the granted master has nothing outstanding, so the
+# injector at gap 0 (always one write in flight) holds S0 and STREAM's writes
+# never get in. Its gap-0 mirror points are expected to starve (FbHarnessTB.w3
+# checks the signature), and they run LAST: the starved run ends in a soft
+# reset with injector writes in flight, which S0 does not survive.
+STARVES = {'litex': {('mirror', 0)}}
 SIM_FPGA_CLK_HZ = 100_000_000
 SIM_UART_BAUD = 25_000_000           # CLKS_PER_BIT = 4, the measured floor
 
@@ -72,8 +79,11 @@ async def cocotb_test_fb_harness(dut):
             await tb.run(ch, desc, nbytes)
         for ch, desc, nbytes in chains:
             await tb.chain(ch, desc, nbytes)
-        for flavor, gap, out, ch, desc, nbytes in w3s:
-            await tb.w3(flavor, gap, out, ch, desc, nbytes)
+        starve = STARVES.get(os.environ.get('FB_LEG', ''), set())
+        for flavor, gap, out, ch, desc, nbytes in sorted(
+                w3s, key=lambda p: (p[0], p[1]) in starve):
+            await tb.w3(flavor, gap, out, ch, desc, nbytes,
+                        expect='starve' if (flavor, gap) in starve else 'pass')
     assert tb.report(), f"{len(tb.errors)} error(s); first: {tb.errors[0] if tb.errors else ''}"
     assert len(tb.results) == len(runs) + len(fb_workloads.CHAIN) * len(chains) + len(w3s), \
         "not every run executed"
@@ -82,7 +92,7 @@ async def cocotb_test_fb_harness(dut):
 def generate_test_params():
     reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
     level = {'GATE': 'gate', 'FUNC': 'func', 'FULL': 'full'}.get(reg, 'func')
-    return [(leg, level) for leg in ('bridge', 'bridge_plain', 'xbar')]
+    return [(leg, level) for leg in ('bridge', 'bridge_plain', 'xbar', 'forencich', 'pulp', 'litex')]
 
 
 @pytest.mark.parametrize("leg, test_level", generate_test_params())
@@ -109,7 +119,7 @@ def test_fb_harness(request, leg, test_level):
         'COCOTB_RESULTS_FILE': os.path.join(log_dir, f'results_{name}.xml'),
         'SEED': os.environ.get('SEED', str(random.randint(0, 100000))),
     }
-    for k in ('FB_RUNS', 'FB_CHAINS', 'FB_W3'):
+    for k in ('FB_RUNS', 'FB_CHAINS', 'FB_W3', 'FB_LAT'):
         if os.environ.get(k) is not None:
             extra_env[k] = os.environ[k]
     compile_args = ["-Wno-fatal", "-Werror-MULTIDRIVEN", "-Wno-lint", "-Wno-style", FIELD_COMBO_VLT,

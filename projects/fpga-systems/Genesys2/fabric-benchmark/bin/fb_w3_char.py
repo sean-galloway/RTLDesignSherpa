@@ -15,6 +15,9 @@ The gap is given as idle cycles between injector bursts (gap << gap_shift,
 find the gaps that give each mix; the sweep then runs both flavors x --idle x
 --outstanding.
 
+Each row also carries STREAM's latency over the contended window
+(bin/fb_latency.py: log2 bins, so p50/p90/p99 are bin lower edges in cycles).
+
 Output: reports/board/w3_<leg>_<stamp>.csv (+ JSON). Exit 1 if any point
 fails its data check.
 """
@@ -27,13 +30,14 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import fb_latency
 import fb_map
 import fb_w3
 
 AREA = Path(__file__).resolve().parent.parent
 FIELDS = ('leg', 'flavor', 'idle_cycles', 'gap', 'gap_shift', 'outstanding', 'channels', 'descriptors', 'bytes_per_desc',
           'pass', 'inj_share', 'stream_beats', 'inj_beats', 'window_cycles',
-          'stream_mibs', 'inj_mibs', 'inj_bp', 'inj_starv', 'error')
+          'stream_mibs', 'inj_mibs', 'inj_bp', 'inj_starv', 'error') + fb_latency.COLUMNS
 
 
 def row(leg, cfg, r) -> dict:
@@ -48,7 +52,7 @@ def row(leg, cfg, r) -> dict:
             'stream_mibs': rnd(r.get('stream_mibs'), 1), 'inj_mibs': rnd(r.get('inj_mibs'), 1),
             'inj_bp': (r.get('inj_meter') or {}).get('bp'),
             'inj_starv': (r.get('inj_meter') or {}).get('starv'),
-            'error': '; '.join(r['why'])}
+            'error': '; '.join(r['why']), **(fb_latency.columns(r['lat']) if r.get('lat') else {})}
 
 
 def main() -> int:

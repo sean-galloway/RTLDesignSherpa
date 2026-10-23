@@ -157,6 +157,18 @@ summary: Stability rules; observers gate commands only, never responses.
   carry a sticky flag that invalidates the verdict; silently discarding
   `wr_ready` in an `unused` XOR is how the hole gets made. Prefer both: the
   flag is what stops a future regression being read as a data bug.
+- **A hold that gates VALID must never withdraw a VALID already shown.**
+  AXI forbids dropping VALID before the handshake, and a consumer may commit
+  on VALID alone: an address decoder that starts its decode when AWVALID
+  rises and raises AWREADY later has already acted. Engage the hold only
+  while nothing is presented (`hold & ~r_shown`, where `r_shown` is VALID
+  last cycle without READY). *Case (2026-10-23, Genesys 2 fabric benchmark,
+  `fb_harness` injector): the window-close hold dropped the injector's
+  AWVALID mid-presentation. Five fabrics tolerated it, PULP's `axi_xbar`
+  hung on the board only, and Forencich's `axi_crossbar` forwarded an AW to the slave that never handshook at its
+  port, the W gate (correctly) sent no data for it, and the slave waited
+  for that W forever. A second gate that released W for held bursts had
+  been hiding it -- fixing one exposed the other.*
 
 Related: [[streaming-no-fsm]], [[no-assertions-in-rtl]], [[randomization]].
 

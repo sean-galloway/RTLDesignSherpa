@@ -1,0 +1,15 @@
+leg forencich
+part xczu7ev-ffvc1156-2-e
+period_ns 2.2
+wns_ns -0.197
+whs_ns 0.042
+worst_levels 9
+worst_start u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[5].thread_id_reg_reg[5][3]/C
+worst_end u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_count_reg_reg[6][0]/CE
+lut 2319
+lutram 0
+srl 0
+ff 1604
+bram_tile 0.0
+carry4 0
+muxf 4

@@ -1,0 +1,68 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Oct 23 07:37:36 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xczu7ev-ffvc1156-2-e/pulp/2.7ns/utilization_hier.txt
+| Design       : fb_data_fabric
+| Device       : xczu7ev-ffvc1156-2-e
+| Speed File   : -2
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++---------------------------------------------+---------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+|                   Instance                  |              Module             | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | URAM | DSP Blocks |
++---------------------------------------------+---------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+| fb_data_fabric                              |                           (top) |       2302 |       2302 |       0 |    0 | 1072 |      0 |      0 |    0 |          0 |
+|   (fb_data_fabric)                          |                           (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|   u_fabric                                  |                        axi_xbar |       2302 |       2302 |       0 |    0 | 1072 |      0 |      0 |    0 |          0 |
+|     gen_mst_port_mux[0].i_axi_mux           |                         axi_mux |        190 |        190 |       0 |    0 |   53 |      0 |      0 |    0 |          0 |
+|       gen_mux.i_w_fifo                      |                     fifo_v3_125 |        190 |        190 |       0 |    0 |   45 |      0 |      0 |    0 |          0 |
+|     gen_mst_port_mux[3].i_axi_mux           |                       axi_mux_2 |        114 |        114 |       0 |    0 |   48 |      0 |      0 |    0 |          0 |
+|       gen_mux.i_w_fifo                      |                         fifo_v3 |        114 |        114 |       0 |    0 |   45 |      0 |      0 |    0 |          0 |
+|     i_xbar_unmuxed                          |                axi_xbar_unmuxed |       1997 |       1997 |       0 |    0 |  967 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[0].i_axi_ar_decode |                     addr_decode |         54 |         54 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|         i_addr_decode_dync                  |            addr_decode_dync_121 |         54 |         54 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[0].i_axi_demux     |                       axi_demux |        354 |        354 |       0 |    0 |   74 |      0 |      0 |    0 |          0 |
+|         i_demux_simple                      |            axi_demux_simple_110 |        354 |        354 |       0 |    0 |   74 |      0 |      0 |    0 |          0 |
+|           i_r_mux                           | rr_arb_tree__parameterized1_112 |        209 |        209 |       0 |    0 |    9 |      0 |      0 |    0 |          0 |
+|           gen_ar_id_counter.i_ar_id_counter |       axi_demux_id_counters_111 |        145 |        145 |       0 |    0 |   64 |      0 |      0 |    0 |          0 |
+|             gen_counters[7].i_in_flight_cnt |               delta_counter_120 |         88 |         88 |       0 |    0 |    5 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[0].i_axi_err_slv   |                     axi_err_slv |         38 |         38 |       0 |    0 |   80 |      0 |      0 |    0 |          0 |
+|         i_r_fifo                            |     fifo_v3__parameterized2_108 |         27 |         27 |       0 |    0 |   71 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[1].i_axi_ar_decode |                   addr_decode_3 |         88 |         88 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|         i_addr_decode_dync                  |            addr_decode_dync_106 |         88 |         88 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[1].i_axi_demux     |                     axi_demux_4 |        374 |        374 |       0 |    0 |   77 |      0 |      0 |    0 |          0 |
+|         i_demux_simple                      |             axi_demux_simple_94 |        374 |        374 |       0 |    0 |   77 |      0 |      0 |    0 |          0 |
+|           i_r_mux                           |  rr_arb_tree__parameterized1_97 |        211 |        211 |       0 |    0 |    9 |      0 |      0 |    0 |          0 |
+|           gen_ar_id_counter.i_ar_id_counter |        axi_demux_id_counters_95 |        153 |        153 |       0 |    0 |   64 |      0 |      0 |    0 |          0 |
+|             gen_counters[7].i_in_flight_cnt |               delta_counter_105 |         93 |         93 |       0 |    0 |    5 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[1].i_axi_err_slv   |                   axi_err_slv_5 |         41 |         41 |       0 |    0 |   82 |      0 |      0 |    0 |          0 |
+|         i_r_fifo                            |      fifo_v3__parameterized2_92 |         28 |         28 |       0 |    0 |   71 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[2].i_axi_aw_decode |                   addr_decode_6 |         97 |         97 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|         i_addr_decode_dync                  |             addr_decode_dync_89 |         97 |         97 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[2].i_axi_demux     |                     axi_demux_7 |        254 |        254 |       0 |    0 |   84 |      0 |      0 |    0 |          0 |
+|         i_demux_simple                      |             axi_demux_simple_75 |        254 |        254 |       0 |    0 |   84 |      0 |      0 |    0 |          0 |
+|           i_b_mux                           |  rr_arb_tree__parameterized1_77 |         54 |         54 |       0 |    0 |    9 |      0 |      0 |    0 |          0 |
+|           gen_aw_id_counter.i_aw_id_counter |        axi_demux_id_counters_76 |        157 |        157 |       0 |    0 |   64 |      0 |      0 |    0 |          0 |
+|             gen_counters[4].i_in_flight_cnt |                delta_counter_85 |         96 |         96 |       0 |    0 |    5 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[2].i_axi_err_slv   |                   axi_err_slv_8 |         51 |         51 |       0 |    0 |   71 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[3].i_axi_demux     |                    axi_demux_10 |        262 |        262 |       0 |    0 |   84 |      0 |      0 |    0 |          0 |
+|         i_demux_simple                      |                axi_demux_simple |        262 |        262 |       0 |    0 |   84 |      0 |      0 |    0 |          0 |
+|           i_b_mux                           |     rr_arb_tree__parameterized1 |         61 |         61 |       0 |    0 |    9 |      0 |      0 |    0 |          0 |
+|           gen_aw_id_counter.i_aw_id_counter |           axi_demux_id_counters |        160 |        160 |       0 |    0 |   64 |      0 |      0 |    0 |          0 |
+|             gen_counters[7].i_in_flight_cnt |                delta_counter_69 |         82 |         82 |       0 |    0 |    5 |      0 |      0 |    0 |          0 |
+|       gen_slv_port_demux[3].i_axi_err_slv   |                  axi_err_slv_11 |         45 |         45 |       0 |    0 |   71 |      0 |      0 |    0 |          0 |
++---------------------------------------------+---------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

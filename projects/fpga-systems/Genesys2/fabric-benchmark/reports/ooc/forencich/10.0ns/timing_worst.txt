@@ -1,0 +1,1277 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Oct 23 07:33:35 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/forencich/10.0ns/timing_worst.txt
+| Design       : fb_data_fabric
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             4.444ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.293ns  (logic 0.908ns (17.155%)  route 4.385ns (82.845%))
+  Logic Levels:           9  (LUT2=1 LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.260     5.498    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X53Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.541 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1/O
+                         net (fo=5, routed)           0.289     5.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1_n_0
+    SLICE_X55Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X55Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X55Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][0]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.830    
+  -------------------------------------------------------------------
+                         slack                                  4.444    
+
+Slack (MET) :             4.444ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.293ns  (logic 0.908ns (17.155%)  route 4.385ns (82.845%))
+  Logic Levels:           9  (LUT2=1 LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.260     5.498    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X53Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.541 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1/O
+                         net (fo=5, routed)           0.289     5.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1_n_0
+    SLICE_X55Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X55Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X55Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][4]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.830    
+  -------------------------------------------------------------------
+                         slack                                  4.444    
+
+Slack (MET) :             4.507ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.230ns  (logic 0.908ns (17.361%)  route 4.322ns (82.639%))
+  Logic Levels:           9  (LUT2=1 LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.260     5.498    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X53Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.541 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1/O
+                         net (fo=5, routed)           0.226     5.767    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1_n_0
+    SLICE_X53Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X53Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X53Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][1]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.767    
+  -------------------------------------------------------------------
+                         slack                                  4.507    
+
+Slack (MET) :             4.507ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.230ns  (logic 0.908ns (17.361%)  route 4.322ns (82.639%))
+  Logic Levels:           9  (LUT2=1 LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.260     5.498    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X53Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.541 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1/O
+                         net (fo=5, routed)           0.226     5.767    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1_n_0
+    SLICE_X53Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X53Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X53Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][2]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.767    
+  -------------------------------------------------------------------
+                         slack                                  4.507    
+
+Slack (MET) :             4.507ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.230ns  (logic 0.908ns (17.361%)  route 4.322ns (82.639%))
+  Logic Levels:           9  (LUT2=1 LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.260     5.498    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X53Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.541 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1/O
+                         net (fo=5, routed)           0.226     5.767    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__1_n_0
+    SLICE_X53Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X53Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X53Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][3]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.767    
+  -------------------------------------------------------------------
+                         slack                                  4.507    
+
+Slack (MET) :             4.515ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.221ns  (logic 0.808ns (15.475%)  route 4.413ns (84.525%))
+  Logic Levels:           9  (LUT2=3 LUT5=1 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/aclk
+    SLICE_X28Y66         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X28Y66         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/Q
+                         net (fo=169, routed)         1.070     1.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/s_ifaces[1].r_grant_encoded[2]
+    SLICE_X28Y66         LUT5 (Prop_lut5_I3_O)        0.049     1.879 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1/O
+                         net (fo=1, routed)           0.239     2.118    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1_n_0
+    SLICE_X28Y66         LUT6 (Prop_lut6_I1_O)        0.136     2.254 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0/O
+                         net (fo=1, routed)           0.320     2.574    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid
+    SLICE_X28Y67         LUT2 (Prop_lut2_I1_O)        0.043     2.617 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/trans_count_reg[4]_i_3__2/O
+                         net (fo=12, routed)          0.563     3.180    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/s_ifaces[1].s_cpl_valid
+    SLICE_X32Y68         LUT6 (Prop_lut6_I2_O)        0.043     3.223 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__2/O
+                         net (fo=22, routed)          0.452     3.675    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/trans_count_reg_reg[4]_0
+    SLICE_X30Y72         LUT2 (Prop_lut2_I0_O)        0.049     3.724 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1/O
+                         net (fo=3, routed)           0.499     4.223    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1_n_0
+    SLICE_X29Y70         LUT6 (Prop_lut6_I1_O)        0.136     4.359 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2/O
+                         net (fo=1, routed)           0.347     4.705    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2_n_0
+    SLICE_X28Y70         LUT6 (Prop_lut6_I0_O)        0.043     4.748 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__2/O
+                         net (fo=13, routed)          0.364     5.113    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[6]
+    SLICE_X29Y69         LUT6 (Prop_lut6_I0_O)        0.043     5.156 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__2/O
+                         net (fo=13, routed)          0.334     5.490    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[7]
+    SLICE_X30Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.533 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2/O
+                         net (fo=5, routed)           0.226     5.758    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2_n_0
+    SLICE_X30Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/aclk
+    SLICE_X30Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X30Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][1]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.758    
+  -------------------------------------------------------------------
+                         slack                                  4.515    
+
+Slack (MET) :             4.515ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.221ns  (logic 0.808ns (15.475%)  route 4.413ns (84.525%))
+  Logic Levels:           9  (LUT2=3 LUT5=1 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/aclk
+    SLICE_X28Y66         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X28Y66         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/Q
+                         net (fo=169, routed)         1.070     1.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/s_ifaces[1].r_grant_encoded[2]
+    SLICE_X28Y66         LUT5 (Prop_lut5_I3_O)        0.049     1.879 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1/O
+                         net (fo=1, routed)           0.239     2.118    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1_n_0
+    SLICE_X28Y66         LUT6 (Prop_lut6_I1_O)        0.136     2.254 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0/O
+                         net (fo=1, routed)           0.320     2.574    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid
+    SLICE_X28Y67         LUT2 (Prop_lut2_I1_O)        0.043     2.617 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/trans_count_reg[4]_i_3__2/O
+                         net (fo=12, routed)          0.563     3.180    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/s_ifaces[1].s_cpl_valid
+    SLICE_X32Y68         LUT6 (Prop_lut6_I2_O)        0.043     3.223 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__2/O
+                         net (fo=22, routed)          0.452     3.675    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/trans_count_reg_reg[4]_0
+    SLICE_X30Y72         LUT2 (Prop_lut2_I0_O)        0.049     3.724 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1/O
+                         net (fo=3, routed)           0.499     4.223    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1_n_0
+    SLICE_X29Y70         LUT6 (Prop_lut6_I1_O)        0.136     4.359 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2/O
+                         net (fo=1, routed)           0.347     4.705    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2_n_0
+    SLICE_X28Y70         LUT6 (Prop_lut6_I0_O)        0.043     4.748 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__2/O
+                         net (fo=13, routed)          0.364     5.113    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[6]
+    SLICE_X29Y69         LUT6 (Prop_lut6_I0_O)        0.043     5.156 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__2/O
+                         net (fo=13, routed)          0.334     5.490    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[7]
+    SLICE_X30Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.533 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2/O
+                         net (fo=5, routed)           0.226     5.758    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2_n_0
+    SLICE_X30Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/aclk
+    SLICE_X30Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X30Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][2]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.758    
+  -------------------------------------------------------------------
+                         slack                                  4.515    
+
+Slack (MET) :             4.515ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.221ns  (logic 0.808ns (15.475%)  route 4.413ns (84.525%))
+  Logic Levels:           9  (LUT2=3 LUT5=1 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/aclk
+    SLICE_X28Y66         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X28Y66         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/Q
+                         net (fo=169, routed)         1.070     1.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/s_ifaces[1].r_grant_encoded[2]
+    SLICE_X28Y66         LUT5 (Prop_lut5_I3_O)        0.049     1.879 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1/O
+                         net (fo=1, routed)           0.239     2.118    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1_n_0
+    SLICE_X28Y66         LUT6 (Prop_lut6_I1_O)        0.136     2.254 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0/O
+                         net (fo=1, routed)           0.320     2.574    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid
+    SLICE_X28Y67         LUT2 (Prop_lut2_I1_O)        0.043     2.617 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/trans_count_reg[4]_i_3__2/O
+                         net (fo=12, routed)          0.563     3.180    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/s_ifaces[1].s_cpl_valid
+    SLICE_X32Y68         LUT6 (Prop_lut6_I2_O)        0.043     3.223 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__2/O
+                         net (fo=22, routed)          0.452     3.675    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/trans_count_reg_reg[4]_0
+    SLICE_X30Y72         LUT2 (Prop_lut2_I0_O)        0.049     3.724 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1/O
+                         net (fo=3, routed)           0.499     4.223    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1_n_0
+    SLICE_X29Y70         LUT6 (Prop_lut6_I1_O)        0.136     4.359 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2/O
+                         net (fo=1, routed)           0.347     4.705    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2_n_0
+    SLICE_X28Y70         LUT6 (Prop_lut6_I0_O)        0.043     4.748 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__2/O
+                         net (fo=13, routed)          0.364     5.113    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[6]
+    SLICE_X29Y69         LUT6 (Prop_lut6_I0_O)        0.043     5.156 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__2/O
+                         net (fo=13, routed)          0.334     5.490    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[7]
+    SLICE_X30Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.533 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2/O
+                         net (fo=5, routed)           0.226     5.758    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2_n_0
+    SLICE_X30Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/aclk
+    SLICE_X30Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X30Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][3]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.758    
+  -------------------------------------------------------------------
+                         slack                                  4.515    
+
+Slack (MET) :             4.542ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.194ns  (logic 0.808ns (15.555%)  route 4.386ns (84.445%))
+  Logic Levels:           9  (LUT2=3 LUT5=1 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/aclk
+    SLICE_X28Y66         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X28Y66         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/Q
+                         net (fo=169, routed)         1.070     1.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/s_ifaces[1].r_grant_encoded[2]
+    SLICE_X28Y66         LUT5 (Prop_lut5_I3_O)        0.049     1.879 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1/O
+                         net (fo=1, routed)           0.239     2.118    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1_n_0
+    SLICE_X28Y66         LUT6 (Prop_lut6_I1_O)        0.136     2.254 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0/O
+                         net (fo=1, routed)           0.320     2.574    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid
+    SLICE_X28Y67         LUT2 (Prop_lut2_I1_O)        0.043     2.617 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/trans_count_reg[4]_i_3__2/O
+                         net (fo=12, routed)          0.563     3.180    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/s_ifaces[1].s_cpl_valid
+    SLICE_X32Y68         LUT6 (Prop_lut6_I2_O)        0.043     3.223 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__2/O
+                         net (fo=22, routed)          0.452     3.675    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/trans_count_reg_reg[4]_0
+    SLICE_X30Y72         LUT2 (Prop_lut2_I0_O)        0.049     3.724 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1/O
+                         net (fo=3, routed)           0.499     4.223    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1_n_0
+    SLICE_X29Y70         LUT6 (Prop_lut6_I1_O)        0.136     4.359 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2/O
+                         net (fo=1, routed)           0.347     4.705    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2_n_0
+    SLICE_X28Y70         LUT6 (Prop_lut6_I0_O)        0.043     4.748 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__2/O
+                         net (fo=13, routed)          0.364     5.113    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[6]
+    SLICE_X29Y69         LUT6 (Prop_lut6_I0_O)        0.043     5.156 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__2/O
+                         net (fo=13, routed)          0.334     5.490    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[7]
+    SLICE_X30Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.533 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2/O
+                         net (fo=5, routed)           0.199     5.731    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2_n_0
+    SLICE_X31Y69         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/aclk
+    SLICE_X31Y69         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X31Y69         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][0]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.731    
+  -------------------------------------------------------------------
+                         slack                                  4.542    
+
+Slack (MET) :             4.542ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.194ns  (logic 0.808ns (15.555%)  route 4.386ns (84.445%))
+  Logic Levels:           9  (LUT2=3 LUT5=1 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/aclk
+    SLICE_X28Y66         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X28Y66         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/grant_encoded_reg_reg[2]/Q
+                         net (fo=169, routed)         1.070     1.830    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/s_ifaces[1].r_grant_encoded[2]
+    SLICE_X28Y66         LUT5 (Prop_lut5_I3_O)        0.049     1.879 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1/O
+                         net (fo=1, routed)           0.239     2.118    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0_i_1_n_0
+    SLICE_X28Y66         LUT6 (Prop_lut6_I1_O)        0.136     2.254 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid_INST_0/O
+                         net (fo=1, routed)           0.320     2.574    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/stream_rd_rvalid
+    SLICE_X28Y67         LUT2 (Prop_lut2_I1_O)        0.043     2.617 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].r_arb_inst/trans_count_reg[4]_i_3__2/O
+                         net (fo=12, routed)          0.563     3.180    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/s_ifaces[1].s_cpl_valid
+    SLICE_X32Y68         LUT6 (Prop_lut6_I2_O)        0.043     3.223 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__2/O
+                         net (fo=22, routed)          0.452     3.675    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/trans_count_reg_reg[4]_0
+    SLICE_X30Y72         LUT2 (Prop_lut2_I0_O)        0.049     3.724 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1/O
+                         net (fo=3, routed)           0.499     4.223    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_8__1_n_0
+    SLICE_X29Y70         LUT6 (Prop_lut6_I1_O)        0.136     4.359 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2/O
+                         net (fo=1, routed)           0.347     4.705    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_2__2_n_0
+    SLICE_X28Y70         LUT6 (Prop_lut6_I0_O)        0.043     4.748 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__2/O
+                         net (fo=13, routed)          0.364     5.113    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[6]
+    SLICE_X29Y69         LUT6 (Prop_lut6_I0_O)        0.043     5.156 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__2/O
+                         net (fo=13, routed)          0.334     5.490    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/thread_trans_start[7]
+    SLICE_X30Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.533 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2/O
+                         net (fo=5, routed)           0.199     5.731    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__2_n_0
+    SLICE_X31Y69         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/aclk
+    SLICE_X31Y69         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X31Y69         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[1].addr_inst/genblk1[7].thread_count_reg_reg[7][4]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.731    
+  -------------------------------------------------------------------
+                         slack                                  4.542    
+
+Slack (MET) :             4.651ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.086ns  (logic 0.915ns (17.990%)  route 4.171ns (82.010%))
+  Logic Levels:           10  (LUT2=3 LUT5=2 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X23Y73         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X23Y73         FDRE (Prop_fdre_C_Q)         0.204     0.741 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/Q
+                         net (fo=3, routed)           0.373     1.114    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3]_35[3]
+    SLICE_X23Y73         LUT5 (Prop_lut5_I4_O)        0.129     1.243 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__0/O
+                         net (fo=8, routed)           0.615     1.858    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_active_3
+    SLICE_X25Y75         LUT5 (Prop_lut5_I1_O)        0.136     1.994 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_4__0/O
+                         net (fo=4, routed)           0.263     2.256    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_match_3
+    SLICE_X25Y75         LUT2 (Prop_lut2_I0_O)        0.043     2.299 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0/O
+                         net (fo=2, routed)           0.344     2.643    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0_n_0
+    SLICE_X28Y75         LUT6 (Prop_lut6_I5_O)        0.043     2.686 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_14__2/O
+                         net (fo=2, routed)           0.445     3.131    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/state_next1121_in
+    SLICE_X32Y76         LUT6 (Prop_lut6_I4_O)        0.043     3.174 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__0/O
+                         net (fo=18, routed)          0.464     3.639    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/inj_wr_awaddr[30]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.052     3.691 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9/O
+                         net (fo=3, routed)           0.456     4.147    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I4_O)        0.136     4.283 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0/O
+                         net (fo=1, routed)           0.355     4.638    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I2_O)        0.043     4.681 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__0/O
+                         net (fo=12, routed)          0.391     5.072    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[6]
+    SLICE_X27Y76         LUT6 (Prop_lut6_I0_O)        0.043     5.115 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__0/O
+                         net (fo=12, routed)          0.245     5.361    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[7]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.043     5.404 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0/O
+                         net (fo=5, routed)           0.220     5.623    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0_n_0
+    SLICE_X26Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X26Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][1]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X26Y75         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][1]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.623    
+  -------------------------------------------------------------------
+                         slack                                  4.651    
+
+Slack (MET) :             4.651ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.086ns  (logic 0.915ns (17.990%)  route 4.171ns (82.010%))
+  Logic Levels:           10  (LUT2=3 LUT5=2 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X23Y73         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X23Y73         FDRE (Prop_fdre_C_Q)         0.204     0.741 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/Q
+                         net (fo=3, routed)           0.373     1.114    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3]_35[3]
+    SLICE_X23Y73         LUT5 (Prop_lut5_I4_O)        0.129     1.243 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__0/O
+                         net (fo=8, routed)           0.615     1.858    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_active_3
+    SLICE_X25Y75         LUT5 (Prop_lut5_I1_O)        0.136     1.994 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_4__0/O
+                         net (fo=4, routed)           0.263     2.256    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_match_3
+    SLICE_X25Y75         LUT2 (Prop_lut2_I0_O)        0.043     2.299 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0/O
+                         net (fo=2, routed)           0.344     2.643    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0_n_0
+    SLICE_X28Y75         LUT6 (Prop_lut6_I5_O)        0.043     2.686 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_14__2/O
+                         net (fo=2, routed)           0.445     3.131    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/state_next1121_in
+    SLICE_X32Y76         LUT6 (Prop_lut6_I4_O)        0.043     3.174 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__0/O
+                         net (fo=18, routed)          0.464     3.639    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/inj_wr_awaddr[30]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.052     3.691 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9/O
+                         net (fo=3, routed)           0.456     4.147    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I4_O)        0.136     4.283 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0/O
+                         net (fo=1, routed)           0.355     4.638    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I2_O)        0.043     4.681 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__0/O
+                         net (fo=12, routed)          0.391     5.072    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[6]
+    SLICE_X27Y76         LUT6 (Prop_lut6_I0_O)        0.043     5.115 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__0/O
+                         net (fo=12, routed)          0.245     5.361    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[7]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.043     5.404 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0/O
+                         net (fo=5, routed)           0.220     5.623    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0_n_0
+    SLICE_X26Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X26Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X26Y75         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][2]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.623    
+  -------------------------------------------------------------------
+                         slack                                  4.651    
+
+Slack (MET) :             4.657ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.079ns  (logic 0.915ns (18.014%)  route 4.164ns (81.986%))
+  Logic Levels:           10  (LUT2=3 LUT5=2 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X23Y73         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X23Y73         FDRE (Prop_fdre_C_Q)         0.204     0.741 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/Q
+                         net (fo=3, routed)           0.373     1.114    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3]_35[3]
+    SLICE_X23Y73         LUT5 (Prop_lut5_I4_O)        0.129     1.243 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__0/O
+                         net (fo=8, routed)           0.615     1.858    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_active_3
+    SLICE_X25Y75         LUT5 (Prop_lut5_I1_O)        0.136     1.994 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_4__0/O
+                         net (fo=4, routed)           0.263     2.256    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_match_3
+    SLICE_X25Y75         LUT2 (Prop_lut2_I0_O)        0.043     2.299 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0/O
+                         net (fo=2, routed)           0.344     2.643    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0_n_0
+    SLICE_X28Y75         LUT6 (Prop_lut6_I5_O)        0.043     2.686 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_14__2/O
+                         net (fo=2, routed)           0.445     3.131    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/state_next1121_in
+    SLICE_X32Y76         LUT6 (Prop_lut6_I4_O)        0.043     3.174 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__0/O
+                         net (fo=18, routed)          0.464     3.639    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/inj_wr_awaddr[30]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.052     3.691 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9/O
+                         net (fo=3, routed)           0.456     4.147    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I4_O)        0.136     4.283 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0/O
+                         net (fo=1, routed)           0.355     4.638    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I2_O)        0.043     4.681 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__0/O
+                         net (fo=12, routed)          0.391     5.072    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[6]
+    SLICE_X27Y76         LUT6 (Prop_lut6_I0_O)        0.043     5.115 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__0/O
+                         net (fo=12, routed)          0.245     5.361    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[7]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.043     5.404 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0/O
+                         net (fo=5, routed)           0.213     5.616    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0_n_0
+    SLICE_X27Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X27Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X27Y75         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][0]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.616    
+  -------------------------------------------------------------------
+                         slack                                  4.657    
+
+Slack (MET) :             4.657ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.079ns  (logic 0.915ns (18.014%)  route 4.164ns (81.986%))
+  Logic Levels:           10  (LUT2=3 LUT5=2 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X23Y73         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X23Y73         FDRE (Prop_fdre_C_Q)         0.204     0.741 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/Q
+                         net (fo=3, routed)           0.373     1.114    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3]_35[3]
+    SLICE_X23Y73         LUT5 (Prop_lut5_I4_O)        0.129     1.243 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__0/O
+                         net (fo=8, routed)           0.615     1.858    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_active_3
+    SLICE_X25Y75         LUT5 (Prop_lut5_I1_O)        0.136     1.994 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_4__0/O
+                         net (fo=4, routed)           0.263     2.256    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_match_3
+    SLICE_X25Y75         LUT2 (Prop_lut2_I0_O)        0.043     2.299 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0/O
+                         net (fo=2, routed)           0.344     2.643    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0_n_0
+    SLICE_X28Y75         LUT6 (Prop_lut6_I5_O)        0.043     2.686 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_14__2/O
+                         net (fo=2, routed)           0.445     3.131    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/state_next1121_in
+    SLICE_X32Y76         LUT6 (Prop_lut6_I4_O)        0.043     3.174 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__0/O
+                         net (fo=18, routed)          0.464     3.639    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/inj_wr_awaddr[30]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.052     3.691 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9/O
+                         net (fo=3, routed)           0.456     4.147    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I4_O)        0.136     4.283 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0/O
+                         net (fo=1, routed)           0.355     4.638    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I2_O)        0.043     4.681 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__0/O
+                         net (fo=12, routed)          0.391     5.072    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[6]
+    SLICE_X27Y76         LUT6 (Prop_lut6_I0_O)        0.043     5.115 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__0/O
+                         net (fo=12, routed)          0.245     5.361    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[7]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.043     5.404 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0/O
+                         net (fo=5, routed)           0.213     5.616    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0_n_0
+    SLICE_X27Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X27Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][3]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X27Y75         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][3]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.616    
+  -------------------------------------------------------------------
+                         slack                                  4.657    
+
+Slack (MET) :             4.657ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.079ns  (logic 0.915ns (18.014%)  route 4.164ns (81.986%))
+  Logic Levels:           10  (LUT2=3 LUT5=2 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X23Y73         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X23Y73         FDRE (Prop_fdre_C_Q)         0.204     0.741 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3][3]/Q
+                         net (fo=3, routed)           0.373     1.114    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_count_reg_reg[3]_35[3]
+    SLICE_X23Y73         LUT5 (Prop_lut5_I4_O)        0.129     1.243 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__0/O
+                         net (fo=8, routed)           0.615     1.858    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_active_3
+    SLICE_X25Y75         LUT5 (Prop_lut5_I1_O)        0.136     1.994 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[3].thread_id_reg[3][7]_i_4__0/O
+                         net (fo=4, routed)           0.263     2.256    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_match_3
+    SLICE_X25Y75         LUT2 (Prop_lut2_I0_O)        0.043     2.299 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0/O
+                         net (fo=2, routed)           0.344     2.643    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_9__0_n_0
+    SLICE_X28Y75         LUT6 (Prop_lut6_I5_O)        0.043     2.686 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_14__2/O
+                         net (fo=2, routed)           0.445     3.131    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/state_next1121_in
+    SLICE_X32Y76         LUT6 (Prop_lut6_I4_O)        0.043     3.174 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[0].thread_id_reg[0][7]_i_5__0/O
+                         net (fo=18, routed)          0.464     3.639    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/inj_wr_awaddr[30]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.052     3.691 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9/O
+                         net (fo=3, routed)           0.456     4.147    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_9_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I4_O)        0.136     4.283 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0/O
+                         net (fo=1, routed)           0.355     4.638    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_4__0_n_0
+    SLICE_X26Y76         LUT6 (Prop_lut6_I2_O)        0.043     4.681 f  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__0/O
+                         net (fo=12, routed)          0.391     5.072    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[6]
+    SLICE_X27Y76         LUT6 (Prop_lut6_I0_O)        0.043     5.115 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__0/O
+                         net (fo=12, routed)          0.245     5.361    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/thread_trans_start[7]
+    SLICE_X26Y75         LUT2 (Prop_lut2_I0_O)        0.043     5.404 r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0/O
+                         net (fo=5, routed)           0.213     5.616    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg[7][4]_i_1__0_n_0
+    SLICE_X27Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/aclk
+    SLICE_X27Y75         FDRE                                         r  u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][4]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X27Y75         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_wr_inst/s_ifaces[3].addr_inst/genblk1[7].thread_count_reg_reg[7][4]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.616    
+  -------------------------------------------------------------------
+                         slack                                  4.657    
+
+Slack (MET) :             4.682ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][2]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.077ns  (logic 0.865ns (17.037%)  route 4.212ns (82.963%))
+  Logic Levels:           8  (LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.376     5.614    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X52Y65         FDRE (Setup_fdre_C_CE)      -0.178    10.297    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][2]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -5.614    
+  -------------------------------------------------------------------
+                         slack                                  4.682    
+
+Slack (MET) :             4.682ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][5]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.077ns  (logic 0.865ns (17.037%)  route 4.212ns (82.963%))
+  Logic Levels:           8  (LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.376     5.614    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][5]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][5]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X52Y65         FDRE (Setup_fdre_C_CE)      -0.178    10.297    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][5]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -5.614    
+  -------------------------------------------------------------------
+                         slack                                  4.682    
+
+Slack (MET) :             4.682ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][6]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.077ns  (logic 0.865ns (17.037%)  route 4.212ns (82.963%))
+  Logic Levels:           8  (LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.376     5.614    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][6]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][6]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X52Y65         FDRE (Setup_fdre_C_CE)      -0.178    10.297    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][6]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -5.614    
+  -------------------------------------------------------------------
+                         slack                                  4.682    
+
+Slack (MET) :             4.682ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][7]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        5.077ns  (logic 0.865ns (17.037%)  route 4.212ns (82.963%))
+  Logic Levels:           8  (LUT4=1 LUT5=3 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.392     5.195    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X51Y67         LUT6 (Prop_lut6_I0_O)        0.043     5.238 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg[7][7]_i_1__1/O
+                         net (fo=13, routed)          0.376     5.614    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_trans_start[7]
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][7]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X52Y65         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][7]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X52Y65         FDRE (Setup_fdre_C_CE)      -0.178    10.297    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_id_reg_reg[7][7]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -5.614    
+  -------------------------------------------------------------------
+                         slack                                  4.682    
+
+Slack (MET) :             4.739ns  (required time - arrival time)
+  Source:                 u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_count_reg_reg[6][0]/CE
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (aclk rise@10.000ns - aclk rise@0.000ns)
+  Data Path Delay:        4.998ns  (logic 0.865ns (17.308%)  route 4.133ns (82.692%))
+  Logic Levels:           8  (LUT2=1 LUT4=1 LUT5=3 LUT6=3)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.537     0.537    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X51Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X51Y68         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3][1]/Q
+                         net (fo=5, routed)           0.509     1.269    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_count_reg_reg[3]_59[1]
+    SLICE_X51Y68         LUT5 (Prop_lut5_I2_O)        0.052     1.321 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_2__1/O
+                         net (fo=8, routed)           0.555     1.876    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_active_3
+    SLICE_X52Y67         LUT5 (Prop_lut5_I0_O)        0.136     2.012 f  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[3].thread_id_reg[3][7]_i_3__1/O
+                         net (fo=6, routed)           0.471     2.483    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/thread_match_3
+    SLICE_X50Y66         LUT4 (Prop_lut4_I1_O)        0.047     2.530 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1/O
+                         net (fo=2, routed)           0.561     3.091    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_7__1_n_0
+    SLICE_X48Y66         LUT5 (Prop_lut5_I4_O)        0.142     3.233 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[0].thread_id_reg[0][7]_i_3__0/O
+                         net (fo=6, routed)           0.509     3.741    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/state_next359_in
+    SLICE_X51Y66         LUT6 (Prop_lut6_I3_O)        0.136     3.877 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0/O
+                         net (fo=8, routed)           0.608     4.486    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg[2][7]_i_3__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I2_O)        0.043     4.529 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0/O
+                         net (fo=1, routed)           0.231     4.760    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_6__0_n_0
+    SLICE_X49Y67         LUT6 (Prop_lut6_I4_O)        0.043     4.803 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_1__1/O
+                         net (fo=13, routed)          0.369     5.172    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_id_reg[6][7]_i_7__0_0[4]
+    SLICE_X47Y68         LUT2 (Prop_lut2_I0_O)        0.043     5.215 r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_count_reg[6][4]_i_1__1/O
+                         net (fo=5, routed)           0.320     5.535    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_count_reg[6][4]_i_1__1_n_0
+    SLICE_X44Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_count_reg_reg[6][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)      10.000    10.000 r  
+                                                      0.000    10.000 r  aclk (IN)
+                         net (fo=1605, unset)         0.510    10.510    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/aclk
+    SLICE_X44Y68         FDRE                                         r  u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_count_reg_reg[6][0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X44Y68         FDRE (Setup_fdre_C_CE)      -0.201    10.274    u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[6].thread_count_reg_reg[6][0]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -5.535    
+  -------------------------------------------------------------------
+                         slack                                  4.739    
+
+
+
+

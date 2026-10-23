@@ -10,7 +10,9 @@ which leg is loaded -- the leg is the bitstream -- so the one program runs every
 leg and the label only names the output file.
 
 Per run the runner reports its verdict, the on-chip run timer, the CRC valid
-and match masks of every active channel, and the bus meters; a run passes only
+and match masks of every active channel, and the bus meters, and this program
+adds STREAM's latency histograms over the same window (bin/fb_latency.py: log2
+bins, so p50/p90/p99 are bin lower edges in cycles); a run passes only
 when the verdict is PASS and every active channel's CRC is valid and matches.
 
     python3 bin/fb_char.py --leg a                       # default sweep
@@ -36,6 +38,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+import fb_latency
 import fb_map
 import fb_workloads
 
@@ -50,7 +53,7 @@ DEFAULT_DESC = 4
 FIELDS = ('leg', 'name', 'step', 'channels', 'descriptors', 'bytes_per_desc', 'pass',
           'crc_valid', 'crc_match', 'cycles_total', 'bus_throughput_mbps',
           'peak_mbps', 'pct_of_peak', 'm_rd_util', 'm_wr_util', 's_rd_util', 's_wr_util',
-          's0_rd_beats', 's0_wr_beats', 'error')
+          's0_rd_beats', 's0_wr_beats', 'error') + fb_latency.COLUMNS
 
 
 def parse_size(text: str) -> int:
@@ -74,7 +77,7 @@ def plan(channels, sizes, desc, prefix='w2'):
     return runs
 
 
-def row(leg, cfg, res, slv) -> dict:
+def row(leg, cfg, res, slv, lat=None) -> dict:
     """m_*_util: STREAM's own port (master-side observer, the runner's
     metrics); s_*_util: the fabric's output to the endpoints (slave-side
     observer, same window).
@@ -109,7 +112,8 @@ def row(leg, cfg, res, slv) -> dict:
             'm_wr_util': util(met.get('datapath_utilization_w')),
             's_rd_util': util(round(slv['r_util'], 4)), 's_wr_util': util(round(slv['w_util'], 4)),
             'error': res.get('error') or ('' if ok else 'crc mask short of every active channel')
-                     or (f"perf window closed early ({'/'.join(short)}); no utilization" if short else '')}
+                     or (f"perf window closed early ({'/'.join(short)}); no utilization" if short else ''),
+            **(fb_latency.columns(lat) if lat else {})}
 
 
 def chain_row(leg, cfg, res) -> dict:
@@ -173,12 +177,13 @@ def main() -> int:
                     rows.append(chain_row(args.leg, cfg, res))
                 continue
             res = runner.run_config(cfg)
-            r = row(args.leg, cfg, res, read_slave_side(bridge))
+            r = row(args.leg, cfg, res, read_slave_side(bridge), fb_latency.read_latency(bridge))
             rows.append(r)
             print(f"    {'PASS' if r['pass'] else 'FAIL'}  {r['bus_throughput_mbps']} MB/s "
                   f"({r['pct_of_peak']}% of {r['peak_mbps']})  "
                   f"cycles {r['cycles_total']}  crc {r['crc_valid']}/{r['crc_match']}  "
-                  f"util rd {r['m_rd_util']}/{r['s_rd_util']} wr {r['m_wr_util']}/{r['s_wr_util']}"
+                  f"util rd {r['m_rd_util']}/{r['s_rd_util']} wr {r['m_wr_util']}/{r['s_wr_util']}  "
+                  f"lat p50 rd {r['rd_first_p50']}/{r['rd_last_p50']} wr {r['wr_b_p50']}"
                   + (f"  ({r['error']})" if r['error'] else ''), flush=True)
 
     with open(csv_path, 'w', newline='') as fh:

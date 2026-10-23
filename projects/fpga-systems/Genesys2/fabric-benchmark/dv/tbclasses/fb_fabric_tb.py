@@ -21,6 +21,16 @@ What a pass means, for either leg:
     channel from the address (fb_endpoints CH_SEL_ADDR=1).
   - a master reaching a slave it is not connected to gets DECERR, as does an
     unmapped address
+
+Two legs differ by design, and the pytest wrapper says which (never the TB
+guessing from the leg name):
+  - FB_ID_SLOT=0 (leg C3, LiteX): the fabric forwards the master's own ID with
+    no slot bits, so at a slave the ID is that ID zero-extended, and it must be
+    one a connected master has in flight.
+  - FB_UNMAPPED=hang (leg C3): there is no error slave, so an unconnected or
+    unmapped command is never accepted. The TB proves exactly that: the
+    command times out in the BFM with no response and no slave saw a
+    handshake meanwhile.
 """
 from __future__ import annotations
 
@@ -74,9 +84,14 @@ class FbFabricTB(TBBase):
         self.leg = os.environ.get('FB_LEG', 'unknown')
         # master-local ID bits at the slaves; MID means the leg keeps the ID
         self.local_w = int(os.environ.get('FB_LOCAL_ID_W', str(MID)))
+        # does the slave-side ID carry the master slot? (no on leg C3)
+        self.id_slot = os.environ.get('FB_ID_SLOT', '1') == '1'
+        # what an unroutable command gets: 'decerr', or 'hang' (leg C3)
+        self.unmapped = os.environ.get('FB_UNMAPPED', 'decerr')
         self.rng = random.Random(int(os.environ.get('SEED', '0')))
         self.errors: list[str] = []
-        self.stats = {'rd': 0, 'wr': 0, 'rd_beats': 0, 'wr_beats': 0, 'decerr': 0, 'ids': 0}
+        self.stats = {'rd': 0, 'wr': 0, 'rd_beats': 0, 'wr_beats': 0, 'decerr': 0, 'hang': 0,
+                      'ids': 0}
         clk = dut.aclk
         self.mem = {}
         self.slv = {}
@@ -203,13 +218,16 @@ class FbFabricTB(TBBase):
                     return False
         return True
 
+    DECERR_CASES = (('stream_desc', 0x0000_1000, 'rd', 'unconnected (desc -> ddr)'),
+                    ('stream_rd', 0xC000_0000, 'rd', 'unmapped'),
+                    ('inj_wr', 0xA000_0000, 'wr', 'unconnected (injector -> crc sink)'),
+                    ('stream_wr', 0x9000_0000, 'wr', 'unconnected (write -> lfsr source)'))
+
     async def run_decerr(self) -> bool:
         """Unconnected and unmapped targets must answer DECERR, never hang or hit a slave."""
-        cases = [('stream_desc', 0x0000_1000, 'rd', 'unconnected (desc -> ddr)'),
-                 ('stream_rd', 0xC000_0000, 'rd', 'unmapped'),
-                 ('inj_wr', 0xA000_0000, 'wr', 'unconnected (injector -> crc sink)'),
-                 ('stream_wr', 0x9000_0000, 'wr', 'unconnected (write -> lfsr source)')]
-        for master, addr, kind, why in cases:
+        if self.unmapped == 'hang':
+            return await self._run_unroutable_hang()
+        for master, addr, kind, why in self.DECERR_CASES:
             bfm = self.mst[master]
             if kind == 'rd':
                 try:
@@ -226,6 +244,37 @@ class FbFabricTB(TBBase):
                     self.errors.append(f"{master} wr 0x{addr:08X} ({why}): resp {res.get('response')}")
                 else:
                     self.stats['decerr'] += 1
+        return not self.errors
+
+    async def _run_unroutable_hang(self) -> bool:
+        """FB_UNMAPPED=hang: the same four commands, each from a different
+        master, must never be answered. The BFM's own response timeout is the
+        evidence: it must fire with no response, and no slave may have seen a
+        handshake meanwhile. The commands stay pending: this is the last phase."""
+        for master, addr, kind, why in self.DECERR_CASES:
+            bfm = self.mst[master]
+            seen = self.stats['ids']
+            # The read BFM raises TimeoutError; the write BFM returns
+            # response=None with the timeout in 'error'.
+            timeout = None
+            try:
+                if kind == 'rd':
+                    await bfm.read_transaction(addr, burst_len=2, id=0x5A)
+                else:
+                    res = await bfm.write_transaction(addr, [0, 0], burst_len=2, id=0x5A)
+                    if res.get('response') is None and 'timeout' in str(res.get('error')):
+                        timeout = res['error']
+            except TimeoutError as e:
+                timeout = str(e)
+            if timeout is None:
+                self.errors.append(f"{master} {kind} 0x{addr:08X} ({why}): answered, expected no "
+                                   f"acceptance (FB_UNMAPPED=hang)")
+            elif self.stats['ids'] != seen:
+                self.errors.append(f"{master} {kind} 0x{addr:08X} ({why}): reached a slave")
+            else:
+                self.log.info(f"{master} {kind} 0x{addr:08X} ({why}): unanswered, as "
+                              f"expected ({timeout})")
+                self.stats['hang'] += 1
         return not self.errors
 
     async def _watch_slave_ids(self):
@@ -257,6 +306,15 @@ class FbFabricTB(TBBase):
                 sid = int(getattr(d, f'{ep}_{kind}id').value)
                 slot, low = sid >> self.local_w, sid & ((1 << self.local_w) - 1)
                 self.stats['ids'] += 1
+                if not self.id_slot:
+                    owners = [by_slot[s] for s in slots if low in self.inflight[by_slot[s]]]
+                    if slot:
+                        self.errors.append(f"{ep} {kind}id 0x{sid:03X}: bits above the "
+                                           f"{MID}-bit master ID are not 0 (FB_ID_SLOT=0)")
+                    elif not owners:
+                        self.errors.append(f"{ep} {kind}id 0x{sid:03X}: not an ID any connected "
+                                           f"master has in flight")
+                    continue
                 if slot >> SLOT_W:
                     self.errors.append(f"{ep} {kind}id 0x{sid:03X}: bits above the "
                                        f"{self.local_w + SLOT_W}-bit fabric ID are not 0")

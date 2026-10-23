@@ -73,6 +73,10 @@ BRIDGES = AREA / "rtl/bridges/generated"
 ACCEPTANCE = 16
 ISSUING = 16
 XBAR = "axi_crossbar_v2_1_37_axi_crossbar"
+# Distinct IDs in flight per master: STREAM's ID is its channel, 0..7. Sizes
+# the Forencich crossbar's S_THREADS and PULP's AxiIdUsedSlvPorts (3 bits).
+STREAM_IDS = 8
+FORENCICH_THREADS = STREAM_IDS
 TIE0, TIE1 = "1'b0", "1'b1"
 
 # Request-side fields in the order the wrappers list them. (name, width key)
@@ -276,14 +280,21 @@ def hexv(values: list[int], bits: int) -> str:
     return f"{bits * len(values)}'h{total:0{bits * len(values) // 4}X}"
 
 
+def conn_masks(masters: list[Port], slaves: list[Port],
+               conn: dict[str, set[str]]) -> tuple[list[int], list[int]]:
+    """Per slave, the masters that reach it: (read, write), bit i = master slot i."""
+    rd = [sum(1 << i for i, m in enumerate(masters) if m.rd and s.name in conn[m.name])
+          for s in slaves]
+    wr = [sum(1 << i for i, m in enumerate(masters) if m.wr and s.name in conn[m.name])
+          for s in slaves]
+    return rd, wr
+
+
 def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
               conn: dict[str, set[str]]) -> str:
     ns, nm = len(masters), len(slaves)
     mid, sid, aw, dw, sw = w["mid"], w["sid"], w["aw"], w["dw"], w["sw"]
-    rd_conn = [sum(1 << i for i, m in enumerate(masters) if m.rd and s.name in conn[m.name])
-               for s in slaves]
-    wr_conn = [sum(1 << i for i, m in enumerate(masters) if m.wr and s.name in conn[m.name])
-               for s in slaves]
+    rd_conn, wr_conn = conn_masks(masters, slaves, conn)
     params = [
         ('C_FAMILY', '"kintex7"'),
         ("C_NUM_SLAVE_SLOTS", str(ns)),
@@ -310,6 +321,36 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
         ("C_M_AXI_SECURE", hexv([0] * nm, 32)),
         ("C_CONNECTIVITY_MODE", "1"),
     ]
+    lines = slot_vectors(masters, slaves, w, sid)
+    pmap = ",\n".join(f"        .{k:<28}({v})" for k, v in params)
+    conns = slot_vector_conns()
+    n = ns
+    conns += [f"        .s_axi_wid({{{n}{{{sid}'b0}}}})",
+              f"        .s_axi_awuser({n}'b0)", f"        .s_axi_wuser({n}'b0)",
+              f"        .s_axi_aruser({n}'b0)", "        .s_axi_buser()", "        .s_axi_ruser()",
+              "        .m_axi_awregion()", "        .m_axi_arregion()", "        .m_axi_wid()",
+              "        .m_axi_awuser()", "        .m_axi_wuser()", "        .m_axi_aruser()",
+              f"        .m_axi_buser({nm}'b0)", f"        .m_axi_ruser({nm}'b0)"]
+    body = ",\n".join(conns)
+    return (HEADER.format(leg="leg B1: Xilinx AXI Crossbar v2.1")
+            + f"//\n// Matched to the bridge (gen_fabric_legs.py docstring): acceptance {ACCEPTANCE},\n"
+            + f"// issuing {ISSUING}, no register slices, round-robin. Base IDs = slot << {mid}.\n"
+            + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
+            + "\n".join(port_list(masters, slaves, w))
+            + "\n);\n\n" + "\n".join(lines)
+            + f"\n    {XBAR} #(\n{pmap}\n    ) u_fabric (\n{body}\n    );\n\nendmodule : fb_data_fabric\n")
+
+
+def slot_vectors(masters: list[Port], slaves: list[Port], w: dict[str, int],
+                 s_idw: int) -> list[str]:
+    """Flattened slot vectors w_s_* / w_m_* (slot 0 in the LSBs) for a crossbar
+    with Verilog-2001 vector ports, and the assigns joining them to the
+    common port set. s_idw is the crossbar's ID width at its master-facing
+    (SI) slots: sid for the Xilinx crossbar, whose SI IDs carry the slot
+    (base IDs), mid for one that prepends the slot itself. Unused channels
+    are tied idle."""
+    ns, nm = len(masters), len(slaves)
+    mid, sid = w["mid"], w["sid"]
 
     def field_w(key: str | int, side_id: int) -> int:
         return side_id if key == "mid" else (w[key] if isinstance(key, str) else key)
@@ -317,7 +358,7 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
     lines: list[str] = []
     # Flattened slot vectors, one per crossbar port, slot 0 in the LSBs.
     vec = {}
-    for side, ports, n, idw in (("s", masters, ns, sid), ("m", slaves, nm, sid)):
+    for side, ports, n, idw in (("s", masters, ns, s_idw), ("m", slaves, nm, sid)):
         for name, key in AW + AR + W + R + B:
             vec[f"{side}_{name}"] = field_w(key, idw) * n
         for hs in ("awvalid", "awready", "wvalid", "wready", "bvalid", "bready",
@@ -339,11 +380,11 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
                 (m.wr, AW + W, B, ("awvalid", "wvalid"), ("awready", "wready"), "bvalid", "bready"),
                 (m.rd, AR, R, ("arvalid",), ("arready",), "rvalid", "rready")):
             for name, key in req:
-                width = sid if key == "mid" else field_w(key, mid)
+                width = s_idw if key == "mid" else field_w(key, mid)
                 if not ch_on:
                     lines.append(f"    assign {slot('s', name, i, width)} = '0;")
-                elif key == "mid":
-                    lines.append(f"    assign {slot('s', name, i, width)} = {{{sid - mid}'b0, {p}{name}}};")
+                elif key == "mid" and s_idw > mid:
+                    lines.append(f"    assign {slot('s', name, i, width)} = {{{s_idw - mid}'b0, {p}{name}}};")
                 else:
                     lines.append(f"    assign {slot('s', name, i, width)} = {p}{name};")
             for v in vld:
@@ -355,9 +396,9 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
             if ch_on:
                 lines.append(f"    assign {p}{rvld} = w_s_{rvld}[{i}];")
                 for name, key in rsp:
-                    width = sid if key == "mid" else field_w(key, mid)
+                    width = s_idw if key == "mid" else field_w(key, mid)
                     src = slot("s", name, i, width)
-                    if key == "mid":  # strip the slot bits: low `mid` bits of this slot
+                    if key == "mid" and s_idw > mid:  # strip the slot bits: low `mid` bits
                         src = f"w_s_{name}[{i * width + mid - 1}:{i * width}]"
                     lines.append(f"    assign {p}{name} = {src};")
         lines.append("")
@@ -390,8 +431,11 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
                     width = sid if key == "mid" else field_w(key, sid)
                     lines.append(f"    assign {slot('m', name, i, width)} = '0;")
         lines.append("")
+    return lines
 
-    pmap = ",\n".join(f"        .{k:<28}({v})" for k, v in params)
+
+def slot_vector_conns() -> list[str]:
+    """Clock, reset and every s_axi_*/m_axi_* port on its slot vector."""
     conns = ["        .aclk(aclk)", "        .aresetn(aresetn)"]
     for side in ("s", "m"):
         for name, _ in AW + AR + W + R + B:
@@ -399,21 +443,244 @@ def emit_xbar(masters: list[Port], slaves: list[Port], w: dict[str, int],
         for hs in ("awvalid", "awready", "wvalid", "wready", "bvalid", "bready",
                    "arvalid", "arready", "rvalid", "rready"):
             conns.append(f"        .{side}_axi_{hs}(w_{side}_{hs})")
-    n = ns
-    conns += [f"        .s_axi_wid({{{n}{{{sid}'b0}}}})",
-              f"        .s_axi_awuser({n}'b0)", f"        .s_axi_wuser({n}'b0)",
-              f"        .s_axi_aruser({n}'b0)", "        .s_axi_buser()", "        .s_axi_ruser()",
-              "        .m_axi_awregion()", "        .m_axi_arregion()", "        .m_axi_wid()",
+    return conns
+
+
+def emit_forencich(masters: list[Port], slaves: list[Port], w: dict[str, int],
+                   conn: dict[str, set[str]]) -> str:
+    """Leg C1: Forencich verilog-axi axi_crossbar (vendor/verilog-axi).
+
+    Same matching rule as leg B1: acceptance and issuing 16, no register
+    slices (every *_REG_TYPE 0, bypass; upstream's defaults register B and R
+    at the ports facing the masters, AW, W and AR at those facing the slaves). It prepends the slot itself, so its SI IDs are
+    the master's own mid bits and its MI IDs are {slot, id}. S_THREADS -- the
+    distinct IDs a master may have in flight at once -- is 8, the eight IDs
+    STREAM issues (ID = channel); a ninth waits for a thread to free.
+    """
+    ns, nm = len(masters), len(slaves)
+    mid, sid, aw = w["mid"], w["sid"], w["aw"]
+    rd_conn, wr_conn = conn_masks(masters, slaves, conn)
+
+    def fields(values: list[int], bits: int) -> str:
+        return hexv(values, bits) if bits % 4 == 0 else \
+            f"{bits * len(values)}'b" + "".join(f"{v:0{bits}b}" for v in reversed(values))
+
+    reg0 = lambda n: hexv([0] * n, 2) if (2 * n) % 4 == 0 else f"{2 * n}'b0"
+    params = [
+        ("S_COUNT", str(ns)), ("M_COUNT", str(nm)),
+        ("DATA_WIDTH", str(w["dw"])), ("ADDR_WIDTH", str(aw)),
+        ("S_ID_WIDTH", str(mid)), ("M_ID_WIDTH", str(sid)),
+        ("S_THREADS", hexv([FORENCICH_THREADS] * ns, 32)),
+        ("S_ACCEPT", hexv([ACCEPTANCE] * ns, 32)),
+        ("M_REGIONS", "1"),
+        ("M_BASE_ADDR", hexv([s.base for s in slaves], aw)),
+        ("M_ADDR_WIDTH", hexv([int(math.log2(s.size)) for s in slaves], 32)),
+        ("M_CONNECT_READ", fields(rd_conn, ns)),
+        ("M_CONNECT_WRITE", fields(wr_conn, ns)),
+        ("M_ISSUE", hexv([ISSUING] * nm, 32)),
+        ("M_SECURE", f"{nm}'b0"),
+    ] + [(f"{side}_{ch}_REG_TYPE", reg0(n)) for side, n in (("S", ns), ("M", nm))
+         for ch in ("AW", "W", "B", "AR", "R")]
+    lines = slot_vectors(masters, slaves, w, mid)
+    pmap = ",\n".join(f"        .{k:<16}({v})" for k, v in params)
+    conns = [c.replace(".aclk(", ".clk(").replace(".aresetn(aresetn)", ".rst(~aresetn)")
+             for c in slot_vector_conns()]
+    conns += [f"        .s_axi_awuser({ns}'b0)", f"        .s_axi_wuser({ns}'b0)",
+              f"        .s_axi_aruser({ns}'b0)", "        .s_axi_buser()", "        .s_axi_ruser()",
+              "        .m_axi_awregion()", "        .m_axi_arregion()",
               "        .m_axi_awuser()", "        .m_axi_wuser()", "        .m_axi_aruser()",
               f"        .m_axi_buser({nm}'b0)", f"        .m_axi_ruser({nm}'b0)"]
     body = ",\n".join(conns)
-    return (HEADER.format(leg="leg B1: Xilinx AXI Crossbar v2.1")
-            + f"//\n// Matched to the bridge (gen_fabric_legs.py docstring): acceptance {ACCEPTANCE},\n"
-            + f"// issuing {ISSUING}, no register slices, round-robin. Base IDs = slot << {mid}.\n"
+    return (HEADER.format(leg="leg C1: Forencich verilog-axi axi_crossbar")
+            + f"//\n// Matched as leg B1 is: acceptance {ACCEPTANCE}, issuing {ISSUING}, no register\n"
+            + f"// slices, round-robin; {FORENCICH_THREADS} ID threads per master. The crossbar's reset is\n"
+            + "// synchronous and active high: rst = ~aresetn. See the generator.\n"
             + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
             + "\n".join(port_list(masters, slaves, w))
             + "\n);\n\n" + "\n".join(lines)
-            + f"\n    {XBAR} #(\n{pmap}\n    ) u_fabric (\n{body}\n    );\n\nendmodule : fb_data_fabric\n")
+            + f"\n    axi_crossbar #(\n{pmap}\n    ) u_fabric (\n{body}\n    );\n\nendmodule : fb_data_fabric\n")
+
+
+# PULP field name per port-set signal, per channel (axi/typedef.svh structs).
+PULP_REQ = {"aw": [n for n, _ in AW], "w": [n for n, _ in W], "ar": [n for n, _ in AR]}
+PULP_RSP = {"b": [n for n, _ in B], "r": [n for n, _ in R]}
+
+
+def emit_pulp(masters: list[Port], slaves: list[Port], w: dict[str, int],
+              conn: dict[str, set[str]]) -> str:
+    """Leg C2: PULP axi_xbar (vendor/pulp-axi, v0.39.11).
+
+    Same matching rule as leg B1: MaxMstTrans / MaxSlvTrans 16, LatencyMode
+    NO_LATENCY (no spill registers), no pipeline stages, no ATOPs (AXI4 only,
+    as every other leg), round-robin (its only arbitration). The mux prepends
+    the slot, so master-port IDs are {slot, id}, sid bits. AxiIdUsedSlvPorts
+    is 3: the demux keeps one ordering counter per value of the low 3 ID bits,
+    which covers STREAM's eight IDs; IDs that share those bits would be
+    ordered as one (never wrong, only more serial). Unconnected pairs and
+    unmapped addresses answer DECERR from the xbar's own error slave.
+    """
+    ns, nm = len(masters), len(slaves)
+    mid, sid, aw = w["mid"], w["sid"], w["aw"]
+    used = max(1, math.ceil(math.log2(STREAM_IDS)))
+    # Connectivity[i][j]: master (slave port) i reaches slave (master port) j.
+    rows = [sum(1 << j for j, s in enumerate(slaves) if s.name in conn[m.name]) for m in masters]
+    connectivity = "{" + ", ".join(f"{nm}'b{r:0{nm}b}" for r in reversed(rows)) + "}"
+    rules = ",\n".join(
+        f"        '{{idx: 32'd{j}, start_addr: 32'h{s.base:08X}, end_addr: 32'h{s.base + s.size:08X}}}"
+        for j, s in reversed(list(enumerate(slaves))))
+    lines = [
+        "    localparam axi_pkg::xbar_cfg_t Cfg = '{",
+        f"        NoSlvPorts: {ns}, NoMstPorts: {nm}, MaxMstTrans: {ACCEPTANCE}, MaxSlvTrans: {ISSUING},",
+        "        FallThrough: 1'b0, LatencyMode: axi_pkg::NO_LATENCY, PipelineStages: 0,",
+        f"        AxiIdWidthSlvPorts: {mid}, AxiIdUsedSlvPorts: {used}, UniqueIds: 1'b0,",
+        f"        AxiAddrWidth: {aw}, AxiDataWidth: {w['dw']}, NoAddrRules: {nm}}};",
+        f"    localparam bit [{ns - 1}:0][{nm - 1}:0] Connectivity = {connectivity};",
+        f"    localparam axi_pkg::xbar_rule_32_t [{nm - 1}:0] AddrMap = '{{",
+        rules,
+        "    };",
+        "",
+        f"    typedef logic [{aw - 1}:0] addr_t;",
+        f"    typedef logic [{w['dw'] - 1}:0] data_t;",
+        f"    typedef logic [{w['sw'] - 1}:0] strb_t;",
+        f"    typedef logic [{mid - 1}:0] slv_id_t;",
+        f"    typedef logic [{sid - 1}:0] mst_id_t;",
+        "    typedef logic [0:0] user_t;",
+        "    `AXI_TYPEDEF_ALL(slv, addr_t, slv_id_t, data_t, strb_t, user_t)",
+        "    `AXI_TYPEDEF_ALL(mst, addr_t, mst_id_t, data_t, strb_t, user_t)",
+        "",
+        f"    slv_req_t  [{ns - 1}:0] w_slv_req;",
+        f"    slv_resp_t [{ns - 1}:0] w_slv_resp;",
+        f"    mst_req_t  [{nm - 1}:0] w_mst_req;",
+        f"    mst_resp_t [{nm - 1}:0] w_mst_resp;",
+        "",
+    ]
+    # Field by field, so every unused field (region, atop, user) is tied 0.
+    for side, ports, req, rsp in (("slv", masters, "w_slv_req", "w_slv_resp"),
+                                  ("mst", slaves, "w_mst_req", "w_mst_resp")):
+        for i, p in enumerate(ports):
+            pre = p.prefix
+            lines.append(f"    // {side} port {i}: {p.name} ({p.channels})")
+            if side == "slv":
+                lines.append(f"    always_comb begin")
+                lines.append(f"        {req}[{i}] = '0;")
+                if p.wr:
+                    lines += [f"        {req}[{i}].aw.{n[2:]} = {pre}{n};" for n in PULP_REQ["aw"]]
+                    lines += [f"        {req}[{i}].w.{n[1:]} = {pre}{n};" for n in PULP_REQ["w"]]
+                    lines += [f"        {req}[{i}].aw_valid = {pre}awvalid;",
+                              f"        {req}[{i}].w_valid = {pre}wvalid;",
+                              f"        {req}[{i}].b_ready = {pre}bready;"]
+                else:
+                    lines.append(f"        {req}[{i}].b_ready = 1'b1;")
+                if p.rd:
+                    lines += [f"        {req}[{i}].ar.{n[2:]} = {pre}{n};" for n in PULP_REQ["ar"]]
+                    lines += [f"        {req}[{i}].ar_valid = {pre}arvalid;",
+                              f"        {req}[{i}].r_ready = {pre}rready;"]
+                else:
+                    lines.append(f"        {req}[{i}].r_ready = 1'b1;")
+                lines.append("    end")
+                if p.wr:
+                    lines += [f"    assign {pre}awready = {rsp}[{i}].aw_ready;",
+                              f"    assign {pre}wready = {rsp}[{i}].w_ready;",
+                              f"    assign {pre}bvalid = {rsp}[{i}].b_valid;"]
+                    lines += [f"    assign {pre}{n} = {rsp}[{i}].b.{n[1:]};" for n in PULP_RSP["b"]]
+                if p.rd:
+                    lines += [f"    assign {pre}arready = {rsp}[{i}].ar_ready;",
+                              f"    assign {pre}rvalid = {rsp}[{i}].r_valid;"]
+                    lines += [f"    assign {pre}{n} = {rsp}[{i}].r.{n[1:]};" for n in PULP_RSP["r"]]
+            else:
+                if p.wr:
+                    lines += [f"    assign {pre}{n} = {req}[{i}].aw.{n[2:]};" for n in PULP_REQ["aw"]]
+                    lines += [f"    assign {pre}{n} = {req}[{i}].w.{n[1:]};" for n in PULP_REQ["w"]]
+                    lines += [f"    assign {pre}awvalid = {req}[{i}].aw_valid;",
+                              f"    assign {pre}wvalid = {req}[{i}].w_valid;",
+                              f"    assign {pre}bready = {req}[{i}].b_ready;"]
+                if p.rd:
+                    lines += [f"    assign {pre}{n} = {req}[{i}].ar.{n[2:]};" for n in PULP_REQ["ar"]]
+                    lines += [f"    assign {pre}arvalid = {req}[{i}].ar_valid;",
+                              f"    assign {pre}rready = {req}[{i}].r_ready;"]
+                lines.append("    always_comb begin")
+                lines.append(f"        {rsp}[{i}] = '0;")
+                if p.wr:
+                    lines += [f"        {rsp}[{i}].aw_ready = {pre}awready;",
+                              f"        {rsp}[{i}].w_ready = {pre}wready;",
+                              f"        {rsp}[{i}].b_valid = {pre}bvalid;"]
+                    lines += [f"        {rsp}[{i}].b.{n[1:]} = {pre}{n};" for n in PULP_RSP["b"]]
+                if p.rd:
+                    lines += [f"        {rsp}[{i}].ar_ready = {pre}arready;",
+                              f"        {rsp}[{i}].r_valid = {pre}rvalid;"]
+                    lines += [f"        {rsp}[{i}].r.{n[1:]} = {pre}{n};" for n in PULP_RSP["r"]]
+                lines.append("    end")
+            lines.append("")
+    inst = f"""    axi_xbar #(
+        .Cfg           (Cfg),
+        .ATOPs         (1'b0),
+        .Connectivity  (Connectivity),
+        .slv_aw_chan_t (slv_aw_chan_t), .mst_aw_chan_t (mst_aw_chan_t), .w_chan_t (slv_w_chan_t),
+        .slv_b_chan_t  (slv_b_chan_t),  .mst_b_chan_t  (mst_b_chan_t),
+        .slv_ar_chan_t (slv_ar_chan_t), .mst_ar_chan_t (mst_ar_chan_t),
+        .slv_r_chan_t  (slv_r_chan_t),  .mst_r_chan_t  (mst_r_chan_t),
+        .slv_req_t     (slv_req_t),     .slv_resp_t    (slv_resp_t),
+        .mst_req_t     (mst_req_t),     .mst_resp_t    (mst_resp_t),
+        .rule_t        (axi_pkg::xbar_rule_32_t)
+    ) u_fabric (
+        .clk_i                 (aclk),
+        .rst_ni                (aresetn),
+        .test_i                (1'b0),
+        .slv_ports_req_i       (w_slv_req),
+        .slv_ports_resp_o      (w_slv_resp),
+        .mst_ports_req_o       (w_mst_req),
+        .mst_ports_resp_i      (w_mst_resp),
+        .addr_map_i            (AddrMap),
+        .en_default_mst_port_i ('0),
+        .default_mst_port_i    ('0)
+    );
+"""
+    return (HEADER.format(leg="leg C2: PULP axi_xbar")
+            + f"//\n// Matched as leg B1 is: {ACCEPTANCE} transactions per master and per slave, no\n"
+            + "// spill registers (NO_LATENCY), no ATOPs, round-robin. See the generator.\n"
+            + "\n`timescale 1ns / 1ps\n`include \"axi/typedef.svh\"\n\nmodule fb_data_fabric (\n"
+            + "\n".join(port_list(masters, slaves, w))
+            + "\n);\n\n" + "\n".join(lines) + "\n" + inst + "\nendmodule : fb_data_fabric\n")
+
+
+LITEX_XBAR = "fb_litex_xbar"
+
+
+def emit_litex(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> str:
+    """Leg C3: LiteX's AXI crossbar, generated by bin/gen_litex_xbar.py.
+
+    Its ports already carry the port-set names; only the slave-side IDs
+    differ: LiteX forwards the master's own ID (no slot bits), so request IDs
+    are zero-extended to sid and responses take the low mid bits back.
+    LiteX's reset is synchronous and active high (Migen's sys domain).
+    """
+    mid, sid = w["mid"], w["sid"]
+    nets, assigns = [], []
+    conns = ["        .sys_clk(aclk)", "        .sys_rst(~aresetn)"]
+    for p in masters + slaves:
+        is_m = p in masters
+        for n, k in (AW + W + B if p.wr else []) + (AR + R if p.rd else []):
+            sig = p.prefix + n
+            if is_m or k != "mid":
+                conns.append(f"        .{sig}({sig})")
+            elif n in ("awid", "arid"):
+                nets.append(f"    logic [{mid - 1}:0] u_{sig};")
+                assigns.append(f"    assign {sig} = {sid}'(u_{sig});")
+                conns.append(f"        .{sig}(u_{sig})")
+            else:
+                conns.append(f"        .{sig}({sig}[{mid - 1}:0])")
+        hs = (["awvalid", "awready", "wvalid", "wready", "bvalid", "bready"] if p.wr else []) + \
+             (["arvalid", "arready", "rvalid", "rready"] if p.rd else [])
+        conns += [f"        .{p.prefix}{n}({p.prefix}{n})" for n in hs]
+    body = ",\n".join(conns)
+    return (HEADER.format(leg="leg C3: LiteX AXI crossbar (AXIDecoder + AXIArbiter)")
+            + "//\n// LiteX forwards the master's own ID: no slot bits at the slaves, zero-extended\n"
+            + "// here. An unmapped or unconnected address is never accepted (no error slave).\n"
+            + "// fb_litex_xbar is made by bin/gen_litex_xbar.py. See that generator.\n"
+            + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
+            + "\n".join(port_list(masters, slaves, w))
+            + "\n);\n\n" + "\n".join(nets) + "\n" + "\n".join(assigns) + "\n\n"
+            + f"    {LITEX_XBAR} u_fabric (\n" + body + "\n    );\n\nendmodule : fb_data_fabric\n")
 
 
 SC_WRAPPER = "fb_sc_wrapper"
@@ -523,7 +790,10 @@ def main() -> int:
         ("bridge_plain", emit_bridge(masters, slaves, w, "bridge_fb_data_plain",
                                      'leg A2: bridge-generated crossbar, preset = "xbar"')),
         ("xbar", emit_xbar(masters, slaves, w, conn)),
-        ("sc", emit_sc(masters, slaves, w)))]
+        ("sc", emit_sc(masters, slaves, w)),
+        ("forencich", emit_forencich(masters, slaves, w, conn)),
+        ("pulp", emit_pulp(masters, slaves, w, conn)),
+        ("litex", emit_litex(masters, slaves, w)))]
     outputs.append(("fb_vendor_ip_cfg", "fb_vendor_ip_cfg.tcl", emit_ip_cfg(masters, slaves, w, conn)))
     for sub, name, text in outputs:
         d = args.out / sub

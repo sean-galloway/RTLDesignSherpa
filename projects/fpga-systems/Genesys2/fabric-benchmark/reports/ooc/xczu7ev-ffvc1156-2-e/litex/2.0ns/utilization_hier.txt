@@ -1,0 +1,31 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Oct 23 07:36:27 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xczu7ev-ffvc1156-2-e/litex/2.0ns/utilization_hier.txt
+| Design       : fb_data_fabric
+| Device       : xczu7ev-ffvc1156-2-e
+| Speed File   : -2
+| Design State : Routed
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------+---------------+------------+------------+---------+------+-----+--------+--------+------+------------+
+|      Instance      |     Module    | Total LUTs | Logic LUTs | LUTRAMs | SRLs | FFs | RAMB36 | RAMB18 | URAM | DSP Blocks |
++--------------------+---------------+------------+------------+---------+------+-----+--------+--------+------+------------+
+| fb_data_fabric     |         (top) |        591 |        591 |       0 |    0 |  58 |      0 |      0 |    0 |          0 |
+|   (fb_data_fabric) |         (top) |          0 |          0 |       0 |    0 |   0 |      0 |      0 |    0 |          0 |
+|   u_fabric         | fb_litex_xbar |        591 |        591 |       0 |    0 |  58 |      0 |      0 |    0 |          0 |
++--------------------+---------------+------------+------------+---------+------+-----+--------+--------+------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

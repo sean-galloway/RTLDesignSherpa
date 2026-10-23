@@ -6,6 +6,8 @@
     python3 bin/fb_k4.py size                  # board builds -> reports/k4/board_size_timing.csv
     python3 bin/fb_k4.py aggregate --since 20261016_070000
                                                # repeat sweeps -> reports/k4/{w2,w3}_summary.csv
+    python3 bin/fb_k4.py aggregate --since 20261023_090000 --tag 20261023_lat
+                                               # -> reports/k4/{w2,w3}_summary_20261023_lat.csv
 
 size reads each leg's post-route reports (build-<leg>/fpga/reports/, written by
 fpga/tcl/build_all.tcl). The fabric alone, out of context, is
@@ -13,7 +15,8 @@ bin/parse_ooc.py's (reports/ooc/README.md).
 
 aggregate groups every sweep CSV at or after --since by its point -- W2:
 (leg, channels, bytes per descriptor); W3: (leg, flavor, idle cycles,
-outstanding) -- and reports n, mean, min, max and sample standard deviation.
+outstanding) -- and reports n, mean, min, max and sample standard deviation,
+latency columns included where the sweep recorded them (bin/fb_latency.py).
 A point with a failing run is reported with its failure count, never averaged
 over silently. Both print the Markdown tables the PRD's analysis section uses.
 """
@@ -31,7 +34,9 @@ AREA = Path(__file__).resolve().parent.parent
 BOARD = AREA / 'reports' / 'board'
 OUT = AREA / 'reports' / 'k4'
 LEGS = (('a', 'A (bridge)'), ('a2', 'A2 (bridge, preset = "xbar")'),
-        ('b1', 'B1 (AXI Crossbar)'), ('b2', 'B2 (SmartConnect)'))
+        ('b1', 'B1 (AXI Crossbar)'), ('b2', 'B2 (SmartConnect)'),
+        ('c1', 'C1 (Forencich axi_crossbar)'), ('c2', 'C2 (PULP axi_xbar)'),
+        ('c3', 'C3 (LiteX AXI crossbar)'))
 UTIL_ROWS = {'Slice LUTs': 'lut', 'LUT as Memory': 'lutram', 'Slice Registers': 'ff',
              'Block RAM Tile': 'bram', 'DSPs': 'dsp'}
 
@@ -90,6 +95,21 @@ def _stats(vals: list[float]) -> dict:
             'stdev': statistics.stdev(vals) if len(vals) > 1 else 0.0}
 
 
+def _lat_from_bins(r: dict) -> dict:
+    """Latency metrics recomputed from the raw *_bins columns, so every sweep
+    file is judged by one rule whichever fb_latency wrote it."""
+    import fb_latency as fl
+    out = {}
+    for h in fl.HISTS:
+        bins = fl.from_bins_text(r.get(f'{h}_bins') or '')
+        if not bins or sum(bins) != int(r.get(f'{h}_n') or -1):
+            continue
+        out[f'{h}_p50'] = fl.percentile_edge(bins, 0.5)
+        out[f'{h}_p99'] = fl.percentile_edge(bins, 0.99)
+        out[f'{h}_mean_est'] = fl.mean_estimate(bins)
+    return out
+
+
 def _collect(prefix: str, since: str, key, metrics) -> tuple[dict, dict]:
     groups, fails = defaultdict(lambda: defaultdict(list)), defaultdict(int)
     for leg, _ in LEGS:
@@ -97,6 +117,7 @@ def _collect(prefix: str, since: str, key, metrics) -> tuple[dict, dict]:
             if _stamp(f) < since:
                 continue
             for r in csv.DictReader(open(f)):
+                r = {**r, **_lat_from_bins(r)}
                 k = key(r)
                 if r['pass'] != 'True':
                     fails[k] += 1
@@ -126,17 +147,22 @@ def _write(path: Path, keys: tuple, groups: dict, fails: dict, metrics) -> list[
     return rows
 
 
-def aggregate(since: str) -> int:
+LAT_M = ('rd_first_p50', 'rd_first_p99', 'rd_first_mean_est', 'rd_last_mean_est',
+         'wr_b_p50', 'wr_b_p99', 'wr_b_mean_est')
+
+
+def aggregate(since: str, tag: str = '') -> int:
+    sfx = f'_{tag}' if tag else ''
     OUT.mkdir(parents=True, exist_ok=True)
     w2_keys = ('leg', 'channels', 'bytes_per_desc')
-    w2_m = ('bus_throughput_mbps', 'pct_of_peak', 'm_rd_util', 's_rd_util')
+    w2_m = ('bus_throughput_mbps', 'pct_of_peak', 'm_rd_util', 's_rd_util') + LAT_M
     g, f = _collect('w2', since, lambda r: (r['leg'], int(r['channels']), int(r['bytes_per_desc'])), w2_m)
-    w2 = _write(OUT / 'w2_summary.csv', w2_keys, g, f, w2_m)
+    w2 = _write(OUT / f'w2_summary{sfx}.csv', w2_keys, g, f, w2_m)
     w3_keys = ('leg', 'flavor', 'idle_cycles', 'outstanding')
-    w3_m = ('inj_share', 'stream_mibs', 'inj_mibs')
+    w3_m = ('inj_share', 'stream_mibs', 'inj_mibs') + LAT_M
     g, f = _collect('w3', since, lambda r: (r['leg'], r['flavor'], int(r['idle_cycles']),
                                             int(r['outstanding'])), w3_m)
-    w3 = _write(OUT / 'w3_summary.csv', w3_keys, g, f, w3_m)
+    w3 = _write(OUT / f'w3_summary{sfx}.csv', w3_keys, g, f, w3_m)
     names = dict(LEGS)
     print("W2: MiB/s mean (min-max), n, % of peak")
     for r in w2:
@@ -150,7 +176,7 @@ def aggregate(since: str) -> int:
         print(f"  {names[r['leg']]:18s} {r['flavor']:6s} idle {r['idle_cycles']:4d} out {r['outstanding']}  "
               f"{100 * r.get('inj_share_mean', 0):5.1f}% ({100 * r.get('inj_share_min', 0):.1f}-"
               f"{100 * r.get('inj_share_max', 0):.1f}) n={r.get('inj_share_n', 0)} fail={r['failed_runs']}")
-    print(f"\n-> {OUT / 'w2_summary.csv'}, {OUT / 'w3_summary.csv'}")
+    print(f"\n-> {OUT / f'w2_summary{sfx}.csv'}, {OUT / f'w3_summary{sfx}.csv'}")
     return 1 if any(r['failed_runs'] for r in w2 + w3) else 0
 
 
@@ -160,8 +186,9 @@ def main() -> int:
     sub.add_parser('size')
     a = sub.add_parser('aggregate')
     a.add_argument('--since', required=True, help="YYYYMMDD_HHMMSS: the first sweep file to include")
+    a.add_argument('--tag', default='', help="write {w2,w3}_summary_<tag>.csv instead")
     args = ap.parse_args()
-    return size() if args.cmd == 'size' else aggregate(args.since)
+    return size() if args.cmd == 'size' else aggregate(args.since, args.tag)
 
 
 if __name__ == '__main__':

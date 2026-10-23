@@ -1,0 +1,15 @@
+leg forencich
+part xc7k325tffg900-2
+period_ns 4.0
+wns_ns -0.250
+whs_ns 0.081
+worst_levels 9
+worst_start u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[2].thread_id_reg_reg[2][5]/C
+worst_end u_fabric/axi_crossbar_rd_inst/s_ifaces[0].addr_inst/genblk1[7].thread_count_reg_reg[7][0]/CE
+lut 2357
+lutram 0
+srl 0
+ff 1612
+bram_tile 0.0
+carry4 0
+muxf 4

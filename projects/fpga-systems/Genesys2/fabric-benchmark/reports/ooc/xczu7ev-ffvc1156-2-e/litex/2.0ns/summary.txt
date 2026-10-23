@@ -1,0 +1,15 @@
+leg litex
+part xczu7ev-ffvc1156-2-e
+period_ns 2.0
+wns_ns 0.359
+whs_ns 0.042
+worst_levels 4
+worst_start u_fabric/axidecoder2_axirequestcounter4_counter_reg[0]/C
+worst_end u_fabric/axidecoder2_axirequestcounter4_counter_reg[5]/CE
+lut 731
+lutram 0
+srl 0
+ff 58
+bram_tile 0.0
+carry4 6
+muxf 0

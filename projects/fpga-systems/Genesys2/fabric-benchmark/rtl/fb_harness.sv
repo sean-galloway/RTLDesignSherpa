@@ -1061,17 +1061,43 @@ module fb_harness #(
     //       issuing when STREAM is done, rather than running on into the next
     //       step's soft reset with S0 transactions in flight (S0's controller
     //       is not in the soft-reset domain, so that wedges the fabric).
-    //   W:  held only before the window opens; afterwards the bursts already
-    //       issued complete, so S0 is left with no partial transaction.
+    //   W:  allowed only for bursts whose AW has been accepted (AW handshakes
+    //       minus WLAST handshakes at the port, r_inj_w_owed). The injector
+    //       may present W ahead of AW, which AXI allows; while AW is held,
+    //       those beats belong to bursts that will never be addressed. A
+    //       fabric that routes W by its AW keeps them, and the soft reset
+    //       clears them; one that forwards early W (LiteX, leg C3) hands them
+    //       to S0, which keeps them across the reset and pairs them with the
+    //       next step's AWs. Holding W until its AW is in removes the case
+    //       for every leg, so S0 is left with no partial transaction.
     // AW is enabled ONLY by INJ_SYNC and an open window: clearing INJ_SYNC
     // holds the injector rather than releasing it. (Releasing it let a
     // still-armed injector issue bursts between the host clearing the bit
     // and the next soft reset, which then cut them off mid-transaction at S0.)
+    // The AW hold never withdraws an AW already shown to the fabric: once
+    // awvalid is up it stays up until the handshake (AXI requires it).
+    // Dropping it at the window's close broke leg C1, whose address decoder
+    // commits on awvalid before raising awready: S0 got an AW that never
+    // handshook at the port, the W gate (correctly) sent no W for it, and S0
+    // waited for that W forever.
     logic inj_e_awvalid, inj_e_awready, inj_e_wvalid, inj_e_wready;
     logic inj_aw_hold, inj_w_hold;
     logic w_inj_sync;                     // fb_ctl WORKLOAD.INJ_SYNC (assigned below)
-    assign inj_aw_hold    = ~(w_inj_sync & obs_win_active);
-    assign inj_w_hold     = ~obs_started;
+    logic r_inj_aw_shown;                 // awvalid up last cycle and not taken
+    `ALWAYS_FF_RST(aclk, unit_aresetn,
+        if (`RST_ASSERTED(unit_aresetn)) r_inj_aw_shown <= 1'b0;
+        else r_inj_aw_shown <= inj_wr_awvalid & ~inj_wr_awready;
+    )
+    assign inj_aw_hold    = ~(w_inj_sync & obs_win_active) & ~r_inj_aw_shown;
+    logic [7:0] r_inj_w_owed;             // AWs accepted whose WLAST has not gone
+    logic       w_inj_aw_hs, w_inj_wlast_hs;
+    assign w_inj_aw_hs    = inj_wr_awvalid & inj_wr_awready;
+    assign w_inj_wlast_hs = inj_wr_wvalid & inj_wr_wready & inj_wr_wlast;
+    `ALWAYS_FF_RST(aclk, unit_aresetn,
+        if (`RST_ASSERTED(unit_aresetn)) r_inj_w_owed <= '0;
+        else r_inj_w_owed <= r_inj_w_owed + 8'(w_inj_aw_hs) - 8'(w_inj_wlast_hs);
+    )
+    assign inj_w_hold     = (r_inj_w_owed == '0);
     assign inj_wr_awvalid = inj_e_awvalid & ~inj_aw_hold;
     assign inj_e_awready  = inj_wr_awready & ~inj_aw_hold;
     assign inj_wr_wvalid  = inj_e_wvalid & ~inj_w_hold;

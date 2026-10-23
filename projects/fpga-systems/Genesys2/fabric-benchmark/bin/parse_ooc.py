@@ -23,7 +23,10 @@ OOC = AREA / "reports/ooc"
 LEGS = (("bridge", "A: bridge crossbar"),
         ("bridge_plain", "A2: bridge crossbar, preset = \"xbar\""),
         ("xbar", "B1: Xilinx AXI Crossbar"),
-        ("sc", "B2: Xilinx SmartConnect"))
+        ("sc", "B2: Xilinx SmartConnect"),
+        ("forencich", "C1: Forencich verilog-axi axi_crossbar"),
+        ("pulp", "C2: PULP axi_xbar"),
+        ("litex", "C3: LiteX AXI crossbar"))
 COLS = ("lut", "lutram", "srl", "ff", "bram_tile", "carry4", "muxf")
 
 

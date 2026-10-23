@@ -21,9 +21,15 @@ CRC-checked chain of bin/fb_workloads.py, the same code the board runs.
 A pass means, per run: the runner's verdict is pass, the on-chip run timer
 finished with PASS, and every active channel is in both the CRC valid and
 match masks (and no other channel is).
+
+FB_LAT=1 adds exact per-transaction latency on STREAM's port
+(fb_latency_mon.py) to every W2 run and W3 point, logged as one
+"LATENCY <name> <json>" line each. Off by default: four Python monitors
+sampling every cycle slow the sim.
 """
 from __future__ import annotations
 
+import json
 import os
 import sys
 
@@ -47,6 +53,7 @@ from descriptor_builder import CharConfig  # noqa: E402
 from fb_slave_meters import read_slave_side  # noqa: E402
 import fb_workloads  # noqa: E402
 import fb_w3  # noqa: E402
+from .fb_latency_mon import FbLatencyMonitor  # noqa: E402
 
 DDR_BYTES = 0x10000                  # modelled span of S0 when no chain runs
 
@@ -71,6 +78,8 @@ class FbHarnessTB(TBBase):
                   base_addr=0)
         self.ddr_rd = create_axi4_slave_rd(**kw)
         self.ddr_wr = create_axi4_slave_wr(**kw)
+        self.lat = (FbLatencyMonitor(dut, dut.aclk, self.aclk_ns, self.log)
+                    if os.environ.get('FB_LAT', '0') == '1' else None)
         self._runner = None
         self.results: list[dict] = []
         self.errors: list[str] = []
@@ -120,7 +129,9 @@ class FbHarnessTB(TBBase):
                          num_channels=num_channels, descriptors_per_channel=descriptors,
                          transfer_bytes=transfer_bytes)
         runner = self.runner
+        self._lat_begin()
         res = await bridge(lambda: runner.run_config(cfg))()
+        self._lat_end(cfg.name, res)
         self.results.append(res)
         crc = res.get('crc') or {}
         active = (1 << num_channels) - 1
@@ -168,20 +179,51 @@ class FbHarnessTB(TBBase):
         return steps
 
     async def w3(self, flavor: str, gap: int, outstanding: int,
-                 num_channels: int, descriptors: int, transfer_bytes: int) -> dict:
+                 num_channels: int, descriptors: int, transfer_bytes: int,
+                 expect: str = 'pass') -> dict:
         """One W3 contention point (fb_w3.run_point): STREAM and the injector
-        share S0; the verdict includes the drained-data CRC check."""
+        share S0; the verdict includes the drained-data CRC check.
+
+        expect='starve' is a fabric that never grants STREAM at S0 (leg C3's
+        mirror at gap 0): the point must fail BY starvation -- the contended
+        run times out and STREAM moves no beat -- and any other outcome,
+        including a pass, is an error."""
         cfg = CharConfig(name=f"w3_{flavor}_g{gap}_o{outstanding}_{num_channels}ch",
                          num_channels=num_channels, descriptors_per_channel=descriptors,
                          transfer_bytes=transfer_bytes)
         runner = self.runner
         inj = fb_w3.Inj(gap=gap, outstanding=outstanding)
+        self._lat_begin()
         r = await bridge(lambda: fb_w3.run_point(
             runner, self.bridge, cfg, flavor, inj, log=lambda m: self.log.info(f"{cfg.name}{m}")))()
+        # Includes the W3 point's uncontended fill (f3) or drain (mirror):
+        # those are STREAM transactions too, at S0 or the endpoints.
+        self._lat_end(cfg.name, r)
         self.results.append(r)
-        if not r['verdict']:
+        if expect == 'starve':
+            starved = (not r['verdict'] and r.get('stream_beats') == 0
+                       and any('contended run' in w and 'timeout' in w for w in r['why']))
+            if not starved:
+                self.errors.append(f"{cfg.name}: expected STREAM starved at S0, got "
+                                   f"verdict {r['verdict']}, {r.get('stream_beats')} STREAM beats"
+                                   f"{': ' + '; '.join(r['why']) if r['why'] else ''}")
+            else:
+                self.log.info(f"{cfg.name}: starved as expected ({'; '.join(r['why'])})")
+        elif not r['verdict']:
             self.errors.append(f"{cfg.name}: {'; '.join(r['why'])}")
         return r
+
+    def _lat_begin(self):
+        if self.lat:
+            self.lat.drain()                    # discard anything before this run
+
+    def _lat_end(self, name: str, res: dict):
+        if not self.lat:
+            return
+        res['lat_exact'] = lat = self.lat.drain()
+        self.log.info(f"LATENCY {name} {json.dumps(lat)}")
+        if lat['unmatched']:
+            self.errors.append(f"{name}: {lat['unmatched']} completion(s) with no open command")
 
     def report(self) -> bool:
         for e in self.errors:

@@ -1,0 +1,48 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Oct 23 07:40:41 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xczu7ev-ffvc1156-2-e/forencich/2.2ns/utilization_hier.txt
+| Design       : fb_data_fabric
+| Device       : xczu7ev-ffvc1156-2-e
+| Speed File   : -2
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++------------------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+|           Instance           |               Module               | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | URAM | DSP Blocks |
++------------------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+| fb_data_fabric               |                              (top) |       2033 |       2033 |       0 |    0 | 1604 |      0 |      0 |    0 |          0 |
+|   (fb_data_fabric)           |                              (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|   u_fabric                   |                       axi_crossbar |       2033 |       2033 |       0 |    0 | 1604 |      0 |      0 |    0 |          0 |
+|     axi_crossbar_wr_inst     |                    axi_crossbar_wr |       1126 |       1126 |       0 |    0 | 1066 |      0 |      0 |    0 |          0 |
+|       (axi_crossbar_wr_inst) |                    axi_crossbar_wr |          8 |          8 |       0 |    0 |   57 |      0 |      0 |    0 |          0 |
+|       m_ifaces[0].a_arb_inst |            arbiter__parameterized0 |         80 |         80 |       0 |    0 |    4 |      0 |      0 |    0 |          0 |
+|       m_ifaces[0].reg_inst   |    axi_register_wr__parameterized0 |        307 |        307 |       0 |    0 |  362 |      0 |      0 |    0 |          0 |
+|       m_ifaces[3].reg_inst   |  axi_register_wr__parameterized0_5 |        226 |        226 |       0 |    0 |  361 |      0 |      0 |    0 |          0 |
+|       s_ifaces[2].addr_inst  |  axi_crossbar_addr__parameterized1 |        189 |        189 |       0 |    0 |  134 |      0 |      0 |    0 |          0 |
+|       s_ifaces[2].b_arb_inst |                          arbiter_7 |         50 |         50 |       0 |    0 |    6 |      0 |      0 |    0 |          0 |
+|       s_ifaces[3].addr_inst  |  axi_crossbar_addr__parameterized2 |        175 |        175 |       0 |    0 |  115 |      0 |      0 |    0 |          0 |
+|     axi_crossbar_rd_inst     |                    axi_crossbar_rd |        903 |        903 |       0 |    0 |  538 |      0 |      0 |    0 |          0 |
+|       (axi_crossbar_rd_inst) |                    axi_crossbar_rd |         33 |         33 |       0 |    0 |   51 |      0 |      0 |    0 |          0 |
+|       m_ifaces[0].reg_inst   |    axi_register_rd__parameterized0 |          2 |          2 |       0 |    0 |   68 |      0 |      0 |    0 |          0 |
+|       m_ifaces[1].reg_inst   | axi_register_rd__parameterized0_11 |          1 |          1 |       0 |    0 |   67 |      0 |      0 |    0 |          0 |
+|       m_ifaces[2].reg_inst   | axi_register_rd__parameterized0_13 |          1 |          1 |       0 |    0 |   68 |      0 |      0 |    0 |          0 |
+|       s_ifaces[0].addr_inst  |  axi_crossbar_addr__parameterized3 |        176 |        176 |       0 |    0 |  122 |      0 |      0 |    0 |          0 |
+|       s_ifaces[0].r_arb_inst |                         arbiter_14 |        212 |        212 |       0 |    0 |    8 |      0 |      0 |    0 |          0 |
+|       s_ifaces[1].addr_inst  |  axi_crossbar_addr__parameterized4 |        197 |        197 |       0 |    0 |  122 |      0 |      0 |    0 |          0 |
+|       s_ifaces[1].r_arb_inst |                         arbiter_15 |        185 |        185 |       0 |    0 |   14 |      0 |      0 |    0 |          0 |
++------------------------------+------------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

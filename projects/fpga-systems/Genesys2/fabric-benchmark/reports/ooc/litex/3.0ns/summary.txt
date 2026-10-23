@@ -1,0 +1,15 @@
+leg litex
+part xc7k325tffg900-2
+period_ns 3.0
+wns_ns 0.313
+whs_ns 0.197
+worst_levels 6
+worst_start u_fabric/axidecoder1_axirequestcounter3_counter_reg[3]/C
+worst_end u_fabric/axidecoder1_axirequestcounter3_counter_reg[6]/D
+lut 730
+lutram 0
+srl 0
+ff 59
+bram_tile 0.0
+carry4 12
+muxf 0
