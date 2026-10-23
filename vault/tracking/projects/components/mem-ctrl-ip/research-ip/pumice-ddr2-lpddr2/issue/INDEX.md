@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-023** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-024** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
@@ -20,6 +20,9 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
+- **ISSUE-023** — perf-proxy DRAM checker anchors tWR on the slave's uncalibrated
+  CWL + BL: 256 phantom tWR (explicit PRE) or tRP (WRA) per col_major run on
+  both cores; reads are clean. Calibrate the WR-to-PRE anchor, then assert zero.
 - **ISSUE-021** — mc_training_plane ties ZQ demand to 0, so the defer/ZQCL/
   overdue policy is unreachable.
 

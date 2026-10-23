@@ -34,6 +34,7 @@ module pumice_top
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int CMD_HISTORY_EN = 0,  // DV: arm the scheduler's history scoreboard
     parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
+    parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge (pumice_core; TASK-044)
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
@@ -275,6 +276,7 @@ module pumice_top
         .CMD_DELAY        (CMD_DELAY),
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .SCHED_CORE       (SCHED_CORE),
+        .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE)

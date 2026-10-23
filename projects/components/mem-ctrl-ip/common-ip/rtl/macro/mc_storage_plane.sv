@@ -131,6 +131,7 @@ module mc_storage_plane #(
     output logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_o,
     output logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_o,
     output logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_o,
+    output logic [NUM_ENTRIES-1:0]              wr_sch_pend_o,   // allocated, data not landed (scheduler close-on-drain)
     output logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_o,
     output logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_o,
     output logic [15:0]                         wr_sch_head_rel_o,
@@ -178,7 +179,8 @@ module mc_storage_plane #(
 
     // ---- WR data CAM ----
     logic w_wrc_busy;
-    logic [NUM_ENTRIES-1:0] w_wr_sch_pend;   // allocated, data not landed (records only)
+    logic [NUM_ENTRIES-1:0] w_wr_sch_pend;   // allocated, data not landed (records + scheduler)
+    assign wr_sch_pend_o = w_wr_sch_pend;
     mc_wr_data_cam #(
         .NUM_ENTRIES   (NUM_ENTRIES),
         .N_SCHED_LU    (N_SCHED_LU),

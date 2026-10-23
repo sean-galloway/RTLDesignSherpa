@@ -49,8 +49,12 @@ BL_WORDS = BL // DFI_RATE
 def _idle(dut):
     dut.memtype_i.value = 0
     dut.page_policy_i.value = 0          # OPEN
-    dut.page_mode_i.value = 0
-    dut.page_tr_init_i.value = 0
+    # fixed_open with the pumice reset timer (PAGE_POLICY_CFG 3 / tr_init 2):
+    # close-on-drain is armed per bank by the policy's predictor (TASK-044),
+    # which lives in the timer mode; MODE_DEFAULT / static_open never
+    # auto-precharge on drain.
+    dut.page_mode_i.value = 3
+    dut.page_tr_init_i.value = 2
     dut.sched_order_mode_i.value = 0
     dut.sched_row_sel_i.value = 0
     dut.sched_col_sel_i.value = 0        # age-ordered columns: CLOSE_ON_DRAIN gate
@@ -220,6 +224,7 @@ async def cocotb_test_close_drain(dut):
     pre  = int(dut.stat_pre_o.value) - pre0
     act  = int(dut.stat_act_o.value) - act0
     miss = int(dut.stat_page_miss_o.value) - miss0
+    ap1  = len(ap_emits)                 # auto-precharge columns so far (phase 1 only)
 
     # Phase 2: board-shape col_major -- 64 reads, row+1 each, SAME bank.
     # (Core mapper: 16B offset, bank=unit[11:9] -> byte 0x8000 was BANK 4;
@@ -242,22 +247,49 @@ async def cocotb_test_close_drain(dut):
         fh.write(f"COL_MAJOR64 ACT={n_act2} PRE={n_pre2} RD={n_rd2} RDA={n_rda2}\n")
         fh.write("stream: " + " ".join(ops) + "\n")
         fh.write(f"PHASE1 ACT={act} PRE={pre}\n")
-    assert n_pre2 == 0, f"explicit PREs in steady col_major: {n_pre2}"
-    # Phase 1 asserts -- group drain: row 0's 8 reads -> 1 ACT + 7 RD + 1 RDA
-    # (the close); the 0x8000 read -> bank 4 (16B offset mapping), 1 ACT +
-    # 1 RDA. Explicit PRE must be ZERO in both cases.
-    assert pre == 0, (f"expected 0 explicit PREs (drained rows must close via "
-                      f"the last column's auto-precharge), got {pre}")
+    # The close is armed per bank by the page policy's predictor (TASK-044):
+    # the walk's first rows carry no evidence yet (no previous short row on
+    # the bank, and the permission is a flop behind the arming ACT), so the
+    # first few rows close by explicit PRE. STEADY state is judged from the
+    # eighth ACT of the walk on: every row from there must carry its close on
+    # its column, and no explicit PRE may appear.
+    acts_seen, steady_from = 0, len(ops)
+    for i, o in enumerate(ops):
+        if o.endswith(":ACT"):
+            acts_seen += 1
+            if acts_seen == 8:
+                steady_from = i
+                break
+    steady = ops[steady_from:]
+    n_pre_steady = sum(1 for o in steady if o.endswith(":PRE"))
+    n_rda_steady = sum(1 for o in steady if o.endswith(":RDA"))
+    dut._log.info("COL_MAJOR64 steady (from ACT #8): PRE=%d RDA=%d of %d ops",
+                  n_pre_steady, n_rda_steady, len(steady))
+    assert n_pre_steady == 0, (f"explicit PREs in steady col_major: {n_pre_steady} "
+                               f"(warm-up PREs before the 8th ACT: {n_pre2 - n_pre_steady})")
+    assert n_rda_steady >= 55, f"auto-precharge columns in steady col_major: {n_rda_steady}"
+    # Phase 1 asserts -- group drain on FRESH banks: row 0's 8 reads -> 1 ACT
+    # + 8 RD; the 0x8000 read -> bank 4 (16B offset mapping), 1 ACT + 1 RD.
+    # Neither bank has row-change evidence yet, so the predictor does not arm
+    # the close: no column carries auto-precharge, and the drained rows are
+    # closed by the fixed_open timer (an explicit, timeout PRE) -- the
+    # TASK-044 composition that keeps a just-in-time stream's rows open.
+    # The close-on-drain contract itself is phase 2's assertion above.
+    assert ap1 == 0, (f"{ap1} auto-precharge column(s) before any row-change "
+                      f"evidence -- the predictor armed the close too early")
+    assert pre >= 1, (f"expected the timer to close the drained rows "
+                      f"(explicit PRE), got {pre}")
     assert act == 2, f"expected 2 ACTs, got {act}"
 
 
 def test_pumice_close_drain(request):
-    # BUG-027 (2026-10-20): pumice disables CLOSE_ON_DRAIN (the AP-on-drain
-    # feature chops open-page streams); this probe only makes sense with the
-    # feature on. PUMICE_CLOSE_ON_DRAIN=1 rebuilds the DUT with it enabled.
-    if os.environ.get("PUMICE_CLOSE_ON_DRAIN", "0") != "1":
-        pytest.skip("CLOSE_ON_DRAIN disabled in pumice (BUG-027); "
-                    "set PUMICE_CLOSE_ON_DRAIN=1 to run this probe")
+    # CLOSE_ON_DRAIN is pumice's default again (TASK-044, 2026-10-23: the exact
+    # predicate counts pending same-row writes, which is what BUG-027 lacked).
+    # PUMICE_CLOSE_ON_DRAIN=0 rebuilds the DUT with it off, and this probe --
+    # which reads the feature's own internals -- skips.
+    if os.environ.get("PUMICE_CLOSE_ON_DRAIN", "1") != "1":
+        pytest.skip("CLOSE_ON_DRAIN disabled by PUMICE_CLOSE_ON_DRAIN=0; "
+                    "this probe reads the feature's internals")
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "pumice_core"
     test_name = "cocotb_test_close_drain"
@@ -270,7 +302,7 @@ def test_pumice_close_drain(request):
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL),
               "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
               "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
-              "CLOSE_ON_DRAIN": os.environ.get("PUMICE_CLOSE_ON_DRAIN", "0"),
+              "CLOSE_ON_DRAIN": os.environ.get("PUMICE_CLOSE_ON_DRAIN", "1"),
               # this probe reads mc_cmd_arbiter internals (g_arbiter.u_arbiter)
               "SCHED_CORE": "0"}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),

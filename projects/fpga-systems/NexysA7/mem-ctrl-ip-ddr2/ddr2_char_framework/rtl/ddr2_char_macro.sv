@@ -55,6 +55,7 @@ module ddr2_char_macro
     // the scheduler-side checker is structurally blind.
     parameter int CMD_HISTORY_EN  = 0,
     parameter int SCHED_CORE      = 0,    // pumice pick core (mc_common_pkg MC_SCHED_*): 1 = BANK_PICK, 0 = FRFCFS
+    parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,
@@ -510,6 +511,7 @@ module ddr2_char_macro
     pumice_top_geared #(
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .SCHED_CORE       (SCHED_CORE),
+        .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),

@@ -149,6 +149,7 @@ module scoria_scheduler_plane
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_i,
+    input  logic [NUM_ENTRIES-1:0]              wr_sch_pend_i,   // allocated, data not landed (FRFCFS close-on-drain)
     input  logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_i,
     input  logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_i,
     input  logic [15:0]                         wr_sch_head_rel_i,
@@ -457,6 +458,8 @@ module scoria_scheduler_plane
         .wr_sch_row_i       (wr_sch_row_i),
         .wr_sch_col_i       (wr_sch_col_i),
         .wr_sch_older_i     (wr_sch_older_i),
+        .wr_sch_pend_i      (wr_sch_pend_i),
+        .rd_sch_pend_i      ('0),
         .wr_sch_age_exceed_i(wr_sch_age_exceed_i),
         .wr_sch_qos_i       (wr_sch_qos_i),
         .wr_sch_head_rel_i  (wr_sch_head_rel_i),

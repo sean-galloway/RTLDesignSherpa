@@ -230,6 +230,9 @@ module andesite_cmd_arbiter
         .wr_sch_row_i       (wr_sch_row_i),
         .wr_sch_col_i       (wr_sch_col_i),
         .wr_sch_older_i     (wr_sch_older_i),
+        .wr_sch_pend_i      ('0),   // this wrapper's port list carries no pending vector: close-on-drain sees schedulable entries only
+        .rd_sch_pend_i      ('0),
+        .drain_close_ok_i   ({NUM_BANKS{1'b1}}),   // no page-policy predictor on this port list: close-on-drain ungated
         .wr_commit_ready_i  (wr_commit_ready_i),
         .wr_commit_valid_o  (wr_commit_valid_o),
         .wr_commit_slot_o   (wr_commit_slot_o),

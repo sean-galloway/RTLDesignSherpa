@@ -46,6 +46,12 @@ module mc_page_policy
     parameter int NUM_RANKS = 1,
     parameter int NUM_BANKS = 8,
     parameter int ROW_WIDTH = 14,
+    // close-on-drain arms on a bank whose rows are SHORT-LIVED: a row that
+    // served at most this many columns before the bank moved to another row
+    // (one 64 B burst at the board geometry; eight at the 64-bit default).
+    // A row that streamed longer than this is a stream, and its successor
+    // stays open until the timer or a conflict closes it.
+    parameter int DRAIN_ARM_MAX_COLS = 8,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1
 ) (
@@ -61,6 +67,9 @@ module mc_page_policy
     input  dram_op_e                   cmd_op_i,
     input  logic [BKW-1:0]             cmd_bank_i,
     input  logic [ROW_WIDTH-1:0]       cmd_row_i,
+    // the column on cmd_op_i carries auto-precharge (both cores' cmd_ap_o):
+    // a close by prediction, so the predictor treats it like a timeout close
+    input  logic                       cmd_ap_i,
     input  logic                       pre_is_timeout_i,  // the PRE on cmd_op_i is this block's timeout close (from the core)
 
     // ---- registered per-bank row state (same bus the arbiter registers) ----
@@ -72,6 +81,19 @@ module mc_page_policy
     output logic [NUM_BANKS-1:0]       ap_close_o,        // per-bank: close after this column op
     output logic                       timeout_pre_req_o, // background close request
     output logic [BKW-1:0]             timeout_pre_bank_o,
+    // per bank: the scheduler MAY close the row on its last visible column
+    // (close-on-drain). Armed by evidence -- the bank's last ACT opened a
+    // DIFFERENT row than the one before it AND that previous row served at
+    // most DRAIN_ARM_MAX_COLS columns, i.e. the rows on this bank are short-
+    // lived (col_major, bank-interleaved row walks) -- and disarmed the
+    // moment an ACT reopens the row that was just closed (the close, however
+    // it happened, was a mistake). A row that streamed long before the bank
+    // moved on is a stream; its successor is kept open (the 8-bank page-hit
+    // windows of the paging sweep change rows every window and must not pay
+    // a close per bank per window). Off outside the timer mode: pure open
+    // page. pumice TASK-044: the arbiter's "last visible demand" rule alone
+    // closed rows a just-in-time AXI stream still needed (BUG-027, milder).
+    output logic [NUM_BANKS-1:0]       drain_close_ok_o,
 
     // ---- telemetry (to the *_STATS CSRs; free-running, cleared on reset) ---
     output logic [31:0]                stat_page_hit_o,
@@ -209,8 +231,9 @@ module mc_page_policy
     // family every bank is expired AND marked keep-open, so a row walk's
     // conflict PREs read as timeout closes and the mark was never cleared
     // (col_ilv 306 -> 254 MB/s in the full-family run, BUG-030).
-    logic w_pre_was_timeout;
+    logic w_pre_was_timeout, w_is_apcol;
     assign w_pre_was_timeout = w_is_pre && pre_is_timeout_i;
+    assign w_is_apcol        = cmd_valid_i && cmd_ap_i;   // RDA / WRA: a predicted close too
 
     // ---- mistake predictor (pumice BUG-030) ---------------------------------
     // A timeout close whose row the very next ACT to that bank reopens was a
@@ -229,27 +252,70 @@ module mc_page_policy
     logic [NUM_BANKS-1:0][ROW_WIDTH-1:0] r_last_row;    // last open row seen per bank
     logic [NUM_BANKS-1:0]                r_to_closed;   // this bank's last close was a timeout close
     logic [NUM_BANKS-1:0]                r_keep_open;   // predictor verdict
+    logic [NUM_BANKS-1:0]                r_drain_arm;   // rows on this bank are changing: close on drain
+    logic [NUM_BANKS-1:0]                r_last_vld;    // r_last_row holds a row this bank really opened
+    localparam int COLCW = $clog2(DRAIN_ARM_MAX_COLS + 2);
+    logic [NUM_BANKS-1:0][COLCW-1:0]     r_row_cols;    // columns served by the open row (saturating)
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
             r_last_row  <= '0;
+            r_last_vld  <= '0;
             r_to_closed <= '0;
             r_keep_open <= '0;
+            r_drain_arm <= '0;
+            r_row_cols  <= '0;
         end else begin
             for (int b = 0; b < NUM_BANKS; b++) begin
                 // track the open row while it is open: the image drops before
                 // this block sees the PRE that closed it
-                if (bank_row_active_i[b]) r_last_row[b] <= bank_open_row_i[b];
+                if (bank_row_active_i[b]) begin
+                    r_last_row[b] <= bank_open_row_i[b];
+                    r_last_vld[b] <= 1'b1;
+                end
+                // Evidence is gathered only in the timer mode. A close-page
+                // mode leaves every row "short" (static_close: one column per
+                // ACT) and a mode switch moves to a new region, so the first
+                // ACTs after switching into fixed_open would arm on history
+                // that says nothing about this mode's traffic (the board-
+                // geometry paging sweep lost 17 % of its 8-bank window to one
+                // auto-precharge per bank, 2026-10-23).
+                if (!w_timeout_on) begin
+                    r_last_vld[b]  <= 1'b0;
+                    r_drain_arm[b] <= 1'b0;
+                    r_row_cols[b]  <= '0;
+                end
                 if (w_is_pre && (int'(cmd_bank_i) == b)) begin
                     r_to_closed[b] <= w_pre_was_timeout;
                     if (!w_pre_was_timeout) r_keep_open[b] <= 1'b0;   // a real row change
                 end
+                if (w_is_apcol && (int'(cmd_bank_i) == b))
+                    r_to_closed[b] <= 1'b1;                           // auto-precharge: a predicted close
                 if (w_is_act && (int'(cmd_bank_i) == b) && r_to_closed[b]
                     && (cmd_row_i == r_last_row[b]))
                     r_keep_open[b] <= 1'b1;                           // we closed a row we needed
+                // drain-close evidence: an ACT to a different row than the
+                // last one, after a SHORT-lived row, arms it; an ACT reopening
+                // the last row disarms it. The bank's first ACT is no evidence
+                // either way (the reset value of r_last_row is not a row this
+                // bank opened). Column count restarts with every ACT.
+                if (w_is_act && (int'(cmd_bank_i) == b)) begin
+                    r_drain_arm[b] <= r_last_vld[b] && (cmd_row_i != r_last_row[b])
+                                      && (r_row_cols[b] <= COLCW'(DRAIN_ARM_MAX_COLS));
+                    r_row_cols[b]  <= '0;
+                end else if (w_is_col && (int'(cmd_bank_i) == b)
+                             && (r_row_cols[b] != {COLCW{1'b1}}))
+                    r_row_cols[b]  <= r_row_cols[b] + COLCW'(1);
                 if (!w_timeout_on) r_keep_open[b] <= 1'b0;
             end
         end
     end)
+
+    // drain-close permission: registered so the arbiter's pre-pick cone sees
+    // a flop (it muxes this by the selected column's bank)
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) drain_close_ok_o <= '0;
+        else                        drain_close_ok_o <= {NUM_BANKS{w_timeout_on}} & r_drain_arm & ~r_keep_open;
+    )
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin

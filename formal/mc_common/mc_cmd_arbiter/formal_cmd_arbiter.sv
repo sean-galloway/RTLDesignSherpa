@@ -100,6 +100,8 @@ module formal_cmd_arbiter #(
     (* anyseq *) reg [NR*NB-1:0] bank_row_active_i;
     (* anyseq *) reg [NR*NB*RW-1:0] bank_open_row_i;
     (* anyseq *) reg [NE-1:0]   wr_sch_valid_i, rd_sch_valid_i;
+    (* anyseq *) reg [NE-1:0]   wr_sch_pend_i, rd_sch_pend_i;   // allocated-not-landed (close-on-drain predicate input)
+    (* anyseq *) reg [NB-1:0]   drain_close_ok_i;   // page-policy permission to close on drain
     (* anyseq *) reg [NE*BKW-1:0] wr_sch_bank_i, rd_sch_bank_i;
     (* anyseq *) reg [NE*RW-1:0]  wr_sch_row_i, rd_sch_row_i;
     (* anyseq *) reg [NE*CW-1:0]  wr_sch_col_i, rd_sch_col_i;
@@ -156,6 +158,8 @@ module formal_cmd_arbiter #(
         .wr_sch_valid_i(wr_sch_valid_i), .wr_sch_bank_i(wr_sch_bank_i),
         .wr_sch_row_i(wr_sch_row_i), .wr_sch_col_i(wr_sch_col_i),
         .wr_sch_older_i(wr_sch_older_i), .wr_commit_ready_i(wr_commit_ready_i),
+        .wr_sch_pend_i(wr_sch_pend_i), .rd_sch_pend_i(rd_sch_pend_i),
+        .drain_close_ok_i(drain_close_ok_i),
         .wr_commit_valid_o(wr_commit_valid_o), .wr_commit_slot_o(wr_commit_slot_o),
         .rd_sch_valid_i(rd_sch_valid_i), .rd_sch_bank_i(rd_sch_bank_i),
         .rd_sch_row_i(rd_sch_row_i), .rd_sch_col_i(rd_sch_col_i),

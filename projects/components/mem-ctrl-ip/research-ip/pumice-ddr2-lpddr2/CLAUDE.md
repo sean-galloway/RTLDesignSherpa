@@ -105,12 +105,23 @@ lasted one day; every harness / tb / proxy default followed the flip.
 - **FRFCFS (`SCHED_CORE=0`, pumice's DEFAULT):** flat FR-FCFS arbiter with a
   3-stage pick pipeline (STAGE-1a snapshot -> STAGE-1b arg_sel -> pre-pick
   -> output); select-to-fire is 4 registered stages. The pre-pick is in-order
-  (speculative issue blocks the command behind it, [[BUG-002]]) and lookahead
-  beyond select-to-fire is unactionable (the LA sweep saturates at 3). The
+  (speculative issue blocks the command behind it, [[BUG-002]]). Dependent
+  hops (column behind its ACT, ACT behind its PRE) classify against the
+  command being PICKED this cycle, not the registered bank image, and the
+  fire stage is the only JEDEC authority (live row match for columns,
+  bounded holds for tRCD / tRP / tRC / an AP drain) -- TASK-044, which
+  took col_major from 24 to 13 / 15 cycles per row (the floor). Close-on-
+  drain (`CLOSE_ON_DRAIN`, default 1 again) is EXACT (a pending same-row
+  write counts as demand; BUG-027 was the "youngest schedulable" rule) and
+  ARMED PER BANK by the page policy's predictor (`drain_close_ok_o`): a
+  bank whose ACTs change rows closes on its last visible column, a bank
+  whose closed row gets reopened stays open; nothing arms outside the
+  fixed_open timer mode, and a bank's first ACT is no evidence. The
   sched_order / paging_sched_cross / close_drain cells pin this core
   explicitly (redundant with the default, kept as the statement of the
   dependency). Perf of the two cores on the same harness: Phase 3 report
-  §5.1 (pumice FR-FCFS vs granite BANK_PICK vs LiteDRAM, 1/2/4/8 threads).
+  §5.1 / §5.5 (pumice FR-FCFS vs granite BANK_PICK vs LiteDRAM, 1/2/4/8
+  threads). Design note: `vault/handbook/design/dependent-hops-forward-the-pick.md`.
 
 One plane-level trap both cores share: a signal that must mean "the command
 being granted" (the REFpb rotor mirror's `grant_was_pb_i`) has to come from

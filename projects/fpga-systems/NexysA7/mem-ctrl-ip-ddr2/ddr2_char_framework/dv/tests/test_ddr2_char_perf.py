@@ -759,6 +759,12 @@ async def cocotb_test_pumice_perf(dut):
         if dump_path:
             with open(dump_path + ".gaps.json", "w") as fh:
                 json.dump(gaps, fh, indent=2)
+            # PERF_CMD_TRACE_RAW=n: the first n fires in order, (kind, cycle),
+            # so a row switch can be read hop by hop instead of per kind.
+            n_raw = int(os.environ.get("PERF_CMD_TRACE_RAW", "0"))
+            if n_raw:
+                with open(dump_path + ".raw.json", "w") as fh:
+                    json.dump(cmd_log[:n_raw], fh)
     dut._log.info("pumice perf proxy @ %.4f MHz tREFI=%d gens=%d timings=%s",
                   r["clk_mhz"], r["t_refi"], n_gen, r["timings"])
     dut._log.info("JEDEC floors at these timings: %s", r["floors"])
@@ -814,6 +820,7 @@ def test_ddr2_char_perf(request):
         "PERF_DUMP": os.environ.get(
             "PERF_DUMP", os.path.join(log_dir, f"perf_dump_{tag}.json")),
         "PERF_CMD_TRACE": os.environ.get("PERF_CMD_TRACE", "0"),
+        "PERF_CMD_TRACE_RAW": os.environ.get("PERF_CMD_TRACE_RAW", "0"),
         "MISM_PROBE": os.environ.get("MISM_PROBE", "0"),
         "MEM_DUMP_ROWS": os.environ.get("MEM_DUMP_ROWS", "0"),
         "AXI_R_PROBE": os.environ.get("AXI_R_PROBE", "0"),
@@ -851,6 +858,8 @@ def test_ddr2_char_perf(request):
     params = {"FPGA_CLK_HZ": str(FPGA_CLK_HZ),
               # pumice pick core A/B: 1 = BANK_PICK (default), 0 = FRFCFS research core
               "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "0"),  # pumice is FR-FCFS (owner, 2026-10-22)
+              # TEST_CLOSE_ON_DRAIN=0/1 overrides pumice's close-on-drain (TASK-044 A/B); unset = the RTL default
+              **({"CLOSE_ON_DRAIN": os.environ["TEST_CLOSE_ON_DRAIN"]} if os.environ.get("TEST_CLOSE_ON_DRAIN") else {}),
               # injectors per direction: the macro default (4) unless the run
               # asks for more (eight per direction is the owner's load point)
               "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),

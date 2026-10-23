@@ -7,6 +7,7 @@ summary: RTL rules with the failures that taught them.
 
 - [[what-is-a-plane]] - purpose-sliced functional layers; repo-unifying definition, membership and edge contract
 - [[plane-boundary-registered-snapshots]] - a plane's internal state never crosses to another plane combinationally; registered snapshots + handshakes, decision flags computed where the decision lives (the -35 ns mem-ctrl build, 2026-10-19)
+- [[dependent-hops-forward-the-pick]] - a pipelined scheduler classifies the dependent hop (column behind an ACT, ACT behind a PRE) against the command being picked, not the registered image; fire stage = live check + bounded holds; closing decisions belong to the policy (FR-FCFS 24-cycle row vs 13 floor, pumice TASK-044, 2026-10-23)
 - [[reset-and-clocking]] - reset macros, aresetn, clock conventions
 - [[clock-gating-activity-terms]] - wake on peer VALIDs + pending output work, never peer READY; !gating mask; emission latency vs idle count
 - [[cdc]] - crossing rules, gray pointers, handshakes

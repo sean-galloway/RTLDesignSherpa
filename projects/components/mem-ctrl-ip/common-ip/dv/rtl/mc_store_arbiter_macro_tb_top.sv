@@ -468,6 +468,9 @@ module mc_store_arbiter_macro_tb_top
             .wr_sch_row_i       (wr_sch_row),
             .wr_sch_col_i       (wr_sch_col),
             .wr_sch_older_i     (wr_sch_older),
+            .wr_sch_pend_i      (wr_sch_pend),
+            .rd_sch_pend_i      ('0),
+            .drain_close_ok_i   ({NUM_BANKS{1'b1}}),   // no page-policy predictor on this port list: close-on-drain ungated
             .wr_commit_ready_i  (wr_commit_ready),
             .wr_commit_valid_o  (wr_commit_valid),
             .wr_commit_slot_o   (wr_commit_slot),
@@ -508,7 +511,7 @@ module mc_store_arbiter_macro_tb_top
         );
         assign core_pick_valid = u_arb.r_pick_valid;
         assign cmd_slot = u_arb.r_do_wr ? u_arb.r_commit_slot : u_arb.r_issue_slot;
-        wire _unused_arb = &{1'b0, wr_sch_pend, wr_commit_ready_now};
+        wire _unused_arb = &{1'b0, wr_commit_ready_now};
     end endgenerate
 
     assign pick_valid = core_pick_valid;

@@ -25,6 +25,35 @@
 //            - tfaw_ok_i/trrd_ok_i are re-checked at the fire stage.
 //            - L/S group windows are re-checked when NUM_BG > 1.
 //
+//          Dependent hops land on the JEDEC floor (pumice TASK-044, 2026-10-23).
+//          The classify stage reads a bank image that is two registers behind
+//          the fire (timer flop + the arbiter's input flop), and the pick is
+//          three registers deep (STAGE-1a mask, pre-pick, output), so a hop
+//          whose candidate only appears once the image has moved -- a column
+//          after its ACT, an ACT after its PRE -- paid the image lag plus the
+//          pipe: 5 cycles for ACT -> column at tRCD 2, 6 for PRE -> ACT at
+//          tRP 2, measured 24 cycles per 8-column row on col_major against a
+//          floor of 13 / 15. Three forward paths remove the lag; the fire stage
+//          stays the only JEDEC authority:
+//            - a column classifies as a row HIT against the ACT in the output
+//              register (same bank and row) or the ACT fired last cycle
+//              (r_actsh_*), with the image-staleness guards waived, and the
+//              fire stage now requires the LIVE row to be open AND equal to the
+//              column's row (w_col_row_ok) -- so a column that reached the
+//              output on a speculation whose ACT was rejected is dropped, and
+//              one whose tRCD is still counting HOLDS (bounded by tRCD;
+//              bank_rdwr_ready_la_i says it is within reach) instead of paying
+//              a re-pick.
+//            - an ACT classifies early when its bank's PRE is in the output
+//              register or has fired and the image has not dropped yet
+//              (r_pre_closing, the demand-PRE twin of the CLOSE_ON_DRAIN
+//              r_ap_closing), and the fire stage HOLDS an ACT whose bank is
+//              closed but still inside tRP / tRC (bounded) rather than
+//              dropping it.
+//            - ACT candidates are guarded only against ACTs in flight or fired
+//              within two cycles (w_act_guard); a column or PRE fire on the
+//              bank no longer blocks the ACT that depends on it.
+//
 // Documentation: projects/components/mem-ctrl-ip/common-ip/docs/mc_scheduler_knobs.md
 `timescale 1ns / 1ps
 
@@ -156,6 +185,16 @@ module mc_cmd_arbiter
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_i,
+    // allocated, not yet schedulable (a write whose data has not landed).
+    // Read by the close-on-drain predicate ONLY: a pending same-row entry
+    // behind a column means the row has more to come (pumice TASK-044;
+    // the "youngest in window" rule that ignored these is BUG-027).
+    input  logic [NUM_ENTRIES-1:0]              wr_sch_pend_i,
+    // per-bank permission to close on drain, from the page policy's mistake
+    // predictor (mc_page_policy drain_close_ok_o): armed once a predicted
+    // close on the bank was followed by a different row, disarmed when one
+    // is reopened by the same row. All-ones = ungated (external policy).
+    input  logic [NUM_BANKS-1:0]                drain_close_ok_i,
     input  logic                                wr_commit_ready_i,
     output logic                                wr_commit_valid_o,
     output logic [PTRW-1:0]                     wr_commit_slot_o,
@@ -166,6 +205,7 @@ module mc_cmd_arbiter
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    rd_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_i,
+    input  logic [NUM_ENTRIES-1:0]              rd_sch_pend_i,   // reads are schedulable at insert; tied 0 by every backend today
     input  logic                                rd_issue_ready_i,
     output logic                                rd_issue_valid_o,
     output logic [PTRW-1:0]                     rd_issue_slot_o,
@@ -307,6 +347,14 @@ module mc_cmd_arbiter
     logic [BGW_EFF-1:0] w_pick_group, r_last_col_bg, r_last_act_bg;
     logic               w_tccd_ls_ok, w_trrd_ls_ok;
 
+    // TASK-044: a column fires only onto the LIVE open row it was classified
+    // for. The registered image the classify stage reads is two cycles
+    // stale, and the speculative hit paths below classify against an ACT
+    // that may still be rejected; this compare is what makes both safe.
+    logic w_col_row_ok;
+    assign w_col_row_ok = bank_row_active_i[RK0][r_bank]
+                        && (bank_open_row_i[RK0][r_bank] == r_row);
+
     logic w_out_safe, w_out_reject, w_out_hold;
     always_comb begin
         w_out_safe = 1'b1;
@@ -316,6 +364,7 @@ module mc_cmd_arbiter
                                                   && w_trrd_ls_ok
                                                   && !w_zq_busy;
         else if (r_do_rd || r_do_wr)  w_out_safe = !maint_busy_i && bank_rdwr_ready_i[RK0][r_bank]
+                                                  && w_col_row_ok
                                                   && w_tccd_ls_ok
                                                   && !w_zq_busy;
         else if (r_do_pre)            w_out_safe = !maint_busy_i && bank_pre_ready_i [RK0][r_bank]
@@ -331,18 +380,35 @@ module mc_cmd_arbiter
     assign w_ap_fire_bank = (w_fire_out && (r_do_rd || r_do_wr) && w_ap_fire)
                           ? (NUM_BANKS'(1) << r_bank) : '0;
 
-    // HOLD an ACT whose only obstacle is the rank-global windows, or --
-    // CLOSE_ON_DRAIN -- an early-ACT that reached the output register while
-    // its bank's AP-close is still draining (tRP not yet met on the live
-    // image). Hold, don't drop: the wait is bounded by tRP, and dropping
-    // would cost a 4-cycle pipeline refill that arrives at the same window.
-    // Restricted to r_ap_closing banks so ordinary busy-bank ACTs keep the
-    // proven drop behavior (a held ACT freezes the pick pipe behind it).
-    assign w_out_hold   = r_pick_valid && !maint_busy_i && r_do_act && !w_zq_busy
+    // HOLD an ACT whose only obstacle is the rank-global windows, or an ACT
+    // whose bank is CLOSED on the live image but still inside tRP / tRC (the
+    // early ACT behind a PRE, TASK-044), or whose bank is still draining an
+    // auto-precharge (r_ap_closing: the row is open on the live image until
+    // the device's internal close, which is bounded by tWR / tRTP + tRP).
+    // Hold, don't drop: the wait is bounded by the timer, and dropping would
+    // cost a 4-cycle pipeline refill that arrives at the same window
+    // (measured: the AP -> ACT hop paid 8 instead of 6 without the AP term).
+    // An ACT whose bank is OPEN on the live image for any other reason (its
+    // speculative PRE was rejected, or the image was stale) is dropped.
+    //
+    // HOLD a column whose live row is open and matches but whose tRCD is
+    // still counting (the speculative column behind its ACT): bounded by
+    // tRCD, and bank_rdwr_ready_la_i confirms the wait is within the
+    // lookahead depth -- a column that is not within reach (an AP pending on
+    // the bank, say) is dropped.
+    logic w_act_hold, w_col_hold;
+    assign w_act_hold   = r_do_act
                           && ((bank_act_ready_i[RK0][r_bank]
                                && !(tfaw_ok_i[RK0] && trrd_ok_i[RK0]))
+                              || (!bank_row_active_i[RK0][r_bank]
+                                  && !bank_act_ready_i[RK0][r_bank])
                               || (CLOSE_ON_DRAIN && r_ap_closing[r_bank]
                                   && !bank_act_ready_i[RK0][r_bank]));
+    assign w_col_hold   = (r_do_rd || r_do_wr) && w_col_row_ok
+                          && !bank_rdwr_ready_i[RK0][r_bank]
+                          && bank_rdwr_ready_la_i[RK0][r_bank];
+    assign w_out_hold   = r_pick_valid && !maint_busy_i && !w_zq_busy
+                          && (w_act_hold || w_col_hold);
     assign w_out_reject = r_pick_valid && !w_out_safe && !w_out_hold;
     assign w_out_ready  = !r_pick_valid || (cmd_ready_i && !w_out_hold) || w_out_reject;
     assign w_fire_out   = r_pick_valid && cmd_ready_i && w_out_safe;
@@ -412,6 +478,42 @@ module mc_cmd_arbiter
 
     logic [NUM_BANKS-1:0] w_prepick_guard;
     assign w_prepick_guard = w_if_preact_sel | w_if_preact_pre;
+
+    // ---- TASK-044 forward paths -------------------------------------------
+    // r_actsh_*  : the ACT fired LAST cycle (bank one-hot + its row). The
+    //              arbiter's registered image shows that row one cycle later,
+    //              so one register bridges the gap; the cycle of the fire
+    //              itself is covered by reading the output register (w_act_out).
+    // r_pre_closing : a PRE fired on the bank and the registered image has not
+    //              dropped yet (the demand-PRE twin of r_ap_closing).
+    // r_actg0/1  : an ACT fired on the bank within two cycles (the ACT-only
+    //              part of r_guard0/1, for ACT candidates).
+    logic [NUM_BANKS-1:0] r_actsh_vld, r_pre_closing, r_actg0, r_actg1;
+    logic [ROW_WIDTH-1:0] r_actsh_row [NUM_BANKS];
+    // w_act_pick / w_pre_pick: the ACT / PRE the pick comb takes THIS cycle,
+    // i.e. the command being loaded into the output register at this edge (it
+    // fires next cycle at the earliest). Classifying the dependent hop against
+    // it is what lands ACT -> column and PRE -> ACT exactly on tRCD / tRP: the
+    // three pipeline registers between classify and fire equal the two-cycle
+    // timer plus the fire cycle itself.
+    //
+    // RECONSTRUCTED FROM REGISTERS, not taken from the pick comb's outputs.
+    // The first cut read w_do_act / w_bank / w_row, which chained STAGE-1b's
+    // arg_sel, the pick mux and the fire-stage safe cone (through
+    // w_rd_turn_live and w_out_ready) into the classify cone and back into
+    // the STAGE-1a flops: 18 levels, 15.7 ns, -2.2 ns at 75 MHz on the board
+    // (2026-10-23). The demand ACT / PRE branches of the pick comb are a pure
+    // function of pre-pick registers, the class priority and single-bit live
+    // gates once the higher branches (init, tZQCS, refresh, ZQ, maintenance)
+    // are known not taken, so the same decision is rebuilt here from those
+    // registers alone; the refresh-drain and timeout PREs are not predicted
+    // (the ACT behind them classifies against the output register, one cycle
+    // later). Exact for the demand branches: see the pick comb below.
+    logic [NUM_BANKS-1:0] w_act_out, w_pre_out, w_act_pick, w_pre_pick, w_act_guard;
+    logic [ROW_WIDTH-1:0] w_pick_row;
+    assign w_act_out   = (r_pick_valid && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0;
+    assign w_pre_out   = (r_pick_valid && r_do_pre) ? (NUM_BANKS'(1) << r_bank) : '0;
+    assign w_act_guard = w_if_act_sel | w_if_act_pre | w_act_out | w_act_pick | r_actg0 | r_actg1;
 
     logic [NUM_BANKS-1:0] w_col_inflight_guard;
     assign w_col_inflight_guard = w_if_col_sel | w_if_col_pre;
@@ -571,12 +673,12 @@ module mc_cmd_arbiter
         w_ap_sibling = 1'b0;
         if (r_pick_valid && (r_do_rd || r_do_wr) && r_ap_out) begin
             for (int j = 0; j < NUM_ENTRIES; j++) begin
-                if (rd_sch_valid_i[j]
+                if ((rd_sch_valid_i[j] || rd_sch_pend_i[j])
                     && !(r_do_rd && (j == int'(r_issue_slot)))
                     && (f_bank(rd_sch_bank_i, PTRW'(j)) == r_bank)
                     && (f_row (rd_sch_row_i,  PTRW'(j)) == r_row))
                     w_ap_sibling = 1'b1;
-                if (wr_sch_valid_i[j]
+                if ((wr_sch_valid_i[j] || wr_sch_pend_i[j])
                     && !(r_do_wr && (j == int'(r_commit_slot)))
                     && (f_bank(wr_sch_bank_i, PTRW'(j)) == r_bank)
                     && (f_row (wr_sch_row_i,  PTRW'(j)) == r_row))
@@ -594,6 +696,10 @@ module mc_cmd_arbiter
     logic [POOL*ROW_WIDTH-1:0] pool_row;
     logic [POOL*COL_WIDTH-1:0] pool_col;
     assign pool_valid = {wr_sch_valid_i, rd_sch_valid_i};
+    // valid OR pending: the close-on-drain populations below count an
+    // allocated-not-landed write as demand for its row (TASK-044)
+    logic [POOL-1:0]           pool_live;
+    assign pool_live  = {wr_sch_valid_i | wr_sch_pend_i, rd_sch_valid_i | rd_sch_pend_i};
     assign pool_bank  = {wr_sch_bank_i,  rd_sch_bank_i};
     assign pool_row   = {wr_sch_row_i,   rd_sch_row_i};
     assign pool_col   = {wr_sch_col_i,   rd_sch_col_i};
@@ -648,8 +754,24 @@ module mc_cmd_arbiter
             automatic logic           pdir = (e >= NUM_ENTRIES);
             automatic int             pslot = pdir ? (e - NUM_ENTRIES) : e;
             automatic logic [BKW-1:0] pbank = f_pool_bank(PTXW'(e));
+            automatic logic [ROW_WIDTH-1:0] prow = f_pool_row(PTXW'(e));
             automatic logic           phit = r_bank_row_active[RK0][pbank]
-                                             && (f_pool_row(PTXW'(e)) == r_bank_open_row[RK0][pbank]);
+                                             && (prow == r_bank_open_row[RK0][pbank]);
+            // TASK-044 speculative hit: the ACT for this row is being picked
+            // this cycle, is in the output register, or fired last cycle. The
+            // fire stage re-reads the live row (w_col_row_ok) and holds for
+            // tRCD, so the image-staleness guards below do not apply to this
+            // path; a speculation whose ACT never fired is dropped there.
+            automatic logic           phit_spec = (w_act_pick[pbank] && (w_pick_row == prow))
+                                                || (w_act_out[pbank] && (r_row == prow))
+                                                || (r_actsh_vld[pbank] && (r_actsh_row[pbank] == prow));
+            // TASK-044 early ACT: the bank is closing (AP drain, demand PRE
+            // fired and not yet in the image, or the PRE is being picked /
+            // in the output register). The fire stage holds the ACT until the
+            // live bank is closed AND tRP / tRC are met.
+            automatic logic           pclosing = (CLOSE_ON_DRAIN && r_ap_closing[pbank])
+                                                || r_pre_closing[pbank] || w_pre_out[pbank]
+                                                || w_pre_pick[pbank];
             if (pool_valid[e]) begin
                 // COLUMN. The sink-FIFO gate is direction-specific and
                 // correctness-critical: an RD may only fire when the rd CAM's
@@ -667,15 +789,17 @@ module mc_cmd_arbiter
                 // picked against it lands on the just-closed row and the
                 // AR-order drain wedges behind it forever: parked-victim pattern
                 // in test_pumice_core_sched_order).
-                pool_col_m[e] = phit && r_bank_rdwr_ready[RK0][pbank] && w_tccd_fwd_ok
+                pool_col_m[e] = ((phit && r_bank_rdwr_ready[RK0][pbank] && !r_ap_closing[pbank]
+                                  && !w_pre_col_guard[pbank] && !w_preact_bank_guard[pbank])
+                                 || phit_spec)
+                              && w_tccd_fwd_ok
                               && (pdir ? trtw_ok_i : twtr_ok_i)
                               && (pdir ? wr_commit_ready_i : rd_issue_ready_i)
-                              && !(f_ap(pbank) && w_col_inflight_bank[pbank]) && !r_ap_closing[pbank]
+                              && !(f_ap(pbank) && w_col_inflight_bank[pbank])
                               && !(pdir ? w_wr_col_inflight_ent[pslot] : w_rd_col_inflight_ent[pslot])
                               && !w_ref_col_block[pbank]
                               && (pdir ? !w_wr_turn_block : !w_rd_turn_block)
-                              && !w_ap_col_guard[pbank] && !w_pre_col_guard[pbank]
-                              && !w_preact_bank_guard[pbank]
+                              && !w_ap_col_guard[pbank]
                               && w_tccd_ls_ok;
                 // CLOSE_ON_DRAIN early-ACT: when this bank is closing via an
                 // auto-precharge (r_ap_closing holds from the AP column's fire
@@ -685,10 +809,14 @@ module mc_cmd_arbiter
                 // image to drop and then walking the pipe. The fire stage is
                 // the JEDEC authority: bank_act_ready_i (live) still requires
                 // tRP/tRC, so an early ACT holds (w_out_hold) until truly safe.
-                pool_act_m[e] = (!r_bank_row_active[RK0][pbank]
-                                 || (CLOSE_ON_DRAIN && r_ap_closing[pbank]))
-                              && !w_guarded[pbank]
-                              && r_bank_act_ready[RK0][pbank] && w_act_classify_gate
+                // Guarded against ACTs only (w_act_guard): the column or PRE
+                // fire this ACT depends on must not block it (TASK-044). The
+                // lookahead readiness is waived while the bank is closing;
+                // the fire stage holds for tRP / tRC.
+                pool_act_m[e] = ((!r_bank_row_active[RK0][pbank] && r_bank_act_ready[RK0][pbank])
+                                 || pclosing)
+                              && !w_act_guard[pbank]
+                              && w_act_classify_gate
                               && !w_rfc_busy;
                 pool_pre_m[e] = r_bank_row_active[RK0][pbank] && !w_guarded[pbank] && !phit
                               && r_bank_pre_ready[RK0][pbank];
@@ -811,7 +939,9 @@ module mc_cmd_arbiter
     // (RDA/WRA) on the final same-row column: the precise, pool-aware version
     // of close-on-drain (LiteDRAM closes its per-bank machine the same way).
     // Same-direction only counts same-direction by construction ((j>=N)==pdir),
-    // so the cross term needs the complementary comparison.
+    // so the cross term needs the complementary comparison. The cross term
+    // counts PENDING entries too (pool_live): a write burst allocated on the
+    // row but still landing its data is demand the close must wait for.
     logic [POPW-1:0] rd_xpop [NUM_ENTRIES];
     logic [POPW-1:0] wr_xpop [NUM_ENTRIES];
     always_comb begin
@@ -833,8 +963,8 @@ module mc_cmd_arbiter
                     if (pdir) wr_pop[pslot] = wr_pop[pslot] + POPW'(1);
                     else      rd_pop[pslot] = rd_pop[pslot] + POPW'(1);
                 end
-                // cross-direction: same bank+row, opposite direction
-                if (pool_valid[j] && ((j >= NUM_ENTRIES) != pdir)
+                // cross-direction: same bank+row, opposite direction (valid or pending)
+                if (pool_live[j] && ((j >= NUM_ENTRIES) != pdir)
                     && (f_pool_bank(PTXW'(j)) == ppbk)
                     && (f_pool_row (PTXW'(j)) == pprw)) begin
                     if (pdir) wr_xpop[pslot] = wr_xpop[pslot] + POPW'(1);
@@ -1016,18 +1146,30 @@ module mc_cmd_arbiter
     // being captured THIS cycle (w_sel_*, not the pre-pick register -- using
     // rd_col_s here would evaluate the PREVIOUS selection, an off-by-one that
     // misfires whenever the group has >1 member). The selected column is the
-    // age-YOUNGEST same-row demand in the window and has no cross-direction
-    // same-row demand at all. Age uses the STAGE-1a matrix snapshot; same-row
-    // membership uses the live CAM fields (fixed at insert).
+    // LAST same-row demand in the window: no younger same-row entry behind it
+    // in its own direction -- schedulable OR pending (allocated, data not yet
+    // landed) -- and no same-row entry at all in the other direction. Age
+    // uses the STAGE-1a matrix snapshot; same-row membership uses the live
+    // CAM fields (fixed at insert). Pending entries are the TASK-044 fix for
+    // BUG-027: the write CAM allocates a burst's entries at AW and fills them
+    // beat by beat, so "youngest SCHEDULABLE" was true of every streaming
+    // write that happened to be the last one landed, and the row closed under
+    // the burst behind it every NUM_ENTRIES columns. This is the predicate
+    // mc_bank_head_records gives the per-bank core (behind_same_row).
     // The col_sel==0 gate keeps this on the default age-ordered column pick:
     // under a population-weighted col_sel a younger sibling can be picked
     // first, and closing on the age-youngest would truncate the row.
+    // drain_close_ok_i: even the exact predicate cannot see a burst whose
+    // AW has not arrived, so a just-in-time stream still lost a row per
+    // burst; the page policy's predictor arms the close per bank only when
+    // the bank's closes are being followed by different rows (TASK-044).
     logic w_rd_ylast, w_wr_ylast;
     always_comb begin
         w_rd_ylast = CLOSE_ON_DRAIN && (r_col_sel == 2'd0)
+                   && drain_close_ok_i[f_bank(rd_sch_bank_i, w_sel_rd_col_s)]
                    && (r_rd_xpop[w_sel_rd_col_s] == POPW'(0));
         for (int j = 0; j < NUM_ENTRIES; j++) begin
-            if (rd_sch_valid_i[j] && (j != int'(w_sel_rd_col_s))
+            if ((rd_sch_valid_i[j] || rd_sch_pend_i[j]) && (j != int'(w_sel_rd_col_s))
                 && (f_bank(rd_sch_bank_i, PTRW'(j)) == f_bank(rd_sch_bank_i, w_sel_rd_col_s))
                 && (f_row (rd_sch_row_i,  PTRW'(j)) == f_row (rd_sch_row_i,  w_sel_rd_col_s))
                 && !r_rd_older[j*NUM_ENTRIES + int'(w_sel_rd_col_s)])
@@ -1036,9 +1178,10 @@ module mc_cmd_arbiter
     end
     always_comb begin
         w_wr_ylast = CLOSE_ON_DRAIN && (r_col_sel == 2'd0)
+                   && drain_close_ok_i[f_bank(wr_sch_bank_i, w_sel_wr_col_s)]
                    && (r_wr_xpop[w_sel_wr_col_s] == POPW'(0));
         for (int j = 0; j < NUM_ENTRIES; j++) begin
-            if (wr_sch_valid_i[j] && (j != int'(w_sel_wr_col_s))
+            if ((wr_sch_valid_i[j] || wr_sch_pend_i[j]) && (j != int'(w_sel_wr_col_s))
                 && (f_bank(wr_sch_bank_i, PTRW'(j)) == f_bank(wr_sch_bank_i, w_sel_wr_col_s))
                 && (f_row (wr_sch_row_i,  PTRW'(j)) == f_row (wr_sch_row_i,  w_sel_wr_col_s))
                 && !r_wr_older[j*NUM_ENTRIES + int'(w_sel_wr_col_s)])
@@ -1414,6 +1557,32 @@ module mc_cmd_arbiter
         end
     end
 
+    // TASK-044: the demand ACT / PRE the pick comb above takes this cycle,
+    // rebuilt from registers for the classify stage's forward paths (declared
+    // with them above). Mirrors the branch order of the comb: a demand class is
+    // reached only when init is done, no tZQCS window, no refresh request or
+    // drain, no ZQ request and no maintenance grant; the ACT branch is taken
+    // when the class priority says CL_ACT (which already carries the live ACT
+    // gate), the read side unless the write-first rule hands it to the write
+    // side; the PRE branch likewise. Whether the output register ACCEPTS the
+    // pick this cycle is deliberately not a term: a held pipe repeats the same
+    // classification next cycle, and w_out_ready would put the fire-stage
+    // cone back into this path.
+    logic w_dmd_reach, w_act_pick_rd, w_act_pick_vld, w_pre_pick_rd, w_pre_pick_vld;
+    assign w_dmd_reach    = init_done_i && !(HAS_ZQ && w_zq_busy)
+                          && !(refresh_req_i || refresh_drain_i)
+                          && !(HAS_ZQ && zq_req_i) && !(maint_req_i && w_maint_safe);
+    assign w_act_pick_vld = w_dmd_reach && (w_pick_class == CL_ACT) && w_act_gate_live
+                          && (rd_act_f || wr_act_f);
+    assign w_act_pick_rd  = rd_act_f && !(w_act_wrf && wr_act_f);
+    assign w_pre_pick_vld = w_dmd_reach && (w_pick_class == CL_PRE) && (rd_pre_f || wr_pre_f);
+    assign w_pre_pick_rd  = rd_pre_f && !(w_pre_wrf && wr_pre_f);
+    assign w_act_pick = w_act_pick_vld
+                      ? (NUM_BANKS'(1) << (w_act_pick_rd ? rd_act_bank : wr_act_bank)) : '0;
+    assign w_pick_row = w_act_pick_rd ? rd_act_row : wr_act_row;
+    assign w_pre_pick = w_pre_pick_vld
+                      ? (NUM_BANKS'(1) << (w_pre_pick_rd ? rd_pre_bank : wr_pre_bank)) : '0;
+
     // ---- output register ----------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) r_dir_rr <= 1'b0;
@@ -1515,6 +1684,8 @@ module mc_cmd_arbiter
             r_guard0 <= '0;
             r_guard1 <= '0;
             r_ap_closing <= '0;
+            r_pre_closing <= '0; r_actsh_vld <= '0; r_actg0 <= '0; r_actg1 <= '0;
+            for (int b = 0; b < NUM_BANKS; b++) r_actsh_row[b] <= '0;
             r_wrfire0 <= 1'b0; r_wrfire1 <= 1'b0;
             r_rdfire0 <= 1'b0; r_rdfire1 <= 1'b0;
             r_apguard0 <= '0;  r_apguard1 <= '0;
@@ -1525,6 +1696,13 @@ module mc_cmd_arbiter
             r_ap_closing <= w_ap_fire_bank | (r_ap_closing & r_bank_row_active[RK0]);
             if (w_fire_out && (r_do_act || r_do_pre || r_do_rd || r_do_wr))
                 r_guard0 <= (NUM_BANKS'(1) << r_bank);
+            // TASK-044 forward paths
+            r_pre_closing <= ((w_fire_out && r_do_pre) ? (NUM_BANKS'(1) << r_bank) : '0)
+                           | (r_pre_closing & r_bank_row_active[RK0]);
+            r_actsh_vld   <= (w_fire_out && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0;
+            if (w_fire_out && r_do_act) r_actsh_row[r_bank] <= r_row;
+            r_actg1 <= r_actg0;
+            r_actg0 <= (w_fire_out && r_do_act) ? (NUM_BANKS'(1) << r_bank) : '0;
             r_preguard2 <= r_preguard1;
             r_preguard1 <= r_preguard0;
             r_preguard0 <= (w_fire_out && r_do_pre)

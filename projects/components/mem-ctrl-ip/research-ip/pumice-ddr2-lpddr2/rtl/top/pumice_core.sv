@@ -55,8 +55,11 @@ module pumice_core
     // Owner, 2026-10-22: pumice (research) carries the FR-FCFS core;
     // granite (the product) carries BANK_PICK. Both stay selectable.
     parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_FRFCFS,
-    parameter bit CLOSE_ON_DRAIN = 1'b0, // BUG-027: AP-on-drain chops pumice's
-                                         // open-page streams; product-only feature
+    parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
+                                         // Off since BUG-027 (the "youngest schedulable"
+                                         // predicate chopped page-hit write streams); back
+                                         // on with the exact predicate of TASK-044 (a
+                                         // pending same-row write counts as demand).
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)
     parameter int AGE_WIDTH      = 16,
     // DV knob: arm the scheduler's command-history scoreboard (JEDEC same-bank
@@ -316,6 +319,7 @@ module pumice_core
     logic [NUM_ENTRIES*ROW_WIDTH-1:0]   w_wr_sch_row,   w_rd_sch_row;
     logic [NUM_ENTRIES*COL_WIDTH-1:0]   w_wr_sch_col,   w_rd_sch_col;
     logic [NUM_ENTRIES*NUM_ENTRIES-1:0] w_wr_sch_older, w_rd_sch_older;
+    logic [NUM_ENTRIES-1:0]             w_wr_sch_pend;   // allocated, data not landed
     logic [NUM_ENTRIES-1:0]             w_wr_sch_agex,  w_rd_sch_agex;
     logic [NUM_ENTRIES*4-1:0]           w_wr_sch_qos,   w_rd_sch_qos;
     logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
@@ -604,6 +608,7 @@ module pumice_core
         .wr_sch_row_o       (w_wr_sch_row),
         .wr_sch_col_o       (w_wr_sch_col),
         .wr_sch_older_o     (w_wr_sch_older),
+        .wr_sch_pend_o      (w_wr_sch_pend),
         .wr_sch_age_exceed_o(w_wr_sch_agex),
         .wr_sch_qos_o       (w_wr_sch_qos),
         .wr_sch_head_rel_o  (w_wr_sch_hrel),
@@ -770,6 +775,8 @@ module pumice_core
         .wr_sch_row_i       (w_wr_sch_row),
         .wr_sch_col_i       (w_wr_sch_col),
         .wr_sch_older_i     (w_wr_sch_older),
+        .wr_sch_pend_i      (w_wr_sch_pend),
+        .rd_sch_pend_i      ('0),
         .wr_sch_age_exceed_i(w_wr_sch_agex),
         .wr_sch_qos_i       (w_wr_sch_qos),
         .wr_sch_head_rel_i  (w_wr_sch_hrel),

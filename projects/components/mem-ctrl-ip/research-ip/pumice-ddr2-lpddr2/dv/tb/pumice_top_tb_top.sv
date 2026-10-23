@@ -46,6 +46,8 @@ module pumice_top_tb_top
     parameter int DFI_RATE         = 2,
 
     parameter int SCHED_CORE     = 0,   // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS
+
+    parameter bit CLOSE_ON_DRAIN = 1'b1, // -G from DV: pumice close-on-drain A/B (TASK-044)
     // DFI widths derive from the DRAM beat width (not AXI): the DFI carries
     // DRAM_BEAT_WIDTH * DFI_RATE bits/cycle regardless of host AXI width.
     parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -196,6 +198,7 @@ module pumice_top_tb_top
         .COL_WIDTH      (COL_WIDTH),
         .DFI_RATE       (DFI_RATE),
         .SCHED_CORE     (SCHED_CORE),
+        .CLOSE_ON_DRAIN (CLOSE_ON_DRAIN),
         .PAGE_POLICY    (PAGE_POLICY)
     ) u_dut (
         .mc_clk         (mc_clk),

@@ -493,6 +493,25 @@ against a trace before it steers anything.** One screen of the DFI command
 trace (bank, open row, command row) showed the PREs closing the row the
 next burst needed; the counters had been saying the opposite for an hour.
 
+## 2026-10-23: the checker that modeled auto-precharge as a precharge
+
+The DFI DRAM model's `_pending_auto_pre` closed the bank by calling
+`on_precharge()` at the column's own cycle -- functionally right (the data
+path captures its row at command time), and its docstring said so -- but
+`on_precharge` also runs the tRTP and tWR checks, so every RDA / WRA
+reported one tRTP (or tWR) violation. Nobody noticed because nothing in the
+tree issued RDA / WRA under the checker until the FR-FCFS core's
+close-on-drain came back on (pumice TASK-044), and the proxy only logs the
+counts. The fix is a timed `on_auto_precharge`: the device closes at the
+earliest legal instant, so none of the column-to-PRE checks can fail, and
+the NEXT ACT is timed against that instant. Two lessons. A checker that
+models an autonomous device action as the explicit command it resembles
+inherits that command's checks at the wrong time. And a soft counter that
+nobody asserts on is a fallback: the proxy had been carrying 256 phantom
+tWR per col_major run from an uncalibrated write-recovery anchor on BOTH
+cores through every "gate passed" of the week (pumice ISSUE-023) -- the
+count was printed and nobody read it.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,

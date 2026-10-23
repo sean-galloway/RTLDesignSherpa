@@ -698,6 +698,8 @@ module granite_core
         .wr_sch_row_i       (w_wr_sch_row),
         .wr_sch_col_i       (w_wr_sch_col),
         .wr_sch_older_i     (w_wr_sch_older),
+        .wr_sch_pend_i      (w_wr_sch_pend),
+        .rd_sch_pend_i      ('0),
         .wr_sch_age_exceed_i(w_wr_sch_agex),
         .wr_sch_qos_i       (w_wr_sch_qos),
         .wr_sch_head_rel_i  (w_wr_sch_hrel),

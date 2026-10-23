@@ -203,6 +203,7 @@ module mc_scheduler_plane
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    wr_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    wr_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  wr_sch_older_i,
+    input  logic [NUM_ENTRIES-1:0]              wr_sch_pend_i,   // allocated, data not landed (FRFCFS close-on-drain; the records carry it for BANK_PICK)
     input  logic [NUM_ENTRIES-1:0]              wr_sch_age_exceed_i,
     input  logic [NUM_ENTRIES*4-1:0]            wr_sch_qos_i,
     input  logic [15:0]                         wr_sch_head_rel_i,
@@ -218,6 +219,7 @@ module mc_scheduler_plane
     input  logic [NUM_ENTRIES*ROW_WIDTH-1:0]    rd_sch_row_i,
     input  logic [NUM_ENTRIES*COL_WIDTH-1:0]    rd_sch_col_i,
     input  logic [NUM_ENTRIES*NUM_ENTRIES-1:0]  rd_sch_older_i,
+    input  logic [NUM_ENTRIES-1:0]              rd_sch_pend_i,
     input  logic [NUM_ENTRIES-1:0]              rd_sch_age_exceed_i,
     input  logic [NUM_ENTRIES*4-1:0]            rd_sch_qos_i,
     input  logic [15:0]                         rd_sch_head_rel_i,
@@ -300,6 +302,7 @@ module mc_scheduler_plane
 
     logic                       w_pp_ap_en;
     logic [NUM_BANKS-1:0]       w_pp_ap_close;
+    logic [NUM_BANKS-1:0]       w_pp_drain_ok;   // page policy -> FRFCFS close-on-drain permission (TASK-044)
     logic                       w_pp_to_req;
     logic [BKW-1:0]             w_pp_to_bank;
 
@@ -522,6 +525,7 @@ module mc_scheduler_plane
                 .cmd_op_i          (a_cmd_op),
                 .cmd_bank_i        (a_cmd_bank),
                 .cmd_row_i         (a_cmd_row),
+                .cmd_ap_i          (a_cmd_ap),
                 .pre_is_timeout_i  (a_cmd_to_pre),
                 .bank_row_active_i (w_bank_row_active[0]),
                 .bank_open_row_i   (w_bank_open_row[0]),
@@ -529,6 +533,7 @@ module mc_scheduler_plane
                 .ap_close_o        (w_pp_ap_close),
                 .timeout_pre_req_o (w_pp_to_req),
                 .timeout_pre_bank_o(w_pp_to_bank),
+                .drain_close_ok_o  (w_pp_drain_ok),
                 .stat_page_hit_o   (stat_page_hit_o),
                 .stat_row_hit_o    (stat_row_hit_o),
                 .stat_page_miss_o  (stat_page_miss_o),
@@ -545,6 +550,7 @@ module mc_scheduler_plane
             assign w_pp_ap_close  = ap_close_i;
             assign w_pp_to_req    = timeout_pre_req_i;
             assign w_pp_to_bank   = timeout_pre_bank_i;
+            assign w_pp_drain_ok  = {NUM_BANKS{1'b1}};   // external policy: close-on-drain ungated, as before
             assign stat_page_hit_o   = '0;
             assign stat_row_hit_o    = '{default: '0};
             assign stat_page_miss_o  = '0;
@@ -793,7 +799,8 @@ module mc_scheduler_plane
                               wr_sch_age_exceed_i, wr_sch_qos_i, wr_sch_head_rel_i,
                               rd_sch_bank_i, rd_sch_row_i, rd_sch_col_i, rd_sch_older_i,
                               rd_sch_age_exceed_i, rd_sch_qos_i, rd_sch_head_rel_i,
-                              wr_sch_valid_i, rd_sch_valid_i, wr_commit_ready_i};
+                              wr_sch_valid_i, rd_sch_valid_i, wr_commit_ready_i,
+                              wr_sch_pend_i, rd_sch_pend_i, w_pp_drain_ok};
     end else begin : g_arbiter
     // ======================================================================
     // mc_cmd_arbiter — the FRFCFS research pick core.
@@ -863,6 +870,8 @@ module mc_scheduler_plane
         .wr_sch_row_i       (wr_sch_row_i),
         .wr_sch_col_i       (wr_sch_col_i),
         .wr_sch_older_i     (wr_sch_older_i),
+        .wr_sch_pend_i      (wr_sch_pend_i),
+        .drain_close_ok_i   (w_pp_drain_ok),
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),
@@ -886,6 +895,7 @@ module mc_scheduler_plane
         .rd_sch_row_i       (rd_sch_row_i),
         .rd_sch_col_i       (rd_sch_col_i),
         .rd_sch_older_i     (rd_sch_older_i),
+        .rd_sch_pend_i      (rd_sch_pend_i),
         .rd_issue_ready_i   (rd_issue_ready_i),
         .rd_issue_valid_o   (rd_issue_valid_o),
         .rd_issue_slot_o    (rd_issue_slot_o),

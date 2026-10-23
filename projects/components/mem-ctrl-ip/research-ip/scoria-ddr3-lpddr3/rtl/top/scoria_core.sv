@@ -417,6 +417,7 @@ module scoria_core
     logic [NUM_ENTRIES*ROW_WIDTH-1:0]   w_wr_sch_row,   w_rd_sch_row;
     logic [NUM_ENTRIES*COL_WIDTH-1:0]   w_wr_sch_col,   w_rd_sch_col;
     logic [NUM_ENTRIES*NUM_ENTRIES-1:0] w_wr_sch_older, w_rd_sch_older;
+    logic [NUM_ENTRIES-1:0]             w_wr_sch_pend;   // allocated, data not landed
     logic [NUM_ENTRIES-1:0]             w_wr_sch_agex,  w_rd_sch_agex;
     logic [NUM_ENTRIES*4-1:0]           w_wr_sch_qos,   w_rd_sch_qos;
     logic [15:0]                        w_wr_sch_hrel,  w_rd_sch_hrel;
@@ -684,6 +685,7 @@ module scoria_core
         .wr_sch_row_o       (w_wr_sch_row),
         .wr_sch_col_o       (w_wr_sch_col),
         .wr_sch_older_o     (w_wr_sch_older),
+        .wr_sch_pend_o      (w_wr_sch_pend),
         .wr_sch_age_exceed_o(w_wr_sch_agex),
         .wr_sch_qos_o       (w_wr_sch_qos),
         .wr_sch_head_rel_o  (w_wr_sch_hrel),
@@ -809,6 +811,7 @@ module scoria_core
         .wr_sch_row_i       (w_wr_sch_row),
         .wr_sch_col_i       (w_wr_sch_col),
         .wr_sch_older_i     (w_wr_sch_older),
+        .wr_sch_pend_i      (w_wr_sch_pend),
         .sched_order_mode_i (sched_order_mode_i),
         .sched_row_sel_i    (sched_row_sel_i),
         .sched_col_sel_i    (sched_col_sel_i),

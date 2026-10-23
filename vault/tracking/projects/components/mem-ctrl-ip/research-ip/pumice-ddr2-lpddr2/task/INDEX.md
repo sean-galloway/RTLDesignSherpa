@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-044** — never recycle a number, even when its item closed.
+**Next ID: TASK-045** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 34 | done (kept for history) |
+| [closed/](closed/) | 35 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -41,6 +41,17 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-044** — CLOSED 2026-10-23: the FR-FCFS core's dependent hops land
+  on the JEDEC floor. col_major one thread 24 -> 13 / 15 cycles per row
+  (195 / 194 -> 309 / 351 MB/s, BANK_PICK 311 / 358): exact close-on-drain
+  (pending same-row writes count), forward paths (column classifies against
+  the ACT being picked / in the output register / fired last cycle, early
+  ACT behind a PRE, ACT-only guard, fire stage = live row match + bounded
+  holds), and the close armed per bank by the page policy's predictor
+  (short-row evidence in fixed_open only). CLOSE_ON_DRAIN default 1 again.
+  217 / 217 both geometries, board 75 MHz +0.001. Report 5.5; handbook
+  dependent-hops-forward-the-pick. Left: col_interleave writes (class
+  priority) and the multi-thread BUG-030 residual.
 - **TASK-035** — CLOSED 2026-10-08: tier 1 proven, all four done-criteria on
   every tier-1 block; area at 21/21 sby tasks. `dfi_cdc` finished (token/data
   pairing, no-beat-lost/duplicated, init semantics; 13/13 covers, 8/8

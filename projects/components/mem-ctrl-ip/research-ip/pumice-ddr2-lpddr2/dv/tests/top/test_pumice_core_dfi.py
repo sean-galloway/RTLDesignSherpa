@@ -2173,7 +2173,11 @@ def _run(request, testcase, params_over=None, enhanced=False):
               "DRAM_DEVICE_WIDTH": str(DRAM_DEV_W),
               "NUM_ENTRIES": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
               "N_SRAM_SLOTS": os.environ.get("PUMICE_NUM_ENTRIES", "8"),
-              "RD_RET_DEPTH": os.environ.get("PUMICE_RD_RET_DEPTH", "32")}
+              "RD_RET_DEPTH": os.environ.get("PUMICE_RD_RET_DEPTH", "32"),
+              # PUMICE_CLOSE_ON_DRAIN=0/1 overrides the core's close-on-drain
+              # default (TASK-044 A/B; unset = the RTL default)
+              **({"CLOSE_ON_DRAIN": os.environ["PUMICE_CLOSE_ON_DRAIN"]}
+                 if os.environ.get("PUMICE_CLOSE_ON_DRAIN") else {})}
     if params_over:
         params.update(params_over)
     tag = testcase + ("" if enhanced else "_base")

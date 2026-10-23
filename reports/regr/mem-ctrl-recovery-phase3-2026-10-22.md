@@ -102,6 +102,8 @@ arbiter's root); + the mask registered per source: -0.611, 156 (synthesis
 | `PUMICE_SYS_75=1`, pumice FR-FCFS, BUG-030 text (predictor, fire-side feed, explicit timeout flag, REGISTERED demand veto) | `w_sys_i` 75 MHz | +0.013 | 0 / 85 908 (the first build of the fix, with the veto live: -0.277, 15 / 86 116, the arbiter's pick cone) |
 | `PUMICE_SYS_100=1`, BANK_PICK, follow-up text | `w_sys_i` 100 MHz | -2.716 | 2 553 / 77 114 (phase commit: -2.574, 3 463; hotspots read CAM 440, harness write engines 266 + 106 + 89 and W skid 252, read intake AR 133, the pick core 124, hist_rd 117 -- harness-dominated as before) |
 | `PUMICE_SYS_100=1`, BANK_PICK, final text | `w_sys_i` 100 MHz | -2.574 | 3 463 / 77 128 (the text before the stale mask: -2.537, 3 062 / 77 056; Phase 2 text: -6.672, 11 899; FRFCFS control: -2.555, 6 296). Hotspots: read CAM 442, write CAM 247, the pick core 238, bank timers ~100 each, then the harness (APB converter 140, generators, trace RAMs) |
+| `PUMICE_SYS_75=1`, FR-FCFS, TASK-044 forward paths, pick-cycle hints read from the pick comb | `w_sys_i` 75 MHz | -2.212 | 96 / 86 378 (arg_sel + pick mux + fire cone chained into the classify cone; 18 levels, 15.7 ns, 80 % route) |
+| `PUMICE_SYS_75=1`, FR-FCFS, TASK-044 final text (hints rebuilt from the pre-pick registers) | `w_sys_i` 75 MHz | +0.001 | 0 / 86 323 (LUTs 42 822, FFs 33 985; text md5 verified against the built sources) |
 
 The 75 MHz build is the gate (WNS >= 0 on `w_sys_i`): closed, +0.077. The
 100 MHz board build misses by 2.6 ns; the harness alone cannot close it
@@ -392,6 +394,210 @@ FR-FCFS under policy_mode 1 (static_open) with the veto in place reads
 543 / 547 with 37 ACTs at txn 64. The
 8-thread BANK_PICK streaming cells (557 vs 567 at four) are NOT this policy:
 unchanged at tr_init 0.
+
+### 5.3 Area: LUT / FF / BRAM / DSP for the three controllers (owner's request, 2026-10-23)
+
+Two views, because they answer different questions. "Standalone" is the
+controller synthesized out of context on xc7a100t-1 through one flow
+(synth, opt, place, phys_opt, route; `-flatten_hierarchy rebuilt`) at the
+configuration the perf table was measured at: 16 entries, RD_RET_DEPTH 64,
+32-bit beat, x16 device, BL4, 13 row bits, 8 banks, AXI id 8, sys 75 MHz /
+dfi 150 MHz. "On the board" is the same block read out of the routed
+Nexys A7 checkpoint, where Vivado has pruned everything the
+characterization harness ties off. LiteDRAM is one flat LiteX module
+(controller + a7ddrphy + VexRiscv BIOS + CSR); its controller-only line is
+a partition of the routed board checkpoint by the generator's signal
+prefixes (`main_litedramcore_*` plus the bankmachine / roundrobin /
+multiplexer glue), raw cells, so it is an estimate. Recipes and reports:
+`scratchpad/area/{pumice_board,granite_board,litedram_ooc,board_pumice_deep,board_litedram_cells}`.
+
+| item | LiteDRAM | granite BANK_PICK | pumice FR-FCFS |
+|---|---|---|---|
+| standalone controller, LUT | ~1 200 (est.) | 22 471 | 19 982 |
+| standalone controller, FF | ~1 000 (est.) | 6 621 | 7 864 |
+| standalone controller, BRAM36 | 0 | 2 | 2 |
+| standalone controller, DSP | 0 | 0 | 0 |
+| standalone, 75 MHz WNS (aclk) | n/a (unconstrained) | +0.268, 0 / 13 091 | -29.603, 4 208 / 16 573 |
+| standalone LiteX core incl. PHY + CPU + CSR, LUT / FF | 4 576 / 3 360 | - | - |
+| standalone LiteX core, BRAM36 + BRAM18 / DSP | 13 + 9 (BIOS ROM 8, SRAM 2, CPU 1 + 8) / 4 | - | - |
+| on the board, controller LUT | 2 435 (leaf = controller + PHY + CSR) | 8 340 (Oct 17, FR-FCFS core, not timing clean) | 8 235 |
+| on the board, controller FF | 2 069 | 4 062 | 5 530 |
+| on the board, controller BRAM36 | 12 (10 are BIOS ROM / SRAM) | 2 | 2 |
+| on the board, controller DSP | 0 | 0 | 0 |
+| on the board, CPU (VexRiscv) LUT / FF / BRAM / DSP | 1 924 / 1 279 / 1+8 / 4 | - | - |
+| on the board, PHY LUT / FF | ~500 / 496 (inside the leaf) | 420 / 509 (a7ddrphy) | 421 / 509 (a7ddrphy) |
+| on the board, controller + csr + DFI shims, LUT / FF | - | 8 870 / 5 871 | 9 158 / 7 383 |
+| whole bitstream, LUT (% of 63 400) | 28 427 (44.8) | 35 359 (55.8, placed Oct 17) | 41 063 (64.8) |
+| whole bitstream, FF | 24 826 | 29 053 | 33 753 |
+| whole bitstream, BRAM36 tiles / DSP | 17.5 / 20 | 2 / 16 | 2 / 16 |
+| generators per direction in that bitstream | 4 | 4 | 8 |
+
+Standalone split, board geometry (LUT): granite = entry store 16 562 +
+scheduler plane 3 040 (bank pick 745, bank timers 1 912) + AXI plane 1 436
++ DFI plane 430; pumice = scheduler plane 9 443 (arbiter 7 265, bank
+timers 1 547) + storage plane 8 127 (wr CAM 4 574, rd CAM 3 554) + AXI
+plane 1 501 + DFI plane 435. At the cores' default geometry (64-bit beat,
+BL8, 8 entries, RD_RET 32, 75 MHz) they are 11 598 / 6 671 (granite,
++0.691) and 10 833 / 7 079 (pumice, -10.568); at 16 entries 23 614 /
+7 938 and 20 075 / 9 113. Both window structures grow roughly with the
+square of NUM_ENTRIES (granite's entry store 4.7k at 8, 16.6k at 16).
+
+Three things the table says beyond the numbers. (1) Standalone, the
+FR-FCFS arbiter does not close 75 MHz at 16 entries (-29.6 ns on a
+7 265-LUT pick cone); it closes on the board (+0.013) only because the
+harness constants let Vivado remove ~60 % of the core (19 982 to 8 235 on
+identical parameters). BANK_PICK closes standalone at the same
+configuration. (2) The pumice-vs-granite in-context numbers are within
+2 % of each other in LUTs; FR-FCFS carries 36 % more flops. The granite
+board figure is the Oct 17 FR-FCFS placed build (a peer's active area, no
+BANK_PICK bitstream exists yet). (3) LiteDRAM's controller proper is about
+one seventh of either; what it does not have is the window (CAMs / entry
+store) and the runtime policy engine, which is where the 2x concurrent-load
+advantage of section 5.1 comes from.
+
+### 5.4 Why BANK_PICK still beats FR-FCFS at one thread (measured, 2026-10-23)
+
+Section 5.2 is the multi-thread story (the page policy). The one-thread
+gaps are the pick core itself. Both cores were traced on the same proxy,
+one generator, txn 256, with every scheduler fire logged
+(`PERF_CMD_TRACE=1`, histograms of fire-to-fire gaps per command kind;
+`scratchpad/gaps/core{0,1}_{incremental,col_ilv,col_major}.json.gaps.json`).
+Floors from the test's own JEDEC model at this point: a same-bank row
+switch costs 6 cycles between reads and 8 between writes, i.e. 13 / 15
+cycles per 8-column row on col_major.
+
+| item | granite BANK_PICK | pumice FR-FCFS |
+|---|---|---|
+| col_major, ACT-to-ACT gap (cycles per 8-column row) | 13 / 15 (251 / 250 of 518) | 24 (490 of 518) |
+| col_major, column gap at the row switch (rd / wr) | 6 / 8 = the floor | 17 / 17 |
+| col_major, MB/s wr / rd | 310 / 356 | 194 / 194 |
+| col_ilv, ACT-to-ACT gap | 9 / 10 / 11 (162 / 213 / 114) | 13 / 15 (248 / 248) |
+| col_ilv, column gaps | 1 (1570) and 2 (472): a row command slips between columns | 1 (1791) then 6 / 8 (250): the stream stops for the row commands |
+| col_ilv, MB/s wr / rd | 459 / 451 | 306 / 353 |
+| incremental, gap at each row change | 2 | 6 / 8, PRE and ACT as separate transits (PRE-to-ACT 3) |
+| incremental, MB/s wr / rd | 568 / 563 | 551 / 550 |
+
+Reading. On col_major BANK_PICK sits exactly on the JEDEC floor: the last
+column of a row carries auto-precharge (CLOSE_ON_DRAIN is exact: no
+same-row entry behind it), the next-op hint lands the ACT and the first
+column as soon as tRP / tRCD open, so a row costs 13 (reads) or 15
+(writes) cycles. FR-FCFS pays 24: pumice carries CLOSE_ON_DRAIN=0
+(BUG-027: the arbiter's AP term treats the youngest in-window column as
+the last demand and chopped page-hit streams every NUM_ENTRIES bursts), so
+every row close is an explicit PRE, and each dependent hop (column to
+PRE, PRE to ACT, ACT to column) transits the three-stage pick pipeline
+with no lookahead: 11 cycles over the floor per row, pattern-independent.
+On col_ilv the banks are independent, and BANK_PICK's ACT/PRE-versus-column
+alternation issues the next bank's row commands inside the current bank's
+column run (gaps of 2 instead of 6 / 8), so a row costs 9 to 11 cycles;
+FR-FCFS runs the columns, stops, does the row commands, resumes: 13 / 15,
+the same bill it pays on col_major. Incremental is the same mechanism at
+a 1-in-85 row-change rate, hence 3 %.
+
+None of this is the page policy and none of it changes with tr_init. It is
+the design difference the Phase 2 core was built to remove (its header:
+"Without the hint every hop pays one cycle of pipeline latency (gap 9 vs
+the floor of 6 on col_major reads)"). Two levers exist for FR-FCFS if the
+research SKU is to keep that core: an exact close-on-drain predicate (the
+one BANK_PICK uses, "no same-row entry behind this column", instead of
+"youngest in window") so BUG-027 does not return, and a next-op hint /
+lookahead decode in `mc_cmd_arbiter`. Filed as pumice TASK-044.
+
+### 5.5 TASK-044: the FR-FCFS core on the JEDEC floor (2026-10-23)
+
+Section 5.4 measured the gap; this is the fix. Three changes in the
+arbiter, one in the page policy, one in the DV framework's DRAM model, and
+pumice's close-on-drain default back on. Design note:
+`vault/handbook/design/dependent-hops-forward-the-pick.md`.
+
+**Arbiter (`mc_cmd_arbiter`).** (1) The close-on-drain predicate counts a
+pending same-row entry (allocated, data not landed: the write CAM's
+`sch_pend_o`, now exported by the storage plane as `wr_sch_pend_o`) as
+demand, in the pre-pick last-column detect and the fire-stage sibling
+re-check -- the predicate BUG-027 lacked. (2) Dependent hops classify
+against the command being picked this cycle (`w_act_pick` / `w_pre_pick`),
+the one in the output register, or the one fired last cycle, instead of
+the two-cycle-stale bank image: a column is a hit behind its ACT, an ACT a
+candidate behind its PRE (`r_pre_closing`, the demand twin of
+`r_ap_closing`), and ACT candidates are guarded against ACTs only. (3) The
+fire stage is the only JEDEC authority: a column fires only onto the LIVE
+open row equal to its own (`w_col_row_ok`), and HOLDS, bounded, for tRCD
+(when the lookahead says it is within reach); an ACT holds while its bank
+is closed inside tRP / tRC or still draining an auto-precharge. A
+speculation whose premise never fired is dropped there.
+
+**Page policy (`mc_page_policy`).** The exact predicate still cannot see a
+burst whose AW has not arrived; a just-in-time stream lost a row per burst
+and six BUG-027 cells failed again (write ceiling: W channel stalled 98
+cycles; read-in-flight 0.81 beats/cycle). The close is now ARMED PER BANK
+(`drain_close_ok_o`): an ACT to a different row after a short-lived
+previous row (at most `DRAIN_ARM_MAX_COLS` = 8 columns) arms it, an ACT
+reopening the closed row disarms it, evidence is gathered only in the
+fixed_open timer mode (a close-page mode leaves every row "short", and the
+board-geometry paging sweep lost 17 % of its 8-bank window to one
+auto-precharge per bank before that gate), and RDA / WRA count as
+predicted closes for the BUG-030 mistake predictor.
+
+**DRAM model (RDS-DV 92ec9bd).** `_pending_auto_pre` called `on_precharge`
+at the column's own cycle and reported one phantom tRTP / tWR per RDA /
+WRA; `on_auto_precharge` now records the device's internal close at the
+earliest legal instant and times the next ACT's tRP against it. The
+write-side `tWR` / `tRP` counts that remain are the uncalibrated
+write-recovery anchor, pumice ISSUE-023 (256 per col_major run on BOTH
+cores before this work; reads are clean).
+
+**Hop by hop (col_major, one generator, cycles; floor = tRTP or tWR, tRP,
+tRCD = 2 / 4, 2, 2):**
+
+| hop | floor | before | exact close-on-drain | + forward paths | + pick-cycle classify (final) |
+|---|---|---|---|---|---|
+| last column to row close | 4 (wr) | 6 (PRE) | AP on the column | AP | AP |
+| close to ACT | tRP 2 (6 after the last WR with AP) | 6 | 9 | 8 | 6 |
+| ACT to first column | 2 | 5 | 5 | 3 | 2 |
+| row period rd / wr | 13 / 15 | 24 / 24 | 19 / 21 | 16 / 18 | 13 / 15 |
+
+**Same injectors and observers, pumice FR-FCFS, MB/s wr / rd, peak 600
+(granite BANK_PICK from 5.1 for reference):**
+
+| threads | family | pumice before (488a9654c) | pumice TASK-044 | granite BANK_PICK |
+|---|---|---|---|---|
+| 1 | incremental | 551 / 550 | 560 / 559 | 568 / 568 |
+| 1 | row_major | 564 / 565 | 568 / 569 | 576 / 572 |
+| 1 | col_interleave | 306 / 350 | 383 / 457 | 461 / 451 |
+| 1 | col_major | 195 / 194 | 309 / 351 | 311 / 358 |
+| 2 | incremental | 544 / 551 | 564 / 563 | 572 / 568 |
+| 2 | row_major | 556 / 556 | 571 / 569 | 570 / 571 |
+| 2 | col_interleave | 396 / 436 | 459 / 508 | 511 / 507 |
+| 2 | col_major | 307 / 350 | 384 / 456 | 420 / 459 |
+| 4 | incremental | 520 / 531 | 541 / 556 | 567 / 566 |
+| 4 | row_major | 523 / 534 | 544 / 558 | 570 / 568 |
+| 4 | col_interleave | 368 / 401 | 441 / 488 | 537 / 535 |
+| 4 | col_major | 307 / 354 | 384 / 459 | 461 / 460 |
+| 8 | incremental | 464 / 493 | 510 / 538 | 557 / 555 |
+| 8 | row_major | 464 / 492 | 511 / 539 | 558 / 557 |
+| 8 | col_interleave | 393 / 425 | 469 / 508 | 538 / 532 |
+| 8 | col_major | 307 / 354 | 385 / 460 | 460 / 458 |
+
+col_major at one thread is on the floor (13 / 15 cycles per row; the first
+row per bank still closes by the timer while the predictor gathers
+evidence). What is left against BANK_PICK: col_interleave writes (the
+per-bank core slips the next bank's row commands inside the column run;
+the arbiter's column-first class priority does not, and an alternation
+would chop the write runs pumice's perf-shape cells pin), and the
+multi-thread streaming residual (BUG-030's predictor re-learning after a
+real conflict, improved from 464 to 510 at eight threads by the faster
+hops, not closed).
+
+**Gates on the final text:** pumice 217 / 217 at both geometries (the
+close-drain probe no longer skips), the six BUG-027 cells and
+`test_pumice_close_drain` at both geometries, granite 6 / 1 xfailed,
+common-ip fub + macro 25 / 3 xfailed, formal `mc_cmd_arbiter` prove PASS,
+Verilator clean on pumice / scoria / andesite (area lint) and granite
+(elaborates, warning count unchanged at 200), RDS-DV `test_dfi_dram_state`
+46 / 46. Board (3.2): the first build of the forward paths missed the 75 MHz
+floor by 2.212 ns with the pick-cycle hints read from the pick comb; rebuilt
+from the pre-pick registers the floor holds at +0.001, 0 / 86 323, on the
+committed text (the thin positive margin is the design point).
 
 ## 6. Left for later phases
 
