@@ -1,0 +1,1682 @@
+[
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 6048609,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1886184,
+    "mbps": 249.5,
+    "lat_mean": 1705.0,
+    "lat_max": 11642,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1893635,
+    "mbps": 250.5,
+    "lat_mean": 1635.2,
+    "lat_max": 7529,
+    "out_max": 15
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 1498850,
+    "mbps": 396.5,
+    "lat_mean": 2632.9,
+    "lat_max": 9501,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 1510003,
+    "mbps": 399.4,
+    "lat_mean": 3271.1,
+    "lat_max": 7969,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 6046800,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1867818,
+    "mbps": 247.1,
+    "lat_mean": 1700.5,
+    "lat_max": 9351,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1882240,
+    "mbps": 249.0,
+    "lat_mean": 1629.8,
+    "lat_max": 7142,
+    "out_max": 13
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 1487656,
+    "mbps": 393.6,
+    "lat_mean": 2602.7,
+    "lat_max": 9337,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 1518540,
+    "mbps": 401.8,
+    "lat_mean": 3274.1,
+    "lat_max": 7322,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "clean",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 6045503,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1857774,
+    "mbps": 245.8,
+    "lat_mean": 1685.5,
+    "lat_max": 11583,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1873867,
+    "mbps": 248.0,
+    "lat_mean": 1601.5,
+    "lat_max": 5894,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 1494197,
+    "mbps": 395.5,
+    "lat_mean": 2604.5,
+    "lat_max": 10735,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 1508795,
+    "mbps": 399.3,
+    "lat_mean": 3270.7,
+    "lat_max": 7021,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3600625,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1014243,
+    "mbps": 225.3,
+    "lat_mean": 1039.7,
+    "lat_max": 6534,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1009019,
+    "mbps": 224.2,
+    "lat_mean": 1017.9,
+    "lat_max": 4425,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 821390,
+    "mbps": 365.0,
+    "lat_mean": 1691.4,
+    "lat_max": 6137,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 828080,
+    "mbps": 368.0,
+    "lat_mean": 1964.9,
+    "lat_max": 6199,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3588163,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995532,
+    "mbps": 222.0,
+    "lat_mean": 1019.7,
+    "lat_max": 8263,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 994785,
+    "mbps": 221.8,
+    "lat_mean": 1023.6,
+    "lat_max": 4632,
+    "out_max": 13
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 814303,
+    "mbps": 363.1,
+    "lat_mean": 1665.0,
+    "lat_max": 6170,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826893,
+    "mbps": 368.7,
+    "lat_mean": 1960.2,
+    "lat_max": 5939,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "bursts",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3609895,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995566,
+    "mbps": 220.6,
+    "lat_mean": 1023.9,
+    "lat_max": 6141,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 991684,
+    "mbps": 219.8,
+    "lat_mean": 1008.1,
+    "lat_max": 5632,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 830250,
+    "mbps": 368.0,
+    "lat_mean": 1681.1,
+    "lat_max": 7269,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826664,
+    "mbps": 366.4,
+    "lat_mean": 1968.9,
+    "lat_max": 5244,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "backpressure",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 5254716,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1014243,
+    "mbps": 154.4,
+    "lat_mean": 1675.4,
+    "lat_max": 15025,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1009019,
+    "mbps": 153.6,
+    "lat_mean": 1495.0,
+    "lat_max": 8365,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 821390,
+    "mbps": 250.1,
+    "lat_mean": 2806.8,
+    "lat_max": 15180,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 828080,
+    "mbps": 252.1,
+    "lat_mean": 2864.3,
+    "lat_max": 8798,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "backpressure",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 5167491,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995532,
+    "mbps": 154.1,
+    "lat_mean": 1660.1,
+    "lat_max": 10921,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 994785,
+    "mbps": 154.0,
+    "lat_mean": 1483.8,
+    "lat_max": 7746,
+    "out_max": 13
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 814303,
+    "mbps": 252.1,
+    "lat_mean": 2744.9,
+    "lat_max": 13473,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826893,
+    "mbps": 256.0,
+    "lat_mean": 2818.2,
+    "lat_max": 9837,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "backpressure",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 5235262,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995566,
+    "mbps": 152.1,
+    "lat_mean": 1640.3,
+    "lat_max": 13271,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 991684,
+    "mbps": 151.5,
+    "lat_mean": 1467.7,
+    "lat_max": 8515,
+    "out_max": 13
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 830250,
+    "mbps": 253.7,
+    "lat_mean": 2728.4,
+    "lat_max": 15866,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826664,
+    "mbps": 252.6,
+    "lat_mean": 2851.3,
+    "lat_max": 8719,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "reorder",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 4111407,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1014243,
+    "mbps": 197.4,
+    "lat_mean": 1240.5,
+    "lat_max": 7320,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1009019,
+    "mbps": 196.3,
+    "lat_mean": 1053.8,
+    "lat_max": 4337,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 821390,
+    "mbps": 319.7,
+    "lat_mean": 2379.6,
+    "lat_max": 7448,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 828080,
+    "mbps": 322.3,
+    "lat_mean": 2019.2,
+    "lat_max": 5773,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "reorder",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 4071692,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995532,
+    "mbps": 195.6,
+    "lat_mean": 1225.0,
+    "lat_max": 8161,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 994785,
+    "mbps": 195.5,
+    "lat_mean": 1043.1,
+    "lat_max": 4961,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 814303,
+    "mbps": 320.0,
+    "lat_mean": 2356.6,
+    "lat_max": 8001,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826893,
+    "mbps": 324.9,
+    "lat_mean": 1997.6,
+    "lat_max": 5837,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "reorder",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 4027502,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995566,
+    "mbps": 197.8,
+    "lat_mean": 1227.4,
+    "lat_max": 7390,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 991684,
+    "mbps": 197.0,
+    "lat_mean": 1027.8,
+    "lat_max": 4748,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 830250,
+    "mbps": 329.8,
+    "lat_mean": 2331.6,
+    "lat_max": 7213,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826664,
+    "mbps": 328.4,
+    "lat_mean": 2027.1,
+    "lat_max": 5274,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "narrow",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 4489103,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1063821,
+    "mbps": 189.6,
+    "lat_mean": 1557.8,
+    "lat_max": 13689,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1058086,
+    "mbps": 188.6,
+    "lat_mean": 1386.3,
+    "lat_max": 8197,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 968120,
+    "mbps": 345.1,
+    "lat_mean": 2185.7,
+    "lat_max": 9483,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 973881,
+    "mbps": 347.1,
+    "lat_mean": 2448.1,
+    "lat_max": 10306,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "narrow",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 4398962,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1045320,
+    "mbps": 190.1,
+    "lat_mean": 1519.2,
+    "lat_max": 11919,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1040356,
+    "mbps": 189.2,
+    "lat_mean": 1360.6,
+    "lat_max": 7536,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 960073,
+    "mbps": 349.2,
+    "lat_mean": 2167.7,
+    "lat_max": 8684,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 971177,
+    "mbps": 353.2,
+    "lat_mean": 2403.4,
+    "lat_max": 8095,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "narrow",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 4455768,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1046534,
+    "mbps": 187.9,
+    "lat_mean": 1547.7,
+    "lat_max": 11273,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1037858,
+    "mbps": 186.3,
+    "lat_mean": 1370.7,
+    "lat_max": 7276,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 976411,
+    "mbps": 350.6,
+    "lat_mean": 2189.8,
+    "lat_max": 11079,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 969490,
+    "mbps": 348.1,
+    "lat_mean": 2431.1,
+    "lat_max": 8282,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "single_id",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 5514991,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1014243,
+    "mbps": 147.1,
+    "lat_mean": 1282.3,
+    "lat_max": 6614,
+    "out_max": 11
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1009019,
+    "mbps": 146.4,
+    "lat_mean": 1132.7,
+    "lat_max": 4190,
+    "out_max": 13
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 821390,
+    "mbps": 238.3,
+    "lat_mean": 2952.1,
+    "lat_max": 7570,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 828080,
+    "mbps": 240.2,
+    "lat_mean": 2201.0,
+    "lat_max": 5713,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "single_id",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 5431332,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995532,
+    "mbps": 146.6,
+    "lat_mean": 1261.2,
+    "lat_max": 5632,
+    "out_max": 13
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 994785,
+    "mbps": 146.5,
+    "lat_mean": 1103.1,
+    "lat_max": 4526,
+    "out_max": 12
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 814303,
+    "mbps": 239.9,
+    "lat_mean": 2907.6,
+    "lat_max": 7257,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826893,
+    "mbps": 243.6,
+    "lat_mean": 2180.3,
+    "lat_max": 5581,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "single_id",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 5411538,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995566,
+    "mbps": 147.2,
+    "lat_mean": 1265.8,
+    "lat_max": 5764,
+    "out_max": 10
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 991684,
+    "mbps": 146.6,
+    "lat_mean": 1109.0,
+    "lat_max": 4917,
+    "out_max": 13
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 830250,
+    "mbps": 245.5,
+    "lat_mean": 2896.8,
+    "lat_max": 6582,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826664,
+    "mbps": 244.4,
+    "lat_mean": 2205.1,
+    "lat_max": 5526,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "errors",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3183182,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1014243,
+    "mbps": 254.9,
+    "lat_mean": 1032.8,
+    "lat_max": 8211,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1009019,
+    "mbps": 253.6,
+    "lat_mean": 893.5,
+    "lat_max": 4243,
+    "out_max": 15
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 821390,
+    "mbps": 412.9,
+    "lat_mean": 1806.1,
+    "lat_max": 9372,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 828080,
+    "mbps": 416.2,
+    "lat_mean": 1738.5,
+    "lat_max": 4834,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "errors",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3141665,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995532,
+    "mbps": 253.5,
+    "lat_mean": 1027.5,
+    "lat_max": 7166,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 994785,
+    "mbps": 253.3,
+    "lat_mean": 865.7,
+    "lat_max": 4362,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 814303,
+    "mbps": 414.7,
+    "lat_mean": 1764.9,
+    "lat_max": 8919,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826893,
+    "mbps": 421.1,
+    "lat_mean": 1715.3,
+    "lat_max": 5220,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "errors",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3144216,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995566,
+    "mbps": 253.3,
+    "lat_mean": 1052.5,
+    "lat_max": 8493,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 991684,
+    "mbps": 252.3,
+    "lat_mean": 861.8,
+    "lat_max": 5477,
+    "out_max": 15
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 830250,
+    "mbps": 422.5,
+    "lat_mean": 1808.6,
+    "lat_max": 7825,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826664,
+    "mbps": 420.7,
+    "lat_mean": 1715.7,
+    "lat_max": 4787,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "short",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 559701,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 50624,
+    "mbps": 72.4,
+    "lat_mean": 245.9,
+    "lat_max": 1133,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 50716,
+    "mbps": 72.5,
+    "lat_mean": 204.3,
+    "lat_max": 1043,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 50557,
+    "mbps": 144.5,
+    "lat_mean": 325.3,
+    "lat_max": 905,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 50686,
+    "mbps": 144.9,
+    "lat_mean": 319.1,
+    "lat_max": 975,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "short",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 562401,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 50472,
+    "mbps": 71.8,
+    "lat_mean": 244.8,
+    "lat_max": 1093,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 50759,
+    "mbps": 72.2,
+    "lat_mean": 203.5,
+    "lat_max": 900,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 50710,
+    "mbps": 144.3,
+    "lat_mean": 326.5,
+    "lat_max": 1082,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 50554,
+    "mbps": 143.8,
+    "lat_mean": 316.9,
+    "lat_max": 950,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "short",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 562458,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 50723,
+    "mbps": 72.1,
+    "lat_mean": 246.7,
+    "lat_max": 1138,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 50424,
+    "mbps": 71.7,
+    "lat_mean": 202.5,
+    "lat_max": 1110,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 50174,
+    "mbps": 142.7,
+    "lat_mean": 326.8,
+    "lat_max": 1001,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 50522,
+    "mbps": 143.7,
+    "lat_mean": 317.1,
+    "lat_max": 971,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3913572,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1063821,
+    "mbps": 217.5,
+    "lat_mean": 1279.7,
+    "lat_max": 8768,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1058086,
+    "mbps": 216.3,
+    "lat_mean": 1181.9,
+    "lat_max": 6623,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 968120,
+    "mbps": 395.8,
+    "lat_mean": 2081.7,
+    "lat_max": 9270,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 973881,
+    "mbps": 398.2,
+    "lat_mean": 2138.2,
+    "lat_max": 6383,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3863807,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1045320,
+    "mbps": 216.4,
+    "lat_mean": 1273.6,
+    "lat_max": 7409,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1040356,
+    "mbps": 215.4,
+    "lat_mean": 1160.5,
+    "lat_max": 6181,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 960073,
+    "mbps": 397.6,
+    "lat_mean": 2044.9,
+    "lat_max": 8924,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 971177,
+    "mbps": 402.2,
+    "lat_mean": 2112.5,
+    "lat_max": 6725,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "chaos",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3858590,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1046534,
+    "mbps": 217.0,
+    "lat_mean": 1280.3,
+    "lat_max": 7862,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1037858,
+    "mbps": 215.2,
+    "lat_mean": 1136.9,
+    "lat_max": 5492,
+    "out_max": 15
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 976411,
+    "mbps": 404.9,
+    "lat_mean": 2076.0,
+    "lat_max": 8988,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 969490,
+    "mbps": 402.0,
+    "lat_mean": 2107.2,
+    "lat_max": 7346,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "w_first",
+  "seed": 1,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3645693,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1014243,
+    "mbps": 222.6,
+    "lat_mean": 1062.9,
+    "lat_max": 6634,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 1009019,
+    "mbps": 221.4,
+    "lat_mean": 1074.0,
+    "lat_max": 5468,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 821390,
+    "mbps": 360.5,
+    "lat_mean": 1758.6,
+    "lat_max": 6415,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 828080,
+    "mbps": 363.4,
+    "lat_mean": 1992.8,
+    "lat_max": 6088,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "w_first",
+  "seed": 2,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3613902,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995532,
+    "mbps": 220.4,
+    "lat_mean": 1046.5,
+    "lat_max": 6755,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 994785,
+    "mbps": 220.2,
+    "lat_mean": 1050.4,
+    "lat_max": 4666,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 814303,
+    "mbps": 360.5,
+    "lat_mean": 1744.0,
+    "lat_max": 6568,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826893,
+    "mbps": 366.1,
+    "lat_mean": 1977.2,
+    "lat_max": 5372,
+    "out_max": 16
+   }
+  ]
+ },
+ {
+  "build": "bridge_bs_xil",
+  "profile": "w_first",
+  "seed": 3,
+  "txns": 20000,
+  "full_axi": false,
+  "ok": true,
+  "cycles": 3636351,
+  "reasons": "",
+  "ports": [
+   {
+    "port": "cpu",
+    "dir": "rd",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 995566,
+    "mbps": 219.0,
+    "lat_mean": 1056.0,
+    "lat_max": 6211,
+    "out_max": 16
+   },
+   {
+    "port": "cpu",
+    "dir": "wr",
+    "dw": 64,
+    "bursts": 20000,
+    "beats": 991684,
+    "mbps": 218.2,
+    "lat_mean": 1046.4,
+    "lat_max": 4853,
+    "out_max": 14
+   },
+   {
+    "port": "dma",
+    "dir": "rd",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 830250,
+    "mbps": 365.3,
+    "lat_mean": 1733.4,
+    "lat_max": 6802,
+    "out_max": 16
+   },
+   {
+    "port": "dma",
+    "dir": "wr",
+    "dw": 128,
+    "bursts": 20000,
+    "beats": 826664,
+    "mbps": 363.7,
+    "lat_mean": 1986.6,
+    "lat_max": 4914,
+    "out_max": 16
+   }
+  ]
+ }
+]

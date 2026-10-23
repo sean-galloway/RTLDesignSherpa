@@ -239,6 +239,11 @@ checks the blocks themselves against the model.
 | build-axi5, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 87,499 cycles (backpressure, dma rd) | `reports/board/bridge_bs_axi5_20261022_125132.csv` |
 | build-xil, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 17,907 cycles | `reports/board/bridge_bs_xil_20261022_125438.csv` |
 | build-xmix, large run, 32-bit latency: every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 20,623 cycles | `reports/board/bridge_bs_xmix_20261022_130936.csv` |
+| build-axi4, rebuilt with the `bridge_id_remap` timing fix (bridge f02b67aef): every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 64,981 cycles; routed WNS +0.001 ns | `reports/board/bridge_bs_axi4_20261022_215324.csv` |
+| build-axi3, rebuilt with the `bridge_id_remap` timing fix (bridge f02b67aef): every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 35,871 cycles; routed WNS +0.010 ns | `reports/board/bridge_bs_axi3_20261022_215615.csv` |
+| build-axi5, rebuilt with the `bridge_id_remap` timing fix (bridge f02b67aef): every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 80,096 cycles; routed WNS +0.011 ns | `reports/board/bridge_bs_axi5_20261022_215906.csv` |
+| build-xil, rebuilt with the `bridge_id_remap` timing fix (bridge f02b67aef): every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 15,866 cycles; routed WNS +0.050 ns | `reports/board/bridge_bs_xil_20261022_220154.csv` |
+| build-xmix, rebuilt with the `bridge_id_remap` timing fix (bridge f02b67aef): every profile x seeds 1-3, 20000 bursts | 30/30 PASS; max latency 20,337 cycles; routed WNS +0.086 ns | `reports/board/bridge_bs_xmix_20261022_220719.csv` |
 
 ## 8. Running
 

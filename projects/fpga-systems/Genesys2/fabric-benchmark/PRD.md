@@ -385,12 +385,17 @@ and B2 2026-10-16, leg A re-run 2026-10-22):
 | B1 (AXI Crossbar) | 2,688 | 10 | 2,190 | +4.658 | +0.088 | ~256 MHz |
 | B2 (SmartConnect) | 8,333 | 3,959 | 11,616 | +4.286 | +0.268 | ~268 MHz |
 
-The whole board design, post-route on 2026-10-16 (not rebuilt since; harness, STREAM, the injector and
-LiteDRAM are the same in every leg; the differences are the fabric's):
+The whole board design, post-route (B1 and B2 on 2026-10-16; leg A on 2026-10-16 and again on
+2026-10-22, after the CAM removal (bridge W12) and the `bridge_id_remap` timing fix; harness, STREAM,
+the injector and LiteDRAM are the same in every leg; the differences are the fabric's). The
+2026-10-22 leg A passed W2 12/12 (`reports/board/w2_a_20261022_221321.csv`, every point within
+0.3% of the 2026-10-16 run, 1,419-1,526 MB/s of 1,526 peak) and the DDR3 chain 48/48
+(`k3_a_20261022_221403.csv`):
 
 | Leg | WNS (ns) | WHS (ns) | LUTs | LUTRAM | FFs | BRAM | DSP |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| A (bridge) | +0.021 | +0.027 | 111,567 | 10,120 | 78,938 | 43.5 | 71 |
+| A (bridge), 2026-10-16 | +0.021 | +0.027 | 111,567 | 10,120 | 78,938 | 43.5 | 71 |
+| A (bridge), rebuilt 2026-10-22 | +0.519 | +0.020 | 87,904 | 7,070 | 72,157 | 43.5 | 71 |
 | B1 (AXI Crossbar) | +0.285 | +0.047 | 107,283 | 10,166 | 75,356 | 43.5 | 71 |
 | B2 (SmartConnect) | +0.378 | +0.023 | 112,491 | 12,009 | 83,133 | 43.5 | 71 |
 
