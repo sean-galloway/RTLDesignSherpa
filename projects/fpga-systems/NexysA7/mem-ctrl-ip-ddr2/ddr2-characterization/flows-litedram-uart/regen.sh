@@ -27,6 +27,10 @@ echo "[regen] board core (real A7DDRPHY) ..."
 "$GEN" "$CFG" --name litedram_core     --output-dir gen/board --no-compile-gateware $SW_FLAG
 echo "[regen] sim core (SDRAMPHYModel) ..."
 "$GEN" "$CFG" --sim --name litedram_core_sim --output-dir gen/sim --no-compile-gateware $SW_FLAG || true
+# The cores instantiate VexRiscv (standard variant) by name; Verilator needs
+# the source beside them (Vivado finds it through the generated tcl).
+VEX="$VENV/lib/python3.12/site-packages/pythondata_cpu_vexriscv/verilog/VexRiscv.v"
+[ -f "$VEX" ] && cp "$VEX" gen/sim/gateware/VexRiscv.v
 # Vendor the BIOS CPU beside the core: the generated litedram_core.tcl refers
 # to VexRiscv.v by an absolute path inside the LiteX venv, which does not
 # survive the venv being rebuilt (and /tmp being cleared).

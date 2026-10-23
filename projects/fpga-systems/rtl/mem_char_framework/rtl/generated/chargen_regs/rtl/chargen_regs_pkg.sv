@@ -5,7 +5,7 @@ package chargen_regs_pkg;
 
     localparam CHARGEN_REGS_DATA_WIDTH = 32;
     localparam CHARGEN_REGS_MIN_ADDR_WIDTH = 11;
-    localparam CHARGEN_REGS_SIZE = 'h418;
+    localparam CHARGEN_REGS_SIZE = 'h618;
 
     typedef struct {
         logic next;
@@ -135,8 +135,8 @@ package chargen_regs_pkg;
     } chargen_regs__BLOCK_ID__in_t;
 
     typedef struct {
-        chargen_regs__wr_gen_t__in_t WR_GEN[4];
-        chargen_regs__rd_gen_t__in_t RD_GEN[4];
+        chargen_regs__wr_gen_t__in_t WR_GEN[8];
+        chargen_regs__rd_gen_t__in_t RD_GEN[8];
         chargen_regs__DONE__in_t DONE;
         chargen_regs__ERRORS__in_t ERRORS;
         chargen_regs__GEN_CONFIG__in_t GEN_CONFIG;
@@ -292,6 +292,22 @@ package chargen_regs_pkg;
 
     typedef struct {
         logic value;
+    } chargen_regs__GO__wr_go4__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__GO__wr_go5__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__GO__wr_go6__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__GO__wr_go7__out_t;
+
+    typedef struct {
+        logic value;
     } chargen_regs__GO__rd_go0__out_t;
 
     typedef struct {
@@ -307,19 +323,43 @@ package chargen_regs_pkg;
     } chargen_regs__GO__rd_go3__out_t;
 
     typedef struct {
+        logic value;
+    } chargen_regs__GO__rd_go4__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__GO__rd_go5__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__GO__rd_go6__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__GO__rd_go7__out_t;
+
+    typedef struct {
         chargen_regs__GO__wr_go0__out_t wr_go0;
         chargen_regs__GO__wr_go1__out_t wr_go1;
         chargen_regs__GO__wr_go2__out_t wr_go2;
         chargen_regs__GO__wr_go3__out_t wr_go3;
+        chargen_regs__GO__wr_go4__out_t wr_go4;
+        chargen_regs__GO__wr_go5__out_t wr_go5;
+        chargen_regs__GO__wr_go6__out_t wr_go6;
+        chargen_regs__GO__wr_go7__out_t wr_go7;
         chargen_regs__GO__rd_go0__out_t rd_go0;
         chargen_regs__GO__rd_go1__out_t rd_go1;
         chargen_regs__GO__rd_go2__out_t rd_go2;
         chargen_regs__GO__rd_go3__out_t rd_go3;
+        chargen_regs__GO__rd_go4__out_t rd_go4;
+        chargen_regs__GO__rd_go5__out_t rd_go5;
+        chargen_regs__GO__rd_go6__out_t rd_go6;
+        chargen_regs__GO__rd_go7__out_t rd_go7;
     } chargen_regs__GO__out_t;
 
     typedef struct {
-        chargen_regs__wr_gen_t__out_t WR_GEN[4];
-        chargen_regs__rd_gen_t__out_t RD_GEN[4];
+        chargen_regs__wr_gen_t__out_t WR_GEN[8];
+        chargen_regs__rd_gen_t__out_t RD_GEN[8];
         chargen_regs__GO__out_t GO;
     } chargen_regs__out_t;
 endpackage

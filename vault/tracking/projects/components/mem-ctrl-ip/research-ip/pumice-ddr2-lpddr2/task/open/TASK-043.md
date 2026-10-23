@@ -11,7 +11,14 @@
 > task.
 
 **Priority:** P1 (owner's load point)
-**Status:** open
+**Status:** open -- sim side DONE 2026-10-22 (RDL widened to eight per
+direction, global block 0x400 -> 0x600, engine block gathers eight, granite
+harness / sim top / perf proxy carry NUM_GEN; `TEST_NUM_GEN=8` runs
+integrity-clean on both proxies -- numbers in the Phase 3 report §5.1).
+LiteDRAM's 2 / 4 / 8 exist too, through the new sim proxy
+(`test_litedram_char_perf.py`, same injectors and observers; report §5.1).
+Remaining: the board host GO / config loops at eight and the board
+bitstreams (pumice, granite, LiteDRAM share the block).
 **Owner:** TBD
 
 ## What blocks eight today

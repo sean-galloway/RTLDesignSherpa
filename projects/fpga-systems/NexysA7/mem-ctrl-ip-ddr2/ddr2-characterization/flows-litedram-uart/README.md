@@ -59,6 +59,25 @@ record is tagged `litedram`. The host waits on `STATUS.init_done`
 (`litedram_core.init_done`, asserted by the BIOS after calibration) before
 launching generators, as it waits on pumice's init.
 
+## Simulation (the three-way proxy)
+
+`ddr2_char_framework/dv/tests/test_litedram_char_perf.py` runs the same
+four families and `TEST_NUM_GEN` generators per direction as the pumice and
+granite perf proxies, through this flow's `char_engine_harness` (identical
+injectors, observers and host program) against LiteX's simulation core
+`gen/sim/gateware/litedram_core_sim.v` (LiteDRAMCore + SDRAMPHYModel +
+VexRiscv BIOS). The sim top is `ddr2_char_framework/dv/tb/litedram_char_uart_tb_top.sv`.
+
+`gen/` is not tracked. Before the first run: `./regen.sh --bios` (LiteX venv
++ RISC-V gcc; the venv patches it needs are in
+`2026-09-10_tooling_notes.md`, dated section). The test skips with that
+instruction when the ROM is empty.
+
+```bash
+cd ../../ddr2_char_framework/dv/tests
+TEST_NUM_GEN=4 TEST_TXN=256 python3 -m pytest test_litedram_char_perf.py -q
+```
+
 ## Block diagrams
 
 `docs/graphviz/litedram_rd_path.png` and `litedram_wr_path.png` (sources

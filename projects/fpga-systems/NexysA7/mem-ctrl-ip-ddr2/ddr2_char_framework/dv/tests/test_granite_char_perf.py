@@ -234,6 +234,7 @@ async def cocotb_test_granite_perf(dut):
     txn = int(os.environ.get("TEST_TXN", "256"), 0)
     gap = int(os.environ.get("TEST_GAP", "0"), 0)
     blen = int(os.environ.get("TEST_BURST_LEN", "8"), 0)
+    n_gen = int(os.environ.get("TEST_NUM_GEN", "1"), 0)
     clk_mhz = CLK_ACTUAL_HZ / 1e6
     fam_names = [f.strip() for f in
                  os.environ.get("TEST_FAMILIES",
@@ -247,22 +248,31 @@ async def cocotb_test_granite_perf(dut):
                                                   burst_len=blen, txn_count=txn),
                                       geom)
         beat_bytes = 1 << dc.AXI_SIZE_8
-        bytes_moved = txn * blen * beat_bytes
+        bytes_moved = txn * blen * beat_bytes * n_gen
         seed = 0xABCD1234
-        prog = dict(start_addr=0x0, burst_len=blen, txn_count=txn,
-                    stride_0=stride, wrap_mask_0=wrap, gap=gap,
-                    id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
-                    data_mode=True, lfsr_seed=seed,
-                    hash_seed0=seed, hash_seed1=seed ^ 0x9E3779B9,
-                    hash_seed2=seed ^ 0x85EBCA6B)
+
+        def prog_for(g):
+            # Same placement as the pumice proxy: generators one bank stride
+            # apart, so each thread owns a bank on the page-friendly families
+            # and the threads bank-interleave on col_major.
+            s = seed + 0x1000 * g
+            return dict(start_addr=g * geom.bank_stride, burst_len=blen,
+                        txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
+                        id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
+                        data_mode=True, lfsr_seed=s,
+                        hash_seed0=s, hash_seed1=s ^ 0x9E3779B9,
+                        hash_seed2=s ^ 0x85EBCA6B, gen=g)
+
+        mask = (1 << n_gen) - 1
 
         # write phase (meters/timer frozen around programming, window = stamps)
         drv.freeze_trace(True)
-        drv.program_wr_engine(**prog)
+        for g in range(n_gen):
+            drv.program_wr_engine(**prog_for(g))
         drv.clear_stats()
         drv.timer_clear()
         drv.freeze_trace(False)
-        drv.start_wr()
+        drv.start_wr(mask)
         wr_ok = pm.wait_engine(drv, "wr", timeout_s=120, ignore_error=True)
         drv.freeze_trace(True)
         tw = drv.timer()
@@ -270,11 +280,12 @@ async def cocotb_test_granite_perf(dut):
         wr_util = drv.perf_meters()["wr"].prod / max(wr_cycles, 1)
 
         # read phase
-        drv.program_rd_engine(**prog)
+        for g in range(n_gen):
+            drv.program_rd_engine(**prog_for(g))
         drv.clear_stats()
         drv.timer_clear()
         drv.freeze_trace(False)
-        drv.start_rd()
+        drv.start_rd(mask)
         rd_ok = pm.wait_engine(drv, "rd", timeout_s=120, ignore_error=True)
         drv.freeze_trace(True)
         tr = drv.timer()
@@ -284,7 +295,8 @@ async def cocotb_test_granite_perf(dut):
         mism = drv.beats_mismatched()
         return {
             "family": fam_key, "stride": stride, "wrap": wrap,
-            "txn": txn, "burst_len": blen, "bytes_moved": bytes_moved,
+            "txn": txn, "burst_len": blen, "num_gen": n_gen,
+            "bytes_moved": bytes_moved,
             "wr_ok": bool(wr_ok), "rd_ok": bool(rd_ok), "mismatched": int(mism),
             "wr_cycles": int(wr_cycles), "rd_cycles": int(rd_cycles),
             "wr_util": round(float(wr_util), 4), "rd_util": round(float(rd_util), 4),
@@ -294,8 +306,13 @@ async def cocotb_test_granite_perf(dut):
         }
 
     def prog():
-        out = {"clk_mhz": round(clk_mhz, 4), "t_refi": t_refi, "families": {}}
+        out = {"clk_mhz": round(clk_mhz, 4), "t_refi": t_refi, "num_gen": n_gen,
+               "dut": "granite", "families": {}}
         drv.soft_reset()
+        if n_gen > 1:
+            cfg = drv.sync_gen_config()
+            assert n_gen <= drv.num_gen, \
+                f"TEST_NUM_GEN={n_gen} but the harness has {drv.num_gen} ({cfg})"
         drv.set_dfi_cmd_delay(int(os.environ.get("TEST_CMD_DELAY", "0")))
         drv.set_controller_cfg(memtype=dc.MEMTYPE_DDR2,
                                t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")),
@@ -402,6 +419,7 @@ def test_granite_char_perf(request):
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
         "TEST_BURST_LEN": os.environ.get("TEST_BURST_LEN", "8"),
         "TEST_FAMILIES": os.environ.get("TEST_FAMILIES", "incremental,row_major,col_ilv,col_major"),
+        "TEST_NUM_GEN": os.environ.get("TEST_NUM_GEN", "1"),
         "TEST_CMD_DELAY": os.environ.get("TEST_CMD_DELAY", "0"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),
         "TEST_T_RDDATA_EN": os.environ.get("TEST_T_RDDATA_EN", "4"),
@@ -422,7 +440,9 @@ def test_granite_char_perf(request):
               "DRAM_BEAT_WIDTH": str(DRAM_BEAT_BYTES * 8),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEVICE_BYTES * 8),
               "DFI_RATE": str(DFI_RATE),
-              "DRAM_BL": str(DRAM_BL)}
+              "DRAM_BL": str(DRAM_BL),
+              # at least the macro default; TEST_NUM_GEN=8 builds eight injectors
+              "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0)))}
     compile_args = [
         "+define+USE_ASYNC_RESET",
         # expose internal scheduler signals to the gate/cmd trace probes

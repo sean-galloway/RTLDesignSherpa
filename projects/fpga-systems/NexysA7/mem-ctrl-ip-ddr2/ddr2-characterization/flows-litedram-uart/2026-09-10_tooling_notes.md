@@ -115,3 +115,45 @@ things it did not say, each of which cost an attempt:
 
 Generation is reproducible modulo the timestamp: two runs of the same config
 differ in 12 lines, all of them the date header and build ids.
+
+
+## 2026-10-22: the SIM core, with its BIOS, for the cocotb perf proxy
+
+`ddr2_char_framework/dv/tests/test_litedram_char_perf.py` runs the same
+injectors / observers / host program as the pumice and granite proxies
+against `gen/sim/gateware/litedram_core_sim.v` (LiteDRAMCore +
+SDRAMPHYModel). That core must carry the BIOS or it never raises
+`init_done` (the VexRiscv runs nothing, the DFI stays under software
+control). What it took, in order:
+
+* `pip install meson ninja` into the LiteX venv (`/mnt/data/tools/litex-venv`
+  today; `LITEX_VENV` overrides). The BIOS build calls meson.
+* The RISC-V gcc is Xilinx's: `PATH=/tools/Xilinx/2025.1/gnu/riscv/lin/riscv64-unknown-elf/bin:$PATH`.
+* **litex 2026.8 / litedram 2026.8 cannot compile the BIOS for a `--sim`
+  core as shipped**: `liblitedram/sdram.c` uses `SDRAM_PHY_DELAYS`
+  unguarded in the read-leveling scan, and `litedram/init.py` only emits
+  that define from `phy_settings.delays`, which SDRAMPHYModel lacks. The
+  venv's `sdram.c` carries a four-line guard (`#ifndef SDRAM_PHY_DELAYS
+  / #define SDRAM_PHY_DELAYS 1`) after its includes, commented with this
+  date. A fresh venv needs it again; upstream is the right place for it.
+* Two more venv patches, both in `litedram/gen.py` and both gated on
+  `isinstance(platform, SimPlatform)` so the board core is untouched:
+  the BIOS console runs at `clk/2` baud in simulation (the BIOS blocks on
+  its UART while printing; at 115200 the banner alone is ~100 ms of sim
+  time), and `SDRAM_TEST_DISABLE` is added as a constant (the BIOS memtest
+  and memspeed over 2 MiB of modelled DRAM through the CPU port are tens of
+  millions of cycles; the first smoke ran 118 ms of sim time, 8.85 M cycles,
+  without reaching `init_done`). Originals are beside the patched files'
+  scratch copies of that session; a fresh venv needs both again.
+* The generated verilog instantiates `VexRiscv` by name; `regen.sh` now
+  copies `VexRiscv.v` (standard variant) from pythondata beside the sim
+  core so a filelist can name it. The core's `$readmemh` paths are bare
+  file names: the perf test copies both `.init` files into its sim build
+  directory (the simulator's cwd).
+* `litedram_gen ... --sim` exits 1 AFTER writing the ROM-initialised core:
+  the last builder step imports `pythondata_misc_tapcfg` (the sim's JTAG
+  tap), which the venv lacks and the proxy does not need. The artefacts are
+  complete when `litedram_core_sim_rom.init` is non-empty (~57 KB) and the
+  core's `rom[0:N]` depth matches it (both carry the same timestamp).
+* `gen/` is not tracked: a fresh clone runs `regen.sh --bios` before the
+  LiteDRAM proxy, and the test skips with that instruction otherwise.

@@ -52,7 +52,10 @@ module granite_char_uart_tb_top
     parameter int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8,
     parameter int DFI_EN_WIDTH    = DFI_RATE,
     parameter int DFI_VALID_WIDTH = DFI_RATE,
-    parameter int CMD_MAX_DELAY   = 8
+    parameter int CMD_MAX_DELAY   = 8,
+    // Generators per direction (the injectors); the perf proxy raises it with
+    // TEST_NUM_GEN so eight per direction can run at once (owner, 2026-10-22).
+    parameter int NUM_GEN         = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -119,7 +122,8 @@ module granite_char_uart_tb_top
         .DRAM_DEVICE_WIDTH (DRAM_DEVICE_WIDTH),
         .DFI_RATE        (DFI_RATE),
         .DRAM_BL         (DRAM_BL),
-        .CMD_MAX_DELAY   (CMD_MAX_DELAY)
+        .CMD_MAX_DELAY   (CMD_MAX_DELAY),
+        .NUM_GEN         (NUM_GEN)
     ) u_dut (
         .aclk        (aclk),
         .aresetn     (aresetn),

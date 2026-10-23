@@ -81,7 +81,7 @@ module chargen_regs (
             logic FILL_PATTERN;
             logic STATUS;
             logic EXPECTED_CRC;
-        } WR_GEN[4];
+        } WR_GEN[8];
         struct {
             logic START_ADDR;
             logic STRIDE_0;
@@ -100,7 +100,7 @@ module chargen_regs (
             logic BEATS_MISM;
             logic STRAY_BEATS;
             logic ERR_BITS;
-        } RD_GEN[4];
+        } RD_GEN[8];
         logic GO;
         logic DONE;
         logic ERRORS;
@@ -114,7 +114,7 @@ module chargen_regs (
     logic [31:0] decoded_wr_biten;
 
     always_comb begin
-        for(int i0=0; i0<4; i0++) begin
+        for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.WR_GEN[i0].START_ADDR = cpuif_req_masked & (cpuif_addr == 11'h0 + (11)'(i0) * 11'h40);
             decoded_reg_strb.WR_GEN[i0].STRIDE_0 = cpuif_req_masked & (cpuif_addr == 11'h4 + (11)'(i0) * 11'h40);
             decoded_reg_strb.WR_GEN[i0].STRIDE_1 = cpuif_req_masked & (cpuif_addr == 11'h8 + (11)'(i0) * 11'h40);
@@ -130,7 +130,7 @@ module chargen_regs (
             decoded_reg_strb.WR_GEN[i0].STATUS = cpuif_req_masked & (cpuif_addr == 11'h30 + (11)'(i0) * 11'h40);
             decoded_reg_strb.WR_GEN[i0].EXPECTED_CRC = cpuif_req_masked & (cpuif_addr == 11'h34 + (11)'(i0) * 11'h40);
         end
-        for(int i0=0; i0<4; i0++) begin
+        for(int i0=0; i0<8; i0++) begin
             decoded_reg_strb.RD_GEN[i0].START_ADDR = cpuif_req_masked & (cpuif_addr == 11'h200 + (11)'(i0) * 11'h80);
             decoded_reg_strb.RD_GEN[i0].STRIDE_0 = cpuif_req_masked & (cpuif_addr == 11'h204 + (11)'(i0) * 11'h80);
             decoded_reg_strb.RD_GEN[i0].STRIDE_1 = cpuif_req_masked & (cpuif_addr == 11'h208 + (11)'(i0) * 11'h80);
@@ -149,11 +149,11 @@ module chargen_regs (
             decoded_reg_strb.RD_GEN[i0].STRAY_BEATS = cpuif_req_masked & (cpuif_addr == 11'h23c + (11)'(i0) * 11'h80);
             decoded_reg_strb.RD_GEN[i0].ERR_BITS = cpuif_req_masked & (cpuif_addr == 11'h240 + (11)'(i0) * 11'h80);
         end
-        decoded_reg_strb.GO = cpuif_req_masked & (cpuif_addr == 11'h400);
-        decoded_reg_strb.DONE = cpuif_req_masked & (cpuif_addr == 11'h404);
-        decoded_reg_strb.ERRORS = cpuif_req_masked & (cpuif_addr == 11'h408);
-        decoded_reg_strb.GEN_CONFIG = cpuif_req_masked & (cpuif_addr == 11'h410);
-        decoded_reg_strb.BLOCK_ID = cpuif_req_masked & (cpuif_addr == 11'h414);
+        decoded_reg_strb.GO = cpuif_req_masked & (cpuif_addr == 11'h600);
+        decoded_reg_strb.DONE = cpuif_req_masked & (cpuif_addr == 11'h604);
+        decoded_reg_strb.ERRORS = cpuif_req_masked & (cpuif_addr == 11'h608);
+        decoded_reg_strb.GEN_CONFIG = cpuif_req_masked & (cpuif_addr == 11'h610);
+        decoded_reg_strb.BLOCK_ID = cpuif_req_masked & (cpuif_addr == 11'h614);
     end
 
     // Pass down signals to next stage
@@ -275,7 +275,7 @@ module chargen_regs (
                     logic load_next;
                 } pattern;
             } FILL_PATTERN;
-        } WR_GEN[4];
+        } WR_GEN[8];
         struct {
             struct {
                 struct {
@@ -385,7 +385,7 @@ module chargen_regs (
                     logic load_next;
                 } pattern;
             } FILL_PATTERN;
-        } RD_GEN[4];
+        } RD_GEN[8];
         struct {
             struct {
                 logic next;
@@ -406,6 +406,22 @@ module chargen_regs (
             struct {
                 logic next;
                 logic load_next;
+            } wr_go4;
+            struct {
+                logic next;
+                logic load_next;
+            } wr_go5;
+            struct {
+                logic next;
+                logic load_next;
+            } wr_go6;
+            struct {
+                logic next;
+                logic load_next;
+            } wr_go7;
+            struct {
+                logic next;
+                logic load_next;
             } rd_go0;
             struct {
                 logic next;
@@ -419,6 +435,22 @@ module chargen_regs (
                 logic next;
                 logic load_next;
             } rd_go3;
+            struct {
+                logic next;
+                logic load_next;
+            } rd_go4;
+            struct {
+                logic next;
+                logic load_next;
+            } rd_go5;
+            struct {
+                logic next;
+                logic load_next;
+            } rd_go6;
+            struct {
+                logic next;
+                logic load_next;
+            } rd_go7;
         } GO;
     } field_combo_t;
     field_combo_t field_combo;
@@ -512,7 +544,7 @@ module chargen_regs (
                     logic [31:0] value;
                 } pattern;
             } FILL_PATTERN;
-        } WR_GEN[4];
+        } WR_GEN[8];
         struct {
             struct {
                 struct {
@@ -601,7 +633,7 @@ module chargen_regs (
                     logic [31:0] value;
                 } pattern;
             } FILL_PATTERN;
-        } RD_GEN[4];
+        } RD_GEN[8];
         struct {
             struct {
                 logic value;
@@ -617,6 +649,18 @@ module chargen_regs (
             } wr_go3;
             struct {
                 logic value;
+            } wr_go4;
+            struct {
+                logic value;
+            } wr_go5;
+            struct {
+                logic value;
+            } wr_go6;
+            struct {
+                logic value;
+            } wr_go7;
+            struct {
+                logic value;
             } rd_go0;
             struct {
                 logic value;
@@ -627,11 +671,23 @@ module chargen_regs (
             struct {
                 logic value;
             } rd_go3;
+            struct {
+                logic value;
+            } rd_go4;
+            struct {
+                logic value;
+            } rd_go5;
+            struct {
+                logic value;
+            } rd_go6;
+            struct {
+                logic value;
+            } rd_go7;
         } GO;
     } field_storage_t;
     field_storage_t field_storage;
 
-    for(genvar i0=0; i0<4; i0++) begin
+    for(genvar i0=0; i0<8; i0++) begin
         // Field: chargen_regs.WR_GEN[].START_ADDR.addr
         always_comb begin
             automatic logic [31:0] next_c;
@@ -1116,7 +1172,7 @@ module chargen_regs (
         end
         assign hwif_out.WR_GEN[i0].FILL_PATTERN.pattern.value = field_storage.WR_GEN[i0].FILL_PATTERN.pattern.value;
     end
-    for(genvar i0=0; i0<4; i0++) begin
+    for(genvar i0=0; i0<8; i0++) begin
         // Field: chargen_regs.RD_GEN[].START_ADDR.addr
         always_comb begin
             automatic logic [31:0] next_c;
@@ -1705,6 +1761,110 @@ module chargen_regs (
         end
     end
     assign hwif_out.GO.wr_go3.value = field_storage.GO.wr_go3.value;
+    // Field: chargen_regs.GO.wr_go4
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.wr_go4.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.wr_go4.value & ~decoded_wr_biten[4:4]) | (decoded_wr_data[4:4] & decoded_wr_biten[4:4]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.wr_go4.next = next_c;
+        field_combo.GO.wr_go4.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.wr_go4.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.wr_go4.load_next) begin
+                field_storage.GO.wr_go4.value <= field_combo.GO.wr_go4.next;
+            end
+        end
+    end
+    assign hwif_out.GO.wr_go4.value = field_storage.GO.wr_go4.value;
+    // Field: chargen_regs.GO.wr_go5
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.wr_go5.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.wr_go5.value & ~decoded_wr_biten[5:5]) | (decoded_wr_data[5:5] & decoded_wr_biten[5:5]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.wr_go5.next = next_c;
+        field_combo.GO.wr_go5.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.wr_go5.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.wr_go5.load_next) begin
+                field_storage.GO.wr_go5.value <= field_combo.GO.wr_go5.next;
+            end
+        end
+    end
+    assign hwif_out.GO.wr_go5.value = field_storage.GO.wr_go5.value;
+    // Field: chargen_regs.GO.wr_go6
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.wr_go6.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.wr_go6.value & ~decoded_wr_biten[6:6]) | (decoded_wr_data[6:6] & decoded_wr_biten[6:6]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.wr_go6.next = next_c;
+        field_combo.GO.wr_go6.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.wr_go6.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.wr_go6.load_next) begin
+                field_storage.GO.wr_go6.value <= field_combo.GO.wr_go6.next;
+            end
+        end
+    end
+    assign hwif_out.GO.wr_go6.value = field_storage.GO.wr_go6.value;
+    // Field: chargen_regs.GO.wr_go7
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.wr_go7.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.wr_go7.value & ~decoded_wr_biten[7:7]) | (decoded_wr_data[7:7] & decoded_wr_biten[7:7]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.wr_go7.next = next_c;
+        field_combo.GO.wr_go7.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.wr_go7.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.wr_go7.load_next) begin
+                field_storage.GO.wr_go7.value <= field_combo.GO.wr_go7.next;
+            end
+        end
+    end
+    assign hwif_out.GO.wr_go7.value = field_storage.GO.wr_go7.value;
     // Field: chargen_regs.GO.rd_go0
     always_comb begin
         automatic logic [0:0] next_c;
@@ -1809,6 +1969,110 @@ module chargen_regs (
         end
     end
     assign hwif_out.GO.rd_go3.value = field_storage.GO.rd_go3.value;
+    // Field: chargen_regs.GO.rd_go4
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.rd_go4.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.rd_go4.value & ~decoded_wr_biten[12:12]) | (decoded_wr_data[12:12] & decoded_wr_biten[12:12]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.rd_go4.next = next_c;
+        field_combo.GO.rd_go4.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.rd_go4.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.rd_go4.load_next) begin
+                field_storage.GO.rd_go4.value <= field_combo.GO.rd_go4.next;
+            end
+        end
+    end
+    assign hwif_out.GO.rd_go4.value = field_storage.GO.rd_go4.value;
+    // Field: chargen_regs.GO.rd_go5
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.rd_go5.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.rd_go5.value & ~decoded_wr_biten[13:13]) | (decoded_wr_data[13:13] & decoded_wr_biten[13:13]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.rd_go5.next = next_c;
+        field_combo.GO.rd_go5.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.rd_go5.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.rd_go5.load_next) begin
+                field_storage.GO.rd_go5.value <= field_combo.GO.rd_go5.next;
+            end
+        end
+    end
+    assign hwif_out.GO.rd_go5.value = field_storage.GO.rd_go5.value;
+    // Field: chargen_regs.GO.rd_go6
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.rd_go6.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.rd_go6.value & ~decoded_wr_biten[14:14]) | (decoded_wr_data[14:14] & decoded_wr_biten[14:14]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.rd_go6.next = next_c;
+        field_combo.GO.rd_go6.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.rd_go6.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.rd_go6.load_next) begin
+                field_storage.GO.rd_go6.value <= field_combo.GO.rd_go6.next;
+            end
+        end
+    end
+    assign hwif_out.GO.rd_go6.value = field_storage.GO.rd_go6.value;
+    // Field: chargen_regs.GO.rd_go7
+    always_comb begin
+        automatic logic [0:0] next_c;
+        automatic logic load_next_c;
+        next_c = field_storage.GO.rd_go7.value;
+        load_next_c = '0;
+        if(decoded_reg_strb.GO && decoded_req_is_wr) begin // SW write
+            next_c = (field_storage.GO.rd_go7.value & ~decoded_wr_biten[15:15]) | (decoded_wr_data[15:15] & decoded_wr_biten[15:15]);
+            load_next_c = '1;
+        end else begin // singlepulse clears back to 0
+            next_c = '0;
+            load_next_c = '1;
+        end
+        field_combo.GO.rd_go7.next = next_c;
+        field_combo.GO.rd_go7.load_next = load_next_c;
+    end
+    always_ff @(posedge clk) begin
+        if(rst) begin
+            field_storage.GO.rd_go7.value <= 1'h0;
+        end else begin
+            if(field_combo.GO.rd_go7.load_next) begin
+                field_storage.GO.rd_go7.value <= field_combo.GO.rd_go7.next;
+            end
+        end
+    end
+    assign hwif_out.GO.rd_go7.value = field_storage.GO.rd_go7.value;
 
     //--------------------------------------------------------------------------
     // Write response
@@ -1826,8 +2090,8 @@ module chargen_regs (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[128];
-    for(genvar i0=0; i0<4; i0++) begin
+    logic [31:0] readback_array[252];
+    for(genvar i0=0; i0<8; i0++) begin
         assign readback_array[i0 * 14 + 0][31:0] = (decoded_reg_strb.WR_GEN[i0].START_ADDR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].START_ADDR.addr.value : '0;
         assign readback_array[i0 * 14 + 1][23:0] = (decoded_reg_strb.WR_GEN[i0].STRIDE_0 && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].STRIDE_0.stride.value : '0;
         assign readback_array[i0 * 14 + 1][31:24] = '0;
@@ -1859,54 +2123,54 @@ module chargen_regs (
         assign readback_array[i0 * 14 + 12][31:3] = '0;
         assign readback_array[i0 * 14 + 13][31:0] = (decoded_reg_strb.WR_GEN[i0].EXPECTED_CRC && !decoded_req_is_wr) ? hwif_in.WR_GEN[i0].EXPECTED_CRC.crc.next : '0;
     end
-    for(genvar i0=0; i0<4; i0++) begin
-        assign readback_array[i0 * 17 + 56][31:0] = (decoded_reg_strb.RD_GEN[i0].START_ADDR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].START_ADDR.addr.value : '0;
-        assign readback_array[i0 * 17 + 57][23:0] = (decoded_reg_strb.RD_GEN[i0].STRIDE_0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].STRIDE_0.stride.value : '0;
-        assign readback_array[i0 * 17 + 57][31:24] = '0;
-        assign readback_array[i0 * 17 + 58][23:0] = (decoded_reg_strb.RD_GEN[i0].STRIDE_1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].STRIDE_1.stride.value : '0;
-        assign readback_array[i0 * 17 + 58][31:24] = '0;
-        assign readback_array[i0 * 17 + 59][31:0] = (decoded_reg_strb.RD_GEN[i0].WRAP_MASK_0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].WRAP_MASK_0.mask.value : '0;
-        assign readback_array[i0 * 17 + 60][31:0] = (decoded_reg_strb.RD_GEN[i0].WRAP_MASK_1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].WRAP_MASK_1.mask.value : '0;
-        assign readback_array[i0 * 17 + 61][7:0] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.burst_len.value : '0;
-        assign readback_array[i0 * 17 + 61][23:8] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.txn_count.value : '0;
-        assign readback_array[i0 * 17 + 61][27:24] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.gap.value : '0;
-        assign readback_array[i0 * 17 + 61][30:28] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value : '0;
-        assign readback_array[i0 * 17 + 61][31:31] = '0;
-        assign readback_array[i0 * 17 + 62][7:0] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_id.value : '0;
-        assign readback_array[i0 * 17 + 62][9:8] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.id_mode.value : '0;
-        assign readback_array[i0 * 17 + 62][12:10] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_size.value : '0;
-        assign readback_array[i0 * 17 + 62][14:13] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_burst.value : '0;
-        assign readback_array[i0 * 17 + 62][16:15] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.data_mode.value : '0;
-        assign readback_array[i0 * 17 + 62][17:17] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.hammer_en.value : '0;
-        assign readback_array[i0 * 17 + 62][23:18] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.max_outstanding.value : '0;
-        assign readback_array[i0 * 17 + 62][31:24] = '0;
-        assign readback_array[i0 * 17 + 63][31:0] = (decoded_reg_strb.RD_GEN[i0].LFSR_SEED && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].LFSR_SEED.seed.value : '0;
-        assign readback_array[i0 * 17 + 64][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED0.seed.value : '0;
-        assign readback_array[i0 * 17 + 65][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED1.seed.value : '0;
-        assign readback_array[i0 * 17 + 66][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED2 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED2.seed.value : '0;
-        assign readback_array[i0 * 17 + 67][31:0] = (decoded_reg_strb.RD_GEN[i0].FILL_PATTERN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].FILL_PATTERN.pattern.value : '0;
-        assign readback_array[i0 * 17 + 68][0:0] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.done.next : '0;
-        assign readback_array[i0 * 17 + 68][1:1] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.crc_valid.next : '0;
-        assign readback_array[i0 * 17 + 68][2:2] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.data_error.next : '0;
-        assign readback_array[i0 * 17 + 68][3:3] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.rresp_error.next : '0;
-        assign readback_array[i0 * 17 + 68][4:4] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.stray_beat_error.next : '0;
-        assign readback_array[i0 * 17 + 68][31:5] = '0;
-        assign readback_array[i0 * 17 + 69][31:0] = (decoded_reg_strb.RD_GEN[i0].ACTUAL_CRC && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].ACTUAL_CRC.crc.next : '0;
-        assign readback_array[i0 * 17 + 70][31:0] = (decoded_reg_strb.RD_GEN[i0].BEATS_MISM && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].BEATS_MISM.beats.next : '0;
-        assign readback_array[i0 * 17 + 71][31:0] = (decoded_reg_strb.RD_GEN[i0].STRAY_BEATS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STRAY_BEATS.beats.next : '0;
-        assign readback_array[i0 * 17 + 72][31:0] = (decoded_reg_strb.RD_GEN[i0].ERR_BITS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].ERR_BITS.beats.next : '0;
+    for(genvar i0=0; i0<8; i0++) begin
+        assign readback_array[i0 * 17 + 112][31:0] = (decoded_reg_strb.RD_GEN[i0].START_ADDR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].START_ADDR.addr.value : '0;
+        assign readback_array[i0 * 17 + 113][23:0] = (decoded_reg_strb.RD_GEN[i0].STRIDE_0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].STRIDE_0.stride.value : '0;
+        assign readback_array[i0 * 17 + 113][31:24] = '0;
+        assign readback_array[i0 * 17 + 114][23:0] = (decoded_reg_strb.RD_GEN[i0].STRIDE_1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].STRIDE_1.stride.value : '0;
+        assign readback_array[i0 * 17 + 114][31:24] = '0;
+        assign readback_array[i0 * 17 + 115][31:0] = (decoded_reg_strb.RD_GEN[i0].WRAP_MASK_0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].WRAP_MASK_0.mask.value : '0;
+        assign readback_array[i0 * 17 + 116][31:0] = (decoded_reg_strb.RD_GEN[i0].WRAP_MASK_1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].WRAP_MASK_1.mask.value : '0;
+        assign readback_array[i0 * 17 + 117][7:0] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.burst_len.value : '0;
+        assign readback_array[i0 * 17 + 117][23:8] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.txn_count.value : '0;
+        assign readback_array[i0 * 17 + 117][27:24] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.gap.value : '0;
+        assign readback_array[i0 * 17 + 117][30:28] = (decoded_reg_strb.RD_GEN[i0].BLEN_TXN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].BLEN_TXN.gap_shift.value : '0;
+        assign readback_array[i0 * 17 + 117][31:31] = '0;
+        assign readback_array[i0 * 17 + 118][7:0] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_id.value : '0;
+        assign readback_array[i0 * 17 + 118][9:8] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.id_mode.value : '0;
+        assign readback_array[i0 * 17 + 118][12:10] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_size.value : '0;
+        assign readback_array[i0 * 17 + 118][14:13] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.axi_burst.value : '0;
+        assign readback_array[i0 * 17 + 118][16:15] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.data_mode.value : '0;
+        assign readback_array[i0 * 17 + 118][17:17] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.hammer_en.value : '0;
+        assign readback_array[i0 * 17 + 118][23:18] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.max_outstanding.value : '0;
+        assign readback_array[i0 * 17 + 118][31:24] = '0;
+        assign readback_array[i0 * 17 + 119][31:0] = (decoded_reg_strb.RD_GEN[i0].LFSR_SEED && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].LFSR_SEED.seed.value : '0;
+        assign readback_array[i0 * 17 + 120][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED0.seed.value : '0;
+        assign readback_array[i0 * 17 + 121][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED1.seed.value : '0;
+        assign readback_array[i0 * 17 + 122][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED2 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED2.seed.value : '0;
+        assign readback_array[i0 * 17 + 123][31:0] = (decoded_reg_strb.RD_GEN[i0].FILL_PATTERN && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].FILL_PATTERN.pattern.value : '0;
+        assign readback_array[i0 * 17 + 124][0:0] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.done.next : '0;
+        assign readback_array[i0 * 17 + 124][1:1] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.crc_valid.next : '0;
+        assign readback_array[i0 * 17 + 124][2:2] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.data_error.next : '0;
+        assign readback_array[i0 * 17 + 124][3:3] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.rresp_error.next : '0;
+        assign readback_array[i0 * 17 + 124][4:4] = (decoded_reg_strb.RD_GEN[i0].STATUS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STATUS.stray_beat_error.next : '0;
+        assign readback_array[i0 * 17 + 124][31:5] = '0;
+        assign readback_array[i0 * 17 + 125][31:0] = (decoded_reg_strb.RD_GEN[i0].ACTUAL_CRC && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].ACTUAL_CRC.crc.next : '0;
+        assign readback_array[i0 * 17 + 126][31:0] = (decoded_reg_strb.RD_GEN[i0].BEATS_MISM && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].BEATS_MISM.beats.next : '0;
+        assign readback_array[i0 * 17 + 127][31:0] = (decoded_reg_strb.RD_GEN[i0].STRAY_BEATS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].STRAY_BEATS.beats.next : '0;
+        assign readback_array[i0 * 17 + 128][31:0] = (decoded_reg_strb.RD_GEN[i0].ERR_BITS && !decoded_req_is_wr) ? hwif_in.RD_GEN[i0].ERR_BITS.beats.next : '0;
     end
-    assign readback_array[124][7:0] = (decoded_reg_strb.DONE && !decoded_req_is_wr) ? hwif_in.DONE.wr_done.next : '0;
-    assign readback_array[124][15:8] = (decoded_reg_strb.DONE && !decoded_req_is_wr) ? hwif_in.DONE.rd_done.next : '0;
-    assign readback_array[124][31:16] = '0;
-    assign readback_array[125][7:0] = (decoded_reg_strb.ERRORS && !decoded_req_is_wr) ? hwif_in.ERRORS.wr_bresp_error.next : '0;
-    assign readback_array[125][15:8] = (decoded_reg_strb.ERRORS && !decoded_req_is_wr) ? hwif_in.ERRORS.rd_any_error.next : '0;
-    assign readback_array[125][31:16] = '0;
-    assign readback_array[126][7:0] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_wr_gen.next : '0;
-    assign readback_array[126][15:8] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_rd_gen.next : '0;
-    assign readback_array[126][23:16] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_banks.next : '0;
-    assign readback_array[126][31:24] = '0;
-    assign readback_array[127][31:0] = (decoded_reg_strb.BLOCK_ID && !decoded_req_is_wr) ? hwif_in.BLOCK_ID.id.next : '0;
+    assign readback_array[248][7:0] = (decoded_reg_strb.DONE && !decoded_req_is_wr) ? hwif_in.DONE.wr_done.next : '0;
+    assign readback_array[248][15:8] = (decoded_reg_strb.DONE && !decoded_req_is_wr) ? hwif_in.DONE.rd_done.next : '0;
+    assign readback_array[248][31:16] = '0;
+    assign readback_array[249][7:0] = (decoded_reg_strb.ERRORS && !decoded_req_is_wr) ? hwif_in.ERRORS.wr_bresp_error.next : '0;
+    assign readback_array[249][15:8] = (decoded_reg_strb.ERRORS && !decoded_req_is_wr) ? hwif_in.ERRORS.rd_any_error.next : '0;
+    assign readback_array[249][31:16] = '0;
+    assign readback_array[250][7:0] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_wr_gen.next : '0;
+    assign readback_array[250][15:8] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_rd_gen.next : '0;
+    assign readback_array[250][23:16] = (decoded_reg_strb.GEN_CONFIG && !decoded_req_is_wr) ? hwif_in.GEN_CONFIG.num_banks.next : '0;
+    assign readback_array[250][31:24] = '0;
+    assign readback_array[251][31:0] = (decoded_reg_strb.BLOCK_ID && !decoded_req_is_wr) ? hwif_in.BLOCK_ID.id.next : '0;
 
     // Reduce the array
     always_comb begin
@@ -1914,7 +2178,7 @@ module chargen_regs (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<128; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<252; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

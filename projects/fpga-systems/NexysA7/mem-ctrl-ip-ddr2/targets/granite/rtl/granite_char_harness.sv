@@ -53,7 +53,10 @@ module granite_char_harness
     parameter int DFI_STRB_WIDTH     = DFI_DATA_WIDTH / 8,
     parameter int CMD_MAX_DELAY      = 8,
     parameter int RD_RET_DEPTH       = 32,
-    parameter int RD_DBG_FIFO_DEPTH  = 0
+    parameter int RD_DBG_FIFO_DEPTH  = 0,
+    // injectors per direction in char_gen_unit (<= NUM_BANKS); eight per
+    // direction is the owner's load point (2026-10-22)
+    parameter int NUM_GEN            = 4
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -549,6 +552,7 @@ module granite_char_harness
         .WR_CAM_DEPTH      (8),
         .RD_RET_DEPTH      (RD_RET_DEPTH),
         .RD_DBG_FIFO_DEPTH (RD_DBG_FIFO_DEPTH),
+        .NUM_GEN           (NUM_GEN),
         .APB_ADDR_WIDTH    (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH    (APB_DATA_WIDTH)
     ) u_dut (

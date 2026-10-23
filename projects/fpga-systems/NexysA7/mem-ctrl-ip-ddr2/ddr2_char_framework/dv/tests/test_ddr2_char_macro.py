@@ -55,8 +55,12 @@ from tbclasses.pumice_top_tb import DDR2LPDDR2TopTB  # noqa: E402
 # The generators are programmed over APB, by register name, exactly as the host
 # programs them on the board -- see chargen_driver for why that equivalence is
 # the point rather than a nicety.
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                "..", "tbclasses"))
+# The driver lives with the shared char framework (mem_char_framework/dv/
+# tbclasses), where char_engine_block moved; the old ../tbclasses path here
+# imported nothing and the module failed to collect (found 2026-10-22).
+sys.path.insert(0, os.path.join(
+    "/mnt/data/github/RTLDesignSherpa",
+    "projects/fpga-systems/rtl/mem_char_framework/dv/tbclasses"))
 from chargen_driver import ChargenDriver  # noqa: E402
 from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
