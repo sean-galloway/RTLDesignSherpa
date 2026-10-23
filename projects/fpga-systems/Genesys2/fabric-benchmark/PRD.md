@@ -415,6 +415,16 @@ lowest free entry every cycle instead of decoding the request's slot, and
 the remap ID compare, `req_ok` into AW valid, and the slave's AW stage
 enable.
 
+Leg A on UltraScale+ (2026-10-23; `make ooc PART=xczu7ev-ffvc1156-2-e`,
+the same script and RTL, reports under `reports/ooc/xczu7ev-ffvc1156-2-e/`):
+it meets 2.7 ns at +0.060 ns and misses 2.5 ns by 0.190 ns, ~375 MHz, at
+8,328 LUT cells (7,986 CLB LUTs) and 6,721 FFs. The worst path is again 7
+levels, about 72% route: a master's AW skid into a crossbar AW slot enable
+at 2.5 ns, the subtractive slave's W owner pointer into the injector's W
+skid at 2.7 ns. Legs B1 and B2 were not run there -- their IP is generated
+for the Genesys 2 part -- so this is leg A's ceiling on a faster family,
+not a leg comparison.
+
 ### 8.2 W2 -- the fabric alone (5 runs per point)
 
 MiB/s, mean (min-max) over 5 runs; peak 1525.9 MiB/s (128 bit x 100 MHz,

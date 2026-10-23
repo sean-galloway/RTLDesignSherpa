@@ -12,6 +12,11 @@
 #   FB_LEG        bridge | xbar | sc                     (required)
 #   FB_PERIOD_NS  aclk period, default 10.0 (the 100 MHz board target)
 #   FB_OUT        report directory, default reports/ooc/<leg>/<period>ns
+#   FB_PART       another part instead of the Genesys 2's (e.g. an UltraScale+
+#                 one, for Fmax on a faster family); the default report
+#                 directory is then reports/ooc/<part>/<leg>/<period>ns, so a
+#                 run on another part never overwrites the board-part reports
+#                 and bin/parse_ooc.py, which tabulates the board part, skips it
 #
 # Only register-to-register paths are timed: the ports are unconstrained in an
 # OOC run, which is the comparison wanted (the harness registers every port
@@ -28,8 +33,11 @@ source "$area/rtl/generated/fb_vendor_ip_cfg/fb_vendor_ip_cfg.tcl"
 if {![info exists ::env(FB_LEG)]} { puts stderr "ERROR: FB_LEG is not set"; exit 1 }
 set leg    $::env(FB_LEG)
 set period [expr {[info exists ::env(FB_PERIOD_NS)] ? $::env(FB_PERIOD_NS) : 10.0}]
+set board_part [expr {![info exists ::env(FB_PART)] || $::env(FB_PART) eq $FB_PART}]
+if {!$board_part} { set FB_PART $::env(FB_PART) }
 set out    [expr {[info exists ::env(FB_OUT)] ? [file normalize $::env(FB_OUT)] \
-                 : "$area/reports/ooc/$leg/[format %.1f $period]ns"}]
+                 : $board_part ? "$area/reports/ooc/$leg/[format %.1f $period]ns" \
+                 : "$area/reports/ooc/$FB_PART/$leg/[format %.1f $period]ns"}]
 file mkdir $out
 
 create_project -in_memory -part $FB_PART
@@ -75,6 +83,12 @@ report_timing_summary -max_paths 10 -file "$out/timing_summary.txt"
 report_timing -max_paths 20 -nworst 1 -sort_by slack -file "$out/timing_worst.txt"
 
 # summary.txt: the numbers bin/parse_ooc.py tabulates, one key per line.
+# Counts are primitive cells, not sites. The group names differ by family
+# (7-series FLOP_LATCH / DMEM / CARRY4, UltraScale+ REGISTER / CLB LUTRAM and
+# SRL / CARRY8), so each filter names both. lutram is every LUT-as-memory
+# primitive -- distributed RAM AND shift registers, as 7-series DMEM counts
+# them -- and srl is the shift registers alone; carry4 counts CARRY8 on
+# UltraScale+ under the same key.
 proc util_of {type} {
     set n 0
     foreach c [get_cells -hierarchical -filter "IS_PRIMITIVE && PRIMITIVE_GROUP == $type"] { incr n }
@@ -93,12 +107,12 @@ puts $fh "worst_levels [get_property LOGIC_LEVELS $path]"
 puts $fh "worst_start [get_property STARTPOINT_PIN $path]"
 puts $fh "worst_end [get_property ENDPOINT_PIN $path]"
 puts $fh "lut [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ LUT*}]]"
-puts $fh "lutram [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && PRIMITIVE_GROUP == DMEM}]]"
+puts $fh "lutram [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && (PRIMITIVE_GROUP == DMEM || PRIMITIVE_SUBGROUP == LUTRAM || PRIMITIVE_SUBGROUP == SRL)}]]"
 puts $fh "srl [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ SRL*}]]"
-puts $fh "ff [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && PRIMITIVE_GROUP == FLOP_LATCH}]]"
+puts $fh "ff [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && (PRIMITIVE_GROUP == FLOP_LATCH || PRIMITIVE_GROUP == REGISTER)}]]"
 puts $fh "bram_tile [expr {[llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ RAMB36*}]] \
                         + 0.5 * [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ RAMB18*}]]}]"
-puts $fh "carry4 [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME == CARRY4}]]"
+puts $fh "carry4 [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && (REF_NAME == CARRY4 || REF_NAME == CARRY8)}]]"
 puts $fh "muxf [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ MUXF*}]]"
 close $fh
 puts "\nooc_fabric: $leg @ ${period} ns -> $out (WNS $wns ns)"

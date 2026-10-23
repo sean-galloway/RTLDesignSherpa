@@ -10,6 +10,7 @@
 #   make vendor-ip        fb_xbar, fb_sc (SmartConnect BD) -> fpga/ip/build
 #   make check-xbar       prove the leg B1 HDL wrapper == the IP-catalog crossbar
 #   make ooc LEG=sc PERIOD=4.0   one leg out of context -> reports/ooc/<leg>/<p>ns
+#   make ooc ... PART=xczu7ev-ffvc1156-2-e   on another part -> reports/ooc/<part>/<leg>/<p>ns
 #   make ooc-all          every leg at 10.0 ns (board target) and 4.0 ns (Fmax)
 #   make ooc-report       reports/ooc/README.md from every finished build
 #   make sim              the cocotb tests (dv/tests)
@@ -27,6 +28,8 @@ LEGS      := bridge xbar sc
 PERIODS   := 10.0 4.0
 LEG       ?= bridge
 PERIOD    ?= 10.0
+PART      ?=
+OOC_DIR    = $(AREA)/reports/ooc/$(if $(PART),$(PART)/)$(LEG)/$(PERIOD)ns
 
 .PHONY: help regen vendor-ip check-xbar ooc ooc-all ooc-report sim
 
@@ -45,8 +48,8 @@ check-xbar:
 	python3 $(AREA)/bin/check_xbar_params.py
 
 ooc:
-	mkdir -p $(AREA)/reports/ooc/$(LEG)/$(PERIOD)ns
-	cd $(AREA)/reports/ooc/$(LEG)/$(PERIOD)ns && FB_LEG=$(LEG) FB_PERIOD_NS=$(PERIOD) \
+	mkdir -p $(OOC_DIR)
+	cd $(OOC_DIR) && FB_LEG=$(LEG) FB_PERIOD_NS=$(PERIOD) $(if $(PART),FB_PART=$(PART)) \
 	    flock .lock $(VIVADO) -log ooc.log -source $(AREA)/fpga/tcl/ooc_fabric.tcl
 
 ooc-all:

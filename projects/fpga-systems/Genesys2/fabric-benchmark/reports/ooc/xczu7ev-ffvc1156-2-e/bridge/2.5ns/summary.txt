@@ -1,0 +1,15 @@
+leg bridge
+part xczu7ev-ffvc1156-2-e
+period_ns 2.5
+wns_ns -0.190
+whs_ns 0.039
+worst_levels 7
+worst_start u_fabric/u_stream_wr_adapter/u_timing_wrapper_wr/i_aw_channel/g_skid.g_slot[0].r_data_reg[0][60]/C
+worst_end u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/g_skid.g_slot[0].r_data_reg[0][62]/CE
+lut 8331
+lutram 0
+srl 0
+ff 6722
+bram_tile 0.0
+carry4 0
+muxf 16
