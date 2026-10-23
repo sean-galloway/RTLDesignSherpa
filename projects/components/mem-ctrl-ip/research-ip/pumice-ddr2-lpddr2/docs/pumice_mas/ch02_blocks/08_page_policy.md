@@ -39,11 +39,16 @@ All behaviour is selected at runtime by `PAGE_POLICY_CFG.policy_mode`;
 encoding 0 is the build default (bit-identical to the pre-engine controller,
 where `REFRESH_TUNING.page_policy_or` alone selects OPEN/CLOSE).
 
-**The reset value is 0.** Mode 3 (`fixed_open`) with
-`PAGE_TIMEOUT_CFG.tr_init = 2` is the measured best default and is RECOMMENDED,
-but the reset change was made and reverted on 2026-09-26 and is **blocked on
-BUG-003** (a short timeout precharges under an in-flight read; the read-return
-ring loses a ticket at `rd_gap >= 8`). The measurement below stands. Measured on the board at txn_scale=1000 it is
+**The reset is mode 3 (`fixed_open`) with `PAGE_TIMEOUT_CFG.tr_init = 0`
+(since 2026-10-23, TASK-048).** The idle timer is off; what mode 3 adds over
+open page is the predictor-armed close-on-drain (TASK-044/045): a bank whose
+rows change closes on the row's last visible column by auto-precharge. That
+does for a one-thread row walk what the timer did, and from two threads up
+the timer cost streaming writes (banks closed because their generator had
+nothing in the 16-entry window: 539 vs 555 MB/s at eight threads). The
+2026-09-27 measurement below was taken with `tr_init = 2`, BEFORE
+close-on-drain existed, and is kept as the record of why the timer was
+introduced. Measured on the board at txn_scale=1000 it is
 strictly dominant over open page across every scenario in the suite --
 +41.2% on `col_major_interleaved_bl4`, +8.6..11.6% on `col_major`, and exactly
 flat on `incremental`/`row_major` -- with no scenario regressing and zero
@@ -54,8 +59,8 @@ integrity failures.
 Two notes for anyone changing it:
 
 * `tr_init = 0` **disables the timeout entirely** (`f_tr`/`r_idle` below). It is
-  not a "build default" sentinel on this field, which is why the reset had to
-  move to 2 and not stay at 0.
+  not a "build default" sentinel on this field; the drain-close arming is keyed
+  on `policy_mode = 3`, not on the timer, so mode 3 with `tr_init = 0` keeps it.
 * TR=2 is a measured optimum, not a guess: TR=1 is identical on every scenario
   and TR=4 already falls back to open-page numbers on plain `col_major`, so the
   cliff sits between 2 and 4.
@@ -69,7 +74,7 @@ See `vault/tracking/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpdd
 | 0 | build default | Engine inert; legacy flat auto-precharge from `page_policy_or`. |
 | 1 | `static_open`  | Per-bank ap mask forced 0 — rows stay open. |
 | 2 | `static_close` | Per-bank ap mask forced 1 — every column op auto-precharges. |
-| 3 | `fixed_open`   | **THE SHIPPING DEFAULT** -- `policy_mode` resets to 3 and `tr_init` to 2 as of 2026-09-27. ap=0; per-bank idle countdown from `PAGE_TIMEOUT_CFG.tr_init`. On expiry the engine REQUESTS a close; the arbiter issues the PRE as its strictly lowest-priority pick. This background-precharge path is where the measured win comes from -- see "Mechanism" below. |
+| 3 | `fixed_open`   | **THE SHIPPING DEFAULT** -- `policy_mode` resets to 3 (2026-09-27) and `tr_init` to 0 (2026-10-23; it was 2 before). Armed close-on-drain by auto-precharge (TASK-044/045); per-bank idle countdown from `PAGE_TIMEOUT_CFG.tr_init` when non-zero. On expiry the engine REQUESTS a close; the arbiter issues the PRE as its strictly lowest-priority pick. This background-precharge path is where the measured win comes from -- see "Mechanism" below. |
 | 4..7 | *retired* | **Fall through to the build default** — engine inert, no auto-precharge. 4 (`adapt_time`) and 5 (`adapt_access`) RETIRED 2026-09-27 (TASK-014); 6 (`rbl_static`) and 7 (`rbl_dyn`) RETIRED 2026-09-26 (TASK-011). `policy_mode` is a 3-bit field, so software can still write these; the fallthrough is a contract, regressed by `test_page_predictor` and the scheduler matrix. |
 
 ## Decision interfaces to the arbiter

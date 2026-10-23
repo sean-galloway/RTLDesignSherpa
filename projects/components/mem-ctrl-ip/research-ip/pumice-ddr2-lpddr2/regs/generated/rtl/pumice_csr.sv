@@ -2266,7 +2266,7 @@ module pumice_csr (
     end
     always_ff @(posedge clk) begin
         if(rst) begin
-            field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= 8'h2;
+            field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= 8'h0;
         end else begin
             if(field_combo.PAGE_TIMEOUT_CFG.tr_init.load_next) begin
                 field_storage.PAGE_TIMEOUT_CFG.tr_init.value <= field_combo.PAGE_TIMEOUT_CFG.tr_init.next;

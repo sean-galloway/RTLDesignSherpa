@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-048** — never recycle a number, even when its item closed.
+**Next ID: TASK-049** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 37 | done (kept for history) |
+| [closed/](closed/) | 38 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -47,6 +47,13 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-048** — CLOSED 2026-10-23: `PAGE_TIMEOUT_CFG.tr_init` resets to 0
+  (was 2): the idle timer closed banks whose generator had nothing in the
+  window from two threads up (eight threads: 539 -> 555 MB/s streaming
+  writes, +8 on `mixed`, never more than 8 MB/s the other way in any cell);
+  the armed close-on-drain carries the one-thread row walk. Mode 3 keeps the
+  arming, so this is not open page.
 
 - **TASK-046** — CLOSED 2026-10-23: perf-proxy family `mixed` where the
   scheduling window matters (bank-paired threads one row apart, reads and

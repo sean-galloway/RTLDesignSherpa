@@ -65,8 +65,9 @@ equal streaming bandwidth. That is the deliberate research-controller trade.
    relaxing tFAW/tRRD 6/2 -> 1/1 leaves throughput and the counter
    bit-identical. Confirm every stall verdict by moving the knob.
 
-6. **The page policy's idle-timeout close is on at reset (policy_mode 3,
-   tr_init 2) and, until BUG-030's veto, closed rows that queued bursts still
+6. **The page policy's idle-timeout close WAS on at reset (policy_mode 3,
+   tr_init 2 until 2026-10-23; tr_init now resets to 0 and the armed
+   close-on-drain carries the row walk, TASK-048) and, until BUG-030's veto, closed rows that queued bursts still
    needed: one ACT per 8-column burst from three interleaved threads up,
    307 / 354 MB/s on FR-FCFS instead of 554 / 553, on every address family.
    Two knobs mislead here: the perf proxy's `TEST_PAGE_POLICY` writes the

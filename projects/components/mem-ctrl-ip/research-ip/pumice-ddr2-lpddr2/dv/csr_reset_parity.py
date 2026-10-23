@@ -73,8 +73,9 @@ FIELDS = {
     ),
     "PAGE_TIMEOUT_CFG.tr_init": dict(
         swept=(0, 1, 2, 4, 8), by=_SWEEP, oracle=_SWEEP_ORACLE,
-        note="Only meaningful for the background-close modes. Resets to 2, measured "
-             "as the best default in TASK-013 and blocked by BUG-003 until it was fixed.",
+        note="Only meaningful for the background-close modes. Resets to 0 since 2026-10-23 "
+             "(TASK-048: the armed close-on-drain replaced the timer; 2 was the TASK-013 optimum "
+             "before close-on-drain existed and cost 3 percent of streaming writes at eight threads).",
     ),
     "DFI_PHASE.bl": dict(
         drives="BL",

@@ -739,6 +739,34 @@ group), LUT 42 888 / FF 34 026, built text == committed text (md5 of the
 pumice_core filelist, 0 mismatches). The thin positive margin is the design
 point.
 
+### 5.7 TASK-048: the idle timer above one thread (2026-10-23)
+
+Owner: "Do 1." Timer on (`tr_init` 2, the 2026-09-27 reset) against timer
+off (`tr_init` 0), FR-FCFS core, TASK-045 text, wr / rd MB/s:
+
+| threads | incremental | row_major | col_interleave | col_major |
+|---|---|---|---|---|
+| 1, tr 2 / tr 0 | 564 / 559, 564 / 565 | 568 / 568, 574 / 562 | 458 / 501, 457 / 501 | 309 / 351, 309 / 348 |
+| 2, tr 2 / tr 0 | 566 / 564, 569 / 568 | 571 / 569, 568 / 569 | 506 / 525, 498 / 524 | 458 / 504, 458 / 502 |
+| 4, tr 2 / tr 0 | 557 / 566, 565 / 566 | 559 / 569, 567 / 568 | 495 / 522, 497 / 523 | 458 / 506, 457 / 505 |
+| 8, tr 2 / tr 0 | 539 / 560, 555 / 560 | 539 / 561, 556 / 561 | 516 / 537, 524 / 540 | 459 / 507, 458 / 507 |
+| 8, `mixed` total | 311 vs 319 with the knob written over APB; 311.3 again at the shipped reset path (the 8 is the concurrent start moving with the extra register write, not the timer) | | | |
+
+Never more than 8 MB/s worse in a cell, up to 17 better at eight threads,
+a tie at one; `tr_init` 8 is identical to 2 at eight threads, so the
+timer's length is not the variable, its existence is. The September board
+result that introduced it (+41 percent col_interleave at one thread) was
+measured before close-on-drain existed; the armed auto-precharge now does
+that job. Shipped: `tr_init` resets to 0 under `policy_mode` 3 (which keeps
+the drain-close arming, so this is open page plus the armed close, not open
+page). The proxy at the reset defaults, the pumice regression at both
+geometries and the board build on that text: proxy at the reset path (no CSR write) one thread 564 / 559, 568 / 568,
+457 / 501, 309 / 351 and eight threads 554 / 561, 556 / 562, 524 / 540,
+458 / 507 (mismatched 0 everywhere); pumice `make clean-all && make
+run-all-func-both` 218 / 218 at both geometries; pumice area lint clean;
+board 75 MHz +0.019 ns, 0 / 108 344 endpoints, LUT 42 888 / FF 34 026 (a
+reset constant moves no logic), built text == committed text.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):
@@ -751,9 +779,8 @@ point.
   watch is the same signature: `PERF_PICK_TRACE` cycles with `fire=1
   topre=1 cls_ok=0`, i.e. a free slot handed to the idle-timeout close.
 - **The idle-timeout close under streaming load** was found and fixed the
-  same night: pumice BUG-030, section 5.2. What remains is the default
-  itself (`tr_init` 2 was tuned on one thread) -- a policy question for the
-  paging modes, with the one-thread numbers in 5.2 as the trade.
+  same night: pumice BUG-030, section 5.2. The default itself (`tr_init` 2,
+  tuned on one thread) is RESOLVED in 5.7 / TASK-048: it resets to 0.
 - 100 MHz on the controller alone is 0.5 ns away on aclk with two endpoints
   in the arbiter (route-dominated) and 21 in the storage plane's snarf match
   -> read insert arc; the harness build cannot show it. A floorplanned

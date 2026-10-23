@@ -353,9 +353,14 @@ in-system.
 
 **The "reset = baseline, bit-identical" rule has ONE deliberate exception, and it
 SHIPPED on 2026-09-27.** `PAGE_POLICY_CFG.policy_mode` resets to **3
-(`fixed_open`)** with `PAGE_TIMEOUT_CFG.tr_init = 2`. The two must move together:
-`tr_init = 0` disables the timeout, so mode 3 at the old reset would have been
-open page under another name.
+(`fixed_open`)**. `PAGE_TIMEOUT_CFG.tr_init` reset to 2 with it until
+2026-10-23 and resets to **0** since (TASK-048): the idle timer is off, and
+mode 3 is open page plus the predictor-armed close-on-drain (TASK-044/045),
+which is what the timer bought on a one-thread row walk and what it cost from
+two threads up (banks closed because their generator had nothing in the
+window: 539 vs 555 MB/s streaming writes at eight threads, no cell more than
+8 MB/s the other way). Before close-on-drain existed, mode 3 with tr_init 0
+would have been open page under another name; it no longer is.
 
 The change was made and reverted once before, on 2026-09-26, blocked on BUG-003.
 That diagnosis was itself wrong ("a short timeout precharges under an in-flight

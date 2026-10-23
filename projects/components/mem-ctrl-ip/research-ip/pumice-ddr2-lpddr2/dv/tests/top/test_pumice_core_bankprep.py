@@ -19,7 +19,7 @@ Knobs (environment):
   TEST_SCHED      "sched_access_pref_i=2,sched_col_sel_i=0" style list of
                   core inputs to set after bring-up (default: none)
   TEST_PAGE_MODE  page_mode_i (default 3 = fixed_open, the CSR reset)
-  TEST_TR_INIT    page_tr_init_i (default 2, the CSR reset)
+  TEST_TR_INIT    page_tr_init_i (default 0, the CSR reset since TASK-048)
   TEST_ROWS       rows per phase (default 128)
   TEST_BANKS      banks to hop over (default 8; 1 = col_major shape)
   ARB_TRACE_START / ARB_TRACE_N
@@ -168,7 +168,7 @@ async def cocotb_test_pumice_core_bankprep(dut):
     if 'b' not in core._BFM:
         core._masters_init(dut)
     dut.page_mode_i.value = int(os.environ.get("TEST_PAGE_MODE", "3"), 0)
-    dut.page_tr_init_i.value = int(os.environ.get("TEST_TR_INIT", "2"), 0)
+    dut.page_tr_init_i.value = int(os.environ.get("TEST_TR_INIT", "0"), 0)
     sched = _sched_knobs()
     for k, v in sched.items():
         getattr(dut, k).value = v
