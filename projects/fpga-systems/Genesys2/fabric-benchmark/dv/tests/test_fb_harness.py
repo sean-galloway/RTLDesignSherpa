@@ -82,7 +82,7 @@ async def cocotb_test_fb_harness(dut):
 def generate_test_params():
     reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
     level = {'GATE': 'gate', 'FUNC': 'func', 'FULL': 'full'}.get(reg, 'func')
-    return [(leg, level) for leg in ('bridge', 'xbar')]
+    return [(leg, level) for leg in ('bridge', 'bridge_plain', 'xbar')]
 
 
 @pytest.mark.parametrize("leg, test_level", generate_test_params())

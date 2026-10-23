@@ -8,6 +8,9 @@ harness instantiates a module called `fb_data_fabric` and each leg's filelist
 decides which file defines it:
 
     leg A   bridge   wraps the bridge generator's `bridge_fb_data`
+    leg A2  bridge_plain  wraps `bridge_fb_data_plain`: the same TOML with
+                     preset = "xbar" (no port stages, no rate buffer, no ID
+                     remap), derived by bin/regen.sh
     leg B1  xbar     wraps Xilinx `axi_crossbar_v2_1_37_axi_crossbar`
     leg B2  sc       wraps `fb_sc_wrapper`, the IP-integrator block design
                      around Xilinx SmartConnect (fpga/tcl/vendor_ip.tcl)
@@ -26,9 +29,9 @@ bridge's measured limits, never deeper:
 
 The wrapper port set carries no USER and no REGION: neither leg's slaves use
 region. Slave-side IDs are SID bits in every leg, slot = TOML master order:
-{master slot, master id} in leg B1; {master slot, remap slot} zero-extended
-in leg A, whose bridge remaps IDs wider than a slot (bridge TASK-018) -- the
-wrapper sizes those ports from bridge_fb_data_pkg::XBAR_ID_WIDTH.
+{master slot, master id} in legs B1 and A2; {master slot, remap slot}
+zero-extended in leg A, whose bridge remaps IDs wider than a slot (bridge
+TASK-018) -- the wrapper sizes those ports from <bridge>_pkg::XBAR_ID_WIDTH.
 
 SmartConnect carries no ID to its slaves: the ID width at every MI port is
 read-only and 0 (it orders responses itself and expects in-order slaves). So
@@ -46,6 +49,7 @@ SmartConnect block design (ports, windows, connectivity as exclusions).
 
 Output (generated, never hand-edited):
     rtl/generated/fb_data_fabric_bridge/fb_data_fabric.sv
+    rtl/generated/fb_data_fabric_bridge_plain/fb_data_fabric.sv
     rtl/generated/fb_data_fabric_xbar/fb_data_fabric.sv
     rtl/generated/fb_data_fabric_sc/fb_data_fabric.sv
     rtl/generated/fb_vendor_ip_cfg/fb_vendor_ip_cfg.tcl
@@ -64,7 +68,7 @@ from pathlib import Path
 AREA = Path(__file__).resolve().parent.parent
 CONFIG = AREA / "rtl/bridges/configs/bridge_fb_data.toml"
 OUT = AREA / "rtl/generated"
-BRIDGE_PKG = AREA / "rtl/bridges/generated/bridge_fb_data/bridge_fb_data_pkg.sv"
+BRIDGES = AREA / "rtl/bridges/generated"
 
 ACCEPTANCE = 16
 ISSUING = 16
@@ -199,22 +203,25 @@ HEADER = """\
 """
 
 
-def bridge_xbar_id_width() -> int:
+def bridge_xbar_id_width(bridge: str) -> int:
     """The bridge's slave-side ID width, from its generated package. Since
     bridge TASK-018 it is {master index, remap slot} and narrower than the
-    wrapper's {slot, master id} whenever a master's ID is wider than a slot."""
-    m = re.search(r"localparam int XBAR_ID_WIDTH\s*=\s*(\d+)", BRIDGE_PKG.read_text())
+    wrapper's {slot, master id} whenever a master's ID is wider than a slot;
+    with id_remap off (preset = "xbar") it is the full {slot, master id}."""
+    pkg = BRIDGES / bridge / f"{bridge}_pkg.sv"
+    m = re.search(r"localparam int XBAR_ID_WIDTH\s*=\s*(\d+)", pkg.read_text())
     if not m:
-        sys.exit(f"gen_fabric_legs: no XBAR_ID_WIDTH in {BRIDGE_PKG}")
+        sys.exit(f"gen_fabric_legs: no XBAR_ID_WIDTH in {pkg}")
     return int(m.group(1))
 
 
-def emit_bridge(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> str:
+def emit_bridge(masters: list[Port], slaves: list[Port], w: dict[str, int],
+                bridge: str, leg: str) -> str:
     # Every leg presents the same slave-side ID width (sid). The bridge's own
     # is fiw <= sid: request IDs are zero-extended to sid, response IDs come
     # back as their low fiw bits (a slave echoes the request ID, so the upper
     # bits are the zeros put there). Explicit, so no port is width-mismatched.
-    fiw = bridge_xbar_id_width()
+    fiw = bridge_xbar_id_width(bridge)
     if fiw > w["sid"]:
         sys.exit(f"gen_fabric_legs: bridge XBAR_ID_WIDTH {fiw} exceeds the slave ID width {w['sid']}")
     nets, assigns = [], []
@@ -251,14 +258,14 @@ def emit_bridge(masters: list[Port], slaves: list[Port], w: dict[str, int]) -> s
     conns += ["        .unmapped_clear(1'b0)", "        .unmapped_irq()",
               "        .unmapped_addr()", "        .unmapped_count()"]
     body = ",\n".join(conns)
-    return (HEADER.format(leg="leg A: bridge-generated crossbar")
+    return (HEADER.format(leg=leg)
             + "\n`timescale 1ns / 1ps\n\nmodule fb_data_fabric (\n"
             + "\n".join(port_list(masters, slaves, w))
             + "\n);\n\n"
             + (f"    // Bridge slave-side ID width ({{master index, remap slot}}), {fiw} of {w['sid']}\n"
-               "    localparam int FIW = bridge_fb_data_pkg::XBAR_ID_WIDTH;\n"
+               f"    localparam int FIW = {bridge}_pkg::XBAR_ID_WIDTH;\n"
                + "\n".join(nets) + "\n" + "\n".join(assigns) + "\n\n" if nets else "")
-            + "    bridge_fb_data u_fabric (\n" + body + "\n    );\n\nendmodule : fb_data_fabric\n")
+            + f"    {bridge} u_fabric (\n" + body + "\n    );\n\nendmodule : fb_data_fabric\n")
 
 
 def hexv(values: list[int], bits: int) -> str:
@@ -511,7 +518,10 @@ def main() -> int:
     masters, slaves, conn = load(args.config)
     w = widths(masters, slaves)
     outputs = [(f"fb_data_fabric_{leg}", "fb_data_fabric.sv", text) for leg, text in (
-        ("bridge", emit_bridge(masters, slaves, w)),
+        ("bridge", emit_bridge(masters, slaves, w, "bridge_fb_data",
+                               "leg A: bridge-generated crossbar")),
+        ("bridge_plain", emit_bridge(masters, slaves, w, "bridge_fb_data_plain",
+                                     'leg A2: bridge-generated crossbar, preset = "xbar"')),
         ("xbar", emit_xbar(masters, slaves, w, conn)),
         ("sc", emit_sc(masters, slaves, w)))]
     outputs.append(("fb_vendor_ip_cfg", "fb_vendor_ip_cfg.tcl", emit_ip_cfg(masters, slaves, w, conn)))

@@ -1,0 +1,1265 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Oct 23 04:17:52 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/bridge_plain/4.0ns/timing_worst.txt
+| Design       : fb_data_fabric
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.068ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[10][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.904ns  (logic 0.752ns (19.263%)  route 3.152ns (80.737%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 f  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 f  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 f  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.467     3.365    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X31Y59         LUT6 (Prop_lut6_I1_O)        0.043     3.408 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_4/O
+                         net (fo=8, routed)           0.719     4.127    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_4_n_0
+    SLICE_X43Y54         LUT6 (Prop_lut6_I3_O)        0.043     4.170 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[10][4]_i_2__0/O
+                         net (fo=1, routed)           0.228     4.398    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[10][4]_0
+    SLICE_X43Y53         LUT6 (Prop_lut6_I1_O)        0.043     4.441 r  u_fabric/u_inj_wr_adapter/aw_idt_cnt[10][4]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.441    u_fabric/u_inj_wr_adapter/aw_idt_cnt[10][4]_i_1__0_n_0
+    SLICE_X43Y53         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[10][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X43Y53         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[10][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X43Y53         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[10][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.441    
+  -------------------------------------------------------------------
+                         slack                                  0.068    
+
+Slack (MET) :             0.125ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[0][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.846ns  (logic 0.757ns (19.680%)  route 3.089ns (80.320%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 r  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 r  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 r  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 r  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 r  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.554     2.940    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.983 r  u_fabric/u_xbar/stream_wr_bid[0]_INST_0/O
+                         net (fo=31, routed)          0.606     3.589    u_fabric/u_xbar/ddr_bid[0]_8
+    SLICE_X29Y55         LUT5 (Prop_lut5_I0_O)        0.043     3.632 f  u_fabric/u_xbar/aw_idt_cnt[0][3]_i_3__0/O
+                         net (fo=7, routed)           0.367     3.999    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[0][0]_2
+    SLICE_X26Y54         LUT6 (Prop_lut6_I0_O)        0.043     4.042 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[0][4]_i_3/O
+                         net (fo=1, routed)           0.299     4.340    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[0][4]_1
+    SLICE_X26Y54         LUT6 (Prop_lut6_I5_O)        0.043     4.383 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[0][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.383    u_fabric/u_stream_wr_adapter/aw_idt_cnt[0][4]_i_1_n_0
+    SLICE_X26Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[0][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X26Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[0][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X26Y54         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[0][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.383    
+  -------------------------------------------------------------------
+                         slack                                  0.125    
+
+Slack (MET) :             0.139ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[3][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.833ns  (logic 0.757ns (19.750%)  route 3.076ns (80.250%))
+  Logic Levels:           9  (LUT6=7 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.557     2.943    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.986 f  u_fabric/u_xbar/stream_wr_bid[3]_INST_0/O
+                         net (fo=31, routed)          0.725     3.711    u_fabric/u_xbar/ddr_bid[3]_0
+    SLICE_X28Y55         LUT6 (Prop_lut6_I1_O)        0.043     3.754 f  u_fabric/u_xbar/aw_idt_cnt[3][4]_i_5/O
+                         net (fo=2, routed)           0.339     4.093    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[3][4]
+    SLICE_X27Y54         LUT6 (Prop_lut6_I5_O)        0.043     4.136 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[3][4]_i_3/O
+                         net (fo=1, routed)           0.191     4.327    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[3][4]_2
+    SLICE_X28Y54         LUT6 (Prop_lut6_I5_O)        0.043     4.370 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[3][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.370    u_fabric/u_stream_wr_adapter/aw_idt_cnt[3][4]_i_1_n_0
+    SLICE_X28Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[3][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X28Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[3][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X28Y54         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[3][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.370    
+  -------------------------------------------------------------------
+                         slack                                  0.139    
+
+Slack (MET) :             0.147ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[1][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.825ns  (logic 0.858ns (22.433%)  route 2.967ns (77.567%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.554     2.940    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.983 f  u_fabric/u_xbar/stream_wr_bid[0]_INST_0/O
+                         net (fo=31, routed)          0.573     3.557    u_fabric/u_xbar/ddr_bid[0]_8
+    SLICE_X32Y59         LUT5 (Prop_lut5_I0_O)        0.051     3.608 f  u_fabric/u_xbar/aw_idt_cnt[1][3]_i_2/O
+                         net (fo=6, routed)           0.344     3.951    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[1][2]_0
+    SLICE_X27Y55         LUT6 (Prop_lut6_I5_O)        0.136     4.087 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[1][4]_i_2/O
+                         net (fo=1, routed)           0.231     4.319    u_fabric/u_stream_wr_adapter/aw_idt_cnt[1][4]_i_2_n_0
+    SLICE_X27Y55         LUT6 (Prop_lut6_I4_O)        0.043     4.362 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[1][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.362    u_fabric/u_stream_wr_adapter/aw_idt_cnt[1][4]_i_1_n_0
+    SLICE_X27Y55         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[1][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X27Y55         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[1][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X27Y55         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[1][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.362    
+  -------------------------------------------------------------------
+                         slack                                  0.147    
+
+Slack (MET) :             0.163ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][3]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.809ns  (logic 0.853ns (22.395%)  route 2.956ns (77.605%))
+  Logic Levels:           9  (LUT5=2 LUT6=5 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 r  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 r  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.133     3.031    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X29Y61         LUT6 (Prop_lut6_I4_O)        0.043     3.074 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/w_trk_wptr[4]_i_1/O
+                         net (fo=65, routed)          0.737     3.811    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awvalid_0
+    SLICE_X41Y59         LUT5 (Prop_lut5_I3_O)        0.051     3.862 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[12][3]_i_2__0/O
+                         net (fo=5, routed)           0.348     4.210    u_fabric/u_inj_wr_adapter/p_0_in33_in
+    SLICE_X43Y58         LUT6 (Prop_lut6_I1_O)        0.136     4.346 r  u_fabric/u_inj_wr_adapter/aw_idt_cnt[12][3]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.346    u_fabric/u_inj_wr_adapter/aw_idt_cnt[12][3]_i_1__0_n_0
+    SLICE_X43Y58         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X43Y58         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][3]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X43Y58         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][3]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.346    
+  -------------------------------------------------------------------
+                         slack                                  0.163    
+
+Slack (MET) :             0.165ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[8][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.807ns  (logic 0.757ns (19.886%)  route 3.050ns (80.114%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 r  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 r  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 r  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 r  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 r  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.554     2.940    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.983 r  u_fabric/u_xbar/stream_wr_bid[0]_INST_0/O
+                         net (fo=31, routed)          0.704     3.688    u_fabric/u_xbar/ddr_bid[0]_8
+    SLICE_X33Y54         LUT5 (Prop_lut5_I0_O)        0.043     3.731 f  u_fabric/u_xbar/aw_idt_cnt[8][3]_i_2__0/O
+                         net (fo=6, routed)           0.368     4.099    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[8][0]_2
+    SLICE_X32Y54         LUT6 (Prop_lut6_I4_O)        0.043     4.142 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_2/O
+                         net (fo=1, routed)           0.159     4.301    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[8][4]_0
+    SLICE_X32Y54         LUT6 (Prop_lut6_I4_O)        0.043     4.344 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[8][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.344    u_fabric/u_stream_wr_adapter/aw_idt_cnt[8][4]_i_1_n_0
+    SLICE_X32Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[8][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X32Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[8][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X32Y54         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[8][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.344    
+  -------------------------------------------------------------------
+                         slack                                  0.165    
+
+Slack (MET) :             0.186ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_busy_reg[15]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.786ns  (logic 0.757ns (19.994%)  route 3.029ns (80.006%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.557     2.943    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.986 f  u_fabric/u_xbar/stream_wr_bid[3]_INST_0/O
+                         net (fo=31, routed)          0.457     3.443    u_fabric/u_xbar/ddr_bid[3]_0
+    SLICE_X32Y59         LUT5 (Prop_lut5_I3_O)        0.043     3.486 f  u_fabric/u_xbar/aw_idt_cnt[15][3]_i_3/O
+                         net (fo=7, routed)           0.602     4.087    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[15][2]_1
+    SLICE_X23Y56         LUT6 (Prop_lut6_I0_O)        0.043     4.130 f  u_fabric/u_stream_wr_adapter/aw_idt_busy[15]_i_2/O
+                         net (fo=1, routed)           0.150     4.280    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_busy_reg[15]
+    SLICE_X23Y56         LUT6 (Prop_lut6_I5_O)        0.043     4.323 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_busy[15]_i_1/O
+                         net (fo=1, routed)           0.000     4.323    u_fabric/u_stream_wr_adapter/D[13]
+    SLICE_X23Y56         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_busy_reg[15]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X23Y56         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_busy_reg[15]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X23Y56         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_busy_reg[15]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.323    
+  -------------------------------------------------------------------
+                         slack                                  0.186    
+
+Slack (MET) :             0.191ns  (required time - arrival time)
+  Source:                 u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[15][3]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.781ns  (logic 0.655ns (17.323%)  route 3.126ns (82.677%))
+  Logic Levels:           7  (LUT3=1 LUT4=1 LUT5=1 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_xbar/aclk
+    SLICE_X22Y84         FDCE                                         r  u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X22Y84         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/Q
+                         net (fo=4, routed)           0.641     1.437    u_fabric/u_xbar/stream_rd_128b_r_rarb_rr[1]
+    SLICE_X22Y81         LUT4 (Prop_lut4_I0_O)        0.047     1.484 r  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_9/O
+                         net (fo=1, routed)           0.342     1.826    u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_9_n_0
+    SLICE_X23Y81         LUT6 (Prop_lut6_I4_O)        0.134     1.960 r  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_5/O
+                         net (fo=6, routed)           0.340     2.300    u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_5_n_0
+    SLICE_X23Y81         LUT5 (Prop_lut5_I0_O)        0.043     2.343 f  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_2/O
+                         net (fo=111, routed)         0.499     2.842    u_fabric/u_xbar/stream_rd_128b_r_rgnt_subtractive
+    SLICE_X22Y80         LUT6 (Prop_lut6_I2_O)        0.043     2.885 f  u_fabric/u_xbar/stream_rd_rlast_INST_0/O
+                         net (fo=12, routed)          0.691     3.576    u_fabric/u_xbar/ddr_rlast_0
+    SLICE_X24Y81         LUT6 (Prop_lut6_I1_O)        0.043     3.619 f  u_fabric/u_xbar/ar_idt_cnt[14][2]_i_3/O
+                         net (fo=4, routed)           0.347     3.966    u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[15][2]_0
+    SLICE_X25Y80         LUT6 (Prop_lut6_I2_O)        0.043     4.009 r  u_fabric/u_stream_rd_adapter/ar_idt_cnt[15][4]_i_2__0/O
+                         net (fo=2, routed)           0.266     4.275    u_fabric/u_stream_rd_adapter/ar_idt_cnt[15][4]_i_2__0_n_0
+    SLICE_X25Y80         LUT3 (Prop_lut3_I0_O)        0.043     4.318 r  u_fabric/u_stream_rd_adapter/ar_idt_cnt[15][3]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.318    u_fabric/u_stream_rd_adapter/ar_idt_cnt[15][3]_i_1__0_n_0
+    SLICE_X25Y80         FDCE                                         r  u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[15][3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_rd_adapter/aclk
+    SLICE_X25Y80         FDCE                                         r  u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[15][3]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X25Y80         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[15][3]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.318    
+  -------------------------------------------------------------------
+                         slack                                  0.191    
+
+Slack (MET) :             0.195ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[10][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.776ns  (logic 0.757ns (20.047%)  route 3.019ns (79.953%))
+  Logic Levels:           9  (LUT6=7 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.557     2.943    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.986 f  u_fabric/u_xbar/stream_wr_bid[3]_INST_0/O
+                         net (fo=31, routed)          0.647     3.633    u_fabric/u_xbar/ddr_bid[3]_0
+    SLICE_X32Y54         LUT6 (Prop_lut6_I1_O)        0.043     3.676 r  u_fabric/u_xbar/aw_idt_cnt[10][4]_i_4/O
+                         net (fo=1, routed)           0.452     4.128    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[10][4]
+    SLICE_X29Y53         LUT6 (Prop_lut6_I0_O)        0.043     4.171 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[10][4]_i_3/O
+                         net (fo=1, routed)           0.099     4.270    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[10][4]_0
+    SLICE_X29Y53         LUT6 (Prop_lut6_I5_O)        0.043     4.313 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[10][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.313    u_fabric/u_stream_wr_adapter/aw_idt_cnt[10][4]_i_1_n_0
+    SLICE_X29Y53         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[10][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X29Y53         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[10][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X29Y53         FDCE (Setup_fdce_C_D)        0.033     4.508    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[10][4]
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.313    
+  -------------------------------------------------------------------
+                         slack                                  0.195    
+
+Slack (MET) :             0.205ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[6]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.767ns  (logic 0.850ns (22.566%)  route 2.917ns (77.434%))
+  Logic Levels:           9  (LUT5=2 LUT6=5 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 r  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 r  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.133     3.031    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X29Y61         LUT6 (Prop_lut6_I4_O)        0.043     3.074 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/w_trk_wptr[4]_i_1/O
+                         net (fo=65, routed)          0.758     3.831    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awvalid_0
+    SLICE_X37Y54         LUT5 (Prop_lut5_I0_O)        0.052     3.883 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[6][3]_i_2/O
+                         net (fo=5, routed)           0.288     4.172    u_fabric/u_inj_wr_adapter/p_0_in15_in
+    SLICE_X39Y54         LUT6 (Prop_lut6_I0_O)        0.132     4.304 r  u_fabric/u_inj_wr_adapter/aw_idt_busy[6]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.304    u_fabric/u_inj_wr_adapter/p_30_out[6]
+    SLICE_X39Y54         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[6]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X39Y54         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[6]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X39Y54         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[6]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.304    
+  -------------------------------------------------------------------
+                         slack                                  0.205    
+
+Slack (MET) :             0.206ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[6][2]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.765ns  (logic 0.850ns (22.578%)  route 2.915ns (77.422%))
+  Logic Levels:           9  (LUT5=3 LUT6=4 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 r  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 r  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.133     3.031    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X29Y61         LUT6 (Prop_lut6_I4_O)        0.043     3.074 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/w_trk_wptr[4]_i_1/O
+                         net (fo=65, routed)          0.758     3.831    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awvalid_0
+    SLICE_X37Y54         LUT5 (Prop_lut5_I0_O)        0.052     3.883 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[6][3]_i_2/O
+                         net (fo=5, routed)           0.286     4.170    u_fabric/u_inj_wr_adapter/p_0_in15_in
+    SLICE_X39Y54         LUT5 (Prop_lut5_I1_O)        0.132     4.302 r  u_fabric/u_inj_wr_adapter/aw_idt_cnt[6][2]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.302    u_fabric/u_inj_wr_adapter/aw_idt_cnt[6][2]_i_1__0_n_0
+    SLICE_X39Y54         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[6][2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X39Y54         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[6][2]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X39Y54         FDCE (Setup_fdce_C_D)        0.033     4.508    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[6][2]
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.302    
+  -------------------------------------------------------------------
+                         slack                                  0.206    
+
+Slack (MET) :             0.213ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[14][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.759ns  (logic 0.752ns (20.004%)  route 3.007ns (79.996%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 f  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 f  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 f  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.467     3.365    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X31Y59         LUT6 (Prop_lut6_I1_O)        0.043     3.408 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_4/O
+                         net (fo=8, routed)           0.557     3.965    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_4_n_0
+    SLICE_X42Y59         LUT6 (Prop_lut6_I3_O)        0.043     4.008 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[14][4]_i_2__0/O
+                         net (fo=1, routed)           0.245     4.253    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[14][4]_0
+    SLICE_X44Y58         LUT6 (Prop_lut6_I1_O)        0.043     4.296 r  u_fabric/u_inj_wr_adapter/aw_idt_cnt[14][4]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.296    u_fabric/u_inj_wr_adapter/aw_idt_cnt[14][4]_i_1__0_n_0
+    SLICE_X44Y58         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[14][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X44Y58         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[14][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X44Y58         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[14][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.296    
+  -------------------------------------------------------------------
+                         slack                                  0.213    
+
+Slack (MET) :             0.215ns  (required time - arrival time)
+  Source:                 u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.757ns  (logic 0.655ns (17.436%)  route 3.102ns (82.565%))
+  Logic Levels:           7  (LUT4=2 LUT5=1 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_xbar/aclk
+    SLICE_X22Y84         FDCE                                         r  u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X22Y84         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/Q
+                         net (fo=4, routed)           0.641     1.437    u_fabric/u_xbar/stream_rd_128b_r_rarb_rr[1]
+    SLICE_X22Y81         LUT4 (Prop_lut4_I0_O)        0.047     1.484 r  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_9/O
+                         net (fo=1, routed)           0.342     1.826    u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_9_n_0
+    SLICE_X23Y81         LUT6 (Prop_lut6_I4_O)        0.134     1.960 r  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_5/O
+                         net (fo=6, routed)           0.340     2.300    u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_5_n_0
+    SLICE_X23Y81         LUT5 (Prop_lut5_I0_O)        0.043     2.343 f  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_2/O
+                         net (fo=111, routed)         0.499     2.842    u_fabric/u_xbar/stream_rd_128b_r_rgnt_subtractive
+    SLICE_X22Y80         LUT6 (Prop_lut6_I2_O)        0.043     2.885 f  u_fabric/u_xbar/stream_rd_rlast_INST_0/O
+                         net (fo=12, routed)          0.650     3.535    u_fabric/u_xbar/ddr_rlast_0
+    SLICE_X21Y81         LUT6 (Prop_lut6_I2_O)        0.043     3.578 f  u_fabric/u_xbar/ar_idt_cnt[2][2]_i_3/O
+                         net (fo=4, routed)           0.437     4.015    u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[3][2]_0
+    SLICE_X21Y77         LUT6 (Prop_lut6_I3_O)        0.043     4.058 r  u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][4]_i_2__0/O
+                         net (fo=2, routed)           0.193     4.251    u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][4]_i_2__0_n_0
+    SLICE_X23Y77         LUT4 (Prop_lut4_I0_O)        0.043     4.294 r  u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][4]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.294    u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][4]_i_1__0_n_0
+    SLICE_X23Y77         FDCE                                         r  u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_rd_adapter/aclk
+    SLICE_X23Y77         FDCE                                         r  u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X23Y77         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.294    
+  -------------------------------------------------------------------
+                         slack                                  0.215    
+
+Slack (MET) :             0.216ns  (required time - arrival time)
+  Source:                 u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][3]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.755ns  (logic 0.655ns (17.445%)  route 3.100ns (82.555%))
+  Logic Levels:           7  (LUT3=1 LUT4=1 LUT5=1 LUT6=4)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_xbar/aclk
+    SLICE_X22Y84         FDCE                                         r  u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X22Y84         FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_fabric/u_xbar/stream_rd_128b_r_rarb_rr_reg[1]/Q
+                         net (fo=4, routed)           0.641     1.437    u_fabric/u_xbar/stream_rd_128b_r_rarb_rr[1]
+    SLICE_X22Y81         LUT4 (Prop_lut4_I0_O)        0.047     1.484 r  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_9/O
+                         net (fo=1, routed)           0.342     1.826    u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_9_n_0
+    SLICE_X23Y81         LUT6 (Prop_lut6_I4_O)        0.134     1.960 r  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_5/O
+                         net (fo=6, routed)           0.340     2.300    u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_5_n_0
+    SLICE_X23Y81         LUT5 (Prop_lut5_I0_O)        0.043     2.343 f  u_fabric/u_xbar/stream_rd_rid[7]_INST_0_i_2/O
+                         net (fo=111, routed)         0.499     2.842    u_fabric/u_xbar/stream_rd_128b_r_rgnt_subtractive
+    SLICE_X22Y80         LUT6 (Prop_lut6_I2_O)        0.043     2.885 f  u_fabric/u_xbar/stream_rd_rlast_INST_0/O
+                         net (fo=12, routed)          0.650     3.535    u_fabric/u_xbar/ddr_rlast_0
+    SLICE_X21Y81         LUT6 (Prop_lut6_I2_O)        0.043     3.578 f  u_fabric/u_xbar/ar_idt_cnt[2][2]_i_3/O
+                         net (fo=4, routed)           0.437     4.015    u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[3][2]_0
+    SLICE_X21Y77         LUT6 (Prop_lut6_I3_O)        0.043     4.058 r  u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][4]_i_2__0/O
+                         net (fo=2, routed)           0.191     4.249    u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][4]_i_2__0_n_0
+    SLICE_X23Y77         LUT3 (Prop_lut3_I0_O)        0.043     4.292 r  u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][3]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.292    u_fabric/u_stream_rd_adapter/ar_idt_cnt[2][3]_i_1__0_n_0
+    SLICE_X23Y77         FDCE                                         r  u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][3]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_rd_adapter/aclk
+    SLICE_X23Y77         FDCE                                         r  u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][3]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X23Y77         FDCE (Setup_fdce_C_D)        0.033     4.508    u_fabric/u_stream_rd_adapter/ar_idt_cnt_reg[2][3]
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.292    
+  -------------------------------------------------------------------
+                         slack                                  0.216    
+
+Slack (MET) :             0.219ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[9]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.753ns  (logic 0.851ns (22.674%)  route 2.902ns (77.326%))
+  Logic Levels:           9  (LUT5=2 LUT6=5 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 r  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 r  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.133     3.031    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X29Y61         LUT6 (Prop_lut6_I4_O)        0.043     3.074 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/w_trk_wptr[4]_i_1/O
+                         net (fo=65, routed)          0.622     3.696    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awvalid_0
+    SLICE_X33Y56         LUT5 (Prop_lut5_I4_O)        0.049     3.745 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[9][3]_i_2__0/O
+                         net (fo=5, routed)           0.409     4.154    u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[9]_0
+    SLICE_X40Y56         LUT6 (Prop_lut6_I0_O)        0.136     4.290 r  u_fabric/u_inj_wr_adapter/aw_idt_busy[9]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.290    u_fabric/u_inj_wr_adapter/p_30_out[9]
+    SLICE_X40Y56         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[9]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X40Y56         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[9]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X40Y56         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[9]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.290    
+  -------------------------------------------------------------------
+                         slack                                  0.219    
+
+Slack (MET) :             0.219ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[9][2]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.752ns  (logic 0.851ns (22.680%)  route 2.901ns (77.320%))
+  Logic Levels:           9  (LUT5=3 LUT6=4 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 f  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 r  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 r  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.133     3.031    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X29Y61         LUT6 (Prop_lut6_I4_O)        0.043     3.074 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/w_trk_wptr[4]_i_1/O
+                         net (fo=65, routed)          0.622     3.696    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awvalid_0
+    SLICE_X33Y56         LUT5 (Prop_lut5_I4_O)        0.049     3.745 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[9][3]_i_2__0/O
+                         net (fo=5, routed)           0.408     4.153    u_fabric/u_inj_wr_adapter/aw_idt_busy_reg[9]_0
+    SLICE_X40Y56         LUT5 (Prop_lut5_I1_O)        0.136     4.289 r  u_fabric/u_inj_wr_adapter/aw_idt_cnt[9][2]_i_1/O
+                         net (fo=1, routed)           0.000     4.289    u_fabric/u_inj_wr_adapter/aw_idt_cnt[9][2]_i_1_n_0
+    SLICE_X40Y56         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[9][2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X40Y56         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[9][2]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X40Y56         FDCE (Setup_fdce_C_D)        0.033     4.508    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[9][2]
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.289    
+  -------------------------------------------------------------------
+                         slack                                  0.219    
+
+Slack (MET) :             0.228ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[5][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.744ns  (logic 0.857ns (22.888%)  route 2.887ns (77.112%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.307     2.341    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.384 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_1/O
+                         net (fo=12, routed)          0.464     2.848    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_1_n_0
+    SLICE_X35Y60         LUT6 (Prop_lut6_I0_O)        0.043     2.891 f  u_fabric/u_xbar/stream_wr_bid[1]_INST_0/O
+                         net (fo=31, routed)          0.684     3.575    u_fabric/u_xbar/ddr_bid[1]_3
+    SLICE_X33Y56         LUT5 (Prop_lut5_I4_O)        0.051     3.626 r  u_fabric/u_xbar/aw_idt_cnt[5][3]_i_2/O
+                         net (fo=6, routed)           0.217     3.843    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[5][0]_0
+    SLICE_X33Y54         LUT6 (Prop_lut6_I4_O)        0.135     3.978 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[5][4]_i_2/O
+                         net (fo=1, routed)           0.260     4.238    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[5][4]_0
+    SLICE_X33Y56         LUT6 (Prop_lut6_I4_O)        0.043     4.281 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[5][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.281    u_fabric/u_stream_wr_adapter/aw_idt_cnt[5][4]_i_1_n_0
+    SLICE_X33Y56         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[5][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X33Y56         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[5][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X33Y56         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[5][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.281    
+  -------------------------------------------------------------------
+                         slack                                  0.228    
+
+Slack (MET) :             0.229ns  (required time - arrival time)
+  Source:                 u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.742ns  (logic 0.752ns (20.094%)  route 2.990ns (79.906%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X25Y63         FDCE                                         r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X25Y63         FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]/Q
+                         net (fo=17, routed)          0.676     1.436    u_fabric/u_stream_wr_adapter/w_trk_rptr_reg[1]
+    SLICE_X22Y62         LUT6 (Prop_lut6_I2_O)        0.043     1.479 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25/O
+                         net (fo=1, routed)           0.000     1.479    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_25_n_0
+    SLICE_X22Y62         MUXF7 (Prop_muxf7_I1_O)      0.103     1.582 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12/O
+                         net (fo=1, routed)           0.000     1.582    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_12_n_0
+    SLICE_X22Y62         MUXF8 (Prop_muxf8_I1_O)      0.043     1.625 r  u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4/O
+                         net (fo=4, routed)           0.575     2.199    u_fabric/u_stream_wr_adapter/stream_wr_wready_INST_0_i_4_n_0
+    SLICE_X27Y62         LUT6 (Prop_lut6_I3_O)        0.125     2.324 f  u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11/O
+                         net (fo=4, routed)           0.216     2.540    u_fabric/u_stream_wr_adapter/stream_wr_awready_INST_0_i_11_n_0
+    SLICE_X28Y61         LUT6 (Prop_lut6_I2_O)        0.043     2.583 f  u_fabric/u_stream_wr_adapter/inj_wr_awready_INST_0_i_7/O
+                         net (fo=3, routed)           0.272     2.855    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_aw_arb_rr_reg[0]_1
+    SLICE_X29Y61         LUT5 (Prop_lut5_I2_O)        0.043     2.898 f  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/inj_wr_awready_INST_0_i_2/O
+                         net (fo=82, routed)          0.467     3.365    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/ddr_awid[0]
+    SLICE_X31Y59         LUT6 (Prop_lut6_I1_O)        0.043     3.408 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_4/O
+                         net (fo=8, routed)           0.553     3.961    u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[8][4]_i_4_n_0
+    SLICE_X43Y58         LUT6 (Prop_lut6_I4_O)        0.043     4.004 r  u_fabric/u_xbar/u_inj_wr_128b_aw_slot_subtractive/aw_idt_cnt[12][4]_i_2__0/O
+                         net (fo=1, routed)           0.232     4.236    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][4]_0
+    SLICE_X43Y59         LUT6 (Prop_lut6_I1_O)        0.043     4.279 r  u_fabric/u_inj_wr_adapter/aw_idt_cnt[12][4]_i_1__0/O
+                         net (fo=1, routed)           0.000     4.279    u_fabric/u_inj_wr_adapter/aw_idt_cnt[12][4]_i_1__0_n_0
+    SLICE_X43Y59         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_inj_wr_adapter/aclk
+    SLICE_X43Y59         FDCE                                         r  u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X43Y59         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_inj_wr_adapter/aw_idt_cnt_reg[12][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.279    
+  -------------------------------------------------------------------
+                         slack                                  0.229    
+
+Slack (MET) :             0.230ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[14][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.742ns  (logic 0.757ns (20.229%)  route 2.985ns (79.771%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.554     2.940    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.983 f  u_fabric/u_xbar/stream_wr_bid[0]_INST_0/O
+                         net (fo=31, routed)          0.573     3.557    u_fabric/u_xbar/ddr_bid[0]_8
+    SLICE_X32Y59         LUT5 (Prop_lut5_I0_O)        0.043     3.600 r  u_fabric/u_xbar/aw_idt_cnt[14][3]_i_3__0/O
+                         net (fo=7, routed)           0.355     3.955    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[14][0]_1
+    SLICE_X27Y56         LUT6 (Prop_lut6_I5_O)        0.043     3.998 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[14][4]_i_2/O
+                         net (fo=1, routed)           0.238     4.236    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[14][4]_0
+    SLICE_X26Y56         LUT6 (Prop_lut6_I3_O)        0.043     4.279 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[14][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.279    u_fabric/u_stream_wr_adapter/aw_idt_cnt[14][4]_i_1_n_0
+    SLICE_X26Y56         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[14][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X26Y56         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[14][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X26Y56         FDCE (Setup_fdce_C_D)        0.034     4.509    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[14][4]
+  -------------------------------------------------------------------
+                         required time                          4.509    
+                         arrival time                          -4.279    
+  -------------------------------------------------------------------
+                         slack                                  0.230    
+
+Slack (MET) :             0.232ns  (required time - arrival time)
+  Source:                 u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+                            (rising edge-triggered cell FDRE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Destination:            u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[9][4]/D
+                            (rising edge-triggered cell FDCE clocked by aclk  {rise@0.000ns fall@2.000ns period=4.000ns})
+  Path Group:             aclk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            4.000ns  (aclk rise@4.000ns - aclk rise@0.000ns)
+  Data Path Delay:        3.739ns  (logic 0.862ns (23.055%)  route 2.877ns (76.945%))
+  Logic Levels:           9  (LUT5=1 LUT6=6 MUXF7=1 MUXF8=1)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 4.510 - 4.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock aclk rise edge)       0.000     0.000 r  
+                                                      0.000     0.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.537     0.537    u_fabric/u_subtractive_adapter/aclk
+    SLICE_X41Y64         FDRE                                         r  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X41Y64         FDRE (Prop_fdre_C_Q)         0.223     0.760 f  u_fabric/u_subtractive_adapter/wr_fifo_reg[9][0]/Q
+                         net (fo=2, routed)           0.553     1.313    u_fabric/u_subtractive_adapter/wr_fifo_reg[9]_175[0]
+    SLICE_X41Y65         LUT6 (Prop_lut6_I3_O)        0.043     1.356 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15/O
+                         net (fo=1, routed)           0.000     1.356    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_15_n_0
+    SLICE_X41Y65         MUXF7 (Prop_muxf7_I0_O)      0.107     1.463 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8/O
+                         net (fo=1, routed)           0.000     1.463    u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_8_n_0
+    SLICE_X41Y65         MUXF8 (Prop_muxf8_I1_O)      0.043     1.506 f  u_fabric/u_subtractive_adapter/inj_wr_bid[7]_INST_0_i_4/O
+                         net (fo=4, routed)           0.401     1.908    u_fabric/u_subtractive_adapter/u_master_wr/b_channel/inj_wr_128b_b_rarb_rr_reg[0][0]
+    SLICE_X36Y64         LUT6 (Prop_lut6_I5_O)        0.126     2.034 f  u_fabric/u_subtractive_adapter/u_master_wr/b_channel/crc_snk_bready_INST_0_i_4/O
+                         net (fo=9, routed)           0.309     2.343    u_fabric/u_xbar/crc_snk_bready
+    SLICE_X37Y60         LUT6 (Prop_lut6_I4_O)        0.043     2.386 f  u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2/O
+                         net (fo=10, routed)          0.557     2.943    u_fabric/u_xbar/stream_wr_bid[7]_INST_0_i_2_n_0
+    SLICE_X34Y59         LUT6 (Prop_lut6_I2_O)        0.043     2.986 f  u_fabric/u_xbar/stream_wr_bid[3]_INST_0/O
+                         net (fo=31, routed)          0.598     3.584    u_fabric/u_xbar/ddr_bid[3]_0
+    SLICE_X32Y56         LUT5 (Prop_lut5_I3_O)        0.054     3.638 f  u_fabric/u_xbar/aw_idt_cnt[9][3]_i_3/O
+                         net (fo=6, routed)           0.274     3.912    u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt_reg[9][1]_1
+    SLICE_X30Y55         LUT6 (Prop_lut6_I0_O)        0.137     4.049 r  u_fabric/u_xbar/u_stream_wr_128b_aw_slot_subtractive/aw_idt_cnt[9][4]_i_3/O
+                         net (fo=1, routed)           0.184     4.233    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[9][4]_1
+    SLICE_X30Y54         LUT6 (Prop_lut6_I4_O)        0.043     4.276 r  u_fabric/u_stream_wr_adapter/aw_idt_cnt[9][4]_i_1/O
+                         net (fo=1, routed)           0.000     4.276    u_fabric/u_stream_wr_adapter/aw_idt_cnt[9][4]_i_1_n_0
+    SLICE_X30Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[9][4]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock aclk rise edge)       4.000     4.000 r  
+                                                      0.000     4.000 r  aclk (IN)
+                         net (fo=1116, unset)         0.510     4.510    u_fabric/u_stream_wr_adapter/aclk
+    SLICE_X30Y54         FDCE                                         r  u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[9][4]/C
+                         clock pessimism              0.000     4.510    
+                         clock uncertainty           -0.035     4.475    
+    SLICE_X30Y54         FDCE (Setup_fdce_C_D)        0.033     4.508    u_fabric/u_stream_wr_adapter/aw_idt_cnt_reg[9][4]
+  -------------------------------------------------------------------
+                         required time                          4.508    
+                         arrival time                          -4.276    
+  -------------------------------------------------------------------
+                         slack                                  0.232    
+
+
+
+

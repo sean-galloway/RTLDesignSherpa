@@ -5,11 +5,12 @@
 # three legs are compared on size and timing with nothing else in the device:
 #
 #   bridge  rtl/filelists/fb_data_fabric_bridge.f
+#   bridge_plain  rtl/filelists/fb_data_fabric_bridge_plain.f  (leg A2, preset = "xbar")
 #   xbar    rtl/filelists/fb_data_fabric_xbar.f   (needs XILINX_VIVADO)
 #   sc      the fb_sc block design from fpga/tcl/vendor_ip.tcl + its leg wrapper
 #
 # Environment:
-#   FB_LEG        bridge | xbar | sc                     (required)
+#   FB_LEG        bridge | bridge_plain | xbar | sc      (required)
 #   FB_PERIOD_NS  aclk period, default 10.0 (the 100 MHz board target)
 #   FB_OUT        report directory, default reports/ooc/<leg>/<period>ns
 #   FB_PART       another part instead of the Genesys 2's (e.g. an UltraScale+
@@ -36,15 +37,15 @@ set period [expr {[info exists ::env(FB_PERIOD_NS)] ? $::env(FB_PERIOD_NS) : 10.
 set board_part [expr {![info exists ::env(FB_PART)] || $::env(FB_PART) eq $FB_PART}]
 if {!$board_part} { set FB_PART $::env(FB_PART) }
 set out    [expr {[info exists ::env(FB_OUT)] ? [file normalize $::env(FB_OUT)] \
-                 : $board_part ? "$area/reports/ooc/$leg/[format %.1f $period]ns" \
-                 : "$area/reports/ooc/$FB_PART/$leg/[format %.1f $period]ns"}]
+                 : $board_part ? "$area/reports/ooc/$leg/${period}ns" \
+                 : "$area/reports/ooc/$FB_PART/$leg/${period}ns"}]
 file mkdir $out
 
 create_project -in_memory -part $FB_PART
 set_property target_language Verilog [current_project]
 
 switch -- $leg {
-    bridge - xbar {
+    bridge - bridge_plain - xbar {
         lassign [filelist::flatten "$area/rtl/filelists/fb_data_fabric_$leg.f"] srcs incdirs defines
         foreach f $srcs {
             if {![file exists $f]} { puts stderr "ERROR: source not found: $f"; exit 1 }
@@ -61,7 +62,7 @@ switch -- $leg {
         read_verilog [glob "$area/fpga/ip/build/fb_vendor_ip.gen/sources_1/bd/fb_sc/hdl/fb_sc_wrapper.v"]
         read_verilog -sv "$area/rtl/generated/fb_data_fabric_sc/fb_data_fabric.sv"
     }
-    default { puts stderr "ERROR: FB_LEG must be bridge, xbar or sc, got $leg"; exit 1 }
+    default { puts stderr "ERROR: FB_LEG must be bridge, bridge_plain, xbar or sc, got $leg"; exit 1 }
 }
 
 set xdc "$out/ooc_clock.xdc"

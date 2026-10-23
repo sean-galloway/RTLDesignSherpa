@@ -20,7 +20,9 @@ from pathlib import Path
 
 AREA = Path(__file__).resolve().parent.parent
 OOC = AREA / "reports/ooc"
-LEGS = (("bridge", "A: bridge crossbar"), ("xbar", "B1: Xilinx AXI Crossbar"),
+LEGS = (("bridge", "A: bridge crossbar"),
+        ("bridge_plain", "A2: bridge crossbar, preset = \"xbar\""),
+        ("xbar", "B1: Xilinx AXI Crossbar"),
         ("sc", "B2: Xilinx SmartConnect"))
 COLS = ("lut", "lutram", "srl", "ff", "bram_tile", "carry4", "muxf")
 

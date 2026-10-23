@@ -264,7 +264,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   APB/AXIL shims add stages on their paths.
 - [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
 - [x] Performance models implemented (bridge_model.py - V1 Flat; in `deprecated/` since 2026-10-18, superseded by the measured perf suite)
-- [x] Fmax ≥ 300 MHz on UltraScale+ FPGAs: measured 2026-10-23 on a Zynq US+ ZU7EV -2, ~375 MHz for the fabric-benchmark 4 x 4 and ~435 MHz for the same bridge as `preset = "xbar"` (4.2)
+- [x] Fmax ≥ 300 MHz on UltraScale+ FPGAs: measured 2026-10-23 on a Zynq US+ ZU7EV -2, ~375 MHz for the fabric-benchmark 4 x 4 and ~425-450 MHz for the same bridge as `preset = "xbar"` (4.2)
 
 **Quality:**
 - [x] Complete specifications (PRD) before code
@@ -519,7 +519,7 @@ address_map = {
 
 **NFR-3: Fmax**
 - **Target:** 300-400 MHz on Xilinx UltraScale+ -- met: ~375 MHz for the
-  128-bit 4 x 4 of the fabric benchmark, ~435 MHz with `preset = "xbar"` (4.2)
+  128-bit 4 x 4 of the fabric benchmark, ~425-450 MHz with `preset = "xbar"` (4.2)
 - **Registered outputs:** All slave outputs registered for timing closure
 - **Pipelineable:** Optional pipeline stages for >400 MHz
 
@@ -536,21 +536,23 @@ HAS 5.3):
 | `bridge_4x4_rw` (4 x 4, 32..256-bit) | Kintex-7 325T -2 @ 6.667 ns | 29,719 | 29,508 | 0 / 0 | met, +0.28 ns |
 | `bridge_fb_data` (4 x 4, 128-bit AXI4; fabric-benchmark leg A) | Kintex-7 325T -2 @ 4 ns | 7,942 | 6,723 | 0 / 0 | -0.001 ns, ~250 MHz |
 | `bridge_fb_data` | Zynq US+ ZU7EV -2 @ 2.7 ns | 7,986 | 6,721 | 0 / 0 | met, +0.06 ns; misses 2.5 ns by 0.19 ns: ~375 MHz |
-| `bridge_fb_data` as `preset = "xbar"`, 4-bit master IDs | Kintex-7 325T -2 @ 4 ns | 2,636 | 1,358 | 0 / 0 | met, +0.13 ns, ~258 MHz |
-| `bridge_fb_data` as `preset = "xbar"`, 4-bit master IDs | Zynq US+ ZU7EV -2 @ 2.5 ns | 2,509 | 1,358 | 0 / 0 | met, +0.21 ns; misses 2.2 ns by 0.10 ns: ~435 MHz |
+| `bridge_fb_data_plain` (the same, `preset = "xbar"`; leg A2) | Kintex-7 325T -2 @ 4 ns | 2,406 | 1,117 | 0 / 0 | met, +0.07 ns, ~254 MHz |
+| `bridge_fb_data_plain` | Zynq US+ ZU7EV -2 @ 2.35 ns | 2,293 | 1,117 | 0 / 0 | met, +0.13 ns; misses 2.2 ns by 0.28 ns: ~425-450 MHz |
 
 The `bridge_fb_data` rows are the fabric benchmark's OOC flow
 (`projects/fpga-systems/Genesys2/fabric-benchmark`, `make ooc`, with `PART=`
 for the UltraScale+ part; reports under `reports/ooc/`), on its
-`fb_data_fabric` wrapper, which adds only ID zero-extension. The preset rows
-are the bridge alone, through the same script with the top and filelist
-pointed at it, built from the same TOML with `preset = "xbar"` added and the
-masters' `id_width` 4 instead of 8; that variant is not a checked-in config.
-ZU7EV is the UltraScale+ part this Vivado install carries (the programmable
-logic is the same fabric as Kintex UltraScale+). There the worst paths are
-routing-dominated (~70% of the delay): the AW skid enables into the
-crossbar slots for the 4 x 4, the per-ID target tables in the write
-adapters for the preset.
+`fb_data_fabric` wrapper, which adds only ID zero-extension on leg A. The
+`bridge_fb_data_plain` rows are the benchmark's leg A2: the same TOML with
+`preset = "xbar"` added, derived by its `bin/regen.sh`, with the masters'
+full 8-bit IDs reaching the slaves. Against the Xilinx AXI Crossbar on the
+same port set (benchmark PRD 8) it is 1.07x the LUTs and 0.51x the flops at
+~254 vs ~256 MHz, with equal bandwidth and fairness on the board. ZU7EV is
+the UltraScale+ part this Vivado install carries (the programmable logic is
+the same fabric as Kintex UltraScale+). The worst paths are
+routing-dominated (67-81% of the delay): the AW skid enables into the
+crossbar slots for the 4 x 4, the write adapters' W tracking and per-ID
+tables for the preset.
 
 No configuration uses block RAM or DSPs: the per-slave bridge_id FIFOs are
 LUT arrays and the by-ID trackers are counters. Data width sets the cost -- the 4 x 4 with width
@@ -1078,7 +1080,7 @@ Configuration:
 
 - [x] Latency 2 + 2 cycles round trip, direct AXI4 path (measured; was <= 3, re-baselined 2026-10-22)
 - [ ] Throughput = line-rate × M×S paths (measured)
-- [x] Fmax ≥ 300 MHz (post-route, UltraScale+ -2: ~375 MHz, ~435 MHz as `preset = "xbar"`; 4.2)
+- [x] Fmax ≥ 300 MHz (post-route, UltraScale+ -2: ~375 MHz, ~425-450 MHz as `preset = "xbar"`; 4.2)
 
 ### 12.3 Educational Value
 

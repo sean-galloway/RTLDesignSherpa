@@ -1,0 +1,41 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Fri Oct 23 04:19:42 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/fabric-benchmark/reports/ooc/xczu7ev-ffvc1156-2-e/bridge_plain/2.5ns/utilization_hier.txt
+| Design       : fb_data_fabric
+| Device       : xczu7ev-ffvc1156-2-e
+| Speed File   : -2
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------------------------------+------------------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+|                  Instance                  |                  Module                  | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | URAM | DSP Blocks |
++--------------------------------------------+------------------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+| fb_data_fabric                             |                                    (top) |       2254 |       2254 |       0 |    0 | 1117 |      0 |      0 |    0 |          0 |
+|   (fb_data_fabric)                         |                                    (top) |        147 |        147 |       0 |    0 |    0 |      0 |      0 |    0 |          0 |
+|   u_fabric                                 |                     bridge_fb_data_plain |       2107 |       2107 |       0 |    0 | 1117 |      0 |      0 |    0 |          0 |
+|     (u_subtractive_adapter)                | bridge_fb_data_plain_subtractive_adapter |         69 |         69 |       0 |    0 |   68 |      0 |      0 |    0 |          0 |
+|     u_inj_wr_adapter                       |      bridge_fb_data_plain_inj_wr_adapter |        140 |        140 |       0 |    0 |  176 |      0 |      0 |    0 |          0 |
+|     u_stream_desc_adapter                  | bridge_fb_data_plain_stream_desc_adapter |        198 |        198 |       0 |    0 |  134 |      0 |      0 |    0 |          0 |
+|     u_stream_rd_adapter                    |   bridge_fb_data_plain_stream_rd_adapter |        151 |        151 |       0 |    0 |  150 |      0 |      0 |    0 |          0 |
+|     u_stream_wr_adapter                    |   bridge_fb_data_plain_stream_wr_adapter |        152 |        152 |       0 |    0 |  208 |      0 |      0 |    0 |          0 |
+|     u_xbar                                 |                bridge_fb_data_plain_xbar |       1273 |       1273 |       0 |    0 |  266 |      0 |      0 |    0 |          0 |
+|       (u_xbar)                             |                bridge_fb_data_plain_xbar |        658 |        658 |       0 |    0 |  146 |      0 |      0 |    0 |          0 |
+|       u_inj_wr_128b_aw_slot_subtractive    |         gaxi_skid_buffer__parameterized3 |        234 |        234 |       0 |    0 |   22 |      0 |      0 |    0 |          0 |
+|       u_stream_rd_128b_ar_slot_subtractive |       gaxi_skid_buffer__parameterized3_1 |        141 |        141 |       0 |    0 |   38 |      0 |      0 |    0 |          0 |
+|       u_stream_wr_128b_aw_slot_subtractive |       gaxi_skid_buffer__parameterized3_2 |        213 |        213 |       0 |    0 |   22 |      0 |      0 |    0 |          0 |
++--------------------------------------------+------------------------------------------+------------+------------+---------+------+------+--------+--------+------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

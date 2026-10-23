@@ -3,11 +3,11 @@
 """fb_data_fabric, every leg: the data fabric under test, alone.
 
 The same TB and the same seed drive each leg's `fb_data_fabric`; the leg is
-chosen only by which filelist is compiled (PRD.md section 4). Both legs must
-pass identically before either goes into the harness: concurrent traffic from
+chosen only by which filelist is compiled (PRD.md section 4). Every leg must
+pass identically before it goes into the harness: concurrent traffic from
 all four masters with data checked at both ends, IDs {slot, local id} at every
-slave (the master's own ID on leg B1, a remap slot on leg A: local_id_width),
-DECERR for unconnected and unmapped targets.
+slave (the master's own ID on legs B1 and A2, a remap slot on leg A:
+local_id_width), DECERR for unconnected and unmapped targets.
 
 Leg B1 compiles the Xilinx AXI Crossbar from the Vivado install, so
 XILINX_VIVADO must point at it (Vivado's settings64.sh sets it).
@@ -29,22 +29,24 @@ COUNTS = {'gate': 20, 'func': 120, 'full': 500}
 AREA = 'projects/fpga-systems/Genesys2/fabric-benchmark'
 LEG_FILELIST = {
     'bridge': f'{AREA}/rtl/filelists/fb_data_fabric_bridge.f',
+    'bridge_plain': f'{AREA}/rtl/filelists/fb_data_fabric_bridge_plain.f',
     'xbar':   f'{AREA}/rtl/filelists/fb_data_fabric_xbar_sim.f',
 }
 
-BRIDGE_PKG = f'{AREA}/rtl/bridges/generated/bridge_fb_data/bridge_fb_data_pkg.sv'
+BRIDGE_PKG = {leg: f'{AREA}/rtl/bridges/generated/{b}/{b}_pkg.sv'
+              for leg, b in (('bridge', 'bridge_fb_data'), ('bridge_plain', 'bridge_fb_data_plain'))}
 MASTER_ID_W = 8
 
 
 def local_id_width(repo_root: str, leg: str) -> int:
     """Master-local ID bits at the slaves. Leg B1 forwards the master's own
-    ID; the bridge (leg A) remaps it to a slot, MASTER_ID_WIDTH in its
-    generated package (bridge TASK-018)."""
-    if leg != 'bridge':
+    ID; a bridge leg reports MASTER_ID_WIDTH in its generated package: a remap
+    slot on leg A (bridge TASK-018), the whole ID on leg A2 (id_remap off)."""
+    if leg not in BRIDGE_PKG:
         return MASTER_ID_W
-    with open(os.path.join(repo_root, BRIDGE_PKG)) as fh:
+    with open(os.path.join(repo_root, BRIDGE_PKG[leg])) as fh:
         m = re.search(r"localparam int MASTER_ID_WIDTH\s*=\s*(\d+)", fh.read())
-    assert m, f"no MASTER_ID_WIDTH in {BRIDGE_PKG}"
+    assert m, f"no MASTER_ID_WIDTH in {BRIDGE_PKG[leg]}"
     return int(m.group(1))
 
 
@@ -74,7 +76,7 @@ def generate_test_params():
     """(leg, test_level)"""
     reg = os.environ.get('REG_LEVEL', 'FUNC').upper()
     level = {'GATE': 'gate', 'FUNC': 'func', 'FULL': 'full'}.get(reg, 'func')
-    return [(leg, level) for leg in ('bridge', 'xbar')]
+    return [(leg, level) for leg in ('bridge', 'bridge_plain', 'xbar')]
 
 
 @pytest.mark.parametrize("leg, test_level", generate_test_params())

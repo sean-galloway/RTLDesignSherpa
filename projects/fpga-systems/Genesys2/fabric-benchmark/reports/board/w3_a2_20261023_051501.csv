@@ -1,0 +1,5 @@
+leg,flavor,idle_cycles,gap,gap_shift,outstanding,channels,descriptors,bytes_per_desc,pass,inj_share,stream_beats,inj_beats,window_cycles,stream_mibs,inj_mibs,inj_bp,inj_starv,error
+a2,mirror,0,0,0,2,8,4,131072,True,0.5,262144,262176,2137605,187.1,187.1,1875429,0,
+a2,mirror,0,0,0,4,8,4,131072,True,0.5,262144,262176,2137530,187.1,187.2,1875354,0,
+a2,mirror,480,15,5,2,8,4,131072,True,0.1092,262144,32140,1227294,325.9,40.0,232947,962207,
+a2,mirror,480,15,5,4,8,4,131072,True,0.1096,262144,32252,1227917,325.8,40.1,230473,965192,

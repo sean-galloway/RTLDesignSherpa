@@ -30,7 +30,8 @@ from pathlib import Path
 AREA = Path(__file__).resolve().parent.parent
 BOARD = AREA / 'reports' / 'board'
 OUT = AREA / 'reports' / 'k4'
-LEGS = (('a', 'A (bridge)'), ('b1', 'B1 (AXI Crossbar)'), ('b2', 'B2 (SmartConnect)'))
+LEGS = (('a', 'A (bridge)'), ('a2', 'A2 (bridge, preset = "xbar")'),
+        ('b1', 'B1 (AXI Crossbar)'), ('b2', 'B2 (SmartConnect)'))
 UTIL_ROWS = {'Slice LUTs': 'lut', 'LUT as Memory': 'lutram', 'Slice Registers': 'ff',
              'Block RAM Tile': 'bram', 'DSPs': 'dsp'}
 
