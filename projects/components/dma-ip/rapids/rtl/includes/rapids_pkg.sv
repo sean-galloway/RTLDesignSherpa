@@ -165,6 +165,25 @@ package rapids_pkg;
     localparam int DESC_TILE_PTYPE_HI = 215;
     localparam int DESC_TILE_OP       = 216;
 
+    //=========================================================================
+    // Next-address selector (rapids TASK-035)
+    //=========================================================================
+    // Chunk-0 bits [224:217], the first eight of the unused [255:217], in
+    // linear and EXT descriptors alike. 0 is the addressing every build has
+    // always done: linear, or for TYPE=EXT the stream_run_addr_gen run bases.
+    // Any other value names a next-address algorithm of the rapids-g
+    // firmware and needs TYPE=EXT (the algorithms place run bases). A
+    // descriptor whose selector the build cannot run is INVALID: it takes
+    // the invalid-descriptor path to CH_ERROR. The FSM schedulers run only
+    // selector 0 (max 0); rapids-g runs 0 .. its firmware image's ALG_MAX.
+    localparam int DESC_ALG_LO = 217;
+    localparam int DESC_ALG_HI = 224;
+
+    function automatic logic desc_alg_ok(input logic [7:0] alg, input logic is_ext,
+                                         input logic [7:0] alg_max);
+        return (alg == 8'd0) || (is_ext && (alg <= alg_max));
+    endfunction
+
     // A coordinate names one of a node's two IDs: ext = 0 the node itself
     // (internal), ext = 1 what is attached at its local port (external: a
     // cell, a tetrad's control core). TILE_SPEC 11.3.

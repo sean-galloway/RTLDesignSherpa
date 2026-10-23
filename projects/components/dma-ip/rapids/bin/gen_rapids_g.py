@@ -14,6 +14,8 @@ the product's, so it is DERIVED here rather than copied by hand:
     rtl/top_g/generated/rapids_g_top_base.sv           <- top/rapids_top_base.sv
     rtl/top_g/generated/rapids_g_top.sv                <- the AXIS thin top of the -g base
     rtl/top_g/generated/rapids_g_cxs_top.sv            <- the CXS thin top of the -g base
+    rtl/top_g/generated/rapids_g_16ch_top.sv           <- the AXIS thin top, NUM_CHANNELS = 16 (rapids TASK-036)
+    rtl/top_g/generated/rapids_g_16ch_cxs_top.sv       <- the CXS thin top, NUM_CHANNELS = 16
 
 Every edit is a module rename or an anchored insertion that must match
 exactly once; a product change that moves an anchor fails the run instead of
@@ -53,6 +55,7 @@ SEQ_PORTS = """                .tile_dest_legal         (tile_dest_legal),
                 .seq_rd_data             (g_seq_rd_data[ch]),
                 .seq_attn                (g_seq_attn[ch]),
                 .seq_fault               (g_seq_fault[ch]),
+                .seq_alg_max             (g_seq_alg_max),
                 .scheduler_idle          (scheduler_idle[ch]),
                 .scheduler_state         (scheduler_state[ch]),
                 .sched_error             (sched_error[ch]),
@@ -60,11 +63,11 @@ SEQ_PORTS = """                .tile_dest_legal         (tile_dest_legal),
 SEQ_LOOP_ANCHOR = "        for (genvar ch = 0; ch < NUM_CHANNELS; ch++) begin : gen_schedulers\n"
 FATAL_ANCHOR = "        if ((TILE_HDR != 0) && (SHARED_ENGINES == 0))\n"
 FATAL_G = """        // rapids-g: the schedulers are scheduler_g, which exist only in the
-        // shared-engine structure; one gatling serves 4 or 8 of them.
+        // shared-engine structure; one gatling serves 4, 8 or 16 of them.
         if (SHARED_ENGINES == 0)
             $fatal(1, "scheduler_group_array_g: rapids-g needs SHARED_ENGINES = 1");
-        if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8))
-            $fatal(1, "scheduler_group_array_g: NUM_CHANNELS must be 4 or 8, got %0d", NUM_CHANNELS);
+        if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8) && (NUM_CHANNELS != 16))
+            $fatal(1, "scheduler_group_array_g: NUM_CHANNELS must be 4, 8 or 16, got %0d", NUM_CHANNELS);
 """
 
 # The register-mailbox master each half's gatling drives (rapids_seq_g ->
@@ -169,11 +172,14 @@ def derived_jobs():
 def top_jobs():
     """The thin tops: the product derivation, applied to the -g base on disk."""
     out = []
-    for kind in ('axis', 'cxs'):
-        path, text = gen_plane_tops.gen('top_g/generated', 'rapids_g_top', kind)
-        text = text.replace(gen_plane_tops.STAMP,
-                            STAMP + "\n// (the thin-top derivation of bin/gen_plane_tops.py, on rapids_g_top_base)")
-        out.append((path, text))
+    for nch, stem in ((None, None), (16, 'rapids_g_16ch_top')):
+        for kind in ('axis', 'cxs'):
+            path, text = gen_plane_tops.gen('top_g/generated', 'rapids_g_top', kind, nch=nch, stem=stem)
+            text = text.replace(gen_plane_tops.STAMP,
+                                STAMP + "\n// (the thin-top derivation of bin/gen_plane_tops.py, on rapids_g_top_base)")
+            # the variant note names the product's filelist directory
+            text = text.replace('rtl/filelists/top/', 'rtl/filelists/top_g/')
+            out.append((path, text))
     return out
 
 

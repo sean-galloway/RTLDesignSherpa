@@ -36,7 +36,7 @@
 
     initial begin
         if (APB_ADDR_WIDTH != 13 || APB_DATA_WIDTH != 32)
-            $fatal(1, "rapids_g_top_base: the gatling register path needs the 8-channel map (13-bit, 32-bit APB)");
+            $fatal(1, "rapids_g_top_base: the gatling register path needs a 13-bit, 32-bit APB map (the 8- and 16-channel maps both are)");
     end
 
     rapids_g_reg_arb #(

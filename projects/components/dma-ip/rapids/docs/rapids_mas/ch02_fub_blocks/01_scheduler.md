@@ -246,6 +246,8 @@ The control interface tables do not change from RAPIDS Beats. The packet-record 
 | [207:200] | `priority` | |
 | [209:208] | `opcode` | DATA = 0, CTRL_READ = 1, CTRL_WRITE = 2 |
 | [212:210] | `type` | LEGACY = 0, EXT = 1 |
+| [216:213] | tile `op`, `ptype` | `TILE_HDR` builds |
+| [224:217] | `next_addr_sel` | must be 0 here; any other value is an invalid descriptor (rapids-g runs 1, HAS Section 5.1) |
 
 : Table 2.1.10: Descriptor Layout
 
@@ -349,7 +351,7 @@ Transition priority is: registered channel reset to IDLE, then a hard error or t
 | IDLE | FETCH_DESC | `descriptor_valid && cfg_channel_enable` |
 | FETCH_DESC | XFER_DATA | `r_descriptor.valid && w_pkt_ok` |
 | FETCH_DESC | FETCH_DESC | `r_descriptor.valid` and `w_pkt_ok` false (record queue full) |
-| FETCH_DESC | ERROR | descriptor `valid` bit clear |
+| FETCH_DESC | ERROR | descriptor invalid: `valid` bit clear, or a next-address selector `[224:217]` other than 0 (rapids TASK-035) |
 | XFER_DATA | COMPLETE | `w_exec_complete` |
 | COMPLETE | NEXT_DESC | `next_descriptor_ptr != 0 && !last` |
 | COMPLETE | IDLE | otherwise |

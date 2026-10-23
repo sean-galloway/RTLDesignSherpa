@@ -28,16 +28,16 @@
 
 ---
 
-rapids-g is a build of RAPIDS in which each half's channel schedulers are sequenced by firmware on one gatling (a barrel RV32I core with one hardware context per channel by default) instead of by a state machine per channel. To software it is RAPIDS: the same register map, the same descriptor format, the same channel states in `CH_STATE`, the same MonBus events, the same network planes. The tops are `rapids_g_top` (AXIS) and `rapids_g_cxs_top` (CXS), with 4 or 8 channels per half.
+rapids-g is a build of RAPIDS in which each half's channel schedulers are sequenced by firmware on one gatling (a barrel RV32I core with one hardware context per channel by default) instead of by a state machine per channel. To software it is RAPIDS: the same register map, the same descriptor format, the same channel states in `CH_STATE`, the same MonBus events, the same network planes. The tops are `rapids_g_top` (AXIS) and `rapids_g_cxs_top` (CXS) with 4 or 8 channels per half, and rapids-g-16ch, `rapids_g_16ch_top` and `rapids_g_16ch_cxs_top`, on the 16-channel register map.
 
 What changes is where the decisions and the address arithmetic are made. The firmware takes and validates descriptors, follows chains, and computes the EXT row and column run bases; the hardware keeps everything that runs at the engines' rate, and forces CH_IDLE on a channel reset and CH_ERROR on a fatal error in the same cycle as RAPIDS. While a descriptor transfers, the firmware validates the next one waiting for the channel, so the hardware starts it the moment the current one completes.
 
 | | RAPIDS | rapids-g |
 |---|---|---|
-| Register map, descriptors, channel states | -- | identical |
+| Register map, descriptors, channel states | -- | identical, except that rapids-g also runs next-address selector 1 (Z-order); RAPIDS refuses it (Section 5.1) |
 | Per-descriptor overhead | a few cycles | about 90 clocks at 8 channels, hidden behind the descriptor in flight (Section 6.4) |
 | EXT run bases | `stream_run_addr_gen` per channel and direction (64 multipliers at 8 channels) | firmware, by addition |
-| Channels | 8 or 16 | 4 or 8 |
+| Channels | 8 or 16 | 4, 8 or 16 |
 
 : Table 2.3: RAPIDS and rapids-g
 

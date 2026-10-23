@@ -7,11 +7,13 @@
 // scheduler loop, and wires each scheduler_g's seq_* port to these nets.
 //
 // One gatling (rapids_seq_g) serves every channel of this array: one hart
-// per channel (rapids_seq_g NUM_HARTS defaults to NUM_CHANNELS).
+// per channel at 4 and 8 channels, two channels per hart at 16 (rapids_seq_g's
+// NUM_HARTS default).
 
         logic [NUM_CHANNELS-1:0]        g_seq_wr_en, g_seq_attn, g_seq_fault;
         logic [4:0]                     g_seq_wr_addr, g_seq_rd_addr;
         logic [31:0]                    g_seq_wr_data;
+        logic [7:0]                     g_seq_alg_max;
         logic [NUM_CHANNELS-1:0][31:0]  g_seq_rd_data;
 
         rapids_seq_g #(
@@ -28,6 +30,7 @@
             .seq_rd_data        (g_seq_rd_data),
             .seq_attn           (g_seq_attn),
             .seq_fault          (g_seq_fault),
+            .seq_alg_max        (g_seq_alg_max),
             .reg_cmd_valid      (seq_reg_cmd_valid),      // this half's register mailbox:
             .reg_cmd_ready      (seq_reg_cmd_ready),      //   the array's seq_reg_* ports
             .reg_cmd_pwrite     (seq_reg_cmd_pwrite),

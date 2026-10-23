@@ -38,9 +38,9 @@ channel count: rapids-8ch is RAPIDS with 8 channels and rapids-g-8ch is rapids-g
 | Chains of 2 KB (64-beat) descriptors, all channels busy | either | rapids-g-8ch is within 2% (interleaved sink) and 2% (source) |
 | Descriptors of 2 KB or less, a few channels busy | rapids-8ch | rapids-g-8ch is 20-75% slower: the firmware spends about 90 clocks per descriptor |
 | Single-beat or very short descriptors | rapids-8ch | rapids-g-8ch reaches 26-57% of rapids-8ch |
-| TYPE=EXT descriptors with short runs | rapids-8ch | rapids-g-8ch computes each run base in firmware: 99x slower at runs of 4, 130x per beat |
+| TYPE=EXT descriptors with short runs | rapids-8ch | rapids-g-8ch computes each run base in firmware: 96x slower at runs of 4, 125x per beat |
 | TYPE=EXT descriptors with runs of 256 beats or more | rapids-8ch, unless DSPs are short | rapids-g-8ch is 2.4x slower at 256-beat runs |
-| 16 channels | rapids-16ch | rapids-g has 4 or 8 channels only |
+| 16 channels | rapids-16ch; rapids-g-16ch when DSPs are short or for large descriptors | rapids-g-16ch is within 0.4% at 1 MB and 3% at 64 KB, but its per-descriptor cost doubles at 16 channels (Table 6.4.6); it saves 128 DSPs for 11% more LUTs |
 | No DSPs to spare | rapids-g-8ch | RAPIDS uses 64 DSPs for the EXT run-base multipliers; rapids-g uses none |
 
 : Table 6.4.1: Choosing a design
@@ -135,32 +135,33 @@ The board numbers include the harness and the AXI engines. To isolate the schedu
 MAS bench (Section 5.5) runs both designs with engines that never stall, both directions on every
 channel at once, and counts cycles to finish:
 
-| Scenario (8 channels) | rapids-8ch | rapids-g-8ch | rapids-g-8ch / rapids-8ch |
-|----------------------------------|-------------:|-------------:|-------------:|
-| 16 one-beat descriptors, one channel | 131 | 2,371 | 18x |
-| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 1.9x |
-| 4 64 KB descriptors on each channel | 9,248 | 9,529 | 1.03x |
-| 2 1 MB descriptors on each channel | 84,277 | 84,420 | 1.002x |
-| EXT, runs of 4, 64 beats, 4 per channel | 407 | 40,433 | 99x |
-| EXT, per beat, 64 beats, 4 per channel | 1,043 | 135,848 | 130x |
-| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 72,329 | 2.4x |
+| Scenario | rapids-8ch | rapids-g-8ch | rapids-16ch | rapids-g-16ch |
+|----------------------------------|-------------:|-------------:|-------------:|-------------:|
+| 16 one-beat descriptors, one channel | 131 | 2,371 | 131 | 2,859 |
+| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 1,255 | 4,957 |
+| 4 64 KB descriptors on each channel | 9,248 | 9,412 | 9,248 | 9,553 |
+| 2 1 MB descriptors on each channel | 84,277 | 84,443 | 84,277 | 84,580 |
+| EXT, runs of 4, 64 beats, 4 per channel | 407 | 39,201 | 407 | 76,862 |
+| EXT, per beat, 64 beats, 4 per channel | 1,043 | 130,086 | 1,043 | 253,623 |
+| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 70,641 | 29,574 | 137,624 |
 
 : Table 6.4.6: Cycles to finish, schedulers alone (lower is better)
 
 ## Area and Timing
 
-| `rapids_core`, out of context | rapids-8ch | rapids-g-8ch |
-|---|---:|---:|
-| LUTs | 68,773 | 76,958 (+11.9%) |
-| Registers | 55,550 | 58,673 |
-| Block RAM tiles | 64 | 70 |
-| DSPs | 64 | 0 |
-| WNS at 100 MHz | +0.601 ns | +0.393 ns |
+| `rapids_core`, out of context | rapids-8ch | rapids-g-8ch | rapids-16ch | rapids-g-16ch |
+|---|---:|---:|---:|---:|
+| LUTs | 69,184 | 77,975 (+12.7%) | 126,820 | 141,067 (+11.2%) |
+| Registers | 56,105 | 58,837 | 101,808 | 104,738 |
+| Block RAM tiles | 64 | 70 | 128 | 134 |
+| DSPs | 64 | 0 | 128 | 0 |
+| WNS at 100 MHz | +0.684 ns | +0.533 ns | +0.079 ns | +0.050 ns |
 
-: Table 6.4.7: rapids_core and rapids_core_g on the xc7k325t-2 (8 channels, 256-bit, shared engines, no AXI monitors)
+: Table 6.4.7: rapids_core and rapids_core_g on the xc7k325t-2 (256-bit, shared engines, no AXI monitors, EXT addressing built)
 
-In the full Genesys 2 harness used for Tables 6.4.3 to 6.4.5, rapids-g-8ch takes 110,662 LUTs
-(54.3%) and closes 100 MHz at +0.072 ns; rapids-8ch takes 100,007 LUTs at +0.357 ns.
+In the full Genesys 2 harness used for Tables 6.4.3 to 6.4.5, rapids-g-8ch takes 111,738 LUTs
+(54.8%) and closes 100 MHz at +0.061 ns; rapids-8ch takes 100,007 LUTs at +0.357 ns. The board
+tables are unchanged by the 2026-10-23 firmware: its board run is identical to them on every window.
 
 ## Related Chapters
 

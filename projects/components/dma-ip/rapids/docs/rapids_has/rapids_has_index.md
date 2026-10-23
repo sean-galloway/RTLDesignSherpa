@@ -23,8 +23,8 @@
 
 # RAPIDS Architecture HAS
 
-**Version:** 0.92
-**Date:** 2026-10-22
+**Version:** 0.93
+**Date:** 2026-10-23
 **Purpose:** Hardware Architecture Specification for byte-granular RAPIDS, the product design that succeeds the RAPIDS Beats stepping stone
 **Classification:** External Interface Specification
 

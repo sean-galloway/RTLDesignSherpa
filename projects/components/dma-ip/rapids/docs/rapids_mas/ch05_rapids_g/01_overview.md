@@ -30,7 +30,7 @@
 
 ## What rapids-g Is
 
-rapids-g is RAPIDS with its scheduler state machines replaced by firmware. Each half of the core (source and sink) has one gatling, the four-context barrel RV32I core (`projects/components/riscv-ip/gatling-rv32i`), running one firmware image for all of that half's 4 or 8 channels. The firmware makes every decision RAPIDS's state machine makes and does the EXT address arithmetic RAPIDS's `scheduler` does in hardware:
+rapids-g is RAPIDS with its scheduler state machines replaced by firmware. Each half of the core (source and sink) has one gatling, the four-context barrel RV32I core (`projects/components/riscv-ip/gatling-rv32i`), running one firmware image for all of that half's 4, 8 or 16 channels. The firmware makes every decision RAPIDS's state machine makes and does the EXT address arithmetic RAPIDS's `scheduler` does in hardware:
 
 - taking a descriptor, validating it, starting it, finishing it, and following a chain;
 - the EXT run bases, `base + ((i0 * stride_0) & wrap_0) + ((i1 * stride_1) & wrap_1)`, computed by repeated addition (gatling has no multiplier) and pushed ahead into a small queue per direction.
@@ -58,7 +58,7 @@ Two capabilities RAPIDS does not have: the firmware pre-validates the next descr
 
 ## Channels per gatling
 
-By default each hart serves one channel (`NUM_HARTS` = `NUM_CHANNELS`): 4 or 8 harts, one slot each, every hart issuing one instruction every `NUM_HARTS` clocks. `NUM_HARTS` = 4 at 8 channels gives each hart two slots, channels h and h + 4. The generated array refuses any other channel count, and `SHARED_ENGINES` = 0, at elaboration. An 8-channel core therefore has two gatlings, one per half, each sequencing eight schedulers.
+By default each hart serves one channel at 4 and 8 channels (`NUM_HARTS` = `NUM_CHANNELS`): 4 or 8 harts, one slot each, every hart issuing one instruction every `NUM_HARTS` clocks. At 16 channels the default is 8 harts with two slots each (channels h and h + 8), measured best overall (Section 5.5; rapids TASK-036); 16 harts x 1 and 4 harts x 4 are also built and tested. `NUM_HARTS` = 4 at 8 channels gives each hart two slots, channels h and h + 4. The generated array refuses any other channel count, and `SHARED_ENGINES` = 0, at elaboration. An 8-channel core therefore has two gatlings, one per half, each sequencing eight schedulers; a 16-channel core has two, each sequencing sixteen.
 
 ## What stays hardware, and why
 

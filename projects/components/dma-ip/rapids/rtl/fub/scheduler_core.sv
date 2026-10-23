@@ -155,6 +155,8 @@ module scheduler_core #(
     // FSM (scheduler) or the firmware port (scheduler_g)
     input  rapids_pkg::channel_state_t  state,
     input  logic                        desc_take,          // pop the skid head into the latch
+    input  logic [7:0]                  desc_alg_max,       // highest next-address selector the
+                                                            //   build runs (FSM: 0; rapids TASK-035)
     input  logic                        start_req,          // FETCH_DESC -> XFER_DATA is requested: the
                                                             //   records fire only with it (FSM: 1)
     input  logic [31:0]                 rd_beats_total,     // beats each direction moves, for
@@ -173,6 +175,7 @@ module scheduler_core #(
     output rapids_pkg::descriptor_t     desc_latched,       // the latched descriptor
     output rapids_pkg::descriptor_ext_t desc_ext_latched,   // its chunk 1 (EXT)
     output logic [1:0]                  desc_opcode,        // DESC_OP_*
+    output logic [7:0]                  desc_alg,           // the latched next-address selector
     output logic                        desc_is_ext,
     output logic                        desc_hdr_only,      // tile read request: moves no memory
     output logic                        desc_rd_per_beat,   // EXT, stride_0 != beat size
@@ -436,6 +439,7 @@ module scheduler_core #(
     // (op = 1) is a header-only packet: it reads no memory.
     logic [2:0] r_tile_ptype;
     logic       r_tile_op;
+    logic [7:0] r_desc_alg;         // next-address selector (rapids TASK-035)
     logic       w_hdr_only;
     assign w_hdr_only = (TILE_HDR != 0) && r_tile_op;
     // A source descriptor carries cfg / prog / mem only: credit and desc
@@ -644,6 +648,7 @@ module scheduler_core #(
             r_desc_opcode <= 2'b00;
             r_tile_ptype <= 3'b000;
             r_tile_op <= 1'b0;
+            r_desc_alg <= 8'h00;
             r_ctrl_issued <= 1'b0;
             r_descriptor_ext <= '0;
             r_is_ext <= 1'b0;
@@ -665,7 +670,13 @@ module scheduler_core #(
                 r_descriptor.dst_addr <= w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
                 r_descriptor.length <= w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
                 r_descriptor.next_descriptor_ptr <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                r_descriptor.valid <= w_desc_packet[DESC_VALID_BIT];
+                // A selector this build cannot run makes the descriptor
+                // invalid (rapids TASK-035): the invalid-descriptor path.
+                r_descriptor.valid <= w_desc_packet[DESC_VALID_BIT] &&
+                                      rapids_pkg::desc_alg_ok(
+                                          w_desc_packet[rapids_pkg::DESC_ALG_HI:rapids_pkg::DESC_ALG_LO],
+                                          w_is_ext_in, desc_alg_max);
+                r_desc_alg    <= w_desc_packet[rapids_pkg::DESC_ALG_HI:rapids_pkg::DESC_ALG_LO];
                 r_descriptor.gen_irq <= w_desc_packet[DESC_GEN_IRQ];
                 r_descriptor.last <= w_desc_packet[DESC_LAST];
 
@@ -1197,6 +1208,7 @@ module scheduler_core #(
     assign desc_latched         = r_descriptor;
     assign desc_ext_latched     = r_descriptor_ext;
     assign desc_opcode          = r_desc_opcode;
+    assign desc_alg          = r_desc_alg;
     assign desc_is_ext          = r_is_ext;
     assign desc_hdr_only        = w_hdr_only;
     assign desc_rd_per_beat     = r_rd_per_beat;

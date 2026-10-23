@@ -47,6 +47,7 @@ from TBClasses.shared.tbbase import TBBase
 SIDES = ('f', 'g')
 ST_IDLE, ST_FETCH, ST_XFER, ST_COMPLETE, ST_NEXT, ST_ERROR = 0x01, 0x02, 0x04, 0x08, 0x10, 0x20
 DESC_TYPE_EXT = 1
+DESC_ALG_LO = 217          # next-address selector, chunk 0 [224:217] (rapids TASK-035)
 
 
 # ---------------------------------------------------------------------------
@@ -61,10 +62,13 @@ class Desc:
 
 
 def make_desc(src: int, dst: int, length: int, next_ptr: int = 0, valid: bool = True,
-              gen_irq: bool = False, last: bool = True, ext: Optional[dict] = None) -> Desc:
+              gen_irq: bool = False, last: bool = True, ext: Optional[dict] = None,
+              alg: int = 0) -> Desc:
+    """alg: the next-address selector, chunk 0 [224:217] (rapids TASK-035)."""
     p = (src & (2**64 - 1)) | ((dst & (2**64 - 1)) << 64) | ((length & 0xFFFFFFFF) << 128)
     p |= (next_ptr & 0xFFFFFFFF) << 160
     p |= int(valid) << 192 | int(gen_irq) << 193 | int(last) << 194
+    p |= (alg & 0xFF) << DESC_ALG_LO
     chunk1 = 0
     if ext is not None:
         p |= DESC_TYPE_EXT << 210
@@ -81,6 +85,15 @@ def pack_ext(rd_s0=0, rd_s1=0, rd_w0=0, rd_w1=0, rd_inner=0,
     v |= (wr_s0 & m32) << 96 | (wr_s1 & m32) << 128
     v |= (wr_inner & 0xFFFF) << 160 | (wr_w0 & 0x3F) << 176 | (wr_w1 & 0x3F) << 182
     return v
+
+
+def morton_xy(k: int) -> Tuple[int, int]:
+    """Z-order position k -> (x, y): x is k's even bits, y its odd bits."""
+    x = y = 0
+    for i in range(16):
+        x |= ((k >> (2 * i)) & 1) << i
+        y |= ((k >> (2 * i + 1)) & 1) << i
+    return x, y
 
 
 # ---------------------------------------------------------------------------
@@ -134,6 +147,7 @@ class RapidsGEquivTB(TBBase):
     def __init__(self, dut):
         super().__init__(dut)
         self.N = self.convert_to_int(os.environ.get('TEST_NUM_CHANNELS', '4'))
+        self.harts = self.convert_to_int(os.environ.get('TEST_NUM_HARTS', str(self.N)))
         self.DW = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '256'))
         self.lanes = self.DW // 8
         self.off_w = self.lanes.bit_length() - 1
@@ -553,21 +567,34 @@ class RapidsGEquivTB(TBBase):
         m1 = ((1 << w1) - 1) if w1 else M64
         per_beat = (s0 & 0xFFFFFFFF) != L
         base0 = addr
-        # the generator's positions after run 0 / beat 0
-        if per_beat:
-            i0, i1 = (1, 0) if inner > 1 else (0, 1)
-            gen, step = 1, 1
-        else:
-            i0, i1, gen, step = 0, 1, inner, inner
         bases = []
-        while gen < total:
-            bases.append((base0 + ((i0 * s0) & m0) + ((i1 * s1) & m1)) & M64)
-            gen += step
-            if per_beat and i0 != inner - 1:
-                i0 += 1
+        if (pk >> DESC_ALG_LO) & 0xFF == 1:
+            # selector 1, Z-order (rapids TASK-035): unit k (a beat, or a run
+            # of inner beats) at base + ((x * S0) & m0) + ((y * s1) & m1),
+            # (x, y) = Morton(k), S0 = stride_0 per beat or inner beats per run
+            step = 1 if per_beat else inner
+            big_s0 = s0 if per_beat else inner * L
+            k, gen = 1, step
+            while gen < total:
+                x, y = morton_xy(k)
+                bases.append((base0 + ((x * big_s0) & m0) + ((y * s1) & m1)) & M64)
+                gen += step
+                k += 1
+        else:
+            # the generator's positions after run 0 / beat 0
+            if per_beat:
+                i0, i1 = (1, 0) if inner > 1 else (0, 1)
+                gen, step = 1, 1
             else:
-                i0 = 0 if per_beat else i0
-                i1 = (i1 + 1) & 0xFFFF
+                i0, i1, gen, step = 0, 1, inner, inner
+            while gen < total:
+                bases.append((base0 + ((i0 * s0) & m0) + ((i1 * s1) & m1)) & M64)
+                gen += step
+                if per_beat and i0 != inner - 1:
+                    i0 += 1
+                else:
+                    i0 = 0 if per_beat else i0
+                    i1 = (i1 + 1) & 0xFFFF
         run_size = 1 if per_beat else inner
         out, left = [], total
         run = min(run_size, total)
@@ -595,7 +622,7 @@ class RapidsGEquivTB(TBBase):
                                      gen_irq=self.rng.random() < 0.3, last=last))
         return out          # whole chains: a cut chain would wait in NEXT_DESC forever
 
-    def rand_ext(self, n: int) -> List[Desc]:
+    def rand_ext(self, n: int, alg: int = 0) -> List[Desc]:
         L = self.lanes
         out = []
         for _ in range(n):
@@ -619,5 +646,5 @@ class RapidsGEquivTB(TBBase):
                 ext['rd_s0'] = L
             if self.rng.random() < 0.5:
                 ext['wr_s0'] = L
-            out.append(make_desc(src, dst, beats * L, gen_irq=self.rng.random() < 0.2, ext=ext))
+            out.append(make_desc(src, dst, beats * L, gen_irq=self.rng.random() < 0.2, ext=ext, alg=alg))
         return out

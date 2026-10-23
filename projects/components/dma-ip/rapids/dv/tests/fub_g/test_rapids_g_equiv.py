@@ -28,6 +28,9 @@
                 pending start taken on the cycle the records go
   error_reset   invalid descriptors and an engine error mid-transfer, then a
                 channel reset and more work: the interlocks and recovery
+  alg           the next-address selector (rapids TASK-035): selectors no build
+                runs are invalid on both sides; selector 1 (Z-order) runs on
+                gatling against the golden model and is refused by the FSM
 """
 
 import os
@@ -274,17 +277,17 @@ async def cocotb_test_hart_fault(dut):
     tb.load([tb.rand_linear(2, chains=False) for _ in range(tb.N)])
     assert await tb.run_until_quiet(CYCLE_BUDGET), "the warm-up did not finish"
     rom = dut.u_seq.r_rom
-    # every poll loop of sched_g.S (one slot and two) reads SUMMARY with this
-    # word, so whichever loop the harts run, they reach an illegal one
+    # every poll of sched_g.S (one slot, two, the slot loop) reads SUMMARY
+    # with this word, so whichever poll the harts run, they reach an illegal one
     polls = [w for w in range(len(rom)) if int(rom[w].value) == LW_SUMMARY]
-    assert len(polls) == 2, f"expected the two loops' SUMMARY polls, found ROM words {polls}"
+    assert len(polls) == 3, f"expected the three polls' SUMMARY reads, found ROM words {polls}"
     await Timer(1, 'ns')                           # out of ReadOnly before writing
     for w in polls:
         rom[w].value = 0xFFFF_FFFF                 # an illegal instruction
     tb.load([tb.rand_linear(1, chains=False) for _ in range(tb.N)])
     await tb.run_cycles(400)
     halted = int(dut.g_hart_halted.value)
-    assert halted == (1 << tb.N) - 1, f"every hart should have halted on the illegal word, got 0x{halted:x}"
+    assert halted == (1 << tb.harts) - 1, f"every hart should have halted on the illegal word, got 0x{halted:x}"
     for i in range(tb.N):
         g = tb.ch['g'][i]
         assert g.state == ST_ERROR, f"g{i}: a halted hart's channel is in 0x{g.state:02x}, not CH_ERROR"
@@ -324,7 +327,14 @@ async def cocotb_test_perf(dut):
     L, n = tb.lanes, 16
     out = {'channels': tb.N, 'data_width': tb.DW}
 
+    # PERF_ONLY=a,b runs just those scenarios, each from the same cycle as a
+    # full run's first one: two images compared that way share their start
+    # phase against the barrel, which a scenario late in a full run does not.
+    only = set(filter(None, os.environ.get('PERF_ONLY', '').split(',')))
+
     async def scenario(name, per_channel, channels):
+        if only and name not in only:
+            return
         lists = [per_channel(i) if i in channels else [] for i in range(tb.N)]
         tb.load(lists)
         done = await tb.cycles_to_quiet(CYCLE_BUDGET)
@@ -367,27 +377,74 @@ async def cocotb_test_perf(dut):
     tb.log.info(f"perf results: {path}")
 
 
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_alg(dut):
+    """The next-address selector (rapids TASK-035), chunk 0 [224:217].
+
+    First, selectors no build can run -- one above the image's ALG_MAX, and a
+    non-zero selector on a linear descriptor -- are invalid descriptors on
+    both sides: CH_ERROR, equivalent. Then, after a channel reset, selector 1
+    (Z-order run bases): the FSM refuses it (selector 0 only) and gatling
+    runs it, checked against the golden model."""
+    tb = RapidsGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    L = tb.lanes
+    alg_max = int(dut.g_alg_max.value)
+    assert alg_max == 1, f"the firmware image declares ALG_MAX {alg_max}, this cell expects 1"
+    ext = dict(rd_s0=L, rd_s1=8 * L, rd_inner=2, wr_s0=L, wr_s1=8 * L, wr_inner=2)
+    bad = [make_desc(0x1000, 0x2000, 4 * L, ext=ext, alg=alg_max + 1),     # above the image's
+           make_desc(0x1000, 0x2000, 4 * L, alg=1)]                          # selector 1, not EXT
+    for k, d in enumerate(bad):
+        tb.load([tb.rand_linear(1, chains=False) + [d] for _ in range(tb.N)])
+        for i in range(tb.N):
+            assert await tb.wait_state(i, ST_ERROR, CYCLE_BUDGET), f"bad selector {k}: ch{i} never reached CH_ERROR"
+        assert await tb.run_until_quiet(CYCLE_BUDGET)
+        assert tb.compare(), f"bad selector {k}: the FSM and gatling schedulers differ"
+        await tb.channel_reset((1 << tb.N) - 1)
+    # selector 1 on gatling, against the golden model
+    marks = {i: tb.mark(i) for i in range(tb.N)}
+    n = DEPTH[current_level()]
+    lists = [tb.rand_ext(n, alg=1) for _ in range(tb.N)]
+    for i in range(tb.N):                  # the FSM gets the first one only:
+        tb.ch['g'][i].queue.extend(lists[i])     # it stops in CH_ERROR there
+        tb.ch['f'][i].queue.append(lists[i][0])
+    assert await tb.run_until_quiet(CYCLE_BUDGET), "alg: gatling did not finish the Z-order descriptors"
+    for i in range(tb.N):
+        assert tb.ch['f'][i].state == ST_ERROR, f"f{i}: the FSM ran a selector-1 descriptor (state 0x{tb.ch['f'][i].state:02x})"
+        assert tb.ch['g'][i].state != ST_ERROR, f"g{i}: gatling refused a selector-1 descriptor"
+    ok = all(_golden_check(tb, 'g', i, lists[i], start=marks[i]['g']) for i in range(tb.N))
+    assert ok, "alg: gatling's Z-order commands differ from the golden model"
+    errs, halted = tb.cmd_errors(), int(tb.dut.g_hart_halted.value)
+    assert halted == 0, f"alg: a gatling hart halted (0x{halted:x})"
+    tb.log.info(f"alg: ALG_MAX {alg_max}, refused selectors equivalent, {sum(len(x) for x in lists)} "
+                f"Z-order descriptors match the golden model, cmd_errors {errs}")
+
+
 # ---------------------------------------------------------------------------
 # pytest
 # ---------------------------------------------------------------------------
 
-CASES = ['linear', 'ext', 'reset_ext', 'backpressure', 'error_reset', 'reset_any', 'hart_fault', 'perf']
-CONFIGS = [(4, 256), (8, 256), (8, 512)]
+CASES = ['linear', 'ext', 'reset_ext', 'backpressure', 'error_reset', 'reset_any', 'hart_fault', 'alg', 'perf']
+# (channels, data width, harts): one slot per hart, plus 8 channels on 4
+# harts (two slots each, the unrolled two-slot poll) and 16 channels on 16,
+# 8 and 4 harts (one, two and four slots: the slot loop)
+CONFIGS = [(4, 256, 4), (8, 256, 8), (8, 512, 8), (8, 256, 4),
+           (16, 256, 16), (16, 256, 8), (16, 256, 4)]
 
 
 @pytest.mark.fub
 @pytest.mark.rapids_g
 @pytest.mark.parametrize("case", CASES)
-@pytest.mark.parametrize("num_channels, data_width", CONFIGS)
+@pytest.mark.parametrize("num_channels, data_width, num_harts", CONFIGS)
 @pytest.mark.parametrize("test_level", reg_level_grid())
-def test_rapids_g_equiv(request, case, num_channels, data_width, test_level):
+def test_rapids_g_equiv(request, case, num_channels, data_width, num_harts, test_level):
     """FSM scheduler vs scheduler_g + firmware: the `case` scenario."""
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut = 'rapids_g_equiv_tb_top'
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
         filelist_path='projects/components/dma-ip/rapids/dv/filelists/rapids_g_equiv_tb_top.f')
-    name = f"test_rapids_g_equiv_{case}_nc{num_channels:02d}_dw{data_width:04d}_{test_level}"
+    name = f"test_rapids_g_equiv_{case}_nc{num_channels:02d}_dw{data_width:04d}_nh{num_harts:02d}_{test_level}"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         name = f"{name}_{worker_id}"
@@ -404,12 +461,13 @@ def test_rapids_g_equiv(request, case, num_channels, data_width, test_level):
             toplevel=dut,
             module=module,
             testcase=f"cocotb_test_{case}",
-            parameters={'NUM_CHANNELS': num_channels, 'DATA_WIDTH': data_width},
+            parameters={'NUM_CHANNELS': num_channels, 'DATA_WIDTH': data_width, 'NUM_HARTS': num_harts},
             simulator="verilator",
             sim_build=sim_build,
             extra_env={'LOG_PATH': log_path, 'DUT': dut, 'COCOTB_LOG_LEVEL': 'INFO',
                        **level_env(test_level),
                        'TEST_NUM_CHANNELS': str(num_channels),
+                       'TEST_NUM_HARTS': str(num_harts),
                        'TEST_DATA_WIDTH': str(data_width),
                        'COCOTB_RESULTS_FILE': os.path.join(log_dir, f"results_{name}.xml")},
             waves=enable_waves,

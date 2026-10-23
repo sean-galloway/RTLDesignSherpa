@@ -65,8 +65,8 @@ CASES = [
 
 def _g_params():
     params = list(product.scheduler_group_array_params)
-    params += [(4,) + p[1:] for p in product.scheduler_group_array_params
-               if p[0] == 8 and p[4] == 'default']
+    params += [(n,) + p[1:] for n in (4, 16) for p in product.scheduler_group_array_params
+               if p[0] == 8 and p[4] == 'default']      # 16: rapids TASK-036
     return params
 
 

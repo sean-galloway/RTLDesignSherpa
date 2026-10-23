@@ -47,6 +47,7 @@
 | `seq_rd_addr[4:0]`, `seq_rd_data[31:0]` | in / out | a word read; combinational here, registered in `rapids_seq_g` |
 | `seq_attn` | out | the firmware has something to do on this channel |
 | `seq_fault` | in | the hart serving this channel has halted: a fatal fault |
+| `seq_alg_max` | in | the firmware image's highest next-address selector (`FW_ALG_MAX`, rapids TASK-035), a constant from `rapids_seq_g` |
 
 : Table 5.2.1: Sequencer port
 
@@ -64,7 +65,9 @@
 | 14 | CFG: `[15:0]` BYTE_LANES, `[19:16]` OFF_W, `[20]` EN_READ, `[21]` EN_WRITE, `[22]` EXT built, `[23]` TILE_HDR built | -- |
 | 15-18 | the skid head, before it is taken: src `[31:0]`, dst `[31:0]`, length, descriptor `[223:192]` (valid, opcode, type, tile op) | -- |
 | 19-20 | the beat totals in use (hardware) | -- |
-| 21 | HEAD_SUM: the skid head's `[0]` valid, `[1]` last, `[2]` chain (`next_ptr != 0`), `[3]` open (not yet staged or declined, in a state where STAGE and DECLINE are legal) | -- |
+| 21 | HEAD_SUM: the skid head's `[0]` valid (and its next-address selector one the image runs), `[1]` last, `[2]` chain (`next_ptr != 0`), `[3]` open (not yet staged or declined, in a state where STAGE and DECLINE are legal) | -- |
+| 22 | ALG: the latched descriptor's next-address selector, chunk 0 `[224:217]` | -- |
+| 23 | ALG_MAX: `seq_alg_max` | -- |
 
 : Table 5.2.2: The window, by word
 

@@ -41,6 +41,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 | 0.8 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.81 | 2026-10-21 | RTL Design Sherpa | New Chapter 5, rapids-g: gatling-sequenced schedulers (`scheduler_g`, `rapids_seq_g`, firmware, the generated tree, verification, measured cost). Scheduler: split into the FSM and `scheduler_core`; MonBus events on state entry (rapids BUG-016); run-base generators flushed by the channel reset (rapids BUG-017). |
 | 0.82 | 2026-10-22 | RTL Design Sherpa | rapids-g at one hart per channel (NUM_HARTS = NUM_CHANNELS): Section 5.3 describes the one-slot tight loop, with flow charts of the poll loop and `service` (Figures 5.3.1 and 5.3.2), and no longer says the firmware computes beat totals (the hardware does); Section 5.5 gains the Genesys 2 gcompare table for rapids-8ch and rapids-g-8ch (45 points, interleaved sink), sim/board match and the chunk warm-up, the firmware-cost history, and the 8-hart bench and out-of-context results. |
+| 0.83 | 2026-10-23 | RTL Design Sherpa | rapids-g firmware as an executive over a policy table (rapids TASK-037): Section 5.3 rewritten (the poll and `step`, `ptab`, the policy table, the never-reached states and `fw_fault`), with new flow charts (Figures 5.3.1 and 5.3.2); the next-address selector and Z-order (TASK-035) in Sections 5.2 and 5.3; 16 channels (TASK-036), with 8 harts x 2 slots the measured default. Section 5.5: the mutation table re-run on the new image, the executive and 16-channel bench tables, out-of-context results at 8 and 16 channels, and the board run of the new image. |
 
 : Table 0.1: Revision History
 
@@ -53,7 +54,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 | Source | Title | Version |
 |--------|-------|---------|
 | RTL Design Sherpa | RAPIDS Beats MAS (shared chapters) | 0.7 |
-| RTL Design Sherpa | RAPIDS HAS | 0.92 |
+| RTL Design Sherpa | RAPIDS HAS | 0.93 |
 | RTL Design Sherpa | RAPIDS Product Requirements Document | 1.0 |
 | ARM | AMBA AXI and ACE Protocol Specification | IHI0022H |
 | ARM | AMBA AXI-Stream Protocol Specification | IHI0051A |

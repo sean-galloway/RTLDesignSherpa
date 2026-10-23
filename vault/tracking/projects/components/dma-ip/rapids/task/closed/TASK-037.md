@@ -1,7 +1,7 @@
 # TASK-037: rapids-g firmware as a generic executive plus a policy table
 
 **Priority:** P2
-**Status:** open -- 2026-10-22; owner idea, accepted; follows rapids TASK-034
+**Status:** closed -- 2026-10-23; opened 2026-10-22; owner idea, accepted; follows rapids TASK-034
 **Owner:** sean galloway
 
 ## Why
@@ -38,3 +38,27 @@ The rewritten firmware passes the full rapids-g regression (fub_g / macro_g / to
 mutation set from clean; the equivalence bench's perf cells and the Genesys 2 gcompare profile are no
 slower than the 2026-10-22 image on any point (sim and board, 80/80 windows identical between them);
 MAS 5.3 describes the executive and the policy table.
+
+## Closed 2026-10-23
+
+`rtl/fw_g/sched_g.S` is an executive plus a policy table. The one-slot poll keeps its 4-instruction
+chain hook and 7-instruction idle pass; `step` reads STATUS and jumps through `ptab` (64 entries
+on the one-hot state, `jalr zero, t3, %lo(ptab)`, kept below 2 KB and checked by the generator).
+Every row does one step and returns. The old hand path (`xfer_arm`, `complete_route`, `fetch_go`)
+was unreachable and is replaced by one `fw_fault` row: an error word carrying STATUS, then CH_ERROR.
+
+- Full gate from `make clean-all`, 2026-10-23 (one run, every area at the full level):
+  rapids fub_g 192, macro_g 270, top_g 183 (16-channel cells now run, 0 skipped; `test_rapids_g_regpath`
+  failed 3/3 in that run because the new jump-table check in `bin/gen_rapids_g_fw.py` also applied to
+  that test's own program; the check was scoped to the scheduler image and the test re-run 3/3 passed),
+  fub 1,740, fub_beats 1,302, macro 843, macro_beats 774, top 183, top_beats 54; STREAM fub 510,
+  macro 684 (+5 skipped: the 1-channel cells of the multi-channel test, by design), top 69. 0 failed.
+- Mutation set re-run on this image: 11/11 killed. FM1 lives only at two slots per hart, so the
+  equivalence bench gained a NUM_HARTS axis; RM1 is killed by the edge test; FM2's code is gone.
+- Bench perf (8 channels, 8 harts) against the 2026-10-22 image: linear points equal, EXT 2.4-4.3%
+  faster, 64 KB 9,412 vs 9,529 clocks. A +23-clock point under a full run came from poll phase;
+  run alone (`PERF_ONLY`) both images give identical cycles.
+- Genesys 2 (build gexe, WNS +0.061): 45/45 pass, sim == board 85/85, identical to the gfin image on
+  85/85 windows (`byte_perf_gcompare_gexe_rc.json`).
+- MAS 0.83 Section 5.3 (executive, Table 5.3.3 policy, Figures 5.3.1/5.3.2); handbook
+  `design/firmware-in-rtl.md` holds the three traps.

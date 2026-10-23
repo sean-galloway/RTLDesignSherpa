@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 6 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 31 | done (kept for history) |
+| [closed/](closed/) | 34 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,15 +22,16 @@ by construction rather than by discipline.
 
 - **TASK-031** — strap values on RAPIDS (TILE_LAND_FLITS 16, TILE_DESC_PER_CORE 2, fixed at build); TILE_STRAPS @ 0x7FC built 2026-10-19; TILE_SPEC 11.12 row remains
 - **TASK-032** — Genesys 2 harness for RAPIDS as the tile I/O (rapids_tile): cell/core injectors on the CXS links, credit intake, receiver; cell sender + credit intake built 2026-10-19
-- **TASK-035** — an 8-bit descriptor field selects one of many next-address algorithms (rapids-g firmware); owner 2026-10-21; field location to decide
-- **TASK-036** — rapids-g at 16 channels, needed if the Hive uses rapids-g (owner 2026-10-21); one gatling at 4 slots/hart or two per half, by measurement
-- **TASK-037** — rapids-g firmware as a generic run-to-completion executive + a per-(state, event) policy table; no handler holds a hart; owner idea 2026-10-22
 - **TASK-033** — tagged, indexed tile intake (delta interleaves/reorders): per-flit {sender, pos, head}, landing ring (MonBus stays off the fabric); pencilled in + cycle-model validated 2026-10-19
 
 ## Active
 
 
 ## Closed
+
+- **TASK-037** — CLOSED 2026-10-23: rapids-g firmware is an executive + a 64-row policy table (`ptab`); unreachable hand path replaced by `fw_fault`; mutants 11/11 killed; board == sim 85/85, identical to the 10-22 image; MAS 0.83 5.3
+- **TASK-036** — CLOSED 2026-10-23: rapids-g at 16 channels (default 8 harts, 2 slots), `rapids_g_16ch_top`/`_cxs_top`; OOC 141,067 LUTs / 0 DSP vs 126,820 / 128; STREAM ch16 idle-cast fix on the way
+- **TASK-035** — CLOSED 2026-10-23: next-address selector chunk 0 [224:217]; 0 = today, 1 = Z-order run bases (rapids-g); RAPIDS refuses non-zero (CH_ERROR); HAS 0.93 5.1
 
 - **TASK-034** — CLOSED 2026-10-22: rapids-g, one gatling per half with one hart per channel; regression 453/453 (21 skipped), board == sim 85/85, MAS 0.82 Ch. 5 + HAS 0.92 6.4; mutant set not re-run on the final image (TASK-037 does)
 - **TASK-027** — CLOSED 2026-10-19: end-to-end tile credits and straps toward RAPIDS (landing space, credit returns, desc intake, resync, stall checks); 10 mutations caught, 4839/4839; TILE_SPEC 11.12 row moved to TASK-031

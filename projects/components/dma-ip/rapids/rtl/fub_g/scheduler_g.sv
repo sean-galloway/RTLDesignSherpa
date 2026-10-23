@@ -55,9 +55,15 @@
 //                 [21] EN_WRITE  [22] USE_ROW_COL_MAJOR_ADDRESSING
 //   R 15-18 the skid head: src low, dst low, length, descriptor [223:192]
 //   R 19-20 the beat totals in use (read, write)
-//   R 21 HEAD_SUM [0] head valid  [1] head last  [2] head next_ptr != 0
+//   R 21 HEAD_SUM [0] head valid (and its next-address selector one the
+//                 image runs)  [1] head last  [2] head next_ptr != 0
 //                 [3] head open: a head not yet staged or declined, in a
 //                 state where STAGE / DECLINE are legal
+//   R 22 ALG      [7:0] the latched descriptor's next-address selector
+//                 (chunk 0 [224:217], rapids TASK-035)
+//   R 23 ALG_MAX  [7:0] seq_alg_max: the highest selector the firmware image
+//                 runs. A descriptor with a selector above it, or a non-zero
+//                 selector without TYPE=EXT, is invalid (STATUS [11] = 0).
 //   W 0  CMD      [6:0] next state (0 = none)  [8] rd bases done
 //                 [9] wr bases done  [10] STAGE the head  [11] ARM this
 //                 descriptor  [12] its ARM_NEXT  [13] run bases set up
@@ -162,6 +168,7 @@ module scheduler_g #(
     output logic [31:0]                 seq_rd_data,
     output logic                        seq_attn,               // needs the firmware
     input  logic                        seq_fault,              // the serving hart halted: fatal
+    input  logic [7:0]                  seq_alg_max,            // the firmware image's highest selector
 
     // Status Interface
     output logic                        scheduler_idle,         // Scheduler idle
@@ -270,6 +277,8 @@ module scheduler_g #(
     logic [ADDR_WIDTH-1:0]       w_rd_base_addr, w_wr_base_addr;
     logic                        r_start_pending;
     logic [255:0]                w_head_pkt;         // the skid head, before it is taken
+    logic [7:0]                  w_desc_alg;         // the latched next-address selector
+    logic                        w_head_alg_ok;      // the head's selector is one the firmware runs
 
     // Pre-validation (owner 2026-10-21): while a descriptor transfers, the
     // firmware validates the next one at the skid head and stages it
@@ -373,6 +382,7 @@ module scheduler_g #(
         .mon_timestamp           (w_core_mon_timestamp),
         .state                   (r_state),
         .desc_take               (w_desc_take),
+        .desc_alg_max            (seq_alg_max),
         .start_req               (r_start_pending),
         .rd_beats_total          (r_rd_beats_total),
         .wr_beats_total          (r_wr_beats_total),
@@ -388,6 +398,7 @@ module scheduler_g #(
         .desc_latched            (w_desc),
         .desc_ext_latched        (w_desc_ext),
         .desc_opcode             (w_desc_opcode),
+        .desc_alg                (w_desc_alg),
         .desc_is_ext             (w_desc_is_ext),
         .desc_hdr_only           (w_desc_hdr_only),
         .desc_rd_per_beat        (w_rd_per_beat),
@@ -717,6 +728,15 @@ module scheduler_g #(
                                        (w_desc_head_valid && !r_staged && !r_declined))) ||
                        (w_in_complete && !r_armed));
 
+    // The head's selector against the image's (rapids TASK-035): the same
+    // test scheduler_core applies when it latches the descriptor, so a head
+    // HEAD_SUM calls valid is one the take will call valid.
+    assign w_head_alg_ok = rapids_pkg::desc_alg_ok(
+        w_head_pkt[rapids_pkg::DESC_ALG_HI:rapids_pkg::DESC_ALG_LO],
+        (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
+            (w_head_pkt[rapids_pkg::DESC_TYPE_HI:rapids_pkg::DESC_TYPE_LO] == rapids_pkg::RAPIDS_DESC_TYPE_EXT),
+        seq_alg_max);
+
     logic [31:0] w_status;
     assign w_status = {r_declined, w_gen_need, r_staged, r_armed,
                         r_wr_bases_done, r_rd_bases_done, w_wr_per_beat, w_rd_per_beat,
@@ -756,7 +776,9 @@ module scheduler_g #(
             5'd20:   seq_rd_data = r_wr_beats_total;
             5'd21:   seq_rd_data = {28'h0, w_head_open,                                       // HEAD_SUM: open,
                                     (w_head_pkt[191:160] != 32'h0),                       // chain,
-                                    w_head_pkt[194], w_head_pkt[192]};                    // last, valid
+                                    w_head_pkt[194], w_head_pkt[192] && w_head_alg_ok};   // last, valid
+            5'd22:   seq_rd_data = {24'h0, w_desc_alg};    // the latched next-address selector
+            5'd23:   seq_rd_data = {24'h0, seq_alg_max};   // the highest selector this image runs
             default: seq_rd_data = 32'h0;
         endcase
     end

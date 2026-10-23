@@ -32,17 +32,36 @@
 
 | Suite | What it shows |
 |---|---|
-| `dv/tests/fub_g/test_rapids_g_equiv.py` | RAPIDS's `scheduler` and `scheduler_g` + firmware side by side (`rapids_g_equiv_tb_top`), 4 and 8 channels, 256 and 512 bits, same descriptors, engine models with different latencies per side. Every engine command, packet record, MonBus packet and state transition must match in order. The address sequences are also checked against an independent golden model (`RapidsGEquivTB.golden_cmds`: the byte-to-beat ceiling and `dma_address_gen`'s formula). Cells: linear, ext, reset_ext, backpressure, error_reset, reset_any (a channel reset in every state), hart_fault (every hart halted by an illegal word patched over its SUMMARY poll, found by encoding, faults its channels and restarts), perf. |
+| `dv/tests/fub_g/test_rapids_g_equiv.py` | RAPIDS's `scheduler` and `scheduler_g` + firmware side by side (`rapids_g_equiv_tb_top`), 4, 8 and 16 channels, 256 and 512 bits, one, two and four channels per hart (`NUM_HARTS`: 8 on 4, 16 on 16, 8 and 4), same descriptors, engine models with different latencies per side. Every engine command, packet record, MonBus packet and state transition must match in order. The address sequences are also checked against an independent golden model (`RapidsGEquivTB.golden_cmds`: the byte-to-beat ceiling and `dma_address_gen`'s formula). Cells: linear, ext, reset_ext, backpressure, error_reset, reset_any (a channel reset in every state), hart_fault (every hart halted by an illegal word patched over its SUMMARY poll, found by encoding, faults its channels and restarts), alg (next-address selectors: unrunnable ones invalid on both sides, selector 1 on gatling against the golden model's Z-order and refused by RAPIDS), perf. |
 | `dv/tests/fub_g/test_scheduler_g_edges.py` | `scheduler_g` alone with the testbench as its firmware: every command and flag in every state, 57 checks; legal edges taken, the rest ignored and counted, CH_ERROR left only by a reset; the automatic COMPLETE -> IDLE -> FETCH -> XFER of an armed descriptor with a staged head, and the stop at a declined head. |
 | `dv/tests/top_g/test_rapids_g_regpath.py` | Both gatlings run a test program that reads and writes their own half's registers (`SCHED_TIMEOUT_CYCLES`, `SCHED_TIMEOUT_LIMIT`, `CH_SCRATCH`) through the mailbox while the host hammers the same command queue: every hart reads its own half's value, each gatling's writes land in its own half only, no host read is wrong. |
-| `dv/tests/macro_g/` | Every RAPIDS `scheduler_group_array` test on `scheduler_group_array_g`, at 4 and 8 channels. |
-| `dv/tests/top_g/` | Every RAPIDS `rapids_top` and `rapids_cxs_top` test, unchanged, on `rapids_g_top` and `rapids_g_cxs_top` (the 16-channel cells skip). |
+| `dv/tests/macro_g/` | Every RAPIDS `scheduler_group_array` test on `scheduler_group_array_g`, at 4, 8 and 16 channels. |
+| `dv/tests/top_g/` | Every RAPIDS `rapids_top` and `rapids_cxs_top` test, unchanged, on `rapids_g_top` and `rapids_g_cxs_top`; the 16-channel cells on `rapids_g_16ch_top` and `rapids_g_16ch_cxs_top`. |
 
 : Table 5.5.1: rapids-g suites
 
 The test files are RAPIDS's own: the -g runners load the RAPIDS cocotb tests by module name (`macro_g`) or re-host the RAPIDS wrappers (`top_g/rapids_g_rehost.py`), so rapids-g is held to exactly RAPIDS's checks. They caught a firmware race on the way: a head that arrived between the tight loop's HEAD_SUM and SUMMARY reads went down `service`'s slower path, and `tile_source_bad_ptype` saw its channel error after the test's wait on three of eight seed bases; the loop now re-reads HEAD_SUM before `service`.
 
-Mutation: six firmware mutants (chain never followed, chain pre-armed wrong, beat ceiling off by one, stride sign, wrap mask dropped, the STATUS re-read in `refill_both` restored), six RTL mutants (edge-table holes for COMPLETE, ERROR, FETCH and the head flags; the fault interlock removed; auto-complete without the bases-done gate) and the register path's half pin each fail a test. Two survived the first bench and led to its state comparison and to the edge-table test.
+Mutation (re-run on the executive image, rapids TASK-037, and the selector, TASK-035; each from clean against the equivalence bench, or the edge test where it owns the logic):
+
+| Mutant | Where | Result |
+|---|---|---|
+| JUDGE never chains | firmware | caught at two slots per hart (8 on 4, 16 on 8); with one slot a chained head always takes the chain hook, so JUDGE never sees one |
+| route out of an unarmed COMPLETE | firmware | survived: unreachable (below); the code is now `fw_fault` |
+| stride sign extension | firmware | caught |
+| wrap mask dropped | firmware | caught |
+| XFER_DATA's `ptab` entry returns | firmware | caught |
+| GEN_OK not written | firmware | caught |
+| Z-order: y subtracts | firmware | caught (`alg`) |
+| selector ignored (always selector 0) | firmware | caught (`alg`) |
+| edge-table hole: COMPLETE always legal | `scheduler_g` | caught by the edge test; the bench cannot reach it, because the firmware never commands COMPLETE |
+| fault interlock removed | `scheduler_g` | caught |
+| HEAD_SUM ignores the selector | `scheduler_g` | caught (`alg`) |
+| the latch ignores the selector | `scheduler_core` | caught (`alg`) |
+
+: Table 5.5.2: Mutation, executive image
+
+The first run left three survivors, and each said something different. JUDGE's chain decision is live only when a hart serves two slots, a configuration the bench did not build until it gained its `NUM_HARTS` axis. The edge-table hole belongs to the edge test. The unarmed-COMPLETE route, with the rest of the old hand path, cannot run at all: every valid head is staged armed, and the firmware takes a head itself only when it declined it, which the latch also calls invalid (Section 5.3). That code became the `fw_fault` row rather than a handler no test can reach.
 
 Two RAPIDS bugs were found on the way and fixed in RAPIDS: rapids BUG-016 (a held CH_FETCH_DESC sent DESC_START every cycle) and rapids BUG-017 (stale EXT run bases after a channel reset; also in RAPIDS Beats and STREAM).
 
@@ -63,6 +82,14 @@ Records: `reports/board/flow_results/byte_perf_gcompare_fsm_il_rc.json` (rapids-
 
 The simulation of the board build (`make sim-gcompare`, run in seven chunks) matches the board
 cycle for cycle: 85 of 85 windows on each design.
+
+The executive image with the next-address selector (rapids TASK-037 and TASK-035;
+`byte_perf_gcompare_gexe_rc.json`, 2026-10-23) passes all 45 points on the board, matches its
+simulation on 85 of 85 windows, and is identical to the 2026-10-22 image (gfin) on all 85: every
+gcompare point is a linear descriptor whose head the poll stages itself, the path the rewrite did
+not lengthen, so the board numbers in Table 5.5.3 stand unchanged. That build takes 111,738 LUTs,
+65,246 registers and 58 block RAM tiles and closes 100 MHz at +0.061 ns. rapids-8ch's simulation,
+on the shared datapath with the selector check, still matches its own board run on 85 of 85.
 Matching needed one change to the host program. The shared descriptor engine's round-robin
 pointer (`descriptor_engine_shared`, `r_rr_ptr`) is reset only by `aresetn`, so it carries from
 one point to the next. A chunk that starts cold in simulation served the channels in a different
@@ -118,7 +145,7 @@ rapids-8ch). Each chunk after the first now runs the previous chunk's last point
 | chain_ch8_b64_d16_il | 2,709 | 2,662 | -- | -- |
 | chain_ch8_b1024_d16_il | 3,166 | 3,162 | -- | -- |
 
-: Table 5.5.2: Genesys 2 gcompare, MB/s (peak 3,200; -- = not measured: the source side has no interleaved variant)
+: Table 5.5.3: Genesys 2 gcompare, MB/s (peak 3,200; -- = not measured: the source side has no interleaved variant)
 
 The firmware's cost per descriptor sets the gap. Its history on the hardest point, a one-channel
 chain of 64-beat sink descriptors:
@@ -130,7 +157,7 @@ chain of 64-beat sink descriptors:
 | seven-instruction idle pass (this image) | 1,875 MB/s | about 90 |
 | rapids-8ch, for reference | 2,214 MB/s | -- |
 
-: Table 5.5.3: Firmware cost per chained descriptor
+: Table 5.5.4: Firmware cost per chained descriptor
 
 Before STAGE_ARM (Section 5.2) the same point cost 672 clocks a descriptor. The tight loop
 (Section 5.3) follows a chained head in four instructions; the shorter idle pass recovered a 1-2%
@@ -143,18 +170,24 @@ scheduler is the only limit; 8 channels and 8 harts, DATA_WIDTH 256, cycles at 1
 runs both directions on every channel, twice the load of one RAPIDS half (each half moves one
 direction).
 
-| Scenario | rapids-8ch | rapids-g-8ch | rapids-g-8ch / rapids-8ch |
-|----------------------------------|-------------:|-------------:|-------------:|
-| 16 one-beat descriptors, one channel | 131 | 2,371 | 18x |
-| 16 one-beat descriptors on each channel | 131 | 2,316 | 18x |
-| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 1.9x |
-| 4 64 KB descriptors on each channel | 9,248 | 9,529 | 1.03x |
-| 2 1 MB descriptors on each channel | 84,277 | 84,420 | 1.002x |
-| EXT, runs of 4, 64 beats, 4 per channel | 407 | 40,433 | 99x |
-| EXT, per beat, 64 beats, 4 per channel | 1,043 | 135,848 | 130x |
-| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 72,329 | 2.4x |
+| Scenario | rapids-8ch | rapids-g-8ch, 10-22 | rapids-g-8ch, executive | executive / rapids-8ch |
+|----------------------------------|-------------:|-------------:|-------------:|-------------:|
+| 16 one-beat descriptors, one channel | 131 | 2,371 | 2,371 | 18x |
+| 16 one-beat descriptors on each channel | 131 | 2,316 | 2,316 | 18x |
+| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 2,389 | 1.9x |
+| 4 64 KB descriptors on each channel | 9,248 | 9,529 | 9,412 | 1.02x |
+| 2 1 MB descriptors on each channel | 84,277 | 84,420 | 84,443 (*) | 1.002x |
+| EXT, runs of 4, 64 beats, 4 per channel | 407 | 40,433 | 39,201 | 96x |
+| EXT, per beat, 64 beats, 4 per channel | 1,043 | 135,848 | 130,086 | 125x |
+| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 72,329 | 70,641 | 2.4x |
 
-: Table 5.5.4: Cycles to finish, schedulers alone
+: Table 5.5.5: Cycles to finish, schedulers alone
+
+The executive image (rapids TASK-037) is 2-4% faster on every EXT row and unchanged on the
+linear ones: an XFER_DATA step costs four instructions of dispatch and returns, where `service`
+re-read STATUS and re-judged the head before returning. (*) The scenarios run in sequence in one
+simulation, so when the 64 KB row finishes sooner the 1 MB row starts at another phase of the
+barrel; run alone from the same cycle, both images take 84,420 (and 9,454 for 64 KB).
 
 With one hart per channel the channels no longer share a hart, so one busy channel and eight
 busy channels cost the same (2,371 and 2,316). On 4 harts the same rows were 7,215 and 14,139.
@@ -166,23 +199,55 @@ instructions, each NUM_HARTS clocks, against one cycle in `stream_run_addr_gen`,
 directions on every channel even 256-beat runs cannot be fed at the engines' rate. Custom gatling
 instructions for DMA (`gatling_dma`) are the lever for that case.
 
+### Sixteen Channels
+
+rapids-g-16ch (rapids TASK-036): the same bench at 16 channels, DATA_WIDTH 256, with each way of
+spreading the 16 channels over one gatling's harts.
+
+| Scenario | rapids-16ch | 16 harts x 1 | 8 harts x 2 (default) | 4 harts x 4 |
+|----------------------------------|-------------:|-------------:|-------------:|-------------:|
+| 16 one-beat descriptors, one channel | 131 | 4,731 | 2,859 | 1,619 |
+| 16 one-beat descriptors on each channel | 131 | 4,620 | 4,871 | 5,627 |
+| 16 64-beat descriptors on each channel | 1,255 | 4,700 | 4,957 | 5,704 |
+| 4 64 KB descriptors on each channel | 9,248 | 9,609 | 9,553 | 9,579 |
+| 2 1 MB descriptors on each channel | 84,277 | 84,610 | 84,580 | 84,612 |
+| EXT, runs of 4, 64 beats, 4 per channel | 407 | 78,362 | 76,862 | 77,714 |
+| EXT, per beat, 64 beats, 4 per channel | 1,043 | 260,192 | 253,623 | 256,406 |
+| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 140,577 | 137,624 | 139,184 |
+
+: Table 5.5.6: Cycles to finish at 16 channels
+
+Sixteen harts make every instruction cost a hart 16 clocks, which a lone busy channel pays in full
+(4,731); four harts are best for one channel but lose 22% when all sixteen are busy, each hart
+walking four slots. Eight harts with two slots each are within 5% of the best when every channel
+is busy, best on EXT, and 1.7x faster than sixteen harts for a single channel, with half the hart
+state; `rapids_seq_g` defaults to them at 16 channels. Large descriptors are within 0.4% of
+rapids-16ch on every shape.
+
 ## Area and Timing
 
-`rapids_core` and `rapids_core_g`, out of context on the Genesys 2 part (xc7k325t-2), 8 channels,
-DATA_WIDTH 256, `SHARED_ENGINES` 1, `USE_AXI_MONITORS` 0, 8 harts, placed and routed at 100 MHz:
+`rapids_core` and `rapids_core_g`, out of context on the Genesys 2 part (xc7k325t-2), DATA_WIDTH
+256, `SHARED_ENGINES` 1, `USE_AXI_MONITORS` 0, `USE_ROW_COL_MAJOR_ADDRESSING` 1, default harts (8 at
+8 channels, 8 at 16), placed and routed at 100 MHz, measured 2026-10-23 on the executive image with
+the next-address selector:
 
-| | rapids_core | rapids_core_g |
-|---|---:|---:|
-| LUTs | 68,773 | 76,958 (+11.9%) |
-| Registers | 55,550 | 58,673 |
-| Block RAM tiles | 64 | 70 |
-| DSPs | 64 | 0 |
-| WNS at 100 MHz | +0.601 ns | +0.393 ns |
+| | rapids-8ch | rapids-g-8ch | rapids-16ch | rapids-g-16ch |
+|---|---:|---:|---:|---:|
+| LUTs | 69,184 | 77,975 (+12.7%) | 126,820 | 141,067 (+11.2%) |
+| Registers | 56,105 | 58,837 | 101,808 | 104,738 |
+| Block RAM tiles | 64 | 70 | 128 | 134 |
+| DSPs | 64 | 0 | 128 | 0 |
+| WNS at 100 MHz | +0.684 ns | +0.533 ns | +0.079 ns | +0.050 ns |
 
-: Table 5.5.5: Out-of-context results
+: Table 5.5.7: Out-of-context results
 
-The register arbiter (`rapids_g_reg_arb`) is in the top, outside `rapids_core_g`, and not in these
-numbers. Per half, `rapids_seq_g` is about 1.95k LUTs (gatling about 1.39k of it); the sink half is
+The selector check costs RAPIDS 411 LUTs at 8 channels (68,773 on 2026-10-22). At 16 channels
+each `scheduler_g` is about 1,630 LUTs against 1,430 for `scheduler`: its window read mux and
+base FIFOs in fabric outweigh the run-base generators, whose multipliers are DSPs on the RAPIDS
+side; over 32 schedulers that is most of the difference. Both 16-channel builds close 100 MHz,
+with the thinner margin (+0.050 ns) the cost of the larger part fill. The register arbiter
+(`rapids_g_reg_arb`) is in the top, outside `rapids_core_g`, and not in these numbers. The
+2026-10-22 8-channel figures below are the first image's. Per half, `rapids_seq_g` is about 1.95k LUTs (gatling about 1.39k of it); the sink half is
 38,693 LUTs against 34,943 for `rapids_snk`, and the source half 37,180 against 32,746 for
 `rapids_src`. The 4-hart build measured 76,350 LUTs, 56,645 registers, 69 block RAM tiles and
 +0.249 ns: eight harts cost about 600 LUTs and 2k registers, and gatling's own path is no longer
@@ -191,6 +256,7 @@ address (`gen_schedulers[3].u_scheduler/u_core/r_src_addr_reg`) to the AXI read 
 outstanding counter enable, 20 levels. The 64 DSPs of `rapids_core` are the run-base generators'
 index-by-stride multipliers, which the firmware replaces with additions.
 
-In the full Genesys 2 harness of Table 5.5.2, rapids-g-8ch takes 110,662 LUTs (54.3%), 65,083
-registers, 58 block RAM tiles and no DSPs and closes 100 MHz at +0.072 ns; rapids-8ch takes
-100,007 LUTs at +0.357 ns.
+In the full Genesys 2 harness of Table 5.5.3, rapids-g-8ch takes 111,738 LUTs (54.8%), 65,246
+registers, 58 block RAM tiles and no DSPs and closes 100 MHz at +0.061 ns on the executive image
+(110,662 LUTs at +0.072 ns on 2026-10-22); rapids-8ch takes 100,007 LUTs at +0.357 ns (2026-10-22
+build).

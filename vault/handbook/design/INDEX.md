@@ -33,6 +33,7 @@ summary: RTL rules with the failures that taught them.
 - [[signal-prefixes]] - r_ = flopped, w_ = combinational; what it promises and where it lies
 - [[filelists]] - every module MUST have a .f and be registered; the two silent failures
 - [[generated-rtl-discipline]] - fix the generator, not the generated .sv; regen-and-diff is the audit
+- [[firmware-in-rtl]] - an image in a ROM is RTL: linker relaxation rewrote a jalr base to x0; unreachable policy found by mutation becomes a fault; perf A/Bs from the same start cycle
 - [[regenerating-peakrdl-blocks]] - the .rdl regen mechanics: one invocation
   emits ONE regmap, so a DV-facing copy needs a second run; establish the
   invocation empirically, then add it to the check_rdl_regen manifest

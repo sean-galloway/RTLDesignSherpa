@@ -973,9 +973,12 @@ module stream_top_ch8 #(
 
     // Compute intermediate signals
     assign hwif_system_idle = system_idle;
-    assign hwif_channel_idle = 8'(scheduler_idle & descriptor_engine_idle);   // NUM_CHANNELS bits into the 8-channel CSR
-    assign hwif_desc_engine_idle = 8'(descriptor_engine_idle);
-    assign hwif_scheduler_idle = 8'(scheduler_idle);
+    // NUM_CHANNELS bits into the register map's channel count (8 or 16, from
+    // the regsel include the filelist picks); never a literal 8, which
+    // stream_top_ch16 (generated from this file) would inherit.
+    assign hwif_channel_idle = `STREAM_REGS_NCH'(scheduler_idle & descriptor_engine_idle);
+    assign hwif_desc_engine_idle = `STREAM_REGS_NCH'(descriptor_engine_idle);
+    assign hwif_scheduler_idle = `STREAM_REGS_NCH'(scheduler_idle);
 
     generate
         for (genvar i = 0; i < NUM_CHANNELS; i++) begin : g_hwif_state

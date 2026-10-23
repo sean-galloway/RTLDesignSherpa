@@ -36,6 +36,7 @@
 | 0.9 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.91 | 2026-10-21 | RTL Design Sherpa | New Section 2.3 rapids-g (firmware-sequenced schedulers, register-compatible); 16-channel register differences list `CH_SCRATCH`. |
 | 0.92 | 2026-10-22 | RTL Design Sherpa | New Section 6.4 Choosing RAPIDS or rapids-g: a selection guide and the measured Genesys 2 tables for rapids-8ch and rapids-g-8ch (single descriptors, chains, interleaved sink), the schedulers-alone bench and area. Section 2.3: one hardware context per channel; per-descriptor overhead stated. |
+| 0.93 | 2026-10-23 | RTL Design Sherpa | Section 5.1: the next-address selector, chunk 0 `[224:217]` (0 = today's addressing; 1 = Z-order on rapids-g; any value a build cannot run is an invalid descriptor, and RAPIDS runs 0 only). Section 2.3 and 6.4: rapids-g-16ch (`rapids_g_16ch_top`, `rapids_g_16ch_cxs_top`), with its schedulers-alone and area numbers beside rapids-16ch; the 8-channel bench and area tables re-measured on the executive firmware. |
 
 : Document Revision History
 

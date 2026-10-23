@@ -18,10 +18,11 @@
 //
 // Memory map (byte addresses; dmem):
 //   0x0000_0000  instruction ROM (fetch only; a data access reads 0)
-//   0x1000_0000  slot 0 window, 0x1000_0100 slot 1 window: scheduler_g's
-//                word-indexed register window, 32 words (scheduler_g header)
+//   0x1000_0000  slot s window at 0x1000_0000 + 0x100 s (s < NUM_SLOTS <= 4):
+//                scheduler_g's word-indexed register window, 32 words
+//                (scheduler_g header)
 //   0x1000_1000  SUMMARY  [NUM_SLOTS-1:0] attn of this hart's slots
-//   0x1000_1004  SLOTS    number of slots per hart (1 or 2)
+//   0x1000_1004  SLOTS    number of slots per hart (1, 2 or 4)
 //   0x1000_3000  register mailbox (aliased by context): this half's PeakRDL
 //                registers through the host's command queue (rapids_g_reg_arb)
 //                  +0x00 W REG_ADDR   [11:0] byte offset in this half
@@ -57,10 +58,14 @@
 // fw_g/sched_g.S by bin/gen_rapids_g_fw.py (never hand-edited).
 //
 // Parameters:
-//   - NUM_CHANNELS: 4 or 8
-//   - NUM_HARTS: gatling contexts, 4 or 8, at most NUM_CHANNELS and dividing
-//     it; default NUM_CHANNELS (one hart per channel).  Each hart issues one
-//     instruction every NUM_HARTS clocks, the core one per clock in total.
+//   - NUM_CHANNELS: 4, 8 or 16
+//   - NUM_HARTS: gatling contexts, 4, 8 or 16, at most NUM_CHANNELS and
+//     dividing it, with at most 4 channels (slots) per hart; default
+//     NUM_CHANNELS (one hart per channel) at 4 and 8 channels, and 8 (two
+//     slots each) at 16, which measured best overall (rapids TASK-036: a
+//     16-hart barrel makes every instruction cost 16 clocks; 4 harts lose
+//     when every channel is busy).  Each hart issues one instruction every
+//     NUM_HARTS clocks, the core one per clock in total.
 //   - IMEM_WORDS: instruction ROM depth (words); the image must fit
 //   - SCRATCH_WORDS: scratch words per hart, power of 2; the firmware keeps
 //     64 words per slot (sched_g.S SLOT_STRIDE), so NUM_SLOTS * 64 at least
@@ -77,9 +82,10 @@
 
 module rapids_seq_g #(
     parameter int NUM_CHANNELS  = 8,
-    parameter int NUM_HARTS     = NUM_CHANNELS,
+    // 16 channels: 8 harts x 2 slots, measured best overall (rapids TASK-036)
+    parameter int NUM_HARTS     = (NUM_CHANNELS == 16) ? 8 : NUM_CHANNELS,
     parameter int IMEM_WORDS    = 1024,
-    parameter int SCRATCH_WORDS = 128
+    parameter int SCRATCH_WORDS = (NUM_CHANNELS / NUM_HARTS > 2) ? 256 : 128
 ) (
     input  logic                            clk,
     input  logic                            rst_n,
@@ -96,6 +102,7 @@ module rapids_seq_g #(
     input  logic [NUM_CHANNELS-1:0][31:0]   seq_rd_data,
     input  logic [NUM_CHANNELS-1:0]         seq_attn,
     output logic [NUM_CHANNELS-1:0]         seq_fault,
+    output logic [7:0]                      seq_alg_max,        // the image's highest next-address selector
 
     // This half's register block, through the host's command queue
     output logic                            reg_cmd_valid,
@@ -117,14 +124,20 @@ module rapids_seq_g #(
     localparam int IMEM_AW   = $clog2(IMEM_WORDS);
     localparam int SCR_AW    = $clog2(SCRATCH_WORDS);
 
-    // The firmware image: localparam FW_WORDS, FW_IMAGE[FW_WORDS]
+    // The firmware image: localparam FW_WORDS, FW_IMAGE[FW_WORDS], FW_ALG_MAX
     `include "sched_g_fw.svh"
 
+    // The next-address selectors the image implements (its .equ ALG_MAX,
+    // rapids TASK-035): every scheduler_g refuses a descriptor above it, from
+    // reset, before the firmware has run an instruction.
+    assign seq_alg_max = 8'(FW_ALG_MAX);
+
     initial begin
-        if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8))
-            $fatal(1, "rapids_seq_g: NUM_CHANNELS must be 4 or 8, got %0d", NUM_CHANNELS);
-        if (((NUM_HARTS != 4) && (NUM_HARTS != 8)) || (NUM_HARTS > NUM_CHANNELS) || ((NUM_CHANNELS % NUM_HARTS) != 0))
-            $fatal(1, "rapids_seq_g: NUM_HARTS %0d must be 4 or 8 and divide NUM_CHANNELS %0d",
+        if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8) && (NUM_CHANNELS != 16))
+            $fatal(1, "rapids_seq_g: NUM_CHANNELS must be 4, 8 or 16, got %0d", NUM_CHANNELS);
+        if (((NUM_HARTS != 4) && (NUM_HARTS != 8) && (NUM_HARTS != 16)) || (NUM_HARTS > NUM_CHANNELS) ||
+            ((NUM_CHANNELS % NUM_HARTS) != 0) || (NUM_SLOTS > 4))
+            $fatal(1, "rapids_seq_g: NUM_HARTS %0d must be 4, 8 or 16, divide NUM_CHANNELS %0d, and leave at most 4 slots",
                    NUM_HARTS, NUM_CHANNELS);
         if (FW_WORDS > IMEM_WORDS)
             $fatal(1, "rapids_seq_g: firmware is %0d words, ROM is %0d", FW_WORDS, IMEM_WORDS);
@@ -248,12 +261,12 @@ module rapids_seq_g #(
     wire [1:0] w_rgn    = w_dmem_addr[29:28];
     wire       w_global = w_dmem_addr[12];
     wire       w_mbox   = w_dmem_addr[13];               // 0x1000_3000: with w_global
-    wire       w_slot   = w_dmem_addr[8];
+    wire [1:0] w_slot   = w_dmem_addr[9:8];              // slot windows 0x100 apart
     wire       w_store  = w_dmem_req && (w_dmem_wstrb != 4'h0);
     wire       w_load   = w_dmem_req && (w_dmem_wstrb == 4'h0);
 
     // Channel of (context, slot); a slot past NUM_SLOTS is absent
-    function automatic int chan_of(input logic [HART_W-1:0] ctx, input logic slot);
+    function automatic int chan_of(input logic [HART_W-1:0] ctx, input logic [1:0] slot);
         return int'(ctx) + NUM_HARTS * int'(slot);
     endfunction
     wire w_slot_ok = (int'(w_slot) < NUM_SLOTS);
@@ -359,7 +372,7 @@ module rapids_seq_g #(
     logic [NUM_SLOTS-1:0] w_summary;
     always_comb begin
         for (int s = 0; s < NUM_SLOTS; s++) begin
-            w_summary[s] = seq_attn[chan_of(w_dmem_ctx, 1'(s))];
+            w_summary[s] = seq_attn[chan_of(w_dmem_ctx, 2'(s))];
         end
     end
 

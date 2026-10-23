@@ -462,11 +462,11 @@ module scheduler_group_array_g #(
 
     initial begin
         // rapids-g: the schedulers are scheduler_g, which exist only in the
-        // shared-engine structure; one gatling serves 4 or 8 of them.
+        // shared-engine structure; one gatling serves 4, 8 or 16 of them.
         if (SHARED_ENGINES == 0)
             $fatal(1, "scheduler_group_array_g: rapids-g needs SHARED_ENGINES = 1");
-        if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8))
-            $fatal(1, "scheduler_group_array_g: NUM_CHANNELS must be 4 or 8, got %0d", NUM_CHANNELS);
+        if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8) && (NUM_CHANNELS != 16))
+            $fatal(1, "scheduler_group_array_g: NUM_CHANNELS must be 4, 8 or 16, got %0d", NUM_CHANNELS);
         if ((TILE_HDR != 0) && (SHARED_ENGINES == 0))
             $fatal(1, "TILE_HDR = 1 needs SHARED_ENGINES = 1 (the injection port is in descriptor_engine_shared)");
     end
@@ -973,6 +973,7 @@ module scheduler_group_array_g #(
                 .seq_rd_data             (g_seq_rd_data[ch]),
                 .seq_attn                (g_seq_attn[ch]),
                 .seq_fault               (g_seq_fault[ch]),
+                .seq_alg_max             (g_seq_alg_max),
                 .scheduler_idle          (scheduler_idle[ch]),
                 .scheduler_state         (scheduler_state[ch]),
                 .sched_error             (sched_error[ch]),

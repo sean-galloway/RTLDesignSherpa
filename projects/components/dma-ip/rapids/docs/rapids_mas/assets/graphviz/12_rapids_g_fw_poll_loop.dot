@@ -2,7 +2,7 @@
 // rapids-g firmware, one hart's poll loop: a procedure in the house
 // decision-tree vocabulary (white questions, blue actions, every arrow labeled).
 // Verified against rtl/fw_g/sched_g.S (_start, one_loop, one_chain, one_judge,
-// main_loop, the JUDGE macro). Instruction counts are from the source.
+// main_loop, step, the JUDGE macro). Instruction counts are from the source.
 digraph rapids_g_fw_poll_loop {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.6", ranksep="0.5", splines=ortho, newrank=true,
@@ -14,7 +14,7 @@ digraph rapids_g_fw_poll_loop {
 
     start  [group=A, label="Reset / GO\nload the window pointers:\nthis hart's channel, globals, scratch"];
     slots  [group=A, label="Channels per hart\n(global SLOTS) = 1?", fillcolor="white"];
-    two    [group=B, label="Two-slot loop (4 harts, 8 channels)\npoll SUMMARY; per slot with attention:\nopen head -> JUDGE, else service"];
+    two    [group=B, label="Two-slot loop (4 harts, 8 channels)\npoll SUMMARY; per slot with attention:\nopen head -> JUDGE, else step"];
     ld     [group=A, label="Hold the chain command in a register\nCMD = STAGE | ARM | ARM_NEXT"];
     poll   [group=A, shape=ellipse, fillcolor="white", label="next poll"];
     hs     [group=A, label="Read HEAD_SUM:\nopen, valid, chained, not last\n(HEAD_SUM == 13)?", fillcolor="white"];
@@ -23,8 +23,8 @@ digraph rapids_g_fw_poll_loop {
     judge  [group=B, label="JUDGE\nvalid: stage it armed, NEXT_DESC if chained\nand not last, else IDLE\nnot valid: decline (hardware takes it to CH_ERROR)"];
     attn   [group=A, label="Read SUMMARY:\nchannel needs attention?\n(a \"no\" is the idle pass: 7 instructions)", fillcolor="white"];
     late   [group=A, label="Re-read HEAD_SUM:\nopen head arrived since?", fillcolor="white"];
-    svc    [group=A, label="service(channel)\nstate handlers (Figure 5.3.2)"];
-    reload [group=A, label="Reload the chain command\n(service overwrites it)"];
+    svc    [group=A, label="step(channel)\none handler from the policy table\n(Figure 5.3.2), then back"];
+    reload [group=A, label="Reload the chain command\n(a handler may overwrite it)"];
 
     start -> slots  [xlabel="after reset"];
     slots -> two    [xlabel="no"];
@@ -39,7 +39,7 @@ digraph rapids_g_fw_poll_loop {
     open  -> attn   [xlabel="no"];
     attn  -> poll   [xlabel="no", constraint=false];
     attn  -> late   [xlabel="yes"];
-    late  -> judge  [xlabel="yes: judge it here,\nnot on service's slow path"];
+    late  -> judge  [xlabel="yes: judge\nit here"];
     late  -> svc    [xlabel="no"];
     svc   -> reload [xlabel="returns"];
     reload -> poll  [xlabel="reloaded", constraint=false];

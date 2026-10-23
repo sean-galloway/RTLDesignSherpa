@@ -26,6 +26,7 @@
 
 module rapids_g_equiv_tb_top #(
     parameter int NUM_CHANNELS = 4,
+    parameter int NUM_HARTS    = NUM_CHANNELS,   // rapids_seq_g's harts: NUM_CHANNELS / NUM_HARTS slots each
     parameter int ADDR_WIDTH   = 64,
     parameter int DATA_WIDTH   = 256,
     parameter int OFF_W        = $clog2(DATA_WIDTH / 8)
@@ -106,17 +107,21 @@ module rapids_g_equiv_tb_top #(
     output logic [NUM_CHANNELS-1:0][127:0]       g_mon_packet,
     output logic [NUM_CHANNELS-1:0][6:0]         g_state,
     output logic [NUM_CHANNELS-1:0]              g_idle,
-    output logic [NUM_CHANNELS-1:0]              g_hart_halted   // rapids_seq_g's NUM_HARTS = NUM_CHANNELS
+    output logic [7:0]                           g_alg_max,      // the image's highest next-address selector
+    output logic [NUM_HARTS-1:0]                 g_hart_halted
 );
 
     // The sequencer's buses (side g)
     logic [NUM_CHANNELS-1:0]        s_wr_en, s_attn, s_fault;
     logic [4:0]                     s_wr_addr, s_rd_addr;
     logic [31:0]                    s_wr_data;
+    logic [7:0]                     s_alg_max;
+    assign g_alg_max = s_alg_max;
     logic [NUM_CHANNELS-1:0][31:0]  s_rd_data;
 
     rapids_seq_g #(
-        .NUM_CHANNELS (NUM_CHANNELS)
+        .NUM_CHANNELS (NUM_CHANNELS),
+        .NUM_HARTS    (NUM_HARTS)
     ) u_seq (
         .clk               (clk),
         .rst_n             (rst_n),
@@ -129,6 +134,7 @@ module rapids_g_equiv_tb_top #(
         .seq_rd_data       (s_rd_data),
         .seq_attn          (s_attn),
         .seq_fault         (s_fault),
+        .seq_alg_max       (s_alg_max),
         // the register mailbox is idle here: the scheduler firmware never uses it
         .reg_cmd_valid     (),
         .reg_cmd_ready     (1'b0),
@@ -234,6 +240,7 @@ module rapids_g_equiv_tb_top #(
             .seq_rd_data (s_rd_data[ch]),
             .seq_attn    (s_attn[ch]),
             .seq_fault   (s_fault[ch]),
+            .seq_alg_max (s_alg_max),
             `RAPIDS_G_EQUIV_PORTS(g)
         );
     end

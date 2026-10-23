@@ -10,7 +10,8 @@ product's cocotb test and parameters, against the -g top:
 
     rapids_top, rapids_8ch_top          -> rapids_g_top
     rapids_cxs_top, rapids_8ch_cxs_top  -> rapids_g_cxs_top
-    rapids_16ch_*                       -> skipped (rapids-g is 4 or 8 channels)
+    rapids_16ch_top                     -> rapids_g_16ch_top      (rapids TASK-036)
+    rapids_16ch_cxs_top                 -> rapids_g_16ch_cxs_top
 
 The runner is the product `_run_top` with the filelist taken from
 rtl/filelists/top_g/, the cocotb module loaded from the product directory,
@@ -38,6 +39,7 @@ for _p in (REPO, PRODUCT_DIR):
 G_TOP = {
     'rapids_top': 'rapids_g_top', 'rapids_8ch_top': 'rapids_g_top',
     'rapids_cxs_top': 'rapids_g_cxs_top', 'rapids_8ch_cxs_top': 'rapids_g_cxs_top',
+    'rapids_16ch_top': 'rapids_g_16ch_top', 'rapids_16ch_cxs_top': 'rapids_g_16ch_cxs_top',
 }
 
 
@@ -47,7 +49,7 @@ def make_runner(product_module: str, product_rtl_params: dict):
     def _run_top(testcase, test_name, extra_params=None, test_level='gate', dut=None, nch=8, **kw):
         dut = dut or ('rapids_cxs_top' if 'cxs' in product_module else 'rapids_top')
         if dut not in G_TOP:
-            pytest.skip(f"rapids-g has no {dut} (4 or 8 channels only)")
+            pytest.skip(f"rapids-g has no {dut}")
         g_dut = G_TOP[dut]
         test_name = f"{test_name.replace('test_rapids', 'test_rapids_g', 1)}_{test_level}"
         if extra_params:

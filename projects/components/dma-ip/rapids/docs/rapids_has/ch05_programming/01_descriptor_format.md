@@ -36,7 +36,9 @@ A descriptor therefore describes a transfer the way software thinks of it. A pac
 ```
 Bit Range    Field Name           Width  Description
 ────────────────────────────────────────────────────────────────────────
-[255:213]    reserved             43     Reserved (write 0)
+[255:225]    reserved             31     Reserved (write 0)
+[224:217]    next_addr_sel        8      Next-address selector (0 = default; see below)
+[216:213]    tile fields          4      ptype [215:213], op [216] (TILE_HDR = 1; else write 0)
 [212:210]    desc_type            3      0 = LEGACY, 1 = EXTENDED (see below)
 [209:208]    opcode               2      0 = DATA, 1 = CTRL_READ, 2 = CTRL_WRITE
 [207:200]    priority             8      Transfer priority (informational)
@@ -229,6 +231,28 @@ Bit Range    Field Name        Width  Description
 : Extended Descriptor Chunk 1 (`rapids_pkg::descriptor_ext_t`)
 
 The mode selection, the address equation and the signed strides are unchanged from RAPIDS Beats. The layout is byte-compatible with STREAM's `descriptor_ext_t`.
+
+### Next-Address Selector [224:217]
+
+`next_addr_sel` chooses the algorithm that places an EXT descriptor's run bases (rapids TASK-035). It sits in chunk 0, so linear and EXT descriptors both carry it.
+
+| Value | Algorithm | rapids-8ch, rapids-16ch | rapids-g |
+|---------|------------------------------------------|----------------|----------------|
+| 0 | The default: linear for a linear descriptor; for TYPE=EXT the run bases of the equation above (`base + ((i0 x stride_0) & wrap_0) + ((i1 x stride_1) & wrap_1)`) | runs it | runs it, bit-identical |
+| 1 | Z-order (Morton) units, TYPE=EXT only (below) | invalid descriptor | runs it |
+| 2-255 | not defined | invalid descriptor | invalid descriptor |
+
+: Next-Address Selector Values
+
+A descriptor whose selector the build cannot run is an **invalid descriptor**: the channel takes the same path as `valid` = 0 and enters the error state. A non-zero selector on a linear descriptor is invalid on every build. The RAPIDS schedulers run selector 0 only, so a descriptor written for a rapids-g algorithm never runs as a linear transfer by mistake. rapids-g runs every selector its firmware image implements (the image's `ALG_MAX`, which `scheduler_g` reports in its window). RAPIDS Beats does not read the field.
+
+**Z-order (selector 1).** The descriptor moves `length` bytes as a sequence of units: a beat when `stride_0` is not the beat size (per beat), or a run of `inner_count` beats when it is (run-contiguous). Unit k sits at
+
+```
+base + ((x * S0) & wrap_0) + ((y * stride_1) & wrap_1)
+```
+
+where x is made of k's even bits and y of its odd bits (k = 0, 1, 2, 3, 4, ... visits (x, y) = (0,0), (1,0), (0,1), (1,1), (2,0), ...), and S0 is `stride_0` per beat, or `inner_count x BYTE_LANES` per run. Unit 0 is the descriptor's own address. The wrap windows and the signed strides mean what they mean for selector 0. Over a 2^n x 2^n grid of units this is the Morton order, which keeps neighbouring units close in both dimensions and cannot be produced with two strides. The EXT alignment rules below apply unchanged.
 
 ### EXT descriptors stay beat-aligned (permanent limitation)
 

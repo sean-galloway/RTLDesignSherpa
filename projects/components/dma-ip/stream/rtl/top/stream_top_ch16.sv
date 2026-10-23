@@ -543,8 +543,8 @@ module stream_top_ch16 #(
     //-------------------------------------------------------------------------
     logic                                   mon_err_fifo_full;
     logic                                   mon_write_fifo_full;
-    logic [7:0]                             mon_err_fifo_count;
-    logic [7:0]                             mon_write_fifo_count;
+    logic [15:0]                            mon_err_fifo_count;     // the group's 16-bit counts
+    logic [15:0]                            mon_write_fifo_count;
 
     //-------------------------------------------------------------------------
     // Monitor Bus (to monbus_axil4_axil4_group)
@@ -659,14 +659,14 @@ module stream_top_ch16 #(
     logic [31:0]                            cfg_desc_mon_timeout_cycles;
     logic [31:0]                            cfg_desc_mon_latency_thresh;
     logic [15:0]                            cfg_desc_mon_pkt_mask;
-    logic [3:0]                             cfg_desc_mon_err_select;
-    logic [7:0]                             cfg_desc_mon_err_mask;
-    logic [7:0]                             cfg_desc_mon_timeout_mask;
-    logic [7:0]                             cfg_desc_mon_compl_mask;
-    logic [7:0]                             cfg_desc_mon_thresh_mask;
-    logic [7:0]                             cfg_desc_mon_perf_mask;
-    logic [7:0]                             cfg_desc_mon_addr_mask;
-    logic [7:0]                             cfg_desc_mon_debug_mask;
+    logic [15:0]                             cfg_desc_mon_err_select;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_err_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_timeout_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_compl_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_thresh_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_perf_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_addr_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_desc_mon_debug_mask;   // the CSR field and the monitor port are 16 bits
 
     logic                                   cfg_rdeng_mon_enable;
     logic                                   cfg_rdeng_mon_err_enable;
@@ -677,14 +677,14 @@ module stream_top_ch16 #(
     logic [31:0]                            cfg_rdeng_mon_timeout_cycles;
     logic [31:0]                            cfg_rdeng_mon_latency_thresh;
     logic [15:0]                            cfg_rdeng_mon_pkt_mask;
-    logic [3:0]                             cfg_rdeng_mon_err_select;
-    logic [7:0]                             cfg_rdeng_mon_err_mask;
-    logic [7:0]                             cfg_rdeng_mon_timeout_mask;
-    logic [7:0]                             cfg_rdeng_mon_compl_mask;
-    logic [7:0]                             cfg_rdeng_mon_thresh_mask;
-    logic [7:0]                             cfg_rdeng_mon_perf_mask;
-    logic [7:0]                             cfg_rdeng_mon_addr_mask;
-    logic [7:0]                             cfg_rdeng_mon_debug_mask;
+    logic [15:0]                             cfg_rdeng_mon_err_select;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_err_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_timeout_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_compl_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_thresh_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_perf_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_addr_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_rdeng_mon_debug_mask;   // the CSR field and the monitor port are 16 bits
 
     logic                                   cfg_wreng_mon_enable;
     logic                                   cfg_wreng_mon_err_enable;
@@ -695,14 +695,14 @@ module stream_top_ch16 #(
     logic [31:0]                            cfg_wreng_mon_timeout_cycles;
     logic [31:0]                            cfg_wreng_mon_latency_thresh;
     logic [15:0]                            cfg_wreng_mon_pkt_mask;
-    logic [3:0]                             cfg_wreng_mon_err_select;
-    logic [7:0]                             cfg_wreng_mon_err_mask;
-    logic [7:0]                             cfg_wreng_mon_timeout_mask;
-    logic [7:0]                             cfg_wreng_mon_compl_mask;
-    logic [7:0]                             cfg_wreng_mon_thresh_mask;
-    logic [7:0]                             cfg_wreng_mon_perf_mask;
-    logic [7:0]                             cfg_wreng_mon_addr_mask;
-    logic [7:0]                             cfg_wreng_mon_debug_mask;
+    logic [15:0]                             cfg_wreng_mon_err_select;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_err_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_timeout_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_compl_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_thresh_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_perf_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_addr_mask;   // the CSR field and the monitor port are 16 bits
+    logic [15:0]                             cfg_wreng_mon_debug_mask;   // the CSR field and the monitor port are 16 bits
 
     // AXI Transfer Configuration
     logic [7:0]                             cfg_axi_rd_xfer_beats;
@@ -977,9 +977,12 @@ module stream_top_ch16 #(
 
     // Compute intermediate signals
     assign hwif_system_idle = system_idle;
-    assign hwif_channel_idle = scheduler_idle & descriptor_engine_idle;
-    assign hwif_desc_engine_idle = descriptor_engine_idle;
-    assign hwif_scheduler_idle = scheduler_idle;
+    // NUM_CHANNELS bits into the register map's channel count (8 or 16, from
+    // the regsel include the filelist picks); never a literal 8, which
+    // stream_top_ch16 (generated from this file) would inherit.
+    assign hwif_channel_idle = `STREAM_REGS_NCH'(scheduler_idle & descriptor_engine_idle);
+    assign hwif_desc_engine_idle = `STREAM_REGS_NCH'(descriptor_engine_idle);
+    assign hwif_scheduler_idle = `STREAM_REGS_NCH'(scheduler_idle);
 
     generate
         for (genvar i = 0; i < NUM_CHANNELS; i++) begin : g_hwif_state
@@ -1094,10 +1097,10 @@ module stream_top_ch16 #(
         // and count to 0, so the register reads EMPTY=1, count 0. The group
         // exposes no overflow/underflow flags, so OVFL/UNFL read 0.
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next  = mon_err_fifo_full;
-        hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next = (mon_err_fifo_count == 8'h00);
+        hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next = (mon_err_fifo_count == 16'h0000);   // was 8 bits: read empty at 256
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next  = 1'b0;
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next  = 1'b0;
-        hwif_in.MON.MON_FIFO_COUNT.FIFO_COUNT.next      = 16'(mon_err_fifo_count);
+        hwif_in.MON.MON_FIFO_COUNT.FIFO_COUNT.next      = mon_err_fifo_count;
 
         // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
         // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
@@ -1893,14 +1896,14 @@ module stream_top_ch16 #(
                 .cfg_desc_mon_timeout_cycles(32'h0),
                 .cfg_desc_mon_latency_thresh(32'h0),
                 .cfg_desc_mon_pkt_mask      (16'h0),
-                .cfg_desc_mon_err_select    (4'h0),
-                .cfg_desc_mon_err_mask      (8'h0),
-                .cfg_desc_mon_timeout_mask  (8'h0),
-                .cfg_desc_mon_compl_mask    (8'h0),
-                .cfg_desc_mon_thresh_mask   (8'h0),
-                .cfg_desc_mon_perf_mask     (8'h0),
-                .cfg_desc_mon_addr_mask     (8'h0),
-                .cfg_desc_mon_debug_mask    (8'h0),
+                .cfg_desc_mon_err_select    (16'h0),
+                .cfg_desc_mon_err_mask      (16'h0),
+                .cfg_desc_mon_timeout_mask  (16'h0),
+                .cfg_desc_mon_compl_mask    (16'h0),
+                .cfg_desc_mon_thresh_mask   (16'h0),
+                .cfg_desc_mon_perf_mask     (16'h0),
+                .cfg_desc_mon_addr_mask     (16'h0),
+                .cfg_desc_mon_debug_mask    (16'h0),
                 .cfg_desc_mon_perf_run      (hwif_out.MON.DAXMON_PERF_CTRL.RUN.value),  // always-on perf window
 
                 // Perf-window readback ties to the same wires (read 0 with
@@ -1924,14 +1927,14 @@ module stream_top_ch16 #(
                 .cfg_rdeng_mon_timeout_cycles(32'h0),
                 .cfg_rdeng_mon_latency_thresh(32'h0),
                 .cfg_rdeng_mon_pkt_mask     (16'h0),
-                .cfg_rdeng_mon_err_select   (4'h0),
-                .cfg_rdeng_mon_err_mask     (8'h0),
-                .cfg_rdeng_mon_timeout_mask (8'h0),
-                .cfg_rdeng_mon_compl_mask   (8'h0),
-                .cfg_rdeng_mon_thresh_mask  (8'h0),
-                .cfg_rdeng_mon_perf_mask    (8'h0),
-                .cfg_rdeng_mon_addr_mask    (8'h0),
-                .cfg_rdeng_mon_debug_mask   (8'h0),
+                .cfg_rdeng_mon_err_select   (16'h0),
+                .cfg_rdeng_mon_err_mask     (16'h0),
+                .cfg_rdeng_mon_timeout_mask (16'h0),
+                .cfg_rdeng_mon_compl_mask   (16'h0),
+                .cfg_rdeng_mon_thresh_mask  (16'h0),
+                .cfg_rdeng_mon_perf_mask    (16'h0),
+                .cfg_rdeng_mon_addr_mask    (16'h0),
+                .cfg_rdeng_mon_debug_mask   (16'h0),
                 .cfg_rdeng_mon_perf_run     (hwif_out.MON.RDMON_PERF_CTRL.RUN.value),  // always-on perf window
 
                 // Perf-window readback ties to the same wires (read 0 with
@@ -1955,14 +1958,14 @@ module stream_top_ch16 #(
                 .cfg_wreng_mon_timeout_cycles(32'h0),
                 .cfg_wreng_mon_latency_thresh(32'h0),
                 .cfg_wreng_mon_pkt_mask     (16'h0),
-                .cfg_wreng_mon_err_select   (4'h0),
-                .cfg_wreng_mon_err_mask     (8'h0),
-                .cfg_wreng_mon_timeout_mask (8'h0),
-                .cfg_wreng_mon_compl_mask   (8'h0),
-                .cfg_wreng_mon_thresh_mask  (8'h0),
-                .cfg_wreng_mon_perf_mask    (8'h0),
-                .cfg_wreng_mon_addr_mask    (8'h0),
-                .cfg_wreng_mon_debug_mask   (8'h0),
+                .cfg_wreng_mon_err_select   (16'h0),
+                .cfg_wreng_mon_err_mask     (16'h0),
+                .cfg_wreng_mon_timeout_mask (16'h0),
+                .cfg_wreng_mon_compl_mask   (16'h0),
+                .cfg_wreng_mon_thresh_mask  (16'h0),
+                .cfg_wreng_mon_perf_mask    (16'h0),
+                .cfg_wreng_mon_addr_mask    (16'h0),
+                .cfg_wreng_mon_debug_mask   (16'h0),
                 .cfg_wreng_mon_perf_run     (hwif_out.MON.WRMON_PERF_CTRL.RUN.value),  // always-on perf window
 
                 // Address-range checker unused when monitors are disabled.
@@ -2355,15 +2358,15 @@ module stream_top_ch16 #(
             assign m_axil_mon_awaddr = 32'h0;
             assign m_axil_mon_awprot = 3'b000;
             assign m_axil_mon_wvalid = 1'b0;
-            assign m_axil_mon_wdata = 32'h0;
-            assign m_axil_mon_wstrb = 4'h0;
+            assign m_axil_mon_wdata = '0;
+            assign m_axil_mon_wstrb = '0;
             assign m_axil_mon_bready = 1'b0;
 
             // Tie off status signals
             assign mon_err_fifo_full = 1'b0;
             assign mon_write_fifo_full = 1'b0;
-            assign mon_err_fifo_count = 8'h00;
-            assign mon_write_fifo_count = 8'h00;
+            assign mon_err_fifo_count = 16'h0000;
+            assign mon_write_fifo_count = 16'h0000;
 
             // Tie off compressor statistics (no monitors -> no compressor).
             assign mon_compressor_stat_tier1_a        = 32'h0;

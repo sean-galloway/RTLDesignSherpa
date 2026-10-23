@@ -33,11 +33,12 @@ Above `scheduler_g` the rapids-g RTL is RAPIDS's, so it is derived rather than c
 
 | Generated | From | Edits |
 |---|---|---|
-| `rtl/macro_g/generated/scheduler_group_array_g.sv` | `rtl/macro/scheduler_group_array.sv` | rename; `scheduler` becomes `scheduler_g`; the `seq_*` ports wired; `scheduler_group_array_g_seq.svh` (one `rapids_seq_g`) included in front of the scheduler loop; `$fatal` unless `SHARED_ENGINES` = 1 and `NUM_CHANNELS` is 4 or 8 |
+| `rtl/macro_g/generated/scheduler_group_array_g.sv` | `rtl/macro/scheduler_group_array.sv` | rename; `scheduler` becomes `scheduler_g`; the `seq_*` ports wired; `scheduler_group_array_g_seq.svh` (one `rapids_seq_g`) included in front of the scheduler loop; `$fatal` unless `SHARED_ENGINES` = 1 and `NUM_CHANNELS` is 4, 8 or 16 |
 | `rtl/macro_g/generated/rapids_src_g.sv`, `rapids_snk_g.sv` | `rtl/macro/rapids_src.sv`, `rapids_snk.sv` | rename; the array becomes `scheduler_group_array_g` |
 | `rtl/macro_g/generated/rapids_core_g.sv` | `rtl/macro/rapids_core.sv` | rename; the halves become `_g` |
 | `rtl/top_g/generated/rapids_g_top_base.sv` | `rtl/top/rapids_top_base.sv` | rename; the core becomes `rapids_core_g`; `apb4_slave`'s cmd/rsp outputs renamed `host_*`; `rapids_g_top_reg_arb.svh` (host + both gatlings into the register command queue) included after it |
 | `rtl/top_g/generated/rapids_g_top.sv`, `rapids_g_cxs_top.sv` | the -g base | the thin-top derivation of `bin/gen_plane_tops.py` |
+| `rtl/top_g/generated/rapids_g_16ch_top.sv`, `rapids_g_16ch_cxs_top.sv` | the -g base | the same, `NUM_CHANNELS` = 16; compiled with `rtl/filelists/top_g/rapids_g_16ch{,_cxs}_top.f`, which select the 16-channel register map (rapids TASK-036) |
 
 : Table 5.4.1: Generated files
 

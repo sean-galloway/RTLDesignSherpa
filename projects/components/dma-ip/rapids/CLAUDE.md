@@ -147,7 +147,13 @@
 > `rtl/macro_g/scheduler_group_array_g_seq.svh`; everything else in `macro_g/generated/` and `top_g/generated/` is
 > DERIVED by `bin/gen_rapids_g.py` (`--check`) from the product files -- edit the product, rerun. Firmware:
 > `rtl/fw_g/sched_g.S` -> `bin/gen_rapids_g_fw.py` -> `rtl/macro_g/generated/fw/sched_g_fw.svh` (never edit).
-> 4 or 8 channels, `SHARED_ENGINES` = 1. Tests: `dv/tests/fub_g` (FSM-vs-firmware equivalence bench with an
+> 4, 8 or 16 channels (16: 8 harts x 2 slots by default, rapids TASK-036; `rapids_g_16ch{,_cxs}_top`), `SHARED_ENGINES` = 1.
+> Firmware shape (rapids TASK-037): an executive (poll + `step`, which jumps through `ptab` on the one-hot state) over a
+> policy table of one-step handlers; no handler loops. `ptab` must stay below 2 KB (`jalr` off x0; the build checks it) and
+> the source needs `.option norelax` (relaxation rewrote the jalr base to x0). States the policy never creates
+> (unarmed XFER/COMPLETE, a valid head the firmware took) go to `fw_fault`, not a handler. Next-address selector
+> (rapids TASK-035): chunk 0 `[224:217]`; the image's `.equ ALG_MAX` becomes `FW_ALG_MAX` -> `seq_alg_max`, and
+> `scheduler_core` / HEAD_SUM refuse a selector above it in hardware; the FSM tree has max 0. Tests: `dv/tests/fub_g` (FSM-vs-firmware equivalence bench with an
 > independent golden model; edge table), `macro_g` (product array tests by module name), `top_g` (product top
 > wrappers re-hosted, `rapids_g_rehost.py`). Traps: the TB's `SCHED_WAIT_FLOOR` env floors every wait for a
 > scheduler reaction (firmware takes hundreds of cycles a step; the -g runners set it); cocotb matches a
