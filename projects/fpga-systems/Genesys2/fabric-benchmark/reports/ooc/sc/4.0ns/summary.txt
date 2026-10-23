@@ -7,7 +7,7 @@ worst_levels 1
 worst_start u_fabric/fb_sc_i/sc/inst/s01_entry_pipeline/s01_mmu/inst/r_sreg/skid2vector_q_reg/C
 worst_end u_fabric/fb_sc_i/sc/inst/s01_entry_pipeline/s01_mmu/inst/r_sreg/m_vector_i_reg[1066]/D
 lut 8333
-lutram 3959
+lutram 1428
 srl 755
 ff 11616
 bram_tile 0.0

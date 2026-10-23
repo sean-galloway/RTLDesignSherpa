@@ -7,7 +7,7 @@ worst_levels 0
 worst_start u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/s_ready_i_reg/C
 worst_end u_fabric/gen_samd.crossbar_samd/gen_master_slots[2].reg_slice_mi/r.r_pipe/skid_buffer_reg[114]/CE
 lut 2679
-lutram 10
+lutram 0
 srl 10
 ff 2190
 bram_tile 0.0

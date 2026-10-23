@@ -7,7 +7,7 @@ worst_levels 1
 worst_start u_fabric/gen_samd.crossbar_samd/aresetn_d_reg/C
 worst_end u_fabric/gen_samd.crossbar_samd/gen_slave_slots[1].gen_si_read.si_transactor_ar/gen_multi_thread.accept_cnt_reg[1]/R
 lut 2688
-lutram 10
+lutram 0
 srl 10
 ff 2190
 bram_tile 0.0

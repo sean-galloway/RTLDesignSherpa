@@ -158,8 +158,8 @@ is configured with no AxUSER, so it carries nothing the other legs do not.
 
 (A first version carried `{slot, id}` on AxUSER and rebuilt the slave-side
 ID from it. It worked, but it added 10 bits per request that only B2
-carried; dropping it took B2 from 8,438 to 8,333 LUTs, 4,064 to 3,959
-LUTRAM and 11,938 to 11,616 flops.)
+carried; dropping it took B2 from 8,438 to 8,333 LUTs and 11,938 to 11,616
+flops.)
 
 The in-order requirement holds: with ID 0 on every request, the controller at S0 must
 answer in order by the AXI rules for a single ID, and S1-S3 are in order.
@@ -198,7 +198,8 @@ answer in order by the AXI rules for a single ID, and S1-S3 are in order.
   slave's AW stage; ~179 MHz on 2026-10-16, ~148 MHz / 15 levels before the
   registered CAM insert and free, ~186 MHz / 12 levels before GitHub #119 L1
   -- §8). Leg A is ~3.9x B1's LUTs; B2 is ~3.1x B1's LUTs plus
-  3,959 LUTRAM and ~5.3x its flops.
+  1,428 LUTs of distributed RAM and 755 of shift register, and ~5.3x its
+  flops.
 - S0's DDR3 controller is LiteDRAM, generated (`fb_litedram`,
   `rtl/litedram/fb_litedram.yml`, `bin/gen_litedram.sh`; the core is
   toolchain output and gitignored, its port blackbox is tracked): the
@@ -377,13 +378,21 @@ per-run files they summarize in `reports/board/`, and the fabric alone in
 ### 8.1 Size and timing
 
 The fabric alone, placed and routed out of context (`make ooc-all`; legs B1
-and B2 2026-10-16, leg A re-run 2026-10-22):
+and B2 2026-10-16, leg A re-run 2026-10-22; all three rebuilt 2026-10-23 for
+the LUTRAM count, timing and every other count unchanged):
 
-| Leg | LUT | LUTRAM | FF | WNS at 10 ns | WNS at 4 ns | Fmax est. |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| A (bridge) | 8,449 | 0 | 6,722 | +3.889 | -0.001 | ~250 MHz |
-| B1 (AXI Crossbar) | 2,688 | 10 | 2,190 | +4.658 | +0.088 | ~256 MHz |
-| B2 (SmartConnect) | 8,333 | 3,959 | 11,616 | +4.286 | +0.268 | ~268 MHz |
+| Leg | LUT | LUTRAM | SRL | FF | WNS at 10 ns | WNS at 4 ns | Fmax est. |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| A (bridge) | 8,449 | 0 | 0 | 6,722 | +3.889 | -0.001 | ~250 MHz |
+| B1 (AXI Crossbar) | 2,688 | 0 | 10 | 2,190 | +4.658 | +0.088 | ~256 MHz |
+| B2 (SmartConnect) | 8,333 | 1,428 | 755 | 11,616 | +4.286 | +0.268 | ~268 MHz |
+
+LUT and FF are primitive cells; LUTRAM (distributed RAM) and SRL (shift
+register) are LUTs, from Vivado's utilization report. Before 2026-10-23
+this table's LUTRAM column was a primitive-cell count of both together
+(B1 10, B2 3,959) -- one RAM32M is four LUTs but eight cells -- which
+overstated B2's memory LUTs ~1.8x and called B1's 10 shift registers
+LUTRAM.
 
 The whole board design, post-route (B1 and B2 on 2026-10-16; leg A on 2026-10-16 and again on
 2026-10-22, after the CAM removal (bridge W12) and the `bridge_id_remap` timing fix; harness, STREAM,
@@ -392,7 +401,7 @@ the injector and LiteDRAM are the same in every leg; the differences are the fab
 0.3% of the 2026-10-16 run, 1,419-1,526 MB/s of 1,526 peak) and the DDR3 chain 48/48
 (`k3_a_20261022_221403.csv`):
 
-| Leg | WNS (ns) | WHS (ns) | LUTs | LUTRAM | FFs | BRAM | DSP |
+| Leg | WNS (ns) | WHS (ns) | LUTs | LUT as memory | FFs | BRAM | DSP |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | A (bridge), 2026-10-16 | +0.021 | +0.027 | 111,567 | 10,120 | 78,938 | 43.5 | 71 |
 | A (bridge), rebuilt 2026-10-22 | +0.519 | +0.020 | 87,904 | 7,070 | 72,157 | 43.5 | 71 |
@@ -400,7 +409,8 @@ the injector and LiteDRAM are the same in every leg; the differences are the fab
 | B2 (SmartConnect) | +0.378 | +0.023 | 112,491 | 12,009 | 83,133 | 43.5 | 71 |
 
 Leg A is the largest fabric in logic (3.1x B1's LUTs) and misses 4 ns by
-1 ps; B2 spends about as many LUTs as A but adds 3,959 LUTRAM and the most
+1 ps; B2 spends about as many LUTs as A but adds 2,183 memory LUTs (1,428
+distributed RAM, 755 shift register) and the most
 flops. Leg A's history at 4 ns: ~161 -> ~148 MHz (2026-10-15 to 10-16, the
 port latency modes and outstanding limits, #119 L5/L7/L1b, put a 15-level
 path into the DDR slave's write CAM count); ~165 -> ~179 MHz (registered CAM
@@ -508,7 +518,7 @@ nothing about the fabrics.
 | Steady-state bandwidth | 100% of peak | 100% of peak | 100% of peak |
 | Small-transfer cost | baseline | = A | 4.1% slower at 1 ch x 4 KB |
 | Contended-slave fairness | even (40/60 at 2 outstanding before 2026-10-21) | even | biased to STREAM (11-20%) |
-| Size (fabric, OOC) | 8.4k LUT, 6.7k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 4.0k LUTRAM, 11.6k FF |
+| Size (fabric, OOC) | 8.4k LUT, 6.7k FF | 2.7k LUT, 2.2k FF | 8.3k LUT, 1.4k LUTRAM + 0.8k SRL, 11.6k FF |
 | Fmax est. (fabric, OOC) | ~250 MHz | ~256 MHz | ~268 MHz |
 | Simulatable | yes | yes | no (encrypted) |
 

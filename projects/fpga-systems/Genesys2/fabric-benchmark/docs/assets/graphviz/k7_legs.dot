@@ -28,7 +28,7 @@ digraph k7_legs {
     subgraph cluster_b2 {
         label="Leg B2 bitstream"; fontsize=10;
         c_m [label="Masters + master-side meters\nstream (desc via 256->128), injector", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-        c_f [label="Xilinx SmartConnect (BD fb_sc)\nno slave-side ID: endpoints bin by address\nsim: none (encrypted), board only\nOOC: 8,333 LUT + 3,959 LUTRAM, ~268 MHz", penwidth=2.2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        c_f [label="Xilinx SmartConnect (BD fb_sc)\nno slave-side ID: endpoints bin by address\nsim: none (encrypted), board only\nOOC: 8,333 LUT + 1,428 LUTRAM, ~268 MHz", penwidth=2.2, peripheries=2, style="filled", fillcolor="#D6E4F0"];
         c_s [label="Slave-side meters + slaves\nMIG DDR3, desc_ram, LFSR, CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
         c_m -> c_f [xlabel="RD / WR"];
         c_f -> c_s [xlabel="RD / WR"];

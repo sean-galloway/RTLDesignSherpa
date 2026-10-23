@@ -69,7 +69,7 @@ def size() -> int:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    print("| Leg | WNS (ns) | WHS (ns) | LUTs | LUTRAM | FFs | BRAM | DSP |")
+    print("| Leg | WNS (ns) | WHS (ns) | LUTs | LUT as memory | FFs | BRAM | DSP |")
     print("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |")
     names = dict(LEGS)
     for r in rows:

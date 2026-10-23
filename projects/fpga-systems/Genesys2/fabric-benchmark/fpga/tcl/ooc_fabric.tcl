@@ -83,17 +83,17 @@ report_timing_summary -max_paths 10 -file "$out/timing_summary.txt"
 report_timing -max_paths 20 -nworst 1 -sort_by slack -file "$out/timing_worst.txt"
 
 # summary.txt: the numbers bin/parse_ooc.py tabulates, one key per line.
-# Counts are primitive cells, not sites. The group names differ by family
-# (7-series FLOP_LATCH / DMEM / CARRY4, UltraScale+ REGISTER / CLB LUTRAM and
-# SRL / CARRY8), so each filter names both. lutram is every LUT-as-memory
-# primitive -- distributed RAM AND shift registers, as 7-series DMEM counts
-# them -- and srl is the shift registers alone; carry4 counts CARRY8 on
-# UltraScale+ under the same key.
-proc util_of {type} {
-    set n 0
-    foreach c [get_cells -hierarchical -filter "IS_PRIMITIVE && PRIMITIVE_GROUP == $type"] { incr n }
-    return $n
+# lut, ff, carry4 and muxf count primitive cells. The group names differ by
+# family (7-series FLOP_LATCH / CARRY4, UltraScale+ REGISTER / CARRY8), so
+# each filter names both; carry4 counts CARRY8 on UltraScale+ under the same
+# key. lutram and srl are LUTs, read from report_utilization's "LUT as
+# Distributed RAM" and "LUT as Shift Register" rows: a cell count cannot
+# give them, since one RAM32M is four LUTs and eight primitive cells.
+proc util_row {report name} {
+    if {[regexp -line "^\\|\\s+$name\\s+\\|\\s+(\\d+)\\s+\\|" $report -> n]} { return $n }
+    puts stderr "ERROR: no \"$name\" row in report_utilization"; exit 1
 }
+set util [report_utilization -return_string]
 set wns  [get_property SLACK [get_timing_paths -max_paths 1 -nworst 1 -setup]]
 set whs  [get_property SLACK [get_timing_paths -max_paths 1 -nworst 1 -hold]]
 set path [get_timing_paths -max_paths 1 -nworst 1 -setup]
@@ -107,8 +107,8 @@ puts $fh "worst_levels [get_property LOGIC_LEVELS $path]"
 puts $fh "worst_start [get_property STARTPOINT_PIN $path]"
 puts $fh "worst_end [get_property ENDPOINT_PIN $path]"
 puts $fh "lut [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ LUT*}]]"
-puts $fh "lutram [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && (PRIMITIVE_GROUP == DMEM || PRIMITIVE_SUBGROUP == LUTRAM || PRIMITIVE_SUBGROUP == SRL)}]]"
-puts $fh "srl [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ SRL*}]]"
+puts $fh "lutram [util_row $util {LUT as Distributed RAM}]"
+puts $fh "srl [util_row $util {LUT as Shift Register}]"
 puts $fh "ff [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && (PRIMITIVE_GROUP == FLOP_LATCH || PRIMITIVE_GROUP == REGISTER)}]]"
 puts $fh "bram_tile [expr {[llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ RAMB36*}]] \
                         + 0.5 * [llength [get_cells -hierarchical -filter {IS_PRIMITIVE && REF_NAME =~ RAMB18*}]]}]"
