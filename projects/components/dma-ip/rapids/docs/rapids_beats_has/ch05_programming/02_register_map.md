@@ -90,6 +90,7 @@ that succeeded would tell the host a monitor is configured that does not exist.
 | 0x2A0 | `AXI_XFER_CONFIG` | RW | AXI transfer sizing configuration |
 | 0x2B0 | `PERF_CONFIG` | RW | Performance profiler configuration |
 | 0x2C0-0x2CC | `OBS_CTRL`/`OBS_FLAGS`/`OBS_DATA0`/`OBS_DATA1` | RW/RO | Observation mux |
+| 0x300-0x31C | `CH_SCRATCH[n].SCRATCH` | RW | Eight software bits per channel, `SCRATCH[7:0]` (reset 0); storage only, for flags or semaphores between the host and, in rapids-g, the half's gatling. Not atomic across masters: give each bit one writer |
 | 0x35C | `PERF_CH_SEL` | RW | Performance channel select |
 | 0x378-0x380 | `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL` | RW/RO | Latency histogram |
 

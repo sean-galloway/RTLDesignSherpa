@@ -206,6 +206,16 @@ async def cocotb_test_extended_addressing_off(dut):
 
 
 @cocotb.test(timeout_time=300, timeout_unit="ms")
+async def cocotb_test_ext_channel_reset(dut):
+    """rapids BUG-017: an EXT descriptor reset mid-run leaves no stale run bases."""
+    tb = SchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    ok = await tb.test_ext_channel_reset()
+    assert ok, "EXT reset mid-run: the next descriptor walked the wrong addresses (see log)"
+
+
+@cocotb.test(timeout_time=300, timeout_unit="ms")
 async def cocotb_test_extended_addressing(dut):
     """Extended row/col-major addressing: exact strided address sequences.
 
@@ -549,3 +559,14 @@ if __name__ == "__main__":
     request = MockRequest()
     _run_scheduler_test(request, "cocotb_test_basic_descriptor_flow",
                        channel_id=0, num_channels=8, data_width=512)
+
+
+@pytest.mark.fub
+@pytest.mark.scheduler
+@pytest.mark.parametrize("channel_id, num_channels, data_width, timing_profile", scheduler_params)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_scheduler_beats_ext_channel_reset(request, channel_id, num_channels, data_width, timing_profile, test_level):
+    """Pytest: an EXT descriptor reset mid-run leaves no stale bases (rapids BUG-017)."""
+    _run_scheduler_test(request, "cocotb_test_ext_channel_reset",
+                        channel_id, num_channels, data_width, timing_profile,
+                        extra_params={'USE_ROW_COL_MAJOR_ADDRESSING': 1}, test_level=test_level)

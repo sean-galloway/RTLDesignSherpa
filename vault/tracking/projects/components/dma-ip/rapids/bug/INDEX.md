@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — bugs
 
-**Next ID: BUG-016** — never recycle a number, even when its item closed.
+**Next ID: BUG-018** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 14 | done (kept for history) |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -34,6 +34,8 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-017** — CLOSED 2026-10-22: stale EXT run bases after a channel reset; `stream_run_addr_gen` gained `flush`, driven by the channel reset in the byte, beats and STREAM schedulers; reset_ext equivalence cell matches the golden
+- **BUG-016** — CLOSED 2026-10-22: a held CH_FETCH_DESC sent DESC_START every cycle (62 for one descriptor); now an entry pulse in scheduler_core; the backpressure test asserts one
 - **BUG-015** — snk_data_path_axis stress stall was the TB's own descriptor-take wait
   racing an idle FSM (test defect, not RTL); the sticky 1000-cycle wrapper timeout
   cascaded it across all 8 channels (closed 2026-10-18)

@@ -26,7 +26,7 @@
 **Module:** `scheduler.sv`
 **Location:** `projects/components/dma-ip/rapids/rtl/fub/`
 **Status:** Implemented
-**Last Updated:** 2026-09-30
+**Last Updated:** 2026-10-21
 
 ---
 
@@ -35,6 +35,10 @@
 The scheduler coordinates one channel. It accepts a 256-bit descriptor from the descriptor engine, turns the descriptor's byte length and byte addresses into beat counts for the AXI engines, tells the data paths how the packet is laid out, and tracks progress until every source beat is read and every destination beat is committed.
 
 Compared with the RAPIDS Beats scheduler, the state machine, the timeout logic, the control-descriptor path and the MonBus events are the same. Three things change: the beat math, the address advance, and the packet record.
+
+### Structure: the FSM around scheduler_core
+
+Since rapids TASK-034 the scheduler is two modules. `scheduler_core.sv` holds the datapath and nothing that decides: the descriptor skid and latch, the strobe-driven counters, the address advance, run accounting, timeouts, sticky errors, control-engine issue, tile checks, packet records and MonBus packets. Its state, its descriptor take, its beat totals and its EXT run bases are inputs. `scheduler.sv` keeps the port list it always had and supplies those inputs: the finite state machine below, the byte-to-beat ceiling and the two `stream_run_addr_gen` run-base generators. The gatling-sequenced `scheduler_g` (Chapter 5) wraps the same core and takes the four from firmware, so there is one copy of the datapath for both.
 
 ### Key Features
 
@@ -412,13 +416,19 @@ Packets are `PktTypeCompletion` from `PROTOCOL_CORE` unless noted.
 
 | State | Event | Data |
 |-------|-------|------|
-| CH_FETCH_DESC | `RAPIDS_EVENT_DESC_START` | descriptor length (bytes) |
-| CH_COMPLETE | `RAPIDS_EVENT_IRQ` when `gen_irq`, else `RAPIDS_EVENT_DESC_COMPLETE` | |
+| entry to CH_FETCH_DESC | `RAPIDS_EVENT_DESC_START` | descriptor length (bytes) |
+| entry to CH_COMPLETE | `RAPIDS_EVENT_IRQ` when `gen_irq`, else `RAPIDS_EVENT_DESC_COMPLETE` | |
 | CH_ERROR | `RAPIDS_EVENT_ERROR` (`PktTypeError`), once per error episode | `{29'h0, wr_sticky, rd_sticky, 33'h0}` |
 
 : Table 2.1.14: MonBus Events
 
 There are no events during XFER_DATA. The only difference from RAPIDS Beats is that the DESC_START data field is a byte count.
+
+DESC_START and the completion events fire on the first cycle of their state, from an entry pulse in `scheduler_core`. Until 2026-10-21 DESC_START fired on every cycle in CH_FETCH_DESC; the byte tree holds that state while the record queue is full or the tile advertisement window is open, and one held descriptor sent 62 packets in the record-backpressure test (rapids BUG-016).
+
+## Run-Base Generator Flush
+
+A channel reset flushes both `stream_run_addr_gen` instances (`flush` = the registered channel reset): generation stops, results still in `dma_address_gen`'s pipeline are discarded, and the base FIFO (a `gaxi_drop_fifo_sync`) is dropped whole. Before 2026-10-21 nothing emptied it: a generator started for an EXT descriptor kept producing that descriptor's bases through the reset, and the next EXT descriptor began its second run at the reset descriptor's base (rapids BUG-017; the same in RAPIDS Beats and STREAM, fixed in all three). `test_scheduler_ext_channel_reset` covers it.
 
 ---
 

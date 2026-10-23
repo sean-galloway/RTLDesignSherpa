@@ -218,7 +218,7 @@ module rapids_byte_harness #(
     // the LOW/HIGH APB kick writes for every masked channel back-to-back at aclk.
     // This keeps ALL UART latency OUT of the measured window (which is otherwise
     // smeared across seconds and dilutes utilization to ~0%).
-    localparam logic [11:0] CSR_KICK_CFG    = 12'h064;  // [0]=half(0 SRC/1 SNK) [1]=start_gen_on_go
+    localparam logic [11:0] CSR_KICK_CFG    = 12'h064;  // [0]=half(0 SRC/1 SNK) [1]=start_gen_on_go [2]=free_run (rapids-g)
     localparam logic [11:0] CSR_KICK_MASK   = 12'h068;  // [NUM_CHANNELS-1:0] kick channel mask
     localparam logic [11:0] CSR_KICK_BASE_LO= 12'h06C;  // descriptor base addr [31:0]
     localparam logic [11:0] CSR_KICK_BASE_HI= 12'h070;  // descriptor base addr [63:32]
@@ -350,6 +350,7 @@ module rapids_byte_harness #(
     // Atomic-launch (GO) staging registers + kick-sequencer state
     logic                       r_kick_half;       // 0=SRC, 1=SNK APB kick window
     logic                       r_kick_start_gen;  // GO also pulses cfg_gen_start (sink)
+    logic                       r_kick_free_run;   // rapids-g: GO does NOT restart the gatlings
     logic [NUM_CHANNELS-1:0]    r_kick_mask;       // channels to kick on GO
     logic [31:0]                r_kick_base_lo;    // descriptor base addr [31:0]
     logic [31:0]                r_kick_base_hi;    // descriptor base addr [63:32]
@@ -596,6 +597,7 @@ module rapids_byte_harness #(
             r_obs_arm               <= 1'b0;
             r_kick_half             <= 1'b0;
             r_kick_start_gen        <= 1'b0;
+            r_kick_free_run         <= 1'b0;
             r_kick_mask             <= '0;
             r_kick_base_lo          <= '0;
             r_kick_base_hi          <= '0;
@@ -656,6 +658,7 @@ module rapids_byte_harness #(
                     CSR_KICK_CFG: begin
                         r_kick_half      <= r_wdata[0];
                         r_kick_start_gen <= r_wdata[1];
+                        r_kick_free_run  <= r_wdata[2];
                     end
                     CSR_KICK_MASK:    r_kick_mask    <= r_wdata[NUM_CHANNELS-1:0];
                     CSR_KICK_BASE_LO: r_kick_base_lo <= r_wdata;
@@ -696,6 +699,12 @@ module rapids_byte_harness #(
     wire [3:0]  w_rregion = r_raddr[19:16];
     wire [11:0] w_roff    = r_raddr[11:0];
 
+`ifdef RAPIDS_G
+    localparam bit BUILD_RAPIDS_G = 1'b1;
+`else
+    localparam bit BUILD_RAPIDS_G = 1'b0;
+`endif
+
     // Combinational readback mux (valid once r_raddr is latched in RST_ACT).
     logic [31:0] w_readmux;
     always_comb begin
@@ -713,7 +722,8 @@ module rapids_byte_harness #(
                     // [30] RUN_TIMER: char_run_timer + its CSRs at 0x160.
                     // [28] WORD_CRC = !BYTE_CRC: 1 when the checkers are the word-wide
                     // flavour, so every bitstream built before this bit existed reads 0 = byte-wise.
-                    CSR_BUILD:       w_readmux = {1'b0, 1'b1, MON_CAPTURE, !BYTE_CRC, 1'b1, GEN_MON, USE_OBSERVERS,
+                    // [31] RAPIDS_G: 1 when the DUT is rapids_g_top (firmware schedulers).
+                    CSR_BUILD:       w_readmux = {1'(BUILD_RAPIDS_G), 1'b1, MON_CAPTURE, !BYTE_CRC, 1'b1, GEN_MON, USE_OBSERVERS,
                                                   (USE_AXI_MONITORS != 0),
                                                   8'($clog2(SRAM_DEPTH)),
                                                   8'(NUM_CHANNELS),
@@ -723,6 +733,7 @@ module rapids_byte_harness #(
                                         gen_done, gen_busy,
                                         snk_system_idle, src_system_idle, mon_irq};
                     CSR_GEN_MODE:    w_readmux = 32'(r_cfg_gen_interleave);
+                    CSR_KICK_CFG:    w_readmux = {29'b0, r_kick_free_run, r_kick_start_gen, r_kick_half};
                     CSR_GEN_LASTB:   w_readmux = 32'(r_cfg_gen_last_bytes);
                     CSR_GEN_BEATS_T: w_readmux = o_gen_beat_count_total;
                     CSR_CHK_BEATS_T: w_readmux = o_chk_beat_count_total;
@@ -1383,9 +1394,16 @@ module rapids_byte_harness #(
     logic [63:0]               obs_ox_wdata;
 
     //=========================================================================
-    // DUT: rapids_top
+    // DUT: rapids_top, or rapids_g_top when RAPIDS_G is defined (rapids
+    // TASK-034: the same ports and register map, schedulers sequenced by
+    // firmware on gatling). One harness, two DUTs, for the A/B on the board.
     //=========================================================================
-    rapids_top #(
+`ifdef RAPIDS_G
+    `define RAPIDS_CHAR_DUT rapids_g_top
+`else
+    `define RAPIDS_CHAR_DUT rapids_top
+`endif
+    `RAPIDS_CHAR_DUT #(
         .NUM_CHANNELS   (NUM_CHANNELS),
         .DATA_WIDTH     (DATA_WIDTH),
         .ADDR_WIDTH     (ADDR_WIDTH),
@@ -1416,6 +1434,14 @@ module rapids_byte_harness #(
         .aclk    (aclk),
         .aresetn (aresetn),
         .cam_clear(cam_clear),
+`ifdef RAPIDS_G
+        // GO restarts both gatlings' harts (rapids_seq_g), so the firmware's
+        // poll loop has the same phase at the kicks in simulation and on the
+        // board; without it that phase follows the clocks since reset, which
+        // the UART's speed sets. Every channel is idle at GO (stage-all-then-GO).
+        // KICK_CFG.FREE_RUN leaves the harts running, to measure the spread.
+        .seq_restart(r_go && !r_kick_free_run),
+`endif
 
         // APB
         .s_apb_paddr   (s_apb_paddr),

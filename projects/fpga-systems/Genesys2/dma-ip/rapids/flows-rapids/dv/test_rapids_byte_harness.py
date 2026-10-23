@@ -232,7 +232,10 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
 
     log_path = os.path.join(log_dir, f'{test_name}.log')
     results_path = os.path.join(log_dir, f'results_{test_name}.xml')
-    sim_build = sim_build_path(tests_dir, build_name or test_name)
+    # a rapids-g build is a different DUT: never share its sim_build with rapids_top's
+    g_tag = ('_g' if int(os.environ.get('TEST_RAPIDS_G', '0')) == 1 else '') + \
+            ('_rc' if int(os.environ.get('TEST_ROW_COL', '0')) == 1 else '')
+    sim_build = sim_build_path(tests_dir, (build_name or test_name) + g_tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
 
@@ -260,6 +263,10 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
         'SRAM_DEPTH': int(os.environ.get('TEST_SRAM_DEPTH', '512')),
         'APB_ADDR_WIDTH': 13,
         'APB_DATA_WIDTH': 32,
+        # descriptor RAM per half: the board's value (Makefile DESC_RAM_ENTRIES)
+        'DESC_RAM_ENTRIES': int(os.environ.get('TEST_DESC_RAM_ENTRIES', '1024')),
+        # extended addressing: the board's value (Makefile ROW_COL)
+        'USE_ROW_COL_MAJOR_ADDRESSING': int(os.environ.get('TEST_ROW_COL', '0')),
         # Shared interface observers (rapids TASK-001). Default OUT, as on the
         # board; TEST_USE_OBSERVERS=1 builds them so verify-sim covers that flavour.
         'USE_OBSERVERS': int(os.environ.get('TEST_USE_OBSERVERS', '0')),
@@ -299,6 +306,9 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
         "-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT", "-Wno-CASEINCOMPLETE",
         FIELD_COMBO_VLT, "-Wno-SELRANGE", "-Wno-UNUSEDSIGNAL",
     ]
+    # TEST_RAPIDS_G=1: the DUT is rapids_g_top (the board's RAPIDS_G=1 build)
+    if int(os.environ.get('TEST_RAPIDS_G', '0')) == 1:
+        compile_args.append('+define+RAPIDS_G')
     if enable_waves:
         compile_args.extend(['--trace', '--trace-structs', '--trace-max-array', '512'])
 

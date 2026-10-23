@@ -109,6 +109,8 @@ def read_build(io) -> dict:
         # in bytes, golden over bytes even for whole-beat runs
         'byte_dut': bool(io.csr_field("BUILD", "BYTE_DUT")),
         'word_crc': bool(io.csr_field("BUILD", "WORD_CRC")),
+        # rapids_g_top (rapids TASK-034): schedulers sequenced by firmware
+        'rapids_g': bool(io.csr_field("BUILD", "RAPIDS_G")),
         'aclk_hz': ACLK_HZ,
     }
     if d['beat_bytes'] == 0:
@@ -241,6 +243,7 @@ class RapidsByteCampaign:
     xfer_axlen_effective = 8   # ... as the engines run it (clamped to the SRAM depth, rapids BUG-009)
     resp_delay = 0   # RESP_DELAY: rd (R) and wr (B) hold, aclk cycles (STREAM knob 5)
     interleave = False   # GEN_MODE.INTERLEAVE: round-robin the active channels per beat
+    free_run = False     # KICK_CFG.FREE_RUN (rapids-g): GO leaves the gatling harts running
 
     def config_dump(self) -> dict:
         """The configuration the DUT and harness are ACTUALLY running, read back
@@ -252,7 +255,9 @@ class RapidsByteCampaign:
                'byte_dut': d['byte_dut'], 'aclk_hz': d['aclk_hz'],
                'resp_delay_rd': self.io.csr_field("RESP_DELAY", "RD_DELAY"),
                'resp_delay_wr': self.io.csr_field("RESP_DELAY", "WR_DELAY"),
-               'gen_interleave': bool(self.io.csr_field("GEN_MODE", "INTERLEAVE"))}
+               'gen_interleave': bool(self.io.csr_field("GEN_MODE", "INTERLEAVE")),
+               # rapids-g: 0 = GO restarts the gatling harts (sim and board in phase)
+               'kick_free_run': bool(self.io.csr_field("KICK_CFG", "FREE_RUN"))}
         for half in ('src', 'snk'):
             out[half] = {
                 'rd_burst_beats': self.read_field(half, 'AXI_XFER_CONFIG', 'RD_XFER_BEATS') + 1,
@@ -280,6 +285,16 @@ class RapidsByteCampaign:
         every active channel holds data at once; rapids TASK-018)."""
         self.interleave = bool(on)
         self.io.csr_write_reg("GEN_MODE", INTERLEAVE=int(self.interleave))
+
+    def set_free_run(self, on: bool) -> None:
+        """rapids-g: whether GO restarts the gatling harts (KICK_CFG.FREE_RUN = 0,
+        the default) or leaves them running. A restart puts every hart's poll
+        loop at the same phase when the kicks land, so a run's timing is the
+        same in simulation and on the board; free running, that phase follows
+        the clocks since reset and a point lands anywhere in its spread. No
+        effect on rapids_top."""
+        self.free_run = bool(on)
+        self.io.csr_write_reg("KICK_CFG", FREE_RUN=int(self.free_run))
 
     def xfer_axlen_cap(self) -> int:
         """The AxLEN the engines actually run (rapids BUG-009): the register
@@ -367,7 +382,8 @@ class RapidsByteCampaign:
         which channels, and the descriptor base/stride. Replaces the per-channel
         UART kick writes so the kicks land within a few aclk cycles of GO."""
         self.io.csr_write_reg("KICK_CFG", HALF=int(half == 'snk'),
-                              START_GEN_ON_GO=int(bool(start_gen)))
+                              START_GEN_ON_GO=int(bool(start_gen)),
+                              FREE_RUN=int(self.free_run))
         self.io.csr_write_reg("KICK_MASK", VALUE=mask)
         self.io.csr_write_reg("KICK_BASE_LO", VALUE=DESC_BASE & 0xFFFF_FFFF)
         self.io.csr_write_reg("KICK_BASE_HI", VALUE=(DESC_BASE >> 32) & 0xFFFF_FFFF)
@@ -465,9 +481,10 @@ class RapidsByteCampaign:
         seed_csr = 0 if base_seed == LFSR_SEED_DEFAULT else base_seed
         self.io.csr_write_reg("GEN_SEED", VALUE=seed_csr)
         self.io.csr_write_reg("GEN_NBEATS", VALUE=total_beats)
-        # beat campaign: one packet per channel; byte campaign: one packet per
-        # descriptor, its last beat carrying last_bytes strobed bytes
-        self.io.csr_write_reg("GEN_BPP", VALUE=(beats if pkt_bytes else 0))
+        # beat campaign: one packet per channel (a chain: one per descriptor, so
+        # each descriptor's tlast lands on its length); byte campaign: one packet
+        # per descriptor, its last beat carrying last_bytes strobed bytes
+        self.io.csr_write_reg("GEN_BPP", VALUE=(beats if (pkt_bytes or descs > 1) else 0))
         self.io.csr_write_reg("GEN_LASTB", VALUE=last_bytes)
         self.io.csr_write_reg("GEN_CHMASK", VALUE=mask)
         self.io.csr_write_reg("GEN_TDEST", VALUE=0)
@@ -499,7 +516,7 @@ class RapidsByteCampaign:
             # is the beat's replicated LFSR word; whole beats at offset 0 only
             if pkt_bytes or offset:
                 raise RuntimeError("word-wide checker build measures whole-beat, offset-0 runs only")
-            wr_golden = lambda ch: golden_crc(ch, beats, base_seed)   # noqa: E731
+            wr_golden = lambda ch: golden_crc(ch, total_beats, base_seed)   # noqa: E731
         elif byte_dut:
             # the byte-wise write checker CRCs every byte written, so the
             # golden is over bytes even for whole-beat packets
@@ -1219,6 +1236,10 @@ Examples:
                    help='sink runs: the AXIS generator round-robins the active channels '
                         'beat by beat (GEN_MODE.INTERLEAVE), so every active channel holds '
                         'data at once. Default: one channel\'s whole run, then the next.')
+    p.add_argument('--free-run', action='store_true',
+                   help='rapids-g: GO leaves the gatling harts running (KICK_CFG.FREE_RUN) instead '
+                        'of restarting them, so each point lands at whatever poll-loop phase the '
+                        'clocks since reset give it. Default: restart, the same phase in sim and on the board.')
     p.add_argument('--source-only', action='store_true')
     p.add_argument('--backpressure', action='store_true',
                    help='single run: inject source-egress backpressure')
@@ -1235,7 +1256,7 @@ Examples:
                    help="byte-granular performance campaign (BYTE_DUT build): sweeps channels x payload "
                         "bytes x offset x direction, plus the beat-aligned comparison rows, and writes "
                         "bytes / beats / efficiency / MB/s per point (see byte_perf.py)")
-    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned'),
+    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned', 'gcompare'),
                    help="--byte-perf point set (default standard); 'aligned' is the beat-aligned "
                         "rows only, the one set a word-wide-checker build (BUILD.WORD_CRC=1) can run")
     p.add_argument('--prelim', action='store_true',
@@ -1253,7 +1274,9 @@ Examples:
                    help='depth of the --byte-seq cases (gate: a few per sequence, full: all)')
     p.add_argument('--chunk', type=_parse_chunk, default=None, metavar='K/N',
                    help='--byte-perf: run only chunk K of N (1-based), a cost-balanced contiguous '
-                        'slice of the point list (keeps each sim chunk inside the 100 ms cap)')
+                        'slice of the point list (keeps each sim chunk inside the 100 ms cap). '
+                        'Chunk K > 1 first runs, unrecorded, the point before it, so it starts '
+                        'from the same history as an unchunked run')
     p.add_argument('--smoke', action='store_true',
                    help='fast confidence check: 2 channels x 4 beats, '
                         'sink + source, golden-validated; exits non-zero on fail')
@@ -1342,9 +1365,10 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
           f"SRAM {d['sram_depth']} beats = {d['sram_bytes_per_channel'] // 1024} KB per channel, "
           f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
           f"gen_mon={int(d['gen_mon'])}")
-    if d.get('word_crc') and not (args.byte_perf and args.profile == 'aligned'):
+    # the whole-beat, offset-0 profiles: the only ones a word-wide checker can score
+    if d.get('word_crc') and not (args.byte_perf and args.profile in ('aligned', 'gcompare')):
         print("FAIL: this bitstream has the word-wide checkers (BUILD.WORD_CRC=1), which cannot "
-              "check a partial strobe; only --byte-perf --profile aligned may run on it")
+              "check a partial strobe; only --byte-perf --profile aligned|gcompare may run on it")
         return 2
     if d['channels'] != args.channels:
         print(f"FAIL: --channels {args.channels} but the bitstream was built with "
@@ -1353,6 +1377,7 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
 
     campaign.configure()
     campaign.set_interleave(bool(args.interleave))
+    campaign.set_free_run(bool(args.free_run))
     if args.xfer_axlen is not None:
         campaign.set_xfer_axlen(args.xfer_axlen)
 
@@ -1366,14 +1391,15 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
             _HOST_DIR, os.pardir, os.pardir, 'reports', 'perf', 'json',
             f"rapids_byte_perf{'_prelim' if args.prelim else ''}_"
             f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
-        pts = byte_perf.build_points(args.profile)
+        pts, warm = byte_perf.build_points(args.profile), []
         if args.chunk:
+            warm = byte_perf.chunk_warmup(pts, *args.chunk, bpb=d['beat_bytes'])
             pts = byte_perf.chunk_points(pts, *args.chunk, bpb=d['beat_bytes'])
         doc, ok = byte_perf.run_campaign(
             campaign, args.profile, results, timeout_s=args.timeout,
             prelim=args.prelim, resume=args.resume, max_minutes=args.max_minutes,
             bitstream=(os.path.abspath(args.bitstream) if args.bitstream else None),
-            points=pts, transport=transport,
+            points=pts, transport=transport, warmup=warm,
             meta={'chunk': list(args.chunk) if args.chunk else None, **IDENTITY},
             out=lambda m: print(m, flush=True))
         print(f"Results written to {results}")

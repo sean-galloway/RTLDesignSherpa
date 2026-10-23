@@ -23,5 +23,7 @@ $REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
 # with STREAM from misc/rtl; pulls dma_address_gen + gaxi_fifo_sync itself.
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/stream_run_addr_gen.f
 
-# DUT module
+# DUT module: the datapath core (shared with fub_g/scheduler_g), then the
+# FSM scheduler around it (rapids TASK-034)
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/scheduler_core.sv
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/scheduler.sv

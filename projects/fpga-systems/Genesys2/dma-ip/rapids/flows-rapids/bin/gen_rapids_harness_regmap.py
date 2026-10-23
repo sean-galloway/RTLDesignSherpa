@@ -75,7 +75,8 @@ CSR = [
                                   ('BYTE_DUT', 27, 27, 'r'),         # 1: byte-granular rapids_top (TASK-019)
                                   ('WORD_CRC', 28, 28, 'r'),         # 1: word-wide checkers; 0 (every earlier build): byte-wise
                                   ('MON_CAPTURE', 29, 29, 'r'),
-                                  ('RUN_TIMER', 30, 30, 'r')]),       # char_run_timer CSRs at 0x160    # 1: the monbus capture buffer is built (rapids TASK-020)
+                                  ('RUN_TIMER', 30, 30, 'r'),         # char_run_timer CSRs at 0x160    # 1: the monbus capture buffer is built (rapids TASK-020)
+                                  ('RAPIDS_G', 31, 31, 'r')]),        # 1: the DUT is rapids_g_top (firmware schedulers, rapids TASK-034)
     (0x010, 'GEN_CTRL',    'w',  [('GEN_START', 0, 0, 'w')]),         # cfg_gen_start pulse
     (0x014, 'GEN_SEED',    'rw', None),
     (0x018, 'GEN_NBEATS',  'rw', None),
@@ -100,7 +101,8 @@ CSR = [
     # kick window) is NOT here: it is an offset into rapids_regmap.py, and the
     # numeric clash with MEM_CTRL above is coincidental.
     (0x064, 'KICK_CFG',    'rw', [('HALF', 0, 0, 'rw'),            # 0=SRC 1=SNK
-                                  ('START_GEN_ON_GO', 1, 1, 'rw')]),
+                                  ('START_GEN_ON_GO', 1, 1, 'rw'),
+                                  ('FREE_RUN', 2, 2, 'rw')]),      # rapids-g: GO keeps the harts running
     (0x068, 'KICK_MASK',   'rw', None),                               # [NUM_CHANNELS-1:0]
     (0x06C, 'KICK_BASE_LO','rw', None),                               # desc base [31:0]
     (0x070, 'KICK_BASE_HI','rw', None),                               # desc base [63:32]

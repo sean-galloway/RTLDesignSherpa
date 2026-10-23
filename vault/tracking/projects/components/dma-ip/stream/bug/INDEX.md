@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — bugs
 
-**Next ID: BUG-021** — never recycle a number, even when its item closed.
+**Next ID: BUG-022** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -30,6 +30,7 @@ not in stream. Next ID stays BUG-021 so the number is never recycled.)
 
 ## Closed
 
+- **BUG-021** — CLOSED 2026-10-21: a channel reset left stale EXT run bases in stream_run_addr_gen for the next EXT descriptor (= rapids BUG-017); flush via gaxi_drop_fifo_sync, fixed in all three schedulers
 - **BUG-019** — CLOSED 2026-10-08: obs/mon campaigns re-based on live caps /
   GEN_MON / LITE_RETIRED_TYPES; board re-pin done (bff808b68) — mon_coverage
   exact match, matrix 4/5 w/ 2 skips, obs_campaign hard-fails on the BUG-020

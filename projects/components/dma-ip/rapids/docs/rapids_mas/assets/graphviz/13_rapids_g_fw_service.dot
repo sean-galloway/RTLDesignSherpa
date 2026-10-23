@@ -1,0 +1,57 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
+// rapids-g firmware, service(): one call takes a channel as far as it can go.
+// White questions, blue actions, every arrow labeled. Each handler box lists
+// its steps in order; an "if" line is a branch inside that handler.
+// Verified against rtl/fw_g/sched_g.S (service, dispatch, s_xfer, x_armed,
+// x_finish, s_complete, s_idle, s_next, s_fetch, f_start, f_error, ext_init,
+// prevalidate, refill_both).
+digraph rapids_g_fw_service {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.7", ranksep="0.45", splines=ortho, newrank=true,
+           label=<<B>rapids-g firmware: service(channel), dispatched on the channel state in STATUS</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.14,0.08"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    entry [group=A, label="service(channel)\nfrom the poll loop: attention, no open head"];
+    rd    [group=A, label="Read STATUS"];
+    qx    [group=A, label="XFER_DATA?", fillcolor="white"];
+    qn    [group=A, label="NEXT_DESC?", fillcolor="white"];
+    qi    [group=A, label="IDLE?", fillcolor="white"];
+    qf    [group=A, label="FETCH_DESC?", fillcolor="white"];
+    qc    [group=A, label="COMPLETE?", fillcolor="white"];
+    ret   [group=A, shape=ellipse, fillcolor="white", label="return to the poll loop\n(any handler with nothing more to do)"];
+    again [group=B, shape=ellipse, fillcolor="white", label="dispatch again\non a fresh STATUS"];
+
+    hx [group=B, label="XFER_DATA handler\l1. a head is waiting, not yet judged: JUDGE it (pre-validation)\l2. not armed and not finished: write ARM (+ ARM_NEXT if chained, not last)\l3. EXT just taken: write GEN_OK, then set up both run-base\l    generators and prefill their FIFOs (ext_init)\l4. EXT running: top up both base FIFOs from one STATUS snapshot\l5. re-read STATUS; still this XFER_DATA: JUDGE any new head\l"];
+    hc [group=B, label="COMPLETE handler\l armed: the hardware leaves COMPLETE by itself next cycle\l not armed: write NEXT_DESC if chained and not last, else IDLE\l then, either way: dispatch again on a fresh STATUS\l"];
+    hn [group=B, label="NEXT_DESC / IDLE handler\l IDLE and channel disabled: nothing to do\l head already staged, or no head: nothing to do\l head valid: JUDGE stages it armed; the hardware takes it\l head declined: write FETCH_DESC (hardware goes on to CH_ERROR)\l"];
+    hf [group=B, label="FETCH_DESC handler\l tile_bad or descriptor not valid: write CH_ERROR\l start already pending: nothing to do\l EXT: set up the generators (ext_init), write XFER_DATA | GEN_OK\l linear: write XFER_DATA (pending until the packet records can go)\l"];
+
+    entry -> rd [xlabel="call"];
+    rd -> qx    [xlabel="STATUS"];
+    qx -> qn    [xlabel="no"];
+    qn -> qi    [xlabel="no"];
+    qi -> qf    [xlabel="no"];
+    qf -> qc    [xlabel="no"];
+    qc -> ret   [xlabel="no: CH_ERROR or\nnothing to do"];
+
+    qx -> hx    [xlabel="yes"];
+    qn -> hn    [xlabel="yes"];
+    qi -> hn    [xlabel="yes"];
+    qf -> hf    [xlabel="yes"];
+    qc -> hc    [xlabel="yes"];
+
+    hx -> hc    [xlabel="finished before it was armed:\nwrite COMPLETE", constraint=false];
+    hx -> again [xlabel="state moved on", constraint=false];
+    hc -> again [constraint=false];   // labeled by the COMPLETE box's last line and the join node
+    again -> rd [xlabel="loop", constraint=false];
+    hn -> hf    [xlabel="declined head:\nnow FETCH_DESC", constraint=false];
+
+    { rank=same; rd; again; }
+    { rank=same; qx; hx; }
+    { rank=same; qn; hn; }
+    { rank=same; qf; hf; }
+    { rank=same; qc; hc; }
+}

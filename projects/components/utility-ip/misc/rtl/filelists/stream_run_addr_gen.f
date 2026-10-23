@@ -11,6 +11,7 @@
 # version of the layering problem already noted in dma_address_gen.f.
 
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/dma_address_gen.f
--f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+# the base FIFO is a drop FIFO: a flush empties it (rapids BUG-017)
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_drop_fifo_sync.f
 
 $REPO_ROOT/projects/components/utility-ip/misc/rtl/stream_run_addr_gen.sv

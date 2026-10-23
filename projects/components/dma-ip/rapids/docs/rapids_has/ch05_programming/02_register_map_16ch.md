@@ -35,6 +35,7 @@ with only the channel-count-dependent registers changed:
 | `KICK_ENABLE` | 0x040, `KICK0`..`KICK7` | 0x080, `KICK0`..`KICK15` |
 | `CHANNEL_ENABLE`, `CHANNEL_RESET`, `CHANNEL_IDLE`, `DESC_ENGINE_IDLE`, `SCHEDULER_IDLE`, `SCHED_ERROR`, `AXI_RD_COMPLETE`, `AXI_WR_COMPLETE` | one bit per channel, [7:0] | [15:0] |
 | `CH_STATE[n]` | n = 0..7 at 0x150 | n = 0..15 at 0x180 |
+| `CH_SCRATCH[n]` | n = 0..7 at 0x300 | n = 0..15 at 0x300 |
 | `VERSION.NUM_CHANNELS` | 8 | 16 |
 | `PERF_CH_SEL.CH_SEL` | [2:0] | [3:0] |
 | `RDMON_PERF_CH_OVERFLOW_HI`, `WRMON_PERF_CH_OVERFLOW_HI` | absent | MON +0x1F8 / +0x1FC: channels 8..15 (4 bits each) |

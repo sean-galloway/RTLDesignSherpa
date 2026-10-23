@@ -23,8 +23,8 @@
 
 # RAPIDS Architecture HAS
 
-**Version:** 0.9
-**Date:** 2026-10-20
+**Version:** 0.92
+**Date:** 2026-10-22
 **Purpose:** Hardware Architecture Specification for byte-granular RAPIDS, the product design that succeeds the RAPIDS Beats stepping stone
 **Classification:** External Interface Specification
 
@@ -52,6 +52,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`).
 ### Chapter 2: Architecture
 - [Block Diagram](ch02_architecture/01_block_diagram.md)
 - [Data Flow](ch02_architecture/02_data_flow.md)
+- [rapids-g: Firmware-Sequenced Schedulers](ch02_architecture/03_rapids_g.md)
 - [Channel Architecture](../rapids_beats_has/ch02_architecture/03_channel_architecture.md) (shared with RAPIDS Beats)
 
 ### Chapter 3: Interfaces
@@ -79,6 +80,7 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`).
 - [Throughput](ch06_performance/01_throughput.md)
 - [Latency Characteristics](../rapids_beats_has/ch06_performance/02_latency.md) (shared with RAPIDS Beats)
 - [Resource Estimates](ch06_performance/03_resources.md)
+- [Choosing RAPIDS or rapids-g](ch06_performance/04_rapids_g_performance.md)
 
 ---
 

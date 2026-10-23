@@ -23,8 +23,8 @@
 
 # RAPIDS Architecture MAS
 
-**Version:** 0.8
-**Date:** 2026-10-20
+**Version:** 0.82
+**Date:** 2026-10-22
 **Purpose:** Module Architecture Specification for byte-granular RAPIDS, the product design that succeeds the RAPIDS Beats stepping stone
 
 ---
@@ -103,6 +103,14 @@ name without the `_beats` suffix (`rapids_top` for `rapids_beats_top`,
 - [CXS Interface Specification](../rapids_beats_mas/ch04_interfaces/04_cxs_interface_spec.md) (shared with RAPIDS Beats)
 
 ---
+
+### Chapter 5: rapids-g (gatling-sequenced schedulers)
+
+- [rapids-g Overview](ch05_rapids_g/01_overview.md)
+- [scheduler_g](ch05_rapids_g/02_scheduler_g.md)
+- [rapids_seq_g and the Scheduler Firmware](ch05_rapids_g/03_sequencer_and_firmware.md)
+- [The Generated rapids-g Tree](ch05_rapids_g/04_generated_tree.md)
+- [rapids-g Verification and Measurements](ch05_rapids_g/05_verification_and_measurements.md)
 
 ## Quick Reference
 

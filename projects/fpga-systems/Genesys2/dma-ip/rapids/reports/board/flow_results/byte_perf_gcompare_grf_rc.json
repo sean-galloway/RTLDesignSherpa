@@ -1,0 +1,5416 @@
+{
+  "schema": "rapids_byte_perf/1",
+  "timestamp": "2026-10-22T18:04:34",
+  "prelim": false,
+  "profile": "gcompare",
+  "design": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "axi_monitors": false,
+    "observers": false,
+    "gen_mon": false,
+    "run_timer": true,
+    "byte_dut": true,
+    "word_crc": true,
+    "rapids_g": true,
+    "aclk_hz": 100000000,
+    "sram_bytes_per_channel": 4096,
+    "peak_bw_gb_s": 3.2
+  },
+  "aclk_hz": 100000000,
+  "peak_mb_s": 3200.0,
+  "bitstream": {
+    "path": "rapids_byte.bit",
+    "sha256": null
+  },
+  "transport": "board-uart",
+  "config": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "resp_delay_rd": 0,
+    "resp_delay_wr": 0,
+    "gen_interleave": false,
+    "kick_free_run": false,
+    "src": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    },
+    "snk": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    }
+  },
+  "points": [
+    {
+      "id": "beat_ch1_b1",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 1,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 221,
+          "r_first": 2,
+          "r_last": 2,
+          "w_first": 221,
+          "w_last": 221
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 32,
+          "packets": 1,
+          "axis_beats": 1,
+          "mem_beats": 1
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.5,
+            "prod": 1,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2
+          },
+          "wr": {
+            "util": 0.5,
+            "prod": 1,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 32,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 1,
+        "mem_beats": 1,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 2,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1600.0,
+        "pct_peak": 0.5
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 226,
+          "r_first": 216,
+          "r_last": 216,
+          "w_first": 226,
+          "w_last": 226
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 32,
+          "packets": 1,
+          "axis_beats": 1,
+          "mem_beats": 1
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.5,
+            "prod": 1,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2
+          },
+          "rd": {
+            "util": 0.1111111111111111,
+            "prod": 1,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 9
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 32,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 1,
+        "mem_beats": 1,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 9,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 355.5555555555556,
+        "pct_peak": 0.11111111111111112
+      },
+      "pass": true,
+      "seconds": 1.9,
+      "uart_ops": 119,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b4",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 4,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 227,
+          "r_first": 2,
+          "r_last": 5,
+          "w_first": 224,
+          "w_last": 227
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 128,
+          "packets": 1,
+          "axis_beats": 4,
+          "mem_beats": 4
+        },
+        "ifaces": {
+          "sin": {
+            "util": 1.0,
+            "prod": 4,
+            "bp": 0,
+            "starv": 0,
+            "idle": 1,
+            "window": 5
+          },
+          "wr": {
+            "util": 0.8,
+            "prod": 4,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 5
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 128,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 4,
+        "mem_beats": 4,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 5,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2560.0,
+        "pct_peak": 0.8
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 229,
+          "r_first": 216,
+          "r_last": 219,
+          "w_first": 226,
+          "w_last": 229
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 128,
+          "packets": 1,
+          "axis_beats": 4,
+          "mem_beats": 4
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.8,
+            "prod": 4,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 5
+          },
+          "rd": {
+            "util": 0.3333333333333333,
+            "prod": 4,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 12
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 128,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 4,
+        "mem_beats": 4,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 12,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1066.6666666666665,
+        "pct_peak": 0.33333333333333326
+      },
+      "pass": true,
+      "seconds": 1.87,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b16",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 16,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 244,
+          "r_first": 2,
+          "r_last": 224,
+          "w_first": 229,
+          "w_last": 244
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 512,
+          "packets": 1,
+          "axis_beats": 16,
+          "mem_beats": 16
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.07142857142857142,
+            "prod": 16,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 224
+          },
+          "wr": {
+            "util": 0.9411764705882353,
+            "prod": 16,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 17
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 512,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 16,
+        "mem_beats": 16,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 224,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 228.57142857142856,
+        "pct_peak": 0.07142857142857142
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 241,
+          "r_first": 216,
+          "r_last": 231,
+          "w_first": 226,
+          "w_last": 241
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 512,
+          "packets": 1,
+          "axis_beats": 16,
+          "mem_beats": 16
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9411764705882353,
+            "prod": 16,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 17
+          },
+          "rd": {
+            "util": 0.6666666666666666,
+            "prod": 16,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 24
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 512,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 16,
+        "mem_beats": 16,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 24,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2133.333333333333,
+        "pct_peak": 0.6666666666666665
+      },
+      "pass": true,
+      "seconds": 1.86,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b64",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 64,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 292,
+          "r_first": 2,
+          "r_last": 272,
+          "w_first": 229,
+          "w_last": 292
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 2048,
+          "packets": 1,
+          "axis_beats": 64,
+          "mem_beats": 64
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.23529411764705882,
+            "prod": 64,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 272
+          },
+          "wr": {
+            "util": 0.9846153846153847,
+            "prod": 64,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 65
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 2048,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 64,
+        "mem_beats": 64,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 272,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 752.9411764705882,
+        "pct_peak": 0.2352941176470588
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 289,
+          "r_first": 216,
+          "r_last": 279,
+          "w_first": 226,
+          "w_last": 289
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 2048,
+          "packets": 1,
+          "axis_beats": 64,
+          "mem_beats": 64
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9846153846153847,
+            "prod": 64,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 65
+          },
+          "rd": {
+            "util": 0.8888888888888888,
+            "prod": 64,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 72
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 2048,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 64,
+        "mem_beats": 64,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 72,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2844.444444444445,
+        "pct_peak": 0.888888888888889
+      },
+      "pass": true,
+      "seconds": 1.87,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b256",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 256,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 484,
+          "r_first": 2,
+          "r_last": 464,
+          "w_first": 229,
+          "w_last": 484
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 8192,
+          "packets": 1,
+          "axis_beats": 256,
+          "mem_beats": 256
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.5517241379310345,
+            "prod": 256,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 464
+          },
+          "wr": {
+            "util": 0.9961089494163424,
+            "prod": 256,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 257
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 8192,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 256,
+        "mem_beats": 256,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 464,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1765.5172413793105,
+        "pct_peak": 0.5517241379310345
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 481,
+          "r_first": 216,
+          "r_last": 471,
+          "w_first": 226,
+          "w_last": 481
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 8192,
+          "packets": 1,
+          "axis_beats": 256,
+          "mem_beats": 256
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9961089494163424,
+            "prod": 256,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 257
+          },
+          "rd": {
+            "util": 0.9696969696969697,
+            "prod": 256,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 264
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 8192,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 256,
+        "mem_beats": 256,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 264,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3103.030303030303,
+        "pct_peak": 0.9696969696969697
+      },
+      "pass": true,
+      "seconds": 1.87,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b1024",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 1024,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 1252,
+          "r_first": 2,
+          "r_last": 1232,
+          "w_first": 229,
+          "w_last": 1252
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 32768,
+          "packets": 1,
+          "axis_beats": 1024,
+          "mem_beats": 1024
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.8311688311688312,
+            "prod": 1024,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 1232
+          },
+          "wr": {
+            "util": 0.9990243902439024,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 1025
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 32768,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 1024,
+        "mem_beats": 1024,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 1232,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2659.7402597402597,
+        "pct_peak": 0.8311688311688311
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 1249,
+          "r_first": 216,
+          "r_last": 1239,
+          "w_first": 226,
+          "w_last": 1249
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 32768,
+          "packets": 1,
+          "axis_beats": 1024,
+          "mem_beats": 1024
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9990243902439024,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 1025
+          },
+          "rd": {
+            "util": 0.9922480620155039,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 1032
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 32768,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 1024,
+        "mem_beats": 1024,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 1032,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3175.1937984496126,
+        "pct_peak": 0.992248062015504
+      },
+      "pass": true,
+      "seconds": 1.87,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b4096",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 4096,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 4324,
+          "r_first": 2,
+          "r_last": 4304,
+          "w_first": 229,
+          "w_last": 4324
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 131072,
+          "packets": 1,
+          "axis_beats": 4096,
+          "mem_beats": 4096
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9516728624535316,
+            "prod": 4096,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 4304
+          },
+          "wr": {
+            "util": 0.9997559189650964,
+            "prod": 4096,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 4097
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 131072,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 4096,
+        "mem_beats": 4096,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 4304,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3045.3531598513014,
+        "pct_peak": 0.9516728624535317
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 4321,
+          "r_first": 216,
+          "r_last": 4311,
+          "w_first": 226,
+          "w_last": 4321
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 131072,
+          "packets": 1,
+          "axis_beats": 4096,
+          "mem_beats": 4096
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9997559189650964,
+            "prod": 4096,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 4097
+          },
+          "rd": {
+            "util": 0.9980506822612085,
+            "prod": 4096,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 4104
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 131072,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 4096,
+        "mem_beats": 4096,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 4104,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3193.7621832358677,
+        "pct_peak": 0.9980506822612086
+      },
+      "pass": true,
+      "seconds": 1.97,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch1_b32768",
+      "group": "beat",
+      "channels": 1,
+      "payload": null,
+      "beats": 32768,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 32996,
+          "r_first": 2,
+          "r_last": 32976,
+          "w_first": 229,
+          "w_last": 32996
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 1048576,
+          "packets": 1,
+          "axis_beats": 32768,
+          "mem_beats": 32768
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9936923823386705,
+            "prod": 32768,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 32976
+          },
+          "wr": {
+            "util": 0.9999694833531692,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 32769
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 1048576,
+        "packets": 1,
+        "launch": 0,
+        "axis_beats": 32768,
+        "mem_beats": 32768,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 32976,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3179.8156234837456,
+        "pct_peak": 0.9936923823386705
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 32993,
+          "r_first": 216,
+          "r_last": 32983,
+          "w_first": 226,
+          "w_last": 32993
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 1048576,
+          "packets": 1,
+          "axis_beats": 32768,
+          "mem_beats": 32768
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999694833531692,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 32769
+          },
+          "rd": {
+            "util": 0.9997559189650964,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 32776
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 1048576,
+        "packets": 1,
+        "launch": null,
+        "axis_beats": 32768,
+        "mem_beats": 32768,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 32776,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.2189406883085,
+        "pct_peak": 0.9997559189650964
+      },
+      "pass": true,
+      "seconds": 2.85,
+      "uart_ops": 117,
+      "est_ops": 332
+    },
+    {
+      "id": "beat_ch2_b1",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 1,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 223,
+          "r_first": 2,
+          "r_last": 3,
+          "w_first": 221,
+          "w_last": 223
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 64,
+          "packets": 2,
+          "axis_beats": 2,
+          "mem_beats": 2
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.6666666666666666,
+            "prod": 2,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 3
+          },
+          "wr": {
+            "util": 0.5,
+            "prod": 2,
+            "bp": 0,
+            "starv": 2,
+            "idle": 0,
+            "window": 4
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 64,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 2,
+        "mem_beats": 2,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 4,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1600.0,
+        "pct_peak": 0.5
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 227,
+          "r_first": 216,
+          "r_last": 217,
+          "w_first": 226,
+          "w_last": 227
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 64,
+          "packets": 2,
+          "axis_beats": 2,
+          "mem_beats": 2
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.6666666666666666,
+            "prod": 2,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 3
+          },
+          "rd": {
+            "util": 0.2,
+            "prod": 2,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 10
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 64,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 2,
+        "mem_beats": 2,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 10,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 640.0,
+        "pct_peak": 0.2
+      },
+      "pass": true,
+      "seconds": 2.32,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b4",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 4,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 231,
+          "r_first": 2,
+          "r_last": 216,
+          "w_first": 224,
+          "w_last": 231
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 256,
+          "packets": 2,
+          "axis_beats": 8,
+          "mem_beats": 8
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.037037037037037035,
+            "prod": 8,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 216
+          },
+          "wr": {
+            "util": 0.8888888888888888,
+            "prod": 8,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 9
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 256,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 8,
+        "mem_beats": 8,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 216,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 118.51851851851852,
+        "pct_peak": 0.037037037037037035
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 233,
+          "r_first": 216,
+          "r_last": 223,
+          "w_first": 226,
+          "w_last": 233
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 256,
+          "packets": 2,
+          "axis_beats": 8,
+          "mem_beats": 8
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.8888888888888888,
+            "prod": 8,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 9
+          },
+          "rd": {
+            "util": 0.5,
+            "prod": 8,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 16
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 256,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 8,
+        "mem_beats": 8,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 16,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1600.0,
+        "pct_peak": 0.5
+      },
+      "pass": true,
+      "seconds": 2.32,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b16",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 16,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 260,
+          "r_first": 2,
+          "r_last": 240,
+          "w_first": 229,
+          "w_last": 260
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 1024,
+          "packets": 2,
+          "axis_beats": 32,
+          "mem_beats": 32
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.13333333333333333,
+            "prod": 32,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 240
+          },
+          "wr": {
+            "util": 0.9696969696969697,
+            "prod": 32,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 33
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 1024,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 32,
+        "mem_beats": 32,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 240,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 426.6666666666667,
+        "pct_peak": 0.13333333333333333
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 257,
+          "r_first": 216,
+          "r_last": 247,
+          "w_first": 226,
+          "w_last": 257
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 1024,
+          "packets": 2,
+          "axis_beats": 32,
+          "mem_beats": 32
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9696969696969697,
+            "prod": 32,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 33
+          },
+          "rd": {
+            "util": 0.8,
+            "prod": 32,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 40
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 1024,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 32,
+        "mem_beats": 32,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 40,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2560.0,
+        "pct_peak": 0.8
+      },
+      "pass": true,
+      "seconds": 2.32,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b64",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 64,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 356,
+          "r_first": 2,
+          "r_last": 336,
+          "w_first": 229,
+          "w_last": 356
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 4096,
+          "packets": 2,
+          "axis_beats": 128,
+          "mem_beats": 128
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.38095238095238093,
+            "prod": 128,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 336
+          },
+          "wr": {
+            "util": 0.9922480620155039,
+            "prod": 128,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 129
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 4096,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 128,
+        "mem_beats": 128,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 336,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1219.047619047619,
+        "pct_peak": 0.38095238095238093
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 353,
+          "r_first": 216,
+          "r_last": 343,
+          "w_first": 226,
+          "w_last": 353
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 4096,
+          "packets": 2,
+          "axis_beats": 128,
+          "mem_beats": 128
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9922480620155039,
+            "prod": 128,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 129
+          },
+          "rd": {
+            "util": 0.9411764705882353,
+            "prod": 128,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 136
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 4096,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 128,
+        "mem_beats": 128,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 136,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3011.7647058823527,
+        "pct_peak": 0.9411764705882352
+      },
+      "pass": true,
+      "seconds": 2.32,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b256",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 256,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 740,
+          "r_first": 2,
+          "r_last": 720,
+          "w_first": 229,
+          "w_last": 740
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 16384,
+          "packets": 2,
+          "axis_beats": 512,
+          "mem_beats": 512
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.7111111111111111,
+            "prod": 512,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 720
+          },
+          "wr": {
+            "util": 0.9980506822612085,
+            "prod": 512,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 513
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 16384,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 512,
+        "mem_beats": 512,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 720,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2275.555555555555,
+        "pct_peak": 0.711111111111111
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 737,
+          "r_first": 216,
+          "r_last": 727,
+          "w_first": 226,
+          "w_last": 737
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 16384,
+          "packets": 2,
+          "axis_beats": 512,
+          "mem_beats": 512
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9980506822612085,
+            "prod": 512,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 513
+          },
+          "rd": {
+            "util": 0.9846153846153847,
+            "prod": 512,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 520
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 16384,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 512,
+        "mem_beats": 512,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 520,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3150.769230769231,
+        "pct_peak": 0.9846153846153847
+      },
+      "pass": true,
+      "seconds": 2.32,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b1024",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 1024,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 2276,
+          "r_first": 2,
+          "r_last": 2256,
+          "w_first": 229,
+          "w_last": 2276
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 65536,
+          "packets": 2,
+          "axis_beats": 2048,
+          "mem_beats": 2048
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9078014184397163,
+            "prod": 2048,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 2256
+          },
+          "wr": {
+            "util": 0.9995119570522206,
+            "prod": 2048,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2049
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 65536,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 2048,
+        "mem_beats": 2048,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 2256,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2904.964539007092,
+        "pct_peak": 0.9078014184397162
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 2273,
+          "r_first": 216,
+          "r_last": 2263,
+          "w_first": 226,
+          "w_last": 2273
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 65536,
+          "packets": 2,
+          "axis_beats": 2048,
+          "mem_beats": 2048
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9995119570522206,
+            "prod": 2048,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2049
+          },
+          "rd": {
+            "util": 0.9961089494163424,
+            "prod": 2048,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 2056
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 65536,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 2048,
+        "mem_beats": 2048,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 2056,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3187.5486381322958,
+        "pct_peak": 0.9961089494163424
+      },
+      "pass": true,
+      "seconds": 2.32,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b4096",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 4096,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 8420,
+          "r_first": 2,
+          "r_last": 8400,
+          "w_first": 229,
+          "w_last": 8420
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 262144,
+          "packets": 2,
+          "axis_beats": 8192,
+          "mem_beats": 8192
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9752380952380952,
+            "prod": 8192,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 8400
+          },
+          "wr": {
+            "util": 0.9998779445868424,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 8193
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 262144,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 8192,
+        "mem_beats": 8192,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 8400,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3120.7619047619046,
+        "pct_peak": 0.9752380952380952
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 8417,
+          "r_first": 216,
+          "r_last": 8407,
+          "w_first": 226,
+          "w_last": 8417
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 262144,
+          "packets": 2,
+          "axis_beats": 8192,
+          "mem_beats": 8192
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9998779445868424,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 8193
+          },
+          "rd": {
+            "util": 0.9990243902439024,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 8200
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 262144,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 8192,
+        "mem_beats": 8192,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 8200,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3196.878048780488,
+        "pct_peak": 0.9990243902439024
+      },
+      "pass": true,
+      "seconds": 2.51,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch2_b32768",
+      "group": "beat",
+      "channels": 2,
+      "payload": null,
+      "beats": 32768,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 65764,
+          "r_first": 2,
+          "r_last": 65744,
+          "w_first": 229,
+          "w_last": 65764
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 2097152,
+          "packets": 2,
+          "axis_beats": 65536,
+          "mem_beats": 65536
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9968362131905573,
+            "prod": 65536,
+            "bp": 207,
+            "starv": 1,
+            "idle": 0,
+            "window": 65744
+          },
+          "wr": {
+            "util": 0.9999847414437646,
+            "prod": 65536,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 65537
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 2097152,
+        "packets": 2,
+        "launch": 0,
+        "axis_beats": 65536,
+        "mem_beats": 65536,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 65744,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3189.8758822097834,
+        "pct_peak": 0.9968362131905573
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 3,
+          "match_mask": 3,
+          "cycles": 65761,
+          "r_first": 216,
+          "r_last": 65751,
+          "w_first": 226,
+          "w_last": 65761
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 2097152,
+          "packets": 2,
+          "axis_beats": 65536,
+          "mem_beats": 65536
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999847414437646,
+            "prod": 65536,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 65537
+          },
+          "rd": {
+            "util": 0.9998779445868424,
+            "prod": 65536,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 65544
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 2097152,
+        "packets": 2,
+        "launch": null,
+        "axis_beats": 65536,
+        "mem_beats": 65536,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 65544,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.6094226778955,
+        "pct_peak": 0.9998779445868423
+      },
+      "pass": true,
+      "seconds": 4.3,
+      "uart_ops": 145,
+      "est_ops": 384
+    },
+    {
+      "id": "beat_ch4_b1",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 1,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 267,
+          "r_first": 2,
+          "r_last": 5,
+          "w_first": 261,
+          "w_last": 267
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 128,
+          "packets": 4,
+          "axis_beats": 4,
+          "mem_beats": 4
+        },
+        "ifaces": {
+          "sin": {
+            "util": 1.0,
+            "prod": 4,
+            "bp": 0,
+            "starv": 0,
+            "idle": 1,
+            "window": 5
+          },
+          "wr": {
+            "util": 0.5,
+            "prod": 4,
+            "bp": 0,
+            "starv": 4,
+            "idle": 0,
+            "window": 8
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 128,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 4,
+        "mem_beats": 4,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 8,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1600.0,
+        "pct_peak": 0.5
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 269,
+          "r_first": 256,
+          "r_last": 259,
+          "w_first": 266,
+          "w_last": 269
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 128,
+          "packets": 4,
+          "axis_beats": 4,
+          "mem_beats": 4
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.8,
+            "prod": 4,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 5
+          },
+          "rd": {
+            "util": 0.3333333333333333,
+            "prod": 4,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 12
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 128,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 4,
+        "mem_beats": 4,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 12,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1066.6666666666665,
+        "pct_peak": 0.33333333333333326
+      },
+      "pass": true,
+      "seconds": 3.21,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b4",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 4,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 279,
+          "r_first": 2,
+          "r_last": 264,
+          "w_first": 264,
+          "w_last": 279
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 512,
+          "packets": 4,
+          "axis_beats": 16,
+          "mem_beats": 16
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.06060606060606061,
+            "prod": 16,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 264
+          },
+          "wr": {
+            "util": 0.9411764705882353,
+            "prod": 16,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 17
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 512,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 16,
+        "mem_beats": 16,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 264,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 193.93939393939394,
+        "pct_peak": 0.06060606060606061
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 281,
+          "r_first": 256,
+          "r_last": 271,
+          "w_first": 266,
+          "w_last": 281
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 512,
+          "packets": 4,
+          "axis_beats": 16,
+          "mem_beats": 16
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9411764705882353,
+            "prod": 16,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 17
+          },
+          "rd": {
+            "util": 0.6666666666666666,
+            "prod": 16,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 24
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 512,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 16,
+        "mem_beats": 16,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 24,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2133.333333333333,
+        "pct_peak": 0.6666666666666665
+      },
+      "pass": true,
+      "seconds": 3.21,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b16",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 16,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 332,
+          "r_first": 2,
+          "r_last": 312,
+          "w_first": 269,
+          "w_last": 332
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 2048,
+          "packets": 4,
+          "axis_beats": 64,
+          "mem_beats": 64
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.20512820512820512,
+            "prod": 64,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 312
+          },
+          "wr": {
+            "util": 0.9846153846153847,
+            "prod": 64,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 65
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 2048,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 64,
+        "mem_beats": 64,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 312,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 656.4102564102564,
+        "pct_peak": 0.20512820512820512
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 329,
+          "r_first": 256,
+          "r_last": 319,
+          "w_first": 266,
+          "w_last": 329
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 2048,
+          "packets": 4,
+          "axis_beats": 64,
+          "mem_beats": 64
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9846153846153847,
+            "prod": 64,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 65
+          },
+          "rd": {
+            "util": 0.8888888888888888,
+            "prod": 64,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 72
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 2048,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 64,
+        "mem_beats": 64,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 72,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2844.444444444445,
+        "pct_peak": 0.888888888888889
+      },
+      "pass": true,
+      "seconds": 3.21,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b64",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 64,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 524,
+          "r_first": 2,
+          "r_last": 504,
+          "w_first": 269,
+          "w_last": 524
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 8192,
+          "packets": 4,
+          "axis_beats": 256,
+          "mem_beats": 256
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.5079365079365079,
+            "prod": 256,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 504
+          },
+          "wr": {
+            "util": 0.9961089494163424,
+            "prod": 256,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 257
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 8192,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 256,
+        "mem_beats": 256,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 504,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1625.3968253968253,
+        "pct_peak": 0.5079365079365079
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 521,
+          "r_first": 256,
+          "r_last": 511,
+          "w_first": 266,
+          "w_last": 521
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 8192,
+          "packets": 4,
+          "axis_beats": 256,
+          "mem_beats": 256
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9961089494163424,
+            "prod": 256,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 257
+          },
+          "rd": {
+            "util": 0.9696969696969697,
+            "prod": 256,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 264
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 8192,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 256,
+        "mem_beats": 256,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 264,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3103.030303030303,
+        "pct_peak": 0.9696969696969697
+      },
+      "pass": true,
+      "seconds": 3.21,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b256",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 256,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 1292,
+          "r_first": 2,
+          "r_last": 1272,
+          "w_first": 269,
+          "w_last": 1292
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 32768,
+          "packets": 4,
+          "axis_beats": 1024,
+          "mem_beats": 1024
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.8050314465408805,
+            "prod": 1024,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 1272
+          },
+          "wr": {
+            "util": 0.9990243902439024,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 1025
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 32768,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 1024,
+        "mem_beats": 1024,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 1272,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2576.1006289308175,
+        "pct_peak": 0.8050314465408804
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 1289,
+          "r_first": 256,
+          "r_last": 1279,
+          "w_first": 266,
+          "w_last": 1289
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 32768,
+          "packets": 4,
+          "axis_beats": 1024,
+          "mem_beats": 1024
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9990243902439024,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 1025
+          },
+          "rd": {
+            "util": 0.9922480620155039,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 1032
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 32768,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 1024,
+        "mem_beats": 1024,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 1032,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3175.1937984496126,
+        "pct_peak": 0.992248062015504
+      },
+      "pass": true,
+      "seconds": 3.21,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b1024",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 1024,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 4364,
+          "r_first": 2,
+          "r_last": 4344,
+          "w_first": 269,
+          "w_last": 4364
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 131072,
+          "packets": 4,
+          "axis_beats": 4096,
+          "mem_beats": 4096
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9429097605893186,
+            "prod": 4096,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 4344
+          },
+          "wr": {
+            "util": 0.9997559189650964,
+            "prod": 4096,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 4097
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 131072,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 4096,
+        "mem_beats": 4096,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 4344,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3017.3112338858195,
+        "pct_peak": 0.9429097605893186
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 4361,
+          "r_first": 256,
+          "r_last": 4351,
+          "w_first": 266,
+          "w_last": 4361
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 131072,
+          "packets": 4,
+          "axis_beats": 4096,
+          "mem_beats": 4096
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9997559189650964,
+            "prod": 4096,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 4097
+          },
+          "rd": {
+            "util": 0.9980506822612085,
+            "prod": 4096,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 4104
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 131072,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 4096,
+        "mem_beats": 4096,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 4104,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3193.7621832358677,
+        "pct_peak": 0.9980506822612086
+      },
+      "pass": true,
+      "seconds": 3.23,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b4096",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 4096,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 16652,
+          "r_first": 2,
+          "r_last": 16632,
+          "w_first": 269,
+          "w_last": 16652
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 524288,
+          "packets": 4,
+          "axis_beats": 16384,
+          "mem_beats": 16384
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9850889850889851,
+            "prod": 16384,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 16632
+          },
+          "wr": {
+            "util": 0.9999389685688129,
+            "prod": 16384,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 16385
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 524288,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 16384,
+        "mem_beats": 16384,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 16632,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3152.2847522847524,
+        "pct_peak": 0.9850889850889851
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 16649,
+          "r_first": 256,
+          "r_last": 16639,
+          "w_first": 266,
+          "w_last": 16649
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 524288,
+          "packets": 4,
+          "axis_beats": 16384,
+          "mem_beats": 16384
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999389685688129,
+            "prod": 16384,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 16385
+          },
+          "rd": {
+            "util": 0.9995119570522206,
+            "prod": 16384,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 16392
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 524288,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 16384,
+        "mem_beats": 16384,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 16392,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3198.438262567106,
+        "pct_peak": 0.9995119570522206
+      },
+      "pass": true,
+      "seconds": 3.6,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch4_b32768",
+      "group": "beat",
+      "channels": 4,
+      "payload": null,
+      "beats": 32768,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 131340,
+          "r_first": 2,
+          "r_last": 131320,
+          "w_first": 269,
+          "w_last": 131340
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 4194304,
+          "packets": 4,
+          "axis_beats": 131072,
+          "mem_beats": 131072
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9981114833993299,
+            "prod": 131072,
+            "bp": 247,
+            "starv": 1,
+            "idle": 0,
+            "window": 131320
+          },
+          "wr": {
+            "util": 0.999992370663676,
+            "prod": 131072,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 131073
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 4194304,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 131072,
+        "mem_beats": 131072,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 131320,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3193.956746877856,
+        "pct_peak": 0.99811148339933
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 15,
+          "match_mask": 15,
+          "cycles": 131337,
+          "r_first": 256,
+          "r_last": 131327,
+          "w_first": 266,
+          "w_last": 131337
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 4194304,
+          "packets": 4,
+          "axis_beats": 131072,
+          "mem_beats": 131072
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.999992370663676,
+            "prod": 131072,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 131073
+          },
+          "rd": {
+            "util": 0.9999389685688129,
+            "prod": 131072,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 131080
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 4194304,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 131072,
+        "mem_beats": 131072,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 131080,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.8046994202014,
+        "pct_peak": 0.9999389685688129
+      },
+      "pass": true,
+      "seconds": 7.21,
+      "uart_ops": 201,
+      "est_ops": 488
+    },
+    {
+      "id": "beat_ch8_b1",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 1,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 403,
+          "r_first": 2,
+          "r_last": 384,
+          "w_first": 389,
+          "w_last": 403
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 256,
+          "packets": 8,
+          "axis_beats": 8,
+          "mem_beats": 8
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.020833333333333332,
+            "prod": 8,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 384
+          },
+          "wr": {
+            "util": 0.5,
+            "prod": 8,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 16
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 256,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 8,
+        "mem_beats": 8,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 384,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 66.66666666666666,
+        "pct_peak": 0.02083333333333333
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 394,
+          "r_first": 345,
+          "r_last": 384,
+          "w_first": 355,
+          "w_last": 394
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 256,
+          "packets": 8,
+          "axis_beats": 8,
+          "mem_beats": 8
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.1951219512195122,
+            "prod": 8,
+            "bp": 0,
+            "starv": 33,
+            "idle": 0,
+            "window": 41
+          },
+          "rd": {
+            "util": 0.16666666666666666,
+            "prod": 8,
+            "bp": 0,
+            "starv": 40,
+            "idle": 0,
+            "window": 48
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 256,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 8,
+        "mem_beats": 8,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 48,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 533.3333333333333,
+        "pct_peak": 0.16666666666666663
+      },
+      "pass": true,
+      "seconds": 5.0,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b4",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 4,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 423,
+          "r_first": 2,
+          "r_last": 408,
+          "w_first": 392,
+          "w_last": 423
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 1024,
+          "packets": 8,
+          "axis_beats": 32,
+          "mem_beats": 32
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.0784313725490196,
+            "prod": 32,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 408
+          },
+          "wr": {
+            "util": 0.9696969696969697,
+            "prod": 32,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 33
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 1024,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 32,
+        "mem_beats": 32,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 408,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 250.98039215686273,
+        "pct_peak": 0.0784313725490196
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 397,
+          "r_first": 345,
+          "r_last": 387,
+          "w_first": 355,
+          "w_last": 397
+        },
+        "expected": {
+          "payload_per_pkt": 128,
+          "bytes": 1024,
+          "packets": 8,
+          "axis_beats": 32,
+          "mem_beats": 32
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.7272727272727273,
+            "prod": 32,
+            "bp": 0,
+            "starv": 12,
+            "idle": 0,
+            "window": 44
+          },
+          "rd": {
+            "util": 0.6274509803921569,
+            "prod": 32,
+            "bp": 0,
+            "starv": 19,
+            "idle": 0,
+            "window": 51
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 1024,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 32,
+        "mem_beats": 32,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 51,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2007.8431372549019,
+        "pct_peak": 0.6274509803921569
+      },
+      "pass": true,
+      "seconds": 5.0,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b16",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 16,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 524,
+          "r_first": 2,
+          "r_last": 504,
+          "w_first": 397,
+          "w_last": 524
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 4096,
+          "packets": 8,
+          "axis_beats": 128,
+          "mem_beats": 128
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.25396825396825395,
+            "prod": 128,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 504
+          },
+          "wr": {
+            "util": 0.9922480620155039,
+            "prod": 128,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 129
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 4096,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 128,
+        "mem_beats": 128,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 504,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 812.6984126984127,
+        "pct_peak": 0.25396825396825395
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 482,
+          "r_first": 345,
+          "r_last": 472,
+          "w_first": 355,
+          "w_last": 482
+        },
+        "expected": {
+          "payload_per_pkt": 512,
+          "bytes": 4096,
+          "packets": 8,
+          "axis_beats": 128,
+          "mem_beats": 128
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9922480620155039,
+            "prod": 128,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 129
+          },
+          "rd": {
+            "util": 0.9411764705882353,
+            "prod": 128,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 136
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 4096,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 128,
+        "mem_beats": 128,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 136,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3011.7647058823527,
+        "pct_peak": 0.9411764705882352
+      },
+      "pass": true,
+      "seconds": 5.0,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b64",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 64,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 908,
+          "r_first": 2,
+          "r_last": 888,
+          "w_first": 397,
+          "w_last": 908
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 16384,
+          "packets": 8,
+          "axis_beats": 512,
+          "mem_beats": 512
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.5765765765765766,
+            "prod": 512,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 888
+          },
+          "wr": {
+            "util": 0.9980506822612085,
+            "prod": 512,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 513
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 16384,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 512,
+        "mem_beats": 512,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 888,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1845.045045045045,
+        "pct_peak": 0.5765765765765766
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 866,
+          "r_first": 345,
+          "r_last": 856,
+          "w_first": 355,
+          "w_last": 866
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 16384,
+          "packets": 8,
+          "axis_beats": 512,
+          "mem_beats": 512
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9980506822612085,
+            "prod": 512,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 513
+          },
+          "rd": {
+            "util": 0.9846153846153847,
+            "prod": 512,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 520
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 16384,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 512,
+        "mem_beats": 512,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 520,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3150.769230769231,
+        "pct_peak": 0.9846153846153847
+      },
+      "pass": true,
+      "seconds": 5.0,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b256",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 256,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 2444,
+          "r_first": 2,
+          "r_last": 2424,
+          "w_first": 397,
+          "w_last": 2444
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 65536,
+          "packets": 8,
+          "axis_beats": 2048,
+          "mem_beats": 2048
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.8448844884488449,
+            "prod": 2048,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 2424
+          },
+          "wr": {
+            "util": 0.9995119570522206,
+            "prod": 2048,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2049
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 65536,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 2048,
+        "mem_beats": 2048,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 2424,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 2703.6303630363036,
+        "pct_peak": 0.8448844884488449
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 2402,
+          "r_first": 345,
+          "r_last": 2392,
+          "w_first": 355,
+          "w_last": 2402
+        },
+        "expected": {
+          "payload_per_pkt": 8192,
+          "bytes": 65536,
+          "packets": 8,
+          "axis_beats": 2048,
+          "mem_beats": 2048
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9995119570522206,
+            "prod": 2048,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 2049
+          },
+          "rd": {
+            "util": 0.9961089494163424,
+            "prod": 2048,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 2056
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 65536,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 2048,
+        "mem_beats": 2048,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 2056,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3187.5486381322958,
+        "pct_peak": 0.9961089494163424
+      },
+      "pass": true,
+      "seconds": 5.0,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b1024",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 1024,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 8588,
+          "r_first": 2,
+          "r_last": 8568,
+          "w_first": 397,
+          "w_last": 8588
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 262144,
+          "packets": 8,
+          "axis_beats": 8192,
+          "mem_beats": 8192
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9561157796451915,
+            "prod": 8192,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 8568
+          },
+          "wr": {
+            "util": 0.9998779445868424,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 8193
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 262144,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 8192,
+        "mem_beats": 8192,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 8568,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3059.5704948646126,
+        "pct_peak": 0.9561157796451915
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 8546,
+          "r_first": 345,
+          "r_last": 8536,
+          "w_first": 355,
+          "w_last": 8546
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 262144,
+          "packets": 8,
+          "axis_beats": 8192,
+          "mem_beats": 8192
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9998779445868424,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 8193
+          },
+          "rd": {
+            "util": 0.9990243902439024,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 8200
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 262144,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 8192,
+        "mem_beats": 8192,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 8200,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3196.878048780488,
+        "pct_peak": 0.9990243902439024
+      },
+      "pass": true,
+      "seconds": 5.0,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b4096",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 4096,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 33164,
+          "r_first": 2,
+          "r_last": 33144,
+          "w_first": 397,
+          "w_last": 33164
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 1048576,
+          "packets": 8,
+          "axis_beats": 32768,
+          "mem_beats": 32768
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9886555636012552,
+            "prod": 32768,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 33144
+          },
+          "wr": {
+            "util": 0.9999694833531692,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 32769
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 1048576,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 32768,
+        "mem_beats": 32768,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 33144,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3163.6978035240163,
+        "pct_peak": 0.9886555636012551
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 33122,
+          "r_first": 345,
+          "r_last": 33112,
+          "w_first": 355,
+          "w_last": 33122
+        },
+        "expected": {
+          "payload_per_pkt": 131072,
+          "bytes": 1048576,
+          "packets": 8,
+          "axis_beats": 32768,
+          "mem_beats": 32768
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999694833531692,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 32769
+          },
+          "rd": {
+            "util": 0.9997559189650964,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 32776
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 1048576,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 32768,
+        "mem_beats": 32768,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 32776,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.2189406883085,
+        "pct_peak": 0.9997559189650964
+      },
+      "pass": true,
+      "seconds": 5.8,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "beat_ch8_b32768",
+      "group": "beat",
+      "channels": 8,
+      "payload": null,
+      "beats": 32768,
+      "offset": 0,
+      "descs": 1,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 262540,
+          "r_first": 2,
+          "r_last": 262520,
+          "w_first": 397,
+          "w_last": 262540
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 8388608,
+          "packets": 8,
+          "axis_beats": 262144,
+          "mem_beats": 262144
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9985677281730916,
+            "prod": 262144,
+            "bp": 375,
+            "starv": 1,
+            "idle": 0,
+            "window": 262520
+          },
+          "wr": {
+            "util": 0.9999961853172863,
+            "prod": 262144,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 262145
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 8388608,
+        "packets": 8,
+        "launch": 0,
+        "axis_beats": 262144,
+        "mem_beats": 262144,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 262520,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3195.416730153893,
+        "pct_peak": 0.9985677281730915
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 262498,
+          "r_first": 345,
+          "r_last": 262488,
+          "w_first": 355,
+          "w_last": 262498
+        },
+        "expected": {
+          "payload_per_pkt": 1048576,
+          "bytes": 8388608,
+          "packets": 8,
+          "axis_beats": 262144,
+          "mem_beats": 262144
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999961853172863,
+            "prod": 262144,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 262145
+          },
+          "rd": {
+            "util": 0.9999694833531692,
+            "prod": 262144,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 262152
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 8388608,
+        "packets": 8,
+        "launch": null,
+        "axis_beats": 262144,
+        "mem_beats": 262144,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 262152,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.9023467301413,
+        "pct_peak": 0.9999694833531692
+      },
+      "pass": true,
+      "seconds": 12.73,
+      "uart_ops": 313,
+      "est_ops": 696
+    },
+    {
+      "id": "chain_ch1_b1_d16",
+      "group": "chain",
+      "channels": 1,
+      "payload": null,
+      "beats": 1,
+      "offset": 0,
+      "descs": 16,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 701,
+          "r_first": 2,
+          "r_last": 461,
+          "w_first": 117,
+          "w_last": 701
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 512,
+          "packets": 16,
+          "axis_beats": 16,
+          "mem_beats": 16
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.034782608695652174,
+            "prod": 16,
+            "bp": 444,
+            "starv": 0,
+            "idle": 1,
+            "window": 461
+          },
+          "wr": {
+            "util": 0.027303754266211604,
+            "prod": 16,
+            "bp": 0,
+            "starv": 570,
+            "idle": 0,
+            "window": 586
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 512,
+        "packets": 16,
+        "launch": 0,
+        "axis_beats": 16,
+        "mem_beats": 16,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 586,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 87.37201365187714,
+        "pct_peak": 0.027303754266211608
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 706,
+          "r_first": 112,
+          "r_last": 696,
+          "w_first": 122,
+          "w_last": 706
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 512,
+          "packets": 16,
+          "axis_beats": 16,
+          "mem_beats": 16
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.027303754266211604,
+            "prod": 16,
+            "bp": 0,
+            "starv": 570,
+            "idle": 0,
+            "window": 586
+          },
+          "rd": {
+            "util": 0.026981450252951095,
+            "prod": 16,
+            "bp": 0,
+            "starv": 577,
+            "idle": 0,
+            "window": 593
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 512,
+        "packets": 16,
+        "launch": null,
+        "axis_beats": 16,
+        "mem_beats": 16,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 593,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 86.3406408094435,
+        "pct_peak": 0.026981450252951095
+      },
+      "pass": true,
+      "seconds": 7.15,
+      "uart_ops": 447,
+      "est_ops": 752
+    },
+    {
+      "id": "chain_ch1_b64_d16",
+      "group": "chain",
+      "channels": 1,
+      "payload": null,
+      "beats": 64,
+      "offset": 0,
+      "descs": 16,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 1788,
+          "r_first": 2,
+          "r_last": 1768,
+          "w_first": 125,
+          "w_last": 1788
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 32768,
+          "packets": 16,
+          "axis_beats": 1024,
+          "mem_beats": 1024
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.579185520361991,
+            "prod": 1024,
+            "bp": 743,
+            "starv": 1,
+            "idle": 0,
+            "window": 1768
+          },
+          "wr": {
+            "util": 0.615015015015015,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 641,
+            "idle": 0,
+            "window": 1665
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 32768,
+        "packets": 16,
+        "launch": 0,
+        "axis_beats": 1024,
+        "mem_beats": 1024,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 1768,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1853.393665158371,
+        "pct_peak": 0.579185520361991
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 1833,
+          "r_first": 112,
+          "r_last": 1823,
+          "w_first": 122,
+          "w_last": 1833
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 32768,
+          "packets": 16,
+          "axis_beats": 1024,
+          "mem_beats": 1024
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.5977816695855225,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 689,
+            "idle": 0,
+            "window": 1713
+          },
+          "rd": {
+            "util": 0.5953488372093023,
+            "prod": 1024,
+            "bp": 0,
+            "starv": 696,
+            "idle": 0,
+            "window": 1720
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 32768,
+        "packets": 16,
+        "launch": null,
+        "axis_beats": 1024,
+        "mem_beats": 1024,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 1720,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1905.1162790697674,
+        "pct_peak": 0.5953488372093023
+      },
+      "pass": true,
+      "seconds": 7.15,
+      "uart_ops": 447,
+      "est_ops": 752
+    },
+    {
+      "id": "chain_ch1_b1024_d16",
+      "group": "chain",
+      "channels": 1,
+      "payload": null,
+      "beats": 1024,
+      "offset": 0,
+      "descs": 16,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 16898,
+          "r_first": 2,
+          "r_last": 16878,
+          "w_first": 125,
+          "w_last": 16898
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 524288,
+          "packets": 16,
+          "axis_beats": 16384,
+          "mem_beats": 16384
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9707311292807205,
+            "prod": 16384,
+            "bp": 493,
+            "starv": 1,
+            "idle": 0,
+            "window": 16878
+          },
+          "wr": {
+            "util": 0.9766915052160954,
+            "prod": 16384,
+            "bp": 0,
+            "starv": 391,
+            "idle": 0,
+            "window": 16775
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 524288,
+        "packets": 16,
+        "launch": 0,
+        "axis_beats": 16384,
+        "mem_beats": 16384,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 16878,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3106.3396136983056,
+        "pct_peak": 0.9707311292807205
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 16505,
+          "r_first": 112,
+          "r_last": 16495,
+          "w_first": 122,
+          "w_last": 16505
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 524288,
+          "packets": 16,
+          "axis_beats": 16384,
+          "mem_beats": 16384
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999389685688129,
+            "prod": 16384,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 16385
+          },
+          "rd": {
+            "util": 0.9995119570522206,
+            "prod": 16384,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 16392
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 524288,
+        "packets": 16,
+        "launch": null,
+        "axis_beats": 16384,
+        "mem_beats": 16384,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 16392,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3198.438262567106,
+        "pct_peak": 0.9995119570522206
+      },
+      "pass": true,
+      "seconds": 7.63,
+      "uart_ops": 447,
+      "est_ops": 752
+    },
+    {
+      "id": "chain_ch1_b8192_d4",
+      "group": "chain",
+      "channels": 1,
+      "payload": null,
+      "beats": 8192,
+      "offset": 0,
+      "descs": 4,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 32970,
+          "r_first": 2,
+          "r_last": 32950,
+          "w_first": 125,
+          "w_last": 32970
+        },
+        "expected": {
+          "payload_per_pkt": 262144,
+          "bytes": 1048576,
+          "packets": 4,
+          "axis_beats": 32768,
+          "mem_beats": 32768
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9944764795144158,
+            "prod": 32768,
+            "bp": 181,
+            "starv": 1,
+            "idle": 0,
+            "window": 32950
+          },
+          "wr": {
+            "util": 0.9975949097330046,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 79,
+            "idle": 0,
+            "window": 32847
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 1048576,
+        "packets": 4,
+        "launch": 0,
+        "axis_beats": 32768,
+        "mem_beats": 32768,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 32950,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3182.32473444613,
+        "pct_peak": 0.9944764795144156
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 1,
+          "match_mask": 1,
+          "cycles": 32889,
+          "r_first": 112,
+          "r_last": 32879,
+          "w_first": 122,
+          "w_last": 32889
+        },
+        "expected": {
+          "payload_per_pkt": 262144,
+          "bytes": 1048576,
+          "packets": 4,
+          "axis_beats": 32768,
+          "mem_beats": 32768
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999694833531692,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 32769
+          },
+          "rd": {
+            "util": 0.9997559189650964,
+            "prod": 32768,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 32776
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 1048576,
+        "packets": 4,
+        "launch": null,
+        "axis_beats": 32768,
+        "mem_beats": 32768,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 32776,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.2189406883085,
+        "pct_peak": 0.9997559189650964
+      },
+      "pass": true,
+      "seconds": 3.9,
+      "uart_ops": 183,
+      "est_ops": 416
+    },
+    {
+      "id": "chain_ch8_b1_d16",
+      "group": "chain",
+      "channels": 8,
+      "payload": null,
+      "beats": 1,
+      "offset": 0,
+      "descs": 16,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 5916,
+          "r_first": 2,
+          "r_last": 5676,
+          "w_first": 389,
+          "w_last": 5916
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 4096,
+          "packets": 128,
+          "axis_beats": 128,
+          "mem_beats": 128
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.022555066079295156,
+            "prod": 128,
+            "bp": 5547,
+            "starv": 0,
+            "idle": 1,
+            "window": 5676
+          },
+          "wr": {
+            "util": 0.023150660155543498,
+            "prod": 128,
+            "bp": 0,
+            "starv": 5401,
+            "idle": 0,
+            "window": 5529
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 4096,
+        "packets": 128,
+        "launch": 0,
+        "axis_beats": 128,
+        "mem_beats": 128,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 5676,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 72.16349541930938,
+        "pct_peak": 0.022551092318534183
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 986,
+          "r_first": 241,
+          "r_last": 976,
+          "w_first": 251,
+          "w_last": 986
+        },
+        "expected": {
+          "payload_per_pkt": 32,
+          "bytes": 4096,
+          "packets": 128,
+          "axis_beats": 128,
+          "mem_beats": 128
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.17367706919945725,
+            "prod": 128,
+            "bp": 0,
+            "starv": 609,
+            "idle": 0,
+            "window": 737
+          },
+          "rd": {
+            "util": 0.17204301075268819,
+            "prod": 128,
+            "bp": 0,
+            "starv": 616,
+            "idle": 0,
+            "window": 744
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 4096,
+        "packets": 128,
+        "launch": null,
+        "axis_beats": 128,
+        "mem_beats": 128,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 744,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 550.5376344086021,
+        "pct_peak": 0.17204301075268816
+      },
+      "pass": true,
+      "seconds": 47.23,
+      "uart_ops": 2953,
+      "est_ops": 4056
+    },
+    {
+      "id": "chain_ch8_b64_d16",
+      "group": "chain",
+      "channels": 8,
+      "payload": null,
+      "beats": 64,
+      "offset": 0,
+      "descs": 16,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 13571,
+          "r_first": 2,
+          "r_last": 13551,
+          "w_first": 253,
+          "w_last": 13571
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 262144,
+          "packets": 128,
+          "axis_beats": 8192,
+          "mem_beats": 8192
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.6045310309202273,
+            "prod": 8192,
+            "bp": 5358,
+            "starv": 1,
+            "idle": 0,
+            "window": 13551
+          },
+          "wr": {
+            "util": 0.615015015015015,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 5128,
+            "idle": 0,
+            "window": 13320
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 262144,
+        "packets": 128,
+        "launch": 0,
+        "axis_beats": 8192,
+        "mem_beats": 8192,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 13551,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 1934.4992989447273,
+        "pct_peak": 0.6045310309202273
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 8442,
+          "r_first": 241,
+          "r_last": 8432,
+          "w_first": 251,
+          "w_last": 8442
+        },
+        "expected": {
+          "payload_per_pkt": 2048,
+          "bytes": 262144,
+          "packets": 128,
+          "axis_beats": 8192,
+          "mem_beats": 8192
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9998779445868424,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 8193
+          },
+          "rd": {
+            "util": 0.9990243902439024,
+            "prod": 8192,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 8200
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 262144,
+        "packets": 128,
+        "launch": null,
+        "axis_beats": 8192,
+        "mem_beats": 8192,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 8200,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3196.878048780488,
+        "pct_peak": 0.9990243902439024
+      },
+      "pass": true,
+      "seconds": 47.23,
+      "uart_ops": 2953,
+      "est_ops": 4056
+    },
+    {
+      "id": "chain_ch8_b1024_d16",
+      "group": "chain",
+      "channels": 8,
+      "payload": null,
+      "beats": 1024,
+      "offset": 0,
+      "descs": 16,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 134444,
+          "r_first": 2,
+          "r_last": 134424,
+          "w_first": 253,
+          "w_last": 134444
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 4194304,
+          "packets": 128,
+          "axis_beats": 131072,
+          "mem_beats": 131072
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9750639766708326,
+            "prod": 131072,
+            "bp": 3351,
+            "starv": 1,
+            "idle": 0,
+            "window": 134424
+          },
+          "wr": {
+            "util": 0.9767424530340629,
+            "prod": 131072,
+            "bp": 0,
+            "starv": 3121,
+            "idle": 0,
+            "window": 134193
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 4194304,
+        "packets": 128,
+        "launch": 0,
+        "axis_beats": 131072,
+        "mem_beats": 131072,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 134424,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3120.2047253466644,
+        "pct_peak": 0.9750639766708327
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 131322,
+          "r_first": 241,
+          "r_last": 131312,
+          "w_first": 251,
+          "w_last": 131322
+        },
+        "expected": {
+          "payload_per_pkt": 32768,
+          "bytes": 4194304,
+          "packets": 128,
+          "axis_beats": 131072,
+          "mem_beats": 131072
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.999992370663676,
+            "prod": 131072,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 131073
+          },
+          "rd": {
+            "util": 0.9999389685688129,
+            "prod": 131072,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 131080
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 4194304,
+        "packets": 128,
+        "launch": null,
+        "axis_beats": 131072,
+        "mem_beats": 131072,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 131080,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.8046994202014,
+        "pct_peak": 0.9999389685688129
+      },
+      "pass": true,
+      "seconds": 51.2,
+      "uart_ops": 2953,
+      "est_ops": 4056
+    },
+    {
+      "id": "chain_ch8_b8192_d4",
+      "group": "chain",
+      "channels": 8,
+      "payload": null,
+      "beats": 8192,
+      "offset": 0,
+      "descs": 4,
+      "backpressure": false,
+      "bytes_per_beat": 32,
+      "xfer_beats": 9,
+      "interleave": false,
+      "sink": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 263020,
+          "r_first": 2,
+          "r_last": 263000,
+          "w_first": 253,
+          "w_last": 263020
+        },
+        "expected": {
+          "payload_per_pkt": 262144,
+          "bytes": 8388608,
+          "packets": 32,
+          "axis_beats": 262144,
+          "mem_beats": 262144
+        },
+        "ifaces": {
+          "sin": {
+            "util": 0.9967452471482889,
+            "prod": 262144,
+            "bp": 855,
+            "starv": 1,
+            "idle": 0,
+            "window": 263000
+          },
+          "wr": {
+            "util": 0.9976214850305782,
+            "prod": 262144,
+            "bp": 0,
+            "starv": 625,
+            "idle": 0,
+            "window": 262769
+          }
+        },
+        "axis_key": "sin",
+        "mem_key": "wr",
+        "bytes": 8388608,
+        "packets": 32,
+        "launch": 0,
+        "axis_beats": 262144,
+        "mem_beats": 262144,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 263000,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3189.5847908745245,
+        "pct_peak": 0.9967452471482889
+      },
+      "source": {
+        "pass": true,
+        "perf_valid": true,
+        "errors": [],
+        "golden_mismatch": false,
+        "hw_timer": {
+          "done": 1,
+          "pass": 1,
+          "verdict_valid": 1,
+          "valid_mask": 255,
+          "match_mask": 255,
+          "cycles": 262394,
+          "r_first": 241,
+          "r_last": 262384,
+          "w_first": 251,
+          "w_last": 262394
+        },
+        "expected": {
+          "payload_per_pkt": 262144,
+          "bytes": 8388608,
+          "packets": 32,
+          "axis_beats": 262144,
+          "mem_beats": 262144
+        },
+        "ifaces": {
+          "sout": {
+            "util": 0.9999961853172863,
+            "prod": 262144,
+            "bp": 0,
+            "starv": 1,
+            "idle": 0,
+            "window": 262145
+          },
+          "rd": {
+            "util": 0.9999694833531692,
+            "prod": 262144,
+            "bp": 0,
+            "starv": 8,
+            "idle": 0,
+            "window": 262152
+          }
+        },
+        "axis_key": "sout",
+        "mem_key": "rd",
+        "bytes": 8388608,
+        "packets": 32,
+        "launch": null,
+        "axis_beats": 262144,
+        "mem_beats": 262144,
+        "peak_mb_s": 3200.0,
+        "counts_match": true,
+        "window": 262152,
+        "eff_axis": 1.0,
+        "eff_mem": 1.0,
+        "mb_s": 3199.9023467301413,
+        "pct_peak": 0.9999694833531692
+      },
+      "pass": true,
+      "seconds": 21.19,
+      "uart_ops": 841,
+      "est_ops": 1368
+    }
+  ],
+  "chunk": null,
+  "board_lock": {
+    "path": "/tmp/rds-board-200300B818A0.lock",
+    "inherited": true
+  },
+  "jtag": {
+    "expected_serial": "200300B818A0",
+    "start": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "end": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "stable": true
+  },
+  "planned": 40,
+  "complete": true,
+  "config_end": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "resp_delay_rd": 0,
+    "resp_delay_wr": 0,
+    "gen_interleave": false,
+    "kick_free_run": false,
+    "src": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    },
+    "snk": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    }
+  },
+  "sessions": [
+    {
+      "bitstream_sha256": null,
+      "points_before": 0,
+      "start": {
+        "csr_id": 1380012098,
+        "build": 3624339488,
+        "sentinel": 0,
+        "time": "2026-10-22T18:04:35"
+      },
+      "end": {
+        "csr_id": 1380012098,
+        "build": 3624339488,
+        "sentinel": 0,
+        "time": "2026-10-22T18:09:45"
+      },
+      "stable": true
+    }
+  ],
+  "passed": 40,
+  "failed": 0,
+  "device_stable": true
+}

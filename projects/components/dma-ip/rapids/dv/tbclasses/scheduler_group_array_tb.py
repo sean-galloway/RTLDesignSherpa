@@ -71,6 +71,11 @@ class SchedulerGroupArrayTB(TBBase):
         self.TEST_CLK_PERIOD = self.convert_to_int(os.environ.get('TEST_CLK_PERIOD', '10'))
         self.NUM_CHANNELS = self.convert_to_int(os.environ.get('CHANNEL_COUNT', '8'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
+        # Floor on every wait for a scheduler reaction (a command, a return to
+        # idle). Unset = the windows below as written. rapids-g sets it: its
+        # schedulers are sequenced by firmware, a few hundred cycles per step
+        # where the FSM takes one (rapids TASK-034).
+        self.SCHED_WAIT_FLOOR = self.convert_to_int(os.environ.get('SCHED_WAIT_FLOOR', '0'))
 
         # Initialize random generator
         random.seed(self.SEED)
@@ -382,8 +387,9 @@ class SchedulerGroupArrayTB(TBBase):
         # Set apb_addr for this channel (flattened array: [NUM_CHANNELS-1:0][ADDR_WIDTH-1:0])
         self._set_array_element(self.dut.apb_addr, channel, self.ADDR_WIDTH, addr)
 
-        # Wait for ready handshake
-        for _ in range(100):
+        # Wait for ready handshake (the channel takes the kick once it can
+        # queue another descriptor: a scheduler reaction, so the floor applies)
+        for _ in range(max(100, self.SCHED_WAIT_FLOOR)):
             if self._get_packed_bit(self.dut.apb_ready, channel) == 1:
                 await self.wait_clocks(self.clk_name, 1)
                 self.apb_requests[channel] += 1
@@ -453,7 +459,7 @@ class SchedulerGroupArrayTB(TBBase):
         Returns:
             Tuple of (addr, beats) if command received, None on timeout
         """
-        for _ in range(timeout):
+        for _ in range(max(timeout, self.SCHED_WAIT_FLOOR)):
             # sched_rd_valid is a packed array
             if self._get_packed_bit(self.dut.sched_rd_valid, channel) == 1:
                 # sched_rd_addr and sched_rd_beats are flattened arrays
@@ -471,7 +477,7 @@ class SchedulerGroupArrayTB(TBBase):
         Returns:
             Tuple of (addr, beats) if command received, None on timeout
         """
-        for _ in range(timeout):
+        for _ in range(max(timeout, self.SCHED_WAIT_FLOOR)):
             # sched_wr_valid is a packed array
             if self._get_packed_bit(self.dut.sched_wr_valid, channel) == 1:
                 # sched_wr_addr and sched_wr_beats are flattened arrays
@@ -618,7 +624,7 @@ class SchedulerGroupArrayTB(TBBase):
         if pending:
             self.log.error(f"channels {sorted(pending)} never left idle after their kick")
             return False
-        for _ in range(timeout):
+        for _ in range(max(timeout, self.SCHED_WAIT_FLOOR)):
             if all(self.is_scheduler_idle(ch) for ch in channels):
                 return True
             await self.wait_clocks(self.clk_name, 1)

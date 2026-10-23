@@ -82,6 +82,7 @@ RTL). The APB address bus feeding the block (`APB_ADDR_WIDTH`) must therefore be
 | 0x2C4 | `OBS_FLAGS` | RO | Observation flags |
 | 0x2C8 | `OBS_DATA0` | RO | Observation data word 0 |
 | 0x2CC | `OBS_DATA1` | RO | Observation data word 1 |
+| 0x300-0x31C | `CH_SCRATCH[n].SCRATCH` | RW | Eight software bits per channel, `SCRATCH[7:0]` (reset 0); storage only, for flags or semaphores between the host and, in rapids-g, the half's gatling. Not atomic across masters: give each bit one writer |
 | 0x35C | `PERF_CH_SEL` | RW | Performance channel select |
 | 0x378 | `HIST_SEL` | RW | Histogram bucket select |
 | 0x37C | `HIST_DATA` | RO | Histogram bucket data |

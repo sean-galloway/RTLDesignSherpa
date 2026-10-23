@@ -140,6 +140,28 @@
 > Measured OOC synthesis, rapids_core 256-bit, 16 channels shared: 77.1k LUTs, +0.56 ns at 100 MHz once the
 > descriptor engine's chunk-1 +32 moved to the R side.
 
+> **rapids-g (2026-10-21, rapids TASK-034):** the byte tree with its schedulers sequenced by firmware on one
+> gatling per half. `rtl/fub/scheduler.sv` is now the FSM + ceilings + run-base generators around
+> `rtl/fub/scheduler_core.sv` (the shared datapath); `rtl/fub_g/scheduler_g.sv` wraps the same core with a
+> command window. `rtl/macro_g/rapids_seq_g.sv` (gatling + ROM + scratch) and the hand-written
+> `rtl/macro_g/scheduler_group_array_g_seq.svh`; everything else in `macro_g/generated/` and `top_g/generated/` is
+> DERIVED by `bin/gen_rapids_g.py` (`--check`) from the product files -- edit the product, rerun. Firmware:
+> `rtl/fw_g/sched_g.S` -> `bin/gen_rapids_g_fw.py` -> `rtl/macro_g/generated/fw/sched_g_fw.svh` (never edit).
+> 4 or 8 channels, `SHARED_ENGINES` = 1. Tests: `dv/tests/fub_g` (FSM-vs-firmware equivalence bench with an
+> independent golden model; edge table), `macro_g` (product array tests by module name), `top_g` (product top
+> wrappers re-hosted, `rapids_g_rehost.py`). Traps: the TB's `SCHED_WAIT_FLOOR` env floors every wait for a
+> scheduler reaction (firmware takes hundreds of cycles a step; the -g runners set it); cocotb matches a
+> testcase name as a prefix pattern, so no cell may be another's prefix (`ext` ran `ext_reset` too); the firmware's
+> per-slot scratch is 64 words, so `SCRATCH_WORDS` < 64 x slots aliases slot 1 onto slot 0 (elaboration refuses
+> it); CMD_ERR counts the firmware's stale commands after a channel reset, so it is checked only on channels
+> never reset. Pre-validation (the firmware ARMs a descriptor and STAGEs the next; the hardware completes and
+> starts it) has three ordering rules, each a race the equivalence bench found: an EXT descriptor auto-completes
+> only with both bases-done bits set; GEN_OK is written BEFORE the EXT set-up; `refill_both` judges both
+> directions on one STATUS snapshot (a re-read can already be the next descriptor's). Register path: each half's
+> gatling reaches its own half of `rapids_regs` through a per-hart mailbox (`rapids_seq_g` 0x1000_3000) and
+> `rapids_g_reg_arb` in front of the MON guard (host + SRC + SNK, one outstanding, offset pinned per half);
+> `CH_SCRATCH[n]` (0x300 per half, 8 bits, storage only) is shared by host and gatling. MAS Chapter 5.
+
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`

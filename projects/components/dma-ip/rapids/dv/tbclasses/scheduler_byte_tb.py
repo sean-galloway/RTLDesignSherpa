@@ -309,7 +309,15 @@ class SchedulerByteTB(SchedulerTB):
         released = idle and self.rd_pkts == [(200, 3 % self.bpb)] and self.wr_pkts == [(200, 9 % self.bpb)]
         self.log.info(f"  released: idle={idle} records rd={self.rd_pkts} wr={self.wr_pkts} -> "
                       f"{'PASS' if released else 'FAIL'}")
-        return held and released
+        # One descriptor is one DESC_START, however long it waits in
+        # CH_FETCH_DESC for its record (rapids TASK-034 finding).
+        from TBClasses.monbus import parse
+        starts = sum(1 for pkt in self.monitor_packets_received
+                     if parse(int(pkt)).event_code == 0x00 and
+                     parse(int(pkt)).get_packet_type_name() != "ERROR")
+        one_start = (starts == 1)
+        self.log.info(f"  DESC_START packets: {starts} -> {'PASS' if one_start else 'FAIL'}")
+        return held and released and one_start
 
     async def test_zero_length(self) -> bool:
         """A zero-byte descriptor at a byte offset completes without an engine

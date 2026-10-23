@@ -921,6 +921,36 @@ regfile rapids_engine_regs_16ch {
 
     } TILE_STALLED @ 0x2F4;
 
+    // Per-channel scratch (owner 2026-10-21): eight bits per channel that the
+    // host and, in rapids-g, this half's gatling read and write through the
+    // same register path -- for flags or semaphores between them. Storage
+    // only: nothing in the hardware reads or drives them. The path serves one
+    // access at a time, but a read-modify-write by one master is not atomic
+    // against the other: a semaphore protocol must give each bit one writer.
+    regfile {
+        name = "Per-Channel Scratch";
+        desc = "Software-defined bits for one channel (host and gatling)";
+
+        reg {
+            name = "Channel Scratch";
+            desc = "Eight read/write bits for the channel; reset 0";
+
+            field {
+                desc = "Scratch bits [7:0]";
+                sw = rw;
+                hw = na;
+            } SCRATCH[7:0] = 8'h0;
+
+            field {
+                desc = "Reserved";
+                sw = r;
+                hw = na;
+            } RSVD[31:8] = 24'h0;
+
+        } SCRATCH @ 0x0;
+
+    } CH_SCRATCH[16] @ 0x300 += 0x4;
+
     reg {
         name = "Per-Channel Perf Bucket Readout Select";
         desc = "Selects which channel's buckets appear in RD/WRMON_PERF_CH_*";

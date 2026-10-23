@@ -767,6 +767,54 @@ class SchedulerTB(TBBase):
                 k += 1
         return seq
 
+    async def test_ext_channel_reset(self) -> bool:
+        """rapids BUG-017: a channel reset part-way through an EXT descriptor
+        leaves none of its run bases for the next one.
+
+        Descriptor A (16 beats, inner_count 2: eight runs, seven bases) is
+        reset after its second read; descriptor B then runs on the same
+        channel and must walk exactly its own strided addresses
+        (expected_seq). Before the fix, stream_run_addr_gen kept generating
+        A's bases into its FIFO through the reset, and B consumed them."""
+        self.log.info("=== EXT descriptor reset mid-run: no stale run bases (rapids BUG-017) ===")
+        BS = self.DATA_WIDTH // 8
+        self.capture_addrs = True
+        a0, a1 = self.create_ext_descriptor(0x40000, 0x50000, 16,
+                                            rd_stride_0=BS, rd_stride_1=8 * BS, rd_inner_count=2,
+                                            wr_stride_0=BS, wr_stride_1=8 * BS, wr_inner_count=2)
+        self.rd_addr_seq = []
+        self.wr_addr_seq = []
+        await self.send_ext_descriptor(a0, a1)
+        for _ in range(4000):
+            if len(self.rd_addr_seq) >= 2:
+                break
+            await self.wait_clocks(self.clk_name, 1)
+        started = len(self.rd_addr_seq) >= 2
+        self.dut.cfg_channel_reset.value = 1
+        await self.wait_clocks(self.clk_name, 2)
+        self.dut.cfg_channel_reset.value = 0
+        await self.wait_clocks(self.clk_name, 100)       # in-flight engine bursts finish
+        await self.wait_for_idle(timeout_cycles=2000)
+        b0, b1 = self.create_ext_descriptor(0x60000, 0x70000, 12,
+                                            rd_stride_0=BS, rd_stride_1=16 * BS, rd_inner_count=3,
+                                            wr_stride_0=BS, wr_stride_1=20 * BS, wr_inner_count=3)
+        exp_rd = self.expected_seq(0x60000, BS, 16 * BS, 3, 12, False)
+        exp_wr = self.expected_seq(0x70000, BS, 20 * BS, 3, 12, False)
+        self.rd_addr_seq = []
+        self.wr_addr_seq = []
+        await self.send_ext_descriptor(b0, b1)
+        idle = await self.wait_for_idle(timeout_cycles=8000)
+        ok = started and idle and self.rd_addr_seq == exp_rd and self.wr_addr_seq == exp_wr
+        if not ok:
+            self.log.error(f"  FAIL: A started={started} B idle={idle}")
+            self.log.error(f"     rd got={[(hex(a), b) for a, b in self.rd_addr_seq]}")
+            self.log.error(f"     rd exp={[(hex(a), b) for a, b in exp_rd]}")
+            self.log.error(f"     wr got={[(hex(a), b) for a, b in self.wr_addr_seq]}")
+            self.log.error(f"     wr exp={[(hex(a), b) for a, b in exp_wr]}")
+        self.log.info(f"EXT reset mid-run: {'PASS' if ok else 'FAIL'}")
+        self.capture_addrs = False
+        return ok
+
     async def test_extended_addressing(self) -> bool:
         """Extended addressing: exact strided address sequences, both directions.
 

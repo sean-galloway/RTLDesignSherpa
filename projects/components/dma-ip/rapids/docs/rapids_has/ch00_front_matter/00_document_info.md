@@ -25,8 +25,8 @@
 
 **Document Title:** RAPIDS Hardware Architecture Specification (HAS)
 **Document Number:** RAPIDS-HAS-002
-**Version:** 0.9
-**Date:** 2026-10-20
+**Version:** 0.92
+**Date:** 2026-10-22
 **Status:** Draft
 
 ---

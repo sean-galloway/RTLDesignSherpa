@@ -34,6 +34,8 @@
 | 0.1 | 2026-09-30 | RTL Design Sherpa | Initial release: the byte-granular RAPIDS, split from the RAPIDS Beats HAS |
 | 0.8 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.9 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.91 | 2026-10-21 | RTL Design Sherpa | New Section 2.3 rapids-g (firmware-sequenced schedulers, register-compatible); 16-channel register differences list `CH_SCRATCH`. |
+| 0.92 | 2026-10-22 | RTL Design Sherpa | New Section 6.4 Choosing RAPIDS or rapids-g: a selection guide and the measured Genesys 2 tables for rapids-8ch and rapids-g-8ch (single descriptors, chains, interleaved sink), the schedulers-alone bench and area. Section 2.3: one hardware context per channel; per-descriptor overhead stated. |
 
 : Document Revision History
 

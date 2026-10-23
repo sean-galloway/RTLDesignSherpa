@@ -39,6 +39,8 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 | 0.1 | 2026-09-30 | RTL Design Sherpa | First byte-granular MAS. Rewrites the chapters that changed from RAPIDS Beats and links the rest. |
 | 0.7 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.8 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.81 | 2026-10-21 | RTL Design Sherpa | New Chapter 5, rapids-g: gatling-sequenced schedulers (`scheduler_g`, `rapids_seq_g`, firmware, the generated tree, verification, measured cost). Scheduler: split into the FSM and `scheduler_core`; MonBus events on state entry (rapids BUG-016); run-base generators flushed by the channel reset (rapids BUG-017). |
+| 0.82 | 2026-10-22 | RTL Design Sherpa | rapids-g at one hart per channel (NUM_HARTS = NUM_CHANNELS): Section 5.3 describes the one-slot tight loop, with flow charts of the poll loop and `service` (Figures 5.3.1 and 5.3.2), and no longer says the firmware computes beat totals (the hardware does); Section 5.5 gains the Genesys 2 gcompare table for rapids-8ch and rapids-g-8ch (45 points, interleaved sink), sim/board match and the chunk warm-up, the firmware-cost history, and the 8-hart bench and out-of-context results. |
 
 : Table 0.1: Revision History
 
@@ -51,7 +53,7 @@ This document describes RAPIDS, the byte-granular Rapid AXI Programmable In-band
 | Source | Title | Version |
 |--------|-------|---------|
 | RTL Design Sherpa | RAPIDS Beats MAS (shared chapters) | 0.7 |
-| RTL Design Sherpa | RAPIDS HAS | 0.2 |
+| RTL Design Sherpa | RAPIDS HAS | 0.92 |
 | RTL Design Sherpa | RAPIDS Product Requirements Document | 1.0 |
 | ARM | AMBA AXI and ACE Protocol Specification | IHI0022H |
 | ARM | AMBA AXI-Stream Protocol Specification | IHI0051A |

@@ -1083,6 +1083,7 @@ module scheduler #(
             .clk             (clk),
             .rst_n           (rst_n),
             .start           (w_addrgen_start),
+            .flush           (r_channel_reset_active),   // a channel reset empties it (rapids BUG-017)
             .cfg_per_beat    (w_rd_per_beat),
             .cfg_base_addr   (r_descriptor.src_addr[ADDR_WIDTH-1:0]),
             .cfg_stride_0    (r_descriptor_ext.rd_stride_0),
@@ -1105,6 +1106,7 @@ module scheduler #(
             .clk             (clk),
             .rst_n           (rst_n),
             .start           (w_addrgen_start),
+            .flush           (r_channel_reset_active),   // a channel reset empties it (rapids BUG-017)
             .cfg_per_beat    (w_wr_per_beat),
             .cfg_base_addr   (r_descriptor.dst_addr[ADDR_WIDTH-1:0]),
             .cfg_stride_0    (r_descriptor_ext.wr_stride_0),

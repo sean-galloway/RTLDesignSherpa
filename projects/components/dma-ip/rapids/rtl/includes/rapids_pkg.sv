@@ -345,6 +345,8 @@ package rapids_pkg;
     parameter logic [7:0] RAPIDS_EVENT_CHAIN_FETCH    = 8'h06;  // Chained descriptor fetch
     parameter logic [7:0] RAPIDS_EVENT_IRQ            = 8'h07;  // Interrupt request generated
     parameter logic [7:0] RAPIDS_EVENT_STALL          = 8'h08;  // Buffered data stopped moving (tile, TASK-027)
+    parameter logic [7:0] RAPIDS_EVENT_FW_DEBUG       = 8'h09;  // rapids-g firmware debug packet (TASK-034)
+    parameter logic [7:0] RAPIDS_EVENT_FW_ERROR       = 8'h0A;  // rapids-g firmware error packet (TASK-034)
     parameter logic [7:0] RAPIDS_EVENT_ERROR          = 8'h0F;  // Error occurred
 
     //=========================================================================

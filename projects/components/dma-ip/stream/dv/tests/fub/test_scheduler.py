@@ -483,6 +483,17 @@ async def cocotb_test_scheduler_extended(dut):
     assert result, "TASK-101 extended addressing test failed (see logged sequences)"
 
 
+@cocotb.test(timeout_time=300, timeout_unit="ms")
+async def cocotb_test_scheduler_ext_channel_reset(dut):
+    """rapids BUG-017, same generator: an EXT descriptor reset mid-run leaves
+    no stale run bases for the next one."""
+    tb = SchedulerTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.initialize_test()
+    result = await tb.test_ext_channel_reset()
+    assert result, "EXT reset mid-run: the next descriptor walked the wrong addresses (see log)"
+
+
 # ===========================================================================
 # PARAMETER GENERATION
 # ===========================================================================
@@ -679,7 +690,9 @@ def test_scheduler(request, test_type, channel_id, num_channels, addr_width, dat
 # TASK-101 EXTENDED-ADDRESSING WRAPPER (USE_ROW_COL_MAJOR_ADDRESSING=1)
 # ===========================================================================
 
-def test_scheduler_extended(request):
+@pytest.mark.parametrize("testcase", ["cocotb_test_scheduler_extended",
+                                      "cocotb_test_scheduler_ext_channel_reset"])
+def test_scheduler_extended(request, testcase):
     """Pytest wrapper for the TASK-101 extended-addressing test.
 
     Builds the scheduler with USE_ROW_COL_MAJOR_ADDRESSING=1 and runs the
@@ -699,7 +712,7 @@ def test_scheduler_extended(request):
         filelist_path='projects/components/dma-ip/stream/rtl/filelists/fub/scheduler.f'
     )
 
-    test_name_plus_params = f"test_{dut_name}_extended_rowcol"
+    test_name_plus_params = f"test_{dut_name}_extended_rowcol_{testcase.replace('cocotb_test_scheduler_', '')}"
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
     if worker_id:
         test_name_plus_params = f"{test_name_plus_params}_{worker_id}"
@@ -743,7 +756,7 @@ def test_scheduler_extended(request):
         includes=includes,
         toplevel=dut_name,
         module=module,
-        testcase="cocotb_test_scheduler_extended",
+        testcase=testcase,
         parameters=rtl_parameters,
         sim_build=sim_build,
         extra_env=extra_env,

@@ -192,3 +192,45 @@ def test_rapids_byte_sim_aligned_word_crc(request, monkeypatch, chunk):
         doc = json.load(fh)
     assert doc['design']['word_crc'] is True, "the build did not report BUILD.WORD_CRC=1"
     assert all(p['pass'] for p in doc['points']), [p['id'] for p in doc['points'] if not p['pass']]
+
+
+G_CHUNKS = int(os.environ.get('TEST_G_CHUNKS', '7'))
+
+
+@pytest.mark.rapids_byte_harness
+@pytest.mark.parametrize('chunk', range(1, G_CHUNKS + 1), ids=lambda k: f'{k}of{G_CHUNKS}')
+@pytest.mark.parametrize('dut', ('fsm', 'g'))
+def test_rapids_byte_sim_gcompare_word_crc(request, monkeypatch, dut, chunk):
+    """The rapids-g A/B profile (gcompare: one descriptor to 1 MB, then chains)
+    on the word-wide-checker harness, against rapids_top (fsm) and rapids_g_top
+    (g, BUILD.RAPIDS_G=1) -- the two bitstreams the board comparison runs on.
+    Same host program, same UART sim; every point must pass golden."""
+    from test_rapids_byte_harness import _run_harness
+    monkeypatch.setenv('TEST_BYTE_CRC', '0')
+    monkeypatch.setenv('TEST_RAPIDS_G', '1' if dut == 'g' else '0')
+    os.makedirs(LOG_DIR, exist_ok=True)
+    name = f'byte_sim_gcompare_{dut}_{chunk}of{G_CHUNKS}'
+    results = os.path.join(LOG_DIR, f'{name}.json')
+    if os.path.exists(results):
+        os.remove(results)
+    argv = ['--byte-perf', '--profile', 'gcompare', '--chunk', f'{chunk}/{G_CHUNKS}']
+    # TEST_G_FREE_RUN=1: GO leaves the gatling harts running (--free-run), to
+    # measure rapids-g's spread over the poll-loop phase (sweep the UART speed
+    # with TEST_CLKS_PER_BIT). Default: GO restarts them, as on the board.
+    if os.environ.get('TEST_G_FREE_RUN', '0') == '1':
+        argv.append('--free-run')
+    _run_harness('cocotb_test_campaign', name, test_level='gate',
+                 build_name='test_rapids_byte_sim_campaign_wordcrc', compile_first=_compile_lock,
+                 module_name='test_rapids_byte_sim_campaign',
+                 extra_env={'TEST_CAMPAIGN_ARGV': ' '.join(shlex.quote(a) for a in
+                                                               ['--channels', str(BOARD_CHANNELS), *argv]),
+                            'TEST_POLL_MAX_READS': os.environ.get('TEST_POLL_MAX_READS', '4000'),
+                            'TEST_CAMPAIGN_RESULTS': results,
+                            'TEST_RTL_STATE': json.dumps(_rtl_state())})
+    assert os.path.isfile(results), f"{name}: the host program wrote no results JSON"
+    with open(results) as fh:
+        doc = json.load(fh)
+    assert doc['design']['word_crc'] is True, "the build did not report BUILD.WORD_CRC=1"
+    assert doc['design']['rapids_g'] is (dut == 'g'), f"BUILD.RAPIDS_G does not match the {dut} DUT"
+    assert doc['config']['kick_free_run'] is ('--free-run' in argv), "KICK_CFG.FREE_RUN reads back wrong"
+    assert all(p['pass'] for p in doc['points']), [p['id'] for p in doc['points'] if not p['pass']]

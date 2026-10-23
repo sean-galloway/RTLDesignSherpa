@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-034** — never recycle a number, even when its item closed.
+**Next ID: TASK-038** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 6 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 30 | done (kept for history) |
+| [closed/](closed/) | 31 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -22,12 +22,17 @@ by construction rather than by discipline.
 
 - **TASK-031** — strap values on RAPIDS (TILE_LAND_FLITS 16, TILE_DESC_PER_CORE 2, fixed at build); TILE_STRAPS @ 0x7FC built 2026-10-19; TILE_SPEC 11.12 row remains
 - **TASK-032** — Genesys 2 harness for RAPIDS as the tile I/O (rapids_tile): cell/core injectors on the CXS links, credit intake, receiver; cell sender + credit intake built 2026-10-19
+- **TASK-035** — an 8-bit descriptor field selects one of many next-address algorithms (rapids-g firmware); owner 2026-10-21; field location to decide
+- **TASK-036** — rapids-g at 16 channels, needed if the Hive uses rapids-g (owner 2026-10-21); one gatling at 4 slots/hart or two per half, by measurement
+- **TASK-037** — rapids-g firmware as a generic run-to-completion executive + a per-(state, event) policy table; no handler holds a hart; owner idea 2026-10-22
 - **TASK-033** — tagged, indexed tile intake (delta interleaves/reorders): per-flit {sender, pos, head}, landing ring (MonBus stays off the fabric); pencilled in + cycle-model validated 2026-10-19
 
 ## Active
 
+
 ## Closed
 
+- **TASK-034** — CLOSED 2026-10-22: rapids-g, one gatling per half with one hart per channel; regression 453/453 (21 skipped), board == sim 85/85, MAS 0.82 Ch. 5 + HAS 0.92 6.4; mutant set not re-run on the final image (TASK-037 does)
 - **TASK-027** — CLOSED 2026-10-19: end-to-end tile credits and straps toward RAPIDS (landing space, credit returns, desc intake, resync, stall checks); 10 mutations caught, 4839/4839; TILE_SPEC 11.12 row moved to TASK-031
 - **TASK-030** — CLOSED 2026-10-19: TASK-029 hardening ported to the beats-tree snk_data_path_axis tests (multi_channel dropped 144 descriptors); wrapper timeout test-settable; 3 mutations caught, 504/504 over 3 seeds
 - **TASK-029** — CLOSED 2026-10-18: snk_data_path_axis tests check memory, assert zero BFM timeouts and missed takes; wrapper scheduler timeout is test-settable (limit 0 default, escalation tested); 4 mutations caught

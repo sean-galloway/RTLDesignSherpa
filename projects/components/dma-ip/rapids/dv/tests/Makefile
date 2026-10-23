@@ -45,7 +45,7 @@ export REPO_ROOT ?= $(RDS_ROOT)
 # RAPIDS (rapids TASK-019); the *_beats areas are the beat-granular stepping
 # stone, kept runnable and green. Override to narrow:
 #   make run-all-gate AREAS="fub_beats macro_beats top_beats"
-AREAS ?= fub fub_beats macro macro_beats top top_beats
+AREAS ?= fub fub_beats fub_g macro macro_beats macro_g top top_beats top_g
 
 GREEN  := \033[0;32m
 RED    := \033[0;31m

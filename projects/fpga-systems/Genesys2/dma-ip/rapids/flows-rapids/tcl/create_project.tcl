@@ -76,7 +76,7 @@ set data_width 256
 if {[info exists ::env(RAPIDS_DATA_WIDTH)]}       { set data_width $::env(RAPIDS_DATA_WIDTH) }
 set sram_depth 128
 if {[info exists ::env(RAPIDS_SRAM_DEPTH)]}       { set sram_depth $::env(RAPIDS_SRAM_DEPTH) }
-set desc_ram_entries 256
+set desc_ram_entries 1024
 if {[info exists ::env(RAPIDS_DESC_RAM_ENTRIES)]} { set desc_ram_entries $::env(RAPIDS_DESC_RAM_ENTRIES) }
 
 # Extended row/col-major addressing in the DUT (USE_ROW_COL_MAJOR_ADDRESSING).
@@ -116,6 +116,10 @@ if {[info exists ::env(BYTE_CRC)]} { set byte_crc $::env(BYTE_CRC) }
 # (rapids TASK-020). 0 = the capture master's writes are accepted and discarded.
 set mon_capture 0
 if {[info exists ::env(MON_CAPTURE)]} { set mon_capture $::env(MON_CAPTURE) }
+# RAPIDS_G: 1 = the DUT is rapids_g_top (rapids TASK-034, schedulers sequenced
+# by firmware on gatling), selected in the harness by the RAPIDS_G define.
+set rapids_g 0
+if {[info exists ::env(RAPIDS_G)]} { set rapids_g $::env(RAPIDS_G) }
 
 puts "========================================================================"
 puts "RTL Design Sherpa — RAPIDS byte-granular characterization ($board_label)"
@@ -130,6 +134,7 @@ puts "USE_OBSERVERS:     $use_observers"
 puts "OBS_ENABLE_MON_TAPS: $obs_enable_mon_taps"
 puts "BYTE_CRC:          $byte_crc"
 puts "MON_CAPTURE:       $mon_capture"
+puts "RAPIDS_G:          $rapids_g"
 puts "NUM_CHANNELS:      $num_channels"
 puts "DATA_WIDTH:        $data_width"
 puts "SRAM_DEPTH:        $sram_depth"
@@ -194,7 +199,8 @@ foreach src [get_files -of_objects $src_fs -filter {FILE_TYPE == "Verilog"}] {
 # Include directories
 set_property include_dirs $incdirs $src_fs
 
-# Verilog defines (if the filelist provides any)
+# Verilog defines (if the filelist provides any), plus the DUT select
+if {$rapids_g} { lappend defines RAPIDS_G }
 if {[llength $defines] > 0} {
     set_property verilog_define $defines $src_fs
 }

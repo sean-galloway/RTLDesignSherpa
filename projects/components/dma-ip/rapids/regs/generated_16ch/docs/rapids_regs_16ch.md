@@ -112,6 +112,22 @@ Don't override. Generated from: $root
 | 0x2EC|     TILE_RESYNC    |          Tile Credit Resync          |
 | 0x2F0|  TILE_STALL_CYCLES |      Tile Stalled-Data Threshold     |
 | 0x2F4|    TILE_STALLED    |         Tile Stalled Channels        |
+| 0x300|    CH_SCRATCH[0]   |          Per-Channel Scratch         |
+| 0x304|    CH_SCRATCH[1]   |          Per-Channel Scratch         |
+| 0x308|    CH_SCRATCH[2]   |          Per-Channel Scratch         |
+| 0x30C|    CH_SCRATCH[3]   |          Per-Channel Scratch         |
+| 0x310|    CH_SCRATCH[4]   |          Per-Channel Scratch         |
+| 0x314|    CH_SCRATCH[5]   |          Per-Channel Scratch         |
+| 0x318|    CH_SCRATCH[6]   |          Per-Channel Scratch         |
+| 0x31C|    CH_SCRATCH[7]   |          Per-Channel Scratch         |
+| 0x320|    CH_SCRATCH[8]   |          Per-Channel Scratch         |
+| 0x324|    CH_SCRATCH[9]   |          Per-Channel Scratch         |
+| 0x328|   CH_SCRATCH[10]   |          Per-Channel Scratch         |
+| 0x32C|   CH_SCRATCH[11]   |          Per-Channel Scratch         |
+| 0x330|   CH_SCRATCH[12]   |          Per-Channel Scratch         |
+| 0x334|   CH_SCRATCH[13]   |          Per-Channel Scratch         |
+| 0x338|   CH_SCRATCH[14]   |          Per-Channel Scratch         |
+| 0x33C|   CH_SCRATCH[15]   |          Per-Channel Scratch         |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -1978,6 +1994,582 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 
 <p>Reserved</p>
 
+## CH_SCRATCH register file
+
+- Absolute Address: 0x300
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x300
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x304
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x304
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x308
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x308
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x30C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x30C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x310
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x310
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x314
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x314
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x318
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x318
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x31C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x31C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x320
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x320
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x324
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x324
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x328
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x328
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x32C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x32C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x330
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x330
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x334
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x334
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x338
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x338
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x33C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x33C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
 ### PERF_CH_SEL register
 
 - Absolute Address: 0x35C
@@ -3632,6 +4224,22 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 | 0x2EC|     TILE_RESYNC    |          Tile Credit Resync          |
 | 0x2F0|  TILE_STALL_CYCLES |      Tile Stalled-Data Threshold     |
 | 0x2F4|    TILE_STALLED    |         Tile Stalled Channels        |
+| 0x300|    CH_SCRATCH[0]   |          Per-Channel Scratch         |
+| 0x304|    CH_SCRATCH[1]   |          Per-Channel Scratch         |
+| 0x308|    CH_SCRATCH[2]   |          Per-Channel Scratch         |
+| 0x30C|    CH_SCRATCH[3]   |          Per-Channel Scratch         |
+| 0x310|    CH_SCRATCH[4]   |          Per-Channel Scratch         |
+| 0x314|    CH_SCRATCH[5]   |          Per-Channel Scratch         |
+| 0x318|    CH_SCRATCH[6]   |          Per-Channel Scratch         |
+| 0x31C|    CH_SCRATCH[7]   |          Per-Channel Scratch         |
+| 0x320|    CH_SCRATCH[8]   |          Per-Channel Scratch         |
+| 0x324|    CH_SCRATCH[9]   |          Per-Channel Scratch         |
+| 0x328|   CH_SCRATCH[10]   |          Per-Channel Scratch         |
+| 0x32C|   CH_SCRATCH[11]   |          Per-Channel Scratch         |
+| 0x330|   CH_SCRATCH[12]   |          Per-Channel Scratch         |
+| 0x334|   CH_SCRATCH[13]   |          Per-Channel Scratch         |
+| 0x338|   CH_SCRATCH[14]   |          Per-Channel Scratch         |
+| 0x33C|   CH_SCRATCH[15]   |          Per-Channel Scratch         |
 | 0x35C|     PERF_CH_SEL    |Per-Channel Perf Bucket Readout Select|
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
@@ -5493,6 +6101,582 @@ cfg_ctrlrd_max_try into every channel's ctrlrd_engine.</p>
 #### CH field
 
 <p>Bit n: channel n is stalled</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1300
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1300
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1304
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1304
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1308
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1308
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x130C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x130C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1310
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1310
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1314
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1314
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1318
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1318
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x131C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x131C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1320
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1320
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1324
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1324
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1328
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1328
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x132C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x132C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1330
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1330
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1334
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1334
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x1338
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x1338
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
+
+#### RSVD field
+
+<p>Reserved</p>
+
+## CH_SCRATCH register file
+
+- Absolute Address: 0x133C
+- Base Offset: 0x300
+- Size: 0x4
+- Array Dimensions: [16]
+- Array Stride: 0x4
+- Total Size: 0x40
+
+<p>Software-defined bits for one channel (host and gatling)</p>
+
+|Offset|Identifier|      Name     |
+|------|----------|---------------|
+|  0x0 |  SCRATCH |Channel Scratch|
+
+### SCRATCH register
+
+- Absolute Address: 0x133C
+- Base Offset: 0x0
+- Size: 0x4
+
+<p>Eight read/write bits for the channel; reset 0</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+| 7:0|  SCRATCH |  rw  | 0x0 |  — |
+|31:8|   RSVD   |   r  | 0x0 |  — |
+
+#### SCRATCH field
+
+<p>Scratch bits [7:0]</p>
 
 #### RSVD field
 

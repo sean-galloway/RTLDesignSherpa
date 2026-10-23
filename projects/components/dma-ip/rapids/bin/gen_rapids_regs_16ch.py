@@ -14,6 +14,7 @@ never hand-edited:
                                      scheduler error, read/write complete)
     CH_STATE                         [8] @ 0x150 -> [16] @ 0x180 (16 entries
                                      would overrun SCHED_ERROR at 0x170)
+    CH_SCRATCH                       [8] -> [16] @ 0x300 (16 x 4 bytes ends at 0x340, below PERF_CH_SEL)
     VERSION.NUM_CHANNELS             8 -> 16
     PERF_CH_SEL.CH_SEL               [2:0] -> [3:0]
     TILE_DESC_DROPPED                DROP0..DROP7 -> DROP0..DROP15
@@ -104,6 +105,7 @@ def engine_16ch(src: str) -> str:
               r"\1 RSVD[31:16] = 16'h0;", count=len(CH_FIELDS))
 
     t = sub(t, '} CH_STATE[8] @ 0x150 += 0x4;', '} CH_STATE[16] @ 0x180 += 0x4;')
+    t = sub(t, '} CH_SCRATCH[8] @ 0x300 += 0x4;', '} CH_SCRATCH[16] @ 0x300 += 0x4;')
     t = sub(t, "} NUM_CHANNELS[23:16] = 8'h08;", "} NUM_CHANNELS[23:16] = 8'h10;")
     t = sub(t, "} CH_SEL[2:0] = 3'h0;", "} CH_SEL[3:0] = 4'h0;")
 

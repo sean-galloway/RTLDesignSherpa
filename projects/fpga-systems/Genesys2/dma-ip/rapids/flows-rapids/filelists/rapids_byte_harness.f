@@ -21,6 +21,9 @@
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top_beats/rapids_beats_top.f
 # byte-granular RAPIDS (rapids TASK-019); selected by BYTE_DUT=1
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top/rapids_top.f
+# rapids-g (rapids TASK-034): the same top with firmware schedulers; selected by
+# the RAPIDS_G define (make RAPIDS_G=1). Only the selected top is elaborated.
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top_g/rapids_g_top.f
 
 # ---- CRC + LFSR leaves (not pulled by the DUT filelist) ----
 -f $REPO_ROOT/rtl/common/filelists/dataint_crc_xor_shift.f

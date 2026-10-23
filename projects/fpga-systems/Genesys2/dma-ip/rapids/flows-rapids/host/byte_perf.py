@@ -27,6 +27,9 @@ SIZES = (1, 7, 32, 33, 64, 77, 203, 1024, 4035, 4096)
 OFFSETS_ALL = (0, 1, 5, 31)
 CHANNELS = (1, 2, 4, 8)
 ALIGNED_BEATS = (1, 4, 16, 64, 256, 1024, 4096)
+G_BEATS = ALIGNED_BEATS + (32768,)                 # + 1 MB per descriptor
+G_CHAINS = ((1, 16), (64, 16), (1024, 16), (8192, 4))   # (beats, descs); 8192 x 4 = 1 MB
+G_IL_SINK = ((16, 1), (64, 1), (1, 16), (64, 16), (1024, 16))  # (beats, descs), interleaved sink
 BEAT_COMPARE_CHANNELS = (1, 2, 4, 8)
 
 
@@ -35,7 +38,7 @@ def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
     if payload is not None:
         pid = f"{group}_ch{ch}_p{payload}_o{offset}_d{descs}"
     else:
-        pid = f"{group}_ch{ch}_b{beats}"
+        pid = f"{group}_ch{ch}_b{beats}" + (f"_d{descs}" if descs > 1 else '')
     if bp:
         pid += '_bp'
     if interleave:
@@ -60,6 +63,23 @@ def build_points(profile: str):
         return pts
     if profile == 'aligned':
         return [_pt('beat', ch, beats=b) for ch in BEAT_COMPARE_CHANNELS for b in ALIGNED_BEATS]
+    if profile == 'gcompare':
+        # rapids-g against the FSM (rapids TASK-034), on the word-wide (perf)
+        # bitstreams: one descriptor per channel up to 1 MB (32768 beats = the
+        # channel's whole 1 MB region), then chains, where pre-validation hides
+        # the firmware's per-descriptor work behind the running descriptor.
+        for ch in BEAT_COMPARE_CHANNELS:
+            for b in G_BEATS:
+                pts.append(_pt('beat', ch, beats=b))
+        for ch in (1, 8):
+            for b, d in G_CHAINS:
+                pts.append(_pt('chain', ch, beats=b, descs=d))
+        # Sink with every channel holding data at once (GEN_MODE.INTERLEAVE):
+        # the sequential points above run one sink channel at a time.
+        for b, d in G_IL_SINK:
+            pts.append(_pt('chain' if d > 1 else 'beat', 8, beats=b, descs=d,
+                           interleave=True, directions=('sink',)))
+        return pts
     offs = (0,) if profile == 'standard' else OFFSETS_ALL
     for ch in CHANNELS:
         for p in SIZES:
@@ -109,10 +129,25 @@ def chunk_points(pts, k, n, bpb=32):
             cuts.append(i + 1)
             nxt += 1
     bounds = [0] + cuts + [len(pts)]
+    if k >= len(bounds):            # more chunks than balanced cuts: the rest are empty
+        return []
     return pts[bounds[k - 1]:bounds[k]]
 
 
-PROFILES = ('quick', 'standard', 'full')
+def chunk_warmup(pts, k, n, bpb=32):
+    """The point an unchunked run would have run just before chunk k (none
+    for the first chunk). A chunk runs it first, unrecorded, so it starts
+    from the same history: the shared descriptor engines' round-robin
+    pointer rests on the last channel served and no reset moves it, so a
+    chunk started cold after an 8-channel point is timed differently."""
+    for j in range(k - 1, 0, -1):
+        prev = chunk_points(pts, j, n, bpb)
+        if prev:
+            return prev[-1:]
+    return []
+
+
+PROFILES = ('quick', 'standard', 'full', 'gcompare')
 
 
 def _expected(pt, bpb):
@@ -272,11 +307,13 @@ def _device_changed(start, now):
 
 def run_campaign(campaign, profile, results_path, *, timeout_s=30.0, prelim=False,
                  resume=False, max_minutes=None, bitstream=None, points=None,
-                 stop_after_dead=3, transport='board-uart', meta=None, out=print):
+                 stop_after_dead=3, transport='board-uart', meta=None, warmup=(), out=print):
     """Run a profile, rewriting the results file after every point.
 
     Returns (doc, all_pass). `resume` skips point ids already in the file.
     `max_minutes` stops cleanly between points and marks the file incomplete.
+    `warmup` points run first and are not recorded beyond their id and
+    verdict (chunk_warmup); a failed one aborts, since it left other state.
     A failed point is recorded and later points carry `after_failure`, because
     the sticky sink flags clear only on aresetn (the channel-reset gap).
     """
@@ -317,6 +354,14 @@ def run_campaign(campaign, profile, results_path, *, timeout_s=30.0, prelim=Fals
         _write_atomic(results_path, doc)
         return doc, False
     start, dead = time.time(), 0
+    for pt in warmup:
+        row = run_point(campaign, pt, timeout_s)
+        doc.setdefault('warmup', []).append({'id': pt['id'], 'pass': row['pass']})
+        out(f"byte-perf: warm-up {pt['id']}: {'PASS' if row['pass'] else 'FAIL'} (not recorded)")
+        if not row['pass']:
+            doc['aborted'] = f"warm-up point {pt['id']} failed"
+            _write_atomic(results_path, doc)
+            return doc, False
     out(f"byte-perf: profile={profile} planned={len(pts)} todo={len(todo)} -> {results_path}")
     for i, pt in enumerate(todo, 1):
         if max_minutes is not None and (time.time() - start) / 60.0 >= max_minutes:

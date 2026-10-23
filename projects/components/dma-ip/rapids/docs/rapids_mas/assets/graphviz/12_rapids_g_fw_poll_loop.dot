@@ -1,0 +1,50 @@
+// render: no-key (decision-tree / process-flow vocabulary, not the element key)
+// rapids-g firmware, one hart's poll loop: a procedure in the house
+// decision-tree vocabulary (white questions, blue actions, every arrow labeled).
+// Verified against rtl/fw_g/sched_g.S (_start, one_loop, one_chain, one_judge,
+// main_loop, the JUDGE macro). Instruction counts are from the source.
+digraph rapids_g_fw_poll_loop {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.6", ranksep="0.5", splines=ortho, newrank=true,
+           label=<<B>rapids-g firmware: one hart's poll loop (sched_g.S, one channel per hart)</B>>,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    start  [group=A, label="Reset / GO\nload the window pointers:\nthis hart's channel, globals, scratch"];
+    slots  [group=A, label="Channels per hart\n(global SLOTS) = 1?", fillcolor="white"];
+    two    [group=B, label="Two-slot loop (4 harts, 8 channels)\npoll SUMMARY; per slot with attention:\nopen head -> JUDGE, else service"];
+    ld     [group=A, label="Hold the chain command in a register\nCMD = STAGE | ARM | ARM_NEXT"];
+    poll   [group=A, shape=ellipse, fillcolor="white", label="next poll"];
+    hs     [group=A, label="Read HEAD_SUM:\nopen, valid, chained, not last\n(HEAD_SUM == 13)?", fillcolor="white"];
+    chain  [group=B, label="Write CMD: stage the head armed\nfor NEXT_DESC\n(4 instructions from read to write)"];
+    open   [group=A, label="Any other open head?", fillcolor="white"];
+    judge  [group=B, label="JUDGE\nvalid: stage it armed, NEXT_DESC if chained\nand not last, else IDLE\nnot valid: decline (hardware takes it to CH_ERROR)"];
+    attn   [group=A, label="Read SUMMARY:\nchannel needs attention?\n(a \"no\" is the idle pass: 7 instructions)", fillcolor="white"];
+    late   [group=A, label="Re-read HEAD_SUM:\nopen head arrived since?", fillcolor="white"];
+    svc    [group=A, label="service(channel)\nstate handlers (Figure 5.3.2)"];
+    reload [group=A, label="Reload the chain command\n(service overwrites it)"];
+
+    start -> slots  [xlabel="after reset"];
+    slots -> two    [xlabel="no"];
+    slots -> ld     [xlabel="yes"];
+    ld    -> poll   [xlabel="enter loop"];
+    poll  -> hs     [xlabel="every pass"];
+    hs    -> chain  [xlabel="yes"];
+    chain -> poll   [xlabel="written", constraint=false];
+    hs    -> open   [xlabel="no"];
+    open  -> judge  [xlabel="yes"];
+    judge -> poll   [xlabel="written", constraint=false];
+    open  -> attn   [xlabel="no"];
+    attn  -> poll   [xlabel="no", constraint=false];
+    attn  -> late   [xlabel="yes"];
+    late  -> judge  [xlabel="yes: judge it here,\nnot on service's slow path"];
+    late  -> svc    [xlabel="no"];
+    svc   -> reload [xlabel="returns"];
+    reload -> poll  [xlabel="reloaded", constraint=false];
+
+    { rank=same; slots; two; }
+    { rank=same; poll; chain; }
+    { rank=same; open; judge; }
+}

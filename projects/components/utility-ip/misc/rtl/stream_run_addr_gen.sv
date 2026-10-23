@@ -29,6 +29,16 @@
 //   Read and write use independent instances, so a transpose reads with bursts
 //   (contiguous side) and writes single-beat (strided side), or vice versa.
 //
+//   FLUSH (rapids BUG-017): once started, the generator produces every base of
+//   its descriptor, on its own. A channel reset must stop it and throw its
+//   queue away, or the next descriptor's runs begin at the reset descriptor's
+//   bases (`start` resets the position, not the queue). While `flush` is high
+//   no request is issued and every result already in dma_address_gen's
+//   pipeline is discarded; its rising edge drops the whole base FIFO
+//   (gaxi_drop_fifo_sync, drop_all). New requests wait until the discarded
+//   results have drained, so a `start` during or right after a flush loses
+//   nothing of the new descriptor. Tie `flush` to 0 for no flush.
+//
 // Documentation: projects/components/dma-ip/stream/TASKS.md (TASK-101)
 // Subsystem: stream
 //
@@ -51,6 +61,7 @@ module stream_run_addr_gen #(
 
     // Start of a new (extended) descriptor: capture cfg and (re)arm generation.
     input  logic                        start,
+    input  logic                        flush,            // stop and empty (channel reset)
 
     // Per-descriptor configuration (sampled on `start`)
     input  logic                        cfg_per_beat,     // 1 = per-beat 2-D, 0 = run-contiguous
@@ -99,6 +110,14 @@ module stream_run_addr_gen #(
     logic w_more;
     assign w_more = r_gen_active && (r_gen_beats < r_total_beats);
 
+    // Flush: results of requests issued before it are discarded; new
+    // requests wait until they have all come back.
+    logic       r_discard;
+    logic [2:0] r_inflight;
+    logic       w_discard_now;
+    logic       w_req_fire, w_res_fire;
+    assign w_discard_now = flush || r_discard;
+
     //=========================================================================
     // dma_address_gen request / result plumbing
     //=========================================================================
@@ -106,7 +125,7 @@ module stream_run_addr_gen #(
     logic                    w_res_valid, w_res_ready;
     logic [ADDR_WIDTH-1:0]   w_res_addr;
 
-    assign w_req_valid = w_more;
+    assign w_req_valid = w_more && !w_discard_now;
 
     dma_address_gen #(
         .ADDR_WIDTH   (ADDR_WIDTH),
@@ -148,6 +167,8 @@ module stream_run_addr_gen #(
             r_i0          <= '0;
             r_i1          <= '0;
             r_gen_beats   <= '0;
+            r_gen_active  <= 1'b0;
+        end else if (flush) begin
             r_gen_active  <= 1'b0;
         end else if (start) begin
             // Capture cfg. Position 0 (beat/run 0) is used directly by the
@@ -202,22 +223,56 @@ module stream_run_addr_gen #(
     // the addr-gen would advance its index while its output is dropped, losing
     // addresses and desyncing (underrun/hang). Feeding wr_ready to i_result_ready
     // stalls generation until the FIFO drains.
-    logic w_fifo_wr_ready;
-    assign w_res_ready = w_fifo_wr_ready;
+    assign w_req_fire = w_req_valid && w_req_ready;
+    assign w_res_fire = w_res_valid && w_res_ready;
 
-    gaxi_fifo_sync #(
-        .DATA_WIDTH(ADDR_WIDTH),
-        .DEPTH(FIFO_DEPTH)
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_inflight <= 3'd0;
+            r_discard  <= 1'b0;
+        end else begin
+            r_inflight <= r_inflight + 3'(w_req_fire) - 3'(w_res_fire);
+            if (flush)
+                r_discard <= 1'b1;
+            else if ((r_inflight - 3'(w_res_fire)) == 3'd0)
+                r_discard <= 1'b0;
+        end
+    )
+
+    // The base FIFO: dropped whole on the flush's rising edge. The drop
+    // request is held until the FIFO acknowledges it.
+    logic w_fifo_wr_ready;
+    logic r_flush_d, r_drop_req, w_drop_ready;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) begin
+            r_flush_d  <= 1'b0;
+            r_drop_req <= 1'b0;
+        end else begin
+            r_flush_d  <= flush;
+            r_drop_req <= (flush && !r_flush_d) || (r_drop_req && !w_drop_ready);
+        end
+    )
+
+    assign w_res_ready = w_discard_now ? 1'b1 : w_fifo_wr_ready;
+
+    gaxi_drop_fifo_sync #(
+        .DATA_WIDTH (ADDR_WIDTH),
+        .DEPTH      (FIFO_DEPTH)
     ) i_addr_fifo (
         .axi_aclk    (clk),
         .axi_aresetn (rst_n),
-        .wr_valid    (w_res_valid),
+        .wr_valid    (w_res_valid && !w_discard_now),
         .wr_ready    (w_fifo_wr_ready),
         .wr_data     (w_res_addr),
         .rd_valid    (o_base_valid),
         .rd_ready    (i_base_ready),
         .rd_data     (o_base_addr),
-        .count       ()
+        .count       (),
+        .drop_valid  (r_drop_req),
+        .drop_ready  (w_drop_ready),
+        .drop_count  ('0),
+        .drop_all    (1'b1)
     );
 
 endmodule : stream_run_addr_gen

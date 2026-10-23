@@ -71,11 +71,11 @@ PROJECT   := $(SELF_DIR)/build/vivado_project/rapids_byte.xpr
 # structure before sharing) for area A/B, under its own bitstream name.
 export RAPIDS_SHARED_ENGINES ?= 1
 SE_TOKEN  := $(if $(filter 0,$(RAPIDS_SHARED_ENGINES)),_pce,)
-BITSTREAM := $(SELF_DIR)/bitstream/rapids_byte$(CLK_TOKEN)$(SE_TOKEN).bit
+BITSTREAM = $(SELF_DIR)/bitstream/rapids_byte$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN)$(SE_TOKEN).bit
 REPORTS   := $(SELF_DIR)/reports
 # Tcl copy destination (build_all.tcl) -- keeps the copied artifact named like
 # the make-level BITSTREAM, derate token included.
-export RAPIDS_BITSTREAM_NAME := $(notdir $(BITSTREAM))
+export RAPIDS_BITSTREAM_NAME = $(notdir $(BITSTREAM))
 
 HARNESS_TEST := projects/fpga-systems/Genesys2/dma-ip/rapids/flows-rapids/dv/test_rapids_byte_harness.py
 # `sim` runs the WHOLE dv directory, not one pinned file. TASK-081 shipped a
@@ -123,6 +123,20 @@ DATA_WIDTH ?= 256
 SRAM_DEPTH ?= 128
 export RAPIDS_DATA_WIDTH := $(DATA_WIDTH)
 export RAPIDS_SRAM_DEPTH := $(SRAM_DEPTH)
+# Descriptor RAM entries per half (32 B each). The host lays each channel's
+# chain out KICK_STRIDE (0x1000) apart, so 8 channels need 8 x 4 KB = 1024
+# entries. The old board value, 256 (8 KB), wrapped the index: channels 0/2/4/6
+# shared one 4 KB window and 1/3/5/7 the other, each reading the last writer's
+# descriptors -- invisible to the address-agnostic checkers, and absent in sim,
+# which ran the RTL default 2048. One value now feeds Vivado, lint and sim.
+DESC_RAM_ENTRIES ?= 1024
+export RAPIDS_DESC_RAM_ENTRIES := $(DESC_RAM_ENTRIES)
+# Extended (row/column) addressing, USE_ROW_COL_MAJOR_ADDRESSING. 0 = compiled
+# out (the char builds' default, for 8-channel timing). Like the descriptor RAM
+# size, one value feeds Vivado, lint and sim; ROW_COL=1 bitstreams carry _rc.
+ROW_COL ?= 0
+export RAPIDS_ROW_COL := $(ROW_COL)
+RC_TOKEN := $(if $(filter 1,$(ROW_COL)),_rc,)
 # ---- Monitor knobs -- the SAME names STREAM's build-*/Makefile export ------
 # USE_AXI_MONITORS: in-core AXI/descriptor monitors + MonBus egress in the DUT.
 # GEN_MON:          the per-channel completion/error MonBus emitters (the
@@ -148,8 +162,13 @@ export BYTE_CRC ?= 1
 # it keeps its resources; the `mon` variant turns it on, since that is the build
 # whose monitors actually emit packets.
 export MON_CAPTURE ?= 0
+# RAPIDS_G: 1 = the DUT is rapids_g_top (rapids TASK-034: the schedulers are
+# firmware on one gatling per half). Same harness, ports and register map; its
+# bitstreams carry _g in the name and BUILD[31] reads 1 on the board.
+export RAPIDS_G ?= 0
+G_TOKEN := $(if $(filter 1,$(RAPIDS_G)),_g,)
 
-.PHONY: help sim verify-sim lint project synth bitstream program characterize \
+.PHONY: help sim sim-gcompare verify-sim lint project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
 
 help:
@@ -180,7 +199,16 @@ help:
 # source pass (m_axi_rd -> source -> m_axis, per-channel CRC == chk actual).
 sim:
 	cd $(REPO_ROOT) && . ./env_python && \
-	    TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(DV_TESTS) -v
+	    TEST_RAPIDS_G=$(RAPIDS_G) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(DV_TESTS) -v
+
+# ---- rapids-g A/B in sim (rapids TASK-034) ----------------------------------
+# The board's gcompare profile on the word-wide-checker harness, against BOTH
+# DUTs (rapids_top and rapids_g_top), every point scored against golden. Run it
+# before building the perf / perf_g bitstreams the board comparison uses.
+sim-gcompare:
+	cd $(REPO_ROOT) && . ./env_python && \
+	    TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
+	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 12 -k gcompare
 
 # ---- Pre-bitstream sim gate -----------------------------------------------
 # Cheap insurance: the sink self-check must pass before a 10-30 min build.
@@ -191,7 +219,7 @@ verify-sim:
 	else \
 	    echo "[verify-sim] running rapids_byte harness sink self-check (DATA_WIDTH=$(DATA_WIDTH) SRAM_DEPTH=$(SRAM_DEPTH))"; \
 	    cd $(REPO_ROOT) && . ./env_python && \
-	      TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(HARNESS_TEST) -q -k sink \
+	      TEST_RAPIDS_G=$(RAPIDS_G) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(HARNESS_TEST) -q -k sink \
 	      || (echo "[verify-sim] FAILED — refusing to start synth/bitstream" && exit 1); \
 	fi
 
@@ -214,14 +242,14 @@ verify-sim:
 
 define _stash_variant
 	@mkdir -p $(CHAR_ROOT)/reports/build
-	cp $(BITSTREAM) $(SELF_DIR)/bitstream/rapids_byte_$(1)$(CLK_TOKEN).bit
+	cp $(BITSTREAM) $(SELF_DIR)/bitstream/rapids_byte_$(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).bit
 	cd $(REPO_ROOT) && . ./env_python && \
 	    python3 $(CHAR_ROOT)/reports/extract_build_metrics.py \
 	        --reports-dir $(SELF_DIR)/reports \
-	        --bitstream $(SELF_DIR)/bitstream/rapids_byte_$(1)$(CLK_TOKEN).bit \
-	        --tag $(1)$(CLK_TOKEN) --config "$(2)" \
+	        --bitstream $(SELF_DIR)/bitstream/rapids_byte_$(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).bit \
+	        --tag $(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN) --config "$(2) RAPIDS_G=$(RAPIDS_G) ROW_COL=$(ROW_COL) DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES)" \
 	        --commit $$(git -C $(REPO_ROOT) rev-parse --short HEAD) \
-	        --out $(CHAR_ROOT)/reports/build/metrics_$(1)$(CLK_TOKEN).json
+	        --out $(CHAR_ROOT)/reports/build/metrics_$(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).json
 endef
 
 bitstream-std:
@@ -294,10 +322,11 @@ LINT_GENERICS = \
     -GNUM_CHANNELS=$(RAPIDS_NUM_CHANNELS) -GDATA_WIDTH=$(RAPIDS_DATA_WIDTH) \
     -GSRAM_DEPTH=$(RAPIDS_SRAM_DEPTH) \
     $(if $(RAPIDS_DESC_RAM_ENTRIES),-GDESC_RAM_ENTRIES=$(RAPIDS_DESC_RAM_ENTRIES)) \
-    $(if $(RAPIDS_ROW_COL),-GUSE_ROW_COL_MAJOR_ADDRESSING=$(RAPIDS_ROW_COL)) \
+    -GUSE_ROW_COL_MAJOR_ADDRESSING=$(RAPIDS_ROW_COL) \
     -GUSE_AXI_MONITORS=$(USE_AXI_MONITORS) -GGEN_MON=$(GEN_MON) \
     -GUSE_OBSERVERS=$(USE_OBSERVERS) -GOBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS) \
     -GBYTE_CRC=$(BYTE_CRC) -GMON_CAPTURE=$(MON_CAPTURE) -GSHARED_ENGINES=$(RAPIDS_SHARED_ENGINES) \
+    $(if $(filter 1,$(RAPIDS_G)),+define+RAPIDS_G) \
     $(if $(RAPIDS_VCO_MHZ),-GVCO_MHZ=$(RAPIDS_VCO_MHZ)) \
     $(if $(RAPIDS_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(RAPIDS_CLKOUT0_DIVIDE))
 

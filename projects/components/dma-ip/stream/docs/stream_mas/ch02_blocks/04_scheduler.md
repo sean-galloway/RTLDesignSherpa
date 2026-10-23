@@ -124,6 +124,10 @@ close 100 MHz timing with the added read-ahead fanout.
 
 ---
 
+## Run-Base Generator Flush
+
+The two `stream_run_addr_gen` instances (EXT addressing) are flushed by the registered channel reset: generation stops, results in flight in `dma_address_gen` are discarded and the base FIFO (a `gaxi_drop_fifo_sync`) is dropped whole. Before 2026-10-21 nothing emptied it, and an EXT descriptor following a channel reset that interrupted another EXT descriptor began its second run at the interrupted descriptor's base (rapids BUG-017, found in the byte-granular RAPIDS and fixed in RAPIDS, RAPIDS Beats and STREAM together). `test_*_ext_channel_reset` covers it.
+
 ## Parameters
 
 ```systemverilog
