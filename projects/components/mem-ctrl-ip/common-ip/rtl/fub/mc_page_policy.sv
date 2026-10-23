@@ -61,6 +61,7 @@ module mc_page_policy
     input  dram_op_e                   cmd_op_i,
     input  logic [BKW-1:0]             cmd_bank_i,
     input  logic [ROW_WIDTH-1:0]       cmd_row_i,
+    input  logic                       pre_is_timeout_i,  // the PRE on cmd_op_i is this block's timeout close (from the core)
 
     // ---- registered per-bank row state (same bus the arbiter registers) ----
     input  logic [NUM_BANKS-1:0]       bank_row_active_i,
@@ -93,6 +94,12 @@ module mc_page_policy
     // bandwidth. No host arming, no window register, no write trigger -- so
     // nothing here can be fired by RegisterMap.walk().
     input  logic                       demand_i,          // any CAM entry schedulable
+    // per bank: a queued column wants this bank's currently open row. Treated
+    // as activity by the idle timer and as a veto on the close request: a row
+    // with a burst waiting for it is not idle, whatever the command stream
+    // looked like (pumice BUG-0XX: four interleaved threads lost 45% to
+    // timeout closes of rows their next burst needed).
+    input  logic [NUM_BANKS-1:0]       open_row_demand_i,
     // Per-bank ROW HITS (pumice BUG-020). Free-running like every other stat
     // here, so the host subtracts two reads for a window.
     //
@@ -196,8 +203,53 @@ module mc_page_policy
     // conflict close. Refresh-drain PREs land on active banks whose timers may
     // also have expired -- counting those as timeout closes is harmless, the
     // row was idle-expired either way.
+    // Which branch fired is the CORE's knowledge, exported on the command
+    // (cmd_timeout_pre_o). Inferring it here from r_expired was ambiguous
+    // whenever a demand conflict hit an expired bank -- after a streaming
+    // family every bank is expired AND marked keep-open, so a row walk's
+    // conflict PREs read as timeout closes and the mark was never cleared
+    // (col_ilv 306 -> 254 MB/s in the full-family run, BUG-030).
     logic w_pre_was_timeout;
-    assign w_pre_was_timeout = w_is_pre && r_expired[cmd_bank_i];
+    assign w_pre_was_timeout = w_is_pre && pre_is_timeout_i;
+
+    // ---- mistake predictor (pumice BUG-030) ---------------------------------
+    // A timeout close whose row the very next ACT to that bank reopens was a
+    // mistake: the row was not idle, the stream merely had not reached the
+    // bank again yet. One such mistake marks the bank KEEP-OPEN and the idle
+    // timer stops naming it, until a CONFLICT precharge (a real row change)
+    // clears the mark. No fixed tr_init serves every thread count: four
+    // interleaved generators revisit a bank every ~24 cycles, eight every
+    // ~70, a single bank-interleaved row walk (col_ilv) every ~120 with a
+    // NEW row each time -- the early close is worth 308 / 350 vs 238 / 260
+    // there and costs 45% on the streams. The predictor keeps both: a
+    // stream pays one reopen per bank, a row walk never trips it (its
+    // reopens are different rows). The window cannot help here: with four
+    // or more generators in 16 entries, a bank's next burst is usually not
+    // admitted when its last column fires, so open_row_demand_i is blind.
+    logic [NUM_BANKS-1:0][ROW_WIDTH-1:0] r_last_row;    // last open row seen per bank
+    logic [NUM_BANKS-1:0]                r_to_closed;   // this bank's last close was a timeout close
+    logic [NUM_BANKS-1:0]                r_keep_open;   // predictor verdict
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_last_row  <= '0;
+            r_to_closed <= '0;
+            r_keep_open <= '0;
+        end else begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                // track the open row while it is open: the image drops before
+                // this block sees the PRE that closed it
+                if (bank_row_active_i[b]) r_last_row[b] <= bank_open_row_i[b];
+                if (w_is_pre && (int'(cmd_bank_i) == b)) begin
+                    r_to_closed[b] <= w_pre_was_timeout;
+                    if (!w_pre_was_timeout) r_keep_open[b] <= 1'b0;   // a real row change
+                end
+                if (w_is_act && (int'(cmd_bank_i) == b) && r_to_closed[b]
+                    && (cmd_row_i == r_last_row[b]))
+                    r_keep_open[b] <= 1'b1;                           // we closed a row we needed
+                if (!w_timeout_on) r_keep_open[b] <= 1'b0;
+            end
+        end
+    end)
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
@@ -209,8 +261,10 @@ module mc_page_policy
                     // Row closed (or engine off): clear.
                     r_idle[b]    <= '0;
                     r_expired[b] <= r_expired[b] && bank_row_active_i[b];
-                end else if (cmd_valid_i && (int'(cmd_bank_i) == b)) begin
-                    // Any command to the bank re-warms the row.
+                end else if ((cmd_valid_i && (int'(cmd_bank_i) == b)) || open_row_demand_i[b]) begin
+                    // Any command to the bank re-warms the row -- and so does
+                    // a queued column for the open row: idle means nobody
+                    // wants the row, not merely that nobody has reached it.
                     r_idle[b]    <= f_tr(b);
                     r_expired[b] <= 1'b0;
                 end else if (r_idle[b] != 0) begin
@@ -230,7 +284,10 @@ module mc_page_policy
         timeout_pre_bank_o = '0;
         if (w_timeout_on) begin
             for (int b = NUM_BANKS - 1; b >= 0; b--) begin
-                if (r_expired[b] && bank_row_active_i[b]) begin
+                // live veto as well: the re-warm above lands a cycle later;
+                // and never a bank the predictor marked keep-open
+                if (r_expired[b] && bank_row_active_i[b] && !open_row_demand_i[b]
+                    && !r_keep_open[b]) begin
                     timeout_pre_req_o  = 1'b1;
                     timeout_pre_bank_o = BKW'(b);
                 end

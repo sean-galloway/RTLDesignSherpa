@@ -218,6 +218,7 @@ module mc_bank_pick
 
     // ---- command push (scheduler -> DFI command FIFO) ----
     output logic                      cmd_valid_o,
+    output logic                      cmd_timeout_pre_o,   // the PRE is the policy's timeout close (BUG-030)
     input  logic                      cmd_ready_i,
     output dram_op_e                  cmd_op_o,
     output logic [RKW-1:0]            cmd_rank_o,
@@ -864,6 +865,7 @@ module mc_bank_pick
     assign cmd_valid_o = w_fire;
     logic w_to_fire;
     assign w_to_fire   = w_fire && !w_ovr_vld && !w_dmd_ok;
+    assign cmd_timeout_pre_o = w_to_fire;
 
     // ---- payload ----------------------------------------------------------
     // Auto-precharge: the runtime page policy owns it when enabled (static

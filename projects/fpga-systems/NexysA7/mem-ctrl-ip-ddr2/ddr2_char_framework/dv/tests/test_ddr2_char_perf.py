@@ -526,6 +526,10 @@ async def cocotb_test_pumice_perf(dut):
     dump_path = os.environ.get("PERF_DUMP", "")
     beat_bytes = 1 << dc.AXI_SIZE_8
     diag = {}
+    # PERF_HOST_DIAG=1: record the stall attribution and page stats after EVERY
+    # phase, not only a stalled one (the FR-FCFS plateau investigation,
+    # 2026-10-22: a pattern-independent 307 / 354 from four threads up)
+    always_diag = os.environ.get("PERF_HOST_DIAG", "0") == "1"
 
     def _host_diag(d):
         """What the CSRs say about a stalled engine: status bits, the
@@ -574,7 +578,7 @@ async def cocotb_test_pumice_perf(dut):
         drv.freeze_trace(False)
         drv.start_wr(mask)
         wr_ok = pm.wait_engine(drv, "wr", timeout_s=120, ignore_error=True)
-        if not wr_ok:
+        if not wr_ok or always_diag:
             diag["wr_" + fam_key] = _host_diag(drv)
         drv.freeze_trace(True)
         tw = drv.timer()
@@ -590,7 +594,7 @@ async def cocotb_test_pumice_perf(dut):
         drv.freeze_trace(False)
         drv.start_rd(mask)
         rd_ok = pm.wait_engine(drv, "rd", timeout_s=120, ignore_error=True)
-        if not rd_ok:
+        if not rd_ok or always_diag:
             diag["rd_" + fam_key] = _host_diag(drv)
         drv.freeze_trace(True)
         tr = drv.timer()
@@ -630,6 +634,18 @@ async def cocotb_test_pumice_perf(dut):
         if page_pol:
             drv.set_page_policy(int(page_pol, 0))
             out["page_policy"] = int(page_pol, 0)
+        # TEST_PAGE_MODE: PAGE_POLICY_CFG.policy_mode (1 static_open, 2
+        # static_close, 3 fixed_open); TEST_TR_INIT: PAGE_TIMEOUT_CFG.tr_init
+        # (0 disables the idle-timeout close). TEST_PAGE_POLICY above writes the
+        # LEGACY policy field only; these two reach the page-policy engine.
+        page_mode = os.environ.get("TEST_PAGE_MODE", "")
+        if page_mode:
+            drv.set_page_mode(int(page_mode, 0))
+            out["page_mode"] = int(page_mode, 0)
+        tr_init = os.environ.get("TEST_TR_INIT", "")
+        if tr_init:
+            drv.set_page_timeout_cfg(tr_init=int(tr_init, 0))
+            out["tr_init"] = int(tr_init, 0)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
@@ -803,6 +819,8 @@ def test_ddr2_char_perf(request):
         "AXI_R_PROBE": os.environ.get("AXI_R_PROBE", "0"),
         "DFI_RD_TRACE": os.environ.get("DFI_RD_TRACE", "0"),
         "TEST_PAGE_POLICY": os.environ.get("TEST_PAGE_POLICY", ""),
+        "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
+        "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),
@@ -810,6 +828,10 @@ def test_ddr2_char_perf(request):
         "TEST_FAMILIES": os.environ.get("TEST_FAMILIES",
                                         "incremental,row_major,col_ilv,col_major"),
         "TEST_NUM_GEN": os.environ.get("TEST_NUM_GEN", "1"),
+        "PERF_HOST_DIAG": os.environ.get("PERF_HOST_DIAG", "0"),
+        # DFISlavePHY's decoded-command trace (bank / row per command), for
+        # row-hit forensics on a pick core; rides extra_env like the others
+        "DFI_CMD_TRACE": os.environ.get("DFI_CMD_TRACE", "0"),
         "TEST_TIMING_OVERRIDES": os.environ.get("TEST_TIMING_OVERRIDES", ""),
         "TEST_CMD_DELAY": os.environ.get("TEST_CMD_DELAY", "0"),
         "TEST_T_PHY_WRLAT": os.environ.get("TEST_T_PHY_WRLAT", "0"),

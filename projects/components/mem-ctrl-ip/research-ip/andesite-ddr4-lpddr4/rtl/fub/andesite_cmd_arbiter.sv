@@ -250,6 +250,7 @@ module andesite_cmd_arbiter
         .evt_bank_o         (evt_bank_o),
         .evt_row_o          (evt_row_o),
         .cmd_valid_o        (cmd_valid_o),
+        .cmd_timeout_pre_o (/* page-policy classification; unused here */),
         .cmd_ready_i        (cmd_ready_i),
         .cmd_op_o           (cmd_op_o),
         .cmd_rank_o         (cmd_rank_o),

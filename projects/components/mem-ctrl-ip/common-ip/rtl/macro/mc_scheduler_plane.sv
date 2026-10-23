@@ -278,6 +278,7 @@ module mc_scheduler_plane
 
     // arbiter -> cmd FIFO
     logic          a_cmd_valid, a_cmd_ready;
+    logic          a_cmd_to_pre;   // the fired PRE is the policy's timeout close (BUG-030)
     dram_op_e      a_cmd_op;
     logic [RKW-1:0] a_cmd_rank; logic [BKW-1:0] a_cmd_bank;
     logic [BGW_EFF-1:0] a_cmd_bg;
@@ -308,14 +309,54 @@ module mc_scheduler_plane
     // demand (refresh postpone / page-policy telemetry): from whichever
     // storage view this core consumes
     logic                       w_demand;
+    // Per-bank "a queued column wants this bank's OPEN row" (pumice BUG-0XX,
+    // 2026-10-22): the page policy's idle-timeout close treated a row as idle
+    // whenever no command had reached the bank for tr_init cycles, with no
+    // view of the window. With four or more threads one bank apart, every
+    // bank is "idle" for three bursts between visits, every bank is expired
+    // almost always, and the arbiter's lowest-priority PRE closed, in each
+    // free slot, a row whose next burst was already queued: one ACT per
+    // eight columns on every family, 307 / 354 MB/s instead of 554 / 553 at
+    // four threads on FR-FCFS (BANK_PICK hid it only by leaving no free
+    // slot). The policy now treats queued demand for the open row as
+    // activity and refuses to name such a bank. Both storage views feed it:
+    // the records carry the head's hit against the registered row image;
+    // the flat vectors are compared here against the same image.
+    logic [NUM_BANKS-1:0]       w_open_row_demand;
+    // REGISTERED before it reaches the policy: on FR-FCFS this is 2 x
+    // NUM_ENTRIES row compares OR-reduced per bank, and the policy's close
+    // request feeds the arbiter's pick comb (its timeout branch). Live, that
+    // cone cost the 75 MHz board build its floor (-0.277 ns, 15 endpoints);
+    // a one-cycle-old veto is fine for an idle timer.
+    logic [NUM_BANKS-1:0]       r_open_row_demand;
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_open_row_demand <= '0;
+        else                        r_open_row_demand <= w_open_row_demand;
+    )
     generate if (SCHED_CORE == MC_SCHED_BANK_PICK) begin : g_demand_rec
         always_comb begin
             w_demand = 1'b0;
-            for (int b = 0; b < NUM_BANKS; b++)
+            for (int b = 0; b < NUM_BANKS; b++) begin
                 if (wr_head_i[b].vld || rd_head_i[b].vld) w_demand = 1'b1;
+                w_open_row_demand[b] = (wr_head_i[b].vld && wr_head_i[b].hit)
+                                    || (rd_head_i[b].vld && rd_head_i[b].hit);
+            end
         end
     end else begin : g_demand_vec
         assign w_demand = |rd_sch_valid_i || |wr_sch_valid_i;
+        always_comb begin
+            w_open_row_demand = '0;
+            for (int e = 0; e < NUM_ENTRIES; e++) begin
+                automatic logic [BKW-1:0]       rb = rd_sch_bank_i[e*BKW +: BKW];
+                automatic logic [BKW-1:0]       wb = wr_sch_bank_i[e*BKW +: BKW];
+                automatic logic [ROW_WIDTH-1:0] rr = rd_sch_row_i[e*ROW_WIDTH +: ROW_WIDTH];
+                automatic logic [ROW_WIDTH-1:0] wrw = wr_sch_row_i[e*ROW_WIDTH +: ROW_WIDTH];
+                if (rd_sch_valid_i[e] && w_bank_row_active[0][rb] && (rr == w_bank_open_row[0][rb]))
+                    w_open_row_demand[rb] = 1'b1;
+                if (wr_sch_valid_i[e] && w_bank_row_active[0][wb] && (wrw == w_bank_open_row[0][wb]))
+                    w_open_row_demand[wb] = 1'b1;
+            end
+        end
     end endgenerate
 
     generate
@@ -470,10 +511,18 @@ module mc_scheduler_plane
                 .aresetn           (aresetn),
                 .policy_mode_i     (page_mode_i),
                 .tr_init_i         (page_tr_init_i),
-                .cmd_valid_i       (cmd_valid_o && cmd_ready_i),
-                .cmd_op_i          (cmd_op_o),
-                .cmd_bank_i        (cmd_bank_o),
-                .cmd_row_i         (cmd_row_o),
+                // FIRE side, not the command FIFO's read side: the bank image
+                // the policy compares against updates when a core fires into
+                // the FIFO, and the FIFO's occupancy put each command in front
+                // of the policy an arbitrary number of cycles later -- by
+                // which time the row image had dropped and the expired flag
+                // was cleared, so every timeout close classified as a
+                // conflict and the idle timer re-warmed late (BUG-030).
+                .cmd_valid_i       (a_cmd_valid && a_cmd_ready),
+                .cmd_op_i          (a_cmd_op),
+                .cmd_bank_i        (a_cmd_bank),
+                .cmd_row_i         (a_cmd_row),
+                .pre_is_timeout_i  (a_cmd_to_pre),
                 .bank_row_active_i (w_bank_row_active[0]),
                 .bank_open_row_i   (w_bank_open_row[0]),
                 .ap_mode_en_o      (w_pp_ap_en),
@@ -488,6 +537,7 @@ module mc_scheduler_plane
                 .stat_pre_o        (stat_pre_o),
                 .stat_ref_o        (stat_ref_o),
                 .demand_i          (w_demand),
+                .open_row_demand_i (r_open_row_demand),
                 .stat_ref_busy_o   (stat_ref_busy_o)
             );
         end else begin : g_no_page_policy
@@ -715,6 +765,7 @@ module mc_scheduler_plane
             .evt_bank_o         (evt_bank),
             .evt_row_o          (evt_row),
             .cmd_valid_o        (a_cmd_valid),
+            .cmd_timeout_pre_o  (a_cmd_to_pre),
             .cmd_ready_i        (a_cmd_ready),
             .cmd_op_o           (a_cmd_op),
             .cmd_rank_o         (a_cmd_rank),
@@ -847,6 +898,7 @@ module mc_scheduler_plane
         .evt_bank_o         (evt_bank),
         .evt_row_o          (evt_row),
         .cmd_valid_o        (a_cmd_valid),
+        .cmd_timeout_pre_o  (a_cmd_to_pre),
         .cmd_ready_i        (a_cmd_ready),
         .cmd_op_o           (a_cmd_op),
         .cmd_rank_o         (a_cmd_rank),

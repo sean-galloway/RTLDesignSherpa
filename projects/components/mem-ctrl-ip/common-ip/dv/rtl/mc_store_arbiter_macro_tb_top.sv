@@ -370,6 +370,7 @@ module mc_store_arbiter_macro_tb_top
             .evt_bank_o         (),
             .evt_row_o          (),
             .cmd_valid_o        (core_cmd_valid),
+            .cmd_timeout_pre_o (/* page-policy classification; unused here */),
             .cmd_ready_i        (cm_ready),   // real shape: cmd bus paces with the drain
             .cmd_op_o           (core_cmd_op),
             .cmd_rank_o         (),
@@ -487,6 +488,7 @@ module mc_store_arbiter_macro_tb_top
             .evt_bank_o         (),
             .evt_row_o          (),
             .cmd_valid_o        (core_cmd_valid),
+            .cmd_timeout_pre_o (/* page-policy classification; unused here */),
             .cmd_ready_i        (cm_ready),   // real shape: cmd bus paces with the drain
             .cmd_op_o           (core_cmd_op),
             .cmd_rank_o         (),

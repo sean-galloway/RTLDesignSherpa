@@ -118,6 +118,23 @@ follow, both learned landing `mc_bank_pick` on the record contract
 Both are consumer-side bookkeeping, a handful of flops. Neither is a reason
 to move the pop or the decision back across the boundary.
 
+## A consumer takes its event from the edge its state updates on (2026-10-22)
+
+`mc_page_policy` compared each command against the scheduler plane's
+registered bank image (row active, open row) but took the command itself
+from the plane's command FIFO's READ side. The image updates when a core
+FIRES into that FIFO; the read side is that fire plus the FIFO's occupancy,
+an arbitrary number of cycles later. So the policy saw every PRE after the
+row image had already dropped and its own expired flag had cleared: timeout
+closes counted as conflicts, the idle timer re-warmed late, and a predictor
+built on "that PRE was a timeout close" never armed -- while the design
+being judged (the FR-FCFS core) was innocent (pumice BUG-030). No shadow
+register fixes a variable skew; the fix was to feed the policy from the
+fire side, the same edge the image it compares against is written on. The
+rule: when a block compares an event against registered state, both must
+come from the same edge of the same handshake, or the block is measuring
+the FIFO.
+
 ## How to check a design against it
 
 1. For every edge in the plane diagram, name the register that drives it.

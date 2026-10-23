@@ -473,6 +473,26 @@ unchecked, including the book page that carried 42 of 55 fabricated table
 signals. That is a smaller error than the alternative, and closing it needs an
 explicit per-page `Module:` declaration, not a better heuristic.
 
+## Two from 2026-10-22: the knob that wrote another register, and the counter that lied
+
+The three-way controller table showed FR-FCFS at a pattern-independent
+307 / 354 MB/s from four threads up. Two instruments sent the investigation
+the wrong way before the DFI trace set it right (pumice BUG-030):
+
+| What fell back | To what | Reported as |
+|---|---|---|
+| perf proxy `TEST_PAGE_POLICY=1` ("static_open") | `REFRESH_TUNING.page_policy_or`, the LEGACY field; the engine is `PAGE_POLICY_CFG.policy_mode` | "static_open is bit-identical, so the idle-timeout close is not it" -- twice, in a shipped report |
+| page stats `miss` / `empty` split | `w_pre_was_timeout` read `r_expired` after the row image had already cleared it, so every timeout close counted as a CONFLICT | "1 049 conflict misses with every bank on row 0: suspect the row-hit logic" |
+
+The cure for the first is the one this note already states for addresses:
+**a knob's name is a claim; read the register it says it moved** (here
+`PAGE_POLICY_CFG` after the write, or the ACT count beside `tr_init=0`,
+which is what finally decided it). The cure for the second is older than
+DV: **a classifier is a measurement too, and a measurement is validated
+against a trace before it steers anything.** One screen of the DFI command
+trace (bank, open row, command row) showed the PREs closing the row the
+next burst needed; the counters had been saying the opposite for an hour.
+
 ## The single question
 
 Before believing any zero, ask: **if the thing I am looking for were happening,

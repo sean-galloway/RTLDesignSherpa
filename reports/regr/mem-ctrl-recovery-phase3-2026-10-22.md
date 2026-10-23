@@ -99,6 +99,7 @@ arbiter's root); + the mask registered per source: -0.611, 156 (synthesis
 | `PUMICE_SYS_75=1`, BANK_PICK, final text | `w_sys_i` 75 MHz | +0.077 | 0 / 77 093 (the text before the stale mask: +0.102, 0 / 77 028; Phase 2 text: -3.175, 122) |
 | `PUMICE_SYS_75=1`, BANK_PICK, follow-up text (second-cycle mask) | `w_sys_i` 75 MHz | +0.021 | 0 / 77 114 (hold +0.022, 0 failing) |
 | `PUMICE_SYS_75=1`, pumice on its new FR-FCFS default (owner's core assignment, same text otherwise) | `w_sys_i` 75 MHz | +0.068 | 0 / 85 665 (the research core is the larger one; the floor holds on both) |
+| `PUMICE_SYS_75=1`, pumice FR-FCFS, BUG-030 text (predictor, fire-side feed, explicit timeout flag, REGISTERED demand veto) | `w_sys_i` 75 MHz | +0.013 | 0 / 85 908 (the first build of the fix, with the veto live: -0.277, 15 / 86 116, the arbiter's pick cone) |
 | `PUMICE_SYS_100=1`, BANK_PICK, follow-up text | `w_sys_i` 100 MHz | -2.716 | 2 553 / 77 114 (phase commit: -2.574, 3 463; hotspots read CAM 440, harness write engines 266 + 106 + 89 and W skid 252, read intake AR 133, the pick core 124, hist_rd 117 -- harness-dominated as before) |
 | `PUMICE_SYS_100=1`, BANK_PICK, final text | `w_sys_i` 100 MHz | -2.574 | 3 463 / 77 128 (the text before the stale mask: -2.537, 3 062 / 77 056; Phase 2 text: -6.672, 11 899; FRFCFS control: -2.555, 6 296). Hotspots: read CAM 442, write CAM 247, the pick core 238, bank timers ~100 each, then the harness (APB converter 140, generators, trace RAMs) |
 
@@ -216,12 +217,11 @@ engine block the day the register widens.
 the BANK_PICK core; pumice, the research controller, carries FR-FCFS.** The
 defaults flipped in `granite_core` / `pumice_core` and every pumice harness,
 sim top and proxy default followed; both cores stay selectable through
-`SCHED_CORE`. The table's main columns are those shipping defaults; the two
-cross-controls (pumice on BANK_PICK, granite on FR-FCFS) were measured the
-same day before the flip and are kept because they show the result is the
-CORE's, not the backend's: granite BANK_PICK and pumice BANK_PICK agree to
-within a few MB/s in every cell, and so do the two FR-FCFS columns from two
-threads up.
+`SCHED_CORE`. The table's main columns are the shipping defaults ON THE
+BUG-030 TEXT (section 5.2); the fourth column is pumice FR-FCFS as it
+measured before BUG-030's fix, and the fifth the BANK_PICK cross-control on
+pumice (same day, before the flip), kept because they show the result
+follows the CORE, not the backend.
 
 All three controllers through the SAME injectors, observers and host
 program, in simulation: pumice and granite on their char-harness sim tops,
@@ -246,57 +246,152 @@ BIOS (`flows-litedram-uart/regen.sh --bios`; three LiteX-venv patches,
 recorded in that flow's tooling notes).
 **1 thread per direction**
 
-| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | pumice FR-FCFS before BUG-030 | control: pumice BANK_PICK |
 |---|---|---|---|---|---|
-| incremental | 554 / 557 | 568 / 568 | 551 / 550 | 568 / 563 | 551 / 556 |
-| row_major | 560 / 571 | 576 / 572 | 564 / 565 | 571 / 572 | 571 / 565 |
-| col_ilv | 275 / 280 | 461 / 451 | 308 / 350 | 458 / 455 | 308 / 350 |
-| col_major | 302 / 382 | 311 / 358 | 195 / 194 | 310 / 357 | 221 / 244 |
+| incremental | 554 / 557 | 568 / 568 | 551 / 550 | 551 / 550 | 568 / 563 |
+| row_major | 560 / 571 | 576 / 572 | 564 / 565 | 564 / 565 | 571 / 572 |
+| col_ilv | 275 / 280 | 461 / 451 | 306 / 350 | 308 / 350 | 458 / 455 |
+| col_major | 302 / 382 | 311 / 358 | 195 / 194 | 195 / 194 | 310 / 357 |
 
 **2 threads per direction**
 
-| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | pumice FR-FCFS before BUG-030 | control: pumice BANK_PICK |
 |---|---|---|---|---|---|
-| incremental | 408 / 416 | 572 / 568 | 556 / 558 | 572 / 566 | 310 / 355 |
-| row_major | 409 / 416 | 570 / 571 | 565 / 565 | 574 / 571 | 308 / 352 |
-| col_ilv | 376 / 380 | 511 / 507 | 398 / 436 | 508 / 506 | 398 / 436 |
-| col_major | 269 / 274 | 420 / 459 | 266 / 289 | 420 / 459 | 308 / 352 |
+| incremental | 408 / 416 | 572 / 566 | 544 / 551 | 556 / 558 | 572 / 566 |
+| row_major | 409 / 416 | 570 / 569 | 556 / 556 | 565 / 565 | 574 / 571 |
+| col_ilv | 376 / 380 | 511 / 507 | 396 / 436 | 398 / 436 | 508 / 506 |
+| col_major | 269 / 274 | 420 / 459 | 307 / 350 | 266 / 289 | 420 / 459 |
 
 **4 threads per direction**
 
-| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | pumice FR-FCFS before BUG-030 | control: pumice BANK_PICK |
 |---|---|---|---|---|---|
-| incremental | 402 / 410 | 567 / 566 | 306 / 353 | 567 / 568 | 306 / 354 |
-| row_major | 403 / 411 | 570 / 568 | 307 / 353 | 568 / 569 | 307 / 353 |
-| col_ilv | 366 / 373 | 537 / 535 | 307 / 353 | 536 / 534 | 307 / 353 |
-| col_major | 271 / 277 | 461 / 460 | 307 / 353 | 461 / 460 | 307 / 354 |
+| incremental | 402 / 410 | 567 / 566 | 520 / 531 | 306 / 353 | 567 / 568 |
+| row_major | 403 / 411 | 570 / 568 | 523 / 534 | 307 / 353 | 568 / 569 |
+| col_ilv | 366 / 373 | 529 / 536 | 368 / 401 | 307 / 353 | 536 / 534 |
+| col_major | 271 / 277 | 461 / 460 | 307 / 354 | 307 / 353 | 461 / 460 |
 
 **8 threads per direction**
 
-| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | pumice FR-FCFS before BUG-030 | control: pumice BANK_PICK |
 |---|---|---|---|---|---|
-| incremental | 391 / 399 | 557 / 555 | 307 / 354 | 557 / 556 | 307 / 354 |
-| row_major | 392 / 400 | 558 / 557 | 307 / 354 | 558 / 557 | 307 / 354 |
-| col_ilv | 375 / 381 | 538 / 532 | 307 / 354 | 538 / 529 | 307 / 354 |
-| col_major | 277 / 280 | 460 / 458 | 307 / 354 | 459 / 458 | 307 / 354 |
+| incremental | 391 / 399 | 557 / 555 | 464 / 493 | 307 / 354 | 557 / 556 |
+| row_major | 392 / 400 | 558 / 557 | 464 / 492 | 307 / 354 | 558 / 557 |
+| col_ilv | 375 / 381 | 534 / 526 | 393 / 425 | 307 / 354 | 538 / 529 |
+| col_major | 277 / 280 | 459 / 458 | 307 / 354 | 307 / 354 | 459 / 458 |
 
 Reading it: the BANK_PICK core (granite) holds 93-95% of peak on the
 streaming families at every thread count and climbs with threads on the
-bank-interleaving families (col_ilv 461 -> 538, col_major 311 -> 460: more
+bank-interleaving families (col_ilv 461 -> 534, col_major 311 -> 459: more
 banks in flight hide the row walks); its 8-thread streaming cells sit 10
-MB/s under the 4-thread ones. The FR-FCFS core (pumice) matches it on
-streaming at one and two threads, then falls to ~307 / 354 on every family
-from four threads up -- the per-bank row thrash the BANK_PICK core removes
--- and its single-thread col_major is the 195 / 194 of the Phase 0
-baseline (inter-row gap 17 against the JEDEC floor of 6 / 8). LiteDRAM
-matches both on streaming at one thread and falls to ~400 / 410 from two
-threads up (per-bank round-robin paying turnaround and bank switches per
-request); its col_major is flat ~270-300 and its col_ilv ~375. Gates on
-the new defaults: pumice `run-all-func-both` 216 passed / 1 skipped at both
-geometries; granite `run-all-func` 6 passed / 1 xfailed (the
-`top_geared[gate-8-12]` cell, whose DFI loopback model is order-coupled to
-the FR-FCFS interleave: it xpassed on FR-FCFS and fails as its marker says
-on a per-bank core; the board bench is its real check).
+MB/s under the 4-thread ones (not the page policy: unchanged with the timer
+off). The FR-FCFS core (pumice) matches it on streaming at one and two
+threads, holds 520 / 531 at four and 464 / 493 at eight on the fixed policy
+(it read 307 / 354 at both before BUG-030; the gap to the 554 / 553
+timer-off ceiling is the mistake predictor's re-learning after each real
+conflict clears a bank's mark, section 5.2); its single-thread col_major is
+the 195 / 194 of the Phase 0 baseline (inter-row gap 17 against the JEDEC
+floor of 6 / 8). LiteDRAM matches both on streaming at one thread and falls
+to ~400 / 410 from two threads up (per-bank round-robin paying turnaround
+and bank switches per request); its col_major is flat ~270-300 and its
+col_ilv ~375. Gates on the shipping text: pumice `run-all-func-both` 216
+passed / 1 skipped at both geometries; granite `run-all-func` 6 passed /
+1 xfailed (the `top_geared[gate-8-12]` cell, whose DFI loopback model is
+order-coupled to the FR-FCFS interleave: it xpassed on FR-FCFS and fails as
+its marker says on a per-bank core; the board bench is its real check);
+common-ip contract bench 8 passed / 3 xfailed.
+
+### 5.2 Why FR-FCFS collapsed from four threads up (pumice BUG-030)
+
+The first §5.1 table showed FR-FCFS at a pattern-independent 307 / 354 from
+four threads per direction, two threads still at 556 / 558. A flat number
+across incremental, row_major, col_ilv and col_major cannot be DRAM timing,
+so it was traced rather than explained.
+
+| evidence (FR-FCFS, row_major, txn 256) | 2 threads | 4 threads |
+|---|---|---|
+| wr / rd MB/s | 561.6 / 561.2 | 306.5 / 353.0 |
+| ACTs (write + read phase) | 36 | 2 099 for 16 384 columns: one per 8-column burst |
+| ACT cadence | - | 15 cycles (the single-bank row-walk floor) |
+| page stats (write phase) | miss 17, empty 1, hits 4 078 / 4 096 | miss 1 049, empty 3, hits 7 154 / 8 192 |
+| DFI trace | - | every bank on row 0 throughout; each PRE in the slot between two bursts, 16 cycles after that bank's last column; the next ACT reopens row 0 |
+| same run, `PAGE_TIMEOUT_CFG.tr_init = 0` | - | **554.2 / 553.3, 128 ACTs** (refresh reopenings) |
+
+The closer is the page policy's fixed_open idle timer (`mc_page_policy`,
+common-ip): reset policy_mode 3 / tr_init 2, "the measured optimum" of
+2026-09-26 on single-thread row walks. It expires a bank whose row has seen
+no COMMAND for tr_init cycles, with no view of the window, and the arbiter
+serves the PRE as its lowest-priority pick, in any free slot. Four threads
+one bank apart leave every bank idle for three bursts between visits, so
+every bank is expired almost always and the first free slot closes a row
+whose next burst is already queued; the ACT round trips create more free
+slots. BANK_PICK hid it by leaving no free slot while streaming (the
+four-generator loss fixed earlier today was this same policy taking the
+stale-pick slot); two FR-FCFS threads happen to fill every slot.
+
+Two instruments lied on the way. The perf proxy's `TEST_PAGE_POLICY` writes
+the legacy `REFRESH_TUNING.page_policy_or`, not `PAGE_POLICY_CFG.policy_mode`,
+so the "static_open was bit-identical" statements earlier in this report
+(section 6 as first written, and this section's own first pass) never
+turned the timeout off; `TEST_PAGE_MODE` and `TEST_TR_INIT` now reach the
+engine. And the page stats classified these closes as conflict misses
+(`w_pre_was_timeout` read `r_expired` after the row image had already cleared
+it), which pointed the investigation at the row-hit logic for an hour.
+
+Fix (BUG-030): the scheduler plane computes a per-bank "a queued column
+wants this bank's open row" from whichever storage view the core consumes
+(the records' head hit on BANK_PICK; a compare of the flat vectors against
+the registered row image on FR-FCFS); `mc_page_policy` treats it as activity
+(re-warms the idle timer) and as a live veto on the close request. The
+telemetry keeps a two-cycle shadow of the expired flags so a timeout close
+classifies as one. **The veto alone does not move the matrix**: re-run with
+it in place, both cores are bit-for-bit the pre-veto table (FR-FCFS 306 /
+353 at four threads). With four or more generators in a 16-entry window a
+bank's next burst is usually not admitted yet when its last column fires,
+so the policy sees no queued demand and the 2-cycle timer wins; the veto
+stays as the correct, free guard for the case where demand is visible, and
+the lever is the timer value (BUG-030 carries the tr_init sweep: 32
+restores four-thread streaming to 554 / 557 and keeps the one-thread
+col_ilv benefit at 306 / 349; 128 keeps streaming and loses col_ilv to
+247 / 261; and at eight threads 32 and 64 both still thrash, 307 / 352,
+because the eight-bank revisit interval is ~70 cycles -- no single value
+serves every thread count). So the policy also gained a per-bank MISTAKE
+PREDICTOR: a timeout close whose row the next ACT to that bank reopens marks
+the bank keep-open until a conflict precharge clears it; a stream pays one
+reopen per bank, a row walk never trips it. The predictor was inert until a
+third defect fell: the policy consumed the plane's command-FIFO READ side
+while the bank image updates at the cores' FIRE into that FIFO, so every
+command reached it late, the expired flag was already cleared (the
+telemetry mislabel above, beyond any shadow's reach), the timer re-warmed
+late and the predictor never armed. Fed from the fire side and classified on
+the cores' own flag (next paragraph), FR-FCFS reads 520 / 531 incremental
+and 523 / 534 row_major at four threads (307 / 353 before; ceiling with the
+timer off 554 / 553), 464 / 493 at eight (307 / 354 before), 368 / 401
+col_ilv at four; one thread keeps col_ilv at 306 / 350 and col_major at
+195 / 194; the page stats call the closes timeouts. The residual against
+the ceiling is the predictor re-learning a bank after each real conflict
+clears its mark, largest at eight threads; a two-state mark or a larger
+tr_init default would narrow it and is left as the owner's tuning call. One more: in the full-family run col_ilv read
+254 / 298 after the streaming families, because the policy inferred
+"timeout close" from its own expired flag, which is also true for a demand
+conflict on an idle bank, so the keep-open marks left by the stream were
+never cleared. The cores now export which branch fired
+(`cmd_timeout_pre_o`) and the policy classifies on that. The first board
+build of all this missed the 75 MHz floor (-0.277 ns, 15 endpoints, the
+FR-FCFS arbiter's pick cone): the policy's request had grown live terms
+that feed the arbiter's timeout branch; the demand vector is registered in
+the plane now, and the build on that text is in section 3.2. The reset
+default stays tr_init 2 in this commit: at one thread the
+early close is worth 308 / 350 against 238 / 260 on col_ilv on FR-FCFS and
+458 / 455 against 423 / 456 on BANK_PICK (bank-interleaved row walks, where
+the next access to a bank is a different row and the veto does not apply)
+and nothing on col_major on either core; whether the default is right is
+the owner's call, the veto makes it safe under streaming either way. The
+new `TEST_PAGE_MODE` knob is verified against the engine: four-thread
+FR-FCFS under policy_mode 1 (static_open) with the veto in place reads
+543 / 547 with 37 ACTs at txn 64. The
+8-thread BANK_PICK streaming cells (557 vs 567 at four) are NOT this policy:
+unchanged at tr_init 0.
 
 ## 6. Left for later phases
 
@@ -309,14 +404,10 @@ on a per-bank core; the board bench is its real check).
   phase commit is fixed (section 5, follow-up); with eight the thing to
   watch is the same signature: `PERF_PICK_TRACE` cycles with `fire=1
   topre=1 cls_ok=0`, i.e. a free slot handed to the idle-timeout close.
-- **The idle-timeout close under streaming load.** With `tr_init` 2 the
-  policy requests a close of some open row in most cycles of a
-  multi-generator stream; the pick core serves it only in a free slot, so
-  today the policy's reach depends on how bubble-free the core is, which is
-  accidental. Whether a row that another generator will revisit within a
-  few bursts should be closable at all (a per-bank "recently hit" guard, or
-  a larger `tr_init` default for the streaming profile) is a policy
-  question for the paging modes, not this core.
+- **The idle-timeout close under streaming load** was found and fixed the
+  same night: pumice BUG-030, section 5.2. What remains is the default
+  itself (`tr_init` 2 was tuned on one thread) -- a policy question for the
+  paging modes, with the one-thread numbers in 5.2 as the trade.
 - 100 MHz on the controller alone is 0.5 ns away on aclk with two endpoints
   in the arbiter (route-dominated) and 21 in the storage plane's snarf match
   -> read insert arc; the harness build cannot show it. A floorplanned

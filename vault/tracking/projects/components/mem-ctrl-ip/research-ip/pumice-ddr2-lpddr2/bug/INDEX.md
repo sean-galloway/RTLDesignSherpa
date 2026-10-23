@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-030** — never recycle a number, even when its item closed.
+**Next ID: BUG-031** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 26 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
@@ -20,6 +20,12 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
+- **BUG-030** (2026-10-22) — the page policy's idle-timeout close (fixed_open,
+  reset tr_init 2) precharges rows whose next burst is already queued: one ACT
+  per 8-column burst from three threads up, 307 / 354 vs 554 / 553 MB/s on
+  FR-FCFS, hidden on BANK_PICK by the absence of free slots. Fix: per-bank
+  open-row-demand veto in `mc_page_policy` (common-ip), telemetry classifies
+  timeout closes correctly, proxy knobs reach the engine.
 - **BUG-024** — pumice_zq_ctrl random_soak loses exactly one grant at some
   SEED draws (`total() == grants` off by one; repro: `SEED=58170` on the
   random_soak test). PROVEN PRE-EXISTING (reproduced on pristine 0a0a216c6);

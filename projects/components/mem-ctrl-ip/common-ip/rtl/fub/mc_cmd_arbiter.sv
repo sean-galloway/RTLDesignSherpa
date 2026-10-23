@@ -182,6 +182,10 @@ module mc_cmd_arbiter
 
     // ---- command push (scheduler -> DFI command FIFO) ----
     output logic                      cmd_valid_o,
+    // the PRE on cmd_op_o is the page policy's timeout close (not a demand
+    // conflict); valid with cmd_valid_o. The policy classifies on this, not
+    // on its own expired flag, which is ambiguous when both apply (BUG-030)
+    output logic                      cmd_timeout_pre_o,
     input  logic                      cmd_ready_i,
     output dram_op_e                  cmd_op_o,
     output logic [RKW-1:0]            cmd_rank_o,
@@ -223,6 +227,7 @@ module mc_cmd_arbiter
     logic [COL_WIDTH-1:0] r_col_out;
     logic                 r_ap_out;
     logic                 r_do_act, r_do_rd, r_do_wr, r_do_pre, r_grant;
+    logic                 r_do_to_pre;   // r_do_pre came from the timeout branch
     logic                 r_zq_grant;
     logic                 r_maint_grant;
     logic                 r_wr_commit, r_rd_issue;
@@ -1307,6 +1312,7 @@ module mc_cmd_arbiter
     logic            w_ap_out;
     logic            w_valid;
     logic            w_do_act, w_do_rd, w_do_wr, w_do_pre, w_grant;
+    logic            w_do_to_pre;
     logic            w_zq_grant;
     logic            w_maint_grant;
     logic            w_wr_commit, w_rd_issue;
@@ -1315,7 +1321,7 @@ module mc_cmd_arbiter
     always_comb begin
         w_op = OP_NOP; w_bank = '0; w_row = '0; w_col = '0; w_ap_out = 1'b0;
         w_valid = 1'b0;
-        w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0;
+        w_do_act = 1'b0; w_do_rd = 1'b0; w_do_wr = 1'b0; w_do_pre = 1'b0; w_do_to_pre = 1'b0;
         w_grant = 1'b0; w_zq_grant = 1'b0; w_maint_grant = 1'b0;
         w_wr_commit = 1'b0; w_rd_issue = 1'b0;
         w_commit_slot = '0; w_issue_slot = '0;
@@ -1404,7 +1410,7 @@ module mc_cmd_arbiter
                      && r_bank_pre_ready[RK0][timeout_pre_bank_i]
                      && !w_guarded[timeout_pre_bank_i]) begin
             w_valid = 1'b1; w_op = OP_PRE; w_bank = timeout_pre_bank_i;
-            w_do_pre = 1'b1;
+            w_do_pre = 1'b1; w_do_to_pre = 1'b1;
         end
     end
 
@@ -1418,7 +1424,7 @@ module mc_cmd_arbiter
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_pick_valid <= 1'b0;
-            r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0;
+            r_do_act <= 1'b0; r_do_rd <= 1'b0; r_do_wr <= 1'b0; r_do_pre <= 1'b0; r_do_to_pre <= 1'b0;
             r_grant  <= 1'b0; r_maint_grant <= 1'b0; r_zq_grant <= 1'b0; r_wr_commit <= 1'b0; r_rd_issue <= 1'b0;
             r_cmd_extra <= '0;
         end else if (w_out_ready) begin
@@ -1432,6 +1438,7 @@ module mc_cmd_arbiter
             r_do_rd       <= w_do_rd;
             r_do_wr       <= w_do_wr;
             r_do_pre      <= w_do_pre;
+            r_do_to_pre   <= w_do_to_pre;
             r_grant       <= w_grant;
             r_maint_grant <= w_maint_grant;
             r_zq_grant    <= w_zq_grant;
@@ -1469,6 +1476,7 @@ module mc_cmd_arbiter
     // REGISTERED !r_wr_full (no combinational path back to wr_valid, so no loop)
     // and pushes only on wr_valid && wr_ready.
     assign cmd_valid_o = r_pick_valid && w_out_safe;
+    assign cmd_timeout_pre_o = r_do_pre && r_do_to_pre;
     // CLOSE_ON_DRAIN: the fire-stage qualifier downgrades a candidate
     // auto-precharge to a plain column op when a same-row sibling is still
     // live in the pool -- the emitted op and the AP bit must follow the
