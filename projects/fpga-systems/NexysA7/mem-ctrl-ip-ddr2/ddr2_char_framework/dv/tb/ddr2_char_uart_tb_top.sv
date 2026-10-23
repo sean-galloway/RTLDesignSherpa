@@ -29,7 +29,7 @@ module ddr2_char_uart_tb_top
     // watch spacing at the pins -- where TASK-007's defects lived, and where
     // the scheduler-side checker is structurally blind.
     parameter int CMD_HISTORY_EN  = 0,
-    parameter int SCHED_CORE      = 1,    // -G from DV: pumice pick core, 1 = BANK_PICK, 0 = FRFCFS
+    parameter int SCHED_CORE      = 0,    // -G from DV: pumice pick core, 1 = BANK_PICK, 0 = FRFCFS
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,

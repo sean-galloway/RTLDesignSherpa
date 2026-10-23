@@ -98,6 +98,7 @@ arbiter's root); + the mask registered per source: -0.611, 156 (synthesis
 |---|---|---|---|
 | `PUMICE_SYS_75=1`, BANK_PICK, final text | `w_sys_i` 75 MHz | +0.077 | 0 / 77 093 (the text before the stale mask: +0.102, 0 / 77 028; Phase 2 text: -3.175, 122) |
 | `PUMICE_SYS_75=1`, BANK_PICK, follow-up text (second-cycle mask) | `w_sys_i` 75 MHz | +0.021 | 0 / 77 114 (hold +0.022, 0 failing) |
+| `PUMICE_SYS_75=1`, pumice on its new FR-FCFS default (owner's core assignment, same text otherwise) | `w_sys_i` 75 MHz | +0.068 | 0 / 85 665 (the research core is the larger one; the floor holds on both) |
 | `PUMICE_SYS_100=1`, BANK_PICK, follow-up text | `w_sys_i` 100 MHz | -2.716 | 2 553 / 77 114 (phase commit: -2.574, 3 463; hotspots read CAM 440, harness write engines 266 + 106 + 89 and W skid 252, read intake AR 133, the pick core 124, hist_rd 117 -- harness-dominated as before) |
 | `PUMICE_SYS_100=1`, BANK_PICK, final text | `w_sys_i` 100 MHz | -2.574 | 3 463 / 77 128 (the text before the stale mask: -2.537, 3 062 / 77 056; Phase 2 text: -6.672, 11 899; FRFCFS control: -2.555, 6 296). Hotspots: read CAM 442, write CAM 247, the pick core 238, bank timers ~100 each, then the harness (APB converter 140, generators, trace RAMs) |
 
@@ -211,6 +212,17 @@ engine block the day the register widens.
 
 ### 5.1 Controller x family x threads (owner's request, 2026-10-22)
 
+**Core assignment (owner, the same evening): granite, the product, carries
+the BANK_PICK core; pumice, the research controller, carries FR-FCFS.** The
+defaults flipped in `granite_core` / `pumice_core` and every pumice harness,
+sim top and proxy default followed; both cores stay selectable through
+`SCHED_CORE`. The table's main columns are those shipping defaults; the two
+cross-controls (pumice on BANK_PICK, granite on FR-FCFS) were measured the
+same day before the flip and are kept because they show the result is the
+CORE's, not the backend's: granite BANK_PICK and pumice BANK_PICK agree to
+within a few MB/s in every cell, and so do the two FR-FCFS columns from two
+threads up.
+
 All three controllers through the SAME injectors, observers and host
 program, in simulation: pumice and granite on their char-harness sim tops,
 LiteDRAM on `litedram_char_uart_tb_top` (the A/B flow's `char_engine_harness`
@@ -218,13 +230,12 @@ driving LiteX's `litedram_core_sim`: LiteDRAMCore + SDRAMPHYModel + VexRiscv
 BIOS; new this day, `test_litedram_char_perf.py`). Threads = generators per
 direction, one bank apart, write phase then read phase, AXI burst 8 beats of
 64 bits, txn 256 per generator, 75 MHz, board geometry (BL4 x16), peak 600
-MB/s; pumice BANK_PICK, granite FRFCFS, LiteDRAM as `litedram_hp.yml`
-(cmd_buffer_depth 16, ROW_BANK_COL, auto-precharge lookahead). Every cell is
-integrity-clean (0 mismatched beats, both engines completed). The LiteDRAM
-one-thread column sits within 1-2% of its 2026-09-10 board matrix at the
-same operating point (554 / 557 vs 554 / 564 incremental, 560 / 571 vs
-569 / 579 row_major, 275 / 280 vs 277 / 280 col_ilv, 302 / 382 vs 304 / 386
-col_major), which is the sim proxy's calibration against silicon.
+MB/s; LiteDRAM as `litedram_hp.yml` (cmd_buffer_depth 16, ROW_BANK_COL,
+auto-precharge lookahead). Every cell is integrity-clean (0 mismatched
+beats, both engines completed). The LiteDRAM one-thread column sits within
+1-2% of its 2026-09-10 board matrix at the same operating point (554 / 557
+vs 554 / 564 incremental, 302 / 382 vs 304 / 386 col_major), the sim
+proxy's calibration against silicon.
 
 Eight per direction needed the harness widened (pumice TASK-043, sim side):
 `chargen_regs.rdl` WR_GEN / RD_GEN arrays 4 -> 8 (the global block moved
@@ -235,52 +246,57 @@ BIOS (`flows-litedram-uart/regen.sh --bios`; three LiteX-venv patches,
 recorded in that flow's tooling notes).
 **1 thread per direction**
 
-| family | LiteDRAM | granite (FRFCFS) | pumice (BANK_PICK) |
-|---|---|---|---|
-| incremental | 554 / 557 | 551 / 556 | 568 / 563 |
-| row_major | 560 / 571 | 571 / 565 | 571 / 572 |
-| col_ilv | 275 / 280 | 308 / 350 | 458 / 455 |
-| col_major | 302 / 382 | 221 / 244 | 310 / 357 |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+|---|---|---|---|---|---|
+| incremental | 554 / 557 | 568 / 568 | 551 / 550 | 568 / 563 | 551 / 556 |
+| row_major | 560 / 571 | 576 / 572 | 564 / 565 | 571 / 572 | 571 / 565 |
+| col_ilv | 275 / 280 | 461 / 451 | 308 / 350 | 458 / 455 | 308 / 350 |
+| col_major | 302 / 382 | 311 / 358 | 195 / 194 | 310 / 357 | 221 / 244 |
 
 **2 threads per direction**
 
-| family | LiteDRAM | granite (FRFCFS) | pumice (BANK_PICK) |
-|---|---|---|---|
-| incremental | 408 / 416 | 310 / 355 | 572 / 566 |
-| row_major | 409 / 416 | 308 / 352 | 574 / 571 |
-| col_ilv | 376 / 380 | 398 / 436 | 508 / 506 |
-| col_major | 269 / 274 | 308 / 352 | 420 / 459 |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+|---|---|---|---|---|---|
+| incremental | 408 / 416 | 572 / 568 | 556 / 558 | 572 / 566 | 310 / 355 |
+| row_major | 409 / 416 | 570 / 571 | 565 / 565 | 574 / 571 | 308 / 352 |
+| col_ilv | 376 / 380 | 511 / 507 | 398 / 436 | 508 / 506 | 398 / 436 |
+| col_major | 269 / 274 | 420 / 459 | 266 / 289 | 420 / 459 | 308 / 352 |
 
 **4 threads per direction**
 
-| family | LiteDRAM | granite (FRFCFS) | pumice (BANK_PICK) |
-|---|---|---|---|
-| incremental | 402 / 410 | 306 / 354 | 567 / 568 |
-| row_major | 403 / 411 | 307 / 353 | 568 / 569 |
-| col_ilv | 366 / 373 | 307 / 353 | 536 / 534 |
-| col_major | 271 / 277 | 307 / 354 | 461 / 460 |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+|---|---|---|---|---|---|
+| incremental | 402 / 410 | 567 / 566 | 306 / 353 | 567 / 568 | 306 / 354 |
+| row_major | 403 / 411 | 570 / 568 | 307 / 353 | 568 / 569 | 307 / 353 |
+| col_ilv | 366 / 373 | 537 / 535 | 307 / 353 | 536 / 534 | 307 / 353 |
+| col_major | 271 / 277 | 461 / 460 | 307 / 353 | 461 / 460 | 307 / 354 |
 
 **8 threads per direction**
 
-| family | LiteDRAM | granite (FRFCFS) | pumice (BANK_PICK) |
-|---|---|---|---|
-| incremental | 391 / 399 | 307 / 354 | 557 / 556 |
-| row_major | 392 / 400 | 307 / 354 | 558 / 557 |
-| col_ilv | 375 / 381 | 307 / 354 | 538 / 529 |
-| col_major | 277 / 280 | 307 / 354 | 459 / 458 |
+| family | LiteDRAM | granite (BANK_PICK) | pumice (FR-FCFS) | control: pumice BANK_PICK | control: granite FR-FCFS |
+|---|---|---|---|---|---|
+| incremental | 391 / 399 | 557 / 555 | 307 / 354 | 557 / 556 | 307 / 354 |
+| row_major | 392 / 400 | 558 / 557 | 307 / 354 | 558 / 557 | 307 / 354 |
+| col_ilv | 375 / 381 | 538 / 532 | 307 / 354 | 538 / 529 | 307 / 354 |
+| col_major | 277 / 280 | 460 / 458 | 307 / 354 | 459 / 458 | 307 / 354 |
 
-Reading it: pumice holds 93-95% of peak on the streaming families at every
-thread count and climbs with threads on the bank-interleaving families
-(col_ilv 458 -> 538, col_major 310 -> 460: more banks in flight hide the row
-walks); its 8-thread streaming cells sit 10 MB/s under the 4-thread ones.
-LiteDRAM matches pumice at one thread on the streaming families and falls
-to ~400 / 410 from two threads up (its per-bank round-robin pays the
-read/write turnaround and the bank switches per request; same shape as the
-2026-09-10 concurrent board runs); its col_major is flat ~270-300 and its
-col_ilv ~375. Granite's FRFCFS core keeps its one-thread numbers and falls
-to ~307 / 354 on every family from two threads up -- the per-bank row
-thrash the BANK_PICK core removed in pumice, and the measured case for
-Phase 4 (granite `SCHED_CORE` flip).
+Reading it: the BANK_PICK core (granite) holds 93-95% of peak on the
+streaming families at every thread count and climbs with threads on the
+bank-interleaving families (col_ilv 461 -> 538, col_major 311 -> 460: more
+banks in flight hide the row walks); its 8-thread streaming cells sit 10
+MB/s under the 4-thread ones. The FR-FCFS core (pumice) matches it on
+streaming at one and two threads, then falls to ~307 / 354 on every family
+from four threads up -- the per-bank row thrash the BANK_PICK core removes
+-- and its single-thread col_major is the 195 / 194 of the Phase 0
+baseline (inter-row gap 17 against the JEDEC floor of 6 / 8). LiteDRAM
+matches both on streaming at one thread and falls to ~400 / 410 from two
+threads up (per-bank round-robin paying turnaround and bank switches per
+request); its col_major is flat ~270-300 and its col_ilv ~375. Gates on
+the new defaults: pumice `run-all-func-both` 216 passed / 1 skipped at both
+geometries; granite `run-all-func` 6 passed / 1 xfailed (the
+`top_geared[gate-8-12]` cell, whose DFI loopback model is order-coupled to
+the FR-FCFS interleave: it xpassed on FR-FCFS and fails as its marker says
+on a per-bank core; the board bench is its real check).
 
 ## 6. Left for later phases
 

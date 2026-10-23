@@ -52,7 +52,9 @@ module pumice_core
     // core on the storage plane's head records (recovery Phase 2, the family
     // design); FRFCFS = the research arbiter on the CAM per-entry vectors
     // (order modes, row/col selectors, QoS). DV overrides per test.
-    parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_BANK_PICK,
+    // Owner, 2026-10-22: pumice (research) carries the FR-FCFS core;
+    // granite (the product) carries BANK_PICK. Both stay selectable.
+    parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_FRFCFS,
     parameter bit CLOSE_ON_DRAIN = 1'b0, // BUG-027: AP-on-drain chops pumice's
                                          // open-page streams; product-only feature
     parameter int CMD_DELAY      = 0,    // command release delay (aclk); 0 = auto: 5 + 2*BURST_WORDS (WR data must lead)

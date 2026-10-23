@@ -317,7 +317,7 @@ module ddr2_char_top #(
 `ifdef PUMICE_SCHED_CORE
         .SCHED_CORE      (`PUMICE_SCHED_CORE),
 `else
-        .SCHED_CORE      (1),
+        .SCHED_CORE      (0),   // pumice is FR-FCFS (owner, 2026-10-22); BANK_PICK is granite's
 `endif
 `ifdef PUMICE_SYS_100
         .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)

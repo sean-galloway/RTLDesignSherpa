@@ -2208,9 +2208,11 @@ def test_pumice_core_refresh_credit(request):
 
 
 # FRFCFS research-core cells. The order modes, row/col selectors, access
-# preference and QoS are features of mc_cmd_arbiter; the default BANK_PICK core
-# (recovery Phase 2) does not implement them, so these cells build with
-# SCHED_CORE=0 to keep exercising the research core.
+# preference and QoS are features of mc_cmd_arbiter, which the BANK_PICK core
+# does not implement. pumice's default core is FR-FCFS again (owner,
+# 2026-10-22: pumice is the research controller and carries FR-FCFS; granite,
+# the product, carries BANK_PICK), so the pin below is redundant but kept: it
+# states the dependency where the cell is, and survives a default flip.
 _FRFCFS = {"SCHED_CORE": "0"}
 
 

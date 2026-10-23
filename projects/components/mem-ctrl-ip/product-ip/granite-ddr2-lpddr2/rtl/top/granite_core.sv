@@ -43,7 +43,9 @@ module granite_core
     // Scheduler pick core (mc_common_pkg MC_SCHED_*). BANK_PICK is the product
     // core on the per-bank head records (mem-ctrl recovery Phase 2); FRFCFS
     // is the research arbiter the product shipped on until then.
-    parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_FRFCFS,
+    // Owner, 2026-10-22: granite (the product) carries the BANK_PICK core;
+    // pumice (research) carries FR-FCFS. Both stay selectable.
+    parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_BANK_PICK,
 
     parameter int BYTE_OFFSET_WIDTH = $clog2(DRAM_DEVICE_WIDTH / 8),
     parameter int BL_SHIFT   = (DRAM_BEAT_WIDTH > DRAM_DEVICE_WIDTH)

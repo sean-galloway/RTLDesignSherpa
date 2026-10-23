@@ -828,7 +828,7 @@ def test_ddr2_char_perf(request):
     }
     params = {"FPGA_CLK_HZ": str(FPGA_CLK_HZ),
               # pumice pick core A/B: 1 = BANK_PICK (default), 0 = FRFCFS research core
-              "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "1"),
+              "SCHED_CORE": os.environ.get("TEST_SCHED_CORE", "0"),  # pumice is FR-FCFS (owner, 2026-10-22)
               # injectors per direction: the macro default (4) unless the run
               # asks for more (eight per direction is the owner's load point)
               "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),

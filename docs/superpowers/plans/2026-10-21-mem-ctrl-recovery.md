@@ -325,7 +325,10 @@ Gate: pumice `run-all-func` byte-identical (records are additive).
 ### Phase 2: `mc_bank_pick` on pumice (2-3 sessions, the hard one)
 
 **Status 2026-10-22: done** (one session). `mc_bank_pick` landed as the
-default pumice core (`SCHED_CORE`, FRFCFS kept for research); `mc_bank_sched`,
+default pumice core (`SCHED_CORE`, FRFCFS kept for research) -- **reversed
+the same evening by the owner: granite (product) carries BANK_PICK, pumice
+(research) carries FR-FCFS; both selectable, every harness / tb / proxy
+default follows** (Phase 3 report §5.1 has both cores on the same harness); `mc_bank_sched`,
 `BANK_FIFO`, `BANK_IN_ORDER` and the `*_bh_*` head-view ports retired. Beyond
 §2.2 the core needed three things to land dependent hops on the floor through
 a two-stage pipe: a one-cycle pop shadow (the record lags a pop), a next-op
@@ -451,6 +454,14 @@ taken from the `Clock ... WNS(ns)` table, never the headline line.
    plan's Task 5 skid if they still fail.
 
 ### Phase 4: the FIFO backend and the swap proof (2 sessions)
+
+**Status 2026-10-22 (owner ruling):** granite's `SCHED_CORE` default is
+BANK_PICK now, on its existing entry-store backend with the Phase 1 records
+-- the swap proof's "scheduler plane RTL identical between the two builds"
+holds by construction (same `mc_scheduler_plane`, one parameter). Gates and
+the 1/2/4/8-thread perf on that default are in the Phase 3 report §5.1; the
+FIFO backend (`mc_bank_fifo_store`) and the storage battery below remain
+this phase's work.
 
 1. `mc_bank_fifo_store` per §2.4 presenting the same records; granite_core
    composes it with the untouched scheduler plane.

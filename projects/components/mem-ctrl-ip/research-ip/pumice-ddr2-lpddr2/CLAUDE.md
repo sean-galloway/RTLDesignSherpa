@@ -69,9 +69,12 @@ equal streaming bandwidth. That is the deliberate research-controller trade.
 
 Two pick cores behind `pumice_core`'s `SCHED_CORE` parameter (mc_common_pkg
 `MC_SCHED_*`; the tb tops, `pumice_top_geared` and the ddr2_char harness
-forward it; the perf proxy takes `TEST_SCHED_CORE`):
+forward it; the perf proxy takes `TEST_SCHED_CORE`). **Owner ruling,
+2026-10-22: pumice (research) carries FR-FCFS by default; granite (the
+product) carries BANK_PICK.** The Phase 2 default of BANK_PICK on pumice
+lasted one day; every harness / tb / proxy default followed the flip.
 
-- **BANK_PICK (default since 2026-10-22, mem-ctrl recovery Phase 2):**
+- **BANK_PICK (`SCHED_CORE=1`; granite's default, selectable here):**
   `mc_bank_pick` on the storage plane's REGISTERED per-bank head records.
   Decode (per bank) -> round-robin arbiter -> fire, every stage fed by flops;
   `BANK_LA` = 2 = the pipe depth, so a request reaches the fire stage the
@@ -89,12 +92,15 @@ forward it; the perf proxy takes `TEST_SCHED_CORE`):
   idle-timeout close of another generator's row, 461 vs 567 MB/s with four
   generators per direction).
   The order modes / row-col selectors / QoS CSRs are no-ops on this core.
-- **FRFCFS (`SCHED_CORE=0`, research):** flat FR-FCFS arbiter with a
+- **FRFCFS (`SCHED_CORE=0`, pumice's DEFAULT):** flat FR-FCFS arbiter with a
   3-stage pick pipeline (STAGE-1a snapshot -> STAGE-1b arg_sel -> pre-pick
   -> output); select-to-fire is 4 registered stages. The pre-pick is in-order
   (speculative issue blocks the command behind it, [[BUG-002]]) and lookahead
   beyond select-to-fire is unactionable (the LA sweep saturates at 3). The
-  sched_order / paging_sched_cross / close_drain cells build this core.
+  sched_order / paging_sched_cross / close_drain cells pin this core
+  explicitly (redundant with the default, kept as the statement of the
+  dependency). Perf of the two cores on the same harness: Phase 3 report
+  §5.1 (pumice FR-FCFS vs granite BANK_PICK vs LiteDRAM, 1/2/4/8 threads).
 
 One plane-level trap both cores share: a signal that must mean "the command
 being granted" (the REFpb rotor mirror's `grant_was_pb_i`) has to come from

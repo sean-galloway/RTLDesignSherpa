@@ -45,7 +45,7 @@ module pumice_top_tb_top
 
     parameter int DFI_RATE         = 2,
 
-    parameter int SCHED_CORE     = 1,   // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS
+    parameter int SCHED_CORE     = 0,   // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS
     // DFI widths derive from the DRAM beat width (not AXI): the DFI carries
     // DRAM_BEAT_WIDTH * DFI_RATE bits/cycle regardless of host AXI width.
     parameter int DFI_DATA_WIDTH   = DRAM_BEAT_WIDTH * DFI_RATE,
