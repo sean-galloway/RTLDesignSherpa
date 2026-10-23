@@ -599,6 +599,146 @@ floor by 2.212 ns with the pick-cycle hints read from the pick comb; rebuilt
 from the pre-pick registers the floor holds at +0.001, 0 / 86 323, on the
 committed text (the thin positive margin is the design point).
 
+### 5.6 TASK-045: bank preparation -- the FR-FCFS core matches the per-bank core on the streams (2026-10-23)
+
+Owner, after 5.5: "Pumice is supposed to be the research uber performant
+model ... every vendor and many research papers say FR-FCFS is highest
+performing. So either our FR-FCFS design is broken or everyone is wrong",
+and, on the first answer, "your reasoning on why per bank is better on the
+existing traffic is flawed. In these cases FR-FCFS should match per bank."
+Correct on both counts. What follows was measured on the isolated core
+bench first (`dv/tests/top/test_pumice_core_bankprep.py`: pumice_core +
+the JEDEC-timed DFI slave, AXI BFMs, one 8-column row per burst hopping
+banks, every scheduler fire logged, 40 s a run, and a per-cycle arbiter
+trace that lists the same-row siblings the fire stage sees), then on the
+proxy. The bench is where the mechanisms were found; the proxy only sees
+bandwidth.
+
+**What was wrong, in command slots per 8-column row on the bank walk
+(col_interleave, one thread, writes):**
+
+| text | slots per row | ACT period | explicit PRE per row | read rows left open |
+|---|---|---|---|---|
+| TASK-044 (column-first) | 12: ACT, tRCD bubble, 8 columns, close, tRP bubble | 12 | 1 | -- |
+| row_first (`access_pref` 2) | 9 | 9 | 0 | 52 of 128 (reads) |
+| alternation, pre-pick held while a row class takes the slot | 9 wr / 11 rd | 9 / 11 | 0 / 115 | 115 of 128 |
+| alternation + close decided at the fire stage (SHIPPED, `access_pref` 0) | 9 / 9 | 9 / 9 | 0 / 0 | 0 |
+| column-first kept as `access_pref` 1 | 12 | 12 | 1 | -- |
+
+Column-first is textbook FR-FCFS and free exactly when the command bus has
+slack. At the board point (BL4 on x16, DFI 1:2, one command per cycle)
+one column per cycle fills the data bus AND the command slot, tCCD is 1,
+and every row command costs a column slot; column-first spent it after the
+run, with tRCD in the open. The per-bank core's alternation spends it
+inside the column's own dead time: after a column a ready row command (an
+ACT to an idle bank, the demand PRE of a drained one), after a row command
+columns, one class pending falls through. That is now the FR-FCFS default
+class priority (`mc_cmd_arbiter`, `r_last_was_col`); it never takes a
+column's ELIGIBLE slot, which is what row_first does (TASK-002's "one slot
+in five"), and at tCCD >= 2 it measures the same as column-first because
+the ACT already landed in the dead time. Column-first stays reachable as
+encoding 1 and is now a row of the paging-sched cross gate.
+
+**The trap it uncovered.** The close-on-drain candidate was the
+age-youngest same-row column, the last one only while columns issue
+strictly oldest-first. Once a row command can interpose, the column in the
+pre-pick drops back to classify (its slot is masked as in flight, so the
+STAGE-1b selection is already the next column) and re-issues behind its
+younger sibling: the candidate fires with a sibling in the window (demoted,
+correctly) and the true last column carries no flag -- 61 of 128 read rows
+stayed open and were closed by a demand PRE two slots later. Holding the
+pre-pick column made it worse (the refused 1b selection was masked all the
+same: 115 rows). The fix is the fire stage owning the close: a column with
+no same-(bank,row) entry anywhere in the live window, valid or pending,
+either direction, on a bank the page policy has armed, closes
+(`w_ap_last`; promote as well as demote; `cmd_op_o` follows). Handbook:
+`vault/handbook/design/dependent-hops-forward-the-pick.md`.
+
+**Also landed, measured inert on these shapes but kept as correct:** the
+page policy's idle-timeout veto counts a write allocated at AW whose data
+has not landed (`wr_sch_pend_i`) as demand for its row (`mc_scheduler_plane`
+FR-FCFS branch); drain-close arms on a demand precharge followed by an ACT
+to a different row as well as on a short row (`mc_page_policy`,
+`!r_to_closed`): 305 fewer explicit PREs per eight-thread run, bandwidth
+within 3 MB/s either way.
+
+**Perf proxy, board geometry, 75 MHz, txn 256, blen 8, wr / rd MB/s (BANK_PICK = granite, 5.1):**
+
+| threads | family | pumice TASK-044 | pumice TASK-045 | granite BANK_PICK |
+|---|---|---|---|---|
+| 1 | incremental | 560 / 559 | 564 / 559 | 568 / 568 |
+| 1 | row_major | 568 / 569 | 568 / 568 | 576 / 572 |
+| 1 | col_interleave | 383 / 457 | 458 / 501 | 461 / 451 |
+| 1 | col_major | 309 / 351 | 309 / 351 | 311 / 358 |
+| 8 | incremental | 510 / 538 | 539 / 560 | 557 / 555 |
+| 8 | row_major | 511 / 539 | 539 / 561 | 558 / 557 |
+| 8 | col_interleave | 469 / 508 | 516 / 537 | 538 / 532 |
+| 8 | col_major | 385 / 460 | 459 / 507 | 460 / 458 |
+
+Reads are at or above the per-bank core on every family and thread count
+(col_major eight threads 507 vs 458). Writes match at one thread (within
+1.4 percent) and trail by 3-4 percent at eight (539 vs 557, 516 vs 538).
+The eight-thread write residual is NOT the arbiter: on the incremental
+trace the FR-FCFS core issues 761 ACTs per 16 384 columns against the
+per-bank core's 523, each paired with a precharge, where the address walk
+needs one row per 2 048 columns -- the 2-cycle idle timer (`tr_init` 2,
+tuned on one thread, 5.2 / section 6) closing banks whose generator has
+nothing in the 16-entry window (eight generators, two bursts fit), and the
+per-bank core merely presenting fewer free slots to the timeout branch.
+Timer sweep at eight threads on this text: `tr_init` 8 is identical to 2 (539 / 560, 540 / 562, 516 / 538), `tr_init` 0 (timer
+off) gives 555 / 560, 556 / 561, 524 / 540, 458 / 507 -- the streaming writes
+land on the per-bank core's 557 / 558 and col_interleave closes to 524 vs
+538. So the FR-FCFS core matches at eight threads too once the idle close
+is not taking its free slots; what the default should be above one thread
+is the policy question already filed in section 6.
+
+**The family where the window matters (TASK-046, `mixed`):** generators
+paired on a bank one row apart, each row_major inside its row, reads and
+writes concurrent from one GO, read region pre-written so the data check
+holds (`perf_mixed_family.py`, shared by both proxies). Same harness,
+eight generators:
+
+| core | total MB/s | wr / rd | mean latency wr / rd (cycles) | mismatched |
+|---|---|---|---|---|
+| FR-FCFS (TASK-045 text) | 311.3 | 155.6 / 155.7 | 112 / 190 | 0 |
+| BANK_PICK | 81.9 | 41.0 / 41.0 | 687 / 423 | 0 |
+
+The per-bank head record is the oldest schedulable entry of the bank and
+the pair's bursts interleave in age, so it alternates the two rows on every
+column (PRE + ACT per column, ~15 cycles a column); the FR-FCFS core picks
+the oldest READY column across the window and a thread's eight same-row
+columns leave together. 3.8x. So the ruling stands on evidence now: the
+product core is the right one for streams and costs nothing there; the
+research core is the one that earns its window.
+
+**Gates on the final text:** pumice `make clean-all && make run-all-func-both`
+218 / 218 at both geometries (the bench is the 218th), the TASK-002 cross
+gate with column-first as its 11th scheduling row, the six BUG-027 cells
+and `test_pumice_close_drain` at both geometries, granite 6 / 1 xfailed,
+common-ip fub + macro 25 / 3 xfailed, formal `mc_cmd_arbiter` prove PASS
+(from clean), Verilator clean on pumice / scoria / andesite area lint,
+pumice CSR block regenerated (docs only changed). Board: the arbiter-only
+text built to -0.156 ns on w_sys_i (15 endpoints: 7 on the arbiter's
+r_rd_pop -> arg_sel -> r_bank path, 80 percent route, 8 on harness
+rd_engine paths that were clean before), LUT 42 842 / FF 33 956 against
+TASK-044's 42 822 / 33 985 (+0.001); the complete text -0.200 ns, 15 endpoints, bit-identical on a second build
+(the flow is deterministic; LUT 42 833 / FF 34 000). An out-of-context run at
+the board generics (same flow as 5.3) of the TASK-044 text and this text put
+the arbiter's `r_rd_pop -> r_bank` path at 20 LUT levels / 3.40 ns logic
+against 19 / 3.08 ns -- the new text did not deepen it; the loss was
+placement of a cone at the knife edge. The cure is a shorter cone: the pick
+comb's idle-timeout close branch now reads a guard built from the pre-pick
+and output-register shadows only (`w_guarded_to`), not the STAGE-1b
+selection of the same cycle (safe for that branch: an ACT is selected at 1b
+for an open bank only while it is closing, which a timeout target is not;
+a column or demand PRE for the named bank meets the closed row at its fire
+stage and is rejected there); refresh and ZQ drain guards keep the full
+vector. Every gate above re-run on that text with identical results (proxy
+numbers bit-identical). Board on the shipped text: +0.019 ns on w_sys_i, 0 / 108 344 failing endpoints (0 / 86 406 on the 75 MHz
+group), LUT 42 888 / FF 34 026, built text == committed text (md5 of the
+pumice_core filelist, 0 mismatches). The thin positive margin is the design
+point.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

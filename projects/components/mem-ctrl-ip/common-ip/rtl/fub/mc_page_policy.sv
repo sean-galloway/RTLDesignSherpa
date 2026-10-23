@@ -298,9 +298,20 @@ module mc_page_policy
                 // the last row disarms it. The bank's first ACT is no evidence
                 // either way (the reset value of r_last_row is not a row this
                 // bank opened). Column count restarts with every ACT.
+                // TASK-045, second evidence path: the last close of this bank
+                // was a DEMAND precharge (not the timer, not an auto-precharge:
+                // !r_to_closed) and the ACT opens a different row -- the bank
+                // was closed because another row was wanted, so its rows
+                // alternate under demand and the explicit PRE slot would have
+                // been an AP for free. Eight streaming generators drift on the
+                // W channel and meet in a bank one row apart; with only the
+                // short-row path the 256-column rows never armed, and the
+                // FR-FCFS core paid an explicit PRE per switch (758 per 16 384
+                // columns: 539 vs the per-bank core's 557 MB/s).
                 if (w_is_act && (int'(cmd_bank_i) == b)) begin
                     r_drain_arm[b] <= r_last_vld[b] && (cmd_row_i != r_last_row[b])
-                                      && (r_row_cols[b] <= COLCW'(DRAIN_ARM_MAX_COLS));
+                                      && ((r_row_cols[b] <= COLCW'(DRAIN_ARM_MAX_COLS))
+                                          || !r_to_closed[b]);
                     r_row_cols[b]  <= '0;
                 end else if (w_is_col && (int'(cmd_bank_i) == b)
                              && (r_row_cols[b] != {COLCW{1'b1}}))

@@ -295,7 +295,7 @@ Axis 1 (Rixner FR-FCFS variants). All fields 0 = build default.
 | 3:2 | `prio_sub` | 0x0 | rw | Priority sub-policy: 0=default, 1=none, 2=load_over_store, 3=age_boost |
 | 5:4 | `row_sel` | 0x0 | rw | Row-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending |
 | 7:6 | `col_sel` | 0x0 | rw | Column-arbiter select: 0=default(oldest), 1=most_pending, 2=fewest_pending |
-| 9:8 | `access_pref` | 0x0 | rw | Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first |
+| 9:8 | `access_pref` | 0x0 | rw | Address-arbiter class preference: 0=default (bank preparation: a ready row command follows a column, columns follow a row command -- TASK-045), 1=column_first (legacy), 2=row_first, 3=precharge_first |
 | 10:10 | `RSVD_10` | 0x0 | r | Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors) |
 | 11:11 | `qos_en` | 0x0 | rw | 1 = factor AxQOS into the pick (highest ready first, age tie-break) |
 | 15:12 | `RSVD_15_12` | 0x0 | r | Reserved |

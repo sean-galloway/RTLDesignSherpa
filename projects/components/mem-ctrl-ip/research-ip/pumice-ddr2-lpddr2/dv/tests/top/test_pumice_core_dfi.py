@@ -1918,9 +1918,10 @@ async def cocotb_test_pumice_core_perf_paging_sweep(dut):
                   len(rows), spread)
 
 
-# Axis-1 scheduling knobs (pumice_cmd_arbiter.sv:64-77). Each entry is one
-# NON-DEFAULT setting; encoding 0 is the build default, covered by the
-# "default" row. order_mode 2 is unused in the RTL (only 1 and 3 decode).
+# Axis-1 scheduling knobs (mc_cmd_arbiter). Each entry is one NON-DEFAULT
+# setting; encoding 0 is the build default, covered by the "default" row.
+# order_mode 2 is unused in the RTL (only 1 and 3 decode). access_pref 0 is
+# bank preparation since TASK-045; 1 is the old column_first order.
 _SCHED_SETTINGS = [
     ("default",        {}),
     ("order_in_order", {'sched_order_mode_i': 1}),
@@ -1929,6 +1930,7 @@ _SCHED_SETTINGS = [
     ("row_fewest",     {'sched_row_sel_i': 2}),
     ("col_most_pend",  {'sched_col_sel_i': 1}),
     ("col_fewest",     {'sched_col_sel_i': 2}),
+    ("pref_col_first", {'sched_access_pref_i': 1}),   # the pre-TASK-045 default
     ("pref_row_first", {'sched_access_pref_i': 2}),
     ("pref_pre_first", {'sched_access_pref_i': 3}),
     ("qos_en",         {'sched_qos_en_i': 1}),
@@ -1946,8 +1948,11 @@ async def cocotb_test_pumice_core_perf_paging_sched_cross(dut):
     for all paging programming. Then all paging and all scheduling."
 
     Every Axis-2 paging mode (8) crossed with every Axis-1 scheduling setting
-    (10 -- the build default plus each non-default value of order_mode,
-    row_sel, col_sel, access_pref and qos_en). Refresh parked, page-hit
+    (11 -- the build default plus each non-default value of order_mode,
+    row_sel, col_sel, access_pref and qos_en; access_pref 1, column_first,
+    is the pre-TASK-045 default and must stay at 100% like the default,
+    which now prepares banks -- a row command follows a column only inside
+    that column's tCCD, so no column loses its slot). Refresh parked, page-hit
     stream, writes only, AW+W back-to-back, 8-way bank rotation.
 
     Knobs are swept ONE AT A TIME against the default rather than as a full

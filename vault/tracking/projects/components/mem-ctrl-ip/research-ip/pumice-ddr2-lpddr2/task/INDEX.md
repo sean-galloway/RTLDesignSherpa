@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-045** — never recycle a number, even when its item closed.
+**Next ID: TASK-048** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,13 +12,20 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 35 | done (kept for history) |
+| [closed/](closed/) | 37 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
+
+- **TASK-047** — dual issue on DFI 1:2: a row command on the other phase of
+  the column's DFI word, so the ACT/PRE slot is free rather than well
+  placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
+  Design study done -- two output lanes, 2-wide command word, two bank-timer
+  events per cycle, columns on phase 1 (PHY re-alignment on the board).
+  Timing is the gate: the arbiter cone is the 75 MHz critical path.
 
 - **TASK-043** — ddr2_char harness: eight injectors per direction. The GO
   register's four start bits per direction cap `NUM_GEN` at 4
@@ -40,6 +47,23 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-046** — CLOSED 2026-10-23: perf-proxy family `mixed` where the
+  scheduling window matters (bank-paired threads one row apart, reads and
+  writes concurrent, read region pre-written; one module shared by the
+  pumice and granite proxies). Eight generators, same harness: FR-FCFS
+  311 MB/s total, BANK_PICK 82 -- the per-bank head record alternates the
+  two rows every column.
+
+- **TASK-045** — CLOSED 2026-10-23: FR-FCFS core bank preparation. The
+  default class priority alternates like the per-bank core (a ready row
+  command after a column, inside its tCCD; columns after a row command),
+  and the fire stage owns the close-on-drain (promote as well as demote,
+  from the live window). col_interleave 12 -> 9 slots per row both
+  directions; proxy one thread 383 / 457 -> 458 / 501, eight threads
+  reads at or above BANK_PICK on every family, writes within 3-4 percent
+  (the idle timer at eight threads, a policy default). Column-first kept
+  as `access_pref` 1 and added to the TASK-002 cross gate.
 
 - **TASK-044** — CLOSED 2026-10-23: the FR-FCFS core's dependent hops land
   on the JEDEC floor. col_major one thread 24 -> 13 / 15 cycles per row

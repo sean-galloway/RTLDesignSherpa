@@ -61,6 +61,7 @@ from TBClasses.harness.harness import UartSimHarness      # noqa: E402
 import ddr2_char as dc                                    # noqa: E402
 import pumice_char as pc                                  # noqa: E402
 import pumice_master as pm                                # noqa: E402
+import perf_mixed_family as pmf                           # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_granite_char_uart import (                      # noqa: E402,F401
@@ -243,6 +244,10 @@ async def cocotb_test_granite_perf(dut):
     dump_path = os.environ.get("PERF_DUMP", "")
 
     def measure_family(fam_key):
+        if fam_key == "mixed":
+            # no AR->R latency histogram on this proxy: report 0.0 for it
+            return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
+                               clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0)
         fam = _FAMILIES[fam_key]
         stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
                                                   burst_len=blen, txn_count=txn),

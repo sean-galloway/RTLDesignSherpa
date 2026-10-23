@@ -120,7 +120,10 @@ all gated on the command sink accepting the push:
    released at <= low_wm (high_wm = 0 disables — the default
    read-priority is bit-identical).
    `SCHED_POLICY.access_pref` reorders the demand-CLASS preference itself
-   (0/1 column_first = the legacy order, 2 row_first, 3 precharge_first);
+   (0 = bank preparation, the default since TASK-045: after a column a ready
+   row command takes the slot, after a row command columns -- the next
+   bank's ACT rides inside the current column run; 1 column_first = the
+   legacy order, 2 row_first, 3 precharge_first);
    the class is chosen from the possibly-narrowed per-class picks, then
    read-over-write applies within it.
    `SCHED_POLICY.row_sel/col_sel` further steer the SELECTION within the

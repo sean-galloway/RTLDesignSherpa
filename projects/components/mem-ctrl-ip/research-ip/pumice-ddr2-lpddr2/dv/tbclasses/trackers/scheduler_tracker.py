@@ -25,7 +25,7 @@ state, so a pick can be explained and not just observed.
 | `evt_pre_o`                      | `EVT_PRE`        | PRE issued (open-page row-miss)    |
 | `refresh_grant_o`                | `GRANT_REF`      | Arbiter granted refresh            |
 | `sched_order_mode_i` change      | `ORDER_<n>`      | 1 in_order, 3 age_threshold        |
-| `sched_access_pref_i` change     | `PREF_<n>`       | 2 row_first, 3 precharge_first     |
+| `sched_access_pref_i` change     | `PREF_<n>`       | 1 column_first, 2 row_first, 3 pre |
 | `sched_row_sel_i`/`col_sel` chg  | `ROWSEL_<n>` /   | 1 most_pending, 2 fewest_pending   |
 |                                  | `COLSEL_<n>`     |                                    |
 | `sched_prio_sub_i` change        | `PRIO_<n>`       | 1 none(fair), 3 age_boost          |
@@ -164,7 +164,7 @@ class SchedulerTracker:
             ('sched_order_mode_i',  'ORDER',
              {0: 'fr_fcfs', 1: 'in_order', 2: 'fr_fcfs', 3: 'age_threshold'}),
             ('sched_access_pref_i', 'PREF',
-             {0: 'column_first', 1: 'column_first', 2: 'row_first',
+             {0: 'bank_prep', 1: 'column_first', 2: 'row_first',
               3: 'precharge_first'}),
             ('sched_row_sel_i',     'ROWSEL',
              {0: 'oldest', 1: 'most_pending', 2: 'fewest_pending'}),

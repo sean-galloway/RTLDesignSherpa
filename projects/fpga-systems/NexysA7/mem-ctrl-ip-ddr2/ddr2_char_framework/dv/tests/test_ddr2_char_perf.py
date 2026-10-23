@@ -35,7 +35,12 @@ What this test ADDS over the granite proxy:
 
 Knobs: TEST_TREFI (585 = board), TEST_TXN (256), TEST_GAP (0), TEST_BURST_LEN
 (8), TEST_FAMILIES, TEST_NUM_GEN (1), TEST_TIMING_OVERRIDES (""), PERF_DUMP,
-PERF_CMD_TRACE, PERF_PICK_TRACE (per-cycle pick-core rows, _START/_N), TEST_SCHED_CORE (1 = BANK_PICK, 0 = FRFCFS). Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
+PERF_CMD_TRACE, PERF_PICK_TRACE (per-cycle pick-core rows, _START/_N),
+PERF_ARB_TRACE (per-cycle FR-FCFS arbiter rows to <PERF_DUMP>.arb.txt, _START/_N),
+TEST_ACCESS_PREF (SCHED_POLICY.access_pref, FR-FCFS core), TEST_SCHED_CORE
+(1 = BANK_PICK, 0 = FRFCFS). TEST_FAMILIES may include `mixed` (perf_mixed_family.py:
+bank-paired threads one row apart, reads and writes concurrent; needs TEST_NUM_GEN >= 2).
+Geometry defaults to the BOARD: rate-2 / 32b beat / x16 / BL4
 (TEST_DFI_RATE, TEST_DRAM_BEAT_BYTES, TEST_DRAM_DEVICE_BYTES, TEST_DRAM_BL).
 Skipped at TEST_LEVEL=GATE (a multi-minute run is not a gate check).
 """
@@ -66,7 +71,8 @@ for _p in (_HOST, _TBC):
 from TBClasses.harness.harness import UartSimHarness      # noqa: E402
 import ddr2_char as dc                                    # noqa: E402
 import pumice_char as pc                                  # noqa: E402
-import pumice_master as pm                                # noqa: E402
+import pumice_master as pm
+import perf_mixed_family as pmf                                # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Only the named helpers: importing the uart test's test_* functions would make
@@ -147,6 +153,66 @@ async def _pick_probe(dut, start, n):
             except Exception as e:  # noqa: BLE001
                 dut._log.info("PK c%d probe error %r", cyc, e)
         if cyc >= start + n:
+            return
+
+
+async def _arb_probe(dut, start, n):
+    """PERF_ARB_TRACE=1: the FR-FCFS core's per-cycle state for cycles
+    [start, start+n) (PERF_ARB_TRACE_START / _N), on the SAME cycle counter
+    as PERF_CMD_TRACE so a row from the fire log can be looked up here.
+    One row per cycle: output register (valid, op, bank) and whether it fires
+    and why not; the pre-pick registers per class with their banks; the
+    class the pick comb chose; the live ACT gate; the classify masks, the
+    schedulable / pending write entries and the bank image the classify
+    stage sees. Silent on the BANK_PICK core."""
+    try:
+        sp = _sched_plane(dut)
+        ar = sp.g_arbiter.u_arbiter
+    except AttributeError as e:
+        dut._log.info("PERF_ARB_TRACE: arbiter absent (%r)", e)
+        return
+
+    def v(sig):
+        try:
+            return int(sig.value)
+        except Exception:  # noqa: BLE001
+            return -1
+
+    # pytest -q swallows cocotb's stdout, so the rows ALSO go to a file beside
+    # the PERF_DUMP json (<dump>.arb.txt); without a dump path, to the log only.
+    dump = os.environ.get("PERF_DUMP", "")
+    fh = open(dump + ".arb.txt", "w") if dump else None
+    cyc = 0
+    while True:
+        await RisingEdge(dut.aclk)
+        await ReadOnly()
+        cyc += 1
+        if start <= cyc < start + n:
+            op = ("A" if v(ar.r_do_act) else "R" if v(ar.r_do_rd) else "W" if v(ar.r_do_wr)
+                  else "P" if v(ar.r_do_pre) else "-")
+            row = (
+                "AR c%d out=%d%s b%d fire=%d safe=%d hold=%d rdy=%d cmdrdy=%d wcr=%d | "
+                "pre: rc=%d wc=%d(b%d) ra=%d wa=%d(b%d r%d) rp=%d wp=%d cls=%d actg=%d | "
+                "m: wcol=%04x wact=%04x ract=%04x wpre=%04x q1a_wact=%04x | "
+                "wv=%04x wpend=%04x rv=%04x | rowact=%02x actrdy=%02x rdwrrdy=%02x prerdy=%02x "
+                "actguard=%02x apclos=%02x preclos=%02x actpick=%02x prepick=%02x drainok=%02x wrdrain=%d"
+            ) % (
+                cyc, v(ar.r_pick_valid), op, v(ar.r_bank), v(ar.w_fire_out), v(ar.w_out_safe),
+                v(ar.w_out_hold), v(ar.w_out_ready), v(ar.cmd_ready_i), v(ar.wr_commit_ready_i),
+                v(ar.rd_col_f), v(ar.wr_col_f), v(ar.wr_col_bank), v(ar.rd_act_f), v(ar.wr_act_f),
+                v(ar.wr_act_bank), v(ar.wr_act_row), v(ar.rd_pre_f), v(ar.wr_pre_f),
+                v(ar.w_pick_class), v(ar.w_act_gate_live),
+                v(ar.wr_col_m), v(ar.wr_act_m), v(ar.rd_act_m), v(ar.wr_pre_m), v(ar.r_wr_act_q),
+                v(ar.wr_sch_valid_i), v(ar.wr_sch_pend_i), v(ar.rd_sch_valid_i),
+                v(ar.bank_row_active_i), v(ar.bank_act_ready_i), v(ar.bank_rdwr_ready_i),
+                v(ar.bank_pre_ready_i), v(ar.w_act_guard), v(ar.r_ap_closing), v(ar.r_pre_closing),
+                v(ar.w_act_pick), v(ar.w_pre_pick), v(ar.drain_close_ok_i), v(ar.r_wr_drain))
+            dut._log.info("%s", row)
+            if fh:
+                fh.write(row + "\n")
+        if cyc >= start + n:
+            if fh:
+                fh.close()
             return
 
 
@@ -548,6 +614,10 @@ async def cocotb_test_pumice_perf(dut):
         return out
 
     def measure_family(fam_key):
+        if fam_key == "mixed":
+            return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
+                               clk_mhz=clk_mhz, hist_mean=_hist_mean_cycles, diag=diag,
+                               host_diag=_host_diag, always_diag=always_diag)
         fam = _FAMILIES[fam_key]
         stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
                                                   burst_len=blen, txn_count=txn),
@@ -646,6 +716,12 @@ async def cocotb_test_pumice_perf(dut):
         if tr_init:
             drv.set_page_timeout_cfg(tr_init=int(tr_init, 0))
             out["tr_init"] = int(tr_init, 0)
+        # TEST_ACCESS_PREF: SCHED_POLICY.access_pref (0 default, 1 column_first,
+        # 2 row_first, 3 precharge_first). FR-FCFS core only; BANK_PICK ignores it.
+        access_pref = os.environ.get("TEST_ACCESS_PREF", "")
+        if access_pref:
+            drv.set_sched_policy(access_pref=int(access_pref, 0))
+            out["access_pref"] = int(access_pref, 0)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
@@ -669,6 +745,9 @@ async def cocotb_test_pumice_perf(dut):
     tracing = os.environ.get("PERF_CMD_TRACE", "0") == "1"
     if tracing:
         cocotb.start_soon(_cmd_probe(dut, cmd_log))
+    if os.environ.get("PERF_ARB_TRACE", "0") == "1":
+        cocotb.start_soon(_arb_probe(dut, int(os.environ.get("PERF_ARB_TRACE_START", "400")),
+                                     int(os.environ.get("PERF_ARB_TRACE_N", "120"))))
     if os.environ.get("PERF_PICK_TRACE", "0") == "1":
         cocotb.start_soon(_pick_probe(dut, int(os.environ.get("PERF_PICK_TRACE_START", "400")),
                                       int(os.environ.get("PERF_PICK_TRACE_N", "120"))))
@@ -821,6 +900,9 @@ def test_ddr2_char_perf(request):
             "PERF_DUMP", os.path.join(log_dir, f"perf_dump_{tag}.json")),
         "PERF_CMD_TRACE": os.environ.get("PERF_CMD_TRACE", "0"),
         "PERF_CMD_TRACE_RAW": os.environ.get("PERF_CMD_TRACE_RAW", "0"),
+        "PERF_ARB_TRACE": os.environ.get("PERF_ARB_TRACE", "0"),
+        "PERF_ARB_TRACE_START": os.environ.get("PERF_ARB_TRACE_START", "400"),
+        "PERF_ARB_TRACE_N": os.environ.get("PERF_ARB_TRACE_N", "120"),
         "MISM_PROBE": os.environ.get("MISM_PROBE", "0"),
         "MEM_DUMP_ROWS": os.environ.get("MEM_DUMP_ROWS", "0"),
         "AXI_R_PROBE": os.environ.get("AXI_R_PROBE", "0"),
@@ -828,6 +910,7 @@ def test_ddr2_char_perf(request):
         "TEST_PAGE_POLICY": os.environ.get("TEST_PAGE_POLICY", ""),
         "TEST_PAGE_MODE": os.environ.get("TEST_PAGE_MODE", ""),
         "TEST_TR_INIT": os.environ.get("TEST_TR_INIT", ""),
+        "TEST_ACCESS_PREF": os.environ.get("TEST_ACCESS_PREF", ""),
         "TEST_TREFI": os.environ.get("TEST_TREFI", "585"),
         "TEST_TXN": os.environ.get("TEST_TXN", "256"),
         "TEST_GAP": os.environ.get("TEST_GAP", "0"),

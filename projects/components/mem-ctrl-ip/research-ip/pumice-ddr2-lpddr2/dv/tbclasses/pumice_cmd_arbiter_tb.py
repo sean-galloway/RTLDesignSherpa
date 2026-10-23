@@ -86,7 +86,7 @@ class PumiceCmdArbiterTB(TBBase):
         self.dut.sched_order_mode_i.value = 0   # FR-FCFS build default
         self.dut.sched_row_sel_i.value = 0      # oldest
         self.dut.sched_col_sel_i.value = 0      # oldest
-        self.dut.sched_access_pref_i.value = 0  # column_first
+        self.dut.sched_access_pref_i.value = 0  # bank_prep (default; 1 = column_first)
         self.dut.sched_wr_high_wm_i.value = 0   # write batching off
         self.dut.sched_wr_low_wm_i.value = 0
         self.dut.sched_prio_sub_i.value = 0     # load_over_store default

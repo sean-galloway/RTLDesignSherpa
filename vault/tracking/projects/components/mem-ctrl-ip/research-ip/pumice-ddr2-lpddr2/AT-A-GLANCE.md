@@ -258,8 +258,10 @@ which entries are candidates** — the ladder above is untouched:
 
 The overlays are independent and none of them is required:
 
-* `access_pref` — reorders the CLASSES, not the entries. `0/1 column_first`
-  is the default and is what makes the policy First-Ready; `2 row_first` puts
+* `access_pref` — reorders the CLASSES, not the entries. `0 bank_prep` is
+  the default since TASK-045 (after a column a ready row command, after a row
+  command columns: the next bank's ACT rides inside the current run);
+  `1 column_first` is the legacy order; `2 row_first` puts
   activates ahead of row hits (buys bank parallelism at the cost of row-hit
   throughput); `3 precharge_first` closes wrong rows eagerly.
 * `row_sel` / `col_sel` — change the pick *within* a stage from oldest to

@@ -56,7 +56,7 @@ applicability is `SCHED_POLICY` below.
 | `age_thresh`  | Both; age (MC cycles / 16) above which a reference is boosted, for `order_mode` 3 |
 | `prio_sub`    | Both; read-vs-write key within a class (load_over_store / none / age_boost) |
 | `row_sel` / `col_sel` | Both; most- / fewest-pending row and column selection            |
-| `access_pref` | Both; column_first (default), row_first, precharge_first             |
+| `access_pref` | Both; bank_prep (default), column_first, row_first, precharge_first  |
 | `qos_en`      | Both; makes AxQOS the outer pick key                                 |
 
 ### REFRESH_TUNING (0x048)

@@ -432,8 +432,12 @@ field so any policy combination is reachable. All commodity-legal.
   (latency-to-open-row vs bank parallelism). As built: the arbiter picks the demand
   CLASS first per the preference, then read-over-write within it; composes under the
   ORDER_MODE narrowing (the overlay narrows WHO is a candidate, access_pref reorders
-  WHICH CLASS of the survivors is served). 0/1 = column_first = the legacy chain order,
-  bit-identical.
+  WHICH CLASS of the survivors is served). 1 = column_first = the legacy chain order,
+  bit-identical. 0 = bank preparation (TASK-045, 2026-10-23): the classes alternate
+  as the per-bank core's do, so a ready ACT/PRE follows a column inside that column's
+  tCCD and the next bank is open when its columns arrive -- at the board geometry
+  (tCCD 1) column_first held every row command behind the stream and paid tRCD in
+  the open on every row switch (col_ilv 383 vs 455 MB/s one thread).
 - **`load_over_store` (`PRIO_SUB`; IMPLEMENTED 2026-08-27, `SCHED_POLICY.prio_sub`)** —
   reads outrank writes (the baseline); a 1-bit priority key protecting latency-critical
   reads. As built the field selects: 0/2 `load_over_store` (default, bit-identical),

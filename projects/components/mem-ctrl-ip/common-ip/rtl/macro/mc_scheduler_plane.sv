@@ -356,7 +356,16 @@ module mc_scheduler_plane
                 automatic logic [ROW_WIDTH-1:0] wrw = wr_sch_row_i[e*ROW_WIDTH +: ROW_WIDTH];
                 if (rd_sch_valid_i[e] && w_bank_row_active[0][rb] && (rr == w_bank_open_row[0][rb]))
                     w_open_row_demand[rb] = 1'b1;
-                if (wr_sch_valid_i[e] && w_bank_row_active[0][wb] && (wrw == w_bank_open_row[0][wb]))
+                // TASK-045: a write allocated at AW whose data has not landed
+                // (pend) is demand for its row as much as a landed one -- the
+                // columns arrive at the W rate. Counting only sch_valid left
+                // every bank "idle" for the beats between a generator's bursts
+                // at eight threads, the 2-cycle timer closed it, and the next
+                // column paid an ACT (+ the PRE slot): 761 ACTs per 16 384
+                // incremental columns on FR-FCFS against 523 on BANK_PICK,
+                // 539 vs 557 MB/s (perf proxy, 2026-10-23).
+                if ((wr_sch_valid_i[e] || wr_sch_pend_i[e]) && w_bank_row_active[0][wb]
+                    && (wrw == w_bank_open_row[0][wb]))
                     w_open_row_demand[wb] = 1'b1;
             end
         end

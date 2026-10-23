@@ -554,6 +554,22 @@ module mc_cmd_arbiter
     logic [NUM_BANKS-1:0] w_guarded;
     assign w_guarded = r_guard0 | r_guard1 | w_prepick_guard | w_col_inflight_guard
                      | w_if_preact_out | w_if_col_out;
+    // TASK-045 timing: the idle-timeout close branch of the pick comb reads a
+    // guard built from REGISTERED shadows only (pre-pick and output register,
+    // not the STAGE-1b selection of this cycle). With the 1b terms, the
+    // arbiter's r_rd_pop -> arg_sel -> shadow -> guard -> r_bank path was the
+    // board's critical path (-0.200 ns at 75 MHz, deterministic across two
+    // builds, 80 percent route). Dropping them is safe for this branch: an
+    // ACT can be selected at 1b for an OPEN bank only while that bank is
+    // closing (pclosing), which a timeout close of the same bank cannot be;
+    // a column or demand PRE selected at 1b for the bank the timer names
+    // would, at worst, meet a closed row at its fire stage and be rejected
+    // there (w_col_row_ok / pre_ready) -- a lost slot, not a hazard, and the
+    // page policy's open-row-demand veto already refuses such a bank a cycle
+    // earlier. The refresh / ZQ drain guards keep the full vector.
+    logic [NUM_BANKS-1:0] w_guarded_to;
+    assign w_guarded_to = r_guard0 | r_guard1 | w_if_preact_pre | w_if_col_pre
+                        | w_col_inflight_guard | w_if_preact_out | w_if_col_out;
 
     // DRAIN-PRE guard (refresh / ZQ all-banks-idle drains). Same as w_guarded
     // MINUS the pre-pick/Stage-1b shadow of a DEMAND PRE to the same bank.
@@ -669,9 +685,25 @@ module mc_cmd_arbiter
     // (row stays open, the sibling issues in order). The firing slot's own
     // row rides r_row, so columns must carry their row into the output
     // register (w_row in the pick comb below).
+    //
+    // TASK-045: the close is also PROMOTED here. The pre-pick's candidate is
+    // the age-YOUNGEST same-row column, which is the last one only while the
+    // column pick runs strictly oldest-first. Once a row command can take the
+    // output slot between two columns (bank preparation), the column that was
+    // in the pre-pick drops back to classify for a two-cycle round trip and
+    // re-issues behind its younger sibling -- so the candidate fires with a
+    // sibling still in the window (demoted, correctly) and the true last
+    // column arrives with no candidate flag. Measured on the bank-interleaved
+    // bench: 61 of 128 read rows left open, closed later by a demand PRE at
+    // +2 slots each. The fire stage knows the live answer: a column with no
+    // same-(bank,row) entry anywhere in the window -- valid or pending, either
+    // direction -- is the row's last visible demand, and when the page
+    // policy has armed the bank (drain_close_ok_i) it closes on it. Same
+    // predicate as the candidate (CLOSE_ON_DRAIN, the arming), evaluated once
+    // on the live pool instead of on an age-order proxy.
     always_comb begin
         w_ap_sibling = 1'b0;
-        if (r_pick_valid && (r_do_rd || r_do_wr) && r_ap_out) begin
+        if (r_pick_valid && (r_do_rd || r_do_wr)) begin
             for (int j = 0; j < NUM_ENTRIES; j++) begin
                 if ((rd_sch_valid_i[j] || rd_sch_pend_i[j])
                     && !(r_do_rd && (j == int'(r_issue_slot)))
@@ -686,7 +718,10 @@ module mc_cmd_arbiter
             end
         end
     end
-    assign w_ap_fire = r_ap_out && !w_ap_sibling;
+    logic w_ap_last;
+    assign w_ap_last = CLOSE_ON_DRAIN && drain_close_ok_i[r_bank];
+    assign w_ap_fire = r_pick_valid && (r_do_rd || r_do_wr)
+                     && (r_ap_out || w_ap_last) && !w_ap_sibling;
 
     // ---- unified rd/wr prospect pool (2N entries) ----------------------------
     localparam int POOL = 2*NUM_ENTRIES;
@@ -1352,6 +1387,25 @@ module mc_cmd_arbiter
                       && !rd_sch_age_exceed_i[rd_pre_s]);
     end
 
+    // ---- class priority ------------------------------------------------------
+    // access_pref 0 (default, TASK-045): BANK PREPARATION. The classes
+    // alternate the way mc_bank_pick's do -- after a column, a ready row
+    // command (an ACT to an idle bank, the demand PRE of a drained one) takes
+    // the slot; after a row command, columns. With one class pending the other
+    // falls through, so a single-bank stream is untouched. Column-first
+    // (encoding 1, the pre-TASK-045 default) held every ACT behind the column
+    // stream: at the board geometry one column per cycle saturates the command
+    // slot as well as the data bus, so the next bank's ACT waited for the run
+    // to end and tRCD was then paid in the open -- 12 command slots per
+    // 8-column row on col_ilv against the 9 (8 columns + the ACT) a prepared
+    // bank needs; measured 383 vs 455 MB/s one thread, 469 vs 502 eight
+    // threads (perf proxy, 2026-10-23). At the default geometry (tCCD 4) the
+    // ACT already landed in the column's dead time and the two encodings
+    // measure the same. A row command never takes a column's ELIGIBLE slot:
+    // it follows the column that just fired, inside that column's tCCD, which
+    // is what row_first (2) gets wrong ("one slot in five", TASK-002).
+    // 2 = row_first, 3 = precharge_first: fixed orders, characterized (TASK-002).
+    logic r_last_was_col;   // the output register last accepted a column pick
     logic w_c_col, w_c_act, w_c_pre;
     pick_class_e w_pick_class;
     always_comb begin
@@ -1359,13 +1413,18 @@ module mc_cmd_arbiter
         w_c_act = (rd_act_f || wr_act_f) && w_act_gate_live;
         w_c_pre = rd_pre_f || wr_pre_f;
         unique case (sched_access_pref_i)
+            2'd1:    w_pick_class = w_c_col ? CL_COL
+                                  : w_c_act ? CL_ACT
+                                  : w_c_pre ? CL_PRE : CL_NONE;
             2'd2:    w_pick_class = w_c_act ? CL_ACT
                                   : w_c_col ? CL_COL
                                   : w_c_pre ? CL_PRE : CL_NONE;
             2'd3:    w_pick_class = w_c_pre ? CL_PRE
                                   : w_c_col ? CL_COL
                                   : w_c_act ? CL_ACT : CL_NONE;
-            default: w_pick_class = w_c_col ? CL_COL
+            default: w_pick_class = (r_last_was_col && w_c_act) ? CL_ACT
+                                  : (r_last_was_col && w_c_pre) ? CL_PRE
+                                  : w_c_col ? CL_COL
                                   : w_c_act ? CL_ACT
                                   : w_c_pre ? CL_PRE : CL_NONE;
         endcase
@@ -1551,7 +1610,7 @@ module mc_cmd_arbiter
         end else if (timeout_pre_req_i
                      && r_bank_row_active[RK0][timeout_pre_bank_i]
                      && r_bank_pre_ready[RK0][timeout_pre_bank_i]
-                     && !w_guarded[timeout_pre_bank_i]) begin
+                     && !w_guarded_to[timeout_pre_bank_i]) begin
             w_valid = 1'b1; w_op = OP_PRE; w_bank = timeout_pre_bank_i;
             w_do_pre = 1'b1; w_do_to_pre = 1'b1;
         end
@@ -1588,6 +1647,15 @@ module mc_cmd_arbiter
         if (`RST_ASSERTED(aresetn)) r_dir_rr <= 1'b0;
         else if (w_fire_out && (r_do_rd || r_do_wr || r_do_act || r_do_pre))
             r_dir_rr <= ~r_dir_rr;
+    )
+
+    // TASK-045 alternation state: what the output register last ACCEPTED (a
+    // held pick repeats its classification, so acceptance, not fire, is the
+    // event). Refresh / maintenance grants leave it alone.
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn)) r_last_was_col <= 1'b0;
+        else if (w_out_ready && w_valid && (w_do_rd || w_do_wr || w_do_act || w_do_pre))
+            r_last_was_col <= (w_do_rd || w_do_wr);
     )
 
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -1650,8 +1718,8 @@ module mc_cmd_arbiter
     // auto-precharge to a plain column op when a same-row sibling is still
     // live in the pool -- the emitted op and the AP bit must follow the
     // QUALIFIED decision, never the registered candidate.
-    assign cmd_op_o    = (r_do_rd && !w_ap_fire) ? OP_RD
-                        : (r_do_wr && !w_ap_fire) ? OP_WR : r_op;
+    assign cmd_op_o    = r_do_rd ? (w_ap_fire ? OP_RDA : OP_RD)
+                       : r_do_wr ? (w_ap_fire ? OP_WRA : OP_WR) : r_op;
     assign cmd_rank_o  = RKW'(RK0);
     assign cmd_bank_o  = r_bank;
     assign cmd_row_o   = r_row;

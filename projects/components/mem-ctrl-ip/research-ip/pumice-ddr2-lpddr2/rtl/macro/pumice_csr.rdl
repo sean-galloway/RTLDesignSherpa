@@ -666,7 +666,7 @@ addrmap pumice_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first";
+            desc = "Address-arbiter class preference. 0=default: BANK PREPARATION -- the classes alternate as mc_bank_pick's do (after a column a ready row command takes the slot: an ACT to an idle bank, the demand PRE of a drained one; after a row command, columns; with one class pending the other falls through), so the next bank's ACT rides inside the current column run and tRCD is hidden. TASK-045, 2026-10-23: the research core's col_major_interleaved went 383 -> 455 MB/s one thread, 469 -> 502 eight threads (FR-FCFS core, perf proxy). 1=column_first: the pre-TASK-045 default, every row command behind the column stream (identical to 0 at tCCD >= 2, where the ACT already lands in the column's dead time). 2=row_first, 3=precharge_first: fixed class orders (TASK-002). FR-FCFS core only; BANK_PICK ignores the field.";
         } access_pref[9:8] = 2'h0;
 
         field { sw = r; hw = na; desc = "Reserved (was auto_precharge_en, never consumed: auto-precharge is driven by PAGE_POLICY_CFG.policy_mode -- static_close and the modes 5..7 predictors)"; } RSVD_10[10:10] = 1'b0;

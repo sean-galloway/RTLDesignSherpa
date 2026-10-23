@@ -80,6 +80,53 @@ different row arms it, one reopened by the same row disarms it
 (`drain_close_ok_o`). A closing decision belongs to the policy that owns
 the evidence, not to the arbiter's view of its window.
 
+## Bank preparation: the row command rides inside the column's dead time (TASK-045)
+
+Column-first class priority is the textbook FR-FCFS order, and it is free
+exactly when the command bus has slack: a burst occupies several command
+slots, the next column is eligible only every tCCD, and a ready ACT or PRE
+for another bank fits in the slots between. At the board geometry (BL4 on
+x16 over DFI 1:2, one command per 75 MHz cycle) one column per cycle fills
+the data bus AND the command slot, tCCD is 1, and column-first holds every
+row command behind the stream: the next bank's ACT waited for the run to
+end and tRCD was paid in the open on every row switch. Measured on the
+bank-interleaved family: 12 command slots per 8-column row (ACT, tRCD
+bubble, 8 columns, close, tRP bubble) against the 9 a prepared bank needs;
+383 vs 455 MB/s one thread, 469 vs 502 eight threads.
+
+The rule that fixes it is the per-bank core's alternation, not row_first:
+after a column, a ready row command takes the slot; after a row command,
+columns; with one class pending the other falls through. A row command
+then follows the column that just fired, inside that column's own tCCD, so
+no column ever loses its ELIGIBLE slot -- which is what row_first does
+("one slot in five", TASK-002, the ACT lands on the cycle the next column
+becomes eligible). At tCCD >= 2 the alternation and column-first measure
+the same, because the ACT was already landing in the dead time.
+
+**The trap underneath it.** The close-on-drain candidate was the
+age-YOUNGEST same-row column, which is the last one only while the column
+pick runs strictly oldest-first. Once a row command can interpose, the
+column sitting in the pre-pick register is not consumed; its slot is masked
+as in flight at classify, so the STAGE-1b selection is already the next
+column, and the reload drops the held one back to classify for a two-cycle
+round trip. It re-issues behind its younger sibling: the candidate fires
+with a sibling still in the window (correctly demoted) and the true last
+column carries no flag. 61 of 128 read rows stayed open and were closed by
+a demand PRE two slots later. Holding the pre-pick column did NOT fix it:
+the 1b selection it refused was masked all the same, so the hole moved one
+stage up (115 rows). What fixed it was letting the fire stage OWN the
+close: a column with no same-(bank,row) entry anywhere in the live window,
+valid or pending, either direction, on a bank the page policy has armed,
+closes -- the same predicate the candidate approximated, evaluated once
+where the live data is (`w_ap_last`, promote as well as demote). A proxy
+for a live predicate is only as good as the ordering assumption under it.
+
+Checked on the isolated core bench (`test_pumice_core_bankprep.py`, 40 s a
+run, cycles per row and explicit PREs per phase, plus a per-cycle arbiter
+trace that lists the same-row siblings the fire stage sees), then on the
+proxy. The bench, not the proxy, is where the mechanism was found: the
+proxy run is seven minutes and sees bandwidth; the bench sees the slot.
+
 ## How to check a design against it
 
 1. Trace fires, not bandwidth: a histogram of fire-to-fire gaps per command
@@ -91,6 +138,11 @@ the evidence, not to the arbiter's view of its window.
    "when the image shows it", the hop pays the image lag.
 3. Every speculation needs its fire-stage check and its drop path named;
    every hold needs a bound (which timer, how many cycles).
+4. Any "last of" / "youngest" proxy used to make an irreversible decision
+   (an auto-precharge, a drain) needs the live predicate at the fire stage
+   too, in BOTH directions -- and a bench short enough to run the proxy's
+   assumption into the ground (here: a row command interposing between two
+   columns of one row).
 
 Related: [[plane-boundary-registered-snapshots]] (why the image is
 registered in the first place), [[priority-logic-depth]],

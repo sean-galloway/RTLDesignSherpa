@@ -832,7 +832,7 @@ request. All hw-readable so they drive the controller core.</p>
 
 #### access_pref field
 
-<p>Address-arbiter class preference: 0=default, 1=column_first, 2=row_first, 3=precharge_first</p>
+<p>Address-arbiter class preference. 0=default: BANK PREPARATION -- the classes alternate as mc_bank_pick's do (after a column a ready row command takes the slot: an ACT to an idle bank, the demand PRE of a drained one; after a row command, columns; with one class pending the other falls through), so the next bank's ACT rides inside the current column run and tRCD is hidden. TASK-045, 2026-10-23: the research core's col_major_interleaved went 383 -&gt; 455 MB/s one thread, 469 -&gt; 502 eight threads (FR-FCFS core, perf proxy). 1=column_first: the pre-TASK-045 default, every row command behind the column stream (identical to 0 at tCCD &gt;= 2, where the ACT already lands in the column's dead time). 2=row_first, 3=precharge_first: fixed class orders (TASK-002). FR-FCFS core only; BANK_PICK ignores the field.</p>
 
 #### RSVD_10 field
 

@@ -110,18 +110,30 @@ lasted one day; every harness / tb / proxy default followed the flip.
   command being PICKED this cycle, not the registered bank image, and the
   fire stage is the only JEDEC authority (live row match for columns,
   bounded holds for tRCD / tRP / tRC / an AP drain) -- TASK-044, which
-  took col_major from 24 to 13 / 15 cycles per row (the floor). Close-on-
-  drain (`CLOSE_ON_DRAIN`, default 1 again) is EXACT (a pending same-row
-  write counts as demand; BUG-027 was the "youngest schedulable" rule) and
-  ARMED PER BANK by the page policy's predictor (`drain_close_ok_o`): a
-  bank whose ACTs change rows closes on its last visible column, a bank
-  whose closed row gets reopened stays open; nothing arms outside the
-  fixed_open timer mode, and a bank's first ACT is no evidence. The
+  took col_major from 24 to 13 / 15 cycles per row (the floor). The class
+  priority PREPARES BANKS (TASK-045, `access_pref` 0): after a column a
+  ready row command takes the slot, inside that column's tCCD, after a row
+  command columns -- the next bank's ACT rides inside the current run
+  (col_interleave 12 -> 9 slots per row; `access_pref` 1 is the old
+  column-first, 2 row_first, 3 precharge_first). Close-on-drain
+  (`CLOSE_ON_DRAIN`, default 1 again) is decided AT THE FIRE STAGE from the
+  live window (`w_ap_last`: no same-row entry anywhere, valid or pending,
+  either direction -- promote as well as demote; the pre-pick's
+  age-youngest candidate is only a hint, and was wrong whenever a row
+  command interposed) and ARMED PER BANK by the page policy's predictor
+  (`drain_close_ok_o`): a bank whose ACTs change rows after a short row or
+  after a demand precharge closes on its last visible column, a bank whose
+  closed row gets reopened stays open; nothing arms outside the fixed_open
+  timer mode, and a bank's first ACT is no evidence. The
   sched_order / paging_sched_cross / close_drain cells pin this core
   explicitly (redundant with the default, kept as the statement of the
   dependency). Perf of the two cores on the same harness: Phase 3 report
   §5.1 / §5.5 (pumice FR-FCFS vs granite BANK_PICK vs LiteDRAM, 1/2/4/8
-  threads). Design note: `vault/handbook/design/dependent-hops-forward-the-pick.md`.
+  threads); section 5.6 has TASK-045 and the `mixed` family where the
+  window matters (FR-FCFS 311 MB/s vs BANK_PICK 82 at eight generators).
+  Isolated bench for the pick core: `dv/tests/top/test_pumice_core_bankprep.py`
+  (40 s; cycles per row, explicit PREs, per-cycle arbiter trace with the
+  fire-stage siblings). Design note: `vault/handbook/design/dependent-hops-forward-the-pick.md`.
 
 One plane-level trap both cores share: a signal that must mean "the command
 being granted" (the REFpb rotor mirror's `grant_was_pb_i`) has to come from
