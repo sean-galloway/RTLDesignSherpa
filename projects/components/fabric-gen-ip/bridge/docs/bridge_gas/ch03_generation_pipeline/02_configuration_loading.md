@@ -56,7 +56,8 @@ The loader builds a dictionary `connectivity[master_name] = set(slave_names)`.
 - `slaves`: list of `PortSpec` (direction="slave")
 - `connectivity`: dict mapping master names to sets of slave names
 - bridge-level fields such as `variants`, `xbar_pipeline`, `arbitration`, `mon_preset`, `use_cfg_regblock`, `mon_group`
-- per-port defaults resolved from `[bridge]` into each `PortSpec`: `max_outstanding` (power of two 2..64) and, on masters, `rate_buffer` (0 or 2..256 wide beats; the generator uses it only on upsized paths into shared slaves)
+- per-port defaults resolved from `[bridge]` into each `PortSpec`: `max_outstanding` (power of two 2..64) and, on masters, `rate_buffer` (0 or 2..256 wide beats; the generator uses it only on upsized paths into shared slaves) and `id_remap`
+- a `[bridge].preset` (`_PRESETS`; only `"xbar"` today) changes the defaults those resolve from -- `latency`, `rate_buffer`, `id_remap` -- before any port is read; an explicit key still wins
 
 The subtractive catch-all slave is **not** added by the loader; `BridgeModuleGenerator` appends it internally during emission.
 

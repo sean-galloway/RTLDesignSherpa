@@ -1,0 +1,67 @@
+# Bridge Configuration: bridge_2x2_rw_xbar -- bridge_2x2_rw as a plain
+# crossbar: preset = "xbar" and nothing else. No port sets latency,
+# rate_buffer or id_remap, so every value below comes from the preset:
+# no registered stage at any port, no rate buffer, no ID remap. The 8-bit
+# master IDs reach the slaves whole, as {master index, ID}: 9 bits.
+# test_bridge_2x2_rw_xbar_preset measures zero cycles master to slave on
+# every channel and checks the IDs at the slaves.
+#
+# Port definitions only - connectivity comes from bridge_2x2_rw_xbar_connectivity.csv
+
+[bridge]
+name = "bridge_2x2_rw_xbar"
+variants = ["no"]
+description = "bridge_2x2_rw as a plain crossbar (preset = xbar)"
+preset = "xbar"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 8  # wider than a 4-bit slot, but the preset keeps it whole
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[bridge.masters.interface]
+type = "axi4_master"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 8
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[bridge.masters.interface]
+type = "axi4_master"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 9  # {1 master-index bit, 8-bit master ID}: no remap slot
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+
+[bridge.slaves.interface]
+type = "axi4_slave"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 9
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB
+
+[bridge.slaves.interface]
+type = "axi4_slave"

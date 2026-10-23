@@ -141,14 +141,17 @@ def _skid_depths(base, override, config_path, where):
     return out
 
 
-def _port_timing(p, protocol, cdc, base_depths, config_path, where):
+def _port_timing(p, protocol, cdc, base_depths, config_path, where, default='cut_all'):
     """Resolve (latency, skid_depths) for one port.
 
     latency cuts stages only on a plain AXI4/AXI5 port: there the timing
     wrapper is the whole port boundary. A converted port (axil/apb/wb4/axi3)
     or a CDC port has buffers of its own the mode does not reach, so it is
-    rejected there rather than half-applied."""
-    latency = p.get('latency', 'cut_all')
+    rejected there rather than half-applied. `default` is the preset's mode
+    (see _PRESETS); it applies only where a mode is legal, and a converted or
+    CDC port keeps cut_all."""
+    plain = protocol in ('axi4', 'axi5') and not cdc
+    latency = p.get('latency', default if plain else 'cut_all')
     if latency not in _LATENCY_MODES:
         raise ValueError(f"{config_path}: {where} latency must be one of "
                          f"{', '.join(_LATENCY_MODES)}, got {latency!r}")
@@ -181,6 +184,35 @@ def _max_outstanding(value, config_path, where) -> int:
 
 
 _RATE_BUFFER_RANGE = (2, 256)
+
+# [bridge].preset: a named set of bridge-wide defaults. Every key it sets is
+# only a default -- a [bridge] key of the same name, or a port's own key,
+# still wins. "xbar" is the plain crossbar: no registered stage at any
+# same-clock AXI4/AXI5 port (converted and CDC ports keep their buffers),
+# no rate-matching buffer, and no ID remap, so an ID reaches the slave as
+# {master index, the master's own ID}. Measured on bridge_2x2_rw_xbar: zero
+# cycles master to slave on all four channels.
+_PRESETS = {
+    'xbar': {'latency': 'cut_none', 'rate_buffer': 0, 'id_remap': False},
+}
+
+
+def _preset(bridge_data, config_path) -> Dict:
+    """The [bridge].preset defaults ({} when no preset is named)."""
+    name = (bridge_data or {}).get('preset')
+    if name is None:
+        return {}
+    if name not in _PRESETS:
+        raise ValueError(f"{config_path}: [bridge] preset must be one of "
+                         f"{', '.join(sorted(_PRESETS))}, got {name!r}")
+    return dict(_PRESETS[name])
+
+
+def _bool_key(value, config_path, where, key) -> bool:
+    """A TOML boolean; a string or a number is a config error, not truthy."""
+    if not isinstance(value, bool):
+        raise ValueError(f"{config_path}: {where} {key} must be true or false, got {value!r}")
+    return value
 
 
 def _rate_buffer(value, config_path, where) -> int:
@@ -215,8 +247,12 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     bridge_data = data.get('bridge')
     _mo_default = _max_outstanding(
         (bridge_data or {}).get('max_outstanding', 16), config_path, '[bridge]')
+    _ps = _preset(bridge_data, config_path)
     _rb_default = _rate_buffer(
-        (bridge_data or {}).get('rate_buffer', 16), config_path, '[bridge]')
+        (bridge_data or {}).get('rate_buffer', _ps.get('rate_buffer', 16)), config_path, '[bridge]')
+    _rm_default = _bool_key((bridge_data or {}).get('id_remap', _ps.get('id_remap', True)),
+                            config_path, '[bridge]', 'id_remap')
+    _lat_default = _ps.get('latency', 'cut_all')
     from .config import _DEFAULT_SKID_DEPTHS
     _skid_base = _skid_depths(_DEFAULT_SKID_DEPTHS,
                               ((bridge_data or {}).get('defaults') or {}).get('skid_depths'),
@@ -226,6 +262,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
 
     bridge_name = bridge_data.get('name', 'unnamed_bridge')
     print(f"  Bridge: {bridge_name}")
+    if _ps:
+        print(f"  preset: {bridge_data['preset']} ({', '.join(f'{k}={v}' for k, v in _ps.items())})")
 
     # variants is a MANDATORY top-level list -- the user has to
     # consciously pick which monitor variants to emit; missing the
@@ -327,9 +365,12 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
                 m.get('max_outstanding', _mo_default), config_path, f"master '{port_name}'"),
             rate_buffer=_rate_buffer(
                 m.get('rate_buffer', _rb_default), config_path, f"master '{port_name}'"),
+            id_remap=_bool_key(m.get('id_remap', _rm_default), config_path,
+                               f"master '{port_name}'", 'id_remap'),
         )
         port.latency, port.skid_depths = _port_timing(
-            m, protocol, port.cdc, _skid_base, config_path, f"master '{port_name}'")
+            m, protocol, port.cdc, _skid_base, config_path, f"master '{port_name}'",
+            _lat_default)
 
         masters.append(port)
         channels_str = f"[{channels.upper()}]" if channels != 'rw' else ""
@@ -393,7 +434,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
                 f"(must be 'rw', 'rd', or 'wr')")
 
         s_latency, s_depths = _port_timing(s, protocol, bool(s.get('cdc', False)), _skid_base,
-                                           config_path, f"slave '{port_name}'")
+                                           config_path, f"slave '{port_name}'", _lat_default)
         port = PortSpec(
             port_name=port_name,
             direction='slave',

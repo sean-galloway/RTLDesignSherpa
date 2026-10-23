@@ -904,6 +904,8 @@ by level.
 
 **Hand-written**: bridge BUG-009 (was BRIDGE-011) tracking + latency on 2x2;
 per-port latency modes (`test_bridge_2x2_rw_lat_modes.py`, GitHub #119 L7);
+the plain-crossbar preset (`test_bridge_2x2_rw_xbar_preset.py`: 0 cycles,
+whole IDs);
 atomic/trace ports with several targets (`test_bridge_1x2_rw_axi5a_multitarget.py`, L1b);
 configurable outstanding limits (`test_bridge_2x2_rw_depth_limits.py`, GitHub
 #119 L5);
@@ -952,6 +954,9 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
 - Crossbar options: `xbar_pipeline = true` (registered slave-side channels --
   needed on the Artix-7 at 100 MHz beyond a plain 2x2, HAS 6.4) and
   `arbitration = "qos"` with `qos_aging_shift` (HAS 6.8a)
+- Plain crossbar: `preset = "xbar"` -- every same-clock AXI4/AXI5 port
+  `cut_none`, `rate_buffer = 0`, `id_remap = false` (IDs whole at the
+  slaves, `{index, ID}`). Defaults only; explicit keys win. HAS 6.2
 - Out-of-context synthesis of any fixture: `projects/components/fabric-gen-ip/bridge/fpga/`
   (`make synth BRIDGE=<fixture> PART=<part> CLK_NS=<ns>`), measured tables in
   HAS 5.3

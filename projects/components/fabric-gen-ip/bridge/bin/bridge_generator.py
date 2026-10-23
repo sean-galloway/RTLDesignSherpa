@@ -818,6 +818,7 @@ def _emit_bridge_variant(
             mon_enables=master_spec.get_mon_enables(config.mon_preset),
             max_outstanding=getattr(master_spec, 'max_outstanding', 16),
             rate_buffer=getattr(master_spec, 'rate_buffer', 16),
+            id_remap=bool(getattr(master_spec, 'id_remap', True)),
             skid_depths=dict(getattr(master_spec, 'skid_depths', {}) or {}),
             cdc=bool(getattr(master_spec, 'cdc', False)),
         )

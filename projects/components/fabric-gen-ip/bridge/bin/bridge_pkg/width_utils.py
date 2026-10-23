@@ -108,11 +108,14 @@ def remap_slot_width(master) -> int:
 def id_remapped(master) -> bool:
     """True when the master adapter remaps this master's IDs to slots
     (bridge_id_remap): whenever its ID is wider than a slot, so the fabric
-    and every slave see the slot instead.
+    and every slave see the slot instead. id_remap = false on the port (or
+    [bridge], or preset "xbar") turns it off: the ID passes through whole.
 
     A read-return atomic port (AXI5 'atomic' on an rw port) is the exception:
     its atomic AW answers on BOTH B and R under one AWID, which one table per
     direction cannot name; it keeps its own ID."""
+    if not getattr(master, 'id_remap', True):
+        return False
     if (master.id_width or 0) <= remap_slot_width(master):
         return False
     feats = (set(getattr(master, 'axi5_features', None) or ())

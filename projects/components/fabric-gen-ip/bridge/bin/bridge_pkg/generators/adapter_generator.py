@@ -129,6 +129,9 @@ class MasterConfig:
     # Rate-matching buffer depth, wide beats, on upsized paths into a shared
     # slave (PortSpec.rate_buffer; 0 = off).
     rate_buffer: int = 16
+    # Remap IDs wider than a slot to slots (PortSpec.id_remap; False = keep
+    # the master's own ID, the fabric ID grows to {index, full ID}).
+    id_remap: bool = True
     # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
     skid_depths: Optional[Dict[str, int]] = None
     # Own clock domain (GitHub #119 L2): the bridge top gains `<name>_aclk` /

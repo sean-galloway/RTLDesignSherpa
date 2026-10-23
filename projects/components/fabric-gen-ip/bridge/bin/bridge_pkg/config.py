@@ -186,6 +186,12 @@ class PortSpec:
     # shared slave at its own rate. 0 = off. Resolved in config_loader from
     # the port key or [bridge].rate_buffer. Masters only.
     rate_buffer: int = 16
+    # Transaction-ID remap (bridge TASK-018): a master whose ID is wider than
+    # a slot ($clog2(max_outstanding)) gets bridge_id_remap. False keeps the
+    # master's own ID end to end, so the fabric and slave IDs widen to
+    # {master index, full ID} and no remap table is built. Resolved in
+    # config_loader from the port key or [bridge].id_remap. Masters only.
+    id_remap: bool = True
     # Per-port pipeline stages (bridge GitHub #119 L7). latency picks which
     # channels of the port's timing wrapper are registered: "cut_all" (every
     # channel, the default), "cut_ax" (AW/AR only), "cut_none" (pass-through,

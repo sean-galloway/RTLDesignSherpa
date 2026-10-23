@@ -106,6 +106,11 @@ Core AXI4 features that matter:
 - Per-port latency modes: `latency = "cut_all" | "cut_ax" | "cut_none"` on
   axi4/axi5 ports, and the TOML skid depths now take effect -- fixed
   limitation, GitHub #119 L7.
+- Plain-crossbar mode: `[bridge] preset = "xbar"` -- no registered stage at
+  any same-clock axi4/axi5 port, no rate buffer, no ID remap (`id_remap =
+  false`, also settable on its own). 0 cycles master to slave on a direct
+  path, measured by `test_bridge_2x2_rw_xbar_preset`. For users who need
+  a simple crossbar rather than the full adapter set.
 - Outstanding limits per port: `max_outstanding` (power of two 2..64, default
   16 from `[bridge].max_outstanding`) sizes every master and slave tracker --
   fixed limitation, GitHub #119 L5 (was a hard 16).
@@ -251,10 +256,11 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   (bridge-added, zero-wait slave). Re-baselined 2026-10-22 from the original
   "<= 3 cycles": that figure described a wrapperless flat crossbar, and the
   generated bridge is not one -- its adapters carry per-ID tracking, ID
-  remap, width conversion and the response CAMs behind a skid each side. The
+  remap, width conversion and by-ID response routing behind a skid each side. The
   owner accepted 4 on that basis. Measured, and asserted exactly by
   `test_bridge_2x2_rw_latency` (HAS Table 5.7); `xbar_pipeline = true` makes
-  it 3 each way (`test_bridge_2x2_rw_pipe_latency`). Width converters and the
+  it 3 each way (`test_bridge_2x2_rw_pipe_latency`); `preset = "xbar"` makes
+  it 0 (`test_bridge_2x2_rw_xbar_preset`). Width converters and the
   APB/AXIL shims add stages on their paths.
 - [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
 - [x] Performance models implemented (bridge_model.py - V1 Flat; in `deprecated/` since 2026-10-18, superseded by the measured perf suite)

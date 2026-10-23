@@ -2915,3 +2915,84 @@ def test_r_interleave_end_to_end(tmp_path):
     for name, text in files.items():
         assert "hold through RLAST" not in text, name
         assert "fub_axi_rready && fub_axi_rlast)" not in text, name
+
+
+# --- [bridge] preset = "xbar": the plain crossbar in one key ---------------
+
+def _xbar_toml(tmp_path, bridge_extra="", master_extra="", master_proto="axi4", master_id=8):
+    toml, conn = _timing_toml(tmp_path, bridge_extra='preset = "xbar"', master_extra=master_extra,
+                              master_proto=master_proto)
+    if master_proto not in ("axil", "apb"):
+        p = Path(toml)
+        p.write_text(p.read_text().replace("id_width = 4\nchannels = \"rw\"",
+                                           f"id_width = {master_id}\nchannels = \"rw\"", 1))
+    if bridge_extra:
+        _with_bridge_key(toml, bridge_extra)
+    return toml, conn
+
+
+def test_xbar_preset_defaults(tmp_path):
+    """Nothing but the preset: every same-clock AXI4 port is cut_none (all
+    skids 0), the rate buffer is off, and an ID wider than a slot is kept."""
+    from bridge_pkg.width_utils import id_remapped, xbar_id_width
+    cfg = load_config(*_xbar_toml(tmp_path))
+    m, s = cfg.masters[0], cfg.slaves[0]
+    assert (m.latency, s.latency) == ("cut_none", "cut_none")
+    assert set(m.skid_depths.values()) == {0} and set(s.skid_depths.values()) == {0}
+    assert m.rate_buffer == 0
+    assert m.id_remap is False and not id_remapped(m)
+    assert xbar_id_width(cfg.masters) == 8
+
+
+def test_xbar_preset_keys_are_defaults_only(tmp_path):
+    """A [bridge] key or a port key of the same name beats the preset."""
+    toml, conn = _xbar_toml(tmp_path, bridge_extra="rate_buffer = 8",
+                            master_extra='latency = "cut_ax"\nid_remap = true')
+    m = load_config(toml, conn).masters[0]
+    assert m.latency == "cut_ax" and m.rate_buffer == 8 and m.id_remap is True
+    (tmp_path / "b2").mkdir()
+    toml2, conn2 = _xbar_toml(tmp_path / "b2", bridge_extra="id_remap = true")
+    from bridge_pkg.width_utils import id_remapped
+    assert id_remapped(load_config(toml2, conn2).masters[0])
+
+
+def test_xbar_preset_leaves_converted_ports_buffered(tmp_path):
+    """A converted port cannot take a latency mode; the preset skips it
+    instead of rejecting the config, and the AXI4 slave is still cut."""
+    cfg = load_config(*_xbar_toml(tmp_path, master_proto="axil"))
+    assert cfg.masters[0].latency == "cut_all"
+    assert cfg.slaves[0].latency == "cut_none"
+
+
+@pytest.mark.parametrize("extra,match", [
+    ('preset = "fast"', "preset must be one of"),
+    ('id_remap = 1', "id_remap must be true or false"),
+])
+def test_preset_and_id_remap_validation(tmp_path, extra, match):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    _with_bridge_key(toml, extra)
+    with pytest.raises(ValueError, match=match):
+        load_config(toml, conn)
+
+
+def test_id_remap_off_keeps_the_id(tmp_path):
+    """id_remap = false on an 8-bit master: no bridge_id_remap anywhere, the
+    fabric ID is the master's own, and its filelist does not pull the table.
+    The same master without the key remaps (the control)."""
+    from bridge_pkg.width_utils import id_remapped
+    from bridge_pkg.generators.adapter_generator import MasterConfig
+    on = MasterConfig("m", "m_", 32, 32, 8, "rw", [0])
+    off = MasterConfig("m", "m_", 32, 32, 8, "rw", [0], id_remap=False)
+    assert id_remapped(on) and not id_remapped(off)
+
+    out, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_xbar")
+    pkg = (out / "bridge_2x2_rw_xbar_pkg.sv").read_text()
+    assert "MASTER_ID_WIDTH = 8" in pkg and "XBAR_ID_WIDTH   = 9" in pkg
+    for mname in ("cpu", "dma"):
+        sv = (out / f"{mname}_adapter.sv").read_text()
+        assert "bridge_id_remap" not in sv
+        assert "assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(fub_axi_awid)};" in sv
+        for ch in ("AW", "W", "B", "AR", "R"):
+            assert f"parameter SKID_DEPTH_{ch} = 0" in sv
+    assert fl.exists(), f"no filelist at {fl}"
+    assert "bridge_id_remap.f" not in fl.read_text()
