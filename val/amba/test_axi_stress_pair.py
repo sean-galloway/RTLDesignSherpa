@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2026 sean galloway
-"""axi{4,3,5}_master_stress -> axi{4,3,5}_slave_stress, back to back.
+"""axi{4,3,5}/axil4_master_stress -> the same protocol's slave_stress, back to back.
 
 Three cocotb tests, all through bin/TBClasses/amba/axi_stress_pair_tb.py:
 
@@ -20,12 +20,15 @@ Three cocotb tests, all through bin/TBClasses/amba/axi_stress_pair_tb.py:
       top's hold_b): the master's LAT_MAX must read at least that, past the
       2^16 its latency counter wrapped at until 2026-10-22.
 
-TEST_PROTO picks the shells (axi4 | axi3 | axi5); the cores and every check
+TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4); the cores and every check
 are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
 checks WID against the AWID of the burst each beat belongs to. With AXI5 both
 shells carry NSAID, TRACE, MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, every window is a sideband
 path and one beat in four is poisoned; the monitor checks every field, and a
-run must have poisoned beats in both directions.
+run must have poisoned beats in both directions. With AXI4-Lite every
+transfer is one bus-wide beat on one ID, so the scenarios that need several
+IDs (ooo, interleave, one_id) do not apply and no read may complete out of
+order; faults 1, 2 and 4 (RID, RLAST, BID) have no wire to corrupt.
 """
 
 import os
@@ -135,6 +138,10 @@ async def cocotb_test_axi_stress_clean(dut):
     if tb.PROTO == 'axi3':
         assert tb.stats['max_len'] == 15, \
             f"AXI3: longest burst AxLEN {tb.stats['max_len']}, expected exactly 15"
+    elif tb.PROTO in LITE:
+        assert tb.stats['max_len'] == 0, \
+            f"{tb.PROTO}: a transfer of AxLEN {tb.stats['max_len']}; every one is one beat"
+        assert tb.stats['r_ooo'] == 0, f'{tb.PROTO}: a read completed out of order'
     else:
         assert tb.stats['max_len'] > 15, f'{tb.PROTO}: no burst longer than 16 beats'
     if tb.PROTO == 'axi5':
@@ -156,7 +163,7 @@ async def cocotb_test_axi_stress_clean(dut):
                   'btagmatch2', 'btagmatch3'):
             assert tb.stats[k] > 0, f'AXI5 MTE: {k} never seen'
 
-    if name in ('ooo', 'interleave', 'narrow', 'errwin'):
+    if name in ('ooo', 'interleave', 'narrow', 'errwin') and tb.PROTO not in LITE:
         assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
     if name == 'inorder':
         assert tb.stats['r_ooo'] == 0, 'an in-order slave reordered'
@@ -194,13 +201,18 @@ FAULTS_AXI5 = [(9, 'srd', {'S_SB'}), (10, 'swr', {'S_SB'}), (11, 'mrd', {'M_SB'}
                (18, 'mwr', {'RD_DATA'}), (19, 'swr', {'S_PROTO'}),
                (20, 'swr', {'S_SB'}), (21, 'mrd', {'M_SB'}), (22, 'mwr', {'M_SB'}),
                (23, 'srd', {'S_SB'})]
-FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5}
+FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5, 'axil4': []}
+# AXI4-Lite carries no RID, RLAST or BID, so faults 1, 2 and 4 have no wire
+# to corrupt; the rest apply unchanged.
+FAULTS_SKIP = {'axil4': {1, 2, 4}}
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
 async def cocotb_test_axi_stress_faults(dut):
     tb = AxiStressPairTB(dut)
     for bit, blk, expect in FAULTS + FAULTS_BY_PROTO[tb.PROTO]:
+        if bit in FAULTS_SKIP.get(tb.PROTO, set()):
+            continue
         await tb.setup_clocks_and_reset()
         wins, mrd, mwr, srd, swr = _scenario('ooo', 0, tag=0x5A, proto=tb.PROTO)  # until STOP
         tb.configure(wins, mrd, mwr, srd, swr)
@@ -267,15 +279,23 @@ async def cocotb_test_axi_stress_long_lat(dut):
     assert 0 < s['mwr']['lat_sum'] <= s['mwr']['lat_max'] * s['mwr']['completed']
 
 
-PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2}
+PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3}
+LITE = {'axil4'}
+# AXI4-Lite: one ID and one beat per transfer, so a slave has nothing to
+# reorder or interleave; 'narrow' is partial strobes on bus-wide beats.
+LITE_SCEN = ['inorder', 'narrow', 'errwin', 'w_first']
 
 
 def _params():
     level = os.environ.get('TEST_LEVEL', 'gate')
-    dws = [64] if level == 'gate' else [32, 64, 128]
-    scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id', 'w_first']
     out = []
     for proto in PROTO_CODE:
+        if proto in LITE:
+            dws = [64] if level == 'gate' else [32, 64]      # AXI4-Lite: 32 or 64
+            scen = LITE_SCEN
+        else:
+            dws = [64] if level == 'gate' else [32, 64, 128]
+            scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id', 'w_first']
         out += [(proto, dw, 'clean', sc) for dw in dws for sc in scen]
         out += [(proto, dw, 'faults', '-') for dw in dws]
         out.append((proto, 64, 'long_lat', '-'))

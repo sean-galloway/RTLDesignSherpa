@@ -34,6 +34,12 @@
 //                        window
 //             The window's len_mask is ANDed with LEN_MASK first, so an
 //             AXI3 shell never sees a burst longer than 16 beats.
+//             SIZE_FIXED makes every transfer the bus width (smax: the bus,
+//             cut to the window's page) and aligned to it, whatever the
+//             window's size range or unaligned bit say: the single-beat
+//             shells (AXI-Lite, APB, WB4) carry no AxSIZE, so a narrow or
+//             unaligned transfer could not be expressed. With LEN_MASK 0 it
+//             is one aligned bus-wide beat.
 //             One draw in eight is forced to a single beat, so single-beat
 //             traffic is always present whatever len_mask says.
 //
@@ -62,6 +68,7 @@ module axi_stress_txn_gen
     parameter int IW      = 8,                 // 1..16
     parameter int BUS_LG2 = 3,                 // log2(bus bytes)
     parameter logic [7:0]  LEN_MASK = 8'hFF,   // protocol AxLEN limit (AXI3: 8'h0F)
+    parameter bit          SIZE_FIXED = 1'b0,  // every transfer bus-wide and aligned (AXI-Lite, APB, WB4)
     parameter logic [31:0] SALT = 32'h0        // decorrelates rd from wr
 ) (
     input  logic                aclk,
@@ -210,6 +217,7 @@ module axi_stress_txn_gen
         if (w_size > smax)              w_size = smax;
         if (w_size < w_w.size_min)      w_size = w_w.size_min;
         if (w_size > smax)              w_size = smax;  // size_min > size_max
+        if (SIZE_FIXED)                 w_size = smax;  // bus-wide, whatever the window allows
         bytes = 32'd1 << w_size;
 
         // burst type
@@ -245,7 +253,8 @@ module axi_stress_txn_gen
         // address
         off = r_d_off;
         if (w_w.size_lg2 < 6'd32) off = off & ((32'd1 << w_w.size_lg2) - 32'd1);
-        if (w_burst == BURST_WRAP || !w_w.unaligned) off = off & ~(bytes - 32'd1);
+        if (w_burst == BURST_WRAP || !w_w.unaligned || SIZE_FIXED)
+            off = off & ~(bytes - 32'd1);
         w_addr = (w_w.size_lg2 < 6'd32)
                ? ((w_w.base & ~((32'd1 << w_w.size_lg2) - 32'd1)) | off)
                : off;

@@ -5,12 +5,14 @@
 // Purpose: Simulation harness: axi{4,3,5}_master_stress -> fault injector ->
 //          axi{4,3,5}_slave_stress, back to back with no fabric between them.
 //
-// PROTO selects the shells: 0 = AXI4, 1 = AXI3, 2 = AXI5. The nets below are
-// AXI4 shaped either way (AxLEN 8 bits, AxLOCK 1 bit), so the Python monitor
-// reads one set of names; with AXI3 the upper AxLEN bits are tied 0 and m_wid
-// carries WID. AXI5 builds both shells with NSAID, TRACE, MPAM, MECID, POISON,
-// UNIQUE, ATOMIC and MTE, and adds the m_*trace / m_*poison / m_*nsaid / m_*mpam / m_*mecid
-// nets; they are 0 for AXI3 / AXI4.
+// PROTO selects the shells: 0 = AXI4, 1 = AXI3, 2 = AXI5, 3 = AXI4-Lite. The
+// nets below are AXI4 shaped whatever the protocol (AxLEN 8 bits, AxLOCK 1
+// bit), so the Python monitor reads one set of names; with AXI3 the upper
+// AxLEN bits are tied 0 and m_wid carries WID. With AXI4-Lite the fields Lite
+// does not carry are tied to what every Lite transfer is: ID 0, one beat,
+// bus-wide, INCR, RLAST / WLAST 1. AXI5 builds both shells with NSAID, TRACE,
+// MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, and adds the m_*trace /
+// m_*poison / m_*nsaid / m_*mpam / m_*mecid nets; they are 0 for the others.
 //
 // The fault injector corrupts exactly one handshake per armed fault (one bit
 // of flt_arm each), so a test can show that every check the stress blocks
@@ -60,7 +62,7 @@ module tb_axi_stress_pair
     parameter int DW    = 64,
     parameter int DEPTH = 16,
     parameter int NWIN  = 8,
-    parameter int PROTO = 0            // 0 = AXI4, 1 = AXI3, 2 = AXI5
+    parameter int PROTO = 0            // 0 = AXI4, 1 = AXI3, 2 = AXI5, 3 = AXI4-Lite
 ) (
     input  logic                              aclk,
     input  logic                              aresetn,
@@ -206,6 +208,32 @@ module tb_axi_stress_pair
             .m_axi_rlast(m_rlast), .m_axi_ruser(m_ruser),
             .m_axi_rvalid(m_rvalid), .m_axi_rready(m_rready)
         );
+    end else if (PROTO == 3) begin : g_mstl4
+        axil4_master_stress #(
+            .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW)
+        ) u_mst (
+            .aclk, .aresetn, .go, .stop,
+            .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
+            .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
+            .m_axil_awaddr(m_awaddr), .m_axil_awprot(m_awprot),
+            .m_axil_awvalid(m_awvalid), .m_axil_awready(m_awready),
+            .m_axil_wdata(m_wdata), .m_axil_wstrb(m_wstrb),
+            .m_axil_wvalid(m_wvalid), .m_axil_wready(m_wready),
+            .m_axil_bresp(m_bresp), .m_axil_bvalid(m_bvalid), .m_axil_bready(m_bready),
+            .m_axil_araddr(m_araddr), .m_axil_arprot(m_arprot),
+            .m_axil_arvalid(m_arvalid), .m_axil_arready(m_arready),
+            .m_axil_rdata(m_rdata), .m_axil_rresp(m_rresp),
+            .m_axil_rvalid(m_rvalid), .m_axil_rready(m_rready)
+        );
+        // The AXI4-shaped nets the monitor reads, filled with what every
+        // AXI4-Lite transfer is: ID 0, one beat, bus-wide, INCR.
+        assign m_awid = '0;  assign m_awlen = '0;  assign m_awsize = 3'($clog2(DW / 8));
+        assign m_awburst = 2'b01;  assign m_awlock = 1'b0;  assign m_awcache = '0;
+        assign m_awqos = '0;  assign m_awregion = '0;  assign m_awuser = 1'b0;
+        assign m_wlast = 1'b1;  assign m_wuser = 1'b0;  assign m_wid = '0;
+        assign m_arid = '0;  assign m_arlen = '0;  assign m_arsize = 3'($clog2(DW / 8));
+        assign m_arburst = 2'b01;  assign m_arlock = 1'b0;  assign m_arcache = '0;
+        assign m_arqos = '0;  assign m_arregion = '0;  assign m_aruser = 1'b0;
     end else begin : g_mst5
         assign m_wid = '0;
         assign m_awregion = '0;
@@ -406,6 +434,25 @@ module tb_axi_stress_pair
             .s_axi_rlast(s_rlast), .s_axi_ruser(m_ruser),
             .s_axi_rvalid(m_rvalid), .s_axi_rready(m_rready)
         );
+    end else if (PROTO == 3) begin : g_slvl4
+        axil4_slave_stress #(
+            .DEPTH(DEPTH), .IW(IW), .DW(DW)
+        ) u_slv (
+            .aclk, .aresetn, .clear,
+            .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
+            .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
+            .s_axil_awaddr(m_awaddr), .s_axil_awprot(m_awprot),
+            .s_axil_awvalid(m_awvalid), .s_axil_awready(m_awready),
+            .s_axil_wdata(s_wdata), .s_axil_wstrb(m_wstrb),
+            .s_axil_wvalid(m_wvalid), .s_axil_wready(m_wready),
+            .s_axil_bresp(s_bresp), .s_axil_bvalid(s_bvalid), .s_axil_bready(s_bready),
+            .s_axil_araddr(s_araddr), .s_axil_arprot(m_arprot),
+            .s_axil_arvalid(m_arvalid), .s_axil_arready(m_arready),
+            .s_axil_rdata(s_rdata), .s_axil_rresp(s_rresp),
+            .s_axil_rvalid(m_rvalid), .s_axil_rready(m_rready)
+        );
+        assign s_bid = '0;  assign s_rid = '0;  assign s_rlast = 1'b1;
+        assign m_buser = 1'b0;  assign m_ruser = 1'b0;
     end else begin : g_slv5
         /* verilator lint_off PINCONNECTEMPTY */
         axi5_slave_stress #(

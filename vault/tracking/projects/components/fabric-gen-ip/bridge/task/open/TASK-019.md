@@ -130,7 +130,7 @@ both ends.
 
 | Phase | Work |
 |---|---|
-| 3 | Single-beat shells for `axil` / `axil5`, `apb` / `apb5` (slaves in offset mode: the bridge hands an APB slave a window offset) and `wb4`, plus the DUT `bridge_bs_mixed_b.toml`. None of these shells exists yet: `rtl/amba/shared` has only the `axi3` / `axi4` / `axi5` stress shells. |
+| 3 | Single-beat shells for `axil` / `axil5`, `apb` / `apb5` (slaves in offset mode: the bridge hands an APB slave a window offset) and `wb4`, plus the DUT `bridge_bs_mixed_b.toml`. 3a done 2026-10-23: `axil4_{master,slave}_stress` (cores built single-beat via `LEN_MASK = 0` and the new `SIZE_FIXED`; per-direction issued-ID FIFO in the master), pair test `axil4` cells 11/11 at func with 5 faults. Next: AXI5-Lite, APB4 / APB5, WB4, then the harness generator, the DUT and the board. |
 
 The earlier "re-run `--full-axi` once BUG-018 is fixed" row is done: the
 BUG-018 fix removed the converted-path limits, and the 10-22 runs above use

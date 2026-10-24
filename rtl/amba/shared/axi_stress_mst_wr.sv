@@ -77,6 +77,7 @@ module axi_stress_mst_wr
     parameter int DW      = 64,
     parameter int UW      = 1,
     parameter logic [7:0] LEN_MASK = 8'hFF,   // AxLEN limit (AXI3: 8'h0F)
+    parameter bit SIZE_FIXED = 1'b0,     // bus-wide aligned transfers only (single-beat shells)
     parameter logic [31:0] SB_MASK  = '0,  // AXI5 request sideband bits carried (SB_* layout)
     parameter logic [7:0]  RSB_MASK = '0,  // AXI5 response sideband bits carried (RSB_* layout)
     parameter bit POISON  = 1'b0,        // AXI5 WPOISON driven
@@ -183,7 +184,7 @@ module axi_stress_mst_wr
 
     axi_stress_txn_gen #(
         .NWIN(NWIN), .IW(IW), .BUS_LG2(BUS_LG2), .LEN_MASK(LEN_MASK),
-        .SALT(32'h6A09_E667)
+        .SIZE_FIXED(SIZE_FIXED), .SALT(32'h6A09_E667)
     ) u_gen (
         .aclk, .aresetn,
         .restart      (w_go),
