@@ -6,12 +6,14 @@
 //          axi{4,3,5}_slave_stress, back to back with no fabric between them.
 //
 // PROTO selects the shells: 0 = AXI4, 1 = AXI3, 2 = AXI5, 3 = AXI4-Lite,
-// 4 = AXI5-Lite. The nets below are AXI4 shaped whatever the protocol (AxLEN
+// 4 = AXI5-Lite, 5 = APB4, 6 = APB5. The nets below are AXI4 shaped whatever the protocol (AxLEN
 // 8 bits, AxLOCK 1 bit), so the Python monitor reads one set of names; with AXI3 the upper
 // AxLEN bits are tied 0 and m_wid carries WID. With AXI4-Lite the fields Lite
 // does not carry are tied to what every Lite transfer is: ID 0, one beat,
 // bus-wide, INCR, RLAST / WLAST 1. AXI5-Lite is the same with real IDs and
-// TRACE / POISON on the AXI5 nets. AXI5 builds both shells with NSAID, TRACE,
+// TRACE / POISON on the AXI5 nets. With APB4 / APB5 the nets are derived from the
+// APB handshake (an AR and its R, or an AW, its W and its B, in the cycle
+// PREADY completes the transfer), and the slave sees an offset (OFFSET_LG2). AXI5 builds both shells with NSAID, TRACE,
 // MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, and adds the m_*trace /
 // m_*poison / m_*nsaid / m_*mpam / m_*mecid nets; they are 0 for the others.
 //
@@ -24,7 +26,8 @@
 //   [2] R:  drop RLAST on a last beat        -> master ERR_RD_LAST
 //   [3] W:  flip WDATA bit 0                 -> slave  ERR_S_WDATA (if strobed)
 //   [4] B:  flip BID bit 0                   -> master ERR_WR_STRAY / EARLY
-//   [5] AR: flip ARADDR bit 31               -> slave  ERR_S_ADDR
+//   [5] AR: flip ARADDR bit 31 (bit OFFSET_LG2-1 when the slave sees an
+//           offset: bit 31 is not on its port)  -> slave  ERR_S_ADDR
 //   [6] B:  BRESP forced to SLVERR           -> master ERR_WR_RESP
 //   [7] R:  RRESP forced to SLVERR           -> master ERR_RD_RESP
 //   [8] W:  flip WID bit 0 (AXI3 only)       -> slave  ERR_S_WID
@@ -63,7 +66,11 @@ module tb_axi_stress_pair
     parameter int DW    = 64,
     parameter int DEPTH = 16,
     parameter int NWIN  = 8,
-    parameter int PROTO = 0            // 0 AXI4, 1 AXI3, 2 AXI5, 3 AXI4-Lite, 4 AXI5-Lite
+    parameter int PROTO = 0,           // 0 AXI4, 1 AXI3, 2 AXI5, 3 AXI4-Lite, 4 AXI5-Lite, 5 APB4, 6 APB5
+    // The slave sees the address modulo 2^OFFSET_LG2, as a bridge hands an
+    // APB slave its window offset (the slave runs in offset mode); 0 = the
+    // full address.
+    parameter int OFFSET_LG2 = 0
 ) (
     input  logic                              aclk,
     input  logic                              aresetn,
@@ -137,6 +144,23 @@ module tb_axi_stress_pair
     logic [1:0]    m_awtagop, m_artagop, s_artagop, m_btagmatch, s_btagmatch;
     logic [TW-1:0] m_wtag, s_wtag, m_rtag, s_rtag;
     logic [NT-1:0] m_wtagupdate;
+
+    // ---- APB bus (PROTO 5 / 6) -------------------------------------------------
+    localparam bit IS_APB = (PROTO == 5) || (PROTO == 6);
+    // The master's pins; the slave sees the same handshake, the address as an
+    // offset (OFFSET_LG2), and the data through the injector. PREADY is the
+    // slave's, seen by both.
+    logic          p_sel, p_enable, p_write, p_ready, p_slverr_m, p_slverr_s;
+    logic          p_wakeup;          // APB5: the requester's PWAKEUP
+    logic [31:0]   p_addr;
+    logic [DW-1:0] p_wdata, p_rdata_s;
+    logic [DW/8-1:0] p_strb;
+    logic [2:0]    p_prot;
+    wire           p_xfer  = p_sel && p_enable && p_ready;
+    wire           p_setup = p_sel && !p_enable;
+    logic [1:0]    r_p_flip;          // APB: [0] PWDATA / [1] PADDR corrupted this transfer
+    localparam logic [31:0] OFFSET_MASK = (OFFSET_LG2 > 0 && OFFSET_LG2 < 32)
+                                          ? ((32'd1 << OFFSET_LG2) - 32'd1) : 32'hFFFF_FFFF;
 
     // ---- slave side nets (after the injector) ---------------------------------
     logic [IW-1:0] s_bid, s_rid;
@@ -265,6 +289,58 @@ module tb_axi_stress_pair
         assign m_arlen = '0;  assign m_arsize = 3'($clog2(DW / 8));
         assign m_arburst = 2'b01;  assign m_arlock = 1'b0;  assign m_arcache = '0;
         assign m_arqos = '0;  assign m_arregion = '0;  assign m_aruser = 1'b0;
+    end else if (IS_APB) begin : g_mstp
+        if (PROTO == 5) begin : g_p4
+            apb4_master_stress #(
+                .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW)
+            ) u_mst (
+                .aclk, .aresetn, .go, .stop,
+                .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
+                .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
+                .m_apb_PSEL(p_sel), .m_apb_PENABLE(p_enable), .m_apb_PADDR(p_addr),
+                .m_apb_PWRITE(p_write), .m_apb_PWDATA(p_wdata), .m_apb_PSTRB(p_strb),
+                .m_apb_PPROT(p_prot),
+                .m_apb_PRDATA(m_rdata),
+                .m_apb_PSLVERR(p_slverr_m),
+                .m_apb_PREADY(p_ready)
+            );
+            assign p_wakeup = 1'b0;
+        end else begin : g_p5
+            apb5_master_stress #(
+                .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW)
+            ) u_mst (
+                .aclk, .aresetn, .go, .stop,
+                .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
+                .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
+                .m_apb_PSEL(p_sel), .m_apb_PENABLE(p_enable), .m_apb_PADDR(p_addr),
+                .m_apb_PWRITE(p_write), .m_apb_PWDATA(p_wdata), .m_apb_PSTRB(p_strb),
+                .m_apb_PPROT(p_prot),
+                .m_apb_PRDATA(m_rdata),
+                .m_apb_PSLVERR(p_slverr_m),
+                .m_apb_PREADY(p_ready),
+                .m_apb_PWAKEUP(p_wakeup)
+            );
+        end
+        // The master sees the injector's response: SLVERR for its direction.
+        assign p_slverr_m = p_write ? (m_bresp != RESP_OKAY) : (m_rresp != RESP_OKAY);
+        // AXI4-shaped nets for the monitor and the injector, from the APB
+        // handshake: a read in its access phase is an AR, and the cycle that
+        // completes it the R; a write is AW, W and B in that cycle.
+        assign m_arvalid = p_sel && p_enable && !p_write;  assign m_arready = p_ready;
+        assign m_araddr  = p_addr;  assign m_arprot = p_prot;
+        assign m_rvalid  = p_xfer && !p_write;  assign m_rready = 1'b1;
+        assign m_awvalid = p_sel && p_enable && p_write;   assign m_awready = p_ready;
+        assign m_awaddr  = p_addr;  assign m_awprot = p_prot;
+        assign m_wvalid  = p_sel && p_enable && p_write;   assign m_wready  = p_ready;
+        assign m_wdata   = p_wdata;  assign m_wstrb = p_strb;
+        assign m_bready  = 1'b1;
+        assign m_awid = '0;  assign m_awlen = '0;  assign m_awsize = 3'($clog2(DW / 8));
+        assign m_awburst = 2'b01;  assign m_awlock = 1'b0;  assign m_awcache = '0;
+        assign m_awqos = '0;  assign m_awregion = '0;  assign m_awuser = 1'b0;
+        assign m_wlast = 1'b1;  assign m_wuser = 1'b0;  assign m_wid = '0;
+        assign m_arid = '0;  assign m_arlen = '0;  assign m_arsize = 3'($clog2(DW / 8));
+        assign m_arburst = 2'b01;  assign m_arlock = 1'b0;  assign m_arcache = '0;
+        assign m_arqos = '0;  assign m_arregion = '0;  assign m_aruser = 1'b0;
     end else begin : g_mst5
         assign m_wid = '0;
         assign m_awregion = '0;
@@ -304,6 +380,15 @@ module tb_axi_stress_pair
             .m_axi_rchunkv(1'b0), .m_axi_rchunknum(4'd0), .m_axi_rchunkstrb('0), .m_axi_rtag(m_rtag)
         );
         /* verilator lint_on PINCONNECTEMPTY */
+    end endgenerate
+
+    // The APB bus nets exist only with APB4.
+    generate if (!IS_APB) begin : g_no_apb
+        assign p_sel = 1'b0;  assign p_enable = 1'b0;  assign p_write = 1'b0;
+        assign p_wakeup = 1'b0;
+        assign p_ready = 1'b0;  assign p_slverr_m = 1'b0;  assign p_slverr_s = 1'b0;
+        assign p_addr = '0;  assign p_wdata = '0;  assign p_rdata_s = '0;
+        assign p_strb = '0;  assign p_prot = '0;
     end endgenerate
 
     // TRACE / POISON: AXI5 and AXI5-Lite carry them; tied 0 for the others.
@@ -359,9 +444,15 @@ module tb_axi_stress_pair
         w_fire[0] = r_armed[0] && w_r_hs;
         w_fire[1] = r_armed[1] && w_r_hs;
         w_fire[2] = r_armed[2] && w_r_hs && s_rlast;
-        w_fire[3] = r_armed[3] && w_w_hs && m_wstrb[0];
+        // APB: a completer samples PADDR / PWDATA from the setup phase on,
+        // not at PREADY, so the request faults fire at a transfer's setup
+        // and are held to its end (r_p_flip) -- keyed to the completing
+        // cycle they could arm mid-transfer, after the slave had sampled.
+        w_fire[3] = IS_APB ? (r_armed[3] && p_setup && p_write && p_strb[0])
+                                 : (r_armed[3] && w_w_hs && m_wstrb[0]);
         w_fire[4] = r_armed[4] && w_b_hs;
-        w_fire[5] = r_armed[5] && w_ar_hs;
+        w_fire[5] = IS_APB ? (r_armed[5] && p_setup && !p_write)
+                                 : (r_armed[5] && w_ar_hs);
         w_fire[6] = r_armed[6] && w_b_hs;
         w_fire[7] = r_armed[7] && w_r_hs;
         w_fire[8] = r_armed[8] && w_w_hs;
@@ -386,9 +477,15 @@ module tb_axi_stress_pair
         if (!aresetn) begin
             r_armed  <= '0;
             flt_done <= '0;
+            r_p_flip <= '0;
             for (int i = 0; i < (1 << IW); i++) r_rd_out[i] <= '0;
         end else begin
             r_armed  <= (r_armed & ~w_fire) | flt_arm;
+            if (p_xfer)                    r_p_flip <= 2'b00;
+            else begin
+                if (w_fire[3])             r_p_flip[0] <= 1'b1;
+                if (w_fire[5])             r_p_flip[1] <= 1'b1;
+            end
             flt_done <= (flt_done | w_fire) & ~flt_arm;
             for (int i = 0; i < (1 << IW); i++)
                 r_rd_out[i] <= r_rd_out[i] + 8'(w_ar_hs && (m_arid == IW'(i)))
@@ -401,10 +498,13 @@ module tb_axi_stress_pair
     assign m_rid    = s_rid   ^ IW'(r_armed[1]);
     assign m_rlast  = s_rlast && !r_armed[2];
     assign m_rresp  = r_armed[7] ? RESP_SLVERR : s_rresp;
-    assign s_wdata  = m_wdata ^ DW'(r_armed[3] && m_wstrb[0]);
+    assign s_wdata  = m_wdata ^ DW'(IS_APB ? (r_p_flip[0] || w_fire[3])
+                                                 : (r_armed[3] && m_wstrb[0]));
     assign m_bid    = s_bid   ^ IW'(r_armed[4]);
     assign m_bresp  = r_armed[6] ? RESP_SLVERR : s_bresp;
-    assign s_araddr = m_araddr ^ {r_armed[5], 31'd0};
+    localparam int FLT_ADDR_BIT = (OFFSET_LG2 > 0) ? OFFSET_LG2 - 1 : 31;
+    assign s_araddr = m_araddr ^ (32'(IS_APB ? (r_p_flip[1] || w_fire[5])
+                                                   : r_armed[5]) << FLT_ADDR_BIT);
     assign s_wid    = m_wid   ^ IW'(r_armed[8]);
     assign s_artrace = m_artrace ^ r_armed[9];
     assign s_wpoison = m_wpoison ^ r_armed[10];
@@ -512,6 +612,41 @@ module tb_axi_stress_pair
             .s_axil_rvalid(m_rvalid), .s_axil_rready(m_rready)
         );
         assign s_rlast = 1'b1;
+        assign m_buser = 1'b0;  assign m_ruser = 1'b0;
+    end else if (IS_APB) begin : g_slvp
+        if (PROTO == 5) begin : g_p4
+            apb4_slave_stress #(
+                .DEPTH(DEPTH), .IW(IW), .DW(DW)
+            ) u_slv (
+                .aclk, .aresetn, .clear,
+                .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
+                .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
+                .s_apb_PSEL(p_sel), .s_apb_PENABLE(p_enable), .s_apb_PREADY(p_ready),
+                .s_apb_PADDR((p_write ? m_awaddr : s_araddr) & OFFSET_MASK),
+                .s_apb_PWRITE(p_write), .s_apb_PWDATA(s_wdata), .s_apb_PSTRB(m_wstrb),
+                .s_apb_PPROT(p_prot),
+                .s_apb_PRDATA(p_rdata_s), .s_apb_PSLVERR(p_slverr_s)
+            );
+        end else begin : g_p5
+            apb5_slave_stress #(
+                .DEPTH(DEPTH), .IW(IW), .DW(DW)
+            ) u_slv (
+                .aclk, .aresetn, .clear,
+                .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
+                .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
+                .s_apb_PSEL(p_sel), .s_apb_PENABLE(p_enable), .s_apb_PREADY(p_ready),
+                .s_apb_PADDR((p_write ? m_awaddr : s_araddr) & OFFSET_MASK),
+                .s_apb_PWRITE(p_write), .s_apb_PWDATA(s_wdata), .s_apb_PSTRB(m_wstrb),
+                .s_apb_PPROT(p_prot),
+                .s_apb_PRDATA(p_rdata_s), .s_apb_PSLVERR(p_slverr_s),
+                .s_apb_PWAKEUP(p_wakeup)
+            );
+        end
+        assign s_rdata  = p_rdata_s;
+        assign s_rresp  = p_slverr_s ? RESP_SLVERR : RESP_OKAY;
+        assign s_bresp  = p_slverr_s ? RESP_SLVERR : RESP_OKAY;
+        assign s_bvalid = p_xfer && p_write;
+        assign s_bid = '0;  assign s_rid = '0;  assign s_rlast = 1'b1;
         assign m_buser = 1'b0;  assign m_ruser = 1'b0;
     end else begin : g_slv5
         /* verilator lint_off PINCONNECTEMPTY */

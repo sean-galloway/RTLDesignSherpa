@@ -20,7 +20,8 @@ Three cocotb tests, all through bin/TBClasses/amba/axi_stress_pair_tb.py:
       top's hold_b): the master's LAT_MAX must read at least that, past the
       2^16 its latency counter wrapped at until 2026-10-22.
 
-TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4 | axil5); the cores and every check
+TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4 | axil5 | apb4 | apb5); the cores
+and every check
 are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
 checks WID against the AWID of the burst each beat belongs to. With AXI5 both
 shells carry NSAID, TRACE, MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, every window is a sideband
@@ -31,7 +32,11 @@ IDs (ooo, interleave, one_id) do not apply and no read may complete out of
 order; faults 1, 2 and 4 (RID, RLAST, BID) have no wire to corrupt. AXI5-Lite
 adds the IDs back (different IDs may answer in any order, IHI 0022L B2.1.5),
 so ooo and one_id apply, plus TRACE and POISON, checked as on AXI5 with
-their five faults; only the RLAST fault is skipped.
+their five faults; only the RLAST fault is skipped. APB4 / APB5 are 32-bit, one
+transfer at a time on one bus with no IDs (inorder / narrow / errwin; faults 1,
+2, 4 skipped, and no long_lat: a B cannot be held on APB); the slave runs in
+offset mode at a non-zero base, seeing the address modulo 2^24 as behind a
+bridge, and the APB5 slave waits for PWAKEUP before PREADY.
 """
 
 import os
@@ -48,15 +53,18 @@ from TBClasses.amba import axi_stress_model as M
 
 TXNS = {'gate': 150, 'func': 600, 'full': 3000}
 SLV_BASE, SLV_LG2 = 0x0000_0000, 20
-ERR_BASE, ERR_LG2 = 0x0008_0000, 16
+ERR_OFF, ERR_LG2 = 0x0008_0000, 16
+# APB: the slave is in offset mode, as behind a bridge; a non-zero base makes
+# the core's base | offset rebuild do real work (with base 0 it is a no-op).
+APB_BASE, APB_OFFSET_LG2 = 0x4000_0000, 24
 
 
-def _windows(tag, *, err=False, narrow=False, aligned=False):
+def _windows(tag, *, err=False, narrow=False, aligned=False, base=SLV_BASE):
     full = dict(len_mask=0xFF, size_min=0 if narrow else 7, size_max=7,
                 unaligned=0 if aligned else 1, strb_rand=1 if narrow else 0)
-    wins = [M.Window(SLV_BASE, 19, tag, **full)]
+    wins = [M.Window(base, 19, tag, **full)]
     if err:
-        wins.append(M.Window(ERR_BASE, ERR_LG2, tag, resp=M.SLVERR, **full))
+        wins.append(M.Window(base + ERR_OFF, ERR_LG2, tag, resp=M.SLVERR, **full))
     return wins
 
 
@@ -66,11 +74,13 @@ AXI5_ATOM_LG2 = 2        # one write burst in four becomes an atomic
 
 def _scenario(name, n, tag, proto='axi4'):
     """(windows, master rd/wr cfg, slave rd/wr cfg) for one scenario."""
+    base = APB_BASE if proto in APB else SLV_BASE
     m = dict(enable=1, txn_count=n, id_base=0x30, id_mask=0x0F,
              timeout_lg2=16, max_out=0)
-    s = dict(base=SLV_BASE, size_lg2=SLV_LG2, tag=tag, err_en=1,
-             err_base=ERR_BASE, err_mask=(~((1 << ERR_LG2) - 1)) & M.M32)
-    wins = _windows(tag)
+    s = dict(base=base, size_lg2=SLV_LG2, tag=tag, err_en=1,
+             err_base=base + ERR_OFF, err_mask=(~((1 << ERR_LG2) - 1)) & M.M32,
+             offset_mode=1 if proto in APB else 0)
+    wins = _windows(tag, base=base)
     if name == 'inorder':
         s.update(inorder=1)
         m.update(id_mask=0x03)
@@ -80,10 +90,10 @@ def _scenario(name, n, tag, proto='axi4'):
         s.update(interleave=1, lat_mask=0x1F, req_throttle=4, data_throttle=6)
         m.update(resp_throttle=5, data_throttle=3, gap_mask=0x03, qos_rand=1)
     elif name == 'narrow':
-        wins = _windows(tag, narrow=True)
+        wins = _windows(tag, narrow=True, base=base)
         s.update(lat_mask=0x0F, data_throttle=3)
     elif name == 'errwin':
-        wins = _windows(tag, err=True)
+        wins = _windows(tag, err=True, base=base)
         s.update(lat_mask=0x0F)
     elif name == 'one_id':
         s.update(lat_mask=0x3F, interleave=1)
@@ -140,16 +150,16 @@ async def cocotb_test_axi_stress_clean(dut):
         assert tb.stats['aw_hs_no_w'] == 0, \
             f"w_first: {tb.stats['aw_hs_no_w']} AWs taken with no W beat offered"
         assert tb.stats['aw_wait_no_w'] > 0, 'w_first: no AW ever waited for its W'
-    else:
+    elif tb.PROTO not in APB:       # APB carries the address and data together
         assert tb.stats['aw_hs_no_w'] > 0, f'{name}: every AW came with a W beat (the gate is stuck on)'
     if tb.PROTO == 'axi3':
         assert tb.stats['max_len'] == 15, \
             f"AXI3: longest burst AxLEN {tb.stats['max_len']}, expected exactly 15"
-    elif tb.PROTO in LITE:
+    elif tb.PROTO in SINGLE:
         assert tb.stats['max_len'] == 0, \
             f"{tb.PROTO}: a transfer of AxLEN {tb.stats['max_len']}; every one is one beat"
-        if tb.PROTO == 'axil4':
-            assert tb.stats['r_ooo'] == 0, 'axil4: a read completed out of order'
+        if tb.PROTO in IN_ORDER:
+            assert tb.stats['r_ooo'] == 0, f'{tb.PROTO}: a read completed out of order'
         else:
             assert tb.stats['r_poison'] > 0 and tb.stats['w_poison'] > 0, \
                 'axil5: no beat was poisoned in one direction'
@@ -175,7 +185,7 @@ async def cocotb_test_axi_stress_clean(dut):
                   'btagmatch2', 'btagmatch3'):
             assert tb.stats[k] > 0, f'AXI5 MTE: {k} never seen'
 
-    if name in ('ooo', 'interleave', 'narrow', 'errwin') and tb.PROTO != 'axil4':
+    if name in ('ooo', 'interleave', 'narrow', 'errwin') and tb.PROTO not in IN_ORDER:
         assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
     if name == 'inorder':
         assert tb.stats['r_ooo'] == 0, 'an in-order slave reordered'
@@ -217,10 +227,10 @@ FAULTS_AXI5 = [(9, 'srd', {'S_SB'}), (10, 'swr', {'S_SB'}), (11, 'mrd', {'M_SB'}
 # touch a field AXI5-Lite carries).
 FAULTS_AXIL5 = [f for f in FAULTS_AXI5 if f[0] in (9, 10, 11, 12, 13)]
 FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5,
-                   'axil4': [], 'axil5': FAULTS_AXIL5}
+                   'axil4': [], 'axil5': FAULTS_AXIL5, 'apb4': [], 'apb5': []}
 # Neither Lite shell takes RLAST (every transfer is one beat), and AXI4-Lite
 # carries no RID or BID: those faults have no wire to corrupt.
-FAULTS_SKIP = {'axil4': {1, 2, 4}, 'axil5': {2}}
+FAULTS_SKIP = {'axil4': {1, 2, 4}, 'axil5': {2}, 'apb4': {1, 2, 4}, 'apb5': {1, 2, 4}}
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
@@ -295,30 +305,41 @@ async def cocotb_test_axi_stress_long_lat(dut):
     assert 0 < s['mwr']['lat_sum'] <= s['mwr']['lat_max'] * s['mwr']['completed']
 
 
-PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3, 'axil5': 4}
+PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3, 'axil5': 4, 'apb4': 5, 'apb5': 6}
+APB = {'apb4', 'apb5'}
 LITE = {'axil4', 'axil5'}
+SINGLE = LITE | APB          # one beat per transfer
+IN_ORDER = {'axil4'} | APB   # one response order: issue order
+# APB: 32-bit, one transfer at a time on one bus (AW and W always together),
+# no IDs; the long-latency test holds a B, which an APB bus cannot.
 # AXI4-Lite: one ID and one beat per transfer, so a slave has nothing to
 # reorder or interleave; 'narrow' is partial strobes on bus-wide beats.
 # AXI5-Lite carries IDs and may answer different IDs in any order (IHI 0022L
 # B2.1.5), so ooo and one_id apply; single-beat bursts have no beats to
 # interleave.
 LITE_SCEN = {'axil4': ['inorder', 'narrow', 'errwin', 'w_first'],
-             'axil5': ['inorder', 'ooo', 'narrow', 'errwin', 'one_id', 'w_first']}
+             'axil5': ['inorder', 'ooo', 'narrow', 'errwin', 'one_id', 'w_first'],
+             'apb4': ['inorder', 'narrow', 'errwin'],
+             'apb5': ['inorder', 'narrow', 'errwin']}
 
 
 def _params():
     level = os.environ.get('TEST_LEVEL', 'gate')
     out = []
     for proto in PROTO_CODE:
-        if proto in LITE:
-            dws = [64] if level == 'gate' else [32, 64]      # AXI4-Lite: 32 or 64
+        if proto in APB:
+            dws = [32]
+            scen = LITE_SCEN[proto]
+        elif proto in LITE:
+            dws = [64] if level == 'gate' else [32, 64]      # AXI-Lite here: 32 or 64
             scen = LITE_SCEN[proto]
         else:
             dws = [64] if level == 'gate' else [32, 64, 128]
             scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id', 'w_first']
         out += [(proto, dw, 'clean', sc) for dw in dws for sc in scen]
         out += [(proto, dw, 'faults', '-') for dw in dws]
-        out.append((proto, 64, 'long_lat', '-'))
+        if proto not in APB:
+            out.append((proto, 64, 'long_lat', '-'))
     return out
 
 
@@ -378,7 +399,8 @@ def test_axi_stress_pair(request, proto, dw, kind, scenario):
             module=module,
             testcase=f"cocotb_test_axi_stress_{kind}",
             parameters={'DW': str(dw), 'IW': '8', 'DEPTH': '16', 'NWIN': '8',
-                        'PROTO': str(PROTO_CODE[proto])},
+                        'PROTO': str(PROTO_CODE[proto]),
+                        'OFFSET_LG2': str(APB_OFFSET_LG2 if proto in APB else 0)},
             sim_build=sim_build,
             simulator="verilator",
             extra_env=extra_env,
