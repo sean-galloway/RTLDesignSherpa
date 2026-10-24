@@ -53,6 +53,13 @@ run-smoke:
 run-all-gate-parallel: run-gate-parallel
 run-all-func-parallel: run-func-parallel
 run-all-full-parallel: run-full-parallel
+# The bare names the other areas answer to. Without these, `make run-all-func`
+# fell through to run-% and asked pytest for test_ddr2_char_macro[all-func], a
+# test id that does not exist (2026-10-24, exit 4 and no cell run).
+.PHONY: run-all-gate run-all-func run-all-full
+run-all-gate: run-gate-parallel
+run-all-func: run-func-parallel
+run-all-full: run-full-parallel
 
 run-%:
 	$(PYTEST) "test_ddr2_char_macro.py::test_ddr2_char_macro[$*]" -v --tb=short

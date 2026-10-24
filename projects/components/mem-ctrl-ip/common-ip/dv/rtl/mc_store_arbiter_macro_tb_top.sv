@@ -234,6 +234,10 @@ module mc_store_arbiter_macro_tb_top
             .wr_head2_o         (w_wr_head2),
             .rd_head_o          (w_rd_head),
             .rd_head2_o         (w_rd_head2),
+            .wr_sch_row_o       (wr_sch_row),
+            .wr_sch_col_o       (wr_sch_col),
+            .rd_sch_row_o       (rd_sch_row),
+            .rd_sch_col_o       (rd_sch_col),
             .wr_cm_rd_valid_o   (cm_valid),
             .wr_cm_rd_ready_i   (cm_ready),
             .wr_cm_rd_data_o    (cm_data),
@@ -243,10 +247,10 @@ module mc_store_arbiter_macro_tb_top
         );
         // the FR-FCFS vectors do not exist on this backend
         assign wr_sch_valid = '0; assign wr_sch_pend = '0; assign wr_sch_bank = '0;
-        assign wr_sch_row = '0;   assign wr_sch_col = '0;  assign wr_sch_older = '0;
+        assign wr_sch_older = '0;
         assign wr_age_exceed = '0; assign wr_sch_qos = '0; assign wr_head_rel = '0;
-        assign rd_sch_valid = '0; assign rd_sch_bank = '0; assign rd_sch_row = '0;
-        assign rd_sch_col = '0;   assign rd_sch_older = '0; assign rd_age_exceed = '0;
+        assign rd_sch_valid = '0; assign rd_sch_bank = '0;
+        assign rd_sch_older = '0; assign rd_age_exceed = '0;
         assign rd_sch_qos = '0;   assign rd_head_rel = '0;
     end else begin : g_entry_store
     mc_xddr2_entry_store #(
@@ -410,6 +414,10 @@ module mc_store_arbiter_macro_tb_top
             .wr_head2_i         (w_wr_head2),
             .rd_head_i          (w_rd_head),
             .rd_head2_i         (w_rd_head2),
+            .wr_slot_row_i      (wr_sch_row),
+            .wr_slot_col_i      (wr_sch_col),
+            .rd_slot_row_i      (rd_sch_row),
+            .rd_slot_col_i      (rd_sch_col),
             .wr_commit_ready_now_i  (wr_commit_ready_now),
             .wr_commit_valid_o  (wr_commit_valid),
             .wr_commit_slot_o   (wr_commit_slot),

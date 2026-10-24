@@ -42,6 +42,13 @@
 //          nothing per depth, so the bank FIFOs are pool-deep by default and
 //          admission is the pool's, exactly as the entry store's.
 //
+//          The records carry vld, slot, the behind flags, hit and the age flag,
+//          and NO row or column: the pick core looks the command payload up by
+//          slot from wr_sch_row_o / wr_sch_col_o / rd_sch_row_o / rd_sch_col_o
+//          (one lookup per direction). Materialising row + col in 32 records
+//          was most of this module's LUTs on the board (3 894 at N = 8 with
+//          them; report 5.11 has the number without).
+//
 //          Depth cap (BANK_FIFO_DEPTH < NUM_ENTRIES) is measured, not
 //          recommended: at 4 per (direction, bank) on the board geometry an
 //          8-beat AXI burst chops into 8 same-bank entries, the cap blocked
@@ -155,6 +162,12 @@ module mc_bank_fifo_store
     output mc_head_rec_t [NUM_BANKS-1:0]   wr_head2_o,
     output mc_head_rec_t [NUM_BANKS-1:0]   rd_head_o,
     output mc_head_rec_t [NUM_BANKS-1:0]   rd_head2_o,
+    // Slot fields for the pick core's payload lookup (row / col by slot; the
+    // records above carry no row / col -- see mc_bank_pick, 2026-10-24).
+    output logic [NUM_ENTRIES*ROW_WIDTH-1:0] wr_sch_row_o,
+    output logic [NUM_ENTRIES*COL_WIDTH-1:0] wr_sch_col_o,
+    output logic [NUM_ENTRIES*ROW_WIDTH-1:0] rd_sch_row_o,
+    output logic [NUM_ENTRIES*COL_WIDTH-1:0] rd_sch_col_o,
 
     // WR commit data to DFI plane
     output logic                wr_cm_rd_valid_o,
@@ -593,6 +606,16 @@ module mc_bank_fifo_store
     // ======================================================================
     mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
 
+    // Row / col by slot for the pick core's payload (registers, no mux).
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            wr_sch_row_o[i*ROW_WIDTH +: ROW_WIDTH] = r_wr_row[i];
+            wr_sch_col_o[i*COL_WIDTH +: COL_WIDTH] = r_wr_col[i];
+            rd_sch_row_o[i*ROW_WIDTH +: ROW_WIDTH] = r_rd_row[i];
+            rd_sch_col_o[i*COL_WIDTH +: COL_WIDTH] = r_rd_col[i];
+        end
+    end
+
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             automatic mc_head_rec_t h, h2;
@@ -607,8 +630,6 @@ module mc_bank_fifo_store
             has2 = (int'(r_wq_cnt[b]) > 2);
             h = '0;
             h.vld             = (r_wq_cnt[b] != '0) && r_wr_fdone[s0];
-            h.row             = MC_HEAD_ROW_W'(r_wr_row[s0]);
-            h.col             = MC_HEAD_COL_W'(r_wr_col[s0]);
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = h.vld && !(has1 && r_wr_fdone[s1]);
             h.behind_same_row = h.vld && has1 && r_wq_sp[b][qpos(r_wq_rd[b], 1)];
@@ -616,8 +637,6 @@ module mc_bank_fifo_store
             h.hit             = bank_row_active_i[b] && (r_wr_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1 && r_wr_fdone[s1];
-            h2.row             = MC_HEAD_ROW_W'(r_wr_row[s1]);
-            h2.col             = MC_HEAD_COL_W'(r_wr_col[s1]);
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = h2.vld && !(has2 && r_wr_fdone[s2]);
             h2.behind_same_row = h2.vld && has2 && r_wq_sp[b][qpos(r_wq_rd[b], 2)];
@@ -641,8 +660,6 @@ module mc_bank_fifo_store
             has2 = (int'(r_rq_cnt[b]) > 2);
             h = '0;
             h.vld             = (r_rq_cnt[b] != '0);
-            h.row             = MC_HEAD_ROW_W'(r_rd_row[s0]);
-            h.col             = MC_HEAD_COL_W'(r_rd_col[s0]);
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = (int'(r_rq_cnt[b]) == 1);
             h.behind_same_row = h.vld && has1 && r_rq_sp[b][qpos(r_rq_rd[b], 1)];
@@ -650,8 +667,6 @@ module mc_bank_fifo_store
             h.hit             = bank_row_active_i[b] && (r_rd_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1;
-            h2.row             = MC_HEAD_ROW_W'(r_rd_row[s1]);
-            h2.col             = MC_HEAD_COL_W'(r_rd_col[s1]);
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = (int'(r_rq_cnt[b]) == 2);
             h2.behind_same_row = h2.vld && has2 && r_rq_sp[b][qpos(r_rq_rd[b], 2)];

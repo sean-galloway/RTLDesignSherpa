@@ -142,6 +142,10 @@ package mc_common_pkg;
 
     typedef struct packed {
         logic                      vld;          // a schedulable entry exists
+        // row / col: NOT read by mc_bank_pick since 2026-10-24 (pumice
+        // TASK-051) -- the pick core looks the command payload up by slot
+        // from the backend's slot fields. mc_bank_head_records still fills
+        // them (its fub test checks them); mc_bank_fifo_store leaves them 0.
         logic [MC_HEAD_ROW_W-1:0]  row;
         logic [MC_HEAD_COL_W-1:0]  col;
         logic [MC_HEAD_SLOT_W-1:0] slot;         // commit / issue handle

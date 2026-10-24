@@ -122,6 +122,16 @@ module mc_bank_pick
     input  mc_head_rec_t [NUM_BANKS-1:0] wr_head2_i,
     input  mc_head_rec_t [NUM_BANKS-1:0] rd_head_i,
     input  mc_head_rec_t [NUM_BANKS-1:0] rd_head2_i,
+    // ---- command payload by slot (2026-10-24) -----------------------------
+    // The records name a slot; the row and column of the command come from
+    // the backend's slot fields through ONE lookup per direction here, not
+    // from every head record. Materialising row + col in 32 records was the
+    // bulk of both storage backends on the board (report 5.11): the record's
+    // own row/col fields are no longer read by this core.
+    input  logic [NUM_ENTRIES*ROW_WIDTH-1:0] wr_slot_row_i,
+    input  logic [NUM_ENTRIES*COL_WIDTH-1:0] wr_slot_col_i,
+    input  logic [NUM_ENTRIES*ROW_WIDTH-1:0] rd_slot_row_i,
+    input  logic [NUM_ENTRIES*COL_WIDTH-1:0] rd_slot_col_i,
 
     // ---- storage commit / issue handshake --------------------------------
     // Write sink room, the CAM's own accept condition (registers only, no
@@ -779,6 +789,8 @@ module mc_bank_pick
     logic            w_fis_col, w_fis_act, w_fis_pre;
     assign w_sel_bank    = BKW'(w_win_pair >> 1);
     assign w_sel_is_wr   = w_win_pair[0];
+    logic [PTRW-1:0] w_sel_slot;
+    assign w_sel_slot    = PTRW'(w_sel_cand.slot);
     assign w_sel_cand    = w_cand[w_win_pair];
     assign w_sel_hit     = w_hit [w_win_pair];
     assign w_sel_row_act = bank_row_active_i[RK0][w_sel_bank];
@@ -894,8 +906,10 @@ module mc_bank_pick
             cmd_bank_o  = timeout_pre_bank_i;
         end else if (w_win_vld) begin
             cmd_bank_o = w_sel_bank;
-            cmd_row_o  = w_sel_cand.row[ROW_WIDTH-1:0];
-            cmd_col_o  = w_sel_cand.col[COL_WIDTH-1:0];
+            cmd_row_o  = w_sel_is_wr ? wr_slot_row_i[w_sel_slot*ROW_WIDTH +: ROW_WIDTH]
+                                     : rd_slot_row_i[w_sel_slot*ROW_WIDTH +: ROW_WIDTH];
+            cmd_col_o  = w_sel_is_wr ? wr_slot_col_i[w_sel_slot*COL_WIDTH +: COL_WIDTH]
+                                     : rd_slot_col_i[w_sel_slot*COL_WIDTH +: COL_WIDTH];
             if (w_fis_act) begin
                 cmd_op_o = OP_ACT;
             end else if (w_fis_pre) begin

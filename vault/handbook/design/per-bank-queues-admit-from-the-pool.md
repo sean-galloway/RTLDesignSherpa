@@ -61,10 +61,15 @@ that never finished.
   after a pop -- so no pack-on-pop network is needed. The packed pool-deep
   form cost 5 822 LUT on the board, the circular one 3 894, against 5 825
   for the entry store with its records.
+- The records carry no row or column: the pick core looks the command
+  payload up by slot from the backend's slot fields (one mux per direction
+  in the fire stage, keyed by the registered winner) instead of 32 records
+  each materialising row + col. Store 3 894 -> 3 096 LUT, granite_core
+  7 403 -> 6 634, timing +0.194 ns (pumice TASK-051).
 - Verified: every granite grid cell equal to the entry store's number to the
   decimal (15 cells, 1 / 2 / 4 / 8 threads), row_thrash reads +14 percent at
-  one thread; board build +0.304 ns, granite_core 7 403 LUT (Phase 3 report
-  section 5.11).
+  one thread; board builds +0.304 / +0.545 ns before the payload change
+  (Phase 3 report section 5.11).
 
 ## How to check a design against it
 

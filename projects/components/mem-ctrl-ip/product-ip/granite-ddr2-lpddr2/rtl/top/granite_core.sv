@@ -548,6 +548,10 @@ module granite_core
             .wr_head2_o         (w_wr_head2),
             .rd_head_o          (w_rd_head),
             .rd_head2_o         (w_rd_head2),
+            .wr_sch_row_o       (w_wr_sch_row),
+            .wr_sch_col_o       (w_wr_sch_col),
+            .rd_sch_row_o       (w_rd_sch_row),
+            .rd_sch_col_o       (w_rd_sch_col),
             .wr_cm_rd_valid_o   (w_cm_v),
             .wr_cm_rd_ready_i   (w_cm_rdy),
             .wr_cm_rd_data_o    (w_cm_data),
@@ -560,16 +564,12 @@ module granite_core
         assign w_wr_sch_v     = '0;
         assign w_wr_sch_pend  = '0;
         assign w_wr_sch_bank  = '0;
-        assign w_wr_sch_row   = '0;
-        assign w_wr_sch_col   = '0;
         assign w_wr_sch_older = '0;
         assign w_wr_sch_agex  = '0;
         assign w_wr_sch_qos   = '0;
         assign w_wr_sch_hrel  = '0;
         assign w_rd_sch_v     = '0;
         assign w_rd_sch_bank  = '0;
-        assign w_rd_sch_row   = '0;
-        assign w_rd_sch_col   = '0;
         assign w_rd_sch_older = '0;
         assign w_rd_sch_agex  = '0;
         assign w_rd_sch_qos   = '0;

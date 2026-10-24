@@ -986,6 +986,7 @@ their neighbours -- the core total is the number):**
 | the same text rebuilt for the committed reports (quiet machine) | 7 409 / 5 316 | 3 895 / 2 826 | -- | 0 | +0.545 ns |
 | shipped + FIXED_TIMINGS | 7 283 / 5 305 | 3 867 / 2 826 | 1 559 (443, 489) | 0 | +0.042 ns |
 | shipped at NUM_ENTRIES 16 | 10 901 / 6 982 | 7 385 / 4 492 | 1 650 (613, 697) | 0 | **-0.896 ns, 147 endpoints** |
+| **shipped + payload by slot (pumice TASK-051, the committed text)** | **6 634 / 4 580** | 3 096 / 2 090 | 1 671 (522, 797) | 0 | +0.194 ns |
 
 Read across the storage column: the entry store plus its records were
 5 825 LUT; a per-bank FIFO store that presents the same records is 5 035
@@ -1014,10 +1015,20 @@ slack on this run, so they stay a build option, not the default. Item 5
 misses 75 MHz by 0.9 ns on this part; the grid in this section was taken at
 8 and equals the entry store's 8-thread numbers, so 8 is granite's design
 point and 16 is not a variant worth carrying. The lever
-that remains is the plane contract itself: records that carry `{vld, slot,
-hit, behind_*}` and a fire stage that looks row and column up by slot
-(two muxes instead of 32) -- a contract change across the records, the pick
-core and both backends, filed as the next item rather than done here.
+after that was the plane contract itself, and it is in (row 7, TASK-051):
+the pick core reads the command's row and column by SLOT from the backend's
+slot fields (`wr_slot_row_i` and friends, one lookup per direction in the
+fire payload, keyed by the registered winner), and the FIFO store's records
+carry no row or column at all. granite_core goes 7 403 -> 6 634 LUT and
+5 316 -> 4 580 FF, the store 3 894 -> 3 096; every perf cell measured
+(8-thread standard families, mixed) is cycle-identical, the contract battery
+and both suites pass, pumice passes at both geometries on the shared plane,
+and the board closes at +0.194 ns. Against the 5.10 baseline the product
+core is now a third smaller (9 956 -> 6 634) at the same bandwidth on every
+family. What is left in the store is the write-beat data path and the slot
+fields themselves; the next structural step would be records without the
+slot-indexed age flag, or a single head record per bank (LA = 1), each a
+measured trade against the picker's post-pop streaming.
 
 **Gates.** granite suite 6 / 1 xfailed on the FIFO store (both queue forms),
 on the entry store, and with `FIXED_TIMINGS = 1`; common-ip storage contract
