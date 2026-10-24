@@ -815,6 +815,53 @@ pass 10 / 10 alone: ISSUE-024, the engine wait is wall-clock), pumice 218 /
 PASS, lints clean.
 Eight-injector build on the new text: -0.212 ns, 36 failing endpoints (19 arbiter, 17 read engine 4), LUT 57 642 / FF 46 059 -- 91 percent of the xc7a100t; the popcount cone is gone from the list and what fails now is congestion. Eight injectors do not close 75 MHz on this part; the shipped harness default goes back to four (`CHAR_NUM_GEN` build knob for eight).
 
+### 5.9 The whole grid: every address mode, 1 / 2 / 4 / 8 threads, three controllers (2026-10-23, committed text ca751b408)
+
+Owner's request. One text, one harness family per controller (the pumice
+proxy with the FR-FCFS core, the granite proxy with BANK_PICK, the LiteDRAM
+proxy -- the LiteDRAM proxy gained the three window families for this),
+board geometry, 75 MHz, txn 256, 8-beat bursts except `row_thrash` at 2
+beats (eight bursts in a 16-entry window), tREFI 585. wr / rd MB/s over each
+direction's own window; `mixed` is the union-window total with the two
+directions in parentheses. Mismatched beats were 0 in all 45 cells. Peak
+is 600.
+
+| family | controller | 1 thread | 2 threads | 4 threads | 8 threads |
+|---|---|---|---|---|---|
+| incremental | pumice FR-FCFS | 564 / 559 | 566 / 564 | 565 / 568 | 554 / 561 |
+| incremental | granite BANK_PICK | 568 / 568 | 572 / 566 | 567 / 566 | 557 / 555 |
+| incremental | LiteDRAM | 554 / 557 | 408 / 416 | 402 / 410 | 391 / 399 |
+| row_major | pumice FR-FCFS | 568 / 568 | 571 / 569 | 566 / 569 | 556 / 562 |
+| row_major | granite BANK_PICK | 576 / 572 | 570 / 569 | 570 / 568 | 558 / 557 |
+| row_major | LiteDRAM | 560 / 570 | 409 / 416 | 403 / 411 | 392 / 400 |
+| col_ilv | pumice FR-FCFS | 457 / 501 | 495 / 526 | 497 / 523 | 524 / 540 |
+| col_ilv | granite BANK_PICK | 461 / 451 | 511 / 507 | 529 / 536 | 534 / 526 |
+| col_ilv | LiteDRAM | 275 / 280 | 376 / 380 | 366 / 373 | 375 / 381 |
+| col_major | pumice FR-FCFS | 309 / 351 | 458 / 504 | 458 / 506 | 458 / 507 |
+| col_major | granite BANK_PICK | 311 / 358 | 420 / 459 | 461 / 460 | 459 / 458 |
+| col_major | LiteDRAM | 302 / 382 | 269 / 274 | 271 / 277 | 277 / 280 |
+| row_thrash | pumice FR-FCFS | 269 / 303 | 231 / 229 | 283 / 282 | 286 / 286 |
+| row_thrash | granite BANK_PICK | 129 / 143 | 193 / 242 | 284 / 257 | 283 / 282 |
+| row_thrash | LiteDRAM | 126 / 190 | 104 / 106 | 105 / 106 | 106 / 108 |
+| random | pumice FR-FCFS | 460 / 491 | 430 / 475 | 429 / 477 | 431 / 479 |
+| random | granite BANK_PICK | 478 / 482 | 453 / 464 | 444 / 456 | 442 / 453 |
+| random | LiteDRAM | 329 / 337 | 293 / 307 | 286 / 298 | 282 / 293 |
+| mixed | pumice FR-FCFS | n/a | 243 (147/122) | 334 (200/167) | 311 (156/156) |
+| mixed | granite BANK_PICK | n/a | 332 (166/346) | 331 (166/262) | 98 (49/49) |
+| mixed | LiteDRAM | n/a | 248 (124/124) | 237 (119/119) | 239 (120/120) |
+
+Reading it: on the streams the two cores are within a few percent of each
+other and LiteDRAM falls to ~400 from two threads up (its per-bank FSM has
+no window to hide the switches). On the window families the research core
+is the one that earns its depth at one thread (`row_thrash` 2.1x over the
+per-bank core, 2.1x over LiteDRAM); at two threads BANK_PICK's exact,
+unarmed close beats the FR-FCFS core on `mixed` (332 vs 243) and on
+`random` throughout (its close is free, the FR-FCFS core's armed close
+needs evidence), and at eight threads on `mixed` the per-bank head record
+alternates rows every column and collapses to 98 while the window holds
+311. `row_thrash` at two threads dips on both cores (231 / 229, 193 / 242):
+two banks, four rows, and a 16-entry window that now holds four bursts of
+each bank -- the next thing to trace.
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

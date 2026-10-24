@@ -38,6 +38,7 @@ from TBClasses.harness.harness import UartSimHarness      # noqa: E402
 import ddr2_char as dc                                    # noqa: E402
 import pumice_char as pc                                  # noqa: E402
 import pumice_master as pm                                # noqa: E402
+import perf_mixed_family as pmf                           # noqa: E402
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_granite_char_uart import CLKS_PER_BIT           # noqa: E402,F401
@@ -215,15 +216,24 @@ async def cocotb_test_litedram_perf(dut):
     dump_path = os.environ.get("PERF_DUMP", "")
 
     def measure_family(fam_key):
-        fam = _FAMILIES[fam_key]
-        stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
-                                                  burst_len=blen, txn_count=txn),
-                                      geom)
+        if fam_key == "mixed":
+            return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
+                               clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0)
+        window = pmf.family_programs(fam_key, n_gen, geom, dc, blen=blen, txn=txn, gap=gap)
+        if window is not None:
+            fam, stride, wrap = fam_key, window[0]["stride_0"], window[0]["wrap_mask_0"]
+        else:
+            fam = _FAMILIES[fam_key]
+            stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
+                                                      burst_len=blen, txn_count=txn),
+                                          geom)
         beat_bytes = 1 << dc.AXI_SIZE_8
         bytes_moved = txn * blen * beat_bytes * n_gen
         seed = 0xABCD1234
 
         def prog_for(g):
+            if window is not None:
+                return window[g]
             # Same placement as the pumice proxy: generators one bank stride
             # apart, so each thread owns a bank on the page-friendly families
             # and the threads bank-interleave on col_major.
