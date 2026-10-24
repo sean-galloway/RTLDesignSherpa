@@ -313,6 +313,14 @@ module ddr2_char_top #(
 `else
         .NUM_GEN         (4),
 `endif
+        // This is the DDR2 board: the LPDDR2 training plane (ZQ / DQ cal) is
+        // compiled out (231 LUT / 518 FF, report 5.10). CHAR_LPDDR2 builds it
+        // for the LPDDR2 board (pumice TASK-042).
+`ifdef CHAR_LPDDR2
+        .HAS_LPDDR2      (1'b1),
+`else
+        .HAS_LPDDR2      (1'b0),
+`endif
         // Reader debug stream. 0 (not built) on the production bitstream; the
         // ILA build defines PUMICE_RD_DBG_FIFO so rd_dbg_mismatch exists to
         // trigger on (pumice BUG-014 (was PUMICE-037)).

@@ -55,6 +55,11 @@ module pumice_core
     // Owner, 2026-10-22: pumice (research) carries the FR-FCFS core;
     // granite (the product) carries BANK_PICK. Both stay selectable.
     parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_FRFCFS,
+    // LPDDR2 training plane (ZQ calibration, DQ calibration) built in. 1 =
+    // the research default; a DDR2-only build sets 0 and the plane's generate
+    // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
+    // mem-ctrl recovery Phase 3 report 5.10).
+    parameter bit HAS_LPDDR2 = 1'b1,
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
                                          // Off since BUG-027 (the "youngest schedulable"
                                          // predicate chopped page-hit write streams); back
@@ -852,8 +857,8 @@ module pumice_core
         .ROW_WIDTH      (ROW_WIDTH),
         .EXTRA_WIDTH    (1),
         .CAL_DATA_WIDTH (DFI_DATA_WIDTH),
-        .HAS_LP_ZQ      (1'b1),
-        .HAS_LP_DQ_CAL  (1'b1)
+        .HAS_LP_ZQ      (HAS_LPDDR2),
+        .HAS_LP_DQ_CAL  (HAS_LPDDR2)
     ) u_train_plane (
         .mc_clk          (aclk),
         .mc_rst_n        (aresetn),

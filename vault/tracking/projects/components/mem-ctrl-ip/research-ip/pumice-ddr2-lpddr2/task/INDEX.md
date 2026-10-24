@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-050** — never recycle a number, even when its item closed.
+**Next ID: TASK-051** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 39 | done (kept for history) |
+| [closed/](closed/) | 40 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -48,6 +48,15 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-050** — CLOSED 2026-10-23: the report 5.10 granite area list.
+  `mc_bank_fifo_store` is granite's storage backend (`STORE_BACKEND=1`;
+  bank queues pool-deep after a cap of 4 cost 23 percent at eight threads
+  and hung the mixed family; same-row-behind is a stored bit, no match
+  matrix), `HAS_LPDDR2=0` on both DDR2 board tops, `FIXED_TIMINGS` with
+  the 75 MHz `T_*` constants, window knobs on the harness and proxy, one
+  seed source for the three proxies. FIFO store == entry store to the
+  decimal on every grid cell measured, row_thrash reads +14 percent.
+  Contract battery entry/fifo cells 12 / 3 xfailed. Report 5.11.
 - **TASK-049** — CLOSED 2026-10-23: injector address modes. `AXI_ATTR.
   idx1_shift` makes the address generator's second dimension live (one
   thread alternating two rows of one bank: `row_thrash`), `addr_lfsr`

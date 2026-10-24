@@ -55,7 +55,14 @@ module granite_char_uart_tb_top
     parameter int CMD_MAX_DELAY   = 8,
     // Generators per direction (the injectors); the perf proxy raises it with
     // TEST_NUM_GEN so eight per direction can run at once (owner, 2026-10-22).
-    parameter int NUM_GEN         = 4
+    parameter int NUM_GEN         = 4,
+    // granite_core storage / timing knobs (report 5.10); the proxy drives
+    // them from TEST_NUM_ENTRIES / TEST_STORE_BACKEND / TEST_BANK_FIFO_DEPTH /
+    // TEST_FIXED_TIMINGS. Defaults are the board build.
+    parameter int NUM_ENTRIES     = 8,
+    parameter int STORE_BACKEND   = 1,
+    parameter int BANK_FIFO_DEPTH = 0,   // 0 = NUM_ENTRIES
+    parameter bit FIXED_TIMINGS   = 1'b0
 ) (
     input  logic aclk,
     input  logic aresetn,
@@ -123,7 +130,11 @@ module granite_char_uart_tb_top
         .DFI_RATE        (DFI_RATE),
         .DRAM_BL         (DRAM_BL),
         .CMD_MAX_DELAY   (CMD_MAX_DELAY),
-        .NUM_GEN         (NUM_GEN)
+        .NUM_GEN         (NUM_GEN),
+        .NUM_ENTRIES     (NUM_ENTRIES),
+        .STORE_BACKEND   (STORE_BACKEND),
+        .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
+        .FIXED_TIMINGS   (FIXED_TIMINGS)
     ) u_dut (
         .aclk        (aclk),
         .aresetn     (aresetn),

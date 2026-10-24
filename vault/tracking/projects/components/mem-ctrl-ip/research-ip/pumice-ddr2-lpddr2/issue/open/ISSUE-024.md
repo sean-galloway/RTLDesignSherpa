@@ -36,3 +36,12 @@ happened in that run for the same reason.
 - Until then, run the framework suite on a quiet machine, and treat a
   "did not complete" with an otherwise clean log as this issue -- but
   re-run the cell alone to prove it, every time.
+
+**2026-10-23, granite proxy:** the `mixed` cell at eight threads on the new
+FIFO store failed twice with "write engine did not complete" -- once under
+five parallel proxies, once under three -- while the timer window it did
+record (200 290 / 200 299 cycles) was the entry store's to the cycle. Run
+alone it passed with those same counts. Third instance of this issue; the
+granite proxy now dumps `gen_done` / `gen_errors` and the store's registered
+state on a failed cell (`_host_diag`), so the next one can be told apart
+from a hang without a rerun.

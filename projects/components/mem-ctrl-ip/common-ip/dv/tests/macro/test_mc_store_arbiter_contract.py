@@ -2,9 +2,13 @@
 # SPDX-FileCopyrightText: 2024-2026 sean galloway
 
 """
-Macro contract test: mc_xddr2_entry_store + a REAL pick core.
+Macro contract test: a storage backend + a REAL pick core.
 
-Parametrized over the two scheduler cores (tb_top SCHED_CORE):
+Parametrized over the two scheduler cores (tb_top SCHED_CORE) and, under the
+per-bank core, the two storage backends (tb_top STORE_BACKEND: `entry` =
+mc_xddr2_entry_store + records, `fifo` = mc_bank_fifo_store, granite's
+default since 2026-10-23; the recovery plan's Phase 4 battery item "contract
+test at max depth with > N chunks per direction"):
   bank_pick -- mc_bank_head_records + mc_bank_pick (the family core; all five
                cells must pass -- the four pipeline-acceptance cells are the
                Phase 2 gate of docs/superpowers/plans/2026-10-21-mem-ctrl-recovery.md;
@@ -208,11 +212,19 @@ async def _sample(dut):
         "row": int(dut.cmd_row.value),
         "col": int(dut.cmd_col.value),
         "slot": int(dut.cmd_slot.value),
-        # store-side context for a bubble post-mortem (not asserted on)
-        "sch": bin(int(dut.u_store.wr_sch_valid_o.value)).count("1"),
-        "pend": bin(int(dut.u_store.wr_sch_pend_o.value)).count("1"),
-        "crdy": int(dut.u_store.wr_commit_ready_o.value),
+        # store-side context for a bubble post-mortem (not asserted on). The
+        # store sits in a generate block per backend; the FR-FCFS vectors
+        # (sch/pend) exist on the entry store only.
+        "sch": -1, "pend": -1, "crdy": -1,
     }
+    store = getattr(getattr(dut, "g_entry_store", None), "u_store", None)
+    if store is not None:
+        snap["sch"] = bin(int(store.wr_sch_valid_o.value)).count("1")
+        snap["pend"] = bin(int(store.wr_sch_pend_o.value)).count("1")
+        snap["crdy"] = int(store.wr_commit_ready_o.value)
+    else:
+        store = dut.g_fifo_store.u_store
+        snap["crdy"] = int(store.wr_commit_ready_o.value)
     await RisingEdge(dut.aclk)
     await Timer(1, "ns")
     return snap
@@ -559,31 +571,36 @@ FRFCFS_XFAIL = {
     "cocotb_test_override_preempts_speculation": "a held column fires before the init override",
 }
 CORES = {"bank_pick": "1", "frfcfs": "0"}     # mc_common_pkg MC_SCHED_*
+STORES = {"entry": "0", "fifo": "1"}          # granite_core STORE_BACKEND
+# the FIFO store presents head records only, so it pairs with the per-bank core
+STORES_FOR_CORE = {"bank_pick": ("entry", "fifo"), "frfcfs": ("entry",)}
 
 
 def _cells():
     out = []
     for core in CORES:
-        for tc in CONTRACT_TESTS:
-            marks = []
-            if core == "frfcfs" and tc in FRFCFS_XFAIL:
-                marks.append(pytest.mark.xfail(
-                    strict=True,
-                    reason=f"FRFCFS research core, by design: {FRFCFS_XFAIL[tc]} "
-                           "(Phase 0 report section 3); the per-bank core replaces it"))
-            out.append(pytest.param(core, tc, id=f"{core}-{tc.removeprefix('cocotb_test_')}",
-                                    marks=marks))
+        for store in STORES_FOR_CORE[core]:
+            for tc in CONTRACT_TESTS:
+                marks = []
+                if core == "frfcfs" and tc in FRFCFS_XFAIL:
+                    marks.append(pytest.mark.xfail(
+                        strict=True,
+                        reason=f"FRFCFS research core, by design: {FRFCFS_XFAIL[tc]} "
+                               "(Phase 0 report section 3); the per-bank core replaces it"))
+                out.append(pytest.param(core, store, tc,
+                                        id=f"{core}-{store}-{tc.removeprefix('cocotb_test_')}",
+                                        marks=marks))
     return out
 
 
-@pytest.mark.parametrize("core,testcase", _cells())
-def test_mc_store_arbiter_contract(request, core, testcase):
+@pytest.mark.parametrize("core,store,testcase", _cells())
+def test_mc_store_arbiter_contract(request, core, store, testcase):
     from cocotb_test.simulator import run
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     dut_name = "mc_store_arbiter_macro_tb_top"
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root, filelist_path=_FILELIST)
-    tag = f"{core}_{testcase}"
+    tag = f"{core}_{store}_{testcase}"
     sim_build = sim_build_path(tests_dir, tag)
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
@@ -592,7 +609,7 @@ def test_mc_store_arbiter_contract(request, core, testcase):
               "NUM_RANKS": "1", "NUM_BANKS": "8",
               "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "AXI_BEATS_PER_BURST": "1", "RD_RET_DEPTH": "32",
-              "SCHED_CORE": CORES[core]}
+              "SCHED_CORE": CORES[core], "STORE_BACKEND": STORES[store]}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{tag}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",
                  "COCOTB_RESULTS_FILE": os.path.join(log_dir, f"results_{tag}.xml")}

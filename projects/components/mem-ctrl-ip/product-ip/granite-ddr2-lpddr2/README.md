@@ -39,9 +39,15 @@ the v2 generation will never see
 
 ## Configuration intent (ch5.2 defaults for v2)
 
-- **Storage plane, lite configuration** — N=8 in-order seam (entry store
-  allocates in-order: FIFO-per-direction semantics under the scheduler's
-  existing argmax pick); storage "off" shrinks toward one, never to zero.
+- **Storage plane, lite configuration** — N=8 slots per direction on the
+  per-bank FIFO store (`mc_bank_fifo_store`, `STORE_BACKEND=1`, the default
+  since 2026-10-23): bank queues pool-deep, head records read off the
+  queue fronts, no age matrix. `STORE_BACKEND=0` keeps the entry store +
+  `mc_bank_head_records` for A/B. Storage "off" shrinks toward one, never
+  to zero. `HAS_LPDDR2=0` compiles the LPDDR2 training plane out of a
+  DDR2-only build; `FIXED_TIMINGS=1` replaces the TIMINGS CSRs with the
+  `T_*` constants (one-part product). Measured in the mem-ctrl recovery
+  Phase 3 report, section 5.10.
 - **RAS plane absent** — true bypass: no transform pair instantiated, no
   scrub; only the reserved CSR decode.
 - **Write-data buffer at SKU minimum** — sized by the product burst

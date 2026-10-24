@@ -229,21 +229,16 @@ async def cocotb_test_litedram_perf(dut):
                                           geom)
         beat_bytes = 1 << dc.AXI_SIZE_8
         bytes_moved = txn * blen * beat_bytes * n_gen
-        seed = 0xABCD1234
-
         def prog_for(g):
             if window is not None:
                 return window[g]
             # Same placement as the pumice proxy: generators one bank stride
             # apart, so each thread owns a bank on the page-friendly families
             # and the threads bank-interleave on col_major.
-            s = seed + 0x1000 * g
             return dict(start_addr=g * geom.bank_stride, burst_len=blen,
                         txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
                         id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
-                        data_mode=True, lfsr_seed=s,
-                        hash_seed0=s, hash_seed1=s ^ 0x9E3779B9,
-                        hash_seed2=s ^ 0x85EBCA6B, gen=g)
+                        data_mode=True, gen=g, **pmf.seed_fields(g))
 
         mask = (1 << n_gen) - 1
 
@@ -277,6 +272,7 @@ async def cocotb_test_litedram_perf(dut):
         mism = drv.beats_mismatched()
         return {
             "family": fam_key, "stride": stride, "wrap": wrap,
+            "seed": pmf.PERF_SEED, "gen_seeds": [prog_for(g)["lfsr_seed"] for g in range(n_gen)],
             "txn": txn, "burst_len": blen, "num_gen": n_gen,
             "bytes_moved": bytes_moved,
             "wr_ok": bool(wr_ok), "rd_ok": bool(rd_ok), "mismatched": int(mism),

@@ -337,6 +337,16 @@ def test_granite_core(request, test_level):
     os.makedirs(sim_build, exist_ok=True)
     os.makedirs(log_dir, exist_ok=True)
     params = {"AXI_ID_WIDTH": "8", "AXI_ADDR_WIDTH": "32", "NUM_RANKS": "1",
+              "STORE_BACKEND": os.environ.get("GRANITE_STORE_BACKEND", "1"),
+              "BANK_FIFO_DEPTH": os.environ.get("GRANITE_BANK_FIFO_DEPTH", "0"),
+              # GRANITE_FIXED_TIMINGS=1: the core compares against the T_*
+              # constants, so they are set to the values this test drives on
+              # the t_*_i ports (cocotb_test_* below) and the DFI model sees
+              # the same spacing either way.
+              "FIXED_TIMINGS": os.environ.get("GRANITE_FIXED_TIMINGS", "0"),
+              "T_RCD": "2", "T_RP": "2", "T_RAS": "3", "T_RC": "4", "T_WR": "2",
+              "T_RTP": "2", "T_FAW": "4", "T_RRD": "1", "T_WTR": "1", "T_RTW": "1",
+              "T_CCD": "1", "T_REFI": str(0x7FFF), "T_RFC": "8",
               "NUM_BANKS": "8", "ROW_WIDTH": "14", "COL_WIDTH": "10",
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT), "DRAM_BL": str(BL)}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),

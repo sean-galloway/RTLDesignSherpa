@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Oct 19 08:01:02 2026
+| Date         : Sat Oct 24 00:42:29 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/utilization_synth.txt
 | Design       : granite_char_top
@@ -31,16 +31,16 @@ Table of Contents
 +----------------------------+-------+-------+------------+-----------+-------+
 |          Site Type         |  Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+-------+-------+------------+-----------+-------+
-| Slice LUTs*                | 37063 |     0 |          0 |     63400 | 58.46 |
-|   LUT as Logic             | 34971 |     0 |          0 |     63400 | 55.16 |
-|   LUT as Memory            |  2092 |     0 |          0 |     19000 | 11.01 |
-|     LUT as Distributed RAM |  2092 |     0 |            |           |       |
+| Slice LUTs*                | 42071 |     0 |          0 |     63400 | 66.36 |
+|   LUT as Logic             | 39977 |     0 |          0 |     63400 | 63.06 |
+|   LUT as Memory            |  2094 |     0 |          0 |     19000 | 11.02 |
+|     LUT as Distributed RAM |  2094 |     0 |            |           |       |
 |     LUT as Shift Register  |     0 |     0 |            |           |       |
-| Slice Registers            | 32867 |     0 |          0 |    126800 | 25.92 |
-|   Register as Flip Flop    | 32835 |     0 |          0 |    126800 | 25.90 |
-|   Register as Latch        |    32 |     0 |          0 |    126800 |  0.03 |
-| F7 Muxes                   |  1759 |     0 |          0 |     31700 |  5.55 |
-| F8 Muxes                   |   265 |     0 |          0 |     15850 |  1.67 |
+| Slice Registers            | 35067 |     0 |          0 |    126800 | 27.66 |
+|   Register as Flip Flop    | 35067 |     0 |          0 |    126800 | 27.66 |
+|   Register as Latch        |     0 |     0 |          0 |    126800 |  0.00 |
+| F7 Muxes                   |  1785 |     0 |          0 |     31700 |  5.63 |
+| F8 Muxes                   |   127 |     0 |          0 |     15850 |  0.80 |
 +----------------------------+-------+-------+------------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
 Warning! LUT value is adjusted to account for LUT combining.
@@ -59,10 +59,10 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |         Set |            - |
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
-| 629   |          Yes |           - |          Set |
-| 25091 |          Yes |           - |        Reset |
+| 481   |          Yes |           - |          Set |
+| 23983 |          Yes |           - |        Reset |
 | 185   |          Yes |         Set |            - |
-| 6962  |          Yes |       Reset |            - |
+| 10418 |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -86,8 +86,8 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------------+------+-------+------------+-----------+-------+
 |    Site Type   | Used | Fixed | Prohibited | Available | Util% |
 +----------------+------+-------+------------+-----------+-------+
-| DSPs           |   16 |     0 |          0 |       240 |  6.67 |
-|   DSP48E1 only |   16 |       |            |           |       |
+| DSPs           |   32 |     0 |          0 |       240 | 13.33 |
+|   DSP48E1 only |   32 |       |            |           |       |
 +----------------+------+-------+------------+-----------+-------+
 
 
@@ -158,30 +158,29 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +------------+-------+---------------------+
 |  Ref Name  |  Used | Functional Category |
 +------------+-------+---------------------+
-| FDCE       | 25059 |        Flop & Latch |
-| LUT6       | 17678 |                 LUT |
-| LUT5       |  7447 |                 LUT |
-| FDRE       |  6962 |        Flop & Latch |
-| LUT4       |  6192 |                 LUT |
-| LUT3       |  4738 |                 LUT |
-| LUT2       |  3557 |                 LUT |
-| MUXF7      |  1759 |               MuxFx |
+| FDCE       | 23983 |        Flop & Latch |
+| LUT6       | 21270 |                 LUT |
+| FDRE       | 10418 |        Flop & Latch |
+| LUT5       |  9251 |                 LUT |
+| LUT4       |  6398 |                 LUT |
+| LUT3       |  5134 |                 LUT |
+| LUT2       |  3366 |                 LUT |
+| MUXF7      |  1785 |               MuxFx |
 | RAMD64E    |  1528 |  Distributed Memory |
-| CARRY4     |  1015 |          CarryLogic |
-| RAMD32     |   824 |  Distributed Memory |
-| FDPE       |   629 |        Flop & Latch |
-| LUT1       |   457 |                 LUT |
-| MUXF8      |   265 |               MuxFx |
+| CARRY4     |  1285 |          CarryLogic |
+| RAMD32     |   826 |  Distributed Memory |
+| FDPE       |   481 |        Flop & Latch |
+| LUT1       |   474 |                 LUT |
 | RAMS32     |   260 |  Distributed Memory |
 | FDSE       |   185 |        Flop & Latch |
+| MUXF8      |   127 |               MuxFx |
 | OBUF       |    57 |                  IO |
 | OSERDESE2  |    43 |                  IO |
-| LDCE       |    32 |        Flop & Latch |
+| DSP48E1    |    32 |    Block Arithmetic |
 | IBUF       |    19 |                  IO |
 | OBUFT      |    16 |                  IO |
 | ISERDESE2  |    16 |                  IO |
 | IDELAYE2   |    16 |                  IO |
-| DSP48E1    |    16 |    Block Arithmetic |
 | BUFG       |     7 |               Clock |
 | OBUFTDS    |     4 |                  IO |
 | INV        |     3 |                 LUT |

@@ -9,6 +9,10 @@
 // SCHED_CORE selects the core under test (mc_common_pkg MC_SCHED_*):
 //   MC_SCHED_BANK_PICK  entry store -> mc_bank_head_records (x2) -> mc_bank_pick
 //   MC_SCHED_FRFCFS     entry store -> mc_cmd_arbiter (per-entry vectors)
+// STORE_BACKEND selects the storage backend (granite_core's parameter):
+//   0  mc_xddr2_entry_store (+ the records under BANK_PICK)
+//   1  mc_bank_fifo_store, records read off the bank FIFO fronts (BANK_PICK only;
+//      recovery plan Phase 4 storage battery: same contract surface, N=8, 2xN chunks)
 //
 // Why this exists: the store<->core commit/issue ready contract is STRUCTURAL
 // ("sink has room"), and a core gates its column picks on that one scalar. A
@@ -46,6 +50,7 @@ module mc_store_arbiter_macro_tb_top
     parameter int AXI_BEATS_PER_BURST = 1,
     parameter int RD_RET_DEPTH        = 32,
     parameter int SCHED_CORE          = MC_SCHED_BANK_PICK,
+    parameter int STORE_BACKEND       = 0,
     // The pick core's close-on-drain is exact (AP on the last same-row entry);
     // off here so the stub bank model's AP close cannot manufacture bubbles in
     // the streaming cells. The FRFCFS core keeps its own default.
@@ -153,6 +158,97 @@ module mc_store_arbiter_macro_tb_top
 
     logic rd_iss_valid, rd_cam_ins_ready;
 
+    // Per-bank head records (BANK_PICK): from the records modules on the entry
+    // store's vectors, or straight from the FIFO store.
+    mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
+    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] stub_row_active;
+
+    generate if (STORE_BACKEND == 1) begin : g_fifo_store
+        if (SCHED_CORE != MC_SCHED_BANK_PICK)
+            $error("STORE_BACKEND=1 (mc_bank_fifo_store) pairs with SCHED_CORE=BANK_PICK only");
+        mc_bank_fifo_store #(
+            .NUM_ENTRIES        (NUM_ENTRIES),
+            .AXI_ID_WIDTH       (IW),
+            .AXI_DATA_WIDTH     (DW),
+            .NUM_RANKS          (NUM_RANKS),
+            .NUM_BANKS          (NUM_BANKS),
+            .ROW_WIDTH          (ROW_WIDTH),
+            .COL_WIDTH          (COL_WIDTH),
+            .AXI_BEATS_PER_BURST(AXI_BEATS_PER_BURST),
+            .RD_RET_DEPTH       (RD_RET_DEPTH)
+        ) u_store (
+            .aclk               (aclk),
+            .aresetn            (aresetn),
+            .aw_push_valid_i    (aw_push_valid),
+            .aw_push_ready_o    (aw_push_ready),
+            .aw_push_bank_i     (aw_push_bank),
+            .aw_push_row_i      (aw_push_row),
+            .aw_push_col_i      (aw_push_col),
+            .aw_push_id_i       (aw_push_id),
+            .aw_push_qos_i      (aw_push_qos),
+            .aw_push_agg_i      (aw_push_agg),
+            .aw_push_last_i     (aw_push_last),
+            .wd_valid_i         (wd_valid),
+            .wd_ready_o         (wd_ready),
+            .wd_data_i          (wd_data),
+            .wd_strb_i          (wd_strb),
+            .wd_last_i          (wd_last),
+            .wr_done_valid_o    (wr_done_valid),
+            .wr_done_id_o       (wr_done_id),
+            .snarf_probe_valid_i(1'b0),
+            .snarf_probe_bank_i ('0),
+            .snarf_probe_row_i  ('0),
+            .snarf_probe_col_i  ('0),
+            .snarf_probe_id_i   ('0),
+            .snarf_probe_len_i  (8'd0),
+            .snarf_hit_o        (),
+            .snarf_accept_i     (1'b0),
+            .snarf_rd_valid_o   (),
+            .snarf_rd_ready_i   (1'b0),
+            .snarf_rd_data_o    (),
+            .snarf_rd_last_o    (),
+            .ar_push_valid_i    (ar_push_valid),
+            .ar_push_ready_o    (ar_push_ready),
+            .ar_push_bank_i     (ar_push_bank),
+            .ar_push_row_i      (ar_push_row),
+            .ar_push_col_i      (ar_push_col),
+            .ar_push_id_i       (ar_push_id),
+            .ar_push_qos_i      (ar_push_qos),
+            .rt_alloc_ready_i   (1'b1),
+            .rt_alloc_ticket_i  ('0),
+            .rd_iss_ready_i     (1'b1),
+            .rd_iss_valid_o     (rd_iss_valid),
+            .rd_iss_ticket_o    (),
+            .rd_cam_ins_ready_o (rd_cam_ins_ready),
+            .sched_age_thresh_i (8'd0),
+            .wr_commit_valid_i  (wr_commit_valid),
+            .wr_commit_ready_o  (wr_commit_ready),
+            .wr_commit_ready_now_o  (wr_commit_ready_now),
+            .wr_commit_slot_i   (wr_commit_slot),
+            .rd_issue_valid_i   (rd_issue_valid),
+            .rd_issue_ready_o   (rd_issue_ready),
+            .rd_issue_slot_i    (rd_issue_slot),
+            .bank_row_active_i  (stub_row_active[0]),
+            .bank_open_row_i    ('0),
+            .wr_head_o          (w_wr_head),
+            .wr_head2_o         (w_wr_head2),
+            .rd_head_o          (w_rd_head),
+            .rd_head2_o         (w_rd_head2),
+            .wr_cm_rd_valid_o   (cm_valid),
+            .wr_cm_rd_ready_i   (cm_ready),
+            .wr_cm_rd_data_o    (cm_data),
+            .wr_cm_rd_strb_o    (cm_strb),
+            .wr_cm_rd_last_o    (cm_last),
+            .busy_o             ()
+        );
+        // the FR-FCFS vectors do not exist on this backend
+        assign wr_sch_valid = '0; assign wr_sch_pend = '0; assign wr_sch_bank = '0;
+        assign wr_sch_row = '0;   assign wr_sch_col = '0;  assign wr_sch_older = '0;
+        assign wr_age_exceed = '0; assign wr_sch_qos = '0; assign wr_head_rel = '0;
+        assign rd_sch_valid = '0; assign rd_sch_bank = '0; assign rd_sch_row = '0;
+        assign rd_sch_col = '0;   assign rd_sch_older = '0; assign rd_age_exceed = '0;
+        assign rd_sch_qos = '0;   assign rd_head_rel = '0;
+    end else begin : g_entry_store
     mc_xddr2_entry_store #(
         .NUM_ENTRIES        (NUM_ENTRIES),
         .AXI_ID_WIDTH       (IW),
@@ -239,6 +335,7 @@ module mc_store_arbiter_macro_tb_top
         .wr_cm_rd_last_o    (cm_last),
         .busy_o             ()
     );
+    end endgenerate
 
     // ------------------------------------------------------------------
     // Stub bank model + cocotb-driven live gates
@@ -246,7 +343,6 @@ module mc_store_arbiter_macro_tb_top
     // Close-on-AP bank model: an AP column starts a per-bank countdown, the
     // row drops at zero, an ACT re-opens it and aborts the pending close
     // (the real mc_bank_timer's shape). Rows start open to row 0.
-    logic [NUM_RANKS-1:0][NUM_BANKS-1:0] stub_row_active;
     logic [NUM_BANKS-1:0][3:0]           stub_ap_cnt;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_act_rdy, w_rdwr_rdy, w_pre_rdy;
     logic [NUM_RANKS-1:0][NUM_BANKS-1:0] w_act_la, w_rdwr_la, w_pre_la;
@@ -269,8 +365,7 @@ module mc_store_arbiter_macro_tb_top
     logic        core_pick_valid;
 
     generate if (SCHED_CORE == MC_SCHED_BANK_PICK) begin : g_pick
-        mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
-
+        if (STORE_BACKEND != 1) begin : g_rec
         mc_bank_head_records #(
             .NUM_ENTRIES(NUM_ENTRIES), .NUM_BANKS(NUM_BANKS),
             .ROW_WIDTH(ROW_WIDTH), .COL_WIDTH(COL_WIDTH)
@@ -293,6 +388,7 @@ module mc_store_arbiter_macro_tb_top
             .sch_older_i(rd_sch_older), .sch_age_exceed_i(rd_age_exceed),
             .head_o(w_rd_head), .head2_o(w_rd_head2)
         );
+        end
 
         mc_bank_pick #(
             .NUM_RANKS  (NUM_RANKS),

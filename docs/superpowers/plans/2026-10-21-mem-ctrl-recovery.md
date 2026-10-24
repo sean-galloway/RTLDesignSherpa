@@ -463,6 +463,18 @@ the 1/2/4/8-thread perf on that default are in the Phase 3 report §5.1; the
 FIFO backend (`mc_bank_fifo_store`) and the storage battery below remain
 this phase's work.
 
+**Status 2026-10-23:** `mc_bank_fifo_store` landed and is granite's default
+(`STORE_BACKEND=1`). Its first cut capped each (direction, bank) queue at 4,
+which blocked the AXI address channel half way through every chopped burst
+(23 percent off at eight threads, the mixed family deadlocked); the shipped
+form keeps the bank queues pool-deep and stores the same-row-behind flag as
+one bit per queue position at push, so no match matrix remains (item 4 of
+the Phase 3 report's area list falls out of item 1). Battery: contract test
+at N=8 with 2xN chunks on both backends (`test_mc_store_arbiter_contract`,
+`entry`/`fifo` cells), `test_granite_top_geared` n8/m12, the granite suite
+on both backends and with `FIXED_TIMINGS=1`, the perf proxies, whole-harness
+lint. Numbers and the board build: Phase 3 report section 5.11.
+
 1. `mc_bank_fifo_store` per §2.4 presenting the same records; granite_core
    composes it with the untouched scheduler plane.
 2. Storage-backend battery (AGENTS.md rule generalised): contract test at max

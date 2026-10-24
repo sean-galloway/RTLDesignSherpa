@@ -43,6 +43,10 @@ module granite_char_macro
 
     // ---- Controller depths ----
     parameter int WR_CAM_DEPTH     = 16,
+    parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
+    parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
+    parameter bit FIXED_TIMINGS   = 1'b0, // 1 = granite_core T_* constants replace the TIMINGS CSRs
     parameter int RD_CAM_DEPTH     = 16,
     parameter int RD_RET_DEPTH     = 32,
     parameter int W_BUF_DEPTH      = 128,
@@ -350,7 +354,11 @@ module granite_char_macro
         .DRAM_BL         (DRAM_BL),
         .NUM_ENTRIES     (WR_CAM_DEPTH),
         .RD_RET_DEPTH    (RD_RET_DEPTH),
-        .CSR_ADDR_W      (APB_ADDR_WIDTH)
+        .CSR_ADDR_W      (APB_ADDR_WIDTH),
+        .HAS_LPDDR2      (HAS_LPDDR2),
+        .STORE_BACKEND   (STORE_BACKEND),
+        .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
+        .FIXED_TIMINGS   (FIXED_TIMINGS)
     ) u_ctrl (
         .aclk                  (mc_clk),
         .aresetn               (mc_rst_n),

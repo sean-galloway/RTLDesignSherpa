@@ -49,7 +49,27 @@ ROW_THRASH_ROW = 0x11    # first of the two rows (second is the next row)
 RANDOM_ROWS = 2          # rows per thread in the random region
 
 
-def family_programs(fam, n_gen, geom, dc, *, blen, txn, gap, seed=0xABCD1234):
+# The ONE seed for every perf proxy (pumice, granite, LiteDRAM): thread g of a
+# family gets gen_seed(g), a direction region adds 0x100000. All three proxies
+# import these, so a grid cell is the same address and data stream on each
+# controller by construction, and every result record carries the seeds it ran
+# with (owner, 2026-10-23: "ensure all three agents are seeded the same").
+PERF_SEED = 0xABCD1234
+
+
+def gen_seed(g, region=0, seed=PERF_SEED):
+    return seed + 0x1000 * g + 0x100000 * region
+
+
+def seed_fields(g, region=0, seed=PERF_SEED):
+    """Engine-program kwargs that carry the seed: the data/address LFSR seed and
+    the three address-hash seeds derived from it."""
+    s = gen_seed(g, region, seed)
+    return dict(lfsr_seed=s, hash_seed0=s, hash_seed1=s ^ 0x9E3779B9,
+                hash_seed2=s ^ 0x85EBCA6B)
+
+
+def family_programs(fam, n_gen, geom, dc, *, blen, txn, gap, seed=PERF_SEED):
     """Per-generator engine programs for `row_thrash` / `random`, or None."""
     if fam not in ("row_thrash", "random"):
         return None
@@ -57,11 +77,9 @@ def family_programs(fam, n_gen, geom, dc, *, blen, txn, gap, seed=0xABCD1234):
     burst = blen * beat_bytes
     out = []
     for g in range(n_gen):
-        s = seed + 0x1000 * g
         common = dict(burst_len=blen, txn_count=txn, gap=gap, id_mode=dc.ID_MODE_FIXED,
-                      axi_size=dc.AXI_SIZE_8, data_mode=True, lfsr_seed=s,
-                      hash_seed0=s, hash_seed1=s ^ 0x9E3779B9, hash_seed2=s ^ 0x85EBCA6B,
-                      gen=g)
+                      axi_size=dc.AXI_SIZE_8, data_mode=True, gen=g,
+                      **seed_fields(g, seed=seed))
         if fam == "row_thrash":
             bank = g % (1 << geom.bank_width)
             out.append(dict(start_addr=bank * geom.bank_stride
@@ -95,19 +113,17 @@ def programs(n_gen, geom, dc, *, blen, txn, gap, seed, region):
     out = []
     for g, (bank, rowgrp) in enumerate(layout(n_gen, geom)):
         row = rowgrp + region * REGION_ROWS
-        s = seed + 0x1000 * g + 0x100000 * region
         out.append(dict(start_addr=bank * geom.bank_stride + row * geom.row_stride_same_bank,
                         burst_len=blen, txn_count=txn, stride_0=stride,
                         wrap_mask_0=wrap, gap=gap, id_mode=dc.ID_MODE_FIXED,
-                        axi_size=dc.AXI_SIZE_8, data_mode=True, lfsr_seed=s,
-                        hash_seed0=s, hash_seed1=s ^ 0x9E3779B9,
-                        hash_seed2=s ^ 0x85EBCA6B, gen=g))
+                        axi_size=dc.AXI_SIZE_8, data_mode=True, gen=g,
+                        **seed_fields(g, region, seed)))
     return out
 
 
 def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
             hist_mean, diag=None, host_diag=None, always_diag=False,
-            timeout_s=120, seed=0xABCD1234):
+            timeout_s=120, seed=PERF_SEED):
     """Run the mixed family and return the record the proxies log.
 
     Keys match the stride families (wr_/rd_ cycles, bw, util, lat, mismatched,
@@ -158,6 +174,8 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
     mism = drv.beats_mismatched()
     return {
         "family": "mixed", "stride": wr_prog[0]["stride_0"], "wrap": wr_prog[0]["wrap_mask_0"],
+        "seed": seed, "wr_seeds": [p["lfsr_seed"] for p in wr_prog],
+        "rd_seeds": [p["lfsr_seed"] for p in rd_prog],
         "txn": txn, "burst_len": blen, "num_gen": n_gen,
         "bytes_moved": 2 * bytes_dir,
         "layout": layout(n_gen, geom), "region_rows": REGION_ROWS,

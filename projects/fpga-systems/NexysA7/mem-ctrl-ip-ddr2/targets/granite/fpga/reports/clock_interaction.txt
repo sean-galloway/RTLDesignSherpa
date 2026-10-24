@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Mon Oct 19 08:23:33 2026
+| Date         : Sat Oct 24 00:49:15 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.4 LTS
 | Command      : report_clock_interaction -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/clock_interaction.txt
 | Design       : granite_char_top
@@ -15,15 +15,15 @@ Clock Interaction Report
 Clock Interaction Table
 -----------------------
 
-                              WNS                                   TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock              
-From Clock     To Clock       Clock Edges       WNS(ns)    TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints              
--------------  -------------  -----------  ------------  ---------  -----------  -----------  ---------------  -------------------  -----------------------  
-led_slow_clk   led_slow_clk   rise - rise   13333331.00       0.00            0          110      13333334.00  Clean                Timed                    
-led_slow_clk   sys_clk_pin                                                    0           16                   Ignored              Asynchronous Groups      
-led_slow_clk   w_sys_i        rise - rise          9.08       0.00            0            1            10.00  Ignored              Max Delay Datapath Only  
-sys_clk_pin    sys_clk_pin    rise - rise          9.24       0.00            0            3            10.00  Clean                Partial False Path       
-sys_clk_pin    w_sys_i                                                        0         1478                   Ignored              False Path               
-w_sys_i        led_slow_clk   rise - rise          3.46       0.00            0           14       Unexpanded  No Common Period     Timed (unsafe)           
-w_sys_i        w_sys_i        rise - rise        -33.41  -44384.54        14765       105623            13.33  Clean                Partial False Path       
+                              WNS                                 TNS Failing  TNS Total    WNS Path         Clock-Pair           Inter-Clock              
+From Clock     To Clock       Clock Edges       WNS(ns)  TNS(ns)    Endpoints    Endpoints  Requirement(ns)  Classification       Constraints              
+-------------  -------------  -----------  ------------  -------  -----------  -----------  ---------------  -------------------  -----------------------  
+led_slow_clk   led_slow_clk   rise - rise   13333332.00     0.00            0          110      13333334.00  Clean                Timed                    
+led_slow_clk   sys_clk_pin                                                  0           16                   Ignored              Asynchronous Groups      
+led_slow_clk   w_sys_i        rise - rise          9.15     0.00            0            1            10.00  Ignored              Max Delay Datapath Only  
+sys_clk_pin    sys_clk_pin    rise - rise          9.24     0.00            0            3            10.00  Clean                Partial False Path       
+sys_clk_pin    w_sys_i                                                      0         1478                   Ignored              False Path               
+w_sys_i        led_slow_clk   rise - rise          3.46     0.00            0           14       Unexpanded  No Common Period     Timed (unsafe)           
+w_sys_i        w_sys_i        rise - rise          0.55     0.00            0       110768            13.33  Clean                Partial False Path       
 
 

@@ -243,11 +243,74 @@ async def cocotb_test_granite_perf(dut):
     geom = pc.DEFAULT_GEOM
     dump_path = os.environ.get("PERF_DUMP", "")
 
+    diag = {}
+    always_diag = os.environ.get("PERF_ALWAYS_DIAG", "0") == "1"
+
+    def _store_probe():
+        """Registered state of granite_core's storage backend (public-flat-rw):
+        occupancy, fill order, drain queue, the ready terms -- where a write
+        that never returned its B is sitting."""
+        res = {}
+        try:
+            core = dut.u_dut.u_dut.u_ctrl.u_core
+        except AttributeError as e:
+            return {"n/a": repr(e)}
+        st = None
+        for path in ("g_fifo_store.u_fifo_store", "g_entry_store.u_entry_store"):
+            h = core
+            try:
+                for part in path.split("."):
+                    h = getattr(h, part)
+                st = h
+                res["backend"] = path
+                break
+            except AttributeError:
+                continue
+        if st is None:
+            return {"n/a": "no store handle"}
+
+        def rd(name):
+            try:
+                h = getattr(st, name)
+                try:
+                    return [int(h[i].value) for i in range(len(h))]
+                except TypeError:
+                    return int(h.value)
+            except Exception as e:  # noqa: BLE001
+                return f"n/a ({type(e).__name__})"
+        for name in ("r_wq_cnt", "r_rq_cnt", "r_fo_cnt", "r_fo", "r_dq_occ", "r_sk_cnt",
+                     "r_credits", "r_if_valid", "r_wr_valid", "r_wr_fdone", "r_wr_bcnt",
+                     "r_rd_valid", "aw_push_ready_o", "wd_ready_o", "ar_push_ready_o",
+                     "wr_commit_ready_o", "wr_commit_ready_now_o", "rd_issue_ready_o",
+                     "aw_push_valid_i", "wd_valid_i", "ar_push_valid_i", "wr_commit_valid_i",
+                     "rd_issue_valid_i", "wr_cm_rd_valid_o", "wr_cm_rd_ready_i", "busy_o"):
+            res[name] = rd(name)
+        return res
+
+    def _host_diag(d):
+        """What the CSRs say about a stalled engine (the pumice proxy's shape):
+        status bits, per-engine done / error, page stats, plus the store."""
+        out_d = {}
+        try:
+            out_d["status"] = str(d.status())
+            out_d["gen_done(wr,rd)"] = str(d.gen_done())
+            out_d["gen_errors(wr_bresp,rd_any)"] = str(d.gen_errors())
+        except Exception as e:  # noqa: BLE001
+            out_d["status"] = f"n/a ({e!r})"
+        try:
+            ps = pc._try_page_stats(d)
+            out_d["page_stats"] = str(ps) if ps is not None else "n/a"
+        except Exception as e:  # noqa: BLE001
+            out_d["page_stats"] = f"n/a ({e!r})"
+        out_d["store"] = _store_probe()
+        return out_d
+
     def measure_family(fam_key):
         if fam_key == "mixed":
             # no AR->R latency histogram on this proxy: report 0.0 for it
             return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
-                               clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0)
+                               clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0, diag=diag,
+                               host_diag=_host_diag, always_diag=always_diag)
         window = pmf.family_programs(fam_key, n_gen, geom, dc, blen=blen, txn=txn, gap=gap)
         if window is not None:
             fam, stride, wrap = fam_key, window[0]["stride_0"], window[0]["wrap_mask_0"]
@@ -258,21 +321,16 @@ async def cocotb_test_granite_perf(dut):
                                           geom)
         beat_bytes = 1 << dc.AXI_SIZE_8
         bytes_moved = txn * blen * beat_bytes * n_gen
-        seed = 0xABCD1234
-
         def prog_for(g):
             if window is not None:
                 return window[g]
             # Same placement as the pumice proxy: generators one bank stride
             # apart, so each thread owns a bank on the page-friendly families
             # and the threads bank-interleave on col_major.
-            s = seed + 0x1000 * g
             return dict(start_addr=g * geom.bank_stride, burst_len=blen,
                         txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
                         id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
-                        data_mode=True, lfsr_seed=s,
-                        hash_seed0=s, hash_seed1=s ^ 0x9E3779B9,
-                        hash_seed2=s ^ 0x85EBCA6B, gen=g)
+                        data_mode=True, gen=g, **pmf.seed_fields(g))
 
         mask = (1 << n_gen) - 1
 
@@ -285,6 +343,8 @@ async def cocotb_test_granite_perf(dut):
         drv.freeze_trace(False)
         drv.start_wr(mask)
         wr_ok = pm.wait_engine(drv, "wr", timeout_s=120, ignore_error=True)
+        if not wr_ok or always_diag:
+            diag["wr_" + fam_key] = _host_diag(drv)
         drv.freeze_trace(True)
         tw = drv.timer()
         wr_cycles = max(int(tw.w_last) - int(tw.w_first), 0)
@@ -298,6 +358,8 @@ async def cocotb_test_granite_perf(dut):
         drv.freeze_trace(False)
         drv.start_rd(mask)
         rd_ok = pm.wait_engine(drv, "rd", timeout_s=120, ignore_error=True)
+        if not rd_ok or always_diag:
+            diag["rd_" + fam_key] = _host_diag(drv)
         drv.freeze_trace(True)
         tr = drv.timer()
         rd_cycles = max(int(tr.r_last) - int(tr.r_first), 0)
@@ -306,6 +368,7 @@ async def cocotb_test_granite_perf(dut):
         mism = drv.beats_mismatched()
         return {
             "family": fam_key, "stride": stride, "wrap": wrap,
+            "seed": pmf.PERF_SEED, "gen_seeds": [prog_for(g)["lfsr_seed"] for g in range(n_gen)],
             "txn": txn, "burst_len": blen, "num_gen": n_gen,
             "bytes_moved": bytes_moved,
             "wr_ok": bool(wr_ok), "rd_ok": bool(rd_ok), "mismatched": int(mism),
@@ -342,6 +405,9 @@ async def cocotb_test_granite_perf(dut):
         drv.set_refresh_interval(t_refi)
         for fam_key in fam_names:
             out["families"][fam_key] = measure_family(fam_key)
+        if diag:
+            out["diag"] = diag
+            dut._log.info("perf proxy diag: %s", json.dumps(diag, indent=1, default=str))
         if dump_path:
             with open(dump_path, "w") as fh:
                 json.dump(out, fh, indent=2)
@@ -453,7 +519,13 @@ def test_granite_char_perf(request):
               "DFI_RATE": str(DFI_RATE),
               "DRAM_BL": str(DRAM_BL),
               # at least the macro default; TEST_NUM_GEN=8 builds eight injectors
-              "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0)))}
+              "NUM_GEN": str(max(4, int(os.environ.get("TEST_NUM_GEN", "1"), 0))),
+              # granite_core storage / timing knobs (report 5.10 items 1, 3, 5);
+              # defaults are the board build (FIFO store, 8 slots, pool-deep bank queues)
+              "NUM_ENTRIES": os.environ.get("TEST_NUM_ENTRIES", "8"),
+              "STORE_BACKEND": os.environ.get("TEST_STORE_BACKEND", "1"),
+              "BANK_FIFO_DEPTH": os.environ.get("TEST_BANK_FIFO_DEPTH", "0"),
+              "FIXED_TIMINGS": os.environ.get("TEST_FIXED_TIMINGS", "0")}
     compile_args = [
         "+define+USE_ASYNC_RESET",
         # expose internal scheduler signals to the gate/cmd trace probes

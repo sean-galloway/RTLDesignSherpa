@@ -909,6 +909,129 @@ against constants.
 | 4 | one same-bank-same-row match matrix per cycle shared by the records and the close logic | a few hundred | none |
 | 5 | an 8-entry window variant | halves the entry store | measure first: the eight-thread streams lean on 16 |
 
+### 5.11 The 5.10 list, done: FIFO store, LPDDR2 out, fixed timings, window knobs (2026-10-23, pumice TASK-050)
+
+Owner: "please do 1/2/3/4 try 5 and see if it works out." All five are in;
+the honest headline is that **item 1 did not buy the area 5.10 promised**,
+because the entry store's 4 785 LUT was never the N x N age matrix, and the
+measurement says what it was instead.
+
+**What landed.** (1) `mc_bank_fifo_store`, granite's storage backend
+(`STORE_BACKEND = 1`; the entry store + records stay behind 0 for A/B):
+slots in a pool, one circular FIFO of slot pointers per (direction, bank),
+head records read off the queue fronts, the same-row-behind flag a stored
+bit per queue position compared once at push. (2) `HAS_LPDDR2 = 0` on both
+DDR2 board tops: the training plane (239 LUT / 518 FF) is gone from the
+granite build. (3) `FIXED_TIMINGS`: the scheduler's timers compare against
+`T_*` constants (the 75 MHz board set) and the TIMINGS CSRs are ignored.
+(4) falls out of (1): no match matrix exists in the default build. (5)
+`NUM_ENTRIES` / `STORE_BACKEND` / `BANK_FIFO_DEPTH` / `FIXED_TIMINGS` are
+knobs on the harness, the UART TB top and the perf proxy, with `GRANITE_*`
+build defines. Seeds: one source (`perf_mixed_family.PERF_SEED`) for the
+pumice, granite and LiteDRAM proxies, recorded in every result record,
+parity-checked by the grid summary (owner: "ensure all three agents are
+seeded the same").
+
+**The cap that was not a knob.** The first cut capped each bank queue at 4
+to keep the record loops short. At the board geometry (BL4 x16) one 8-beat
+AXI burst chops into 8 same-bank entries, so the cap blocked the single
+in-order address channel half way through every burst -- for every other
+bank too:
+
+| granite, FIFO store cap 4 vs entry store, wr / rd MB/s | 1 thread | 8 threads |
+|---|---|---|
+| incremental | 564 / 566 vs 568 / 568 | 429 / 476 vs 557 / 555 |
+| col_ilv (bank-rotating, new row per visit) | 385 / 416 vs 461 / 451 | 414 / 458 vs 534 / 526 |
+| random | -- | 370 / 407 vs 442 / 453 |
+| mixed (two threads per bank) | -- | did not complete (DRAM silent 15 600 cycles) vs 98 |
+
+Pool-deep queues with the stored flag fixed all of it; the lesson is in the
+handbook (`design/per-bank-queues-admit-from-the-pool.md`): behind one
+in-order address channel, admission is the pool's or it is head-of-line
+blocking.
+
+**The grid on the shipped store** (granite proxy, 75 MHz, board geometry,
+mismatched 0 everywhere; "same" = equal to the entry store's number to the
+decimal, in every cell the same cycle counts):
+
+| family | 1 thread | 2 threads | 4 threads | 8 threads |
+|---|---|---|---|---|
+| incremental | 568.2 / 567.5 same | 571.7 / 566.0 same | 567.4 / 566.4 same | 556.9 / 555.3 same |
+| row_major | 576.5 / 572.2 same | 570.4 / 568.6 same | 570.3 / 567.7 same | 557.6 / 557.2 same |
+| col_ilv | 460.8 / 451.2 same | 511.4 / 506.8 same | 529.3 / 535.6 same | 533.5 / 525.9 same |
+| col_major | 311.1 / 357.7 same | 420.4 / 459.3 same | 461.3 / 460.2 same | 459.0 / 457.7 same |
+| row_thrash (2-beat) | 128.7 / **162.9** (entry 142.9) | -- | -- | 283.0 / 282.0 same |
+| random | 478.2 / 482.0 same | -- | -- | 442.1 / 452.9 same |
+| mixed (union MB/s) | n/a | 331.6 same | 331.3 same | 98.1 same |
+
+The one difference is a gain: the stored flag means "the NEXT entry shares
+my row", so the last column of a row takes the auto-precharge the entry
+store withheld whenever any later entry shared the row; on the one-thread
+row conflict that is 14 percent on reads. The `mixed` cell failed twice
+under three to five parallel proxies with the entry store's exact cycle
+counts in its record and passed alone: ISSUE-024's wall-clock wait, third
+instance; the granite proxy now dumps engine done/error bits and the
+store's registered state on a failed cell.
+
+**Area, granite board build (Nexys A7, 75 MHz, four injectors, LUT / FF;
+sub-block rows are Vivado's post-route attribution and move a little with
+their neighbours -- the core total is the number):**
+
+| build | granite_core | storage (store + records) | sched plane (timers, pick) | LPDDR2 training | WNS |
+|---|---|---|---|---|---|
+| 5.10 baseline, entry store, LPDDR2 in (ca751b408) | 9 956 / 5 160 | 4 785 + 1 040 / 1 094 + 992 | 2 031 (1 003, 698) | 239 / 518 | +0.106 ns |
+| FIFO store, cap 4, LPDDR2 out | 8 501 / 4 724 | 5 035 / 2 234 | 1 642 (582, 720) | 0 | +0.385 ns |
+| FIFO store, pool-deep, pack-on-pop queues, LPDDR2 out | 9 214 / 5 268 | 5 822 / 2 778 | 1 588 (663, 590) | 0 | +0.143 ns |
+| FIFO store, pool-deep, circular queues, LPDDR2 out (shipped) | **7 403 / 5 316** | 3 894 / 2 826 | 1 728 (565, 783) | 0 | +0.304 ns |
+| the same text rebuilt for the committed reports (quiet machine) | 7 409 / 5 316 | 3 895 / 2 826 | -- | 0 | +0.545 ns |
+| shipped + FIXED_TIMINGS | 7 283 / 5 305 | 3 867 / 2 826 | 1 559 (443, 489) | 0 | +0.042 ns |
+| shipped at NUM_ENTRIES 16 | 10 901 / 6 982 | 7 385 / 4 492 | 1 650 (613, 697) | 0 | **-0.896 ns, 147 endpoints** |
+
+Read across the storage column: the entry store plus its records were
+5 825 LUT; a per-bank FIFO store that presents the same records is 5 035
+with shallow packed queues and 5 822 with pool-deep packed queues. The age
+matrix (64 bits at N = 8) was never the cost. What the two designs share,
+and what the number is, is the **materialisation of 32 head records per
+cycle** -- four records per bank, each carrying row, column and slot
+selected from the slot fields by a pointer, so 32 x ~27 bits of 8:1 muxes,
+plus the write-beat data path (the 144-bit BRAM write, the 2-deep skid, the
+drain queue). The pack-on-pop network for pool-deep queues added ~800 LUT
+on top; the circular form (a pop is a pointer increment, because the pick
+core always fires the head -- `mc_bank_pick` reads the second record only
+in the one-cycle shadow after a pop) takes that back and then some: the
+shipped store is 3 894 LUT, a third under the entry store with its records,
+and granite_core lands at 7 403 LUT, 26 percent under the 5.10 baseline
+(the store, the training plane, and the timers' LPDDR2 maintenance paths).
+The shipped text was built twice (rows 4 and 4b, identical sources by md5):
+7 403 vs 7 409 LUT and +0.304 vs +0.545 ns, so this flow is NOT bit-identical
+run to run as the 2026-10-23 pumice pair was; the committed `fpga/reports`
+are the second build's, and a thin positive WNS is the design point either
+way. Fixed timings
+(row 5) are worth 120 LUT on the core total -- the comparators against
+registers were never the bulk of the timers either -- and cost 0.26 ns of
+slack on this run, so they stay a build option, not the default. Item 5
+(row 6): a 16-slot window is 3 500 LUT more store (the slot muxes double) and
+misses 75 MHz by 0.9 ns on this part; the grid in this section was taken at
+8 and equals the entry store's 8-thread numbers, so 8 is granite's design
+point and 16 is not a variant worth carrying. The lever
+that remains is the plane contract itself: records that carry `{vld, slot,
+hit, behind_*}` and a fire stage that looks row and column up by slot
+(two muxes instead of 32) -- a contract change across the records, the pick
+core and both backends, filed as the next item rather than done here.
+
+**Gates.** granite suite 6 / 1 xfailed on the FIFO store (both queue forms),
+on the entry store, and with `FIXED_TIMINGS = 1`; common-ip storage contract
+battery with `entry` / `fifo` cells 12 passed / 3 strict xfailed (the
+research core's by-design cells); pumice `run-all-func-both` 218 / 218 at
+both geometries on the `HAS_LPDDR2` plumbing; lint of granite_core at
+FIXED 0 / 1 and N 1 / 8, whole-harness lint of `granite_char_top` default
+and with FIXED + N 16 (0 errors); filelist registry PASS; framework
+functional suite (`run-all-func-parallel`; the plain `run-all-func` target names
+a test id that no longer exists) 222 passed / 2 xfailed. The first B / C board builds of this
+section were byte-identical to the default because the granite target's
+`create_project.tcl` had no `GRANITE_*` hook (the pumice target's did); the
+hook is in both now and rows 5 / 6 are from the rebuild.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

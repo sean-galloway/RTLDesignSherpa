@@ -35,6 +35,7 @@ module ddr2_char_harness
     parameter int CMD_HISTORY_EN  = 0,
     parameter int SCHED_CORE      = 0,    // pumice pick core: 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
+    parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter int NUM_GEN         = 4,    // injectors per direction in char_gen_unit (<= NUM_BANKS); the top sets it (CHAR_NUM_GEN build knob, TASK-043)
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
@@ -710,6 +711,7 @@ module ddr2_char_harness
         .CMD_HISTORY_EN   (CMD_HISTORY_EN),
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
+        .HAS_LPDDR2       (HAS_LPDDR2),
         .NUM_GEN          (NUM_GEN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),

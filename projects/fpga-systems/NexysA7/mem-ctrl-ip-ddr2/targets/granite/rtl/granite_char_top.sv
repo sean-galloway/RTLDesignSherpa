@@ -198,6 +198,16 @@ module granite_char_top #(
         .DFI_RATE           (DFI_RATE),
         .DRAM_BL            (DRAM_BL),
         .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
+        .HAS_LPDDR2         (1'b0),   // DDR2 board: LPDDR2 training plane compiled out (report 5.10)
+`ifdef GRANITE_FIXED_TIMINGS
+        .FIXED_TIMINGS      (1'b1),   // report 5.10 item 3: T_* constants, TIMINGS CSRs ignored
+`endif
+`ifdef GRANITE_NUM_ENTRIES
+        .NUM_ENTRIES        (`GRANITE_NUM_ENTRIES),
+`endif
+`ifdef GRANITE_BANK_FIFO_DEPTH
+        .BANK_FIFO_DEPTH    (`GRANITE_BANK_FIFO_DEPTH),
+`endif
 `ifdef GRANITE_RD_RET_DEPTH
         .RD_RET_DEPTH       (`GRANITE_RD_RET_DEPTH),
 `else

@@ -46,6 +46,37 @@ module granite_core
     // Owner, 2026-10-22: granite (the product) carries the BANK_PICK core;
     // pumice (research) carries FR-FCFS. Both stay selectable.
     parameter int SCHED_CORE     = mc_common_pkg::MC_SCHED_BANK_PICK,
+    // Storage backend (recovery plan 2.4, Phase 4 -- pumice TASK-050):
+    //   1 = mc_bank_fifo_store: per-bank FIFOs of slots, records read off the
+    //       FIFO fronts; linear in NUM_ENTRIES, and the same-row-behind flag
+    //       is one stored bit per queue position (compared once, at push),
+    //       so there is no match matrix anywhere in this backend (report
+    //       5.10 items 1 and 4). Pairs with BANK_PICK only.
+    //   0 = mc_xddr2_entry_store + mc_bank_head_records: the flat pool with
+    //       the N x N age matrix (4 785 LUT at N = 8 in context, report 5.10).
+    parameter int STORE_BACKEND  = 1,
+    parameter int BANK_FIFO_DEPTH = 0,   // FIFO store queue depth per (direction, bank); 0 = NUM_ENTRIES (pool-only admission, the measured default)
+    // LPDDR2 training plane (ZQ calibration, DQ calibration) built in. 1 =
+    // the research default; a DDR2-only build sets 0 and the plane's generate
+    // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
+    // mem-ctrl recovery Phase 3 report 5.10).
+    parameter bit HAS_LPDDR2     = 1'b1,
+    // Compile-time JEDEC timings (mem-ctrl recovery Phase 3 report 5.10,
+    // item 3). 1 = the scheduler plane's timers compare against the T_*
+    // constants below and the TIMINGS CSRs are ignored -- a one-part product
+    // does not retune at runtime, and a comparator against a constant is a
+    // fraction of one against a register. 0 = the CSR inputs (research
+    // default; every TB programs its own set). The defaults are the Nexys A7
+    // DDR2 part at the 75 MHz board clock, pumice_device.ddr2_timings_
+    // mc_cycles(75e6) with the board read-path alignment (t_rddata_en 6,
+    // rddata_delay 7, t_phy_wrlat 1); tRTW carries the PHY DQ-occupancy floor.
+    parameter bit FIXED_TIMINGS  = 1'b0,
+    parameter int T_RCD  = 2,   parameter int T_RP  = 2,  parameter int T_RAS = 4,
+    parameter int T_RC   = 5,   parameter int T_WR  = 4,  parameter int T_RTP = 2,
+    parameter int T_FAW  = 4,   parameter int T_RRD = 2,  parameter int T_WTR = 4,
+    parameter int T_RTW  = 20,  parameter int T_CCD = 1,
+    parameter int T_REFI = 585, parameter int T_RFC = 11,
+
 
     parameter int BYTE_OFFSET_WIDTH = $clog2(DRAM_DEVICE_WIDTH / 8),
     parameter int BL_SHIFT   = (DRAM_BEAT_WIDTH > DRAM_DEVICE_WIDTH)
@@ -192,8 +223,28 @@ module granite_core
     localparam int SUBW_MAX = $clog2(N_SUBCMD + 1);
     localparam int CMD_DELAY_EFF = (CMD_DELAY == 0) ? (5 + 2 * BURST_WORDS) : CMD_DELAY;
 
+    // JEDEC timings as the scheduler plane sees them: the CSR inputs, or the
+    // T_* constants under FIXED_TIMINGS. The CSR ports stay either way so the
+    // top's wiring is identical; synthesis folds the constant comparators.
+    logic [7:0]  w_t_rcd, w_t_rp, w_t_ras, w_t_rc, w_t_wr, w_t_rtp, w_t_faw;
+    logic [7:0]  w_t_rrd, w_t_wtr, w_t_rtw, w_t_ccd_raw;
+    logic [15:0] w_t_refi, w_t_rfc;
+    assign w_t_rcd     = FIXED_TIMINGS ? 8'(T_RCD)   : t_rcd_i;
+    assign w_t_rp      = FIXED_TIMINGS ? 8'(T_RP)    : t_rp_i;
+    assign w_t_ras     = FIXED_TIMINGS ? 8'(T_RAS)   : t_ras_i;
+    assign w_t_rc      = FIXED_TIMINGS ? 8'(T_RC)    : t_rc_i;
+    assign w_t_wr      = FIXED_TIMINGS ? 8'(T_WR)    : t_wr_i;
+    assign w_t_rtp     = FIXED_TIMINGS ? 8'(T_RTP)   : t_rtp_i;
+    assign w_t_faw     = FIXED_TIMINGS ? 8'(T_FAW)   : t_faw_i;
+    assign w_t_rrd     = FIXED_TIMINGS ? 8'(T_RRD)   : t_rrd_i;
+    assign w_t_wtr     = FIXED_TIMINGS ? 8'(T_WTR)   : t_wtr_i;
+    assign w_t_rtw     = FIXED_TIMINGS ? 8'(T_RTW)   : t_rtw_i;
+    assign w_t_ccd_raw = FIXED_TIMINGS ? 8'(T_CCD)   : t_ccd_i;
+    assign w_t_refi    = FIXED_TIMINGS ? 16'(T_REFI) : t_refi_i;
+    assign w_t_rfc     = FIXED_TIMINGS ? 16'(T_RFC)  : t_rfc_i;
+
     logic [7:0] w_t_ccd_eff;
-    assign w_t_ccd_eff = (t_ccd_i < 8'(BURST_WORDS)) ? 8'(BURST_WORDS) : t_ccd_i;
+    assign w_t_ccd_eff = (w_t_ccd_raw < 8'(BURST_WORDS)) ? 8'(BURST_WORDS) : w_t_ccd_raw;
 
     logic [3:0]          w_bl_pumice;
     logic [4:0]          w_active_rate;
@@ -420,138 +471,244 @@ module granite_core
     );
 
     // ======================================================================
-    // Plane 1b: storage-lite entry store (N=1 in-order seam)
+    // Plane 1b: storage backend. STORE_BACKEND selects the per-bank FIFO store
+    // (default) or the entry store + records; both present the plane contract.
     // ======================================================================
-    mc_xddr2_entry_store #(
-        .NUM_ENTRIES        (NUM_ENTRIES),
-        .AXI_ID_WIDTH       (IW),
-        .AXI_DATA_WIDTH     (DW),
-        .NUM_RANKS          (NUM_RANKS),
-        .NUM_BANKS          (NUM_BANKS),
-        .ROW_WIDTH          (ROW_WIDTH),
-        .COL_WIDTH          (COL_WIDTH),
-        .AXI_BEATS_PER_BURST(BURST_WORDS),
-        .RD_RET_DEPTH       (RD_RET_DEPTH),
-        .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS)
-    ) u_entry_store (
-        .aclk               (aclk),
-        .aresetn            (aresetn),
-        .aw_push_valid_i    (aw_push_valid),
-        .aw_push_ready_o    (aw_push_ready),
-        .aw_push_bank_i     (aw_push_bank),
-        .aw_push_row_i      (aw_push_row),
-        .aw_push_col_i      (aw_push_col),
-        .aw_push_id_i       (aw_push_id),
-        .aw_push_qos_i      (aw_push_qos),
-        .aw_push_agg_i      (aw_push_agg),
-        .aw_push_last_i     (aw_push_last),
-        .wd_valid_i         (wd_valid),
-        .wd_ready_o         (wd_ready),
-        .wd_data_i          (wd_data),
-        .wd_strb_i          (wd_strb),
-        .wd_last_i          (wd_last),
-        .wr_done_valid_o    (wr_done_valid),
-        .wr_done_id_o       (wr_done_id),
-        .snarf_probe_valid_i(snarf_probe_valid),
-        .snarf_probe_bank_i (snarf_bank),
-        .snarf_probe_row_i  (snarf_row),
-        .snarf_probe_col_i  (snarf_col),
-        .snarf_probe_id_i   (snarf_id),
-        .snarf_probe_len_i  (snarf_len),
-        .snarf_hit_o        (snarf_hit),
-        .snarf_accept_i     (snarf_accept),
-        .snarf_rd_valid_o   (snarf_rd_valid),
-        .snarf_rd_ready_i   (snarf_rd_ready),
-        .snarf_rd_data_o    (snarf_rd_data),
-        .snarf_rd_last_o    (snarf_rd_last),
-        .ar_push_valid_i    (ar_push_valid),
-        .ar_push_ready_o    (ar_push_ready),
-        .ar_push_bank_i     (ar_push_bank),
-        .ar_push_row_i      (ar_push_row),
-        .ar_push_col_i      (ar_push_col),
-        .ar_push_id_i       (ar_push_id),
-        .ar_push_qos_i      (ar_push_qos),
-        .rt_alloc_ready_i   (rt_alloc_ready),
-        .rt_alloc_ticket_i  (rt_alloc_ticket),
-        .rd_iss_ready_i     (rd_iss_ready),
-        .rd_iss_valid_o     (rd_iss_valid),
-        .rd_iss_ticket_o    (rd_iss_ticket),
-        .rd_cam_ins_ready_o (rd_cam_ins_ready),
-        .sched_age_thresh_i (sched_age_thresh_i),
-        .wr_commit_valid_i  (w_wr_commit_v),
-        .wr_commit_ready_o  (w_wr_commit_rdy),
-        .wr_commit_ready_now_o  (w_wr_commit_rdy_now),
-        .wr_commit_slot_i   (w_wr_commit_slot),
-        .rd_issue_valid_i   (w_rd_issue_v),
-        .rd_issue_ready_o   (w_rd_issue_rdy),
-        .rd_issue_slot_i    (w_rd_issue_slot),
-        .wr_sch_valid_o     (w_wr_sch_v),
-        .wr_sch_pend_o      (w_wr_sch_pend),
-        .wr_sch_bank_o      (w_wr_sch_bank),
-        .wr_sch_row_o       (w_wr_sch_row),
-        .wr_sch_col_o       (w_wr_sch_col),
-        .wr_sch_older_o     (w_wr_sch_older),
-        .wr_sch_age_exceed_o(w_wr_sch_agex),
-        .wr_sch_qos_o       (w_wr_sch_qos),
-        .wr_sch_head_rel_o  (w_wr_sch_hrel),
-        .rd_sch_valid_o     (w_rd_sch_v),
-        .rd_sch_bank_o      (w_rd_sch_bank),
-        .rd_sch_row_o       (w_rd_sch_row),
-        .rd_sch_col_o       (w_rd_sch_col),
-        .rd_sch_older_o     (w_rd_sch_older),
-        .rd_sch_age_exceed_o(w_rd_sch_agex),
-        .rd_sch_qos_o       (w_rd_sch_qos),
-        .rd_sch_head_rel_o  (w_rd_sch_hrel),
-        .wr_cm_rd_valid_o   (w_cm_v),
-        .wr_cm_rd_ready_i   (w_cm_rdy),
-        .wr_cm_rd_data_o    (w_cm_data),
-        .wr_cm_rd_strb_o    (w_cm_strb),
-        .wr_cm_rd_last_o    (w_cm_last),
-        .busy_o             ()
-    );
+    generate if (STORE_BACKEND != 0) begin : g_fifo_store
+        if (SCHED_CORE != mc_common_pkg::MC_SCHED_BANK_PICK) begin : g_bad_core
+            $error("granite_core: STORE_BACKEND=1 (mc_bank_fifo_store) produces head records only -- SCHED_CORE must be BANK_PICK");
+        end
+        mc_bank_fifo_store #(
+            .NUM_ENTRIES        (NUM_ENTRIES),
+            .BANK_FIFO_DEPTH    (BANK_FIFO_DEPTH),
+            .AXI_ID_WIDTH       (IW),
+            .AXI_DATA_WIDTH     (DW),
+            .NUM_RANKS          (NUM_RANKS),
+            .NUM_BANKS          (NUM_BANKS),
+            .ROW_WIDTH          (ROW_WIDTH),
+            .COL_WIDTH          (COL_WIDTH),
+            .AXI_BEATS_PER_BURST(BURST_WORDS),
+            .RD_RET_DEPTH       (RD_RET_DEPTH),
+            .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS)
+        ) u_fifo_store (
+            .aclk               (aclk),
+            .aresetn            (aresetn),
+            .aw_push_valid_i    (aw_push_valid),
+            .aw_push_ready_o    (aw_push_ready),
+            .aw_push_bank_i     (aw_push_bank),
+            .aw_push_row_i      (aw_push_row),
+            .aw_push_col_i      (aw_push_col),
+            .aw_push_id_i       (aw_push_id),
+            .aw_push_qos_i      (aw_push_qos),
+            .aw_push_agg_i      (aw_push_agg),
+            .aw_push_last_i     (aw_push_last),
+            .wd_valid_i         (wd_valid),
+            .wd_ready_o         (wd_ready),
+            .wd_data_i          (wd_data),
+            .wd_strb_i          (wd_strb),
+            .wd_last_i          (wd_last),
+            .wr_done_valid_o    (wr_done_valid),
+            .wr_done_id_o       (wr_done_id),
+            .snarf_probe_valid_i(snarf_probe_valid),
+            .snarf_probe_bank_i (snarf_bank),
+            .snarf_probe_row_i  (snarf_row),
+            .snarf_probe_col_i  (snarf_col),
+            .snarf_probe_id_i   (snarf_id),
+            .snarf_probe_len_i  (snarf_len),
+            .snarf_hit_o        (snarf_hit),
+            .snarf_accept_i     (snarf_accept),
+            .snarf_rd_valid_o   (snarf_rd_valid),
+            .snarf_rd_ready_i   (snarf_rd_ready),
+            .snarf_rd_data_o    (snarf_rd_data),
+            .snarf_rd_last_o    (snarf_rd_last),
+            .ar_push_valid_i    (ar_push_valid),
+            .ar_push_ready_o    (ar_push_ready),
+            .ar_push_bank_i     (ar_push_bank),
+            .ar_push_row_i      (ar_push_row),
+            .ar_push_col_i      (ar_push_col),
+            .ar_push_id_i       (ar_push_id),
+            .ar_push_qos_i      (ar_push_qos),
+            .rt_alloc_ready_i   (rt_alloc_ready),
+            .rt_alloc_ticket_i  (rt_alloc_ticket),
+            .rd_iss_ready_i     (rd_iss_ready),
+            .rd_iss_valid_o     (rd_iss_valid),
+            .rd_iss_ticket_o    (rd_iss_ticket),
+            .rd_cam_ins_ready_o (rd_cam_ins_ready),
+            .sched_age_thresh_i (sched_age_thresh_i),
+            .wr_commit_valid_i  (w_wr_commit_v),
+            .wr_commit_ready_o  (w_wr_commit_rdy),
+            .wr_commit_ready_now_o (w_wr_commit_rdy_now),
+            .wr_commit_slot_i   (w_wr_commit_slot),
+            .rd_issue_valid_i   (w_rd_issue_v),
+            .rd_issue_ready_o   (w_rd_issue_rdy),
+            .rd_issue_slot_i    (w_rd_issue_slot),
+            .bank_row_active_i  (w_bank_row_active[0]),
+            .bank_open_row_i    (w_bank_open_row[0]),
+            .wr_head_o          (w_wr_head),
+            .wr_head2_o         (w_wr_head2),
+            .rd_head_o          (w_rd_head),
+            .rd_head2_o         (w_rd_head2),
+            .wr_cm_rd_valid_o   (w_cm_v),
+            .wr_cm_rd_ready_i   (w_cm_rdy),
+            .wr_cm_rd_data_o    (w_cm_data),
+            .wr_cm_rd_strb_o    (w_cm_strb),
+            .wr_cm_rd_last_o    (w_cm_last),
+            .busy_o             ()
+        );
+        // The FR-FCFS core's N-wide vectors do not exist on this backend; the
+        // scheduler plane's BANK_PICK branch sinks them.
+        assign w_wr_sch_v     = '0;
+        assign w_wr_sch_pend  = '0;
+        assign w_wr_sch_bank  = '0;
+        assign w_wr_sch_row   = '0;
+        assign w_wr_sch_col   = '0;
+        assign w_wr_sch_older = '0;
+        assign w_wr_sch_agex  = '0;
+        assign w_wr_sch_qos   = '0;
+        assign w_wr_sch_hrel  = '0;
+        assign w_rd_sch_v     = '0;
+        assign w_rd_sch_bank  = '0;
+        assign w_rd_sch_row   = '0;
+        assign w_rd_sch_col   = '0;
+        assign w_rd_sch_older = '0;
+        assign w_rd_sch_agex  = '0;
+        assign w_rd_sch_qos   = '0;
+        assign w_rd_sch_hrel  = '0;
+    end else begin : g_entry_store
+        // ======================================================================
+        // Plane 1b: storage-lite entry store (N=1 in-order seam)
+        // ======================================================================
+        mc_xddr2_entry_store #(
+            .NUM_ENTRIES        (NUM_ENTRIES),
+            .AXI_ID_WIDTH       (IW),
+            .AXI_DATA_WIDTH     (DW),
+            .NUM_RANKS          (NUM_RANKS),
+            .NUM_BANKS          (NUM_BANKS),
+            .ROW_WIDTH          (ROW_WIDTH),
+            .COL_WIDTH          (COL_WIDTH),
+            .AXI_BEATS_PER_BURST(BURST_WORDS),
+            .RD_RET_DEPTH       (RD_RET_DEPTH),
+            .WR_DATA_BUF_WORDS  (GRANITE_WR_DATA_BUF_WORDS)
+        ) u_entry_store (
+            .aclk               (aclk),
+            .aresetn            (aresetn),
+            .aw_push_valid_i    (aw_push_valid),
+            .aw_push_ready_o    (aw_push_ready),
+            .aw_push_bank_i     (aw_push_bank),
+            .aw_push_row_i      (aw_push_row),
+            .aw_push_col_i      (aw_push_col),
+            .aw_push_id_i       (aw_push_id),
+            .aw_push_qos_i      (aw_push_qos),
+            .aw_push_agg_i      (aw_push_agg),
+            .aw_push_last_i     (aw_push_last),
+            .wd_valid_i         (wd_valid),
+            .wd_ready_o         (wd_ready),
+            .wd_data_i          (wd_data),
+            .wd_strb_i          (wd_strb),
+            .wd_last_i          (wd_last),
+            .wr_done_valid_o    (wr_done_valid),
+            .wr_done_id_o       (wr_done_id),
+            .snarf_probe_valid_i(snarf_probe_valid),
+            .snarf_probe_bank_i (snarf_bank),
+            .snarf_probe_row_i  (snarf_row),
+            .snarf_probe_col_i  (snarf_col),
+            .snarf_probe_id_i   (snarf_id),
+            .snarf_probe_len_i  (snarf_len),
+            .snarf_hit_o        (snarf_hit),
+            .snarf_accept_i     (snarf_accept),
+            .snarf_rd_valid_o   (snarf_rd_valid),
+            .snarf_rd_ready_i   (snarf_rd_ready),
+            .snarf_rd_data_o    (snarf_rd_data),
+            .snarf_rd_last_o    (snarf_rd_last),
+            .ar_push_valid_i    (ar_push_valid),
+            .ar_push_ready_o    (ar_push_ready),
+            .ar_push_bank_i     (ar_push_bank),
+            .ar_push_row_i      (ar_push_row),
+            .ar_push_col_i      (ar_push_col),
+            .ar_push_id_i       (ar_push_id),
+            .ar_push_qos_i      (ar_push_qos),
+            .rt_alloc_ready_i   (rt_alloc_ready),
+            .rt_alloc_ticket_i  (rt_alloc_ticket),
+            .rd_iss_ready_i     (rd_iss_ready),
+            .rd_iss_valid_o     (rd_iss_valid),
+            .rd_iss_ticket_o    (rd_iss_ticket),
+            .rd_cam_ins_ready_o (rd_cam_ins_ready),
+            .sched_age_thresh_i (sched_age_thresh_i),
+            .wr_commit_valid_i  (w_wr_commit_v),
+            .wr_commit_ready_o  (w_wr_commit_rdy),
+            .wr_commit_ready_now_o  (w_wr_commit_rdy_now),
+            .wr_commit_slot_i   (w_wr_commit_slot),
+            .rd_issue_valid_i   (w_rd_issue_v),
+            .rd_issue_ready_o   (w_rd_issue_rdy),
+            .rd_issue_slot_i    (w_rd_issue_slot),
+            .wr_sch_valid_o     (w_wr_sch_v),
+            .wr_sch_pend_o      (w_wr_sch_pend),
+            .wr_sch_bank_o      (w_wr_sch_bank),
+            .wr_sch_row_o       (w_wr_sch_row),
+            .wr_sch_col_o       (w_wr_sch_col),
+            .wr_sch_older_o     (w_wr_sch_older),
+            .wr_sch_age_exceed_o(w_wr_sch_agex),
+            .wr_sch_qos_o       (w_wr_sch_qos),
+            .wr_sch_head_rel_o  (w_wr_sch_hrel),
+            .rd_sch_valid_o     (w_rd_sch_v),
+            .rd_sch_bank_o      (w_rd_sch_bank),
+            .rd_sch_row_o       (w_rd_sch_row),
+            .rd_sch_col_o       (w_rd_sch_col),
+            .rd_sch_older_o     (w_rd_sch_older),
+            .rd_sch_age_exceed_o(w_rd_sch_agex),
+            .rd_sch_qos_o       (w_rd_sch_qos),
+            .rd_sch_head_rel_o  (w_rd_sch_hrel),
+            .wr_cm_rd_valid_o   (w_cm_v),
+            .wr_cm_rd_ready_i   (w_cm_rdy),
+            .wr_cm_rd_data_o    (w_cm_data),
+            .wr_cm_rd_strb_o    (w_cm_strb),
+            .wr_cm_rd_last_o    (w_cm_last),
+            .busy_o             ()
+        );
 
-    // ---- per-bank head records, registered at the storage edge ----
-    mc_bank_head_records #(
-        .NUM_ENTRIES (NUM_ENTRIES),
-        .NUM_BANKS   (NUM_BANKS),
-        .ROW_WIDTH   (ROW_WIDTH),
-        .COL_WIDTH   (COL_WIDTH)
-    ) u_wr_heads (
-        .clk              (aclk),
-        .rst_n            (aresetn),
-        .bank_row_active_i(w_bank_row_active[0]),
-        .bank_open_row_i  (w_bank_open_row[0]),
-        .sch_valid_i      (w_wr_sch_v),
-        .sch_pend_i       (w_wr_sch_pend),
-        .sch_bank_i       (w_wr_sch_bank),
-        .sch_row_i        (w_wr_sch_row),
-        .sch_col_i        (w_wr_sch_col),
-        .sch_older_i      (w_wr_sch_older),
-        .sch_age_exceed_i (w_wr_sch_agex),
-        .head_o           (w_wr_head),
-        .head2_o          (w_wr_head2)
-    );
+        // ---- per-bank head records, registered at the storage edge ----
+        mc_bank_head_records #(
+            .NUM_ENTRIES (NUM_ENTRIES),
+            .NUM_BANKS   (NUM_BANKS),
+            .ROW_WIDTH   (ROW_WIDTH),
+            .COL_WIDTH   (COL_WIDTH)
+        ) u_wr_heads (
+            .clk              (aclk),
+            .rst_n            (aresetn),
+            .bank_row_active_i(w_bank_row_active[0]),
+            .bank_open_row_i  (w_bank_open_row[0]),
+            .sch_valid_i      (w_wr_sch_v),
+            .sch_pend_i       (w_wr_sch_pend),
+            .sch_bank_i       (w_wr_sch_bank),
+            .sch_row_i        (w_wr_sch_row),
+            .sch_col_i        (w_wr_sch_col),
+            .sch_older_i      (w_wr_sch_older),
+            .sch_age_exceed_i (w_wr_sch_agex),
+            .head_o           (w_wr_head),
+            .head2_o          (w_wr_head2)
+        );
 
-    mc_bank_head_records #(
-        .NUM_ENTRIES (NUM_ENTRIES),
-        .NUM_BANKS   (NUM_BANKS),
-        .ROW_WIDTH   (ROW_WIDTH),
-        .COL_WIDTH   (COL_WIDTH)
-    ) u_rd_heads (
-        .clk              (aclk),
-        .rst_n            (aresetn),
-        .bank_row_active_i(w_bank_row_active[0]),
-        .bank_open_row_i  (w_bank_open_row[0]),
-        .sch_valid_i      (w_rd_sch_v),
-        .sch_pend_i       ('0),
-        .sch_bank_i       (w_rd_sch_bank),
-        .sch_row_i        (w_rd_sch_row),
-        .sch_col_i        (w_rd_sch_col),
-        .sch_older_i      (w_rd_sch_older),
-        .sch_age_exceed_i (w_rd_sch_agex),
-        .head_o           (w_rd_head),
-        .head2_o          (w_rd_head2)
-    );
+        mc_bank_head_records #(
+            .NUM_ENTRIES (NUM_ENTRIES),
+            .NUM_BANKS   (NUM_BANKS),
+            .ROW_WIDTH   (ROW_WIDTH),
+            .COL_WIDTH   (COL_WIDTH)
+        ) u_rd_heads (
+            .clk              (aclk),
+            .rst_n            (aresetn),
+            .bank_row_active_i(w_bank_row_active[0]),
+            .bank_open_row_i  (w_bank_open_row[0]),
+            .sch_valid_i      (w_rd_sch_v),
+            .sch_pend_i       ('0),
+            .sch_bank_i       (w_rd_sch_bank),
+            .sch_row_i        (w_rd_sch_row),
+            .sch_col_i        (w_rd_sch_col),
+            .sch_older_i      (w_rd_sch_older),
+            .sch_age_exceed_i (w_rd_sch_agex),
+            .head_o           (w_rd_head),
+            .head2_o          (w_rd_head2)
+        );
+    end endgenerate
 
     // ======================================================================
     // Plane 2a: init plane (JEDEC sequencing + MR shadow + PHY handshake)
@@ -639,24 +796,24 @@ module granite_core
         .stat_pre_o         (),
         .stat_ref_o         (),
         .stat_ref_busy_o    (),
-        .t_rcd_i            (t_rcd_i),
-        .t_rp_i             (t_rp_i),
-        .t_ras_i            (t_ras_i),
-        .t_rc_i             (t_rc_i),
-        .t_wr_i             (t_wr_i),
-        .t_rtp_i            (t_rtp_i),
-        .t_faw_i            (t_faw_i),
-        .t_rrd_i            (t_rrd_i),
-        .t_wtr_i            (t_wtr_i),
-        .t_rtw_i            (t_rtw_i),
+        .t_rcd_i            (w_t_rcd),
+        .t_rp_i             (w_t_rp),
+        .t_ras_i            (w_t_ras),
+        .t_rc_i             (w_t_rc),
+        .t_wr_i             (w_t_wr),
+        .t_rtp_i            (w_t_rtp),
+        .t_faw_i            (w_t_faw),
+        .t_rrd_i            (w_t_rrd),
+        .t_wtr_i            (w_t_wtr),
+        .t_rtw_i            (w_t_rtw),
         .t_ccd_i            (w_t_ccd_eff),
         .t_ccd_l_i          (8'd0),
         .t_ccd_s_i          (8'd0),
         .t_rrd_l_i          (8'd0),
         .t_rrd_s_i          (8'd0),
-        .t_refi_i           (t_refi_i),
+        .t_refi_i           (w_t_refi),
         .refi_reload_i      (refi_reload_i),
-        .t_rfc_i            (t_rfc_i),
+        .t_rfc_i            (w_t_rfc),
         .refresh_burst_i    (refresh_burst_i),
         .ref_postpone_i     (4'd0),
         .ref_pullin_i       (4'd0),
@@ -769,8 +926,8 @@ module granite_core
         .ROW_WIDTH      (ROW_WIDTH),
         .EXTRA_WIDTH    (1),
         .CAL_DATA_WIDTH (DFI_DATA_WIDTH),
-        .HAS_LP_ZQ      (1'b1),
-        .HAS_LP_DQ_CAL  (1'b1)
+        .HAS_LP_ZQ      (HAS_LPDDR2),
+        .HAS_LP_DQ_CAL  (HAS_LPDDR2)
     ) u_train_plane (
         .mc_clk          (aclk),
         .mc_rst_n        (aresetn),

@@ -339,6 +339,14 @@ def test_granite_top_geared(request, test_level, num_entries, many):
               "DFI_RATE": str(DFI_RATE), "DRAM_BEAT_WIDTH": str(DRAM_BEAT),
               "DRAM_DEVICE_WIDTH": str(DRAM_DEV), "DRAM_BL": str(BL),
               "NUM_ENTRIES": num_entries,
+              "STORE_BACKEND": os.environ.get("GRANITE_STORE_BACKEND", "1"),
+              "BANK_FIFO_DEPTH": os.environ.get("GRANITE_BANK_FIFO_DEPTH", "0"),
+              # GRANITE_FIXED_TIMINGS=1: T_* = the granite_csr.rdl reset values,
+              # which is what this test runs on (it never writes TIMINGS_*).
+              "FIXED_TIMINGS": os.environ.get("GRANITE_FIXED_TIMINGS", "0"),
+              "T_RCD": "15", "T_RP": "15", "T_RAS": "40", "T_RC": "60", "T_WR": "15",
+              "T_RTP": "4", "T_FAW": "35", "T_RRD": "6", "T_WTR": "4", "T_RTW": "6",
+              "T_CCD": "4", "T_REFI": "1950", "T_RFC": "16",
               "RD_RET_DEPTH": "32", "CSR_ADDR_W": "16"}
     extra_env = {"DUT": dut_name, "LOG_PATH": os.path.join(log_dir, f"{test_name}.log"),
                  "COCOTB_LOG_LEVEL": "INFO",

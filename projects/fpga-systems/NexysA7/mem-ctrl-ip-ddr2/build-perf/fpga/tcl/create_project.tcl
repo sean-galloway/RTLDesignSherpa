@@ -237,6 +237,15 @@ if {[info exists ::env(CHAR_NUM_GEN)] && $::env(CHAR_NUM_GEN) ne ""} {
     lappend current_defines "CHAR_NUM_GEN=$::env(CHAR_NUM_GEN)"
     puts "verilog_define: CHAR_NUM_GEN=$::env(CHAR_NUM_GEN) (injectors per direction)"
 }
+# granite storage / timing knobs (report 5.10): GRANITE_FIXED_TIMINGS=1 builds
+# the T_* constants in place of the TIMINGS CSRs; GRANITE_NUM_ENTRIES and
+# GRANITE_BANK_FIFO_DEPTH size the FIFO store. Unset = the shipped build.
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH} {
+    if {[info exists ::env($knob)] && $::env($knob) ne ""} {
+        lappend current_defines "$knob=$::env($knob)"
+        puts "verilog_define: $knob=$::env($knob)"
+    }
+}
 set_property verilog_define $current_defines $src_fs
 
 set top_name ddr2_char_top

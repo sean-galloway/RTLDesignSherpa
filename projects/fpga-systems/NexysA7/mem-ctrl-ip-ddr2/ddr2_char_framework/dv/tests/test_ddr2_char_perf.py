@@ -627,21 +627,16 @@ async def cocotb_test_pumice_perf(dut):
                                                       burst_len=blen, txn_count=txn),
                                           geom)
         bytes_moved = txn * blen * beat_bytes * n_gen
-        seed = 0xABCD1234
-
         def prog_for(g):
             if window is not None:
                 return window[g]
             # Generators one bank stride apart: each thread owns a bank for the
             # page-friendly families and the threads bank-interleave on
             # col_major -- the multi-thread case the controller should win.
-            s = seed + 0x1000 * g
             return dict(start_addr=g * geom.bank_stride, burst_len=blen,
                         txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
                         id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8,
-                        data_mode=True, lfsr_seed=s,
-                        hash_seed0=s, hash_seed1=s ^ 0x9E3779B9,
-                        hash_seed2=s ^ 0x85EBCA6B, gen=g)
+                        data_mode=True, gen=g, **pmf.seed_fields(g))
 
         mask = (1 << n_gen) - 1
 
@@ -681,6 +676,7 @@ async def cocotb_test_pumice_perf(dut):
         mism = drv.beats_mismatched()
         return {
             "family": fam_key, "stride": stride, "wrap": wrap,
+            "seed": pmf.PERF_SEED, "gen_seeds": [prog_for(g)["lfsr_seed"] for g in range(n_gen)],
             "txn": txn, "burst_len": blen, "num_gen": n_gen,
             "bytes_moved": bytes_moved,
             "wr_ok": bool(wr_ok), "rd_ok": bool(rd_ok), "mismatched": int(mism),
@@ -762,7 +758,7 @@ async def cocotb_test_pumice_perf(dut):
         cocotb.start_soon(_mism_probe(dut, mism_log))
     axi_log = {"ar": [], "r": []}
     if os.environ.get("AXI_R_PROBE", "0") == "1":
-        cocotb.start_soon(_axi_r_probe(dut, axi_log, 0xABCD1234))
+        cocotb.start_soon(_axi_r_probe(dut, axi_log, pmf.PERF_SEED))
     dfi_log = []
     if os.environ.get("DFI_RD_TRACE", "0") == "1":
         cocotb.start_soon(_dfi_rd_trace(dut, dfi_log))
@@ -819,7 +815,7 @@ async def cocotb_test_pumice_perf(dut):
         # The probe sees the AR/R of every family in the run; with
         # TEST_FAMILIES=col_major and the write phase first, the AR stream is
         # the col_major read stream only (writes use AW/W).
-        rep = _axi_r_report(axi_log, 0xABCD1234, beat_bytes)
+        rep = _axi_r_report(axi_log, pmf.PERF_SEED, beat_bytes)
         r["axi_r_report"] = rep
         dut._log.info("AXI_R_PROBE: %s", rep)
     if mism_log:

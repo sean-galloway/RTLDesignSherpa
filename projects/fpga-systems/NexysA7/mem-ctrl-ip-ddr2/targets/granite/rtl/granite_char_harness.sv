@@ -56,7 +56,14 @@ module granite_char_harness
     parameter int RD_DBG_FIFO_DEPTH  = 0,
     // injectors per direction in char_gen_unit (<= NUM_BANKS); eight per
     // direction is the owner's load point (2026-10-22)
-    parameter int NUM_GEN            = 4
+    parameter int NUM_GEN            = 4,
+    parameter bit HAS_LPDDR2         = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    // granite_core storage and timing knobs (report 5.10): the board ships
+    // NUM_ENTRIES 8 on the FIFO store, bank queues pool-deep (BANK_FIFO_DEPTH 0)
+    parameter int NUM_ENTRIES        = 8,
+    parameter int STORE_BACKEND      = 1,
+    parameter int BANK_FIFO_DEPTH    = 0,  // 0 = NUM_ENTRIES
+    parameter bit FIXED_TIMINGS      = 1'b0  // 1 = T_* constants replace the TIMINGS CSRs
 ) (
     input  logic                        aclk,
     input  logic                        aresetn,
@@ -549,12 +556,16 @@ module granite_char_harness
         .AXI_ID_WIDTH      (AXI_ID_WIDTH),
         .AXI_USER_WIDTH    (AXI_USER_WIDTH),
         .ROW_WIDTH         (ROW_WIDTH),
-        .WR_CAM_DEPTH      (8),
+        .WR_CAM_DEPTH      (NUM_ENTRIES),
         .RD_RET_DEPTH      (RD_RET_DEPTH),
         .RD_DBG_FIFO_DEPTH (RD_DBG_FIFO_DEPTH),
         .NUM_GEN           (NUM_GEN),
         .APB_ADDR_WIDTH    (APB_ADDR_WIDTH),
-        .APB_DATA_WIDTH    (APB_DATA_WIDTH)
+        .APB_DATA_WIDTH    (APB_DATA_WIDTH),
+        .HAS_LPDDR2        (HAS_LPDDR2),
+        .STORE_BACKEND     (STORE_BACKEND),
+        .BANK_FIFO_DEPTH   (BANK_FIFO_DEPTH),
+        .FIXED_TIMINGS     (FIXED_TIMINGS)
     ) u_dut (
         .mc_clk   (aclk),
         .mc_rst_n (dp_aresetn),

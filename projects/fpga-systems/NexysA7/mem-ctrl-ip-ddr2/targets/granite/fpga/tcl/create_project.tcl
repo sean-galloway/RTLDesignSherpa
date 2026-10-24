@@ -144,6 +144,17 @@ lappend current_defines "USE_ASYNC_RESET"
 # DDR2_CHAR_SYNTH selects the real MMCME2_BASE / BUFG / IDELAYCTRL clocking
 # in ddr2_char_top (sim path aliases all clocks to CLK100MHZ instead).
 lappend current_defines "DDR2_CHAR_SYNTH"
+# granite storage / timing knobs (mem-ctrl recovery Phase 3 report 5.10 / 5.11):
+# GRANITE_FIXED_TIMINGS=1 builds the T_* constants in place of the TIMINGS CSRs;
+# GRANITE_NUM_ENTRIES and GRANITE_BANK_FIFO_DEPTH size the FIFO store. Unset =
+# the shipped build. (The 2026-10-23 B/C builds set these in the environment
+# before this block existed and came out byte-identical to the default.)
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH} {
+    if {[info exists ::env($knob)] && $::env($knob) ne ""} {
+        lappend current_defines "$knob=$::env($knob)"
+        puts "verilog_define: $knob=$::env($knob)"
+    }
+}
 # Per-frequency profile: selects the MMCM + FPGA_CLK_HZ profile in
 # ddr2_char_top.sv. 75 MHz / DDR2-300 is THE BOARD'S DESIGN POINT -- it is what
 # board_ddr2_300 in dv/tbclasses/pumice_dram_configs.py carries, what the CSR
