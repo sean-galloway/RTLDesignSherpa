@@ -20,8 +20,8 @@ Three cocotb tests, all through bin/TBClasses/amba/axi_stress_pair_tb.py:
       top's hold_b): the master's LAT_MAX must read at least that, past the
       2^16 its latency counter wrapped at until 2026-10-22.
 
-TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4 | axil5 | apb4 | apb5); the cores
-and every check
+TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4 | axil5 | apb4 | apb5 | wb4 |
+wb4c); the cores and every check
 are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
 checks WID against the AWID of the burst each beat belongs to. With AXI5 both
 shells carry NSAID, TRACE, MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, every window is a sideband
@@ -36,7 +36,10 @@ their five faults; only the RLAST fault is skipped. APB4 / APB5 are 32-bit, one
 transfer at a time on one bus with no IDs (inorder / narrow / errwin; faults 1,
 2, 4 skipped, and no long_lat: a B cannot be held on APB); the slave runs in
 offset mode at a non-zero base, seeing the address modulo 2^24 as behind a
-bridge, and the APB5 slave waits for PWAKEUP before PREADY.
+bridge, and the APB5 slave waits for PWAKEUP before PREADY. WB4 (pipelined) and
+wb4c (B4 classic) are 32 / 64-bit single-beat transfers terminated in order; a
+pipelined run must overlap transfers on the bus (max_wire_out > 1), a classic
+or APB run must never have more than one in flight.
 """
 
 import os
@@ -150,7 +153,7 @@ async def cocotb_test_axi_stress_clean(dut):
         assert tb.stats['aw_hs_no_w'] == 0, \
             f"w_first: {tb.stats['aw_hs_no_w']} AWs taken with no W beat offered"
         assert tb.stats['aw_wait_no_w'] > 0, 'w_first: no AW ever waited for its W'
-    elif tb.PROTO not in APB:       # APB carries the address and data together
+    elif tb.PROTO not in JOINED:    # APB / Wishbone carry the address and data together
         assert tb.stats['aw_hs_no_w'] > 0, f'{name}: every AW came with a W beat (the gate is stuck on)'
     if tb.PROTO == 'axi3':
         assert tb.stats['max_len'] == 15, \
@@ -160,7 +163,13 @@ async def cocotb_test_axi_stress_clean(dut):
             f"{tb.PROTO}: a transfer of AxLEN {tb.stats['max_len']}; every one is one beat"
         if tb.PROTO in IN_ORDER:
             assert tb.stats['r_ooo'] == 0, f'{tb.PROTO}: a read completed out of order'
-        else:
+        if tb.PROTO == 'wb4':       # pipelined: transfers overlap on the bus
+            assert tb.stats['max_wire_out'] > 1, \
+                f"wb4: at most {tb.stats['max_wire_out']} transfer in flight; pipelining never happened"
+        if tb.PROTO == 'wb4c' or tb.PROTO in APB:   # one transfer at a time
+            assert tb.stats['max_wire_out'] == 1, \
+                f"{tb.PROTO}: {tb.stats['max_wire_out']} transfers in flight on a one-at-a-time bus"
+        if tb.PROTO == 'axil5':
             assert tb.stats['r_poison'] > 0 and tb.stats['w_poison'] > 0, \
                 'axil5: no beat was poisoned in one direction'
             assert tb.stats['r_poison'] < tb.stats['r_beats'], 'axil5: every R beat poisoned'
@@ -227,10 +236,12 @@ FAULTS_AXI5 = [(9, 'srd', {'S_SB'}), (10, 'swr', {'S_SB'}), (11, 'mrd', {'M_SB'}
 # touch a field AXI5-Lite carries).
 FAULTS_AXIL5 = [f for f in FAULTS_AXI5 if f[0] in (9, 10, 11, 12, 13)]
 FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5,
-                   'axil4': [], 'axil5': FAULTS_AXIL5, 'apb4': [], 'apb5': []}
+                   'axil4': [], 'axil5': FAULTS_AXIL5, 'apb4': [], 'apb5': [],
+                   'wb4': [], 'wb4c': []}
 # Neither Lite shell takes RLAST (every transfer is one beat), and AXI4-Lite
 # carries no RID or BID: those faults have no wire to corrupt.
-FAULTS_SKIP = {'axil4': {1, 2, 4}, 'axil5': {2}, 'apb4': {1, 2, 4}, 'apb5': {1, 2, 4}}
+FAULTS_SKIP = {'axil4': {1, 2, 4}, 'axil5': {2}, 'apb4': {1, 2, 4}, 'apb5': {1, 2, 4},
+               'wb4': {1, 2, 4}, 'wb4c': {1, 2, 4}}
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
@@ -305,11 +316,15 @@ async def cocotb_test_axi_stress_long_lat(dut):
     assert 0 < s['mwr']['lat_sum'] <= s['mwr']['lat_max'] * s['mwr']['completed']
 
 
-PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3, 'axil5': 4, 'apb4': 5, 'apb5': 6}
+PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3, 'axil5': 4, 'apb4': 5, 'apb5': 6,
+              'wb4': 7, 'wb4c': 7}
 APB = {'apb4', 'apb5'}
+WB = {'wb4', 'wb4c'}         # Wishbone B4 pipelined / classic (WB_CLASSIC)
 LITE = {'axil4', 'axil5'}
-SINGLE = LITE | APB          # one beat per transfer
-IN_ORDER = {'axil4'} | APB   # one response order: issue order
+SINGLE = LITE | APB | WB     # one beat per transfer
+IN_ORDER = {'axil4'} | APB | WB   # one response order: issue order
+JOINED = APB | WB            # address and write data travel together
+SHELL = {'wb4c': 'wb4'}      # the shell modules a cell builds
 # APB: 32-bit, one transfer at a time on one bus (AW and W always together),
 # no IDs; the long-latency test holds a B, which an APB bus cannot.
 # AXI4-Lite: one ID and one beat per transfer, so a slave has nothing to
@@ -320,7 +335,9 @@ IN_ORDER = {'axil4'} | APB   # one response order: issue order
 LITE_SCEN = {'axil4': ['inorder', 'narrow', 'errwin', 'w_first'],
              'axil5': ['inorder', 'ooo', 'narrow', 'errwin', 'one_id', 'w_first'],
              'apb4': ['inorder', 'narrow', 'errwin'],
-             'apb5': ['inorder', 'narrow', 'errwin']}
+             'apb5': ['inorder', 'narrow', 'errwin'],
+             'wb4': ['inorder', 'narrow', 'errwin'],
+             'wb4c': ['inorder', 'narrow', 'errwin']}
 
 
 def _params():
@@ -330,15 +347,15 @@ def _params():
         if proto in APB:
             dws = [32]
             scen = LITE_SCEN[proto]
-        elif proto in LITE:
-            dws = [64] if level == 'gate' else [32, 64]      # AXI-Lite here: 32 or 64
+        elif proto in LITE or proto in WB:
+            dws = [64] if level == 'gate' else [32, 64]      # 32 or 64
             scen = LITE_SCEN[proto]
         else:
             dws = [64] if level == 'gate' else [32, 64, 128]
             scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id', 'w_first']
         out += [(proto, dw, 'clean', sc) for dw in dws for sc in scen]
         out += [(proto, dw, 'faults', '-') for dw in dws]
-        if proto not in APB:
+        if proto not in JOINED:      # a B cannot be held on APB or Wishbone
             out.append((proto, 64, 'long_lat', '-'))
     return out
 
@@ -351,8 +368,9 @@ def test_axi_stress_pair(request, proto, dw, kind, scenario):
     })
     dut_name = "tb_axi_stress_pair"
 
-    m_src, m_inc = get_sources_from_filelist(repo_root=repo_root, module=f'{proto}_master_stress')
-    s_src, s_inc = get_sources_from_filelist(repo_root=repo_root, module=f'{proto}_slave_stress')
+    shell = SHELL.get(proto, proto)
+    m_src, m_inc = get_sources_from_filelist(repo_root=repo_root, module=f'{shell}_master_stress')
+    s_src, s_inc = get_sources_from_filelist(repo_root=repo_root, module=f'{shell}_slave_stress')
     verilog_sources = list(dict.fromkeys(list(m_src) + list(s_src)))
     verilog_sources.append(os.path.join(tests_dir, "tb_axi_stress_pair.sv"))
     includes = list(dict.fromkeys(list(m_inc) + list(s_inc)))
@@ -400,7 +418,8 @@ def test_axi_stress_pair(request, proto, dw, kind, scenario):
             testcase=f"cocotb_test_axi_stress_{kind}",
             parameters={'DW': str(dw), 'IW': '8', 'DEPTH': '16', 'NWIN': '8',
                         'PROTO': str(PROTO_CODE[proto]),
-                        'OFFSET_LG2': str(APB_OFFSET_LG2 if proto in APB else 0)},
+                        'OFFSET_LG2': str(APB_OFFSET_LG2 if proto in APB else 0),
+                        'WB_CLASSIC': str(1 if proto == 'wb4c' else 0)},
             sim_build=sim_build,
             simulator="verilator",
             extra_env=extra_env,

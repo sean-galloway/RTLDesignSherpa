@@ -232,6 +232,7 @@ class AxiStressPairTB(TBBase):
         w_pend: deque = deque()
         seq = 0
         last_rid = None
+        wire_out = 0          # requests accepted and not yet answered, both directions
         while True:
             await RisingEdge(d.aclk)
             if not int(d.aresetn.value):
@@ -273,6 +274,8 @@ class AxiStressPairTB(TBBase):
                 rd_order.append(seq)
                 seq += 1
                 self.stats['ar'] += 1
+                wire_out += 1
+                self.stats['max_wire_out'] = max(self.stats['max_wire_out'], wire_out)
             # R (wire after the injector, as the master sees it)
             if (axi5 and int(d.m_rvalid.value) and int(d.m_rready.value)
                     and int(d.m_rid.value) in rr_exp):
@@ -344,6 +347,7 @@ class AxiStressPairTB(TBBase):
                         if b['seq'] in rd_order:
                             rd_order.remove(b['seq'])
                         self.stats['r_bursts'] += 1
+                        wire_out -= 1
                 last_rid = rid
                 self.stats['r_beats'] += 1
             # AW
@@ -384,6 +388,8 @@ class AxiStressPairTB(TBBase):
                 wr_q.append(dict(addrs=M.beat_addrs(a, ln + 1, sz, bt), size=sz, n=0,
                                  id=int(d.m_awid.value), win=self._win_of(a), tagop=tagop))
                 self.stats['aw'] += 1
+                wire_out += 1
+                self.stats['max_wire_out'] = max(self.stats['max_wire_out'], wire_out)
             # W (before the injector). A W beat may cross the wire before its
             # AW (the slave's skid takes it), so beats wait for their AW here.
             if int(d.m_wvalid.value) and int(d.m_wready.value):
@@ -446,6 +452,7 @@ class AxiStressPairTB(TBBase):
                             self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BTAGMATCH != {e_m}')
                         self.stats[f'btagmatch{int(d.m_btagmatch.value)}'] += 1
                 self.stats['b'] += 1
+                wire_out -= 1
                 if int(d.m_bresp.value) != M.OKAY:
                     self.stats['b_err'] += 1
 

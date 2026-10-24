@@ -6,14 +6,16 @@
 //          axi{4,3,5}_slave_stress, back to back with no fabric between them.
 //
 // PROTO selects the shells: 0 = AXI4, 1 = AXI3, 2 = AXI5, 3 = AXI4-Lite,
-// 4 = AXI5-Lite, 5 = APB4, 6 = APB5. The nets below are AXI4 shaped whatever the protocol (AxLEN
+// 4 = AXI5-Lite, 5 = APB4, 6 = APB5, 7 = WB4. The nets below are AXI4 shaped whatever the protocol (AxLEN
 // 8 bits, AxLOCK 1 bit), so the Python monitor reads one set of names; with AXI3 the upper
 // AxLEN bits are tied 0 and m_wid carries WID. With AXI4-Lite the fields Lite
 // does not carry are tied to what every Lite transfer is: ID 0, one beat,
 // bus-wide, INCR, RLAST / WLAST 1. AXI5-Lite is the same with real IDs and
 // TRACE / POISON on the AXI5 nets. With APB4 / APB5 the nets are derived from the
 // APB handshake (an AR and its R, or an AW, its W and its B, in the cycle
-// PREADY completes the transfer), and the slave sees an offset (OFFSET_LG2). AXI5 builds both shells with NSAID, TRACE,
+// PREADY completes the transfer), and the slave sees an offset (OFFSET_LG2).
+// With WB4 an AR or AW + W is a transfer's acceptance and its R or B its
+// termination, in order (an in-order queue tells a read's from a write's). AXI5 builds both shells with NSAID, TRACE,
 // MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, and adds the m_*trace /
 // m_*poison / m_*nsaid / m_*mpam / m_*mecid nets; they are 0 for the others.
 //
@@ -66,7 +68,8 @@ module tb_axi_stress_pair
     parameter int DW    = 64,
     parameter int DEPTH = 16,
     parameter int NWIN  = 8,
-    parameter int PROTO = 0,           // 0 AXI4, 1 AXI3, 2 AXI5, 3 AXI4-Lite, 4 AXI5-Lite, 5 APB4, 6 APB5
+    parameter int PROTO = 0,           // 0 AXI4, 1 AXI3, 2 AXI5, 3 AXI4-Lite, 4 AXI5-Lite, 5 APB4, 6 APB5, 7 WB4
+    parameter int WB_CLASSIC = 0,      // WB4: 1 = B4 standard (classic) cycles
     // The slave sees the address modulo 2^OFFSET_LG2, as a bridge hands an
     // APB slave its window offset (the slave runs in offset mode); 0 = the
     // full address.
@@ -147,11 +150,32 @@ module tb_axi_stress_pair
 
     // ---- APB bus (PROTO 5 / 6) -------------------------------------------------
     localparam bit IS_APB = (PROTO == 5) || (PROTO == 6);
+    localparam bit IS_WB  = (PROTO == 7);
+    // Request faults held from a transfer's start to its end: APB, and WB4
+    // in classic mode (a completer may sample at any cycle of the transfer).
+    // A pipelined WB4 slave samples at acceptance, which is when they fire.
+    localparam bit REQ_HOLD = IS_APB || (IS_WB && WB_CLASSIC != 0);
     // The master's pins; the slave sees the same handshake, the address as an
     // offset (OFFSET_LG2), and the data through the injector. PREADY is the
     // slave's, seen by both.
     logic          p_sel, p_enable, p_write, p_ready, p_slverr_m, p_slverr_s;
     logic          p_wakeup;          // APB5: the requester's PWAKEUP
+
+    // ---- Wishbone bus (PROTO 7) ------------------------------------------------
+    logic          wb_cyc, wb_stb, wb_we, wb_stall, wb_ack_s, wb_err_s, wb_rty_s;
+    logic          wb_ack_m, wb_err_m;
+    logic [31:0]   wb_adr;
+    logic [DW-1:0] wb_dat_w, wb_dat_r_s;
+    logic [DW/8-1:0] wb_sel;
+    logic          r_wb_open;         // classic: a transfer is on the bus
+    wire  wb_term  = wb_ack_s || wb_err_s || wb_rty_s;
+    wire  wb_acc   = wb_cyc && wb_stb && ((WB_CLASSIC != 0) ? wb_term : !wb_stall);
+    wire  wb_start = (WB_CLASSIC != 0) ? (wb_cyc && wb_stb && !r_wb_open) : wb_acc;
+    // Terminations come back in acceptance order: the direction of each
+    // accepted, unterminated transfer, oldest at [0].
+    logic [DEPTH:0]        r_wbq;
+    logic [$clog2(DEPTH+2)-1:0] r_wbq_n;
+    wire  wb_head_wr = (r_wbq_n == '0) ? wb_we : r_wbq[0];
     logic [31:0]   p_addr;
     logic [DW-1:0] p_wdata, p_rdata_s;
     logic [DW/8-1:0] p_strb;
@@ -341,6 +365,39 @@ module tb_axi_stress_pair
         assign m_arid = '0;  assign m_arlen = '0;  assign m_arsize = 3'($clog2(DW / 8));
         assign m_arburst = 2'b01;  assign m_arlock = 1'b0;  assign m_arcache = '0;
         assign m_arqos = '0;  assign m_arregion = '0;  assign m_aruser = 1'b0;
+    end else if (IS_WB) begin : g_mstwb
+        wb4_master_stress #(
+            .DEPTH(DEPTH), .NWIN(NWIN), .IW(IW), .DW(DW), .CLASSIC(WB_CLASSIC)
+        ) u_mst (
+            .aclk, .aresetn, .go, .stop,
+            .cfg_rd (cfg_mrd), .cfg_wr (cfg_mwr), .cfg_win (w_win), .cfg_hash_seed,
+            .sts_rd (w_sts_mrd), .sts_wr (w_sts_mwr),
+            .m_wb_CYC(wb_cyc), .m_wb_STB(wb_stb), .m_wb_WE(wb_we), .m_wb_ADR(wb_adr),
+            .m_wb_DAT_W(wb_dat_w), .m_wb_SEL(wb_sel), .m_wb_STALL(wb_stall),
+            .m_wb_ACK(wb_ack_m), .m_wb_ERR(wb_err_m), .m_wb_RTY(1'b0),
+            .m_wb_DAT_R(m_rdata)
+        );
+        // The master sees the injector's response for the transfer at the head.
+        wire w_rsp_err = wb_head_wr ? (m_bresp != RESP_OKAY) : (m_rresp != RESP_OKAY);
+        assign wb_ack_m = wb_term && !w_rsp_err;
+        assign wb_err_m = wb_term &&  w_rsp_err;
+        // AXI4-shaped nets: acceptance is the AR (or AW + W), termination the
+        // R (or B).
+        assign m_arvalid = wb_acc && !wb_we;  assign m_arready = 1'b1;
+        assign m_araddr  = wb_adr;  assign m_arprot = 3'd0;
+        assign m_rvalid  = wb_term && !wb_head_wr;  assign m_rready = 1'b1;
+        assign m_awvalid = wb_acc && wb_we;  assign m_awready = 1'b1;
+        assign m_awaddr  = wb_adr;  assign m_awprot = 3'd0;
+        assign m_wvalid  = wb_acc && wb_we;  assign m_wready = 1'b1;
+        assign m_wdata   = wb_dat_w;  assign m_wstrb = wb_sel;
+        assign m_bready  = 1'b1;
+        assign m_awid = '0;  assign m_awlen = '0;  assign m_awsize = 3'($clog2(DW / 8));
+        assign m_awburst = 2'b01;  assign m_awlock = 1'b0;  assign m_awcache = '0;
+        assign m_awqos = '0;  assign m_awregion = '0;  assign m_awuser = 1'b0;
+        assign m_wlast = 1'b1;  assign m_wuser = 1'b0;  assign m_wid = '0;
+        assign m_arid = '0;  assign m_arlen = '0;  assign m_arsize = 3'($clog2(DW / 8));
+        assign m_arburst = 2'b01;  assign m_arlock = 1'b0;  assign m_arcache = '0;
+        assign m_arqos = '0;  assign m_arregion = '0;  assign m_aruser = 1'b0;
     end else begin : g_mst5
         assign m_wid = '0;
         assign m_awregion = '0;
@@ -389,6 +446,14 @@ module tb_axi_stress_pair
         assign p_ready = 1'b0;  assign p_slverr_m = 1'b0;  assign p_slverr_s = 1'b0;
         assign p_addr = '0;  assign p_wdata = '0;  assign p_rdata_s = '0;
         assign p_strb = '0;  assign p_prot = '0;
+    end endgenerate
+
+    // The Wishbone bus nets exist only with WB4.
+    generate if (!IS_WB) begin : g_no_wb
+        assign wb_cyc = 1'b0;  assign wb_stb = 1'b0;  assign wb_we = 1'b0;
+        assign wb_stall = 1'b0;  assign wb_ack_s = 1'b0;  assign wb_err_s = 1'b0;
+        assign wb_rty_s = 1'b0;  assign wb_ack_m = 1'b0;  assign wb_err_m = 1'b0;
+        assign wb_adr = '0;  assign wb_dat_w = '0;  assign wb_dat_r_s = '0;  assign wb_sel = '0;
     end endgenerate
 
     // TRACE / POISON: AXI5 and AXI5-Lite carry them; tied 0 for the others.
@@ -449,10 +514,12 @@ module tb_axi_stress_pair
         // and are held to its end (r_p_flip) -- keyed to the completing
         // cycle they could arm mid-transfer, after the slave had sampled.
         w_fire[3] = IS_APB ? (r_armed[3] && p_setup && p_write && p_strb[0])
-                                 : (r_armed[3] && w_w_hs && m_wstrb[0]);
+                  : IS_WB  ? (r_armed[3] && wb_start && wb_we && wb_sel[0])
+                           : (r_armed[3] && w_w_hs && m_wstrb[0]);
         w_fire[4] = r_armed[4] && w_b_hs;
         w_fire[5] = IS_APB ? (r_armed[5] && p_setup && !p_write)
-                                 : (r_armed[5] && w_ar_hs);
+                  : IS_WB  ? (r_armed[5] && wb_start && !wb_we)
+                           : (r_armed[5] && w_ar_hs);
         w_fire[6] = r_armed[6] && w_b_hs;
         w_fire[7] = r_armed[7] && w_r_hs;
         w_fire[8] = r_armed[8] && w_w_hs;
@@ -478,11 +545,28 @@ module tb_axi_stress_pair
             r_armed  <= '0;
             flt_done <= '0;
             r_p_flip <= '0;
+            r_wbq    <= '0;
+            r_wbq_n  <= '0;
+            r_wb_open <= 1'b0;
             for (int i = 0; i < (1 << IW); i++) r_rd_out[i] <= '0;
         end else begin
             r_armed  <= (r_armed & ~w_fire) | flt_arm;
-            if (p_xfer)                    r_p_flip <= 2'b00;
-            else begin
+            if (wb_term)                    r_wb_open <= 1'b0;
+            else if (wb_cyc && wb_stb)      r_wb_open <= 1'b1;
+            // direction queue: pop a termination, push an acceptance; in
+            // classic mode both fall in one cycle and the queue stays empty
+            if (wb_term && wb_acc && r_wbq_n == '0) begin
+                r_wbq <= r_wbq;
+            end else begin
+                automatic logic [DEPTH:0] q = r_wbq;
+                automatic logic [$clog2(DEPTH+2)-1:0] n = r_wbq_n;
+                if (wb_term) begin q = q >> 1; n = n - 1'b1; end
+                if (wb_acc)  begin q[n] = wb_we; n = n + 1'b1; end
+                r_wbq   <= q;
+                r_wbq_n <= n;
+            end
+            if (IS_APB ? p_xfer : wb_term)  r_p_flip <= 2'b00;
+            else if (REQ_HOLD) begin
                 if (w_fire[3])             r_p_flip[0] <= 1'b1;
                 if (w_fire[5])             r_p_flip[1] <= 1'b1;
             end
@@ -498,13 +582,13 @@ module tb_axi_stress_pair
     assign m_rid    = s_rid   ^ IW'(r_armed[1]);
     assign m_rlast  = s_rlast && !r_armed[2];
     assign m_rresp  = r_armed[7] ? RESP_SLVERR : s_rresp;
-    assign s_wdata  = m_wdata ^ DW'(IS_APB ? (r_p_flip[0] || w_fire[3])
-                                                 : (r_armed[3] && m_wstrb[0]));
+    assign s_wdata  = m_wdata ^ DW'((IS_APB || IS_WB) ? (r_p_flip[0] || w_fire[3])
+                                                      : (r_armed[3] && m_wstrb[0]));
     assign m_bid    = s_bid   ^ IW'(r_armed[4]);
     assign m_bresp  = r_armed[6] ? RESP_SLVERR : s_bresp;
     localparam int FLT_ADDR_BIT = (OFFSET_LG2 > 0) ? OFFSET_LG2 - 1 : 31;
-    assign s_araddr = m_araddr ^ (32'(IS_APB ? (r_p_flip[1] || w_fire[5])
-                                                   : r_armed[5]) << FLT_ADDR_BIT);
+    assign s_araddr = m_araddr ^ (32'((IS_APB || IS_WB) ? (r_p_flip[1] || w_fire[5])
+                                                        : r_armed[5]) << FLT_ADDR_BIT);
     assign s_wid    = m_wid   ^ IW'(r_armed[8]);
     assign s_artrace = m_artrace ^ r_armed[9];
     assign s_wpoison = m_wpoison ^ r_armed[10];
@@ -646,6 +730,25 @@ module tb_axi_stress_pair
         assign s_rresp  = p_slverr_s ? RESP_SLVERR : RESP_OKAY;
         assign s_bresp  = p_slverr_s ? RESP_SLVERR : RESP_OKAY;
         assign s_bvalid = p_xfer && p_write;
+        assign s_bid = '0;  assign s_rid = '0;  assign s_rlast = 1'b1;
+        assign m_buser = 1'b0;  assign m_ruser = 1'b0;
+    end else if (IS_WB) begin : g_slvwb
+        wb4_slave_stress #(
+            .DEPTH(DEPTH), .IW(IW), .DW(DW), .CLASSIC(WB_CLASSIC)
+        ) u_slv (
+            .aclk, .aresetn, .clear,
+            .cfg_rd (cfg_srd), .cfg_wr (cfg_swr), .cfg_hash_seed,
+            .sts_rd (w_sts_srd), .sts_wr (w_sts_swr),
+            .s_wb_CYC(wb_cyc), .s_wb_STB(wb_stb), .s_wb_WE(wb_we),
+            .s_wb_ADR(wb_we ? m_awaddr : s_araddr),
+            .s_wb_DAT_W(s_wdata), .s_wb_SEL(m_wstrb), .s_wb_STALL(wb_stall),
+            .s_wb_ACK(wb_ack_s), .s_wb_ERR(wb_err_s), .s_wb_RTY(wb_rty_s),
+            .s_wb_DAT_R(wb_dat_r_s)
+        );
+        assign s_rdata  = wb_dat_r_s;
+        assign s_rresp  = wb_ack_s ? RESP_OKAY : RESP_SLVERR;
+        assign s_bresp  = wb_ack_s ? RESP_OKAY : RESP_SLVERR;
+        assign s_bvalid = wb_term && wb_head_wr;
         assign s_bid = '0;  assign s_rid = '0;  assign s_rlast = 1'b1;
         assign m_buser = 1'b0;  assign m_ruser = 1'b0;
     end else begin : g_slv5
