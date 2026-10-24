@@ -23,16 +23,39 @@
 
 # Scheduler Specification
 
-**Module:** `scheduler.sv`
+**Module:** `scheduler.sv` (the FSM) around `scheduler_core.sv` (the datapath)
 **Location:** `projects/components/dma-ip/stream/rtl/fub/`
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-10-24
 
 ---
 
 ## Overview
 
 The Scheduler coordinates descriptor-based memory-to-memory DMA transfers for a single channel. It receives descriptors, manages concurrent read/write operations, and handles descriptor chaining.
+
+### Structure: the FSM and the Core
+
+Since stream TASK-020 (2026-10-24) the scheduler is two modules, as the RAPIDS scheduler has been since rapids TASK-034. `scheduler.sv` is the channel FSM and the two EXT run-base generators (`stream_run_addr_gen`, read and write); `scheduler_core.sv` is everything at cycle rate: the descriptor skid and latch, the beat counters and address advance, run accounting, the read-ahead prefetch (the peek and the in-place write advance), the commit accumulator, timeouts, the sticky errors and the MonBus packets. The split is bit-exact: the same seed on the one-module and the two-module scheduler gives identical simulation logs for every scheduler and stream_core cell, and the external ports are unchanged.
+
+The core's sequencing port is what a second wrapper drives instead of the FSM: the gatling-sequenced `scheduler_g` of stream-g (TASK-020, Chapter 5 when it lands) takes these from firmware.
+
+| Signal | Direction | FSM wrapper drives | Meaning |
+|---|---|---|---|
+| `state` | in | its state register | the channel state the core acts on |
+| `desc_take` | in | IDLE (channel enabled) or NEXT_DESC | pop the skid head into the latch; the core adds the prefetch's in-place advance itself |
+| `launch` | in | FETCH_DESC with next state XFER_DATA | the edge that adds the descriptor's length to the commit accumulator |
+| `rd_beats_total`, `wr_beats_total` | in | the latched length (beats) | beats each direction moves |
+| `head_ok` | in | 1 | the skid head may be prefetched (scheduler_g: the head is staged) |
+| `rd/wr_base_valid`, `_addr`, `_ready` | in / out | the run-base generators | EXT run bases 1..N-1 |
+| `addrgen_start` | out | starts the generators | entry to FETCH_DESC with an EXT descriptor |
+| `desc_head_valid`, `desc_head_packet` | out | | the skid head, before it is taken |
+| `desc_latched`, `desc_ext_latched`, `desc_is_ext`, `desc_rd/wr_per_beat` | out | | the latched descriptor and its decisions |
+| `wr_advance`, `rd_ahead` | out | | the prefetch advanced in place / the read side is ahead |
+| `exec_complete`, `write_complete` | out | | leave XFER_DATA / every write committed |
+| `hard_error`, `timeout_escalate`, `channel_reset_active` | out | | the interlocks |
+
+: Table 2.4.1: scheduler_core sequencing port
 
 ### Key Features
 

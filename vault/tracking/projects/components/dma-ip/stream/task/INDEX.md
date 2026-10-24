@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — tasks
 
-**Next ID: TASK-020** — never recycle a number, even when its item closed.
+**Next ID: TASK-021** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -13,7 +13,7 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
@@ -24,9 +24,11 @@ by construction rather than by discipline.
 
 ## Active
 
+- **TASK-020** — stream-g: STREAM with its schedulers sequenced by gatling firmware, built as rapids-g was (core split, scheduler_g, stream_seq_g, generated tree, firmware, equivalence bench, board); owner asked 2026-10-24
+
 ## Deferred
 
-- **TASK-018** — loadable firmware memory as on rapids-g (rapids TASK-038); waits on that being proven; STREAM has no firmware today, so the shape is the owner's call then
+- **TASK-018** — loadable firmware memory as on rapids-g (rapids TASK-038); the owner's answer 2026-10-24 is a firmware-sequenced STREAM (TASK-020), which brings the loader with it; closes with TASK-020 phase 4
 
 ## Closed
 

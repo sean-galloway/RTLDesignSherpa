@@ -190,7 +190,8 @@ STREAM Architecture (as implemented)
 ├── rtl/fub/                        # Functional unit blocks
 │   ├── descriptor_engine.sv        # Descriptor fetch/parse, one per channel (SHARED_ENGINES=0)
 │   ├── descriptor_engine_shared.sv # One fetch engine for all channels (default; ported from RAPIDS)
-│   ├── scheduler.sv                # Simplified per-channel scheduler
+│   ├── scheduler.sv                # Per-channel scheduler: the FSM + EXT run-base generators (stream TASK-020)
+│   ├── scheduler_core.sv           # ... around this datapath, shared with the gatling-sequenced scheduler_g
 │   ├── axi_read_engine.sv          # Data read engine
 │   ├── axi_write_engine.sv         # Data write engine
 │   ├── sram_controller.sv          # SRAM buffering (+ sram_controller_unit.sv per channel)

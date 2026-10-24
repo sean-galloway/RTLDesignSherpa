@@ -12,17 +12,15 @@
 # sub-blocks, missing monitor_trans_cam, missing clock-gate chain). Each
 # filelist below declares its own complete closure.
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
-# descriptor skid (TASK-017)
--f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f
 -f $REPO_ROOT/rtl/amba/filelists/monitor_pkgs.f
 -f $REPO_ROOT/rtl/common/filelists/counter_bin.f
 
-# Package files
-$STREAM_ROOT/rtl/includes/stream_pkg.sv
+# The datapath (stream TASK-020): descriptor skid, counters, prefetch, errors, MonBus
+-f $STREAM_ROOT/rtl/filelists/fub/scheduler_core.f
 
 # TASK-101 run-base address generator dependencies (USE_ROW_COL_MAJOR_ADDRESSING)
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/dma_address_gen.f
 -f $REPO_ROOT/projects/components/utility-ip/misc/rtl/filelists/stream_run_addr_gen.f
 
-# Scheduler module
+# The FSM wrapper
 $STREAM_ROOT/rtl/fub/scheduler.sv
