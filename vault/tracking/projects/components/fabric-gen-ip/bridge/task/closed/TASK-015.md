@@ -58,12 +58,14 @@ relevant comparison for Bridge's typical 2–8 master port counts.
   percent) off the worst register-to-register path at a 1000 ps target and 27
   ps (5 percent) at 400 ps, for +2.3 / -2.5 percent cells; at 2x2 the two are
   within 5 percent either way (one priority bit each -- mapper noise). QoS:
-  821 ps on the same 2x2. Tables in HAS 5.3 and MAS 2.4. The FPGA
-  out-of-context pair (Kintex-7 325T, 100 MHz) runs in `fpga/` and lands in
-  HAS 5.3 when done.
+  821 ps on the same 2x2. Tables in HAS 5.3 and MAS 2.4.
+- FPGA, out of context on the Kintex-7 325T -2 at 10 ns (`fpga/`, whole
+  `bridge_4x4_rw` top): rr 48,775 LUTs / 47,187 FFs / WNS +1.315 ns / 9
+  levels; matrix 48,817 / 47,209 / +1.207 (reg-to-reg +1.338) / 10 levels.
+  Identical within 0.1 percent of LUTs and 23 ps: a LUT6 absorbs either pick.
 - Decision (PRD FR-6): `rr` stays the default. The win is real only at four
-  or more masters, every board build is tuned to round-robin timing, and the
-  FPGA number was not in hand. `matrix` is the documented choice for a wide
+  or more masters on a standard-cell library, it is neutral on the FPGA, and
+  every board build is tuned to round-robin timing. `matrix` is the documented choice for a wide
   fabric on an ASIC target.
 - Not covered: the per-master response arbiters and the shared-CDC-slave
   arbiter (`bridge_cdc_slave_arb.sv`, already `arbiter_matrix`).

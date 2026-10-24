@@ -532,6 +532,12 @@ way and the two land within 5 percent of each other in both directions, which
 is mapper noise, not a difference. QoS-with-aging is the expensive one: its
 effective-priority compare puts 28 levels on the path.
 
+On the Kintex-7 325T at 10 ns (out of context, whole `bridge_4x4_rw` top) the
+two policies are identical to within 0.1 percent of LUTs and 23 ps of
+register-to-register slack (48,775 / 48,817 LUTs, +1.315 / +1.338 ns): a LUT6
+absorbs either pick in one level. The matrix arbiter's advantage is a
+standard-cell one (HAS 5.3).
+
 ## Design Notes
 
 ### Resource Utilization

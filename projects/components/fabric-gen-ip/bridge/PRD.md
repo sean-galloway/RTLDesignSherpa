@@ -484,8 +484,8 @@ address_map = {
   round-robin among equals, bridge TASK-006) or `"matrix"` (least recently served,
   bridge TASK-015). Decision 2026-10-24: `rr` stays the default -- on ASAP7 the matrix
   arbiter wins 5-11 percent of the crossbar's worst path only at four masters and is a wash
-  at two, every board build is tuned to round-robin timing, and the FPGA comparison is
-  pending (HAS 5.3, MAS 2.4). Until 2026-10-11 this line read "HARD-CODED"; the key
+  at two, on the Kintex-7 the two are identical to within 0.1 percent of LUTs, and every
+  board build is tuned to round-robin timing (HAS 5.3, MAS 2.4). Until 2026-10-11 this line read "HARD-CODED"; the key
   has existed since TASK-006.
 
 **FR-7: Read/Write Independence**

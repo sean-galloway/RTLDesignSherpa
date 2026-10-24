@@ -115,10 +115,25 @@ the same bound (`n-1` foreign grants between two of a master's own), measured
 1 at 2x2 and 2 at 4x4 three-way (MAS 2.4). The ASIC figures are a proxy, not
 a sign-off: no placement, ideal clock, one corner.
 
+The same pair out of context on the Kintex-7 325T -2 at 10 ns (HAS 6.4 flow,
+2026-10-24):
+
+| Bridge (whole top) | LUTs | FFs | WNS (ns) | WNS reg-to-reg (ns) | Fmax est. (MHz) | Worst logic levels |
+|---|---:|---:|---:|---:|---:|---:|
+| `bridge_4x4_rw` | 48,775 | 47,187 | +1.315 | +1.315 | 115.1 | 9 |
+| `bridge_4x4_rw_matrix` | 48,817 | 47,209 | +1.207 | +1.338 | 115.4 | 10 |
+
+: Kintex-7, 4x4, round-robin against matrix
+
+On the FPGA the two are the same design to within 0.1 percent of LUTs and 23
+ps of register-to-register slack: a LUT6 absorbs either pick in one level,
+so the ASIC's gate-depth advantage does not show. The FPGA number does not
+argue for a default change either.
+
 Default policy (PRD FR-6): `rr` stays the default. The matrix arbiter wins
-only where four or more masters contend, every board build is tuned to its
-measured round-robin timing, and the FPGA comparison is pending; choose
-`arbitration = "matrix"` for a wide fabric on an ASIC target.
+only where four or more masters contend on an ASIC library, it is neutral on
+the FPGA, and every board build is tuned to its measured round-robin timing;
+choose `arbitration = "matrix"` for a wide fabric on an ASIC target.
 
 ### Scaling
 
