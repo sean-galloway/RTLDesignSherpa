@@ -214,6 +214,18 @@ module granite_char_top #(
 `ifdef GRANITE_DFI_CDC_EN
         .DFI_CDC_EN         (`GRANITE_DFI_CDC_EN),
 `endif
+`ifdef GRANITE_HAS_SNARF
+        .HAS_SNARF          (`GRANITE_HAS_SNARF),
+`endif
+`ifdef GRANITE_INTAKE_FIFO_DEPTH
+        .INTAKE_FIFO_DEPTH  (`GRANITE_INTAKE_FIFO_DEPTH),
+`endif
+`ifdef GRANITE_AXI_SKID_DEPTH
+        .AXI_SKID_DEPTH     (`GRANITE_AXI_SKID_DEPTH),
+`endif
+`ifdef GRANITE_SHARED_ADDR_MAP
+        .SHARED_ADDR_MAP    (`GRANITE_SHARED_ADDR_MAP),
+`endif
 `ifdef GRANITE_RD_RET_DEPTH
         .RD_RET_DEPTH       (`GRANITE_RD_RET_DEPTH),
 `else

@@ -1,0 +1,209 @@
+{
+ "bridge": "bridge_ddr2_char_axil",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "host",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (host -> ddr2_apb, write 11 / read 10)",
+   "warning": null
+  },
+  {
+   "port": "host",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "ddr2_apb",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (host -> ddr2_apb, write 11 / read 10)",
+   "warning": null
+  },
+  {
+   "port": "harness_csr",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 10,
+   "basis": "1 + latency_cycles 0 + round trip 9 (host -> harness_csr, write 9 / read 8)",
+   "warning": null
+  },
+  {
+   "port": "debug_sram",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 10,
+   "basis": "1 + latency_cycles 0 + round trip 9 (host -> debug_sram, write 9 / read 8)",
+   "warning": null
+  },
+  {
+   "port": "dfi_mon_ram",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 10,
+   "basis": "1 + latency_cycles 0 + round trip 9 (host -> dfi_mon_ram, write 9 / read 8)",
+   "warning": null
+  },
+  {
+   "port": "obs_apb",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (host -> obs_apb, write 11 / read 10)",
+   "warning": null
+  },
+  {
+   "port": "chargen_apb",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (host -> chargen_apb, write 11 / read 10)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "host",
+   "slave": "ddr2_apb",
+   "read": 10,
+   "write": 11,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "host",
+   "slave": "harness_csr",
+   "read": 8,
+   "write": 9,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "host",
+   "slave": "debug_sram",
+   "read": 8,
+   "write": 9,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "host",
+   "slave": "dfi_mon_ram",
+   "read": 8,
+   "write": 9,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "host",
+   "slave": "obs_apb",
+   "read": 10,
+   "write": 11,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "host",
+   "slave": "chargen_apb",
+   "read": 10,
+   "write": 11,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": []
+}

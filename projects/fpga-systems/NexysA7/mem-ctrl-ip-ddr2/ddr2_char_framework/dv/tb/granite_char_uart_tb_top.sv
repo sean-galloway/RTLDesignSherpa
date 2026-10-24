@@ -64,6 +64,11 @@ module granite_char_uart_tb_top
     parameter int BANK_FIFO_DEPTH = 0,   // 0 = NUM_ENTRIES
     parameter bit HEAD2_EN        = 1'b1,// 0 = one head record per bank (FIFO store)
     parameter bit DFI_CDC_EN      = 1'b0,// the macro ties dfi_clk to mc_clk: no DFI crossing (board default)
+    // AXI-plane lean knobs (pumice TASK-054), granite defaults = the measured lean form:
+    parameter bit HAS_SNARF        = 1'b0, // 1 = snarf probe / staged admit / source arbiter in the read intake (pumice's CAM store); granite's FIFO store has no snarf
+    parameter int INTAKE_FIFO_DEPTH = 0,   // rd-data and wr-data FIFOs in the intakes; 0 = none (the skids feed the ring / store directly; cycle-identical, measured)
+    parameter int AXI_SKID_DEPTH   = 2,    // R and W skid depth in the AXI slave shells (2..8); 2 measured cycle-identical to 4
+    parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes with an alternating grant: -23 percent on the mixed family, so OFF
     parameter bit FIXED_TIMINGS   = 1'b0
 ) (
     input  logic aclk,
@@ -138,6 +143,10 @@ module granite_char_uart_tb_top
         .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
         .HEAD2_EN        (HEAD2_EN),
         .DFI_CDC_EN      (DFI_CDC_EN),
+        .HAS_SNARF        (HAS_SNARF),
+        .INTAKE_FIFO_DEPTH(INTAKE_FIFO_DEPTH),
+        .AXI_SKID_DEPTH   (AXI_SKID_DEPTH),
+        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP),
         .FIXED_TIMINGS   (FIXED_TIMINGS)
     ) u_dut (
         .aclk        (aclk),

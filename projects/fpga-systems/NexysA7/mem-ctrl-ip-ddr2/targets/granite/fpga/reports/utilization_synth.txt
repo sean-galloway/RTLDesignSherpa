@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date         : Sat Oct 24 08:50:23 2026
+| Date         : Sat Oct 24 13:18:29 2026
 | Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command      : report_utilization -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/utilization_synth.txt
 | Design       : granite_char_top
@@ -31,16 +31,16 @@ Table of Contents
 +----------------------------+-------+-------+------------+-----------+-------+
 |          Site Type         |  Used | Fixed | Prohibited | Available | Util% |
 +----------------------------+-------+-------+------------+-----------+-------+
-| Slice LUTs*                | 40739 |     0 |          0 |     63400 | 64.26 |
-|   LUT as Logic             | 38645 |     0 |          0 |     63400 | 60.95 |
-|   LUT as Memory            |  2094 |     0 |          0 |     19000 | 11.02 |
-|     LUT as Distributed RAM |  2094 |     0 |            |           |       |
+| Slice LUTs*                | 36542 |     0 |          0 |     63400 | 57.64 |
+|   LUT as Logic             | 34600 |     0 |          0 |     63400 | 54.57 |
+|   LUT as Memory            |  1942 |     0 |          0 |     19000 | 10.22 |
+|     LUT as Distributed RAM |  1942 |     0 |            |           |       |
 |     LUT as Shift Register  |     0 |     0 |            |           |       |
-| Slice Registers            | 34186 |     0 |          0 |    126800 | 26.96 |
-|   Register as Flip Flop    | 34186 |     0 |          0 |    126800 | 26.96 |
+| Slice Registers            | 30641 |     0 |          0 |    126800 | 24.16 |
+|   Register as Flip Flop    | 30641 |     0 |          0 |    126800 | 24.16 |
 |   Register as Latch        |     0 |     0 |          0 |    126800 |  0.00 |
-| F7 Muxes                   |  1220 |     0 |          0 |     31700 |  3.85 |
-| F8 Muxes                   |   128 |     0 |          0 |     15850 |  0.81 |
+| F7 Muxes                   |   944 |     0 |          0 |     31700 |  2.98 |
+| F8 Muxes                   |   124 |     0 |          0 |     15850 |  0.78 |
 +----------------------------+-------+-------+------------+-----------+-------+
 * Warning! The Final LUT count, after physical optimizations and full implementation, is typically lower. Run opt_design after synthesis, if not already completed, for a more realistic count.
 Warning! LUT value is adjusted to account for LUT combining.
@@ -59,10 +59,10 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 | 0     |            _ |         Set |            - |
 | 0     |            _ |       Reset |            - |
 | 0     |          Yes |           - |            - |
-| 480   |          Yes |           - |          Set |
-| 23103 |          Yes |           - |        Reset |
+| 477   |          Yes |           - |          Set |
+| 20009 |          Yes |           - |        Reset |
 | 185   |          Yes |         Set |            - |
-| 10418 |          Yes |       Reset |            - |
+| 9970  |          Yes |       Reset |            - |
 +-------+--------------+-------------+--------------+
 
 
@@ -86,8 +86,8 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +----------------+------+-------+------------+-----------+-------+
 |    Site Type   | Used | Fixed | Prohibited | Available | Util% |
 +----------------+------+-------+------------+-----------+-------+
-| DSPs           |   32 |     0 |          0 |       240 | 13.33 |
-|   DSP48E1 only |   32 |       |            |           |       |
+| DSPs           |   24 |     0 |          0 |       240 | 10.00 |
+|   DSP48E1 only |   24 |       |            |           |       |
 +----------------+------+-------+------------+-----------+-------+
 
 
@@ -158,25 +158,25 @@ Warning! For any ECO changes, please run place_design if there are unplaced inst
 +------------+-------+---------------------+
 |  Ref Name  |  Used | Functional Category |
 +------------+-------+---------------------+
-| FDCE       | 23103 |        Flop & Latch |
-| LUT6       | 20298 |                 LUT |
-| FDRE       | 10418 |        Flop & Latch |
-| LUT5       |  9088 |                 LUT |
-| LUT4       |  6359 |                 LUT |
-| LUT3       |  4880 |                 LUT |
-| LUT2       |  3326 |                 LUT |
-| RAMD64E    |  1528 |  Distributed Memory |
-| CARRY4     |  1253 |          CarryLogic |
-| MUXF7      |  1220 |               MuxFx |
-| RAMD32     |   826 |  Distributed Memory |
-| FDPE       |   480 |        Flop & Latch |
-| LUT1       |   464 |                 LUT |
-| RAMS32     |   260 |  Distributed Memory |
+| FDCE       | 20009 |        Flop & Latch |
+| LUT6       | 18676 |                 LUT |
+| FDRE       |  9970 |        Flop & Latch |
+| LUT5       |  7475 |                 LUT |
+| LUT4       |  5590 |                 LUT |
+| LUT3       |  4285 |                 LUT |
+| LUT2       |  3155 |                 LUT |
+| RAMD64E    |  1480 |  Distributed Memory |
+| CARRY4     |  1116 |          CarryLogic |
+| MUXF7      |   944 |               MuxFx |
+| RAMD32     |   674 |  Distributed Memory |
+| FDPE       |   477 |        Flop & Latch |
+| LUT1       |   433 |                 LUT |
+| RAMS32     |   212 |  Distributed Memory |
 | FDSE       |   185 |        Flop & Latch |
-| MUXF8      |   128 |               MuxFx |
+| MUXF8      |   124 |               MuxFx |
 | OBUF       |    57 |                  IO |
 | OSERDESE2  |    43 |                  IO |
-| DSP48E1    |    32 |    Block Arithmetic |
+| DSP48E1    |    24 |    Block Arithmetic |
 | IBUF       |    19 |                  IO |
 | OBUFT      |    16 |                  IO |
 | ISERDESE2  |    16 |                  IO |

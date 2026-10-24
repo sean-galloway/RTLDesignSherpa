@@ -48,14 +48,20 @@
 //          A commit or issue always names the HEAD of its bank queue: the pick
 //          core fires the head record, or in the one cycle after a pop (the
 //          record's registered latency) the second record, which by then is
-//          the head (mc_bank_pick, r_shadow). So each bank queue is a plain
-//          circular FIFO of slot pointers -- pop is a pointer increment, the
-//          records read three positions from the read pointer -- and no
-//          pack-on-pop network exists. The first pool-deep cut packed the
-//          queues on every pop and that network alone cost ~800 LUT on the
-//          board (5 822 vs 5 035 at depth 4, 2026-10-23). The records cost
-//          nothing per depth, so the bank FIFOs are pool-deep by default and
+//          the head (mc_bank_pick, r_shadow). So each bank queue is a LINKED
+//          LIST threaded through the slots: one `next` pointer per slot, a
+//          head and a tail per bank. Push appends at the tail, pop follows
+//          the head's `next`, the records read head, next[head] and
+//          next[next[head]]. No position array exists: the first pool-deep
+//          cut kept 8 x 8 positions per direction and packed them on every
+//          pop (~800 LUT on the board, 2026-10-23); the circular form that
+//          replaced it still carried 64 positions and their write decode per
+//          direction (416 flops each). The list is 8 x 3 + 2 x 8 x 3 bits
+//          (pumice TASK-054). The queues are pool-deep by construction and
 //          admission is the pool's, exactly as the entry store's.
+//
+//          The fill-order FIFO (the slot each W beat belongs to, AW order) is
+//          circular for the same reason -- it only ever pops its head.
 //
 //          The records carry vld, slot, the behind flags, hit and the age flag,
 //          and NO row or column: the pick core looks the command payload up by
@@ -203,7 +209,6 @@ module mc_bank_fifo_store
     localparam int DQ_DEPTH = (NUM_ENTRIES > 1) ? NUM_ENTRIES : 2;
     localparam int QD   = ((BANK_FIFO_DEPTH <= 0) || (BANK_FIFO_DEPTH > NUM_ENTRIES))
                         ? NUM_ENTRIES : BANK_FIFO_DEPTH;
-    localparam int QPW  = (QD > 1) ? $clog2(QD) : 1;   // queue position pointer
     localparam int QCW  = $clog2(QD + 1);          // per-bank occupancy 0..QD
     localparam int FOW  = $clog2(NUM_ENTRIES + 1); // fill-order occupancy 0..N
 
@@ -256,29 +261,32 @@ module mc_bank_fifo_store
 
     // Fill-order FIFO: slots in AW order; the head is the slot the next W beat
     // belongs to (AXI4 write data is non-interleaved and arrives in AW order).
-    logic [PTRW-1:0] r_fo     [NUM_ENTRIES];
+    logic [PTRW-1:0] r_fo     [NUM_ENTRIES];   // circular: head at r_fo_rd, r_fo_cnt entries
+    logic [PTRW-1:0] r_fo_rd;
     logic [FOW-1:0]  r_fo_cnt;
     logic            w_fill_vld;
     logic [PTRW-1:0] w_fill_slot;
-    assign w_fill_vld  = (r_fo_cnt != '0);
-    assign w_fill_slot = r_fo[0];
-
-    // Per-bank WR FIFOs of slots: circular, r_wq_rd = head position, entries
-    // at rd .. rd+cnt-1 (mod QD). r_wq_sp[pos] = that position's row equals
-    // the row of the position before it (stored at push against the bank's
-    // registered tail row); r_wq_tail_row = row of the last pushed.
-    logic [PTRW-1:0]      r_wq          [NUM_BANKS][QD];
-    logic                 r_wq_sp       [NUM_BANKS][QD];
-    logic [QPW-1:0]       r_wq_rd       [NUM_BANKS];
-    logic [QCW-1:0]       r_wq_cnt      [NUM_BANKS];
-    logic [ROW_WIDTH-1:0] r_wq_tail_row [NUM_BANKS];
-
-    function automatic logic [QPW-1:0] qpos(input logic [QPW-1:0] base, input int off);
+    function automatic logic [PTRW-1:0] fopos(input logic [PTRW-1:0] base, input int off);
         int v;
         v = int'(base) + off;
-        if (v >= QD) v = v - QD;
-        return QPW'(v);
+        if (v >= NUM_ENTRIES) v = v - NUM_ENTRIES;
+        return PTRW'(v);
     endfunction
+    assign w_fill_vld  = (r_fo_cnt != '0);
+    assign w_fill_slot = r_fo[r_fo_rd];
+
+    // Per-bank WR queues as linked lists through the slots: r_wnext[s] is the
+    // slot behind s in its bank's queue (valid while s is not the tail);
+    // r_wsp[s] = s's row equals the row of the slot ahead of it (stored at
+    // push against the bank's registered tail row, 0 when s was pushed into
+    // an empty queue); head / tail / cnt per bank; r_wq_tail_row = row of
+    // the last pushed.
+    logic [PTRW-1:0]      r_wnext       [NUM_ENTRIES];
+    logic                 r_wsp         [NUM_ENTRIES];
+    logic [PTRW-1:0]      r_wq_head     [NUM_BANKS];
+    logic [PTRW-1:0]      r_wq_tail     [NUM_BANKS];
+    logic [QCW-1:0]       r_wq_cnt      [NUM_BANKS];
+    logic [ROW_WIDTH-1:0] r_wq_tail_row [NUM_BANKS];
 
     logic [31:0] w_fill_idx;
     assign w_fill_idx = 32'(w_fill_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_wr_bcnt[w_fill_slot]);
@@ -392,20 +400,20 @@ module mc_bank_fifo_store
             r_credits   <= 2'(SKID_DEPTH);
             r_if_valid  <= 1'b0;
             r_fo_cnt    <= '0;
+            r_fo_rd     <= '0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_wr_valid[i] <= 1'b0;
                 r_wr_fdone[i] <= 1'b0;
                 r_wr_bcnt [i] <= '0;
                 r_fo[i]       <= '0;
+                r_wnext[i]    <= '0;
+                r_wsp[i]      <= 1'b0;
             end
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_wq_cnt[b]      <= '0;
-                r_wq_rd[b]       <= '0;
+                r_wq_head[b]     <= '0;
+                r_wq_tail[b]     <= '0;
                 r_wq_tail_row[b] <= '0;
-                for (int k = 0; k < QD; k++) begin
-                    r_wq[b][k]    <= '0;
-                    r_wq_sp[b][k] <= 1'b0;
-                end
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -423,25 +431,13 @@ module mc_bank_fifo_store
                 r_wr_age  [w_wr_free_slot] <= r_age_ctr;
             end
 
-            // fill-order FIFO: pop at fill-done (shift), push at insert
-            begin
-                automatic int fidx;
-                automatic logic [PTRW-1:0] fo_next [NUM_ENTRIES];
-                fidx = 0;
-                for (int i = 0; i < NUM_ENTRIES; i++) fo_next[i] = r_fo[i];
-                for (int i = 0; i < NUM_ENTRIES; i++) begin
-                    if ((i < int'(r_fo_cnt)) && !(w_fill_done && (i == 0))) begin
-                        fo_next[fidx] = r_fo[i];
-                        fidx++;
-                    end
-                end
-                if (w_aw_fire && (fidx < NUM_ENTRIES)) begin
-                    fo_next[fidx] = w_wr_free_slot;
-                    fidx++;
-                end
-                for (int i = 0; i < NUM_ENTRIES; i++) r_fo[i] <= fo_next[i];
-                r_fo_cnt <= FOW'(fidx);
-            end
+            // fill-order FIFO: circular; pop (head + 1) at fill-done, push at
+            // insert behind the current occupancy (a push never sees a full
+            // FIFO: it needs a free slot, and every slot in the pool is at
+            // most once in this FIFO)
+            if (w_fill_done) r_fo_rd <= fopos(r_fo_rd, 1);
+            if (w_aw_fire)   r_fo[fopos(r_fo_rd, int'(r_fo_cnt))] <= w_wr_free_slot;
+            r_fo_cnt <= r_fo_cnt - (w_fill_done ? FOW'(1) : FOW'(0)) + (w_aw_fire ? FOW'(1) : FOW'(0));
 
             // fill bookkeeping (the beat itself lands in the BRAM below)
             if (w_wd_fire) begin
@@ -453,18 +449,21 @@ module mc_bank_fifo_store
                 end
             end
 
-            // per-bank circular FIFOs
+            // per-bank linked lists: pop follows the head's next; push appends
+            // at the tail (or becomes the head of an empty queue -- including a
+            // queue emptied by this cycle's pop, where the later assignment
+            // wins over the pop's)
             for (int b = 0; b < NUM_BANKS; b++) begin
-                automatic logic [QPW-1:0] wpos;
                 automatic int cnt_after_pop;
                 cnt_after_pop = int'(r_wq_cnt[b]) - (w_wq_pop[b] ? 1 : 0);
-                wpos = qpos(r_wq_rd[b], int'(r_wq_cnt[b]));
-                if (w_wq_pop[b]) r_wq_rd[b] <= qpos(r_wq_rd[b], 1);
                 r_wq_cnt[b] <= QCW'(cnt_after_pop + (w_wq_push[b] ? 1 : 0));
+                if (w_wq_pop[b]) r_wq_head[b] <= r_wnext[r_wq_head[b]];
                 if (w_wq_push[b]) begin
-                    r_wq   [b][wpos] <= w_wr_free_slot;
-                    r_wq_sp[b][wpos] <= (cnt_after_pop > 0) && (aw_push_row_i == r_wq_tail_row[b]);
-                    r_wq_tail_row[b] <= aw_push_row_i;
+                    if (cnt_after_pop == 0) r_wq_head[b]           <= w_wr_free_slot;
+                    else                    r_wnext[r_wq_tail[b]]  <= w_wr_free_slot;
+                    r_wq_tail[b]          <= w_wr_free_slot;
+                    r_wsp[w_wr_free_slot] <= (cnt_after_pop > 0) && (aw_push_row_i == r_wq_tail_row[b]);
+                    r_wq_tail_row[b]      <= aw_push_row_i;
                 end
             end
 
@@ -515,9 +514,10 @@ module mc_bank_fifo_store
     logic [COL_WIDTH-1:0] r_rd_col    [NUM_ENTRIES];
     logic [RTW-1:0]       r_rd_ticket [NUM_ENTRIES];
     logic [AGEW-1:0]      r_rd_age    [NUM_ENTRIES];
-    logic [PTRW-1:0]      r_rq        [NUM_BANKS][QD];
-    logic                 r_rq_sp     [NUM_BANKS][QD];
-    logic [QPW-1:0]       r_rq_rd     [NUM_BANKS];
+    logic [PTRW-1:0]      r_rnext     [NUM_ENTRIES];   // linked lists, as the WR side
+    logic                 r_rsp       [NUM_ENTRIES];
+    logic [PTRW-1:0]      r_rq_head   [NUM_BANKS];
+    logic [PTRW-1:0]      r_rq_tail   [NUM_BANKS];
     logic [QCW-1:0]       r_rq_cnt    [NUM_BANKS];
     logic [ROW_WIDTH-1:0] r_rq_tail_row [NUM_BANKS];
 
@@ -556,15 +556,16 @@ module mc_bank_fifo_store
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
-            for (int i = 0; i < NUM_ENTRIES; i++) r_rd_valid[i] <= 1'b0;
+            for (int i = 0; i < NUM_ENTRIES; i++) begin
+                r_rd_valid[i] <= 1'b0;
+                r_rnext[i]    <= '0;
+                r_rsp[i]      <= 1'b0;
+            end
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_rq_cnt[b]      <= '0;
-                r_rq_rd[b]       <= '0;
+                r_rq_head[b]     <= '0;
+                r_rq_tail[b]     <= '0;
                 r_rq_tail_row[b] <= '0;
-                for (int k = 0; k < QD; k++) begin
-                    r_rq[b][k]    <= '0;
-                    r_rq_sp[b][k] <= 1'b0;
-                end
             end
         end else begin
             if (w_ar_fire) begin
@@ -577,16 +578,16 @@ module mc_bank_fifo_store
             end
             if (w_rd_issue_fire) r_rd_valid[rd_issue_slot_i] <= 1'b0;
             for (int b = 0; b < NUM_BANKS; b++) begin
-                automatic logic [QPW-1:0] wpos;
                 automatic int cnt_after_pop;
                 cnt_after_pop = int'(r_rq_cnt[b]) - (w_rq_pop[b] ? 1 : 0);
-                wpos = qpos(r_rq_rd[b], int'(r_rq_cnt[b]));
-                if (w_rq_pop[b]) r_rq_rd[b] <= qpos(r_rq_rd[b], 1);
                 r_rq_cnt[b] <= QCW'(cnt_after_pop + (w_rq_push[b] ? 1 : 0));
+                if (w_rq_pop[b]) r_rq_head[b] <= r_rnext[r_rq_head[b]];
                 if (w_rq_push[b]) begin
-                    r_rq   [b][wpos] <= w_rd_free_slot;
-                    r_rq_sp[b][wpos] <= (cnt_after_pop > 0) && (ar_push_row_i == r_rq_tail_row[b]);
-                    r_rq_tail_row[b] <= ar_push_row_i;
+                    if (cnt_after_pop == 0) r_rq_head[b]           <= w_rd_free_slot;
+                    else                    r_rnext[r_rq_tail[b]]  <= w_rd_free_slot;
+                    r_rq_tail[b]          <= w_rd_free_slot;
+                    r_rsp[w_rd_free_slot] <= (cnt_after_pop > 0) && (ar_push_row_i == r_rq_tail_row[b]);
+                    r_rq_tail_row[b]      <= ar_push_row_i;
                 end
             end
         end
@@ -642,25 +643,25 @@ module mc_bank_fifo_store
             automatic logic has1, has2;
             automatic logic [ROW_WIDTH-1:0] orow;
             orow = bank_open_row_i[b*ROW_WIDTH +: ROW_WIDTH];
-            s0 = r_wq[b][r_wq_rd[b]];
-            s1 = r_wq[b][qpos(r_wq_rd[b], 1)];
-            s2 = r_wq[b][qpos(r_wq_rd[b], 2)];
+            s0 = r_wq_head[b];
+            s1 = r_wnext[s0];
+            s2 = r_wnext[s1];
             has1 = (int'(r_wq_cnt[b]) > 1);
             has2 = (int'(r_wq_cnt[b]) > 2);
             h = '0;
             h.vld             = (r_wq_cnt[b] != '0) && r_wr_fdone[s0];
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = h.vld && !(has1 && r_wr_fdone[s1]);
-            h.behind_same_row = h.vld && has1 && r_wq_sp[b][qpos(r_wq_rd[b], 1)];
+            h.behind_same_row = h.vld && has1 && r_wsp[s1];
             h.age_exceed      = r_wr_agex[s0];
             h.hit             = bank_row_active_i[b] && (r_wr_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1 && r_wr_fdone[s1];
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = h2.vld && !(has2 && r_wr_fdone[s2]);
-            h2.behind_same_row = h2.vld && has2 && r_wq_sp[b][qpos(r_wq_rd[b], 2)];
+            h2.behind_same_row = h2.vld && has2 && r_wsp[s2];
             h2.age_exceed      = r_wr_agex[s1];
-            h2.hit             = has1 && r_wq_sp[b][qpos(r_wq_rd[b], 1)];  // == head.behind_same_row's bit (header)
+            h2.hit             = has1 && r_wsp[s1];  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             w_wr_head [b] = h;
             w_wr_head2[b] = h2;
@@ -670,28 +671,29 @@ module mc_bank_fifo_store
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             automatic mc_head_rec_t h, h2;
-            automatic logic [PTRW-1:0] s0, s1;
+            automatic logic [PTRW-1:0] s0, s1, s2;
             automatic logic has1, has2;
             automatic logic [ROW_WIDTH-1:0] orow;
             orow = bank_open_row_i[b*ROW_WIDTH +: ROW_WIDTH];
-            s0 = r_rq[b][r_rq_rd[b]];
-            s1 = r_rq[b][qpos(r_rq_rd[b], 1)];
+            s0 = r_rq_head[b];
+            s1 = r_rnext[s0];
+            s2 = r_rnext[s1];
             has1 = (int'(r_rq_cnt[b]) > 1);
             has2 = (int'(r_rq_cnt[b]) > 2);
             h = '0;
             h.vld             = (r_rq_cnt[b] != '0);
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = (int'(r_rq_cnt[b]) == 1);
-            h.behind_same_row = h.vld && has1 && r_rq_sp[b][qpos(r_rq_rd[b], 1)];
+            h.behind_same_row = h.vld && has1 && r_rsp[s1];
             h.age_exceed      = r_rd_agex[s0];
             h.hit             = bank_row_active_i[b] && (r_rd_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1;
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = (int'(r_rq_cnt[b]) == 2);
-            h2.behind_same_row = h2.vld && has2 && r_rq_sp[b][qpos(r_rq_rd[b], 2)];
+            h2.behind_same_row = h2.vld && has2 && r_rsp[s2];
             h2.age_exceed      = r_rd_agex[s1];
-            h2.hit             = has1 && r_rq_sp[b][qpos(r_rq_rd[b], 1)];  // == head.behind_same_row's bit (header)
+            h2.hit             = has1 && r_rsp[s1];  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             w_rd_head [b] = h;
             w_rd_head2[b] = h2;

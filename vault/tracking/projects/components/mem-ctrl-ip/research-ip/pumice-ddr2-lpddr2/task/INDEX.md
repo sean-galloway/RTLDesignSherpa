@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-054** — never recycle a number, even when its item closed.
+**Next ID: TASK-055** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 43 | done (kept for history) |
+| [closed/](closed/) | 44 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -48,6 +48,11 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-054** — CLOSED 2026-10-24: the six storage / AXI reductions. Store:
+  circular fill-order FIFO, per-bank queues as linked lists through the slots
+  (6 872 / 1 203 -> 6 644 / 806 cells / flops, cycle-identical). AXI plane
+  knobs, granite lean: no snarf, no intake data FIFOs, R/W skids 2, one
+  shared address mapper (4 958 / 1 298 -> 3 906 / 933). Report 5.14.
 - **TASK-053** — CLOSED 2026-10-24: `DFI_CDC_EN` generate on `mc_dfi_cdc`; the
   DDR2 boards tie dfi_clk to mc_clk, so the granite macro builds the same-clock
   form (sync FIFOs, no pointer synchronizers). Board 6 105 -> 6 090 LUT,

@@ -54,6 +54,12 @@ module mc_wr_intake #(
     parameter int SKID_DEPTH_AW     = 2,
     parameter int SKID_DEPTH_W      = 4,
     parameter int SKID_DEPTH_B      = 2,
+    // WDATA_FIFO_DEPTH = 0: no wr-data FIFO; W beats go from the W skid in
+    // axi4_slave_wr straight to the consumer (the store's beat buffer).
+    // 1 = the address mapper is inside. 0 = the plane owns one shared mapper:
+    //     this intake presents map_addr_o / map_req_o and reads the decode
+    //     back on map_*_i when map_grant_i is high.
+    parameter bit HAS_ADDR_MAP      = 1'b1,
 
     // Derived
     parameter int IW  = AXI_ID_WIDTH,
@@ -144,7 +150,18 @@ module mc_wr_intake #(
     input  logic [IW-1:0]            wr_done_id_i,
     input  logic [1:0]               wr_done_resp_i,
 
-    output logic                     busy_o
+    output logic                     busy_o,
+
+    //=========================================================================
+    // Shared address mapper (HAS_ADDR_MAP = 0): request / grant / decode
+    //=========================================================================
+    output logic                     map_req_o,
+    output logic [AW-1:0]            map_addr_o,
+    input  logic                     map_grant_i,
+    input  logic [RKW-1:0]           map_rank_i,
+    input  logic [BKW-1:0]           map_bank_i,
+    input  logic [ROW_WIDTH-1:0]     map_row_i,
+    input  logic [COL_WIDTH-1:0]     map_col_i
 );
 
     import mc_common_pkg::*;
@@ -319,29 +336,44 @@ module mc_wr_intake #(
     logic [AW-1:0] w_map_addr_wr;
     assign w_map_addr_wr = {w_head_addr[AW-1:BEAT_BO], {BEAT_BO{1'b0}}};
 
-    mc_addr_mapper #(
-        .AXI_ADDR_WIDTH   (AW),
-        .NUM_RANKS        (NUM_RANKS),
-        .NUM_BANKS        (NUM_BANKS),
-        .ROW_WIDTH        (ROW_WIDTH),
-        .COL_WIDTH        (COL_WIDTH),
-        .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .BG_WIDTH        (BG_WIDTH),
-        .HAS_BG          (HAS_BG)
-    ) u_addr_mapper (
-        .axi_addr_i (w_map_addr_wr),
-        .bank_lsb_i (bank_lsb_i),
-        .hash_en_i  (hash_en_i),
-        .hash_seed_i(hash_seed_i),
-        .rank_o     (w_rank),
-        .bg_o       (),
-        .bank_o     (w_bank),
-        .row_o      (w_row),
-        .col_o      (w_col)
-    );
+    logic w_map_ok;   // the decode of the AW-meta head is valid this cycle
+    assign map_addr_o = w_map_addr_wr;
+    generate if (HAS_ADDR_MAP) begin : g_map
+        mc_addr_mapper #(
+            .AXI_ADDR_WIDTH   (AW),
+            .NUM_RANKS        (NUM_RANKS),
+            .NUM_BANKS        (NUM_BANKS),
+            .ROW_WIDTH        (ROW_WIDTH),
+            .COL_WIDTH        (COL_WIDTH),
+            .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
+            .BG_WIDTH        (BG_WIDTH),
+            .HAS_BG          (HAS_BG)
+        ) u_addr_mapper (
+            .axi_addr_i (w_map_addr_wr),
+            .bank_lsb_i (bank_lsb_i),
+            .hash_en_i  (hash_en_i),
+            .hash_seed_i(hash_seed_i),
+            .rank_o     (w_rank),
+            .bg_o       (),
+            .bank_o     (w_bank),
+            .row_o      (w_row),
+            .col_o      (w_col)
+        );
+        assign w_map_ok  = 1'b1;
+        assign map_req_o = 1'b0;
+        wire _unused_map = &{1'b0, map_grant_i, map_rank_i, map_bank_i, map_row_i, map_col_i};
+    end else begin : g_shared_map
+        assign w_rank = map_rank_i;
+        assign w_bank = map_bank_i;
+        assign w_row  = map_row_i;
+        assign w_col  = map_col_i;
+        assign w_map_ok  = map_grant_i;
+        assign map_req_o = w_awm_rd_valid;
+        wire _unused_map = &{1'b0, bank_lsb_i, hash_en_i, hash_seed_i};
+    end endgenerate
 
     // aw_push = decoded head; pop the AW-meta FIFO on handshake.
-    assign aw_push_valid_o = w_awm_rd_valid;
+    assign aw_push_valid_o = w_awm_rd_valid && w_map_ok;
     assign aw_push_rank_o  = w_rank;
     assign aw_push_bank_o  = w_bank;
     assign aw_push_row_o   = w_row;
@@ -351,7 +383,7 @@ module mc_wr_intake #(
     assign aw_push_err_o   = w_head_err;
     assign aw_push_agg_o   = w_head_agg;
     assign aw_push_last_o  = w_head_last;
-    assign w_awm_rd_ready  = aw_push_ready_i;
+    assign w_awm_rd_ready  = aw_push_ready_i && w_map_ok;
 
     // ========================================================================
     // (3) wr-data FIFO : {last, strb, data} (per AXI beat)
@@ -367,17 +399,24 @@ module mc_wr_intake #(
     assign fub_wready    = w_wd_wr_ready;
     assign w_wd_wr_data  = {fub_wlast, fub_wstrb, fub_wdata};
 
-    gaxi_fifo_sync #(.DATA_WIDTH(WD_W), .DEPTH(WDATA_FIFO_DEPTH)) u_wr_data_fifo (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (w_wd_wr_valid),
-        .wr_ready   (w_wd_wr_ready),
-        .wr_data    (w_wd_wr_data),
-        .rd_ready   (w_wd_rd_ready),
-        .count      (),
-        .rd_valid   (w_wd_rd_valid),
-        .rd_data    (w_wd_rd_data)
-    );
+    generate if (WDATA_FIFO_DEPTH > 0) begin : g_wd_fifo
+        gaxi_fifo_sync #(.DATA_WIDTH(WD_W), .DEPTH(WDATA_FIFO_DEPTH)) u_wr_data_fifo (
+            .axi_aclk   (aclk),
+            .axi_aresetn(aresetn),
+            .wr_valid   (w_wd_wr_valid),
+            .wr_ready   (w_wd_wr_ready),
+            .wr_data    (w_wd_wr_data),
+            .rd_ready   (w_wd_rd_ready),
+            .count      (),
+            .rd_valid   (w_wd_rd_valid),
+            .rd_data    (w_wd_rd_data)
+        );
+    end else begin : g_no_wd_fifo
+        // straight through: the W skid in axi4_slave_wr is the buffer
+        assign w_wd_rd_valid = w_wd_wr_valid;
+        assign w_wd_rd_data  = w_wd_wr_data;
+        assign w_wd_wr_ready = w_wd_rd_ready;
+    end endgenerate
 
     assign wdata_valid_o = w_wd_rd_valid;
     assign {wlast_o, wstrb_o, wdata_o} = w_wd_rd_data;

@@ -55,6 +55,13 @@ module mc_axi4_plane #(
     parameter int AGE_WIDTH       = 16,
     // Reads the controller can hold IN FLIGHT (mc_rd_return_ring DEPTH).
     parameter int RD_RET_DEPTH    = 32,
+    // Lean-intake knobs (granite; the defaults are the pumice form):
+    parameter bit HAS_SNARF        = 1'b1, // 0 = no snarf probe / stage / source arbiter in mc_rd_intake
+    parameter int RD_FIFO_DEPTH    = 16,   // 0 = no rd-data FIFO (the ring feeds the R skid directly)
+    parameter int WDATA_FIFO_DEPTH = 16,   // 0 = no wr-data FIFO (the W skid feeds the store directly)
+    parameter int SKID_DEPTH_R     = 4,    // axi4_slave_rd R skid
+    parameter int SKID_DEPTH_W     = 4,    // axi4_slave_wr W skid
+    parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes, reads first
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -299,6 +306,13 @@ module mc_axi4_plane #(
     // intakes
     // ======================================================================
     logic w_wri_busy, w_rdi_busy;
+    // shared-mapper request / grant / decode nets (SHARED_ADDR_MAP)
+    logic                 w_map_req_rd, w_map_req_wr, w_map_grant_rd, w_map_grant_wr;
+    logic [AW-1:0]        w_map_addr_rd, w_map_addr_wr;
+    logic [RKW-1:0]       w_map_rank;
+    logic [BKW-1:0]       w_map_bank;
+    logic [ROW_WIDTH-1:0] w_map_row;
+    logic [COL_WIDTH-1:0] w_map_col;
 
     // ---- WR intake ----
     mc_wr_intake #(
@@ -313,7 +327,10 @@ module mc_axi4_plane #(
         .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
         .BG_WIDTH        (BG_WIDTH),
         .HAS_BG          (HAS_BG),
-        .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST)
+        .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST),
+        .WDATA_FIFO_DEPTH (WDATA_FIFO_DEPTH),
+        .SKID_DEPTH_W     (SKID_DEPTH_W),
+        .HAS_ADDR_MAP     (!SHARED_ADDR_MAP)
     ) u_wr_intake (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -366,7 +383,14 @@ module mc_axi4_plane #(
         .wr_done_valid_i(wr_done_valid_i),
         .wr_done_id_i   (wr_done_id_i),
         .wr_done_resp_i (2'b00),
-        .busy_o         (w_wri_busy)
+        .busy_o         (w_wri_busy),
+        .map_req_o      (w_map_req_wr),
+        .map_addr_o     (w_map_addr_wr),
+        .map_grant_i    (w_map_grant_wr),
+        .map_rank_i     (w_map_rank),
+        .map_bank_i     (w_map_bank),
+        .map_row_i      (w_map_row),
+        .map_col_i      (w_map_col)
     );
 
     // ---- RD intake ----
@@ -385,7 +409,11 @@ module mc_axi4_plane #(
         .AXI_BEATS_PER_BURST               (AXI_BEATS_PER_BURST),
         // one order-FIFO slot per read the ring can hold in flight, plus the
         // snarf hits that never enter the ring
-        .ORDER_FIFO_DEPTH (RD_RET_DEPTH + 8)
+        .ORDER_FIFO_DEPTH (RD_RET_DEPTH + 8),
+        .RD_FIFO_DEPTH    (RD_FIFO_DEPTH),
+        .SKID_DEPTH_R     (SKID_DEPTH_R),
+        .HAS_SNARF        (HAS_SNARF),
+        .HAS_ADDR_MAP     (!SHARED_ADDR_MAP)
     ) u_rd_intake (
         .aclk          (aclk),
         .aresetn       (aresetn),
@@ -441,8 +469,57 @@ module mc_axi4_plane #(
         .dfi_rd_data_i      (drain_data),
         .dfi_rd_last_i      (drain_last),
         .dfi_rd_resp_i      (drain_resp),
-        .busy_o             (w_rdi_busy)
+        .busy_o             (w_rdi_busy),
+        .map_req_o          (w_map_req_rd),
+        .map_addr_o         (w_map_addr_rd),
+        .map_grant_i        (w_map_grant_rd),
+        .map_rank_i         (w_map_rank),
+        .map_bank_i         (w_map_bank),
+        .map_row_i          (w_map_row),
+        .map_col_i          (w_map_col)
     );
+
+    // ---- shared address mapper (SHARED_ADDR_MAP) -----------------------------
+    // One decoder. Each intake requests it when it has a command to decode
+    // (no ready term in the request: the decode feeds ready); when both ask,
+    // the grant alternates, so neither side starves. An intake stalls its
+    // own handshake while it does not hold the grant.
+    generate if (SHARED_ADDR_MAP) begin : g_shared_map
+        logic [AW-1:0] w_map_addr;
+        logic          r_turn_rd;   // 1 = reads win the next contended cycle
+        assign w_map_grant_rd = w_map_req_rd && (!w_map_req_wr ||  r_turn_rd);
+        assign w_map_grant_wr = w_map_req_wr && (!w_map_req_rd || !r_turn_rd);
+        assign w_map_addr     = w_map_grant_rd ? w_map_addr_rd : w_map_addr_wr;
+        `ALWAYS_FF_RST(aclk, aresetn,
+            if (`RST_ASSERTED(aresetn))            r_turn_rd <= 1'b1;
+            else if (w_map_req_rd && w_map_req_wr) r_turn_rd <= !r_turn_rd;
+        )
+        mc_addr_mapper #(
+            .AXI_ADDR_WIDTH   (AW),
+            .NUM_RANKS        (NUM_RANKS),
+            .NUM_BANKS        (NUM_BANKS),
+            .ROW_WIDTH        (ROW_WIDTH),
+            .COL_WIDTH        (COL_WIDTH),
+            .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
+            .BG_WIDTH        (BG_WIDTH),
+            .HAS_BG          (HAS_BG)
+        ) u_addr_mapper (
+            .axi_addr_i (w_map_addr),
+            .bank_lsb_i (bank_lsb_i),
+            .hash_en_i  (hash_en_i),
+            .hash_seed_i(hash_seed_i),
+            .rank_o     (w_map_rank),
+            .bg_o       (),
+            .bank_o     (w_map_bank),
+            .row_o      (w_map_row),
+            .col_o      (w_map_col)
+        );
+    end else begin : g_own_maps
+        assign w_map_grant_rd = 1'b0;
+        assign w_map_grant_wr = 1'b0;
+        assign w_map_rank = '0; assign w_map_bank = '0; assign w_map_row = '0; assign w_map_col = '0;
+        wire _unused_shared = &{1'b0, w_map_req_rd, w_map_req_wr, w_map_addr_rd, w_map_addr_wr};
+    end endgenerate
 
     // ---- RD return ring (in-flight reads) ----
     logic w_rdr_busy;

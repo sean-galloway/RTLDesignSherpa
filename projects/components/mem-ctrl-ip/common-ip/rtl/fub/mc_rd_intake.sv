@@ -49,6 +49,17 @@ module mc_rd_intake #(
     parameter int RD_FIFO_DEPTH     = 16,
     parameter int SKID_DEPTH_AR     = 2,
     parameter int SKID_DEPTH_R      = 4,
+    // 1 = the snarf probe / staged admit / source arbiter (a storage plane
+    //     with a write CAM to forward from). 0 = no snarf: the AR is admitted
+    //     straight from the skid head, the snarf ports are tied off, R comes
+    //     from the DFI return only. Granite's FIFO store has no snarf.
+    parameter bit HAS_SNARF         = 1'b1,
+    // RD_FIFO_DEPTH = 0: no rd-data FIFO; the source beat goes straight to
+    // the R skid in axi4_slave_rd (the return ring already holds the data).
+    // 1 = the address mapper is inside (one per intake). 0 = the plane owns
+    //     one shared mapper: this intake presents map_addr_o / map_req_o and
+    //     reads the decode back on map_*_i when map_grant_i is high.
+    parameter bit HAS_ADDR_MAP      = 1'b1,
 
     // Derived
     parameter int IW  = AXI_ID_WIDTH,
@@ -137,7 +148,18 @@ module mc_rd_intake #(
     input  logic                     dfi_rd_last_i,
     input  logic [1:0]               dfi_rd_resp_i,
 
-    output logic                     busy_o
+    output logic                     busy_o,
+
+    //=========================================================================
+    // Shared address mapper (HAS_ADDR_MAP = 0): request / grant / decode
+    //=========================================================================
+    output logic                     map_req_o,
+    output logic [AW-1:0]            map_addr_o,
+    input  logic                     map_grant_i,
+    input  logic [RKW-1:0]           map_rank_i,
+    input  logic [BKW-1:0]           map_bank_i,
+    input  logic [ROW_WIDTH-1:0]     map_row_i,
+    input  logic [COL_WIDTH-1:0]     map_col_i
 );
 
     import mc_common_pkg::*;
@@ -233,26 +255,40 @@ module mc_rd_intake #(
     logic [AW-1:0] w_map_addr_rd;
     assign w_map_addr_rd = {fub_araddr[AW-1:BEAT_BO], {BEAT_BO{1'b0}}};
 
-    mc_addr_mapper #(
-        .AXI_ADDR_WIDTH   (AW),
-        .NUM_RANKS        (NUM_RANKS),
-        .NUM_BANKS        (NUM_BANKS),
-        .ROW_WIDTH        (ROW_WIDTH),
-        .COL_WIDTH        (COL_WIDTH),
-        .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
-        .BG_WIDTH        (BG_WIDTH),
-        .HAS_BG          (HAS_BG)
-    ) u_addr_mapper (
-        .axi_addr_i (w_map_addr_rd),
-        .bank_lsb_i (bank_lsb_i),
-        .hash_en_i  (hash_en_i),
-        .hash_seed_i(hash_seed_i),
-        .rank_o     (w_rank),
-        .bg_o       (),
-        .bank_o     (w_bank),
-        .row_o      (w_row),
-        .col_o      (w_col)
-    );
+    logic w_map_ok;   // the decode of the skid head is valid this cycle
+    assign map_addr_o = w_map_addr_rd;
+    generate if (HAS_ADDR_MAP) begin : g_map
+        mc_addr_mapper #(
+            .AXI_ADDR_WIDTH   (AW),
+            .NUM_RANKS        (NUM_RANKS),
+            .NUM_BANKS        (NUM_BANKS),
+            .ROW_WIDTH        (ROW_WIDTH),
+            .COL_WIDTH        (COL_WIDTH),
+            .BYTE_OFFSET_WIDTH(BYTE_OFFSET_WIDTH),
+            .BG_WIDTH        (BG_WIDTH),
+            .HAS_BG          (HAS_BG)
+        ) u_addr_mapper (
+            .axi_addr_i (w_map_addr_rd),
+            .bank_lsb_i (bank_lsb_i),
+            .hash_en_i  (hash_en_i),
+            .hash_seed_i(hash_seed_i),
+            .rank_o     (w_rank),
+            .bg_o       (),
+            .bank_o     (w_bank),
+            .row_o      (w_row),
+            .col_o      (w_col)
+        );
+        assign w_map_ok  = 1'b1;
+        assign map_req_o = 1'b0;
+        wire _unused_map = &{1'b0, map_grant_i, map_rank_i, map_bank_i, map_row_i, map_col_i};
+    end else begin : g_shared_map
+        assign w_rank = map_rank_i;
+        assign w_bank = map_bank_i;
+        assign w_row  = map_row_i;
+        assign w_col  = map_col_i;
+        assign w_map_ok = map_grant_i;
+        wire _unused_map = &{1'b0, bank_lsb_i, hash_en_i, hash_seed_i};
+    end endgenerate
 
     // ---- AR admit stage ----------------------------------------------------
     // The snarf probe is REGISTERED inside the wr CAM (it pipelines the
@@ -293,6 +329,8 @@ module mc_rd_intake #(
     logic [3:0]           r_s_qos;
 
     logic w_hit, w_can_admit, w_admit, w_s_load;
+    logic fub_arready_nomap, map_req_o_int, map_req_stage_ok;
+    assign map_req_o = map_req_o_int;
 
     // Order-FIFO handshake, declared here because the admit condition below
     // depends on it (the FIFO itself is instantiated further down).
@@ -303,6 +341,15 @@ module mc_rd_intake #(
     logic             w_ord_rd_valid, w_ord_rd_ready;
     logic [ORD_W-1:0] w_ord_rd_data;
 
+    // Request the shared mapper whenever an AR is at the head and the stage
+    // could take it. No READY term in here: ar_push_ready depends on the
+    // mapped bank, so a request that waited on it would close a loop through
+    // the mapper's address mux (Verilator UNOPTFLAT). A request the intake
+    // cannot use this cycle costs the other side one mapper cycle, and the
+    // plane alternates the grant when both ask.
+    assign map_req_o_int = fub_arvalid && map_req_stage_ok;
+
+    generate if (HAS_SNARF) begin : g_snarf
     // w_hit belongs to whatever was probed last cycle, which is by
     // construction the AR now in the stage.
     assign w_hit = snarf_hit_i;
@@ -310,8 +357,12 @@ module mc_rd_intake #(
     assign w_can_admit = w_ord_wr_ready && (w_hit ? 1'b1 : ar_push_ready_i);
     assign w_admit     = r_s_valid && w_can_admit;
 
-    // The head advances exactly when the stage frees.
-    assign fub_arready = !r_s_valid || w_admit;
+    // The head advances exactly when the stage frees (and, with a shared
+    // mapper, only when this intake holds it this cycle). w_admit reads only
+    // registered stage fields, so it may feed the mapper request.
+    assign fub_arready_nomap = !r_s_valid || w_admit;
+    assign map_req_stage_ok  = fub_arready_nomap;
+    assign fub_arready = fub_arready_nomap && w_map_ok;
     assign w_s_load    = fub_arvalid && fub_arready;
 
     // Probe whatever will occupy the stage NEXT cycle: the head when the stage
@@ -349,6 +400,29 @@ module mc_rd_intake #(
             r_s_valid <= 1'b0;
         end
     )
+    end else begin : g_no_snarf
+    // No probe to pipeline: the skid head IS the AR being admitted. Every
+    // field the order FIFO and ar_push read comes straight off the head.
+    assign w_hit        = 1'b0;
+    assign w_can_admit  = w_ord_wr_ready && ar_push_ready_i;
+    assign r_s_valid    = fub_arvalid && w_map_ok;
+    assign w_admit      = r_s_valid && w_can_admit;
+    assign fub_arready_nomap = w_can_admit;
+    assign fub_arready  = w_admit;
+    assign w_s_load     = 1'b0;
+    assign map_req_stage_ok = 1'b1;   // the head is the stage; ready is not in the request
+    assign r_s_rank = w_rank;  assign r_s_bank = w_bank;  assign r_s_row = w_row;
+    assign r_s_col  = w_col;   assign r_s_id   = fub_arid; assign r_s_len = fub_arlen;
+    assign r_s_qos  = fub_arqos;
+    assign snarf_probe_valid_o = 1'b0;
+    assign snarf_probe_rank_o  = '0;
+    assign snarf_probe_bank_o  = '0;
+    assign snarf_probe_row_o   = '0;
+    assign snarf_probe_col_o   = '0;
+    assign snarf_probe_id_o    = '0;
+    assign snarf_probe_len_o   = '0;
+    wire _unused_snarf = &{1'b0, snarf_hit_i, snarf_rd_valid_i, snarf_rd_data_i, snarf_rd_last_i, w_s_load, fub_arready_nomap};
+    end endgenerate
 
     // ---- aggregation sideband skid-alignment FIFO --------------------------
     // ar_last_i arrives with s_axi_ar (pre-skid). axi4_slave_rd buffers AR in
@@ -426,7 +500,7 @@ module mc_rd_intake #(
     logic [1:0]    w_src_resp;
 
     always_comb begin
-        if (w_head_src == SRC_SNARF) begin
+        if (HAS_SNARF && (w_head_src == SRC_SNARF)) begin
             w_src_valid = snarf_rd_valid_i;
             w_src_data  = snarf_rd_data_i;
             w_src_last  = snarf_rd_last_i;
@@ -473,9 +547,9 @@ module mc_rd_intake #(
                             w_head_id, w_src_data};
 
     // Ready back to whichever source the head selects.
-    assign snarf_rd_ready_o = w_ord_rd_valid && (w_head_src == SRC_SNARF)
+    assign snarf_rd_ready_o = HAS_SNARF && w_ord_rd_valid && (w_head_src == SRC_SNARF)
                               && (!w_fwd_beat || w_rd_wr_ready);
-    assign dfi_rd_ready_o   = w_ord_rd_valid && (w_head_src == SRC_DFI)
+    assign dfi_rd_ready_o   = w_ord_rd_valid && (!HAS_SNARF || (w_head_src == SRC_DFI))
                               && (!w_fwd_beat || w_rd_wr_ready);
 
     // Pop the order FIFO when the last beat of the burst is accepted.
@@ -488,17 +562,24 @@ module mc_rd_intake #(
         else if (w_beat_fire)        r_fwd <= w_src_last ? 8'd0 : (r_fwd + 8'd1);
     )
 
-    gaxi_fifo_sync #(.DATA_WIDTH(RD_W), .DEPTH(RD_FIFO_DEPTH)) u_rd_data_fifo (
-        .axi_aclk   (aclk),
-        .axi_aresetn(aresetn),
-        .wr_valid   (w_rd_wr_valid),
-        .wr_ready   (w_rd_wr_ready),
-        .wr_data    (w_rd_wr_data),
-        .rd_ready   (w_rd_rd_ready),
-        .count      (),
-        .rd_valid   (w_rd_rd_valid),
-        .rd_data    (w_rd_rd_data)
-    );
+    generate if (RD_FIFO_DEPTH > 0) begin : g_rd_fifo
+        gaxi_fifo_sync #(.DATA_WIDTH(RD_W), .DEPTH(RD_FIFO_DEPTH)) u_rd_data_fifo (
+            .axi_aclk   (aclk),
+            .axi_aresetn(aresetn),
+            .wr_valid   (w_rd_wr_valid),
+            .wr_ready   (w_rd_wr_ready),
+            .wr_data    (w_rd_wr_data),
+            .rd_ready   (w_rd_rd_ready),
+            .count      (),
+            .rd_valid   (w_rd_rd_valid),
+            .rd_data    (w_rd_rd_data)
+        );
+    end else begin : g_no_rd_fifo
+        // straight through: the return ring (or snarf stream) is the buffer
+        assign w_rd_rd_valid = w_rd_wr_valid;
+        assign w_rd_rd_data  = w_rd_wr_data;
+        assign w_rd_wr_ready = w_rd_rd_ready;
+    end endgenerate
 
     assign {fub_rresp, fub_rlast, fub_rid, fub_rdata} = w_rd_rd_data;
     assign fub_ruser  = '0;

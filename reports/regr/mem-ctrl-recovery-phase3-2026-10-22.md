@@ -1154,6 +1154,90 @@ connecting it in the 3p1 / 4p0 planes; tied off here, andesite
 bank-timer and scheduler-plane cells still fail on timing checks with no
 DFI in their closure, which is those lanes' business.
 
+### 5.14 Granite storage and AXI planes: the six reductions (2026-10-24, pumice TASK-054)
+
+Owner, on the 5.12 proposals: "Do all 6." Two land in the FIFO store with
+no knob (both cycle-identical by construction and measured so), four land
+as knobs on `mc_axi4_plane` whose granite defaults are the measured lean
+form; pumice keeps every default it had.
+
+**Store.** The fill-order FIFO is circular (it only pops its head). The
+per-bank queues are linked lists through the slots: a 3-bit `next` and a
+same-row-as-predecessor bit per slot, head / tail / count per bank. A
+pool-deep per-bank queue needs no position storage, because each slot is in
+exactly one queue at a time: the 8 x 8 position array and its 64-way write
+decode per direction are gone.
+
+**AXI plane.** `HAS_SNARF = 0` (granite's store has no snarf: no probe
+stage, no source arbiter); `INTAKE_FIFO_DEPTH = 0` (the W skid feeds the
+store's beat buffer, the ring feeds the R skid); `AXI_SKID_DEPTH = 2` (the
+shells' default 4 was never needed at one beat per cycle);
+`SHARED_ADDR_MAP` (one address mapper for both intakes, alternating grant
+under contention) measured and left OFF.
+
+| ASAP7 cells / flops / RAM bits | TASK-053 text | store rewrite | + the three lean AXI knobs |
+|---|---|---|---|
+| FIFO store | 6 872 / 1 203 / 1 548 | 6 644 / 806 / 1 548 | same |
+| AXI plane | 4 958 / 1 298 / 5 722 | same | 3 906 / 933 / 3 314 (with the mapper shared; own mappers add 227 cells) |
+| granite_top_geared | 26 345 / 5 054 | 26 147 / 4 657 | 25 057 / 4 292 |
+
+| build (Nexys A7, 75 MHz) | granite_core LUT / FF | WNS |
+|---|---|---|
+| TASK-053 text (this morning) | 6 090 / 4 417 | +0.367 ns |
+| store rewrite (items 3, 4), regenerated harness bridge | 4 525 / 2 999 | +0.272 ns |
+| + no snarf (item 2) | 4 531 / 2 998 | +0.131 ns |
+| + no intake FIFOs (item 1) | 4 447 / 2 971 | +0.220 ns |
+| **+ skids 2 (item 5): the committed defaults** | **4 171 / 2 709** | **+0.206 ns, 0 / 97 817** |
+| + shared address mapper (item 6) | 5 968 / 3 675 | +0.213 ns |
+| the committed text rebuilt as plain defaults (writes `fpga/reports`) | 4 171 / 2 709 | +0.206 ns, 0 / 97 817 (bit-identical to the level-3 build) |
+
+The store build's drop (6 090 -> 4 525) is the two store items plus the
+regenerated bridge: the bridge generator's new sizing rule changed what the
+harness drives into the controller, and Vivado pruned about 390 LUT / 240
+FF of the AXI plane (the AR skid's unused fields, the ring's issue queue
+dissolved into its parent) before any AXI knob was on. Items 2 and 1 are
+small on the FPGA because Vivado had already pruned the dead snarf stage,
+and the intake FIFOs were LUTRAM; item 5 is the real AXI win on the board.
+The shared mapper is a loss twice over: 23 percent on mixed in the proxy,
+and 1 800 LUT MORE on the board (the address mux in front of one decoder
+defeats the constant propagation the two private decoders enjoyed).
+
+Perf proxy against the TASK-053 text (board geometry, every cell
+mismatched 0; "identical" = same cycle counts):
+
+| cell (vs the TASK-053 text, cycle counts) | store rewrite | + no snarf | + no intake FIFOs | + skids 2 (defaults) | + shared mapper |
+|---|---|---|---|---|---|
+| std 1 thread, 4 families | identical | wr identical, rd -1 | wr identical, rd -2 | same as level 2 | same as level 2 |
+| std 8 threads, 4 families | identical | wr identical, rd -0 to -4 | wr identical, rd -1 to -5 | same as level 2 | same as level 2 |
+| row_thrash 2-beat, 1 thread | identical | -- | -- | wr identical, rd -5 | same |
+| random, 8 threads | identical | -- | -- | wr identical, rd -1 | same |
+| mixed, 8 threads | identical | identical | 98.1, rd -1 | 98.1, rd -1 | **75.4 MB/s, +60 330 cycles** |
+
+The committed defaults were rerun as plain defaults (no `TEST_*`): cycle-identical to the level-3 lane at 1 and 8 threads and on mixed.
+
+Nothing was lost because nothing was there: the intake FIFOs fed a CAM that
+repacked on pop, and the ring already held returns in AR order. The shared
+mapper is the one proposal that cost: its request can carry no ready term
+(the decode feeds ready through the bank; a ready-gated request is a
+combinational loop, which Verilator flagged on the first cut), so a side
+that cannot admit still holds the decoder and the alternating grant halves
+both sides under contention. Streams did not notice; the concurrent family
+lost 23 percent. Handbook: `design/one-buffer-per-hop.md`.
+
+**Gates.** Contract battery 12 / 3 strict xfailed; granite suite 6 / 1
+xfailed on the TASK-053 knobs, on all four lean knobs, and on the final
+defaults; pumice `run-all-func-both` 218 / 218 both geometries on the
+shared intakes and plane; lint 0 errors on granite_core at every knob
+setting and on pumice_core, no new warnings. The harness bridge was
+regenerated on the way (`REGEN_BRIDGES=1 make prebuild`): the bridge
+generator's sizing rule (bridge TASK-016, 43a845673) had moved two
+adapters' W skid from 4 to 2 and dropped the rate-buffer include, and the
+prebuild drift check refused to build until the generated files matched.
+Vivado's per-block attribution moved between builds on planes whose RTL did
+not change (the rebuilt hierarchy dissolved the ring's issue queue and the
+AR skid into their parents), so the board is reported at the core level and
+the per-plane split is ASAP7's.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

@@ -63,6 +63,11 @@ module granite_core
     // mem-ctrl recovery Phase 3 report 5.10).
     parameter bit HAS_LPDDR2     = 1'b1,
     parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock (the DDR2 boards): no DFI crossing, synchronous FIFOs
+    // AXI-plane lean knobs (pumice TASK-054), granite defaults = the measured lean form:
+    parameter bit HAS_SNARF        = 1'b0, // 1 = snarf probe / staged admit / source arbiter in the read intake (pumice's CAM store); granite's FIFO store has no snarf
+    parameter int INTAKE_FIFO_DEPTH = 0,   // rd-data and wr-data FIFOs in the intakes; 0 = none (the skids feed the ring / store directly; cycle-identical, measured)
+    parameter int AXI_SKID_DEPTH   = 2,    // R and W skid depth in the AXI slave shells (2..8); 2 measured cycle-identical to 4
+    parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes with an alternating grant: -23 percent on the mixed family, so OFF
     // Compile-time JEDEC timings (mem-ctrl recovery Phase 3 report 5.10,
     // item 3). 1 = the scheduler plane's timers compare against the T_*
     // constants below and the TIMINGS CSRs are ignored -- a one-part product
@@ -372,7 +377,13 @@ module granite_core
         .N_SRAM_SLOTS     (NUM_ENTRIES),
         .RD_RET_DEPTH     (RD_RET_DEPTH),
         .N_SCHED_LU       (N_LU),
-        .AGE_WIDTH        (AGE_WIDTH)
+        .AGE_WIDTH        (AGE_WIDTH),
+        .HAS_SNARF        (HAS_SNARF),
+        .RD_FIFO_DEPTH    (INTAKE_FIFO_DEPTH),
+        .WDATA_FIFO_DEPTH (INTAKE_FIFO_DEPTH),
+        .SKID_DEPTH_R     (AXI_SKID_DEPTH),
+        .SKID_DEPTH_W     (AXI_SKID_DEPTH),
+        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP)
     ) u_axi_plane (
         .aclk          (aclk),
         .aresetn       (aresetn),

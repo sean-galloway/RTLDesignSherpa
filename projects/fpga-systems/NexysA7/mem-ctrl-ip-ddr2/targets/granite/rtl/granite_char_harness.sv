@@ -59,6 +59,11 @@ module granite_char_harness
     parameter int NUM_GEN            = 4,
     parameter bit HAS_LPDDR2         = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter bit DFI_CDC_EN         = 1'b0, // the macro ties dfi_clk to mc_clk: no DFI crossing by default
+    // AXI-plane lean knobs (pumice TASK-054), granite defaults = the measured lean form:
+    parameter bit HAS_SNARF        = 1'b0, // 1 = snarf probe / staged admit / source arbiter in the read intake (pumice's CAM store); granite's FIFO store has no snarf
+    parameter int INTAKE_FIFO_DEPTH = 0,   // rd-data and wr-data FIFOs in the intakes; 0 = none (the skids feed the ring / store directly; cycle-identical, measured)
+    parameter int AXI_SKID_DEPTH   = 2,    // R and W skid depth in the AXI slave shells (2..8); 2 measured cycle-identical to 4
+    parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes with an alternating grant: -23 percent on the mixed family, so OFF
     // granite_core storage and timing knobs (report 5.10): the board ships
     // NUM_ENTRIES 8 on the FIFO store, bank queues pool-deep (BANK_FIFO_DEPTH 0)
     parameter int NUM_ENTRIES        = 8,
@@ -566,6 +571,10 @@ module granite_char_harness
         .APB_DATA_WIDTH    (APB_DATA_WIDTH),
         .HAS_LPDDR2        (HAS_LPDDR2),
         .DFI_CDC_EN        (DFI_CDC_EN),
+        .HAS_SNARF        (HAS_SNARF),
+        .INTAKE_FIFO_DEPTH(INTAKE_FIFO_DEPTH),
+        .AXI_SKID_DEPTH   (AXI_SKID_DEPTH),
+        .SHARED_ADDR_MAP  (SHARED_ADDR_MAP),
         .STORE_BACKEND     (STORE_BACKEND),
         .BANK_FIFO_DEPTH   (BANK_FIFO_DEPTH),
         .HEAD2_EN          (HEAD2_EN),

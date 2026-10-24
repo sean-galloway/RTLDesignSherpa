@@ -68,6 +68,14 @@ that never finished.
   burst is eight same-bank entries, so the pop shadow is the common case;
   the single-bank stream halves (292 vs 568 MB/s) and eight threads lose 20
   to 26 percent for 281 LUT. It is a knob (`HEAD2_EN`), default on.
+- The queues are linked lists through the slots (pumice TASK-054): a 3-bit
+  `next` per slot, a same-row-as-predecessor bit per slot, head / tail /
+  count per bank. A pool-deep per-bank queue needs no position storage at
+  all -- every slot is in exactly one queue at a time, so the slot IS the
+  position. The 8 x 8 pointer array per direction (416 flops, a 64-way
+  write decode) became 24 + 8 + 48 + 32 flops; the store went 1 203 -> 806
+  flops, cycle-identical on every cell. The fill-order FIFO is circular for
+  the same reason as the queues: it only ever pops its head.
 - The queues are circular (pop = pointer increment): the pick core always
   fires the head -- it reads the second record only in the one-cycle shadow
   after a pop -- so no pack-on-pop network is needed. The packed pool-deep

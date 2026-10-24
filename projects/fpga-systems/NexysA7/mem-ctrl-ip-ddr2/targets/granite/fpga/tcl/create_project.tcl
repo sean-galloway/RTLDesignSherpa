@@ -150,7 +150,7 @@ lappend current_defines "DDR2_CHAR_SYNTH"
 # GRANITE_HEAD2_EN=0 is the one-record-per-bank variant. Unset =
 # the shipped build. (The 2026-10-23 B/C builds set these in the environment
 # before this block existed and came out byte-identical to the default.)
-foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN} {
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN GRANITE_DFI_CDC_EN GRANITE_HAS_SNARF GRANITE_INTAKE_FIFO_DEPTH GRANITE_AXI_SKID_DEPTH GRANITE_SHARED_ADDR_MAP} {
     if {[info exists ::env($knob)] && $::env($knob) ne ""} {
         lappend current_defines "$knob=$::env($knob)"
         puts "verilog_define: $knob=$::env($knob)"
