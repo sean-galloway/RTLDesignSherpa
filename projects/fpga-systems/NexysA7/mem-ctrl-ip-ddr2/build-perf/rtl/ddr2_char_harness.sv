@@ -35,7 +35,7 @@ module ddr2_char_harness
     parameter int CMD_HISTORY_EN  = 0,
     parameter int SCHED_CORE      = 0,    // pumice pick core: 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // pumice: last same-row column carries auto-precharge (TASK-044; 0 = the BUG-027-era A/B)
-    parameter int NUM_GEN         = 4,    // injectors per direction in char_gen_unit (<= NUM_BANKS)
+    parameter int NUM_GEN         = 4,    // injectors per direction in char_gen_unit (<= NUM_BANKS); the top sets it (CHAR_NUM_GEN build knob, TASK-043)
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,

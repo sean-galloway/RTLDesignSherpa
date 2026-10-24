@@ -19,6 +19,17 @@ LiteDRAM's 2 / 4 / 8 exist too, through the new sim proxy
 (`test_litedram_char_perf.py`, same injectors and observers; report §5.1).
 Remaining: the board host GO / config loops at eight and the board
 bitstreams (pumice, granite, LiteDRAM share the block).
+**2026-10-23 (owner: "having 8 injectors should only be a param change on
+the injectors"):** it is. The GO register already has eight start bits per
+direction, `char_engine_block` checks NUM_GEN <= GO_BITS and <= NUM_BANKS,
+the host reads the count from `GEN_CONFIG`, and the sim proxies have run
+eight all day. `ddr2_char_harness` NUM_GEN 4 -> 8 (this commit). What the
+flip exposed is AREA: the eight-engine harness is 53 807 LUT / 42 977 FF
+(85 percent of the xc7a100t, from 42 888 / 34 026) and missed 75 MHz by
+0.442 ns on 89 endpoints -- 59 in the read engines' error-bit popcount cone
+(`$countones` of the 64-bit mismatch XOR), 20 in the arbiter (congestion).
+TASK-049 pipelines the popcount (XOR registered before the count); the
+build on that text: -0.212 ns, 36 failing endpoints (19 arbiter, 17 read engine 4), LUT 57 642 / FF 46 059 -- 91 percent of the xc7a100t; the popcount cone is gone from the list and what fails now is congestion. Eight injectors do not close 75 MHz on this part; the shipped harness default goes back to four (`CHAR_NUM_GEN` build knob for eight).
 **Owner:** TBD
 
 ## What blocks eight today

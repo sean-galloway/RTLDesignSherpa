@@ -302,6 +302,17 @@ module ddr2_char_top #(
 `else
         .RD_RET_DEPTH    (64),
 `endif
+        // Injectors per direction. Four is the shipped build: eight (the
+        // owner's load point, pumice TASK-043) elaborates and runs in sim, but
+        // the eight-engine harness is 91 percent of the xc7a100t and missed
+        // 75 MHz by 0.212 ns on congestion (2026-10-23, TASK-049 text).
+        // `CHAR_NUM_GEN=8 make bitstream` builds it for a board measurement
+        // that accepts the miss; the default must keep the floor.
+`ifdef CHAR_NUM_GEN
+        .NUM_GEN         (`CHAR_NUM_GEN),
+`else
+        .NUM_GEN         (4),
+`endif
         // Reader debug stream. 0 (not built) on the production bitstream; the
         // ILA build defines PUMICE_RD_DBG_FIFO so rd_dbg_mismatch exists to
         // trigger on (pumice BUG-014 (was PUMICE-037)).

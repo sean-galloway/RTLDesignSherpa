@@ -85,6 +85,10 @@ module axi4_master_rd_crc_check #(
     parameter int                    LFSR_WIDTH = 32,
     parameter logic [31:0]           LFSR_SEED  = 32'hDEADBEEF,
     parameter logic [47:0]           LFSR_TAPS  = {12'd23, 12'd3, 12'd2, 12'd1},
+    // Address-index LFSR (TASK-049): taps for a maximal INDEX_WIDTH-bit
+    // Fibonacci LFSR. The default is x^16+x^15+x^13+x^4+1 for INDEX_WIDTH=16;
+    // another INDEX_WIDTH needs its own maximal taps here.
+    parameter logic [47:0]           ADDR_LFSR_TAPS = {12'd16, 12'd15, 12'd13, 12'd4},
 
     // ---- CRC (MUST match axi4_master_wr_injector) ----
     parameter int                    CRC_WIDTH      = 32,
@@ -167,6 +171,13 @@ module axi4_master_rd_crc_check #(
     // added. Both AR and R addr-gens see the same hammer index so the
     // two paths stay in lockstep.
     input  logic                                cfg_hammer_en,
+
+    // Address index shaping (TASK-049; see the header). idx1_shift splits the
+    // transaction index between dma_address_gen's two dimensions (0 = the
+    // legacy one-dimensional walk); addr_lfsr replaces the counter with an
+    // INDEX_WIDTH-bit LFSR. Both sampled at cfg_start like the rest.
+    input  logic [3:0]                          cfg_idx1_shift,
+    input  logic                                cfg_addr_lfsr,
 
     // Data source select: 0 = phase-counter LFSR; 1 = address-derived
     // hash; 2 = fill_pattern replicated across the data bus. In hash
@@ -312,6 +323,8 @@ module axi4_master_rd_crc_check #(
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
     logic                         r_hammer_en;       // rowhammer address mode
+    logic [3:0]                   r_idx1_shift;      // TASK-049 index split (0 = legacy)
+    logic                         r_addr_lfsr;       // TASK-049 LFSR index source
     logic [1:0]                   r_data_mode;       // 0=LFSR, 1=ADDR_HASH, 2=FILL
     logic [31:0]                  r_fill_pattern;
     logic [31:0]                  r_hash_seed0;
@@ -341,10 +354,9 @@ module axi4_master_rd_crc_check #(
     logic [INDEX_WIDTH-1:0]       w_ar_addr_index;
     logic [INDEX_WIDTH-1:0]       w_r_addr_index;
 
-    assign w_ar_addr_index = r_hammer_en ? INDEX_WIDTH'(r_ar_req_count[0])
-                                         : INDEX_WIDTH'(r_ar_req_count);
-    assign w_r_addr_index  = r_hammer_en ? INDEX_WIDTH'(r_r_req_count[0])
-                                         : INDEX_WIDTH'(r_r_req_count);
+    logic [INDEX_WIDTH-1:0]       w_ar_addr_index_1;
+    logic [INDEX_WIDTH-1:0]       w_r_addr_index_1;
+    // assigned with the index shaping below (TASK-049), after the LFSRs
 
     logic                         w_ar_addr_req_valid;
     logic                         w_ar_addr_req_ready;
@@ -376,7 +388,7 @@ module axi4_master_rd_crc_check #(
         .i_req_valid       (w_ar_addr_req_valid),
         .o_req_ready       (w_ar_addr_req_ready),
         .i_req_index_0     (w_ar_addr_index),
-        .i_req_index_1     (INDEX_WIDTH'(0)),
+        .i_req_index_1     (w_ar_addr_index_1),
         .i_req_tag         (8'd0),
 
         .o_result_valid    (w_ar_addr_result_valid),
@@ -403,7 +415,7 @@ module axi4_master_rd_crc_check #(
         .i_req_valid       (w_r_addr_req_valid),
         .o_req_ready       (w_r_addr_req_ready),
         .i_req_index_0     (w_r_addr_index),
-        .i_req_index_1     (INDEX_WIDTH'(0)),
+        .i_req_index_1     (w_r_addr_index_1),
         .i_req_tag         (8'd0),
 
         .o_result_valid    (w_r_addr_result_valid),
@@ -442,6 +454,60 @@ module axi4_master_rd_crc_check #(
         .lfsr_out (w_lfsr_out),
         .lfsr_done()
     );
+
+    //==========================================================================
+    // Address index shaping (TASK-049). Two INDEX_WIDTH-bit LFSRs, one per
+    // address path, seeded together at cfg_start from the same seed as the
+    // data LFSR (forced odd so it is never the all-zero lock-up state) and
+    // stepped on their own path's request accept -- the k-th AR/R request
+    // therefore reads the k-th value on both paths. The index then splits:
+    // low idx1_shift bits to dimension 0, the rest to dimension 1.
+    //==========================================================================
+    logic [INDEX_WIDTH-1:0] w_ar_idx_lfsr, w_r_idx_lfsr, w_idx_seed;
+    logic [INDEX_WIDTH-1:0] w_ar_idx_raw,  w_r_idx_raw,  w_idx_lo_mask;
+    assign w_idx_seed = INDEX_WIDTH'(w_lfsr_seed_data) | INDEX_WIDTH'(1);
+
+    shifter_lfsr_fibonacci #(
+        .WIDTH          (INDEX_WIDTH),
+        .TAP_INDEX_WIDTH(12),
+        .TAP_COUNT      (4)
+    ) u_idx_lfsr_ar (
+        .clk      (aclk),
+        .rst_n    (aresetn),
+        .enable   ((w_ar_addr_req_valid && w_ar_addr_req_ready) || w_lfsr_load),
+        .seed_load(w_lfsr_load),
+        .seed_data(w_idx_seed),
+        .taps     (ADDR_LFSR_TAPS),
+        .lfsr_out (w_ar_idx_lfsr),
+        .lfsr_done()
+    );
+
+    shifter_lfsr_fibonacci #(
+        .WIDTH          (INDEX_WIDTH),
+        .TAP_INDEX_WIDTH(12),
+        .TAP_COUNT      (4)
+    ) u_idx_lfsr_r (
+        .clk      (aclk),
+        .rst_n    (aresetn),
+        .enable   ((w_r_addr_req_valid && w_r_addr_req_ready) || w_lfsr_load),
+        .seed_load(w_lfsr_load),
+        .seed_data(w_idx_seed),
+        .taps     (ADDR_LFSR_TAPS),
+        .lfsr_out (w_r_idx_lfsr),
+        .lfsr_done()
+    );
+
+    assign w_ar_idx_raw  = r_addr_lfsr ? w_ar_idx_lfsr : INDEX_WIDTH'(r_ar_req_count);
+    assign w_r_idx_raw  = r_addr_lfsr ? w_r_idx_lfsr : INDEX_WIDTH'(r_r_req_count);
+    assign w_idx_lo_mask  = (r_idx1_shift == 4'd0) ? {INDEX_WIDTH{1'b1}}
+                          : ((INDEX_WIDTH'(1) << r_idx1_shift) - INDEX_WIDTH'(1));
+    // hammer mode keeps its legacy meaning: index_0 = counter LSB, index_1 = 0
+    assign w_ar_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_ar_req_count[0]) : (w_ar_idx_raw & w_idx_lo_mask);
+    assign w_r_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_r_req_count[0]) : (w_r_idx_raw & w_idx_lo_mask);
+    assign w_ar_addr_index_1 = (r_hammer_en || (r_idx1_shift == 4'd0)) ? INDEX_WIDTH'(0)
+                              : (w_ar_idx_raw >> r_idx1_shift);
+    assign w_r_addr_index_1 = (r_hammer_en || (r_idx1_shift == 4'd0)) ? INDEX_WIDTH'(0)
+                              : (w_r_idx_raw >> r_idx1_shift);
 
     //==========================================================================
     // CRC — over the LFSR stream (NOT rdata). Matches writer-side accounting.
@@ -635,9 +701,23 @@ module axi4_master_rd_crc_check #(
     // Per-beat bit-flip popcount, accumulated over the run and saturated
     // at all-ones. This quantifies rowhammer-induced bit flips without
     // disturbing the existing beat-level mismatch count.
+    // TASK-043 (eight engines on the board): the XOR vector is registered
+    // BEFORE the popcount. With eight read engines the harness sits at 85
+    // percent of the xc7a100t and this cone (beat counter -> expected data ->
+    // 64-bit XOR -> $countones) was the worst path at 75 MHz (-0.442 ns, 17-19
+    // levels, 59 of 89 failing endpoints in the read engines). The register
+    // cuts it in two; the accumulate below lands two cycles after the beat
+    // instead of one, still long before cfg_done can be sampled over the bus.
+    // Zero on cycles that followed no accepted beat, cleared with the run.
+    logic [$bits(fub_rdata)-1:0] r_beat_xor;
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn))                                     r_beat_xor <= '0;
+        else if (cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE)))
+                                                                        r_beat_xor <= '0;
+        else                                                            r_beat_xor <= w_r_beat ? (fub_rdata ^ w_cp_expected) : '0;
+    end)
     logic [31:0] w_beat_err_bits;
-    assign w_beat_err_bits = w_r_beat ? 32'($countones(fub_rdata ^ w_cp_expected))
-                                      : 32'd0;
+    assign w_beat_err_bits = 32'($countones(r_beat_xor));
 
     // Register the per-beat popcount before the accumulator. At 66.67 MHz the
     // comb cone beat-counter -> expected-data -> XOR -> $countones -> 32-bit
@@ -645,7 +725,8 @@ module axi4_master_rd_crc_check #(
     // engines) missed by up to -0.374 ns; the register leaves ~19 levels up
     // front and turns the accumulate into a register-to-register add. The
     // skid is zero on cycles that followed no accepted beat, so the
-    // accumulator adds the trailing beat one cycle after its handshake --
+    // accumulator adds the trailing beat two cycles after its handshake (the
+    // XOR stage above, then this one) --
     // still before cfg_done can be sampled over the CSR bus. Cleared on an
     // accepted cfg_start so a back-to-back run cannot inherit the previous
     // run's trailing count.
@@ -676,6 +757,8 @@ module axi4_master_rd_crc_check #(
             r_axi_burst        <= 2'd1;
             r_lfsr_seed_eff    <= LFSR_SEED;
             r_hammer_en        <= 1'b0;
+            r_idx1_shift       <= 4'd0;
+            r_addr_lfsr        <= 1'b0;
             r_data_mode        <= 2'b00;
             r_fill_pattern     <= 32'd0;
             r_hash_seed0       <= 32'd0;
@@ -717,6 +800,8 @@ module axi4_master_rd_crc_check #(
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
                         r_hammer_en     <= cfg_hammer_en;
+                        r_idx1_shift    <= cfg_idx1_shift;
+                        r_addr_lfsr     <= cfg_addr_lfsr;
                         r_data_mode     <= cfg_data_mode;
                         r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
@@ -798,6 +883,8 @@ module axi4_master_rd_crc_check #(
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
                         r_hammer_en     <= cfg_hammer_en;
+                        r_idx1_shift    <= cfg_idx1_shift;
+                        r_addr_lfsr     <= cfg_addr_lfsr;
                         r_data_mode     <= cfg_data_mode;
                         r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
@@ -861,18 +948,27 @@ module axi4_master_rd_crc_check #(
     // the run had already finished and measured a zero-length window. That
     // surfaced as rd_bw = 0.0 on one scenario of the char families test while
     // every other test passed, which is what a one-cycle window looks like.
+    // TASK-049: a second settle stage. The error-bit accumulate is now two
+    // registers behind the beat (the XOR stage, then the popcount), so the
+    // trailing beat's bits land one cycle after the single-stage done rose
+    // and a bench that samples o_err_bits on done read 93 for 124 (the
+    // fill_mismatch_err_bits cells). Done rises two cycles late, still a
+    // gate on the live condition so it falls immediately on a restart.
     logic w_done_cond;
-    logic r_done_settle;
+    logic r_done_settle, r_done_settle2;
     assign w_done_cond = (r_state == S_DONE) && (r_bursts_done == r_txn_count);
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
-            r_done_settle <= 1'b0;
+            r_done_settle  <= 1'b0;
+            r_done_settle2 <= 1'b0;
         end else begin
-            r_done_settle <= w_done_cond;
+            r_done_settle  <= w_done_cond;
+            r_done_settle2 <= w_done_cond && r_done_settle;
         end
     )
-    // Rises a cycle late (CRC settled), falls immediately (run restarted).
-    assign cfg_done = w_done_cond && r_done_settle;
+    // Rises two cycles late (CRC and error bits settled), falls immediately
+    // (run restarted).
+    assign cfg_done = w_done_cond && r_done_settle2;
 
     //==========================================================================
     // axi4_master_rd — bundles the AR/R skid buffers + protocol.

@@ -623,8 +623,18 @@ class DDR2CharDriver:
                         axi_id, id_mode, axi_size, axi_burst, data_mode,
                         lfsr_seed, hash_seed0, hash_seed1, hash_seed2,
                         max_outstanding: int = 0,
+                        idx1_shift: int = 0, addr_lfsr: bool = False,
                         gen: int = 0) -> None:
         """Stage one generator's config by name (pfx = WR|RD, gen = 0..7).
+
+        `idx1_shift` / `addr_lfsr` (TASK-049) shape the address index before
+        the two-dimensional generator: idx1_shift = k feeds the index's low k
+        bits to dimension 0 (stride_0 / wrap_mask_0) and the rest to
+        dimension 1 (stride_1 / wrap_mask_1); 0 is the legacy one-dimensional
+        walk. addr_lfsr replaces the transaction counter with a 16-bit LFSR
+        seeded from lfsr_seed, so the walk is pseudo-random inside the wrap
+        region; a reader with the same seed reads what the writer wrote, and
+        repeated addresses validate only with data_mode (address hash).
 
         Staging only -- this does NOT start anything. Launch is :meth:`go`,
         which starts every selected generator on one cycle. The two are
@@ -664,7 +674,8 @@ class DDR2CharDriver:
         r.write(f"{n}_AXI_ATTR", axi_id=axi_id, id_mode=id_mode,
                 axi_size=axi_size, axi_burst=axi_burst,
                 data_mode=1 if data_mode else 0,
-                max_outstanding=max_outstanding & 0x3F)
+                max_outstanding=max_outstanding & 0x3F,
+                idx1_shift=idx1_shift & 0xF, addr_lfsr=1 if addr_lfsr else 0)
         r.write_word(f"{n}_LFSR_SEED",  lfsr_seed)
         r.write_word(f"{n}_HASH_SEED0", hash_seed0)
         r.write_word(f"{n}_HASH_SEED1", hash_seed1)
@@ -689,6 +700,8 @@ class DDR2CharDriver:
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0,
                           max_outstanding: int = 0,
+                          idx1_shift:    int = 0,
+                          addr_lfsr:     bool = False,
                           gen:           int = 0) -> None:
         self._program_engine(
             "WR", gen=gen,
@@ -698,7 +711,8 @@ class DDR2CharDriver:
             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
             axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
             hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2,
-            max_outstanding=max_outstanding)
+            max_outstanding=max_outstanding,
+            idx1_shift=idx1_shift, addr_lfsr=addr_lfsr)
 
     def program_rd_engine(self, *,
                           start_addr:    int,
@@ -719,6 +733,8 @@ class DDR2CharDriver:
                           hash_seed1:    int = 0,
                           hash_seed2:    int = 0,
                           max_outstanding: int = 0,
+                          idx1_shift:    int = 0,
+                          addr_lfsr:     bool = False,
                           gen:           int = 0) -> None:
         self._program_engine(
             "RD", gen=gen,
@@ -728,7 +744,8 @@ class DDR2CharDriver:
             axi_id=axi_id, id_mode=id_mode, axi_size=axi_size,
             axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
             hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2,
-            max_outstanding=max_outstanding)
+            max_outstanding=max_outstanding,
+            idx1_shift=idx1_shift, addr_lfsr=addr_lfsr)
 
     # ----- Run control -----------------------------------------------------
     # Launch is one write to GO in chargen_regs, not the harness CTRL bits

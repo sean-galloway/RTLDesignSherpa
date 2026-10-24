@@ -55,9 +55,18 @@
 //   is bounded by MAX_OUTSTANDING (AWs issued minus Bs received) and by
 //   the slave's awready throttling.
 //
-//   Address dimensions: walks dma_address_gen's index_0 only; index_1 is
-//   held at 0. To exercise the 2D path, instantiate a second injector
-//   with a different cfg_addr_stride_1 + descriptor program.
+//   Address dimensions (TASK-049): the transaction index is shaped before it
+//   reaches dma_address_gen. cfg_idx1_shift = 0 walks index_0 only (index_1
+//   held at 0, the one-dimensional legacy walk); cfg_idx1_shift = k feeds the
+//   index's low k bits to index_0 and the rest to index_1, so a two-row
+//   alternation inside one bank is stride_0 = row, wrap_0 = 0, k = 1,
+//   stride_1 = burst, wrap_1 = page. cfg_addr_lfsr = 1 replaces the counter
+//   with a maximal INDEX_WIDTH-bit LFSR (pseudo-random inside the wrap
+//   region); the AW and W paths step their own copies on their own request
+//   accepts from the same seed, so they stay in lockstep, and a matched
+//   reader with the same seed reads what was written. With repeated
+//   addresses only the address-hash data mode validates. Hammer mode wins
+//   over both.
 //
 // Parameters:
 //   AXI_*          - standard AXI4 widths
@@ -86,6 +95,10 @@ module axi4_master_wr_injector #(
     parameter int                    LFSR_WIDTH = 32,
     parameter logic [31:0]           LFSR_SEED  = 32'hDEADBEEF,
     parameter logic [47:0]           LFSR_TAPS  = {12'd23, 12'd3, 12'd2, 12'd1},
+    // Address-index LFSR (TASK-049): taps for a maximal INDEX_WIDTH-bit
+    // Fibonacci LFSR. The default is x^16+x^15+x^13+x^4+1 for INDEX_WIDTH=16;
+    // another INDEX_WIDTH needs its own maximal taps here.
+    parameter logic [47:0]           ADDR_LFSR_TAPS = {12'd16, 12'd15, 12'd13, 12'd4},
 
     // ---- CRC (mirror slave-side defaults so the two are interchangeable) ----
     parameter int                    CRC_WIDTH      = 32,
@@ -171,6 +184,13 @@ module axi4_master_wr_injector #(
     // added. Both AW and W addr-gens see the same hammer index so the
     // two channels stay in lockstep.
     input  logic                                cfg_hammer_en,
+
+    // Address index shaping (TASK-049; see the header). idx1_shift splits the
+    // transaction index between dma_address_gen's two dimensions (0 = the
+    // legacy one-dimensional walk); addr_lfsr replaces the counter with an
+    // INDEX_WIDTH-bit LFSR. Both sampled at cfg_start like the rest.
+    input  logic [3:0]                          cfg_idx1_shift,
+    input  logic                                cfg_addr_lfsr,
 
     // Data source select: 0 = phase-counter LFSR (default, OOO-unsafe);
     // 1 = address-derived hash (OOO-safe, data is f(beat_byte_addr));
@@ -305,6 +325,8 @@ module axi4_master_wr_injector #(
     logic [1:0]                   r_axi_burst;
     logic [LFSR_WIDTH-1:0]        r_lfsr_seed_eff;
     logic                         r_hammer_en;       // rowhammer address mode
+    logic [3:0]                   r_idx1_shift;      // TASK-049 index split (0 = legacy)
+    logic                         r_addr_lfsr;       // TASK-049 LFSR index source
     logic [1:0]                   r_data_mode;       // 0=LFSR, 1=ADDR_HASH, 2=FILL
     logic [31:0]                  r_fill_pattern;
     logic [31:0]                  r_hash_seed0;
@@ -337,10 +359,9 @@ module axi4_master_wr_injector #(
     logic [INDEX_WIDTH-1:0]       w_aw_addr_index;
     logic [INDEX_WIDTH-1:0]       w_w_addr_index;
 
-    assign w_aw_addr_index = r_hammer_en ? INDEX_WIDTH'(r_aw_req_count[0])
-                                         : INDEX_WIDTH'(r_aw_req_count);
-    assign w_w_addr_index  = r_hammer_en ? INDEX_WIDTH'(r_w_req_count[0])
-                                         : INDEX_WIDTH'(r_w_req_count);
+    logic [INDEX_WIDTH-1:0]       w_aw_addr_index_1;
+    logic [INDEX_WIDTH-1:0]       w_w_addr_index_1;
+    // assigned with the index shaping below (TASK-049), after the LFSRs
 
     logic                         w_aw_addr_req_valid;
     logic                         w_aw_addr_req_ready;
@@ -372,7 +393,7 @@ module axi4_master_wr_injector #(
         .i_req_valid       (w_aw_addr_req_valid),
         .o_req_ready       (w_aw_addr_req_ready),
         .i_req_index_0     (w_aw_addr_index),
-        .i_req_index_1     (INDEX_WIDTH'(0)),
+        .i_req_index_1     (w_aw_addr_index_1),
         .i_req_tag         (8'd0),
 
         .o_result_valid    (w_aw_addr_result_valid),
@@ -399,7 +420,7 @@ module axi4_master_wr_injector #(
         .i_req_valid       (w_w_addr_req_valid),
         .o_req_ready       (w_w_addr_req_ready),
         .i_req_index_0     (w_w_addr_index),
-        .i_req_index_1     (INDEX_WIDTH'(0)),
+        .i_req_index_1     (w_w_addr_index_1),
         .i_req_tag         (8'd0),
 
         .o_result_valid    (w_w_addr_result_valid),
@@ -438,6 +459,60 @@ module axi4_master_wr_injector #(
         .lfsr_out (w_lfsr_out),
         .lfsr_done()
     );
+
+    //==========================================================================
+    // Address index shaping (TASK-049). Two INDEX_WIDTH-bit LFSRs, one per
+    // address path, seeded together at cfg_start from the same seed as the
+    // data LFSR (forced odd so it is never the all-zero lock-up state) and
+    // stepped on their own path's request accept -- the k-th AW/W request
+    // therefore reads the k-th value on both paths. The index then splits:
+    // low idx1_shift bits to dimension 0, the rest to dimension 1.
+    //==========================================================================
+    logic [INDEX_WIDTH-1:0] w_aw_idx_lfsr, w_w_idx_lfsr, w_idx_seed;
+    logic [INDEX_WIDTH-1:0] w_aw_idx_raw,  w_w_idx_raw,  w_idx_lo_mask;
+    assign w_idx_seed = INDEX_WIDTH'(w_lfsr_seed_data) | INDEX_WIDTH'(1);
+
+    shifter_lfsr_fibonacci #(
+        .WIDTH          (INDEX_WIDTH),
+        .TAP_INDEX_WIDTH(12),
+        .TAP_COUNT      (4)
+    ) u_idx_lfsr_aw (
+        .clk      (aclk),
+        .rst_n    (aresetn),
+        .enable   ((w_aw_addr_req_valid && w_aw_addr_req_ready) || w_lfsr_load),
+        .seed_load(w_lfsr_load),
+        .seed_data(w_idx_seed),
+        .taps     (ADDR_LFSR_TAPS),
+        .lfsr_out (w_aw_idx_lfsr),
+        .lfsr_done()
+    );
+
+    shifter_lfsr_fibonacci #(
+        .WIDTH          (INDEX_WIDTH),
+        .TAP_INDEX_WIDTH(12),
+        .TAP_COUNT      (4)
+    ) u_idx_lfsr_w (
+        .clk      (aclk),
+        .rst_n    (aresetn),
+        .enable   ((w_w_addr_req_valid && w_w_addr_req_ready) || w_lfsr_load),
+        .seed_load(w_lfsr_load),
+        .seed_data(w_idx_seed),
+        .taps     (ADDR_LFSR_TAPS),
+        .lfsr_out (w_w_idx_lfsr),
+        .lfsr_done()
+    );
+
+    assign w_aw_idx_raw  = r_addr_lfsr ? w_aw_idx_lfsr : INDEX_WIDTH'(r_aw_req_count);
+    assign w_w_idx_raw  = r_addr_lfsr ? w_w_idx_lfsr : INDEX_WIDTH'(r_w_req_count);
+    assign w_idx_lo_mask  = (r_idx1_shift == 4'd0) ? {INDEX_WIDTH{1'b1}}
+                          : ((INDEX_WIDTH'(1) << r_idx1_shift) - INDEX_WIDTH'(1));
+    // hammer mode keeps its legacy meaning: index_0 = counter LSB, index_1 = 0
+    assign w_aw_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_aw_req_count[0]) : (w_aw_idx_raw & w_idx_lo_mask);
+    assign w_w_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_w_req_count[0]) : (w_w_idx_raw & w_idx_lo_mask);
+    assign w_aw_addr_index_1 = (r_hammer_en || (r_idx1_shift == 4'd0)) ? INDEX_WIDTH'(0)
+                              : (w_aw_idx_raw >> r_idx1_shift);
+    assign w_w_addr_index_1 = (r_hammer_en || (r_idx1_shift == 4'd0)) ? INDEX_WIDTH'(0)
+                              : (w_w_idx_raw >> r_idx1_shift);
 
     //==========================================================================
     // CRC — accumulates over the SAME LFSR stream we send out on W.
@@ -714,6 +789,8 @@ module axi4_master_wr_injector #(
             r_axi_burst       <= 2'd1;   // INCR
             r_lfsr_seed_eff   <= LFSR_SEED;
             r_hammer_en       <= 1'b0;
+            r_idx1_shift      <= 4'd0;
+            r_addr_lfsr       <= 1'b0;
             r_data_mode       <= 2'b00;
             r_fill_pattern    <= 32'd0;
             r_hash_seed0      <= 32'd0;
@@ -750,6 +827,8 @@ module axi4_master_wr_injector #(
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
                         r_hammer_en     <= cfg_hammer_en;
+                        r_idx1_shift    <= cfg_idx1_shift;
+                        r_addr_lfsr     <= cfg_addr_lfsr;
                         r_data_mode     <= cfg_data_mode;
                         r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
@@ -831,6 +910,8 @@ module axi4_master_wr_injector #(
                         r_axi_burst     <= cfg_axi_burst;
                         r_lfsr_seed_eff <= (cfg_lfsr_seed == '0) ? LFSR_SEED : cfg_lfsr_seed;
                         r_hammer_en     <= cfg_hammer_en;
+                        r_idx1_shift    <= cfg_idx1_shift;
+                        r_addr_lfsr     <= cfg_addr_lfsr;
                         r_data_mode     <= cfg_data_mode;
                         r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;

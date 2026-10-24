@@ -190,6 +190,8 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_axi_burst.value        = 1
         self.dut.cfg_lfsr_seed.value        = 0
         self.dut.cfg_hammer_en.value        = 0
+        self.dut.cfg_idx1_shift.value       = 0
+        self.dut.cfg_addr_lfsr.value        = 0
         self.dut.cfg_data_mode.value        = 0
         self.dut.cfg_fill_pattern.value     = 0
         self.dut.cfg_hash_seed0.value       = 0

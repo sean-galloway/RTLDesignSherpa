@@ -164,6 +164,16 @@ addrmap chargen_regs {
         // Six bits, so a 32-deep build is reachable and 33..63 still clamp
         // visibly instead of aliasing to a small number.
         field { sw = rw; hw = r; } max_outstanding[23:18] = 0;
+        // Address index shaping (TASK-049). idx1_shift = k feeds the low k
+        // bits of the transaction index to dma_address_gen's dimension 0 and
+        // the rest to dimension 1 (0 = the legacy one-dimensional walk, the
+        // reset). addr_lfsr = 1 replaces the transaction counter with a
+        // maximal 16-bit LFSR seeded from LFSR_SEED, so the walk is
+        // pseudo-random inside the wrap region; writer and reader with the
+        // same seed produce the same address sequence. Repeated addresses
+        // validate only with the address-hash data mode.
+        field { sw = rw; hw = r; } idx1_shift[27:24]     = 0;
+        field { sw = rw; hw = r; } addr_lfsr[28:28]      = 0;
     };
 
     //=========================================================================

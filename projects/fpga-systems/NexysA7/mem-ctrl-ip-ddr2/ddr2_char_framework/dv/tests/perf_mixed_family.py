@@ -25,8 +25,56 @@ plus each direction's own window as the other families report it. There is
 no JEDEC floor for this family; it is compared across cores, not against a
 number.
 
+Two more window families live here (TASK-049), run through the proxies'
+ordinary write-then-read flow with per-generator programs from
+`family_programs`:
+
+  * `row_thrash`: one thread, one bank, TWO rows, a burst to each in turn
+    (idx1_shift 1: index bit 0 picks the row via stride_0 = one row, the
+    rest walks bursts inside the page via stride_1 / wrap_mask_1). The
+    textbook row-buffer-conflict stream: with 2-beat bursts eight of them sit
+    in a 16-entry window, a row-hit scheduler serves the four A hits then the
+    four B hits (two ACTs), an oldest-first per-bank picker alternates (eight).
+    Thread g owns bank g.
+  * `random`: one thread, an LFSR index (addr_lfsr 1) walking bursts inside a
+    region of two rows across all banks (wrap_mask_0 = 2 rows - 1), so every
+    burst is a random bank and one of two rows -- a hit/miss mix in random
+    order. Thread g owns rows 2g, 2g+1. Addresses repeat, so the data mode
+    must be the address hash (it is, in both proxies).
+
 One module, imported by both proxies, so the two measure the same thing.
 """
+
+ROW_THRASH_ROW = 0x11    # first of the two rows (second is the next row)
+RANDOM_ROWS = 2          # rows per thread in the random region
+
+
+def family_programs(fam, n_gen, geom, dc, *, blen, txn, gap, seed=0xABCD1234):
+    """Per-generator engine programs for `row_thrash` / `random`, or None."""
+    if fam not in ("row_thrash", "random"):
+        return None
+    beat_bytes = 1 << dc.AXI_SIZE_8
+    burst = blen * beat_bytes
+    out = []
+    for g in range(n_gen):
+        s = seed + 0x1000 * g
+        common = dict(burst_len=blen, txn_count=txn, gap=gap, id_mode=dc.ID_MODE_FIXED,
+                      axi_size=dc.AXI_SIZE_8, data_mode=True, lfsr_seed=s,
+                      hash_seed0=s, hash_seed1=s ^ 0x9E3779B9, hash_seed2=s ^ 0x85EBCA6B,
+                      gen=g)
+        if fam == "row_thrash":
+            bank = g % (1 << geom.bank_width)
+            out.append(dict(start_addr=bank * geom.bank_stride
+                            + ROW_THRASH_ROW * geom.row_stride_same_bank,
+                            stride_0=geom.row_stride_same_bank, wrap_mask_0=0,
+                            stride_1=burst, wrap_mask_1=geom.page_bytes - 1,
+                            idx1_shift=1, addr_lfsr=False, **common))
+        else:
+            region = RANDOM_ROWS * geom.row_stride_same_bank
+            out.append(dict(start_addr=g * region, stride_0=burst, wrap_mask_0=region - 1,
+                            stride_1=0, wrap_mask_1=0, idx1_shift=0, addr_lfsr=True,
+                            **common))
+    return out
 
 REGION_ROWS = 8          # read region sits this many rows above the write region
 MIN_GENS = 2             # one pair at least; a single generator has no conflict

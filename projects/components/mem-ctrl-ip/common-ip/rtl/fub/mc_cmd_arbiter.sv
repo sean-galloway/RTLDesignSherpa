@@ -567,9 +567,13 @@ module mc_cmd_arbiter
     // there (w_col_row_ok / pre_ready) -- a lost slot, not a hazard, and the
     // page policy's open-row-demand veto already refuses such a bank a cycle
     // earlier. The refresh / ZQ drain guards keep the full vector.
+    // (w_col_inflight_guard is w_if_col_sel | w_if_col_pre -- the 1b column
+    // selection again; the registered half, w_if_col_pre, is what belongs
+    // here. With the full guard the default build of the TASK-049 text missed
+    // by 0.118 ns on the same path through the column select.)
     logic [NUM_BANKS-1:0] w_guarded_to;
     assign w_guarded_to = r_guard0 | r_guard1 | w_if_preact_pre | w_if_col_pre
-                        | w_col_inflight_guard | w_if_preact_out | w_if_col_out;
+                        | w_if_preact_out | w_if_col_out;
 
     // DRAIN-PRE guard (refresh / ZQ all-banks-idle drains). Same as w_guarded
     // MINUS the pre-pick/Stage-1b shadow of a DEMAND PRE to the same bank.

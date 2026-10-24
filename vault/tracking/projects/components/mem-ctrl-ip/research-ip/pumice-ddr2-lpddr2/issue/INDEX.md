@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-024** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-025** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,13 +12,18 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
+
+- **ISSUE-024** — the perf proxies' `wait_engine` is a wall-clock deadline;
+  on a loaded machine the framework suite fails "did not complete" cells
+  that pass alone (10 of 222 on 2026-10-23, 10 / 10 re-run). Bound the wait
+  in simulated cycles in sim.
 
 - **ISSUE-023** — perf-proxy DRAM checker anchors tWR on the slave's uncalibrated
   CWL + BL: 256 phantom tWR (explicit PRE) or tRP (WRA) per col_major run on

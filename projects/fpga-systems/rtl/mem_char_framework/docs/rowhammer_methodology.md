@@ -21,6 +21,9 @@ implements the recipe end to end; the text here is the contract it follows.
 
 Three mechanisms, and nothing else — the recipe is built from exactly these:
 
+- The index shaping fields `idx1_shift` / `addr_lfsr` (`AXI_ATTR[28:24]`,
+  TASK-049) are the general form of this trick -- a two-dimensional walk and
+  a pseudo-random one; see `address_modes.md`. `hammer_en` wins over both.
 - **`hammer_en`** (`AXI_ATTR[17]`): the address-generator index becomes the
   transaction counter's LSB, so addresses alternate `base` / `base+stride_0`
   per transaction. One writer with `hammer_en=1` is two aggressor rows being

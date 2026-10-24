@@ -154,6 +154,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -359,6 +361,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -564,6 +568,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -769,6 +775,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -974,6 +982,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1179,6 +1189,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1384,6 +1396,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1589,6 +1603,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1797,6 +1813,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2043,6 +2061,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2289,6 +2309,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2535,6 +2557,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2781,6 +2805,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -3027,6 +3053,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -3273,6 +3301,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -3519,6 +3549,8 @@ Don't override. Generated from: $root
 |16:15|   data_mode   |  rw  | 0x0 |  — |
 |  17 |   hammer_en   |  rw  | 0x0 |  — |
 |23:18|max_outstanding|  rw  | 0x0 |  — |
+|27:24|   idx1_shift  |  rw  | 0x0 |  — |
+|  28 |   addr_lfsr   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 

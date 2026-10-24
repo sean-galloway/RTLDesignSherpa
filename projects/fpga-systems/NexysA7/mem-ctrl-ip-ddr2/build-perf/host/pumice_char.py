@@ -41,6 +41,14 @@ field sits just above the column and a full page is contiguous:
                         vs col_major reveals the controller's bank-level
                         parallelism.
 
+  mixed / row_thrash / random
+                        the WINDOW families (not in the sweeps above): bank-
+                        paired threads one row apart with reads and writes
+                        concurrent; one thread alternating two rows of one
+                        bank per burst (the textbook row-buffer conflict a
+                        window re-orders and an oldest-first picker cannot);
+                        an LFSR walk inside a region. Perf proxies only.
+
 The two headline "perf issue" signals the summary flags:
   * incremental_BW / col_major_BW           -> the page-management penalty
   * col_major_interleaved_BW / col_major_BW -> bank-level parallelism recovered
@@ -221,6 +229,15 @@ FAM_ROW_MAJOR     = "row_major"
 FAM_COL_MAJOR     = "col_major"
 FAM_COL_INTERLEAVE = "col_major_interleaved"
 FAMILIES = (FAM_INCREMENTAL, FAM_ROW_MAJOR, FAM_COL_MAJOR, FAM_COL_INTERLEAVE)
+# Window families (TASK-046 / TASK-049): the shapes where a scheduling window
+# earns its depth. Not in FAMILIES -- the one-dimensional sweeps above cannot
+# express them; the perf proxies program them through
+# ddr2_char_framework/dv/tests/perf_mixed_family.py (two-dimensional walk and
+# LFSR index, injector ADDR fields idx1_shift / addr_lfsr).
+FAM_MIXED      = "mixed"        # bank-paired threads one row apart, R and W concurrent
+FAM_ROW_THRASH = "row_thrash"   # one thread, one bank, two rows, a burst to each in turn
+FAM_RANDOM     = "random"       # LFSR walk inside a region (two rows x all banks per thread)
+WINDOW_FAMILIES = (FAM_MIXED, FAM_ROW_THRASH, FAM_RANDOM)
 
 # Hardware limit: the harness engine's txn_count CSR field is 16-bit
 # (WR_BLEN_TXN txn[23:8]). Base suite counts are kept small so a board soak can

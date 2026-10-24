@@ -618,14 +618,20 @@ async def cocotb_test_pumice_perf(dut):
             return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
                                clk_mhz=clk_mhz, hist_mean=_hist_mean_cycles, diag=diag,
                                host_diag=_host_diag, always_diag=always_diag)
-        fam = _FAMILIES[fam_key]
-        stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
-                                                  burst_len=blen, txn_count=txn),
-                                      geom)
+        window = pmf.family_programs(fam_key, n_gen, geom, dc, blen=blen, txn=txn, gap=gap)
+        if window is not None:
+            fam, stride, wrap = fam_key, window[0]["stride_0"], window[0]["wrap_mask_0"]
+        else:
+            fam = _FAMILIES[fam_key]
+            stride, wrap = pc.strides_for(pc.Scenario(name=fam, family=fam,
+                                                      burst_len=blen, txn_count=txn),
+                                          geom)
         bytes_moved = txn * blen * beat_bytes * n_gen
         seed = 0xABCD1234
 
         def prog_for(g):
+            if window is not None:
+                return window[g]
             # Generators one bank stride apart: each thread owns a bank for the
             # page-friendly families and the threads bank-interleave on
             # col_major -- the multi-thread case the controller should win.

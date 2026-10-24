@@ -767,6 +767,54 @@ run-all-func-both` 218 / 218 at both geometries; pumice area lint clean;
 board 75 MHz +0.019 ns, 0 / 108 344 endpoints, LUT 42 888 / FF 34 026 (a
 reset constant moves no logic), built text == committed text.
 
+### 5.8 TASK-049: the injectors learn the window families (2026-10-23)
+
+Owner: "Can the injectors be updated to create those?" The address generator
+under both injectors was always two-dimensional; the injectors fed the
+transaction counter to one dimension and held the other at zero. Two fields
+in `AXI_ATTR` now shape the index first: `idx1_shift` splits it between the
+two dimensions (one thread can alternate rows inside a bank), `addr_lfsr`
+replaces the counter with a 16-bit LFSR (a pseudo-random walk inside the wrap
+region; the paths step their own copies in lockstep, a reader with the
+writer's seed reads the writer's sequence, repeats validate under the
+address-hash data mode). Framework doc:
+`projects/fpga-systems/rtl/mem_char_framework/docs/address_modes.md`.
+
+| family | threads | FR-FCFS (TASK-048 text) | BANK_PICK | mean latency wr / rd (cycles) |
+|---|---|---|---|---|
+| `row_thrash` (one bank, two rows, a 2-beat burst to each in turn) | 1 | 269.4 / 302.9 | 128.7 / 142.9 | 49 / 65 vs 95 / 95 |
+| `row_thrash` | 8 | 285.5 / 286.1 | 283.0 / 280.5 | 49 / 51 vs 51 / 51 |
+| `random` (LFSR over two rows by eight banks per thread, 8-beat bursts) | 1 | 460.1 / 490.8 | 471.1 / 484.3 | 51 / 50 vs 51 / 50 |
+| `random` | 8 | 430.6 / 479.3 | 406.3 / 444.0 | 54 / 55 vs 53 / 56 |
+
+Mismatched 0 in every cell. `row_thrash` at one thread is the textbook case:
+eight 2-beat bursts in the 16-entry window, the window serves the four A
+hits then the four B hits (two activates per eight bursts), the per-bank head
+record alternates rows (eight), 2.1x. At eight threads a bank holds at most
+two of its own bursts in the window and the cores meet. `random` ties at one
+thread and gives the window 6-8 percent at eight. Together with `mixed` (5.6,
+3.8x) these are the shapes that justify the research core; the streams (5.5)
+are where it had to stop losing.
+
+The read engine's error-bit popcount (`$countones` of a 64-bit XOR) is now
+registered in two stages: the eight-injector board build (TASK-043, the
+harness at 85 percent of the part) had it as the worst path, -0.442 ns with
+59 of 89 failing endpoints in the read engines (20 in the arbiter, congestion).
+Default build (four injectors) on the new text: first -0.118 ns on the
+arbiter's `r_wr_pop -> column select -> timeout-PRE guard -> r_bank` path
+(the guard still carried the STAGE-1b column shadow through
+`w_col_inflight_guard`; dropped, the guard is registered shadows only), then
++0.014 ns, 0 / 112 789 endpoints, LUT 44 887 / FF 35 593 (+2 000 LUT for
+the address LFSRs and index shaping). Gates: val/amba injector tests (the 7
+`fill_mismatch_err_bits` cells caught the two-stage accumulate landing one
+cycle after done; done settles two cycles now) 159 / 159 on the corrected
+read-injector and pair files, mem_char_framework dv 17 / 17, framework
+functional suite 222 / 2 xfailed (a loaded-machine run failed 10 cells that
+pass 10 / 10 alone: ISSUE-024, the engine wait is wall-clock), pumice 218 /
+218 both geometries, granite 6 / 1 xfailed, common-ip 25 / 3 xfailed, formal
+PASS, lints clean.
+Eight-injector build on the new text: -0.212 ns, 36 failing endpoints (19 arbiter, 17 read engine 4), LUT 57 642 / FF 46 059 -- 91 percent of the xc7a100t; the popcount cone is gone from the list and what fails now is congestion. Eight injectors do not close 75 MHz on this part; the shipped harness default goes back to four (`CHAR_NUM_GEN` build knob for eight).
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

@@ -244,6 +244,14 @@ module chargen_regs (
                     logic [5:0] next;
                     logic load_next;
                 } max_outstanding;
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } idx1_shift;
+                struct {
+                    logic next;
+                    logic load_next;
+                } addr_lfsr;
             } AXI_ATTR;
             struct {
                 struct {
@@ -354,6 +362,14 @@ module chargen_regs (
                     logic [5:0] next;
                     logic load_next;
                 } max_outstanding;
+                struct {
+                    logic [3:0] next;
+                    logic load_next;
+                } idx1_shift;
+                struct {
+                    logic next;
+                    logic load_next;
+                } addr_lfsr;
             } AXI_ATTR;
             struct {
                 struct {
@@ -518,6 +534,12 @@ module chargen_regs (
                 struct {
                     logic [5:0] value;
                 } max_outstanding;
+                struct {
+                    logic [3:0] value;
+                } idx1_shift;
+                struct {
+                    logic value;
+                } addr_lfsr;
             } AXI_ATTR;
             struct {
                 struct {
@@ -607,6 +629,12 @@ module chargen_regs (
                 struct {
                     logic [5:0] value;
                 } max_outstanding;
+                struct {
+                    logic [3:0] value;
+                } idx1_shift;
+                struct {
+                    logic value;
+                } addr_lfsr;
             } AXI_ATTR;
             struct {
                 struct {
@@ -1056,6 +1084,52 @@ module chargen_regs (
             end
         end
         assign hwif_out.WR_GEN[i0].AXI_ATTR.max_outstanding.value = field_storage.WR_GEN[i0].AXI_ATTR.max_outstanding.value;
+        // Field: chargen_regs.WR_GEN[].AXI_ATTR.idx1_shift
+        always_comb begin
+            automatic logic [3:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.WR_GEN[i0].AXI_ATTR.idx1_shift.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.WR_GEN[i0].AXI_ATTR && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.WR_GEN[i0].AXI_ATTR.idx1_shift.value & ~decoded_wr_biten[27:24]) | (decoded_wr_data[27:24] & decoded_wr_biten[27:24]);
+                load_next_c = '1;
+            end
+            field_combo.WR_GEN[i0].AXI_ATTR.idx1_shift.next = next_c;
+            field_combo.WR_GEN[i0].AXI_ATTR.idx1_shift.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.WR_GEN[i0].AXI_ATTR.idx1_shift.value <= 4'h0;
+            end else begin
+                if(field_combo.WR_GEN[i0].AXI_ATTR.idx1_shift.load_next) begin
+                    field_storage.WR_GEN[i0].AXI_ATTR.idx1_shift.value <= field_combo.WR_GEN[i0].AXI_ATTR.idx1_shift.next;
+                end
+            end
+        end
+        assign hwif_out.WR_GEN[i0].AXI_ATTR.idx1_shift.value = field_storage.WR_GEN[i0].AXI_ATTR.idx1_shift.value;
+        // Field: chargen_regs.WR_GEN[].AXI_ATTR.addr_lfsr
+        always_comb begin
+            automatic logic [0:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.WR_GEN[i0].AXI_ATTR.addr_lfsr.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.WR_GEN[i0].AXI_ATTR && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.WR_GEN[i0].AXI_ATTR.addr_lfsr.value & ~decoded_wr_biten[28:28]) | (decoded_wr_data[28:28] & decoded_wr_biten[28:28]);
+                load_next_c = '1;
+            end
+            field_combo.WR_GEN[i0].AXI_ATTR.addr_lfsr.next = next_c;
+            field_combo.WR_GEN[i0].AXI_ATTR.addr_lfsr.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.WR_GEN[i0].AXI_ATTR.addr_lfsr.value <= 1'h0;
+            end else begin
+                if(field_combo.WR_GEN[i0].AXI_ATTR.addr_lfsr.load_next) begin
+                    field_storage.WR_GEN[i0].AXI_ATTR.addr_lfsr.value <= field_combo.WR_GEN[i0].AXI_ATTR.addr_lfsr.next;
+                end
+            end
+        end
+        assign hwif_out.WR_GEN[i0].AXI_ATTR.addr_lfsr.value = field_storage.WR_GEN[i0].AXI_ATTR.addr_lfsr.value;
         // Field: chargen_regs.WR_GEN[].LFSR_SEED.seed
         always_comb begin
             automatic logic [31:0] next_c;
@@ -1541,6 +1615,52 @@ module chargen_regs (
             end
         end
         assign hwif_out.RD_GEN[i0].AXI_ATTR.max_outstanding.value = field_storage.RD_GEN[i0].AXI_ATTR.max_outstanding.value;
+        // Field: chargen_regs.RD_GEN[].AXI_ATTR.idx1_shift
+        always_comb begin
+            automatic logic [3:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.RD_GEN[i0].AXI_ATTR.idx1_shift.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.RD_GEN[i0].AXI_ATTR && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.RD_GEN[i0].AXI_ATTR.idx1_shift.value & ~decoded_wr_biten[27:24]) | (decoded_wr_data[27:24] & decoded_wr_biten[27:24]);
+                load_next_c = '1;
+            end
+            field_combo.RD_GEN[i0].AXI_ATTR.idx1_shift.next = next_c;
+            field_combo.RD_GEN[i0].AXI_ATTR.idx1_shift.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.RD_GEN[i0].AXI_ATTR.idx1_shift.value <= 4'h0;
+            end else begin
+                if(field_combo.RD_GEN[i0].AXI_ATTR.idx1_shift.load_next) begin
+                    field_storage.RD_GEN[i0].AXI_ATTR.idx1_shift.value <= field_combo.RD_GEN[i0].AXI_ATTR.idx1_shift.next;
+                end
+            end
+        end
+        assign hwif_out.RD_GEN[i0].AXI_ATTR.idx1_shift.value = field_storage.RD_GEN[i0].AXI_ATTR.idx1_shift.value;
+        // Field: chargen_regs.RD_GEN[].AXI_ATTR.addr_lfsr
+        always_comb begin
+            automatic logic [0:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.RD_GEN[i0].AXI_ATTR.addr_lfsr.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.RD_GEN[i0].AXI_ATTR && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.RD_GEN[i0].AXI_ATTR.addr_lfsr.value & ~decoded_wr_biten[28:28]) | (decoded_wr_data[28:28] & decoded_wr_biten[28:28]);
+                load_next_c = '1;
+            end
+            field_combo.RD_GEN[i0].AXI_ATTR.addr_lfsr.next = next_c;
+            field_combo.RD_GEN[i0].AXI_ATTR.addr_lfsr.load_next = load_next_c;
+        end
+        always_ff @(posedge clk) begin
+            if(rst) begin
+                field_storage.RD_GEN[i0].AXI_ATTR.addr_lfsr.value <= 1'h0;
+            end else begin
+                if(field_combo.RD_GEN[i0].AXI_ATTR.addr_lfsr.load_next) begin
+                    field_storage.RD_GEN[i0].AXI_ATTR.addr_lfsr.value <= field_combo.RD_GEN[i0].AXI_ATTR.addr_lfsr.next;
+                end
+            end
+        end
+        assign hwif_out.RD_GEN[i0].AXI_ATTR.addr_lfsr.value = field_storage.RD_GEN[i0].AXI_ATTR.addr_lfsr.value;
         // Field: chargen_regs.RD_GEN[].LFSR_SEED.seed
         always_comb begin
             automatic logic [31:0] next_c;
@@ -2111,7 +2231,9 @@ module chargen_regs (
         assign readback_array[i0 * 14 + 6][16:15] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.data_mode.value : '0;
         assign readback_array[i0 * 14 + 6][17:17] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.hammer_en.value : '0;
         assign readback_array[i0 * 14 + 6][23:18] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.max_outstanding.value : '0;
-        assign readback_array[i0 * 14 + 6][31:24] = '0;
+        assign readback_array[i0 * 14 + 6][27:24] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.idx1_shift.value : '0;
+        assign readback_array[i0 * 14 + 6][28:28] = (decoded_reg_strb.WR_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].AXI_ATTR.addr_lfsr.value : '0;
+        assign readback_array[i0 * 14 + 6][31:29] = '0;
         assign readback_array[i0 * 14 + 7][31:0] = (decoded_reg_strb.WR_GEN[i0].LFSR_SEED && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].LFSR_SEED.seed.value : '0;
         assign readback_array[i0 * 14 + 8][31:0] = (decoded_reg_strb.WR_GEN[i0].HASH_SEED0 && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].HASH_SEED0.seed.value : '0;
         assign readback_array[i0 * 14 + 9][31:0] = (decoded_reg_strb.WR_GEN[i0].HASH_SEED1 && !decoded_req_is_wr) ? field_storage.WR_GEN[i0].HASH_SEED1.seed.value : '0;
@@ -2143,7 +2265,9 @@ module chargen_regs (
         assign readback_array[i0 * 17 + 118][16:15] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.data_mode.value : '0;
         assign readback_array[i0 * 17 + 118][17:17] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.hammer_en.value : '0;
         assign readback_array[i0 * 17 + 118][23:18] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.max_outstanding.value : '0;
-        assign readback_array[i0 * 17 + 118][31:24] = '0;
+        assign readback_array[i0 * 17 + 118][27:24] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.idx1_shift.value : '0;
+        assign readback_array[i0 * 17 + 118][28:28] = (decoded_reg_strb.RD_GEN[i0].AXI_ATTR && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].AXI_ATTR.addr_lfsr.value : '0;
+        assign readback_array[i0 * 17 + 118][31:29] = '0;
         assign readback_array[i0 * 17 + 119][31:0] = (decoded_reg_strb.RD_GEN[i0].LFSR_SEED && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].LFSR_SEED.seed.value : '0;
         assign readback_array[i0 * 17 + 120][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED0 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED0.seed.value : '0;
         assign readback_array[i0 * 17 + 121][31:0] = (decoded_reg_strb.RD_GEN[i0].HASH_SEED1 && !decoded_req_is_wr) ? field_storage.RD_GEN[i0].HASH_SEED1.seed.value : '0;

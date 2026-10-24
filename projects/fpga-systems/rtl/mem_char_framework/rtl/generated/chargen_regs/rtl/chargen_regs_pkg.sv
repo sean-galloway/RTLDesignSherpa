@@ -219,6 +219,14 @@ package chargen_regs_pkg;
     } chargen_regs__axi_attr_t__max_outstanding__out_t;
 
     typedef struct {
+        logic [3:0] value;
+    } chargen_regs__axi_attr_t__idx1_shift__out_t;
+
+    typedef struct {
+        logic value;
+    } chargen_regs__axi_attr_t__addr_lfsr__out_t;
+
+    typedef struct {
         chargen_regs__axi_attr_t__axi_id__out_t axi_id;
         chargen_regs__axi_attr_t__id_mode__out_t id_mode;
         chargen_regs__axi_attr_t__axi_size__out_t axi_size;
@@ -226,6 +234,8 @@ package chargen_regs_pkg;
         chargen_regs__axi_attr_t__data_mode__out_t data_mode;
         chargen_regs__axi_attr_t__hammer_en__out_t hammer_en;
         chargen_regs__axi_attr_t__max_outstanding__out_t max_outstanding;
+        chargen_regs__axi_attr_t__idx1_shift__out_t idx1_shift;
+        chargen_regs__axi_attr_t__addr_lfsr__out_t addr_lfsr;
     } chargen_regs__axi_attr_t__out_t;
 
     typedef struct {

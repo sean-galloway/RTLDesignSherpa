@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-049** — never recycle a number, even when its item closed.
+**Next ID: TASK-050** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 38 | done (kept for history) |
+| [closed/](closed/) | 39 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -47,6 +47,14 @@ exactly one state by construction rather than by discipline.
   depend on scoria and is a test, not a feature
 
 ## Closed
+
+- **TASK-049** — CLOSED 2026-10-23: injector address modes. `AXI_ATTR.
+  idx1_shift` makes the address generator's second dimension live (one
+  thread alternating two rows of one bank: `row_thrash`), `addr_lfsr`
+  walks an LFSR index inside the wrap region (`random`). FR-FCFS vs
+  BANK_PICK one thread: row_thrash 269 / 303 vs 129 / 143 MB/s (2.1x),
+  random a tie; eight threads random +6-8 percent, row_thrash equal. Read
+  engine's error-bit popcount pipelined for the eight-injector board.
 
 - **TASK-048** — CLOSED 2026-10-23: `PAGE_TIMEOUT_CFG.tr_init` resets to 0
   (was 2): the idle timer closed banks whose generator had nothing in the

@@ -230,6 +230,13 @@ if {[info exists ::env(PUMICE_RD_RET_DEPTH)] && $::env(PUMICE_RD_RET_DEPTH) ne "
     lappend current_defines "PUMICE_RD_RET_DEPTH=$::env(PUMICE_RD_RET_DEPTH)"
     puts "verilog_define: PUMICE_RD_RET_DEPTH=$::env(PUMICE_RD_RET_DEPTH) (reads in flight)"
 }
+# Injectors per direction: env CHAR_NUM_GEN=<n> (4 = the shipped build, 8 =
+# the owner's load point; eight is 91 percent of the part and misses 75 MHz,
+# pumice TASK-043 / TASK-049). Value form, not a bare flag.
+if {[info exists ::env(CHAR_NUM_GEN)] && $::env(CHAR_NUM_GEN) ne ""} {
+    lappend current_defines "CHAR_NUM_GEN=$::env(CHAR_NUM_GEN)"
+    puts "verilog_define: CHAR_NUM_GEN=$::env(CHAR_NUM_GEN) (injectors per direction)"
+}
 set_property verilog_define $current_defines $src_fs
 
 set top_name ddr2_char_top
