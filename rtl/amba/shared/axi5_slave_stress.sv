@@ -407,11 +407,21 @@ module axi5_slave_stress
         logic [TW-1:0]     f_wtag;
         logic [NUM_TAGS-1:0] f_wtagupd;
 
-        // W_FIRST (cfg w_first): take an AW only while a W beat is offered, as a
+        // W_FIRST (cfg w_first): take an AW only once write data is in sight -- a W
+        // beat offered, or a W burst already taken ahead (axi_stress_w_first_gate), as a
         // slave that waits for write data first does (AXI A3.3.1 allows it)
         logic w_aw_gate, w_ch_awready;
-        assign w_aw_gate     = !cfg_wr.w_first || s_axi_wvalid;
-        assign s_axi_awready = w_ch_awready && w_aw_gate;
+        axi_stress_w_first_gate u_w_first (
+            .aclk, .aresetn, .clear,
+            .en         (cfg_wr.w_first),
+            .awvalid    (s_axi_awvalid),
+            .ch_awready (w_ch_awready),
+            .wvalid     (s_axi_wvalid),
+            .wready     (s_axi_wready),
+            .wlast      (s_axi_wlast),
+            .aw_gate    (w_aw_gate),
+            .awready    (s_axi_awready)
+        );
 
         axi5_slave_wr #(
             .SKID_DEPTH_AW(SKID_DEPTH_AW), .SKID_DEPTH_W(SKID_DEPTH_W), .SKID_DEPTH_B(SKID_DEPTH_B),

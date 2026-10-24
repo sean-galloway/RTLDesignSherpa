@@ -238,12 +238,22 @@ module axil5_slave_stress
         logic [7:0]        c_bsb;
         logic              f_bvalid, f_bready;
 
-        // W_FIRST (cfg w_first): take an AW only while a W beat is offered
+        // W_FIRST (cfg w_first): take an AW only once write data is in sight -- a W
+        // beat offered, or a W burst already taken ahead (axi_stress_w_first_gate)
         // (AXI A3.3.1 allows it), at the pins -- behind the channel module's
         // AW skid the gate would never be seen on the wire.
         logic w_aw_gate, w_ch_awready;
-        assign w_aw_gate      = !cfg_wr.w_first || s_axil_wvalid;
-        assign s_axil_awready = w_ch_awready && w_aw_gate;
+        axi_stress_w_first_gate u_w_first (
+            .aclk, .aresetn, .clear,
+            .en         (cfg_wr.w_first),
+            .awvalid    (s_axil_awvalid),
+            .ch_awready (w_ch_awready),
+            .wvalid     (s_axil_wvalid),
+            .wready     (s_axil_wready),
+            .wlast      (1'b1),
+            .aw_gate    (w_aw_gate),
+            .awready    (s_axil_awready)
+        );
 
         axil5_slave_wr #(
             .AXIL_ADDR_WIDTH(32), .AXIL_DATA_WIDTH(DW), .ID_WIDTH(IW),

@@ -169,6 +169,20 @@ summary: Stability rules; observers gate commands only, never responses.
   port, the W gate (correctly) sent no data for it, and the slave waited
   for that W forever. A second gate that released W for held bursts had
   been hiding it -- fixing one exposed the other.*
+- **A model of a "data-first" slave must itself be a legal slave.** AXI
+  A3.3.1 lets a slave hold AWREADY until it sees write data, and a stress
+  model of one is how bridge BUG-020 and converters BUG-013/014 were found.
+  But "data in sight" means a W beat offered NOW *or already taken*: the
+  shell's W skid accepts beats on its own, so a gate of `awready = wvalid`
+  alone takes the W in a cycle the AW channel is busy and then waits for a
+  WVALID the master has no reason to raise again. A multi-beat AXI master
+  escaped by luck (its next burst's W reopened the gate); the AXI4-Lite
+  converter, offering one beat at a time, could not. *Case (2026-10-24,
+  bridge-stress `bridge_bs_mixed_b`, `w_first`): l4s held AWVALID with
+  AWREADY low, WVALID low and WREADY high, every master queued behind it.*
+  The gate counts W bursts begun minus AWs accepted
+  (`axi_stress_w_first_gate`), and the pair test mirrors the same count, so
+  a check written against the model cannot pass what the model would hang.
 
 Related: [[streaming-no-fsm]], [[no-assertions-in-rtl]], [[randomization]].
 

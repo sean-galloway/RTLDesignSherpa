@@ -233,17 +233,30 @@ class AxiStressPairTB(TBBase):
         seq = 0
         last_rid = None
         wire_out = 0          # requests accepted and not yet answered, both directions
+        w_in_burst, w_ahead = False, 0            # W_FIRST mirror state
+        has_wlast = hasattr(d, 'm_wlast')
         while True:
             await RisingEdge(d.aclk)
             if not int(d.aresetn.value):
                 continue
-            # W_FIRST evidence: an AW taken with no W beat offered, and an AW
-            # held while none was
+            # W_FIRST evidence, mirroring axi_stress_w_first_gate: write data is
+            # in sight when a W beat is offered or a W burst was taken ahead of
+            # its AW (w_ahead = W bursts begun - AWs accepted, floored at 0).
+            # Counted: an AW taken with none in sight, and an AW held with none.
             awv, awr, wv = int(d.m_awvalid.value), int(d.m_awready.value), int(d.m_wvalid.value)
-            if awv and awr and not wv:
+            w_hs = wv and int(d.m_wready.value)
+            w_begin = w_hs and not w_in_burst
+            if w_hs:
+                w_in_burst = not (int(d.m_wlast.value) if has_wlast else 1)
+            in_sight = wv or w_ahead > 0
+            if awv and awr and not in_sight:
                 self.stats['aw_hs_no_w'] += 1
-            if awv and not awr and not wv:
+            if awv and not awr and not in_sight:
                 self.stats['aw_wait_no_w'] += 1
+            if w_begin and not (awv and awr):
+                w_ahead = min(15, w_ahead + 1)
+            elif (awv and awr) and not w_begin:
+                w_ahead = max(0, w_ahead - 1)
             # AR
             if int(d.m_arvalid.value) and int(d.m_arready.value):
                 a, ln, sz, bt = (int(d.m_araddr.value), int(d.m_arlen.value),

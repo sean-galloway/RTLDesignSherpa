@@ -12,6 +12,7 @@ $REPO_ROOT/rtl/amba/includes/axi_stress_pkg.sv
 
 $REPO_ROOT/rtl/amba/shared/axi_stress_ord_table.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_r_merge.sv
+$REPO_ROOT/rtl/amba/shared/axi_stress_w_first_gate.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_txn_gen.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_mst_rd.sv
 $REPO_ROOT/rtl/amba/shared/axi_stress_mst_wr.sv

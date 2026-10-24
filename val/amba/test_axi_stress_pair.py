@@ -102,7 +102,7 @@ def _scenario(name, n, tag, proto='axi4'):
         s.update(lat_mask=0x3F, interleave=1)
         m.update(id_mask=0, max_out=4)
     elif name == 'w_first':
-        # the slave takes AW only while WVALID is up (A3.3.1); a master that
+        # the slave takes AW only once write data is in sight (A3.3.1); a master that
         # holds W until AWREADY would deadlock here (bridge BUG-020)
         s.update(w_first=1, lat_mask=0x0F)
         m.update(data_throttle=6)
@@ -151,7 +151,7 @@ async def cocotb_test_axi_stress_clean(dut):
     assert tb.stats['w_beats'] == s['mwr']['beats'] == s['swr']['beats']
     if name == 'w_first':
         assert tb.stats['aw_hs_no_w'] == 0, \
-            f"w_first: {tb.stats['aw_hs_no_w']} AWs taken with no W beat offered"
+            f"w_first: {tb.stats['aw_hs_no_w']} AWs taken with no write data in sight"
         assert tb.stats['aw_wait_no_w'] > 0, 'w_first: no AW ever waited for its W'
     elif tb.PROTO not in JOINED:    # APB / Wishbone carry the address and data together
         assert tb.stats['aw_hs_no_w'] > 0, f'{name}: every AW came with a W beat (the gate is stuck on)'
