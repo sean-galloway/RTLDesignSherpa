@@ -75,17 +75,9 @@ REPO = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"],
 BASELINE = REPO / "bin" / "broken_links_baseline.json"
 
 
-# Third-party trees carried under vendor/ (PULP axi, common_cells, ...) keep
-# their upstream READMEs, which link to files of THEIR repos that are not
-# vendored here. They are not this repo's docs and nobody will repoint them;
-# scanning them put 155 permanent entries in the baseline (2026-10-23).
-SKIP_PREFIXES = ("vendor/",)
-
-
 def tracked_markdown() -> list[str]:
     out = subprocess.check_output(["git", "ls-files", "*.md"], text=True).split("\n")
-    return [f for f in out
-            if f and not f.startswith(SKIP_PREFIXES) and (REPO / f).is_file()]
+    return [f for f in out if f and (REPO / f).is_file()]
 
 
 def _head_tree() -> set[str]:
