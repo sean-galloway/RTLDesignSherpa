@@ -1,0 +1,41 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sat Oct 24 07:14:06 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_4x4_rw_matrix__xc7k325tffg900-2/utilization_hier.txt
+| Design       : bridge_4x4_rw_matrix
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++---------------------------+--------------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|          Instance         |                   Module                   | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++---------------------------+--------------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| bridge_4x4_rw_matrix      |                                      (top) |      48817 |      46771 |    2046 |    0 | 47209 |      0 |      0 |          0 |
+|   (bridge_4x4_rw_matrix)  |                                      (top) |          0 |          0 |       0 |    0 |     0 |      0 |      0 |          0 |
+|   (u_subtractive_adapter) |   bridge_4x4_rw_matrix_subtractive_adapter |        111 |        111 |       0 |    0 |    84 |      0 |      0 |          0 |
+|   u_cpu_master_adapter    |    bridge_4x4_rw_matrix_cpu_master_adapter |       9425 |       8751 |     674 |    0 |  9007 |      0 |      0 |          0 |
+|   u_ddr0_slave_adapter    |    bridge_4x4_rw_matrix_ddr0_slave_adapter |        702 |        702 |       0 |    0 |   636 |      0 |      0 |          0 |
+|   u_dma0_master_adapter   |   bridge_4x4_rw_matrix_dma0_master_adapter |       7698 |       7222 |     476 |    0 |  8934 |      0 |      0 |          0 |
+|   u_dma1_master_adapter   |   bridge_4x4_rw_matrix_dma1_master_adapter |       9475 |       8995 |     480 |    0 |  8985 |      0 |      0 |          0 |
+|   u_gpu_master_adapter    |    bridge_4x4_rw_matrix_gpu_master_adapter |      13283 |      12867 |     416 |    0 | 11342 |      0 |      0 |          0 |
+|   u_gpu_mem_slave_adapter | bridge_4x4_rw_matrix_gpu_mem_slave_adapter |       2043 |       2043 |       0 |    0 |  2268 |      0 |      0 |          0 |
+|   u_periph_slave_adapter  |  bridge_4x4_rw_matrix_periph_slave_adapter |        350 |        350 |       0 |    0 |   360 |      0 |      0 |          0 |
+|   u_sram_slave_adapter    |    bridge_4x4_rw_matrix_sram_slave_adapter |       1008 |       1008 |       0 |    0 |  1180 |      0 |      0 |          0 |
+|   u_subtractive           |                     axi4_subtractive_slave |         28 |         28 |       0 |    0 |    65 |      0 |      0 |          0 |
+|   u_xbar                  |                  bridge_4x4_rw_matrix_xbar |       4637 |       4637 |       0 |    0 |  4297 |      0 |      0 |          0 |
++---------------------------+--------------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+
