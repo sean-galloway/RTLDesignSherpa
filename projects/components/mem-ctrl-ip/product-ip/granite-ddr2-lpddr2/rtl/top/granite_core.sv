@@ -56,6 +56,7 @@ module granite_core
     //       the N x N age matrix (4 785 LUT at N = 8 in context, report 5.10).
     parameter int STORE_BACKEND  = 1,
     parameter int BANK_FIFO_DEPTH = 0,   // FIFO store queue depth per (direction, bank); 0 = NUM_ENTRIES (pool-only admission, the measured default)
+    parameter bit HEAD2_EN        = 1'b1,// FIFO store: 0 = one head record per bank (no pop-shadow record; measured trade, mc_bank_fifo_store)
     // LPDDR2 training plane (ZQ calibration, DQ calibration) built in. 1 =
     // the research default; a DDR2-only build sets 0 and the plane's generate
     // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
@@ -481,6 +482,7 @@ module granite_core
         mc_bank_fifo_store #(
             .NUM_ENTRIES        (NUM_ENTRIES),
             .BANK_FIFO_DEPTH    (BANK_FIFO_DEPTH),
+            .HEAD2_EN           (HEAD2_EN),
             .AXI_ID_WIDTH       (IW),
             .AXI_DATA_WIDTH     (DW),
             .NUM_RANKS          (NUM_RANKS),

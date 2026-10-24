@@ -27,8 +27,23 @@
 //          direction per cycle) and the result rides the queue position. The
 //          pick core reads the flag as "the entry behind this one shares its
 //          row" (mc_bank_pick, the speculation note), which for an in-order
-//          per-bank queue is exactly that bit. The only compares per cycle are
-//          the two heads' row hits against the scheduler's open-row image.
+//          per-bank queue is exactly that bit. The only row compares per
+//          cycle are the two HEADS' hits against the scheduler's open-row
+//          image (one per direction per bank).
+//
+//          The second record's hit is the stored bit too, not a compare. The
+//          pick core reads head2 only under its one-cycle pop shadow, i.e.
+//          the cycle after it fired the head as a column command; in that
+//          cycle the record it reads was formed while that column was firing,
+//          against a row image that showed the head's row open (a column
+//          fires only against a live-valid row the record classified as a
+//          hit). So "head2's row == the open row" is exactly "head2's row ==
+//          head's row", which is the same-as-previous bit of head2's queue
+//          position. Whether the column carried auto-precharge does not
+//          enter: the image the record was formed against predates it either
+//          way. Outside the shadow head2 is not read. The compare form cost
+//          a 14-bit 8:1 row mux plus a 14-bit compare per record, sixteen
+//          records; the stored form is one bit already there.
 //
 //          A commit or issue always names the HEAD of its bank queue: the pick
 //          core fires the head record, or in the one cycle after a pop (the
@@ -68,6 +83,10 @@ module mc_bank_fifo_store
 #(
     parameter int NUM_ENTRIES        = 8,   // descriptor slots per direction (the write-data buffer size)
     parameter int BANK_FIFO_DEPTH    = 0,   // per (direction, bank) queue depth; 0 = NUM_ENTRIES (pool-only admission)
+    parameter bit HEAD2_EN           = 1'b1,// 0 = one head record per bank: head2 outputs are constant 0, and the pick
+                                            //     core idles a pair for the cycle after each of its column fires (its
+                                            //     pop shadow has no second record to serve). A measured trade, not a
+                                            //     recommendation: it costs the one-column-per-cycle single-bank stream.
     parameter int AXI_ID_WIDTH       = 8,
     parameter int AXI_DATA_WIDTH     = 64,
     parameter int NUM_RANKS          = 1,
@@ -641,7 +660,8 @@ module mc_bank_fifo_store
             h2.behind_empty    = h2.vld && !(has2 && r_wr_fdone[s2]);
             h2.behind_same_row = h2.vld && has2 && r_wq_sp[b][qpos(r_wq_rd[b], 2)];
             h2.age_exceed      = r_wr_agex[s1];
-            h2.hit             = bank_row_active_i[b] && (r_wr_row[s1] == orow);
+            h2.hit             = has1 && r_wq_sp[b][qpos(r_wq_rd[b], 1)];  // == head.behind_same_row's bit (header)
+            if (!HEAD2_EN) h2 = '0;
             w_wr_head [b] = h;
             w_wr_head2[b] = h2;
         end
@@ -671,7 +691,8 @@ module mc_bank_fifo_store
             h2.behind_empty    = (int'(r_rq_cnt[b]) == 2);
             h2.behind_same_row = h2.vld && has2 && r_rq_sp[b][qpos(r_rq_rd[b], 2)];
             h2.age_exceed      = r_rd_agex[s1];
-            h2.hit             = bank_row_active_i[b] && (r_rd_row[s1] == orow);
+            h2.hit             = has1 && r_rq_sp[b][qpos(r_rq_rd[b], 1)];  // == head.behind_same_row's bit (header)
+            if (!HEAD2_EN) h2 = '0;
             w_rd_head [b] = h;
             w_rd_head2[b] = h2;
         end

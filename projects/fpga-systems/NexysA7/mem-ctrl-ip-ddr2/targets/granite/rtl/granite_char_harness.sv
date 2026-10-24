@@ -63,6 +63,7 @@ module granite_char_harness
     parameter int NUM_ENTRIES        = 8,
     parameter int STORE_BACKEND      = 1,
     parameter int BANK_FIFO_DEPTH    = 0,  // 0 = NUM_ENTRIES
+    parameter bit HEAD2_EN           = 1'b1,  // 0 = one head record per bank (FIFO store)
     parameter bit FIXED_TIMINGS      = 1'b0  // 1 = T_* constants replace the TIMINGS CSRs
 ) (
     input  logic                        aclk,
@@ -565,6 +566,7 @@ module granite_char_harness
         .HAS_LPDDR2        (HAS_LPDDR2),
         .STORE_BACKEND     (STORE_BACKEND),
         .BANK_FIFO_DEPTH   (BANK_FIFO_DEPTH),
+        .HEAD2_EN          (HEAD2_EN),
         .FIXED_TIMINGS     (FIXED_TIMINGS)
     ) u_dut (
         .mc_clk   (aclk),

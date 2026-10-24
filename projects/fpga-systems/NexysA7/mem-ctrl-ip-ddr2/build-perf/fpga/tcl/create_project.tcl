@@ -239,8 +239,9 @@ if {[info exists ::env(CHAR_NUM_GEN)] && $::env(CHAR_NUM_GEN) ne ""} {
 }
 # granite storage / timing knobs (report 5.10): GRANITE_FIXED_TIMINGS=1 builds
 # the T_* constants in place of the TIMINGS CSRs; GRANITE_NUM_ENTRIES and
-# GRANITE_BANK_FIFO_DEPTH size the FIFO store. Unset = the shipped build.
-foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH} {
+# GRANITE_BANK_FIFO_DEPTH size the FIFO store; GRANITE_HEAD2_EN=0 is the
+# one-record-per-bank variant. Unset = the shipped build.
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN} {
     if {[info exists ::env($knob)] && $::env($knob) ne ""} {
         lappend current_defines "$knob=$::env($knob)"
         puts "verilog_define: $knob=$::env($knob)"

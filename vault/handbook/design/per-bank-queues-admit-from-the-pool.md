@@ -55,7 +55,19 @@ that never finished.
   bit rides the position through the pack-on-pop. `mc_bank_pick` already
   reads the flag as "the entry behind this one shares its row", which for an
   in-order per-bank queue is exactly that bit. The only per-cycle compares
-  left are the two heads' row hits against the open-row image.
+  left are the heads' row hits against the open-row image.
+- The second record's hit is that stored bit too (pumice TASK-052). The
+  pick core reads head2 only under its pop shadow, the cycle after it fired
+  the head as a column; the record it reads was formed while that column
+  fired, against an image showing the head's row open, so "head2's row ==
+  the open row" is "head2's row == head's row": the pushed bit. The
+  general rule: a record consumed in exactly one known cycle may be derived
+  from what that cycle implies instead of computed for every cycle. Store
+  3 096 -> 2 627 LUT, cycle-identical on every cell.
+- One head record per bank was measured and is a no at BL4 x16: an 8-beat
+  burst is eight same-bank entries, so the pop shadow is the common case;
+  the single-bank stream halves (292 vs 568 MB/s) and eight threads lose 20
+  to 26 percent for 281 LUT. It is a knob (`HEAD2_EN`), default on.
 - The queues are circular (pop = pointer increment): the pick core always
   fires the head -- it reads the second record only in the one-cycle shadow
   after a pop -- so no pack-on-pop network is needed. The packed pool-deep

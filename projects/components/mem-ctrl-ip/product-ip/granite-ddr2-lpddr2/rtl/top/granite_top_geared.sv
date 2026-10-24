@@ -46,6 +46,7 @@ module granite_top_geared
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
+    parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
     parameter bit FIXED_TIMINGS  = 1'b0,  // 1 = T_* constants replace the TIMINGS CSRs (report 5.10 item 3)
     parameter int T_RCD  = 2,   parameter int T_RP  = 2,  parameter int T_RAS = 4,
     parameter int T_RC   = 5,   parameter int T_WR  = 4,  parameter int T_RTP = 2,
@@ -392,6 +393,7 @@ module granite_top_geared
         .HAS_LPDDR2       (HAS_LPDDR2),
         .STORE_BACKEND    (STORE_BACKEND),
         .BANK_FIFO_DEPTH  (BANK_FIFO_DEPTH),
+        .HEAD2_EN         (HEAD2_EN),
         .FIXED_TIMINGS    (FIXED_TIMINGS),
         .T_RCD (T_RCD), .T_RP (T_RP),   .T_RAS (T_RAS), .T_RC  (T_RC),  .T_WR  (T_WR),
         .T_RTP (T_RTP), .T_FAW (T_FAW), .T_RRD (T_RRD), .T_WTR (T_WTR), .T_RTW (T_RTW),

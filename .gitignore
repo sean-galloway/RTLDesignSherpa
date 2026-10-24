@@ -411,3 +411,4 @@ clockInfo.txt
 
 # mem-ctrl-ip scratch debug diagrams — local only, not committed.
 /projects/components/mem-ctrl-ip/debug/
+/projects/components/mem-ctrl-ip/research-ip/pumice-ddr2-lpddr2/debug/

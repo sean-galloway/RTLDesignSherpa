@@ -972,3 +972,59 @@ Confirmed load-bearing, not decorative: `mc_bank_sched` bypasses the head
 for the 2nd (`w_use_head2`, including 2nd's age) — the per-bank "in-order"
 core is really a 2-deep reorder window, and the candidate contract covers
 it naturally.
+
+### 17.3 Target: the pick moves into the storage plane (owner architecture, 2026-10-19)
+
+Owner: "The winner should be chosen with the CAM's/fifo. The scheduler can
+take that now or later." -- the resolution of the 0-stage-vs-pipe tension
+both prior cores each got half right:
+
+- **FRFCFS/CAM core**: registered vectors + multi-stage registered pick
+  pipe -> closes timing, but pays decide-to-fire latency (its own comments
+  price a ~4-cycle refill after a drop); the aged 0-stage core beat it on
+  col_ilv rd by 44% precisely by removing that pipe.
+- **Aged matrix core**: decide==fire in one cycle -> zero latency, but the
+  flat-16 pick reads sixteen per-bank snapshots in one cycle; at 100 MHz
+  the worst path was 8.4 ns logic + 37 ns ROUTE (WNS -35.6), phys-opt
+  having replicated the cone's LUTs into all sixteen bank clusters.
+
+Target contract: the storage plane computes its own winner (matrix moves
+next to the fifos; cone routes locally, floorplan-able or pipelined where
+latency hides); the boundary carries the WINNER record (registered
+snapshot: {vld, is_rd, bank, row, col, slot, id, age}) instead of sixteen
+candidate records; the scheduler consumes it NOW (comb fire-gate vs the
+live JEDEC state) or LATER (registered winner, next-cycle fire) -- its
+choice per timing budget. Storage holds the winner stable until the fire
+handshake pops it, so "later" costs no correctness; the internal pick runs
+continuously so back-to-back fires sustain 1 command/cycle. Hit
+classification stays sched-side (winner presented by age/order; sched
+decodes op against the open row it owns) -- one record, not sixteen. The
+OOO/CAM backend then becomes a drop-in by presenting the same winner
+record (its CAM pick internal) -- the swap-any-backend goal (SS17.1)
+becomes structural.
+
+Bridge from here (2026-10-19): build #2 floorplans the sixteen snapshots +
+flat pick core into one pblock (SLICE_X30Y85:X55Y120, pre-place hook
+tcl/pblock_pick.tcl) -- zero RTL change; keeps the 0-stage "now" mode at
+100 MHz if it closes. The winner-record contract supersedes it next round.
+
+## 18. Pumice baseline re-established; 100 MHz OOC evidence (2026-10-19)
+
+Owner ruling: granite (aged-matrix line) backed out -- revert commit
+e95d676a8 restores the pre-aged RTL (13691eefb^) across common-ip, the
+product/research wrappers and the char framework. Pumice becomes the
+reference architecture while the owner writes a detailed spec for the
+granite core.
+
+100 MHz out-of-context evidence (xc7a100tcsg324-1, synth-only, aclk=10ns,
+dfi_clk=5ns async, no I/O delays, no physopt -- /tmp/pumice_timing,
+subagent-run): pumice_core does NOT close as-is. WNS -12.502 ns on aclk
+(78 failing endpoints), WNS -3.264 on the 200 MHz dfi_clk (416).
+Utilization only 16.5 % LUT / 5.5 % FF. Worst aclk path sits inside
+mc_cmd_arbiter: r_wr_pop_reg[4][0] -> r_rd_act_q_reg[0], 31 levels,
+22.37 ns (route 17.86 ns) -- the FRFCFS core's own early-ACT-classify /
+wr-pop interaction, NOT aged-core debris (all reverted). The "pumice at
+100 MHz" history is Kintex-2 (Genesys2-era), not this A7 -1; on the A7
+the FRFCFS arbiter carries a ~22 ns comb path. The owner is writing the
+granite spec against the pumice architecture + flop-stage diagrams in
+research-ip/pumice-ddr2-lpddr2/debug/.

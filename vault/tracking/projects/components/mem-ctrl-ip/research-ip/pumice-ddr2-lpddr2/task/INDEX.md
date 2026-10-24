@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-052** — never recycle a number, even when its item closed.
+**Next ID: TASK-053** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 41 | done (kept for history) |
+| [closed/](closed/) | 42 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -48,6 +48,12 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-052** — CLOSED 2026-10-24: the FIFO store's second record takes
+  its hit from the stored same-row bit (the pick core reads head2 only under
+  its pop shadow, where that bit IS the compare); granite_core 6 634 ->
+  6 105 LUT, store 3 096 -> 2 627, +0.268 ns, every perf cell cycle-identical.
+  One head record per bank (`HEAD2_EN = 0`) measured: -281 LUT for -25 to
+  -50 percent bandwidth at BL4 x16 -- a knob, default on. Report 5.12.
 - **TASK-051** — CLOSED 2026-10-24: the pick core reads the command's row
   and column by slot from the backend's slot fields; the FIFO store's
   records carry no row / column. granite_core 7 403 -> 6 634 LUT, store

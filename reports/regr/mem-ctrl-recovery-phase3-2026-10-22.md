@@ -1043,6 +1043,74 @@ section were byte-identical to the default because the granite target's
 `create_project.tcl` had no `GRANITE_*` hook (the pumice target's did); the
 hook is in both now and rows 5 / 6 are from the rebuild.
 
+### 5.12 The second record's hit is a stored bit; one record per bank measured (2026-10-24, pumice TASK-052)
+
+Report 5.11 closed with two named trades: records without the slot-indexed
+age flag, or a single head record per bank. The measurement found a third,
+cheaper move first, and it is the one that landed.
+
+**What landed.** `mc_bank_fifo_store`'s second record (`head2`) takes its
+`hit` from the stored same-as-previous bit of its queue position instead of a
+row compare against the open-row image. The argument is the pick core's own
+contract: it reads head2 only under the one-cycle pop shadow, the cycle after
+it fired the head as a column command. The record it reads then was formed
+while that column was firing, against an image showing the head's row open
+(a column fires only against a live-valid row the record classified as a hit;
+a PRE in the cycle before clears row_valid, an ACT in the cycle before needs a
+closed bank whose record could not have been a hit). So "head2's row == the
+open row" is "head2's row == head's row", the bit pushed with head2.
+Auto-precharge on that column does not enter: the image predates it. Sixteen
+records lost a 14-bit 8:1 row mux and a 14-bit compare each; the head's hit
+keeps the compare, since the row it meets is set by whatever ran before it,
+including the other direction.
+
+**Area, granite board build (Nexys A7, 75 MHz, four injectors, LUT / FF):**
+
+| build | granite_core | store | sched plane (pick, timers) | WNS |
+|---|---|---|---|---|
+| 5.10 baseline (ca751b408) | 9 956 / 5 160 | 5 825 (+ records) | 2 031 (1 003, 698) | +0.106 ns |
+| 5.11 TASK-051 (payload by slot) | 6 634 / 4 580 | 3 096 / 2 090 | 1 671 (797, 522) | +0.194 ns |
+| **TASK-052, head2 hit from the stored bit (the committed text)** | **6 105 / 4 572** | 2 627 / 2 082 | 1 665 (769, 507) | +0.268 ns, 0 / 109 381 |
+| + `HEAD2_EN = 0`, one head record per bank | 5 824 / 4 452 | 2 207 / 1 962 | 1 802 (929, 501) | +0.195 ns, 0 / 109 145 |
+
+The product core is 39 percent under the 5.10 baseline at identical
+bandwidth.
+
+**Perf (granite proxy, board geometry, 75 MHz, wr / rd MB/s, mismatched 0
+everywhere; "identical" = the committed grid's number to the decimal with the
+same cycle counts):**
+
+| family | threads | stored-bit hit (committed) | one head record per bank |
+|---|---|---|---|
+| incremental / row_major / col_ilv / col_major | 1 | identical | 292.1 / 292.5, 288.7 / 287.7, 408.8 / 453.0, 212.4 / 231.7 |
+| incremental / row_major / col_ilv / col_major | 8 | identical | 410.7 / 445.5, 409.8 / 441.4, 392.5 / 425.8, 414.3 / 457.4 |
+| row_thrash, 8-beat bursts | 1 | 310.0 / 354.6 | 211.9 / 231.5 |
+| row_thrash, 2-beat bursts | 1 | identical (128.7 / 162.9, 2 386 / 1 886 cycles) | 116.6 / 142.4 |
+| random | 8 | identical (442.1 / 452.9) | 357.5 / 402.4 |
+| mixed (two threads per bank) | 8 | identical (98.1, 200 290 / 200 299 cycles) | 98.3, 199 914 / 199 909 cycles (flat: that family is turnaround-bound, not shadow-bound) |
+
+**One head record per bank is a no at this geometry**, and not a one-thread
+corner: at BL4 x16 an 8-beat AXI burst is eight same-bank entries, so the pop
+shadow is the common case. The variant halves the single-bank stream and
+loses 20 to 26 percent at eight threads for 281 LUT off the core (the pick
+core's attribution grew by 160 with a constant-zero second record). It stays
+a knob (`HEAD2_EN`, `GRANITE_HEAD2_EN`, `TEST_HEAD2_EN`) so the number can be
+retaken, default on.
+
+**The age flag was assessed, not taken.** Sixteen 16-bit timestamps, sixteen
+subtract-compares against `sched_age_thresh`, thirty-two 1-bit lookups: of
+the order of 250 FF and 200 LUT. It is the `SCHED_POLICY.order_mode =
+age_threshold` anti-starvation hook, a CSR-visible product feature, so a
+compile-out would be another default-on knob, worth a build if the owner wants
+the number.
+
+**Gates.** Contract battery 12 / 3 strict xfailed; granite suite 6 / 1
+xfailed on the FIFO store, with `HEAD2_EN = 0`, and on the entry store; lint
+of granite_core (default, `HEAD2_EN = 0`, `STORE_BACKEND = 0`, `NUM_ENTRIES =
+1`) and of the whole harness (default, `HEAD2_EN = 0`), 0 errors. Pumice does
+not instantiate the FIFO store and the plane and pick core are untouched.
+The board build's `mc_bank_fifo_store.sv` md5 equals the committed text.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

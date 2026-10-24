@@ -208,6 +208,9 @@ module granite_char_top #(
 `ifdef GRANITE_BANK_FIFO_DEPTH
         .BANK_FIFO_DEPTH    (`GRANITE_BANK_FIFO_DEPTH),
 `endif
+`ifdef GRANITE_HEAD2_EN
+        .HEAD2_EN           (`GRANITE_HEAD2_EN),
+`endif
 `ifdef GRANITE_RD_RET_DEPTH
         .RD_RET_DEPTH       (`GRANITE_RD_RET_DEPTH),
 `else

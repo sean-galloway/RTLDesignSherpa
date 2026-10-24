@@ -146,10 +146,11 @@ lappend current_defines "USE_ASYNC_RESET"
 lappend current_defines "DDR2_CHAR_SYNTH"
 # granite storage / timing knobs (mem-ctrl recovery Phase 3 report 5.10 / 5.11):
 # GRANITE_FIXED_TIMINGS=1 builds the T_* constants in place of the TIMINGS CSRs;
-# GRANITE_NUM_ENTRIES and GRANITE_BANK_FIFO_DEPTH size the FIFO store. Unset =
+# GRANITE_NUM_ENTRIES and GRANITE_BANK_FIFO_DEPTH size the FIFO store;
+# GRANITE_HEAD2_EN=0 is the one-record-per-bank variant. Unset =
 # the shipped build. (The 2026-10-23 B/C builds set these in the environment
 # before this block existed and came out byte-identical to the default.)
-foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH} {
+foreach knob {GRANITE_FIXED_TIMINGS GRANITE_NUM_ENTRIES GRANITE_BANK_FIFO_DEPTH GRANITE_HEAD2_EN} {
     if {[info exists ::env($knob)] && $::env($knob) ne ""} {
         lappend current_defines "$knob=$::env($knob)"
         puts "verilog_define: $knob=$::env($knob)"
