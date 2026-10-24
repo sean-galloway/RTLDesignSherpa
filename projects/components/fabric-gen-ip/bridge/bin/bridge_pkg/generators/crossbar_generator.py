@@ -1385,7 +1385,15 @@ class CrossbarGenerator:
         addr_sig = f"{master_name}_{suffix}_{channel}.addr"
         base = slave.base_addr
         end = slave.base_addr + slave.addr_range - 1
-        aw = slave.addr_width
+        # The decode compares the FABRIC address -- the channel struct's addr,
+        # sized to the widest port (bridge_module_generator's package
+        # addr_width) -- so its literals and its full-span shortcut take that
+        # width, not the slave's. A slave narrower than the fabric (an APB
+        # slave windowed to its offset) used to get its base sized to its own
+        # addr_width: 20'h30000000 does not elaborate, and with a 20-bit
+        # max_addr the end-of-space shortcut dropped the upper bound, so the
+        # slave would have claimed every address from its base up.
+        aw = max(p.addr_width for p in list(self.masters) + list(self.slaves))
         hex_digits = (aw + 3) // 4
         max_addr = (1 << aw) - 1
         # Verilator warns when comparisons are tautological for an

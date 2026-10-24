@@ -2,7 +2,7 @@
 
 # bridge — bugs
 
-**Next ID: BUG-026** — never recycle a number, even when its item closed.
+**Next ID: BUG-027** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 25 | done (kept for history) |
+| [closed/](closed/) | 26 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,6 +24,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-026** — a slave narrower than the fabric address was decoded on its own addr_width (`20'h30000000`; the upper bound dropped) — CLOSED 2026-10-23: decode sized to the fabric address width; generator unit test; 0 of 733 generated files changed
 - **BUG-025** — bridge_2x2_lite_req concurrent AXI4-Lite write timed out at SEED=65563 — RESOLVED 2026-10-22: `axil_to_axi4_wide_align_wr` overwrote a held B when the master was slow to take it; `m_axi_bready` now waits for the register; new unit test fails before, passes after
 
 - **BUG-024** — crossed-W deadlock between a CDC (lane) slave and a slot slave — RESOLVED 2026-10-22: per-path live-W counts toward lane slaves hold the master's other AWs; board 150/150 (reorder 3/3 on every build)

@@ -2996,3 +2996,72 @@ def test_id_remap_off_keeps_the_id(tmp_path):
             assert f"parameter SKID_DEPTH_{ch} = 0" in sv
     assert fl.exists(), f"no filelist at {fl}"
     assert "bridge_id_remap.f" not in fl.read_text()
+
+
+_NARROW_SLAVES_TOML = """
+[bridge]
+name = "bridge_narrow_slv"
+variants = ["no"]
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+protocol = "axi4"
+channels = "rw"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+[[bridge.slaves]]
+name = "pa"
+prefix = "pa_apb_"
+protocol = "apb"
+channels = "rw"
+id_width = 0
+addr_width = 20
+data_width = 32
+user_width = 1
+base_addr = "0x30000000"
+addr_range = "0x00100000"
+[[bridge.slaves]]
+name = "pb"
+prefix = "pb_apb_"
+protocol = "apb"
+channels = "rw"
+id_width = 0
+addr_width = 20
+data_width = 32
+user_width = 1
+base_addr = "0x40000000"
+addr_range = "0x00100000"
+"""
+
+
+def test_narrow_slave_decode_uses_the_fabric_address_width(tmp_path):
+    """A slave narrower than the fabric address (an APB slave seeing its
+    window offset) is still decoded on the 32-bit fabric address: both
+    bounds, in 32-bit literals. The decode used to take the SLAVE's
+    addr_width -- 20'h30000000 does not elaborate, and with a 20-bit
+    max address the upper bound was dropped as 'end of space', so the slave
+    would have claimed every address from its base up (found by the Genesys 2
+    bridge stress model's bridge_bs_mixed_b, bridge TASK-019)."""
+    toml = tmp_path / "bridge_narrow_slv.toml"
+    toml.write_text(_NARROW_SLAVES_TOML)
+    conn = tmp_path / "bridge_narrow_slv_connectivity.csv"
+    conn.write_text("master\\slave,pa,pb\ncpu,1,1\n")
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run(
+        [sys.executable, str(BIN_DIR / "bridge_generator.py"),
+         "--ports", str(toml), "--connectivity", str(conn),
+         "--name", "bridge_narrow_slv", "--output-dir", str(tmp_path / "out")],
+        cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300,
+    )
+    assert r.returncode == 0, f"generator failed:\n{r.stdout}\n{r.stderr}"
+    text = (tmp_path / "out" / "bridge_narrow_slv" / "bridge_narrow_slv_xbar.sv").read_text()
+    assert "20'h" not in text, "a decode literal is sized to the slave's 20-bit address"
+    for base, end in (("30000000", "300fffff"), ("40000000", "400fffff")):
+        want = f"(cpu_32b_aw.addr >= 32'h{base}) && (cpu_32b_aw.addr <= 32'h{end})"
+        assert want in text, (
+            f"slave at 0x{base}: decode lacks its full 32-bit range {want!r}")
