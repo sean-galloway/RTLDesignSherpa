@@ -91,7 +91,19 @@ module axi_perf_latency_hist #(
     // blocks at MAX_TRANSACTIONS across all channels, while this FIFO is
     // MAX_OUTSTANDING PER CHANNEL, so a single channel can be inside the
     // table's limit and past this one.
-    output logic                 o_cmd_block
+    //
+    // o_cmd_block says a command WOULD be lost; it is high whenever a channel
+    // sits at its limit, command or not, so it is a hold-off signal and not a
+    // loss count. A consumer that wants to know a sample WAS lost uses
+    // o_sample_lost.
+    output logic                 o_cmd_block,
+
+    // One-cycle pulse: a command handshook on a full channel inside the
+    // measurement window (not frozen) and was not timestamped. This is the loss itself, so a sticky built on it reads
+    // clear for a channel that only fills to its limit (a one-channel master
+    // running exactly MAX_OUTSTANDING deep sets o_cmd_block on every cycle it
+    // is full while losing nothing).
+    output logic                 o_sample_lost
 );
 
     // =========================================================================
@@ -178,16 +190,28 @@ module axi_perf_latency_hist #(
                                    : w_resp_hs;
 
     // FIFO push/pop qualifiers.
-    logic w_push, w_pop;
-    assign w_push = w_cmd_hs  && (r_cnt[w_ch_cmd]  <  PW1'(MAX_OUTSTANDING));
-    assign w_pop  = w_done_hs && w_done_last && (r_cnt[w_ch_done] != '0);
+    //
+    // A channel is full for an incoming command only if no completion on the
+    // SAME channel retires this cycle: that pop frees the head slot, and the
+    // push may take the tail slot in the same cycle (the head's timestamp is
+    // read combinationally, before the write lands). w_push, o_cmd_block and
+    // o_sample_lost all use this one condition. Before 2026-10-23 w_push
+    // checked r_cnt < MAX_OUTSTANDING alone, so a command meeting a same-channel
+    // pop at a full FIFO was dropped -- untimestamped, uncounted, its completion
+    // later popping another command's timestamp -- while o_cmd_block (which did
+    // credit the pop) said it was not blocked.
+    logic w_pop, w_full_ch, w_push;
+    assign w_pop     = w_done_hs && w_done_last && (r_cnt[w_ch_done] != '0);
+    assign w_full_ch = (r_cnt[w_ch_cmd] >= PW1'(MAX_OUTSTANDING)) &&
+                       !(w_pop && (w_ch_done == w_ch_cmd));
+    assign w_push    = w_cmd_hs && !w_full_ch;
 
-    // Same condition w_push is qualified on, exported so the command channel
-    // can be held off instead of losing the sample. A pop retiring this cycle
-    // frees the slot the incoming command would take, so it is not a block --
-    // matching w_push, which would succeed on the same cycle.
-    assign o_cmd_block = (r_cnt[w_ch_cmd] >= PW1'(MAX_OUTSTANDING)) &&
-                         !(w_pop && (w_ch_done == w_ch_cmd));
+    // Exported so the command channel can be held off instead of losing the
+    // sample, and so a loss is counted where it happens.
+    assign o_cmd_block   = w_full_ch;
+    // Only inside the window: while i_freeze holds, no command is recorded at
+    // all, so one arriving at a full channel then is not a lost sample.
+    assign o_sample_lost = w_cmd_hs && w_full_ch && !i_freeze;
 
     // Completion event this cycle (FIFO non-empty) + its metric flags.
     //   m0 = first R beat (reads) / B response (writes)

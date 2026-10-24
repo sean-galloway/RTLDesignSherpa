@@ -122,7 +122,8 @@ Average latency hides the distribution that actually matters for QoS analysis â€
 | i_hist_bin | input | BINW | Bin index to read |
 | o_hist_count | output | CNT_W | Selected bin's count for the selected metric |
 | o_hist_total | output | CNT_W | Selected metric's total transaction count |
-| o_cmd_block | output | 1 | High while the addressed channel's timestamp FIFO is full. AND this into the command-channel ready (it is combinational in cmd_id). Without it the module degrades SILENTLY: a command that handshakes at a full channel is never timestamped, is missing from o_hist_total, and its completion later pops some OTHER command's timestamp -- surviving latencies are misattributed as well as undercounted |
+| o_cmd_block | output | 1 | High while the addressed channel's timestamp FIFO is full and no completion on the same channel retires this cycle. AND this into the command-channel ready (it is combinational in cmd_id). Without it the module degrades SILENTLY: a command that handshakes at a full channel is never timestamped, is missing from o_hist_total, and its completion later pops some OTHER command's timestamp -- surviving latencies are misattributed as well as undercounted. It is a would-block signal, high whenever a channel sits at its limit, so it is not a loss count |
+| o_sample_lost | output | 1 | One-cycle pulse: a command handshook on a full channel inside the window (not `i_freeze`) and was not timestamped. The loss itself -- build a "sample lost" sticky on this, not on `o_cmd_block` |
 
 ---
 
@@ -140,7 +141,11 @@ subtracts them, bins the latency by log2, and increments that bin and the
 metric's total. Reads track two metrics (first R beat and RLAST) and writes
 one (B). Readout is a combinational select by metric and bin. When a
 channel's FIFO is full, `o_cmd_block` lets the caller hold commands instead
-of losing the sample.
+of losing the sample, and `o_sample_lost` pulses for each one that was lost
+anyway. A completion retiring on the same channel in the cycle a command
+arrives frees the slot that command takes, so a full FIFO with a same-cycle
+pop records the command (until 2026-10-23 it was dropped, while
+`o_cmd_block` said it was not blocked).
 
 ### Metrics
 
@@ -185,7 +190,8 @@ Readout is a combinational mux: `o_hist_count` returns `r_hist[metric][bin]` for
 **Sizing MAX_OUTSTANDING is a correctness requirement, not a tuning note.** If a
 channel's FIFO can fill under real traffic, either wire `o_cmd_block` into the
 command ready path or size `MAX_OUTSTANDING` to the true per-channel outstanding
-depth -- otherwise the histogram silently undercounts and misattributes.
+depth -- otherwise the histogram undercounts and misattributes, and only
+`o_sample_lost` says so.
 
 ---
 
@@ -239,7 +245,11 @@ axi_perf_latency_hist #(
     .i_hist_metric  (csr_metric),   // 0 = AR->first-R, 1 = AR->RLAST
     .i_hist_bin     (csr_bin),
     .o_hist_count   (csr_bin_count),
-    .o_hist_total   (csr_metric_total)
+    .o_hist_total   (csr_metric_total),
+
+    // Loss reporting
+    .o_cmd_block    (),             // or AND into the command ready to hold off
+    .o_sample_lost  (hist_lost)     // pulse per lost sample -> a sticky CSR bit
 );
 
 // Write build: set IS_READ=0, wire AW to cmd_* and B to resp_*, leave data_* tied off.
@@ -259,7 +269,7 @@ Only histogram accumulation freezes on `i_freeze`; `r_time` keeps counting so a 
 
 ### FIFO Depth vs Outstanding
 
-`MAX_OUTSTANDING` bounds the per-channel timestamp FIFO. A command handshake only pushes when the channel FIFO is not full, and a completion only pops when the FIFO is non-empty, so an over-run on one channel cannot corrupt another. Size `MAX_OUTSTANDING` to the real per-channel outstanding depth of the bus.
+`MAX_OUTSTANDING` bounds the per-channel timestamp FIFO. A command handshake only pushes when the channel FIFO has room -- counting a slot freed by a same-channel completion in that cycle -- and a completion only pops when the FIFO is non-empty, so an over-run on one channel cannot corrupt another. Size `MAX_OUTSTANDING` to the real per-channel outstanding depth of the bus.
 
 ### Pipeline Drain Before Readback
 

@@ -16,13 +16,14 @@ and can be off by up to a factor of 1.5. It separates fabrics whose latency
 differs by 2x, not by a few cycles; the exact zero-load cycle counts come from
 sim.
 
-sample_lost is the observer's HIST_SAMPLE_LOST sticky, reported but not
-trusted: it is meant to say a timestamp FIFO was full when a command arrived,
-but it sets on axi_perf_latency_hist's o_cmd_block, which is "the FIFO for
-the channel on cmd_id is full" with no command qualifier. A one-channel STREAM
-run fills channel 0's FIFO to exactly its outstanding limit and sets it with
-nothing lost (bins and totals exact on the board, 2026-10-23). The columns are
-left empty only when a histogram's bins do not sum to its total.
+sample_lost is the observer's HIST_SAMPLE_LOST sticky: a command handshook
+into a full timestamp FIFO and was not recorded, so the histogram undercounts.
+Until 2026-10-23 the observer set it on axi_perf_latency_hist's o_cmd_block
+("this channel's FIFO is full", no command qualifier), and a one-channel STREAM
+run -- channel 0 at exactly its outstanding limit -- read it set with nothing
+lost. It now sets on o_sample_lost, the loss itself; bitstreams built before
+that fix still report the old meaning. The columns are left empty only when a
+histogram's bins do not sum to its total.
 """
 import fb_map
 

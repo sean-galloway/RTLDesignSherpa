@@ -1881,6 +1881,7 @@ module stream_core #(
                 .aresetn      (rst_n),
                 // Backpressure request; not consumed here.
                 .o_cmd_block  (),
+                .o_sample_lost(),
                 .i_clear      (w_perf_clear),
                 .i_freeze     (~r_perf_win_active),
                 .cmd_valid    (m_axi_rd_arvalid),
@@ -1910,6 +1911,7 @@ module stream_core #(
                 .aresetn      (rst_n),
                 // Backpressure request; not consumed here.
                 .o_cmd_block  (),
+                .o_sample_lost(),
                 .i_clear      (w_perf_clear),
                 .i_freeze     (~r_perf_win_active),
                 .cmd_valid    (m_axi_wr_awvalid),

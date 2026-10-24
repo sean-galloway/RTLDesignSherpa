@@ -406,11 +406,14 @@ async def latency_hist_overflow_test(dut):
     over = 4
     n_cmd = depth + over
     blocked_seen = 0
+    lost_seen = 0
     for _ in range(n_cmd):
-        if hasattr(dut, 'o_cmd_block'):
-            dut.cmd_id.value = 0
-            await Timer(1, 'ns')
-            blocked_seen += int(dut.o_cmd_block.value)
+        dut.cmd_id.value = 0
+        dut.cmd_valid.value = 1
+        dut.cmd_ready.value = 1
+        await Timer(1, 'ns')
+        blocked_seen += int(dut.o_cmd_block.value)
+        lost_seen += int(dut.o_sample_lost.value)
         await tb.cmd(0)
 
     # Complete every one of them.
@@ -434,12 +437,129 @@ async def latency_hist_overflow_test(dut):
 
     # And it must SAY so. Without o_cmd_block the shortfall is invisible: the
     # totals just read low and nothing distinguishes that from less traffic.
-    if hasattr(dut, 'o_cmd_block'):
-        assert blocked_seen >= over, (
-            f"o_cmd_block asserted for only {blocked_seen} of the {over} "
-            f"commands that could not be recorded ({n_cmd} driven into "
-            f"{depth} slots). A consumer polling this signal would not learn "
-            "that its histogram totals undercount.")
+    assert blocked_seen >= over, (
+        f"o_cmd_block asserted for only {blocked_seen} of the {over} "
+        f"commands that could not be recorded ({n_cmd} driven into "
+        f"{depth} slots). A consumer polling this signal would not learn "
+        "that its histogram totals undercount.")
+    # o_sample_lost counts the loss itself: one pulse per command that
+    # handshook into a full channel, no more and no fewer.
+    assert lost_seen == over, (
+        f"o_sample_lost pulsed {lost_seen} times for {over} lost commands "
+        f"({n_cmd} into {depth} slots, {total} counted)")
+    assert total == depth, f"expected {depth} counted (one per slot), got {total}"
+
+
+@cocotb.test(timeout_time=200, timeout_unit='us')
+async def latency_hist_full_is_not_loss_test(dut):
+    """A channel held AT its limit loses nothing, and must not say it did.
+
+    A one-channel master running exactly MAX_OUTSTANDING deep sits at a full
+    timestamp FIFO for most of a run. o_cmd_block is high the whole time --
+    it is a would-block signal -- and an observer sticky built on it reported
+    HIST_SAMPLE_LOST on runs whose bins and totals were exact (Genesys 2
+    fabric benchmark, 2026-10-23). o_sample_lost must stay low until a command
+    actually handshakes into the full channel, and stay low when cmd_valid
+    rises without cmd_ready (no handshake, nothing to record).
+    """
+    tb = AxiPerfLatencyHistTB(dut)
+    depth = int(os.environ.get('MAX_OUTSTANDING', '8'))
+    await tb.setup_clocks_and_reset()
+    await tb.open_window()
+    for _ in range(depth):
+        await tb.cmd(0)
+    block_cycles = lost = 0
+    dut.cmd_id.value = 0
+    for cyc in range(20):
+        # Idle at the limit, then a command offered but not accepted.
+        dut.cmd_valid.value = int(cyc >= 10)
+        dut.cmd_ready.value = 0
+        await Timer(1, 'ns')
+        block_cycles += int(dut.o_cmd_block.value)
+        lost += int(dut.o_sample_lost.value)
+        await RisingEdge(dut.aclk)
+    dut.cmd_valid.value = 0
+    assert block_cycles == 20, (
+        f"o_cmd_block high on {block_cycles}/20 cycles at a full channel; "
+        "the would-block signal should be steady")
+    assert lost == 0, (
+        f"o_sample_lost pulsed {lost} times with no command handshake -- a "
+        "full channel is not a lost sample")
+    for _ in range(depth):
+        if tb.is_read:
+            await tb.rbeat(0, last=1)
+        else:
+            await tb.bresp(0)
+        await tb.idle(2)
+    await tb.idle(8)
+    total = await tb.read_total(0)
+    assert total == depth, f"all {depth} recorded, got {total}"
+
+
+@cocotb.test(timeout_time=200, timeout_unit='us')
+async def latency_hist_full_push_with_pop_test(dut):
+    """A command meeting a same-channel completion at a full FIFO is kept.
+
+    The completion frees the head slot in the cycle the command takes the
+    tail. Before 2026-10-23 w_push checked r_cnt < MAX_OUTSTANDING alone and
+    dropped that command -- uncounted, its completion later popping another
+    command's timestamp -- while o_cmd_block, which did credit the pop, said
+    it was not blocked. Every command here must be counted, none reported
+    lost, and the latencies must land where their own timestamps put them.
+    """
+    tb = AxiPerfLatencyHistTB(dut)
+    depth = int(os.environ.get('MAX_OUTSTANDING', '8'))
+    await tb.setup_clocks_and_reset()
+    await tb.open_window()
+    # Fill the channel, wait so the oldest commands are measurably old.
+    for _ in range(depth):
+        await tb.cmd(0)
+    await tb.idle(40)
+    # depth rounds of: command AND completion on channel 0 in the same cycle.
+    lost = blocked = 0
+    for _ in range(depth):
+        dut.cmd_id.value = 0
+        dut.cmd_valid.value = 1
+        dut.cmd_ready.value = 1
+        if tb.is_read:
+            dut.data_id.value = 0
+            dut.data_last.value = 1
+            dut.data_valid.value = 1
+            dut.data_ready.value = 1
+        else:
+            dut.resp_id.value = 0
+            dut.resp_valid.value = 1
+            dut.resp_ready.value = 1
+        await Timer(1, 'ns')
+        blocked += int(dut.o_cmd_block.value)
+        lost += int(dut.o_sample_lost.value)
+        await RisingEdge(dut.aclk)
+        for sig in ('cmd_valid', 'cmd_ready', 'data_valid', 'data_ready',
+                    'data_last', 'resp_valid', 'resp_ready'):
+            getattr(dut, sig).value = 0
+        await tb.idle(3)
+    # Drain the depth commands pushed during the rounds.
+    await tb.idle(40)
+    for _ in range(depth):
+        if tb.is_read:
+            await tb.rbeat(0, last=1)
+        else:
+            await tb.bresp(0)
+        await tb.idle(2)
+    await tb.idle(8)
+    total = await tb.read_total(0)
+    tb.log.info(f"full+pop: depth={depth} counted={total} blocked={blocked} lost={lost}")
+    assert blocked == 0, f"o_cmd_block high on {blocked} full+pop cycles; the pop frees a slot"
+    assert lost == 0, f"o_sample_lost pulsed {lost} times, but nothing was lost"
+    assert total == 2 * depth, (
+        f"{2 * depth} commands, each with its own completion, but only {total} "
+        "counted: a command that met a same-channel pop at a full FIFO was dropped")
+    # Attribution: the first wave waited >= 40 idle cycles, the second wave
+    # >= 40 + its own drain position; nothing may land below bin 5 (32..63).
+    bins = await tb.dump_hist(0)
+    assert sum(bins[:5]) == 0, (
+        f"latencies under 32 cycles recorded ({bins}): a timestamp was "
+        "misattributed to a later command")
 
 
 @cocotb.test(timeout_time=200, timeout_unit='us')

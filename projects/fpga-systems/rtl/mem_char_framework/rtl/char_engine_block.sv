@@ -676,6 +676,7 @@ module char_engine_block
         .aresetn    (mc_rst_n),
         // Backpressure request; not consumed here.
         .o_cmd_block  (),
+        .o_sample_lost(),
         .i_clear    (perf_clear),
         .i_freeze   (perf_freeze),
         .cmd_valid  (wr_awvalid),
@@ -707,6 +708,7 @@ module char_engine_block
         .aresetn    (mc_rst_n),
         // Backpressure request; not consumed here.
         .o_cmd_block  (),
+        .o_sample_lost(),
         .i_clear    (perf_clear),
         .i_freeze   (perf_freeze),
         .cmd_valid  (rd_arvalid),

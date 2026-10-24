@@ -2,7 +2,7 @@
 
 # amba — bugs
 
-**Next ID: BUG-041** — never recycle a number, even when its item closed.
+**Next ID: BUG-042** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 40 | done (kept for history) |
+| [closed/](closed/) | 41 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,6 +24,10 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-041** — latency histogram: HIST_SAMPLE_LOST set on a merely-full FIFO,
+  and a full FIFO with a same-cycle pop dropped its command — CLOSED
+  2026-10-23: one full condition drives w_push, o_cmd_block and a new
+  o_sample_lost; the observers' sticky uses o_sample_lost.
 - **BUG-040** — BUG-039's consumer test fails at HEAD: 2 of 800 events
   unaccounted — CLOSED 2026-10-16: NOT an observation-path defect. The
   FUB-side tap move (6c0bc51f7) exposed a stimulus bug: the TB modelled the

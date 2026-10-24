@@ -1487,15 +1487,20 @@ module axi4_intf_master_observer
     //   (the arm-gap fix); an observer-based harness drives them the same way.
     //   ENABLE_LATENCY_HIST=0 skips instantiation and ties outputs to 0.
     // =================================================================
-    logic [NUM_RD_PORTS-1:0] rd_hist_block;
-    logic [NUM_WR_PORTS-1:0] wr_hist_block;
+    // Per-port loss pulses (axi_perf_latency_hist o_sample_lost): a command
+    // handshook in the window on a channel whose timestamp FIFO was full.
+    // Not o_cmd_block, which is high whenever a channel sits at its limit
+    // and so set this sticky on runs that lost nothing (a one-channel
+    // master at exactly HIST_MAX_OUTSTANDING deep).
+    logic [NUM_RD_PORTS-1:0] rd_hist_lost;
+    logic [NUM_WR_PORTS-1:0] wr_hist_lost;
 
     // Sticky across the whole measurement window; cleared with the meters so a
     // fresh window starts trustworthy.
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn))      o_hist_sample_lost <= 1'b0;
         else if (i_meter_clear)          o_hist_sample_lost <= 1'b0;
-        else if (|rd_hist_block | |wr_hist_block)
+        else if (|rd_hist_lost | |wr_hist_lost)
                                          o_hist_sample_lost <= 1'b1;
     )
 
@@ -1546,7 +1551,8 @@ module axi4_intf_master_observer
                     .i_hist_bin      (w_hist_bin_sel),
                     .o_hist_count (rd_hist_count[hi]),
                     .o_hist_total (rd_hist_total[hi]),
-                    .o_cmd_block  (rd_hist_block[hi])
+                    .o_cmd_block  (),
+                    .o_sample_lost(rd_hist_lost[hi])
                 );
             end
             // ---------- Write-side histograms (AW->B) ----------
@@ -1576,19 +1582,20 @@ module axi4_intf_master_observer
                     .i_hist_bin      (w_hist_bin_sel),
                     .o_hist_count (wr_hist_count[hi]),
                     .o_hist_total (wr_hist_total[hi]),
-                    .o_cmd_block  (wr_hist_block[hi])
+                    .o_cmd_block  (),
+                    .o_sample_lost(wr_hist_lost[hi])
                 );
             end
         end else begin : gen_no_hist
             for (hi = 0; hi < NUM_RD_PORTS; hi = hi + 1) begin : gen_rd_hist_tie
                 assign rd_hist_count[hi] = '0;
                 assign rd_hist_total[hi] = '0;
-                assign rd_hist_block[hi] = 1'b0;   // no histogram -> nothing to protect
+                assign rd_hist_lost[hi]  = 1'b0;   // no histogram -> nothing to lose
             end
             for (hi = 0; hi < NUM_WR_PORTS; hi = hi + 1) begin : gen_wr_hist_tie
                 assign wr_hist_count[hi] = '0;
                 assign wr_hist_total[hi] = '0;
-                assign wr_hist_block[hi] = 1'b0;   // no histogram -> nothing to protect
+                assign wr_hist_lost[hi]  = 1'b0;   // no histogram -> nothing to lose
             end
         end
     endgenerate

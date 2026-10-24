@@ -673,6 +673,81 @@ def _types_since(tb, n0):
 
 
 @cocotb.test(timeout_time=200, timeout_unit="us")
+async def cocotb_test_observer_hist_sample_lost(dut):
+    """OBS_STICKY.HIST_SAMPLE_LOST means a sample was LOST, not that a FIFO filled.
+
+    The sticky used to set on the latency histogram's o_cmd_block, which is
+    high whenever a channel's timestamp FIFO sits at its limit. A one-channel
+    master running exactly HIST_MAX_OUTSTANDING deep keeps it there with
+    nothing lost, and the Genesys 2 fabric benchmark read the flag set on
+    one-channel runs whose bins and totals were exact (2026-10-23). It is now
+    set only by a command that handshakes into a full channel.
+
+    Phase 1 fills one channel to exactly the limit, holds it there, then
+    completes everything: the flag must stay clear and the AR->RLAST total
+    must equal the bursts driven. Phase 2 overruns the channel by two: the
+    flag must set.
+    """
+    tb = AXI4IntfObserverTB(dut)
+    await tb.setup_clocks_and_reset()
+    await tb.start_egress_sink()
+    d = dut
+    depth = 8                                   # HIST_MAX_OUTSTANDING default
+    sticky_lost = lambda v: v & 0x1
+
+    async def ars(n):
+        d.obs_rd_arid.value = 0; d.obs_rd_arlen.value = 0
+        d.obs_rd_arsize.value = 3; d.obs_rd_arburst.value = 1
+        for i in range(n):
+            d.obs_rd_araddr.value = 0x1000 + i * 0x40
+            d.obs_rd_arvalid.value = 1
+            await RisingEdge(d.aclk)
+        d.obs_rd_arvalid.value = 0
+
+    async def rs(n):
+        d.obs_rd_rready.value = 1
+        for i in range(n):
+            d.obs_rd_rid.value = 0; d.obs_rd_rdata.value = 0xA5A5_0000 + i
+            d.obs_rd_rresp.value = 0; d.obs_rd_rlast.value = 1
+            d.obs_rd_rvalid.value = 1
+            await RisingEdge(d.aclk)
+        d.obs_rd_rvalid.value = 0; d.obs_rd_rlast.value = 0
+        await RisingEdge(d.aclk)                # last beat's core-side handshake
+        d.obs_rd_rready.value = 0
+
+    async def rd_total():
+        # OBS_STAT_SEL: METRIC[23:16] = 10 (histogram total), HIST_METRIC[31] = 1
+        # (AR->RLAST), read side, tap 0.
+        await tb.write_reg("OBS_STAT_SEL", (10 << 16) | (1 << 31))
+        return await tb.read_reg("OBS_STAT_DATA")
+
+    assert not sticky_lost(await tb.read_reg("OBS_STICKY")), "sticky set out of reset"
+
+    # Phase 1: exactly at the limit, held there, nothing lost.
+    await ars(depth)
+    await tb.wait_clocks("aclk", 40)            # o_cmd_block high throughout
+    await rs(depth)
+    await tb.wait_clocks("aclk", 20)
+    st, total = await tb.read_reg("OBS_STICKY"), await rd_total()
+    tb.log.info(f"at the limit: OBS_STICKY=0x{st:X} AR->RLAST total={total}")
+    assert total == depth, f"{depth} bursts at the limit, histogram counted {total}"
+    assert not sticky_lost(st), (
+        f"HIST_SAMPLE_LOST set with every one of {depth} bursts counted -- a "
+        "channel at its limit is not a lost sample")
+
+    # Phase 2: two past the limit; those two are lost and the flag must say so.
+    await ars(depth + 2)
+    await tb.wait_clocks("aclk", 5)
+    await rs(depth + 2)
+    await tb.wait_clocks("aclk", 20)
+    st = await tb.read_reg("OBS_STICKY")
+    tb.log.info(f"past the limit: OBS_STICKY=0x{st:X}")
+    assert sticky_lost(st), (
+        f"{depth + 2} bursts into {depth} timestamp slots and HIST_SAMPLE_LOST "
+        "is clear -- the histogram undercounts and nothing says so")
+
+
+@cocotb.test(timeout_time=200, timeout_unit="us")
 async def cocotb_test_observer_reset_reissue(dut):
     """TASK-084: does a scenario still emit after an earlier one has run?
 
@@ -1036,4 +1111,20 @@ def test_axi4_intf_slave_observer_reset_reissue(request, test_level):
     """TASK-084: SLAVE observer still emits after a mid-run reset."""
     _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS_ALL),
                   testcase="cocotb_test_observer_reset_reissue",
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_master_observer_hist_sample_lost(request, test_level):
+    """HIST_SAMPLE_LOST: clear at exactly the FIFO limit, set past it (MASTER)."""
+    _run_observer(request, 'axi4_intf_master_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_hist_sample_lost",
+                  test_level=test_level)
+
+
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_axi4_intf_slave_observer_hist_sample_lost(request, test_level):
+    """HIST_SAMPLE_LOST: clear at exactly the FIFO limit, set past it (SLAVE)."""
+    _run_observer(request, 'axi4_intf_slave_observer', dict(_PARAMS),
+                  testcase="cocotb_test_observer_hist_sample_lost",
                   test_level=test_level)
