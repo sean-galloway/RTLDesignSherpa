@@ -3,8 +3,8 @@
 #
 # The ONE compile closure for this build: `make lint` flattens it, the Vivado
 # create_project.tcl expands it (dropping the verilator-only stubs).
-# Roots: $REPO_ROOT, $CONVERTERS_ROOT, $GATLING_ROOT (and $KESTREL_ROOT, which
-# gatling's core filelist uses for the fubs it shares with kestrel).
+# Roots: $REPO_ROOT, $CONVERTERS_ROOT, $GATLING_ROOT (and $RV32I_COMMON_ROOT, which
+# gatling's core filelist uses for the ISA fubs it shares with kestrel).
 
 +incdir+$REPO_ROOT/rtl/amba/includes
 

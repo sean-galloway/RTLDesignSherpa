@@ -4,8 +4,8 @@
 # reset_defs.svh -- ALWAYS_FF_RST/RST_ASSERTED macros.
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
-# Package (XLEN, ALU op and immediate-select enums, halt causes)
--f $KESTREL_ROOT/rtl/filelists/kestrel_pkg.f
+# Package (XLEN, ALU op and immediate-select enums, halt causes; common-rv32i)
+-f $RV32I_COMMON_ROOT/rtl/filelists/rv32i_pkg.f
 
 # Register file module
 $KESTREL_ROOT/rtl/fub/kestrel_regfile.sv

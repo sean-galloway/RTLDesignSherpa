@@ -36,7 +36,7 @@ pairs only; enables the §7 growth item (deep-pipelining the multiplier /
 FMA rows with the adder's `PIPE_STAGE_*` pattern). **Tetrad-engine
 deferral / gatling ruling 2026-10-19** (§5) — the per-tetrad core is
 defined after the cell is fully defined and working; the owner-authored
-gatling-rv32itetrad barrel-core PRD is the **selected sequencer** for its
+gatling-rv32i barrel-core PRD is the **selected sequencer** for its
 tetrad (kestrel is not a candidate: it stays the simple standalone single-cycle rung and never issues alu-infer, owner 2026-10-20). **Port-width correction** — operand ports stay `LINE_W` each
 (one line per side, both captured in the same clock); the earlier
 "widening" was a line-vs-lane mis-count. **Owner accept-and-defer** — M7
@@ -246,7 +246,7 @@ Invariants:
 ## 5. Control interface — gatling issues the ALU; in-band everything
 
 **Owner ruling 2026-10-19:** gatling sequences the four ALUs of its
-adjacent cells. The [`gatling-rv32itetrad`](../../riscv-ip/gatling-rv32itetrad/PRD.md)
+adjacent cells. The [`gatling-rv32i`](../../riscv-ip/gatling-rv32i/PRD.md)
 barrel RV32I core runs one context per cell; a context's program presents
 operands to the cell's alu-infer issue handshake and retires result lines
 (Xcell POP/PUSH, gatling PRD §3). The program is the schedule. The ALU
@@ -365,7 +365,7 @@ and the cell-PRD items.
 - [`cell/docs/PRD.md`](../cell/docs/PRD.md) — the cell around the ALU
   (memories, issue seam, packetizer, credits; reconciled to this PRD
   2026-10-17).
-- [`gatling-rv32itetrad/`](../../riscv-ip/gatling-rv32itetrad/PRD.md) — the
+- [`gatling-rv32i/`](../../riscv-ip/gatling-rv32i/PRD.md) — the
   tetrad barrel core that issues the ALU (§5).
 - [`tile/docs/TILE_SPEC.md`](../tile/docs/TILE_SPEC.md) §11 — packet,
   credit/grant, and coordinate protocols the cell (not the ALU) answers to;
@@ -378,7 +378,7 @@ and the cell-PRD items.
 
 - [`cell/docs/PRD.md`](../cell/docs/PRD.md) — the cell around the ALU
   (normative for everything except the ALU block, which this PRD owns).
-- [`gatling-rv32itetrad` PRD](../../riscv-ip/gatling-rv32itetrad/PRD.md) —
+- [`gatling-rv32i` PRD](../../riscv-ip/gatling-rv32i/PRD.md) —
   the issuer: barrel RV32I + Xcell, one context per cell.
 - S. Wang, P. Kanwar, "BFloat16: The Secret to High Performance on Cloud
   TPUs," Google Cloud blog, Aug. 2019 — the bf16 format's canonical

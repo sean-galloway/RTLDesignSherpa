@@ -41,10 +41,16 @@ offset are rotated into their byte lanes in the single cycle:
 The halting access performs nothing: the store strobes are forced to zero,
 the load does not write rd, and the instruction retires as the usual RVFI
 trap beat (Ch. 4.3) with empty memory fields. Causes 4 and 5 are
-`HALT_LALIGN` and `HALT_SALIGN` in `kestrel_pkg`; like `HALT_IALIGN` they
+`HALT_LALIGN` and `HALT_SALIGN` in `rv32i_pkg`; like `HALT_IALIGN` they
 are raised in the core, because decode cannot see the address.
 
 ## The Offset Comes Off the Carry Chain
+
+### Figure 4.1: The load/store path
+
+![kestrel_core load/store path: the ALU word address, the two-bit offset adder, misalign test, store lanes, load rotate/extend](../assets/graphviz/kestrel_ls_unit.png)
+
+The figure is the point of this section: the two-bit offset adder is its own column, and the misalign test, the store strobes and data, and the load rotation all hang off it, while only the word address waits for the ALU's 32-bit add. The store beat goes down to the data port; the load word climbs back up its own lane into the rotate/extend block and from there to the writeback mux.
 
 `ls_offset = rs1_data[1:0] + imm[1:0]` -- the low two bits of the address,
 computed by their own two-bit add rather than taken from the ALU's 32-bit

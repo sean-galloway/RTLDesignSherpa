@@ -79,8 +79,8 @@ async def cocotb_test_program(dut):
 def test_gatling_board_uart(request, program):
     module, repo_root, tests_dir, log_dir, _ = get_paths({})
     for var, rel in (("CONVERTERS_ROOT", "projects/components/utility-ip/converters"),
-                     ("GATLING_ROOT", "projects/components/riscv-ip/gatling-rv32itetrad"),
-                     ("KESTREL_ROOT", "projects/components/riscv-ip/kestrel-rv32i")):
+                     ("GATLING_ROOT", "projects/components/riscv-ip/gatling-rv32i"),
+                     ("RV32I_COMMON_ROOT", "projects/components/riscv-ip/common-rv32i")):
         os.environ.setdefault(var, os.path.join(repo_root, rel))
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,

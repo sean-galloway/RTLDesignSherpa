@@ -70,3 +70,17 @@ This is the doc-side twin of [[kimi-review-rounds]] rule 5 (verify a finding
 before acting on it) and rule 6's *new arithmetic, unchecked* -- correcting a
 wrong number means writing a new one, and the new one is unverified the moment
 it lands.
+
+## A module rename is two sweeps: the name, then the path (2026-10-22)
+
+Renaming `kestrel_decode` to `rv32i_decode` and moving it to another area
+was one `sed` over the docs for the module name -- and that `sed` turned
+every `rtl/fub/kestrel_decode.sv` into `rtl/fub/rv32i_decode.sv`, a path
+that does not exist under kestrel. Nineteen such lines across three books
+read correctly and pointed at nothing. The name sweep is necessary; it is
+not sufficient. After it, grep the docs for the new name in path form
+(`rtl/includes/<new>`, `rtl/fub/<new>`, `rtl/filelists/.../<new>`) and the
+root-variable column of every filelist table, and rewrite those to the
+block's new home. Then rename the chapter and figure files that carried the
+old name, so the index links and image references stay one sweep away from
+the prose rather than exceptions to it.

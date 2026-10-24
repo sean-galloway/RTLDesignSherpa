@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Micro-Architecture Specification
 
 **Document Number:** KESTREL-MAS-001
-**Version:** 0.19
+**Version:** 0.1
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -83,19 +83,10 @@ The external contract — ports as an integrator wires them, memory and halt beh
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
-| 0.1 | 2026-10-07 | seang | Initial MAS release; documents the as-built RTL (Tasks 1-11) including the Task-9 IALIGN halt and the Task-11 AXIL board loader |
-| 0.11 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
-| 0.12 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
-| 0.13 | 2026-10-20 | seang | `mem_wait` core input and `kestrel_mem_bram` (block RAM, registered read, CPI 2/3 for loads; registers for run/stop, status, cycles, instret, gp): new Ch. 2.7; core chapter notes the wait. rv32ui 42/42 through it with spike lockstep; riscv-formal 42/42 with a free `mem_wait`. |
-| 0.14 | 2026-10-20 | seang | Timing rework (A7 path analysis). Misaligned loads/stores halt (causes 4/5) instead of the hardware cross-word retry, which is removed; RVFI moves to the `RISCV_FORMAL_ALIGNED_MEM` convention; Ch. 4.2 rewritten. `kestrel_imm_gen` selects the format by opcode in parallel with the register read. New core output `imem_addr_next`; `kestrel_mem_bram` fetches at the next PC (CPI 1, 2 for a load), decodes its load wait from the opcode, and defaults to 16 KB; Ch. 2.7 rewritten with Waveform 2.7. rv32ui 42/42 (`ma_data` an expected halt) with spike lockstep; riscv-formal 42/42. |
-| 0.15 | 2026-10-20 | seang | Register file has no reset (distributed RAM; x0 via the read ports; software initializes every register, the golden interpreter fails a test that does not). The register-write gate names only the halts an rd-writing instruction can raise (`~misalign_link & ~ls_misalign`), keeping the branch comparator off that path; target low bits from two-bit adds. New `kestrel_alu USE_DSP` / core `ALU_USE_DSP`: the add/sub row in one DSP48E1 (`kestrel_alu_dsp`). Revisions renumbered (owner: at most 0.25 until running well): 0.2-0.5 became 0.11-0.14. |
-| 0.16 | 2026-10-20 | seang | Register file loses its x0 rule: the core keeps x0 zero by writing it (in reset, and on every x0 write via the writeback zero row), so the read ports need no zero-select. One signed/unsigned comparator for branches and one for SLT/SLTU (33-bit extension). ALU result is an OR of zero-gated rows; SUB is add of the inverted operand plus carry-in. Ideas from the BRISKI barrel core, re-derived. Nexys A7: 75 MHz, 42/42, CPI 1.039, 1,899 LUTs. |
-| 0.17 | 2026-10-20 | seang | `kestrel_alu USE_DSP` builds seven rows (ADD, SUB, AND, OR, XOR, SLT, SLTU) in one instantiated DSP48E1: the logic unit by ALUMODE/OPMODE, SLT/SLTU from the 48-bit subtract's sign; simulation and formal use a behavioral model of the slice, checked against the Xilinx simulation model. New `FPGA_FAMILY` parameter (core and ALU), set by the board builds from the part; only 7SERIES is mapped. Nexys A7: no LUT saving, 0.08 ns slower; the fabric ALU stays the default. |
-| 0.18 | 2026-10-20 | seang | DSP48E1 ALU option removed (`kestrel_alu USE_DSP`, `FPGA_FAMILY`, `kestrel_alu_dsp`, core `ALU_USE_DSP`): it saved no LUTs and cost slices and slack on the Nexys A7. New section "Why the ALU is not in a DSP" in the kestrel_alu chapter records the design, the measurements and what would change the answer. |
-| 0.19 | 2026-10-21 | seang | Board build consolidated: kestrel's only board area is `projects/fpga-systems/NexysA7/riscv-ip/kestrel` (host driver, programs and UART cosim moved there; the Genesys 2 build removed). kestrel_mem_bram chapter path updated. |
+| 0.1 | 2026-10-23 | seang | Initial MAS: the single-cycle RV32I core as built (`kestrel_core`, `kestrel_regfile`, `kestrel_mem_loader`, `kestrel_mem_bram`); `rv32i_pkg` and the decode / immediate-generator / ALU blocks shared from `riscv-ip/common-rv32i`; misaligned loads/stores halt (no cross-word retry) and RVFI follows `RISCV_FORMAL_ALIGNED_MEM`; `mem_wait` and `imem_addr_next` for registered-read memories (block RAM: CPI 1, 2 for a load); the register file without a reset, x0 kept zero by writes; one comparator for branches and one for SLT/SLTU, the ALU as an OR of zero-gated rows, and the record of why the ALU is not in a DSP; the figures and waveforms; rv32ui 42/42 with spike lockstep, riscv-formal 42/42; Nexys A7 at 75 MHz. The only board area is `projects/fpga-systems/NexysA7/riscv-ip/kestrel`. |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-10-20
+**Last Updated:** 2026-10-23

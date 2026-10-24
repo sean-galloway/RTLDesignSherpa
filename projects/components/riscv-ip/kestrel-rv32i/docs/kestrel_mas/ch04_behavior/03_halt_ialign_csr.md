@@ -25,6 +25,12 @@
 
 ## The Halt Holding Register
 
+### Figure 4.2: Halt resolution and what it gates
+
+![kestrel_core halt: the three cause sources, halt resolve, the holding register, and the PC, register-write and retire gates](../assets/graphviz/kestrel_halt.png)
+
+Three cause sources enter at the top (decode's causes, the target-alignment test, the access-alignment test from Figure 4.1); the resolve block ORs them, masks the result with `mem_wait`, and feeds the one-bit holding register whose output climbs back into it. Below are the three things a halt gates: the PC load, the register-file write enable and the retire beat. The register-write gate is drawn with its own inputs on purpose: it names the two halts an rd-writing instruction can raise and leaves the branch comparator off that path.
+
 `halt_q` is a one-bit flop that latches any nonzero `halt_cause_eff`:
 
 ```
@@ -54,7 +60,7 @@ The condition, visible only in the core:
 misalign_target = (jump | jalr | branch_taken) & (next_pc[1:0] != 2'b00)
 ```
 
-**Why decode cannot catch it:** for JALR the target depends on a register value; for every branch it depends on the taken decision. Decode sees neither — it produces the control bundle, not the data. `kestrel_pkg` states the ownership directly: cause 3 belongs to the core.
+**Why decode cannot catch it:** for JALR the target depends on a register value; for every branch it depends on the taken decision. Decode sees neither — it produces the control bundle, not the data. `rv32i_pkg` states the ownership directly: cause 3 belongs to the core.
 
 **The writeback subtlety.** JAL/JALR set decode's `rd_wen` — they are link instructions, and a taken JAL/JALR that *does* align must write `pc+4`. The misaligned case must not. Rather than teaching decode about alignment, the core gates the register write with the halts that can coincide with an rd write — `rd_wen_eff = rd_wen & ~halt_q & ~mem_wait & ~misalign_link & ~ls_misalign`, where `misalign_link` is the JAL/JALR half of `misalign_target` — and the RVFI report with `halt` itself: `rd_wb = rd_wen & (insn[11:7] != 0) & ~halt`. The two agree because no other halt source sets `rd_wen`; leaving the taken-branch term out keeps the branch comparator off the register-write path (2026-10-20). The target's low bits come from two-bit adds (`pc[1:0] + imm[1:0]`, and `rs1[1:0] + imm[1:0]` with bit 0 cleared for JALR), not from the 32-bit next-PC adders. The trap beat reports the misaligned target on `rvfi_pc_wdata` (it is `next_pc`), exactly what a real trap would record as the faulting address — a detail riscv-formal's checks verify explicitly.
 
@@ -77,6 +83,12 @@ The six Zicsr forms (SYSTEM funct3 001/010/011/101/110/111) retire through `csr_
 Say it plainly: **this is not CSR support.** There is no CSR file, no `mstatus`, no `mtvec`, no counters, and nothing the instructions do has architectural effect beyond a zero written to rd. The stub exists for one bounded reason: the riscv-tests p-environment preamble executes about a dozen CSR instructions plus an MRET before every test body, and without the stub the battery cannot run at all. On the battery programs the only CSR read with rd != x0 is `mhartid` (value 0), which the stub matches. Anything needing real CSR state — trap handlers, counters, feature probing — is out of contract at this rung and fails loudly either as a zero where a nonzero was expected or as a program that halts where it should have trapped. The honesty matters for the ladder: merlin inherits the same stub, and peregrine replaces it with a real machine-mode CSR file. The seam is deliberately visible in the decode table.
 
 ## Halt Timing Summary
+
+### Waveform 4.3: Halt on the pins
+
+![Waveform 4.3: the ECALL retires as the trap beat on the detection cycle; from the next cycle the machine is frozen](../assets/wavedrom/wvf_4_3_halt.png)
+
+The ADDI at P retires normally in cycle n-1. The ECALL at P+4 raises `halt_now` in cycle n: `halt` and `halt_cause` are visible that same cycle, the instruction retires as the trap beat (`rvfi_valid` and `rvfi_trap` both high, `rvfi_rd_addr` zero), and the PC does not advance. From n+1 `halt_q` holds, `rvfi_valid` is low, and the cause stays on the port until reset.
 
 | Cycle | `halt` | `rvfi_valid` | `rvfi_trap` | PC | Notes |
 |-------|--------|--------------|-------------|----|-------|

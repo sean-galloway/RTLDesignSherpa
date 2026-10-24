@@ -59,7 +59,7 @@ There are no CSRs, no counters, no privilege state, and no trap state. `mepc`, `
 | `4'h5` | SALIGN | core, store whose address is not naturally aligned | store-address-misaligned exception |
 | `4'hF` | ILL | decode, illegal encoding | illegal-instruction exception |
 
-: Halt causes (encodings centralized in `rtl/includes/kestrel_pkg.sv`)
+: Halt causes (encodings centralized in `common-rv32i/rtl/includes/rv32i_pkg.sv`)
 
 The full halt timing contract — trap beat, post-hold sampling, and the absence of trap recovery — is specified in Chapter 4.
 

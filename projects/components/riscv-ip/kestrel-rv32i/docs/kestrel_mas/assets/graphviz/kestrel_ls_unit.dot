@@ -1,0 +1,52 @@
+// kestrel_ls_unit - MAS Figure 4.1 (the load/store path and its halt).
+// House style: vault/handbook/authoring/block-diagrams.md (combinational
+// block, part of kestrel_core). The point of the drawing: the two-bit
+// offset add is its OWN column, off the ALU's carry chain, and every
+// byte-lane decision (strobes, store data, load rotation, the misalign
+// test) keys off it; only the word address waits for the full 32-bit add.
+// The data port is the bar: the store beat goes down, the load word
+// climbs back up its own lane into the rotate / extend block.
+// Source of truth: rtl/top/kestrel_core.sv (ls_* signals).
+digraph kestrel_ls_unit {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="kestrel_core load / store path - the offset comes off the carry chain (combinational, in the single cycle)";
+
+    inp   [label="Operands (register file, immediate generator, decode)\nrs1_data, rs2_data, imm | dmem_req, dmem_we, funct3", width=6.5, style="rounded,filled", fillcolor="#E2EFDA"];
+
+    alu   [label="ALU (32-bit add)\nrv32i_alu - u_alu\nalu_y = rs1 + imm", group=A, style="filled", fillcolor="white"];
+    off   [label="Offset Add and Size Decode (combinational)\nls_offset = rs1_data[1:0] + imm[1:0]: its own 2-bit adder,\nno wait for the carry chain\nfunct3[1:0]: size_mask 0001 | 0011 | 1111, data_mask FF | FFFF | all", group=O, style="filled", fillcolor="white"];
+
+    waddr [label="Word Address (combinational)\ndmem_addr = {alu_y[31:2], 2'b00}", group=A, style="filled", fillcolor="white"];
+    mis   [label="Misalign Test (combinational)\nhalf: offset[0] | word: offset != 0 | byte: never\nls_misalign -> LALIGN (4) / SALIGN (5):\nno strobes, no rd write, trap beat", group=O, style="filled", fillcolor="white"];
+    strb  [label="Store Lanes (combinational)\nwstrb = store & ~misalign ?\nsize_mask << offset : 0\nwdata = rs2_data << 8*offset", group=S, style="filled", fillcolor="white"];
+
+    ldx   [label="Load Rotate / Extend (combinational)\ndmem_rdata >> 8*offset, then\nLB / LH sign, LBU / LHU zero, LW raw\n-> ls_load_data, to the writeback mux", group=X, style="filled", fillcolor="white"];
+
+    bar   [label="Data Memory Port (combinational-read memory, or kestrel_mem_bram with mem_wait)\ndmem_req, dmem_we, dmem_addr, dmem_wstrb, dmem_wdata -> dmem_rdata",
+           width=9.0, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
+
+    inp   -> alu   [xlabel="rs1_data, imm"];
+    inp   -> off   [xlabel="rs1_data[1:0], imm[1:0],\nfunct3[1:0]"];
+    alu   -> waddr [xlabel="alu_y", penwidth=1.8];
+    off   -> mis   [xlabel="ls_offset, size"];
+    off   -> strb  [xlabel="ls_offset,\nsize_mask"];
+    inp   -> strb  [xlabel="rs2_data,\ndmem_we"];
+    waddr -> bar   [xlabel="word address\n(load and store)", penwidth=1.8];
+    strb  -> bar   [xlabel="store beat:\nwstrb, wdata"];
+    mis   -> strb  [style=dashed, color="#777777", xlabel="misalign"];
+    ldx   -> bar   [dir=back, color="#1A7A1A", xlabel="dmem_rdata\n(load word)"];
+    off   -> ldx   [style=dashed, color="#777777", xlabel="ls_offset, funct3\n(rotation, extend)"];
+
+    { rank=same; inp; }
+    { rank=same; alu; off; }
+    { rank=same; waddr; mis; strb; }
+    { rank=same; ldx; }
+    waddr -> ldx [style=invis];
+    alu -> off [style=invis];
+    waddr -> mis -> strb [style=invis];
+}

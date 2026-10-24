@@ -1,0 +1,104 @@
+# Testplan for rv32i_imm_gen
+# Maps functional test scenarios to verification coverage.
+# STATUS: all five immediate formats verified with sign-extension vectors
+# plus a SEED-driven randomized sweep (625 vectors) against imm_golden.
+
+module: rv32i_imm_gen
+rtl_file: projects/components/riscv-ip/common-rv32i/rtl/fub/rv32i_imm_gen.sv
+test_file: projects/components/riscv-ip/common-rv32i/dv/tests/test_rv32i_decode.py
+
+# Module description:
+# RV32I immediate sign-extension unit: assembles the I/S/B/U/J immediates
+# in parallel from the instruction word and selects one by the major opcode
+# insn[6:2] (2026-10-20; previously by decode's imm_sel_e). I/S/B/J sign-extend from
+# insn[31]; B and J force LSB=0; U is not sign-extended (insn[31:12] << 12).
+
+parameters: []
+
+functional_scenarios:
+  - id: IG-01
+    name: "I-format immediate, both signs"
+    description: "IMM_VECTORS drive addi x1, x2, +5 and addi x1, x2, -5:
+                  imm must sign-extend insn[31:20] to 0x00000005 / 0xFFFFFFFB."
+    test_function: "cocotb_test_rv32i_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
+
+  - id: IG-02
+    name: "S-format immediate, both signs"
+    description: "sw x3, 4(x2) and sw x3, -4(x2): imm must assemble
+                  insn[31:25]|insn[11:7] as 0x00000004 / 0xFFFFFFFC."
+    test_function: "cocotb_test_rv32i_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
+
+  - id: IG-03
+    name: "B-format immediate, both signs, LSB forced 0"
+    description: "beq forward (+4) and beq backward (-4): imm must assemble
+                  the scattered B bits with LSB=0 and sign-extend the 13-bit
+                  result (0x00000004 / 0xFFFFFFFC)."
+    test_function: "cocotb_test_rv32i_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
+
+  - id: IG-04
+    name: "U-format upper immediate"
+    description: "lui x1, 0x12345: imm must be {insn[31:12], 12'b0} =
+                  0x12345000 (no sign extension past bit 31 by construction)."
+    test_function: "cocotb_test_rv32i_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
+
+  - id: IG-05
+    name: "J-format immediate, both signs, LSB forced 0"
+    description: "jal +4 / jal -4: imm must assemble the scattered J bits
+                  (insn[31], insn[19:12], insn[20], insn[30:21], 1'b0) and
+                  sign-extend the 21-bit result (0x00000004 / 0xFFFFFFFC)."
+    test_function: "cocotb_test_rv32i_imm_gen"
+    test_level: gate
+    priority: high
+    status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
+
+  - id: IG-06
+    name: "Randomized immediate sweep vs golden"
+    description: "SEED-driven sweep on top of the directed IMM_VECTORS: 625
+                  random instruction words (125 per format class, opcode and
+                  funct3 forced valid per class, all payload bits random)
+                  each diffed exactly against imm_golden in Python — closing
+                  bit-position nits in the B/J scatter maps."
+    test_function: "cocotb_test_rv32i_imm_gen"
+    test_level: full
+    priority: low
+    status: verified
+    covers_lines: [28, 29, 46, 56, 57, 58, 59, 60, 61, 62]
+
+parameter_coverage: []
+
+implied_coverage:
+  total_scenarios: 6
+  scenario_tracked: 6
+  implied_covered: 6
+  implied_percentage: 100.0
+
+notes: |
+  `cocotb_test_rv32i_imm_gen` lives in test_rv32i_decode.py and is
+  selected from DUT_CASES ("rv32i_imm_gen", toplevel=rv32i_imm_gen).
+  The gate/func/full cells pass; regenerate any of them with `make
+  run-rv32i_decode-{gate,func,full}` from dv/tests (one Verilator build
+  per cell under dv/tests/local_sim_build/, gitignored). Verified locally
+  on 2026-10-07.
+
+  IG-06's sweep draws 125 words per format class with the SEED pattern the
+  ALU/regfile tests use (opcode+funct3 anchored to a decode-legal
+  instruction of the class, payload bits fully random) and diffs every
+  vector exactly against imm_golden — the golden model that already
+  existed for the directed IMM_VECTORS.

@@ -1,0 +1,41 @@
+// rv32i_decode - MAS Figure 2.1 (the decode truth table).
+// House style: vault/handbook/authoring/block-diagrams.md (combinational
+// block: the input is a white port on top, the outputs are the bar at the
+// bottom, no clock). One flow: the instruction word down through the key
+// split, the casez table and the default merge into the control bundle.
+// The SYSTEM re-case on imm12 sits beside the table because it is the one
+// row that keys on more than {opcode, funct3, funct7}. Nothing picks, so
+// there is no trapezium: a truth table is a function, not an arbiter.
+// Source of truth: common-rv32i/rtl/fub/rv32i_decode.sv.
+digraph rv32i_decode {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.65", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="rv32i_decode - instruction word to control bundle (combinational, no clock)";
+
+    insn  [label="Instruction Word Port\ninsn[31:0] (comb)", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    key   [label="Key Split (combinational)\nopcode = insn[6:0], funct3 = insn[14:12], funct7 = insn[31:25]\nimm12 = insn[31:20] (SYSTEM only)", group=C, style="filled", fillcolor="white"];
+    dflt  [label="Default Bundle (combinational)\nalu_op = ADD, imm_sel = I, every control bit 0,\nhalt_cause = HALT_NONE -- each row overrides only what it needs", group=L, style="filled", fillcolor="white"];
+    tbl   [label="Truth Table: unique casez on {opcode, funct3, funct7} (17-bit key)\nOP (10 rows, funct7 keyed) | OP-IMM (9; shifts key funct7) | LUI, AUIPC\nLOAD (5), STORE (3), BRANCH (6), JAL, JALR | MISC-MEM: FENCE, FENCE.I as NOPs\nSYSTEM funct3 != 000: CSR class -> csr_stub + rd_wen\ndefault row: halt_cause = HALT_ILL (every unclaimed encoding halts)", group=C, width=7.6, style="filled", fillcolor="white"];
+    sysr  [label="SYSTEM Re-case (combinational)\nfunct3 = 000: imm12 000 ECALL (cause 1),\n001 EBREAK (cause 2), 302 MRET (NOP),\nother: HALT_ILL", group=R, style="filled", fillcolor="white"];
+
+    bar   [label="Control Bundle (combinational outputs, same cycle)\nalu_op, imm_sel, alu_src_a_pc, alu_src_b_imm, rd_wen   |   dmem_req, dmem_we, dmem_size   |   branch, jump, jalr   |   halt_cause (1, 2, F here; 3, 4, 5 are the core's), csr_stub",
+           width=12.0, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
+
+    insn  -> key   [xlabel="insn"];
+    key   -> tbl   [xlabel="{opcode, funct3, funct7}", penwidth=1.8];
+    key   -> sysr  [xlabel="imm12 (insn[31:20])"];
+    dflt  -> tbl   [style=dashed, color="#777777", xlabel="defaults, overridden\nper row"];
+    tbl   -> sysr  [style=dashed, color="#777777", xlabel="SYSTEM, funct3 = 000"];
+    tbl   -> bar   [xlabel="the selected row's fields", penwidth=1.8];
+    sysr  -> bar   [xlabel="halt_cause 1 / 2 / F,\nor the MRET NOP"];
+
+    { rank=same; insn; }
+    { rank=same; dflt; key; }
+    { rank=same; tbl; }
+    { rank=same; sysr; }
+    dflt -> key [style=invis];
+}

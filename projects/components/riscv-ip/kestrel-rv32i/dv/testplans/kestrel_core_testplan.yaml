@@ -425,7 +425,7 @@ functional_scenarios:
                   coverage-report'. Measured 2026-10-20 across all 75 cells
                   (incl. the 200-stream fuzz full level): line 96.9% overall
                   vs the 80% house target (PASS); kestrel_core 100.0%,
-                  kestrel_decode 90.0%, kestrel_mem_loader 98.6%,
+                  rv32i_decode 90.0%, kestrel_mem_loader 98.6%,
                   kestrel_mem_bram 93.1%.
                   Toggle collection is enabled; the house report tracks line
                   only, toggle is ad-hoc from the merged .dat. This scenario

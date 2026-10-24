@@ -58,7 +58,7 @@ hole on depth 6 of an unconstrained search.
 
 The fix is small, follows the core's existing idiom, and is the
 HALT_IALIGN material of Chapter 5: `halt_cause` encoding moves into
-`kestrel_pkg` as the single source of truth with the new `HALT_IALIGN =
+`rv32i_pkg` as the single source of truth with the new `HALT_IALIGN =
 4'h3`; `kestrel_core` computes
 `misalign_target = (jump | jalr | branch_taken) & (next_pc[1:0] != 2'b00)`
 and OR-s it into the existing halt path — same holding register, same
@@ -94,5 +94,5 @@ for independence, and formal proofs as the gate that keeps honest
 optimizations honest.
 
 **Source:** task-9 report (counterexample chain, proposed fix) and fix
-round 1 (fix, directed test, re-run evidence); `rtl/includes/kestrel_pkg.sv`,
+round 1 (fix, directed test, re-run evidence); `common-rv32i/rtl/includes/rv32i_pkg.sv`,
 `rtl/top/kestrel_core.sv`; `dv/tests/programs/system_misalign_jmp.s`

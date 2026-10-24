@@ -48,7 +48,7 @@ decision 2026-10-17; RTL moved here from `cell/rtl/` on 2026-10-20).
   fits the 256-entry LUT for sigmoid/tanh/gelu/silu/exp and models the row
 - **Unit tests:** [`dv/tests/`](dv/tests/) — `test_alu_infer.py`, run via
   `make -C dv/tests run-all-<gate|func|full>` after `make clean-all`
-- **Issuer:** [`gatling-rv32itetrad`](../../riscv-ip/gatling-rv32itetrad/PRD.md)
+- **Issuer:** [`gatling-rv32i`](../../riscv-ip/gatling-rv32i/PRD.md)
   — the tetrad barrel core whose programs issue the ALU
 - **Integration home:** [`cell/`](../cell/README.md); the cell filelists
   include this block's filelist.

@@ -49,7 +49,7 @@ HARNESS    := $(REPO_ROOT)/formal/checks $(REPO_ROOT)/formal/insns
 # gained its boundary reset synchronizer, and every check then failed to
 # elaborate.
 FLAT          := gatling_flat.v
-FLAT_FILELIST := $(REPO_ROOT)/projects/components/riscv-ip/gatling-rv32itetrad/rtl/filelists/top/gatling_core.f
+FLAT_FILELIST := $(REPO_ROOT)/projects/components/riscv-ip/gatling-rv32i/rtl/filelists/top/gatling_core.f
 include $(REPO_ROOT)/make/formal_flat.mk
 
 # `checks` re-converts on every run: an RTL edit under an unchanged .f must

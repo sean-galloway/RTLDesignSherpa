@@ -35,7 +35,7 @@ first data flit on both transports per the RAPIDS built implementation;
 §11.2 cell-traffic QoS rule — QoS 0 reserved for the node's own config
 plane, all cell-bound traffic rides QoS ≠ 0; `TILE_LAND_FLITS` home is the
 Hive top. Clarifications, no mechanism change. Carries 1.5 (2026-10-18; §11.13 tetrad control core **deferred** pending
-the cell — owner direction 2026-10-18, gatling-rv32itetrad the leading
+the cell — owner direction 2026-10-18, gatling-rv32i the leading
 candidate; cell→cell grant mediation added to §10 open items; §11.3 internal/external ID on every node, §11.9-11.10
 credits — owner direction 2026-10-18: delta nodes are conduits for transit
 and endpoints for what they consume, 32 RAPIDS credit counters, the
@@ -301,7 +301,7 @@ Still open (see the milestone ladder in §12):
   `KICK`/`WAIT`/`FLUSH` encoding, local memory map, and program-load
   conventions remain cell/tetrad MAS work. **Deferred** (owner direction
   2026-10-18): the engine is defined after the cell is fully defined and
-  working; gatling-rv32itetrad is the leading candidate (§11.13).
+  working; gatling-rv32i is the leading candidate (§11.13).
 - Multi-path routing and failover (§11.15, delta DELTA-013): fully adaptive
   or pinned forward with an adaptive return; the transaction ID that makes
   ordering a requester-side property.
@@ -748,7 +748,7 @@ Built in the byte-granular RAPIDS behind `TILE_HDR` = 1 (default 0; needs
 **Deferral (owner direction 2026-10-18):** the tetrad engine is defined
 **after the cell is fully defined and working** — the cell is the lowest
 module (cell PRD v0.3 §1). The owner-authored
-[`gatling-rv32itetrad`](../../../riscv-ip/gatling-rv32itetrad/PRD.md) barrel-core
+[`gatling-rv32i`](../../../riscv-ip/gatling-rv32i/PRD.md) barrel-core
 PRD (2026-10-17) is the leading candidate, with kestrel-class remaining a
 candidate flavor via `CORE_FLAVOR`.
 

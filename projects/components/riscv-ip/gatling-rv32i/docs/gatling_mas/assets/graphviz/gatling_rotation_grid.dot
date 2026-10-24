@@ -1,0 +1,31 @@
+// gatling_rotation_grid - MAS Figure 4.1 (the rotation, cycle by cycle).
+// A cycle grid (vault/handbook/authoring/block-diagrams.md, "An ASCII
+// timing sketch becomes a graphviz cycle grid"): one row per stage, one
+// column per clock. Context 0's cells are shaded so its single instruction
+// in flight can be followed down the diagonal: fetched at t, decoded at
+// t+1, executed at t+2 (PC written at the end of t+2), retired at t+3
+// (register written at the end of t+3); its next fetch is at t+4.
+// Drawn from rtl/top/gatling_core.sv: sel_q names the context in F and
+// each stage register carries the context one stage on.
+digraph gatling_rotation_grid {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, pad="0.2"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+
+    grid [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
+  <TR><TD BGCOLOR="#E2EFDA"><B>stage \\ cycle</B></TD>
+      <TD BGCOLOR="#E2EFDA"><B>t</B></TD><TD BGCOLOR="#E2EFDA"><B>t+1</B></TD><TD BGCOLOR="#E2EFDA"><B>t+2</B></TD><TD BGCOLOR="#E2EFDA"><B>t+3</B></TD>
+      <TD BGCOLOR="#E2EFDA"><B>t+4</B></TD><TD BGCOLOR="#E2EFDA"><B>t+5</B></TD><TD BGCOLOR="#E2EFDA"><B>t+6</B></TD><TD BGCOLOR="#E2EFDA"><B>t+7</B></TD></TR>
+  <TR><TD ALIGN="LEFT"><B>F</B>  fetch at pc_q[sel_q]</TD>
+      <TD BGCOLOR="#D6E4F0">c0 (i)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD><TD BGCOLOR="#D6E4F0">c0 (i+1)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>D</B>  decode, register read issued</TD>
+      <TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#D6E4F0">c0 (i)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD><TD BGCOLOR="#D6E4F0">c0 (i+1)</TD><TD>c1</TD><TD>c2</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>X</B>  execute; PC written at the end</TD>
+      <TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#D6E4F0">c0 (i)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD><TD BGCOLOR="#D6E4F0">c0 (i+1)</TD><TD>c1</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>W</B>  retire; register written at the end</TD>
+      <TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#F2F2F2">-</TD><TD BGCOLOR="#D6E4F0">c0 (i)</TD><TD>c1</TD><TD>c2</TD><TD>c3</TD><TD BGCOLOR="#D6E4F0">c0 (i+1)</TD></TR>
+  <TR><TD COLSPAN="9" ALIGN="LEFT" BALIGN="LEFT">Shaded: context 0. Its instruction i writes the PC at the end of t+2 and its register at the end of t+3;<BR/>
+instruction i+1 is fetched at t+4 and reads its registers at t+5 -- two cycles after each write, so no hazard exists.<BR/>
+Every cycle each stage holds a different context; a held or halted context leaves its cells empty and the others keep their slots.</TD></TR>
+</TABLE>>];
+}

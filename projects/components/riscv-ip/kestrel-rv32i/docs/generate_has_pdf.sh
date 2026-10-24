@@ -132,9 +132,19 @@ echo "  Output:      ${OUTPUT_DOCX} (and ${OUTPUT_PDF})"
 echo "  RTLDS root:  ${RTLDS_ROOT}"
 echo "------------------------------------------------------------"
 
+# Build-time styles copy: stamp today's date and the requested revision
+# onto the title page (the checked-in YAML holds placeholders only;
+# vault/handbook/authoring/spec-doc-standards.md, "Page layout").
+STYLE_SRC="kestrel_has/kestrel_has_styles.yaml"
+BUILD_STYLE="${STYLE_SRC%.yaml}.build.yaml"
+sed -e "s/^  date: .*/  date: \"$(date +'%B %-d, %Y')\"/" \
+    -e "s/\(Specification\) [0-9][0-9.]*\"/\1 ${REV}\"/" \
+    "${STYLE_SRC}" > "${BUILD_STYLE}"
+trap 'rm -f "${BUILD_STYLE}"' EXIT
+
 python3 "${MD2DOCX}" \
   "${HAS_INDEX}" "${OUTPUT_DOCX}" \
-  --style "kestrel_has/kestrel_has_styles.yaml" \
+  --style "${BUILD_STYLE}" \
   --expand-index \
   --skip-index-content \
   --toc \

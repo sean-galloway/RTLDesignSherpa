@@ -1,0 +1,62 @@
+// gatling_mem_bram - MAS Figure 2.2 (the per-context block-RAM memory system).
+// House style: vault/handbook/authoring/block-diagrams.md. Two independent
+// requesters, one column each (the kestrel_mem_loader layout): the host
+// AXI4-Lite port on the left, the core's memory ports on the right. The
+// four-bank true-dual-port array is the boundary bar. Port A is the
+// core's fetch port; port B is shared by the core's load/store (which
+// always wins) and the loader's writes and reads. Every read is
+// registered, which is the one stage the barrel allows. The run/status
+// register bank is sideband: it owns hart_run and collects the core's
+// halt and retire events.
+// Source of truth: rtl/fub/gatling_mem_bram.sv.
+digraph gatling_mem_bram {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.55", ranksep="0.95", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="gatling_mem_bram - AXI4-Lite loader, run / status registers and one 16 KB bank per context (on aclk)";
+
+    host  [label="Host AXI4-Lite Port (s_axil_*, flopped at the skids)\naddr[17] = registers, else memory;\naddr[15:14] = context bank, addr[13:2] = word", group=H, style="rounded,filled", fillcolor="#E2EFDA"];
+    core  [label="Core Memory Ports (to gatling_core)\nimem_ctx, imem_addr -> imem_rdata (next cycle)\ndmem_req, dmem_ctx, addr, wstrb, wdata -> dmem_rdata (next cycle)\nhart_run[3:0] out; halted, halt_cause, rvfi beat in", group=K, style="rounded,filled", fillcolor="#E2EFDA"];
+
+    skwr  [label="Write Leaf\naxil4_slave_wr - u_axil_wr\nAW / W / B skids (2 / 2 / 2)", group=H, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    skrd  [label="Read Leaf\naxil4_slave_rd - u_axil_rd\nAR / R skids (2 / 4)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hold  [label="Write Holding (flops)\nwr_addr_q, wr_pend_q, b_pend_q\nW held off while the core owns port B\nmemory write only if its bank is held (run = 0);\nelse dropped, B still OKAY", group=H, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    regs  [label="Run / Status Bank (flops, one entry per context)\nrun_q (CTRL)  |  halted_q, cause_q  |  cycles_q, instret_q, gp_q\nrun rising clears the entry; frozen at its halt", group=K, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    rdst  [label="AXIL Read Stages (flops)\nAR accepted when port B is free: rd_wait_q\nthen rd_full_q + rd_data_q (register readback\nor the port B word), held under backpressure", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    psel  [label="Port B Owner (combinational)\ncore load / store while dmem_req (always wins)\nelse loader write, else AXIL read\n{bank, word} index, byte strobes", group=C, style="filled", fillcolor="white"];
+    pa    [label="Port A Address (combinational)\na_idx = {imem_ctx, imem_addr[13:2]}\nread every cycle", group=P, style="filled", fillcolor="white"];
+
+    bar   [label="Memory Array (block RAM, true dual port, registered read on both ports)\nr_mem[4 banks x MEM_WORDS]: bank = context, a program/data image per context at the same addresses\nport A: read only (fetch)   |   port B: byte-lane writes + read",
+           width=12.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+
+    host  -> skwr  [dir=both, xlabel="AW, W down / B up"];
+    skwr  -> hold  [xlabel="fub AW, W"];
+    hold  -> psel  [xlabel="loader write\n(bank, word, data, wstrb)"];
+    hold  -> regs  [style=dashed, color="#777777", xlabel="CTRL write:\nrun[3:0]"];
+
+    host  -> skrd  [dir=both, xlabel="AR down / R up"];
+    skrd  -> rdst  [dir=both, xlabel="fub AR / R"];
+    rdst  -> psel  [xlabel="AXIL read\n{bank, word}"];
+    rdst  -> regs  [dir=back, style=dashed, color="#777777", xlabel="register readback: CTRL, BUILD_ID,\nSTATUS, CYCLES, INSTRET, GP"];
+    rdst  -> bar   [dir=back, color="#1A7A1A", xlabel="port B word\n(AXIL read)"];
+
+    core  -> pa    [xlabel="fetch {ctx, pc} (in F)"];
+    pa    -> bar   [xlabel="port A read", penwidth=1.8];
+    core  -> psel  [xlabel="load / store {ctx, addr,\nwstrb, wdata} (in X)"];
+    psel  -> bar   [xlabel="port B access\n(one per cycle)", penwidth=1.8];
+    core  -> bar   [dir=back, color="#1A7A1A", xlabel="imem_rdata (port A, in D)\ndmem_rdata (port B, in W)"];
+
+    core  -> regs  [dir=both, style=dashed, color="#777777", xlabel="hart_run = run_q out;\nhalted, halt_cause,\nrvfi beat (ctx, rd, gp) in"];
+
+    { rank=same; host; core; }
+    { rank=same; skwr; skrd; pa; }
+    { rank=same; hold; rdst; }
+    { rank=same; psel; regs; }
+    host -> core [style=invis, minlen=4];
+    skwr -> skrd -> pa [style=invis];
+    hold -> rdst [style=invis];
+    psel -> regs [style=invis];
+}

@@ -25,10 +25,16 @@ for required in "$INDEX" "$STYLES"; do
   fi
 done
 
+# Title page is stamped at build time: the styles YAML hard-codes the
+# date, so a copy carries today's and is removed on exit.
+BUILD_STYLE="${STYLES%.yaml}.build.yaml"
+sed -e "s/^  date: .*/  date: \"$(date +'%B %-d, %Y')\"/" "$STYLES" > "$BUILD_STYLE"
+trap 'rm -f "$BUILD_STYLE"' EXIT
+
 python3 "$REPO_ROOT/bin/md_to_docx.py" \
   "$INDEX" \
   "${OUT_BASE}.docx" \
-  --style "$STYLES" \
+  --style "$BUILD_STYLE" \
   --expand-index \
   --skip-index-content \
   --toc \

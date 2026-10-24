@@ -6,7 +6,7 @@
 # Usage:  run via `make project` / `make synth` / `make bitstream`, which
 #         export the layout (FPGA_PROJECT_ROOT / FPGA_BUILD_ROOT /
 #         FPGA_FILELIST) and the roots (REPO_ROOT, CONVERTERS_ROOT,
-#         KESTREL_ROOT) this build's filelist resolves against.
+#         KESTREL_ROOT, RV32I_COMMON_ROOT) this build's filelist resolves against.
 #         Modeled on the BCH loop harness's create_project.tcl.
 #==============================================================================
 
@@ -26,7 +26,7 @@ set build_root [expr {[info exists ::env(FPGA_BUILD_ROOT)] \
                       : [file normalize "$script_dir/../.."]}]
 set rpt_dir "$project_root/reports"
 
-foreach var {REPO_ROOT CONVERTERS_ROOT KESTREL_ROOT} {
+foreach var {REPO_ROOT CONVERTERS_ROOT KESTREL_ROOT RV32I_COMMON_ROOT} {
     if {![info exists ::env($var)]} {
         puts stderr "ERROR: environment variable $var is not set."
         puts stderr "Run via the build Makefile (it sets them automatically)."

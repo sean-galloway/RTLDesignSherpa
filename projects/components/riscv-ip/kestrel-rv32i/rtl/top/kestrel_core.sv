@@ -36,7 +36,7 @@
 //          flow — a taken branch, JAL, or JALR — targets an address that
 //          is not 4-byte aligned, and rvfi.md requires that beat on RVFI.
 //          Kestrel has no exception machinery, so like ecall/ebreak/
-//          illegal it halts: cause 3 (HALT_IALIGN, encoding in kestrel_pkg)
+//          illegal it halts: cause 3 (HALT_IALIGN, encoding in rv32i_pkg)
 //          from the halt holding register below, the beat retiring with
 //          rvfi_trap=1, the rd writeback suppressed, and the PC frozen.
 //          The riscv-formal insn_{beq,bne,blt,bge,bltu,bgeu,jal,jalr}
@@ -103,7 +103,7 @@ module kestrel_core #(
     output logic [31:0] rvfi_mem_wdata
 );
 
-    import kestrel_pkg::*;
+    import rv32i_pkg::*;
 
     localparam logic [31:0] PC_INCR          = 32'd4;
     localparam logic [31:0] JALR_ALIGN_MASK  = 32'hFFFF_FFFE;
@@ -168,7 +168,7 @@ module kestrel_core #(
     logic [3:0] dec_halt_cause;
     logic       csr_stub;
 
-    kestrel_decode u_decode (
+    rv32i_decode u_decode (
         .insn          (insn),
         .alu_op        (alu_op),
         .imm_sel       (),               // imm_gen selects by opcode itself
@@ -188,7 +188,7 @@ module kestrel_core #(
     // Immediate generator.
     logic [31:0] imm;
 
-    kestrel_imm_gen u_imm_gen (
+    rv32i_imm_gen u_imm_gen (
         .insn (insn),
         .imm  (imm)
     );
@@ -236,7 +236,7 @@ module kestrel_core #(
     // comparator below (Task 4 review ruling, SDD ledger).
     logic [31:0] alu_y;
 
-    kestrel_alu u_alu (
+    rv32i_alu u_alu (
         .op  (alu_op),
         .a   (alu_src_a),
         .b   (alu_src_b),
@@ -376,7 +376,7 @@ module kestrel_core #(
     // Task 9 adds the instruction-address-misaligned halt: a taken branch
     // or jump whose resolved target is not 4-byte aligned (IALIGN=32, no
     // C extension) must trap per RV32I; kestrel has no exception machinery
-    // so it halts with cause 3 (HALT_IALIGN, kestrel_pkg) exactly like the
+    // so it halts with cause 3 (HALT_IALIGN, rv32i_pkg) exactly like the
     // decode halt causes — same trap beat, same rd-writeback suppression
     // via `halt`, same PC freeze.  Decode never sets rd_wen on its own
     // halt causes, but JAL/JALR do, which is why the writeback gate uses

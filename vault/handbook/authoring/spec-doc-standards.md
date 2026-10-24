@@ -27,6 +27,35 @@ binding for new chapters and for edits to existing ones.
   `generate_*_pdf.sh` writes a `.build.yaml` copy with today's date and
   `Specification ${REV}`, and cleans it up on exit. Never hand-edit a
   date or version into the YAML.
+  The four riscv-ip HAS/MAS scripts were copied from a book that
+  predates this block and built covers reading "Specification 0.1"
+  through fourteen revisions (found 2026-10-22). A new book's first
+  PDF cover is the check: if it does not show today's date and the
+  script's REV, the script is missing the block.
+- **A pre-release book has one revision.** Until the owner says a
+  revision has shipped, every edit lands in the same version (gatling and
+  kestrel are 0.1), the revision table has one row, and the build overwrites the one
+  output pair. Four per-edit bumps of the gatling books produced eight
+  untracked PDF/DOCX files and a history nobody had read (owner,
+  2026-10-22).
+
+## References
+
+- **Every HAS and MAS carries a References table in its front matter,
+  and a design argument cites its lineage.** The gatling HAS shipped
+  three versions with no References section at all, and the barrel-model
+  essay argued for a 1964 organization without naming the CDC 6600, the
+  HEP, or the textbook section that defines fine-grained multithreading
+  (found 2026-10-22). The kestrel books written beside it carried six
+  references and about twenty ISA section cites each. A book inherits
+  its conventions from whatever it was copied from, and gatling's were
+  copied from a PRD. Cite the ISA by section of the pinned manual
+  ("unpriv §2.1.8", "priv §3.3.3"), papers by entry in
+  `riscv-ip/references/microarchitecture-papers.md` ("papers, entry
+  17"), and textbooks by edition and section with the short keys that
+  file defines ("H&P6 §3.11"), drawn from the library ([[book-library]]).
+  The References table is where a reader resolves the keys, so a key
+  used in a chapter must have a row there.
 
 ## Diagrams
 

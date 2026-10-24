@@ -21,11 +21,11 @@ the source.
 
 | Module | Role | State |
 | --- | --- | --- |
-| `kestrel_pkg` | Shared enums (`alu_op_e`, `imm_sel_e`) and the halt-cause encodings | none |
+| `rv32i_pkg` | Shared enums (`alu_op_e`, `imm_sel_e`) and the halt-cause encodings | none |
 | `kestrel_regfile` | 32 x 32-bit registers, two combinational read ports, one synchronous write, x0 tied to zero | 32 words |
-| `kestrel_imm_gen` | Builds the 32-bit immediate for the five formats | none |
-| `kestrel_alu` | Ten operations: ADD SUB AND OR XOR SLL SRL SRA SLT SLTU | none |
-| `kestrel_decode` | Combinational truth table from `{opcode, funct3, funct7}` to a thirteen-field control bundle | none |
+| `rv32i_imm_gen` | Builds the 32-bit immediate for the five formats | none |
+| `rv32i_alu` | Ten operations: ADD SUB AND OR XOR SLL SRL SRA SLT SLTU | none |
+| `rv32i_decode` | Combinational truth table from `{opcode, funct3, funct7}` to a thirteen-field control bundle | none |
 | `kestrel_core` | Wires the leaves together: source muxes, branch comparator, next-PC mux, writeback mux, load/store rotation, halt, RVFI | 5 flops + counters |
 
 : kestrel's six modules
@@ -67,5 +67,5 @@ retire interface (section 4). Chapter 4 opens the decode truth table
 itself.
 
 **Source:** `rtl/top/kestrel_core.sv`, `rtl/fub/kestrel_regfile.sv`,
-`rtl/fub/kestrel_decode.sv`, `rtl/fub/kestrel_alu.sv`, `rtl/fub/kestrel_imm_gen.sv`,
-`rtl/includes/kestrel_pkg.sv`
+`common-rv32i/rtl/fub/rv32i_decode.sv`, `common-rv32i/rtl/fub/rv32i_alu.sv`, `common-rv32i/rtl/fub/rv32i_imm_gen.sv`,
+`common-rv32i/rtl/includes/rv32i_pkg.sv`

@@ -1,0 +1,37 @@
+// gatling_programmer_view - HAS Figure 2.1 (what a program sees).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Four complete harts over one shared datapath. Each hart owns its PC,
+// registers and halt state, and its own 16 KB program/data bank seen at
+// every address; the datapath, which exists once, serves them in strict
+// rotation. Requests go down to the banks; fetched words and load data
+// climb back up. Nothing a program can execute reveals which hart it is.
+// Source of truth: rtl/top/gatling_core.sv, rtl/fub/gatling_mem_bram.sv.
+digraph gatling_programmer_view {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="gatling as a programmer sees it - four harts, one datapath, one 16 KB bank each";
+
+    c0 [label="Hart 0 (architectural state)\nPC, x1-x31, halt state, run bit", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c1 [label="Hart 1\nPC, x1-x31, halt state, run bit", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c2 [label="Hart 2\nPC, x1-x31, halt state, run bit", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    c3 [label="Hart 3\nPC, x1-x31, halt state, run bit", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    dp [label="One Shared RV32I Datapath (combinational, time-sliced)\ndecode, immediates, ALU, branch compare, load / store alignment\nserves the harts in strict rotation: each gets one instruction every four clocks,\nwhatever the other three do; no CSR state (every CSR reads 0, mhartid included)",
+        width=9.0, style="filled", fillcolor="white"];
+
+    bar [label="Program / Data Memory (one 16 KB bank per hart, selected by the hart, never by an address bit)\nbank 0   |   bank 1   |   bank 2   |   bank 3   -- each seen by its hart at every address; four images linked at the same base",
+         width=12.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+
+    c0 -> dp [xlabel="instruction\nevery 4 clocks"];
+    c1 -> dp [xlabel="instruction\nevery 4 clocks"];
+    c2 -> dp [xlabel="instruction\nevery 4 clocks"];
+    c3 -> dp [xlabel="instruction\nevery 4 clocks"];
+    dp -> bar [dir=both, xlabel="fetch, load, store down (bank = the requesting hart);\ninstruction word and load data back up", penwidth=1.8];
+
+    { rank=same; c0; c1; c2; c3; }
+    c0 -> c1 -> c2 -> c3 [style=invis];
+}

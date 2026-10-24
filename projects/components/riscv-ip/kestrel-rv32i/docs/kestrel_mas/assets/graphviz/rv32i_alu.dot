@@ -1,0 +1,54 @@
+// rv32i_alu - MAS Figure 2.2 (the ALU).
+// House style: vault/handbook/authoring/block-diagrams.md (combinational
+// block: operand ports on top, result bar at the bottom). The rows sit
+// side by side in one rank, each zero unless its op selects it, and the
+// result is the OR of the rows (no final mux). The add/sub row is one
+// adder (b inverted plus a carry-in for SUB); SLT and SLTU share one
+// 33-bit comparator. The eq / lt / ltu flag compares are drawn on their
+// own lane: they leave the module but the core leaves them unconnected.
+// Source of truth: common-rv32i/rtl/fub/rv32i_alu.sv.
+digraph rv32i_alu {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.30", ranksep="0.80", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="rv32i_alu - ten operations as zero-gated rows ORed together (combinational, no clock)";
+
+    ops   [label="Operands Port\na, b (32 bits each; comb)", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    opc   [label="Operation Port\nop (alu_op_e)", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    sel   [label="Row Select (combinational)\nsel_addsub = ADD | SUB\nsel_and, sel_or, sel_xor\nsel_sll, sel_srl, sel_sra\nsel_slt = SLT | SLTU\nis_sub = SUB, slt_signed = SLT", group=L, style="filled", fillcolor="white"];
+
+    addsub [label="Add / Sub Row\na + (b ^ {32{is_sub}})\n+ is_sub (one adder)", group=A, style="filled", fillcolor="white"];
+    logic  [label="Logic Rows\na & b  |  a | b  |  a ^ b", group=B, style="filled", fillcolor="white"];
+    shift  [label="Shift Rows\nshamt = b[4:0]\na << | a >> | a >>> shamt", group=C, style="filled", fillcolor="white"];
+    slt    [label="Compare Row (one 33-bit compare)\n{slt_signed & a[31], a}\n< {slt_signed & b[31], b}\n-> {31'b0, slt_lt}, SLT and SLTU", group=D, style="filled", fillcolor="white"];
+    flags  [label="Flag Compares (combinational)\neq = (a == b)\nlt = signed(a) < signed(b)\nltu = a < b\n(unconnected in kestrel_core)", group=E, style="filled", fillcolor="white"];
+
+    orc   [label="OR-Combine (combinational)\ny = (sel_addsub & y_addsub) | (sel_and & a&b) | ...\n| (sel_slt & slt_lt): an unselected row contributes\nzero; an undefined op yields zero", group=C, width=5.0, style="filled", fillcolor="white"];
+
+    bar   [label="Result Port (combinational outputs, same cycle)\ny[31:0]   |   eq, lt, ltu",
+           width=7.5, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
+
+    opc   -> sel    [xlabel="op"];
+    ops   -> addsub [xlabel="a, b"];
+    ops   -> logic  [xlabel="a, b"];
+    ops   -> shift  [xlabel="a, b[4:0]"];
+    ops   -> slt    [xlabel="a, b"];
+    ops   -> flags  [xlabel="a, b"];
+    sel   -> orc    [style=dashed, color="#777777", xlabel="sel_* (one row or none);\nis_sub and slt_signed\nreach their rows"];
+    addsub -> orc   [xlabel="y_addsub"];
+    logic  -> orc   [xlabel="three rows"];
+    shift  -> orc   [xlabel="three rows"];
+    slt    -> orc   [xlabel="slt_lt"];
+    orc    -> bar   [xlabel="y", penwidth=1.8];
+    flags  -> bar   [xlabel="eq, lt, ltu"];
+
+    { rank=same; opc; ops; }
+    { rank=same; sel; }
+    { rank=same; addsub; logic; shift; slt; flags; }
+    { rank=same; orc; }
+    opc -> ops [style=invis];
+    addsub -> logic -> shift -> slt -> flags [style=invis];
+}

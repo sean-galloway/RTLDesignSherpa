@@ -87,7 +87,7 @@ around both, see the **cell PRD**.
 
 - **alu-infer PRD** ([../../../PRD.md](../../../PRD.md)) — product
   definition, normative for the ALU block
-- **gatling PRD** ([../../../../../riscv-ip/gatling-rv32itetrad/PRD.md](../../../../../riscv-ip/gatling-rv32itetrad/PRD.md)) —
+- **gatling PRD** ([../../../../../riscv-ip/gatling-rv32i/PRD.md](../../../../../riscv-ip/gatling-rv32i/PRD.md)) —
   the barrel RV32I core that issues the ALU
 - **cell PRD** ([../../../../cell/docs/PRD.md](../../../../cell/docs/PRD.md)) —
   the cell around the ALU

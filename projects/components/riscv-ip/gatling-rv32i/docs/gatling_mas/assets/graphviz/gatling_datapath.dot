@@ -1,0 +1,130 @@
+// gatling_datapath - MAS Figure 1.1 (gatling_core, four-context barrel RV32I).
+// House style: vault/handbook/authoring/block-diagrams.md.
+// The four stages are the ranks, top to bottom: F (the context bank and
+// the rotation counter), D (decode, immediates, register read), X
+// (execute, next PC, halt, data access) and W (load align, register
+// write, retire). The stage registers are the blue double-bordered rows
+// between them. Requests go DOWN to the memory bar: the fetch address
+// from the PC bank down the left edge, the load/store beat from the L/S
+// issue block in the center. Returns climb back UP on their own lanes:
+// the instruction word up the right edge into D (one stage later), the
+// load word into W (one stage later). The two architectural feedbacks
+// climb too: the context update into the context bank (end of X) and
+// the register write into the register files (end of W). Each context
+// has one instruction in flight, so there are no hazard or forwarding
+// lanes to draw.
+// Source of truth: rtl/top/gatling_core.sv, rtl/fub/gatling_regfile.sv.
+digraph gatling_datapath {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="gatling_core - four-context barrel RV32I (one stage per rank; every stage holds a different context)";
+
+    // ---- F ----------------------------------------------------------------
+    hrun  [label="Run Control Port\nhart_run[3:0] (comb)\n1 = run, 0 = hold at RESET_ADDR;\nlow re-qualifies every stage valid", group=F, style="rounded,filled", fillcolor="#E2EFDA"];
+    rot   [label="Rotation Counter\nsel_q (2-bit flop, +1 every clock)\nnames the context in F", group=A, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    pcb   [label="Context State Bank (flops, one entry per context)\npc_q[4] (RESET_ADDR)  |  halted_q[4], cause_q[4] (the halted / halt_cause outputs)\nF reads pc_q[sel_q]; X writes the entry of the context it holds", group=A, width=5.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    insn  [label="Instruction Word (one stage after the fetch)\nd_insn = imem_rdata", group=Q, style="rounded,filled", fillcolor="#E2EFDA"];
+
+    // ---- D ----------------------------------------------------------------
+    fd    [label="F->D Register\nd_valid = hart_run & ~halted_q (of sel_q)\nd_ctx, d_pc", group=F, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dec   [label="Decode Truth Table\nrv32i_decode - u_decode\ncontrol bundle, halt cause", group=C, style="filled", fillcolor="white"];
+    immg  [label="Immediate Generator\nrv32i_imm_gen - u_imm_gen\nI / S / B / U / J by opcode", group=I, style="filled", fillcolor="white"];
+    rf    [label="Context Register Files\ngatling_regfile - u_regfile\n4 x 32 regs in block RAM (2 copies)\nread {d_ctx, rs} in D, data in X\nwritten {w_ctx, rd} in W", group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    padd  [label="PC Adders (combinational, in D)\nd_pc + imm  |  d_pc + 4", group=F, style="filled", fillcolor="white"];
+    dx    [label="D->X Register\nx_valid = d_valid & hart_run[d_ctx]  |  x_ctx, x_pc, x_imm, x_pc_imm, x_pc4, x_insn (rd, funct3)\ncontrol bundle: alu_op, src selects, rd_wen, dmem_req / we, branch, jump, jalr, csr_stub, lui, decode cause",
+           group=C, width=11.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    // ---- X ----------------------------------------------------------------
+    srcm  [label="Operand Select (combinational)\nA = pc or rs1  |  B = imm or rs2", group=C, style="filled", fillcolor="white"];
+    cmp   [label="Branch Compare (combinational)\nrs1 vs rs2: eq, lt (signed or unsigned)\nby funct3 (from the bundle)", group=R, style="filled", fillcolor="white"];
+    npc   [label="Next-PC Select (combinational)\nJALR: (rs1 + imm) & ~1\njump / taken branch: pc + imm  |  else pc + 4", group=F, style="filled", fillcolor="white"];
+    alu   [label="ALU\nrv32i_alu - u_alu\nalu_y (also the L/S word address)", group=C, style="filled", fillcolor="white"];
+    lsu   [label="Load / Store Issue (combinational; dmem_req, we, size from the bundle)\noffset = rs1[1:0] + imm[1:0] (off the carry chain)\nword address, wstrb = size << offset, wdata = rs2 << 8*offset\nmisaligned half / word: no strobes", group=R, style="filled", fillcolor="white"];
+    wbs   [label="Writeback Select (combinational)\nCSR stub: 0 | LUI: imm | JAL / JALR: pc + 4 | else alu_y\nx_rd_wb = rd_wen & rd != x0 & ~halt_now", group=C, style="filled", fillcolor="white"];
+    hlt   [label="Halt Resolve (combinational)\ncause = decode cause (from the bundle)\n| IALIGN (misaligned target)\n| LALIGN / SALIGN (misaligned access)\nhalt_now = x_live & |cause; w_trap to W", group=L, style="filled", fillcolor="white"];
+    ctxu  [label="Context Update (combinational, entry x_ctx)\nhart_run low: pc <= RESET_ADDR, clear halt\nhalt_now: set halted_q, cause_q (pc holds)\nelse: pc <= next_pc", group=L, style="filled", fillcolor="white"];
+    xw    [label="X->W Register\nw_valid = x_live  |  w_ctx, w_pc, w_pc_wdata, w_insn, w_trap, w_wb, w_rd_wb, w_rd, w_load, w_funct3, w_offset\nrs1 / rs2 addr + data, mem addr / masks / wdata (for RVFI)",
+           group=C, width=9.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    // ---- W ----------------------------------------------------------------
+    ret   [label="Retire\norder_q[4] (flops): order_q[w_ctx] + 1 per beat\nrvfi_* from the w_* fields, rvfi_ctx = w_ctx", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ldw   [label="Load Align / Extend and rd Select (combinational)\ndmem_rdata >> 8*offset; LB / LH sign, LBU / LHU zero, LW raw\nrd_wdata = load data or w_wb; rf_wen = w_live & w_rd_wb", group=R, style="filled", fillcolor="white"];
+
+    bar   [label="Memory and Trace Ports (registered-read memories: the answer arrives one stage later)\nimem_ctx, imem_addr -> imem_rdata   |   dmem_req, dmem_ctx, dmem_addr, dmem_wstrb, dmem_wdata -> dmem_rdata   |   halted, halt_cause, rvfi_*",
+           width=16.0, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
+
+    // ---- F: fetch request down the left, instruction back up the right ----
+    rot   -> pcb   [style=dashed, color="#777777", xlabel="sel_q"];
+    hrun  -> fd    [style=dashed, color="#777777", xlabel="hart_run[sel_q]"];
+    pcb   -> fd    [xlabel="pc_q[sel_q], sel_q"];
+    p_f   [shape=point, width=0.01, group=A];
+    pcb   -> p_f   [arrowhead=none, headclip=false, xlabel="imem_ctx, imem_addr = pc_q[sel_q]\n(fetch, in F)", penwidth=1.8];
+    p_f   -> bar   [tailclip=false, penwidth=1.8];
+    p_r   [shape=point, width=0.01, group=Q];
+    insn  -> p_r   [color="#1A7A1A", dir=back, headclip=false, xlabel="imem_rdata\n(instruction, in D)"];
+    p_r   -> bar   [color="#1A7A1A", dir=none, tailclip=false];
+
+    // ---- D ----------------------------------------------------------------
+    insn  -> dec   [xlabel="opcode, funct"];
+    insn  -> immg  [xlabel="imm fields"];
+    insn  -> rf    [xlabel="rs1, rs2\n(with d_ctx)"];
+    fd    -> padd  [xlabel="d_pc"];
+    fd    -> dx    [xlabel="d_valid, d_ctx, d_pc"];
+    immg  -> padd  [xlabel="imm"];
+    dec   -> dx    [xlabel="control bundle,\nhalt cause"];
+    immg  -> dx    [xlabel="imm"];
+    padd  -> dx    [xlabel="pc + imm, pc + 4"];
+
+    // ---- X ----------------------------------------------------------------
+    dx    -> srcm  [xlabel="pc, imm, selects"];
+    rf    -> srcm  [xlabel="rs1, rs2 (arrive in X)"];
+    rf    -> cmp   [xlabel="rs1, rs2"];
+    dx    -> npc   [xlabel="pc + imm, pc + 4,\njump, jalr"];
+    srcm  -> alu   [xlabel="A, B"];
+    cmp   -> npc   [xlabel="branch taken"];
+    alu   -> lsu   [xlabel="address"];
+    alu   -> wbs   [xlabel="alu_y"];
+    dx    -> wbs   [xlabel="imm, pc + 4"];
+    npc   -> hlt   [style=dashed, color="#777777", xlabel="misaligned target"];
+    lsu   -> hlt   [style=dashed, color="#777777", xlabel="misaligned access"];
+    npc   -> ctxu  [xlabel="next_pc"];
+    hlt   -> ctxu  [style=dashed, color="#777777", xlabel="halt_now, cause"];
+    pcb   -> ctxu  [dir=back, xlabel="pc_q[x_ctx] <= next_pc,\nor halted_q / cause_q set\n(end of X)"];
+    lsu   -> bar   [xlabel="L/S beat: dmem_req, dmem_ctx,\naddress, wstrb, wdata (in X)", penwidth=1.8];
+    lsu   -> xw    [xlabel="w_load, w_offset,\nRVFI mem fields"];
+    wbs   -> xw    [xlabel="w_wb, w_rd_wb"];
+
+    // ---- W ----------------------------------------------------------------
+    xw    -> ldw   [xlabel="w_wb, w_load,\nw_offset, w_funct3"];
+    ldw   -> bar   [dir=back, color="#1A7A1A", xlabel="dmem_rdata\n(load word, in W)"];
+    xw    -> ret   [xlabel="w_valid, w_ctx,\nretire fields"];
+    rf    -> ldw   [dir=back, xlabel="rd_wdata to {w_ctx, rd}\n(end of W)"];
+    ret   -> bar   [xlabel="rvfi_* (one beat\nper clock at most)"];
+
+    { rank=same; rot; hrun; insn; }
+    { rank=same; pcb; }
+    { rank=same; fd; dec; immg; rf; }
+    { rank=same; padd; }
+    { rank=same; dx; }
+    dx -> cmp [style=invis];
+    { rank=same; cmp; }
+    { rank=same; npc; srcm; }
+    { rank=same; alu; }
+    { rank=same; wbs; lsu; }
+    { rank=same; hlt; }
+    { rank=same; ctxu; xw; }
+    { rank=same; p_f; ret; ldw; p_r; }
+    p_f -> ret [style=invis];
+    ldw -> p_r [style=invis];
+    rot -> hrun [style=invis];
+    rot -> insn [style=invis, minlen=4];
+    fd -> dec -> immg -> rf [style=invis];
+    npc -> srcm [style=invis];
+    wbs -> lsu [style=invis];
+    ctxu -> xw [style=invis];
+    ret -> ldw [style=invis];
+}

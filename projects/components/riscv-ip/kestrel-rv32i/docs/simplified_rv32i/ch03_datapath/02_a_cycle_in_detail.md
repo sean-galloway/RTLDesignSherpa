@@ -99,4 +99,4 @@ next-PC mux row 3 wins; the PC register loads the target on the next
 edge and rvfi reports a beat with `pc_wdata` equal to that target.
 
 **Source:** `rtl/top/kestrel_core.sv` (fetch, source muxes, ALU instance,
-comparator, next-PC mux, writeback mux); `rtl/fub/kestrel_decode.sv`
+comparator, next-PC mux, writeback mux); `common-rv32i/rtl/fub/rv32i_decode.sv`

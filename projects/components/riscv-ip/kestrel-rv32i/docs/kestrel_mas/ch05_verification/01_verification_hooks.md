@@ -58,7 +58,7 @@ kestrel was built RVFI-first, and the verification architecture hangs three obse
 
 ## Cross-Reference to the Testplan Set
 
-The six plans in `dv/testplans/` are the V&V cross-reference for both this MAS and the HAS: `kestrel_core_testplan.yaml` (19 scenarios — ISA classes, branches, loads/stores incl. the misaligned-access halts, system layer, battery, lockstep, fuzz, coverage closure at 94.9% line), `kestrel_mem_loader_testplan.yaml` (ML-01..ML-09), and per-FUB plans (`kestrel_alu`, `kestrel_decode`, `kestrel_imm_gen`, `kestrel_regfile`) whose directed rows pin each block's unit behavior against the chapters of this document. Coverage closure is measured across all cells (Verilator line coverage through the central cov_utils hook); regenerate with the commands recorded in each plan.
+The six plans in `dv/testplans/` are the V&V cross-reference for both this MAS and the HAS: `kestrel_core_testplan.yaml` (19 scenarios — ISA classes, branches, loads/stores incl. the misaligned-access halts, system layer, battery, lockstep, fuzz, coverage closure at 94.9% line), `kestrel_mem_loader_testplan.yaml` (ML-01..ML-09), and per-FUB plans (`rv32i_alu`, `rv32i_decode`, `rv32i_imm_gen`, `kestrel_regfile`) whose directed rows pin each block's unit behavior against the chapters of this document. Coverage closure is measured across all cells (Verilator line coverage through the central cov_utils hook); regenerate with the commands recorded in each plan.
 
 ---
 

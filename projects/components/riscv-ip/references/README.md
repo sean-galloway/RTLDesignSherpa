@@ -14,10 +14,14 @@ book or RTL comment cites the spec, cite the chapter (e.g. "unpriv ch.
 releases.
 
 Research literature behind the design decisions is curated in
-[`microarchitecture-papers.md`](microarchitecture-papers.md) — fifteen
+[`microarchitecture-papers.md`](microarchitecture-papers.md) — twenty
 papers organized by the decision each guides (pipeline partition, branch
-prediction, precise interrupts, write policies, checkpoint-restore OOO),
-with honest availability notes and DOIs.
+prediction, precise interrupts, write policies, checkpoint-restore OOO,
+and the interleaved multithreading behind gatling's barrel), with honest
+availability notes. The same file ends with the textbook chapters the
+rung books cite and the short keys (H&P6, P&H, H&H, ...) they cite them
+by; the books themselves are the owner's library, machine-local, see
+`vault/handbook/book-library.md`.
 
 Where a legitimate open PDF exists, a local copy lives in
 [`papers/`](papers/README.md) (RISC I, the Waterman dissertation, and

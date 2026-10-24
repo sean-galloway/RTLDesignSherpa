@@ -14,8 +14,9 @@ personal use.
 
 ## Not obtainable as legitimate open PDFs (as of 2026-10-07)
 
-The remaining twelve entries (2–13) are IEEE/ACM paywalled and no
-publisher-open or author/institution copy could be located; several
+The remaining entries (2–13, and the barrel's 16–20 added 2026-10-22)
+are IEEE/ACM paywalled and no publisher-open or author/institution copy
+could be located; several
 historical course mirrors have gone dead. Access them through
 institutional subscription (IEEE Xplore / ACM DL) using the full
 citations in [`microarchitecture-papers.md`](../microarchitecture-papers.md).

@@ -2,7 +2,7 @@
 
 ## Thirteen wires out of decode
 
-`kestrel_decode` is a pure function from the 32-bit instruction word to
+`rv32i_decode` is a pure function from the 32-bit instruction word to
 a control bundle. It holds no state and no clock; the same word always
 produces the same bundle. The bundle's fields:
 
@@ -52,10 +52,10 @@ by a row halts, loudly, instead of executing as something plausible.
 ## Reading the table
 
 The next section gives the table in full, transcribed from
-`rtl/fub/kestrel_decode.sv`. Notation is defined at the top of that
+`common-rv32i/rtl/fub/rv32i_decode.sv`. Notation is defined at the top of that
 section: the 17-bit key as `opcode.funct3.funct7`, `any` for don't-care
 key fields, abbreviated bundle columns (`alu`, `imm`, `aPC`, `bImm`,
 `rd`), non-default values only (`—` means the default), and `dmem`
 sizes in bytes (B/H/W).
 
-**Source:** `rtl/fub/kestrel_decode.sv`, `rtl/includes/kestrel_pkg.sv`
+**Source:** `common-rv32i/rtl/fub/rv32i_decode.sv`, `common-rv32i/rtl/includes/rv32i_pkg.sv`

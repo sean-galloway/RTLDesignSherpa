@@ -89,7 +89,7 @@ deliberately visible in the decode table.
 | `4'h5` | HALT_SALIGN | core, misaligned store | store-address-misaligned trap |
 | `4'hF` | HALT_ILL | decode, default row | illegal instruction |
 
-: The six halt causes (encoding centralized in `rtl/includes/kestrel_pkg.sv`)
+: The six halt causes (encoding centralized in `common-rv32i/rtl/includes/rv32i_pkg.sv`)
 
 Causes 1, 2, and `F` come from decode; causes 3-5 can only be raised by
 the core, because they need the resolved next PC and branch decision, or
@@ -98,4 +98,4 @@ the access address, which decode cannot see. Chapter 5 develops causes
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 2.1.7,
 2.1.8, 4.1, 4.2; Volume II, chapter 3 (MRET, machine trap state);
-`rtl/fub/kestrel_decode.sv`, `rtl/top/kestrel_core.sv`, `rtl/includes/kestrel_pkg.sv`
+`common-rv32i/rtl/fub/rv32i_decode.sv`, `rtl/top/kestrel_core.sv`, `common-rv32i/rtl/includes/rv32i_pkg.sv`

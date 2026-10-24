@@ -1,0 +1,27 @@
+// kestrel_loader_address_map - HAS Figure 4.2 (the AXI4-Lite address map
+// shared by kestrel_mem_loader and kestrel_mem_bram).
+// An address map drawn as an HTML-table node (vault/handbook/authoring/
+// block-diagrams.md: address maps are tables and carry no key). 18-bit
+// byte addresses as the host presents them.
+// Source of truth: rtl/fub/kestrel_mem_loader.sv (addr[17] CTRL, addr[16]
+// dmem, addr[13:0] index) and rtl/fub/kestrel_mem_bram.sv (addr[17]
+// registers, addr[4:2] selects, addr[13:2] word).
+// render: no-key
+digraph kestrel_loader_address_map {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, pad="0.2"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+  <TR><TD BGCOLOR="#E2EFDA"><B>Byte address (18 bits)</B></TD><TD BGCOLOR="#E2EFDA"><B>kestrel_mem_loader (distributed RAM, boards before 2026-10-20)</B></TD><TD BGCOLOR="#E2EFDA"><B>kestrel_mem_bram (block RAM, the Nexys A7 build)</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0_0000 - 0x0_FFFF</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">imem array (addr[16] = 0); word = addr[13:0] (aliases every 0x4000)</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">one unified 16 KB array: word = addr[13:2]; code, data and tohost together (aliases above 0x3FFF)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1_0000 - 0x1_FFFF</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">dmem array (addr[16] = 1); word = addr[13:0]</TD><TD ALIGN="LEFT" BGCOLOR="#F2F2F2">alias of the same array (addr[16] not decoded)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0000 (addr[17] = 1, addr[4:2] = 0)</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">CTRL: W bit 0 sets run (sticky until reset); R {31'b0, run}</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">CTRL / STATUS: W bit 0 run (1 release, 0 back to load mode); R {cause[7:4], halted[1], run[0]}</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0004 (addr[4:2] = 1)</TD><TD ALIGN="LEFT" BGCOLOR="#F2F2F2">-</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">CYCLES: clocks since run was set, frozen at the halt</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0008 (addr[4:2] = 2)</TD><TD ALIGN="LEFT" BGCOLOR="#F2F2F2">-</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">INSTRET: retired instructions (RVFI beats)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_000C (addr[4:2] = 3)</TD><TD ALIGN="LEFT" BGCOLOR="#F2F2F2">-</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">GP: the last value written to x3 (the riscv-tests verdict; 1 = pass)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0010 (addr[4:2] = 4)</TD><TD ALIGN="LEFT" BGCOLOR="#F2F2F2">-</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">BUILD_ID: "KBRM" (0x4B42_524D)</TD></TR>
+  <TR><TD COLSPAN="3" ALIGN="LEFT" BALIGN="LEFT">Lavender: memory. Blue: registers. Grey: absent or alias. Memory writes land only in load mode (run = 0); in run mode they are dropped with B = OKAY.<BR/>
+Reads are served in both modes. The core presents full 32-bit addresses and only the low bits are decoded, so RESET_ADDR = 0x8000_0000 (the riscv-tests link base) lands at word 0.</TD></TR>
+</TABLE>>];
+}

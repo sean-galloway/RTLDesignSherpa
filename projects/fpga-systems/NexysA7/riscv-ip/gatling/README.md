@@ -1,7 +1,7 @@
 # gatling on Nexys A7-100T
 
 The gatling four-context barrel RV32I
-([`projects/components/riscv-ip/gatling-rv32itetrad`](../../../../components/riscv-ip/gatling-rv32itetrad/))
+([`projects/components/riscv-ip/gatling-rv32i`](../../../../components/riscv-ip/gatling-rv32i/))
 on the Nexys A7, behind **block RAM**: four harts running four programs at
 once on one shared datapath.
 

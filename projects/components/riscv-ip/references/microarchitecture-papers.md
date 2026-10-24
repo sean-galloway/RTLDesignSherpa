@@ -4,7 +4,8 @@ The research literature behind the falcon suite's design decisions. Each
 entry names the decision it guides and the rung(s) it serves; cite these
 in rung books and RTL comments the same way the ISA manual is cited (by
 section/idea, not page). Reading order follows the ladder — foundations
-first, OOO last.
+first, OOO last; the barrel (gatling) sits beside the ladder, so its
+sources come after.
 
 Availability is noted honestly: most IEEE/ACM papers are paywalled, but
 nearly all have free author or institutional mirrors worth finding.
@@ -108,3 +109,66 @@ nearly all have free author or institutional mirrors worth finding.
     than Chisel, small enough to hold in your head, checkpoints rather
     than a unified physical register file. Know it so we don't
     accidentally reimplement its complexity.
+
+## Interleaved multithreading — gatling
+
+16. **J. E. Thornton, "Parallel Operation in the Control Data 6600,"
+    Proc. AFIPS Fall Joint Computer Conference, Part II, 1964, 33–40.**
+    *Guides:* the barrel itself. The 6600's ten peripheral processors
+    shared one execution unit in strict rotation, each taking a slot
+    every ten minor cycles, so no peripheral processor ever had two
+    instructions in flight. gatling's four-context rotation is that
+    organization at RV32I (barrel model §3). Thornton's 1970 book
+    *Design of a Computer: The Control Data 6600* (Scott, Foresman) is
+    the long form.
+
+17. **B. J. Smith, "A Pipelined, Shared Resource MIMD Computer," Proc.
+    International Conference on Parallel Processing (ICPP), 1978, 6–8.**
+    *Guides:* the Denelcor HEP: fine-grained interleaving used to hide
+    pipeline latency with no forwarding and no interlocks between a
+    process's own instructions, because a process could issue only once
+    its previous instruction had left the pipeline. gatling's "one
+    instruction in flight per context" invariant (MAS 1.1) is the same
+    rule, fixed by construction instead of by a queue.
+
+18. **H. F. Jordan, "Performance Measurements on HEP — A Pipelined MIMD
+    Computer," Proc. 10th International Symposium on Computer
+    Architecture (ISCA), 1983, 207–212.**
+    *Guides:* the measurement side of the trade: single-process speed
+    is the cost of the interleave, and throughput arrives only as the
+    process count fills the pipeline. Barrel model §5 and §6 make the
+    same argument with kestrel's and gatling's board numbers.
+
+19. **G. Alverson, R. Alverson, D. Callahan, B. Koblenz, A. Porterfield
+    and B. Smith, "Exploiting Heterogeneous Parallelism on a
+    Multithreaded Multiprocessor," Proc. Supercomputing '92, 1992,
+    188–197.**
+    *Guides:* the Tera MTA, the HEP idea taken to 128 streams per
+    processor to cover memory latency without caches. Where gatling
+    stops (four contexts, one block-RAM latency per stage) is read
+    against where Tera went.
+
+20. **P. Kongetira, K. Aingaran and K. Olukotun, "Niagara: A 32-Way
+    Multithreaded Sparc Processor," IEEE Micro 25(2), March–April 2005,
+    21–29.**
+    *Guides:* the modern form: four-thread fine-grained cores with
+    round-robin issue that skips a stalled thread. That skip is the
+    textbook norm and the one thing gatling's rotation deliberately
+    does not do (PRD 3.3; MAS chapter 4).
+
+## Textbooks
+
+The owner's textbook library (machine-local, one Markdown file per
+section; `vault/handbook/book-library.md`) covers the same ground at
+textbook depth. Cite by edition, chapter and section, never by page, with
+the short key in the second column. The chapters the rung books lean on:
+
+| Book | Key | Where it guides |
+|---|---|---|
+| J. L. Hennessy and D. A. Patterson, *Computer Architecture: A Quantitative Approach*, 6th ed., Morgan Kaufmann, 2019 | H&P6 §N | §3.11 fine-grained, coarse-grained and simultaneous multithreading (gatling); Appendix C pipelining and hazards (merlin; gatling's "why not one stream"); Appendix M.5 the lineage from the 6600 I/O processors through HEP, Tera and Niagara (gatling) |
+| D. A. Patterson and J. L. Hennessy, *Computer Organization and Design, RISC-V Edition*, 2nd ed., Morgan Kaufmann, 2021 | P&H §N | §4.8-4.9 data and control hazards (kestrel to merlin); §6.4 hardware multithreading (gatling) |
+| S. L. Harris and D. M. Harris, *Digital Design and Computer Architecture, RISC-V Edition*, Morgan Kaufmann, 2022 | H&H §N | ch. 6 the RV32I architecture and ch. 7 the single-cycle and pipelined RISC-V microarchitectures (kestrel, merlin); §7.7.7 multithreading as "replicate only the PC and register file" (gatling) |
+| J. Ledin, *Modern Computer Architecture and Organization*, 2nd ed., Packt, 2022 | Ledin §N | §14.3 simultaneous multithreading, the contrast case for gatling's interleave; ch. 17 the RISC-V ISA |
+| Z. Zhang, *RISC-V Architecture and DSP Processor Design*, Packt, 2026 | Zhang §N | ch. 6 arithmetic units (the ALU rungs); a second RISC-V core walk-through to read kestrel against |
+
+: Textbooks cited by the rung books

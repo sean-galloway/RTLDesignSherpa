@@ -9,8 +9,8 @@
 # reset_defs.svh -- ALWAYS_FF_RST/RST_ASSERTED macros.
 -f $REPO_ROOT/rtl/amba/filelists/reset_defs.f
 
-# Package (halt causes)
--f $KESTREL_ROOT/rtl/filelists/kestrel_pkg.f
+# Package (halt causes; common-rv32i)
+-f $RV32I_COMMON_ROOT/rtl/filelists/rv32i_pkg.f
 
 # AXIL leaf slaves (complete closures per the amba filelists)
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f

@@ -32,18 +32,22 @@ Every event RV32I routes to a trap — environment call, breakpoint, illegal ins
 | Cause | Name | Raised in | Trigger | Spec counterpart (unpriv) |
 |-------|------|-----------|---------|---------------------------|
 | `4'h0` | `HALT_NONE` | — | Running (no halt) | — |
-| `4'h1` | `HALT_ECALL` | `kestrel_decode` | ECALL (SYSTEM funct3 000, imm12 000) | environment-call exception (§2.1.8) |
-| `4'h2` | `HALT_EBREAK` | `kestrel_decode` | EBREAK (SYSTEM funct3 000, imm12 001) | breakpoint exception (§2.1.8) |
+| `4'h1` | `HALT_ECALL` | `rv32i_decode` | ECALL (SYSTEM funct3 000, imm12 000) | environment-call exception (§2.1.8) |
+| `4'h2` | `HALT_EBREAK` | `rv32i_decode` | EBREAK (SYSTEM funct3 000, imm12 001) | breakpoint exception (§2.1.8) |
 | `4'h3` | `HALT_IALIGN` | `kestrel_core` | Taken branch/JAL/JALR resolving to `next_pc[1:0] != 2'b00` | instruction-address-misaligned exception (§2.1.5) |
 | `4'h4` | `HALT_LALIGN` | `kestrel_core` | Load whose address is not naturally aligned (half at an odd byte, word off a 4-byte boundary) | load-address-misaligned exception (§2.1.6) |
 | `4'h5` | `HALT_SALIGN` | `kestrel_core` | Store whose address is not naturally aligned; no bytes are written | store/AMO-address-misaligned exception (§2.1.6) |
-| `4'hF` | `HALT_ILL` | `kestrel_decode` | Any encoding no decode row claims (default row) | illegal-instruction exception |
+| `4'hF` | `HALT_ILL` | `rv32i_decode` | Any encoding no decode row claims (default row) | illegal-instruction exception |
 
-: Halt cause encodings (single source of truth: `rtl/includes/kestrel_pkg.sv`)
+: Halt cause encodings (single source of truth: `common-rv32i/rtl/includes/rv32i_pkg.sv`)
 
 Cause ownership is deliberate: decode raises causes 1, 2, and `F` because it can see the encoding; only the core can raise causes 3-5 because they need the resolved next PC and branch decision, or the access address, which decode never evaluates.
 
 ## Timing Contract
+
+### Figure 4.1: The halt timing contract, cycle by cycle
+
+![Halt timing as a cycle grid: halt_now, halt_q, halt, halt_cause, rvfi_valid, rvfi_trap and the PC across the detection cycle and the hold](../assets/graphviz/kestrel_halt_timing_grid.png)
 
 1. **Detection cycle.** `halt_now` is the combinational OR of the decode cause, the core's `misalign_target` and its `ls_misalign`, masked while `mem_wait` is high. The outputs `halt` and `halt_cause` reflect it immediately (`halt = halt_q | halt_now`), so the first halting cycle is visible without waiting for a latch.
 2. **Trap beat.** The halting instruction retires on the detection cycle as the final RVFI beat: `rvfi_valid=1`, `rvfi_trap=1`, no rd writeback, no memory fields. On a cause-3 halt, `rvfi_pc_wdata` carries the misaligned target — exactly what a real trap would record as the faulting address.

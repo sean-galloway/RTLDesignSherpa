@@ -4,6 +4,7 @@
 # Regenerates the committed figures for the kestrel HAS/MAS docs:
 #   - kestrel_mas/assets/wavedrom/wvf_4_1_basic_cycle.png    (wavedrom-cli + inkscape)
 #   - kestrel_mas/assets/wavedrom/wvf_2_7_bram_load.png      (wavedrom-cli + inkscape)
+#   - kestrel_mas/assets/wavedrom/wvf_4_3_halt.png           (wavedrom-cli + inkscape)
 #   - copies: the falcon ladder from the simplified_rv32i book assets, and
 #     the title-page logos from docs/logos.
 # The block diagrams (system context, datapath, loader composition) are
@@ -38,21 +39,87 @@ WAVFOMS = [
     (
         MAS_WAV / "wvf_4_1_basic_cycle.json",
         MAS_WAV / "wvf_4_1_basic_cycle.png",
+        # Kept byte-identical to the committed asset (back-ported 2026-10-21:
+        # the JSON had been edited by hand without updating this dict, so a
+        # regen churned it; the script is the source again).
         {
             "signal": [
-                {"name": "clk", "wave": "PP"},
-                {"name": "", "wave": "22", "data": ["cycle n", "cycle n+1"]},
-                {"name": "pc", "wave": "==", "data": ["A0", "A0+4"]},
-                {"name": "imem_addr", "wave": "==", "data": ["A0", "A0+4"]},
-                {"name": "dmem_req", "wave": "10"},
-                {"name": "dmem_we", "wave": "00"},
-                {"name": "dmem_addr", "wave": "=x", "data": ["W"]},
-                {"name": "dmem_rdata", "wave": "=x", "data": ["mem[W]"]},
-                {"name": "rvfi_valid", "wave": "11"},
-                {"name": "rvfi_order", "wave": "==", "data": ["k", "k+1"]},
+                {
+                    "name": "clk",
+                    "wave": "P...",
+                    "period": 1
+                },
+                {
+                    "name": "",
+                    "wave": "x2x2x.",
+                    "data": [
+                        "cycle n (LW)",
+                        "cycle n+1 (ADDI)"
+                    ]
+                },
+                {
+                    "name": "pc",
+                    "wave": "=.==",
+                    "data": [
+                        "A0",
+                        "A0+4"
+                    ],
+                    "period": 1
+                },
+                {
+                    "name": "imem_addr",
+                    "wave": "=.==",
+                    "data": [
+                        "A0",
+                        "A0+4"
+                    ],
+                    "period": 1
+                },
+                {
+                    "name": "dmem_req",
+                    "wave": "10..",
+                    "period": 1
+                },
+                {
+                    "name": "dmem_we",
+                    "wave": "0...",
+                    "period": 1
+                },
+                {
+                    "name": "dmem_addr",
+                    "wave": "x=x.",
+                    "data": [
+                        "W (rs1+imm)"
+                    ]
+                },
+                {
+                    "name": "dmem_rdata",
+                    "wave": "x=x.",
+                    "data": [
+                        "mem[W]"
+                    ]
+                },
+                {
+                    "name": "rvfi_valid",
+                    "wave": "11..",
+                    "period": 1
+                },
+                {
+                    "name": "rvfi_order",
+                    "wave": "=.==",
+                    "data": [
+                        "k",
+                        "k+1"
+                    ],
+                    "period": 1
+                }
             ],
-            "config": {"hscale": 2.4},
-            "head": {"text": "Basic single-cycle execution: LW at cycle n, ADDI at cycle n+1"},
+            "config": {
+                "hscale": 1.6
+            },
+            "head": {
+                "text": "Basic single-cycle execution: LW at cycle n, ADDI at cycle n+1"
+            }
         },
     ),
     (
@@ -73,6 +140,31 @@ WAVFOMS = [
             ],
             "config": {"hscale": 2.4},
             "head": {"text": "Fetch at the next PC; LW waits one cycle"},
+        },
+    ),
+    # The halt timing contract on the pins (rtl/top/kestrel_core.sv):
+    # halt = halt_q | halt_now is visible on the detection cycle n, the
+    # halting instruction retires that cycle as the one trap beat, and
+    # from n+1 halt_q holds rvfi_valid low and the PC frozen.
+    (
+        MAS_WAV / "wvf_4_3_halt.json",
+        MAS_WAV / "wvf_4_3_halt.png",
+        {
+            "signal": [
+                {"name": "clk", "wave": "PPPPP"},
+                {"name": "", "wave": "22222", "data": ["n-1", "n (halting)", "n+1", "n+2", "n+3"]},
+                {"name": "pc", "wave": "==...", "data": ["P", "P+4"]},
+                {"name": "insn", "wave": "==...", "data": ["ADDI", "ECALL"]},
+                {"name": "halt_now", "wave": "010.."},
+                {"name": "halt_q", "wave": "0.1.."},
+                {"name": "halt", "wave": "01..."},
+                {"name": "halt_cause", "wave": "=====", "data": ["0", "1", "1", "1", "1"]},
+                {"name": "rvfi_valid", "wave": "1.0.."},
+                {"name": "rvfi_trap", "wave": "010.."},
+                {"name": "rvfi_rd_addr", "wave": "==x..", "data": ["rd", "0"]},
+            ],
+            "config": {"hscale": 2.4},
+            "head": {"text": "Halt on the pins: trap beat at cycle n, frozen from n+1"},
         },
     ),
 ]

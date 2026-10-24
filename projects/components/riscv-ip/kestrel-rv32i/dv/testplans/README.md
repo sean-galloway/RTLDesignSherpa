@@ -33,9 +33,9 @@ testplan convention so the same coverage rollup applies
 | Testplan | Module | Test file(s) | Scenarios | Verified | Not impl. |
 |----------|--------|--------------|----------:|---------:|----------:|
 | `kestrel_regfile_testplan.yaml` | kestrel_regfile.sv | test_kestrel_regfile.py | 5 | 5 | 0 |
-| `kestrel_alu_testplan.yaml` | kestrel_alu.sv | test_kestrel_decode.py | 5 | 5 | 0 |
-| `kestrel_imm_gen_testplan.yaml` | kestrel_imm_gen.sv | test_kestrel_decode.py | 6 | 6 | 0 |
-| `kestrel_decode_testplan.yaml` | kestrel_decode.sv | test_kestrel_decode.py | 12 | 12 | 0 |
+| `rv32i_alu_testplan.yaml` (in `common-rv32i/dv/testplans/`) | common-rv32i rv32i_alu.sv | common-rv32i test_rv32i_decode.py | 5 | 5 | 0 |
+| `rv32i_imm_gen_testplan.yaml` (in `common-rv32i/dv/testplans/`) | common-rv32i rv32i_imm_gen.sv | common-rv32i test_rv32i_decode.py | 6 | 6 | 0 |
+| `rv32i_decode_testplan.yaml` (in `common-rv32i/dv/testplans/`) | common-rv32i rv32i_decode.sv | common-rv32i test_rv32i_decode.py | 12 | 12 | 0 |
 | `kestrel_mem_loader_testplan.yaml` | kestrel_mem_loader.sv | test_kestrel_mem_loader.py | 9 | 9 | 0 |
 | `kestrel_core_testplan.yaml` | kestrel_core.sv | test_kestrel_{core,branch,ls,rv32ui,mem_loader,fuzz}.py | 19 | 18 | 1 |
 | **Total** | | | **56** | **55** | **1** |
@@ -49,15 +49,15 @@ Not-implemented scenarios and why:
 - **RF (kestrel_regfile)**: reset-to-zero, write/readback on both ports,
   read-during-write old-value, x0 discard, independent port addressing
   (attributed to the core-level golden trace, RF-05).
-- **ALU (kestrel_alu)**: exhaustive 10-op x 16-value x 16-value golden-model
+- **ALU (rv32i_alu)**: exhaustive 10-op x 16-value x 16-value golden-model
   sweep including shamt=`b[4:0]`, signed/unsigned compare flags. The flags
   are unconnected inside kestrel_core by design (branch comparator is
   separate) — verified at unit level only.
-- **IG (kestrel_imm_gen)**: I/S/B/U/J immediate assembly and sign extension
+- **IG (rv32i_imm_gen)**: I/S/B/U/J immediate assembly and sign extension
   with directed ±vectors; B/J LSB-zero rule; plus a SEED-driven randomized
   sweep (625 vectors, opcode+funct3 anchored per format class) against the
   Python `imm_golden`.
-- **DEC (kestrel_decode)**: the 48-encoding golden truth table (37 canonical
+- **DEC (rv32i_decode)**: the 48-encoding golden truth table (37 canonical
   RV32I + mret + fence/fence.i + ecall/ebreak + all 6 CSR-stub forms),
   illegal / reserved encodings landing on halt cause 0xF, ecall/ebreak
   causes 1/2. Halt cause 3 (IALIGN) is decode-invisible by design and lives
@@ -178,11 +178,11 @@ full level, 200 streams), from `make clean-all`:
 | Metric | Result | House target | Status |
 |---|---|---|---|
 | Line (Verilator) | 97.8% | 80% | PASS |
-| Line — kestrel_alu | 100.0% | — | — |
+| Line — rv32i_alu | 100.0% | — | — |
 | Line — kestrel_bram_tb_top | 97.6% | — | — |
 | Line — kestrel_core | 100.0% | — | — |
-| Line — kestrel_decode | 90.0% | — | — |
-| Line — kestrel_imm_gen | 100.0% | — | — |
+| Line — rv32i_decode | 90.0% | — | — |
+| Line — rv32i_imm_gen | 100.0% | — | — |
 | Line — kestrel_loader_tb_top | 98.0% | — | — |
 | Line — kestrel_mem_bram | 98.6% | — | — |
 | Line — kestrel_mem_loader | 98.6% | — | — |

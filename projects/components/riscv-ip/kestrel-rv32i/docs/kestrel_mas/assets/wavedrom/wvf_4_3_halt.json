@@ -1,0 +1,80 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "PPPPP"
+    },
+    {
+      "name": "",
+      "wave": "22222",
+      "data": [
+        "n-1",
+        "n (halting)",
+        "n+1",
+        "n+2",
+        "n+3"
+      ]
+    },
+    {
+      "name": "pc",
+      "wave": "==...",
+      "data": [
+        "P",
+        "P+4"
+      ]
+    },
+    {
+      "name": "insn",
+      "wave": "==...",
+      "data": [
+        "ADDI",
+        "ECALL"
+      ]
+    },
+    {
+      "name": "halt_now",
+      "wave": "010.."
+    },
+    {
+      "name": "halt_q",
+      "wave": "0.1.."
+    },
+    {
+      "name": "halt",
+      "wave": "01..."
+    },
+    {
+      "name": "halt_cause",
+      "wave": "=====",
+      "data": [
+        "0",
+        "1",
+        "1",
+        "1",
+        "1"
+      ]
+    },
+    {
+      "name": "rvfi_valid",
+      "wave": "1.0.."
+    },
+    {
+      "name": "rvfi_trap",
+      "wave": "010.."
+    },
+    {
+      "name": "rvfi_rd_addr",
+      "wave": "==x..",
+      "data": [
+        "rd",
+        "0"
+      ]
+    }
+  ],
+  "config": {
+    "hscale": 2.4
+  },
+  "head": {
+    "text": "Halt on the pins: trap beat at cycle n, frozen from n+1"
+  }
+}

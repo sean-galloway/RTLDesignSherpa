@@ -27,7 +27,7 @@
 
 `kestrel_mem_loader` is the optional board glue (HAS Ch. 4 specifies its external contract; this section covers how it is built). It contains: two 16384-word distributed-RAM arrays (`imem`, `dmem`), a CTRL/run register, and the write-port merge logic — wrapped in the repo's skid-buffered AXIL leaf slaves, composed exactly as `rtl/amba/shared/sdpram_slave_axil_axil.sv` composes them. Mutual exclusion between loader and core is by protocol; there is no contention arbiter and no FSM in the datapath.
 
-### Figure 2.1: Loader composition
+### Figure 2.3: Loader composition
 
 ![kestrel_mem_loader internal composition](../assets/graphviz/kestrel_mem_loader.png)
 

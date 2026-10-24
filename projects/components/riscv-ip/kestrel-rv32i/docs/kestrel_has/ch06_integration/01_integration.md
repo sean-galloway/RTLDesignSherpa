@@ -42,7 +42,7 @@
 
 | Filelist | Contents | Environment |
 |----------|----------|-------------|
-| `rtl/filelists/kestrel_pkg.f` | The package alone (enums, halt causes) | `$KESTREL_ROOT` |
+| `common-rv32i/rtl/filelists/rv32i_pkg.f` | The package alone (enums, halt causes) | `$RV32I_COMMON_ROOT` |
 | `rtl/filelists/fub/*.f` | One filelist per FUB (alu, decode, imm_gen, regfile, mem_loader), each a complete closure including the package and shared includes | `$KESTREL_ROOT`, `$REPO_ROOT` (loader pulls `rtl/amba` leaf slaves and `reset_defs.f`) |
 | `rtl/filelists/top/kestrel_core.f` | The core top plus its FUB closures | `$KESTREL_ROOT`, `$REPO_ROOT` |
 | `rtl/filelists/kestrel_all.f` | Master list: `-f` of everything above; the whole-area compile closure | `$KESTREL_ROOT`, `$REPO_ROOT` |
@@ -65,7 +65,7 @@ kestrel was built RVFI-first: the retire port is the defined observation channel
 
 : Observability hooks
 
-The V&V cross-reference is the six testplans in `dv/testplans/`: `kestrel_core` (19 scenarios, including the 42-test rv32ui battery, spike lockstep, constrained-random fuzz, and coverage closure), `kestrel_mem_loader` (ML-01..ML-09, including the golden battery over AXIL), and per-FUB plans for `kestrel_alu`, `kestrel_decode`, `kestrel_imm_gen`, and `kestrel_regfile`. Independent of simulation, riscv-formal runs 42 bounded-model-checking proofs (37 instruction models + 5 consistency checks) against the RVFI port — 42/42 PASS at depth 6. Regeneration commands are recorded in each testplan.
+The V&V cross-reference is the six testplans in `dv/testplans/`: `kestrel_core` (19 scenarios, including the 42-test rv32ui battery, spike lockstep, constrained-random fuzz, and coverage closure), `kestrel_mem_loader` (ML-01..ML-09, including the golden battery over AXIL), and per-FUB plans for `rv32i_alu`, `rv32i_decode`, `rv32i_imm_gen`, and `kestrel_regfile`. Independent of simulation, riscv-formal runs 42 bounded-model-checking proofs (37 instruction models + 5 consistency checks) against the RVFI port — 42/42 PASS at depth 6. Regeneration commands are recorded in each testplan.
 
 ## Known Limitations
 

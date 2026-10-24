@@ -13,8 +13,8 @@ its retire interface reports execution, and how it was verified hard
 enough to trust.
 
 Everything here describes the as-built core in
-`rtl/includes/kestrel_pkg.sv`, `rtl/fub/kestrel_regfile.sv`, `rtl/fub/kestrel_alu.sv`,
-`rtl/fub/kestrel_imm_gen.sv`, `rtl/fub/kestrel_decode.sv`, and
+`common-rv32i/rtl/includes/rv32i_pkg.sv`, `rtl/fub/kestrel_regfile.sv`, `common-rv32i/rtl/fub/rv32i_alu.sv`,
+`common-rv32i/rtl/fub/rv32i_imm_gen.sv`, `common-rv32i/rtl/fub/rv32i_decode.sv`, and
 `rtl/top/kestrel_core.sv`. Where a design decision was made that the spec
 leaves open — and RV32I leaves several doors open — the decision is stated
 plainly and labeled as a decision, with the spec's own permission cited.

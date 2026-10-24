@@ -1,0 +1,38 @@
+// kestrel_board_context - HAS Figure 2.2 (the block-RAM board integration).
+// House style: vault/handbook/authoring/block-diagrams.md. The Nexys A7
+// build as one unit: the host PC's UART enters through the bridge on
+// top, the memory system is the bar, and the core sits between them.
+// Requests go down (fetch at the next PC on the left lane, load/store in
+// the center), read data climbs back one clock later, and the memory
+// system's mem_wait / core_rst_n are sideband into the core.
+// Source of truth: projects/fpga-systems/NexysA7/riscv-ip/kestrel/rtl/
+// kestrel_nexysa7_top.sv, rtl/fub/kestrel_mem_bram.sv.
+digraph kestrel_board_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="1.05", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="kestrel on the Nexys A7-100T (kestrel_nexysa7_top) - block-RAM memory system, UART-to-AXI4-Lite host path";
+
+    pc    [label="Host PC\nkestrel_board.py over the USB UART\n(the same program drives the cocotb sim)", style="rounded,filled", fillcolor="#E2EFDA"];
+    clk   [label="Clock / Reset\n100 MHz -> MMCM -> harness clock;\ncpu_resetn & MMCM locked -> reset", style="rounded,filled", fillcolor="#E2EFDA"];
+    br    [label="UART to AXI4-Lite Bridge (on clk, rst_n)\nuart_axil_bridge - u_uart_bridge\n115200 baud; one AXI4-Lite master", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    core  [label="Single-Cycle RV32I Core\nkestrel_core (RESET_ADDR = 0x8000_0000)", width=3.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    leds  [label="LEDs (status out)\nrun, halted, halted on ecall,\nMMCM locked, UART activity, heartbeat", group=S, style="rounded,filled", fillcolor="#E2EFDA"];
+    mem   [label="Memory System and Registers (the board's memory)\nkestrel_mem_bram - u_mem: 16 KB block RAM (registered read), CTRL.run, STATUS / CYCLES / INSTRET / GP, BUILD_ID",
+           width=9.5, style="rounded,filled,bold", fillcolor="#E2EFDA", penwidth=2.2];
+
+    pc   -> br   [dir=both, xlabel="UART bytes: write / read\ncommands down, replies up"];
+    clk  -> core [style=dashed, color="#777777", xlabel="clk; core_rst_n\ncomes from CTRL.run"];
+    br   -> mem  [xlabel="s_axil_*: load the image,\nwrite CTRL.run, read STATUS / GP", penwidth=1.8];
+    core -> mem  [dir=both, xlabel="fetch at imem_addr_next, load / store down;\nimem_rdata, dmem_rdata up (next clock);\nmem_wait, core_rst_n in (sideband)", penwidth=1.8];
+    leds -> mem  [dir=back, style=dashed, color="#777777", xlabel="run, halted, cause\n(from STATUS)"];
+
+    { rank=same; pc; clk; leds; }
+    { rank=same; br; core; }
+    { rank=same; mem; }
+    pc -> clk -> leds [style=invis];
+    br -> core [style=invis];
+}

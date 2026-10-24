@@ -43,9 +43,9 @@ from tbclasses.kestrel.rv32i_interpreter import (                   # noqa: E402
 
 PROGRAMS_DIR = Path(__file__).resolve().parent / "programs"
 
-HALT_ECALL = 1      # kestrel_pkg: the program ran to its final ecall
-HALT_LALIGN = 4     # kestrel_pkg: load address misaligned
-HALT_SALIGN = 5     # kestrel_pkg: store address misaligned
+HALT_ECALL = 1      # rv32i_pkg: the program ran to its final ecall
+HALT_LALIGN = 4     # rv32i_pkg: load address misaligned
+HALT_SALIGN = 5     # rv32i_pkg: store address misaligned
 
 CASES = {
     "cocotb_test_kestrel_ls_basic":

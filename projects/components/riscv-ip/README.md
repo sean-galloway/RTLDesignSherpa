@@ -55,6 +55,19 @@ not `kestrel`. The bare codename is how the core is referred to in prose
 | [`gyrfalcon-rv32ima/`](gyrfalcon-rv32ima/) | **gyrfalcon** | RV32IM baseline; gyrfalcon-A flavor RV32IMA | out-of-order capstone: rename, ROB, reservation stations; two flavors — baseline and gyrfalcon-A (`A_EXT=1`: LR/SC + AMO atomics study) | Planned; structure only |
 | [`garuda-rv32imaf/`](garuda-rv32imaf/) | **garuda** | RV32IMAF | gyrfalcon's OoO plus an FPU: FP register file + rename, fcsr precise flags, non-pipelined long-latency units | Planned; structure only (penciled in; beyond the 2026-10-06 design spec, which pins four rungs) |
 
+### Shared blocks: common-rv32i
+
+[common-rv32i/](common-rv32i/) holds the RV32I pieces that are the same in
+every core built on the kestrel contract: `rv32i_pkg` (XLEN, the ALU-op and
+immediate-select enums, the halt-cause encoding) and the three
+combinational blocks `rv32i_decode`, `rv32i_imm_gen`, `rv32i_alu`, with
+their unit tests and testplans. kestrel and gatling instantiate them
+unchanged through `$RV32I_COMMON_ROOT` (pulled out of kestrel 2026-10-22).
+The ladder rule above still holds for the rungs -- merlin and up are
+clean-slate -- but a core whose ISA contract *is* kestrel's shares the
+source rather than copying it; the block chapters stay in the kestrel MAS,
+its reference consumer.
+
 ### Moved: hive-serv
 
 hive-serv — the SERV-based control/monitoring system (1 VexRiscv control
@@ -64,9 +77,9 @@ cores rather than teaching one, and it is the control half of the compute
 family (its other half is the cell CGRA), not a falcon-ladder rung. This
 directory is the ladder again, nothing more.
 
-### Tetrad engine: gatling-rv32itetrad
+### Tetrad engine: gatling-rv32i
 
-[gatling-rv32itetrad/](gatling-rv32itetrad/) is not a ladder rung either — it is the
+[gatling-rv32i/](gatling-rv32i/) is not a ladder rung either — it is the
 compute family's tetrad engine (PRD v0.3): a barrel RV32I core with four
 contexts -- the four cells of a tetrad -- sharing one F/D/X/W datapath, and
 the Xcell extension (custom-0) through which each context sequences its
@@ -76,7 +89,7 @@ kestrel's own lineage: same RV32I contract, decode and ALU, inverted
 pipeline lesson -- N contexts hide one shared datapath's latency instead of
 stages hiding latency for one stream. The RV32I barrel is built and runs
 four harts on the Nexys A7 (2026-10-21); Xcell is next, tracked in
-[vault TASK-002](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32itetrad/task/open/TASK-002.md).
+[vault TASK-002](../../../vault/tracking/projects/components/riscv-ip/gatling-rv32i/task/open/TASK-002.md).
 
 ## Goals per rung
 

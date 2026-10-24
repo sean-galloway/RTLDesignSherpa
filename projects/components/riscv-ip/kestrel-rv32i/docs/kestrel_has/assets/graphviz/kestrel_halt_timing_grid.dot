@@ -1,0 +1,27 @@
+// kestrel_halt_timing_grid - HAS Figure 4.1 (the halt timing contract).
+// A cycle grid (vault/handbook/authoring/block-diagrams.md): one row per
+// signal, one column per cycle; 1 cells blue, 0 cells white. Drawn from
+// rtl/top/kestrel_core.sv: halt = halt_q | halt_now, rvfi_valid =
+// ~halt_q & ~mem_wait, rvfi_trap = halt_now, pc_d = halt ? pc : next_pc.
+digraph kestrel_halt_timing_grid {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, pad="0.2"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+
+    grid [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
+  <TR><TD BGCOLOR="#E2EFDA"><B>signal \ cycle</B></TD>
+      <TD BGCOLOR="#E2EFDA"><B>n-1: last running</B></TD><TD BGCOLOR="#E2EFDA"><B>n: halting (detection)</B></TD><TD BGCOLOR="#E2EFDA"><B>n+1</B></TD><TD BGCOLOR="#E2EFDA"><B>n+2 ...</B></TD></TR>
+  <TR><TD ALIGN="LEFT">halt_now (combinational)</TD><TD>0</TD><TD BGCOLOR="#D6E4F0">1</TD><TD>0</TD><TD>0</TD></TR>
+  <TR><TD ALIGN="LEFT">halt_q (holding flop)</TD><TD>0</TD><TD>0</TD><TD BGCOLOR="#D6E4F0">1</TD><TD BGCOLOR="#D6E4F0">1</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>halt</B> = halt_q | halt_now (port)</TD><TD>0</TD><TD BGCOLOR="#D6E4F0">1</TD><TD BGCOLOR="#D6E4F0">1</TD><TD BGCOLOR="#D6E4F0">1</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>halt_cause</B> (port)</TD><TD>0</TD><TD BGCOLOR="#D6E4F0">cause</TD><TD BGCOLOR="#D6E4F0">cause (held)</TD><TD BGCOLOR="#D6E4F0">cause (held)</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>rvfi_valid</B></TD><TD BGCOLOR="#D6E4F0">1</TD><TD BGCOLOR="#D6E4F0">1</TD><TD>0</TD><TD>0</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>rvfi_trap</B> = halt_now</TD><TD>0</TD><TD BGCOLOR="#D6E4F0">1 (the trap beat)</TD><TD>0</TD><TD>0</TD></TR>
+  <TR><TD ALIGN="LEFT">rvfi_rd_addr / rd_wdata, mem fields</TD><TD>as retired</TD><TD>0 (no rd write, no access)</TD><TD>0</TD><TD>0</TD></TR>
+  <TR><TD ALIGN="LEFT"><B>pc</B> (register)</TD><TD>P</TD><TD>P + 4 (the halting instruction)</TD><TD BGCOLOR="#D6E4F0">frozen</TD><TD BGCOLOR="#D6E4F0">frozen</TD></TR>
+  <TR><TD ALIGN="LEFT">rvfi_pc_wdata on the trap beat</TD><TD>next_pc</TD><TD>next_pc (the misaligned target on cause 3)</TD><TD>-</TD><TD>-</TD></TR>
+  <TR><TD COLSPAN="5" ALIGN="LEFT" BALIGN="LEFT">The first halting cycle is visible on <B>halt</B> without waiting for the latch; the halting instruction retires on that cycle as the one trap beat,<BR/>
+then halt_q holds rvfi_valid low and the PC frozen until reset. A cycle with mem_wait high masks halt_now, so the trap beat lands on the cycle the<BR/>
+instruction completes. Verification samples at least four post-halt cycles to pin the hold (testplan scenario CORE-12).</TD></TR>
+</TABLE>>];
+}

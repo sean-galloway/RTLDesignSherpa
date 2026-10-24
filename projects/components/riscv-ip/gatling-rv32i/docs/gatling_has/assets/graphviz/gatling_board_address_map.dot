@@ -1,0 +1,31 @@
+// gatling_board_address_map - HAS Figure 3.1 (gatling_mem_bram over AXI4-Lite).
+// An address map drawn as an HTML-table node (vault/handbook/authoring/
+// block-diagrams.md: cycle grids and address maps are tables, not block
+// diagrams, and carry no key). 18-bit byte addresses as the board's
+// UART-to-AXI4-Lite bridge presents them.
+// Source of truth: rtl/fub/gatling_mem_bram.sv (REG_BIT = 17, BANK_LSB = 14,
+// HREG_BIT = 8, MEM_WORDS = 4096).
+// render: no-key
+digraph gatling_board_address_map {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11, pad="0.2"];
+    node  [fontname="Helvetica", fontsize=10, shape=plaintext];
+
+    map [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6">
+  <TR><TD BGCOLOR="#E2EFDA"><B>Byte address (18 bits)</B></TD><TD BGCOLOR="#E2EFDA"><B>addr[17]</B></TD><TD BGCOLOR="#E2EFDA"><B>Selects</B></TD><TD BGCOLOR="#E2EFDA"><B>Access</B></TD></TR>
+  <TR><TD ALIGN="LEFT">0x0_0000 - 0x0_3FFF</TD><TD>0</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">context 0 memory: bank 0 (16 KB, addr[13:2] = word)</TD><TD ALIGN="LEFT">R any time; W only while context 0 is held (run[0] = 0), else dropped with B = OKAY</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0_4000 - 0x0_7FFF</TD><TD>0</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">context 1 memory: bank 1</TD><TD ALIGN="LEFT">as bank 0, gated by run[1]</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0_8000 - 0x0_BFFF</TD><TD>0</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">context 2 memory: bank 2</TD><TD ALIGN="LEFT">as bank 0, gated by run[2]</TD></TR>
+  <TR><TD ALIGN="LEFT">0x0_C000 - 0x0_FFFF</TD><TD>0</TD><TD ALIGN="LEFT" BGCOLOR="#E8DFF5">context 3 memory: bank 3</TD><TD ALIGN="LEFT">as bank 0, gated by run[3]</TD></TR>
+  <TR><TD ALIGN="LEFT">0x1_0000 - 0x1_FFFF</TD><TD>0</TD><TD ALIGN="LEFT" BGCOLOR="#F2F2F2">alias of 0x0_0000 - 0x0_FFFF (addr[16] is not decoded)</TD><TD ALIGN="LEFT">same as the bank it aliases</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0000</TD><TD>1</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">CTRL</TD><TD ALIGN="LEFT">W: bits[3:0] = run per context (1 release, 0 hold at RESET_ADDR). R: {halted[7:4], run[3:0]}</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0004</TD><TD>1</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">BUILD_ID</TD><TD ALIGN="LEFT">R: "GATL" (0x4741_544C)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0100 + 0x10*c + 0x0</TD><TD>1</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">STATUS of context c (addr[5:4] = c)</TD><TD ALIGN="LEFT">R: {cause[7:4], 2'b0, halted[1], run[0]}</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0100 + 0x10*c + 0x4</TD><TD>1</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">CYCLES of context c</TD><TD ALIGN="LEFT">R: clocks since its run bit rose, frozen at its halt</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0100 + 0x10*c + 0x8</TD><TD>1</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">INSTRET of context c</TD><TD ALIGN="LEFT">R: its retired instructions (RVFI beats, the trap beat included)</TD></TR>
+  <TR><TD ALIGN="LEFT">0x2_0100 + 0x10*c + 0xC</TD><TD>1</TD><TD ALIGN="LEFT" BGCOLOR="#D6E4F0">GP of context c</TD><TD ALIGN="LEFT">R: the last value it wrote to x3 (the riscv-tests verdict; 1 = pass)</TD></TR>
+  <TR><TD COLSPAN="4" ALIGN="LEFT" BALIGN="LEFT">Lavender: memory banks (block RAM).  Blue: registers.  Grey: alias.  The core never sees the bank field: inside the core a context addresses its whole<BR/>
+bank at every address, so the four images are linked at the same base (the riscv-tests battery: 0x8000_0000, which is also the core's RESET_ADDR).<BR/>
+STATUS, CYCLES, INSTRET and GP keep their values after a context stops and clear when its run bit rises.</TD></TR>
+</TABLE>>];
+}

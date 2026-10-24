@@ -1,0 +1,53 @@
+// kestrel_halt - MAS Figure 4.2 (halt resolution and what it gates).
+// House style: vault/handbook/authoring/block-diagrams.md (single-clock
+// block, part of kestrel_core): the three cause sources on top, the
+// resolve logic in the center, the one-bit holding register with its
+// feedback climbing the right edge, and the gated state at the bar. The
+// drawing shows WHY the register-write gate names the two halts an
+// rd-writing instruction can raise instead of the whole halt: the
+// branch comparator then stays off the register-write path.
+// Source of truth: rtl/top/kestrel_core.sv (halt_cause_eff, halt_now,
+// halt_q, rd_wen_eff, pc_d, rvfi_valid).
+digraph kestrel_halt {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.50", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="kestrel_core halt - three cause sources, one holding bit, and the state it freezes";
+
+    dec   [label="Decode Causes (from rv32i_decode)\nECALL (1), EBREAK (2), illegal (F)\ndec_halt_cause", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    tgt   [label="Target Alignment (combinational, in the core)\ntgt_lo_pc = pc[1:0] + imm[1:0]\ntgt_lo_jalr = (rs1[1:0] + imm[1:0]) & 10\nmisalign_link: jump / jalr target bits != 0\nmisalign_branch: taken branch, tgt_lo_pc != 0\n-> IALIGN (3)", group=C, style="filled", fillcolor="white"];
+    lsm   [label="Access Alignment (from the L/S path, Figure 4.1)\nls_misalign -> LALIGN (4) load, SALIGN (5) store", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+    mw    [label="Memory Wait Port\nmem_wait (comb)", group=W, style="rounded,filled", fillcolor="#E2EFDA"];
+
+    res   [label="Halt Resolve (combinational)\nhalt_cause_eff = dec_halt_cause | IALIGN | LALIGN / SALIGN\nhalt_now = |halt_cause_eff & ~mem_wait\nhalt = halt_q | halt_now (visible on the halting cycle)", group=C, width=7.0, style="filled", fillcolor="white"];
+    hq    [label="Halt Holding Register\nhalt_q (1-bit flop)\nhalt_q <= halt_q | halt_now\nonly reset clears it", group=Q, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    pcg   [label="PC Gate (combinational)\npc_d = (halt | mem_wait) ? pc : next_pc\nfrozen from the halting edge", group=L, style="filled", fillcolor="white"];
+    rfg   [label="Register-Write Gate (combinational)\nrd_wen_eff = rd_wen & ~halt_q & ~mem_wait\n& ~misalign_link & ~ls_misalign\n(names only the halts an rd-writing row can raise:\nthe branch comparator stays off this path)", group=C, style="filled", fillcolor="white"];
+    rvg   [label="Retire Gate (combinational)\nrvfi_valid = ~halt_q & ~mem_wait\nrvfi_trap = halt_now (the one trap beat)\nrd fields zero when halt; halt_cause = 0 while mem_wait", group=R, style="filled", fillcolor="white"];
+
+    bar   [label="Gated State and Halt Outputs\npc register load   |   kestrel_regfile write enable   |   rvfi_valid, rvfi_trap, rvfi_rd_*   |   halt, halt_cause",
+           width=11.5, style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2];
+
+    dec -> res [xlabel="dec_halt_cause"];
+    tgt -> res [xlabel="misalign_target\n(IALIGN)"];
+    lsm -> res [xlabel="ls_misalign\n(LALIGN / SALIGN)"];
+    mw  -> res [style=dashed, color="#777777", xlabel="mem_wait masks\nhalt_now"];
+    res -> hq  [dir=both, xlabel="halt_now down;\nhalt_q (held) back up", penwidth=1.8];
+    res -> pcg [xlabel="halt"];
+    res -> rfg [xlabel="halt_q; misalign_link,\nls_misalign direct"];
+    res -> rvg [xlabel="halt_q, halt_now"];
+    pcg -> bar [xlabel="pc holds"];
+    rfg -> bar [xlabel="rd_wen_eff"];
+    rvg -> bar [xlabel="trap beat, then silence"];
+    hq  -> bar [style=dashed, color="#777777", xlabel="halt, halt_cause\n(held on the port)"];
+
+    { rank=same; dec; tgt; lsm; mw; }
+    { rank=same; res; }
+    { rank=same; pcg; rfg; rvg; hq; }
+    dec -> tgt -> lsm -> mw [style=invis];
+    pcg -> rfg -> rvg -> hq [style=invis];
+}

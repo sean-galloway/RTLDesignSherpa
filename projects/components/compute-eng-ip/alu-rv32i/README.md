@@ -28,7 +28,7 @@ operations, eq/lt/ltu flags, and the flags ruling, pinned once so every rung
 teaches the same contract while its microarchitecture diverges.
 
 This directory holds the **definition only** — no RTL here. Each rung
-realizes the contract in its own RTL (kestrel_alu is the v1 reference).
+realizes the contract in its own RTL (rv32i_alu is the v1 reference).
 
 - **PRD:** [PRD.md](PRD.md)
 - **Realization home:** [`riscv-ip/kestrel-rv32i/`](../../riscv-ip/kestrel-rv32i/)

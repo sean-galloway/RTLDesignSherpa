@@ -23,8 +23,8 @@
 //          Context 0 is not special in the RTL -- the rotation treats all
 //          four alike -- so its proof stands for each.
 //
-// Documentation: projects/components/riscv-ip/gatling-rv32itetrad/docs/gatling_mas
-// Subsystem: riscv-ip/gatling-rv32itetrad
+// Documentation: projects/components/riscv-ip/gatling-rv32i/docs/gatling_mas
+// Subsystem: riscv-ip/gatling-rv32i
 //
 // Author: sean galloway
 // Created: 2026-10-21

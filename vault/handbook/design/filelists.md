@@ -296,3 +296,34 @@ other flows had not, only because their filelists happen to use `#`.
   cwd), while the Tcl side resolves it against the filelist's parent-of-parent.
   Every repo filelist anchors nested `-f` on `$REPO_ROOT` (or an area root
   variable), which both read identically -- keep doing that.
+
+## Shared blocks get their own AREA and root variable, not a neighbour's filelist (2026-10-22)
+
+When gatling was built it instantiated kestrel's decode, immediate generator
+and ALU by `-f`-ing kestrel's block filelists through `$KESTREL_ROOT`. That
+obeyed the letter of the rule above (nothing hand-listed), and it was still
+wrong: the registry showed kestrel as the owner of blocks gatling could not
+build without, every gatling consumer (board build, UART cosim, riscv-formal)
+had to export a root for an area it did not use, and the modules carried
+another core's name. The fix was an area: `riscv-ip/common-rv32i` owns
+`rv32i_pkg` + `rv32i_{decode,imm_gen,alu}`, with its own master `.f`, unit
+test and testplans, and both cores `-f` it through `$RV32I_COMMON_ROOT`.
+
+The shape to copy, and the places a new root touches (all five, or a
+consumer somewhere resolves the old path):
+
+- `env_python`, `bin/filelist_registry.py` `ROOT_VARS`,
+  `bin/TBClasses/shared/filelist_utils.py` defaults, `make/formal_flat.mk`
+  -- the four root tables -- plus an `[[area]]` in `bin/filelists.toml`.
+- Board builds and board tests export their own roots (`build-bram/Makefile`,
+  `create_project.tcl`'s `foreach var` list, the test's `os.environ.setdefault`
+  block): each is a fifth copy of the table, per consumer.
+- `python3 bin/filelist_registry.py --check` then shows the new area with
+  its modules covered and the old owner with fewer; `--find <module>` names
+  exactly one provider.
+
+The test for "is this a shared block or a copy": if a fix to it must land in
+both consumers at once, it is shared and lives in a common area (the
+cache-ip `common-ip` precedent). The falcon ladder's "rungs do not share RTL"
+rule is about the *rungs* -- a core whose ISA contract IS another's shares
+the source rather than copying it.

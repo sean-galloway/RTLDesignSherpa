@@ -25,11 +25,11 @@
 
 ## Top-Level Description
 
-kestrel is delivered as two synthesizable modules and a shared package:
+kestrel is delivered as two synthesizable modules and a shared package (the package, with the decode, immediate-generator and ALU blocks inside the core, is `riscv-ip/common-rv32i`'s, shared with gatling):
 
 | Deliverable | File | Role |
 |-------------|------|------|
-| `kestrel_pkg` | `rtl/includes/kestrel_pkg.sv` | Shared enums and the halt-cause encodings (single source of truth) |
+| `rv32i_pkg` | `common-rv32i/rtl/includes/rv32i_pkg.sv` | Shared enums and the halt-cause encodings (single source of truth) |
 | `kestrel_core` | `rtl/top/kestrel_core.sv` | The RV32I core: fetch port, data port, halt outputs, RVFI retire port |
 | `kestrel_mem_loader` | `rtl/fub/kestrel_mem_loader.sv` | Optional board glue: two 64 KB on-chip memories behind an AXIL slave, with load-then-run control of the core |
 
@@ -46,6 +46,12 @@ The core has no memory inside it. Integration therefore always means: core + ins
 ![kestrel system context: minimal integration and loader-based integration](../assets/graphviz/kestrel_system_context.png)
 
 The top region shows the minimal integration: `kestrel_core` with two independently provided memories. The bottom region shows the loader integration: `kestrel_mem_loader` supplies both memories and a run-control register; a host agent on the SoC interconnect (a CPU, a DMA engine, or a debug port) drives the loader's AXIL slave to load the image and start the core.
+
+### Figure 2.2: kestrel on the Nexys A7 (block-RAM memory system)
+
+![kestrel on the board: the UART-to-AXI4-Lite bridge, kestrel_core, kestrel_mem_bram and the LEDs](../assets/graphviz/kestrel_board_context.png)
+
+The board build (`projects/fpga-systems/NexysA7/riscv-ip/kestrel`) is the loader integration with `kestrel_mem_bram` in place of the distributed-RAM loader: the same AXI4-Lite address map, block RAM with registered reads, and the core held one cycle per load with `mem_wait`. The host program is the same one that drives the cocotb simulation.
 
 ### Minimal Integration (No Loader)
 

@@ -61,10 +61,10 @@ No `define` configuration surface exists beyond this; there are no feature ifdef
 
 | Filelist | Contents | Needs |
 |----------|----------|-------|
-| `rtl/filelists/kestrel_pkg.f` | `kestrel_pkg` alone | `$KESTREL_ROOT` |
-| `rtl/filelists/fub/kestrel_alu.f` | ALU + package | `$KESTREL_ROOT` |
-| `rtl/filelists/fub/kestrel_decode.f` | Decode + package | `$KESTREL_ROOT` |
-| `rtl/filelists/fub/kestrel_imm_gen.f` | Immediate generator + package | `$KESTREL_ROOT` |
+| `common-rv32i/rtl/filelists/rv32i_pkg.f` | `rv32i_pkg` alone | `$RV32I_COMMON_ROOT` |
+| `common-rv32i/rtl/filelists/fub/rv32i_alu.f` | ALU + package | `$RV32I_COMMON_ROOT` |
+| `common-rv32i/rtl/filelists/fub/rv32i_decode.f` | Decode + package | `$RV32I_COMMON_ROOT` |
+| `common-rv32i/rtl/filelists/fub/rv32i_imm_gen.f` | Immediate generator + package | `$RV32I_COMMON_ROOT` |
 | `rtl/filelists/fub/kestrel_regfile.f` | Register file + `reset_defs` + package (the file itself no longer uses the reset macros) | `$KESTREL_ROOT`, `$REPO_ROOT` |
 | `rtl/filelists/fub/kestrel_mem_loader.f` | Loader + `reset_defs` + package + `axil4_slave_wr`/`axil4_slave_rd` closures | `$KESTREL_ROOT`, `$REPO_ROOT` |
 | `rtl/filelists/top/kestrel_core.f` | Core top + all core FUB closures | `$KESTREL_ROOT`, `$REPO_ROOT` |

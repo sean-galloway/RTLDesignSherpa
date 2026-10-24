@@ -54,7 +54,7 @@ None weakens a proof; all are recorded because the next rung inherits
 the flow:
 
 1. **sv2v pre-conversion.** This yosys (0.62+95) cannot parse the RTL's
-   module-body `import kestrel_pkg::*;`, so the Makefile converts the
+   module-body `import rv32i_pkg::*;`, so the Makefile converts the
    RTL into plain Verilog before genchecks runs; the wrapper is still
    read as SystemVerilog.
 2. **`const rand reg` workaround.** The same yosys rejects

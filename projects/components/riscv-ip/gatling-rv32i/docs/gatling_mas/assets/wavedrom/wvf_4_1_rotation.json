@@ -1,0 +1,113 @@
+{
+  "signal": [
+    {
+      "name": "clk",
+      "wave": "PPPPPPPP"
+    },
+    {
+      "name": "",
+      "wave": "22222222",
+      "data": [
+        "t",
+        "t+1",
+        "t+2",
+        "t+3",
+        "t+4",
+        "t+5",
+        "t+6",
+        "t+7"
+      ]
+    },
+    {
+      "name": "sel_q (context in F)",
+      "wave": "========",
+      "data": [
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c0",
+        "c1",
+        "c2",
+        "c3"
+      ]
+    },
+    {
+      "name": "imem_ctx, imem_addr",
+      "wave": "========",
+      "data": [
+        "c0: A",
+        "c1",
+        "c2",
+        "c3",
+        "c0: A+4",
+        "c1",
+        "c2",
+        "c3"
+      ]
+    },
+    {
+      "name": "imem_rdata (in D)",
+      "wave": "x=======",
+      "data": [
+        "LW (c0)",
+        "c1",
+        "c2",
+        "c3",
+        "ADDI (c0)",
+        "c1",
+        "c2"
+      ]
+    },
+    {
+      "name": "dmem_req (in X)",
+      "wave": "0.10...."
+    },
+    {
+      "name": "dmem_ctx, dmem_addr",
+      "wave": "x.=x....",
+      "data": [
+        "c0: W"
+      ]
+    },
+    {
+      "name": "dmem_rdata (in W)",
+      "wave": "x..=x...",
+      "data": [
+        "mem[W]"
+      ]
+    },
+    {
+      "name": "rvfi_valid",
+      "wave": "0..1...."
+    },
+    {
+      "name": "rvfi_ctx",
+      "wave": "x..=====",
+      "data": [
+        "c0",
+        "c1",
+        "c2",
+        "c3",
+        "c0"
+      ]
+    },
+    {
+      "name": "rvfi_insn",
+      "wave": "x..=====",
+      "data": [
+        "LW",
+        "c1",
+        "c2",
+        "c3",
+        "ADDI"
+      ]
+    }
+  ],
+  "config": {
+    "hscale": 2.2
+  },
+  "head": {
+    "text": "One rotation window on the pins: context 0's LW fetched at t retires at t+3; its ADDI is fetched at t+4"
+  }
+}

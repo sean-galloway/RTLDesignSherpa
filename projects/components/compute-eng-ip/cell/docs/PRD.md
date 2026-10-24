@@ -42,7 +42,7 @@ alu-infer ALU, one delta node, the config registers, the ALU registers
 (`A`/`B`/`C`/`D` + `T`) as persistent operands for repeated calculations over
 a run (`OP_SRC` operand-source mux, `IP`/`OP` memory pointers), and the
 data-in / data-out memories; the tetrad engine is deferred (the
-owner-authored gatling-rv32itetrad barrel-core PRD is the leading candidate;
+owner-authored gatling-rv32i barrel-core PRD is the leading candidate;
 §10). Credit returns become sender-generic — per-source batching to the
 recorded source coordinate; the packetizer gains `DEST` (default: recorded
 source, chain-back). §4 reconciles to the alu-infer elastic valid/ready
@@ -98,7 +98,7 @@ registers (§7), the ALU registers `A`/`B`/`C`/`D` (+`T`) — persistent
 operands for a sequence of the same calculations over a run — the data-in
 memory, and the data-out memory. The tetrad-level engine is **deferred**:
 gatling/tetrad is figured out once the cell is fully defined and working,
-with the owner-authored [`gatling-rv32itetrad`](../../../riscv-ip/gatling-rv32itetrad/PRD.md)
+with the owner-authored [`gatling-rv32i`](../../../riscv-ip/gatling-rv32i/PRD.md)
 barrel-core PRD (2026-10-17) the leading candidate. See §10.
 
 Out of scope: tetrad/root node internals, rapids internals, the CXS
@@ -364,7 +364,7 @@ datapath.
 - a tetrad-level RV32I control core per alu-infer PRD §5 — **deferred**
   (owner direction 2026-10-18): the tetrad engine is defined once the
   cell is fully defined and working, with the owner-authored
-  [`gatling-rv32itetrad`](../../../riscv-ip/gatling-rv32itetrad/PRD.md) barrel-core
+  [`gatling-rv32i`](../../../riscv-ip/gatling-rv32i/PRD.md) barrel-core
   PRD the leading candidate and kestrel-class a candidate flavor via
   `CORE_FLAVOR`. When it lands, gatling sequences the cell ALU through
   `POP`/`PUSH`/`FLUSH` (owner ruling 2026-10-19); the cells see its
@@ -410,7 +410,7 @@ datapath.
   hierarchy, §11 packet header, credits/grants (normative for §§3, 5, 6).
 - [`delta_has/ch07_mesh_network/`](../../../fabric-gen-ip/delta/docs/delta_has/ch07_mesh_network/)
   — the node the cell instantiates.
-- [`riscv-ip/gatling-rv32itetrad/PRD.md`](../../../riscv-ip/gatling-rv32itetrad/PRD.md)
+- [`riscv-ip/gatling-rv32i/PRD.md`](../../../riscv-ip/gatling-rv32i/PRD.md)
   — owner-authored barrel-core tetrad-engine PRD (leading candidate;
   deferred per §10).
 - [`axon_spec.md`](axon_spec.md) — superseded 2026-10-16 (decision trail).

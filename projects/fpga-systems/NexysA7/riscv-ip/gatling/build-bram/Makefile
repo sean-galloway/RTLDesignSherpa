@@ -9,9 +9,9 @@ SELF_DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel))
 
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
-export GATLING_ROOT    ?= $(RDS_ROOT)/projects/components/riscv-ip/gatling-rv32itetrad
-# gatling's decode/imm_gen/alu are kestrel's, through kestrel's own filelists.
-export KESTREL_ROOT    ?= $(RDS_ROOT)/projects/components/riscv-ip/kestrel-rv32i
+export GATLING_ROOT    ?= $(RDS_ROOT)/projects/components/riscv-ip/gatling-rv32i
+# gatling's decode/imm_gen/alu and ISA package are common-rv32i's.
+export RV32I_COMMON_ROOT ?= $(RDS_ROOT)/projects/components/riscv-ip/common-rv32i
 
 BOARD     ?= nexys_a7_100t
 FLOW      := gatling_bram

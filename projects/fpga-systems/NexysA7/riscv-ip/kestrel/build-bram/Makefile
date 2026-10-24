@@ -9,6 +9,8 @@ RDS_ROOT := $(if $(REPO_ROOT),$(REPO_ROOT),$(shell git rev-parse --show-toplevel
 
 export CONVERTERS_ROOT ?= $(RDS_ROOT)/projects/components/utility-ip/converters
 export KESTREL_ROOT    ?= $(RDS_ROOT)/projects/components/riscv-ip/kestrel-rv32i
+# kestrel's decode/imm_gen/alu and ISA package are common-rv32i's.
+export RV32I_COMMON_ROOT ?= $(RDS_ROOT)/projects/components/riscv-ip/common-rv32i
 
 BOARD     ?= nexys_a7_100t
 FLOW      := kestrel_bram

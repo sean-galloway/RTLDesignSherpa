@@ -16,7 +16,7 @@ never an option.
 The condition needs the *resolved* next PC: for JALR it depends on a
 register value, and for every branch it depends on the taken decision.
 Decode sees neither — it produces the control bundle, not the data.
-kestrel's `kestrel_pkg` comments state the ownership directly: causes 1,
+kestrel's `rv32i_pkg` comments state the ownership directly: causes 1,
 2, and `F` belong to decode; causes 3-5 belong to the core. In
 `kestrel_core.sv`:
 
@@ -75,6 +75,6 @@ says so because the distinction matters the moment a real cache enters
 at rung 3.
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 1.5,
-2.1.5; `rtl/includes/kestrel_pkg.sv` (cause encoding and ownership comment),
+2.1.5; `common-rv32i/rtl/includes/rv32i_pkg.sv` (cause encoding and ownership comment),
 `rtl/top/kestrel_core.sv` (misalign_target, writeback gating),
-`rtl/fub/kestrel_decode.sv`; task-9 report (the formal CEX that pinned this)
+`common-rv32i/rtl/fub/rv32i_decode.sv`; task-9 report (the formal CEX that pinned this)

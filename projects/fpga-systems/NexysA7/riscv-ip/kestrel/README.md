@@ -99,4 +99,4 @@ same netlist and flow it saved no LUTs (1,905 vs 1,908 synthesized, 2,029 vs
 slower at 100 MHz; it met 75 MHz and ran 42/42 on the board, as does the
 fabric build (A/B 2026-10-20: three batteries and a 46,074-write soak each,
 no UART faults). It was removed (owner, 2026-10-20); the kestrel MAS
-kestrel_alu chapter, "Why the ALU is not in a DSP", records why.
+rv32i_alu chapter, "Why the ALU is not in a DSP", records why.

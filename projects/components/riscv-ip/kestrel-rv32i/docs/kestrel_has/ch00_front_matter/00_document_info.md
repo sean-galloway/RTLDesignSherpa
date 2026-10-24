@@ -26,7 +26,7 @@
 ## KESTREL-RV32I Hardware Architecture Specification
 
 **Document Number:** KESTREL-HAS-001
-**Version:** 0.16
+**Version:** 0.1
 **Status:** Draft
 **Classification:** Open Source - MIT License
 
@@ -74,7 +74,7 @@ This document does not describe the internal microarchitecture. Block internals,
 | CPI | Cycles per instruction |
 | FUB | Functional Unit Block - leaf RTL module |
 | GPR | General-purpose register (x0-x31; x0 is hard-wired zero) |
-| HALT_* | kestrel halt-cause encodings defined in `kestrel_pkg` (see Table 4.3) |
+| HALT_* | kestrel halt-cause encodings defined in `rv32i_pkg` (see Table 4.3) |
 | Harvard | Separate instruction and data memory ports |
 | IALIGN | Instruction alignment: 32 bits for RV32I without the C extension |
 | Loader | `kestrel_mem_loader` - optional AXIL-slave board glue with on-chip memories |
@@ -90,16 +90,10 @@ This document does not describe the internal microarchitecture. Block internals,
 
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
-| 0.1 | 2026-10-07 | seang | Initial HAS release; documents the as-built RTL (Tasks 1-11) including the Task-9 IALIGN halt and the Task-11 AXIL board loader |
-| 0.11 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
-| 0.12 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
-| 0.13 | 2026-10-20 | seang | Memory contract: registered-read memories may hold the core with the new `mem_wait` input (owner, 2026-10-20); port table and timing rules updated. Combinational memories tie it low and see the unchanged single-cycle core. |
-| 0.14 | 2026-10-20 | seang | Misaligned loads/stores halt (causes `0x4`/`0x5`) instead of completing in hardware; the cross-word retry is removed and RVFI memory fields follow `RISCV_FORMAL_ALIGNED_MEM`. New output `imem_addr_next` lets a registered-read memory fetch at the next PC (block-RAM CPI 1, 2 for a load). Performance chapter updated, including the register file (flops, not distributed RAM). |
-| 0.15 | 2026-10-20 | seang | x1-x31 have no reset value (the register file has no reset; software initializes what it reads). Writeback-gate wording updated. Revisions renumbered (owner: at most 0.25 until running well): 0.2-0.5 became 0.11-0.14. |
-| 0.16 | 2026-10-20 | seang | x0 is kept zero by core writes rather than a register-file rule (performance chapter). |
+| 0.1 | 2026-10-23 | seang | Initial HAS: the single-cycle RV32I core (`kestrel_core`) and its memory contract (combinational or registered-read memories, via `mem_wait` and `imem_addr_next`), the halt causes including IALIGN and misaligned loads/stores (`0x4`/`0x5`), the register file without a reset value (x0 kept zero by core writes), the AXI4-Lite board loader and the block-RAM memory system on the Nexys A7, the figures (system context, board, halt timing, address map, programming sequence) and the references. The ISA package and the decode / immediate-generator / ALU blocks are `riscv-ip/common-rv32i`'s, shared with gatling. |
 
 : Document Revision History
 
 ---
 
-**Last Updated:** 2026-10-20
+**Last Updated:** 2026-10-23

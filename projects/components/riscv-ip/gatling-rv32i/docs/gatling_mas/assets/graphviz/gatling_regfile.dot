@@ -1,0 +1,44 @@
+// gatling_regfile - MAS Figure 2.1 (the four context register files).
+// House style: vault/handbook/authoring/block-diagrams.md (single-clock
+// storage block: ports on top, the storage is the bar, the read data
+// climbs its own lane back up). The read address arrives in the barrel's
+// D stage and the data leaves in X, one clock later: the block RAM's
+// output register is that stage boundary. x0 reads zero through a mask
+// registered with the address, applied after the RAM.
+// Source of truth: rtl/fub/gatling_regfile.sv.
+digraph gatling_regfile {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.60", ranksep="0.70", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="gatling_regfile - four context register files in one 128-entry block RAM (on clk)";
+
+    rdp   [label="Read Address Port (from D)\nrs_ctx, rs1_addr, rs2_addr", group=L, style="rounded,filled", fillcolor="#E2EFDA"];
+    wrp   [label="Write Port (from W)\nrd_ctx, rd_addr, rd_data, rd_wen", group=C, style="rounded,filled", fillcolor="#E2EFDA"];
+    outp  [label="Read Data Port (in X, one clock later)\nrs1_data, rs2_data", group=R, style="rounded,filled", fillcolor="#E2EFDA"];
+
+    idx   [label="Entry Index (combinational)\n{ctx, reg}: 4 contexts x 32 registers = 128 entries", group=L, style="filled", fillcolor="white"];
+    zmask [label="x0 Mask (flops, registered with the address)\nrs1_zero_q = (rs1_addr == 0)\nrs2_zero_q = (rs2_addr == 0)", group=M, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    widx  [label="Write Entry (combinational)\n{rd_ctx, rd_addr}; both copies written when rd_wen", group=C, style="filled", fillcolor="white"];
+    zsel  [label="Zero Select (combinational)\nrs1_data = rs1_zero_q ? 0 : q1\nrs2_data = rs2_zero_q ? 0 : q2", group=R, style="filled", fillcolor="white"];
+
+    bar   [label="Register Arrays (block RAM, no reset; registered read)\nregs_a[128] -> q1 (rs1 port)   |   regs_b[128] -> q2 (rs2 port)\ntwo copies of the same contents: one read port each, written together",
+           width=9.5, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+
+    rdp   -> idx   [xlabel="rs_ctx, rs1_addr, rs2_addr"];
+    rdp   -> zmask [style=dashed, color="#777777", xlabel="rs1_addr == 0,\nrs2_addr == 0"];
+    idx   -> bar   [xlabel="read entries\n{rs_ctx, rs1}, {rs_ctx, rs2}", penwidth=1.8];
+    wrp   -> widx  [xlabel="rd_ctx, rd_addr,\nrd_data, rd_wen"];
+    widx  -> bar   [xlabel="write entry + data\n(end of W)"];
+    zsel  -> bar   [dir=back, color="#1A7A1A", xlabel="q1, q2 (RAM output\nregisters, in X)"];
+    zmask -> zsel  [style=dashed, color="#777777", xlabel="zero masks"];
+    outp  -> zsel  [dir=back, color="#1A7A1A", xlabel="rs1_data, rs2_data"];
+
+    { rank=same; rdp; wrp; outp; }
+    { rank=same; idx; zmask; widx; }
+    { rank=same; zsel; }
+    rdp -> wrp -> outp [style=invis];
+    idx -> zmask -> widx [style=invis];
+}

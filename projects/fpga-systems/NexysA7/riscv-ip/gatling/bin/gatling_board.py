@@ -5,7 +5,7 @@
 
 Wraps `UARTAxiBridge` (projects/fpga-systems/bin) around gatling_mem_bram's
 AXIL map. The offsets below mirror the map in the RTL header
-(projects/components/riscv-ip/gatling-rv32itetrad/rtl/fub/gatling_mem_bram.sv)
+(projects/components/riscv-ip/gatling-rv32i/rtl/fub/gatling_mem_bram.sv)
 -- the one place an offset is written down on the host side.
 
 The bridge is INJECTABLE: the same driver runs the board over pyserial or a

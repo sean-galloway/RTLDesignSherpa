@@ -1,0 +1,58 @@
+// gatling_system_context - HAS Figure 1.1.
+// House style: vault/handbook/authoring/block-diagrams.md.
+// Two alternative integrations, one dashed region each (a system figure:
+// each region is its own unit, so each has its own memory bar at the
+// bottom). In both, the core's requests go DOWN to memory (fetch on the
+// left lane, load/store in the center) and the read data climbs back up
+// one stage later; trace leaves on the right. In the board build the
+// memory system also owns the per-context run bits, and a host loads
+// each context's bank over AXI4-Lite from above.
+// Source of truth: rtl/top/gatling_core.sv, rtl/fub/gatling_mem_bram.sv,
+// projects/fpga-systems/NexysA7/riscv-ip/gatling/rtl/gatling_nexysa7_top.sv.
+digraph gatling_system_context {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="gatling in a system - minimal integration (top) and the board build with the per-context memory system (bottom)";
+
+    subgraph cluster_min {
+        label="Minimal integration (integrator memories)"; style=dashed; fontsize=10;
+        m_clk  [label="Clock / Reset / Run\nclk, rst_n, hart_run[3:0]", style="rounded,filled", fillcolor="#E2EFDA"];
+        m_core [label="Four-Context Barrel RV32I\ngatling_core (RESET_ADDR)\none instruction per clock, four contexts", width=3.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        m_tr   [label="Trace Consumer\nRVFI retire beat + rvfi_ctx,\nhalted[3:0], halt_cause", style="rounded,filled", fillcolor="#E2EFDA"];
+        m_mem  [label="Integrator Memories (registered read: the word arrives the next cycle)\ninstruction memory by {imem_ctx, imem_addr}   |   data memory by {dmem_ctx, dmem_addr},\nper-byte write merge on dmem_wstrb", width=7.0, style="rounded,filled", fillcolor="#E2EFDA"];
+    }
+    subgraph cluster_ld {
+        label="Board build (Nexys A7: gatling_nexysa7_top)"; style=dashed; fontsize=10;
+        l_host [label="Host AXI4-Lite Master\nuart_axil_bridge (UART from the host PC),\nor any AXI4-Lite master", style="rounded,filled", fillcolor="#E2EFDA"];
+        l_core [label="Four-Context Barrel RV32I\ngatling_core", width=3.6, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+        l_tr   [label="Trace / LEDs\nhalted, halt_cause per context;\nLEDs: running / halted per hart", style="rounded,filled", fillcolor="#E2EFDA"];
+        p_h    [shape=point, width=0.01];
+        sp     [label="", width=2.2, style=invis];
+        l_ld   [label="Memory System and Registers\ngatling_mem_bram\nfour 16 KB banks (one per context), CTRL.run[3:0], STATUS / CYCLES / INSTRET / GP per context", width=7.0, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    }
+
+    m_clk  -> m_core [style=dashed, color="#777777", xlabel="clk, rst_n, hart_run"];
+    m_core -> m_mem  [dir=both, xlabel="fetch {ctx, pc}, load / store {ctx, addr} down;\nimem_rdata, dmem_rdata up (next cycle)", penwidth=1.8];
+    m_core -> m_tr   [xlabel="rvfi_*, halted"];
+
+    l_host -> l_core [style=invis];
+    p_h -> sp -> l_core [style=invis];
+    l_core -> l_ld   [minlen=2, dir=both, xlabel="fetch, load / store down;\nread data up; hart_run[3:0]\n(each context held until its run bit)", penwidth=1.8];
+    l_core -> l_tr   [xlabel="halted, halt_cause,\nrvfi beat"];
+    l_host -> p_h    [arrowhead=none, headclip=false];
+    p_h    -> l_ld   [tailclip=false, xlabel="s_axil_*: load a held context's\nbank, set its run bit, read STATUS"];
+
+    { rank=same; m_core; }
+    { rank=same; m_mem; m_tr; }
+    { rank=same; l_host; }
+    { rank=same; l_core; p_h; sp; }
+    { rank=same; l_ld; l_tr; }
+    m_mem -> l_host [style=invis];
+    m_mem -> m_tr [style=invis];
+    l_ld -> l_tr [style=invis];
+    m_core -> m_mem [style=invis, minlen=2];
+}

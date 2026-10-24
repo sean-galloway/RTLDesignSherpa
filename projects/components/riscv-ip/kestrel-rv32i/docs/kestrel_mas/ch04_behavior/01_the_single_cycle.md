@@ -31,7 +31,7 @@ The sections below follow the data in dependency order through a fully general c
 
 ## 1. Fetch and Decode
 
-`imem_addr = pc` and `insn = imem_rdata` — the instruction memory answers in the same cycle. Decode is the truth table of the kestrel_decode chapter, producing the thirteen-field control bundle plus defaults of "no operation, no halt."
+`imem_addr = pc` and `insn = imem_rdata` — the instruction memory answers in the same cycle. Decode is the truth table of the rv32i_decode chapter, producing the thirteen-field control bundle plus defaults of "no operation, no halt."
 
 ## 2. Operands and Immediates
 

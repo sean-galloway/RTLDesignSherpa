@@ -28,9 +28,9 @@ immediate, which is why U and J rows above leave cells empty.
 
 ## How kestrel decodes a format
 
-kestrel's `kestrel_decode` keys its truth table on the triple
+kestrel's `rv32i_decode` keys its truth table on the triple
 `{opcode, funct3, funct7}` — the exact fields that distinguish every
-base instruction. `kestrel_imm_gen` does not wait for it: the format is a
+base instruction. `rv32i_imm_gen` does not wait for it: the format is a
 function of the opcode alone, so it builds all five immediates in parallel
 and picks one by `insn[6:2]` (decode's `imm_sel` output still exists but is
 unused). The full table is Chapter 4; the format
@@ -61,7 +61,7 @@ immediates append an explicit 0 in bit 0 because branch and jump targets
 are always 2-byte-aligned at minimum — and with IALIGN=32, kestrel
 requires 4.
 
-`kestrel_imm_gen` implements exactly this table: five assemblies with
+`rv32i_imm_gen` implements exactly this table: five assemblies with
 the sign bits replicated by concatenation, and a `unique case` on the
 major opcode `insn[6:2]` picking one. U-type needs no sign extension work beyond
 the shift; the spec's canonical form zero-extends the 20-bit field and
@@ -78,4 +78,4 @@ instruction rather than a shift — matching the spec's reserved-encoding
 rules (spec Volume I, section 2.1.4).
 
 **Source:** RISC-V Instruction Set Manual, Volume I, sections 1.5, 2.1.2,
-2.1.3, 2.1.4; `rtl/fub/kestrel_imm_gen.sv`, `rtl/fub/kestrel_decode.sv`
+2.1.3, 2.1.4; `common-rv32i/rtl/fub/rv32i_imm_gen.sv`, `common-rv32i/rtl/fub/rv32i_decode.sv`

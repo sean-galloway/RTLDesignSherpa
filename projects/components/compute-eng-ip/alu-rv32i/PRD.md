@@ -46,7 +46,7 @@ microarchitectures diverge around it — the suite's core premise is that the
 makes those diffs measurable.
 
 The v1 reference realization is
-[`kestrel_alu`](../../riscv-ip/kestrel-rv32i/docs/kestrel_mas/ch02_blocks/04_kestrel_alu.md)
+[`rv32i_alu`](../../riscv-ip/kestrel-rv32i/docs/kestrel_mas/ch02_blocks/04_rv32i_alu.md)
 (single-cycle, kestrel rung). Later rungs re-implement it inside their own
 pipelines — merlin behind an EX stage, peregrine beside a separate
 multiply/divide unit, gyrfalcon and garuda behind issue ports. This PRD pins
@@ -140,7 +140,7 @@ Verification is per-rung, against this shared contract:
   doctrine, and rung goals.
 - [`docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md`](../../../../docs/superpowers/specs/2026-10-06-riscv-falcon-suite-design.md)
   — design spec (source of truth for scope, ISA, verification, packaging).
-- [`kestrel_mas/ch02_blocks/04_kestrel_alu.md`](../../riscv-ip/kestrel-rv32i/docs/kestrel_mas/ch02_blocks/04_kestrel_alu.md)
+- [`kestrel_mas/ch02_blocks/04_rv32i_alu.md`](../../riscv-ip/kestrel-rv32i/docs/kestrel_mas/ch02_blocks/04_rv32i_alu.md)
   — the v1 reference realization and the flags ruling.
 - [`riscv-ip/references/`](../../riscv-ip/references/) — the RISC-V ISA
   manuals (primary sources, cited by chapter).

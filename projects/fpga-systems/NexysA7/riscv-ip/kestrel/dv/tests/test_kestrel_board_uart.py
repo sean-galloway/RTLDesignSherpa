@@ -76,6 +76,8 @@ def test_kestrel_board_uart(request, program):
                           os.path.join(repo_root, "projects/components/utility-ip/converters"))
     os.environ.setdefault("KESTREL_ROOT",
                           os.path.join(repo_root, "projects/components/riscv-ip/kestrel-rv32i"))
+    os.environ.setdefault("RV32I_COMMON_ROOT",
+                          os.path.join(repo_root, "projects/components/riscv-ip/common-rv32i"))
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root,
         filelist_path="projects/fpga-systems/NexysA7/riscv-ip/kestrel/dv/filelists/kestrel_uart_tb_top.f")

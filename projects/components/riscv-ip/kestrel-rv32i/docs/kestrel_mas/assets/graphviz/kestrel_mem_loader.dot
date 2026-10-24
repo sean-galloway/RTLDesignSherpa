@@ -1,4 +1,4 @@
-// kestrel_mem_loader - MAS Figure 2.1 (loader composition).
+// kestrel_mem_loader - MAS Figure 2.3 (loader composition).
 // House style: vault/handbook/authoring/block-diagrams.md.
 // Two independent requesters, one column and one white port each (the
 // cam_tag ruling): the host AXI4-Lite port on the left, the core's memory

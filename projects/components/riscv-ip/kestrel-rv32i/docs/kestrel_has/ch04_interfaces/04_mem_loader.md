@@ -75,6 +75,12 @@
 
 ## Address Map
 
+### Figure 4.2: The AXI4-Lite address map (loader and block-RAM memory systems)
+
+![The 18-bit AXI4-Lite address map of kestrel_mem_loader and kestrel_mem_bram side by side](../assets/graphviz/kestrel_loader_address_map.png)
+
+Both memory systems decode the same two address bits and present the same CTRL register, so a host written for one drives the other; the block-RAM system adds the status registers and returns to load mode on a `run = 0` write instead of needing a reset.
+
 Byte address bits [17:0]. The array word index is the byte address's low 14 bits, `addr[13:0]`, on every port (AXIL and core) — one convention, so an AXIL write and a core access at the same byte address always touch the same word.
 
 | Address bits | Meaning |
@@ -110,6 +116,10 @@ Address-map properties an integrator must know:
 - **No arbiter.** Both clients merge into each array in one clocked process; protocol guarantees they are never both entitled at once.
 
 ## Programming Sequence
+
+### Figure 4.3: Load-then-run over AXI4-Lite
+
+![The programming sequence: reset, stream the image, read back, write CTRL.run, observe the halt, reload](../assets/graphviz/kestrel_programming_sequence.png)
 
 1. Assert `aresetn` low, then release it. The loader powers into load mode: `CTRL` reads 0, `core_rst_n` is low, the core is held.
 2. Stream the program image over AXIL writes: instruction words to the imem region (byte offsets from `0x00000`), data (including `.tohost`/`.data`) to the addresses the image expects — with the unified map, data linked above `0x10000` lands in the dmem region automatically. Writes may be full-word or per-byte (`wstrb`).

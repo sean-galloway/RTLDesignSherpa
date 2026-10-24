@@ -142,7 +142,7 @@ re-renders the `.dot` files.
 
 - **[alu-infer PRD](../../PRD.md)** — product definition (normative for the
   ALU block; this MAS implements it)
-- **[gatling PRD](../../../../riscv-ip/gatling-rv32itetrad/PRD.md)** — the
+- **[gatling PRD](../../../../riscv-ip/gatling-rv32i/PRD.md)** — the
   tetrad barrel core that issues the ALU
 - **[cell PRD](../../../cell/docs/PRD.md)** — the cell around the ALU:
   memories, packetizer, credits, register map

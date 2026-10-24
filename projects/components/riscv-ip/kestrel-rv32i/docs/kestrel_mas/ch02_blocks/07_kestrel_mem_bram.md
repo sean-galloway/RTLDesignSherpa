@@ -44,6 +44,12 @@ ISA is untouched (HAS Ch. 4, memory contract property 2).
 
 : Loader and block-RAM wrapper compared
 
+### Figure 2.4: kestrel_mem_bram composition
+
+![kestrel_mem_bram: AXIL leaves, write holding, two-stage read, port B owner, port A at the next PC, load wait, run/status registers, the block RAM](../assets/graphviz/kestrel_mem_bram.png)
+
+The host's AXI4-Lite port is the left column and the core's memory ports the right one; the true-dual-port array is the bar. Port A is addressed by `imem_addr_next` every cycle and nothing else touches it. Port B is shared: the core's load/store while running (it always wins), else a loader write, else an AXIL read, whose two registered stages are why AXIL reads take a wait cycle. The load wait is decoded from the opcode bits at port A's output, one LUT after the RAM, and holds the core for exactly one cycle; the run/status registers are sideband to both sides.
+
 ## The Array
 
 One `logic [31:0] r_mem [MEM_WORDS]` with `ram_style = "block"`, read through

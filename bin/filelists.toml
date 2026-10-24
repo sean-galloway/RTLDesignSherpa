@@ -275,10 +275,21 @@ filelist_dirs = [
 ]
 
 [[area]]
+name = "riscv-ip/common-rv32i"
+kind = "component"
+# The RV32I blocks kestrel and gatling share: rv32i_pkg (ISA vocabulary) and
+# the decode / immediate-generator / ALU FUBs.  Pulled out of kestrel
+# 2026-10-22; both cores -f these through $RV32I_COMMON_ROOT.
+rtl_roots = ["projects/components/riscv-ip/common-rv32i/rtl"]
+filelist_dirs = [
+    "projects/components/riscv-ip/common-rv32i/rtl/filelists",
+]
+
+[[area]]
 name = "riscv-ip/kestrel-rv32i"
 kind = "component"
-# Single-cycle RV32I core (falcon-suite rung 1). Registered 2026-10-06 with
-# no RTL yet -- Tasks 3-8 will append to rtl/filelists/kestrel.f.
+# Single-cycle RV32I core (falcon-suite rung 1).  Its decode / imm_gen / ALU
+# and the ISA package live in riscv-ip/common-rv32i since 2026-10-22.
 rtl_roots = ["projects/components/riscv-ip/kestrel-rv32i/rtl"]
 filelist_dirs = [
     "projects/components/riscv-ip/kestrel-rv32i/rtl/filelists",
@@ -286,15 +297,15 @@ filelist_dirs = [
 ]
 
 [[area]]
-name = "riscv-ip/gatling-rv32itetrad"
+name = "riscv-ip/gatling-rv32i"
 kind = "component"
 # Four-context barrel RV32I (tetrad compute engine). Registered 2026-10-21
-# with its first RTL; reuses kestrel's decode/imm_gen/alu through kestrel's
-# filelists.
-rtl_roots = ["projects/components/riscv-ip/gatling-rv32itetrad/rtl"]
+# with its first RTL; its decode/imm_gen/alu are the common-rv32i blocks,
+# pulled in through $RV32I_COMMON_ROOT.
+rtl_roots = ["projects/components/riscv-ip/gatling-rv32i/rtl"]
 filelist_dirs = [
-    "projects/components/riscv-ip/gatling-rv32itetrad/rtl/filelists",
-    "projects/components/riscv-ip/gatling-rv32itetrad/dv/filelists",
+    "projects/components/riscv-ip/gatling-rv32i/rtl/filelists",
+    "projects/components/riscv-ip/gatling-rv32i/dv/filelists",
 ]
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,38 @@
+// kestrel_programming_sequence - HAS Figure 4.3 (load-then-run over AXI4-Lite).
+// A process flow in the decision-tree vocabulary (vault/handbook/authoring/
+// block-diagrams.md, FPGA-system books: steps boxed "N. Step (where it
+// runs)", heavy center column, the loop climbing the right edge dashed,
+// white notes attached to their step). Not a block diagram: no key.
+// Source of truth: HAS Ch. 4 programming sequence; rtl/fub/kestrel_mem_bram.sv.
+// render: no-key
+digraph kestrel_programming_sequence {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.45", splines=ortho, newrank=true,
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+    label="Programming sequence: reset, load, (read back), run, observe, reload";
+
+    s1 [label="1. Reset (host asserts aresetn, then releases)\nload mode: CTRL reads 0, core_rst_n low, the core is held"];
+    s2 [label="2. Stream the image (host, AXI4-Lite writes)\ninstruction words to the imem region; data and .tohost where the image links them;\nfull-word or per-byte (wstrb)"];
+    s3 [label="3. Read back critical words (host, AXI4-Lite reads; optional)\nreads work in both modes and see loader and core writes"];
+    s4 [label="4. Write CTRL.run = 1 (host)\nthe core leaves reset on the commit cycle and fetches RESET_ADDR"];
+    s5 [label="5. Observe (host polls STATUS, or the trace sampler watches RVFI)\nrun to the ECALL halt: halt rises with cause 1, GP == 1 on a passing riscv-tests program"];
+    s6 [label="6. Reload (host)\nkestrel_mem_bram: write CTRL.run = 0 (back to load mode, status cleared on the next run)\nkestrel_mem_loader: reset aresetn (run is sticky)"];
+
+    n4 [label="Arm any RVFI trace capture BEFORE this write:\nthe first fetch is on the write's commit cycle", shape=note, fillcolor="white", style="filled,dashed", color="#777777"];
+    n6 [label="A write to memory while run = 1 is dropped\n(B still OKAY): the halted core's ECALL word\ncannot be poisoned by a stray write", shape=note, fillcolor="white", style="filled,dashed", color="#777777"];
+
+    s1 -> s2 [penwidth=1.8];
+    s2 -> s3 [penwidth=1.8];
+    s3 -> s4 [penwidth=1.8];
+    s4 -> s5 [penwidth=1.8];
+    s5 -> s6 [penwidth=1.8];
+    s6 -> s2 [style=dashed, color="#777777", constraint=false, xlabel="next image"];
+    s4 -> n4 [style=dashed, color="#777777", dir=none];
+    s6 -> n6 [style=dashed, color="#777777", dir=none];
+
+    { rank=same; s4; n4; }
+    { rank=same; s6; n6; }
+}
