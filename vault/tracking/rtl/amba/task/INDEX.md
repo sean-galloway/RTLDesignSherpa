@@ -2,7 +2,7 @@
 
 # amba — tasks
 
-**Next ID: TASK-048** — never recycle a number, even when its item closed.
+**Next ID: TASK-049** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -16,7 +16,7 @@ by construction rather than by discipline.
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 45 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
@@ -24,6 +24,11 @@ by construction rather than by discipline.
 
 
 ## Active
+
+
+## Deferred
+
+- **TASK-048** — re-run monitor OOC + stream_char/rapids_char characterization once STREAM and RAPIDS instantiate the 1wr monbus group (un-defers on that drop-in)
 
 
 ## Closed

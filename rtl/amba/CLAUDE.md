@@ -287,16 +287,22 @@ All protocol-agnostic. The ocelus core, monbus infrastructure and monbus arbiter
 | `axi_perf_latency_hist.sv` | Per-channel 16-bucket log2 latency histogram |
 | `axi_bus_meter.sv` | 4-bucket bus meter (productive / backpressure / starvation / idle) — see `DMA_UTILIZATION_MEASUREMENT.md` for window semantics |
 
-**Ocelus Bus (monbus) infrastructure (10):**
+**Ocelus Bus (monbus) infrastructure (16):**
 
 | Module | Purpose |
 |---|---|
 | `monbus_arbiter.sv` | Top-level monbus arbitration |
 | `monbus_group_core.sv` | Shared filter + FIFO core for all `monbus_*_*_group` wrappers (refactor introduced in `61edda71`) |
+| `monbus_group_core_1wr.sv` | The core with ONE master-write port, no slave-read side: errors to their own window (raw, never compressed, priority), trace to the other; `irq_out` is a registered PULSE per whole error RECORD landed, `err_rec_count` counts them (2026-10-23) |
+| `monbus_burst_writer.sv` | `monbus_group_core`'s continuous FSM-free burst writer lifted out (FIFO + window config as ports); the core keeps its inline copy, keep the two identical below the port list |
+| `monbus_wr_mux2.sv` | Two AXI4-shaped write FUBs onto one: port 0 priority at AW (grant locked while stalled), W in AW order, B routed back in AW order -- both ports must share one AWID; formal at `formal/amba/monbus_wr_mux2` |
+| `monbus_record_expander.sv` | The raw 3-beat {ts, pkt_hi, pkt_lo} expander lifted out of the core; one per source in the 1wr core |
 | `monbus_axi4_axi4_group.sv` | AXI4↔AXI4 group |
 | `monbus_axi4_axil4_group.sv` | AXI4↔AXIL group |
 | `monbus_axil4_axi4_group.sv` | AXIL↔AXI4 group with 32-bit err-drain |
 | `monbus_axil4_axil4_group.sv` | AXIL↔AXIL group with 32-bit err-drain |
+| `monbus_axil4_group_1wr.sv` | AXIL single-beat master-write wrapper of the 1wr core; no slave-read port |
+| `monbus_axi4_group_1wr.sv` | AXI4 burst master-write wrapper of the 1wr core; no slave-read port |
 | `monbus_compressor.sv` | Optional packet compressor (mod-3 packing). Runtime enable via `cfg_compress_en` |
 | `monbus_halfbeat_packer.sv` | Half-beat packer pushing past the compressor's 66.7% ceiling |
 | `monbus_cam.sv` / `monbus_cam_pipe.sv` | Monbus CAM for packet matching/replay (and pipelined variant) |

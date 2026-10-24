@@ -41,7 +41,7 @@ keep or drop; dropping one never reroutes the others.
 | **Error plane** | Detect and packetize errors, timeouts and threshold violations | `axi_monitor_reporter_error`, `axi_monitor_reporter_timeout`, `axi_monitor_reporter_threshold` |
 | **Debug plane** | Emit completion and debug-trace packets | `axi_monitor_reporter_debug`, `axi_monitor_reporter_compl` |
 | **Perf plane** | Roll up performance counters into perf packets | `axi_monitor_reporter_perf` |
-| **Output plane** | Arbitrate, filter, compress and drain packets off-chip | `arbiter_monbus_common`, `arbiter_rr_pwm_monbus`, `arbiter_wrr_pwm_monbus`, `monbus_arbiter`, `monbus_group_core`, `monbus_axi4_axi4_group`, `monbus_axi4_axil4_group`, `monbus_axil4_axi4_group`, `monbus_axil4_axil4_group`, `monbus_wb4_axi4_group`, `monbus_wb4_axil4_group`, `monbus_wb4_rd_shim`, `monbus_compressor`, `monbus_halfbeat_packer`, `monbus_cam`, `monbus_cam_pipe`, `monbus_legal_cam`, `monbus_pkt_tally` |
+| **Output plane** | Arbitrate, filter, compress and drain packets off-chip | `arbiter_monbus_common`, `arbiter_rr_pwm_monbus`, `arbiter_wrr_pwm_monbus`, `monbus_arbiter`, `monbus_group_core`, `monbus_group_core_1wr`, `monbus_record_expander`, `monbus_burst_writer`, `monbus_wr_mux2`, `monbus_axi4_axi4_group`, `monbus_axi4_axil4_group`, `monbus_axil4_axi4_group`, `monbus_axil4_axil4_group`, `monbus_wb4_axi4_group`, `monbus_wb4_axil4_group`, `monbus_axil4_group_1wr`, `monbus_axi4_group_1wr`, `monbus_wb4_rd_shim`, `monbus_compressor`, `monbus_halfbeat_packer`, `monbus_cam`, `monbus_cam_pipe`, `monbus_legal_cam`, `monbus_pkt_tally` |
 
 ### Shared reporter infrastructure
 
@@ -87,8 +87,11 @@ The contract is the same in every build:
 4. **Output plane → off-chip capture.** `monbus_arbiter` merges N sources into
    one MonBus stream. `monbus_group_core` filters and steers records to the
    interrupt/read FIFO or the master-write ring; optional compression/packing
-   sits on the write path. The final drain leaves through one capture
-   interface, regardless of which reporter planes produced the packets.
+   sits on the write path. `monbus_group_core_1wr` is the same filter with no
+   read FIFO: error records go to their own memory window over the one write
+   port, raw, and `irq_out` pulses once per record landed. The final drain
+   leaves through one capture interface, regardless of which reporter planes
+   produced the packets.
 
 Dropping a plane removes its source from the arbiter; the remaining sources
 still merge the same way.

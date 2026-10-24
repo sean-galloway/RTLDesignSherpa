@@ -327,6 +327,12 @@ $REPO_ROOT/rtl/amba/ocelus/monbus_cam.sv
 $REPO_ROOT/rtl/amba/ocelus/monbus_cam_pipe.sv
 $REPO_ROOT/rtl/amba/ocelus/monbus_compressor.sv
 $REPO_ROOT/rtl/amba/ocelus/monbus_group_core.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_record_expander.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_burst_writer.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_wr_mux2.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_group_core_1wr.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_axil4_group_1wr.sv
+$REPO_ROOT/rtl/amba/ocelus/monbus_axi4_group_1wr.sv
 $REPO_ROOT/rtl/amba/ocelus/monbus_halfbeat_packer.sv
 $REPO_ROOT/rtl/amba/ocelus/monitor_trans_cam.sv
 

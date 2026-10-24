@@ -13,8 +13,8 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 45 | 1 | 0 |
-| [bug/](bug/INDEX.md) | 0 | 0 | 40 | 0 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 45 | 1 | 1 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 41 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 2 | 0 | 2 | 0 | 0 |
 
 **Sub-area:** [monitors](monitors/INDEX.md) -- `rtl/amba/ocelus/axi_monitor_lite.sv`

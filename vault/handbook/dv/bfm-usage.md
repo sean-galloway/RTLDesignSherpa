@@ -19,6 +19,8 @@ BFM = add it to RDS-DV, never inline.
 | MonBus receive | TBClasses.monbus.MonbusSlave |
 | MonBus decode | TBClasses.monbus.parse() ONLY |
 | MonBus groups | MonbusGroupHarness (scoreboards.monbus_group) |
+| MonBus drive WITH timestamp | The family group TBs drive `monbus_packet` through a GAXI master and only sniff `monbus_timestamp`, so no group test checked that the source timestamp lands. To drive both on one handshake, give the GAXI master a two-field `FieldConfig` (`packet` 128, `timestamp` 64) with `multi_sig=True` and a `signal_map` naming both pins; the 1wr bench (`bin/TBClasses/amba/monbus_group_1wr/`) does this and checks the timestamp beat through `parse_stream()` (2026-10-23) |
+| MonBus groups, beat addresses | `trace_beats` stamps EVERY W beat with its burst's AW address; per-beat addresses come from `trace_bursts` (`addr + 8*i`, in B order). A check written against `trace_beats` passes at `MAX_BURST_BEATS=1` and fails on the first real burst (monbus_group_core_1wr test, 2026-10-23) |
 | Registers | [[registers-by-name]] |
 
 | Arbiters | ArbiterMaster + RoundRobinArbiterMonitor (components.shared) |

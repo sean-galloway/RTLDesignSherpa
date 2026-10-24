@@ -29,6 +29,9 @@
 - `monbus_axil4_axi4_group.sv` — wrapper: AXIL slave-read + AXI4-burst master-write
 - `monbus_axi4_axil4_group.sv` — wrapper: AXI4-burst slave-read + AXIL master-write
 - `monbus_axi4_axi4_group.sv` — wrapper: AXI4-burst slave-read + AXI4-burst master-write
+- `monbus_group_core_1wr.sv` — the core with ONE master-write port and no slave-read side: errors to their own window as raw records, trace to the other ([page](monbus_group_core_1wr.md))
+- `monbus_axil4_group_1wr.sv` — wrapper of the 1wr core: AXIL single-beat master-write, no slave-read ([page](monbus_axil4_group_1wr.md))
+- `monbus_axi4_group_1wr.sv` — wrapper of the 1wr core: AXI4-burst master-write, no slave-read ([page](monbus_axi4_group_1wr.md))
 
 **Location:** `rtl/amba/ocelus/`
 **Category:** Monitor Bus → AXI / AXIL Aggregation
@@ -309,6 +312,8 @@ SystemVerilog cannot conditionally include or exclude ports from a single module
 | `monbus_axil4_axi4_group` | AXIL `s_axil_ar*/r*` | AXI4 `m_axi_aw*/w*/b*` (full) | 64 |
 | `monbus_axi4_axil4_group` | AXI4 `s_axi_ar*/r*` (full) | AXIL `m_axil_aw*/w*/b*` | 1 |
 | `monbus_axi4_axi4_group` | AXI4 `s_axi_ar*/r*` (full) | AXI4 `m_axi_aw*/w*/b*` (full) | 64 |
+| `monbus_axil4_group_1wr` | none (1wr core: errors go to memory) | AXIL `m_axil_aw*/w*/b*` | 1 |
+| `monbus_axi4_group_1wr` | none (1wr core: errors go to memory) | AXI4 `m_axi_aw*/w*/b*` (full) | 64 |
 
 Callers pick the wrapper module name matching their fabric. The bare `monbus_group_core` is not intended to be instantiated directly — its AXI4-shaped FUBs are an internal contract.
 
