@@ -862,58 +862,52 @@ alternates rows every column and collapses to 98 while the window holds
 311. `row_thrash` at two threads dips on both cores (231 / 229, 193 / 242):
 two banks, four rows, and a 16-entry window that now holds four bursts of
 each bank -- the next thing to trace.
-### 5.10 Area on the committed text, and where it goes (2026-10-23, ca751b408)
+### 5.10 Area, product against reference: granite BANK_PICK vs LiteDRAM (2026-10-23, ca751b408)
 
-Owner: "what are the latest lut/flop/ram comparisons?" and "why pumice and
-granite are 5x bigger than litedram -- we have a lot of waste somewhere."
-In-context numbers are from routed board checkpoints of this text (the
-pumice build-perf harness at +0.014 ns; a granite BANK_PICK build of the
-granite target, the first one, at +0.106 ns, both 75 MHz, four injectors);
-LiteDRAM is the September board leaf (unchanged since). Out of context the
-granite core closes (+0.390) and its count is clean; the pumice core misses
-standalone by 27 ns and the optimizer's replication inflates its count by
-thousands of LUT (planes nobody touched grew), so the in-context figure is
-the one to plan against.
+Owner: "what are the latest lut/flop/ram comparisons?", "why are we 5x
+bigger than litedram -- we have a lot of waste somewhere", and "keep the
+comparison on granite and litedram only, otherwise it all gets muddy". So:
+the product core against the open-source reference, both in context on the
+same board family at 75 MHz with four injectors. Granite is the first
+BANK_PICK bitstream of the granite target (`targets/granite`, +0.106 ns,
+0 failing endpoints, 44 214 LUT / 34 932 FF whole bitstream); LiteDRAM is
+the September board leaf, unchanged since. Pumice (the research core) is
+not in this table on purpose; its in-context core is 10 020 LUT, within one
+percent of granite's, and the same structural reading applies.
 
-| controller block, LUT (FF) | pumice FR-FCFS | granite BANK_PICK | LiteDRAM |
+| granite_core block | LUT | FF | LiteDRAM equivalent |
 |---|---|---|---|
-| core, in context | 10 020 (5 772) | 9 956 (5 160) | ~1 200 of a 2 435 (2 069) leaf that includes PHY and CSR |
-| window storage | wr CAM 1 601 + rd CAM 1 297 = 2 898 | entry store 4 785 (1 094) + head records 442 (496) | eight 16-deep per-bank FIFOs, inside the leaf |
-| scheduler plane | 5 018: arbiter 3 397, bank timers 941, policy 352, refresh 103, global timers 141 | 2 031: pick 698, bank timers 1 003, policy 121 | multiplexer + refresher, a few hundred |
-| AXI plane | 1 389: intakes 715, write splitter 311, read return ring + issue queue 452 | 1 302 | in-order, no ring |
-| DFI plane (aclk/dfi_clk crossing) | 387 | 413 | none, one clock domain |
-| LPDDR2 training plane in a DDR2 build | 231 (518 FF) | -- | none |
-| init | 101 | 150 | similar |
-| core, out of context, board generics | 25 444 (replication-inflated; arbiter 9 473, storage 10 246) | 23 657 (clean; entry store 16 807, pick 722, timers 1 975) | 4 576 incl. VexRiscv, BIOS, PHY |
-| RAMB36 / DSP, core | 2 / 0 | 2 / 0 | 2 + ROM/SRAM / 0 (4 DSP are the CPU's) |
-| whole bitstream LUT / FF (4 injectors) | 44 883 / 35 593 | 44 214 / 34 932 | 28 427 / 24 826 |
+| core, in context | 9 956 | 5 160 | ~1 200 LUT controller proper inside a 2 435 / 2 069 leaf (controller + PHY + CSR) |
+| entry store (the 16-entry window) | 4 785 | 1 094 | eight 16-deep per-bank command FIFOs |
+| head records (per-bank oldest / second-oldest, same-row flags) | 442 | 496 | the FIFO head |
+| pick core | 698 | -- | the round-robin multiplexer |
+| bank timers (CSR-programmed, lookahead) | 1 003 | -- | per-bank timers against constants |
+| page policy, refresh, global timers | 330 | -- | refresher |
+| AXI plane: intakes 667, write splitter 300, read return ring + issue queue 427 | 1 302 | 1 172 | in-order return, no ring |
+| DFI plane (aclk / dfi_clk crossing, three async FIFOs) | 413 | 398 | none: one clock domain |
+| init | 150 | 28 | similar |
+| RAMB36 / DSP | 2 / 0 | | 2 + ROM and SRAM / 0 |
+| out of context, board generics (closes, +0.390 ns) | 23 657, of which entry store 16 807 | 7 939 | 4 576 incl. VexRiscv, BIOS, PHY |
 
-Reading it: both cores are ~10 k in context, 8x LiteDRAM's controller
-proper and 4x its leaf. It is architecture, not dead logic: a 16-entry
-global window with CAM (pumice) or entry-store (granite) storage and the
-N-squared compare structures that go with it (age matrices, same-row
-loops, per-entry classify against every bank), out-of-order issue returned
-in AXI order (ring + issue queue), a clock crossing to the PHY domain,
-runtime-programmable JEDEC timings, and on pumice the research knobs.
-LiteDRAM is eight per-bank FIFOs, one round-robin multiplexer, constant
-timings, one clock domain, in-order return.
-
-The finding is granite's: its picker is LiteDRAM-sized (698 LUT) and
-reads only each bank's head, yet 4 785 LUT of entry store (16 807 out of
-context, N-squared: 4.7 k at 8 entries, 16.6 k at 16) sits under it holding
-a window the picker never uses -- the grid (5.9) shows the per-bank core
-gaining nothing from depth on the streams and collapsing on `mixed` at
-eight. The recovery plan's Phase 4 FIFO backend is the fix and the contract
-was built for it.
+The 8x over LiteDRAM's controller proper is architecture, not dead logic,
+and most of it is one block. The picker is LiteDRAM-sized at 698 LUT and
+reads only each bank's head; under it sits 4 785 LUT of entry store (16 807
+out of context: the per-entry compares against every other entry grow as
+N-squared, 4.7 k at 8 entries, 16.6 k at 16) holding a window the picker
+never uses. The grid in 5.9 says the same thing from the other side: the
+per-bank core gains nothing from depth on the streams and collapses on
+`mixed` at eight threads. The next 1.7 k is the out-of-order read return
+(ring and issue queue) plus the clock crossing to the PHY domain, both of
+which LiteDRAM avoids by construction; then CSR-programmed timings
+against constants.
 
 | | change | saves | perf cost |
 |---|---|---|---|
-| 1 | granite: per-bank FIFO backend for the entry store (Phase 4) | most of 4 785 in context, 12-15 k out of context | none the per-bank picker can see |
-| 2 | both: one same-bank-same-row match matrix per cycle shared by the last-of-row loops, the sibling check, the populations and the records | ~1 k in the arbiter in context | none |
-| 3 | both: compile the LPDDR2 training plane out of DDR2 builds | 231 LUT / 518 FF | none |
-| 4 | granite: compile-time JEDEC timings behind a parameter | a few hundred in timers and gates | none for a one-part product |
-| 5 | pumice: research knobs behind a lean-build parameter | a few hundred | none unless in use |
-| 6 | both: 8-entry window variant | halves CAM and arbiter | measure: eight-thread streams lean on 16 |
+| 1 | per-bank FIFO backend for the entry store (recovery plan Phase 4; the plane contract was built for it) | most of 4 785 in context, 12-15 k out of context | none the per-bank picker can see |
+| 2 | compile the LPDDR2 training plane out of DDR2 builds (pumice carries 231 LUT / 518 FF of it; granite's DDR2 build should be checked the same way) | up to 231 / 518 | none |
+| 3 | compile-time JEDEC timings behind a parameter, CSR override off | a few hundred in the timers | none for a one-part product |
+| 4 | one same-bank-same-row match matrix per cycle shared by the records and the close logic | a few hundred | none |
+| 5 | an 8-entry window variant | halves the entry store | measure first: the eight-thread streams lean on 16 |
 
 ## 6. Left for later phases
 
