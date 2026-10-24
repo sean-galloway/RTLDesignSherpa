@@ -1110,6 +1110,10 @@ of granite_core (default, `HEAD2_EN = 0`, `STORE_BACKEND = 0`, `NUM_ENTRIES =
 1`) and of the whole harness (default, `HEAD2_EN = 0`), 0 errors. Pumice does
 not instantiate the FIFO store and the plane and pick core are untouched.
 The board build's `mc_bank_fifo_store.sv` md5 equals the committed text.
+The committed text was built twice (the measurement build and the one that
+wrote `fpga/reports`, 42 minutes apart, same machine load pattern): 6 105 /
+4 572 and +0.268 ns both times, 109 381 endpoints both times, so the 5.11
+run-to-run difference (6 LUT, 0.24 ns) did not recur here.
 
 ## 6. Left for later phases
 
