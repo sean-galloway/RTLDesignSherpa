@@ -228,3 +228,22 @@ master ignores a second GO -- and the verdict passed a stale master whose
 old issued count equalled the budget. Found by a TB watch that measures every
 GO's width and counts its arrivals in the far domain; keep such a watch on
 every pulse that crosses.*
+
+## A crossing the integration ties to one clock is a generate, not a FIFO
+
+A plane that may run on two clocks must still be buildable for the
+integration that runs it on one. `mc_dfi_cdc` carried five Gray-pointer
+async FIFOs between `ctl_clk` and `dfi_clk`; both Nexys A7 macros wire
+`dfi_clk` to `mc_clk`, so every one of them crossed a clock to itself.
+`DFI_CDC_EN` (pumice TASK-053) keeps the async form as the default and
+builds `gaxi_fifo_sync` at the same depths, with the event tokens as
+sticky levels, when the parameter says the clocks are one net. Same
+ports, same valid/ready contract, each direction loses the crossing's
+N_FLOP_CROSS + 1 cycles.
+*Measured (2026-10-24, granite board): the pointer synchronizers and Gray
+counters were 43 LUT and 155 FF; the other 300 LUT of the block are the
+FIFO storage as LUTRAM, and the depths did not move. On an ASIC library
+the same swap halves the block. Removing a crossing is a flop win on an
+FPGA; the LUT lever is the depth that the crossing's round trip once
+justified (see "Depth must cover the pointer round trip" above -- that
+reason is gone in the same-clock form).*

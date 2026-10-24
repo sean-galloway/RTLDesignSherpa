@@ -44,6 +44,7 @@ module granite_char_macro
     // ---- Controller depths ----
     parameter int WR_CAM_DEPTH     = 16,
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    parameter bit DFI_CDC_EN     = 1'b0, // this macro ties dfi_clk to mc_clk (below): no DFI crossing by default
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
@@ -357,6 +358,7 @@ module granite_char_macro
         .RD_RET_DEPTH    (RD_RET_DEPTH),
         .CSR_ADDR_W      (APB_ADDR_WIDTH),
         .HAS_LPDDR2      (HAS_LPDDR2),
+        .DFI_CDC_EN      (DFI_CDC_EN),
         .STORE_BACKEND   (STORE_BACKEND),
         .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
         .HEAD2_EN        (HEAD2_EN),

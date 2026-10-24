@@ -42,7 +42,19 @@ module mc_dfi_cdc #(
     // (power-of-2 depth only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in because its pointers cost DEPTH
     // bits in both domains and every synchronizer stage.
-    parameter int USE_JOHNSON  = 0
+    parameter int USE_JOHNSON  = 0,
+    // 1 = ctl_clk and dfi_clk are independent: five Gray-pointer async FIFOs
+    //     cross them (the contract above).
+    // 0 = ctl_clk and dfi_clk are THE SAME CLOCK (the Nexys A7 boards tie
+    //     dfi_clk to mc_clk): the same FIFOs as synchronous gaxi_fifo_sync at
+    //     the same depths, the init tokens as plain sticky levels. Same
+    //     ports, same valid/ready contract, no pointer synchronizers; each
+    //     crossing loses its N_FLOP_CROSS + 1 cycles of latency. The data /
+    //     staged-token coupling is unchanged, so the write-staged invariant
+    //     (data never behind its WR at the PHY) holds as before. Only legal
+    //     when the two clock inputs are one net: the dfi-side flops below
+    //     are clocked by dfi_clk and read ctl-domain signals directly.
+    parameter bit DFI_CDC_EN   = 1'b1
 ) (
     //=========================================================================
     // Controller domain (aclk)
@@ -102,6 +114,8 @@ module mc_dfi_cdc #(
     // init complete (level) phy -> crosses to ctl
     input  logic              pinit_complete_i
 );
+
+    generate if (DFI_CDC_EN) begin : g_async
 
     // ---- cmd : ctl -> phy ---------------------------------------------------
     gaxi_fifo_async #(
@@ -246,5 +260,95 @@ module mc_dfi_cdc #(
         if (`RST_ASSERTED(ctl_rstn)) init_complete_o <= 1'b0;
         else if (w_icmptok_valid)    init_complete_o <= 1'b1;   // sticky
     )
+
+    end else begin : g_sync
+    // =====================================================================
+    // Same-clock form (DFI_CDC_EN = 0): ctl_clk == dfi_clk by contract.
+    // The FIFOs keep their depths (they still decouple the scheduler from
+    // the command path's hold, stage write bursts ahead of their WR, and
+    // absorb read return) but are synchronous: binary pointers, no Gray
+    // encoding, no crossing synchronizers. Clocked on ctl_clk; the phy-side
+    // consumers run on dfi_clk, which is the same net.
+    // =====================================================================
+
+    // ---- cmd : ctl -> phy ---------------------------------------------------
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (CMD_DW),
+        .DEPTH      (CMD_DEPTH)
+    ) u_cmd_fifo (
+        .axi_aclk    (ctl_clk),
+        .axi_aresetn (ctl_rstn),
+        .wr_valid    (cmd_valid_i),
+        .wr_ready    (cmd_ready_o),
+        .wr_data     (cmd_data_i),
+        .rd_ready    (pcmd_ready_i),
+        .count       (),
+        .rd_valid    (pcmd_valid_o),
+        .rd_data     (pcmd_data_o)
+    );
+
+    // ---- wrdata + staged token : ctl -> phy (same coupling as g_async) ------
+    logic w_wd_data_ready, w_wtok_ready, w_wtok_push;
+    assign wd_ready_o  = w_wd_data_ready && w_wtok_ready;
+    assign w_wtok_push = wd_valid_i && wd_last_i && w_wd_data_ready;
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (WD_DW),
+        .DEPTH      (WD_DEPTH)
+    ) u_wd_fifo (
+        .axi_aclk    (ctl_clk),
+        .axi_aresetn (ctl_rstn),
+        .wr_valid    (wd_valid_i && w_wtok_ready),
+        .wr_ready    (w_wd_data_ready),
+        .wr_data     (wd_data_i),
+        .rd_ready    (pwd_ready_i),
+        .count       (),
+        .rd_valid    (pwd_valid_o),
+        .rd_data     (pwd_data_o)
+    );
+
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (1),
+        .DEPTH      (WD_DEPTH)
+    ) u_wtok_fifo (
+        .axi_aclk    (ctl_clk),
+        .axi_aresetn (ctl_rstn),
+        .wr_valid    (w_wtok_push),
+        .wr_ready    (w_wtok_ready),
+        .wr_data     (1'b1),
+        .rd_ready    (pwr_staged_pop_i),
+        .count       (),
+        .rd_valid    (pwr_staged_valid_o),
+        .rd_data     ()
+    );
+
+    // ---- rddata : phy -> ctl ------------------------------------------------
+    gaxi_fifo_sync #(
+        .DATA_WIDTH (RD_DW),
+        .DEPTH      (RD_DEPTH)
+    ) u_rd_fifo (
+        .axi_aclk    (ctl_clk),
+        .axi_aresetn (ctl_rstn),
+        .wr_valid    (prd_valid_i),
+        .wr_ready    (prd_ready_o),
+        .wr_data     (prd_data_i),
+        .rd_ready    (rd_ready_i),
+        .count       (),
+        .rd_valid    (rd_valid_o),
+        .rd_data     (rd_data_o)
+    );
+
+    // ---- init_start / init_complete : sticky levels, no tokens --------------
+    `ALWAYS_FF_RST(dfi_clk, dfi_rstn,
+        if (`RST_ASSERTED(dfi_rstn)) pinit_start_o <= 1'b0;
+        else if (init_start_i)       pinit_start_o <= 1'b1;   // sticky
+    )
+    `ALWAYS_FF_RST(ctl_clk, ctl_rstn,
+        if (`RST_ASSERTED(ctl_rstn)) init_complete_o <= 1'b0;
+        else if (pinit_complete_i)   init_complete_o <= 1'b1;   // sticky
+    )
+
+    wire _unused_sync = &{1'b0, dfi_rstn, N_FLOP_CROSS[0], USE_JOHNSON[0], TOK_DEPTH[0]};
+    end endgenerate
 
 endmodule : mc_dfi_cdc

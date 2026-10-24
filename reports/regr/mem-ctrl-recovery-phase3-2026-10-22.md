@@ -1115,6 +1115,45 @@ wrote `fpga/reports`, 42 minutes apart, same machine load pattern): 6 105 /
 4 572 and +0.268 ns both times, 109 381 endpoints both times, so the 5.11
 run-to-run difference (6 LUT, 0.24 ns) did not recur here.
 
+### 5.13 DFI plane: the crossing is a generate; same-clock form on the boards (2026-10-24, pumice TASK-053)
+
+Owner, on the 5.12 table: the DFI-plane CDC cells should be a generate,
+skipped when there is no crossing. Both Nexys A7 macros tie `dfi_clk` to
+`mc_clk`, so the five Gray-pointer async FIFOs of `mc_dfi_cdc` were
+crossing one clock to itself. `DFI_CDC_EN` (default 1, the untouched async
+form) now builds the same FIFOs as `gaxi_fifo_sync` at the same depths and
+the init tokens as sticky levels; the granite macro, harness, UART tb top
+and perf proxy default to 0 because the macro is where the clocks are
+tied, the component suites keep 1 because they drive dfi_clk at twice aclk.
+
+| | async crossing (5.12 text) | same clock |
+|---|---|---|
+| granite_core, board LUT / FF | 6 105 / 4 572 | 6 090 / 4 417 |
+| u_cdc, board | 347 / 210 | 304 / 55 |
+| WNS | +0.268 ns | +0.367 ns, 0 / 109 139 |
+| granite_core, ASAP7 comb / flops | 24 337 / 4 699 | 24 078 / 4 525 |
+| proxy 1 thread, rd cycles inc / row_major / col_ilv / col_major | 2 165 / 2 147 / 2 723 / 3 435 | 2 159 / 2 141 / 2 717 / 3 429 (wr identical) |
+| proxy 8 threads std / random / mixed, 2-beat row_thrash | grid | std 8 threads: wr identical, rd 557.4 / 557.4 / 543.8 / 458.4 vs grid 555.3 / 557.2 / 525.9 / 457.7 (col_ilv reads +3.4 percent) / random 8 threads: 442.1 / 453.0 (grid 442.1 / 452.9), rd 21 697 cycles (was 21 703) / mixed 8 threads: 98.1 (grid 98.1), 200290 / 200293 cycles (was 200290 / 200299) / row_thrash 2-beat: 128.7 / 163.4, rd 1 880 cycles (was 1 886) |
+
+The pointer synchronizers and Gray counters were 43 LUT and 155 FF of the
+block; the remaining 300 LUT are the FIFO storage as LUTRAM at unchanged
+depths (rd 32 x 67, wd 32 x 73, cmd 8 x 34). On ASAP7 the swap halves
+u_cdc (560 -> 304 cells). Reads shorten by the crossing latency, six cycles
+per family; the crossing-on proxy cell reproduces the grid to the cycle.
+The next DFI lever is the depth of the read and write FIFOs in the
+same-clock form (the read FIFO is sized to the whole return window), a
+measured lane not run here.
+
+**Gates.** granite suite 6 / 1 xfailed; pumice 218 / 218 both geometries;
+formal `mc_dfi_cdc` prove + cover PASS; lint 0 errors on granite_core,
+pumice_core, the harness (both values), scoria_core, andesite_core. Found
+on the way: the scoria and andesite DFI planes had not built since
+e95df1694 (2026-10-15) added `rd_ret_busy_o` to the read aligner without
+connecting it in the 3p1 / 4p0 planes; tied off here, andesite
+`dfi_plane_smoke` 1 / 1 and scoria `test_scoria_core` 4 / 4 again. Their
+bank-timer and scheduler-plane cells still fail on timing checks with no
+DFI in their closure, which is those lanes' business.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

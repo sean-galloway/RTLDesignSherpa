@@ -67,6 +67,7 @@ module mc_dfi_3p1_plane
     // (power-of-2 depths only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
     parameter int USE_JOHNSON    = 0,
+    parameter bit DFI_CDC_EN     = 1'b1, // 0 = ctl_clk and dfi_clk are one clock: synchronous FIFOs in mc_dfi_cdc, no crossing
 
     // ---- derived DFI geometry ----
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -259,7 +260,8 @@ module mc_dfi_3p1_plane
         .WD_DEPTH    (WD_FIFO_DEPTH),
         .RD_DEPTH    (RD_FIFO_DEPTH),
         .N_FLOP_CROSS(N_FLOP_CROSS),
-        .USE_JOHNSON (USE_JOHNSON)
+        .USE_JOHNSON (USE_JOHNSON),
+        .DFI_CDC_EN  (DFI_CDC_EN)
     ) u_cdc (
         .ctl_clk         (ctl_clk),
         .ctl_rstn        (ctl_rstn),
@@ -391,6 +393,9 @@ module mc_dfi_3p1_plane
         .rd_valid_o        (prd_valid),
         .rd_ready_i        (prd_ready),
         .rd_data_o         (w_rd_data),
+        // Exported by mc_dfi_2p1_plane to the core's read-return window (e95df1694);
+        // this plane does not carry that window yet, so the pin is tied off here.
+        .rd_ret_busy_o     (),
         .rd_resp_o         (w_rd_resp),
         .rd_last_o         (w_rd_last),
         .rd_dbi_en_i       (1'b0),

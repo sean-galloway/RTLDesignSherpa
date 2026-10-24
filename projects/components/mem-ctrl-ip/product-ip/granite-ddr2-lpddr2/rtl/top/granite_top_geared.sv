@@ -44,6 +44,7 @@ module granite_top_geared
     parameter int DRAM_BL         = 8,
     parameter int NUM_ENTRIES     = GRANITE_SEAM_N,
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
     parameter int STORE_BACKEND   = 1,    // granite_core storage backend (1 = per-bank FIFO store, 0 = entry store)
     parameter int BANK_FIFO_DEPTH = 0,    // 0 = NUM_ENTRIES (pool-only admission)
     parameter bit HEAD2_EN        = 1'b1, // 0 = one head record per bank (FIFO store)
@@ -391,6 +392,7 @@ module granite_top_geared
         .CMD_DELAY        (CMD_DELAY),
         .AGE_WIDTH        (AGE_WIDTH),
         .HAS_LPDDR2       (HAS_LPDDR2),
+        .DFI_CDC_EN       (DFI_CDC_EN),
         .STORE_BACKEND    (STORE_BACKEND),
         .BANK_FIFO_DEPTH  (BANK_FIFO_DEPTH),
         .HEAD2_EN         (HEAD2_EN),

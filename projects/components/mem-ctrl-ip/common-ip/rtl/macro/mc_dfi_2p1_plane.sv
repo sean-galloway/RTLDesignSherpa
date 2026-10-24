@@ -66,6 +66,7 @@ module mc_dfi_2p1_plane
     // (power-of-2 depths only), 1 = Johnson (any depth, DEPTH-bit pointers).
     // Gray by default -- Johnson is opt-in.
     parameter int USE_JOHNSON    = 0,
+    parameter bit DFI_CDC_EN     = 1'b1, // 0 = ctl_clk and dfi_clk are one clock: synchronous FIFOs in mc_dfi_cdc, no crossing
 
     // ---- derived DFI geometry ----
     parameter int DFI_DATA_WIDTH = DRAM_BEAT_WIDTH * DFI_RATE,
@@ -235,7 +236,8 @@ module mc_dfi_2p1_plane
         .WD_DEPTH    (WD_FIFO_DEPTH),
         .RD_DEPTH    (RD_FIFO_DEPTH),
         .N_FLOP_CROSS(N_FLOP_CROSS),
-        .USE_JOHNSON (USE_JOHNSON)
+        .USE_JOHNSON (USE_JOHNSON),
+        .DFI_CDC_EN  (DFI_CDC_EN)
     ) u_cdc (
         .ctl_clk         (ctl_clk),
         .ctl_rstn        (ctl_rstn),

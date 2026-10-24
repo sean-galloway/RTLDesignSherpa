@@ -211,6 +211,9 @@ module granite_char_top #(
 `ifdef GRANITE_HEAD2_EN
         .HEAD2_EN           (`GRANITE_HEAD2_EN),
 `endif
+`ifdef GRANITE_DFI_CDC_EN
+        .DFI_CDC_EN         (`GRANITE_DFI_CDC_EN),
+`endif
 `ifdef GRANITE_RD_RET_DEPTH
         .RD_RET_DEPTH       (`GRANITE_RD_RET_DEPTH),
 `else

@@ -60,6 +60,7 @@ module pumice_core
     // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
     // mem-ctrl recovery Phase 3 report 5.10).
     parameter bit HAS_LPDDR2 = 1'b1,
+    parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
                                          // Off since BUG-027 (the "youngest schedulable"
                                          // predicate chopped page-hit write streams); back
@@ -921,6 +922,7 @@ module pumice_core
         // (that is the point), so the wrdata CDC must hold CMD_DELAY/BURST_WORDS
         // + 2 bursts without stalling the CAM drain -- or the lag comes back.
         .WD_FIFO_DEPTH   (32),
+        .DFI_CDC_EN      (DFI_CDC_EN),
         .CMD_HISTORY_EN  (CMD_HISTORY_EN),
         .HIST_T_RFC      (HIST_T_RFC_CORE),
         .HIST_T_RTW      (HIST_T_RTW_CORE),

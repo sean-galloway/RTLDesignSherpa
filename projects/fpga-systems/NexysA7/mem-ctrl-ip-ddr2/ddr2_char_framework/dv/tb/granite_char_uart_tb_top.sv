@@ -58,11 +58,12 @@ module granite_char_uart_tb_top
     parameter int NUM_GEN         = 4,
     // granite_core storage / timing knobs (report 5.10); the proxy drives
     // them from TEST_NUM_ENTRIES / TEST_STORE_BACKEND / TEST_BANK_FIFO_DEPTH /
-    // TEST_HEAD2_EN / TEST_FIXED_TIMINGS. Defaults are the board build.
+    // TEST_HEAD2_EN / TEST_DFI_CDC_EN / TEST_FIXED_TIMINGS. Defaults are the board build.
     parameter int NUM_ENTRIES     = 8,
     parameter int STORE_BACKEND   = 1,
     parameter int BANK_FIFO_DEPTH = 0,   // 0 = NUM_ENTRIES
     parameter bit HEAD2_EN        = 1'b1,// 0 = one head record per bank (FIFO store)
+    parameter bit DFI_CDC_EN      = 1'b0,// the macro ties dfi_clk to mc_clk: no DFI crossing (board default)
     parameter bit FIXED_TIMINGS   = 1'b0
 ) (
     input  logic aclk,
@@ -136,6 +137,7 @@ module granite_char_uart_tb_top
         .STORE_BACKEND   (STORE_BACKEND),
         .BANK_FIFO_DEPTH (BANK_FIFO_DEPTH),
         .HEAD2_EN        (HEAD2_EN),
+        .DFI_CDC_EN      (DFI_CDC_EN),
         .FIXED_TIMINGS   (FIXED_TIMINGS)
     ) u_dut (
         .aclk        (aclk),

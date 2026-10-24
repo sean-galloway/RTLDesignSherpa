@@ -69,6 +69,7 @@ module pumice_top_geared
     parameter int SCHED_CORE      = 1,    // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK, 0 = FRFCFS
     parameter bit CLOSE_ON_DRAIN  = 1'b1, // last same-row column carries auto-precharge (pumice_core; TASK-044)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
     parameter int HIST_T_RFC_CORE = 0,
     parameter int HIST_T_RTW_CORE = 0,
     parameter int HIST_T_WTR_CORE = 0,
@@ -349,6 +350,7 @@ module pumice_top_geared
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .HAS_LPDDR2       (HAS_LPDDR2),
+        .DFI_CDC_EN       (DFI_CDC_EN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE),

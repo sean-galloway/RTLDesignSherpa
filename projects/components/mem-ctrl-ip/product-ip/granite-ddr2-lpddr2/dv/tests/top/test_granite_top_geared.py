@@ -342,6 +342,7 @@ def test_granite_top_geared(request, test_level, num_entries, many):
               "STORE_BACKEND": os.environ.get("GRANITE_STORE_BACKEND", "1"),
               "BANK_FIFO_DEPTH": os.environ.get("GRANITE_BANK_FIFO_DEPTH", "0"),
               "HEAD2_EN": os.environ.get("GRANITE_HEAD2_EN", "1"),
+              "DFI_CDC_EN": os.environ.get("GRANITE_DFI_CDC_EN", "1"),
               # GRANITE_FIXED_TIMINGS=1: T_* = the granite_csr.rdl reset values,
               # which is what this test runs on (it never writes TIMINGS_*).
               "FIXED_TIMINGS": os.environ.get("GRANITE_FIXED_TIMINGS", "0"),

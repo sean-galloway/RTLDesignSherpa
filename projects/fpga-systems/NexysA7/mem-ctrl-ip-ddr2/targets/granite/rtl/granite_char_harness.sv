@@ -58,6 +58,7 @@ module granite_char_harness
     // direction is the owner's load point (2026-10-22)
     parameter int NUM_GEN            = 4,
     parameter bit HAS_LPDDR2         = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    parameter bit DFI_CDC_EN         = 1'b0, // the macro ties dfi_clk to mc_clk: no DFI crossing by default
     // granite_core storage and timing knobs (report 5.10): the board ships
     // NUM_ENTRIES 8 on the FIFO store, bank queues pool-deep (BANK_FIFO_DEPTH 0)
     parameter int NUM_ENTRIES        = 8,
@@ -564,6 +565,7 @@ module granite_char_harness
         .APB_ADDR_WIDTH    (APB_ADDR_WIDTH),
         .APB_DATA_WIDTH    (APB_DATA_WIDTH),
         .HAS_LPDDR2        (HAS_LPDDR2),
+        .DFI_CDC_EN        (DFI_CDC_EN),
         .STORE_BACKEND     (STORE_BACKEND),
         .BANK_FIFO_DEPTH   (BANK_FIFO_DEPTH),
         .HEAD2_EN          (HEAD2_EN),

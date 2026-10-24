@@ -36,6 +36,7 @@ module pumice_top
     parameter int SCHED_CORE     = 1,  // mc_common_pkg MC_SCHED_*: 1 = BANK_PICK (default), 0 = FRFCFS research core
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge (pumice_core; TASK-044)
     parameter bit HAS_LPDDR2     = 1'b1, // LPDDR2 training plane built (0 = DDR2-only build)
+    parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing
     parameter int HIST_T_RFC_CORE = 0,   // DV: DFI-WIRE checker windows; the
     parameter int HIST_T_RTW_CORE = 0,   // scheduler-side checker is blind to
     parameter int HIST_T_WTR_CORE = 0,   // spacing changed below its own output
@@ -279,6 +280,7 @@ module pumice_top
         .SCHED_CORE       (SCHED_CORE),
         .CLOSE_ON_DRAIN   (CLOSE_ON_DRAIN),
         .HAS_LPDDR2       (HAS_LPDDR2),
+        .DFI_CDC_EN       (DFI_CDC_EN),
         .HIST_T_RFC_CORE  (HIST_T_RFC_CORE),
         .HIST_T_RTW_CORE  (HIST_T_RTW_CORE),
         .HIST_T_WTR_CORE  (HIST_T_WTR_CORE)

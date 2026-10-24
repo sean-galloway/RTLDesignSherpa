@@ -340,6 +340,7 @@ def test_granite_core(request, test_level):
               "STORE_BACKEND": os.environ.get("GRANITE_STORE_BACKEND", "1"),
               "BANK_FIFO_DEPTH": os.environ.get("GRANITE_BANK_FIFO_DEPTH", "0"),
               "HEAD2_EN": os.environ.get("GRANITE_HEAD2_EN", "1"),
+              "DFI_CDC_EN": os.environ.get("GRANITE_DFI_CDC_EN", "1"),
               # GRANITE_FIXED_TIMINGS=1: the core compares against the T_*
               # constants, so they are set to the values this test drives on
               # the t_*_i ports (cocotb_test_* below) and the DFI model sees

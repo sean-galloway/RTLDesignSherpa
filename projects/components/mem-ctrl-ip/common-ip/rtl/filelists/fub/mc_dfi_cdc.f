@@ -13,5 +13,7 @@ $REPO_ROOT/rtl/amba/includes/reset_defs.svh
 -f $REPO_ROOT/rtl/cdc/filelists/glitch_free_n_dff_arn.f
 -f $REPO_ROOT/rtl/common/filelists/fifo_control.f
 -f $REPO_ROOT/rtl/cdc/filelists/gaxi_fifo_async.f
+# same-clock form (DFI_CDC_EN = 0)
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
 # this module
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_dfi_cdc.sv

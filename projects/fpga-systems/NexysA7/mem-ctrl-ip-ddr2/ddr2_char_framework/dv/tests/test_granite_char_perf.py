@@ -526,6 +526,7 @@ def test_granite_char_perf(request):
               "STORE_BACKEND": os.environ.get("TEST_STORE_BACKEND", "1"),
               "BANK_FIFO_DEPTH": os.environ.get("TEST_BANK_FIFO_DEPTH", "0"),
               "HEAD2_EN": os.environ.get("TEST_HEAD2_EN", "1"),
+              "DFI_CDC_EN": os.environ.get("TEST_DFI_CDC_EN", "0"),
               "FIXED_TIMINGS": os.environ.get("TEST_FIXED_TIMINGS", "0")}
     compile_args = [
         "+define+USE_ASYNC_RESET",

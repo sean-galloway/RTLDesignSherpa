@@ -62,6 +62,7 @@ module granite_core
     // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
     // mem-ctrl recovery Phase 3 report 5.10).
     parameter bit HAS_LPDDR2     = 1'b1,
+    parameter bit DFI_CDC_EN     = 1'b1, // 0 = aclk and dfi_clk are one clock (the DDR2 boards): no DFI crossing, synchronous FIFOs
     // Compile-time JEDEC timings (mem-ctrl recovery Phase 3 report 5.10,
     // item 3). 1 = the scheduler plane's timers compare against the T_*
     // constants below and the TIMINGS CSRs are ignored -- a one-part product
@@ -985,6 +986,7 @@ module granite_core
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
         .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS),
         .WD_FIFO_DEPTH   (32),
+        .DFI_CDC_EN      (DFI_CDC_EN),
         .CMD_HISTORY_EN  (0),
         .HIST_T_RFC      (0),
         .HIST_T_RTW      (0),
