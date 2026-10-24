@@ -136,6 +136,7 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.100 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.101 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.102 | 2026-10-24 | seang | `04_scheduler.md`: the scheduler split into the FSM wrapper and `scheduler_core` (stream TASK-020 phase 1, toward stream-g), with the core's sequencing port (Table 2.4.1); bit-exact with the one-module scheduler. |
+| 0.103 | 2026-10-24 | seang | New Chapter 7, stream-g (stream TASK-020): STREAM's schedulers sequenced by gatling firmware -- what is reused from rapids-g, `scheduler_g` on STREAM (the window, the prefetch, the commit wait), the generated tree and the board build, the suites and results; stream BUG-022. |
 
 : STREAM MAS Document Revision History
 

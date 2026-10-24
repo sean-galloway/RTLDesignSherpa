@@ -186,6 +186,8 @@ module scheduler_core #(
     input  channel_state_t              state,
     input  logic                        desc_take,          // pop the skid head into the latch (IDLE / NEXT_DESC)
     input  logic                        launch,             // this cycle FETCH_DESC -> XFER_DATA
+    input  logic [7:0]                  desc_alg_max,       // highest next-address selector the
+                                                            //   build runs (FSM: 0; a firmware algorithm otherwise)
     input  logic [31:0]                 rd_beats_total,     // beats each direction moves, for
     input  logic [31:0]                 wr_beats_total,     //   the latched descriptor (FSM: its length)
     input  logic                        head_ok,            // the skid head may be prefetched (FSM: 1)
@@ -202,6 +204,7 @@ module scheduler_core #(
     output descriptor_t                 desc_latched,       // the latched descriptor
     output descriptor_ext_t             desc_ext_latched,   // its chunk 1 (EXT)
     output logic                        desc_is_ext,
+    output logic [7:0]                  desc_alg,           // the latched next-address selector
     output logic                        desc_rd_per_beat,   // EXT, stride_0 != beat size
     output logic                        desc_wr_per_beat,
     output logic                        wr_advance,         // read-ahead: the head advanced in place this cycle
@@ -376,6 +379,18 @@ module scheduler_core #(
     assign w_descriptor_ext_in = descriptor_ext_t'(w_desc_ext_packet);
     assign w_is_ext_in = (USE_ROW_COL_MAJOR_ADDRESSING != 0) &&
                          (desc_type_e'(w_desc_packet[210:208]) == DESC_TYPE_EXT);
+
+    // The next-address selector, chunk 0 [224:217] (reserved bits in the
+    // legacy layout, so a plain descriptor reads 0). A descriptor whose
+    // selector the build does not run (above desc_alg_max, or non-zero on a
+    // non-EXT descriptor) is latched INVALID: FETCH_DESC refuses it. A
+    // selector above 0 is a firmware algorithm (stream-g); the FSM runs 0 only.
+    localparam int DESC_ALG_LO = 217;
+    localparam int DESC_ALG_HI = 224;
+    logic [7:0] r_desc_alg;
+    logic       w_head_alg_ok;
+    assign w_head_alg_ok = (w_desc_packet[DESC_ALG_HI:DESC_ALG_LO] == 8'd0) ||
+                           (w_is_ext_in && (w_desc_packet[DESC_ALG_HI:DESC_ALG_LO] <= desc_alg_max));
 
     // Per-direction "beats left in the current contiguous run". Capped onto
     // sched_*_beats so the engine never bursts across a run boundary.
@@ -597,6 +612,7 @@ module scheduler_core #(
             r_fetch_desc_d <= 1'b0;
             r_rd_ahead <= 1'b0;
             r_desc_chained <= 1'b0;
+            r_desc_alg <= 8'h0;
         end else begin
             // Track CH_FETCH_DESC for the one-cycle addr-gen start pulse
             r_fetch_desc_d <= w_state_fetch_desc;
@@ -614,9 +630,10 @@ module scheduler_core #(
                 r_descriptor.dst_addr <= w_desc_packet[DESC_DST_ADDR_HI:DESC_DST_ADDR_LO];
                 r_descriptor.length <= w_desc_packet[DESC_LENGTH_HI:DESC_LENGTH_LO];
                 r_descriptor.next_descriptor_ptr <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                r_descriptor.valid <= w_desc_packet[DESC_VALID_BIT];
+                r_descriptor.valid <= w_desc_packet[DESC_VALID_BIT] && w_head_alg_ok;
                 r_descriptor.gen_irq <= w_desc_packet[DESC_GEN_IRQ];
                 r_descriptor.last <= w_desc_packet[DESC_LAST];
+                r_desc_alg <= w_desc_packet[DESC_ALG_HI:DESC_ALG_LO];
                 // TASK-101: descriptor type (bits [210:208]) + extended chunk 1.
                 // For legacy descriptors desc_type=0 and chunk 1 is ignored.
                 r_descriptor.desc_type <= desc_type_e'(w_desc_packet[210:208]);
@@ -771,10 +788,11 @@ module scheduler_core #(
                 r_descriptor.dst_addr            <= w_next_dst_addr;
                 r_descriptor.length              <= w_next_length;
                 r_descriptor.next_descriptor_ptr <= w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO];
-                r_descriptor.valid               <= w_desc_packet[DESC_VALID_BIT];
+                r_descriptor.valid               <= w_desc_packet[DESC_VALID_BIT] && w_head_alg_ok;
                 r_descriptor.gen_irq             <= w_desc_packet[DESC_GEN_IRQ];
                 r_descriptor.last                <= w_desc_packet[DESC_LAST];
                 r_descriptor.desc_type           <= desc_type_e'(w_desc_packet[210:208]);
+                r_desc_alg                       <= w_desc_packet[DESC_ALG_HI:DESC_ALG_LO];
                 r_is_ext                <= w_is_ext_in;     // legacy head -> 0
                 // Registered chained bit follows the newly-loaded N+1 descriptor.
                 r_desc_chained <= (w_desc_packet[DESC_NEXT_PTR_HI:DESC_NEXT_PTR_LO] != 32'h0) &&
@@ -1118,9 +1136,22 @@ module scheduler_core #(
     //   ERROR:            Error detected (payload = error flags)
     //
     // Packet Generation Strategy:
-    //   - Generate on state entry (registered in state)
-    //   - One packet per state transition
+    //   - Generate on state ENTRY: one packet per visit to FETCH_DESC and to
+    //     COMPLETE. The one-module scheduler emitted on every cycle spent in
+    //     the state; the FSM leaves FETCH_DESC after one cycle, but it HOLDS
+    //     COMPLETE while a last descriptor's writes commit, so it sent that
+    //     descriptor's DESC_COMPLETE / IRQ packet once per cycle of the wait
+    //     (stream BUG, found by the stream-g equivalence bench: the sequenced
+    //     scheduler dwells differently and the packet streams diverged;
+    //     rapids BUG-016 was the same defect in RAPIDS).
     //   - Clear valid after one cycle (downstream must sample)
+    logic r_complete_d;
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n)) r_complete_d <= 1'b0;
+        else                      r_complete_d <= w_state_complete;
+    )
+    wire w_enter_fetch    = w_state_fetch_desc && !r_fetch_desc_d;
+    wire w_enter_complete = w_state_complete   && !r_complete_d;
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin
@@ -1141,7 +1172,7 @@ module scheduler_core #(
             end
 
             case (state)
-                CH_FETCH_DESC: begin
+                CH_FETCH_DESC: if (w_enter_fetch) begin
                     // Event: Descriptor processing started
                     // Payload: Transfer length in beats
                     r_mon_valid     <= 1'b1;
@@ -1187,7 +1218,7 @@ module scheduler_core #(
                     end
                 end
 
-                CH_COMPLETE: begin
+                CH_COMPLETE: if (w_enter_complete) begin
                     // Event: Descriptor complete (ready for next descriptor or idle)
                     // Generate IRQ event if gen_irq flag set, otherwise completion event
                     //
@@ -1272,6 +1303,7 @@ module scheduler_core #(
     assign desc_latched         = r_descriptor;
     assign desc_ext_latched     = r_descriptor_ext;
     assign desc_is_ext          = w_is_ext;
+    assign desc_alg             = r_desc_alg;
     assign desc_rd_per_beat     = w_rd_per_beat;
     assign desc_wr_per_beat     = w_wr_per_beat;
     assign wr_advance           = w_wr_advance;

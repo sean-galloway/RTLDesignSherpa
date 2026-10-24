@@ -33,6 +33,7 @@ top_block = {'BUILD_CLK_HZ': {'VALUE': {'default': '0x00000000', 'offset': '31:0
                   'GEN_MON': {'default': '0x0', 'offset': '7', 'sw': 'r', 'type': 'field'},
                   'MAIN_CONES': {'default': '0x0', 'offset': '16', 'sw': 'r', 'type': 'field'},
                   'NUM_CHANNELS': {'default': '0x00', 'offset': '4:0', 'sw': 'r', 'type': 'field'},
+                  'STREAM_G': {'default': '0x0', 'offset': '17', 'sw': 'r', 'type': 'field'},
                   'USE_MONITORS': {'default': '0x0', 'offset': '6', 'sw': 'r', 'type': 'field'},
                   'address': '0x1D4',
                   'default': '0x00000000',

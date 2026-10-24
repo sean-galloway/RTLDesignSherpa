@@ -151,6 +151,36 @@ package stream_regs_pkg;
 
     typedef struct {
         logic next;
+    } stream_regs__FW_CTRL__WRITABLE__in_t;
+
+    typedef struct {
+        logic next;
+    } stream_regs__FW_CTRL__STREAM_G__in_t;
+
+    typedef struct {
+        stream_regs__FW_CTRL__WRITABLE__in_t WRITABLE;
+        stream_regs__FW_CTRL__STREAM_G__in_t STREAM_G;
+    } stream_regs__FW_CTRL__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+        logic we;
+    } stream_regs__FW_ADDR__ADDR__in_t;
+
+    typedef struct {
+        stream_regs__FW_ADDR__ADDR__in_t ADDR;
+    } stream_regs__FW_ADDR__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } stream_regs__FW_RDATA__DATA__in_t;
+
+    typedef struct {
+        stream_regs__FW_RDATA__DATA__in_t DATA;
+    } stream_regs__FW_RDATA__in_t;
+
+    typedef struct {
+        logic next;
     } stream_mon_regs__MON_FIFO_STATUS__MON_FIFO_FULL__in_t;
 
     typedef struct {
@@ -526,6 +556,9 @@ package stream_regs_pkg;
         stream_regs__PERF_STATUS__in_t PERF_STATUS;
         stream_regs__HIST_DATA__in_t HIST_DATA;
         stream_regs__HIST_TOTAL__in_t HIST_TOTAL;
+        stream_regs__FW_CTRL__in_t FW_CTRL;
+        stream_regs__FW_ADDR__in_t FW_ADDR;
+        stream_regs__FW_RDATA__in_t FW_RDATA;
         stream_mon_regs__in_t MON;
     } stream_regs__in_t;
 
@@ -916,6 +949,44 @@ package stream_regs_pkg;
         stream_regs__HIST_SEL__METRIC__out_t METRIC;
         stream_regs__HIST_SEL__BIN__out_t BIN;
     } stream_regs__HIST_SEL__out_t;
+
+    typedef struct {
+        logic value;
+    } stream_regs__FW_CTRL__HOLD__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } stream_regs__FW_CTRL__ALG_MAX__out_t;
+
+    typedef struct {
+        stream_regs__FW_CTRL__HOLD__out_t HOLD;
+        stream_regs__FW_CTRL__ALG_MAX__out_t ALG_MAX;
+    } stream_regs__FW_CTRL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } stream_regs__FW_ADDR__ADDR__out_t;
+
+    typedef struct {
+        stream_regs__FW_ADDR__ADDR__out_t ADDR;
+    } stream_regs__FW_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+        logic swmod;
+    } stream_regs__FW_DATA__DATA__out_t;
+
+    typedef struct {
+        stream_regs__FW_DATA__DATA__out_t DATA;
+    } stream_regs__FW_DATA__out_t;
+
+    typedef struct {
+        logic swacc;
+    } stream_regs__FW_RDATA__DATA__out_t;
+
+    typedef struct {
+        stream_regs__FW_RDATA__DATA__out_t DATA;
+    } stream_regs__FW_RDATA__out_t;
 
     typedef struct {
         logic value;
@@ -1558,6 +1629,10 @@ package stream_regs_pkg;
         stream_regs__PERF_DATA_HIGH__out_t PERF_DATA_HIGH;
         stream_regs__PERF_CH_SEL__out_t PERF_CH_SEL;
         stream_regs__HIST_SEL__out_t HIST_SEL;
+        stream_regs__FW_CTRL__out_t FW_CTRL;
+        stream_regs__FW_ADDR__out_t FW_ADDR;
+        stream_regs__FW_DATA__out_t FW_DATA;
+        stream_regs__FW_RDATA__out_t FW_RDATA;
         stream_mon_regs__out_t MON;
     } stream_regs__out_t;
 endpackage

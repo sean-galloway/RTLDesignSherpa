@@ -187,6 +187,7 @@ module harness_csr #(
     parameter int BUILD_CLK_HZ       = 100_000_000,
     parameter int BUILD_USE_MONITORS = 1,
     parameter int BUILD_GEN_MON      = 0,      // per-channel CORE emitters built?
+    parameter int BUILD_STREAM_G     = 0,      // the DUT is stream_g_top_ch8 (stream TASK-020)
     // Datapath width in BYTES. 8 bits holds up to 255 B (2040 b), covering
     // 128 b (16 B, current) through the IP's native 512 b (64 B).
     parameter int BUILD_DATA_WIDTH_B = 16,
@@ -590,6 +591,7 @@ module harness_csr #(
     assign w_hwif_in.BUILD_CONFIG.ERROR_FLAVOR.next = 1'(BUILD_ERROR_FLAVOR);
     assign w_hwif_in.BUILD_CONFIG.USE_MONITORS.next = 1'(BUILD_USE_MONITORS);
     assign w_hwif_in.BUILD_CONFIG.GEN_MON.next      = 1'(BUILD_GEN_MON);
+    assign w_hwif_in.BUILD_CONFIG.STREAM_G.next     = 1'(BUILD_STREAM_G);
     assign w_hwif_in.BUILD_CONFIG.DATA_WIDTH_B.next = 8'(BUILD_DATA_WIDTH_B);
     assign w_hwif_in.BUILD_CONFIG.MAIN_CONES.next   = 1'(BUILD_MAIN_CONES);
     assign w_hwif_in.BUILD_N_PROFILE.VALUE.next = 32'(BUILD_N_PROFILE);

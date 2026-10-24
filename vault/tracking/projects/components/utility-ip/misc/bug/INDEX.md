@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/misc — bugs
 
-**Next ID: BUG-002** — never recycle a number, even when its item closed.
+**Next ID: BUG-003** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,7 +20,8 @@ by construction rather than by discipline.
 
 ## Open
 
-(none)
+- **BUG-002** — the observers' compression statistics nets (`w_comp_stat_*`) are declared and
+  read into OBS_COMP_STAT0/1 but never driven; the CSRs read 0 on every build (filed 2026-10-24)
 
 ## Closed
 

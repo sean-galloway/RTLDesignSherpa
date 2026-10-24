@@ -182,6 +182,9 @@ def build_info(bridge) -> dict:
         "main_cones":   regs.field("BUILD_CONFIG", "MAIN_CONES"),
         "use_monitors": regs.field("BUILD_CONFIG", "USE_MONITORS"),
         "gen_mon":      regs.field("BUILD_CONFIG", "GEN_MON"),
+        # stream-g (stream TASK-020): the DUT is stream_g_top_ch8, its
+        # schedulers sequenced by firmware on a gatling.
+        "stream_g":     regs.field("BUILD_CONFIG", "STREAM_G"),
         "n_profile":    bridge.read(H("BUILD_N_PROFILE")),
         # Read, never assumed. Bandwidth is bytes_per_cycle * clk_hz, so a host
         # that guesses the frequency reports plausible-looking numbers that are
@@ -202,4 +205,5 @@ def describe_build(bridge) -> str:
     return (f"build v{b['version']} {flavor} nch={b['num_channels']} "
             f"clk={mhz:.1f}MHz "
             f"n_profile={b['n_profile']} monitors={b['use_monitors']} "
-            f"gen_mon={b['gen_mon']}")
+            f"gen_mon={b['gen_mon']}"
+            f"{' stream-g' if b.get('stream_g') else ''}")

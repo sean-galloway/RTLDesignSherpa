@@ -728,6 +728,11 @@ Don't override. Generated from: $root
 |  7 |   GEN_MON  |   r  | 0x0 |  — |
 |15:8|DATA_WIDTH_B|   r  | 0x0 |  — |
 | 16 | MAIN_CONES |   r  | 0x0 |  — |
+| 17 |  STREAM_G  |   r  | 0x0 |  — |
+
+#### STREAM_G field
+
+<p>1 = the DUT is stream_g_top_ch8: schedulers sequenced by gatling firmware (stream TASK-020)</p>
 
 ### BUILD_N_PROFILE register
 

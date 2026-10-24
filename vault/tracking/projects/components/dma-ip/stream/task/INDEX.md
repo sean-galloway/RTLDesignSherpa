@@ -14,9 +14,9 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 16 | done (kept for history) |
+| [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 1 | parked pending a named condition |
+| [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
@@ -28,10 +28,12 @@ by construction rather than by discipline.
 
 ## Deferred
 
-- **TASK-018** — loadable firmware memory as on rapids-g (rapids TASK-038); the owner's answer 2026-10-24 is a firmware-sequenced STREAM (TASK-020), which brings the loader with it; closes with TASK-020 phase 4
+(none)
+
 
 ## Closed
 
+- **TASK-018** — loadable firmware memory as on rapids-g; delivered by TASK-020 phase 4 (stream-g carries rapids-g's loader unchanged, FW_* at 0x3A0-0x3AC); closed 2026-10-24
 - **TASK-017** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler (rapids TASK-028 parity); formal ap_desc_skid_bound
 - **TASK-016** — CLOSED 2026-10-03: all three Genesys2 stream builds rebuilt on
   the fixed sdpram (71d48b6f7), timing-closed, board-verified; perf 40/40

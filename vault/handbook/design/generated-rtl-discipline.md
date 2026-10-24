@@ -451,6 +451,37 @@ visible mismatch rather than a silent truncation.
   without a changed line, because a feature no port enables emits no
   field.
 
+## A generated top must DECLARE a net before the instance that connects it
+
+Two lints green, a harness sim green through the real UART path, and the board dead: the
+Genesys 2 answered nothing on the stream-g bitstream (stream TASK-020, 2026-10-24) while the
+STREAM bitstream from the same tree answered on the same port. The Vivado log had it in one line:
+
+```
+WARNING: Net host_cmd_valid in module/entity stream_g_top_ch8 does not have driver.
+WARNING: width (1) of port connection 'rsp_prdata' does not match port width (32) of module 'apb4_slave'
+```
+
+`bin/gen_stream_g.py` renamed the APB slave's cmd/rsp connections to `host_*` and included the
+arbiter fragment that DECLARES those nets a hundred lines later. Verilator resolved the names
+(it binds after reading the whole module); Vivado created implicit 1-bit nets at the instances
+and declared the fragment's `logic`s as separate, unconnected objects. The host register path
+did not exist in silicon, the APB slave's response FSM saw nonsense, and the whole AXI-lite
+fabric behind the UART wedged -- even the harness's own CSRs stopped answering.
+
+The rules this adds:
+
+- **A generator that splices a fragment places it by what the fragment DECLARES, not by
+  what reads well.** Anchor the include before the first instance that connects its nets.
+- **Scan every synthesis log for `does not have driver` and `width (1) of port connection`.**
+  `make bitstream` (make/fpga_flow.mk) prints them after every build now, loud and not fatal.
+  A net with no driver in synthesis is a net the simulator drove: the bitstream is not the
+  design that passed. Verilator does not warn, so no lint gate stands in for this grep.
+- **The A/B that settles "is it my change or the tree" is a control build from the same
+  tree**, not the last known-good bitstream: the stream-g build had also regenerated the
+  harness bridge with a changed generator, and only a STREAM_G=0 build from today's tree
+  cleared the bridge.
+
 ## Where generated output lives: one bin is fine (owner, 2026-10-13)
 
 Root CLAUDE.md Rule #0.1 asks for generated files in named subdirectories.

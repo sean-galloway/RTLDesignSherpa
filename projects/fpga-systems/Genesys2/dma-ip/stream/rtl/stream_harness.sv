@@ -24,6 +24,16 @@
 
 `include "reset_defs.svh"
 
+// ILA build only (fpga/tcl/build_ila.tcl defines STREAM_CHAR_ILA): mark the
+// host, APB, DUT-master and monitor-writer handshakes so build_ila.tcl can
+// find them. Expands to nothing in the perf and mon builds, so the marks cost
+// those builds no logic and no timing.
+`ifdef STREAM_CHAR_ILA
+`define SC_DBG (* mark_debug = "true" *)
+`else
+`define SC_DBG
+`endif
+
 // Every geometry default below comes from stream_char_cfg_pkg -- ONE source,
 // shared with stream_genesys2_top. Do not write a literal here: a literal is
 // how sim and board drifted apart (build-perf characterized AR/AW=16 against a
@@ -196,6 +206,20 @@ module stream_harness #(
     output logic            o_timer_done,
     output logic            o_timer_pass
 );
+    // stream-g (stream TASK-020): the DUT is stream_g_top_ch8 when STREAM_G is
+    // defined (the harness instantiates it below); the host reads
+    // BUILD_CONFIG.STREAM_G. STREAM_G_FW_WRITABLE makes its instruction memory
+    // loadable through the FW_* registers (otherwise a ROM).
+`ifdef STREAM_G
+    localparam bit BUILD_STREAM_G   = 1'b1;
+  `ifdef STREAM_G_FW_WRITABLE
+    localparam int DUT_FW_WRITABLE  = 1;
+  `else
+    localparam int DUT_FW_WRITABLE  = 0;
+  `endif
+`else
+    localparam bit BUILD_STREAM_G   = 1'b0;
+`endif
 
     localparam int AXI_ID_WIDTH   = 8;
     localparam int AXI_USER_WIDTH = $clog2(NUM_CHANNELS) > 0 ? $clog2(NUM_CHANNELS) : 1;
@@ -225,18 +249,18 @@ module stream_harness #(
     // =========================================================================
     logic [31:0] uart_awaddr;
     logic [2:0]  uart_awprot;
-    logic        uart_awvalid, uart_awready;
+    `SC_DBG logic        uart_awvalid, uart_awready;
     logic [31:0] uart_wdata;
     logic [3:0]  uart_wstrb;
-    logic        uart_wvalid, uart_wready;
+    `SC_DBG logic        uart_wvalid, uart_wready;
     logic [1:0]  uart_bresp;
-    logic        uart_bvalid, uart_bready;
+    `SC_DBG logic        uart_bvalid, uart_bready;
     logic [31:0] uart_araddr;
     logic [2:0]  uart_arprot;
-    logic        uart_arvalid, uart_arready;
+    `SC_DBG logic        uart_arvalid, uart_arready;
     logic [31:0] uart_rdata;
     logic [1:0]  uart_rresp;
-    logic        uart_rvalid, uart_rready;
+    `SC_DBG logic        uart_rvalid, uart_rready;
 
     uart_axil_bridge #(
         .AXIL_ADDR_WIDTH (32),
@@ -308,10 +332,10 @@ module stream_harness #(
     // STREAM m_axil_mon master signals (declared early so the bridge
     // instance port-map at the next section can reach them; stream_top_ch8
     // drives them from its monbus_axil_group output further down).
-    logic        mon_awvalid, mon_awready;
+    `SC_DBG logic        mon_awvalid, mon_awready;
     logic [31:0] mon_awaddr;
     logic [2:0]  mon_awprot;
-    logic        mon_wvalid,  mon_wready;
+    `SC_DBG logic        mon_wvalid,  mon_wready;
     logic [63:0] mon_wdata;
     logic [7:0]  mon_wstrb;
     logic        mon_bvalid,  mon_bready;
@@ -331,7 +355,7 @@ module stream_harness #(
     logic [3:0]                 desc_arqos;
     logic [3:0]                 desc_arregion;
     logic [AXI_USER_WIDTH-1:0]  desc_aruser;
-    logic                       desc_arvalid, desc_arready;
+    `SC_DBG logic                       desc_arvalid, desc_arready;
     logic [AXI_ID_WIDTH-1:0]    desc_rid;
     logic [255:0]               desc_rdata;
     logic [1:0]                 desc_rresp;
@@ -340,7 +364,7 @@ module stream_harness #(
     // Bridge drives a single ruser bit; zero-extend to the harness net width.
     logic                       w_desc_ruser_b0;
     assign desc_ruser = AXI_USER_WIDTH'(w_desc_ruser_b0);
-    logic                       desc_rvalid, desc_rready;
+    `SC_DBG logic                       desc_rvalid, desc_rready;
 
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
     // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err, s4_* stream_tally)
@@ -414,10 +438,10 @@ module stream_harness #(
     // Wire the full 32-bit at the bridge boundary, slice down to apb_paddr.
     logic [31:0]                   stream_apb_PADDR_full;
     logic [APB_ADDR_WIDTH-1:0]     apb_paddr;
-    logic                          apb_psel, apb_penable, apb_pwrite;
+    `SC_DBG logic                          apb_psel, apb_penable, apb_pwrite;
     logic [APB_DATA_WIDTH-1:0]     apb_pwdata, apb_prdata;
     logic [(APB_DATA_WIDTH/8)-1:0] apb_pstrb;
-    logic                          apb_pready, apb_pslverr;
+    `SC_DBG logic                          apb_pready, apb_pslverr;
     assign apb_paddr = stream_apb_PADDR_full[APB_ADDR_WIDTH-1:0];
 
     // The previous incarnation of this harness declared b2csr_/b2desc_/
@@ -892,7 +916,7 @@ module stream_harness #(
             r_soft_rst_cnt <= r_soft_rst_cnt - 5'd1;
         end
     )
-    wire unit_aresetn = aresetn & (r_soft_rst_cnt == 0);
+    `SC_DBG wire unit_aresetn = aresetn & (r_soft_rst_cnt == 0);
 
     // (axi_bus_meter output + sideband wires retired in RFC Stage E.4 --
     //  datapath utilization is now measured in-core; see the retirement note
@@ -1024,7 +1048,8 @@ module stream_harness #(
         .BUILD_DATA_WIDTH_B(DATA_WIDTH / 8),
         .BUILD_N_PROFILE   (MON_N_PROFILE),
         .BUILD_USE_MONITORS(USE_AXI_MONITORS),
-        .BUILD_GEN_MON     (int'(GEN_MON))
+        .BUILD_GEN_MON     (int'(GEN_MON)),
+        .BUILD_STREAM_G    (int'(BUILD_STREAM_G))
     ) u_csr (
         .aclk(aclk), .aresetn(aresetn),
         .s_awaddr(s1_awaddr), .s_awprot(s1_awprot),
@@ -1717,13 +1742,13 @@ module stream_harness #(
     logic [3:0]                 rd_arqos;
     logic [3:0]                 rd_arregion;
     logic [AXI_USER_WIDTH-1:0]  rd_aruser;
-    logic                       rd_arvalid, rd_arready;
+    `SC_DBG logic                       rd_arvalid, rd_arready;
     logic [AXI_ID_WIDTH-1:0]    rd_rid;
     logic [DATA_WIDTH-1:0]      rd_rdata;
     logic [1:0]                 rd_rresp;
     logic                       rd_rlast;
     logic [AXI_USER_WIDTH-1:0]  rd_ruser;
-    logic                       rd_rvalid;
+    `SC_DBG logic                       rd_rvalid;
     logic                       rd_rready;
 
     // Slave-side R wires (u_rd_pattern -> u_rd_resp_delay).
@@ -1838,16 +1863,16 @@ module stream_harness #(
     logic [3:0]                 wr_awqos;
     logic [3:0]                 wr_awregion;
     logic [AXI_USER_WIDTH-1:0]  wr_awuser;
-    logic                       wr_awvalid, wr_awready;
+    `SC_DBG logic                       wr_awvalid, wr_awready;
     logic [DATA_WIDTH-1:0]      wr_wdata;
     logic [DATA_WIDTH/8-1:0]    wr_wstrb;
     logic                       wr_wlast;
     logic [AXI_USER_WIDTH-1:0]  wr_wuser;
-    logic                       wr_wvalid, wr_wready;
+    `SC_DBG logic                       wr_wvalid, wr_wready;
     logic [AXI_ID_WIDTH-1:0]    wr_bid;
     logic [1:0]                 wr_bresp;
     logic [AXI_USER_WIDTH-1:0]  wr_buser;
-    logic                       wr_bvalid;
+    `SC_DBG logic                       wr_bvalid;
     logic                       wr_bready;
 
     // Slave-side B wires (u_wr_crc_check -> u_wr_resp_delay).
@@ -2566,7 +2591,17 @@ module stream_harness #(
     // =========================================================================
     // STREAM DUT
     // =========================================================================
-    stream_top_ch8 #(
+    // DUT: stream_top_ch8, or stream_g_top_ch8 when STREAM_G is defined (stream
+    // TASK-020: the schedulers sequenced by firmware on a gatling). The
+    // register map is the same; a -g build reports BUILD_CONFIG.STREAM_G = 1
+    // and FW_CTRL.STREAM_G = 1. STREAM_G_FW_WRITABLE makes its instruction
+    // memory loadable through the FW_* registers (otherwise a ROM).
+`ifdef STREAM_G
+    `define STREAM_CHAR_DUT stream_g_top_ch8
+`else
+    `define STREAM_CHAR_DUT stream_top_ch8
+`endif
+    `STREAM_CHAR_DUT #(
         .NUM_CHANNELS       (NUM_CHANNELS),
         .DATA_WIDTH         (DATA_WIDTH),
         .ADDR_WIDTH         (ADDR_WIDTH),
@@ -2632,10 +2667,16 @@ module stream_harness #(
         .DATA_MON_ENABLE_THRESHOLD_LOGIC (w_data_mon_main_cones),
         .DATA_MON_ENABLE_PERF_LOGIC      (w_data_mon_main_cones),
         .DATA_MON_ENABLE_DEBUG_LOGIC     (w_data_mon_main_cones)
+`ifdef STREAM_G
+        , .FW_WRITABLE      (DUT_FW_WRITABLE)
+`endif
     ) u_stream (
         .aclk    (aclk),   .aresetn(unit_aresetn),
         .pclk    (aclk),   .presetn(aresetn),
         .cam_clear(csr_cam_clear),
+`ifdef STREAM_G
+        .seq_restart(1'b0),             // the harts run from reset; the firmware polls
+`endif
 
         // Kick-burst fast path (1-cycle pulse from harness_csr KICK_GO,
         // shadow addresses from CH_KICK_ADDR[ch]).

@@ -112,7 +112,18 @@ CLK_TOKEN := $(if $(filter 100,$(A7_CLK_MHZ)),,clk$(A7_CLK_MHZ))
 # the default bitstream is never overwritten by it.
 export STREAM_SHARED_ENGINES ?= 1
 SE_TOKEN  := $(if $(filter 0,$(STREAM_SHARED_ENGINES)),_pce,)
-BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)$(CLK_TOKEN)_$(STREAM_NUM_CHANNELS)ch$(SE_TOKEN).bit
+# STREAM_G: 1 = the DUT is stream_g_top_ch8 (stream TASK-020: the schedulers are
+# sequenced by firmware on a gatling); FW_WRITABLE=1 makes its instruction
+# memory loadable through the FW_* registers. The define reaches Vivado through
+# fpga/tcl/create_project.tcl and lint / sim through LINT_DEFINES / TEST_STREAM_G.
+export STREAM_G ?= 0
+export FW_WRITABLE ?= 0
+G_TOKEN   := $(if $(filter 1,$(STREAM_G)),_g$(if $(filter 1,$(FW_WRITABLE)),_fw,),)
+LINT_DEFINES += $(if $(filter 1,$(STREAM_G)),+define+STREAM_G) $(if $(filter 1,$(STREAM_G)),$(if $(filter 1,$(FW_WRITABLE)),+define+STREAM_G_FW_WRITABLE))
+# the sim-harness tests read these (dv/tests/test_stream_perf.py compile_args)
+export TEST_STREAM_G    := $(STREAM_G)
+export TEST_FW_WRITABLE := $(FW_WRITABLE)
+BITSTREAM := $(FPGA_DIR)/bitstream/$(FLOW)_$(BOARD_TOKEN)$(CLK_TOKEN)_$(STREAM_NUM_CHANNELS)ch$(SE_TOKEN)$(G_TOKEN).bit
 
 PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 

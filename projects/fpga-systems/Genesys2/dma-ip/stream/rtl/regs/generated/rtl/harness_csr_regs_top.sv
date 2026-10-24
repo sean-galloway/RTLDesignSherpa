@@ -649,7 +649,8 @@ module harness_csr_regs_top (
     assign readback_array[53][7:7] = (decoded_reg_strb.BUILD_CONFIG && !decoded_req_is_wr) ? hwif_in.BUILD_CONFIG.GEN_MON.next : '0;
     assign readback_array[53][15:8] = (decoded_reg_strb.BUILD_CONFIG && !decoded_req_is_wr) ? hwif_in.BUILD_CONFIG.DATA_WIDTH_B.next : '0;
     assign readback_array[53][16:16] = (decoded_reg_strb.BUILD_CONFIG && !decoded_req_is_wr) ? hwif_in.BUILD_CONFIG.MAIN_CONES.next : '0;
-    assign readback_array[53][31:17] = '0;
+    assign readback_array[53][17:17] = (decoded_reg_strb.BUILD_CONFIG && !decoded_req_is_wr) ? hwif_in.BUILD_CONFIG.STREAM_G.next : '0;
+    assign readback_array[53][31:18] = '0;
     assign readback_array[54][31:0] = (decoded_reg_strb.BUILD_N_PROFILE && !decoded_req_is_wr) ? hwif_in.BUILD_N_PROFILE.VALUE.next : '0;
     assign readback_array[55][31:0] = (decoded_reg_strb.BUILD_CLK_HZ && !decoded_req_is_wr) ? hwif_in.BUILD_CLK_HZ.VALUE.next : '0;
     assign readback_array[56][31:0] = (decoded_reg_strb.COMP_TIER1_A && !decoded_req_is_wr) ? hwif_in.COMP_TIER1_A.VALUE.next : '0;

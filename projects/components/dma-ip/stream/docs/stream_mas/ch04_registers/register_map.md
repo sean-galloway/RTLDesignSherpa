@@ -889,6 +889,41 @@ write32(BASE + PERF_CONFIG, 0x05);  // EN + CLEAR
 
 ---
 
+### Firmware Load (0x3A0 - 0x3AF)
+
+The gatling instruction memory of a stream-g build (Chapter 7), loaded live through the register path when
+the build has `FW_WRITABLE` = 1 (rapids TASK-038's registers, at the same offsets). A STREAM build decodes
+them too: `FW_CTRL` reads `STREAM_G` = 0 and `WRITABLE` = 0, `FW_RDATA` reads 0, and writes land nowhere.
+
+#### FW_CTRL (0x3A0)
+
+| Bits   | Field       | Type | Reset | Description                                                        |
+|--------|-------------|------|-------|--------------------------------------------------------------------|
+| 15:8   | ALG_MAX     | RW   | 0x00  | Next-address selectors the loaded image implements (its ALG_MAX)   |
+| 2      | STREAM_G    | RO   | --    | 1 = a stream-g build (schedulers sequenced by gatling firmware)    |
+| 1      | WRITABLE    | RO   | --    | 1 = the instruction memory is writable (`FW_WRITABLE` build)       |
+| 0      | HOLD        | RW   | 0     | Hold the harts in reset and enable FW_DATA writes; clearing it restarts them at address 0 |
+
+: FW_CTRL
+
+Hold only while every channel is idle. While `HOLD` = 1 the next-address cap every scheduler applies
+follows `ALG_MAX`, so write `ALG_MAX` with the new image's value in the same write.
+
+#### FW_ADDR (0x3A4), FW_DATA (0x3A8), FW_RDATA (0x3AC)
+
+| Register | Bits | Type | Description |
+|---|---|---|---|
+| FW_ADDR  | 15:0  | RW | Instruction-memory word index for FW_DATA and FW_RDATA; advances by one after each FW_DATA write and each FW_RDATA read |
+| FW_DATA  | 31:0  | RW | A write stores the word at FW_ADDR (only while FW_CTRL.HOLD = 1) |
+| FW_RDATA | 31:0  | RO | The instruction-memory word at FW_ADDR (0 on a ROM build) |
+
+: FW_ADDR, FW_DATA, FW_RDATA
+
+A load is one `FW_ADDR` write and a run of `FW_DATA` writes; a readback is one `FW_ADDR` write and a run of
+`FW_RDATA` reads.
+
+---
+
 ## Typical Usage Flow
 
 ### Initialization
@@ -969,6 +1004,7 @@ for (int ch = 0; ch < 8; ch++) {
 | 0x2B0-0x2BF  | Performance profiler configuration    | 1     | RW            |
 | 0x2C0-0x2CF  | Channel observation                   | 4     | RW/RO         |
 | 0x2D0-0x2DF  | Performance profiler data and status  | 3     | RO            |
+| 0x3A0-0x3AF  | Firmware load (stream-g; inert on STREAM) | 4 | RW/RO         |
 | 0x1000-0x1007| Monitor FIFO status (mon regfile)     | 2     | RO            |
 | 0x10C0-0x10DF| Descriptor AXI monitor configuration  | 8     | RW            |
 | 0x10E0-0x10FF| Read engine AXI monitor configuration | 8     | RW            |

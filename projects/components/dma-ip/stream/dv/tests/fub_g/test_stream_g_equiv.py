@@ -1,0 +1,447 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+#
+# RTL Design Sherpa - Industry-Standard RTL Design and Verification
+# https://github.com/sean-galloway/RTLDesignSherpa
+#
+# Module: test_stream_g_equiv
+# Purpose: rapids-g (rapids TASK-034): the FSM scheduler and the
+#          gatling-sequenced scheduler_g, side by side on the same
+#          descriptors, ask the same of their engines.
+#
+# Documentation: projects/components/dma-ip/rapids/PRD.md (rapids-g)
+# Subsystem: rapids fub_g
+#
+# Author: sean galloway
+# Created: 2026-10-21
+
+"""Equivalence cells (stream_g_equiv_tb_top, StreamGEquivTB; stream TASK-020, the
+rapids-g bench on STREAM's scheduler).
+
+  linear        beat-granular descriptors: zero length, short and long, chains
+                and IRQs -- the firmware's beat totals and chain policy
+  linear_pf     the same with STREAM's read-ahead prefetch on (both sides): a
+                staged chained head is peeked and advanced in place in hardware
+  ext           TYPE=EXT descriptors: per-beat and run-contiguous, negative and
+                large strides, 64-bit carries, wraps below and above 32 bits,
+                inner_count 0/1 -- the firmware's run bases against
+                stream_run_addr_gen
+  error_reset   invalid descriptors and an engine error mid-transfer, then a
+                channel reset and more work: the interlocks and recovery
+  reset_any     a channel reset in every state, on each side at its own point;
+                reset_any_pf the same with the prefetch on
+  alg           the next-address selector (rapids TASK-035): selectors no build
+                runs are invalid on both sides; selector 1 (Z-order) runs on
+                gatling against the golden model and is refused by the FSM
+"""
+
+import os
+import sys
+
+import cocotb
+import pytest
+from cocotb.triggers import Timer
+from cocotb_test.simulator import run
+
+from TBClasses.shared.utilities import get_paths, create_view_cmd, get_repo_root, sim_build_path
+from TBClasses.shared.filelist_utils import get_sources_from_filelist
+from TBClasses.shared.test_levels import level_env, reg_level_grid, current_level
+
+repo_root = get_repo_root()
+sys.path.insert(0, repo_root)
+
+from projects.components.dma_ip.stream.dv.tbclasses.stream_g_equiv_tb import (  # noqa: E402
+    StreamGEquivTB, ST_ERROR, ST_FETCH, ST_XFER, ST_COMPLETE, ST_NEXT, ST_IDLE, SIDES, make_desc)
+
+DEPTH = {'gate': 6, 'func': 16, 'full': 40}     # descriptors per channel
+# A cell's cycle budget scales with its depth: per-beat EXT descriptors cost
+# the firmware a few hundred cycles a base (measured: cocotb_test_perf)
+CYCLE_BUDGET = 400000 * DEPTH[current_level()] // DEPTH['gate']
+LW_SUMMARY = 0x0004A283                         # lw t0, 0(s1): the SUMMARY poll (sched_g.S)
+
+
+async def _finish(tb: StreamGEquivTB, label: str):
+    quiet = await tb.run_until_quiet(CYCLE_BUDGET)
+    same = tb.compare()
+    errs = tb.cmd_errors()
+    halted = int(tb.dut.g_hart_halted.value)
+    tb.log.info(f"{label}: quiet={quiet} equivalent={same} cmd_errors={errs} harts_halted=0x{halted:x} "
+                f"cycles={tb.cycle}")
+    assert quiet, f"{label}: the two sides did not finish"
+    assert same, f"{label}: the FSM and gatling schedulers differ"
+    assert errs == 0, f"{label}: scheduler_g counted {errs} illegal commands / dropped pushes"
+    assert halted == 0, f"{label}: a gatling hart halted (0x{halted:x})"
+
+
+async def _linear(dut):
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    n = DEPTH[current_level()]
+    tb.load([tb.rand_linear(n) for _ in range(tb.N)])
+    await _finish(tb, "linear")
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_linear(dut):
+    await _linear(dut)
+
+
+def _golden_check(tb, side, i, descs, start=(0, 0)):
+    """Side `side`, channel i: the commands from index `start` on must be
+    exactly the golden model's for `descs`."""
+    c = tb.ch[side][i]
+    bad = []
+    for k, (what, is_wr) in enumerate((('rd_cmds', False), ('wr_cmds', True))):
+        want = [x for d in descs for x in tb.golden_cmds(d, is_wr)]
+        got = getattr(c, what)[start[k]:]
+        if got != want:
+            j = next((j for j in range(min(len(got), len(want))) if got[j] != want[j]), min(len(got), len(want)))
+            bad.append(f"{side}{i} {what}: {len(got)} vs golden {len(want)}, first difference at #{j}: "
+                       f"got {got[j] if j < len(got) else None} want {want[j] if j < len(want) else None}")
+    for b in bad:
+        tb.log.error(b)
+    return not bad
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_ext(dut):
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    n = DEPTH[current_level()]
+    lists = [tb.rand_ext(n) for _ in range(tb.N)]
+    tb.load(lists)
+    await _finish(tb, "ext")
+    ok = all(_golden_check(tb, s, i, lists[i]) for s in SIDES for i in range(tb.N))
+    assert ok, "ext: a side's commands differ from the golden run-base model"
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_error_reset(dut):
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    L = tb.lanes
+    # every channel: two good, then an invalid descriptor (CH_ERROR)
+    tb.load([tb.rand_linear(2, chains=False) + [make_desc(0x1000, 0x2000, 4, valid=False)]
+             for _ in range(tb.N)])
+    for i in range(tb.N):
+        assert await tb.wait_state(i, ST_ERROR, CYCLE_BUDGET), f"ch{i}: no CH_ERROR after an invalid descriptor"
+    await tb.run_cycles(200)                       # sticky until a reset
+    assert all(tb.ch[s][i].state == ST_ERROR for s in tb.pkt_ready for i in range(tb.N))
+    await tb.channel_reset((1 << tb.N) - 1)
+    # an engine error part-way through a long transfer, on the even channels
+    marks = {i: tb.mark(i) for i in range(tb.N)}
+    for i in range(tb.N):
+        long = make_desc(0x10_0000 + i * 0x1_0000, 0x80_0000 + i * 0x1_0000, 64)
+        tb.load_one(i, [long])
+        if i % 2 == 0:
+            for s in tb.pkt_ready:
+                tb.ch[s][i].rd_error_after = len(tb.ch[s][i].rd_cmds) + 3
+    for i in range(0, tb.N, 2):
+        assert await tb.wait_state(i, ST_ERROR, CYCLE_BUDGET), f"ch{i}: no CH_ERROR after sched_rd_error"
+    assert await tb.run_until_quiet(CYCLE_BUDGET)
+    for i in range(0, tb.N, 2):
+        tb.skip_window(i, marks[i], tb.mark(i))
+        for s in tb.pkt_ready:
+            assert tb.ch[s][i].err_to_error is not None, f"{s}{i}: the injected error never reached CH_ERROR"
+    await tb.channel_reset((1 << tb.N) - 1)
+    # and the channels work again
+    tb.load([tb.rand_linear(3) for _ in range(tb.N)])
+    await _finish(tb, "error_reset")
+
+
+async def _reset_any(dut):
+    """A channel reset in every state: channel i is reset when its third
+    descriptor reaches FETCH_DESC, XFER_DATA, COMPLETE or NEXT_DESC (by i),
+    on each side at that point of its own run. The descriptors are a mix
+    of linear chains and EXT, so a reset can land with EXT bases queued:
+    whatever the next descriptors ask for must still match."""
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    L = tb.lanes
+    states = [ST_FETCH, ST_XFER, ST_COMPLETE, ST_NEXT]
+    lists, afters = [], []
+    for i in range(tb.N):
+        third = states[i % 4]
+        if third == ST_NEXT and tb.prefetch:
+            # with the prefetch on a chained LEGACY link advances in place and
+            # never visits NEXT_DESC; an EXT chain is not prefetched, so its
+            # first link reaches NEXT_DESC as planned
+            ext_c = dict(rd_s0=L, rd_s1=16 * L, rd_inner=3, wr_s0=L, wr_s1=32 * L, wr_inner=3)
+            mid = [make_desc(0x30_0000, 0x70_0000, 9, next_ptr=0x40, last=False, ext=ext_c),
+                   make_desc(0x31_0000, 0x71_0000, 6, last=True, ext=ext_c)]
+        elif third == ST_NEXT:   # a chain whose first link is the third descriptor
+            mid = [make_desc(0x30_0000, 0x70_0000, 9, next_ptr=0x40, last=False),
+                   make_desc(0x31_0000, 0x71_0000, 6, last=True)]
+        elif third == ST_FETCH:  # one cycle on the FSM side; the per-cycle sample sees it
+            mid = tb.rand_ext(1)
+        else:
+            mid = tb.rand_ext(1) if i % 2 else tb.rand_linear(1, chains=False)
+        lists.append(tb.rand_linear(2, chains=False) + mid)
+        afters.append(tb.rand_ext(2) + tb.rand_linear(3))
+        tb.plan_reset(i, 3, third, after=afters[-1])
+    tb.load(lists)
+    for _ in range(CYCLE_BUDGET):
+        await tb.run_cycles(1)
+        if tb.resets_done():
+            break
+    pending = [(s, i, c.reset_at, c.fetches, hex(c.state)) for s in SIDES
+               for i, c in enumerate(tb.ch[s]) if c.reset_at or c.reset_left]
+    assert tb.resets_done(), f"planned resets never reached their state: {pending}"
+    assert await tb.run_until_quiet(CYCLE_BUDGET), "reset_any: did not finish"
+    # after its reset, each side must walk exactly the golden commands (an
+    # independent check: equivalence alone cannot say which side is right)
+    gold = {s: all(_golden_check(tb, s, i, afters[i],
+                                 (tb.ch[s][i].post_reset['rd_cmds'], tb.ch[s][i].post_reset['wr_cmds']))
+                   for i in range(tb.N)) for s in SIDES}
+    tb.log.info(f"reset_any: after the resets, FSM scheduler golden: {gold['f']}; scheduler_g golden: {gold['g']}")
+    assert gold['g'], "reset_any: scheduler_g's commands after a reset differ from the golden"
+    assert gold['f'], "reset_any: the FSM scheduler's commands after a reset differ from the golden (rapids BUG-017)"
+    await _finish(tb, "reset_any")
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_reset_any(dut):
+    await _reset_any(dut)
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_hart_fault(dut):
+    """A hart that halts faults its channels: every gatling-side channel
+    goes to CH_ERROR and sends its error packet. Once all of a hart's
+    channels are reset it restarts, and the channels work again (and
+    match the FSM side from there)."""
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    tb.load([tb.rand_linear(2, chains=False) for _ in range(tb.N)])
+    assert await tb.run_until_quiet(CYCLE_BUDGET), "the warm-up did not finish"
+    rom = dut.u_seq.r_rom
+    # every poll of sched_g.S (one slot, two, the slot loop) reads SUMMARY
+    # with this word, so whichever poll the harts run, they reach an illegal one
+    polls = [w for w in range(len(rom)) if int(rom[w].value) == LW_SUMMARY]
+    assert len(polls) == 3, f"expected the three polls' SUMMARY reads, found ROM words {polls}"
+    await Timer(1, 'ns')                           # out of ReadOnly before writing
+    for w in polls:
+        rom[w].value = 0xFFFF_FFFF                 # an illegal instruction
+    tb.load([tb.rand_linear(1, chains=False) for _ in range(tb.N)])
+    # Every instruction costs a hart NUM_HARTS clocks. A hart that is idle is
+    # at the SUMMARY read and halts within a rotation; one that was handed a
+    # descriptor as the poison landed walks judge_head and the stage (about
+    # 30 instructions) before its next SUMMARY read: about 480 clocks at 16
+    # harts (seen with SEED=1215, where a fixed 400-cycle wait missed two
+    # harts). Wait up to 64 instructions, which every poll's pass is well under.
+    budget = 64 * tb.harts
+    waited = 0
+    while waited < budget and int(dut.g_hart_halted.value) != (1 << tb.harts) - 1:
+        await tb.run_cycles(tb.harts)
+        waited += tb.harts
+    halted = int(dut.g_hart_halted.value)
+    tb.log.info(f"hart_fault: halted 0x{halted:x} after {waited} of {budget} cycles")
+    assert halted == (1 << tb.harts) - 1, \
+        f"every hart should have halted on the illegal word within {budget} cycles, got 0x{halted:x}"
+    for i in range(tb.N):
+        g = tb.ch['g'][i]
+        assert g.state == ST_ERROR, f"g{i}: a halted hart's channel is in 0x{g.state:02x}, not CH_ERROR"
+        assert any((m >> 104) & 0xF == 0x1 for m in g.mons) or g.mons, f"g{i}: no MonBus packet"
+    errs_before = [len(tb.ch['g'][i].mons) for i in range(tb.N)]
+    await Timer(1, 'ns')
+    for w in polls:
+        rom[w].value = LW_SUMMARY
+    await tb.channel_reset((1 << tb.N) - 1)
+    await tb.run_cycles(8)
+    assert int(dut.g_hart_halted.value) == 0, "the harts did not restart after their channels' reset"
+    # compare from here on: drop everything before on both sides
+    for s in SIDES:
+        for i in range(tb.N):
+            c = tb.ch[s][i]
+            c.queue.clear()
+            c.head = None
+            for w in ('rd_cmds', 'wr_cmds', 'rd_pkts', 'wr_pkts', 'mons', 'states'):
+                c.skip.append((w, 0, len(getattr(c, w))))
+    tb.load([tb.rand_linear(3) + tb.rand_ext(1) for _ in range(tb.N)])
+    tb.log.info(f"hart_fault: harts halted 0x{halted:x}, MonBus packets before the reset {errs_before}")
+    await _finish(tb, "hart_fault")
+
+
+@cocotb.test(timeout_time=4000, timeout_unit="ms")
+async def cocotb_test_perf(dut):
+    """Measured, not judged: what the firmware costs against the FSM.
+
+    Engines take exactly one cycle per burst and never stall, so the
+    scheduler is the only limit. Each scenario runs the same descriptors on
+    both sides and records the cycles each side needs; results go to the log
+    and to perf_<cell>.json beside it."""
+    import json
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    tb.fixed_lat = 1
+    L, n = tb.lanes, 16
+    out = {'channels': tb.N, 'data_width': tb.DW}
+
+    # PERF_ONLY=a,b runs just those scenarios, each from the same cycle as a
+    # full run's first one: two images compared that way share their start
+    # phase against the barrel, which a scenario late in a full run does not.
+    only = set(filter(None, os.environ.get('PERF_ONLY', '').split(',')))
+
+    async def scenario(name, per_channel, channels):
+        if only and name not in only:
+            return
+        lists = [per_channel(i) if i in channels else [] for i in range(tb.N)]
+        tb.load(lists)
+        done = await tb.cycles_to_quiet(CYCLE_BUDGET)
+        ndesc = sum(len(x) for x in lists)
+        out[name] = {'descriptors': ndesc, 'f_cycles': done.get('f'), 'g_cycles': done.get('g')}
+        f, g = done.get('f'), done.get('g')
+        tb.log.info(f"perf {name}: {ndesc} descriptors, FSM {f} cycles, gatling {g} cycles"
+                    + (f", {(g - f) / ndesc:.1f} extra cycles per descriptor, {100.0 * (g - f) / f:.2f}% longer"
+                       if f and g else ""))
+        await tb.run_cycles(64)
+
+    one_beat = lambda i: [make_desc(0x1000 * (k + 1) + i * 0x10_0000, 0x80_0000 + 0x1000 * k + i * 0x10_0000, 1)
+                          for k in range(n)]
+    big = lambda i: [make_desc(0x1000 * (k + 1) + i * 0x10_0000, 0x80_0000 + 0x1000 * k + i * 0x10_0000, 64)
+                     for k in range(n)]
+    ext_run = lambda i: [make_desc(0x100_0000 + i * 0x10_0000, 0x900_0000 + i * 0x10_0000, 64,
+                                   ext=dict(rd_s0=L, rd_s1=8 * L, rd_inner=4, wr_s0=L, wr_s1=8 * L, wr_inner=4))
+                         for _ in range(4)]
+    ext_beat = lambda i: [make_desc(0x100_0000 + i * 0x10_0000, 0x900_0000 + i * 0x10_0000, 64,
+                                    ext=dict(rd_s0=2 * L, rd_s1=32 * L, rd_inner=8, wr_s0=2 * L, wr_s1=32 * L, wr_inner=8))
+                          for _ in range(4)]
+    big64k = lambda i: [make_desc(0x1000_0000 * (i + 1) + 0x10_0000 * k, 0x8_0000_0000 + 0x1000_0000 * i + 0x10_0000 * k,
+                                  0x1_0000 // L) for k in range(4)]
+    mb = lambda i: [make_desc(0x1000_0000 * (i + 1) + 0x10_0000 * k, 0x8_0000_0000 + 0x1000_0000 * i + 0x10_0000 * k,
+                              0x10_0000 // L) for k in range(2)]
+    mb_ext = lambda i: [make_desc(0x1000_0000 * (i + 1), 0x8_0000_0000 + 0x1000_0000 * i, 0x10_0000 // L,
+                                  ext=dict(rd_s0=L, rd_s1=1024 * L, rd_inner=256, wr_s0=L, wr_s1=1024 * L, wr_inner=256))]
+    await scenario('one_beat_x16_one_channel', one_beat, {0})
+    await scenario('one_beat_x16_all_channels', one_beat, set(range(tb.N)))
+    await scenario('64_beat_x16_all_channels', big, set(range(tb.N)))
+    await scenario('ext_run4_64beat_x4_all_channels', ext_run, set(range(tb.N)))
+    await scenario('ext_per_beat_64beat_x4_all_channels', ext_beat, set(range(tb.N)))
+    await scenario('64KB_x4_all_channels', big64k, set(range(tb.N)))
+    await scenario('1MB_x2_all_channels', mb, set(range(tb.N)))
+    await scenario('1MB_ext_runs256_all_channels', mb_ext, set(range(tb.N)))
+    assert tb.compare(), "perf: the sides differ"
+    path = os.environ.get('LOG_PATH', 'perf.log').replace('.log', '.json').replace('test_stream_g_equiv_', 'perf_')
+    with open(path, 'w') as fh:
+        json.dump(out, fh, indent=1)
+    tb.log.info(f"perf results: {path}")
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_alg(dut):
+    """The next-address selector (rapids TASK-035), chunk 0 [224:217].
+
+    First, selectors no build can run -- one above the image's ALG_MAX, and a
+    non-zero selector on a linear descriptor -- are invalid descriptors on
+    both sides: CH_ERROR, equivalent. Then, after a channel reset, selector 1
+    (Z-order run bases): the FSM refuses it (selector 0 only) and gatling
+    runs it, checked against the golden model."""
+    tb = StreamGEquivTB(dut)
+    await tb.setup_clocks_and_reset()
+    L = tb.lanes
+    alg_max = int(dut.g_alg_max.value)
+    assert alg_max == 1, f"the firmware image declares ALG_MAX {alg_max}, this cell expects 1"
+    ext = dict(rd_s0=L, rd_s1=8 * L, rd_inner=2, wr_s0=L, wr_s1=8 * L, wr_inner=2)
+    bad = [make_desc(0x1000, 0x2000, 4, ext=ext, alg=alg_max + 1),     # above the image's
+           make_desc(0x1000, 0x2000, 4, alg=1)]                          # selector 1, not EXT
+    for k, d in enumerate(bad):
+        tb.load([tb.rand_linear(1, chains=False) + [d] for _ in range(tb.N)])
+        for i in range(tb.N):
+            assert await tb.wait_state(i, ST_ERROR, CYCLE_BUDGET), f"bad selector {k}: ch{i} never reached CH_ERROR"
+        assert await tb.run_until_quiet(CYCLE_BUDGET)
+        assert tb.compare(), f"bad selector {k}: the FSM and gatling schedulers differ"
+        await tb.channel_reset((1 << tb.N) - 1)
+    # selector 1 on gatling, against the golden model
+    marks = {i: tb.mark(i) for i in range(tb.N)}
+    n = DEPTH[current_level()]
+    lists = [tb.rand_ext(n, alg=1) for _ in range(tb.N)]
+    for i in range(tb.N):                  # the FSM gets the first one only:
+        tb.ch['g'][i].queue.extend(lists[i])     # it stops in CH_ERROR there
+        tb.ch['f'][i].queue.append(lists[i][0])
+    assert await tb.run_until_quiet(CYCLE_BUDGET), "alg: gatling did not finish the Z-order descriptors"
+    for i in range(tb.N):
+        assert tb.ch['f'][i].state == ST_ERROR, f"f{i}: the FSM ran a selector-1 descriptor (state 0x{tb.ch['f'][i].state:02x})"
+        assert tb.ch['g'][i].state != ST_ERROR, f"g{i}: gatling refused a selector-1 descriptor"
+    ok = all(_golden_check(tb, 'g', i, lists[i], start=marks[i]['g']) for i in range(tb.N))
+    assert ok, "alg: gatling's Z-order commands differ from the golden model"
+    errs, halted = tb.cmd_errors(), int(tb.dut.g_hart_halted.value)
+    assert halted == 0, f"alg: a gatling hart halted (0x{halted:x})"
+    tb.log.info(f"alg: ALG_MAX {alg_max}, refused selectors equivalent, {sum(len(x) for x in lists)} "
+                f"Z-order descriptors match the golden model, cmd_errors {errs}")
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_linear_pf(dut):
+    """linear, with STREAM's read-ahead prefetch on (both sides)."""
+    os.environ['TEST_PREFETCH'] = '1'
+    await _linear(dut)
+
+
+@cocotb.test(timeout_time=2000, timeout_unit="ms")
+async def cocotb_test_reset_any_pf(dut):
+    """reset_any, with STREAM's read-ahead prefetch on (both sides)."""
+    os.environ['TEST_PREFETCH'] = '1'
+    await _reset_any(dut)
+
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+
+CASES = ['linear', 'linear_pf', 'ext', 'error_reset', 'reset_any', 'reset_any_pf', 'hart_fault', 'alg', 'perf']
+# (channels, data width, harts): one slot per hart, plus 8 channels on 4
+# harts (two slots each, the unrolled two-slot poll) and 16 channels on 16,
+# 8 and 4 harts (one, two and four slots: the slot loop)
+CONFIGS = [(4, 256, 4), (8, 256, 8), (8, 512, 8), (8, 256, 4),
+           (16, 256, 16), (16, 256, 8), (16, 256, 4)]
+
+
+@pytest.mark.fub
+@pytest.mark.stream_g
+@pytest.mark.parametrize("case", CASES)
+@pytest.mark.parametrize("num_channels, data_width, num_harts", CONFIGS)
+@pytest.mark.parametrize("test_level", reg_level_grid())
+def test_stream_g_equiv(request, case, num_channels, data_width, num_harts, test_level):
+    """FSM scheduler vs scheduler_g + firmware: the `case` scenario."""
+    module, repo_root, tests_dir, log_dir, _ = get_paths({})
+    dut = 'stream_g_equiv_tb_top'
+    verilog_sources, includes = get_sources_from_filelist(
+        repo_root=repo_root,
+        filelist_path='projects/components/dma-ip/stream/dv/filelists/stream_g_equiv_tb_top.f')
+    name = f"test_stream_g_equiv_{case}_nc{num_channels:02d}_dw{data_width:04d}_nh{num_harts:02d}_{test_level}"
+    worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
+    if worker_id:
+        name = f"{name}_{worker_id}"
+    log_path = os.path.join(log_dir, f'{name}.log')
+    sim_build = sim_build_path(tests_dir, name)
+    os.makedirs(log_dir, exist_ok=True)
+    enable_waves = bool(int(os.environ.get('WAVES', '0')))
+    cmd_filename = create_view_cmd(log_dir, log_path, sim_build, module, name)
+    try:
+        run(
+            python_search=[tests_dir],
+            verilog_sources=verilog_sources,
+            includes=includes,
+            toplevel=dut,
+            module=module,
+            testcase=f"cocotb_test_{case}",
+            parameters={'NUM_CHANNELS': num_channels, 'DATA_WIDTH': data_width, 'NUM_HARTS': num_harts},
+            simulator="verilator",
+            sim_build=sim_build,
+            extra_env={'LOG_PATH': log_path, 'DUT': dut, 'COCOTB_LOG_LEVEL': 'INFO',
+                       **level_env(test_level),
+                       'TEST_NUM_CHANNELS': str(num_channels),
+                       'TEST_NUM_HARTS': str(num_harts),
+                       'TEST_DATA_WIDTH': str(data_width),
+                       'COCOTB_RESULTS_FILE': os.path.join(log_dir, f"results_{name}.xml")},
+            waves=enable_waves,
+            keep_files=True,
+            compile_args=["-Wno-TIMESCALEMOD", "-Wno-WIDTH", "-Wno-UNOPTFLAT", "-Wno-SELRANGE",
+                          "-Wno-CASEINCOMPLETE", "-Wno-PINCONNECTEMPTY"],
+            plus_args=['--trace'] if enable_waves else [],
+        )
+    except Exception:
+        print(f"Logs: {log_path}")
+        if os.path.exists(cmd_filename):
+            print(f"View command: {cmd_filename}")
+        raise

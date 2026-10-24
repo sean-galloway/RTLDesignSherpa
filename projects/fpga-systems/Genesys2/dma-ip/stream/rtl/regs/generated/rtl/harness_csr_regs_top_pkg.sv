@@ -94,12 +94,17 @@ package harness_csr_regs_top_pkg;
     } harness_csr_regs_top__BUILD_CONFIG__MAIN_CONES__in_t;
 
     typedef struct {
+        logic next;
+    } harness_csr_regs_top__BUILD_CONFIG__STREAM_G__in_t;
+
+    typedef struct {
         harness_csr_regs_top__BUILD_CONFIG__NUM_CHANNELS__in_t NUM_CHANNELS;
         harness_csr_regs_top__BUILD_CONFIG__ERROR_FLAVOR__in_t ERROR_FLAVOR;
         harness_csr_regs_top__BUILD_CONFIG__USE_MONITORS__in_t USE_MONITORS;
         harness_csr_regs_top__BUILD_CONFIG__GEN_MON__in_t GEN_MON;
         harness_csr_regs_top__BUILD_CONFIG__DATA_WIDTH_B__in_t DATA_WIDTH_B;
         harness_csr_regs_top__BUILD_CONFIG__MAIN_CONES__in_t MAIN_CONES;
+        harness_csr_regs_top__BUILD_CONFIG__STREAM_G__in_t STREAM_G;
     } harness_csr_regs_top__BUILD_CONFIG__in_t;
 
     typedef struct {

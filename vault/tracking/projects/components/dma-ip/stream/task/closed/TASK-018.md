@@ -1,7 +1,7 @@
 # TASK-018: loadable firmware memory, as on rapids-g
 
 **Priority:** P3
-**Status:** deferred -- opened 2026-10-23; waits on rapids TASK-038 being proven
+**Status:** CLOSED 2026-10-24 -- delivered by stream TASK-020 phase 4: stream-g carries rapids-g's loadable firmware memory as is (FW_CTRL/FW_ADDR/FW_DATA/FW_RDATA at 0x3A0-0x3AC, FW_WRITABLE on the build; MAS 7.3), proven on the Genesys 2 the same day
 **Owner:** sean galloway
 
 ## Why

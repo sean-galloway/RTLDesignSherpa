@@ -34,7 +34,7 @@ RDS_ROOT ?= $(shell git rev-parse --show-toplevel)
 export REPO_ROOT ?= $(RDS_ROOT)
 
 # STREAM test areas, in run order. Override to narrow: make run-all-gate AREAS=fub
-AREAS ?= fub macro top
+AREAS ?= fub fub_g macro top
 
 COVERAGE_REPORTS_DIR := coverage_reports
 

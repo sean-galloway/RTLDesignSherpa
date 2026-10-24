@@ -1062,6 +1062,13 @@ module stream_top_ch16 #(
         hwif_in.PERF_STATUS.EMPTY.next   = perf_fifo_empty;
         hwif_in.PERF_STATUS.FULL.next    = perf_fifo_full;
         hwif_in.PERF_STATUS.COUNT.next   = perf_fifo_count;
+        // Firmware-load registers (stream TASK-020): a stream-g build drives
+        // these from its gatling; here they read as "no firmware".
+        hwif_in.FW_CTRL.WRITABLE.next  = 1'b0;
+        hwif_in.FW_CTRL.STREAM_G.next  = 1'b0;
+        hwif_in.FW_RDATA.DATA.next     = 32'h0;
+        hwif_in.FW_ADDR.ADDR.we        = 1'b0;
+        hwif_in.FW_ADDR.ADDR.next      = 16'h0;
 
         // Channel-Observation Mux readback (driven by stream_core via
         // stream_config_block; see OBS_CTRL @ 0x2C0 for the selector).

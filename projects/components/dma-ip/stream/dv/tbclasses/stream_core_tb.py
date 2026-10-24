@@ -437,6 +437,21 @@ class StreamCoreTB(TBBase):
     async def assert_reset(self):
         """Assert reset signal(s)"""
         self.rst_n.value = 0
+        # stream-g tops (stream TASK-020): the gatling restart is a top input;
+        # the TB holds it low -- the harts come out of reset on their own
+        if hasattr(self.dut, 'seq_restart'):
+            self.dut.seq_restart.value = 0
+        # stream_core_g (the core level): the register mailbox's response side
+        # and the firmware-load bus are TB inputs here (no register block
+        # below the top). Idle before reset; a MailboxGuard answers any
+        # command with an error and fails the test (the scheduler image uses
+        # none). The helper is rapids-g's: the sequencer block is the same.
+        if hasattr(self.dut, 'seq_reg_cmd_valid'):
+            from projects.components.dma_ip.rapids.dv.tbclasses.rapids_g_seq_ports import drive_idle, MailboxGuard
+            drive_idle(self.dut, '', 'seq_reg_')
+            if getattr(self, 'mailbox_guard', None) is None:
+                self.mailbox_guard = MailboxGuard(self.dut, self.clk, '', 'seq_reg_', self.log)
+                self.mailbox_guard.start()
         # Also assert APB reset if present (stream_top)
         if self.presetn is not None:
             self.presetn.value = 0

@@ -23,8 +23,8 @@
 
 # STREAM Specification Index
 
-**Version:** 0.101
-**Date:** 2026-10-20
+**Version:** 0.103
+**Date:** 2026-10-24
 **Purpose:** Complete technical specification for STREAM subsystem
 
 ---
@@ -97,13 +97,21 @@
 
 ## Quick Reference
 
+### Chapter 7: stream-g (schedulers sequenced by gatling firmware)
+- [stream-g Overview](ch07_stream_g/01_overview.md)
+- [scheduler_g (STREAM)](ch07_stream_g/02_scheduler_g.md)
+- [The Generated stream-g Tree and the Board Build](ch07_stream_g/03_generated_tree.md)
+- [stream-g Verification](ch07_stream_g/04_verification.md)
+
 ### Functional Unit Blocks (FUB)
 
 | Module | File | Purpose | Lines | Status |
 |--------|------|---------|-------|--------|
 | descriptor_engine | `rtl/fub/descriptor_engine.sv` | Descriptor fetch/parse (256-bit), one per channel (`SHARED_ENGINES=0`) | ~300 | [Done] |
 | descriptor_engine_shared | `rtl/fub/descriptor_engine_shared.sv` | One descriptor fetch engine for every channel (`SHARED_ENGINES=1`, default; ported from RAPIDS) | ~600 | [Done] |
-| scheduler | `rtl/fub/scheduler.sv` | Transfer coordinator | ~400 | [Done] Created (corrected) |
+| scheduler | `rtl/fub/scheduler.sv` | Transfer coordinator: the channel FSM and the EXT run-base generators around scheduler_core (stream TASK-020) | ~460 | [Done] |
+| scheduler_core | `rtl/fub/scheduler_core.sv` | The scheduler datapath (skid, counters, prefetch, commit accounting, timeouts, MonBus), shared with scheduler_g | ~1320 | [Done] |
+| scheduler_g | `rtl/fub_g/scheduler_g.sv` | The same datapath sequenced by gatling firmware (stream-g, Chapter 7) | ~690 | [Done] |
 | axi_read_engine | `rtl/fub/axi_read_engine.sv` | AXI read master | ~350 | [Done] Created (no FSM - streaming pipeline) |
 | axi_write_engine | `rtl/fub/axi_write_engine.sv` | AXI write master | ~400 | [Done] Created (no FSM - streaming pipeline) |
 | sram_controller | `rtl/fub/sram_controller.sv` | Per-channel buffer management | ~350 | [Done] Created (no FSM - pointer arithmetic + pre-allocation) |

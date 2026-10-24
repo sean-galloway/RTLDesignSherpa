@@ -2,6 +2,9 @@
 +incdir+$STREAM_ROOT/rtl/includes
 +incdir+$STREAM_ROOT/regs/generated/rtl
 -f $STREAM_ROOT/rtl/filelists/top/stream_top_ch8.f
+# stream-g (stream TASK-020): the DUT when STREAM_G is defined; both tops are
+# compiled, the harness instantiates one
+-f $STREAM_ROOT/rtl/filelists/top_g/stream_g_top_ch8.f
 -f $CONVERTERS_ROOT/rtl/filelists/uart_axil_bridge.f
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_rd.f
 -f $REPO_ROOT/rtl/amba/filelists/axil4_slave_wr.f

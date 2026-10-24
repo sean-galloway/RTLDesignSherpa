@@ -169,6 +169,8 @@ package stream_pkg;
     parameter logic [7:0] STREAM_EVENT_WRITE_COMPLETE = 8'h05;  // Write phase completed
     parameter logic [7:0] STREAM_EVENT_CHAIN_FETCH    = 8'h06;  // Chained descriptor fetch
     parameter logic [7:0] STREAM_EVENT_IRQ            = 8'h07;  // Interrupt request generated
+    parameter logic [7:0] STREAM_EVENT_FW_DEBUG       = 8'h09;  // stream-g firmware debug packet (TASK-020)
+    parameter logic [7:0] STREAM_EVENT_FW_ERROR       = 8'h0A;  // stream-g firmware error packet (TASK-020)
     parameter logic [7:0] STREAM_EVENT_ERROR          = 8'h0F;  // Error occurred
 
     //=========================================================================

@@ -225,6 +225,29 @@ moves CH_STATE to 0x180 and OBS_CTRL.CAT_SEL to [5:4].
 
 Monitoring uses the shared monbus group modules from `rtl/amba/ocelus/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.
 
+> **stream-g (2026-10-24, stream TASK-020):** STREAM with its schedulers sequenced by firmware on one gatling per
+> core, built as rapids-g was. `rtl/fub/scheduler.sv` is the FSM + EXT run-base generators around
+> `rtl/fub/scheduler_core.sv` (the datapath; bit-exact with the one-module scheduler); `rtl/fub_g/scheduler_g.sv`
+> wraps the same core with the rapids-g register window, bit for bit, so rapids-g's firmware image and its sequencer
+> block `rapids_seq_g` are reused AS IS (the `sched_g_fw.svh` include comes from rapids' generated/fw directory).
+> Everything above the schedulers is DERIVED by `bin/gen_stream_g.py` (`--check`): `macro_g/generated/
+> scheduler_group_array_g.sv`, `stream_core_g.sv`, `top_g/generated/stream_g_top_ch{8,16}.sv`, from the product
+> files plus the hand-written `macro_g/scheduler_group_array_g_seq.svh`, `top_g/stream_g_top_reg_arb.svh` (host +
+> gatling share the one serialized register path, `rapids_g_reg_arb`) and `top_g/stream_g_top_fw.svh` (the
+> `FW_CTRL/FW_ADDR/FW_DATA/FW_RDATA` load at 0x3A0-0x3AC; `FW_CTRL.STREAM_G` = 1 on a -g build). Edit the product,
+> rerun. 4, 8 or 16 channels, `SHARED_ENGINES` = 1 only. STREAM's read-ahead prefetch stays hardware: a chained
+> head the firmware has STAGEd is peeked and advanced in place as under the FSM (`head_ok`). Tests: `dv/tests/fub_g`
+> (edge table; the FSM-vs-firmware equivalence bench `dv/tb/stream_g_equiv_tb_top.sv`, with `_pf` prefetch cases),
+> `macro_g` and `top_g` (the product stream_core / stream_top tests re-hosted on the -g modules by each directory's
+> conftest; 1- and 2-channel and `SHARED_ENGINES`=0 cells skip). Traps: the gatling's register offset is 12 bits,
+> zero-extended to the APB width (the product tests build 12-bit maps); the product top ties the FW_* hwif fields
+> to 0 (STREAM's hwif block has no default assignment, an unassigned member latches); the equivalence TB's write
+> model may not outrun its read model (the SRAM couples them in hardware); the arbiter include that DECLARES the
+> host_* nets must precede the APB slave generate block in the generated top -- Verilator resolved a later
+> declaration, Vivado made implicit undriven nets and the board's register path was dead (grep the Vivado log
+> for "does not have driver" after every build). stream BUG-022 (MonBus packets once per state visit) came out
+> of the bench.
+
 ---
 
 ## Common User Questions and Responses

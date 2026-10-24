@@ -13,5 +13,6 @@
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/includes/rapids_pkg.sv
 
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub/scheduler_core.sv
-$REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub_g/scheduler_g_base_fifo.sv
+# the run-base FIFO, its own closure (shared with stream-g)
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/fub_g/scheduler_g_base_fifo.f
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/fub_g/scheduler_g.sv

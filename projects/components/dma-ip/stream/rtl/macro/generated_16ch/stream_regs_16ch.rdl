@@ -885,6 +885,73 @@ addrmap stream_regs_16ch {
     } HIST_TOTAL @ 0x380;
 
     //=========================================================================
+    // stream-g firmware load (stream TASK-020, as rapids TASK-038): the
+    // gatling instruction memory, written live when the build has
+    // FW_WRITABLE = 1. A ROM build (FW_WRITABLE = 0) and the FSM build read
+    // WRITABLE = 0 and ignore the rest.
+    //=========================================================================
+    reg {
+        name = "Firmware Control";
+        desc = "Hold the gatling and load its instruction memory. HOLD = 1
+                keeps every hart in reset; FW_DATA writes land only while it is set.
+                Clearing it restarts the harts from address 0 on the loaded image.
+                Hold only while every channel is idle. While HOLD = 1 the
+                next-address cap every scheduler applies follows ALG_MAX, so
+                write ALG_MAX with the new image's value in the same write.";
+        field {
+            desc = "Hold the harts in reset (and enable FW_DATA writes)";
+            sw = rw;
+            hw = r;
+        } HOLD[0:0] = 1'b0;
+        field {
+            desc = "1 = the instruction memory is writable (FW_WRITABLE build)";
+            sw = r;
+            hw = w;
+        } WRITABLE[1:1];
+        field {
+            desc = "1 = a stream-g build (schedulers sequenced by gatling firmware)";
+            sw = r;
+            hw = w;
+        } STREAM_G[2:2];
+        field {
+            desc = "Next-address selectors the loaded image implements (its ALG_MAX)";
+            sw = rw;
+            hw = r;
+        } ALG_MAX[15:8] = 8'h0;
+    } FW_CTRL @ 0x3A0;
+    reg {
+        name = "Firmware Address";
+        desc = "Instruction-memory word index for FW_DATA and FW_RDATA. Advances
+                by one after each FW_DATA write and each FW_RDATA read.";
+        field {
+            desc = "Word index";
+            sw = rw;
+            hw = rw;
+            we;
+        } ADDR[15:0] = 16'h0;
+    } FW_ADDR @ 0x3A4;
+    reg {
+        name = "Firmware Write Data";
+        desc = "A write stores the word at FW_ADDR (only while FW_CTRL.HOLD = 1)";
+        field {
+            desc = "Instruction word";
+            sw = rw;
+            hw = r;
+            swmod;
+        } DATA[31:0] = 32'h0;
+    } FW_DATA @ 0x3A8;
+    reg {
+        name = "Firmware Read Data";
+        desc = "The instruction-memory word at FW_ADDR (0 on a ROM build)";
+        field {
+            desc = "Instruction word";
+            sw = r;
+            hw = w;
+            swacc;
+        } DATA[31:0];
+    } FW_RDATA @ 0x3AC;
+
+    //=========================================================================
     // AXI Monitor register block (relocatable) - same APB slave, base 0x1000.
     // Hookup chosen by a parameter at integration (USE_AXI_MONITORS).
     //=========================================================================

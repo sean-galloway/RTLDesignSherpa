@@ -310,11 +310,26 @@ synth:              ## Synthesis only + utilization + failing-path reports
 	@$(MAKE) --no-print-directory utilization
 	@$(MAKE) --no-print-directory timing
 
+# A net Vivado reports as having no driver is one the simulator saw driven:
+# a name used before its declaration becomes an implicit 1-bit net in
+# synthesis while Verilator resolves it. The bitstream then differs from the
+# design that passed simulation, and nothing else in the flow says so (the
+# stream-g host register path was dead on the Genesys 2 with a clean lint and
+# a green harness sim, 2026-10-24). Loud, not fatal: a flow with a known,
+# intended undriven net can still build.
+define _undriven_scan
+n=$$(grep -c 'does not have driver' $(1) 2>/dev/null || true); \
+if [ "$${n:-0}" != "0" ]; then \
+    echo ""; echo "[bitstream] WARNING: $$n net(s) WITHOUT A DRIVER in synthesis -- the bitstream is not the simulated design:"; \
+    grep 'does not have driver' $(1) | sed 's/^.*WARNING: //' | head -20; fi
+endef
+
 bitstream:          ## Full synth/impl/bitgen + all reports (10-30 min)
 	$(call _require_tcl,$(BUILD_TCL),build,BUILD_TCL)
 	@echo "[bitstream] $(FLOW) full flow"
 	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(BUILD_TCL) || { \
 	    $(_lock_hint); }
+	@$(call _undriven_scan,$(SELF_DIR)/vivado.log)
 	@echo ""
 	@echo "Bitstream: $(BITSTREAM)"
 	@echo "Reports:   $(REPORTS)"

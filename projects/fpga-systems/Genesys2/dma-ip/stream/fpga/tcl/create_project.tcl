@@ -98,6 +98,13 @@ foreach src [get_files -of_objects $src_fs -filter {FILE_TYPE == "Verilog"}] {
     }
 }
 set_property include_dirs $incdirs $src_fs
+# STREAM_G: 1 = the DUT is stream_g_top_ch8 (stream TASK-020), selected in the
+# harness by the STREAM_G define; STREAM_G_FW_WRITABLE makes its instruction
+# memory loadable (FW_* registers).
+if {[info exists ::env(STREAM_G)] && $::env(STREAM_G)} {
+    lappend defines STREAM_G
+    if {[info exists ::env(FW_WRITABLE)] && $::env(FW_WRITABLE)} { lappend defines STREAM_G_FW_WRITABLE }
+}
 if {[llength $defines] > 0} { set_property verilog_define $defines $src_fs }
 
 puts "Setting top module: $top_name"

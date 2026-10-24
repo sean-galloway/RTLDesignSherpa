@@ -42,6 +42,15 @@ is invisible at 1 MB/descriptor, so the datapath remains bubble-free. Artifacts:
 `build-perf/results/perf_sweep_2026-10-03.{csv,json}` and
 `build-perf/results/bus_meters_2026-10-03.txt`.)*
 
+*(2026-10-24: stream-g A/B (stream TASK-020). The 40-config matrix at 1 MB, 64 KB and
+4 KB per descriptor on the STREAM bitstream and on the stream-g bitstream, both from
+the same tree, 240/240 PASS. STREAM's 1 MB matrix is cycle-identical to 2026-10-03.
+stream-g is within +0.22 % at 1 MB on every config; its cost is a fixed ~140-150
+cycles once per channel before the first read (4 KB single descriptor 303 -> 444
+cycles) and ~1-2 cycles per chained descriptor. Artifacts:
+`build-perf/results/perf_sweep_2026-10-24_{fsm,g}_{1MB,64KB,4KB}.{csv,json}`; the
+write-up is STREAM MAS Chapter 7.4.)*
+
 ---
 
 ## Characterization knobs

@@ -241,6 +241,7 @@ module scheduler #(
         .state                   (r_current_state),
         .desc_take               (w_desc_take),
         .launch                  (w_launch),
+        .desc_alg_max            (8'd0),               // the FSM runs selector 0 only
         .rd_beats_total          (w_desc.length),      // length is in beats
         .wr_beats_total          (w_desc.length),
         .head_ok                 (1'b1),               // the FSM prefetches any head
@@ -258,6 +259,7 @@ module scheduler #(
         .desc_latched            (w_desc),
         .desc_ext_latched        (w_desc_ext),
         .desc_is_ext             (w_desc_is_ext),
+        .desc_alg                (),
         .desc_rd_per_beat        (w_rd_per_beat),
         .desc_wr_per_beat        (w_wr_per_beat),
         .wr_advance              (w_wr_advance),

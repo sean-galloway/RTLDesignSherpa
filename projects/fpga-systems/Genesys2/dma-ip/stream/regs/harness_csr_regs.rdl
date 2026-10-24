@@ -122,6 +122,7 @@ addrmap harness_csr_regs_top {
         field { sw = r; hw = w; } GEN_MON[7:7] = 0;
         field { sw = r; hw = w; } DATA_WIDTH_B[15:8] = 0;
         field { sw = r; hw = w; } MAIN_CONES[16:16] = 0;
+        field { sw = r; hw = w; desc = "1 = the DUT is stream_g_top_ch8: schedulers sequenced by gatling firmware (stream TASK-020)"; } STREAM_G[17:17] = 0;
     } BUILD_CONFIG @ 0x1D4;
     word_ro_t BUILD_N_PROFILE @ 0x1D8;
     word_ro_t BUILD_CLK_HZ @ 0x1DC;

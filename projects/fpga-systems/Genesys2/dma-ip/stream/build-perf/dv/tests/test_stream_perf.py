@@ -277,6 +277,11 @@ def test_stream_perf(request, test_type, test_level):
         # without needing top-level pass-through ports. Slight sim-perf cost.
         "--public-flat-rw",
         "-Wno-TIMESCALEMOD",
+        # TEST_STREAM_G=1: the DUT is stream_g_top_ch8 (the board's STREAM_G=1 build,
+        # stream TASK-020); TEST_FW_WRITABLE=1 its loadable instruction memory
+        *(['+define+STREAM_G'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1 else []),
+        *(['+define+STREAM_G_FW_WRITABLE'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1
+          and int(os.environ.get('TEST_FW_WRITABLE', '0')) == 1 else []),
         FIELD_COMBO_VLT,    # PeakRDL stream_regs.sv
         "-Wno-WIDTHEXPAND",    # minor width warnings in STREAM hierarchy
         "-Wno-WIDTHTRUNC",
@@ -399,7 +404,11 @@ def test_stream_perf_ext_suite(request):
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99",
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD",
+        *(['+define+STREAM_G'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1 else []),   # stream TASK-020
+        *(['+define+STREAM_G_FW_WRITABLE'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1
+          and int(os.environ.get('TEST_FW_WRITABLE', '0')) == 1 else []),
+        FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # deep monitor trans-table loops (RD_MON_MAX_TRANS>64) need unroll raised
         # The harness is SHARED with build-mon now, so its compile closure
@@ -499,7 +508,11 @@ def test_stream_perf_ext_chain(request):
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99",
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD",
+        *(['+define+STREAM_G'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1 else []),   # stream TASK-020
+        *(['+define+STREAM_G_FW_WRITABLE'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1
+          and int(os.environ.get('TEST_FW_WRITABLE', '0')) == 1 else []),
+        FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # The harness is SHARED with build-mon now, so its compile closure
         # includes dma_slave_monitors -> monbus_group, whose optional status
@@ -591,7 +604,11 @@ def test_stream_perf_ext_chain_soak(request):
     simulator = os.environ.get('SIM', 'verilator').lower()
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99", "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD",
+        *(['+define+STREAM_G'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1 else []),   # stream TASK-020
+        *(['+define+STREAM_G_FW_WRITABLE'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1
+          and int(os.environ.get('TEST_FW_WRITABLE', '0')) == 1 else []),
+        FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # The harness is SHARED with build-mon now, so its compile closure
         # includes dma_slave_monitors -> monbus_group, whose optional status
@@ -685,7 +702,11 @@ def test_stream_perf_ext_char(request):
     compile_args = [
         "--trace-fst", "--trace-structs", "--trace-depth", "99",
         "--public-flat-rw",
-        "-Wno-TIMESCALEMOD", FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
+        "-Wno-TIMESCALEMOD",
+        *(['+define+STREAM_G'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1 else []),   # stream TASK-020
+        *(['+define+STREAM_G_FW_WRITABLE'] if int(os.environ.get('TEST_STREAM_G', '0')) == 1
+          and int(os.environ.get('TEST_FW_WRITABLE', '0')) == 1 else []),
+        FIELD_COMBO_VLT, "-Wno-WIDTHEXPAND",
         "-Wno-WIDTHTRUNC", "-Wno-SELRANGE", "-Wno-UNOPTFLAT",
         # deep monitor trans-table loops (RD_MON_MAX_TRANS>64) need unroll raised
         # The harness is SHARED with build-mon now, so its compile closure
