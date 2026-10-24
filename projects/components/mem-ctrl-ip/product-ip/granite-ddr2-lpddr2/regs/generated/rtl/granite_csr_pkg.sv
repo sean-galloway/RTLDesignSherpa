@@ -42,22 +42,6 @@ package granite_csr_pkg;
 
     typedef struct {
         logic [31:0] next;
-    } granite_csr__STATUS_HISTORY__history__in_t;
-
-    typedef struct {
-        granite_csr__STATUS_HISTORY__history__in_t history;
-    } granite_csr__STATUS_HISTORY__in_t;
-
-    typedef struct {
-        logic [1:0] next;
-    } granite_csr__TEMP_DERATE_RANK0__temp_class__in_t;
-
-    typedef struct {
-        granite_csr__TEMP_DERATE_RANK0__temp_class__in_t temp_class;
-    } granite_csr__TEMP_DERATE_RANK0__in_t;
-
-    typedef struct {
-        logic [31:0] next;
     } granite_csr__CAL_MRR32_DATA__VAL__VAL__in_t;
 
     typedef struct {
@@ -115,8 +99,6 @@ package granite_csr_pkg;
 
     typedef struct {
         granite_csr__STATUS__in_t STATUS;
-        granite_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
-        granite_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
         granite_csr__CAL_MRR32_DATA__in_t CAL_MRR32_DATA[4];
         granite_csr__CAL_MRR40_DATA__in_t CAL_MRR40_DATA[4];
         granite_csr__CAL_STATUS__in_t CAL_STATUS;
@@ -278,22 +260,6 @@ package granite_csr_pkg;
     } granite_csr__MR3__out_t;
 
     typedef struct {
-        logic [7:0] value;
-    } granite_csr__PASR_BANK_MASK_RANK0__pasr_banks__out_t;
-
-    typedef struct {
-        granite_csr__PASR_BANK_MASK_RANK0__pasr_banks__out_t pasr_banks;
-    } granite_csr__PASR_BANK_MASK_RANK0__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } granite_csr__PASR_SEG_MASK_RANK0__pasr_segs__out_t;
-
-    typedef struct {
-        granite_csr__PASR_SEG_MASK_RANK0__pasr_segs__out_t pasr_segs;
-    } granite_csr__PASR_SEG_MASK_RANK0__out_t;
-
-    typedef struct {
         logic [1:0] value;
     } granite_csr__REFRESH_TUNING__page_policy_or__out_t;
 
@@ -318,19 +284,6 @@ package granite_csr_pkg;
         granite_csr__ADDR_MAP__hash_en__out_t hash_en;
         granite_csr__ADDR_MAP__hash_seed__out_t hash_seed;
     } granite_csr__ADDR_MAP__out_t;
-
-    typedef struct {
-        logic [3:0] value;
-    } granite_csr__INIT_TUNING__zq_retries__out_t;
-
-    typedef struct {
-        logic [7:0] value;
-    } granite_csr__INIT_TUNING__init_timeout_ms__out_t;
-
-    typedef struct {
-        granite_csr__INIT_TUNING__zq_retries__out_t zq_retries;
-        granite_csr__INIT_TUNING__init_timeout_ms__out_t init_timeout_ms;
-    } granite_csr__INIT_TUNING__out_t;
 
     typedef struct {
         logic [7:0] value;
@@ -582,11 +535,8 @@ package granite_csr_pkg;
         granite_csr__MR1__out_t MR1;
         granite_csr__MR2__out_t MR2;
         granite_csr__MR3__out_t MR3;
-        granite_csr__PASR_BANK_MASK_RANK0__out_t PASR_BANK_MASK_RANK0;
-        granite_csr__PASR_SEG_MASK_RANK0__out_t PASR_SEG_MASK_RANK0;
         granite_csr__REFRESH_TUNING__out_t REFRESH_TUNING;
         granite_csr__ADDR_MAP__out_t ADDR_MAP;
-        granite_csr__INIT_TUNING__out_t INIT_TUNING;
         granite_csr__TIMINGS_RTP_RTW__out_t TIMINGS_RTP_RTW;
         granite_csr__INIT_TIMING0__out_t INIT_TIMING0;
         granite_csr__INIT_TIMING1__out_t INIT_TIMING1;

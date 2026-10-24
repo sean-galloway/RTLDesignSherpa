@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-056** — never recycle a number, even when its item closed.
+**Next ID: TASK-057** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 45 | done (kept for history) |
+| [closed/](closed/) | 46 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -48,6 +48,11 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-056** — CLOSED 2026-10-24: pick-core payload by array index (a flat
+  `+:` part-select was a barrel shifter, 1 538 of 5 407 cells), stall counters
+  a generate (granite off), bank timers 5 bits (`BANK_TW`, saturating), granite
+  CSR 59 -> 35 registers at unchanged addresses. Cycle-identical everywhere.
+  Report 5.16.
 - **TASK-055** — CLOSED 2026-10-24: granite DFI FIFO depths 4 / 16 / 4 (from
   8 / 32 / 32; cycle-identical on every cell, board 4 171 -> 4 107 LUT); the
   runtime page-policy engine measured without (`HAS_PAGE_POLICY = 0`: -207

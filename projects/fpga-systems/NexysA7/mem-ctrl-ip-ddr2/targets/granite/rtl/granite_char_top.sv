@@ -229,6 +229,9 @@ module granite_char_top #(
 `ifdef GRANITE_HAS_PAGE_POLICY
         .HAS_PAGE_POLICY    (`GRANITE_HAS_PAGE_POLICY),
 `endif
+`ifdef GRANITE_BANK_TW
+        .BANK_TW            (`GRANITE_BANK_TW),
+`endif
 `ifdef GRANITE_DFI_CMD_FIFO_DEPTH
         .DFI_CMD_FIFO_DEPTH (`GRANITE_DFI_CMD_FIFO_DEPTH),
 `endif

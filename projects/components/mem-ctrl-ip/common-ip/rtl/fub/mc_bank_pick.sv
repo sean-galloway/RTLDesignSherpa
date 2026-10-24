@@ -101,6 +101,9 @@ module mc_bank_pick
     // stretch), and pumice's DFI plane has run REF into open windows under
     // the FRFCFS core since 2026-09 without a mis-framed beat.
     parameter bit REF_WAIT_RD_RETURN = 1'b0,
+    // 0 = no stall-cause counters (the eight 32-bit stall_*_o outputs read 0). They feed the
+    //     STALL_* CSRs; an integration without those registers leaves them unconnected.
+    parameter bit HAS_STALL_STATS = 1'b1,
 
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -880,6 +883,17 @@ module mc_bank_pick
     assign cmd_timeout_pre_o = w_to_fire;
 
     // ---- payload ----------------------------------------------------------
+    // the backend's flat slot fields as arrays (wires only; see the index note below)
+    logic [ROW_WIDTH-1:0] w_wr_slot_row [NUM_ENTRIES], w_rd_slot_row [NUM_ENTRIES];
+    logic [COL_WIDTH-1:0] w_wr_slot_col [NUM_ENTRIES], w_rd_slot_col [NUM_ENTRIES];
+    always_comb begin
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            w_wr_slot_row[i] = wr_slot_row_i[i*ROW_WIDTH +: ROW_WIDTH];
+            w_rd_slot_row[i] = rd_slot_row_i[i*ROW_WIDTH +: ROW_WIDTH];
+            w_wr_slot_col[i] = wr_slot_col_i[i*COL_WIDTH +: COL_WIDTH];
+            w_rd_slot_col[i] = rd_slot_col_i[i*COL_WIDTH +: COL_WIDTH];
+        end
+    end
     // Auto-precharge: the runtime page policy owns it when enabled (static
     // open / close / fixed_open); otherwise the build policy, or the exact
     // close-on-drain term.
@@ -906,10 +920,12 @@ module mc_bank_pick
             cmd_bank_o  = timeout_pre_bank_i;
         end else if (w_win_vld) begin
             cmd_bank_o = w_sel_bank;
-            cmd_row_o  = w_sel_is_wr ? wr_slot_row_i[w_sel_slot*ROW_WIDTH +: ROW_WIDTH]
-                                     : rd_slot_row_i[w_sel_slot*ROW_WIDTH +: ROW_WIDTH];
-            cmd_col_o  = w_sel_is_wr ? wr_slot_col_i[w_sel_slot*COL_WIDTH +: COL_WIDTH]
-                                     : rd_slot_col_i[w_sel_slot*COL_WIDTH +: COL_WIDTH];
+            // Array index, not a variable part-select on the flat vector: the
+            // part-select synthesizes as a barrel shifter over the whole
+            // N x ROW_WIDTH bus (1 538 of this block's 5 407 ASAP7 cells,
+            // pumice TASK-056); the array index is an N:1 mux per bit.
+            cmd_row_o  = w_sel_is_wr ? w_wr_slot_row[w_sel_slot] : w_rd_slot_row[w_sel_slot];
+            cmd_col_o  = w_sel_is_wr ? w_wr_slot_col[w_sel_slot] : w_rd_slot_col[w_sel_slot];
             if (w_fis_act) begin
                 cmd_op_o = OP_ACT;
             end else if (w_fis_pre) begin
@@ -1088,6 +1104,7 @@ module mc_bank_pick
         for (int b = 0; b < NUM_BANKS; b++)
             if (wr_head_i[b].vld || rd_head_i[b].vld) w_any_pending = 1'b1;
     end
+    generate if (HAS_STALL_STATS) begin : g_stall_stats
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             stall_bp_o <= '0; stall_refresh_o <= '0; stall_turnaround_o <= '0;
@@ -1104,5 +1121,11 @@ module mc_bank_pick
             else                                         stall_banktimer_o  <= stall_banktimer_o + 1;
         end
     )
+    end else begin : g_no_stall_stats
+        assign stall_bp_o = '0; assign stall_refresh_o = '0; assign stall_turnaround_o = '0;
+        assign stall_tccd_o = '0; assign stall_actlimit_o = '0; assign stall_banktimer_o = '0;
+        assign stall_noreq_o = '0; assign stall_zq_o = '0;
+        wire _unused_ss = &{1'b0, w_any_pending};
+    end endgenerate
 
 endmodule : mc_bank_pick

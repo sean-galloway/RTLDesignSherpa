@@ -71,6 +71,7 @@ module granite_char_uart_tb_top
     parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes with an alternating grant: -23 percent on the mixed family, so OFF
     // Scheduler / DFI knobs (pumice TASK-055), granite defaults = the measured form:
     parameter bit HAS_PAGE_POLICY   = 1'b1, // 0 = no runtime page-policy engine (close-on-drain alone): measured -8 percent on 8-thread streams, so ON
+    parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
     parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
@@ -154,6 +155,7 @@ module granite_char_uart_tb_top
         .AXI_SKID_DEPTH   (AXI_SKID_DEPTH),
         .SHARED_ADDR_MAP  (SHARED_ADDR_MAP),
         .HAS_PAGE_POLICY   (HAS_PAGE_POLICY),
+        .BANK_TW           (BANK_TW),
         .DFI_CMD_FIFO_DEPTH(DFI_CMD_FIFO_DEPTH),
         .DFI_WD_FIFO_DEPTH (DFI_WD_FIFO_DEPTH),
         .DFI_RD_FIFO_DEPTH (DFI_RD_FIFO_DEPTH),

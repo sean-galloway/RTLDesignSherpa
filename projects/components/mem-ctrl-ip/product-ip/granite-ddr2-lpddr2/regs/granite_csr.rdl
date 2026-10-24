@@ -34,6 +34,12 @@
 //
 // Address Space: 4 KB (12-bit paddr), 32-bit registers, little-endian.
 
+// Narrowed 2026-10-24 (pumice TASK-056): the 23 registers granite_top_geared never
+// wired (telemetry counters, pumice's research tuning, LPDDR2 PASR / derate, the
+// per-bank refresh timing, the status history) are gone. Every remaining register
+// keeps its address, so the map is a strict subset of pumice's; the harness host
+// reads the controller by name through pumice's regmap and guards the telemetry
+// reads, so a missing register there degrades to "no telemetry".
 addrmap granite_csr {
     name = "DDR2/LPDDR2 Memory Controller CSR (granite SKU)";
     desc = "Configuration and observation registers for the granite DDR2/LPDDR2 product SKU. Address-for-address derived from pumice_csr.rdl; absent features are reserved rather than removed.";
@@ -148,16 +154,6 @@ addrmap granite_csr {
 
     } STATUS @ 0x004;
 
-    reg {
-        name = "Status History";
-        desc = "Last 8 power-state transitions, 4 bits each. Most recent in [3:0].";
-
-        field {
-            desc = "8 x 4-bit power-state history";
-            sw = r; hw = w;
-        } history[31:0];
-
-    } STATUS_HISTORY @ 0x008;
 
     //=========================================================================
     // Timing Parameters (0x010 – 0x01F)
@@ -345,48 +341,13 @@ addrmap granite_csr {
     // LPDDR2-Specific (0x030 – 0x03F)
     //=========================================================================
 
-    reg {
-        name = "PASR Bank Mask Rank 0";
-        desc = "LPDDR2 PASR per-bank mask for rank 0 (MR16). Bit N=1 masks bank N.";
 
-        field { sw = rw; hw = r; desc = "Bank mask"; } pasr_banks[7:0] = 8'h0;
-        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
 
-    } PASR_BANK_MASK_RANK0 @ 0x030;
-
-    reg {
-        name = "PASR Segment Mask Rank 0";
-        desc = "LPDDR2 PASR segment mask for rank 0";
-
-        field { sw = rw; hw = r; desc = "Segment mask"; } pasr_segs[7:0] = 8'h0;
-        field { sw = r;  hw = na; desc = "Reserved"; } RSVD[31:8] = 24'h0;
-
-    } PASR_SEG_MASK_RANK0 @ 0x034;
-
-    reg {
-        name = "Temperature Derate Rank 0";
-        desc = "LPDDR2 MR4 temperature class for rank 0";
-
-        field {
-            sw = r; hw = w;
-            desc = "00 = nominal, 01 = 2x refresh, 10 = 4x refresh";
-        } temp_class[1:0];
-
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD[31:2] = 30'h0;
-
-    } TEMP_DERATE_RANK0 @ 0x038;
 
     //=========================================================================
     // Scheduler / Refresh / Page / Addr / Init Tuning (0x040 – 0x05F)
     //=========================================================================
 
-    reg {
-        name = "Scheduler Tuning";
-        desc = "RETIRED 2026-09-09. lookahead_active / force_inorder / age_max_runtime / txn_queue_high_water / lookahead_max_obs belonged to the pre-rearchitecture scheduler; nothing has consumed them since the CAM+arbiter scheduler (pumice_scheduler_plane) landed, so a write here was a silent no-op. Scheduling is SCHED_POLICY (order_mode selects in_order / age_threshold; FR-FCFS is the default and reorders across the whole CAM, so there is no lookahead window to size). The address is kept so the map does not shift.";
-
-        field { sw = r; hw = na; desc = "Reserved (retired scheduler knobs)"; } RSVD[31:0] = 32'h0;
-
-    } SCHED_TUNING @ 0x040;
 
     // 0x044 (was PAGE_PRED_TUNING) -- retired with the HAPPY predictor. The
     // adaptive-paging knobs live in PAGE_POLICY_CFG / PAGE_TIMEOUT_CFG /
@@ -466,16 +427,6 @@ addrmap granite_csr {
 
     } ADDR_MAP @ 0x04C;
 
-    reg {
-        name = "Init Tuning";
-        desc = "ZQ retries + per-step init timeout";
-
-        field { sw = rw; hw = r; desc = "ZQ retries (1..8)";     } zq_retries[3:0]     = 4'd3;
-        field { sw = r;  hw = na; desc = "Reserved";              } RSVD_7_4[7:4] = 4'h0;
-        field { sw = rw; hw = r; desc = "Init timeout ms (1..255)"; } init_timeout_ms[15:8] = 8'd10;
-        field { sw = r;  hw = na; desc = "Reserved";              } RSVD_31_16[31:16] = 16'h0;
-
-    } INIT_TUNING @ 0x050;
 
     reg {
         name = "Init Timing 0: tINIT / tDLLK";
@@ -499,19 +450,6 @@ addrmap granite_csr {
 
     } INIT_TIMING1 @ 0x05C;
 
-    //=========================================================================
-    // Per-Bank Observation (0x080 – 0x09F) — NUM_BANKS=8, rank 0
-    //=========================================================================
-
-    regfile {
-        name = "Per-Bank Row Hit Observation";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-
-        reg {
-            field { sw = r; hw = na; desc = "Reserved (was row-hit count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-        } ROW_HIT @ 0x0;
-
-    } OBS_ROW_HIT[8] @ 0x080 += 0x4;
 
     //=========================================================================
     // LPDDR2 Calibration / Training (0x0A0 – 0x0EF)
@@ -794,45 +732,7 @@ addrmap granite_csr {
     // the map does not shift and an old host reading 0x07C gets nothing
     // instead of something else's meaning.
 
-    reg {
-        name = "Refresh Mode Control";
-        desc = "Granite: refresh advanced options reserved. tREFI/tRFCab live in TIMINGS_RFC_REFI (not duplicated). Only REFab is supported; postpone/pull-in and per-bank refresh are structurally tied off.";
 
-        field {
-            sw = r; hw = na;
-            desc = "Reserved (was refresh mode). Forced to 1 (REFab) in granite; REFpb is not supported.";
-        } RSVD_MODE[1:0] = 2'h1;
-
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_3_2[3:2] = 2'h0;
-
-        field {
-            sw = r; hw = na;
-            desc = "Reserved (was postpone_limit). Busy-side postpone credit is disabled in granite (HAS_POSTPONE=0).";
-        } RSVD_POSTPONE[7:4] = 4'h0;
-
-        field {
-            sw = r; hw = na;
-            desc = "Reserved (was pullin_limit). Idle pull-ahead credit is disabled in granite (HAS_PULLIN=0).";
-        } RSVD_PULLIN[11:8] = 4'h0;
-
-        field {
-            sw = r; hw = na;
-            desc = "Reserved (was perbank_supported). Per-bank refresh is disabled in granite (HAS_REFPB=0).";
-        } RSVD_PERBANK[12:12] = 1'b0;
-
-        field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_13[31:13] = 19'h0;
-
-    } REF_CTRL @ 0x140;
-
-    reg {
-        name = "Per-Bank Refresh Timing";
-        desc = "Granite: per-bank refresh is not supported. Address kept so the map does not shift.";
-
-        field { sw = r; hw = na; desc = "Reserved (was tREFIpb). Per-bank refresh is disabled in granite (HAS_REFPB=0)."; } RSVD_TREFI_PB[15:0] = 16'h0;
-        field { sw = r; hw = na; desc = "Reserved (was tRFCpb). Per-bank refresh is disabled in granite (HAS_REFPB=0)."; } RSVD_TRFC_PB[23:16] = 8'h0;
-        field { sw = r; hw = na; desc = "Reserved";                                                                      } RSVD[31:24] = 8'h0;
-
-    } REF_TIMING_PB @ 0x144;
 
     //-------------------------------------------------------------------------
     // Mode telemetry (read-only). Complements the existing OBS_* set:
@@ -853,41 +753,11 @@ addrmap granite_csr {
     // geometry -- compare ACT counts, not a ratio, when grading page modes.
     //-------------------------------------------------------------------------
 
-    reg {
-        name = "Page Stats: Column Ops";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was column-op count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } PAGE_STATS_HIT @ 0x148;
 
-    reg {
-        name = "Page Stats: Misses";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was miss count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } PAGE_STATS_MISS @ 0x14C;
 
-    reg {
-        name = "Page Stats: Empties";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was empty count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } PAGE_STATS_EMPTY @ 0x150;
 
-    reg {
-        name = "Sched Stats: Activates";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was ACT command count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } SCHED_STATS_ACT @ 0x154;
 
-    reg {
-        name = "Sched Stats: Precharges";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was PRE/PREA command count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } SCHED_STATS_PRE @ 0x158;
 
-    reg {
-        name = "Refresh Stats: Refreshes";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was REF command count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } REF_STATS_REF @ 0x15C;
 
     //-------------------------------------------------------------------------
     // Stall-cause attribution (TASK-006). The bus meters say a cycle was not
@@ -908,53 +778,13 @@ addrmap granite_csr {
     // measurement window.
     //-------------------------------------------------------------------------
 
-    reg {
-        name = "Stall: DFI backpressure";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was DFI backpressure stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_BP @ 0x160;
 
-    reg {
-        name = "Stall: refresh";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was refresh stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_REFRESH @ 0x164;
 
-    reg {
-        name = "Stall: bus turnaround";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was turnaround stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_TURNAROUND @ 0x168;
 
-    reg {
-        name = "Stall: column spacing";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was tCCD stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_TCCD @ 0x16C;
 
-    reg {
-        name = "Stall: activate rate limit";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was tFAW/tRRD stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_ACTLIMIT @ 0x170;
 
-    reg {
-        name = "Stall: per-bank timer";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was per-bank timer stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_BANKTIMER @ 0x174;
 
-    reg {
-        name = "Stall: nothing pending";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was no-request stall count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } STALL_NOREQ @ 0x178;
 
-    reg {
-        name = "Refresh Stats: Refreshes with demand";
-        desc = "Granite: telemetry instrumentation reserved. Address kept so the map does not shift.";
-        field { sw = r; hw = na; desc = "Reserved (was REF-with-demand count). Telemetry instrumentation is not part of the granite SKU."; } RSVD[31:0] = 32'h0;
-    } REF_STATS_REF_BUSY @ 0x17C;
 
     //=========================================================================
     // LPDDR2 Mode-Register OP Data (0x180 – 0x18F)

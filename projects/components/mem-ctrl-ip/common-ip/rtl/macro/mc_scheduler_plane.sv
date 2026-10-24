@@ -57,6 +57,8 @@ module mc_scheduler_plane
     parameter bit HAS_MODE_REGISTER  = 1'b1,
     parameter bit HAS_REFRESH_CTRL   = 1'b1,
     parameter bit HAS_PAGE_POLICY    = 1'b1,
+    parameter int BANK_TW            = 8,    // per-bank timer width (mc_bank_timers TW); 8 = the CSR field width
+    parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_bank_pick)
     parameter bit HAS_CMD_HISTORY    = 1'b0,
     // refresh feature reduction (passed to mc_xddr2_refresh_ctrl)
     parameter bit REF_HAS_POSTPONE    = 1'b1,
@@ -599,7 +601,8 @@ module mc_scheduler_plane
         .NUM_BANKS (NUM_BANKS),
         .ROW_WIDTH (ROW_WIDTH),
         .BANK_LA   (BANK_LA_EFF),
-        .BANK_LA_AP(SCHED_CORE == MC_SCHED_BANK_PICK)
+        .BANK_LA_AP(SCHED_CORE == MC_SCHED_BANK_PICK),
+        .TW        (BANK_TW)
     ) u_bank_timers (
         .aclk             (aclk),
         .aresetn          (aresetn),
@@ -711,7 +714,8 @@ module mc_scheduler_plane
             .HAS_ZQ      (HAS_ZQ),
             .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
             .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
-            .LA          (BANK_LA_EFF)
+            .LA          (BANK_LA_EFF),
+            .HAS_STALL_STATS(HAS_STALL_STATS)
         ) u_bank_pick (
             .aclk               (aclk),
             .aresetn            (aresetn),

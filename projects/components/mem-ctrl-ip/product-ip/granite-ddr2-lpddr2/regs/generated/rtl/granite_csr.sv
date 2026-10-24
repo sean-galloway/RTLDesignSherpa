@@ -68,7 +68,6 @@ module granite_csr (
     typedef struct {
         logic CTRL;
         logic STATUS;
-        logic STATUS_HISTORY;
         logic TIMINGS_RC_RCD_RP_RAS;
         logic TIMINGS_RFC_REFI;
         logic TIMINGS_RRD_FAW_WTR_CCD;
@@ -77,13 +76,8 @@ module granite_csr (
         logic MR1;
         logic MR2;
         logic MR3;
-        logic PASR_BANK_MASK_RANK0;
-        logic PASR_SEG_MASK_RANK0;
-        logic TEMP_DERATE_RANK0;
-        logic SCHED_TUNING;
         logic REFRESH_TUNING;
         logic ADDR_MAP;
-        logic INIT_TUNING;
         logic TIMINGS_RTP_RTW;
         logic INIT_TIMING0;
         logic INIT_TIMING1;
@@ -93,9 +87,6 @@ module granite_csr (
         logic SCHED_WR_WM;
         logic PAGE_POLICY_CFG;
         logic PAGE_TIMEOUT_CFG;
-        struct {
-            logic ROW_HIT;
-        } OBS_ROW_HIT[8];
         logic CAL_CTRL;
         logic CAL_ZQ_INTERVAL;
         logic CAL_ZQ_TIMING;
@@ -107,22 +98,6 @@ module granite_csr (
             logic VAL;
         } CAL_MRR40_DATA[4];
         logic CAL_STATUS;
-        logic REF_CTRL;
-        logic REF_TIMING_PB;
-        logic PAGE_STATS_HIT;
-        logic PAGE_STATS_MISS;
-        logic PAGE_STATS_EMPTY;
-        logic SCHED_STATS_ACT;
-        logic SCHED_STATS_PRE;
-        logic REF_STATS_REF;
-        logic STALL_BP;
-        logic STALL_REFRESH;
-        logic STALL_TURNAROUND;
-        logic STALL_TCCD;
-        logic STALL_ACTLIMIT;
-        logic STALL_BANKTIMER;
-        logic STALL_NOREQ;
-        logic REF_STATS_REF_BUSY;
         logic LP_MR1_OP;
         logic LP_MR2_OP;
         logic LP_MR3_OP;
@@ -138,7 +113,6 @@ module granite_csr (
     always_comb begin
         decoded_reg_strb.CTRL = cpuif_req_masked & (cpuif_addr == 12'h0);
         decoded_reg_strb.STATUS = cpuif_req_masked & (cpuif_addr == 12'h4);
-        decoded_reg_strb.STATUS_HISTORY = cpuif_req_masked & (cpuif_addr == 12'h8);
         decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS = cpuif_req_masked & (cpuif_addr == 12'h10);
         decoded_reg_strb.TIMINGS_RFC_REFI = cpuif_req_masked & (cpuif_addr == 12'h14);
         decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD = cpuif_req_masked & (cpuif_addr == 12'h18);
@@ -147,13 +121,8 @@ module granite_csr (
         decoded_reg_strb.MR1 = cpuif_req_masked & (cpuif_addr == 12'h24);
         decoded_reg_strb.MR2 = cpuif_req_masked & (cpuif_addr == 12'h28);
         decoded_reg_strb.MR3 = cpuif_req_masked & (cpuif_addr == 12'h2c);
-        decoded_reg_strb.PASR_BANK_MASK_RANK0 = cpuif_req_masked & (cpuif_addr == 12'h30);
-        decoded_reg_strb.PASR_SEG_MASK_RANK0 = cpuif_req_masked & (cpuif_addr == 12'h34);
-        decoded_reg_strb.TEMP_DERATE_RANK0 = cpuif_req_masked & (cpuif_addr == 12'h38);
-        decoded_reg_strb.SCHED_TUNING = cpuif_req_masked & (cpuif_addr == 12'h40);
         decoded_reg_strb.REFRESH_TUNING = cpuif_req_masked & (cpuif_addr == 12'h48);
         decoded_reg_strb.ADDR_MAP = cpuif_req_masked & (cpuif_addr == 12'h4c);
-        decoded_reg_strb.INIT_TUNING = cpuif_req_masked & (cpuif_addr == 12'h50);
         decoded_reg_strb.TIMINGS_RTP_RTW = cpuif_req_masked & (cpuif_addr == 12'h54);
         decoded_reg_strb.INIT_TIMING0 = cpuif_req_masked & (cpuif_addr == 12'h58);
         decoded_reg_strb.INIT_TIMING1 = cpuif_req_masked & (cpuif_addr == 12'h5c);
@@ -163,9 +132,6 @@ module granite_csr (
         decoded_reg_strb.SCHED_WR_WM = cpuif_req_masked & (cpuif_addr == 12'h6c);
         decoded_reg_strb.PAGE_POLICY_CFG = cpuif_req_masked & (cpuif_addr == 12'h70);
         decoded_reg_strb.PAGE_TIMEOUT_CFG = cpuif_req_masked & (cpuif_addr == 12'h74);
-        for(int i0=0; i0<8; i0++) begin
-            decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT = cpuif_req_masked & (cpuif_addr == 12'h80 + (12)'(i0) * 12'h4);
-        end
         decoded_reg_strb.CAL_CTRL = cpuif_req_masked & (cpuif_addr == 12'ha0);
         decoded_reg_strb.CAL_ZQ_INTERVAL = cpuif_req_masked & (cpuif_addr == 12'ha4);
         decoded_reg_strb.CAL_ZQ_TIMING = cpuif_req_masked & (cpuif_addr == 12'ha8);
@@ -177,22 +143,6 @@ module granite_csr (
             decoded_reg_strb.CAL_MRR40_DATA[i0].VAL = cpuif_req_masked & (cpuif_addr == 12'he0 + (12)'(i0) * 12'h4);
         end
         decoded_reg_strb.CAL_STATUS = cpuif_req_masked & (cpuif_addr == 12'hf0);
-        decoded_reg_strb.REF_CTRL = cpuif_req_masked & (cpuif_addr == 12'h140);
-        decoded_reg_strb.REF_TIMING_PB = cpuif_req_masked & (cpuif_addr == 12'h144);
-        decoded_reg_strb.PAGE_STATS_HIT = cpuif_req_masked & (cpuif_addr == 12'h148);
-        decoded_reg_strb.PAGE_STATS_MISS = cpuif_req_masked & (cpuif_addr == 12'h14c);
-        decoded_reg_strb.PAGE_STATS_EMPTY = cpuif_req_masked & (cpuif_addr == 12'h150);
-        decoded_reg_strb.SCHED_STATS_ACT = cpuif_req_masked & (cpuif_addr == 12'h154);
-        decoded_reg_strb.SCHED_STATS_PRE = cpuif_req_masked & (cpuif_addr == 12'h158);
-        decoded_reg_strb.REF_STATS_REF = cpuif_req_masked & (cpuif_addr == 12'h15c);
-        decoded_reg_strb.STALL_BP = cpuif_req_masked & (cpuif_addr == 12'h160);
-        decoded_reg_strb.STALL_REFRESH = cpuif_req_masked & (cpuif_addr == 12'h164);
-        decoded_reg_strb.STALL_TURNAROUND = cpuif_req_masked & (cpuif_addr == 12'h168);
-        decoded_reg_strb.STALL_TCCD = cpuif_req_masked & (cpuif_addr == 12'h16c);
-        decoded_reg_strb.STALL_ACTLIMIT = cpuif_req_masked & (cpuif_addr == 12'h170);
-        decoded_reg_strb.STALL_BANKTIMER = cpuif_req_masked & (cpuif_addr == 12'h174);
-        decoded_reg_strb.STALL_NOREQ = cpuif_req_masked & (cpuif_addr == 12'h178);
-        decoded_reg_strb.REF_STATS_REF_BUSY = cpuif_req_masked & (cpuif_addr == 12'h17c);
         decoded_reg_strb.LP_MR1_OP = cpuif_req_masked & (cpuif_addr == 12'h180);
         decoded_reg_strb.LP_MR2_OP = cpuif_req_masked & (cpuif_addr == 12'h184);
         decoded_reg_strb.LP_MR3_OP = cpuif_req_masked & (cpuif_addr == 12'h188);
@@ -330,18 +280,6 @@ module granite_csr (
         } MR3;
         struct {
             struct {
-                logic [7:0] next;
-                logic load_next;
-            } pasr_banks;
-        } PASR_BANK_MASK_RANK0;
-        struct {
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } pasr_segs;
-        } PASR_SEG_MASK_RANK0;
-        struct {
-            struct {
                 logic [1:0] next;
                 logic load_next;
             } page_policy_or;
@@ -360,16 +298,6 @@ module granite_csr (
                 logic load_next;
             } hash_seed;
         } ADDR_MAP;
-        struct {
-            struct {
-                logic [3:0] next;
-                logic load_next;
-            } zq_retries;
-            struct {
-                logic [7:0] next;
-                logic load_next;
-            } init_timeout_ms;
-        } INIT_TUNING;
         struct {
             struct {
                 logic [7:0] next;
@@ -653,16 +581,6 @@ module granite_csr (
         } MR3;
         struct {
             struct {
-                logic [7:0] value;
-            } pasr_banks;
-        } PASR_BANK_MASK_RANK0;
-        struct {
-            struct {
-                logic [7:0] value;
-            } pasr_segs;
-        } PASR_SEG_MASK_RANK0;
-        struct {
-            struct {
                 logic [1:0] value;
             } page_policy_or;
         } REFRESH_TUNING;
@@ -677,14 +595,6 @@ module granite_csr (
                 logic [7:0] value;
             } hash_seed;
         } ADDR_MAP;
-        struct {
-            struct {
-                logic [3:0] value;
-            } zq_retries;
-            struct {
-                logic [7:0] value;
-            } init_timeout_ms;
-        } INIT_TUNING;
         struct {
             struct {
                 logic [7:0] value;
@@ -1412,52 +1322,6 @@ module granite_csr (
         end
     end
     assign hwif_out.MR3.VAL.value = field_storage.MR3.VAL.value;
-    // Field: granite_csr.PASR_BANK_MASK_RANK0.pasr_banks
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.PASR_BANK_MASK_RANK0.pasr_banks.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.PASR_BANK_MASK_RANK0 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PASR_BANK_MASK_RANK0.pasr_banks.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.PASR_BANK_MASK_RANK0.pasr_banks.next = next_c;
-        field_combo.PASR_BANK_MASK_RANK0.pasr_banks.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.PASR_BANK_MASK_RANK0.pasr_banks.value <= 8'h0;
-        end else begin
-            if(field_combo.PASR_BANK_MASK_RANK0.pasr_banks.load_next) begin
-                field_storage.PASR_BANK_MASK_RANK0.pasr_banks.value <= field_combo.PASR_BANK_MASK_RANK0.pasr_banks.next;
-            end
-        end
-    end
-    assign hwif_out.PASR_BANK_MASK_RANK0.pasr_banks.value = field_storage.PASR_BANK_MASK_RANK0.pasr_banks.value;
-    // Field: granite_csr.PASR_SEG_MASK_RANK0.pasr_segs
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.PASR_SEG_MASK_RANK0 && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value & ~decoded_wr_biten[7:0]) | (decoded_wr_data[7:0] & decoded_wr_biten[7:0]);
-            load_next_c = '1;
-        end
-        field_combo.PASR_SEG_MASK_RANK0.pasr_segs.next = next_c;
-        field_combo.PASR_SEG_MASK_RANK0.pasr_segs.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value <= 8'h0;
-        end else begin
-            if(field_combo.PASR_SEG_MASK_RANK0.pasr_segs.load_next) begin
-                field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value <= field_combo.PASR_SEG_MASK_RANK0.pasr_segs.next;
-            end
-        end
-    end
-    assign hwif_out.PASR_SEG_MASK_RANK0.pasr_segs.value = field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value;
     // Field: granite_csr.REFRESH_TUNING.page_policy_or
     always_comb begin
         automatic logic [1:0] next_c;
@@ -1550,52 +1414,6 @@ module granite_csr (
         end
     end
     assign hwif_out.ADDR_MAP.hash_seed.value = field_storage.ADDR_MAP.hash_seed.value;
-    // Field: granite_csr.INIT_TUNING.zq_retries
-    always_comb begin
-        automatic logic [3:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.INIT_TUNING.zq_retries.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.INIT_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.INIT_TUNING.zq_retries.value & ~decoded_wr_biten[3:0]) | (decoded_wr_data[3:0] & decoded_wr_biten[3:0]);
-            load_next_c = '1;
-        end
-        field_combo.INIT_TUNING.zq_retries.next = next_c;
-        field_combo.INIT_TUNING.zq_retries.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.INIT_TUNING.zq_retries.value <= 4'h3;
-        end else begin
-            if(field_combo.INIT_TUNING.zq_retries.load_next) begin
-                field_storage.INIT_TUNING.zq_retries.value <= field_combo.INIT_TUNING.zq_retries.next;
-            end
-        end
-    end
-    assign hwif_out.INIT_TUNING.zq_retries.value = field_storage.INIT_TUNING.zq_retries.value;
-    // Field: granite_csr.INIT_TUNING.init_timeout_ms
-    always_comb begin
-        automatic logic [7:0] next_c;
-        automatic logic load_next_c;
-        next_c = field_storage.INIT_TUNING.init_timeout_ms.value;
-        load_next_c = '0;
-        if(decoded_reg_strb.INIT_TUNING && decoded_req_is_wr) begin // SW write
-            next_c = (field_storage.INIT_TUNING.init_timeout_ms.value & ~decoded_wr_biten[15:8]) | (decoded_wr_data[15:8] & decoded_wr_biten[15:8]);
-            load_next_c = '1;
-        end
-        field_combo.INIT_TUNING.init_timeout_ms.next = next_c;
-        field_combo.INIT_TUNING.init_timeout_ms.load_next = load_next_c;
-    end
-    always_ff @(posedge clk) begin
-        if(rst) begin
-            field_storage.INIT_TUNING.init_timeout_ms.value <= 8'ha;
-        end else begin
-            if(field_combo.INIT_TUNING.init_timeout_ms.load_next) begin
-                field_storage.INIT_TUNING.init_timeout_ms.value <= field_combo.INIT_TUNING.init_timeout_ms.next;
-            end
-        end
-    end
-    assign hwif_out.INIT_TUNING.init_timeout_ms.value = field_storage.INIT_TUNING.init_timeout_ms.value;
     // Field: granite_csr.TIMINGS_RTP_RTW.tRTP
     always_comb begin
         automatic logic [7:0] next_c;
@@ -2489,7 +2307,7 @@ module granite_csr (
     logic [31:0] readback_data;
 
     // Assign readback values to a flattened array
-    logic [31:0] readback_array[69];
+    logic [31:0] readback_array[39];
     assign readback_array[0][0:0] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_start.value : '0;
     assign readback_array[0][1:1] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? field_storage.CTRL.init_force_restart.value : '0;
     assign readback_array[0][3:2] = (decoded_reg_strb.CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
@@ -2508,158 +2326,120 @@ module granite_csr (
     assign readback_array[1][23:16] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.init_step_dbg.next : '0;
     assign readback_array[1][30:24] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? 7'h0 : '0;
     assign readback_array[1][31:31] = (decoded_reg_strb.STATUS && !decoded_req_is_wr) ? hwif_in.STATUS.version_match.next : '0;
-    assign readback_array[2][31:0] = (decoded_reg_strb.STATUS_HISTORY && !decoded_req_is_wr) ? hwif_in.STATUS_HISTORY.history.next : '0;
-    assign readback_array[3][7:0] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRC.value : '0;
-    assign readback_array[3][15:8] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRCD.value : '0;
-    assign readback_array[3][23:16] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRP.value : '0;
-    assign readback_array[3][31:24] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRAS.value : '0;
-    assign readback_array[4][15:0] = (decoded_reg_strb.TIMINGS_RFC_REFI && !decoded_req_is_wr) ? field_storage.TIMINGS_RFC_REFI.tRFC.value : '0;
-    assign readback_array[4][31:16] = (decoded_reg_strb.TIMINGS_RFC_REFI && !decoded_req_is_wr) ? field_storage.TIMINGS_RFC_REFI.tREFI.value : '0;
-    assign readback_array[5][7:0] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tRRD.value : '0;
-    assign readback_array[5][15:8] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tFAW.value : '0;
-    assign readback_array[5][23:16] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tWTR.value : '0;
-    assign readback_array[5][31:24] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tCCD.value : '0;
-    assign readback_array[6][7:0] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.CL.value : '0;
-    assign readback_array[6][15:8] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.CWL.value : '0;
-    assign readback_array[6][23:16] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.tWR.value : '0;
-    assign readback_array[6][31:24] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.tRFCpb.value : '0;
-    assign readback_array[7][15:0] = (decoded_reg_strb.MR0 && !decoded_req_is_wr) ? field_storage.MR0.VAL.value : '0;
-    assign readback_array[7][31:16] = (decoded_reg_strb.MR0 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[8][15:0] = (decoded_reg_strb.MR1 && !decoded_req_is_wr) ? field_storage.MR1.VAL.value : '0;
-    assign readback_array[8][31:16] = (decoded_reg_strb.MR1 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[9][15:0] = (decoded_reg_strb.MR2 && !decoded_req_is_wr) ? field_storage.MR2.VAL.value : '0;
-    assign readback_array[9][31:16] = (decoded_reg_strb.MR2 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[10][15:0] = (decoded_reg_strb.MR3 && !decoded_req_is_wr) ? field_storage.MR3.VAL.value : '0;
-    assign readback_array[10][31:16] = (decoded_reg_strb.MR3 && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[11][7:0] = (decoded_reg_strb.PASR_BANK_MASK_RANK0 && !decoded_req_is_wr) ? field_storage.PASR_BANK_MASK_RANK0.pasr_banks.value : '0;
-    assign readback_array[11][31:8] = (decoded_reg_strb.PASR_BANK_MASK_RANK0 && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[12][7:0] = (decoded_reg_strb.PASR_SEG_MASK_RANK0 && !decoded_req_is_wr) ? field_storage.PASR_SEG_MASK_RANK0.pasr_segs.value : '0;
-    assign readback_array[12][31:8] = (decoded_reg_strb.PASR_SEG_MASK_RANK0 && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[13][1:0] = (decoded_reg_strb.TEMP_DERATE_RANK0 && !decoded_req_is_wr) ? hwif_in.TEMP_DERATE_RANK0.temp_class.next : '0;
-    assign readback_array[13][31:2] = (decoded_reg_strb.TEMP_DERATE_RANK0 && !decoded_req_is_wr) ? 30'h0 : '0;
-    assign readback_array[14][31:0] = (decoded_reg_strb.SCHED_TUNING && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[15][1:0] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[15][3:2] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.page_policy_or.value : '0;
-    assign readback_array[15][15:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 12'h0 : '0;
-    assign readback_array[15][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[16][4:0] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.bank_lsb.value : '0;
-    assign readback_array[16][7:5] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 3'h0 : '0;
-    assign readback_array[16][8:8] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_en.value : '0;
-    assign readback_array[16][15:9] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 7'h0 : '0;
-    assign readback_array[16][23:16] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_seed.value : '0;
-    assign readback_array[16][31:24] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[17][3:0] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.zq_retries.value : '0;
-    assign readback_array[17][7:4] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[17][15:8] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? field_storage.INIT_TUNING.init_timeout_ms.value : '0;
-    assign readback_array[17][31:16] = (decoded_reg_strb.INIT_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[18][7:0] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTP.value : '0;
-    assign readback_array[18][15:8] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTW.value : '0;
-    assign readback_array[18][31:16] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[19][15:0] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_init_wait.value : '0;
-    assign readback_array[19][31:16] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_dll_wait.value : '0;
-    assign readback_array[20][7:0] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_mrd_wait.value : '0;
-    assign readback_array[20][15:8] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rp_wait.value : '0;
-    assign readback_array[20][23:16] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rfc_wait.value : '0;
-    assign readback_array[20][31:24] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[21][2:0] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.rd_phase.value : '0;
-    assign readback_array[21][3:3] = '0;
-    assign readback_array[21][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
-    assign readback_array[21][8:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 2'h2 : '0;
-    assign readback_array[21][12:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.bl.value : '0;
-    assign readback_array[21][31:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 19'h0 : '0;
-    assign readback_array[22][7:0] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_phy_wrlat.value : '0;
-    assign readback_array[22][15:8] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_rddata_en.value : '0;
-    assign readback_array[22][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;
-    assign readback_array[22][19:17] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 3'h0 : '0;
-    assign readback_array[22][23:20] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.refresh_burst.value : '0;
-    assign readback_array[22][31:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[23][1:0] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.order_mode.value : '0;
-    assign readback_array[23][3:2] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.prio_sub.value : '0;
-    assign readback_array[23][5:4] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.row_sel.value : '0;
-    assign readback_array[23][7:6] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.col_sel.value : '0;
-    assign readback_array[23][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
-    assign readback_array[23][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[23][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
-    assign readback_array[23][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[23][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
-    assign readback_array[23][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[24][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
-    assign readback_array[24][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
-    assign readback_array[24][23:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h10 : '0;
-    assign readback_array[24][31:24] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[25][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
-    assign readback_array[25][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[25][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[25][9:6] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[25][13:10] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[25][31:14] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 18'h0 : '0;
-    assign readback_array[26][7:0] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_init.value : '0;
-    assign readback_array[26][15:8] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[26][23:16] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[26][31:24] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? 8'h0 : '0;
-    for(genvar i0=0; i0<8; i0++) begin
-        assign readback_array[i0 * 1 + 27][31:0] = (decoded_reg_strb.OBS_ROW_HIT[i0].ROW_HIT && !decoded_req_is_wr) ? 32'h0 : '0;
-    end
-    assign readback_array[35][0:0] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_en.value : '0;
-    assign readback_array[35][1:1] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_defer_en.value : '0;
-    assign readback_array[35][3:2] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[35][4:4] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.cal_start.value : '0;
-    assign readback_array[35][5:5] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.cal_abort.value : '0;
-    assign readback_array[35][15:6] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 10'h0 : '0;
-    assign readback_array[35][28:16] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_overdue_max.value : '0;
-    assign readback_array[35][31:29] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 3'h0 : '0;
-    assign readback_array[36][31:0] = (decoded_reg_strb.CAL_ZQ_INTERVAL && !decoded_req_is_wr) ? field_storage.CAL_ZQ_INTERVAL.VAL.value : '0;
-    assign readback_array[37][15:0] = (decoded_reg_strb.CAL_ZQ_TIMING && !decoded_req_is_wr) ? field_storage.CAL_ZQ_TIMING.t_zqcs.value : '0;
-    assign readback_array[37][31:16] = (decoded_reg_strb.CAL_ZQ_TIMING && !decoded_req_is_wr) ? field_storage.CAL_ZQ_TIMING.t_zqcl.value : '0;
-    assign readback_array[38][15:0] = (decoded_reg_strb.CAL_TRAIN_TIMING && !decoded_req_is_wr) ? field_storage.CAL_TRAIN_TIMING.t_mrr.value : '0;
-    assign readback_array[38][31:16] = (decoded_reg_strb.CAL_TRAIN_TIMING && !decoded_req_is_wr) ? field_storage.CAL_TRAIN_TIMING.t_readout.value : '0;
+    assign readback_array[2][7:0] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRC.value : '0;
+    assign readback_array[2][15:8] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRCD.value : '0;
+    assign readback_array[2][23:16] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRP.value : '0;
+    assign readback_array[2][31:24] = (decoded_reg_strb.TIMINGS_RC_RCD_RP_RAS && !decoded_req_is_wr) ? field_storage.TIMINGS_RC_RCD_RP_RAS.tRAS.value : '0;
+    assign readback_array[3][15:0] = (decoded_reg_strb.TIMINGS_RFC_REFI && !decoded_req_is_wr) ? field_storage.TIMINGS_RFC_REFI.tRFC.value : '0;
+    assign readback_array[3][31:16] = (decoded_reg_strb.TIMINGS_RFC_REFI && !decoded_req_is_wr) ? field_storage.TIMINGS_RFC_REFI.tREFI.value : '0;
+    assign readback_array[4][7:0] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tRRD.value : '0;
+    assign readback_array[4][15:8] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tFAW.value : '0;
+    assign readback_array[4][23:16] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tWTR.value : '0;
+    assign readback_array[4][31:24] = (decoded_reg_strb.TIMINGS_RRD_FAW_WTR_CCD && !decoded_req_is_wr) ? field_storage.TIMINGS_RRD_FAW_WTR_CCD.tCCD.value : '0;
+    assign readback_array[5][7:0] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.CL.value : '0;
+    assign readback_array[5][15:8] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.CWL.value : '0;
+    assign readback_array[5][23:16] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.tWR.value : '0;
+    assign readback_array[5][31:24] = (decoded_reg_strb.TIMINGS_CL_CWL_WR && !decoded_req_is_wr) ? field_storage.TIMINGS_CL_CWL_WR.tRFCpb.value : '0;
+    assign readback_array[6][15:0] = (decoded_reg_strb.MR0 && !decoded_req_is_wr) ? field_storage.MR0.VAL.value : '0;
+    assign readback_array[6][31:16] = (decoded_reg_strb.MR0 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[7][15:0] = (decoded_reg_strb.MR1 && !decoded_req_is_wr) ? field_storage.MR1.VAL.value : '0;
+    assign readback_array[7][31:16] = (decoded_reg_strb.MR1 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[8][15:0] = (decoded_reg_strb.MR2 && !decoded_req_is_wr) ? field_storage.MR2.VAL.value : '0;
+    assign readback_array[8][31:16] = (decoded_reg_strb.MR2 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[9][15:0] = (decoded_reg_strb.MR3 && !decoded_req_is_wr) ? field_storage.MR3.VAL.value : '0;
+    assign readback_array[9][31:16] = (decoded_reg_strb.MR3 && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[10][1:0] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[10][3:2] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? field_storage.REFRESH_TUNING.page_policy_or.value : '0;
+    assign readback_array[10][15:4] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 12'h0 : '0;
+    assign readback_array[10][31:16] = (decoded_reg_strb.REFRESH_TUNING && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[11][4:0] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.bank_lsb.value : '0;
+    assign readback_array[11][7:5] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[11][8:8] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_en.value : '0;
+    assign readback_array[11][15:9] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 7'h0 : '0;
+    assign readback_array[11][23:16] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? field_storage.ADDR_MAP.hash_seed.value : '0;
+    assign readback_array[11][31:24] = (decoded_reg_strb.ADDR_MAP && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[12][7:0] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTP.value : '0;
+    assign readback_array[12][15:8] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? field_storage.TIMINGS_RTP_RTW.tRTW.value : '0;
+    assign readback_array[12][31:16] = (decoded_reg_strb.TIMINGS_RTP_RTW && !decoded_req_is_wr) ? 16'h0 : '0;
+    assign readback_array[13][15:0] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_init_wait.value : '0;
+    assign readback_array[13][31:16] = (decoded_reg_strb.INIT_TIMING0 && !decoded_req_is_wr) ? field_storage.INIT_TIMING0.t_dll_wait.value : '0;
+    assign readback_array[14][7:0] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_mrd_wait.value : '0;
+    assign readback_array[14][15:8] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rp_wait.value : '0;
+    assign readback_array[14][23:16] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? field_storage.INIT_TIMING1.t_rfc_wait.value : '0;
+    assign readback_array[14][31:24] = (decoded_reg_strb.INIT_TIMING1 && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[15][2:0] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.rd_phase.value : '0;
+    assign readback_array[15][3:3] = '0;
+    assign readback_array[15][6:4] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.wr_phase.value : '0;
+    assign readback_array[15][8:7] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 2'h2 : '0;
+    assign readback_array[15][12:9] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? field_storage.DFI_PHASE.bl.value : '0;
+    assign readback_array[15][31:13] = (decoded_reg_strb.DFI_PHASE && !decoded_req_is_wr) ? 19'h0 : '0;
+    assign readback_array[16][7:0] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_phy_wrlat.value : '0;
+    assign readback_array[16][15:8] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.t_rddata_en.value : '0;
+    assign readback_array[16][16:16] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.memtype.value : '0;
+    assign readback_array[16][19:17] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[16][23:20] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? field_storage.PHY_TIMING.refresh_burst.value : '0;
+    assign readback_array[16][31:24] = (decoded_reg_strb.PHY_TIMING && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[17][1:0] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.order_mode.value : '0;
+    assign readback_array[17][3:2] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.prio_sub.value : '0;
+    assign readback_array[17][5:4] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.row_sel.value : '0;
+    assign readback_array[17][7:6] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.col_sel.value : '0;
+    assign readback_array[17][9:8] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.access_pref.value : '0;
+    assign readback_array[17][10:10] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[17][11:11] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.qos_en.value : '0;
+    assign readback_array[17][15:12] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[17][23:16] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? field_storage.SCHED_POLICY.age_thresh.value : '0;
+    assign readback_array[17][31:24] = (decoded_reg_strb.SCHED_POLICY && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[18][7:0] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_high_wm.value : '0;
+    assign readback_array[18][15:8] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? field_storage.SCHED_WR_WM.wr_low_wm.value : '0;
+    assign readback_array[18][23:16] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h10 : '0;
+    assign readback_array[18][31:24] = (decoded_reg_strb.SCHED_WR_WM && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[19][2:0] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? field_storage.PAGE_POLICY_CFG.policy_mode.value : '0;
+    assign readback_array[19][3:3] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 1'h0 : '0;
+    assign readback_array[19][5:4] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[19][9:6] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[19][13:10] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 4'h0 : '0;
+    assign readback_array[19][31:14] = (decoded_reg_strb.PAGE_POLICY_CFG && !decoded_req_is_wr) ? 18'h0 : '0;
+    assign readback_array[20][7:0] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? field_storage.PAGE_TIMEOUT_CFG.tr_init.value : '0;
+    assign readback_array[20][15:8] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[20][23:16] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[20][31:24] = (decoded_reg_strb.PAGE_TIMEOUT_CFG && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[21][0:0] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_en.value : '0;
+    assign readback_array[21][1:1] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_defer_en.value : '0;
+    assign readback_array[21][3:2] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
+    assign readback_array[21][4:4] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.cal_start.value : '0;
+    assign readback_array[21][5:5] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.cal_abort.value : '0;
+    assign readback_array[21][15:6] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 10'h0 : '0;
+    assign readback_array[21][28:16] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? field_storage.CAL_CTRL.zq_overdue_max.value : '0;
+    assign readback_array[21][31:29] = (decoded_reg_strb.CAL_CTRL && !decoded_req_is_wr) ? 3'h0 : '0;
+    assign readback_array[22][31:0] = (decoded_reg_strb.CAL_ZQ_INTERVAL && !decoded_req_is_wr) ? field_storage.CAL_ZQ_INTERVAL.VAL.value : '0;
+    assign readback_array[23][15:0] = (decoded_reg_strb.CAL_ZQ_TIMING && !decoded_req_is_wr) ? field_storage.CAL_ZQ_TIMING.t_zqcs.value : '0;
+    assign readback_array[23][31:16] = (decoded_reg_strb.CAL_ZQ_TIMING && !decoded_req_is_wr) ? field_storage.CAL_ZQ_TIMING.t_zqcl.value : '0;
+    assign readback_array[24][15:0] = (decoded_reg_strb.CAL_TRAIN_TIMING && !decoded_req_is_wr) ? field_storage.CAL_TRAIN_TIMING.t_mrr.value : '0;
+    assign readback_array[24][31:16] = (decoded_reg_strb.CAL_TRAIN_TIMING && !decoded_req_is_wr) ? field_storage.CAL_TRAIN_TIMING.t_readout.value : '0;
     for(genvar i0=0; i0<4; i0++) begin
-        assign readback_array[i0 * 1 + 39][31:0] = (decoded_reg_strb.CAL_MRR32_DATA[i0].VAL && !decoded_req_is_wr) ? hwif_in.CAL_MRR32_DATA[i0].VAL.VAL.next : '0;
+        assign readback_array[i0 * 1 + 25][31:0] = (decoded_reg_strb.CAL_MRR32_DATA[i0].VAL && !decoded_req_is_wr) ? hwif_in.CAL_MRR32_DATA[i0].VAL.VAL.next : '0;
     end
     for(genvar i0=0; i0<4; i0++) begin
-        assign readback_array[i0 * 1 + 43][31:0] = (decoded_reg_strb.CAL_MRR40_DATA[i0].VAL && !decoded_req_is_wr) ? hwif_in.CAL_MRR40_DATA[i0].VAL.VAL.next : '0;
+        assign readback_array[i0 * 1 + 29][31:0] = (decoded_reg_strb.CAL_MRR40_DATA[i0].VAL && !decoded_req_is_wr) ? hwif_in.CAL_MRR40_DATA[i0].VAL.VAL.next : '0;
     end
-    assign readback_array[47][0:0] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zq_busy.next : '0;
-    assign readback_array[47][1:1] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_busy.next : '0;
-    assign readback_array[47][2:2] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_done.next : '0;
-    assign readback_array[47][3:3] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_err.next : '0;
-    assign readback_array[47][4:4] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zq_overdue.next : '0;
-    assign readback_array[47][15:5] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? 11'h0 : '0;
-    assign readback_array[47][31:16] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zqcs_total.next : '0;
-    assign readback_array[48][1:0] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h1 : '0;
-    assign readback_array[48][3:2] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 2'h0 : '0;
-    assign readback_array[48][7:4] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[48][11:8] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 4'h0 : '0;
-    assign readback_array[48][12:12] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 1'h0 : '0;
-    assign readback_array[48][31:13] = (decoded_reg_strb.REF_CTRL && !decoded_req_is_wr) ? 19'h0 : '0;
-    assign readback_array[49][15:0] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 16'h0 : '0;
-    assign readback_array[49][23:16] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[49][31:24] = (decoded_reg_strb.REF_TIMING_PB && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[50][31:0] = (decoded_reg_strb.PAGE_STATS_HIT && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[51][31:0] = (decoded_reg_strb.PAGE_STATS_MISS && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[52][31:0] = (decoded_reg_strb.PAGE_STATS_EMPTY && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[53][31:0] = (decoded_reg_strb.SCHED_STATS_ACT && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[54][31:0] = (decoded_reg_strb.SCHED_STATS_PRE && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[55][31:0] = (decoded_reg_strb.REF_STATS_REF && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[56][31:0] = (decoded_reg_strb.STALL_BP && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[57][31:0] = (decoded_reg_strb.STALL_REFRESH && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[58][31:0] = (decoded_reg_strb.STALL_TURNAROUND && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[59][31:0] = (decoded_reg_strb.STALL_TCCD && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[60][31:0] = (decoded_reg_strb.STALL_ACTLIMIT && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[61][31:0] = (decoded_reg_strb.STALL_BANKTIMER && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[62][31:0] = (decoded_reg_strb.STALL_NOREQ && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[63][31:0] = (decoded_reg_strb.REF_STATS_REF_BUSY && !decoded_req_is_wr) ? 32'h0 : '0;
-    assign readback_array[64][7:0] = (decoded_reg_strb.LP_MR1_OP && !decoded_req_is_wr) ? field_storage.LP_MR1_OP.VAL.value : '0;
-    assign readback_array[64][31:8] = (decoded_reg_strb.LP_MR1_OP && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[65][7:0] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? field_storage.LP_MR2_OP.VAL.value : '0;
-    assign readback_array[65][31:8] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[66][7:0] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? field_storage.LP_MR3_OP.VAL.value : '0;
-    assign readback_array[66][31:8] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? 24'h0 : '0;
-    assign readback_array[67][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
-    assign readback_array[67][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
-    assign readback_array[67][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
-    assign readback_array[67][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
-    assign readback_array[68][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
+    assign readback_array[33][0:0] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zq_busy.next : '0;
+    assign readback_array[33][1:1] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_busy.next : '0;
+    assign readback_array[33][2:2] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_done.next : '0;
+    assign readback_array[33][3:3] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.cal_err.next : '0;
+    assign readback_array[33][4:4] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zq_overdue.next : '0;
+    assign readback_array[33][15:5] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? 11'h0 : '0;
+    assign readback_array[33][31:16] = (decoded_reg_strb.CAL_STATUS && !decoded_req_is_wr) ? hwif_in.CAL_STATUS.zqcs_total.next : '0;
+    assign readback_array[34][7:0] = (decoded_reg_strb.LP_MR1_OP && !decoded_req_is_wr) ? field_storage.LP_MR1_OP.VAL.value : '0;
+    assign readback_array[34][31:8] = (decoded_reg_strb.LP_MR1_OP && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[35][7:0] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? field_storage.LP_MR2_OP.VAL.value : '0;
+    assign readback_array[35][31:8] = (decoded_reg_strb.LP_MR2_OP && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[36][7:0] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? field_storage.LP_MR3_OP.VAL.value : '0;
+    assign readback_array[36][31:8] = (decoded_reg_strb.LP_MR3_OP && !decoded_req_is_wr) ? 24'h0 : '0;
+    assign readback_array[37][7:0] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h1 : '0;
+    assign readback_array[37][15:8] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h0 : '0;
+    assign readback_array[37][23:16] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'h2 : '0;
+    assign readback_array[37][31:24] = (decoded_reg_strb.ID && !decoded_req_is_wr) ? 8'hd2 : '0;
+    assign readback_array[38][31:0] = (decoded_reg_strb.BUILD && !decoded_req_is_wr) ? 32'h0 : '0;
 
     // Reduce the array
     always_comb begin
@@ -2667,7 +2447,7 @@ module granite_csr (
         readback_done = decoded_req & ~decoded_req_is_wr;
         readback_err = '0;
         readback_data_var = '0;
-        for(int i=0; i<69; i++) readback_data_var |= readback_array[i];
+        for(int i=0; i<39; i++) readback_data_var |= readback_array[i];
         readback_data = readback_data_var;
     end
 

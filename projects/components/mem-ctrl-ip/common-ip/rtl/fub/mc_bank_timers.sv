@@ -33,6 +33,10 @@ module mc_bank_timers
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int BANK_LA = 0,  // advisory lookahead depth handed to mc_bank_timer
+    // Per-bank timer width. The timing CSRs are 8 bits; a narrower timer saturates a
+    // value above its range to the maximum it can hold (conservative, never unsafe).
+    // DDR2 bank timings at <= 100 MHz fit in 5 bits (tRC 60 ns = 6 cycles).
+    parameter int TW      = 8,
     parameter bit BANK_LA_AP = 1'b0  // extrapolate the AP self-close into safe_act_la (mc_bank_timer LA_AP)
 ) (
     input  logic                       aclk,
@@ -75,21 +79,35 @@ module mc_bank_timers
     output logic [NUM_RANKS-1:0][NUM_BANKS-1:0]                 obs_ap_pending_o
 );
 
+    // 8-bit CSR timings -> TW-bit timer loads, saturating (TW < 8 only)
+    logic [TW-1:0] w_t_rcd, w_t_rp, w_t_ras, w_t_rc, w_t_wr, w_t_rtp;
+    function automatic logic [TW-1:0] sat_tw(input logic [7:0] t);
+        if (TW >= 8)        return TW'(t);
+        else if (|(t >> TW)) return {TW{1'b1}};
+        else                 return TW'(t);
+    endfunction
+    assign w_t_rcd = sat_tw(t_rcd_i);
+    assign w_t_rp  = sat_tw(t_rp_i);
+    assign w_t_ras = sat_tw(t_ras_i);
+    assign w_t_rc  = sat_tw(t_rc_i);
+    assign w_t_wr  = sat_tw(t_wr_i);
+    assign w_t_rtp = sat_tw(t_rtp_i);
+
     for (genvar k = 0; k < NUM_RANKS; k++) begin : g_rank
         for (genvar b = 0; b < NUM_BANKS; b++) begin : g_bank
             // route the scheduler's command event to THIS bank only
             logic w_sel;
             assign w_sel = (evt_rank_i == RKW'(k)) && (evt_bank_i == BKW'(b));
 
-            mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .LA(BANK_LA), .LA_AP(BANK_LA_AP)) u_bt (
+            mc_bank_timer #(.ROW_WIDTH(ROW_WIDTH), .TW(TW), .LA(BANK_LA), .LA_AP(BANK_LA_AP)) u_bt (
                 .clk             (aclk),
                 .rst_n           (aresetn),
-                .t_rcd_i         (t_rcd_i),
-                .t_rp_i          (t_rp_i),
-                .t_ras_i         (t_ras_i),
-                .t_rc_i          (t_rc_i),
-                .t_wr_i          (t_wr_i),
-                .t_rtp_i         (t_rtp_i),
+                .t_rcd_i         (w_t_rcd),
+                .t_rp_i          (w_t_rp),
+                .t_ras_i         (w_t_ras),
+                .t_rc_i          (w_t_rc),
+                .t_wr_i          (w_t_wr),
+                .t_rtp_i         (w_t_rtp),
                 .set_act_i       (evt_act_i && w_sel),
                 .set_rd_i        (evt_rd_i  && w_sel),
                 .set_wr_i        (evt_wr_i  && w_sel),
