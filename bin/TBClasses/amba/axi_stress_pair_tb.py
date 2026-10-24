@@ -62,7 +62,7 @@ class AxiStressPairTB(TBBase):
         self.TEST_LEVEL = os.environ.get('TEST_LEVEL', 'gate')
         self.DW = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '64'))
         self.NWIN = self.convert_to_int(os.environ.get('TEST_NWIN', '8'))
-        self.PROTO = os.environ.get('TEST_PROTO', 'axi4')    # axi4 | axi3 | axi5
+        self.PROTO = os.environ.get('TEST_PROTO', 'axi4')    # axi4 | axi3 | axi5 | axil4 | axil5
         self.NB = self.DW // 8
         self.BUS_LG2 = self.NB.bit_length() - 1
         random.seed(self.SEED)
@@ -193,12 +193,15 @@ class AxiStressPairTB(TBBase):
         self.mon_errors.clear()
         self.stats.clear()
 
-    def _check_req_sb(self, ch: str, a: int):
-        """AXI5: the request sideband fields of an AR / AW at address a."""
+    def _check_req_sb(self, ch: str, a: int, fields=None):
+        """AXI5: the request sideband fields of an AR / AW at address a
+        (AXI5-Lite carries only TRACE: fields=('trace',))."""
         d = self.dut
         sb = M.f_sb(a, self.hash_seed)
         exp = {'nsaid': sb & 0xF, 'trace': (sb >> 4) & 1,
                'mpam': (sb >> 5) & 0x7FF, 'mecid': (sb >> 16) & 0xFFFF}
+        if fields is not None:
+            exp = {f: exp[f] for f in fields}
         for f, e in exp.items():
             got = int(getattr(d, f'm_{ch}{f}').value)
             if got != e:
@@ -217,6 +220,8 @@ class AxiStressPairTB(TBBase):
     async def _monitor(self):
         d = self.dut
         axi5 = self.PROTO == 'axi5'
+        lite5 = self.PROTO == 'axil5'       # AXI5-Lite: TRACE and POISON only
+        tp = axi5 or lite5                   # TRACE / POISON checked
         b_q: Dict[int, deque] = defaultdict(deque)     # bid -> AW addresses
         uq_out = {'ar': defaultdict(list), 'aw': defaultdict(list)}   # id -> [uq bits]
         rr_exp: Dict[int, tuple] = {}                   # read-return atomics owed: id -> (addr, size, win)
@@ -254,6 +259,8 @@ class AxiStressPairTB(TBBase):
                 if axi5:
                     self._check_req_sb('ar', a)
                     self._check_uq('ar', uq_out['ar'][int(d.m_arid.value)], uq, a)
+                elif lite5:
+                    self._check_req_sb('ar', a, fields=('trace',))
                 tagop = 0
                 if axi5:
                     tagop = int(d.m_artagop.value)
@@ -305,7 +312,7 @@ class AxiStressPairTB(TBBase):
                                 self._merr(f'R ID {rid:#x} beat {b["n"]} addr {addr:#x} '
                                            f'lane {lane}: {got:#04x} != {exp:#04x}')
                                 break
-                    if axi5:
+                    if tp:
                         w = b['win']
                         e_tr = M.f_rsb(M.f_sb(b['start'], self.hash_seed)) if (w and w.sb) else 0
                         e_p = int(M.f_poison(addr, self.hash_seed, w.poison_lg2 if w else 0))
@@ -314,6 +321,8 @@ class AxiStressPairTB(TBBase):
                         if int(d.m_rpoison.value) != e_p:
                             self._merr(f'R ID {rid:#x} addr {addr:#x}: RPOISON != {e_p}')
                         self.stats['r_poison'] += e_p
+                    if axi5:
+                        w = b['win']
                         if int(d.m_ridunq.value) != b['uq']:
                             self._merr(f'R ID {rid:#x} addr {addr:#x}: RIDUNQ != {b["uq"]}')
                         e_t = M.beat_tags(addr, self.NB, self.hash_seed, True,
@@ -362,6 +371,8 @@ class AxiStressPairTB(TBBase):
                         if atop & 0x20:
                             rr_exp[awid] = (a, sz, self._win_of(a))
                     self._check_uq('aw', uq_out['aw'][awid], uq, a)
+                elif lite5:
+                    self._check_req_sb('aw', a, fields=('trace',))
                 tagop = 0
                 if axi5:
                     tagop = int(d.m_awtagop.value)
@@ -386,16 +397,17 @@ class AxiStressPairTB(TBBase):
                 data, strb, wlast, wid, wpoison, wtag, wtagupd = w_pend.popleft()
                 b = cur_w
                 addr = b['addrs'][b['n']]
-                if axi5:
+                if tp:
                     w = b['win']
                     e_p = int(M.f_poison(addr, self.hash_seed, w.poison_lg2 if w else 0))
                     if wpoison != e_p:
                         self._merr(f'W addr {addr:#x}: WPOISON {wpoison} != {e_p}')
+                    self.stats['w_poison'] += e_p
+                if axi5:
                     e_t = M.beat_tags(addr, self.NB, self.hash_seed, False, b['tagop'])
                     e_u = M.beat_tagupd(addr, self.NB, self.hash_seed, b['tagop'])
                     if wtag != e_t or wtagupd != e_u:
                         self._merr(f'W addr {addr:#x}: WTAG {wtag:#x}/{wtagupd:#x} != {e_t:#x}/{e_u:#x}')
-                    self.stats['w_poison'] += e_p
                 if self.PROTO == 'axi3' and wid != b['id']:
                     self._merr(f'W addr {addr:#x}: WID {wid:#x} != AWID {b["id"]:#x}')
                 lanes = set(M.beat_lanes(addr, b['size'], self.NB))
@@ -422,8 +434,8 @@ class AxiStressPairTB(TBBase):
                 q = b_q.get(int(d.m_bid.value))
                 if q:
                     a, w, uq, tagop = q.popleft()
-                    e_tr = M.f_rsb(M.f_sb(a, self.hash_seed)) if (axi5 and w and w.sb) else 0
-                    if axi5 and int(d.m_btrace.value) != e_tr:
+                    e_tr = M.f_rsb(M.f_sb(a, self.hash_seed)) if (tp and w and w.sb) else 0
+                    if tp and int(d.m_btrace.value) != e_tr:
                         self._merr(f'B ID {int(d.m_bid.value):#x} AW {a:#x}: BTRACE != {e_tr}')
                     if axi5:
                         if int(d.m_bidunq.value) != uq:

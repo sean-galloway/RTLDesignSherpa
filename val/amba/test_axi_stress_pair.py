@@ -20,7 +20,7 @@ Three cocotb tests, all through bin/TBClasses/amba/axi_stress_pair_tb.py:
       top's hold_b): the master's LAT_MAX must read at least that, past the
       2^16 its latency counter wrapped at until 2026-10-22.
 
-TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4); the cores and every check
+TEST_PROTO picks the shells (axi4 | axi3 | axi5 | axil4 | axil5); the cores and every check
 are the same. With AXI3 no burst may be longer than 16 beats, and the monitor
 checks WID against the AWID of the burst each beat belongs to. With AXI5 both
 shells carry NSAID, TRACE, MPAM, MECID, POISON, UNIQUE, ATOMIC and MTE, every window is a sideband
@@ -28,7 +28,10 @@ path and one beat in four is poisoned; the monitor checks every field, and a
 run must have poisoned beats in both directions. With AXI4-Lite every
 transfer is one bus-wide beat on one ID, so the scenarios that need several
 IDs (ooo, interleave, one_id) do not apply and no read may complete out of
-order; faults 1, 2 and 4 (RID, RLAST, BID) have no wire to corrupt.
+order; faults 1, 2 and 4 (RID, RLAST, BID) have no wire to corrupt. AXI5-Lite
+adds the IDs back (different IDs may answer in any order, IHI 0022L B2.1.5),
+so ooo and one_id apply, plus TRACE and POISON, checked as on AXI5 with
+their five faults; only the RLAST fault is skipped.
 """
 
 import os
@@ -97,6 +100,10 @@ def _scenario(name, n, tag, proto='axi4'):
             w.sb, w.poison_lg2, w.atomic, w.mte = 1, AXI5_POISON_LG2, 1, 1
         s.update(sb_src=0x01, poison_lg2=AXI5_POISON_LG2)
         m.update(idunq=1, atom_lg2=AXI5_ATOM_LG2)
+    elif proto == 'axil5':          # TRACE and POISON only
+        for w in wins:
+            w.sb, w.poison_lg2 = 1, AXI5_POISON_LG2
+        s.update(sb_src=0x01, poison_lg2=AXI5_POISON_LG2)
     return wins, dict(m, seed=0x1111_0000 + n), dict(m, seed=0x2222_0000 + n), \
         dict(s, seed=0x3333), dict(s, seed=0x4444)
 
@@ -141,7 +148,12 @@ async def cocotb_test_axi_stress_clean(dut):
     elif tb.PROTO in LITE:
         assert tb.stats['max_len'] == 0, \
             f"{tb.PROTO}: a transfer of AxLEN {tb.stats['max_len']}; every one is one beat"
-        assert tb.stats['r_ooo'] == 0, f'{tb.PROTO}: a read completed out of order'
+        if tb.PROTO == 'axil4':
+            assert tb.stats['r_ooo'] == 0, 'axil4: a read completed out of order'
+        else:
+            assert tb.stats['r_poison'] > 0 and tb.stats['w_poison'] > 0, \
+                'axil5: no beat was poisoned in one direction'
+            assert tb.stats['r_poison'] < tb.stats['r_beats'], 'axil5: every R beat poisoned'
     else:
         assert tb.stats['max_len'] > 15, f'{tb.PROTO}: no burst longer than 16 beats'
     if tb.PROTO == 'axi5':
@@ -163,7 +175,7 @@ async def cocotb_test_axi_stress_clean(dut):
                   'btagmatch2', 'btagmatch3'):
             assert tb.stats[k] > 0, f'AXI5 MTE: {k} never seen'
 
-    if name in ('ooo', 'interleave', 'narrow', 'errwin') and tb.PROTO not in LITE:
+    if name in ('ooo', 'interleave', 'narrow', 'errwin') and tb.PROTO != 'axil4':
         assert tb.stats['r_ooo'] > 0, 'no read completed out of order'
     if name == 'inorder':
         assert tb.stats['r_ooo'] == 0, 'an in-order slave reordered'
@@ -201,10 +213,14 @@ FAULTS_AXI5 = [(9, 'srd', {'S_SB'}), (10, 'swr', {'S_SB'}), (11, 'mrd', {'M_SB'}
                (18, 'mwr', {'RD_DATA'}), (19, 'swr', {'S_PROTO'}),
                (20, 'swr', {'S_SB'}), (21, 'mrd', {'M_SB'}), (22, 'mwr', {'M_SB'}),
                (23, 'srd', {'S_SB'})]
-FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5, 'axil4': []}
-# AXI4-Lite carries no RID, RLAST or BID, so faults 1, 2 and 4 have no wire
-# to corrupt; the rest apply unchanged.
-FAULTS_SKIP = {'axil4': {1, 2, 4}}
+# AXI5-Lite: ARTRACE, WPOISON, RTRACE, RPOISON, BTRACE (the AXI5 faults that
+# touch a field AXI5-Lite carries).
+FAULTS_AXIL5 = [f for f in FAULTS_AXI5 if f[0] in (9, 10, 11, 12, 13)]
+FAULTS_BY_PROTO = {'axi4': [], 'axi3': FAULTS_AXI3, 'axi5': FAULTS_AXI5,
+                   'axil4': [], 'axil5': FAULTS_AXIL5}
+# Neither Lite shell takes RLAST (every transfer is one beat), and AXI4-Lite
+# carries no RID or BID: those faults have no wire to corrupt.
+FAULTS_SKIP = {'axil4': {1, 2, 4}, 'axil5': {2}}
 
 
 @cocotb.test(timeout_time=400, timeout_unit="ms")
@@ -279,11 +295,15 @@ async def cocotb_test_axi_stress_long_lat(dut):
     assert 0 < s['mwr']['lat_sum'] <= s['mwr']['lat_max'] * s['mwr']['completed']
 
 
-PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3}
-LITE = {'axil4'}
+PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil4': 3, 'axil5': 4}
+LITE = {'axil4', 'axil5'}
 # AXI4-Lite: one ID and one beat per transfer, so a slave has nothing to
 # reorder or interleave; 'narrow' is partial strobes on bus-wide beats.
-LITE_SCEN = ['inorder', 'narrow', 'errwin', 'w_first']
+# AXI5-Lite carries IDs and may answer different IDs in any order (IHI 0022L
+# B2.1.5), so ooo and one_id apply; single-beat bursts have no beats to
+# interleave.
+LITE_SCEN = {'axil4': ['inorder', 'narrow', 'errwin', 'w_first'],
+             'axil5': ['inorder', 'ooo', 'narrow', 'errwin', 'one_id', 'w_first']}
 
 
 def _params():
@@ -292,7 +312,7 @@ def _params():
     for proto in PROTO_CODE:
         if proto in LITE:
             dws = [64] if level == 'gate' else [32, 64]      # AXI4-Lite: 32 or 64
-            scen = LITE_SCEN
+            scen = LITE_SCEN[proto]
         else:
             dws = [64] if level == 'gate' else [32, 64, 128]
             scen = ['inorder', 'ooo', 'interleave', 'narrow', 'errwin', 'one_id', 'w_first']

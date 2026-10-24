@@ -74,7 +74,7 @@ included.
 | Layer | Where | What |
 |---|---|---|
 | stress cores | `rtl/amba/shared/axi_stress_*.sv` | protocol-neutral master (generator + per-ID ordered scoreboard, rd and wr) and slave (hash responder with reorder / interleave / latency / throttle / SLVERR window); `cfg` / `sts` structs, no CSRs |
-| protocol shells | `rtl/amba/shared/<proto>_{master,slave}_stress.sv` | the cores on the protocol's channel modules: AXI4, AXI3 (bursts cut to 16 beats in the generator, WID carried with each W beat, 2-bit lock), AXI5 (`axi5_*` channel modules; NSAID / TRACE / MPAM / MECID / POISON per port, from the DUT TOML's `axi5_features`), AXI4-Lite (`axil4_*` channel modules; the cores built `LEN_MASK = 0` and `SIZE_FIXED`, so every transfer is one aligned bus-wide beat; the master keeps each direction's issued IDs in a FIFO and stamps them back onto the in-order responses, the slave presents every request to its core as ID 0) |
+| protocol shells | `rtl/amba/shared/<proto>_{master,slave}_stress.sv` | the cores on the protocol's channel modules: AXI4, AXI3 (bursts cut to 16 beats in the generator, WID carried with each W beat, 2-bit lock), AXI5 (`axi5_*` channel modules; NSAID / TRACE / MPAM / MECID / POISON per port, from the DUT TOML's `axi5_features`), AXI4-Lite (`axil4_*` channel modules; the cores built `LEN_MASK = 0` and `SIZE_FIXED`, so every transfer is one aligned bus-wide beat; the master keeps each direction's issued IDs in a FIFO and stamps them back onto the in-order responses, the slave presents every request to its core as ID 0), AXI5-Lite (`axil5_*` channel modules; single-beat as AXI4-Lite, but the cores' IDs go on the bus and the slave may answer different IDs in any order, IHI 0022L B2.1.5; TRACE and POISON as on AXI5; USER not driven) |
 | register blocks | `rtl/regs/*.rdl`, `rtl/bstress_{mst,slv}_csr.sv` | one regblock per block, in that block's clock (`apb4_to_peakrdl` carries the access across) |
 | harness | `rtl/generated/bs_harness_<dut>/` from `bin/gen_bs_harness.py` | generated from the DUT TOML: one shell per DUT port, the configuration bridge, control regs, GO/STOP into every clock |
 | board top | `rtl/bs_genesys2_top.sv` | MMCM (aclk 100 MHz, cclk 75 MHz), resets, UART, LEDs |
@@ -145,6 +145,7 @@ match).
 | bridge: MTE ports | 128 bits or wider, every connected path AXI5 at both ends, MTE on and one width | the validator's rules (MAS 2.10); `bridge_bs_axi5`'s cpu clique is 128-bit for it |
 | model: MTE tag operations | no tag operation on an atomic; ARTAGOP never 2'b10 | keeps every request spec-plausible |
 | model: AXI4-Lite data width | 32 or 64 | AXI4-Lite allows only these; the pair test builds both |
+| model: AXI5-Lite data width | 32 or 64 | AXI5-Lite allows wider, but POISON is one bit per 64 data bits and the cores poison per beat: the shells hold DW to the widths where those agree (elaboration check) |
 | model: AXI4-Lite transfers in flight per direction | `DEPTH` (16) | the master's issued-ID FIFO; a full FIFO holds the next address. Responses must return in issue order (AXI4-Lite has no ID). A read returned out of order is paired with the wrong burst and fails RD_DATA (the data are a function of the address). B carries no data, so two writes whose B's swap are caught only when their responses differ (RD/WR_RESP, the error window): a swap of two OKAYs is invisible |
 
 Every check is shown to fire by the pair test's fault injector
@@ -172,7 +173,7 @@ checks the blocks themselves against the model.
 | 2c (done) | IDUNQ, atomics | the same shells; see bridge TASK-019 |
 | 2d (done) | MTE | the same shells |
 | 2e (done) | `build-xil`, `build-xmix`: third-party IP on the bridge -- real memories (mem windows, fill / read sweeps) and vendor masters | the AXI4 shells; LiteDRAM, BRAM controller, traffic generator, DMA, protocol checkers |
-| 3 | AXI4-Lite / AXI5-Lite, APB4 / APB5, WB4 | single-beat shells; slaves in offset mode where the bridge hands them a window offset. AXI4-Lite shells done 2026-10-23 (`axil4_{master,slave}_stress`, pair test `axil4` cells); the rest next |
+| 3 | AXI4-Lite / AXI5-Lite, APB4 / APB5, WB4 | single-beat shells; slaves in offset mode where the bridge hands them a window offset. AXI4-Lite and AXI5-Lite shells done 2026-10-23 (`axil{4,5}_{master,slave}_stress`, pair test `axil4` / `axil5` cells); APB4 / APB5, WB4 next |
 
 ## 6. Findings
 
