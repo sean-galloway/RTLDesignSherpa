@@ -92,6 +92,13 @@ FIELDS = {
     "ADDR_MAP.bank_lsb": dict(ships=0x0A, note="bits [12:10] of the AXI address select the bank at the shipping geometry"),
     "ADDR_MAP.hash_en": dict(ships=0x0, note="address hashing OFF; measured inert on this workload and never enabled on the board"),
     "ADDR_MAP.hash_seed": dict(ships=0x00, note="unused while hash_en=0"),
+    # LPDDR2 mode-register OP values the init plane writes with MRW (added
+    # 2026-10-15, d6297336c, without a line here -- the gate first ran on
+    # 2026-10-23 when TASK-048 staged this file). JEDEC JESD209-2 defaults;
+    # consumed only when memtype selects LPDDR2 (TASK-042 board enablement).
+    "LP_MR1_OP.VAL": dict(ships=0x23, note="MR1: BL4, sequential, nWR=3 -- the JEDEC default OP; LPDDR2 only"),
+    "LP_MR2_OP.VAL": dict(ships=0x01, note="MR2: RL3/WL1 -- the JEDEC default OP; LPDDR2 only"),
+    "LP_MR3_OP.VAL": dict(ships=0x02, note="MR3: 40-ohm drive strength -- the JEDEC default OP; LPDDR2 only"),
 
     "DFI_PHASE.gear_ratio": dict(
         waived="RESET IS A DIFFERENT BUILD'S GEOMETRY, and the driver compensates. "
