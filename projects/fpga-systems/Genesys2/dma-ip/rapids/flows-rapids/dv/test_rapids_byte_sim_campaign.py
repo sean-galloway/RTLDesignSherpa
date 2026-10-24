@@ -234,6 +234,9 @@ G_CHUNKS = int(os.environ.get('TEST_G_CHUNKS', '18' if BOARD_CHANNELS >= 16 else
 # the largest chunk plus its warm-up under ~11.8k estimated UART ops, with one
 # chunk of margin.
 S_CHUNKS = int(os.environ.get('TEST_S_CHUNKS', '9' if BOARD_CHANNELS >= 16 else '5'))
+# gscale1: the same sweep with one channel busy (27 points, both directions,
+# singles to 1 MB); four chunks keep the largest pair and its warm-up under the cap.
+S1_CHUNKS = int(os.environ.get('TEST_S1_CHUNKS', '4'))
 
 
 def _g_campaign(monkeypatch, dut, profile, chunk, nchunks, extra=(), fw_writable=None, tag=''):
@@ -296,6 +299,16 @@ def test_rapids_byte_sim_gscale_word_crc(request, monkeypatch, dut, chunk):
     of the build, in 2x size steps, against both DUTs; every point must pass
     golden."""
     _g_campaign(monkeypatch, dut, 'gscale', chunk, S_CHUNKS)
+
+
+@pytest.mark.rapids_byte_harness
+@pytest.mark.parametrize('chunk', range(1, S1_CHUNKS + 1), ids=lambda k: f'{k}of{S1_CHUNKS}')
+@pytest.mark.parametrize('dut', ('fsm', 'g'))
+def test_rapids_byte_sim_gscale1_word_crc(request, monkeypatch, dut, chunk):
+    """gscale1: the 2x size sweep with ONE channel busy (single descriptors
+    and 16-descriptor chains, both directions) against both DUTs; every point
+    must pass golden. Run on the 8- and the 16-channel build."""
+    _g_campaign(monkeypatch, dut, 'gscale1', chunk, S1_CHUNKS)
 
 
 # rapids TASK-038: the live firmware load. The writable build runs the load

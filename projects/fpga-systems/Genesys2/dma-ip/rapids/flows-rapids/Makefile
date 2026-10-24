@@ -182,7 +182,7 @@ export FW_WRITABLE ?= 0
 FW_IMAGE ?=
 G_TOKEN := $(if $(filter 1,$(RAPIDS_G)),_g$(if $(filter 1,$(FW_WRITABLE)),_fw,),)
 
-.PHONY: help sim sim-gcompare sim-gscale sim-fw-load verify-sim lint project synth bitstream program characterize \
+.PHONY: help sim sim-gcompare sim-gscale sim-gscale1 sim-fw-load verify-sim lint project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
 
 help:
@@ -229,7 +229,13 @@ sim-gcompare:
 sim-gscale:
 	cd $(REPO_ROOT) && . ./env_python && \
 	    $(CH16_SIM_ENV) TEST_FW_WRITABLE=$(FW_WRITABLE) $(if $(FW_IMAGE),TEST_FW_IMAGE=$(abspath $(FW_IMAGE))) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
-	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 12 -k gscale
+	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 12 -k 'gscale and not gscale1'
+
+# gscale1: the same sweep with one channel busy, both directions, both DUTs.
+sim-gscale1:
+	cd $(REPO_ROOT) && . ./env_python && \
+	    $(CH16_SIM_ENV) TEST_FW_WRITABLE=$(FW_WRITABLE) $(if $(FW_IMAGE),TEST_FW_IMAGE=$(abspath $(FW_IMAGE))) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
+	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 6 -k gscale1
 
 # rapids TASK-038: the live firmware load (--fw --fw-selftest) on rapids-g, on a
 # FW_WRITABLE=1 build and on the ROM build (its OFF state). Both cells build

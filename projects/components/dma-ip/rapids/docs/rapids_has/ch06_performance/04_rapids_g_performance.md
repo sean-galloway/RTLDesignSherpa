@@ -175,20 +175,65 @@ rapids-16ch and rapids-g-16ch in the full Genesys 2 harness, 2026-10-23. On the 
 
 What a channel must move per descriptor for rapids-g to be within 10%, 5% and 1% of rapids (32 bytes
 a beat; the smallest size from which every larger size in the sweep stays inside the bound; a chain
-row is bytes per descriptor in a 16-descriptor chain):
+row is bytes per descriptor in a 16-descriptor chain), with every channel busy and with one channel
+busy on each build:
 
-| Shape | Channels | Within 10% | Within 5% | Within 1% |
-|------------------------------------|---------:|-----------:|----------:|----------:|
-| single descriptor, sink | 8 | 8 KB | 16 KB | 64 KB |
-| single descriptor, sink | 16 | 4 KB | 8 KB | 64 KB |
-| single descriptor, source | 8 | 8 KB | 16 KB | 128 KB |
-| single descriptor, source | 16 | 4 KB | 8 KB | 64 KB |
-| single descriptor, interleaved sink | 8 | 8 KB | 16 KB | 64 KB |
-| single descriptor, interleaved sink | 16 | 8 KB | 16 KB | 128 KB |
-| 16-descriptor chain, interleaved sink | 8 | 512 B | 512 B | 4 KB |
-| 16-descriptor chain, interleaved sink | 16 | 256 B | 512 B | 4 KB |
+| Shape | Busy channels | Within 10% | Within 5% | Within 1% |
+|------------------------------------|-------------:|-----------:|----------:|----------:|
+| single descriptor, sink | 1 of 8 | 64 KB | 128 KB | 512 KB |
+| single descriptor, sink | 8 of 8 | 8 KB | 16 KB | 64 KB |
+| single descriptor, sink | 1 of 16 | 64 KB | 128 KB | 1 MB |
+| single descriptor, sink | 16 of 16 | 4 KB | 8 KB | 64 KB |
+| single descriptor, source | 1 of 8 | 64 KB | 128 KB | 512 KB |
+| single descriptor, source | 8 of 8 | 8 KB | 16 KB | 128 KB |
+| single descriptor, source | 1 of 16 | 64 KB | 128 KB | 1 MB |
+| single descriptor, source | 16 of 16 | 4 KB | 8 KB | 64 KB |
+| single descriptor, interleaved sink | 8 of 8 | 8 KB | 16 KB | 64 KB |
+| single descriptor, interleaved sink | 16 of 16 | 8 KB | 16 KB | 128 KB |
+| 16-descriptor chain, sink | 1 of 8 | 4 KB | 4 KB | 16 KB |
+| 16-descriptor chain, sink | 1 of 16 | 2 KB | 4 KB | 32 KB |
+| 16-descriptor chain, source | 1 of 8 | 4 KB | 8 KB | 16 KB |
+| 16-descriptor chain, source | 1 of 16 | 4 KB | 8 KB | 32 KB |
+| 16-descriptor chain, interleaved sink | 8 of 8 | 512 B | 512 B | 4 KB |
+| 16-descriptor chain, interleaved sink | 16 of 16 | 256 B | 512 B | 4 KB |
 
 : Table 6.4.9: Bytes per descriptor for rapids-g to be within 10%, 5% and 1% of rapids
+
+The one-channel rows come from the same sweep run with one channel busy (`make sim-gscale1
+CHANNELS=8|16`, both directions, chains plain rather than interleaved), on each build:
+
+| Beats | chain sink (8ch build) | chain sink (16ch build) | chain source (8ch build) | chain source (16ch build) | sink (8ch build) | sink (16ch build) | source (8ch build) | source (16ch build) |
+|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|
+| 1 | 0.49 | 0.22 | 0.26 | 0.12 | 0.27 | 0.26 | 0.28 | 0.27 |
+| 2 | 0.53 | 0.24 | 0.26 | 0.12 | 0.27 | 0.26 | 0.29 | 0.27 |
+| 4 | 0.62 | 0.28 | 0.26 | 0.12 | 0.29 | 0.27 | 0.29 | 0.28 |
+| 8 | 0.56 | 0.36 | 0.27 | 0.12 | 0.31 | 0.29 | 0.30 | 0.29 |
+| 16 | 0.48 | 0.45 | 0.44 | 0.20 | 0.34 | 0.32 | 0.33 | 0.31 |
+| 32 | 0.54 | 0.60 | 0.78 | 0.36 | 0.38 | 0.35 | 0.37 | 0.35 |
+| 64 | 0.85 | 0.90 | 0.59 | 0.66 | 0.45 | 0.42 | 0.44 | 0.41 |
+| 128 | 0.96 | 0.96 | 0.92 | 0.95 | 0.54 | 0.51 | 0.54 | 0.51 |
+| 256 | 0.99 | 0.98 | 0.99 | 0.98 | 0.67 | 0.63 | 0.66 | 0.63 |
+| 512 | 0.99 | 0.99 | 0.99 | 0.99 | 0.78 | 0.75 | 0.78 | 0.75 |
+| 1024 | 1.00 | 0.99 | 1.00 | 0.99 | 0.87 | 0.85 | 0.87 | 0.85 |
+| 2048 | -- | -- | -- | -- | 0.93 | 0.92 | 0.93 | 0.92 |
+| 4096 | -- | -- | -- | -- | 0.96 | 0.96 | 0.96 | 0.96 |
+| 8192 | -- | -- | -- | -- | 0.98 | 0.98 | 0.98 | 0.98 |
+| 16384 | -- | -- | -- | -- | 0.99 | 0.99 | 0.99 | 0.99 |
+| 32768 | -- | -- | -- | -- | 1.00 | 0.99 | 1.00 | 0.99 |
+
+: Table 6.4.10: rapids / rapids-g cycles, one channel busy (`--` = not in the sweep)
+
+
+With one channel busy a lone descriptor has nothing to hide the firmware behind: against the FSM it
+costs a fixed 162 clocks per single descriptor on the 8-channel build and 194 on the 16-channel one,
+whose hart walks a second, idle slot each pass (the cycle gap is the same from 8 KB to 1 MB), so the
+ratio is 1 - gap / beats: within 10% from 64 KB, 5% from 128 KB, and 1% from 512 KB (8 channels) or
+1 MB (16).
+A chain on one channel overlaps the next head with the running descriptor and is within 5% from 4-8 KB
+and 1% from 16-32 KB; the 16-channel build is later on chains below 2 KB because its hart walks a second,
+idle slot every pass. With every channel busy the other channels' data hides the cost, which is why
+those rows close eight times earlier.
+
 
 Chains are within 10% from 512 bytes a descriptor (the 8-channel chain reads 0.90 at 256 B in Table 6.4.8 but is 0.899) and within 1% from 4 KB on both builds. A single
 descriptor per channel pays the firmware's whole per-descriptor cost with nothing to overlap it, so it

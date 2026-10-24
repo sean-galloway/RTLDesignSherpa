@@ -1271,7 +1271,7 @@ Examples:
                    help="byte-granular performance campaign (BYTE_DUT build): sweeps channels x payload "
                         "bytes x offset x direction, plus the beat-aligned comparison rows, and writes "
                         "bytes / beats / efficiency / MB/s per point (see byte_perf.py)")
-    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned', 'gcompare', 'gscale'),
+    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned', 'gcompare', 'gscale', 'gscale1'),
                    help="--byte-perf point set (default standard); 'aligned' is the beat-aligned "
                         "rows only, the one set a word-wide-checker build (BUILD.WORD_CRC=1) can run")
     p.add_argument('--points', metavar='ID[,ID...]',
@@ -1393,9 +1393,9 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
           f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
           f"gen_mon={int(d['gen_mon'])}")
     # the whole-beat, offset-0 profiles: the only ones a word-wide checker can score
-    if d.get('word_crc') and not (args.byte_perf and args.profile in ('aligned', 'gcompare', 'gscale')):
+    if d.get('word_crc') and not (args.byte_perf and args.profile in ('aligned', 'gcompare', 'gscale', 'gscale1')):
         print("FAIL: this bitstream has the word-wide checkers (BUILD.WORD_CRC=1), which cannot "
-              "check a partial strobe; only --byte-perf --profile aligned|gcompare|gscale may run on it")
+              "check a partial strobe; only --byte-perf --profile aligned|gcompare|gscale|gscale1 may run on it")
         return 2
     if d['channels'] != args.channels:
         print(f"FAIL: --channels {args.channels} but the bitstream was built with "

@@ -37,6 +37,8 @@ BEAT_COMPARE_CHANNELS = (1, 2, 4, 8)
 # both-direction 16-channel chain is ~55 ms of sim UART time on its own.
 G_SCALE_BEATS = tuple(1 << i for i in range(13))    # 1 .. 4096 beats
 G_SCALE_CHAIN = tuple(1 << i for i in range(11))    # 1 .. 1024 beats, 16 descriptors
+G_SCALE1_BEATS = tuple(1 << i for i in range(16))   # 1 .. 32768 beats (1 MB): one channel alone
+                                                    # is still 4% off at 4096, so the sweep runs on
 
 
 def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
@@ -56,7 +58,7 @@ def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
 
 
 def build_points(profile: str, channels: int = 8):
-    """Ordered point list for a profile: quick | standard | full | aligned | gcompare | gscale.
+    """Ordered point list for a profile: quick | standard | full | aligned | gcompare | gscale | gscale1.
 
     CHANNELS is the build's channel count (BUILD register). gcompare and gscale use
     it: at 16 (rapids TASK-036) it adds the 16-channel single descriptors and
@@ -101,6 +103,16 @@ def build_points(profile: str, channels: int = 8):
         for b, d in G_IL_SINK:
             pts.append(_pt('chain' if d > 1 else 'beat', 16 if wide else 8, beats=b, descs=d,
                            interleave=True, directions=('sink',)))
+        return pts
+    if profile == 'gscale1':
+        # the same sweep with ONE channel busy (owner 2026-10-24): single
+        # descriptors both directions and 16-descriptor chains both directions
+        # on channel 0 alone, so the per-descriptor firmware cost is measured
+        # with nothing else on the hart (or on its slot pair at 16 channels)
+        for b in G_SCALE1_BEATS:
+            pts.append(_pt('beat', 1, beats=b))
+        for b in G_SCALE_CHAIN:
+            pts.append(_pt('chain', 1, beats=b, descs=16))
         return pts
     if profile == 'gscale':
         for b in G_SCALE_BEATS:
@@ -178,7 +190,7 @@ def chunk_warmup(pts, k, n, bpb=32):
     return []
 
 
-PROFILES = ('quick', 'standard', 'full', 'gcompare', 'gscale')
+PROFILES = ('quick', 'standard', 'full', 'gcompare', 'gscale', 'gscale1')
 
 
 def _expected(pt, bpb):
