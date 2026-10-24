@@ -32,6 +32,7 @@ from CocoTBFramework.components.apb.apb_factories import \
 # Use project's AXI4 components
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_master_wr, create_axi4_master_rd
 from CocoTBFramework.components.shared.memory_model import MemoryModel
+from CocoTBFramework.components.shared.axi_burst import beat_addr, INCR, WRAP
 
 from TBClasses.shared.tbbase import TBBase
 from TBClasses.shared.utilities import get_paths, create_view_cmd, sim_build_path
@@ -51,14 +52,25 @@ from TBClasses.shared.test_levels import reg_level_grid, level_env
 _DEPTH = {
     'gate': {'profiles': ['axi4_backtoback'],
              'stress_single': 16, 'stress_multi': 8,
-             'b2b_bursts': 4, 'b2b_len': 2},
+             'b2b_bursts': 4, 'b2b_len': 2, 'narrow_random': 8},
     'func': {'profiles': ['axi4_backtoback', 'axi4_normal', 'axi4_fast', 'axi4_slow'],
              'stress_single': 64, 'stress_multi': 32,
-             'b2b_bursts': 10, 'b2b_len': 2},
+             'b2b_bursts': 10, 'b2b_len': 2, 'narrow_random': 32},
     'full': {'profiles': ['axi4_backtoback', 'axi4_normal', 'axi4_fast', 'axi4_slow'],
              'stress_single': 192, 'stress_multi': 96,
-             'b2b_bursts': 32, 'b2b_len': 4},
+             'b2b_bursts': 32, 'b2b_len': 4, 'narrow_random': 96},
 }
+
+# Sub-word bursts that start mid-word: (start, AxSIZE, beats, AxBURST). The
+# first is the bridge_bs_mixed_b failure verbatim -- an 8-beat halfword WRAP
+# at word offset 2 -- and the rest cover INCR and WRAP at each sub-word size.
+_NARROW_DIRECTED = [
+    (0x162, 1, 8, WRAP),
+    (0x102, 1, 4, INCR),
+    (0x121, 0, 8, INCR),
+    (0x143, 0, 4, WRAP),
+    (0x10A, 1, 2, WRAP),
+]
 
 
 def _depth():
@@ -589,6 +601,95 @@ class Axi2ApbTB(TBBase):
         else:
             self.log.info("partial_strobe_write_test passed: byte-lane merge correct")
 
+    async def run_narrow_burst_test(self, n_random):
+        """Sub-word bursts starting mid-word, each checked against full words.
+
+        The converter once seeded its beat-address generator with the start
+        address aligned DOWN to the APB word, so every later beat of a narrow
+        burst stepped from the word base: an 8-beat halfword WRAP at 0x162
+        went out as 0x160,0x160,0x164,0x164,... and beat 1 read the 0x160
+        word. A narrow write burst read back by the same narrow burst cannot
+        see that -- both directions misaddress identically and cancel -- so
+        each direction is checked through full-word single beats, which the
+        bug never touched.
+        """
+        if self.APB_DATA_WIDTH != self.DATA_WIDTH:
+            # A narrow beat on a wider-than-APB AXI bus is decomposed into
+            # AXI2APBRATIO slices that step by AxSIZE, not by the APB word;
+            # that path has never placed narrow lanes and no instance in the
+            # tree builds it (all are 32/32). Said, not silently skipped.
+            self.log.warning(
+                f"narrow-burst scenario NOT RUN: AXI {self.DATA_WIDTH}b / APB "
+                f"{self.APB_DATA_WIDTH}b is a ratio>1 cell")
+            return 0
+        bus = self.DATA_WIDTH // 8
+        cases = list(_NARROW_DIRECTED)
+        for _ in range(n_random):
+            size = random.choice([s for s in range(3) if (1 << s) < bus])
+            beats = random.choice([2, 4, 8, 16])
+            burst = random.choice([INCR, WRAP])
+            nb = 1 << size
+            start = 0x100 + random.randrange(0, 0x80, nb)
+            if start % bus == 0:
+                start += nb
+            cases.append((start, size, beats, burst))
+
+        async def word_write(addr, model):
+            val = random.getrandbits(8 * bus)
+            await self.axi_write_interface.single_write(
+                address=addr, data=val, id=0, size=(bus - 1).bit_length(), burst_type=1)
+            for k in range(bus):
+                model[addr + k] = (val >> (8 * k)) & 0xFF
+
+        async def word_read(addr):
+            return await self.axi_read_interface.single_read(
+                address=addr, id=0, size=(bus - 1).bit_length(), burst_type=1)
+
+        for n, (start, size, beats, burst) in enumerate(cases):
+            nb = 1 << size
+            addrs = [beat_addr(start, i, size, burst, beats - 1) for i in range(beats)]
+            lo = min(addrs) & ~(bus - 1)
+            hi = (max(addrs) + nb + bus - 1) & ~(bus - 1)
+            tag = (f"narrow[{n}] start=0x{start:X} size={size} len={beats} "
+                   f"burst={'WRAP' if burst == WRAP else 'INCR'}")
+            model = {}
+            for w in range(lo, hi, bus):
+                await word_write(w, model)
+
+            # Read direction: full-word writes above, narrow burst read here.
+            got = await self.axi_read_interface.read_transaction(
+                address=start, burst_len=beats, id=n & 0xFF, size=size, burst_type=burst)
+            for i, (a, beat) in enumerate(zip(addrs, got)):
+                lane = a % bus
+                act = (beat >> (8 * lane)) & ((1 << (8 * nb)) - 1)
+                exp = sum(model[a + k] << (8 * k) for k in range(nb))
+                if act != exp:
+                    self.test_failures.append(
+                        f"{tag} READ beat {i} @0x{a:X}: exp 0x{exp:0{2*nb}X} act 0x{act:0{2*nb}X}")
+                    break
+
+            # Write direction: narrow burst write, full-word reads.
+            vals = [random.getrandbits(8 * nb) for _ in range(beats)]
+            res = await self.axi_write_interface.write_transaction(
+                address=start, data=vals, burst_len=beats, id=n & 0xFF,
+                size=size, burst_type=burst)
+            if not res.get('success', False):
+                self.test_failures.append(f"{tag} WRITE failed: {res}")
+                continue
+            for a, v in zip(addrs, vals):
+                for k in range(nb):
+                    model[a + k] = (v >> (8 * k)) & 0xFF
+            for w in range(lo, hi, bus):
+                act = await word_read(w)
+                exp = sum(model[w + k] << (8 * k) for k in range(bus))
+                if act != exp:
+                    self.test_failures.append(
+                        f"{tag} WRITE word @0x{w:X}: exp 0x{exp:0{2*bus}X} act 0x{act:0{2*bus}X}")
+                    break
+        self.log.info(f"narrow-burst scenario: {len(cases)} bursts "
+                      f"({len(_NARROW_DIRECTED)} directed + {n_random} random)")
+        return len(cases)
+
     async def main_loop(self):
         """Main test loop with comprehensive testing"""
         self.main_loop_count += 1
@@ -603,6 +704,11 @@ class Axi2ApbTB(TBBase):
 
         # Directed strobe regression first -- cheap and decisive
         await self.partial_strobe_write_test()
+
+        # Narrow sub-word bursts (the seeded-address regression), before the
+        # timing profiles so a failure here is not buried under them
+        self.apply_timing_profile('axi4_backtoback')
+        await self.run_narrow_burst_test(_depth()['narrow_random'])
 
         # Test with different timing profiles. How many is a level decision.
         timing_profiles_to_test = list(_depth()['profiles'])

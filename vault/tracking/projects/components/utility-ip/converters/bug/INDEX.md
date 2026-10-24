@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/converters — bugs
 
-**Next ID: BUG-014** — never recycle a number, even when its item closed.
+**Next ID: BUG-016** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 12 | done (kept for history) |
+| [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,6 +24,10 @@ by construction rather than by discipline.
 
 
 ## Closed
+
+- **BUG-015** — axi4_to_apb4_convert misaddressed every beat after the first of a sub-word burst (start seeded word-aligned) — RESOLVED 2026-10-24: the true start address is seeded; shim test drives sub-word INCR / WRAP; build-mixb narrow / chaos on the board 6/6 (were 0/6)
+
+- **BUG-014** — axil_to_axi4_wide_align_wr deadlocked a slave that waits for WVALID before AWREADY (A3.3.1) — RESOLVED 2026-10-24: AW and W presented together, either handshake first; build-mixb w_first in sim and on the board
 
 - **BUG-013** — axi4_to_axi3_wr deadlocked a slave that waits for WVALID before AWREADY — RESOLVED 2026-10-20: the direct AW's descriptor is queued when offered; build-xmix w_first on the board
 

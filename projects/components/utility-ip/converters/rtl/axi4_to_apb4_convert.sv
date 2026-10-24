@@ -320,14 +320,19 @@ module axi4_to_apb4_convert #(
             end
 
             if ((r_apb_state == IDLE) && (w_apb_next_state == READ)) begin
-                // Fix bit width mismatch with proper casting
-                r_apb_paddr           <= APBAW'(r_s_axi_araddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
+                // Seed with the TRUE start address: axi_gen_addr steps beats
+                // from it by AxSIZE (and wraps on it), and PADDR is masked
+                // to the APB word at w_apb_cmd_pkt_paddr. Seeding it already
+                // aligned to the APB word made every later beat of a
+                // sub-word burst step from the word base -- a halfword WRAP
+                // at 0x162 went out as 0x160,0x160,0x164,0x164,...
+                r_apb_paddr           <= APBAW'(r_s_axi_araddr);
                 r_burst_count         <= r_s_axi_arlen;
                 r_axi_rd_data_pointer <= 'b0;
                 r_axi_data_shift      <= 'b0;
             end else if ((r_apb_state == IDLE) && (w_apb_next_state == WRITE)) begin
-                // Fix bit width mismatch with proper casting
-                r_apb_paddr           <= APBAW'(r_s_axi_awaddr & ~{{(AW-APBAW){1'b0}}, w_alignment_mask});
+                // True start address, as for READ above
+                r_apb_paddr           <= APBAW'(r_s_axi_awaddr);
                 r_burst_count         <= r_s_axi_awlen;
                 r_axi_wr_data_pointer <= 'b0;
             end

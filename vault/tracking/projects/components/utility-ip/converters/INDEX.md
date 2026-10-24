@@ -12,7 +12,7 @@ Pick the lane before filing:
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | 0 | 0 | 4 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 9 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 14 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
 
 **The pages at this level are the LEGACY task lane.** They are frozen: close
@@ -27,7 +27,7 @@ upsize/downsize primitives and the dwidth converter wrappers.
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 9 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 1 | 0 | 14 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 0 | 0 | 0 |
 
 ## Open shortlist

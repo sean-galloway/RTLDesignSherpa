@@ -185,14 +185,25 @@ module axil_to_axi4_wide_align_wr #(
     // ----------------------------------------------------------------
     // Forwarder FSM
     // ----------------------------------------------------------------
+    // S_REQ presents AW and W TOGETHER and leaves once both have handshaken,
+    // in either order or in one cycle. A3.3.1: a manager must not wait for
+    // AWREADY before asserting WVALID, because a slave may wait for WVALID
+    // before asserting AWREADY. This FSM used to be S_AW then S_W -- W only
+    // after the AW handshake -- which deadlocked against such a slave (found
+    // by the Genesys 2 bridge stress model's w_first profile on
+    // bridge_bs_mixed_b: every AXI-Lite / WB4 master writing to a wider
+    // slave, and every other master's writes behind it).
     typedef enum logic [1:0] {
         S_IDLE = 2'd0,
-        S_AW   = 2'd1,
-        S_W    = 2'd2,
+        S_REQ  = 2'd1,
         S_B    = 2'd3
     } state_e;
 
     state_e r_state, w_next_state;
+    logic   r_aw_done, r_w_done;     // this beat's AW / W already taken
+    logic   w_aw_now, w_w_now;
+    assign w_aw_now = r_aw_done || (m_axi_awvalid && m_axi_awready);
+    assign w_w_now  = r_w_done  || (m_axi_wvalid  && m_axi_wready);
 
     always_comb begin
         w_next_state = r_state;
@@ -200,10 +211,9 @@ module axil_to_axi4_wide_align_wr #(
         case (r_state)
             S_IDLE: if (beat_pair_ready) begin
                 consume_beat = 1'b1;
-                w_next_state = S_AW;
+                w_next_state = S_REQ;
             end
-            S_AW: if (m_axi_awvalid && m_axi_awready) w_next_state = S_W;
-            S_W:  if (m_axi_wvalid  && m_axi_wready)  w_next_state = S_B;
+            S_REQ: if (w_aw_now && w_w_now) w_next_state = S_B;
             S_B:  if (m_axi_bvalid  && m_axi_bready)  w_next_state = S_IDLE;
             default: w_next_state = S_IDLE;
         endcase
@@ -211,9 +221,18 @@ module axil_to_axi4_wide_align_wr #(
 
     `ALWAYS_FF_RST(aclk, w_aresetn,
         if (`RST_ASSERTED(w_aresetn)) begin
-            r_state <= S_IDLE;
+            r_state   <= S_IDLE;
+            r_aw_done <= 1'b0;
+            r_w_done  <= 1'b0;
         end else begin
             r_state <= w_next_state;
+            if (r_state != S_REQ || w_next_state != S_REQ) begin
+                r_aw_done <= 1'b0;          // a new beat starts with neither taken
+                r_w_done  <= 1'b0;
+            end else begin
+                if (m_axi_awvalid && m_axi_awready) r_aw_done <= 1'b1;
+                if (m_axi_wvalid  && m_axi_wready)  r_w_done  <= 1'b1;
+            end
         end
     )
 
@@ -286,12 +305,12 @@ module axil_to_axi4_wide_align_wr #(
     assign m_axi_awqos    = 4'b0;
     assign m_axi_awregion = 4'b0;
     assign m_axi_awuser   = r_held_awuser;
-    assign m_axi_awvalid  = (r_state == S_AW);
+    assign m_axi_awvalid  = (r_state == S_REQ) && !r_aw_done;
     assign m_axi_wdata    = aligned_wdata;
     assign m_axi_wstrb    = aligned_wstrb;
     assign m_axi_wlast    = 1'b1;
     assign m_axi_wuser    = r_held_wuser;
-    assign m_axi_wvalid   = (r_state == S_W);
+    assign m_axi_wvalid   = (r_state == S_REQ) && !r_w_done;
     // m_axi_bready: below, with the B register it guards.
 
     // ----------------------------------------------------------------
