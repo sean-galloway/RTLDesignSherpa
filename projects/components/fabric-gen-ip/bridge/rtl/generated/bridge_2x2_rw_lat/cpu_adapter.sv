@@ -164,10 +164,10 @@ module bridge_2x2_rw_lat_cpu_adapter
 
     // Fabric IDs: {BRIDGE_ID, remap slot} (bridge_id_remap below). Responses
     // return with the slot, which restores the master's ID.
-    logic [3:0] aw_rmp_slot, b_rmp_slot;
+    logic [2:0] aw_rmp_slot, b_rmp_slot;
     logic [XBAR_ID_WIDTH-1:0] xbar_axi_awid;
     assign xbar_axi_awid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(aw_rmp_slot)};
-    logic [3:0] ar_rmp_slot, r_rmp_slot;
+    logic [2:0] ar_rmp_slot, r_rmp_slot;
     logic [XBAR_ID_WIDTH-1:0] xbar_axi_arid;
     assign xbar_axi_arid = {BRIDGE_ID_WIDTH'(BRIDGE_ID), MASTER_ID_WIDTH'(ar_rmp_slot)};
 
@@ -446,8 +446,8 @@ module bridge_2x2_rw_lat_cpu_adapter
     // OUTPUT slave_select_aw mirrors the live combinational decode.
     assign slave_select_aw = comb_slave_select_aw;
 
-    localparam int AW_TRK_DEPTH = 16;
-    localparam int AW_TRK_AW    = 4;
+    localparam int AW_TRK_DEPTH = 8;
+    localparam int AW_TRK_AW    = 3;
     // -------- AW ID remap (bridge_id_remap) --------
     // The fabric ID is {BRIDGE_ID, slot}: a request whose ID is live
     // reuses its slot (one ID stays one fabric ID, so it stays ordered at
@@ -530,8 +530,8 @@ module bridge_2x2_rw_lat_cpu_adapter
     // OUTPUT slave_select_ar mirrors the live combinational decode.
     assign slave_select_ar = comb_slave_select_ar;
 
-    localparam int AR_TRK_DEPTH = 16;
-    localparam int AR_TRK_AW    = 4;
+    localparam int AR_TRK_DEPTH = 8;
+    localparam int AR_TRK_AW    = 3;
     // -------- AR ID remap (bridge_id_remap) --------
     // The fabric ID is {BRIDGE_ID, slot}: a request whose ID is live
     // reuses its slot (one ID stays one fabric ID, so it stays ordered at
@@ -620,17 +620,17 @@ module bridge_2x2_rw_lat_cpu_adapter
 
         case (b_slave_select)
             3'b001: begin  // Slave 0 (32b)
-                b_rmp_slot = cpu_32b_b.id[3:0];
+                b_rmp_slot = cpu_32b_b.id[2:0];
                 fub_axi_bresp = cpu_32b_b.resp;
                 fub_axi_bvalid = cpu_32b_bvalid;
             end
             3'b010: begin  // Slave 1 (32b)
-                b_rmp_slot = cpu_32b_b.id[3:0];
+                b_rmp_slot = cpu_32b_b.id[2:0];
                 fub_axi_bresp = cpu_32b_b.resp;
                 fub_axi_bvalid = cpu_32b_bvalid;
             end
             3'b100: begin  // Slave 2 (32b)
-                b_rmp_slot = cpu_32b_b.id[3:0];
+                b_rmp_slot = cpu_32b_b.id[2:0];
                 fub_axi_bresp = cpu_32b_b.resp;
                 fub_axi_bvalid = cpu_32b_bvalid;
             end
@@ -671,21 +671,21 @@ module bridge_2x2_rw_lat_cpu_adapter
 
         case (r_slave_select)
             3'b001: begin  // Slave 0 (32b)
-                r_rmp_slot = cpu_32b_r.id[3:0];
+                r_rmp_slot = cpu_32b_r.id[2:0];
                 fub_axi_rdata = cpu_32b_r.data;
                 fub_axi_rresp = cpu_32b_r.resp;
                 fub_axi_rlast = cpu_32b_r.last;
                 fub_axi_rvalid = cpu_32b_rvalid;
             end
             3'b010: begin  // Slave 1 (32b)
-                r_rmp_slot = cpu_32b_r.id[3:0];
+                r_rmp_slot = cpu_32b_r.id[2:0];
                 fub_axi_rdata = cpu_32b_r.data;
                 fub_axi_rresp = cpu_32b_r.resp;
                 fub_axi_rlast = cpu_32b_r.last;
                 fub_axi_rvalid = cpu_32b_rvalid;
             end
             3'b100: begin  // Slave 2 (32b)
-                r_rmp_slot = cpu_32b_r.id[3:0];
+                r_rmp_slot = cpu_32b_r.id[2:0];
                 fub_axi_rdata = cpu_32b_r.data;
                 fub_axi_rresp = cpu_32b_r.resp;
                 fub_axi_rlast = cpu_32b_r.last;

@@ -1,0 +1,149 @@
+{
+ "bridge": "bridge_2x2_lite_req",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "lite4",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (lite4 -> mem, write 10 / read 9)",
+   "warning": null
+  },
+  {
+   "port": "lite4",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "lite5",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (lite5 -> mem, write 10 / read 9)",
+   "warning": null
+  },
+  {
+   "port": "lite5",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "mem",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (lite4 -> mem, write 10 / read 9)",
+   "warning": null
+  },
+  {
+   "port": "regs",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (lite4 -> regs, write 10 / read 9)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "lite4",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "lite4",
+   "slave": "regs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "lite5",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "lite5",
+   "slave": "regs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": []
+}

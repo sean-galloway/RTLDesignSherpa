@@ -226,7 +226,7 @@ module bridge_3x2_rw_mcdc_mon_sram_adapter
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr_monlite #(
         .SKID_DEPTH_AW(0),
-        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(6),
         .AXI_ADDR_WIDTH(32),

@@ -42,6 +42,7 @@ bridge_2x2_rw_wdog,test_configs/bridge_2x2_rw_wdog.toml,test_configs/bridge_2x2_
 bridge_2x2_rw_qos_pipe,test_configs/bridge_2x2_rw_qos_pipe.toml,test_configs/bridge_2x2_rw_qos_pipe_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_rw_matrix,test_configs/bridge_2x2_rw_matrix.toml,test_configs/bridge_2x2_rw_matrix_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_4x4_rw_matrix,test_configs/bridge_4x4_rw_matrix.toml,test_configs/bridge_4x4_rw_matrix_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_2x2_rw_slow,test_configs/bridge_2x2_rw_slow.toml,test_configs/bridge_2x2_rw_slow_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_rw_depth,test_configs/bridge_2x2_rw_depth.toml,test_configs/bridge_2x2_rw_depth_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_rw_lat,test_configs/bridge_2x2_rw_lat.toml,test_configs/bridge_2x2_rw_lat_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_2x2_rw_xbar,test_configs/bridge_2x2_rw_xbar.toml,test_configs/bridge_2x2_rw_xbar_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests

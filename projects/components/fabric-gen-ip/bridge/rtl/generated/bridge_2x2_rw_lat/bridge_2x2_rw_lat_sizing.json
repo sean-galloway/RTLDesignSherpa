@@ -1,0 +1,149 @@
+{
+ "bridge": "bridge_2x2_rw_lat",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 7,
+   "basis": "1 + latency_cycles 0 + round trip 6 (cpu -> sram, write 6 / read 5)",
+   "warning": null
+  },
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "dma",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 8,
+   "basis": "1 + latency_cycles 0 + round trip 7 (dma -> sram, write 7 / read 6)",
+   "warning": null
+  },
+  {
+   "port": "dma",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "ddr",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 5,
+   "basis": "1 + latency_cycles 0 + round trip 4 (dma -> ddr, write 4 / read 3)",
+   "warning": null
+  },
+  {
+   "port": "sram",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 8,
+   "basis": "1 + latency_cycles 0 + round trip 7 (dma -> sram, write 7 / read 6)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "cpu",
+   "slave": "ddr",
+   "read": 2,
+   "write": 3,
+   "terms": {
+    "master request stage": 0,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 0
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "sram",
+   "read": 5,
+   "write": 6,
+   "terms": {
+    "master request stage": 0,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 0
+   }
+  },
+  {
+   "master": "dma",
+   "slave": "ddr",
+   "read": 3,
+   "write": 4,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 0
+   }
+  },
+  {
+   "master": "dma",
+   "slave": "sram",
+   "read": 6,
+   "write": 7,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 0
+   }
+  }
+ ],
+ "warnings": []
+}

@@ -935,9 +935,9 @@ module bridge_2x2_rw_depth_xbar
     assign subtractive_axi_awvalid = cpu_32b_aw_gnt_subtractive || dma_32b_aw_gnt_subtractive;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
-    // (16 deep: max_outstanding 16)
-    logic [0:0] subtractive_wowner_mem [16];
-    logic [4:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
+    // (32 deep: max_outstanding 32)
+    logic [0:0] subtractive_wowner_mem [32];
+    logic [5:0] subtractive_wowner_wptr, subtractive_wowner_rptr;
     logic subtractive_wowner_ahead;
     wire subtractive_wowner_valid = (subtractive_wowner_wptr != subtractive_wowner_rptr);
     wire subtractive_wowner_byp = !subtractive_wowner_valid && !subtractive_wowner_ahead && subtractive_axi_awvalid;
@@ -952,7 +952,7 @@ module bridge_2x2_rw_depth_xbar
             if (subtractive_wowner_aw_hs && subtractive_wowner_ahead) begin
                 subtractive_wowner_ahead <= 1'b0;   // its W already went
             end else if (subtractive_wowner_aw_hs && !(subtractive_wowner_byp && subtractive_wowner_w_end)) begin
-                subtractive_wowner_mem[subtractive_wowner_wptr[3:0]] <= subtractive_aw_arb_gnt;
+                subtractive_wowner_mem[subtractive_wowner_wptr[4:0]] <= subtractive_aw_arb_gnt;
                 subtractive_wowner_wptr <= subtractive_wowner_wptr + 1'b1;
             end else if (!subtractive_wowner_aw_hs && subtractive_wowner_byp && subtractive_wowner_w_end) begin
                 subtractive_wowner_ahead <= 1'b1;
@@ -962,7 +962,7 @@ module bridge_2x2_rw_depth_xbar
             end
         end
     )
-    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[3:0]]
+    wire [0:0] subtractive_wowner_head = subtractive_wowner_valid ? subtractive_wowner_mem[subtractive_wowner_rptr[4:0]]
                                        : subtractive_aw_arb_gnt;
     assign cpu_32b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd0) && cpu_32b_w_to_subtractive;
     assign dma_32b_w_sel_subtractive = (subtractive_wowner_valid || subtractive_wowner_byp) && (subtractive_wowner_head == 1'd1) && dma_32b_w_to_subtractive;

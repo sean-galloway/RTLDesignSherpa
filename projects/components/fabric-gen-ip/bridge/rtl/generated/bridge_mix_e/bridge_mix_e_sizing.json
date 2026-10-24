@@ -1,0 +1,239 @@
+{
+ "bridge": "bridge_mix_e",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "cpu_axi3",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 16,
+   "basis": "1 + latency_cycles 0 + round trip 15 (cpu_axi3 -> apb_periph, write 15 / read 14)",
+   "warning": null
+  },
+  {
+   "port": "cpu_axi3",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "dma_axi4",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 15,
+   "basis": "1 + latency_cycles 0 + round trip 14 (dma_axi4 -> apb_periph, write 14 / read 13)",
+   "warning": null
+  },
+  {
+   "port": "dma_axi4",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "host_apb",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (host_apb -> apb_periph, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "host_apb",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "ddr_axi3",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (cpu_axi3 -> ddr_axi3, write 10 / read 9)",
+   "warning": null
+  },
+  {
+   "port": "sram_axi4",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 10,
+   "basis": "1 + latency_cycles 0 + round trip 9 (cpu_axi3 -> sram_axi4, write 9 / read 8)",
+   "warning": null
+  },
+  {
+   "port": "apb_periph",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 16,
+   "basis": "1 + latency_cycles 0 + round trip 15 (cpu_axi3 -> apb_periph, write 15 / read 14)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "cpu_axi3",
+   "slave": "ddr_axi3",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu_axi3",
+   "slave": "sram_axi4",
+   "read": 8,
+   "write": 9,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu_axi3",
+   "slave": "apb_periph",
+   "read": 14,
+   "write": 15,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 5,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 4,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma_axi4",
+   "slave": "ddr_axi3",
+   "read": 8,
+   "write": 9,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma_axi4",
+   "slave": "sram_axi4",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma_axi4",
+   "slave": "apb_periph",
+   "read": 13,
+   "write": 14,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 4,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 4,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "host_apb",
+   "slave": "apb_periph",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": []
+}

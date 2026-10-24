@@ -444,8 +444,8 @@ module bridge_2x2_rw_xbar_cpu_adapter
     // OUTPUT slave_select_aw mirrors the live combinational decode.
     assign slave_select_aw = comb_slave_select_aw;
 
-    localparam int AW_TRK_DEPTH = 16;
-    localparam int AW_TRK_AW    = 4;
+    localparam int AW_TRK_DEPTH = 4;
+    localparam int AW_TRK_AW    = 2;
     // -------- AW per-ID target table (fixes bridge GitHub #119 L1) --------
     // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
     // in flight may only add more to the SAME slave (AXI same-ID order);
@@ -561,8 +561,8 @@ module bridge_2x2_rw_xbar_cpu_adapter
     // OUTPUT slave_select_ar mirrors the live combinational decode.
     assign slave_select_ar = comb_slave_select_ar;
 
-    localparam int AR_TRK_DEPTH = 16;
-    localparam int AR_TRK_AW    = 4;
+    localparam int AR_TRK_DEPTH = 4;
+    localparam int AR_TRK_AW    = 2;
     // -------- AR per-ID target table (fixes bridge GitHub #119 L1) --------
     // 16 entries indexed by the ID's low 4 bit(s). An ID with requests
     // in flight may only add more to the SAME slave (AXI same-ID order);

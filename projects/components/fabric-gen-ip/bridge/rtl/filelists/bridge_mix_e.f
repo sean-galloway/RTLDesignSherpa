@@ -45,9 +45,6 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_mix_e/s
 # AXI3 completer front end (slaves with protocol=axi3, bridge GitHub #97)
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/axi4_to_axi3.f
 
-# Rate-matching buffers on upsized paths into shared slaves (bridge W2)
--f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f
-
 # Transaction-ID remap tables in the master adapters (bridge_id_remap)
 -f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f
 

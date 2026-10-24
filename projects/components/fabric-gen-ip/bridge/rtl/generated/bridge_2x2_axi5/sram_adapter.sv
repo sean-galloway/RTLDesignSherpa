@@ -194,7 +194,7 @@ module bridge_2x2_axi5_sram_adapter
     // AXI5 Master Write Timing Wrapper
     axi5_master_wr #(
         .SKID_DEPTH_AW(0),
-        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(5),
         .AXI_ADDR_WIDTH(32),

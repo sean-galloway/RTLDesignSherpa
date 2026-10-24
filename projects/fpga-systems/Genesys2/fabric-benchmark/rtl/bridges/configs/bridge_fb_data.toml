@@ -24,6 +24,12 @@
 name = "bridge_fb_data"
 description = "Genesys 2 fabric benchmark, Leg A: 4x4 AXI4 128-bit data fabric"
 variants = ["no"]
+# Depths pinned to the values this fabric was measured with on the board
+# (bridge TASK-016 made the generator's defaults the sizing rule's minimum;
+# a pinned key is a decision the rule reports beside, not a guess):
+max_outstanding = 16
+rate_buffer = 16
+defaults.skid_depths = {aw = 2, w = 4, b = 2, ar = 2, r = 2}
 
 [bridge.clock]
 name = "aclk"

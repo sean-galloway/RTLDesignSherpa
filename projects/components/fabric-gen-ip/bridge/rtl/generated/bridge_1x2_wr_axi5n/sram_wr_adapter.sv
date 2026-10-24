@@ -97,7 +97,7 @@ module bridge_1x2_wr_axi5n_sram_wr_adapter
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;  // max_outstanding
+    localparam WR_FIFO_DEPTH = 8;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
 
@@ -174,7 +174,7 @@ module bridge_1x2_wr_axi5n_sram_wr_adapter
     // AXI5 Master Write Timing Wrapper
     axi5_master_wr #(
         .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),

@@ -358,7 +358,7 @@ module bridge_5x3_channels_subtractive_adapter
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(0),
-        .SKID_DEPTH_R(2),
+        .SKID_DEPTH_R(4),
         .AXI_ID_WIDTH(7),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(256),

@@ -138,15 +138,15 @@ module bridge_2x2_rw_xbar_ddr_adapter
     logic wr_trk_full;
     logic w_sub_awready;
     assign xbar_ddr_axi_awready = w_sub_awready && !wr_trk_full;
-    logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
+    logic [2:0] wr_out_cnt;  // in flight, 0..4 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             wr_out_cnt <= '0;
         end else begin
-            wr_out_cnt <= wr_out_cnt + 5'(xbar_ddr_axi_awvalid && xbar_ddr_axi_awready) - 5'(xbar_ddr_axi_bvalid && xbar_ddr_axi_bready);
+            wr_out_cnt <= wr_out_cnt + 3'(xbar_ddr_axi_awvalid && xbar_ddr_axi_awready) - 3'(xbar_ddr_axi_bvalid && xbar_ddr_axi_bready);
         end
     )
-    assign wr_trk_full = (wr_out_cnt == 5'(16));
+    assign wr_trk_full = (wr_out_cnt == 3'(4));
     assign bid_bridge_id = xbar_ddr_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign bid_valid     = 1'b1;
 
@@ -154,15 +154,15 @@ module bridge_2x2_rw_xbar_ddr_adapter
     logic rd_trk_full;
     logic w_sub_arready;
     assign xbar_ddr_axi_arready = w_sub_arready && !rd_trk_full;
-    logic [4:0] rd_out_cnt;  // in flight, 0..16 (max_outstanding)
+    logic [2:0] rd_out_cnt;  // in flight, 0..4 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             rd_out_cnt <= '0;
         end else begin
-            rd_out_cnt <= rd_out_cnt + 5'(xbar_ddr_axi_arvalid && xbar_ddr_axi_arready) - 5'(xbar_ddr_axi_rvalid && xbar_ddr_axi_rready && xbar_ddr_axi_rlast);
+            rd_out_cnt <= rd_out_cnt + 3'(xbar_ddr_axi_arvalid && xbar_ddr_axi_arready) - 3'(xbar_ddr_axi_rvalid && xbar_ddr_axi_rready && xbar_ddr_axi_rlast);
         end
     )
-    assign rd_trk_full = (rd_out_cnt == 5'(16));
+    assign rd_trk_full = (rd_out_cnt == 3'(4));
     assign rid_bridge_id = xbar_ddr_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign rid_valid     = 1'b1;
 

@@ -12,13 +12,13 @@
 module bridge_2x2_rw_lat_sram_adapter
     import bridge_2x2_rw_lat_pkg::*;
 #(
-    parameter int ID_WIDTH = 5
+    parameter int ID_WIDTH = 4
 ) (
     input  logic aclk,
     input  logic aresetn,
 
     // Crossbar interface (AXI4 from crossbar)
-    input  logic [4:0]  xbar_sram_axi_awid,
+    input  logic [3:0]  xbar_sram_axi_awid,
     input  logic [31:0]  xbar_sram_axi_awaddr,
     input  logic [7:0]  xbar_sram_axi_awlen,
     input  logic [2:0]  xbar_sram_axi_awsize,
@@ -37,12 +37,12 @@ module bridge_2x2_rw_lat_sram_adapter
     input  logic         xbar_sram_axi_wuser,
     input  logic         xbar_sram_axi_wvalid,
     output  logic         xbar_sram_axi_wready,
-    output  logic [4:0]  xbar_sram_axi_bid,
+    output  logic [3:0]  xbar_sram_axi_bid,
     output  logic [1:0]  xbar_sram_axi_bresp,
     output  logic         xbar_sram_axi_buser,
     output  logic         xbar_sram_axi_bvalid,
     input  logic         xbar_sram_axi_bready,
-    input  logic [4:0]  xbar_sram_axi_arid,
+    input  logic [3:0]  xbar_sram_axi_arid,
     input  logic [31:0]  xbar_sram_axi_araddr,
     input  logic [7:0]  xbar_sram_axi_arlen,
     input  logic [2:0]  xbar_sram_axi_arsize,
@@ -55,7 +55,7 @@ module bridge_2x2_rw_lat_sram_adapter
     input  logic         xbar_sram_axi_aruser,
     input  logic         xbar_sram_axi_arvalid,
     output  logic         xbar_sram_axi_arready,
-    output  logic [4:0]  xbar_sram_axi_rid,
+    output  logic [3:0]  xbar_sram_axi_rid,
     output  logic [31:0]  xbar_sram_axi_rdata,
     output  logic [1:0]  xbar_sram_axi_rresp,
     output  logic         xbar_sram_axi_rlast,
@@ -73,7 +73,7 @@ module bridge_2x2_rw_lat_sram_adapter
     output logic                       rid_valid,
 
     // External slave interface (AXI4)
-    output  logic [4:0]  sram_s_axi_awid,
+    output  logic [3:0]  sram_s_axi_awid,
     output  logic [31:0]  sram_s_axi_awaddr,
     output  logic [7:0]  sram_s_axi_awlen,
     output  logic [2:0]  sram_s_axi_awsize,
@@ -92,12 +92,12 @@ module bridge_2x2_rw_lat_sram_adapter
     output  logic         sram_s_axi_wuser,
     output  logic         sram_s_axi_wvalid,
     input  logic         sram_s_axi_wready,
-    input  logic [4:0]  sram_s_axi_bid,
+    input  logic [3:0]  sram_s_axi_bid,
     input  logic [1:0]  sram_s_axi_bresp,
     input  logic         sram_s_axi_buser,
     input  logic         sram_s_axi_bvalid,
     output  logic         sram_s_axi_bready,
-    output  logic [4:0]  sram_s_axi_arid,
+    output  logic [3:0]  sram_s_axi_arid,
     output  logic [31:0]  sram_s_axi_araddr,
     output  logic [7:0]  sram_s_axi_arlen,
     output  logic [2:0]  sram_s_axi_arsize,
@@ -110,7 +110,7 @@ module bridge_2x2_rw_lat_sram_adapter
     output  logic         sram_s_axi_aruser,
     output  logic         sram_s_axi_arvalid,
     input  logic         sram_s_axi_arready,
-    input  logic [4:0]  sram_s_axi_rid,
+    input  logic [3:0]  sram_s_axi_rid,
     input  logic [31:0]  sram_s_axi_rdata,
     input  logic [1:0]  sram_s_axi_rresp,
     input  logic         sram_s_axi_rlast,
@@ -138,15 +138,15 @@ module bridge_2x2_rw_lat_sram_adapter
     logic wr_trk_full;
     logic w_sub_awready;
     assign xbar_sram_axi_awready = w_sub_awready && !wr_trk_full;
-    logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
+    logic [3:0] wr_out_cnt;  // in flight, 0..8 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             wr_out_cnt <= '0;
         end else begin
-            wr_out_cnt <= wr_out_cnt + 5'(xbar_sram_axi_awvalid && xbar_sram_axi_awready) - 5'(xbar_sram_axi_bvalid && xbar_sram_axi_bready);
+            wr_out_cnt <= wr_out_cnt + 4'(xbar_sram_axi_awvalid && xbar_sram_axi_awready) - 4'(xbar_sram_axi_bvalid && xbar_sram_axi_bready);
         end
     )
-    assign wr_trk_full = (wr_out_cnt == 5'(16));
+    assign wr_trk_full = (wr_out_cnt == 4'(8));
     assign bid_bridge_id = xbar_sram_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign bid_valid     = 1'b1;
 
@@ -154,15 +154,15 @@ module bridge_2x2_rw_lat_sram_adapter
     logic rd_trk_full;
     logic w_sub_arready;
     assign xbar_sram_axi_arready = w_sub_arready && !rd_trk_full;
-    logic [4:0] rd_out_cnt;  // in flight, 0..16 (max_outstanding)
+    logic [3:0] rd_out_cnt;  // in flight, 0..8 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             rd_out_cnt <= '0;
         end else begin
-            rd_out_cnt <= rd_out_cnt + 5'(xbar_sram_axi_arvalid && xbar_sram_axi_arready) - 5'(xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast);
+            rd_out_cnt <= rd_out_cnt + 4'(xbar_sram_axi_arvalid && xbar_sram_axi_arready) - 4'(xbar_sram_axi_rvalid && xbar_sram_axi_rready && xbar_sram_axi_rlast);
         end
     )
-    assign rd_trk_full = (rd_out_cnt == 5'(16));
+    assign rd_trk_full = (rd_out_cnt == 4'(8));
     assign rid_bridge_id = xbar_sram_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign rid_valid     = 1'b1;
 
@@ -171,7 +171,7 @@ module bridge_2x2_rw_lat_sram_adapter
         .SKID_DEPTH_AW(0),
         .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
-        .AXI_ID_WIDTH(5),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1)
@@ -239,7 +239,7 @@ module bridge_2x2_rw_lat_sram_adapter
     axi4_master_rd #(
         .SKID_DEPTH_AR(0),
         .SKID_DEPTH_R(2),
-        .AXI_ID_WIDTH(5),
+        .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),
         .AXI_USER_WIDTH(1)

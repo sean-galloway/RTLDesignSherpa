@@ -202,7 +202,7 @@ module bridge_1x2_rw_apb5_mon_sram_adapter
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;  // max_outstanding
+    localparam WR_FIFO_DEPTH = 8;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
 
@@ -280,7 +280,7 @@ module bridge_1x2_rw_apb5_mon_sram_adapter
     // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
-    localparam RD_FIFO_DEPTH = 16;  // max_outstanding
+    localparam RD_FIFO_DEPTH = 8;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
 
@@ -346,7 +346,7 @@ module bridge_1x2_rw_apb5_mon_sram_adapter
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr_monlite #(
         .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),
@@ -354,7 +354,7 @@ module bridge_1x2_rw_apb5_mon_sram_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(1),
-        .MAX_TRANSACTIONS(16),
+        .MAX_TRANSACTIONS(8),
         .USE_MONITOR(USE_MONITOR_WR)
     ) u_master_wr (
         .aclk(aclk),
@@ -459,7 +459,7 @@ module bridge_1x2_rw_apb5_mon_sram_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(0),
-        .MAX_TRANSACTIONS(16),
+        .MAX_TRANSACTIONS(8),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),

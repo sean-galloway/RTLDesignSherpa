@@ -15,6 +15,8 @@
 from __future__ import annotations
 
 import csv
+import pathlib
+import json
 import os
 import re
 import subprocess
@@ -2120,7 +2122,7 @@ base_addr = "0x0000_0000"
 addr_range = "0x0001_0000"
 """)
     conn.write_text("master,s0\nm0,1\n")
-    with pytest.raises(ValueError, match="arbitration must be 'rr' or 'qos'"):
+    with pytest.raises(ValueError, match="arbitration must be 'rr', 'qos' or 'matrix'"):
         load_config(str(toml), str(conn))
 
 
@@ -2603,7 +2605,10 @@ def test_rate_buffer_defaults_and_overrides(tmp_path):
     assert cfg.masters[0].rate_buffer == 8                  # port override
     (tmp_path / "d").mkdir()
     toml2, conn2 = _write_min_toml(tmp_path / "d", slave_extra='channels = "rd"')
-    assert load_config(toml2, conn2).masters[0].rate_buffer == 16   # default
+    # default: the rule (bridge TASK-016) -- no upsized path into a shared
+    # slave here, so no rate buffer; a shared upsized path derives
+    # max_burst_beats / ratio (test_sizing_rate_buffer_...)
+    assert load_config(toml2, conn2).masters[0].rate_buffer == 0
     _with_bridge_key(toml2, "rate_buffer = 0")
     assert load_config(toml2, conn2).masters[0].rate_buffer == 0    # [bridge], off
 
@@ -2725,7 +2730,7 @@ def test_skid_depths_resolve_defaults_bridge_port_then_latency(tmp_path):
     assert m.latency == "cut_ax"
     assert m.skid_depths == {'aw': 6, 'w': 0, 'b': 0, 'ar': 2, 'r': 0}
     assert s.latency == "cut_all"
-    assert s.skid_depths == {'aw': 2, 'w': 4, 'b': 2, 'ar': 2, 'r': 4}
+    assert s.skid_depths == {'aw': 2, 'w': 2, 'b': 2, 'ar': 2, 'r': 4}   # w is 2 since bridge TASK-016
 
 
 @pytest.mark.parametrize("extra,match", [
@@ -3065,3 +3070,117 @@ def test_narrow_slave_decode_uses_the_fabric_address_width(tmp_path):
         want = f"(cpu_32b_aw.addr >= 32'h{base}) && (cpu_32b_aw.addr <= 32'h{end})"
         assert want in text, (
             f"slave at 0x{base}: decode lacks its full 32-bit range {want!r}")
+
+
+# ---------------------------------------------------------------------------
+# bridge TASK-016: the buffer sizing rule (bridge_pkg.sizing)
+# ---------------------------------------------------------------------------
+from bridge_pkg import sizing                             # noqa: E402
+
+# Single-beat round trips the bandwidth gate measured at one in flight
+# (test_bridge_perf_char.RTT_BUDGET, 2026-10-17): the model is a bound, held
+# to within two cycles above the measurement and never below it.
+_MEASURED_RTT = {
+    ('bridge_2x2_rw', 'cpu', 'ddr'): 8,
+    ('bridge_2x2_rw_pipe', 'cpu', 'ddr'): 10,
+    ('bridge_4x4_rw', 'dma0_master', 'sram_slave'): 12,     # 32 -> 128 upsize, rate buffer
+    ('bridge_2x2_rw_cdc', 'cpu', 'ddr'): 13,
+}
+
+
+def _cfg(name):
+    return load_config(_fixture(f"{name}.toml"))
+
+
+@pytest.mark.parametrize("name, master, slave", sorted(_MEASURED_RTT))
+def test_sizing_round_trip_model_bounds_the_measurement(name, master, slave):
+    cfg = _cfg(name)
+    m = next(p for p in cfg.masters if p.port_name == master)
+    s = next(p for p in cfg.slaves if p.port_name == slave)
+    lp = sizing.path_loop(cfg, m, s)
+    meas = _MEASURED_RTT[(name, master, slave)]
+    assert meas <= lp.worst <= meas + 2, f"{name} {master}->{slave}: model {lp.worst}, measured {meas}"
+
+
+def test_sizing_default_outstanding_is_the_rule_rounded_up():
+    cfg = _cfg('bridge_2x2_rw')
+    rows = {(r.port, r.key): r for r in cfg.sizing}
+    r = rows[('cpu', 'max_outstanding')]
+    assert r.source == 'rule' and r.rule_min == 9 and r.value == 16      # 1 + 0 + 8 -> pow2
+    assert all(x.value == 16 for x in cfg.sizing if x.key == 'max_outstanding')
+    assert not cfg.sizing_warnings
+
+
+def test_sizing_cut_to_wires_derives_a_smaller_depth():
+    cfg = _cfg('bridge_2x2_rw_xbar')          # preset xbar: cut_none, id_remap = false
+    rows = {(r.port, r.key): r for r in cfg.sizing}
+    assert rows[('cpu', 'max_outstanding')].value == 4          # 1 + 0 + 3, no remap floor
+    assert rows[('ddr', 'max_outstanding')].value == 4
+    assert 'subtractive' not in rows[('cpu', 'max_outstanding')].basis
+
+
+def test_sizing_never_turns_id_remap_on_by_itself():
+    # one master, 4-bit ID, round trip 7: the rule alone says 8, which would
+    # narrow the remap slot under the ID and switch bridge_id_remap on
+    cfg = _cfg('bridge_1x2_rd_axi5')
+    rows = {(x.port, x.key): x for x in cfg.sizing}
+    r = rows[('cpu_rd', 'max_outstanding')]
+    assert r.value == 16 and 'floored at 2**id_width' in r.basis
+    assert rows[('ddr_rd', 'max_outstanding')].value == 8        # slaves carry no such floor
+    # an 8-bit-ID master is remapped either way: the rule applies unfloored
+    lat = {(x.port, x.key): x for x in _cfg('bridge_2x2_rw_lat').sizing}
+    assert lat[('cpu', 'max_outstanding')].value == 8
+
+
+def test_sizing_latency_hint_raises_the_default(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"\nlatency_cycles = 16')
+    cfg = load_config(toml, conn)
+    rows = {(r.port, r.key): r for r in cfg.sizing}
+    r = rows[('m0', 'max_outstanding')]
+    assert r.source == 'rule' and r.rule_min == 1 + 16 + sizing.path_loop(cfg, cfg.masters[0], cfg.slaves[0]).worst
+    assert r.value == sizing.pow2_ceil(r.rule_min) == 32
+
+
+def test_sizing_explicit_value_wins_and_warns_below_the_rule(tmp_path, capsys):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"\nlatency_cycles = 16',
+                                 master_extra="max_outstanding = 4")
+    cfg = load_config(toml, conn)
+    r = {(x.port, x.key): x for x in cfg.sizing}[('m0', 'max_outstanding')]
+    assert r.source == 'toml' and r.value == 4 and r.warning
+    assert any("under the rule's minimum" in w for w in cfg.sizing_warnings)
+    assert "WARNING" in capsys.readouterr().out
+
+
+def test_sizing_bridge_level_key_pins_every_port(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"\nlatency_cycles = 64')
+    text = pathlib.Path(toml).read_text().replace('variants = ["no"]', 'variants = ["no"]\nmax_outstanding = 16')
+    pathlib.Path(toml).write_text(text)
+    cfg = load_config(toml, conn)
+    assert all(x.source == 'toml' and x.value == 16 for x in cfg.sizing if x.key == 'max_outstanding')
+
+
+def test_sizing_rate_buffer_holds_one_burst_on_a_shared_upsized_path():
+    cfg = _cfg('bridge_4x4_rw')
+    rows = {(r.port, r.key): r for r in cfg.sizing}
+    assert rows[('dma0_master', 'rate_buffer')].value == 8          # 16 beats / 2:1
+    assert rows[('gpu_master', 'rate_buffer')].value == 0           # nothing upsized
+    cfg2 = _cfg('bridge_2x2_rw')
+    assert all(x.value == 0 for x in cfg2.sizing if x.key == 'rate_buffer')
+
+
+def test_sizing_latency_cycles_is_a_slave_key(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"', master_extra="latency_cycles = 8")
+    with pytest.raises(ValueError, match="slave key"):
+        load_config(toml, conn)
+
+
+def test_sizing_report_is_written_beside_the_config(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"')
+    out = tmp_path / "out"
+    r = subprocess.run([sys.executable, str(BIN_DIR / "bridge_generator.py"), "--ports", toml,
+                        "--connectivity", conn, "--output-dir", str(out)],
+                       capture_output=True, text=True, timeout=600)
+    assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
+    rep = json.loads((out / "b" / "b_sizing.json").read_text())
+    assert rep['bridge'] == 'b' and rep['ports'] and rep['paths']
+    assert {p['key'] for p in rep['ports']} == {'max_outstanding', 'rate_buffer'}

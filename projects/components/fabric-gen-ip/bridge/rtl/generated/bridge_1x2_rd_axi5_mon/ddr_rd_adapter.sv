@@ -116,7 +116,7 @@ module bridge_1x2_rd_axi5_mon_ddr_rd_adapter
     // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
-    localparam RD_FIFO_DEPTH = 16;  // max_outstanding
+    localparam RD_FIFO_DEPTH = 8;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
 
@@ -189,7 +189,7 @@ module bridge_1x2_rd_axi5_mon_ddr_rd_adapter
         .AXI_USER_WIDTH(1),
         .UNIT_ID(1),
         .AGENT_ID(0),
-        .MAX_TRANSACTIONS(16),
+        .MAX_TRANSACTIONS(8),
         .USE_MONITOR(USE_MONITOR_RD)
     ) u_master_rd (
         .aclk(aclk),

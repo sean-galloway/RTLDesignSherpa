@@ -21,6 +21,7 @@
 #   split        8:1 downsize writes long enough to split, 1..8 in flight
 #   wr_order     both masters write both slaves, each slave one write at a time
 
+import json
 import os
 import sys
 
@@ -118,8 +119,31 @@ NO_STARVE = 0.05   # a contending master gets at least this share
 FAIR_HALF = 0.45   # round-robin share of two masters that can both fill the slave
 
 
+# The port's outstanding limit (bridge TASK-016): the generator's sizing report
+# beside the RTL, `<bridge>_sizing.json`, names every port's max_outstanding --
+# derived from 1 + latency_cycles + round trip unless the TOML pins it. A stream
+# asked to keep n in flight keeps at most this many, so the floor is Little's
+# law at min(n, depth): bridge_2x2_rw_lat derives 8 (its ports are cut to
+# wires, round trip 6-7), and its 16- and 32-in-flight rows at 64 cycles of
+# slave latency are bound by 8, not saturated.
+def _port_depth() -> int:
+    path = os.path.join(repo_root, 'projects/components/fabric-gen-ip/bridge/rtl/generated',
+                        DUT_NAME, f'{DUT_NAME}_sizing.json')
+    try:
+        with open(path) as fh:
+            rows = json.load(fh)['ports']
+    except (OSError, ValueError, KeyError):
+        return 64
+    depths = [r['value'] for r in rows if r['key'] == 'max_outstanding']
+    return min(depths) if depths else 64
+
+
+PORT_DEPTH = _port_depth()
+
+
 def little(n_bursts: int, beats: int, lat: int) -> float:
-    return FULL * min(1.0, n_bursts * beats / (beats + lat + RTT_BUDGET[FIXTURE]))
+    n = min(n_bursts, PORT_DEPTH)
+    return FULL * min(1.0, n * beats / (beats + lat + RTT_BUDGET[FIXTURE]))
 
 
 def floors(tb) -> Floors:

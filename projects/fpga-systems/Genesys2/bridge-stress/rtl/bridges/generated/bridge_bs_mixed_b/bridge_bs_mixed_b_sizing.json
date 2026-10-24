@@ -1,0 +1,909 @@
+{
+ "bridge": "bridge_bs_mixed_b",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 15,
+   "basis": "1 + latency_cycles 0 + round trip 14 (cpu -> p4s, write 14 / read 13)",
+   "warning": null
+  },
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "l4m",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (l4m -> p4s, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "l4m",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "l5m",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (l5m -> p4s, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "l5m",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "p4m",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (p4m -> p4s, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "p4m",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "p5m",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (p5m -> p4s, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "p5m",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "wbm",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (wbm -> p4s, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "wbm",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "mem",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (l4m -> mem, write 10 / read 9)",
+   "warning": null
+  },
+  {
+   "port": "l4s",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 13,
+   "basis": "1 + latency_cycles 0 + round trip 12 (cpu -> l4s, write 12 / read 11)",
+   "warning": null
+  },
+  {
+   "port": "l5s",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (l4m -> l5s, write 10 / read 9)",
+   "warning": null
+  },
+  {
+   "port": "p4s",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 15,
+   "basis": "1 + latency_cycles 0 + round trip 14 (cpu -> p4s, write 14 / read 13)",
+   "warning": null
+  },
+  {
+   "port": "p5s",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 15,
+   "basis": "1 + latency_cycles 0 + round trip 14 (cpu -> p5s, write 14 / read 13)",
+   "warning": null
+  },
+  {
+   "port": "wbs",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 11,
+   "basis": "1 + latency_cycles 0 + round trip 10 (l4m -> wbs, write 10 / read 9)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "cpu",
+   "slave": "mem",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "l4s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "l5s",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "p4s",
+   "read": 13,
+   "write": 14,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 4,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 4,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "p5s",
+   "read": 13,
+   "write": 14,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 4,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 4,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "wbs",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l4m",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l4m",
+   "slave": "l4s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l4m",
+   "slave": "l5s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l4m",
+   "slave": "p4s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l4m",
+   "slave": "p5s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l4m",
+   "slave": "wbs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l5m",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l5m",
+   "slave": "l4s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l5m",
+   "slave": "l5s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l5m",
+   "slave": "p4s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l5m",
+   "slave": "p5s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "l5m",
+   "slave": "wbs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p4m",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p4m",
+   "slave": "l4s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p4m",
+   "slave": "l5s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p4m",
+   "slave": "p4s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p4m",
+   "slave": "p5s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p4m",
+   "slave": "wbs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p5m",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p5m",
+   "slave": "l4s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p5m",
+   "slave": "l5s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p5m",
+   "slave": "p4s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p5m",
+   "slave": "p5s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "p5m",
+   "slave": "wbs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "wbm",
+   "slave": "mem",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "wbm",
+   "slave": "l4s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "wbm",
+   "slave": "l5s",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "wbm",
+   "slave": "p4s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "wbm",
+   "slave": "p5s",
+   "read": 11,
+   "write": 12,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "wbm",
+   "slave": "wbs",
+   "read": 9,
+   "write": 10,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": []
+}

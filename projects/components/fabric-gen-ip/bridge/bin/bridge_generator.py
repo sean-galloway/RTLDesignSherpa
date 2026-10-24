@@ -33,6 +33,7 @@ See bridge_pkg/ for implementation details.
 
 import argparse
 import sys
+import json
 import os
 import shutil
 import csv
@@ -986,6 +987,16 @@ def _emit_bridge_variant(
         conn_copy = os.path.join(bridge_dir, os.path.basename(connectivity_file))
         shutil.copy2(connectivity_file, conn_copy)
         print(f"  Copied connectivity: {conn_copy}")
+
+    # bridge TASK-016: every depth the bridge was built with, the rule's minimum
+    # beside it and the per-path round trips -- the record a reader of this
+    # directory needs, and what the perf tests read.
+    from bridge_pkg import sizing as _sizing
+    sizing_path = os.path.join(bridge_dir, f"{output_name}_sizing.json")
+    with open(sizing_path, 'w') as fh:
+        json.dump(_sizing.as_dict(config), fh, indent=1)
+        fh.write("\n")
+    print(f"  Sizing report: {sizing_path}")
 
     # Generate filelist with dependencies
     #

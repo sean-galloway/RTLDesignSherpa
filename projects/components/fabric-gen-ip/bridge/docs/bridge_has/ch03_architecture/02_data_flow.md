@@ -190,6 +190,20 @@ read to slave 1 with ID 2. The slave 1 response returns first. With ID 2
 changed to ID 1, the second read is held at the master adapter until the
 first returns. `test_bridge_2x2_rw_multitarget` measures both cases.
 
+## Buffer Sizing
+
+Every response-tracking buffer on a path -- the master adapter's trackers,
+remap table and W-destination FIFO, the slave adapter's by-ID counter or
+in-order FIFO, the W-owner FIFO at an arbitrated slave -- is sized by one
+number per port, `max_outstanding`, and the rate-matching buffer on an
+upsized shared path by `rate_buffer`. Since bridge TASK-016 the generator
+derives both from the credit-loop rule when the TOML leaves them unset (the
+smallest power of two covering `1 + latency_cycles + round trip`, the round
+trip modelled per path from the stages it builds) and reports every depth
+with the rule beside it in `<bridge>_sizing.json`. The rule, its
+calibration and the measured step at its boundary are HAS 5.1 "Buffer
+Sizing Rule"; the keys are HAS 6.2.
+
 ## References
 
 * Dally & Towles, *Principles and Practices of Interconnection Networks*, Morgan Kaufmann 2004 — per-slave arbiters as a separable allocator degenerated to one resource per channel (ch18 §19.3), and skid buffers as buffered flow control (ch12). ([Reference archive](../../../references/README.md))

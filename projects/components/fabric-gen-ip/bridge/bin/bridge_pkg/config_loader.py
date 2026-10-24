@@ -215,6 +215,28 @@ def _bool_key(value, config_path, where, key) -> bool:
     return value
 
 
+def _latency_cycles(value, config_path, where) -> int:
+    """Validate a slave's latency_cycles hint (bridge TASK-016): 0..4096."""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{config_path}: {where} latency_cycles must be an integer, got {value!r}")
+    if not (0 <= v <= 4096):
+        raise ValueError(f"{config_path}: {where} latency_cycles must be 0..4096, got {v}")
+    return v
+
+
+def _max_burst_beats(value, config_path, where) -> int:
+    """Validate a master's max_burst_beats (bridge TASK-016): 1..256."""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{config_path}: {where} max_burst_beats must be an integer, got {value!r}")
+    if not (1 <= v <= 256):
+        raise ValueError(f"{config_path}: {where} max_burst_beats must be 1..256 (AXI4 bursts), got {v}")
+    return v
+
+
 def _rate_buffer(value, config_path, where) -> int:
     """Validate a rate_buffer depth: 0 (off) or 2..256 wide beats. Any
     integer: the buffer is a gaxi_fifo_sync, which takes any depth."""
@@ -247,9 +269,11 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     bridge_data = data.get('bridge')
     _mo_default = _max_outstanding(
         (bridge_data or {}).get('max_outstanding', 16), config_path, '[bridge]')
+    _mo_set = 'max_outstanding' in (bridge_data or {})          # bridge TASK-016: pinned for every port
     _ps = _preset(bridge_data, config_path)
     _rb_default = _rate_buffer(
         (bridge_data or {}).get('rate_buffer', _ps.get('rate_buffer', 16)), config_path, '[bridge]')
+    _rb_set = 'rate_buffer' in (bridge_data or {}) or 'rate_buffer' in _ps
     _rm_default = _bool_key((bridge_data or {}).get('id_remap', _ps.get('id_remap', True)),
                             config_path, '[bridge]', 'id_remap')
     _lat_default = _ps.get('latency', 'cut_all')
@@ -257,6 +281,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     _skid_base = _skid_depths(_DEFAULT_SKID_DEPTHS,
                               ((bridge_data or {}).get('defaults') or {}).get('skid_depths'),
                               config_path, '[bridge.defaults]')
+    # carried to load_config for the internal catch-all slave, which is built
+    # there and must follow the same [bridge.defaults] as every other port
+    defaults = {'skid_depths': dict(_skid_base)}
     if not bridge_data:
         raise ValueError("Config file must contain 'bridge' key")
 
@@ -363,11 +390,18 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             cdc=bool(m.get('cdc', False)),
             max_outstanding=_max_outstanding(
                 m.get('max_outstanding', _mo_default), config_path, f"master '{port_name}'"),
+            max_outstanding_set=_mo_set or 'max_outstanding' in m,
+            max_burst_beats=_max_burst_beats(
+                m.get('max_burst_beats', 16), config_path, f"master '{port_name}'"),
             rate_buffer=_rate_buffer(
                 m.get('rate_buffer', _rb_default), config_path, f"master '{port_name}'"),
+            rate_buffer_set=_rb_set or 'rate_buffer' in m,
             id_remap=_bool_key(m.get('id_remap', _rm_default), config_path,
                                f"master '{port_name}'", 'id_remap'),
         )
+        if 'latency_cycles' in m:
+            raise ValueError(f"{config_path}: master '{port_name}': latency_cycles is a slave key "
+                             f"(the slave's own response latency)")
         port.latency, port.skid_depths = _port_timing(
             m, protocol, port.cdc, _skid_base, config_path, f"master '{port_name}'",
             _lat_default)
@@ -451,6 +485,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             timeout_cycles=int(s.get('timeout_cycles', 0)),
             max_outstanding=_max_outstanding(
                 s.get('max_outstanding', _mo_default), config_path, f"slave '{port_name}'"),
+            max_outstanding_set=_mo_set or 'max_outstanding' in s,
+            latency_cycles=_latency_cycles(
+                s.get('latency_cycles', 0), config_path, f"slave '{port_name}'"),
             latency=s_latency,
             skid_depths=s_depths,
             use_monitor=bool(s.get('use_monitor', True)),
@@ -710,6 +747,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
     # Widths follow the WIDEST real slave so the crossbar needs no extra
     # width conversion for a path that only ever carries error responses.
     if slaves and not any(sl.internal for sl in slaves):
+        from .config import _DEFAULT_SKID_DEPTHS
         _widest = max(slaves, key=lambda sl: sl.data_width)
         sub = PortSpec(
             port_name=SUBTRACTIVE_SLAVE_NAME,
@@ -728,6 +766,12 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
             addr_range=1 << 32,
             use_monitor=False,     # it reports through its own monbus port
             internal=True,
+            # bridge TASK-016: its in-order FIFO takes the widest real slave's
+            # depth and pinning, so a fabric pinned at [bridge].max_outstanding
+            # regenerates byte-identical; the sizing rule skips internal ports
+            max_outstanding=_widest.max_outstanding,
+            max_outstanding_set=_widest.max_outstanding_set,
+            skid_depths=dict((defaults or {}).get('skid_depths') or _DEFAULT_SKID_DEPTHS),
         )
         slaves.append(sub)
         # Every master reaches it: an unmapped address from ANY master is the
@@ -758,6 +802,12 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         qos_aging_shift=qos_aging_shift,
         id_track_bits=id_track_bits,
     )
+
+    # bridge TASK-016: derive every unset depth from the sizing rule, report all
+    from . import sizing
+    sizing.apply(config)
+    for line in sizing.report_lines(config):
+        print(line)
 
     # Validate configuration
     print("\nValidating configuration...")

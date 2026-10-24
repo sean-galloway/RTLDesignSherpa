@@ -29,7 +29,10 @@ MON_CONES = ("error", "timeout", "compl", "threshold", "perf", "debug")
 
 # Timing-wrapper skid depths when nothing overrides them (bridge GitHub #119
 # L7 made [bridge.defaults.skid_depths] and interface.skid_depths take effect).
-_DEFAULT_SKID_DEPTHS = {'aw': 2, 'w': 4, 'b': 2, 'ar': 2, 'r': 2}
+# The smallest registered stage that sustains one beat per cycle is two deep
+# (gaxi_skid_buffer); W was 4 until bridge TASK-016 made every default the
+# rule's minimum. A port raises any channel through interface.skid_depths.
+_DEFAULT_SKID_DEPTHS = {'aw': 2, 'w': 2, 'b': 2, 'ar': 2, 'r': 2}
 
 @dataclass
 class MonGroupConfig:
@@ -177,15 +180,32 @@ class PortSpec:
     # which fixes the hard 16): a master adapter's tracker depth and the
     # count width of its per-ID table; a slave adapter's response tracker
     # (by-ID counter or in-order FIFO) depth. Power of two, 2..64. Resolved
-    # in config_loader from the port key or [bridge].max_outstanding.
+    # in config_loader from the port key or [bridge].max_outstanding; when
+    # neither is given, bridge_pkg.sizing derives it (bridge TASK-016): the
+    # smallest power of two >= 1 + latency_cycles + the fabric round trip on
+    # the port's slowest path. max_outstanding_set records which it was.
     max_outstanding: int = 16
+    max_outstanding_set: bool = False
+    # Slaves (bridge TASK-016): the slave's own response latency in cycles,
+    # request handshake to first response beat, as the sizing rule's third
+    # term. 0 = answers the cycle after it accepts. A DRAM controller is
+    # tens to hundreds; set it, or set max_outstanding on the ports that
+    # reach it, or single-beat traffic there runs at
+    # max_outstanding / (1 + latency + round trip) of the port's peak.
+    latency_cycles: int = 0
+    # Masters (bridge TASK-016): the longest write burst this master issues,
+    # beats. Sizes the rate buffer (below) to hold one such burst whole.
+    max_burst_beats: int = 16
     # Rate-matching buffer (bridge W2) on a master's UPSIZED path into a
     # slave other masters share, in wide beats: a write burst that fits is
     # released to the crossbar only once it is buffered whole, and reads are
     # taken at the slave's full rate, so a narrow master does not hold the
     # shared slave at its own rate. 0 = off. Resolved in config_loader from
-    # the port key or [bridge].rate_buffer. Masters only.
+    # the port key or [bridge].rate_buffer; when neither is given,
+    # bridge_pkg.sizing derives it: pow2 >= max_burst_beats / width ratio on
+    # the master's widest upsized path into a shared slave, 0 without one.
     rate_buffer: int = 16
+    rate_buffer_set: bool = False
     # Transaction-ID remap (bridge TASK-018): a master whose ID is wider than
     # a slot ($clog2(max_outstanding)) gets bridge_id_remap. False keeps the
     # master's own ID end to end, so the fabric and slave IDs widen to
@@ -310,6 +330,10 @@ class BridgeConfig:
     # request gains one priority level every 2**shift cycles.
     arbitration: str = 'rr'
     qos_aging_shift: int = 4
+    # bridge TASK-016: every derived or checked depth with the rule beside it
+    # (bridge_pkg.sizing.SizingRow), and the warnings the rule raised.
+    sizing: List = field(default_factory=list)
+    sizing_warnings: List[str] = field(default_factory=list)
     # Per-ID target tracking in the master adapters: 2**id_track_bits
     # entries indexed by the ID's low bits (see config_loader).
     id_track_bits: int = 4

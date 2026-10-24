@@ -488,6 +488,21 @@ address_map = {
   board build is tuned to round-robin timing (HAS 5.3, MAS 2.4). Until 2026-10-11 this line read "HARD-CODED"; the key
   has existed since TASK-006.
 
+**FR-6a: Buffer Sizing (bridge TASK-016, 2026-10-24)**
+- Every depth is a TOML key (`max_outstanding`, `rate_buffer`, `skid_depths`)
+  and every default is the sizing rule's minimum: `max_outstanding` =
+  `pow2(1 + latency_cycles + round_trip)` per port over its paths, the round
+  trip modelled from the stages the generator builds; `rate_buffer` =
+  `pow2(max_burst_beats / ratio)` on an upsized shared path; skid stages 2.
+  Inputs the generator cannot know are hints: a slave's `latency_cycles`
+  (default 0), a master's `max_burst_beats` (default 16).
+- A pinned value under the rule is a warning with the cost stated, never an
+  error. The derivation never switches ID remapping on by itself (floor
+  `2**id_width`), and never silently changes a measured board fabric: the
+  board TOMLs pin what they were measured with.
+- The rule's record is `<bridge>_sizing.json` beside the RTL; its proof is
+  `test_bridge_perf_sizing.py` (HAS 5.1).
+
 **FR-7: Read/Write Independence**
 - Separate read and write paths
 - No head-of-line blocking between read/write

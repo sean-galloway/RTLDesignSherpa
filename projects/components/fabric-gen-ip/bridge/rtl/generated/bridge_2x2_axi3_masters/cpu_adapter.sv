@@ -14,7 +14,7 @@ module bridge_2x2_axi3_masters_cpu_adapter
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AW = 2,
-    parameter SKID_DEPTH_W = 4,
+    parameter SKID_DEPTH_W = 2,
     parameter SKID_DEPTH_B = 2
     ,
     parameter SKID_DEPTH_AR = 2,
@@ -526,8 +526,8 @@ module bridge_2x2_axi3_masters_cpu_adapter
     logic conv_64b_rlast;
     logic conv_64b_rvalid;
 
-    // Write rate buffer (16 x 64b): the converter's wide side
-    // feeds it, and a burst of up to 16 beats reaches the crossbar only once
+    // Write rate buffer (8 x 64b): the converter's wide side
+    // feeds it, and a burst of up to 8 beats reaches the crossbar only once
     // it is buffered whole, so the shared slave's W runs at its full rate
     // (bridge W2). Longer bursts pass through.
     axi4_aw_t cpu_64b_rb_aw;
@@ -602,7 +602,7 @@ module bridge_2x2_axi3_masters_cpu_adapter
     bridge_wr_rate_buf #(
         .AW_WIDTH        ($bits(axi4_aw_t)),
         .W_WIDTH         ($bits(axi4_w_64b_t)),
-        .DEPTH           (16),
+        .DEPTH           (8),
         .AW_DEPTH        (4),
         .MAX_OUTSTANDING (16)
     ) u_wr_rbuf_64b (
@@ -624,7 +624,7 @@ module bridge_2x2_axi3_masters_cpu_adapter
         .m_wready  (cpu_64b_wready)
     );
 
-    // Read rate buffer (16 x 64b): R is taken from the crossbar
+    // Read rate buffer (8 x 64b): R is taken from the crossbar
     // at the slave's full rate and drained at this master's narrow rate, so
     // the shared slave's R is not held by a slow consumer (bridge W2).
     axi4_r_64b_t cpu_64b_rb_r;
@@ -689,7 +689,7 @@ module bridge_2x2_axi3_masters_cpu_adapter
 
     gaxi_fifo_sync #(
         .DATA_WIDTH ($bits(axi4_r_64b_t)),
-        .DEPTH      (16)
+        .DEPTH      (8)
     ) u_rd_rbuf_64b (
         .axi_aclk    (aclk),
         .axi_aresetn (aresetn),

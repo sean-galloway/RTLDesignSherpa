@@ -14,7 +14,7 @@ module bridge_1x3_wr_cpu_wr_adapter
     parameter BRIDGE_ID = 0,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 1,
     parameter SKID_DEPTH_AW = 2,
-    parameter SKID_DEPTH_W = 4,
+    parameter SKID_DEPTH_W = 2,
     parameter SKID_DEPTH_B = 2
 ) (
     input  logic aclk,

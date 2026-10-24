@@ -1,0 +1,375 @@
+{
+ "bridge": "bridge_bs_xil",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 18,
+   "basis": "1 + latency_cycles 0 + round trip 17 (cpu -> mem1, write 17 / read 16)",
+   "warning": "master 'cpu': max_outstanding = 16 is under the rule's minimum 18 (1 + latency_cycles 0 + round trip 17 (cpu -> mem1, write 17 / read 16)); a single-beat stream tops out at 16/18 of the port's peak"
+  },
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 8,
+   "basis": "max_burst_beats 16 / ratio 2 (cpu -> ddr, 128b shared)",
+   "warning": null
+  },
+  {
+   "port": "dma",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 19,
+   "basis": "1 + latency_cycles 0 + round trip 18 (dma -> mem0, write 18 / read 17)",
+   "warning": "master 'dma': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (dma -> mem0, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak"
+  },
+  {
+   "port": "dma",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "atg",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 14,
+   "basis": "1 + latency_cycles 0 + round trip 13 (atg -> ddr, write 13 / read 12)",
+   "warning": null
+  },
+  {
+   "port": "atg",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 8,
+   "basis": "max_burst_beats 16 / ratio 2 (atg -> ddr, 128b shared)",
+   "warning": null
+  },
+  {
+   "port": "cdma",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 14,
+   "basis": "1 + latency_cycles 0 + round trip 13 (cdma -> ddr, write 13 / read 12)",
+   "warning": null
+  },
+  {
+   "port": "cdma",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 8,
+   "basis": "max_burst_beats 16 / ratio 2 (cdma -> ddr, 128b shared)",
+   "warning": null
+  },
+  {
+   "port": "mem0",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 19,
+   "basis": "1 + latency_cycles 0 + round trip 18 (dma -> mem0, write 18 / read 17)",
+   "warning": "slave 'mem0': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (dma -> mem0, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak"
+  },
+  {
+   "port": "mem1",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 18,
+   "basis": "1 + latency_cycles 0 + round trip 17 (cpu -> mem1, write 17 / read 16)",
+   "warning": "slave 'mem1': max_outstanding = 16 is under the rule's minimum 18 (1 + latency_cycles 0 + round trip 17 (cpu -> mem1, write 17 / read 16)); a single-beat stream tops out at 16/18 of the port's peak"
+  },
+  {
+   "port": "bram",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 19,
+   "basis": "1 + latency_cycles 0 + round trip 18 (dma -> bram, write 18 / read 17)",
+   "warning": "slave 'bram': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (dma -> bram, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak"
+  },
+  {
+   "port": "ddr",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "toml",
+   "rule_min": 15,
+   "basis": "1 + latency_cycles 0 + round trip 14 (dma -> ddr, write 14 / read 13)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "cpu",
+   "slave": "mem0",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "mem1",
+   "read": 16,
+   "write": 17,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 5,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 5,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "bram",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "ddr",
+   "read": 12,
+   "write": 13,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 2,
+    "rate buffer": 1,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma",
+   "slave": "mem0",
+   "read": 17,
+   "write": 18,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 5,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 5,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma",
+   "slave": "mem1",
+   "read": 16,
+   "write": 17,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 5,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 5,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma",
+   "slave": "bram",
+   "read": 17,
+   "write": 18,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 5,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 5,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "dma",
+   "slave": "ddr",
+   "read": 13,
+   "write": 14,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "atg",
+   "slave": "bram",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "atg",
+   "slave": "ddr",
+   "read": 12,
+   "write": 13,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 2,
+    "rate buffer": 1,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cdma",
+   "slave": "bram",
+   "read": 7,
+   "write": 8,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cdma",
+   "slave": "ddr",
+   "read": 12,
+   "write": 13,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 1,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 2,
+    "rate buffer": 1,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": [
+  "master 'cpu': max_outstanding = 16 is under the rule's minimum 18 (1 + latency_cycles 0 + round trip 17 (cpu -> mem1, write 17 / read 16)); a single-beat stream tops out at 16/18 of the port's peak",
+  "master 'dma': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (dma -> mem0, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak",
+  "slave 'mem0': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (dma -> mem0, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak",
+  "slave 'mem1': max_outstanding = 16 is under the rule's minimum 18 (1 + latency_cycles 0 + round trip 17 (cpu -> mem1, write 17 / read 16)); a single-beat stream tops out at 16/18 of the port's peak",
+  "slave 'bram': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (dma -> bram, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak"
+ ]
+}

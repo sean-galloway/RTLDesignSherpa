@@ -1,0 +1,179 @@
+{
+ "bridge": "bridge_1x5_rd",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "cpu_rd",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 14,
+   "basis": "1 + latency_cycles 0 + round trip 13 (cpu_rd -> apb_periph, write 13 / read 12); floored at 2**id_width = 16 so the 4-bit ID is not remapped",
+   "warning": null
+  },
+  {
+   "port": "cpu_rd",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no burst write path",
+   "warning": null
+  },
+  {
+   "port": "periph_rd",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (cpu_rd -> periph_rd, write 11 / read 10)",
+   "warning": null
+  },
+  {
+   "port": "ddr_rd",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 8,
+   "basis": "1 + latency_cycles 0 + round trip 7 (cpu_rd -> ddr_rd, write 7 / read 6)",
+   "warning": null
+  },
+  {
+   "port": "hbm_rd",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (cpu_rd -> hbm_rd, write 11 / read 10)",
+   "warning": null
+  },
+  {
+   "port": "apb_periph",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 14,
+   "basis": "1 + latency_cycles 0 + round trip 13 (cpu_rd -> apb_periph, write 13 / read 12)",
+   "warning": null
+  },
+  {
+   "port": "axil_periph",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 12,
+   "basis": "1 + latency_cycles 0 + round trip 11 (cpu_rd -> axil_periph, write 11 / read 10)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "cpu_rd",
+   "slave": "periph_rd",
+   "read": 10,
+   "write": 11,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu_rd",
+   "slave": "ddr_rd",
+   "read": 6,
+   "write": 7,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu_rd",
+   "slave": "hbm_rd",
+   "read": 10,
+   "write": 11,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 2,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 2,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu_rd",
+   "slave": "apb_periph",
+   "read": 12,
+   "write": 13,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 4,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 4,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu_rd",
+   "slave": "axil_periph",
+   "read": 10,
+   "write": 11,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 3,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 3,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": []
+}

@@ -14,7 +14,7 @@ module bridge_mix_b_mon_dma_axi4_adapter
     parameter BRIDGE_ID = 1,  // Unique ID for this master
     parameter BRIDGE_ID_WIDTH = 2,
     parameter SKID_DEPTH_AW = 2,
-    parameter SKID_DEPTH_W = 4,
+    parameter SKID_DEPTH_W = 2,
     parameter SKID_DEPTH_B = 2
     ,
     parameter SKID_DEPTH_AR = 2,

@@ -1,0 +1,89 @@
+{
+ "bridge": "bridge_1x2_rw_axil5",
+ "rule": "max_outstanding >= 1 + latency_cycles + round_trip (single-beat saturation); rate_buffer >= max_burst_beats / ratio; skid stages 2 (one beat per cycle)",
+ "ports": [
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "max_outstanding",
+   "value": 16,
+   "source": "rule",
+   "rule_min": 8,
+   "basis": "1 + latency_cycles 0 + round trip 7 (cpu -> ddr, write 7 / read 6); floored at 2**id_width = 16 so the 4-bit ID is not remapped",
+   "warning": null
+  },
+  {
+   "port": "cpu",
+   "direction": "master",
+   "key": "rate_buffer",
+   "value": 0,
+   "source": "rule",
+   "rule_min": 0,
+   "basis": "no upsized path into a shared slave",
+   "warning": null
+  },
+  {
+   "port": "ddr",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 8,
+   "basis": "1 + latency_cycles 0 + round trip 7 (cpu -> ddr, write 7 / read 6)",
+   "warning": null
+  },
+  {
+   "port": "cfg",
+   "direction": "slave",
+   "key": "max_outstanding",
+   "value": 8,
+   "source": "rule",
+   "rule_min": 8,
+   "basis": "1 + latency_cycles 0 + round trip 7 (cpu -> cfg, write 7 / read 6)",
+   "warning": null
+  }
+ ],
+ "paths": [
+  {
+   "master": "cpu",
+   "slave": "ddr",
+   "read": 6,
+   "write": 7,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 1,
+    "converters, request side": 0,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 1,
+    "converters, response side": 0,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  },
+  {
+   "master": "cpu",
+   "slave": "cfg",
+   "read": 6,
+   "write": 7,
+   "terms": {
+    "master request stage": 1,
+    "request slot": 0,
+    "xbar request stage": 0,
+    "slave request stage": 0,
+    "converters, request side": 1,
+    "rate buffer": 0,
+    "slave turnaround": 1,
+    "slave response stage": 0,
+    "converters, response side": 1,
+    "xbar response stage": 0,
+    "response routing": 1,
+    "master response stage": 1
+   }
+  }
+ ],
+ "warnings": []
+}

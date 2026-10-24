@@ -70,7 +70,7 @@ module bridge_2x2_rw_lat_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] ddr_axi_rid_bridge_id,
     input  logic                       ddr_axi_rid_valid,
 
-    output  logic [4:0]  ddr_axi_awid,
+    output  logic [3:0]  ddr_axi_awid,
     output  logic [31:0]  ddr_axi_awaddr,
     output  logic [7:0]  ddr_axi_awlen,
     output  logic [2:0]  ddr_axi_awsize,
@@ -91,13 +91,13 @@ module bridge_2x2_rw_lat_xbar
     output  logic         ddr_axi_wvalid,
     input  logic         ddr_axi_wready,
 
-    input  logic [4:0]  ddr_axi_bid,
+    input  logic [3:0]  ddr_axi_bid,
     input  logic [1:0]  ddr_axi_bresp,
     input  logic         ddr_axi_buser,
     input  logic         ddr_axi_bvalid,
     output  logic         ddr_axi_bready,
 
-    output  logic [4:0]  ddr_axi_arid,
+    output  logic [3:0]  ddr_axi_arid,
     output  logic [31:0]  ddr_axi_araddr,
     output  logic [7:0]  ddr_axi_arlen,
     output  logic [2:0]  ddr_axi_arsize,
@@ -111,7 +111,7 @@ module bridge_2x2_rw_lat_xbar
     output  logic         ddr_axi_arvalid,
     input  logic         ddr_axi_arready,
 
-    input  logic [4:0]  ddr_axi_rid,
+    input  logic [3:0]  ddr_axi_rid,
     input  logic [31:0]  ddr_axi_rdata,
     input  logic [1:0]  ddr_axi_rresp,
     input  logic         ddr_axi_rlast,
@@ -128,7 +128,7 @@ module bridge_2x2_rw_lat_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] sram_axi_rid_bridge_id,
     input  logic                       sram_axi_rid_valid,
 
-    output  logic [4:0]  sram_axi_awid,
+    output  logic [3:0]  sram_axi_awid,
     output  logic [31:0]  sram_axi_awaddr,
     output  logic [7:0]  sram_axi_awlen,
     output  logic [2:0]  sram_axi_awsize,
@@ -149,13 +149,13 @@ module bridge_2x2_rw_lat_xbar
     output  logic         sram_axi_wvalid,
     input  logic         sram_axi_wready,
 
-    input  logic [4:0]  sram_axi_bid,
+    input  logic [3:0]  sram_axi_bid,
     input  logic [1:0]  sram_axi_bresp,
     input  logic         sram_axi_buser,
     input  logic         sram_axi_bvalid,
     output  logic         sram_axi_bready,
 
-    output  logic [4:0]  sram_axi_arid,
+    output  logic [3:0]  sram_axi_arid,
     output  logic [31:0]  sram_axi_araddr,
     output  logic [7:0]  sram_axi_arlen,
     output  logic [2:0]  sram_axi_arsize,
@@ -169,7 +169,7 @@ module bridge_2x2_rw_lat_xbar
     output  logic         sram_axi_arvalid,
     input  logic         sram_axi_arready,
 
-    input  logic [4:0]  sram_axi_rid,
+    input  logic [3:0]  sram_axi_rid,
     input  logic [31:0]  sram_axi_rdata,
     input  logic [1:0]  sram_axi_rresp,
     input  logic         sram_axi_rlast,
@@ -186,7 +186,7 @@ module bridge_2x2_rw_lat_xbar
     input  logic [BRIDGE_ID_WIDTH-1:0] subtractive_axi_rid_bridge_id,
     input  logic                       subtractive_axi_rid_valid,
 
-    output  logic [4:0]  subtractive_axi_awid,
+    output  logic [3:0]  subtractive_axi_awid,
     output  logic [31:0]  subtractive_axi_awaddr,
     output  logic [7:0]  subtractive_axi_awlen,
     output  logic [2:0]  subtractive_axi_awsize,
@@ -207,13 +207,13 @@ module bridge_2x2_rw_lat_xbar
     output  logic         subtractive_axi_wvalid,
     input  logic         subtractive_axi_wready,
 
-    input  logic [4:0]  subtractive_axi_bid,
+    input  logic [3:0]  subtractive_axi_bid,
     input  logic [1:0]  subtractive_axi_bresp,
     input  logic         subtractive_axi_buser,
     input  logic         subtractive_axi_bvalid,
     output  logic         subtractive_axi_bready,
 
-    output  logic [4:0]  subtractive_axi_arid,
+    output  logic [3:0]  subtractive_axi_arid,
     output  logic [31:0]  subtractive_axi_araddr,
     output  logic [7:0]  subtractive_axi_arlen,
     output  logic [2:0]  subtractive_axi_arsize,
@@ -227,7 +227,7 @@ module bridge_2x2_rw_lat_xbar
     output  logic         subtractive_axi_arvalid,
     input  logic         subtractive_axi_arready,
 
-    input  logic [4:0]  subtractive_axi_rid,
+    input  logic [3:0]  subtractive_axi_rid,
     input  logic [31:0]  subtractive_axi_rdata,
     input  logic [1:0]  subtractive_axi_rresp,
     input  logic         subtractive_axi_rlast,
@@ -463,16 +463,16 @@ module bridge_2x2_rw_lat_xbar
     assign ddr_axi_awvalid = cpu_32b_aw_gnt_ddr || dma_32b_aw_gnt_ddr;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
-    // (16 deep: max_outstanding 16)
-    logic [0:0] ddr_wowner_mem [16];
-    logic [4:0] ddr_wowner_wptr, ddr_wowner_rptr;
+    // (8 deep: max_outstanding 8)
+    logic [0:0] ddr_wowner_mem [8];
+    logic [3:0] ddr_wowner_wptr, ddr_wowner_rptr;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             ddr_wowner_wptr <= '0;
             ddr_wowner_rptr <= '0;
         end else begin
             if (ddr_axi_awvalid && ddr_axi_awready) begin
-                ddr_wowner_mem[ddr_wowner_wptr[3:0]] <= ddr_aw_arb_gnt;
+                ddr_wowner_mem[ddr_wowner_wptr[2:0]] <= ddr_aw_arb_gnt;
                 ddr_wowner_wptr <= ddr_wowner_wptr + 1'b1;
             end
             if (ddr_axi_wvalid && ddr_axi_wready && ddr_axi_wlast) begin
@@ -481,7 +481,7 @@ module bridge_2x2_rw_lat_xbar
         end
     )
     wire ddr_wowner_valid = (ddr_wowner_wptr != ddr_wowner_rptr);
-    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[3:0]];
+    wire [0:0] ddr_wowner_head = ddr_wowner_mem[ddr_wowner_rptr[2:0]];
     assign cpu_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd0) && cpu_32b_w_to_ddr;
     assign dma_32b_w_sel_ddr = ddr_wowner_valid && (ddr_wowner_head == 1'd1) && dma_32b_w_to_ddr;
 
@@ -652,9 +652,9 @@ module bridge_2x2_rw_lat_xbar
     assign sram_axi_awvalid = cpu_32b_aw_gnt_sram || dma_32b_aw_gnt_sram;
 
     // W owner FIFO: slave-side AW pick order owns the W channel
-    // (16 deep: max_outstanding 16)
-    logic [0:0] sram_wowner_mem [16];
-    logic [4:0] sram_wowner_wptr, sram_wowner_rptr;
+    // (8 deep: max_outstanding 8)
+    logic [0:0] sram_wowner_mem [8];
+    logic [3:0] sram_wowner_wptr, sram_wowner_rptr;
     logic sram_wowner_ahead;
     wire sram_wowner_valid = (sram_wowner_wptr != sram_wowner_rptr);
     wire sram_wowner_byp = !sram_wowner_valid && !sram_wowner_ahead && sram_axi_awvalid;
@@ -669,7 +669,7 @@ module bridge_2x2_rw_lat_xbar
             if (sram_wowner_aw_hs && sram_wowner_ahead) begin
                 sram_wowner_ahead <= 1'b0;   // its W already went
             end else if (sram_wowner_aw_hs && !(sram_wowner_byp && sram_wowner_w_end)) begin
-                sram_wowner_mem[sram_wowner_wptr[3:0]] <= sram_aw_arb_gnt;
+                sram_wowner_mem[sram_wowner_wptr[2:0]] <= sram_aw_arb_gnt;
                 sram_wowner_wptr <= sram_wowner_wptr + 1'b1;
             end else if (!sram_wowner_aw_hs && sram_wowner_byp && sram_wowner_w_end) begin
                 sram_wowner_ahead <= 1'b1;
@@ -679,7 +679,7 @@ module bridge_2x2_rw_lat_xbar
             end
         end
     )
-    wire [0:0] sram_wowner_head = sram_wowner_valid ? sram_wowner_mem[sram_wowner_rptr[3:0]]
+    wire [0:0] sram_wowner_head = sram_wowner_valid ? sram_wowner_mem[sram_wowner_rptr[2:0]]
                                        : sram_aw_arb_gnt;
     assign cpu_32b_w_sel_sram = (sram_wowner_valid || sram_wowner_byp) && (sram_wowner_head == 1'd0) && cpu_32b_w_to_sram;
     assign dma_32b_w_sel_sram = (sram_wowner_valid || sram_wowner_byp) && (sram_wowner_head == 1'd1) && dma_32b_w_to_sram;
@@ -1010,9 +1010,9 @@ module bridge_2x2_rw_lat_xbar
     // ================================================================
     // W destination FIFOs (per master width-path)
     // ================================================================
-    // cpu 32b path -> ddr, sram, subtractive (16 deep: max_outstanding)
-    logic [1:0] cpu_32b_wdest_mem [16];
-    logic [4:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
+    // cpu 32b path -> ddr, sram, subtractive (8 deep: max_outstanding)
+    logic [1:0] cpu_32b_wdest_mem [8];
+    logic [3:0] cpu_32b_wdest_wptr, cpu_32b_wdest_rptr;
     wire [1:0] cpu_32b_wdest_enc = cpu_32b_aw_to_sram ? 2'd1 : cpu_32b_aw_to_subtractive ? 2'd2 : 2'd0;
     wire cpu_32b_wdest_push = cpu_32b_awvalid && cpu_32b_awready;
     wire cpu_32b_wdest_pop  = cpu_32b_wvalid && cpu_32b_wready && cpu_32b_w.last;
@@ -1022,7 +1022,7 @@ module bridge_2x2_rw_lat_xbar
             cpu_32b_wdest_rptr <= '0;
         end else begin
             if (cpu_32b_wdest_push) begin
-                cpu_32b_wdest_mem[cpu_32b_wdest_wptr[3:0]] <= cpu_32b_wdest_enc;
+                cpu_32b_wdest_mem[cpu_32b_wdest_wptr[2:0]] <= cpu_32b_wdest_enc;
                 cpu_32b_wdest_wptr <= cpu_32b_wdest_wptr + 1'b1;
             end
             if (cpu_32b_wdest_pop) begin
@@ -1031,15 +1031,15 @@ module bridge_2x2_rw_lat_xbar
         end
     )
     wire cpu_32b_wdest_valid = (cpu_32b_wdest_wptr != cpu_32b_wdest_rptr);
-    assign cpu_32b_wdest_full = (cpu_32b_wdest_wptr[4] != cpu_32b_wdest_rptr[4]) && (cpu_32b_wdest_wptr[3:0] == cpu_32b_wdest_rptr[3:0]);
-    wire [1:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[3:0]];
+    assign cpu_32b_wdest_full = (cpu_32b_wdest_wptr[3] != cpu_32b_wdest_rptr[3]) && (cpu_32b_wdest_wptr[2:0] == cpu_32b_wdest_rptr[2:0]);
+    wire [1:0] cpu_32b_wdest_head = cpu_32b_wdest_mem[cpu_32b_wdest_rptr[2:0]];
     assign cpu_32b_w_to_ddr = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd0);
     assign cpu_32b_w_to_sram = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd1);
     assign cpu_32b_w_to_subtractive = cpu_32b_wdest_valid && (cpu_32b_wdest_head == 2'd2);
 
-    // dma 32b path -> ddr, sram, subtractive (16 deep: max_outstanding)
-    logic [1:0] dma_32b_wdest_mem [16];
-    logic [4:0] dma_32b_wdest_wptr, dma_32b_wdest_rptr;
+    // dma 32b path -> ddr, sram, subtractive (8 deep: max_outstanding)
+    logic [1:0] dma_32b_wdest_mem [8];
+    logic [3:0] dma_32b_wdest_wptr, dma_32b_wdest_rptr;
     wire [1:0] dma_32b_wdest_enc = dma_32b_aw_to_sram ? 2'd1 : dma_32b_aw_to_subtractive ? 2'd2 : 2'd0;
     wire dma_32b_wdest_push = dma_32b_awvalid && dma_32b_awready;
     wire dma_32b_wdest_pop  = dma_32b_wvalid && dma_32b_wready && dma_32b_w.last;
@@ -1049,7 +1049,7 @@ module bridge_2x2_rw_lat_xbar
             dma_32b_wdest_rptr <= '0;
         end else begin
             if (dma_32b_wdest_push) begin
-                dma_32b_wdest_mem[dma_32b_wdest_wptr[3:0]] <= dma_32b_wdest_enc;
+                dma_32b_wdest_mem[dma_32b_wdest_wptr[2:0]] <= dma_32b_wdest_enc;
                 dma_32b_wdest_wptr <= dma_32b_wdest_wptr + 1'b1;
             end
             if (dma_32b_wdest_pop) begin
@@ -1058,8 +1058,8 @@ module bridge_2x2_rw_lat_xbar
         end
     )
     wire dma_32b_wdest_valid = (dma_32b_wdest_wptr != dma_32b_wdest_rptr);
-    assign dma_32b_wdest_full = (dma_32b_wdest_wptr[4] != dma_32b_wdest_rptr[4]) && (dma_32b_wdest_wptr[3:0] == dma_32b_wdest_rptr[3:0]);
-    wire [1:0] dma_32b_wdest_head = dma_32b_wdest_mem[dma_32b_wdest_rptr[3:0]];
+    assign dma_32b_wdest_full = (dma_32b_wdest_wptr[3] != dma_32b_wdest_rptr[3]) && (dma_32b_wdest_wptr[2:0] == dma_32b_wdest_rptr[2:0]);
+    wire [1:0] dma_32b_wdest_head = dma_32b_wdest_mem[dma_32b_wdest_rptr[2:0]];
     assign dma_32b_w_to_ddr = dma_32b_wdest_valid && (dma_32b_wdest_head == 2'd0);
     assign dma_32b_w_to_sram = dma_32b_wdest_valid && (dma_32b_wdest_head == 2'd1);
     assign dma_32b_w_to_subtractive = dma_32b_wdest_valid && (dma_32b_wdest_head == 2'd2);

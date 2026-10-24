@@ -242,6 +242,23 @@ end
 
 **Why this matters**: Without tracking, W beats would re-evaluate address decode which may have stale or different values, routing to the wrong width converter or slave.
 
+### Buffer Depths and the Sizing Rule (bridge TASK-016)
+
+The crossbar's own buffers are sized from the ports' `max_outstanding`: a
+master's W-destination FIFO (one entry per AW accepted toward a lane slave,
+`_wdest_depth`) is the master's; a slave's W-owner FIFO (one entry per AW
+picked at the slave, no full check, so it must cover the bound) is the
+slave's; the request slots and the registered crossbar's stages are 2-deep
+skids, the smallest that sustain a beat per cycle. `max_outstanding` itself,
+when the TOML leaves it unset, comes from `bin/bridge_pkg/sizing.py`: the
+smallest power of two >= `1 + latency_cycles + round_trip`, the round trip
+summed per master -> slave path from the registered stages the generators
+build (`sizing.path_loop` mirrors `_uses_slots`, the timing wrappers'
+`latency` cuts, the converters, a CDC port's crossings and the rate buffer;
+`bin/tests/test_generator_pkg.py` holds it within two cycles of the
+measured round trips). A derived depth above 16 on a remapped master widens
+its slot and so `XBAR_ID_WIDTH`. The rule and its measurement are HAS 5.1.
+
 ### Backpressure Propagation
 
 Ready signals flow back from slave through arbiter to the granted master:

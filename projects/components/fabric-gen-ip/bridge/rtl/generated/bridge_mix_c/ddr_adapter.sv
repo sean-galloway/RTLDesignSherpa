@@ -138,15 +138,15 @@ module bridge_mix_c_ddr_adapter
     logic wr_trk_full;
     logic w_sub_awready;
     assign xbar_ddr_axi_awready = w_sub_awready && !wr_trk_full;
-    logic [4:0] wr_out_cnt;  // in flight, 0..16 (max_outstanding)
+    logic [3:0] wr_out_cnt;  // in flight, 0..8 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             wr_out_cnt <= '0;
         end else begin
-            wr_out_cnt <= wr_out_cnt + 5'(xbar_ddr_axi_awvalid && xbar_ddr_axi_awready) - 5'(xbar_ddr_axi_bvalid && xbar_ddr_axi_bready);
+            wr_out_cnt <= wr_out_cnt + 4'(xbar_ddr_axi_awvalid && xbar_ddr_axi_awready) - 4'(xbar_ddr_axi_bvalid && xbar_ddr_axi_bready);
         end
     )
-    assign wr_trk_full = (wr_out_cnt == 5'(16));
+    assign wr_trk_full = (wr_out_cnt == 4'(8));
     assign bid_bridge_id = xbar_ddr_axi_bid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign bid_valid     = 1'b1;
 
@@ -154,22 +154,22 @@ module bridge_mix_c_ddr_adapter
     logic rd_trk_full;
     logic w_sub_arready;
     assign xbar_ddr_axi_arready = w_sub_arready && !rd_trk_full;
-    logic [4:0] rd_out_cnt;  // in flight, 0..16 (max_outstanding)
+    logic [3:0] rd_out_cnt;  // in flight, 0..8 (max_outstanding)
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             rd_out_cnt <= '0;
         end else begin
-            rd_out_cnt <= rd_out_cnt + 5'(xbar_ddr_axi_arvalid && xbar_ddr_axi_arready) - 5'(xbar_ddr_axi_rvalid && xbar_ddr_axi_rready && xbar_ddr_axi_rlast);
+            rd_out_cnt <= rd_out_cnt + 4'(xbar_ddr_axi_arvalid && xbar_ddr_axi_arready) - 4'(xbar_ddr_axi_rvalid && xbar_ddr_axi_rready && xbar_ddr_axi_rlast);
         end
     )
-    assign rd_trk_full = (rd_out_cnt == 5'(16));
+    assign rd_trk_full = (rd_out_cnt == 4'(8));
     assign rid_bridge_id = xbar_ddr_axi_rid[ID_WIDTH-1 -: BRIDGE_ID_WIDTH];
     assign rid_valid     = 1'b1;
 
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(5),
         .AXI_ADDR_WIDTH(32),

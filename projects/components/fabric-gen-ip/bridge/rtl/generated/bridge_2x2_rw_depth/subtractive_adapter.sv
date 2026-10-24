@@ -145,7 +145,7 @@ module bridge_2x2_rw_depth_subtractive_adapter
     // own ready, masked before it reaches the crossbar.
     logic wr_trk_full;
     logic w_sub_awready;
-    localparam WR_FIFO_DEPTH = 16;  // max_outstanding
+    localparam WR_FIFO_DEPTH = 32;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] wr_fifo [WR_FIFO_DEPTH];
     logic [$clog2(WR_FIFO_DEPTH):0] wr_ptr, rd_ptr;
 
@@ -223,7 +223,7 @@ module bridge_2x2_rw_depth_subtractive_adapter
     // bridge BUG-009 (was BRIDGE-011) not-full gating -- see the write channel.
     logic rd_trk_full;
     logic w_sub_arready;
-    localparam RD_FIFO_DEPTH = 16;  // max_outstanding
+    localparam RD_FIFO_DEPTH = 32;  // max_outstanding
     logic [BRIDGE_ID_WIDTH-1:0] rd_fifo [RD_FIFO_DEPTH];
     logic [$clog2(RD_FIFO_DEPTH):0] ar_ptr, r_ptr;
 
@@ -358,7 +358,7 @@ module bridge_2x2_rw_depth_subtractive_adapter
     // AXI4 Master Read Timing Wrapper
     axi4_master_rd #(
         .SKID_DEPTH_AR(0),
-        .SKID_DEPTH_R(2),
+        .SKID_DEPTH_R(4),
         .AXI_ID_WIDTH(5),
         .AXI_ADDR_WIDTH(32),
         .AXI_DATA_WIDTH(32),

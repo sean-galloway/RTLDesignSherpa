@@ -31,9 +31,9 @@ Counts are the item files in each lane directory, not counting the
 |---|---|---|
 | [TASK-019](task/closed/TASK-019.md) | P2 | Genesys 2 bridge stress, phase 3: single-beat AXI-Lite / APB / WB4 shells and the `bridge_bs_mixed_b` DUT (phases 1 and 2a-2e done on the board) |
 | [TASK-020](task/open/TASK-020.md) | P3 | the read-return atomic tracker depth (8) as a per-slave TOML key, reported |
-| [TASK-014](task/open/TASK-014.md) | P3 | perf methodology: saturation curves, permutation and hot-spot traffic |
+| [TASK-014](task/closed/TASK-014.md) | P3 | perf methodology: saturation curves, permutation and hot-spot traffic |
 | [TASK-015](task/closed/TASK-015.md) | P3 | matrix arbiter vs round-robin (uses TASK-014's traffic) |
-| [TASK-016](task/open/TASK-016.md) | P3 | buffer / CAM depth sizing rule and generator warnings |
+| [TASK-016](task/closed/TASK-016.md) | P3 | buffer / CAM depth sizing rule and generator warnings |
 
 No bug or issue is open.
 

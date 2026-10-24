@@ -13,14 +13,14 @@ package bridge_2x2_rw_lat_pkg;
     // (bridge TASK-005, was BRIDGE-016), so two masters cannot alias an ID at a slave. The
     // prefix is 0 bits for a single master. The local id is a remap slot
     // (bridge_id_remap) for a master whose own ID is wider than one.
-    localparam int MASTER_ID_WIDTH = 4;  // widest master-local ID
+    localparam int MASTER_ID_WIDTH = 3;  // widest master-local ID
     localparam int ID_PREFIX_WIDTH = 1;  // master-index bits prepended
-    localparam int XBAR_ID_WIDTH   = 5;  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH
+    localparam int XBAR_ID_WIDTH   = 4;  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH
 
     // AXI4 Write Address Channel (width-independent)
-    // Note: ID width is 5-bit for this bridge
+    // Note: ID width is 4-bit for this bridge
     typedef struct packed {
-        logic [4:0]   id;      // Transaction ID
+        logic [3:0]   id;      // Transaction ID
         logic [31:0]  addr;    // Address
         logic [7:0]   len;     // Burst length
         logic [2:0]   size;    // Burst size
@@ -35,7 +35,7 @@ package bridge_2x2_rw_lat_pkg;
 
     // AXI4 Read Address Channel (width-independent)
     typedef struct packed {
-        logic [4:0]   id;      // Transaction ID
+        logic [3:0]   id;      // Transaction ID
         logic [31:0]  addr;    // Address
         logic [7:0]   len;     // Burst length
         logic [2:0]   size;    // Burst size
@@ -58,14 +58,14 @@ package bridge_2x2_rw_lat_pkg;
 
     // AXI4 Write Response Channel (width-independent)
     typedef struct packed {
-        logic [4:0]   id;      // Response ID
+        logic [3:0]   id;      // Response ID
         logic [1:0]   resp;    // Write response
         logic         user;    // User signal
     } axi4_b_t;
 
     // AXI4 Read Data Channel - 32-bit data width
     typedef struct packed {
-        logic [4:0]   id;      // Response ID
+        logic [3:0]   id;      // Response ID
         logic [31:0]  data;    // Read data
         logic [1:0]   resp;    // Read response
         logic         last;    // Last transfer in burst

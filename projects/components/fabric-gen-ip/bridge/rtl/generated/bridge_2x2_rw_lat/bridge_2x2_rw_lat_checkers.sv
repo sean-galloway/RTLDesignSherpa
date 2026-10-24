@@ -82,7 +82,7 @@ bind bridge_2x2_rw_lat axi4_protocol_checker #(
 
 // slave port ddr (axi4, rw) on aclk
 bind bridge_2x2_rw_lat axi4_protocol_checker #(
-    .ID_WIDTH(5),
+    .ID_WIDTH(4),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_ddr (
@@ -121,7 +121,7 @@ bind bridge_2x2_rw_lat axi4_protocol_checker #(
 
 // slave port sram (axi4, rw) on aclk
 bind bridge_2x2_rw_lat axi4_protocol_checker #(
-    .ID_WIDTH(5),
+    .ID_WIDTH(4),
     .ADDR_WIDTH(32),
     .DATA_WIDTH(32)
 ) u_chk_sram (

@@ -289,7 +289,7 @@ module bridge_1x2_rw_apb5_mon_subtractive_adapter
     // AXI4 Master Write Timing Wrapper
     axi4_master_wr #(
         .SKID_DEPTH_AW(2),
-        .SKID_DEPTH_W(4),
+        .SKID_DEPTH_W(2),
         .SKID_DEPTH_B(2),
         .AXI_ID_WIDTH(4),
         .AXI_ADDR_WIDTH(32),

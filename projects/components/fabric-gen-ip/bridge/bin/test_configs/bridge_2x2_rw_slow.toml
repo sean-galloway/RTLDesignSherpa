@@ -1,0 +1,93 @@
+# Bridge Configuration: bridge_2x2_rw with SLOW slaves (bridge TASK-016, the
+# buffer sizing rule's fixture).
+#
+# The same two masters and two slaves as bridge_2x2_rw, but each slave declares
+# `latency_cycles = 16`: it answers 16 cycles after it accepts a request. The
+# generator's sizing rule then derives max_outstanding = pow2(1 + 16 + 8) = 32
+# on every port where bridge_2x2_rw derives 16, and test_bridge_perf_sizing.py
+# shows the step: single-beat streams saturate this fabric against a 16-cycle
+# slave and run at 16 / 25 of the peak on bridge_2x2_rw against the same slave.
+# Connectivity comes from bridge_2x2_rw_slow_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_rw_slow"
+variants = ["no"]
+description = "2x2 rw bridge whose slaves declare 16 cycles of response latency (sizing rule fixture)"
+
+# Global defaults for skid buffer depths (can be overridden per port)
+[bridge.defaults.skid_depths]
+ar = 2  # Read address channel
+r = 4   # Read data channel
+aw = 2  # Write address channel
+w = 4   # Write data channel
+b = 2   # Write response channel
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[bridge.masters.interface]
+type = "axi4_master"  # Options: none, axi4_master, axi4_master_mon
+# Uses default skid depths (2,4,2,4,2)
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[bridge.masters.interface]
+type = "axi4_master"
+
+[bridge.masters.interface.skid_depths]
+ar = 4  # Deeper read address buffer for DMA
+r = 8   # Deeper read data buffer
+aw = 4  # Deeper write address buffer
+w = 8   # Deeper write data buffer
+b = 4   # Deeper write response buffer
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 6  # {master index, 5-bit remap slot}: max_outstanding 32 (derived from latency_cycles) widens the slot (width_utils.xbar_id_width)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"  # 2GB
+latency_cycles = 16   # bridge TASK-016: the slave answers 16 cycles after it accepts
+
+[bridge.slaves.interface]
+type = "axi4_slave"
+# Uses default skid depths (2,4,2,4,2)
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 6  # {master index, 5-bit remap slot}: max_outstanding 32 (derived from latency_cycles) widens the slot (width_utils.xbar_id_width)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"  # 2GB
+latency_cycles = 16   # bridge TASK-016: the slave answers 16 cycles after it accepts
+
+[bridge.slaves.interface]
+type = "axi4_slave"
+
+[bridge.slaves.interface.skid_depths]
+ar = 2
+r = 2   # Smaller buffer for fast SRAM response
+aw = 2
+w = 2
+b = 2
