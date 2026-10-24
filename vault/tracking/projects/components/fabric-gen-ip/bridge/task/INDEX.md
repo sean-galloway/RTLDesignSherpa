@@ -24,7 +24,7 @@ by construction rather than by discipline.
 - **TASK-015** — Evaluate matrix arbiters vs round-robin for small port counts (from 2026-10-11 lit review)
 - **TASK-016** — Buffer/CAM depth sizing rule vs pipeline + converter latency (from 2026-10-11 lit review)
 - **TASK-020** — make the read-return-atomic tracker depth (8, fixed today) a per-slave TOML key, and report it
-- **TASK-019** — Genesys 2 bridge stress model: AXI3/AXI5, then AXI-Lite / APB / WB4 shells (phase 1, AXI4, done and board-green)
+- **TASK-019** — Genesys 2 bridge stress model: AXI3/AXI5, then AXI-Lite / APB / WB4 shells (phases 1 and 2a-2e done on the board, AXI3/4/5 and third-party IP on LiteDRAM; phase 3, the single-beat shells, next)
 
 ## Dropped
 

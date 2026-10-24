@@ -11,9 +11,9 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 4 | 0 | 11 | 4 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 17 | 0 | 0 |
-| [issue/](issue/INDEX.md) | 1 | 0 | 1 | 0 | 0 |
+| [task/](task/INDEX.md) | 5 | 0 | 11 | 4 | 0 |
+| [bug/](bug/INDEX.md) | 0 | 0 | 25 | 0 | 0 |
+| [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
 Items live one per file under the lane directories below; this page is the
 area overview. See [the convention](../../../../INDEX.md) for the definitions.
@@ -22,21 +22,30 @@ area overview. See [the convention](../../../../INDEX.md) for the definitions.
 Bridge crossbar generator (`projects/components/fabric-gen-ip/bridge/`): the CSV/toml-driven
 generator, its generated wrappers/xbars/adapters, and their DV.
 
-| State | Count |
-|---|---|
-| active | 0 |
-| open | 0 |
-| closed | 21 |
-| dropped | 0 |
+Counts are the item files in each lane directory, not counting the
+`*-000.md` templates (checked 2026-10-23).
 
-## Open
+## Open (2026-10-23)
 
-Nothing, since 2026-09-13. BRIDGE-017 (the legacy backlog: perf
-characterization, synthesis flow, CDC slave ports, QoS aging, registered
-crossbar) and BRIDGE-018 (native-AXI5 fabric: Memory Tagging and chunking
-through the structs) both closed; the two known Wishbone gaps are on the
-dropped page by the owner's decision (best effort). A new bridge task starts
-from a consumer's need, not from this list.
+| Item | Pri | What is left |
+|---|---|---|
+| [TASK-019](task/open/TASK-019.md) | P2 | Genesys 2 bridge stress, phase 3: single-beat AXI-Lite / APB / WB4 shells and the `bridge_bs_mixed_b` DUT (phases 1 and 2a-2e done on the board) |
+| [TASK-020](task/open/TASK-020.md) | P3 | the read-return atomic tracker depth (8) as a per-slave TOML key, reported |
+| [TASK-014](task/open/TASK-014.md) | P3 | perf methodology: saturation curves, permutation and hot-spot traffic |
+| [TASK-015](task/open/TASK-015.md) | P3 | matrix arbiter vs round-robin (uses TASK-014's traffic) |
+| [TASK-016](task/open/TASK-016.md) | P3 | buffer / CAM depth sizing rule and generator warnings |
+
+No bug or issue is open.
+
+## The legacy BRIDGE-0xx sequence
+
+The pre-lane sequence (next ID BRIDGE-020, above) has nothing open:
+21 closed, none active, open or dropped. Nothing has been open in it since
+2026-09-13. BRIDGE-017 (the legacy backlog: perf characterization,
+synthesis flow, CDC slave ports, QoS aging, registered crossbar) and
+BRIDGE-018 (native-AXI5 fabric: Memory Tagging and chunking through the
+structs) both closed. The two known Wishbone gaps are on the dropped page by
+the owner's decision (best effort). New work is filed in the lanes above.
 
 > The pre-migration `projects/components/fabric-gen-ip/bridge/TASKS.md` was folded in on
 > 2026-09-10: ledger at the end of closed, leftovers in

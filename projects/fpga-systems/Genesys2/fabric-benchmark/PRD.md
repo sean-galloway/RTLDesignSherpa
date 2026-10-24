@@ -533,6 +533,14 @@ owner pointer into the injector's W skid at 2.7 ns. (A2 was reported as
 the column here is the one formula on the tightest run for every leg.) C3
 was not pushed past 1.4 ns, so its figure is a floor.
 
+These estimates move by 6-8% with the target period, because Vivado's
+slack depends on the target it is given. A2 and C2 show it:
+- From the tightest run, C2 looks faster: ~456 vs ~415 MHz, both at 2.0 ns.
+- From the tightest period each one met, A2 is faster. It met 2.35 ns
+  (+0.129, ~450 MHz), a tighter period than C2's 2.5 ns (+0.168, ~429 MHz).
+Neither ordering holds, so read the two as level. The same caution applies
+on Kintex-7, where every leg but C3 lands within 235-268 MHz at 4.0 ns.
+
 ### 8.2 W2 -- the fabric alone
 
 MiB/s, mean over 3 runs (A2 6); peak 1525.9 MiB/s (128 bit x 100 MHz, one
@@ -716,9 +724,10 @@ measured, and level with the Xilinx crossbar:
 - Against PULP's `axi_xbar` (C2), the strongest general-purpose open-source
   crossbar here: the same bandwidth at every point, the same zero-load
   latency (8 / 26 cycles, nothing over the endpoint), the same f3 read
-  latency, the same even split; 0.93x its LUTs at 1.04x its flops, and it
-  closes 4 ns on Kintex-7 (~254 vs ~248 MHz). PULP is ahead on UltraScale+
-  (~456 vs ~415 MHz).
+  latency, the same even split; 0.93x its LUTs at 1.04x its flops. Fmax is
+  level. On Kintex-7, A2 meets a 4.0 ns (250 MHz) target with +0.068 ns
+  (~254 MHz) and C2 misses it by 0.038 ns (~248 MHz), a 2.4% gap. On
+  UltraScale+, the ordering depends on which run is used (above).
 - Against Forencich's `axi_crossbar` (C1): 6% more bandwidth in steady
   state (C1's one-cycle gap per burst), 2 fewer cycles per read, ~3.5x lower
   f3 read latency, the same fairness; 1.22x its LUTs at 0.70x its flops,

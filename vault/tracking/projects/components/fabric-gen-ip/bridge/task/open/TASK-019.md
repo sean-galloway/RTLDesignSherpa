@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-19
 **Priority:** P2
-**Status:** OPEN (phases 1, 2a-2d done on the board: AXI4, AXI3, AXI5 incl. sideband, poison, IDUNQ, atomics, MTE; 2e (third-party IP) in progress; phase 3 next)
+**Status:** OPEN (phases 1 and 2a-2e done on the board: AXI4, AXI3, AXI5 incl. sideband, poison, IDUNQ, atomics, MTE, and third-party IP on LiteDRAM in build-xil and build-xmix; phase 3 next)
 **Owner:** unassigned
 **Where:** `projects/fpga-systems/Genesys2/bridge-stress/` (PRD.md), cores in `rtl/amba/shared/axi_stress_*.sv`
 
@@ -92,7 +92,7 @@ both ends.
 - bridge_bs_axi5's cpu clique is 128-bit and carries every AXI5 feature.
   Sim 9/9 on all three builds, board 27/27, soak 172/172; WNS +0.020 ns.
 
-## In progress (phase 2e, build-xil: third-party IP, 2026-10-20)
+## Done (phase 2e, build-xil / build-xmix: third-party IP, 2026-10-20 to 10-22)
 
 - Real memories: window `mem` (writes carry the read hash at `f_maddr`, so
   they are idempotent) and cfg `fill`; each run is fill GO, run, read sweep.
@@ -105,14 +105,33 @@ both ends.
   mig excluded.
 - Found: bridge BUG-020 (W waits on the slave's AW handshake; the CDMA
   register slave deadlocks it). MIG wedges on this board (spurious
-  `app_rd_data_valid`, ILA), owner decision pending: debug MIG, LiteDRAM,
-  or BRAM only.
-- Next: a stress-slave option that holds AWREADY until WVALID (the BUG-020
-  gate), then the bridge fix.
+  `app_rd_data_valid` within ~35 us of a write sweep, ILA); owner decision
+  2026-10-20: LiteDRAM DDR3 replaces MIG, as in the fabric benchmark.
+- BUG-020 fixed with the stress-slave `w_first` gate (AWREADY held until
+  WVALID): board `w_first` 20/20, CDMA on ext1 with no AW skid.
+- `build-xmix`: AXI3, AXI4 and AXI5 masters together with the third-party
+  IP.
+- Found and fixed on the way, every one with a board re-run:
+  - converters BUG-012: a `narrow` write into mem1 hung about once in 50
+    runs. After the fix, 300/300 with zero Ocelus records.
+  - converters BUG-013 (`axi4_to_axi3_wr`, BUG-020's class at AXI3 slave
+    ports).
+  - bridge BUG-018 (width-converted FIXED / WRAP / narrow / unaligned
+    bursts). Its fix removed the host's `path_caps` limit, so `--full-axi`
+    is a no-op.
+  - bridge BUG-019, BUG-022, BUG-023 and BUG-024.
+- Final board, rebuilt with the `bridge_id_remap` timing fix (f02b67aef),
+  every profile x seeds 1-3, 20000 bursts per master direction:
+  - build-xil: 30/30, max latency 15,866 cycles, routed WNS +0.050 ns.
+  - build-xmix: 30/30, max latency 20,337 cycles, routed WNS +0.086 ns.
+  - CSVs: `bridge-stress/reports/board/bridge_bs_{xil,xmix}_20261022_22*`.
 
 ## Remaining
 
 | Phase | Work |
 |---|---|
-| 3 | single-beat shells for `axil`/`axil5`, `apb`/`apb5` (slaves in offset mode -- the bridge hands an APB slave a window offset), `wb4`; DUT `bridge_bs_mixed_b.toml` |
-| any | re-run `--full-axi` once BUG-018 is fixed and drop the converted-path limits |
+| 3 | Single-beat shells for `axil` / `axil5`, `apb` / `apb5` (slaves in offset mode: the bridge hands an APB slave a window offset) and `wb4`, plus the DUT `bridge_bs_mixed_b.toml`. None of these shells exists yet: `rtl/amba/shared` has only the `axi3` / `axi4` / `axi5` stress shells. |
+
+The earlier "re-run `--full-axi` once BUG-018 is fixed" row is done: the
+BUG-018 fix removed the converted-path limits, and the 10-22 runs above use
+none.

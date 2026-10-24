@@ -169,7 +169,7 @@ checks the blocks themselves against the model.
 | 2b (sideband + poison) | AXI5 ports in a mixed DUT, `build-axi5` | `axi5_{master,slave}_stress`: NSAID, TRACE, MPAM, MECID, POISON |
 | 2c (done) | IDUNQ, atomics | the same shells; see bridge TASK-019 |
 | 2d (done) | MTE | the same shells |
-| 2e | `build-xil`: third-party IP on the bridge -- real memories (mem windows, fill / read sweeps) and vendor masters | the AXI4 shells; LiteDRAM, BRAM controller, traffic generator, DMA, protocol checkers |
+| 2e (done) | `build-xil`, `build-xmix`: third-party IP on the bridge -- real memories (mem windows, fill / read sweeps) and vendor masters | the AXI4 shells; LiteDRAM, BRAM controller, traffic generator, DMA, protocol checkers |
 | 3 | AXI4-Lite / AXI5-Lite, APB4 / APB5, WB4 | single-beat shells; slaves in offset mode where the bridge hands them a window offset |
 
 ## 6. Findings
