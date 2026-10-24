@@ -70,6 +70,9 @@
 
 module rapids_g_top_base #(
     parameter int NUM_CHANNELS   = 8,
+    // rapids-g: 1 = the gatling instruction memory is writable through the
+    // FW_* registers (rapids TASK-038); 0 = a ROM holding the generated image
+    parameter int FW_WRITABLE = 0,
     parameter int DATA_WIDTH     = 512,
     parameter int ADDR_WIDTH     = 64,
     parameter int AXI_ID_WIDTH   = 8,
@@ -950,6 +953,8 @@ module rapids_g_top_base #(
     assign w_tile_clr_dropped      = (w_tile_wr_dropped && !r_tile_wr_dropped_d) ? NC'(w_tile_clr_mask) : '0;
     assign w_tile_dropped_reg      = `RAPIDS_REGS_NCH'(sts_tile_desc_dropped);
 
+`include "rapids_g_top_fw.svh"
+
     always_comb begin
         hwif_in = '{default: '0};
 
@@ -974,6 +979,16 @@ module rapids_g_top_base #(
         hwif_in.SRC.TILE_STRAPS.DESC_PER_CORE.next = (TILE_CREDITS != 0) ? 16'(TILE_DESC_PER_CORE) : 16'h0;
         hwif_in.SNK.TILE_STRAPS.LAND_FLITS.next    = (TILE_CREDITS != 0) ? 16'(TILE_LAND_FLITS)    : 16'h0;
         hwif_in.SNK.TILE_STRAPS.DESC_PER_CORE.next = (TILE_CREDITS != 0) ? 16'(TILE_DESC_PER_CORE) : 16'h0;
+        // rapids-g firmware load (src half): FW_WRITABLE, the word at FW_ADDR, the advance
+        hwif_in.SRC.FW_CTRL.WRITABLE.next = (FW_WRITABLE != 0);
+        hwif_in.SRC.FW_RDATA.DATA.next    = w_src_fw_rd_data;
+        hwif_in.SRC.FW_ADDR.ADDR.we       = w_src_fw_adv;
+        hwif_in.SRC.FW_ADDR.ADDR.next     = hwif_out.SRC.FW_ADDR.ADDR.value + 16'd1;
+        // rapids-g firmware load (snk half): FW_WRITABLE, the word at FW_ADDR, the advance
+        hwif_in.SNK.FW_CTRL.WRITABLE.next = (FW_WRITABLE != 0);
+        hwif_in.SNK.FW_RDATA.DATA.next    = w_snk_fw_rd_data;
+        hwif_in.SNK.FW_ADDR.ADDR.we       = w_snk_fw_adv;
+        hwif_in.SNK.FW_ADDR.ADDR.next     = hwif_out.SNK.FW_ADDR.ADDR.value + 16'd1;
 
         hwif_in.SRC.GLOBAL_STATUS.SYSTEM_IDLE.next   = src_system_idle;
         hwif_in.SRC.DESC_ENGINE_IDLE.DESC_IDLE.next  = `RAPIDS_REGS_NCH'(src_desc_engine_idle);
@@ -1651,6 +1666,7 @@ module rapids_g_top_base #(
     // RAPIDS Beats Core (two independent halves)
     //=========================================================================
     rapids_core_g #(
+        .FW_WRITABLE            (FW_WRITABLE),
         .NUM_CHANNELS         (NUM_CHANNELS),
         .ADDR_WIDTH           (ADDR_WIDTH),
         .DATA_WIDTH           (DATA_WIDTH),
@@ -1692,6 +1708,18 @@ module rapids_g_top_base #(
         .snk_seq_reg_rsp_ready    (w_snk_seq_reg_rsp_ready),
         .snk_seq_reg_rsp_prdata   (w_snk_seq_reg_rsp_prdata),
         .snk_seq_reg_rsp_pslverr  (w_snk_seq_reg_rsp_pslverr),
+        .src_fw_hold          (hwif_out.SRC.FW_CTRL.HOLD.value),
+        .src_fw_wr_en         (w_src_fw_wr),
+        .src_fw_addr          (hwif_out.SRC.FW_ADDR.ADDR.value),
+        .src_fw_wr_data       (hwif_out.SRC.FW_DATA.DATA.value),
+        .src_fw_alg_max       (hwif_out.SRC.FW_CTRL.ALG_MAX.value),
+        .src_fw_rd_data       (w_src_fw_rd_data),
+        .snk_fw_hold          (hwif_out.SNK.FW_CTRL.HOLD.value),
+        .snk_fw_wr_en         (w_snk_fw_wr),
+        .snk_fw_addr          (hwif_out.SNK.FW_ADDR.ADDR.value),
+        .snk_fw_wr_data       (hwif_out.SNK.FW_DATA.DATA.value),
+        .snk_fw_alg_max       (hwif_out.SNK.FW_CTRL.ALG_MAX.value),
+        .snk_fw_rd_data       (w_snk_fw_rd_data),
         .clk    (aclk),
         .rst_n  (w_aresetn),
 

@@ -43,7 +43,7 @@ def merge(docs):
         for r in d['points']:
             (dup.append(r['id']) if r['id'] in points else points.__setitem__(r['id'], r))
     sessions = [s for d in perf for s in d.get('sessions', [])]
-    planned = byte_perf.build_points(base['profile'])
+    planned = byte_perf.build_points(base['profile'], base['design']['channels'])
     base.update({
         'points': list(points.values()),
         'sessions': sessions,

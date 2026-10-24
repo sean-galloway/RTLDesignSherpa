@@ -32,6 +32,7 @@ kicked off through the per-half kick windows.
 
 import os
 import sys
+import subprocess
 
 import pytest
 import cocotb
@@ -220,10 +221,15 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
     module = module_name or module
     dut_name = "rapids_byte_harness"
 
+    # 16 channels (rapids TASK-036): the 16-channel tops carry the 16-channel
+    # register map, so they take their own filelist and the RAPIDS_16CH define.
+    num_channels = int(os.environ.get('TEST_NUM_CHANNELS', '8'))
+    ch16 = num_channels == 16
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_local,
         filelist_path=('projects/fpga-systems/Genesys2/dma-ip/rapids/'
-                       'flows-rapids/filelists/rapids_byte_harness.f')
+                       'flows-rapids/filelists/rapids_byte_harness'
+                       + ('_16ch' if ch16 else '') + '.f')
     )
 
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', '')
@@ -233,13 +239,30 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
     log_path = os.path.join(log_dir, f'{test_name}.log')
     results_path = os.path.join(log_dir, f'results_{test_name}.xml')
     # a rapids-g build is a different DUT: never share its sim_build with rapids_top's
+    fw_writable = int(os.environ.get('TEST_RAPIDS_G', '0')) == 1 and \
+        int(os.environ.get('TEST_FW_WRITABLE', '0')) == 1
     g_tag = ('_g' if int(os.environ.get('TEST_RAPIDS_G', '0')) == 1 else '') + \
-            ('_rc' if int(os.environ.get('TEST_ROW_COL', '0')) == 1 else '')
+            ('_fw' if fw_writable else '') + \
+            ('_rc' if int(os.environ.get('TEST_ROW_COL', '0')) == 1 else '') + \
+            ('_16ch' if ch16 else '')
+    # TEST_FW_IMAGE=<.S> (rapids TASK-038): build rapids-g with that firmware as
+    # its power-up image instead of the committed one -- the image a board run
+    # loads live with --fw, here compiled in, since a full load does not fit a
+    # chunk's 100 ms. Its own sim_build, named by the source's digest.
+    fw_image = os.environ.get('TEST_FW_IMAGE', '') if int(os.environ.get('TEST_RAPIDS_G', '0')) == 1 else ''
+    if fw_image:
+        import hashlib
+        with open(fw_image, 'rb') as fh:
+            g_tag += '_img' + hashlib.sha256(fh.read()).hexdigest()[:8]
     sim_build = sim_build_path(tests_dir, (build_name or test_name) + g_tag)
     os.makedirs(sim_build, exist_ok=True)
+    if fw_image:
+        fw_dir = os.path.join(sim_build, 'fw_image')
+        subprocess.run([sys.executable, os.path.join(repo_root_local, 'projects/components/dma-ip/rapids/bin/gen_rapids_g_fw.py'),
+                        '--src', fw_image, '--out', os.path.join(fw_dir, 'sched_g_fw.svh')], check=True)
+        includes = [fw_dir] + list(includes)
     os.makedirs(log_dir, exist_ok=True)
 
-    num_channels = int(os.environ.get('TEST_NUM_CHANNELS', '8'))
     num_active = int(os.environ.get('TEST_NUM_ACTIVE', '4'))
     num_beats = int(os.environ.get('TEST_NUM_BEATS', '8'))
 
@@ -309,6 +332,11 @@ def _run_harness(testcase, test_name, *, test_level='gate', extra_env=None,
     # TEST_RAPIDS_G=1: the DUT is rapids_g_top (the board's RAPIDS_G=1 build)
     if int(os.environ.get('TEST_RAPIDS_G', '0')) == 1:
         compile_args.append('+define+RAPIDS_G')
+    # TEST_FW_WRITABLE=1 (rapids TASK-038): the loadable instruction memory
+    if fw_writable:
+        compile_args.append('+define+RAPIDS_G_FW_WRITABLE')
+    if ch16:
+        compile_args.append('+define+RAPIDS_16CH')
     if enable_waves:
         compile_args.extend(['--trace', '--trace-structs', '--trace-max-array', '512'])
 

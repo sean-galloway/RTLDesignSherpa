@@ -44,6 +44,7 @@ from cocotb.triggers import RisingEdge, Timer
 
 # Framework imports
 from TBClasses.shared.tbbase import TBBase
+from projects.components.dma_ip.rapids.dv.tbclasses.rapids_g_seq_ports import MailboxGuard, drive_idle
 from CocoTBFramework.components.shared.flex_randomizer import FlexRandomizer
 from CocoTBFramework.components.shared.memory_model import MemoryModel
 from CocoTBFramework.components.axi4.axi4_factories import create_axi4_slave_rd, create_axi4_slave_wr
@@ -122,6 +123,14 @@ class SchedulerGroupArrayTB(TBBase):
         # Start clock
         await self.start_clock(self.clk_name, freq=self.TEST_CLK_PERIOD, units='ns')
 
+        # rapids-g (scheduler_group_array_g, rapids TASK-034/038): the gatling
+        # sequencer's own inputs -- no restart, no firmware load, and a guard in
+        # place of the register block the mailbox reaches in the top base
+        self.mailbox = None
+        if os.environ.get('DUT', '') == 'scheduler_group_array_g':
+            drive_idle(self.dut, '', 'seq_reg_')
+            self.mailbox = MailboxGuard(self.dut, self.clk, '', 'seq_reg_', self.log)
+
         # Set configuration signals BEFORE reset (important for proper initialization)
         # Per-channel configuration
         self.dut.cfg_channel_enable.value = (1 << self.NUM_CHANNELS) - 1  # Enable all channels
@@ -166,6 +175,8 @@ class SchedulerGroupArrayTB(TBBase):
         await self.assert_reset()
         await self.wait_clocks(self.clk_name, 10)
         await self.deassert_reset()
+        if self.mailbox is not None:
+            self.mailbox.start()
         await self.wait_clocks(self.clk_name, 10)
 
         self.set_gaxi_timing_profile(os.environ.get('GAXI_TIMING_PROFILE', 'backtoback'))

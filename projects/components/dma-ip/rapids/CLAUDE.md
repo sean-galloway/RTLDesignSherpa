@@ -167,12 +167,18 @@
 > gatling reaches its own half of `rapids_regs` through a per-hart mailbox (`rapids_seq_g` 0x1000_3000) and
 > `rapids_g_reg_arb` in front of the MON guard (host + SRC + SNK, one outstanding, offset pinned per half);
 > `CH_SCRATCH[n]` (0x300 per half, 8 bits, storage only) is shared by host and gatling. MAS Chapter 5.
+> Loadable firmware (rapids TASK-038): `FW_WRITABLE` = 1 makes the instruction ROM a BRAM the host loads through
+> `FW_CTRL`/`FW_ADDR`/`FW_DATA`/`FW_RDATA` (0x3A0-0x3AC in both maps, inert on a ROM build); the harts must be held,
+> and `seq_restart` releases them. Host: `flows-rapids/host/run_characterization.py --fw <image.S> --fw-selftest`
+> (`rapids_fw_load.py`); every result JSON records the image hash. Sim loads the same image over the UART path, so
+> sim == board holds (109/109 windows at 16 channels). Trap: the FW_ADDR auto-increment must advance on an
+> edge-detected `swmod`/`swacc`, not the level, or each access stores twice (handbook generated-rtl-discipline).
 
 **Complete Specification:**
 - `projects/components/dma-ip/rapids/docs/rapids_beats_has/` - Architecture spec (HAS); index: `rapids_beats_has_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_beats_mas/` - Micro-architecture spec (MAS); index: `rapids_beats_mas_index.md`
 - `projects/components/dma-ip/rapids/docs/rapids_has/` and `rapids_mas/` - the byte-granular RAPIDS books (index: `rapids_has_index.md`, `rapids_mas_index.md`); chapters identical to Beats are linked from the `rapids_beats_*` books, not copied
-- Built PDFs: `docs/RAPIDS_HAS_v0.93.pdf`, `docs/RAPIDS_MAS_v0.83.pdf` (byte design and rapids-g); `docs/RAPIDS_Beats_HAS_v0.16.pdf`, `docs/RAPIDS_Beats_MAS_v0.14.pdf` (beats design). Only the latest build of each book stays in `docs/`; superseded builds move to `docs/archive/`
+- Built PDFs: `docs/RAPIDS_HAS_v0.94.pdf`, `docs/RAPIDS_MAS_v0.84.pdf` (byte design and rapids-g); `docs/RAPIDS_Beats_HAS_v0.17.pdf`, `docs/RAPIDS_Beats_MAS_v0.14.pdf` (beats design). Only the latest build of each book stays in `docs/`; superseded builds move to `docs/archive/`
 - Network planes / CXS: HAS `rapids_beats_has/ch03_interfaces/06_cxs_interface.md`, MAS `rapids_beats_mas/ch03_macro_blocks/13_network_planes.md` and `ch04_interfaces/04_cxs_interface_spec.md` (all shared by the byte books). Routing / payload-type PROPOSAL (2026-10-16, not implemented) is defined ONLY in `compute-eng-ip/tile/docs/TILE_SPEC.md` §11 (CXS is just the transport); RAPIDS docs hold only the descriptor fields (beats HAS Descriptor Format) and pointers
 
 ---

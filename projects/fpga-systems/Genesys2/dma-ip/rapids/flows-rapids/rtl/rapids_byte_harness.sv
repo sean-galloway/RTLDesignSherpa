@@ -226,8 +226,10 @@ module rapids_byte_harness #(
     // The DUT's per-half KICK_ENABLE, inside the APB kick window -- NOT a
     // char_top CSR. The numeric clash with CSR_MEM_CTRL (12'h040) above is
     // coincidental: that one is a char_top CSR, this is an offset into the
-    // rapids_top register map (SRC 0x0040 / SNK 0x1040).
-    localparam logic [11:0] DUT_KICK_ENABLE = 12'h040;
+    // rapids_top register map (SRC 0x0040 / SNK 0x1040); the 16-channel map
+    // (rapids_16ch_top, rapids_g_16ch_top) has 16 address pairs below it, so
+    // KICK_ENABLE moves to 0x080.
+    localparam logic [11:0] DUT_KICK_ENABLE = (NUM_CHANNELS > 8) ? 12'h080 : 12'h040;
     localparam logic [11:0] CSR_GO          = 12'h078;  // [0]=GO (arm+gen+kick, 1-cyc)
     localparam logic [11:0] CSR_OBS_TARGET  = 12'h07C;  // freeze window at N productive beats
     localparam logic [11:0] CSR_OBS_CTRL    = 12'h0C0;  // [0] ARM (1-cyc pulse)
@@ -704,6 +706,13 @@ module rapids_byte_harness #(
 `else
     localparam bit BUILD_RAPIDS_G = 1'b0;
 `endif
+    // rapids TASK-038: the gatlings' instruction memory is loadable through the
+    // DUT's FW_* registers (the DUT reports it in FW_CTRL.WRITABLE)
+`ifdef RAPIDS_G_FW_WRITABLE
+    localparam int DUT_FW_WRITABLE = 1;
+`else
+    localparam int DUT_FW_WRITABLE = 0;
+`endif
 
     // Combinational readback mux (valid once r_raddr is latched in RST_ACT).
     logic [31:0] w_readmux;
@@ -874,7 +883,7 @@ module rapids_byte_harness #(
     typedef enum logic [2:0] { KST_IDLE, KST_SCAN, KST_LOW, KST_HIGH,
                                KST_KICK } kstate_t;
     kstate_t     r_kstate;
-    logic [7:0]  r_kick_ch;      // current channel (NUM_CHANNELS <= 8)
+    logic [7:0]  r_kick_ch;      // current channel (NUM_CHANNELS <= 16)
     logic [63:0] r_kick_addr;    // running descriptor address (base + ch*stride)
     logic        r_kick_acc;     // cmd accepted, awaiting rsp
 
@@ -1398,10 +1407,20 @@ module rapids_byte_harness #(
     // TASK-034: the same ports and register map, schedulers sequenced by
     // firmware on gatling). One harness, two DUTs, for the A/B on the board.
     //=========================================================================
-`ifdef RAPIDS_G
-    `define RAPIDS_CHAR_DUT rapids_g_top
+    // RAPIDS_16CH (make CHANNELS=16, rapids TASK-036) picks the 16-channel tops,
+    // which carry the 16-channel register map; NUM_CHANNELS must then be 16.
+`ifdef RAPIDS_16CH
+  `ifdef RAPIDS_G
+    `define RAPIDS_CHAR_DUT rapids_g_16ch_top
+  `else
+    `define RAPIDS_CHAR_DUT rapids_16ch_top
+  `endif
 `else
+  `ifdef RAPIDS_G
+    `define RAPIDS_CHAR_DUT rapids_g_top
+  `else
     `define RAPIDS_CHAR_DUT rapids_top
+  `endif
 `endif
     `RAPIDS_CHAR_DUT #(
         .NUM_CHANNELS   (NUM_CHANNELS),
@@ -1430,6 +1449,9 @@ module rapids_byte_harness #(
         // the second descriptor-fetch path. Pin it here so the board flow's
         // area and WNS are unchanged by that flip.
         .USE_ROW_COL_MAJOR_ADDRESSING(USE_ROW_COL_MAJOR_ADDRESSING)
+`ifdef RAPIDS_G
+        , .FW_WRITABLE  (DUT_FW_WRITABLE)
+`endif
     ) u_dut (
         .aclk    (aclk),
         .aresetn (aresetn),
@@ -1919,7 +1941,12 @@ module rapids_byte_harness #(
         .ADDR_WIDTH   (ADDR_WIDTH),
         .DATA_WIDTH   (DESC_DATA_WIDTH),
         .USER_WIDTH   (1),
-        .MEM_DEPTH    (DESC_RAM_ENTRIES)
+        .MEM_DEPTH    (DESC_RAM_ENTRIES),
+        // The host writes whole descriptors (desc_src_wstrb is all ones), so
+        // full-word writes lose nothing and let the array infer block RAM. With
+        // byte enables it fell to LUTRAM: 25.6k LUTs per RAM at 2048 entries,
+        // and the 16-channel rapids-g build would not route.
+        .USE_WSTRB    (1'b0)
     ) u_desc_ram_src (
         .aclk   (aclk),
         .aresetn(aresetn),
@@ -1987,7 +2014,8 @@ module rapids_byte_harness #(
         .ADDR_WIDTH   (ADDR_WIDTH),
         .DATA_WIDTH   (DESC_DATA_WIDTH),
         .USER_WIDTH   (1),
-        .MEM_DEPTH    (DESC_RAM_ENTRIES)
+        .MEM_DEPTH    (DESC_RAM_ENTRIES),
+        .USE_WSTRB    (1'b0)              // as u_desc_ram_src: whole-descriptor writes
     ) u_desc_ram_snk (
         .aclk   (aclk),
         .aresetn(aresetn),

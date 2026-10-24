@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — tasks
 
-**Next ID: TASK-018** — never recycle a number, even when its item closed.
+**Next ID: TASK-020** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,15 +12,21 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 0 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
-| [deferred/](deferred/) | 0 | parked pending a named condition |
+| [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
+- **TASK-019** — `monbus_axil4_group_1wr` in place of `monbus_axil4_axil4_group` on both STREAM tops (write-only monitor, records read from memory on irq_out / err_rec_count); RAPIDS twin is rapids TASK-039
+
 ## Active
+
+## Deferred
+
+- **TASK-018** — loadable firmware memory as on rapids-g (rapids TASK-038); waits on that being proven; STREAM has no firmware today, so the shape is the owner's call then
 
 ## Closed
 

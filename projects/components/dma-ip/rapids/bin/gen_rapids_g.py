@@ -96,6 +96,48 @@ def reg_conns(port_prefix, net_prefix):
     return "".join(f"        .{port_prefix}seq_reg_{n:<12} ({net_prefix}seq_reg_{n}),\n" for _, _, n in REG_SIGS)
 
 
+
+# The firmware-load bus (rapids TASK-038): each half's FW_* registers -> that
+# half's gatling (rapids_seq_g fw_*), passed down through every level. Inputs
+# below the top; fw_rd_data comes back up for FW_RDATA.
+FW_SIGS = (('input ', '', 'hold'), ('input ', '', 'wr_en'), ('input ', '[15:0]', 'addr'),
+           ('input ', '[31:0]', 'wr_data'), ('input ', '[7:0]', 'alg_max'),
+           ('output', '[31:0]', 'rd_data'))
+FW_PARAM = ("\n    // rapids-g: 1 = the gatling instruction memory is writable through the\n"
+            "    // FW_* registers (rapids TASK-038); 0 = a ROM holding the generated image\n"
+            "    parameter int FW_WRITABLE = 0,")
+FW_PCONN = "        .FW_WRITABLE            (FW_WRITABLE),\n"
+
+
+def fw_ports(prefix, why=None):
+    lines = [f"    // rapids-g: {why}"] if why else []
+    lines += [f"    {d} logic {w:<26} {prefix}fw_{n}," for d, w, n in FW_SIGS]
+    return "\n".join(lines) + "\n"
+
+
+def fw_conns(port_prefix, net_prefix):
+    return "".join(f"        .{port_prefix}fw_{n:<17} ({net_prefix}fw_{n}),\n" for _, _, n in FW_SIGS)
+
+
+# The FW_* read-back fields, set inside the base's hwif_in block
+FW_HWIF_ANCHOR = ("        hwif_in.SNK.TILE_STRAPS.DESC_PER_CORE.next = "
+                  "(TILE_CREDITS != 0) ? 16'(TILE_DESC_PER_CORE) : 16'h0;\n")
+FW_HWIF = FW_HWIF_ANCHOR + "".join(
+    f"        // rapids-g firmware load ({h} half): FW_WRITABLE, the word at FW_ADDR, the advance\n"
+    f"        hwif_in.{H}.FW_CTRL.WRITABLE.next = (FW_WRITABLE != 0);\n"
+    f"        hwif_in.{H}.FW_RDATA.DATA.next    = w_{h}_fw_rd_data;\n"
+    f"        hwif_in.{H}.FW_ADDR.ADDR.we       = w_{h}_fw_adv;\n"
+    f"        hwif_in.{H}.FW_ADDR.ADDR.next     = hwif_out.{H}.FW_ADDR.ADDR.value + 16'd1;\n"
+    for h, H in (('src', 'SRC'), ('snk', 'SNK')))
+FW_GLUE_ANCHOR = "    always_comb begin\n        hwif_in = '{default: '0};\n"
+FW_TOP_CONNS = "".join(
+    f"        .{h}_fw_{n:<13} ({v}),\n"
+    for h, H in (('src', 'SRC'), ('snk', 'SNK'))
+    for n, v in (('hold', f"hwif_out.{H}.FW_CTRL.HOLD.value"), ('wr_en', f"w_{h}_fw_wr"),
+                 ('addr', f"hwif_out.{H}.FW_ADDR.ADDR.value"), ('wr_data', f"hwif_out.{H}.FW_DATA.DATA.value"),
+                 ('alg_max', f"hwif_out.{H}.FW_CTRL.ALG_MAX.value"), ('rd_data', f"w_{h}_fw_rd_data")))
+NC_BASE_PARAM = "    parameter int NUM_CHANNELS   = 8,\n"
+
 APB4_RENAME = [(f"        .{p:<15}(apb_{p}),", f"        .{p:<15}(host_{p}),")
                for p in ('cmd_valid', 'cmd_ready', 'cmd_pwrite', 'cmd_paddr', 'cmd_pwdata',
                          'rsp_valid', 'rsp_ready', 'rsp_prdata')]
@@ -107,47 +149,56 @@ REG_ARB_ANCHOR = """    //======================================================
 # (generated file, source, [(old, new)], what it is)
 JOBS = (
     ('macro_g/generated/scheduler_group_array_g.sv', 'macro/scheduler_group_array.sv', [
-        ("module scheduler_group_array #(", "module scheduler_group_array_g #("),
+        ("module scheduler_group_array #(", "module scheduler_group_array_g #(" + FW_PARAM),
         ("endmodule : scheduler_group_array\n", "endmodule : scheduler_group_array_g\n"),
         (FATAL_ANCHOR, FATAL_G + FATAL_ANCHOR),
         (SEQ_LOOP_ANCHOR, '`include "scheduler_group_array_g_seq.svh"\n\n' + SEQ_LOOP_ANCHOR),
         ("            scheduler #(\n", "            scheduler_g #(\n"),
         (SCHED_PORT_ANCHOR, SEQ_PORTS),
         (RST_PORT, RST_PORT + RESTART_PORT
-         + reg_ports('', "this half's register mailbox (rapids_seq_g -> rapids_g_reg_arb)")),
+         + reg_ports('', "this half's register mailbox (rapids_seq_g -> rapids_g_reg_arb)")
+         + fw_ports('', "this half's firmware load (FW_* registers -> rapids_seq_g)")),
     ], "the scheduler array, its schedulers sequenced by one gatling"),
     ('macro_g/generated/rapids_src_g.sv', 'macro/rapids_src.sv', [
-        ("module rapids_src #(", "module rapids_src_g #("),
+        ("module rapids_src #(", "module rapids_src_g #(" + FW_PARAM),
         ("endmodule : rapids_src\n", "endmodule : rapids_src_g\n"),
-        ("    scheduler_group_array #(\n", "    scheduler_group_array_g #(\n"),
-        (RST_PORT, RST_PORT + RESTART_PORT + reg_ports('', "this half's register mailbox")),
-        ("    ) u_scheduler_group_array (\n", "    ) u_scheduler_group_array (\n" + RESTART_CONN + reg_conns('', '')),
+        ("    scheduler_group_array #(\n", "    scheduler_group_array_g #(\n" + FW_PCONN),
+        (RST_PORT, RST_PORT + RESTART_PORT + reg_ports('', "this half's register mailbox")
+         + fw_ports('', "this half's firmware load")),
+        ("    ) u_scheduler_group_array (\n", "    ) u_scheduler_group_array (\n" + RESTART_CONN + reg_conns('', '')
+         + fw_conns('', '')),
     ], "the SOURCE half"),
     ('macro_g/generated/rapids_snk_g.sv', 'macro/rapids_snk.sv', [
-        ("module rapids_snk #(", "module rapids_snk_g #("),
+        ("module rapids_snk #(", "module rapids_snk_g #(" + FW_PARAM),
         ("endmodule : rapids_snk\n", "endmodule : rapids_snk_g\n"),
-        ("    scheduler_group_array #(\n", "    scheduler_group_array_g #(\n"),
-        (RST_PORT, RST_PORT + RESTART_PORT + reg_ports('', "this half's register mailbox")),
-        ("    ) u_scheduler_group_array (\n", "    ) u_scheduler_group_array (\n" + RESTART_CONN + reg_conns('', '')),
+        ("    scheduler_group_array #(\n", "    scheduler_group_array_g #(\n" + FW_PCONN),
+        (RST_PORT, RST_PORT + RESTART_PORT + reg_ports('', "this half's register mailbox")
+         + fw_ports('', "this half's firmware load")),
+        ("    ) u_scheduler_group_array (\n", "    ) u_scheduler_group_array (\n" + RESTART_CONN + reg_conns('', '')
+         + fw_conns('', '')),
     ], "the SINK half"),
     ('macro_g/generated/rapids_core_g.sv', 'macro/rapids_core.sv', [
-        ("module rapids_core #(", "module rapids_core_g #("),
+        ("module rapids_core #(", "module rapids_core_g #(" + FW_PARAM),
         ("endmodule : rapids_core\n", "endmodule : rapids_core_g\n"),
-        ("    rapids_src #(\n", "    rapids_src_g #(\n"),
-        ("    rapids_snk #(\n", "    rapids_snk_g #(\n"),
+        ("    rapids_src #(\n", "    rapids_src_g #(\n" + FW_PCONN),
+        ("    rapids_snk #(\n", "    rapids_snk_g #(\n" + FW_PCONN),
         (RST_PORT, RST_PORT + RESTART_PORT
-         + reg_ports('src_', "the halves' register mailboxes") + reg_ports('snk_')),
-        ("    ) u_src (\n", "    ) u_src (\n" + RESTART_CONN + reg_conns('', 'src_')),
-        ("    ) u_snk (\n", "    ) u_snk (\n" + RESTART_CONN + reg_conns('', 'snk_')),
+         + reg_ports('src_', "the halves' register mailboxes") + reg_ports('snk_')
+         + fw_ports('src_', "the halves' firmware loads") + fw_ports('snk_')),
+        ("    ) u_src (\n", "    ) u_src (\n" + RESTART_CONN + reg_conns('', 'src_') + fw_conns('', 'src_')),
+        ("    ) u_snk (\n", "    ) u_snk (\n" + RESTART_CONN + reg_conns('', 'snk_') + fw_conns('', 'snk_')),
     ], "the core: both halves"),
     ('top_g/generated/rapids_g_top_base.sv', 'top/rapids_top_base.sv', [
         ("module rapids_top_base #(", "module rapids_g_top_base #("),
         ("endmodule : rapids_top_base\n", "endmodule : rapids_g_top_base\n"),
-        ("    rapids_core #(\n", "    rapids_core_g #(\n"),
+        ("    rapids_core #(\n", "    rapids_core_g #(\n" + FW_PCONN),
+        (NC_BASE_PARAM, NC_BASE_PARAM + FW_PARAM.lstrip("\n") + "\n"),
         (CAM_PORT, CAM_PORT_G),
         ("    ) u_core (\n", "    ) u_core (\n" + RESTART_CONN
-         + reg_conns('src_', 'w_src_') + reg_conns('snk_', 'w_snk_')),
+         + reg_conns('src_', 'w_src_') + reg_conns('snk_', 'w_snk_') + FW_TOP_CONNS),
         (REG_ARB_ANCHOR, '`include "rapids_g_top_reg_arb.svh"\n\n' + REG_ARB_ANCHOR),
+        (FW_GLUE_ANCHOR, '`include "rapids_g_top_fw.svh"\n\n' + FW_GLUE_ANCHOR),
+        (FW_HWIF_ANCHOR, FW_HWIF),
     ] + APB4_RENAME, "the top base"),
 )
 

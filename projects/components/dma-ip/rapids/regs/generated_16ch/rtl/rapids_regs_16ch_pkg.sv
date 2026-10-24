@@ -277,6 +277,31 @@ package rapids_regs_16ch_pkg;
     } rapids_engine_regs_16ch__HIST_TOTAL__in_t;
 
     typedef struct {
+        logic next;
+    } rapids_engine_regs_16ch__FW_CTRL__WRITABLE__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_CTRL__WRITABLE__in_t WRITABLE;
+    } rapids_engine_regs_16ch__FW_CTRL__in_t;
+
+    typedef struct {
+        logic [15:0] next;
+        logic we;
+    } rapids_engine_regs_16ch__FW_ADDR__ADDR__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_ADDR__ADDR__in_t ADDR;
+    } rapids_engine_regs_16ch__FW_ADDR__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } rapids_engine_regs_16ch__FW_RDATA__DATA__in_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_RDATA__DATA__in_t DATA;
+    } rapids_engine_regs_16ch__FW_RDATA__in_t;
+
+    typedef struct {
         logic [15:0] next;
     } rapids_engine_regs_16ch__TILE_STRAPS__LAND_FLITS__in_t;
 
@@ -688,6 +713,9 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__TILE_STALLED__in_t TILE_STALLED;
         rapids_engine_regs_16ch__HIST_DATA__in_t HIST_DATA;
         rapids_engine_regs_16ch__HIST_TOTAL__in_t HIST_TOTAL;
+        rapids_engine_regs_16ch__FW_CTRL__in_t FW_CTRL;
+        rapids_engine_regs_16ch__FW_ADDR__in_t FW_ADDR;
+        rapids_engine_regs_16ch__FW_RDATA__in_t FW_RDATA;
         rapids_engine_regs_16ch__TILE_STRAPS__in_t TILE_STRAPS;
         rapids_mon_regs_16ch__in_t MON;
     } rapids_engine_regs_16ch__in_t;
@@ -1276,6 +1304,44 @@ package rapids_regs_16ch_pkg;
 
     typedef struct {
         logic value;
+    } rapids_engine_regs_16ch__FW_CTRL__HOLD__out_t;
+
+    typedef struct {
+        logic [7:0] value;
+    } rapids_engine_regs_16ch__FW_CTRL__ALG_MAX__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_CTRL__HOLD__out_t HOLD;
+        rapids_engine_regs_16ch__FW_CTRL__ALG_MAX__out_t ALG_MAX;
+    } rapids_engine_regs_16ch__FW_CTRL__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } rapids_engine_regs_16ch__FW_ADDR__ADDR__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_ADDR__ADDR__out_t ADDR;
+    } rapids_engine_regs_16ch__FW_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+        logic swmod;
+    } rapids_engine_regs_16ch__FW_DATA__DATA__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_DATA__DATA__out_t DATA;
+    } rapids_engine_regs_16ch__FW_DATA__out_t;
+
+    typedef struct {
+        logic swacc;
+    } rapids_engine_regs_16ch__FW_RDATA__DATA__out_t;
+
+    typedef struct {
+        rapids_engine_regs_16ch__FW_RDATA__DATA__out_t DATA;
+    } rapids_engine_regs_16ch__FW_RDATA__out_t;
+
+    typedef struct {
+        logic value;
     } rapids_mon_regs_16ch__DAXMON_ENABLE__MON_EN__out_t;
 
     typedef struct {
@@ -1699,6 +1765,10 @@ package rapids_regs_16ch_pkg;
         rapids_engine_regs_16ch__TILE_STALL_CYCLES__out_t TILE_STALL_CYCLES;
         rapids_engine_regs_16ch__PERF_CH_SEL__out_t PERF_CH_SEL;
         rapids_engine_regs_16ch__HIST_SEL__out_t HIST_SEL;
+        rapids_engine_regs_16ch__FW_CTRL__out_t FW_CTRL;
+        rapids_engine_regs_16ch__FW_ADDR__out_t FW_ADDR;
+        rapids_engine_regs_16ch__FW_DATA__out_t FW_DATA;
+        rapids_engine_regs_16ch__FW_RDATA__out_t FW_RDATA;
         rapids_mon_regs_16ch__out_t MON;
     } rapids_engine_regs_16ch__out_t;
 

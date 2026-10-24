@@ -69,6 +69,19 @@
 //   - IMEM_WORDS: instruction ROM depth (words); the image must fit
 //   - SCRATCH_WORDS: scratch words per hart, power of 2; the firmware keeps
 //     64 words per slot (sched_g.S SLOT_STRIDE), so NUM_SLOTS * 64 at least
+//   - FW_WRITABLE: 0 = the instruction memory is a ROM holding the generated
+//     image (the fw_* inputs are ignored, fw_rd_data reads 0); 1 = the same
+//     memory, power-up contents the same image, with a write port the host
+//     loads through this half's FW_* registers (rapids TASK-038). A writable
+//     build that is never loaded runs exactly as the ROM build.
+//
+// Firmware load (FW_WRITABLE = 1).  fw_hold keeps every hart in reset
+// (registered, like seq_restart); fw_wr_en stores fw_wr_data at word fw_addr
+// only while held, and fw_rd_data is the word at fw_addr one clock later.
+// Releasing the hold restarts the harts from address 0 on the loaded image.
+// While held, the next-address cap (seq_alg_max) follows fw_alg_max, so a
+// loaded image carries its own ALG_MAX; it keeps that value after release.
+// Hold only while every channel of the half is idle, as for seq_restart.
 //
 // Documentation: projects/components/dma-ip/rapids/docs/rapids_mas (rapids-g)
 // Subsystem: rapids macro_g
@@ -85,7 +98,8 @@ module rapids_seq_g #(
     // 16 channels: 8 harts x 2 slots, measured best overall (rapids TASK-036)
     parameter int NUM_HARTS     = (NUM_CHANNELS == 16) ? 8 : NUM_CHANNELS,
     parameter int IMEM_WORDS    = 1024,
-    parameter int SCRATCH_WORDS = (NUM_CHANNELS / NUM_HARTS > 2) ? 256 : 128
+    parameter int SCRATCH_WORDS = (NUM_CHANNELS / NUM_HARTS > 2) ? 256 : 128,
+    parameter int FW_WRITABLE   = 0
 ) (
     input  logic                            clk,
     input  logic                            rst_n,
@@ -103,6 +117,14 @@ module rapids_seq_g #(
     input  logic [NUM_CHANNELS-1:0]         seq_attn,
     output logic [NUM_CHANNELS-1:0]         seq_fault,
     output logic [7:0]                      seq_alg_max,        // the image's highest next-address selector
+
+    // Firmware load (rapids TASK-038), from this half's FW_* registers
+    input  logic                            fw_hold,
+    input  logic                            fw_wr_en,           // one cycle: store fw_wr_data at fw_addr
+    input  logic [15:0]                     fw_addr,            // word index
+    input  logic [31:0]                     fw_wr_data,
+    input  logic [7:0]                      fw_alg_max,
+    output logic [31:0]                     fw_rd_data,
 
     // This half's register block, through the host's command queue
     output logic                            reg_cmd_valid,
@@ -126,11 +148,6 @@ module rapids_seq_g #(
 
     // The firmware image: localparam FW_WORDS, FW_IMAGE[FW_WORDS], FW_ALG_MAX
     `include "sched_g_fw.svh"
-
-    // The next-address selectors the image implements (its .equ ALG_MAX,
-    // rapids TASK-035): every scheduler_g refuses a descriptor above it, from
-    // reset, before the firmware has run an instruction.
-    assign seq_alg_max = 8'(FW_ALG_MAX);
 
     initial begin
         if ((NUM_CHANNELS != 4) && (NUM_CHANNELS != 8) && (NUM_CHANNELS != 16))
@@ -164,16 +181,34 @@ module rapids_seq_g #(
     logic [3:0]        w_dmem_wstrb;
     logic [31:0]       w_dmem_wdata;
 
-    // The restart: registered, so the gatling's reset input sees a flop and
-    // the system reset, never a decode
-    logic r_restart;
+    // The restart and the load hold: registered, so the gatling's reset input
+    // sees flops and the system reset, never a decode
+    logic r_restart, r_hold;
 
     `ALWAYS_FF_RST(clk, rst_n,
-        if (`RST_ASSERTED(rst_n)) r_restart <= 1'b0;
-        else                      r_restart <= seq_restart;
+        if (`RST_ASSERTED(rst_n)) begin
+            r_restart <= 1'b0;
+            r_hold    <= 1'b0;
+        end else begin
+            r_restart <= seq_restart;
+            r_hold    <= (FW_WRITABLE != 0) && fw_hold;
+        end
     )
 
-    wire w_gatling_rst_n = rst_n && !r_restart;
+    wire w_gatling_rst_n = rst_n && !r_restart && !r_hold;
+
+    // The next-address selectors the image implements (its .equ ALG_MAX,
+    // rapids TASK-035): every scheduler_g refuses a descriptor above it, from
+    // reset, before the firmware has run an instruction. A writable build
+    // takes a loaded image's value while held (see the header).
+    logic [7:0] r_alg_max;
+
+    `ALWAYS_FF_RST(clk, rst_n,
+        if (`RST_ASSERTED(rst_n))              r_alg_max <= 8'(FW_ALG_MAX);
+        else if ((FW_WRITABLE != 0) && r_hold) r_alg_max <= fw_alg_max;
+    )
+
+    assign seq_alg_max = r_alg_max;
 
     gatling_core #(
         .NUM_HARTS  (NUM_HARTS),
@@ -234,8 +269,10 @@ module rapids_seq_g #(
     end
 
     //=========================================================================
-    // Instruction ROM: one port, one fetch per cycle (the barrel fetches for
-    // one context per cycle, and every context runs the same image)
+    // Instruction memory: one fetch port, one fetch per cycle (the barrel
+    // fetches for one context per cycle, and every context runs the same
+    // image). FW_WRITABLE adds the load port: write and readback, the second
+    // port of the same block RAM.
     //=========================================================================
 
     logic [31:0] r_rom [IMEM_WORDS];
@@ -248,6 +285,22 @@ module rapids_seq_g #(
 
     always_ff @(posedge clk) begin
         r_imem_rdata <= r_rom[w_imem_addr[IMEM_AW+1:2]];
+    end
+
+    if (FW_WRITABLE != 0) begin : g_fw_load
+        wire w_fw_in_range = (int'(fw_addr) < IMEM_WORDS);
+        logic [31:0] r_fw_rdata;
+
+        always_ff @(posedge clk) begin
+            if (fw_wr_en && r_hold && w_fw_in_range) begin
+                r_rom[fw_addr[IMEM_AW-1:0]] <= fw_wr_data;
+            end
+            r_fw_rdata <= r_rom[fw_addr[IMEM_AW-1:0]];
+        end
+
+        assign fw_rd_data = r_fw_rdata;
+    end else begin : g_fw_rom
+        assign fw_rd_data = 32'h0;
     end
 
     //=========================================================================

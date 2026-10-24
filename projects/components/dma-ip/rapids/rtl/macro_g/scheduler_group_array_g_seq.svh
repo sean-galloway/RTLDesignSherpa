@@ -17,7 +17,8 @@
         logic [NUM_CHANNELS-1:0][31:0]  g_seq_rd_data;
 
         rapids_seq_g #(
-            .NUM_CHANNELS   (NUM_CHANNELS)
+            .NUM_CHANNELS   (NUM_CHANNELS),
+            .FW_WRITABLE    (FW_WRITABLE)
         ) u_seq (
             .clk                (clk),
             .rst_n              (rst_n),
@@ -31,6 +32,12 @@
             .seq_attn           (g_seq_attn),
             .seq_fault          (g_seq_fault),
             .seq_alg_max        (g_seq_alg_max),
+            .fw_hold            (fw_hold),                // this half's firmware load
+            .fw_wr_en           (fw_wr_en),               //   (FW_* registers, rapids TASK-038)
+            .fw_addr            (fw_addr),
+            .fw_wr_data         (fw_wr_data),
+            .fw_alg_max         (fw_alg_max),
+            .fw_rd_data         (fw_rd_data),
             .reg_cmd_valid      (seq_reg_cmd_valid),      // this half's register mailbox:
             .reg_cmd_ready      (seq_reg_cmd_ready),      //   the array's seq_reg_* ports
             .reg_cmd_pwrite     (seq_reg_cmd_pwrite),

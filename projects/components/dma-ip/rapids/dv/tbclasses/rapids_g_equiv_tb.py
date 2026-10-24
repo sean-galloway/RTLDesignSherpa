@@ -43,6 +43,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, ReadOnly, RisingEdge, Timer
 
 from TBClasses.shared.tbbase import TBBase
+from projects.components.dma_ip.rapids.dv.tbclasses.rapids_g_seq_ports import MailboxGuard, drive_idle
 
 SIDES = ('f', 'g')
 ST_IDLE, ST_FETCH, ST_XFER, ST_COMPLETE, ST_NEXT, ST_ERROR = 0x01, 0x02, 0x04, 0x08, 0x10, 0x20
@@ -165,6 +166,10 @@ class RapidsGEquivTB(TBBase):
     # -- the three mandatory methods -----------------------------------------
     async def setup_clocks_and_reset(self):
         await self.start_clock('clk', 10, 'ns')
+        # rapids_seq_g's own inputs: no restart, no firmware load, and a guard
+        # in place of the register block the mailbox would reach
+        drive_idle(self.dut, 'g_', 'reg_')
+        self.mailbox = MailboxGuard(self.dut, self.dut.clk, 'g_', 'reg_', self.log)
         self.dut.cfg_channel_enable.value = 0
         self.dut.f_cfg_channel_reset.value = 0
         self.dut.g_cfg_channel_reset.value = 0
@@ -179,6 +184,7 @@ class RapidsGEquivTB(TBBase):
         await self.assert_reset()
         await self.wait_clocks('clk', 10)
         await self.deassert_reset()
+        self.mailbox.start()
         await self.wait_clocks('clk', 5)
 
     async def assert_reset(self):

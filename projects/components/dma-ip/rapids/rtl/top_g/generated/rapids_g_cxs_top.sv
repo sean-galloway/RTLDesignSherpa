@@ -24,6 +24,9 @@
 module rapids_g_cxs_top
 #(
     parameter int NUM_CHANNELS   = 8,
+    // rapids-g: 1 = the gatling instruction memory is writable through the
+    // FW_* registers (rapids TASK-038); 0 = a ROM holding the generated image
+    parameter int FW_WRITABLE = 0,
     parameter int DATA_WIDTH     = 512,
     parameter int ADDR_WIDTH     = 64,
     parameter int AXI_ID_WIDTH   = 8,
@@ -461,6 +464,7 @@ module rapids_g_cxs_top
 
     rapids_g_top_base #(
         .NUM_CHANNELS            (NUM_CHANNELS),
+        .FW_WRITABLE             (FW_WRITABLE),
         .DATA_WIDTH              (DATA_WIDTH),
         .ADDR_WIDTH              (ADDR_WIDTH),
         .AXI_ID_WIDTH            (AXI_ID_WIDTH),

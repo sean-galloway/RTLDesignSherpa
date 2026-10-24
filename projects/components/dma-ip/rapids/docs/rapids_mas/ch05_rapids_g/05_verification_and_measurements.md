@@ -156,8 +156,12 @@ chain of 64-beat sink descriptors:
 | one-slot tight chain loop, HEAD_SUM re-read before `service` | 1,833 MB/s (board) | about 90 |
 | seven-instruction idle pass (this image) | 1,875 MB/s | about 90 |
 | rapids-8ch, for reference | 2,214 MB/s | -- |
+| two slots per hart (16 channels), SUMMARY then JUDGE | 1,122 MB/s (board) | 184 |
+| two slots, HEAD_SUM checks ahead of SUMMARY | 1,546 MB/s (board) | 134 |
+| two slots, SUMMARY then the chain hook per slot (this image) | 2,008 MB/s (board) | 103 |
+| rapids-16ch, for reference | 2,232 MB/s | 93 |
 
-: Table 5.5.4: Firmware cost per chained descriptor
+: Table 5.5.4: Firmware cost per chained descriptor (the 16-channel rows' clocks are the point's measured cycles / 16)
 
 Before STAGE_ARM (Section 5.2) the same point cost 672 clocks a descriptor. The tight loop
 (Section 5.3) follows a chained head in four instructions; the shorter idle pass recovered a 1-2%
@@ -202,27 +206,119 @@ instructions for DMA (`gatling_dma`) are the lever for that case.
 ### Sixteen Channels
 
 rapids-g-16ch (rapids TASK-036): the same bench at 16 channels, DATA_WIDTH 256, with each way of
-spreading the 16 channels over one gatling's harts.
+spreading the 16 channels over one gatling's harts, measured on the committed image (the two-slot
+poll with the chain hook, Section 5.3).
 
 | Scenario | rapids-16ch | 16 harts x 1 | 8 harts x 2 (default) | 4 harts x 4 |
 |----------------------------------|-------------:|-------------:|-------------:|-------------:|
-| 16 one-beat descriptors, one channel | 131 | 4,731 | 2,859 | 1,619 |
-| 16 one-beat descriptors on each channel | 131 | 4,620 | 4,871 | 5,627 |
-| 16 64-beat descriptors on each channel | 1,255 | 4,700 | 4,957 | 5,704 |
-| 4 64 KB descriptors on each channel | 9,248 | 9,609 | 9,553 | 9,579 |
-| 2 1 MB descriptors on each channel | 84,277 | 84,610 | 84,580 | 84,612 |
-| EXT, runs of 4, 64 beats, 4 per channel | 407 | 78,362 | 76,862 | 77,714 |
-| EXT, per beat, 64 beats, 4 per channel | 1,043 | 260,192 | 253,623 | 256,406 |
-| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 140,577 | 137,624 | 139,184 |
+| 16 one-beat descriptors, one channel | 131 | 4,731 | 3,131 | 1,619 |
+| 16 one-beat descriptors on each channel | 131 | 4,620 | 5,383 | 5,627 |
+| 16 64-beat descriptors on each channel | 1,255 | 4,700 | 5,469 | 5,704 |
+| 4 64 KB descriptors on each channel | 9,248 | 9,609 | 9,585 | 9,579 |
+| 2 1 MB descriptors on each channel | 84,277 | 84,610 | 84,612 | 84,612 |
+| EXT, runs of 4, 64 beats, 4 per channel | 407 | 78,362 | 77,998 | 77,714 |
+| EXT, per beat, 64 beats, 4 per channel | 1,043 | 260,192 | 257,831 | 256,406 |
+| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 140,577 | 139,688 | 139,184 |
 
 : Table 5.5.6: Cycles to finish at 16 channels
 
 Sixteen harts make every instruction cost a hart 16 clocks, which a lone busy channel pays in full
-(4,731); four harts are best for one channel but lose 22% when all sixteen are busy, each hart
-walking four slots. Eight harts with two slots each are within 5% of the best when every channel
-is busy, best on EXT, and 1.7x faster than sixteen harts for a single channel, with half the hart
-state; `rapids_seq_g` defaults to them at 16 channels. Large descriptors are within 0.4% of
-rapids-16ch on every shape.
+(4,731); four harts are best for one channel and on EXT, but lose 22% to sixteen when all sixteen
+channels run one- or 64-beat descriptors, each hart walking four slots. Eight harts with two slots
+each are 16% behind sixteen there, within 0.6% of the best on EXT, 1.5x faster than sixteen harts
+for a single channel, and keep half the hart state; `rapids_seq_g` defaults to them at 16 channels.
+Against the image this table first carried (the two-slot poll before the chain hook), the eight-hart
+column is about 10% slower on the one- and 64-beat rows and 1.5% on EXT: this bench's descriptors
+are independent (`next_ptr` = 0), so none takes the hook, and the SUMMARY-first pass costs a few
+instructions per head. What the hook buys is on chains, which this bench does not run: Tables 5.5.9
+and 5.5.10. The 1 MB rows are within 0.4% of rapids-16ch, the 64 KB rows within 3.6%.
+
+## Sixteen Channels on the Genesys 2
+
+rapids-g-16ch and rapids-16ch in the full Genesys 2 harness (rapids TASK-036), `make bitstream-perf CHANNELS=16 ROW_COL=1`, 2026-10-23. The first rapids-g-16ch build placed at 198,555 LUTs (97.4%, every slice) and did not route: the harness's two 2048-entry descriptor RAMs had fallen to distributed RAM (25.6k LUTs each), because `sdpram_core`'s byte-enabled write port will not map to block RAM. The harness writes whole descriptors, so it now builds them with `USE_WSTRB` = 0, as the STREAM harness does; the 8-channel bitstreams take the same saving, not yet re-measured.
+
+| Bitstream | LUTs | WNS at 100 MHz | Board == simulation |
+|---|---:|---:|---|
+| rapids-16ch | 135,389 (66.4%) | +0.192 ns | 109/109 windows identical |
+| rapids-g-16ch, ROM | 151,472 (74.3%) | +0.148 ns | 109/109 windows identical |
+| rapids-g-16ch, `FW_WRITABLE` | 152,813 (75.0%) | +0.034 ns | 109/109 identical, the committed image loaded live |
+
+: Table 5.5.8: 16-channel bitstreams
+
+The 16-channel gcompare profile is 57 points: the 8-channel profile's single descriptors and chains, plus 16-channel single descriptors, chains at 1, 8 and 16 channels in size-major order, and the interleaved sink at 16 (`byte_perf.build_points`); in simulation it runs as 18 chunks to keep each under the 100 ms cap. "ROM" is the image before the two-slot chain hook; "v2" is the committed image (Section 5.3), loaded live on the writable bitstream with `--fw`.
+
+| Point | rapids-16ch sink | rapids-g ROM sink | rapids-g v2 sink | rapids-16ch source | rapids-g ROM source | rapids-g v2 source |
+|---|---:|---:|---:|---:|---:|---:|
+| beat_ch1_b1 | 1,600 | 1,600 | 1,600 | 356 | 356 | 356 |
+| beat_ch1_b256 | 2,643 | 1,736 | 1,625 | 3,103 | 3,103 | 3,103 |
+| beat_ch8_b16 | 1,241 | 813 | 788 | 3,012 | 3,012 | 3,012 |
+| beat_ch8_b256 | 2,913 | 2,704 | 2,686 | 3,188 | 3,188 | 3,188 |
+| beat_ch16_b1 | 133 | 70 | 67 | 2,048 | 247 | 230 |
+| beat_ch16_b16 | 1,309 | 974 | 938 | 3,103 | 2,626 | 2,498 |
+| beat_ch16_b256 | 2,935 | 2,820 | 2,810 | 3,194 | 3,194 | 3,194 |
+| beat_ch16_b32768 | 3,198 | 3,197 | 3,197 | 3,200 | 3,200 | 3,200 |
+| chain_ch1_b1_d16 | 178 | 19 | 36 | 397 | 19 | 36 |
+| chain_ch1_b64_d16 | 2,232 | 1,122 | 2,008 | 3,175 | 1,208 | 2,190 |
+| chain_ch8_b1_d16 | 169 | 21 | 38 | 2,677 | 154 | 284 |
+| chain_ch8_b64_d16 | 2,278 | 1,236 | 2,152 | 3,197 | 3,197 | 3,197 |
+| chain_ch16_b1_d16 | 168 | 20 | 36 | 3,091 | 172 | 346 |
+| chain_ch16_b64_d16 | 2,280 | 1,232 | 2,084 | 3,198 | 3,198 | 3,198 |
+| chain_ch16_b1024_d16 | 3,121 | 3,119 | 3,120 | 3,200 | 3,200 | 3,200 |
+| chain_ch16_b8192_d4 | 3,190 | 3,189 | 3,190 | 3,200 | 3,200 | 3,200 |
+| beat_ch16_b16_il | 1,309 | 839 | 813 | -- | -- | -- |
+| beat_ch16_b64_il | 2,351 | 1,879 | 1,845 | -- | -- | -- |
+| chain_ch16_b1_d16_il | 948 | 155 | 292 | -- | -- | -- |
+| chain_ch16_b64_d16_il | 2,772 | 2,702 | 2,738 | -- | -- | -- |
+| chain_ch16_b1024_d16_il | 3,172 | 3,166 | 3,169 | -- | -- | -- |
+
+: Table 5.5.9: Genesys 2 gcompare at 16 channels, MB/s (peak 3,200; -- = no source variant)
+
+The two-slot chain hook roughly doubles the short chains (19 to 36 MB/s on one-beat descriptors, 1,122 to 2,008 on 64-beat ones) and costs single descriptors one to three instructions: 1-7% on the points where the firmware is the limit, nothing from 256 beats per channel up.
+
+### Where rapids-g Catches Up
+
+The sweep that sizes the gap, in simulation (`make sim-gscale CHANNELS=8|16`; the same simulation matches the board on all 109 gcompare windows): single descriptors and 16-descriptor interleaved-sink chains on every channel of the build, in 2x size steps, rows in beats per descriptor (32 bytes each). Each cell is rapids cycles / rapids-g cycles (1.00 = parity). Columns: `chain` is the 16-descriptor interleaved-sink chain (8 channels run one slot per hart; at 16, ROM is the image before the chain hook and v2 the committed one); `sink`, `source` and `il sink` are a single descriptor per channel, plain or with the sink streams interleaved.
+
+| Beats | chain 8ch | chain 16ch ROM | chain 16ch v2 | sink 8ch | sink 16ch v2 | source 8ch | source 16ch v2 | il sink 8ch | il sink 16ch v2 |
+|------:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|-----:|
+| 1 | 0.52 | 0.17 | 0.32 | 0.57 | 0.53 | 0.55 | 0.49 | 0.57 | 0.53 |
+| 2 | 0.49 | 0.22 | 0.41 | 0.57 | 0.53 | 0.56 | 0.51 | 0.58 | 0.53 |
+| 4 | 0.60 | 0.41 | 0.68 | 0.59 | 0.56 | 0.57 | 0.54 | 0.61 | 0.56 |
+| 8 | 0.90 | 0.76 | 0.93 | 0.63 | 0.62 | 0.61 | 0.60 | 0.66 | 0.62 |
+| 16 | 0.95 | 0.93 | 0.97 | 0.67 | 0.72 | 0.66 | 0.70 | 0.71 | 0.67 |
+| 32 | 0.97 | 0.96 | 0.98 | 0.74 | 0.82 | 0.73 | 0.82 | 0.76 | 0.73 |
+| 64 | 0.98 | 0.97 | 0.99 | 0.81 | 0.88 | 0.80 | 0.88 | 0.83 | 0.80 |
+| 128 | 0.99 | 0.99 | 0.99 | 0.88 | 0.92 | 0.88 | 0.92 | 0.89 | 0.87 |
+| 256 | 0.99 | 0.99 | 1.00 | 0.93 | 0.96 | 0.93 | 0.96 | 0.93 | 0.92 |
+| 512 | 1.00 | 1.00 | 1.00 | 0.96 | 0.98 | 0.96 | 0.98 | 0.96 | 0.96 |
+| 1024 | 1.00 | 1.00 | 1.00 | 0.98 | 0.99 | 0.98 | 0.99 | 0.98 | 0.98 |
+| 2048 | -- | -- | -- | 0.99 | 0.99 | 0.99 | 0.99 | 0.99 | 0.99 |
+| 4096 | -- | -- | -- | 0.99 | 1.00 | 0.99 | 1.00 | 1.00 | 0.99 |
+
+: Table 5.5.10: rapids / rapids-g cycles, every channel busy
+
+How much a channel must move per descriptor before rapids-g is within 10%, 5% and 1% of rapids, from
+the sweep above (DATA_WIDTH 256, so 32 bytes a beat; the smallest size from which every larger size
+in the sweep stays inside the bound). A chain row is bytes per descriptor in a 16-descriptor chain,
+so the channel moves sixteen times that in the run:
+
+| Shape | Channels | Within 10% | Within 5% | Within 1% |
+|------------------------------------|---------:|-----------:|----------:|----------:|
+| single descriptor, sink | 8 | 8 KB | 16 KB | 64 KB |
+| single descriptor, sink | 16 | 4 KB | 8 KB | 64 KB |
+| single descriptor, source | 8 | 8 KB | 16 KB | 128 KB |
+| single descriptor, source | 16 | 4 KB | 8 KB | 64 KB |
+| single descriptor, interleaved sink | 8 | 8 KB | 16 KB | 64 KB |
+| single descriptor, interleaved sink | 16 | 8 KB | 16 KB | 128 KB |
+| 16-descriptor chain, interleaved sink | 8 | 512 B | 512 B | 4 KB |
+| 16-descriptor chain, interleaved sink | 16 | 256 B | 512 B | 4 KB |
+
+: Table 5.5.11: Bytes per descriptor for rapids-g to be within 10%, 5% and 1% of rapids
+
+Chains close the gap at 512 bytes (the 8-channel chain reads 0.90 at 256 B in Table 5.5.10 but is 0.899) and are within 1% at 4 KB on both builds; a single descriptor per
+channel needs 8-16 KB to be within 5% and 64-128 KB to be within 1%, because its whole firmware cost
+(fetch, judge, stage and complete, with no next head to overlap) is paid once per descriptor against a
+data phase that only grows with the size. With one gatling per half serving 16 channels the expectation was that chains need twice the size to catch the FSM, since each hart serves two channels: on the ROM image they did (0.95 at 16 beats on 8 channels, at 32 on 16). With the chain hook in the two-slot poll they catch up at 16 on both, and are ahead of the 8-channel build from 4 beats; one- and two-beat chains remain behind it (0.32-0.41 against 0.49-0.52), the cost of walking two slots per pass. Single descriptors are at most 0.04 behind the 8-channel build at any size (and ahead of it on the plain sink from 16 beats, where rapids-16ch slows too): the firmware's work is per descriptor, so more channels do not move it.
 
 ## Area and Timing
 

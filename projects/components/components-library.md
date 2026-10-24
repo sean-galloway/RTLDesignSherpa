@@ -42,10 +42,10 @@ Latest revision of every PDF under `projects/components/`.
 | [HIVE_HAS_v0.2.pdf](compute-eng-ip/hive-serv/docs/HIVE_HAS_v0.2.pdf) | v0.2 | 1.6 MB | `projects/components/compute-eng-ip/hive-serv/docs/` |
 | [HIVE_MAS_v0.2.pdf](compute-eng-ip/hive-serv/docs/HIVE_MAS_v0.2.pdf) | v0.2 | 1024 KB | `projects/components/compute-eng-ip/hive-serv/docs/` |
 | [increment_patterns.pdf](dma-ip/rapids/docs/increment_patterns.pdf) | — | 138 KB | `projects/components/dma-ip/rapids/docs/` |
-| [RAPIDS_Beats_HAS_v0.16.pdf](dma-ip/rapids/docs/RAPIDS_Beats_HAS_v0.16.pdf) | v0.16 | 6.9 MB | `projects/components/dma-ip/rapids/docs/` |
+| [RAPIDS_Beats_HAS_v0.17.pdf](dma-ip/rapids/docs/RAPIDS_Beats_HAS_v0.17.pdf) | v0.17 | 7.0 MB | `projects/components/dma-ip/rapids/docs/` |
 | [RAPIDS_Beats_MAS_v0.14.pdf](dma-ip/rapids/docs/RAPIDS_Beats_MAS_v0.14.pdf) | v0.14 | 11.4 MB | `projects/components/dma-ip/rapids/docs/` |
-| [RAPIDS_HAS_v0.93.pdf](dma-ip/rapids/docs/RAPIDS_HAS_v0.93.pdf) | v0.93 | 5.7 MB | `projects/components/dma-ip/rapids/docs/` |
-| [RAPIDS_MAS_v0.83.pdf](dma-ip/rapids/docs/RAPIDS_MAS_v0.83.pdf) | v0.83 | 10.3 MB | `projects/components/dma-ip/rapids/docs/` |
+| [RAPIDS_HAS_v0.94.pdf](dma-ip/rapids/docs/RAPIDS_HAS_v0.94.pdf) | v0.94 | 5.8 MB | `projects/components/dma-ip/rapids/docs/` |
+| [RAPIDS_MAS_v0.84.pdf](dma-ip/rapids/docs/RAPIDS_MAS_v0.84.pdf) | v0.84 | 10.6 MB | `projects/components/dma-ip/rapids/docs/` |
 | [STREAM_HAS_v0.95.pdf](dma-ip/stream/docs/STREAM_HAS_v0.95.pdf) | v0.95 | 3.1 MB | `projects/components/dma-ip/stream/docs/` |
 | [STREAM_MAS_v0.97.pdf](dma-ip/stream/docs/STREAM_MAS_v0.97.pdf) | v0.97 | 13.5 MB | `projects/components/dma-ip/stream/docs/` |
 | [Binary_BCH_HAS_v0.1.pdf](ecc-ip/bch/docs/Binary_BCH_HAS_v0.1.pdf) | v0.1 | 1.7 MB | `projects/components/ecc-ip/bch/docs/` |

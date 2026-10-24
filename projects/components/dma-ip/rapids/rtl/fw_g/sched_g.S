@@ -244,29 +244,47 @@ multi:
         bnez    t0, slot_loop
 
 # Two slots per hart: the same poll, slot 0 then slot 1, one step each.
+# SUMMARY first, so the idle pass is two instructions. A slot with attn whose
+# HEAD_SUM is 13 (an open, valid head with next_ptr != 0 and !last -- the
+# chain case) is staged armed for NEXT_DESC straight from the read, as at one
+# slot per hart, before JUDGE or the policy table: a chain is serial, so every
+# instruction between the head opening and the CMD write is paid per
+# descriptor. tp holds the stage word (a handler may clobber it).
+        li      tp, CMD_STAGE | CMD_STAGE_ARM | CMD_STAGE_ARM_NEXT
 main_loop:
         lw      t0, 0(s1)               # SUMMARY: attn of this hart's slots
         beqz    t0, main_loop
         andi    t1, t0, 1
         beqz    t1, 1f
-        mv      a0, s0
-        lw      t3, R_HEAD_SUM(a0)
-        andi    t4, t3, 8
+        lw      t3, R_HEAD_SUM(s0)
+        addi    t4, t3, -13
+        bnez    t4, 6f
+        sw      tp, W_CMD(s0)           # chain head, slot 0
+        j       1f
+6:      andi    t4, t3, 8
         beqz    t4, 2f
+        mv      a0, s0
         JUDGE
         j       1f
-2:      mv      a1, s2
+2:      mv      a0, s0
+        mv      a1, s2
         jal     ra, step
+        li      tp, CMD_STAGE | CMD_STAGE_ARM | CMD_STAGE_ARM_NEXT
 1:      andi    t1, t0, 2
         beqz    t1, main_loop
         addi    a0, s0, SLOT_STRIDE
         lw      t3, R_HEAD_SUM(a0)
-        andi    t4, t3, 8
+        addi    t4, t3, -13
+        bnez    t4, 7f
+        sw      tp, W_CMD(a0)           # chain head, slot 1
+        j       main_loop
+7:      andi    t4, t3, 8
         beqz    t4, 3f
         JUDGE
         j       main_loop
 3:      addi    a1, s2, SLOT_STRIDE
         jal     ra, step
+        li      tp, CMD_STAGE | CMD_STAGE_ARM | CMD_STAGE_ARM_NEXT
         j       main_loop
 
 # Three or more slots per hart (16 channels on 4 harts): the same poll as a

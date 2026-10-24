@@ -38,6 +38,9 @@
 `include "rapids_imports.svh"
 
 module scheduler_group_array_g #(
+    // rapids-g: 1 = the gatling instruction memory is writable through the
+    // FW_* registers (rapids TASK-038); 0 = a ROM holding the generated image
+    parameter int FW_WRITABLE = 0,
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
     parameter int ADDR_WIDTH = 64,
@@ -95,6 +98,13 @@ module scheduler_group_array_g #(
     output logic                            seq_reg_rsp_ready,
     input  logic [31:0]                     seq_reg_rsp_prdata,
     input  logic                            seq_reg_rsp_pslverr,
+    // rapids-g: this half's firmware load (FW_* registers -> rapids_seq_g)
+    input  logic                            fw_hold,
+    input  logic                            fw_wr_en,
+    input  logic [15:0]                     fw_addr,
+    input  logic [31:0]                     fw_wr_data,
+    input  logic [7:0]                      fw_alg_max,
+    output logic [31:0]                     fw_rd_data,
 
     // APB Programming Interface (per channel kick-off)
     input  logic [NUM_CHANNELS-1:0]              apb_valid,

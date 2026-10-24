@@ -23,7 +23,7 @@
 
 # Choosing RAPIDS or rapids-g
 
-**Last Updated:** 2026-10-22
+**Last Updated:** 2026-10-23
 
 rapids-g (Section 2.3) is register-compatible with RAPIDS, so the choice between them is a hardware
 one: throughput for the descriptors the system will issue, against area. This chapter gives the
@@ -40,7 +40,7 @@ channel count: rapids-8ch is RAPIDS with 8 channels and rapids-g-8ch is rapids-g
 | Single-beat or very short descriptors | rapids-8ch | rapids-g-8ch reaches 26-57% of rapids-8ch |
 | TYPE=EXT descriptors with short runs | rapids-8ch | rapids-g-8ch computes each run base in firmware: 96x slower at runs of 4, 125x per beat |
 | TYPE=EXT descriptors with runs of 256 beats or more | rapids-8ch, unless DSPs are short | rapids-g-8ch is 2.4x slower at 256-beat runs |
-| 16 channels | rapids-16ch; rapids-g-16ch when DSPs are short or for large descriptors | rapids-g-16ch is within 0.4% at 1 MB and 3% at 64 KB, but its per-descriptor cost doubles at 16 channels (Table 6.4.6); it saves 128 DSPs for 11% more LUTs |
+| 16 channels | rapids-16ch; rapids-g-16ch when DSPs are short, or the descriptors are 512 B (16 beats) or more | in simulation that matches the board (Table 6.4.8): rapids-g-16ch chains are within 5% of rapids-16ch from 512 B per descriptor, as at 8 channels, and single descriptors from 8 KB (Table 6.4.9 has the 10%, 5% and 1% sizes); one- and two-beat chains reach 32-41% of it (49-52% at 8 channels). It saves 128 DSPs for about 12% more LUTs in the board harness |
 | No DSPs to spare | rapids-g-8ch | RAPIDS uses 64 DSPs for the EXT run-base multipliers; rapids-g uses none |
 
 : Table 6.4.1: Choosing a design
@@ -137,15 +137,64 @@ channel at once, and counts cycles to finish:
 
 | Scenario | rapids-8ch | rapids-g-8ch | rapids-16ch | rapids-g-16ch |
 |----------------------------------|-------------:|-------------:|-------------:|-------------:|
-| 16 one-beat descriptors, one channel | 131 | 2,371 | 131 | 2,859 |
-| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 1,255 | 4,957 |
-| 4 64 KB descriptors on each channel | 9,248 | 9,412 | 9,248 | 9,553 |
-| 2 1 MB descriptors on each channel | 84,277 | 84,443 | 84,277 | 84,580 |
-| EXT, runs of 4, 64 beats, 4 per channel | 407 | 39,201 | 407 | 76,862 |
-| EXT, per beat, 64 beats, 4 per channel | 1,043 | 130,086 | 1,043 | 253,623 |
-| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 70,641 | 29,574 | 137,624 |
+| 16 one-beat descriptors, one channel | 131 | 2,371 | 131 | 3,131 |
+| 16 64-beat descriptors on each channel | 1,255 | 2,389 | 1,255 | 5,469 |
+| 4 64 KB descriptors on each channel | 9,248 | 9,412 | 9,248 | 9,585 |
+| 2 1 MB descriptors on each channel | 84,277 | 84,443 | 84,277 | 84,612 |
+| EXT, runs of 4, 64 beats, 4 per channel | 407 | 39,201 | 407 | 77,998 |
+| EXT, per beat, 64 beats, 4 per channel | 1,043 | 130,086 | 1,043 | 257,831 |
+| EXT, runs of 256, 1 MB, 1 per channel | 29,574 | 70,641 | 29,574 | 139,688 |
 
 : Table 6.4.6: Cycles to finish, schedulers alone (lower is better)
+
+The 16-channel columns are the default eight harts with two slots each, on the committed firmware
+image; the MAS (Table 5.5.6) has the 16- and 4-hart alternatives and the cost of the chain hook on
+this bench's independent descriptors.
+
+## Sixteen Channels on the Board
+
+rapids-16ch and rapids-g-16ch in the full Genesys 2 harness, 2026-10-23. On the board, the 57-point 16-channel gcompare profile matches simulation on every window; the size sweep below ran in that simulation (`make sim-gscale`). Each cell is rapids cycles / rapids-g cycles with every channel of the build busy (1.00 = parity; rows are beats per descriptor, 32 bytes each; 8-channel rows for comparison). `chains` are 16-descriptor interleaved-sink chains; `sink` and `source` a single descriptor per channel:
+
+| Beats | chains 8ch | chains 16ch | sink 8ch | sink 16ch | source 8ch | source 16ch |
+|------:|-----:|-----:|-----:|-----:|-----:|-----:|
+| 1 | 0.52 | 0.32 | 0.57 | 0.53 | 0.55 | 0.49 |
+| 2 | 0.49 | 0.41 | 0.57 | 0.53 | 0.56 | 0.51 |
+| 4 | 0.60 | 0.68 | 0.59 | 0.56 | 0.57 | 0.54 |
+| 8 | 0.90 | 0.93 | 0.63 | 0.62 | 0.61 | 0.60 |
+| 16 | 0.95 | 0.97 | 0.67 | 0.72 | 0.66 | 0.70 |
+| 32 | 0.97 | 0.98 | 0.74 | 0.82 | 0.73 | 0.82 |
+| 64 | 0.98 | 0.99 | 0.81 | 0.88 | 0.80 | 0.88 |
+| 128 | 0.99 | 0.99 | 0.88 | 0.92 | 0.88 | 0.92 |
+| 256 | 0.99 | 1.00 | 0.93 | 0.96 | 0.93 | 0.96 |
+| 512 | 1.00 | 1.00 | 0.96 | 0.98 | 0.96 | 0.98 |
+| 1024 | 1.00 | 1.00 | 0.98 | 0.99 | 0.98 | 0.99 |
+| 2048 | -- | -- | 0.99 | 0.99 | 0.99 | 0.99 |
+| 4096 | -- | -- | 0.99 | 1.00 | 0.99 | 1.00 |
+
+: Table 6.4.8: rapids / rapids-g cycles, every channel busy
+
+What a channel must move per descriptor for rapids-g to be within 10%, 5% and 1% of rapids (32 bytes
+a beat; the smallest size from which every larger size in the sweep stays inside the bound; a chain
+row is bytes per descriptor in a 16-descriptor chain):
+
+| Shape | Channels | Within 10% | Within 5% | Within 1% |
+|------------------------------------|---------:|-----------:|----------:|----------:|
+| single descriptor, sink | 8 | 8 KB | 16 KB | 64 KB |
+| single descriptor, sink | 16 | 4 KB | 8 KB | 64 KB |
+| single descriptor, source | 8 | 8 KB | 16 KB | 128 KB |
+| single descriptor, source | 16 | 4 KB | 8 KB | 64 KB |
+| single descriptor, interleaved sink | 8 | 8 KB | 16 KB | 64 KB |
+| single descriptor, interleaved sink | 16 | 8 KB | 16 KB | 128 KB |
+| 16-descriptor chain, interleaved sink | 8 | 512 B | 512 B | 4 KB |
+| 16-descriptor chain, interleaved sink | 16 | 256 B | 512 B | 4 KB |
+
+: Table 6.4.9: Bytes per descriptor for rapids-g to be within 10%, 5% and 1% of rapids
+
+Chains are within 10% from 512 bytes a descriptor (the 8-channel chain reads 0.90 at 256 B in Table 6.4.8 but is 0.899) and within 1% from 4 KB on both builds. A single
+descriptor per channel pays the firmware's whole per-descriptor cost with nothing to overlap it, so it
+needs 8-16 KB to be within 5% and 64-128 KB to be within 1%; 1 MB descriptors are within 0.5% (Table 6.4.3).
+
+At 16 channels each gatling hart serves two channels. That costs one- and two-beat chains (about 99 clocks per descriptor against 44 at 8 channels) and nothing from 16 beats up. The full harness build: rapids-16ch 135,389 LUTs (66.4%) at +0.192 ns, rapids-g-16ch 151,472 LUTs (74.3%) at +0.148 ns; MB/s tables are in the MAS (Section 5.5).
 
 ## Area and Timing
 

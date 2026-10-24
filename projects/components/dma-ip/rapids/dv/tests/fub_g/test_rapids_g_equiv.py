@@ -285,9 +285,21 @@ async def cocotb_test_hart_fault(dut):
     for w in polls:
         rom[w].value = 0xFFFF_FFFF                 # an illegal instruction
     tb.load([tb.rand_linear(1, chains=False) for _ in range(tb.N)])
-    await tb.run_cycles(400)
+    # Every instruction costs a hart NUM_HARTS clocks. A hart that is idle is
+    # at the SUMMARY read and halts within a rotation; one that was handed a
+    # descriptor as the poison landed walks judge_head and the stage (about
+    # 30 instructions) before its next SUMMARY read: about 480 clocks at 16
+    # harts (seen with SEED=1215, where a fixed 400-cycle wait missed two
+    # harts). Wait up to 64 instructions, which every poll's pass is well under.
+    budget = 64 * tb.harts
+    waited = 0
+    while waited < budget and int(dut.g_hart_halted.value) != (1 << tb.harts) - 1:
+        await tb.run_cycles(tb.harts)
+        waited += tb.harts
     halted = int(dut.g_hart_halted.value)
-    assert halted == (1 << tb.harts) - 1, f"every hart should have halted on the illegal word, got 0x{halted:x}"
+    tb.log.info(f"hart_fault: halted 0x{halted:x} after {waited} of {budget} cycles")
+    assert halted == (1 << tb.harts) - 1, \
+        f"every hart should have halted on the illegal word within {budget} cycles, got 0x{halted:x}"
     for i in range(tb.N):
         g = tb.ch['g'][i]
         assert g.state == ST_ERROR, f"g{i}: a halted hart's channel is in 0x{g.state:02x}, not CH_ERROR"

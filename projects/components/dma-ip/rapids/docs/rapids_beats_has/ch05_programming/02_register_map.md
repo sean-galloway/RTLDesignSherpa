@@ -93,6 +93,7 @@ that succeeded would tell the host a monitor is configured that does not exist.
 | 0x300-0x31C | `CH_SCRATCH[n].SCRATCH` | RW | Eight software bits per channel, `SCRATCH[7:0]` (reset 0); storage only, for flags or semaphores between the host and, in rapids-g, the half's gatling. Not atomic across masters: give each bit one writer |
 | 0x35C | `PERF_CH_SEL` | RW | Performance channel select |
 | 0x378-0x380 | `HIST_SEL`/`HIST_DATA`/`HIST_TOTAL` | RW/RO | Latency histogram |
+| 0x3A0-0x3AC | `FW_CTRL`/`FW_ADDR`/`FW_DATA`/`FW_RDATA` | RW/RO | rapids-g firmware load (RAPIDS MAS Section 5.3): `FW_CTRL.HOLD[0]`, `WRITABLE[1]` (RO), `ALG_MAX[15:8]`; `FW_ADDR.ADDR[15:0]` advances after each `FW_DATA` write and `FW_RDATA` read. Only a rapids-g build with `FW_WRITABLE` = 1 acts on them; everywhere else `WRITABLE` reads 0 and the rest has no effect |
 
 : Base Registers
 

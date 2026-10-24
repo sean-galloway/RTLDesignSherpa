@@ -108,7 +108,25 @@ module rapids_g_equiv_tb_top #(
     output logic [NUM_CHANNELS-1:0][6:0]         g_state,
     output logic [NUM_CHANNELS-1:0]              g_idle,
     output logic [7:0]                           g_alg_max,      // the image's highest next-address selector
-    output logic [NUM_HARTS-1:0]                 g_hart_halted
+    output logic [NUM_HARTS-1:0]                 g_hart_halted,
+
+    // ---- rapids_seq_g's own ports, driven by the TB (rapids_g_seq_ports.py) --
+    input  logic                                 g_seq_restart,   // one cycle: restart every hart
+    output logic                                 g_reg_cmd_valid, // the register mailbox: the TB
+    input  logic                                 g_reg_cmd_ready, //   answers it (here: an error,
+    output logic                                 g_reg_cmd_pwrite,//   and the test fails -- the
+    output logic [11:0]                          g_reg_cmd_paddr, //   scheduler image never uses it)
+    output logic [31:0]                          g_reg_cmd_pwdata,
+    input  logic                                 g_reg_rsp_valid,
+    output logic                                 g_reg_rsp_ready,
+    input  logic [31:0]                          g_reg_rsp_prdata,
+    input  logic                                 g_reg_rsp_pslverr,
+    input  logic                                 g_fw_hold,       // the firmware load (rapids TASK-038)
+    input  logic                                 g_fw_wr_en,
+    input  logic [15:0]                          g_fw_addr,
+    input  logic [31:0]                          g_fw_wr_data,
+    input  logic [7:0]                           g_fw_alg_max,
+    output logic [31:0]                          g_fw_rd_data
 );
 
     // The sequencer's buses (side g)
@@ -126,7 +144,7 @@ module rapids_g_equiv_tb_top #(
         .clk               (clk),
         .rst_n             (rst_n),
         .cfg_channel_reset (g_cfg_channel_reset),
-        .seq_restart       (1'b0),               // no restart: the board harness's GO alone pulses it
+        .seq_restart       (g_seq_restart),
         .seq_wr_en         (s_wr_en),
         .seq_wr_addr       (s_wr_addr),
         .seq_wr_data       (s_wr_data),
@@ -135,16 +153,21 @@ module rapids_g_equiv_tb_top #(
         .seq_attn          (s_attn),
         .seq_fault         (s_fault),
         .seq_alg_max       (s_alg_max),
-        // the register mailbox is idle here: the scheduler firmware never uses it
-        .reg_cmd_valid     (),
-        .reg_cmd_ready     (1'b0),
-        .reg_cmd_pwrite    (),
-        .reg_cmd_paddr     (),
-        .reg_cmd_pwdata    (),
-        .reg_rsp_valid     (1'b0),
-        .reg_rsp_ready     (),
-        .reg_rsp_prdata    (32'h0),
-        .reg_rsp_pslverr   (1'b0),
+        .fw_hold           (g_fw_hold),
+        .fw_wr_en          (g_fw_wr_en),
+        .fw_addr           (g_fw_addr),
+        .fw_wr_data        (g_fw_wr_data),
+        .fw_alg_max        (g_fw_alg_max),
+        .fw_rd_data        (g_fw_rd_data),
+        .reg_cmd_valid     (g_reg_cmd_valid),
+        .reg_cmd_ready     (g_reg_cmd_ready),
+        .reg_cmd_pwrite    (g_reg_cmd_pwrite),
+        .reg_cmd_paddr     (g_reg_cmd_paddr),
+        .reg_cmd_pwdata    (g_reg_cmd_pwdata),
+        .reg_rsp_valid     (g_reg_rsp_valid),
+        .reg_rsp_ready     (g_reg_rsp_ready),
+        .reg_rsp_prdata    (g_reg_rsp_prdata),
+        .reg_rsp_pslverr   (g_reg_rsp_pslverr),
         .hart_halted       (g_hart_halted)
     );
 

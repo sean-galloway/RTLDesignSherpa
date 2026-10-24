@@ -254,7 +254,14 @@ rewrite of GPIO_OUTPUT_TGL passed SET, SET-again and CLEAR and failed only
 TOGGLE, `expected 0x0000FF0F, got 0x000000F0`. hpet consumes the same signal
 as a level today and is correct only because both its uses are idempotent;
 the pit_8254 round_3 review traced the same two-cycle request from the
-counter-load side ("each COUNTERx_DATA write strobes TWICE").*
+counter-load side ("each COUNTERx_DATA write strobes TWICE"). And rapids
+TASK-038 (2026-10-23) hit it from both strobes at once: an auto-incrementing
+address advanced on FW_DATA `swmod` and FW_RDATA `swacc`, counted every
+cycle, so each access stored the word twice and advanced by two. The load
+read back clean below word 512 -- writes and reads skipped in step -- and
+failed only where 2i passed the 1024-word memory. A readback that walks the
+same counter as the write cannot catch a doubled stride; a direct probe
+(set the address, read once, read the address back) does.*
 
 The shape that works, in the config_regs wrapper (never in the generated
 file): rising-edge-detect the `swmod` level (one transaction, one pulse),

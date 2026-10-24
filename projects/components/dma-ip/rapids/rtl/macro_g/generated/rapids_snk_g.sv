@@ -39,6 +39,9 @@
 `include "reset_defs.svh"
 
 module rapids_snk_g #(
+    // rapids-g: 1 = the gatling instruction memory is writable through the
+    // FW_* registers (rapids TASK-038); 0 = a ROM holding the generated image
+    parameter int FW_WRITABLE = 0,
     // Primary parameters
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
@@ -110,6 +113,13 @@ module rapids_snk_g #(
     output logic                            seq_reg_rsp_ready,
     input  logic [31:0]                     seq_reg_rsp_prdata,
     input  logic                            seq_reg_rsp_pslverr,
+    // rapids-g: this half's firmware load
+    input  logic                            fw_hold,
+    input  logic                            fw_wr_en,
+    input  logic [15:0]                     fw_addr,
+    input  logic [31:0]                     fw_wr_data,
+    input  logic [7:0]                      fw_alg_max,
+    output logic [31:0]                     fw_rd_data,
 
     //=========================================================================
     // APB Programming Interface (per channel kick-off)
@@ -421,6 +431,7 @@ module rapids_snk_g #(
     //=========================================================================
 
     scheduler_group_array_g #(
+        .FW_WRITABLE            (FW_WRITABLE),
         .NUM_CHANNELS           (NC),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (AW),
@@ -448,6 +459,12 @@ module rapids_snk_g #(
         .seq_reg_rsp_ready    (seq_reg_rsp_ready),
         .seq_reg_rsp_prdata   (seq_reg_rsp_prdata),
         .seq_reg_rsp_pslverr  (seq_reg_rsp_pslverr),
+        .fw_hold              (fw_hold),
+        .fw_wr_en             (fw_wr_en),
+        .fw_addr              (fw_addr),
+        .fw_wr_data           (fw_wr_data),
+        .fw_alg_max           (fw_alg_max),
+        .fw_rd_data           (fw_rd_data),
         .clk                    (clk),
         .rst_n                  (rst_n),
 

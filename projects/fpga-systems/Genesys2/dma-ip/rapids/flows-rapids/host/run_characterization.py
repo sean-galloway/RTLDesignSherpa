@@ -58,6 +58,16 @@ from rapids_byte_golden import (golden_crc, golden_sink_bytes, golden_source_byt
 
 RAPIDS_REGMAP_PATH = os.path.join(
     _REPO_ROOT, 'projects/components/dma-ip/rapids/rtl/rapids_regmap.py')
+# The 16-channel tops (rapids_16ch_top, rapids_g_16ch_top; rapids TASK-036)
+# carry the 16-channel register map: KICK_ENABLE, CH_STATE and the per-channel
+# bit fields move (RAPIDS HAS, 16-Channel Register Map).
+RAPIDS_REGMAP_16CH_PATH = os.path.join(
+    _REPO_ROOT, 'projects/components/dma-ip/rapids/rtl/rapids_regmap_16ch.py')
+
+
+def rapids_regmap_path(num_channels: int) -> str:
+    """The DUT register map for a build of NUM_CHANNELS channels."""
+    return RAPIDS_REGMAP_16CH_PATH if num_channels == 16 else RAPIDS_REGMAP_PATH
 
 # Address layout — identical to rapids_byte_harness_tb.py so the on-chip fetch
 # address equals the host-load address.
@@ -141,13 +151,16 @@ class RapidsByteCampaign:
         # board. Read lazily -- the cocotb TB constructs this object before its
         # clock runs, so a CSR read here would hang the simulated UART.
         self.design = None
+        # rapids TASK-038: what a --fw load put in the instruction memory
+        self.fw_record = {'loaded': False}
 
         # Two by-name register maps, one per half (bases from the generated map).
         from TBClasses.apb.register_map import RegisterMap
-        self.src_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=32,
+        regmap_path = rapids_regmap_path(num_channels)
+        self.src_regs = RegisterMap(regmap_path, apb_data_width=32,
                                     apb_addr_width=13,
                                     start_address=APB_SRC_BASE, log=self.log)
-        self.snk_regs = RegisterMap(RAPIDS_REGMAP_PATH, apb_data_width=32,
+        self.snk_regs = RegisterMap(regmap_path, apb_data_width=32,
                                     apb_addr_width=13,
                                     start_address=APB_SNK_BASE, log=self.log)
         self._src_off = self.src_regs.get_register_offset_map()
@@ -170,7 +183,7 @@ class RapidsByteCampaign:
             return regs.start_address + offs[reg_name]
         except KeyError:
             raise KeyError(
-                f"register '{reg_name}' not in rapids_regmap.py "
+                f"register '{reg_name}' not in {os.path.basename(rapids_regmap_path(self.num_channels))} "
                 f"(offset map has {len(offs)} regs)") from None
 
     def write_reg(self, half: str, reg_name: str, value: int) -> None:
@@ -257,7 +270,9 @@ class RapidsByteCampaign:
                'resp_delay_wr': self.io.csr_field("RESP_DELAY", "WR_DELAY"),
                'gen_interleave': bool(self.io.csr_field("GEN_MODE", "INTERLEAVE")),
                # rapids-g: 0 = GO restarts the gatling harts (sim and board in phase)
-               'kick_free_run': bool(self.io.csr_field("KICK_CFG", "FREE_RUN"))}
+               'kick_free_run': bool(self.io.csr_field("KICK_CFG", "FREE_RUN")),
+               # rapids TASK-038: the image a --fw load put in place (else the bitstream's)
+               'firmware': self.fw_record}
         for half in ('src', 'snk'):
             out[half] = {
                 'rd_burst_beats': self.read_field(half, 'AXI_XFER_CONFIG', 'RD_XFER_BEATS') + 1,
@@ -1256,9 +1271,21 @@ Examples:
                    help="byte-granular performance campaign (BYTE_DUT build): sweeps channels x payload "
                         "bytes x offset x direction, plus the beat-aligned comparison rows, and writes "
                         "bytes / beats / efficiency / MB/s per point (see byte_perf.py)")
-    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned', 'gcompare'),
+    p.add_argument('--profile', default='standard', choices=('quick', 'standard', 'full', 'aligned', 'gcompare', 'gscale'),
                    help="--byte-perf point set (default standard); 'aligned' is the beat-aligned "
                         "rows only, the one set a word-wide-checker build (BUILD.WORD_CRC=1) can run")
+    p.add_argument('--points', metavar='ID[,ID...]',
+                   help="--byte-perf: run only these point ids of the profile (debug; no chunking with it)")
+    p.add_argument('--fw', metavar='SCHED_S',
+                   help="rapids-g FW_WRITABLE build: assemble this firmware .S and load it into both "
+                        "halves' gatling instruction memory (hold, write, read back, release) before "
+                        "anything runs; its SHA-256 goes into the results (rapids TASK-038)")
+    p.add_argument('--fw-expect', metavar='SCHED_S',
+                   help="simulation built with this firmware compiled in (TEST_FW_IMAGE): check sampled "
+                        "words and record its SHA-256, without a load (rapids TASK-038)")
+    p.add_argument('--fw-selftest', action='store_true',
+                   help="with --fw: first prove the load path (an unheld write is refused, a halting "
+                        "image takes every channel to CH_ERROR, the --fw image brings them back)")
     p.add_argument('--prelim', action='store_true',
                    help='--byte-perf: mark the results PRELIMINARY (adds _prelim to the default file name)')
     p.add_argument('--resume', action='store_true',
@@ -1366,14 +1393,36 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
           f"axi_monitors={int(d['axi_monitors'])} observers={int(d['observers'])} "
           f"gen_mon={int(d['gen_mon'])}")
     # the whole-beat, offset-0 profiles: the only ones a word-wide checker can score
-    if d.get('word_crc') and not (args.byte_perf and args.profile in ('aligned', 'gcompare')):
+    if d.get('word_crc') and not (args.byte_perf and args.profile in ('aligned', 'gcompare', 'gscale')):
         print("FAIL: this bitstream has the word-wide checkers (BUILD.WORD_CRC=1), which cannot "
-              "check a partial strobe; only --byte-perf --profile aligned|gcompare may run on it")
+              "check a partial strobe; only --byte-perf --profile aligned|gcompare|gscale may run on it")
         return 2
     if d['channels'] != args.channels:
         print(f"FAIL: --channels {args.channels} but the bitstream was built with "
               f"{d['channels']} channels (BUILD register); pass --channels {d['channels']}")
         return 2
+
+    if args.fw_expect:
+        import rapids_fw_load
+        try:
+            campaign.fw_record = rapids_fw_load.expect(campaign, rapids_fw_load.image_from_source(args.fw_expect))
+        except (RuntimeError, ValueError, SystemExit) as exc:
+            print(f"FAIL: --fw-expect {args.fw_expect}: {exc}")
+            return 2
+    if args.fw:
+        import rapids_fw_load
+        try:
+            image = rapids_fw_load.image_from_source(args.fw)
+            if args.fw_selftest:
+                checks = rapids_fw_load.selftest(campaign, image)
+                if not all(c['ok'] for c in checks):
+                    print(f"FAIL: --fw-selftest: {[c['check'] for c in checks if not c['ok']]}")
+                    return 1
+            else:
+                campaign.fw_record = rapids_fw_load.load(campaign, image)
+        except (RuntimeError, ValueError, SystemExit) as exc:
+            print(f"FAIL: --fw {args.fw}: {exc}")
+            return 2
 
     campaign.configure()
     campaign.set_interleave(bool(args.interleave))
@@ -1391,7 +1440,14 @@ def _main_with_io(args, io, campaign_hook, transport) -> int:
             _HOST_DIR, os.pardir, os.pardir, 'reports', 'perf', 'json',
             f"rapids_byte_perf{'_prelim' if args.prelim else ''}_"
             f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"))
-        pts, warm = byte_perf.build_points(args.profile), []
+        pts, warm = byte_perf.build_points(args.profile, d['channels']), []
+        if args.points:
+            want = args.points.split(',')
+            missing = [w for w in want if w not in {p['id'] for p in pts}]
+            if missing:
+                print(f"FAIL: --points {missing} not in the {args.profile} profile")
+                return 2
+            pts = [p for p in pts if p['id'] in want]
         if args.chunk:
             warm = byte_perf.chunk_warmup(pts, *args.chunk, bpb=d['beat_bytes'])
             pts = byte_perf.chunk_points(pts, *args.chunk, bpb=d['beat_bytes'])

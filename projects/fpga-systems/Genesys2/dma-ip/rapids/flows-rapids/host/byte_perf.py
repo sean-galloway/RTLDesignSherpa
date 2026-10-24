@@ -31,6 +31,12 @@ G_BEATS = ALIGNED_BEATS + (32768,)                 # + 1 MB per descriptor
 G_CHAINS = ((1, 16), (64, 16), (1024, 16), (8192, 4))   # (beats, descs); 8192 x 4 = 1 MB
 G_IL_SINK = ((16, 1), (64, 1), (1, 16), (64, 16), (1024, 16))  # (beats, descs), interleaved sink
 BEAT_COMPARE_CHANNELS = (1, 2, 4, 8)
+# gscale (rapids TASK-036): where rapids-g catches the FSM, in 2x steps, with
+# every channel of the build busy -- the case where one gatling hart carries
+# two channels at 16 and one at 8. Chains are interleaved-sink only: a
+# both-direction 16-channel chain is ~55 ms of sim UART time on its own.
+G_SCALE_BEATS = tuple(1 << i for i in range(13))    # 1 .. 4096 beats
+G_SCALE_CHAIN = tuple(1 << i for i in range(11))    # 1 .. 1024 beats, 16 descriptors
 
 
 def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
@@ -49,8 +55,14 @@ def _pt(group, ch, *, payload=None, beats=None, offset=0, descs=1,
             'directions': list(directions)}
 
 
-def build_points(profile: str):
-    """Ordered point list for a profile: quick | standard | full | aligned."""
+def build_points(profile: str, channels: int = 8):
+    """Ordered point list for a profile: quick | standard | full | aligned | gcompare | gscale.
+
+    CHANNELS is the build's channel count (BUILD register). gcompare and gscale use
+    it: at 16 (rapids TASK-036) it adds the 16-channel single descriptors and
+    runs the chains at 1, 8 and 16 channels and the interleaved sink at 16, so
+    the 8-channel points stay comparable with an 8-channel build. At 8 the
+    list is the 45-point profile every 8-channel build has run."""
     pts = []
     if profile == 'quick':
         for ch in (2,):
@@ -68,17 +80,36 @@ def build_points(profile: str):
         # bitstreams: one descriptor per channel up to 1 MB (32768 beats = the
         # channel's whole 1 MB region), then chains, where pre-validation hides
         # the firmware's per-descriptor work behind the running descriptor.
-        for ch in BEAT_COMPARE_CHANNELS:
+        wide = channels >= 16
+        for ch in BEAT_COMPARE_CHANNELS + ((16,) if wide else ()):
             for b in G_BEATS:
                 pts.append(_pt('beat', ch, beats=b))
-        for ch in (1, 8):
+        if wide:
+            # Size-major, 1 -> 16 -> 8: a 16-channel chain in both directions
+            # is ~55 ms of sim UART time, and a sim chunk replays the point
+            # before it (chunk_warmup), so two of them back to back cannot
+            # fit the 100 ms cap. This order never puts them back to back.
             for b, d in G_CHAINS:
-                pts.append(_pt('chain', ch, beats=b, descs=d))
+                for ch in (1, 16, 8):
+                    pts.append(_pt('chain', ch, beats=b, descs=d))
+        else:
+            for ch in (1, 8):
+                for b, d in G_CHAINS:
+                    pts.append(_pt('chain', ch, beats=b, descs=d))
         # Sink with every channel holding data at once (GEN_MODE.INTERLEAVE):
         # the sequential points above run one sink channel at a time.
         for b, d in G_IL_SINK:
-            pts.append(_pt('chain' if d > 1 else 'beat', 8, beats=b, descs=d,
+            pts.append(_pt('chain' if d > 1 else 'beat', 16 if wide else 8, beats=b, descs=d,
                            interleave=True, directions=('sink',)))
+        return pts
+    if profile == 'gscale':
+        for b in G_SCALE_BEATS:
+            pts.append(_pt('beat', channels, beats=b))
+        for b in G_SCALE_BEATS:
+            pts.append(_pt('beat', channels, beats=b, interleave=True, directions=('sink',)))
+        for b in G_SCALE_CHAIN:
+            pts.append(_pt('chain', channels, beats=b, descs=16, interleave=True,
+                           directions=('sink',)))
         return pts
     offs = (0,) if profile == 'standard' else OFFSETS_ALL
     for ch in CHANNELS:
@@ -147,7 +178,7 @@ def chunk_warmup(pts, k, n, bpb=32):
     return []
 
 
-PROFILES = ('quick', 'standard', 'full', 'gcompare')
+PROFILES = ('quick', 'standard', 'full', 'gcompare', 'gscale')
 
 
 def _expected(pt, bpb):
@@ -318,7 +349,7 @@ def run_campaign(campaign, profile, results_path, *, timeout_s=30.0, prelim=Fals
     the sticky sink flags clear only on aresetn (the channel-reset gap).
     """
     design = campaign.ensure_build()
-    pts = points if points is not None else build_points(profile)
+    pts = points if points is not None else build_points(profile, design['channels'])
     doc = None
     if resume and os.path.isfile(results_path):
         with open(results_path) as fh:

@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/rapids — tasks
 
-**Next ID: TASK-038** — never recycle a number, even when its item closed.
+**Next ID: TASK-040** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 34 | done (kept for history) |
+| [closed/](closed/) | 35 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -23,11 +23,13 @@ by construction rather than by discipline.
 - **TASK-031** — strap values on RAPIDS (TILE_LAND_FLITS 16, TILE_DESC_PER_CORE 2, fixed at build); TILE_STRAPS @ 0x7FC built 2026-10-19; TILE_SPEC 11.12 row remains
 - **TASK-032** — Genesys 2 harness for RAPIDS as the tile I/O (rapids_tile): cell/core injectors on the CXS links, credit intake, receiver; cell sender + credit intake built 2026-10-19
 - **TASK-033** — tagged, indexed tile intake (delta interleaves/reorders): per-flit {sender, pos, head}, landing ring (MonBus stays off the fabric); pencilled in + cycle-model validated 2026-10-19
+- **TASK-039** — `monbus_axil4_group_1wr` in place of `monbus_axil4_axil4_group` on every RAPIDS top (write-only monitor, records read from memory on irq_out / err_rec_count); STREAM twin is stream TASK-019
 
 ## Active
 
-
 ## Closed
+
+- **TASK-038** — CLOSED 2026-10-24: rapids-g loadable firmware memory (`FW_WRITABLE`, FW_CTRL/ADDR/DATA/RDATA, host `--fw --fw-selftest`, image hash in results, sim == board 109/109 live-loaded); first live load = the two-slot chain hook, 16ch chain 1,122 -> 2,008 MB/s; catch-up sizes MAS 5.5.11 / HAS 6.4.9; MAS 0.84, HAS 0.94, Beats HAS 0.17
 
 - **TASK-037** — CLOSED 2026-10-23: rapids-g firmware is an executive + a 64-row policy table (`ptab`); unreachable hand path replaced by `fw_fault`; mutants 11/11 killed; board == sim 85/85, identical to the 10-22 image; MAS 0.83 5.3
 - **TASK-036** — CLOSED 2026-10-23: rapids-g at 16 channels (default 8 harts, 2 slots), `rapids_g_16ch_top`/`_cxs_top`; OOC 141,067 LUTs / 0 DSP vs 126,820 / 128; STREAM ch16 idle-cast fix on the way

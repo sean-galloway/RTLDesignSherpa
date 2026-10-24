@@ -60,6 +60,10 @@ if {[info exists ::env(BOARD)] && $::env(BOARD) eq "genesys2"} { set num_channel
 if {[info exists ::env(RAPIDS_NUM_CHANNELS)]} {
     set num_channels $::env(RAPIDS_NUM_CHANNELS)
 }
+# 16 channels (rapids TASK-036): the 16-channel tops carry the 16-channel
+# register map, so they take their own filelists and the RAPIDS_16CH define.
+set rapids_16ch [expr {$num_channels == 16}]
+if {$rapids_16ch} { set top_flist_name "[file rootname $top_flist_name]_16ch.f" }
 
 # Board-fit memory sizing. The harness RTL defaults (SRAM_DEPTH=4096,
 # DESC_RAM_ENTRIES=2048) are the big ASIC/sim targets and blow past the
@@ -201,6 +205,12 @@ set_property include_dirs $incdirs $src_fs
 
 # Verilog defines (if the filelist provides any), plus the DUT select
 if {$rapids_g} { lappend defines RAPIDS_G }
+# FW_WRITABLE (rapids TASK-038): the loadable gatling instruction memory
+if {$rapids_g && [info exists ::env(FW_WRITABLE)] && $::env(FW_WRITABLE) == 1} {
+    lappend defines RAPIDS_G_FW_WRITABLE
+    puts "FW_WRITABLE:       1"
+}
+if {$rapids_16ch} { lappend defines RAPIDS_16CH }
 if {[llength $defines] > 0} {
     set_property verilog_define $defines $src_fs
 }

@@ -48,4 +48,8 @@ never idled); both now use `STREAM_REGS_NCH`, ch16 regenerated, STREAM top 69/69
 - Perf at 16 channels (16/8/4 harts): HAS 0.93 Table 6.4.6 and MAS 0.83 Table 5.5.6.
 - OOC P&R at 100 MHz: rapids-16ch 126,820 LUTs / 128 DSP / WNS +0.079; rapids-g-16ch 141,067 LUTs /
   0 DSP / WNS +0.050 (MAS Table 5.5.7, with 8-channel rows).
-- No board build at 16 channels (the Genesys 2 harness is 8 channels).
+- No board build at 16 channels at closure (the Genesys 2 harness was 8 channels). Added 2026-10-23
+  after closure: rapids-16ch and rapids-g-16ch built and run on the Genesys 2 (`make bitstream-perf
+  CHANNELS=16`), 109/109 windows sim == board for each; the descriptor RAMs had to move to block RAM
+  to route. The two-slot poll was then fixed live on the board under rapids TASK-038. Numbers: MAS
+  0.84 Section 5.5, HAS 0.94 Section 6.4.

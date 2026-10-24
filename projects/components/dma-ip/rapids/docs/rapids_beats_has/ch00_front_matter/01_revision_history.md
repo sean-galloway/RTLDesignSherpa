@@ -37,6 +37,7 @@
 | 0.14 | 2026-10-20 | RTL Design Sherpa | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.15 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.16 | 2026-10-21 | RTL Design Sherpa | Register map: per-channel `CH_SCRATCH[n].SCRATCH` at 0x300 (8 RW bits, storage only). |
+| 0.17 | 2026-10-23 | RTL Design Sherpa | Register map: the rapids-g firmware-load registers `FW_CTRL`, `FW_ADDR`, `FW_DATA`, `FW_RDATA` at 0x3A0-0x3AC (inert outside a rapids-g `FW_WRITABLE` build). Cover version corrected (it read 0.15 since 0.16). |
 
 : Document Revision History
 

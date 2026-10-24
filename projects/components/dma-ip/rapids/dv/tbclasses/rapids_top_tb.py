@@ -197,6 +197,11 @@ class RapidsTopTB(TBBase):
         # Monitor CAM sync-clear.
         d.cam_clear.value = 0
 
+        # rapids-g tops (rapids TASK-034): the gatlings' restart, quiescent
+        # unless a test pulses it (test_rapids_g_restart)
+        if hasattr(d, 'seq_restart'):
+            d.seq_restart.value = 0
+
         # APB inputs idle until the APB master takes over (post-reset).
         d.s_apb_psel.value = 0
         d.s_apb_penable.value = 0

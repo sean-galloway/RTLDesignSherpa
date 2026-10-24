@@ -13,6 +13,10 @@ little-endian, as gatling fetches them.
 
     python3 bin/gen_rapids_g_fw.py           # (re)write the include
     python3 bin/gen_rapids_g_fw.py --check   # exit 1 if it is stale
+    python3 bin/gen_rapids_g_fw.py --src X.S --out DIR/sched_g_fw.svh
+        # render another image (a candidate under live test, rapids TASK-038)
+        # for a simulation that puts DIR first on its include path; never the
+        # committed include
 
 RISCV_TOOLCHAIN names the toolchain bin directory (default: the xpack install
 kestrel uses). Never hand-edit the include: change the .S and rerun.
@@ -72,9 +76,10 @@ def alg_max(src: Path) -> int:
     return int(found[0])
 
 
-def render(words: list, algs: int) -> str:
+def render(words: list, algs: int, src: Path = SRC) -> str:
+    where = f"projects/components/dma-ip/rapids/rtl/fw_g/{SRC.name}" if src == SRC else str(src)
     lines = [STAMP,
-             f"// Source: projects/components/dma-ip/rapids/rtl/fw_g/{SRC.name}",
+             f"// Source: {where}",
              "// rapids_seq_g's instruction ROM image (rapids TASK-034).",
              "",
              f"localparam int FW_ALG_MAX = {algs};   // .equ ALG_MAX: the highest next-address selector",
@@ -90,12 +95,23 @@ def render(words: list, algs: int) -> str:
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--check', action='store_true', help='exit 1 if the include is stale')
+    ap.add_argument('--src', type=Path, default=SRC, help='firmware source (default the committed one)')
+    ap.add_argument('--out', type=Path, default=None,
+                    help='write the include here instead (required with --src)')
     args = ap.parse_args()
+    src = args.src.resolve()
+    if src != SRC and (args.out is None or args.check):
+        sys.exit("--src needs --out (and no --check): only the committed source renders to the committed include")
     tools = Path(os.environ.get('RISCV_TOOLCHAIN', TOOLCHAIN_DEFAULT))
     if not (tools / 'riscv-none-elf-as').exists():
         sys.exit(f"no riscv-none-elf-as in {tools} (set RISCV_TOOLCHAIN)")
-    words = build_words(SRC, tools, need_ptab=True)
-    text = render(words, alg_max(SRC))
+    words = build_words(src, tools, need_ptab=True)
+    text = render(words, alg_max(src), src)
+    if args.out is not None:
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(text)
+        print(f"wrote {args.out} ({len(words)} words, from {src})")
+        return 0
     if args.check:
         current = OUT.read_text() if OUT.exists() else ''
         if current != text:

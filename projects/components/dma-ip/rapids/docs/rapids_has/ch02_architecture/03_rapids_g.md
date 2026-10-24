@@ -23,8 +23,8 @@
 
 # rapids-g: Firmware-Sequenced Schedulers
 
-**Status:** Implemented (rapids TASK-034)
-**Last Updated:** 2026-10-22
+**Status:** Implemented (rapids TASK-034, TASK-036, TASK-038)
+**Last Updated:** 2026-10-23
 
 ---
 
@@ -35,9 +35,10 @@ What changes is where the decisions and the address arithmetic are made. The fir
 | | RAPIDS | rapids-g |
 |---|---|---|
 | Register map, descriptors, channel states | -- | identical, except that rapids-g also runs next-address selector 1 (Z-order); RAPIDS refuses it (Section 5.1) |
-| Per-descriptor overhead | a few cycles | about 90 clocks at 8 channels, hidden behind the descriptor in flight (Section 6.4) |
+| Per-descriptor overhead | a few cycles | about 90 clocks at 8 channels (one hart per channel), about 100 at 16 (two channels per hart), hidden behind the descriptor in flight (Section 6.4) |
 | EXT run bases | `stream_run_addr_gen` per channel and direction (64 multipliers at 8 channels) | firmware, by addition |
 | Channels | 8 or 16 | 4, 8 or 16 |
+| Firmware | -- | a ROM; or, built with `FW_WRITABLE` = 1, loadable through `FW_CTRL` / `FW_ADDR` / `FW_DATA` / `FW_RDATA` (0x3A0-0x3AC in each half) without a new bitstream, so firmware can be changed and measured live and committed to the ROM once final (RAPIDS MAS Section 5.3) |
 
 : Table 2.3: RAPIDS and rapids-g
 

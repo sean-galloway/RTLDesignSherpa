@@ -74,6 +74,17 @@ Characterized on silicon 2026-10-03 post-fix (commit 71d48b6f7). Report v0.11
 - AXI RRESP/BRESP error injection is exercised on silicon (rapids TASK-020,
   2026-10-01): 36/36 checks PASS on the standard byte-CRC build.
 
+- 16 channels and rapids-g on the board (rapids TASK-036 / TASK-038,
+  2026-10-23): `make bitstream-perf CHANNELS=16 ROW_COL=1 [RAPIDS_G=1]
+  [FW_WRITABLE=1]`. rapids-16ch 135,389 LUTs (66.4 %) at +0.192 ns; rapids-g-16ch
+  151,472 LUTs (74.3 %) at +0.148 ns, and 152,813 at +0.034 ns with the loadable
+  firmware memory. Each passes the 57-point 16-channel gcompare profile with
+  simulation equal to the board on all 109 windows (results
+  `reports/board/flow_results/byte_perf_gcompare_{fsm,g,gfast2}_16ch_rc.json`;
+  the measured tables are in the RAPIDS MAS Section 5.5). The 2048-entry
+  descriptor RAMs are block RAM now (`USE_WSTRB` = 0); as distributed RAM they
+  took 51k LUTs and the 16-channel rapids-g build did not route.
+
 The board keeps the standard byte-CRC bitstream
 (`c6985f762eee1e6b0379b672b8e0fcfc90b9f951a592820d864a0b66b28d0f99`,
 re-verified 2026-10-03); `flows-rapids/bitstream/` is a gitignored build area
@@ -88,6 +99,12 @@ make sim                      # harness self-check: beat campaigns + byte cases
 make bitstream                # Genesys 2, 8 channels, 256-bit, 4 KB per channel
 make program
 python3 host/run_characterization.py --channels 8 --byte-smoke
+
+# 16 channels, rapids-g, firmware loadable without a rebuild (rapids TASK-038):
+make bitstream-perf CHANNELS=16 ROW_COL=1 RAPIDS_G=1 FW_WRITABLE=1
+python3 host/run_characterization.py --port /dev/ttyUSB3 --channels 16 \
+    --fw <sched.S> --fw-selftest --byte-perf --profile gcompare
+make sim-gcompare CHANNELS=16 ROW_COL=1 FW_WRITABLE=1 FW_IMAGE=<sched.S>   # same image, compiled in
 
 # one command: writes the results JSON and regenerates the report.
 # Checks for other users of the board/UART, and records CSR_ID/BUILD/sentinel at

@@ -71,7 +71,7 @@ PROJECT   := $(SELF_DIR)/build/vivado_project/rapids_byte.xpr
 # structure before sharing) for area A/B, under its own bitstream name.
 export RAPIDS_SHARED_ENGINES ?= 1
 SE_TOKEN  := $(if $(filter 0,$(RAPIDS_SHARED_ENGINES)),_pce,)
-BITSTREAM = $(SELF_DIR)/bitstream/rapids_byte$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN)$(SE_TOKEN).bit
+BITSTREAM = $(SELF_DIR)/bitstream/rapids_byte$(CH16_TOKEN)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN)$(SE_TOKEN).bit
 REPORTS   := $(SELF_DIR)/reports
 # Tcl copy destination (build_all.tcl) -- keeps the copied artifact named like
 # the make-level BITSTREAM, derate token included.
@@ -111,6 +111,13 @@ BEATS    ?= 8
 # (see 'make board-info'), so its tty number depends on enumeration order.
 PORT     ?= auto
 export RAPIDS_NUM_CHANNELS := $(CHANNELS)
+# CHANNELS=16 (rapids TASK-036) builds the 16-channel tops (rapids_16ch_top,
+# rapids_g_16ch_top), which carry the 16-channel register map: the _16ch
+# filelists and the RAPIDS_16CH define, in Vivado, lint and sim alike. Its
+# bitstreams carry _16ch in the name.
+CH16_TOKEN := $(if $(filter 16,$(CHANNELS)),_16ch,)
+export RAPIDS_16CH := $(if $(CH16_TOKEN),1,0)
+CH16_SIM_ENV := $(if $(CH16_TOKEN),TEST_NUM_CHANNELS=16)
 # ---- Datapath design point (Sean, 2026-09-29) -----------------------------
 # 256-bit AXI4 read/write engines AND 256-bit AXIS (RAPIDS has one DATA_WIDTH
 # for both), with 4 KB of SRAM per channel: 128 beats x 32 B. The earlier
@@ -125,11 +132,11 @@ export RAPIDS_DATA_WIDTH := $(DATA_WIDTH)
 export RAPIDS_SRAM_DEPTH := $(SRAM_DEPTH)
 # Descriptor RAM entries per half (32 B each). The host lays each channel's
 # chain out KICK_STRIDE (0x1000) apart, so 8 channels need 8 x 4 KB = 1024
-# entries. The old board value, 256 (8 KB), wrapped the index: channels 0/2/4/6
+# entries (16 channels: 2048). The old board value, 256 (8 KB), wrapped the index: channels 0/2/4/6
 # shared one 4 KB window and 1/3/5/7 the other, each reading the last writer's
 # descriptors -- invisible to the address-agnostic checkers, and absent in sim,
 # which ran the RTL default 2048. One value now feeds Vivado, lint and sim.
-DESC_RAM_ENTRIES ?= 1024
+DESC_RAM_ENTRIES ?= $(if $(CH16_TOKEN),2048,1024)
 export RAPIDS_DESC_RAM_ENTRIES := $(DESC_RAM_ENTRIES)
 # Extended (row/column) addressing, USE_ROW_COL_MAJOR_ADDRESSING. 0 = compiled
 # out (the char builds' default, for 8-channel timing). Like the descriptor RAM
@@ -166,9 +173,16 @@ export MON_CAPTURE ?= 0
 # firmware on one gatling per half). Same harness, ports and register map; its
 # bitstreams carry _g in the name and BUILD[31] reads 1 on the board.
 export RAPIDS_G ?= 0
-G_TOKEN := $(if $(filter 1,$(RAPIDS_G)),_g,)
+# FW_WRITABLE: 1 = rapids-g's gatling instruction memory is loadable through the
+# FW_* registers (rapids TASK-038; host --fw), 0 = the ROM. Only with RAPIDS_G=1;
+# its bitstreams carry _fw in the name.
+export FW_WRITABLE ?= 0
+# FW_IMAGE=<.S>: sim-gcompare / sim-gscale build rapids-g with that firmware
+# compiled in (the image a board run loads live with --fw); needs FW_WRITABLE=1
+FW_IMAGE ?=
+G_TOKEN := $(if $(filter 1,$(RAPIDS_G)),_g$(if $(filter 1,$(FW_WRITABLE)),_fw,),)
 
-.PHONY: help sim sim-gcompare verify-sim lint project synth bitstream program characterize \
+.PHONY: help sim sim-gcompare sim-gscale sim-fw-load verify-sim lint project synth bitstream program characterize \
         smoke suite flow utilization timing clean clean-all cleanall
 
 help:
@@ -199,7 +213,7 @@ help:
 # source pass (m_axi_rd -> source -> m_axis, per-channel CRC == chk actual).
 sim:
 	cd $(REPO_ROOT) && . ./env_python && \
-	    TEST_RAPIDS_G=$(RAPIDS_G) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(DV_TESTS) -v
+	    $(CH16_SIM_ENV) TEST_RAPIDS_G=$(RAPIDS_G) TEST_FW_WRITABLE=$(FW_WRITABLE) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(DV_TESTS) -v
 
 # ---- rapids-g A/B in sim (rapids TASK-034) ----------------------------------
 # The board's gcompare profile on the word-wide-checker harness, against BOTH
@@ -207,8 +221,23 @@ sim:
 # before building the perf / perf_g bitstreams the board comparison uses.
 sim-gcompare:
 	cd $(REPO_ROOT) && . ./env_python && \
-	    TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
+	    $(CH16_SIM_ENV) TEST_FW_WRITABLE=$(FW_WRITABLE) $(if $(FW_IMAGE),TEST_FW_IMAGE=$(abspath $(FW_IMAGE))) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
 	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 12 -k gcompare
+
+# gscale (rapids TASK-036): where rapids-g catches the FSM, 2x size steps, every
+# channel of the build busy. Run at CHANNELS=8 and CHANNELS=16 to compare.
+sim-gscale:
+	cd $(REPO_ROOT) && . ./env_python && \
+	    $(CH16_SIM_ENV) TEST_FW_WRITABLE=$(FW_WRITABLE) $(if $(FW_IMAGE),TEST_FW_IMAGE=$(abspath $(FW_IMAGE))) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
+	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 12 -k gscale
+
+# rapids TASK-038: the live firmware load (--fw --fw-selftest) on rapids-g, on a
+# FW_WRITABLE=1 build and on the ROM build (its OFF state). Both cells build
+# their own DUT; FW_WRITABLE on the command line does not apply here.
+sim-fw-load:
+	cd $(REPO_ROOT) && . ./env_python && \
+	    $(CH16_SIM_ENV) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) \
+	    pytest $(DV_TESTS)/test_rapids_byte_sim_campaign.py -v -n 2 -k fw_load
 
 # ---- Pre-bitstream sim gate -----------------------------------------------
 # Cheap insurance: the sink self-check must pass before a 10-30 min build.
@@ -219,7 +248,7 @@ verify-sim:
 	else \
 	    echo "[verify-sim] running rapids_byte harness sink self-check (DATA_WIDTH=$(DATA_WIDTH) SRAM_DEPTH=$(SRAM_DEPTH))"; \
 	    cd $(REPO_ROOT) && . ./env_python && \
-	      TEST_RAPIDS_G=$(RAPIDS_G) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(HARNESS_TEST) -q -k sink \
+	      $(CH16_SIM_ENV) TEST_RAPIDS_G=$(RAPIDS_G) TEST_FW_WRITABLE=$(FW_WRITABLE) TEST_DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES) TEST_ROW_COL=$(ROW_COL) TEST_DATA_WIDTH=$(DATA_WIDTH) TEST_SRAM_DEPTH=$(SRAM_DEPTH) pytest $(HARNESS_TEST) -q -k sink \
 	      || (echo "[verify-sim] FAILED — refusing to start synth/bitstream" && exit 1); \
 	fi
 
@@ -242,14 +271,14 @@ verify-sim:
 
 define _stash_variant
 	@mkdir -p $(CHAR_ROOT)/reports/build
-	cp $(BITSTREAM) $(SELF_DIR)/bitstream/rapids_byte_$(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).bit
+	cp $(BITSTREAM) $(SELF_DIR)/bitstream/rapids_byte_$(1)$(CH16_TOKEN)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).bit
 	cd $(REPO_ROOT) && . ./env_python && \
 	    python3 $(CHAR_ROOT)/reports/extract_build_metrics.py \
 	        --reports-dir $(SELF_DIR)/reports \
-	        --bitstream $(SELF_DIR)/bitstream/rapids_byte_$(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).bit \
-	        --tag $(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN) --config "$(2) RAPIDS_G=$(RAPIDS_G) ROW_COL=$(ROW_COL) DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES)" \
+	        --bitstream $(SELF_DIR)/bitstream/rapids_byte_$(1)$(CH16_TOKEN)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).bit \
+	        --tag $(1)$(CH16_TOKEN)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN) --config "$(2) RAPIDS_G=$(RAPIDS_G) FW_WRITABLE=$(FW_WRITABLE) ROW_COL=$(ROW_COL) DESC_RAM_ENTRIES=$(DESC_RAM_ENTRIES)" \
 	        --commit $$(git -C $(REPO_ROOT) rev-parse --short HEAD) \
-	        --out $(CHAR_ROOT)/reports/build/metrics_$(1)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).json
+	        --out $(CHAR_ROOT)/reports/build/metrics_$(1)$(CH16_TOKEN)$(G_TOKEN)$(RC_TOKEN)$(CLK_TOKEN).json
 endef
 
 bitstream-std:
@@ -316,7 +345,7 @@ TOP      := rapids_byte_genesys2_top
 else
 TOP      := rapids_byte_top
 endif
-FILELIST := $(SELF_DIR)/filelists/$(TOP).f
+FILELIST := $(SELF_DIR)/filelists/$(TOP)$(CH16_TOKEN).f
 include $(REPO_ROOT)/make/fpga_lint.mk
 LINT_GENERICS = \
     -GNUM_CHANNELS=$(RAPIDS_NUM_CHANNELS) -GDATA_WIDTH=$(RAPIDS_DATA_WIDTH) \
@@ -327,6 +356,8 @@ LINT_GENERICS = \
     -GUSE_OBSERVERS=$(USE_OBSERVERS) -GOBS_ENABLE_MON_TAPS=$(OBS_ENABLE_MON_TAPS) \
     -GBYTE_CRC=$(BYTE_CRC) -GMON_CAPTURE=$(MON_CAPTURE) -GSHARED_ENGINES=$(RAPIDS_SHARED_ENGINES) \
     $(if $(filter 1,$(RAPIDS_G)),+define+RAPIDS_G) \
+    $(if $(filter 1,$(RAPIDS_G)),$(if $(filter 1,$(FW_WRITABLE)),+define+RAPIDS_G_FW_WRITABLE)) \
+    $(if $(CH16_TOKEN),+define+RAPIDS_16CH) \
     $(if $(RAPIDS_VCO_MHZ),-GVCO_MHZ=$(RAPIDS_VCO_MHZ)) \
     $(if $(RAPIDS_CLKOUT0_DIVIDE),-GCLKOUT0_DIVIDE=$(RAPIDS_CLKOUT0_DIVIDE))
 

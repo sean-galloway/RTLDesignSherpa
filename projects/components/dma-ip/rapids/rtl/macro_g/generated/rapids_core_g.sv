@@ -52,6 +52,9 @@
 `include "reset_defs.svh"
 
 module rapids_core_g #(
+    // rapids-g: 1 = the gatling instruction memory is writable through the
+    // FW_* registers (rapids TASK-038); 0 = a ROM holding the generated image
+    parameter int FW_WRITABLE = 0,
     // Primary parameters
     parameter int NUM_CHANNELS = 8,
     parameter int CHAN_WIDTH = $clog2(NUM_CHANNELS),
@@ -139,6 +142,19 @@ module rapids_core_g #(
     output logic                            snk_seq_reg_rsp_ready,
     input  logic [31:0]                     snk_seq_reg_rsp_prdata,
     input  logic                            snk_seq_reg_rsp_pslverr,
+    // rapids-g: the halves' firmware loads
+    input  logic                            src_fw_hold,
+    input  logic                            src_fw_wr_en,
+    input  logic [15:0]                     src_fw_addr,
+    input  logic [31:0]                     src_fw_wr_data,
+    input  logic [7:0]                      src_fw_alg_max,
+    output logic [31:0]                     src_fw_rd_data,
+    input  logic                            snk_fw_hold,
+    input  logic                            snk_fw_wr_en,
+    input  logic [15:0]                     snk_fw_addr,
+    input  logic [31:0]                     snk_fw_wr_data,
+    input  logic [7:0]                      snk_fw_alg_max,
+    output logic [31:0]                     snk_fw_rd_data,
 
     //=========================================================================
     // SOURCE HALF (u_src) - shared-infrastructure ports (src_ prefixed)
@@ -627,6 +643,7 @@ module rapids_core_g #(
     // Source Half (memory -> AXIS, read-only)
     //=========================================================================
     rapids_src_g #(
+        .FW_WRITABLE            (FW_WRITABLE),
         .NUM_CHANNELS           (NUM_CHANNELS),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
@@ -662,6 +679,12 @@ module rapids_core_g #(
         .seq_reg_rsp_ready    (src_seq_reg_rsp_ready),
         .seq_reg_rsp_prdata   (src_seq_reg_rsp_prdata),
         .seq_reg_rsp_pslverr  (src_seq_reg_rsp_pslverr),
+        .fw_hold              (src_fw_hold),
+        .fw_wr_en             (src_fw_wr_en),
+        .fw_addr              (src_fw_addr),
+        .fw_wr_data           (src_fw_wr_data),
+        .fw_alg_max           (src_fw_alg_max),
+        .fw_rd_data           (src_fw_rd_data),
         .clk                        (clk),
         .rst_n                      (rst_n),
 
@@ -864,6 +887,7 @@ module rapids_core_g #(
     // Sink Half (AXIS -> memory, write-only)
     //=========================================================================
     rapids_snk_g #(
+        .FW_WRITABLE            (FW_WRITABLE),
         .NUM_CHANNELS           (NUM_CHANNELS),
         .CHAN_WIDTH             (CHAN_WIDTH),
         .ADDR_WIDTH             (ADDR_WIDTH),
@@ -901,6 +925,12 @@ module rapids_core_g #(
         .seq_reg_rsp_ready    (snk_seq_reg_rsp_ready),
         .seq_reg_rsp_prdata   (snk_seq_reg_rsp_prdata),
         .seq_reg_rsp_pslverr  (snk_seq_reg_rsp_pslverr),
+        .fw_hold              (snk_fw_hold),
+        .fw_wr_en             (snk_fw_wr_en),
+        .fw_addr              (snk_fw_addr),
+        .fw_wr_data           (snk_fw_wr_data),
+        .fw_alg_max           (snk_fw_alg_max),
+        .fw_rd_data           (snk_fw_rd_data),
         .clk                        (clk),
         .rst_n                      (rst_n),
 

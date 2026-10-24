@@ -93,6 +93,32 @@ def _rtl_state():
 SIM_CAP_MS = min(100, int(os.environ.get('TEST_SIM_TIMEOUT_MS', '100')))
 
 
+async def _trace_sched(dut, spec, path):
+    """Debug (TEST_TRACE_SCHED='snk:0,snk:8'): one line per clock on which a
+    traced channel's scheduler (state, head valid, staged, seq_attn) changes or
+    the firmware writes its CMD -- the clock, the channel and the new values.
+    rapids-g builds only (the path is the -g tree's)."""
+    from cocotb.triggers import RisingEdge
+    taps = []
+    for item in spec.split(','):
+        half, ch = item.split(':')
+        arr = getattr(dut.u_dut.u_base.u_core, f'u_{half}').u_scheduler_group_array.g_shared
+        taps.append((item, arr.gen_schedulers[int(ch)].u_scheduler))
+    last, cyc = {}, 0
+    with open(path, 'w') as fh:
+        fh.write('clock channel state head staged attn cmd\n')
+        while True:
+            await RisingEdge(dut.aclk)
+            cyc += 1
+            for name, s in taps:
+                cmd = int(s.w_cmd_wr.value) and int(s.seq_wr_data.value)
+                v = (int(s.r_state.value), int(s.w_desc_head_valid.value), int(s.r_staged.value),
+                     int(s.seq_attn.value))
+                if v != last.get(name) or cmd:
+                    fh.write(f"{cyc} {name} 0x{v[0]:02x} {v[1]} {v[2]} {v[3]} {f'0x{cmd:x}' if cmd else '-'}\n")
+                    last[name] = v
+
+
 @cocotb.test(timeout_time=SIM_CAP_MS, timeout_unit="ms")
 async def cocotb_test_campaign(dut):
     """run_characterization.main(argv) over the sim UART, plus the sim-only
@@ -103,6 +129,9 @@ async def cocotb_test_campaign(dut):
     bpb = tb.convert_to_int(os.environ['TEST_DATA_WIDTH']) // 8
     mon = AxiBurstMonitor(dut, bpb)
     cocotb.start_soon(mon.run())
+    if os.environ.get('TEST_TRACE_SCHED'):
+        cocotb.start_soon(_trace_sched(dut, os.environ['TEST_TRACE_SCHED'],
+                                       os.environ['TEST_CAMPAIGN_RESULTS'] + '.trace'))
     argv = shlex.split(os.environ['TEST_CAMPAIGN_ARGV'])
     results = os.environ['TEST_CAMPAIGN_RESULTS']
     rc = await bridge(lambda: main(
@@ -194,26 +223,38 @@ def test_rapids_byte_sim_aligned_word_crc(request, monkeypatch, chunk):
     assert all(p['pass'] for p in doc['points']), [p['id'] for p in doc['points'] if not p['pass']]
 
 
-G_CHUNKS = int(os.environ.get('TEST_G_CHUNKS', '7'))
+# 16 channels (rapids TASK-036) about doubles the profile's UART cost; 18 is
+# the smallest count whose largest chunk plus its warm-up point stays at the
+# floor (a 16- and an 8-channel chain, ~9.6k UART ops).
+G_CHUNKS = int(os.environ.get('TEST_G_CHUNKS', '18' if BOARD_CHANNELS >= 16 else '7'))
 
 
-@pytest.mark.rapids_byte_harness
-@pytest.mark.parametrize('chunk', range(1, G_CHUNKS + 1), ids=lambda k: f'{k}of{G_CHUNKS}')
-@pytest.mark.parametrize('dut', ('fsm', 'g'))
-def test_rapids_byte_sim_gcompare_word_crc(request, monkeypatch, dut, chunk):
-    """The rapids-g A/B profile (gcompare: one descriptor to 1 MB, then chains)
-    on the word-wide-checker harness, against rapids_top (fsm) and rapids_g_top
-    (g, BUILD.RAPIDS_G=1) -- the two bitstreams the board comparison runs on.
-    Same host program, same UART sim; every point must pass golden."""
+# gscale (rapids TASK-036): the 2x-step sweep with every channel busy, to find
+# the size where rapids-g catches the FSM at 8 and at 16 channels. Counts keep
+# the largest chunk plus its warm-up under ~11.8k estimated UART ops, with one
+# chunk of margin.
+S_CHUNKS = int(os.environ.get('TEST_S_CHUNKS', '9' if BOARD_CHANNELS >= 16 else '5'))
+
+
+def _g_campaign(monkeypatch, dut, profile, chunk, nchunks, extra=(), fw_writable=None, tag=''):
+    """One chunk of a rapids-g A/B profile on the word-wide-checker harness,
+    against rapids_top (fsm) or rapids_g_top (g, BUILD.RAPIDS_G=1). Returns the
+    results document. fw_writable overrides TEST_FW_WRITABLE for the build."""
     from test_rapids_byte_harness import _run_harness
     monkeypatch.setenv('TEST_BYTE_CRC', '0')
     monkeypatch.setenv('TEST_RAPIDS_G', '1' if dut == 'g' else '0')
+    if fw_writable is not None:
+        monkeypatch.setenv('TEST_FW_WRITABLE', str(int(fw_writable)))
     os.makedirs(LOG_DIR, exist_ok=True)
-    name = f'byte_sim_gcompare_{dut}_{chunk}of{G_CHUNKS}'
+    name = f'byte_sim_{profile}{tag}_{dut}_{chunk}of{nchunks}'
     results = os.path.join(LOG_DIR, f'{name}.json')
     if os.path.exists(results):
         os.remove(results)
-    argv = ['--byte-perf', '--profile', 'gcompare', '--chunk', f'{chunk}/{G_CHUNKS}']
+    argv = ['--byte-perf', '--profile', profile, '--chunk', f'{chunk}/{nchunks}', *extra]
+    # TEST_FW_IMAGE (rapids TASK-038): rapids-g runs that firmware, compiled in;
+    # the host checks it is the one named and records its hash
+    if dut == 'g' and os.environ.get('TEST_FW_IMAGE') and '--fw' not in argv:
+        argv += ['--fw-expect', os.environ['TEST_FW_IMAGE']]
     # TEST_G_FREE_RUN=1: GO leaves the gatling harts running (--free-run), to
     # measure rapids-g's spread over the poll-loop phase (sweep the UART speed
     # with TEST_CLKS_PER_BIT). Default: GO restarts them, as on the board.
@@ -234,3 +275,55 @@ def test_rapids_byte_sim_gcompare_word_crc(request, monkeypatch, dut, chunk):
     assert doc['design']['rapids_g'] is (dut == 'g'), f"BUILD.RAPIDS_G does not match the {dut} DUT"
     assert doc['config']['kick_free_run'] is ('--free-run' in argv), "KICK_CFG.FREE_RUN reads back wrong"
     assert all(p['pass'] for p in doc['points']), [p['id'] for p in doc['points'] if not p['pass']]
+    return doc
+
+
+@pytest.mark.rapids_byte_harness
+@pytest.mark.parametrize('chunk', range(1, G_CHUNKS + 1), ids=lambda k: f'{k}of{G_CHUNKS}')
+@pytest.mark.parametrize('dut', ('fsm', 'g'))
+def test_rapids_byte_sim_gcompare_word_crc(request, monkeypatch, dut, chunk):
+    """The rapids-g A/B profile (gcompare: one descriptor to 1 MB, then chains)
+    against both DUTs -- the two bitstreams the board comparison runs on.
+    Same host program, same UART sim; every point must pass golden."""
+    _g_campaign(monkeypatch, dut, 'gcompare', chunk, G_CHUNKS)
+
+
+@pytest.mark.rapids_byte_harness
+@pytest.mark.parametrize('chunk', range(1, S_CHUNKS + 1), ids=lambda k: f'{k}of{S_CHUNKS}')
+@pytest.mark.parametrize('dut', ('fsm', 'g'))
+def test_rapids_byte_sim_gscale_word_crc(request, monkeypatch, dut, chunk):
+    """gscale: single descriptors and interleaved-sink chains on every channel
+    of the build, in 2x size steps, against both DUTs; every point must pass
+    golden."""
+    _g_campaign(monkeypatch, dut, 'gscale', chunk, S_CHUNKS)
+
+
+# rapids TASK-038: the live firmware load. The writable build runs the load
+# self-test (an unheld write refused, a halting image takes every channel to
+# CH_ERROR, the scheduler image brings them back) and then a slice of the
+# aligned profile on the loaded image; the ROM build (the parameter's OFF state)
+# takes the same writes and must change nothing. One chunk of FW_CHUNKS keeps
+# the load (~2.6k UART ops) plus the points under the 100 ms cap.
+FW_IMAGE_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), *(['..'] * 6),
+                            'components', 'dma-ip', 'rapids', 'rtl', 'fw_g', 'sched_g.S')
+FW_CHUNKS = 8
+
+
+@pytest.mark.rapids_byte_harness
+@pytest.mark.parametrize('writable', (1, 0), ids=('writable', 'rom'))
+def test_rapids_byte_sim_fw_load_word_crc(request, monkeypatch, writable):
+    """--fw + --fw-selftest on rapids-g, FW_WRITABLE = 1 and 0."""
+    doc = _g_campaign(monkeypatch, 'g', 'aligned', 1, FW_CHUNKS,
+                      extra=['--fw', FW_IMAGE_SRC, '--fw-selftest'], fw_writable=writable, tag='_fw')
+    fw = doc['config']['firmware']
+    checks = fw.get('selftest', [])
+    assert checks and all(c['ok'] for c in checks), checks
+    if writable:
+        assert fw['loaded'] is True and len(fw['sha256']) == 64, fw
+        assert [c['check'] for c in checks] == ['src_refused', 'snk_refused', 'src_takes', 'snk_takes',
+                                                'src_addressing', 'snk_addressing',
+                                                'src_restores', 'snk_restores'], checks
+    else:
+        assert fw['loaded'] is False and fw['rom'] is True, fw
+        assert [c['check'] for c in checks] == ['src_rom_ignores', 'snk_rom_ignores'], checks
+    assert doc['points'], "no aligned points ran after the load"

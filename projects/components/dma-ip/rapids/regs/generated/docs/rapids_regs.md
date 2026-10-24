@@ -100,6 +100,10 @@ Don't override. Generated from: $root
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
 | 0x380|     HIST_TOTAL     |    Latency Histogram Metric Total    |
+| 0x3A0|       FW_CTRL      |           Firmware Control           |
+| 0x3A4|       FW_ADDR      |           Firmware Address           |
+| 0x3A8|       FW_DATA      |          Firmware Write Data         |
+| 0x3AC|      FW_RDATA      |          Firmware Read Data          |
 | 0x7FC|     TILE_STRAPS    |              Tile Straps             |
 | 0x800|         MON        |       RAPIDS Monitor Registers       |
 
@@ -1808,6 +1812,86 @@ acceptance cross-check against the perf-window burst counters.</p>
 
 <p>Selected metric total transaction count [31:0]</p>
 
+### FW_CTRL register
+
+- Absolute Address: 0x3A0
+- Base Offset: 0x3A0
+- Size: 0x4
+
+<p>Hold this half's gatling and load its instruction memory. HOLD = 1
+keeps every hart in reset; FW_DATA writes land only while it is set.
+Clearing it restarts the harts from address 0 on the loaded image.
+Hold only while every channel of the half is idle. While HOLD = 1
+the next-address cap every scheduler applies follows ALG_MAX, so
+write ALG_MAX with the new image's value in the same write.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   HOLD   |  rw  | 0x0 |  — |
+|  1 | WRITABLE |   r  |  —  |  — |
+|15:8|  ALG_MAX |  rw  | 0x0 |  — |
+
+#### HOLD field
+
+<p>Hold the harts in reset (and enable FW_DATA writes)</p>
+
+#### WRITABLE field
+
+<p>1 = the instruction memory is writable (FW_WRITABLE build)</p>
+
+#### ALG_MAX field
+
+<p>Next-address selectors the loaded image implements (its ALG_MAX)</p>
+
+### FW_ADDR register
+
+- Absolute Address: 0x3A4
+- Base Offset: 0x3A4
+- Size: 0x4
+
+<p>Instruction-memory word index for FW_DATA and FW_RDATA. Advances
+by one after each FW_DATA write and each FW_RDATA read.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|15:0|   ADDR   |  rw  | 0x0 |  — |
+
+#### ADDR field
+
+<p>Word index</p>
+
+### FW_DATA register
+
+- Absolute Address: 0x3A8
+- Base Offset: 0x3A8
+- Size: 0x4
+
+<p>A write stores the word at FW_ADDR (only while FW_CTRL.HOLD = 1)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |  rw  | 0x0 |  — |
+
+#### DATA field
+
+<p>Instruction word</p>
+
+### FW_RDATA register
+
+- Absolute Address: 0x3AC
+- Base Offset: 0x3AC
+- Size: 0x4
+
+<p>The instruction-memory word at FW_ADDR (0 on a ROM build)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |   r  |  —  |  — |
+
+#### DATA field
+
+<p>Instruction word</p>
+
 ### TILE_STRAPS register
 
 - Absolute Address: 0x7FC
@@ -3330,6 +3414,10 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 | 0x378|      HIST_SEL      |   Latency Histogram Readout Select   |
 | 0x37C|      HIST_DATA     |      Latency Histogram Bin Count     |
 | 0x380|     HIST_TOTAL     |    Latency Histogram Metric Total    |
+| 0x3A0|       FW_CTRL      |           Firmware Control           |
+| 0x3A4|       FW_ADDR      |           Firmware Address           |
+| 0x3A8|       FW_DATA      |          Firmware Write Data         |
+| 0x3AC|      FW_RDATA      |          Firmware Read Data          |
 | 0x7FC|     TILE_STRAPS    |              Tile Straps             |
 | 0x800|         MON        |       RAPIDS Monitor Registers       |
 
@@ -5037,6 +5125,86 @@ acceptance cross-check against the perf-window burst counters.</p>
 #### VAL field
 
 <p>Selected metric total transaction count [31:0]</p>
+
+### FW_CTRL register
+
+- Absolute Address: 0x13A0
+- Base Offset: 0x3A0
+- Size: 0x4
+
+<p>Hold this half's gatling and load its instruction memory. HOLD = 1
+keeps every hart in reset; FW_DATA writes land only while it is set.
+Clearing it restarts the harts from address 0 on the loaded image.
+Hold only while every channel of the half is idle. While HOLD = 1
+the next-address cap every scheduler applies follows ALG_MAX, so
+write ALG_MAX with the new image's value in the same write.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|  0 |   HOLD   |  rw  | 0x0 |  — |
+|  1 | WRITABLE |   r  |  —  |  — |
+|15:8|  ALG_MAX |  rw  | 0x0 |  — |
+
+#### HOLD field
+
+<p>Hold the harts in reset (and enable FW_DATA writes)</p>
+
+#### WRITABLE field
+
+<p>1 = the instruction memory is writable (FW_WRITABLE build)</p>
+
+#### ALG_MAX field
+
+<p>Next-address selectors the loaded image implements (its ALG_MAX)</p>
+
+### FW_ADDR register
+
+- Absolute Address: 0x13A4
+- Base Offset: 0x3A4
+- Size: 0x4
+
+<p>Instruction-memory word index for FW_DATA and FW_RDATA. Advances
+by one after each FW_DATA write and each FW_RDATA read.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|15:0|   ADDR   |  rw  | 0x0 |  — |
+
+#### ADDR field
+
+<p>Word index</p>
+
+### FW_DATA register
+
+- Absolute Address: 0x13A8
+- Base Offset: 0x3A8
+- Size: 0x4
+
+<p>A write stores the word at FW_ADDR (only while FW_CTRL.HOLD = 1)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |  rw  | 0x0 |  — |
+
+#### DATA field
+
+<p>Instruction word</p>
+
+### FW_RDATA register
+
+- Absolute Address: 0x13AC
+- Base Offset: 0x3AC
+- Size: 0x4
+
+<p>The instruction-memory word at FW_ADDR (0 on a ROM build)</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|   DATA   |   r  |  —  |  — |
+
+#### DATA field
+
+<p>Instruction word</p>
 
 ### TILE_STRAPS register
 
