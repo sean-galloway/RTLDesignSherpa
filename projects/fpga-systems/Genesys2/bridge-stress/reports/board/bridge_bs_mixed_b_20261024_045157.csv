@@ -1,0 +1,28 @@
+build,profile,seed,txns,full_axi,ok,cycles,reasons
+bridge_bs_mixed_b,clean,1,20000,False,True,15402332,
+bridge_bs_mixed_b,clean,2,20000,False,True,15167344,
+bridge_bs_mixed_b,clean,3,20000,False,True,15466111,
+bridge_bs_mixed_b,bursts,1,20000,False,True,9870232,
+bridge_bs_mixed_b,bursts,2,20000,False,True,9836761,
+bridge_bs_mixed_b,bursts,3,20000,False,True,9860486,
+bridge_bs_mixed_b,backpressure,1,20000,False,True,12050773,
+bridge_bs_mixed_b,backpressure,2,20000,False,True,11966919,
+bridge_bs_mixed_b,backpressure,3,20000,False,True,12116623,
+bridge_bs_mixed_b,reorder,1,20000,False,True,76445531,
+bridge_bs_mixed_b,reorder,2,20000,False,True,75661459,
+bridge_bs_mixed_b,reorder,3,20000,False,True,76706425,
+bridge_bs_mixed_b,narrow,1,20000,False,False,8153491,cpu.rd: ['RD_DATA'] x30865 (first RD_DATA id=0x1e addr=0x30023f28 exp=0xb0f55485 act=0x80f67c89) | p4s.wr: ['S_WDATA'] x10272 (first S_WDATA id=0x0 addr=0x3002f378 exp=0x5c7b4d9b act=0xb385559f) | p5s.wr: ['S_WDATA'] x11173 (first S_WDATA id=0x0 addr=0x40043d38 exp=0xa53d149b act=0x4ac30c9f)
+bridge_bs_mixed_b,narrow,2,20000,False,False,8178367,cpu.rd: ['RD_DATA'] x29323 (first RD_DATA id=0x1a addr=0x400075e0 exp=0x568d06d9 act=0xa702e220) | p4s.wr: ['S_WDATA'] x11531 (first S_WDATA id=0x0 addr=0x3000e110 exp=0x6312bd6a act=0x8ceca56e) | p5s.wr: ['S_WDATA'] x9518 (first S_WDATA id=0x0 addr=0x40007134 exp=0xec80c09f act=0x237ce893)
+bridge_bs_mixed_b,narrow,3,20000,False,False,8168417,cpu.rd: ['RD_DATA'] x28825 (first RD_DATA id=0x30 addr=0x400713fc exp=0x050d8777 act=0x150c9f73) | p4s.wr: ['S_WDATA'] x10987 (first S_WDATA id=0x0 addr=0x3003e07c exp=0xd251d8ac act=0xda238f81) | p5s.wr: ['S_WDATA'] x12895 (first S_WDATA id=0x0 addr=0x4000de40 exp=0x44c75d37 act=0xab394533)
+bridge_bs_mixed_b,single_id,1,20000,False,True,50476098,
+bridge_bs_mixed_b,single_id,2,20000,False,True,49782064,
+bridge_bs_mixed_b,single_id,3,20000,False,True,50068052,
+bridge_bs_mixed_b,errors,1,20000,False,True,20311977,
+bridge_bs_mixed_b,errors,2,20000,False,True,19999358,
+bridge_bs_mixed_b,errors,3,20000,False,True,20071966,
+bridge_bs_mixed_b,short,1,20000,False,True,2313456,
+bridge_bs_mixed_b,short,2,20000,False,True,2308930,
+bridge_bs_mixed_b,short,3,20000,False,True,2346330,
+bridge_bs_mixed_b,chaos,1,20000,False,False,27556911,cpu.rd: ['RD_DATA'] x22682 (first RD_DATA id=0x34 addr=0x4003832c exp=0xd8c92c49 act=0xc8c8344d) | p4s.wr: ['S_WDATA'] x8087 (first S_WDATA id=0x0 addr=0x3002a978 exp=0x8db0fac4 act=0x624e1dc0) | p5s.wr: ['S_WDATA'] x10180 (first S_WDATA id=0x0 addr=0x4006d084 exp=0x36edc609 act=0xf9111105)
+bridge_bs_mixed_b,chaos,2,20000,False,False,27446629,cpu.rd: ['RD_DATA'] x21159 (first RD_DATA id=0x3c addr=0x4000b218 exp=0x8ba15fcb act=0xbba277c7) | p4s.wr: ['S_WDATA'] x8171 (first S_WDATA id=0x0 addr=0x30038b70 exp=0xbb33f1bd act=0x54cde9b9) | p5s.wr: ['S_WDATA'] x8718 (first S_WDATA id=0x0 addr=0x4002c2b4 exp=0x7f0d55ef act=0xb0f17de3)
+bridge_bs_mixed_b,chaos,3,20000,False,False,27875890,cpu.rd: ['RD_DATA'] x22241 (first RD_DATA id=0x30 addr=0x400713fc exp=0x050d8777 act=0x150c9f73) | p4s.wr: ['S_WDATA'] x7599 (first S_WDATA id=0x0 addr=0x30051250 exp=0xe5474a3b act=0x0ab9ad3f) | p5s.wr: ['S_WDATA'] x9371 (first S_WDATA id=0x0 addr=0x4000de40 exp=0x44c75d37 act=0xab394533)

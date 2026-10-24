@@ -22,7 +22,8 @@ from TBClasses.shared.filelist_utils import get_sources_from_filelist
 from TBClasses.shared.verilator_cfg import FIELD_COMBO_VLT  # noqa: E402  (not -Wno-MULTIDRIVEN)
 
 AREA = 'projects/fpga-systems/Genesys2/bridge-stress'
-DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil', 'bridge_bs_xmix']
+DUTS = ['bridge_bs_axi4', 'bridge_bs_axi3', 'bridge_bs_axi5', 'bridge_bs_xil', 'bridge_bs_xmix',
+        'bridge_bs_mixed_b']
 # build-xil / build-xmix vendor slaves are AXI slave BFM memories here; they
 # model every burst type (FIXED, INCR, WRAP, narrow, unaligned) since bridge
 # BUG-018/019, so both run every profile. build-xil adds 'ocelus', the

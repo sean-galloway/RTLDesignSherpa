@@ -12,9 +12,9 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 5 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 11 | done (kept for history) |
+| [closed/](closed/) | 12 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,7 +24,6 @@ by construction rather than by discipline.
 - **TASK-015** — Evaluate matrix arbiters vs round-robin for small port counts (from 2026-10-11 lit review)
 - **TASK-016** — Buffer/CAM depth sizing rule vs pipeline + converter latency (from 2026-10-11 lit review)
 - **TASK-020** — make the read-return-atomic tracker depth (8, fixed today) a per-slave TOML key, and report it
-- **TASK-019** — Genesys 2 bridge stress model: AXI3/AXI5, then AXI-Lite / APB / WB4 shells (phases 1 and 2a-2e done on the board, AXI3/4/5 and third-party IP on LiteDRAM; phase 3, the single-beat shells, next)
 
 ## Dropped
 
@@ -34,6 +33,7 @@ by construction rather than by discipline.
 - **TASK-001** — trim method from `bridge/CLAUDE.md`; dropped, the file was already compliant and every row of its removal table was falsified by reading the text.
 
 ## Closed
+- **TASK-019** — Genesys 2 bridge stress model on every protocol the bridge builds: AXI4 / AXI3 / AXI5 (sideband, poison, IDUNQ, atomics, MTE), third-party IP on LiteDRAM, and the single-beat AXI-Lite / APB / WB4 shells in `build-mixb` (2026-10-24; 30/30 and a soak on every build; found and fixed bridge BUG-018..024, converters BUG-010..015)
 - **TASK-018** — Transaction-ID remap: fabric ID = {master index, slot} (2026-10-19)
 - **TASK-017** — bridge HAS/MAS v2.0: full 8-protocol summaries + explicit ACE-out-of-scope + version alignment (2026-10-12)
 

@@ -83,6 +83,15 @@ WIN_STRIDE = 0x1000
 NWIN = 8
 PROTO_CODE = {'axi4': 0, 'axi3': 1, 'axi5': 2, 'axil': 3, 'axil5': 4,
               'apb': 5, 'apb5': 6, 'wb4': 7}
+# Single-beat protocols (phase 3), and the core ID width of a port whose
+# protocol carries no ID -- bin/gen_bs_harness.py builds the same, and the
+# block's ID register reports it.
+SINGLE = ('axil', 'axil5', 'apb', 'apb5', 'wb4')
+NOID = ('axil', 'apb', 'apb5', 'wb4')
+NOID_IW = 4
+# Requesters whose bus reports any error as one error (PSLVERR / ERR): the
+# shells map it to SLVERR, so a DECERR from the fabric arrives as SLVERR.
+ONE_ERROR = ('apb', 'apb5', 'wb4')
 TAG0 = 0x10                         # slave i's tag = TAG0 + i
 MEM_TAG = 0x6D                      # every mem window: one image across memories
 MEM_LG2 = 20                        # mem windows hash modulo 1 MB (cfg mem_lg2)
@@ -106,6 +115,7 @@ class Port:
     ooo: bool = False
     features: Tuple[str, ...] = ()           # axi5_features
     vendor: bool = False                     # [harness] vendor: third-party IP
+    aw: int = 32                             # addr_width: a slave sees the address modulo 2^aw
 
     @property
     def rd(self) -> bool:
@@ -156,15 +166,19 @@ def load_build(toml: Path) -> Build:
     doc = tomllib.loads(toml.read_text())
     cfg = doc['bridge']
     vendor = set(doc.get('harness', {}).get('vendor', []))
+    def iw(p):
+        return p.get('id_width', 0) or (NOID_IW if p.get('protocol', 'axi4') in NOID else 0)
     ms = tuple(Port(i, m['name'], m.get('protocol', 'axi4'), m.get('channels', 'rw'),
-                    m['data_width'], m.get('id_width', 0), bool(m.get('cdc', False)),
-                    features=tuple(m.get('axi5_features', ())), vendor=m['name'] in vendor)
+                    m['data_width'], iw(m), bool(m.get('cdc', False)),
+                    features=tuple(m.get('axi5_features', ())), vendor=m['name'] in vendor,
+                    aw=int(m.get('addr_width', 32)))
                for i, m in enumerate(cfg['masters']))
     ss = tuple(Port(i, s['name'], s.get('protocol', 'axi4'), s.get('channels', 'rw'),
-                    s['data_width'], s.get('id_width', 0), bool(s.get('cdc', False)),
+                    s['data_width'], iw(s), bool(s.get('cdc', False)),
                     int(s['base_addr'], 0), int(s['addr_range'], 0),
                     bool(s.get('enable_ooo', False)),
-                    features=tuple(s.get('axi5_features', ())), vendor=s['name'] in vendor)
+                    features=tuple(s.get('axi5_features', ())), vendor=s['name'] in vendor,
+                    aw=int(s.get('addr_width', 32)))
                for i, s in enumerate(cfg['slaves']))
     conn_file = toml.with_name(f"{cfg['name']}_connectivity.csv")
     conn: Dict[str, Tuple[str, ...]] = {}
@@ -202,10 +216,11 @@ def sb_native(m: Port, s: Port) -> bool:
 
 def sweep_bursts(m: Port, s: Port) -> int:
     """Bursts m's fill takes to sweep memory s once. A fill burst is the
-    master's longest (its shell's LEN_MASK): 16 beats on an AXI3 port, 256
-    otherwise -- so an AXI3 sweep takes 16x the bursts of an AXI4 one."""
-    return M.fill_bursts(s.mem_lg2, (m.dw // 8).bit_length() - 1,
-                         len_mask=0x0F if m.protocol == 'axi3' else 0xFF)
+    master's longest (its shell's LEN_MASK): 16 beats on an AXI3 port, one on
+    a single-beat port, 256 otherwise -- so an AXI3 sweep takes 16x the bursts
+    of an AXI4 one."""
+    lm = 0x0F if m.protocol == 'axi3' else 0x00 if m.protocol in SINGLE else 0xFF
+    return M.fill_bursts(s.mem_lg2, (m.dw // 8).bit_length() - 1, len_mask=lm)
 
 
 def is_atomic(p: Port) -> bool:
@@ -383,8 +398,9 @@ class StressHarness:
                 for s in slaves]
         slaves = [s for s in slaves if not s.vendor]   # SLVERR windows: stress slaves only
         if prof.errors:
-            if self.hole is not None:
-                wins.append(M.Window(self.hole, 24, 0, M.DECERR, **common))
+            if self.hole is not None:   # the fabric's DECERR, as m's bus reports it
+                dec = M.SLVERR if m.protocol in ONE_ERROR else M.DECERR
+                wins.append(M.Window(self.hole, 24, 0, dec, **common))
             k = m.index           # rotate which slaves get an error window
             for j in range(len(slaves)):
                 if len(wins) >= NWIN or not slaves:
@@ -441,7 +457,10 @@ class StressHarness:
                 if axi5:     # SB is new with AXI5; an older bitstream has no such register
                     d.write(f'{dr}_SB', src=sb_src, poison_lg2=plg2)
                 d.write_word(f'{dr}_BASE', s.base)
-                d.write(f'{dr}_CTRL', size_lg2=s.size_lg2, offset_mode=0, err_en=1,
+                # a slave narrower than the fabric address sees its window
+                # offset (the bridge drives addr_width bits): the core rebuilds
+                # base | offset
+                d.write(f'{dr}_CTRL', size_lg2=s.size_lg2, offset_mode=int(s.aw < 32), err_en=1,
                         tag=TAG0 + s.index, inorder=int(inorder),
                         interleave=int(prof.interleave and dr == 'RD'),
                         req_throttle=prof.s_req_throttle, data_throttle=prof.s_data_throttle,

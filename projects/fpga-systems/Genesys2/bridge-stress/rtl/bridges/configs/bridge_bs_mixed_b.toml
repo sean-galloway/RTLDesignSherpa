@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2026 sean galloway
+#
+# Bridge stress model, phase 3 DUT (bridge TASK-019): every single-beat
+# protocol the bridge builds, as a master and as a slave, with an AXI4 master
+# and an AXI4 memory slave beside them, all connected. Each single-beat port
+# meets the bridge from both sides, and every path between two protocols is
+# exercised. Widths are the stress shells' (AXI-Lite and WB4 32 or 64, APB 32);
+# The APB slaves are 20 bits wide, so they see their window offset (the
+# bridge drives addr_width bits of the address) and run in offset mode.
+
+[bridge]
+name = "bridge_bs_mixed_b"
+variants = ["no"]
+description = "bridge stress model: AXI4 + AXI4-Lite + AXI5-Lite + APB4 + APB5 + WB4 masters x the same six slaves"
+
+[bridge.clock]
+name = "aclk"
+frequency_mhz = 100
+
+[[bridge.masters]]
+name       = "cpu"
+prefix     = "cpu_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 6
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name       = "l4m"
+prefix     = "l4m_axil_"
+protocol   = "axil"
+channels   = "rw"
+id_width   = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+
+[[bridge.masters]]
+name       = "l5m"
+prefix     = "l5m_axil_"
+protocol   = "axil5"
+channels   = "rw"
+id_width   = 4
+addr_width = 32
+data_width = 64
+user_width = 1
+
+[[bridge.masters]]
+name       = "p4m"
+prefix     = "p4m_apb_"
+protocol   = "apb"
+channels   = "rw"
+id_width   = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+
+[[bridge.masters]]
+name       = "p5m"
+prefix     = "p5m_apb_"
+protocol   = "apb5"
+channels   = "rw"
+id_width   = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+
+[[bridge.masters]]
+name       = "wbm"
+prefix     = "wbm_wb_"
+protocol   = "wb4"
+channels   = "rw"
+id_width   = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+
+[[bridge.slaves]]
+name       = "mem"
+prefix     = "mem_axi_"
+protocol   = "axi4"
+channels   = "rw"
+id_width   = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x00000000"
+addr_range = "0x10000000"
+
+[[bridge.slaves]]
+name       = "l4s"
+prefix     = "l4s_axil_"
+protocol   = "axil"
+channels   = "rw"
+id_width   = 0
+addr_width = 32
+data_width = 32
+user_width = 1
+base_addr  = "0x10000000"
+addr_range = "0x01000000"
+
+[[bridge.slaves]]
+name       = "l5s"
+prefix     = "l5s_axil_"
+protocol   = "axil5"
+channels   = "rw"
+id_width   = 8
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x20000000"
+addr_range = "0x01000000"
+
+[[bridge.slaves]]
+name       = "p4s"
+prefix     = "p4s_apb_"
+protocol   = "apb"
+channels   = "rw"
+id_width   = 0
+addr_width = 20      # the 1 MB window: the slave sees its offset
+data_width = 32
+user_width = 1
+base_addr  = "0x30000000"
+addr_range = "0x00100000"
+
+[[bridge.slaves]]
+name       = "p5s"
+prefix     = "p5s_apb_"
+protocol   = "apb5"
+channels   = "rw"
+id_width   = 0
+addr_width = 20      # the 1 MB window: the slave sees its offset
+data_width = 32
+user_width = 1
+base_addr  = "0x40000000"
+addr_range = "0x00100000"
+
+[[bridge.slaves]]
+name       = "wbs"
+prefix     = "wbs_wb_"
+protocol   = "wb4"
+channels   = "rw"
+id_width   = 0
+addr_width = 32
+data_width = 64
+user_width = 1
+base_addr  = "0x50000000"
+addr_range = "0x01000000"

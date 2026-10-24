@@ -21,4 +21,9 @@ is checked at both ends.
   hangs the BUG-018 fix exposed), converters BUG-010 (every CSR write lands
   twice) and converters BUG-011 (AXI4-to-AXI3 chopping of an unaligned
   burst). All are fixed; every build passes 30/30 on the board with no path
-  limits (2026-10-22).
+  limits (2026-10-22). `build-mixb` puts every single-beat protocol the
+  bridge builds on it at once -- AXI4-Lite, AXI5-Lite, APB4, APB5 and WB4
+  masters and slaves beside an AXI4 pair -- and found converters BUG-014
+  (an AXI-Lite-to-wide write converter that waited for AWREADY before
+  WVALID) and BUG-015 (sub-word bursts into APB misaddressed); fixed, and
+  30/30 on the board (2026-10-24).

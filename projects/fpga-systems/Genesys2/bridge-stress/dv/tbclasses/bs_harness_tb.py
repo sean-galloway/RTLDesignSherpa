@@ -30,6 +30,7 @@ from __future__ import annotations
 from collections import Counter
 
 import os
+import pathlib
 
 import cocotb
 from cocotb._bridge import bridge
@@ -58,6 +59,7 @@ class BsHarnessTB(TBBase):
                                          rx_signal='i_uart_rx', tx_signal='o_uart_tx',
                                          log=self.log)
         self.bus = UARTAxiBridge(channel=self.channel)
+        self.toml = toml
         self.build = bstress.load_build(toml)
         self.h = bstress.StressHarness(self.bus, self.build,
                                        log=lambda m, _l=self.log: _l.info(m))
@@ -297,19 +299,33 @@ class BsHarnessTB(TBBase):
         self.dut.cresetn.value = 1
 
     # ---- the board's library --------------------------------------------------
+    # the handshake pins a hang shows on, per protocol: (label, [pins]); a
+    # VALID up with its READY down says who waits on whom
+    _DUMP = {
+        'axi':  [('AW', 'awvalid', 'awready'), ('W', 'wvalid', 'wready'), ('B', 'bvalid', 'bready')],
+        'apb':  [('SEL/EN', 'PSEL', 'PENABLE'), ('WR/RDY', 'PWRITE', 'PREADY')],
+        'wb':   [('CYC/STB', 'CYC', 'STB'), ('STALL/ACK', 'STALL', 'ACK'), ('WE/ERR', 'WE', 'ERR')],
+    }
+
     def _dump_write_state(self) -> None:
-        """At a failure, each DUT port's write handshake state: a hang shows
-        as a VALID up with its READY down (who waits on whom)."""
+        """At a failure, each DUT port's handshake state (write channels on
+        AXI, the one bus on APB / WB4): a hang shows as a VALID up with its
+        READY down (who waits on whom). Pins are named by the port's TOML
+        prefix, exactly as bs_harness_<dut> brings them out."""
+        import tomllib
         d = self.dut
+        doc = tomllib.loads(pathlib.Path(self.toml).read_text())['bridge']
+        prefix = {p['name']: p['prefix'] for p in doc['masters'] + doc['slaves']}
         for p in self.build.masters + self.build.slaves:
-            pre = f"{p.name}_axi_"
+            kind = 'apb' if p.protocol.startswith('apb') else 'wb' if p.protocol == 'wb4' else 'axi'
+            pre = prefix.get(p.name, f'{p.name}_axi_')
             try:
-                v = {n: int(getattr(d, pre + n).value) for n in
-                     ('awvalid', 'awready', 'wvalid', 'wready', 'bvalid', 'bready')}
-            except AttributeError:
+                cols = [f"{lbl} {int(getattr(d, pre + a).value)}/{int(getattr(d, pre + b).value)}"
+                        for lbl, a, b in self._DUMP[kind]]
+            except AttributeError as e:
+                self.log.error(f"  {p.name:>5}: pins not found ({e})")
                 continue
-            self.log.error(f"  {p.name:>5}: AW {v['awvalid']}/{v['awready']}  "
-                           f"W {v['wvalid']}/{v['wready']}  B {v['bvalid']}/{v['bready']}")
+            self.log.error(f"  {p.name:>5}: {'  '.join(cols)}")
 
     async def identify(self):
         await bridge(self.h.identify)()

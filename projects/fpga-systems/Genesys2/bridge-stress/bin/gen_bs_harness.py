@@ -101,6 +101,51 @@ EXT_WINDOWS = ('ext0', 'ext1')
 MON_WINDOWS = ('ext2', 'ext3')
 MON_CFG, MON_DRAIN = MON_WINDOWS
 
+# Single-beat protocols (phase 3): the DUT port's pins as (name, width, by),
+# `by` the side that drives the pin -- 'q' the requester, 'c' the completer --
+# so a DUT master port's inputs are the 'q' pins and a slave port's the 'c'
+# pins. Names after the TOML prefix, exactly as the bridge generator emits them.
+AXIL = [('awaddr', 'AW', 'q'), ('awprot', '3', 'q'), ('awvalid', '1', 'q'), ('awready', '1', 'c'),
+        ('wdata', 'DW', 'q'), ('wstrb', 'SW', 'q'), ('wvalid', '1', 'q'), ('wready', '1', 'c'),
+        ('bresp', '2', 'c'), ('bvalid', '1', 'c'), ('bready', '1', 'q'),
+        ('araddr', 'AW', 'q'), ('arprot', '3', 'q'), ('arvalid', '1', 'q'), ('arready', '1', 'c'),
+        ('rdata', 'DW', 'c'), ('rresp', '2', 'c'), ('rvalid', '1', 'c'), ('rready', '1', 'q')]
+AXIL5 = AXIL + [('awid', 'IW', 'q'), ('awuser', 'UW', 'q'), ('awtrace', '1', 'q'),
+                ('wuser', 'UW', 'q'), ('wpoison', 'PW', 'q'),
+                ('bid', 'IW', 'c'), ('buser', 'UW', 'c'), ('btrace', '1', 'c'),
+                ('arid', 'IW', 'q'), ('aruser', 'UW', 'q'), ('artrace', '1', 'q'),
+                ('rid', 'IW', 'c'), ('ruser', 'UW', 'c'), ('rtrace', '1', 'c'), ('rpoison', 'PW', 'c')]
+APB = [('PSEL', '1', 'q'), ('PENABLE', '1', 'q'), ('PADDR', 'AW', 'q'), ('PWRITE', '1', 'q'),
+       ('PWDATA', 'DW', 'q'), ('PSTRB', 'SW', 'q'), ('PPROT', '3', 'q'),
+       ('PRDATA', 'DW', 'c'), ('PREADY', '1', 'c'), ('PSLVERR', '1', 'c')]
+APB5 = APB + [('PAUSER', 'UW', 'q'), ('PWUSER', 'UW', 'q'), ('PWAKEUP', '1', 'q'),
+              ('PRUSER', 'UW', 'c'), ('PBUSER', 'UW', 'c')]
+WB = [('CYC', '1', 'q'), ('STB', '1', 'q'), ('WE', '1', 'q'), ('ADR', 'AW', 'q'),
+      ('DAT_W', 'DW', 'q'), ('SEL', 'SW', 'q'), ('CTI', '3', 'q'), ('BTE', '2', 'q'),
+      ('STALL', '1', 'c'), ('ACK', '1', 'c'), ('ERR', '1', 'c'), ('RTY', '1', 'c'),
+      ('DAT_R', 'DW', 'c')]
+SINGLE = {'axil': AXIL, 'axil5': AXIL5, 'apb': APB, 'apb5': APB5, 'wb4': WB}
+# A slave port is addr_width bits wide and sees the fabric address modulo
+# 2^addr_width -- its window offset when narrower than 32 (an APB slave's
+# usual case); the shells' address ports are 32 bits, zero-extended here, and
+# bin/bstress.py runs such a slave in offset mode.
+ADDR_PINS = ('awaddr', 'araddr', 'PADDR', 'ADR')
+# protocol -> (shell module stem, the shell's pin stem: m_<stem>_ / s_<stem>_,
+# the DUT pins the shell carries; the rest are tied 0 in or left open out)
+_NOT_ON_SHELL = {'axil5': {'awuser', 'wuser', 'buser', 'aruser', 'ruser'},
+                 'apb5': {'PAUSER', 'PWUSER', 'PRUSER', 'PBUSER'}, 'wb4': {'CTI', 'BTE'}}
+SHELL = {pr: (mod, stem, {n for n, _, _ in SINGLE[pr]} - _NOT_ON_SHELL.get(pr, set()))
+         for pr, mod, stem in (('axil', 'axil4', 'axil'), ('axil5', 'axil5', 'axil'),
+                               ('apb', 'apb4', 'apb'), ('apb5', 'apb5', 'apb'),
+                               ('wb4', 'wb4', 'wb'))}
+# The cores issue IDs whatever the bus carries. A port whose protocol has no ID
+# (AXI4-Lite, APB, APB5, WB4) gets this core ID width; bin/bstress.py applies
+# the same rule, and the CSRs report it.
+NOID = ('axil', 'apb', 'apb5', 'wb4')
+NOID_IW = 4
+# What the shells accept: AXI-Lite and WB4 32 or 64 bits, APB 32 bits.
+SINGLE_DW = {'axil': (32, 64), 'axil5': (32, 64), 'apb': (32,), 'apb5': (32,), 'wb4': (32, 64)}
+
 # protocol -> (AW, W, B, AR, R); the stress shells are <protocol>_{master,slave}_stress
 CHANNELS = {'axi4': (AW, W, B, AR, R), 'axi3': (AW3, W3, B, AR3, R),
             'axi5': (AW5 + AW5_X, W + W5_X, B + B5_X, AR5 + AR5_X, R + R5_X)}
@@ -121,6 +166,7 @@ class Port:
     features: List[str] = field(default_factory=list)   # axi5_features
     max_outstanding: int = 16
     vendor: bool = False       # [harness] vendor: pins out, no stress block
+    aw: int = 32               # addr_width (single-beat ports: the address pins)
 
     @property
     def rd(self) -> bool:
@@ -139,6 +185,10 @@ class Port:
         return 'cresetn' if self.cdc else 'aresetn'
 
     @property
+    def single(self) -> bool:
+        return self.protocol in SINGLE
+
+    @property
     def chans(self):
         return CHANNELS[self.protocol]
 
@@ -149,6 +199,13 @@ class Port:
     def sigs(self) -> List[tuple]:
         """The DUT port's pins: for AXI5 the base set plus the pins of its
         axi5_features, exactly as the bridge generator declares them."""
+        if self.single:
+            # AXI-Lite splits by direction like AXI; APB and WB4 are one bus
+            def keep(n):
+                if self.protocol not in ('axil', 'axil5'):
+                    return True
+                return self.wr if n[0] in 'awb' else self.rd
+            return [(n, w) for n, w, _ in SINGLE[self.protocol] if keep(n)]
         aw, w, b, ar, r = self.chans
         if self.protocol == 'axi5':
             def ext(ch):
@@ -194,18 +251,26 @@ def load(toml: Path):
                        max(1, m.get('user_width', 1)), bool(m.get('cdc', False)),
                        features=list(m.get('axi5_features', [])),
                        max_outstanding=int(m.get('max_outstanding', 16)),
-                       vendor=m['name'] in vendor))
+                       vendor=m['name'] in vendor, aw=int(m.get('addr_width', 32))))
     for s in cfg['slaves']:
         ss.append(Port(s['name'], s['prefix'], s.get('protocol', 'axi4'),
                        s.get('channels', 'rw'), s['data_width'], s.get('id_width', 0),
                        max(1, s.get('user_width', 1)), bool(s.get('cdc', False)),
                        int(s['base_addr'], 0), int(s['addr_range'], 0),
                        features=list(s.get('axi5_features', [])),
-                       vendor=s['name'] in vendor))
+                       vendor=s['name'] in vendor, aw=int(s.get('addr_width', 32))))
     for p in ms + ss:
-        if p.protocol not in CHANNELS:
+        if p.protocol not in CHANNELS and p.protocol not in SINGLE:
             sys.exit(f'{p.name}: protocol {p.protocol!r} has no stress shell yet '
-                     f'(have {sorted(CHANNELS)})')
+                     f'(have {sorted(CHANNELS) + sorted(SINGLE)})')
+        if p.single:
+            if p.dw not in SINGLE_DW[p.protocol]:
+                sys.exit(f'{p.name}: {p.protocol} data_width {p.dw}; the stress shells take '
+                         f'{SINGLE_DW[p.protocol]}')
+            if p.protocol in NOID:
+                p.iw = NOID_IW
+            if p.vendor:
+                sys.exit(f'{p.name}: [harness] vendor ports are AXI only')
         extra = set(p.features) - set(AXI5_STRESS_FEATURES)
         if extra:
             sys.exit(f'{p.name}: axi5_features {sorted(extra)} are not modelled by the '
@@ -218,9 +283,50 @@ def load(toml: Path):
     return cfg['name'], ms, ss
 
 
+def single_shell(p: Port, side: str, i: int, head: str, extra: str = '') -> List[str]:
+    """A single-beat stress shell (phase 3) on DUT port p: the instance, every
+    DUT pin the shell drives tied to it, the DUT inputs it does not carry tied 0
+    and its unused DUT outputs collected for lint. side: 'master' | 'slave'."""
+    mod, stem, carried = SHELL[p.protocol]
+    io = 'm' if side == 'master' else 's'
+    # a DUT master port's inputs are the requester's pins, a slave port's the completer's
+    dut_in = 'q' if side == 'master' else 'c'
+    pins = {n: by for n, _, by in SINGLE[p.protocol]}
+    have = [n for n, _ in p.sigs()]
+    out: List[str] = []
+    params = [f".EN_RD(1'b{int(p.rd)})", f".EN_WR(1'b{int(p.wr)})", '.DEPTH(16)']
+    if side == 'master':
+        params.append('.NWIN(8)')
+    params += [f'.IW({p.iw})', f'.DW({p.dw})']
+    if p.protocol == 'axil5':
+        # the bridge ties AXI5-Lite TRACE / POISON to 0 (no AXI4 origin); the
+        # shells check exactly that with every window's sb / poison off
+        params += [".EN_TRACE(1'b1)", ".EN_POISON(1'b1)"]
+    if p.protocol == 'wb4':
+        params.append('.CLASSIC(0)')      # the bridge's Wishbone ports are pipelined
+    out.append(f"    {mod}_{side}_stress #(")
+    out.append(f"        {', '.join(params)}{extra}")
+    out.append(f"    ) u_{io}{i} (")
+    out.append(head)
+    def net(n):
+        # a narrow slave address reaches the shell's 32-bit port zero-extended
+        return f"32'({p.prefix}{n})" if (n in ADDR_PINS and p.aw < 32) else f"{p.prefix}{n}"
+    conns = [f"        .{io}_{stem}_{n:<9} ({net(n)})" for n in have if n in carried]
+    out.append(",\n".join(conns))
+    out.append("    );")
+    tied = [n for n in have if n not in carried and pins[n] == dut_in]
+    for n in tied:
+        out.append(f"    assign {p.prefix}{n} = '0;          // not modelled by the stress shell")
+    unused = [f'{p.prefix}{n}' for n in have if n not in carried and pins[n] != dut_in]
+    if unused:
+        out.append(f"    wire unused_{io}{i}_pins = ^{{{', '.join(unused)}}};")
+    return out
+
+
 def width(w: str, p: Port) -> str:
     nt = max(1, p.dw // 128)
-    v = {'IW': p.iw, 'DW': p.dw, 'SW': p.dw // 8, 'UW': p.uw, 'NT': nt, 'TW': 4 * nt}.get(w)
+    v = {'IW': p.iw, 'DW': p.dw, 'SW': p.dw // 8, 'UW': p.uw, 'NT': nt, 'TW': 4 * nt,
+         'PW': max(1, p.dw // 64), 'AW': p.aw}.get(w)
     n = int(w) if v is None else v
     return '' if n == 1 else f'[{n - 1}:0]'
 
@@ -570,15 +676,22 @@ module bs_harness_{dut}
         .sts_rd (m{i}_sts_rd), .sts_wr (m{i}_sts_wr)
     );
     wire unused_m{i}_paddr = ^mst{i}_apb_PADDR[31:12];
-
-    {p.protocol}_master_stress #(
+""")
+        head = (f"        .aclk ({p.clk}), .aresetn ({p.rst}), .go ({go}), .stop ({stop}),\n"
+                f"        .cfg_rd (m{i}_cfg_rd), .cfg_wr (m{i}_cfg_wr), .cfg_win (m{i}_win),\n"
+                f"        .cfg_hash_seed ({seed}),\n"
+                f"        .sts_rd (m{i}_sts_rd), .sts_wr (m{i}_sts_wr),")
+        if p.single:
+            for ln in single_shell(p, 'master', i, head):
+                a(ln)
+            a(f"    assign mst_done_raw[{i}] = m{i}_sts_rd.done && m{i}_sts_wr.done;")
+            a(f"    assign mst_err_raw[{i}]  = (|m{i}_sts_rd.err_mask) || (|m{i}_sts_wr.err_mask);\n")
+            continue
+        a(f"""    {p.protocol}_master_stress #(
         .EN_RD(1'b{int(p.rd)}), .EN_WR(1'b{int(p.wr)}), .DEPTH(16), .NWIN(8),
         .IW({p.iw}), .DW({p.dw}), .UW({p.uw}){p.axi5_params()}
     ) u_m{i} (
-        .aclk ({p.clk}), .aresetn ({p.rst}), .go ({go}), .stop ({stop}),
-        .cfg_rd (m{i}_cfg_rd), .cfg_wr (m{i}_cfg_wr), .cfg_win (m{i}_win),
-        .cfg_hash_seed ({seed}),
-        .sts_rd (m{i}_sts_rd), .sts_wr (m{i}_sts_wr),""")
+{head}""")
         conns = []
         have = {n for n, _ in p.sigs()}
         aw, w, b, ar, r = p.chans
@@ -609,7 +722,7 @@ module bs_harness_{dut}
 """)
             continue
         src_params = (f", .SRC_LSB({src_lsb}), .SRC_W({src_w})"
-                      if p.protocol == 'axi5' else '')
+                      if p.protocol in ('axi5', 'axil5') else '')
         a(f"""    // =========================================================================
     // Slave {i}: {p.name} ({p.protocol}, {p.channels}, {p.dw}-bit, ID {p.iw}, {p.clk})
     //          window 0x{p.base:08X} + 0x{p.size:X}
@@ -634,14 +747,20 @@ module bs_harness_{dut}
         .sts_rd (s{i}_sts_rd), .sts_wr (s{i}_sts_wr)
     );
     wire unused_s{i}_paddr = ^slv{i}_apb_PADDR[31:12];
-
-    {p.protocol}_slave_stress #(
+""")
+        head = (f"        .aclk ({p.clk}), .aresetn ({p.rst}), .clear ({go}),\n"
+                f"        .cfg_rd (s{i}_cfg_rd), .cfg_wr (s{i}_cfg_wr), .cfg_hash_seed ({seed}),\n"
+                f"        .sts_rd (s{i}_sts_rd), .sts_wr (s{i}_sts_wr),")
+        if p.single:
+            for ln in single_shell(p, 'slave', i, head, src_params):
+                a(ln)
+            a(f"    assign slv_err_raw[{i}] = (|s{i}_sts_rd.err_mask) || (|s{i}_sts_wr.err_mask);\n")
+            continue
+        a(f"""    {p.protocol}_slave_stress #(
         .EN_RD(1'b{int(p.rd)}), .EN_WR(1'b{int(p.wr)}), .DEPTH(16),
         .IW({p.iw}), .DW({p.dw}), .UW({p.uw}){p.axi5_params()}{src_params}
     ) u_s{i} (
-        .aclk ({p.clk}), .aresetn ({p.rst}), .clear ({go}),
-        .cfg_rd (s{i}_cfg_rd), .cfg_wr (s{i}_cfg_wr), .cfg_hash_seed ({seed}),
-        .sts_rd (s{i}_sts_rd), .sts_wr (s{i}_sts_wr),""")
+{head}""")
         conns = []
         have = {n for n, _ in p.sigs()}
         aw, w, _, ar, _ = p.chans
@@ -867,9 +986,10 @@ def mon_ports() -> str:
 
 
 def filelist(dut: str, rel: str, ms: List[Port], ss: List[Port], mon: bool = False) -> str:
-    shells = ''.join(f'-f $REPO_ROOT/rtl/amba/filelists/{proto}_{side}_stress.f\n'
+    shells = ''.join(f'-f $REPO_ROOT/rtl/amba/filelists/{mod}_{side}_stress.f\n'
                      for side, ports in (('master', ms), ('slave', ss))
-                     for proto in sorted({p.protocol for p in ports}))
+                     for mod in sorted({SHELL[p.protocol][0] if p.single else p.protocol
+                                        for p in ports}))
     return f"""# Generated by bin/gen_bs_harness.py -- DO NOT EDIT
 # Compile closure of bs_harness_{dut}.
 +incdir+$REPO_ROOT/rtl/amba/includes
