@@ -64,8 +64,13 @@ class CrossbarGenerator:
         # while a request waits (one level every 2**qos_aging_shift cycles,
         # saturating at 15) -- so a low-QoS master is delayed, never starved;
         # ties fall back to round-robin. Same lock-until-handshake.
-        if arbitration not in ('rr', 'qos'):
-            raise ValueError(f"arbitration must be 'rr' or 'qos', got {arbitration!r}")
+        # 'matrix' (bridge TASK-015) is the Dally & Towles matrix arbiter: a
+        # pairwise "i outranks j" bit per master pair, the winner dropping
+        # below every other requester at each grant. Least-recently-served
+        # wins among contenders -- strongly fair, no pointer, no rotation
+        # mux: the pick is two gate levels for any small n.
+        if arbitration not in ('rr', 'qos', 'matrix'):
+            raise ValueError(f"arbitration must be 'rr', 'qos' or 'matrix', got {arbitration!r}")
         self.arbitration = arbitration
         self.qos_aging_shift = int(qos_aging_shift)
 
@@ -974,7 +979,9 @@ class CrossbarGenerator:
         ready = f"{prefix}{channel}ready"
 
         qos = (self.arbitration == 'qos')
-        policy = "QoS + aging, round-robin ties" if qos else "round-robin"
+        matrix = (self.arbitration == 'matrix')
+        policy = ("QoS + aging, round-robin ties" if qos else
+                  "matrix (least recently served)" if matrix else "round-robin")
         lines.append(f"    // ---- {channel.upper()} arbiter for {s}: {policy}, lock until handshake ----")
         slots = self._uses_slots(slave, channel)
         if slots:
@@ -987,8 +994,25 @@ class CrossbarGenerator:
                 for m in reversed(masters))
         lines.append(f"    logic [{n-1}:0] {arb}_req;")
         lines.append(f"    assign {arb}_req = {{{req_bits}}};")
-        lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
+        if matrix:
+            lines.append(f"    logic [{k-1}:0] {arb}_lock;")
+        else:
+            lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
         lines.append(f"    logic {arb}_locked;")
+        # Matrix arbiter (bridge TASK-015): one flop per master pair (i < j),
+        # {arb}_m_{i}_{j} = 1 when i outranks j; the lower triangle is its
+        # complement. Among the requesters, the one outranking every other
+        # requester wins -- the matrix is a total order, so exactly one does.
+        # At the handshake the winner drops below everyone: its row clears,
+        # its column sets. Reset ranks by index, lowest first.
+        pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
+        def outranks(i, j):
+            return f"{arb}_m_{i}_{j}" if i < j else f"!{arb}_m_{j}_{i}"
+        if matrix and pairs:
+            lines.append(f"    logic {', '.join(f'{arb}_m_{i}_{j}' for i, j in pairs)};")
+            for i in range(n):
+                terms = " && ".join(f"(!{arb}_req[{j}] || {outranks(i, j)})" for j in range(n) if j != i)
+                lines.append(f"    wire {arb}_win_{i} = {arb}_req[{i}] && {terms};")
         # The vector the round-robin pick walks: every requester under 'rr',
         # only the requesters at the highest effective priority under 'qos'.
         pick_vec = f"{arb}_req"
@@ -1025,6 +1049,9 @@ class CrossbarGenerator:
             pick_cases.append(expr)
         if n == 1:
             lines.append(f"    wire [{k-1}:0] {arb}_pick = {k}'d0;")
+        elif matrix:
+            expr = " | ".join(f"({arb}_win_{i} ? {k}'d{i} : {k}'d0)" for i in range(1, n))
+            lines.append(f"    wire [{k-1}:0] {arb}_pick = {expr};")
         else:
             expr = pick_cases[-1]
             for r in range(n - 2, -1, -1):
@@ -1035,7 +1062,11 @@ class CrossbarGenerator:
         lines.append(f"    `ALWAYS_FF_RST(aclk, aresetn,")
         lines.append(f"        if (`RST_ASSERTED(aresetn)) begin")
         lines.append(f"            {arb}_lock   <= '0;")
-        lines.append(f"            {arb}_rr     <= '0;")
+        if matrix:
+            for i, j in pairs:
+                lines.append(f"            {arb}_m_{i}_{j} <= 1'b1;")
+        else:
+            lines.append(f"            {arb}_rr     <= '0;")
         lines.append(f"            {arb}_locked <= 1'b0;")
         if qos:
             for i in range(n):
@@ -1043,7 +1074,12 @@ class CrossbarGenerator:
         lines.append(f"        end else begin")
         lines.append(f"            if ({prefix}{channel}valid && {ready}) begin")
         lines.append(f"                {arb}_locked <= 1'b0;")
-        lines.append(f"                {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
+        if matrix:
+            for i, j in pairs:
+                lines.append(f"                if ({arb}_gnt == {k}'d{i}) {arb}_m_{i}_{j} <= 1'b0;")
+                lines.append(f"                else if ({arb}_gnt == {k}'d{j}) {arb}_m_{i}_{j} <= 1'b1;")
+        else:
+            lines.append(f"                {arb}_rr <= ({arb}_gnt == {k}'d{n-1}) ? {k}'d0 : {arb}_gnt + 1'b1;")
         lines.append(f"            end else if ({prefix}{channel}valid) begin")
         lines.append(f"                {arb}_lock   <= {arb}_gnt;")
         lines.append(f"                {arb}_locked <= 1'b1;")

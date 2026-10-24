@@ -249,6 +249,28 @@ matching blackbox module in RTL. ORFS already ships a couple of pre-baked
 
 ## 5. Path B — standalone Yosys (netlist only, no APR)
 
+> **In this repo the recipe is a script.**
+> `projects/asic-trials/timing_characterization/work/synth_module.py --top <module>
+> --filelist <repo .f> [--sta] [-G NAME=VAL]` runs slang → `synth -flatten` →
+> dfflibmap + ABC against the merged ASAP7 RVT library and reports cells,
+> flops, area, ABC delay / levels and, with `--sta`, the OpenSTA worst
+> register-to-register path. A whole crossbar is a 5-30 s answer. Filelists
+> resolve through `TBClasses.shared.filelist_utils`, nested `-f` included.
+>
+> **Timing needs the per-family libraries, not the merged one.** The merged
+> RVT/TT NLDM maps correctly in ABC, but its flop setup / hold arcs carry no
+> table models (OpenSTA: "no table models found in timing group"), so every
+> register endpoint is unconstrained and `report_checks` finds no path at a
+> slack of 1e42. `synth_module.py --sta` reads the five per-family files
+> (SIMPLE, INVBUF, AO, OA, SEQ RVT TT) instead, extracted once from the PDK's
+> `.lib.7z` into `/tmp/charwork/asap7/libs`. Run OpenSTA through
+> `~/eda/sta-asap7`: the bare binary cannot find `init.tcl` because Vivado's
+> `libtcl8.6` on `LD_LIBRARY_PATH` shadows the system one; the wrapper strips
+> it. The Liberty time unit is 1 ps, so `create_clock -period 1000` is 1 GHz.
+> *Case (2026-10-24, bridge TASK-015): the first STA run of a 19k-cell
+> crossbar reported a 1e42 slack and no paths; the mapped netlist was fine.*
+
+
 This is the transparent version. It maps RTL to ASAP7 cells and writes a netlist,
 nothing more — good for RTLDesignSherpa demos.
 

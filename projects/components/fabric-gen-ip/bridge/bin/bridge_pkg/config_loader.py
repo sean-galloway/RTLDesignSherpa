@@ -504,11 +504,12 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
         print("  xbar_pipeline: True (registered crossbar, +1 cycle each way)")
 
     # bridge TASK-006 (was BRIDGE-017): arbitration policy. 'qos' makes every slave arbiter pick
-    # by AxQOS + aging; 'rr' is the round-robin default.
+    # by AxQOS + aging; 'rr' is the round-robin default; 'matrix' (bridge TASK-015) is the
+    # least-recently-served matrix arbiter.
     arbitration = str(bridge_data.get('arbitration', 'rr'))
-    if arbitration not in ('rr', 'qos'):
+    if arbitration not in ('rr', 'qos', 'matrix'):
         raise ValueError(
-            f"{config_path}: [bridge].arbitration must be 'rr' or 'qos', got {arbitration!r}")
+            f"{config_path}: [bridge].arbitration must be 'rr', 'qos' or 'matrix', got {arbitration!r}")
     qos_aging_shift = int(bridge_data.get('qos_aging_shift', 4))
     if not (0 <= qos_aging_shift <= 7):
         raise ValueError(
@@ -516,6 +517,8 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             f"counter), got {qos_aging_shift}")
     if arbitration == 'qos':
         print(f"  arbitration: qos (AxQOS + aging, one level per 2**{qos_aging_shift} cycles)")
+    elif arbitration == 'matrix':
+        print("  arbitration: matrix (least recently served; bridge TASK-015)")
 
     # Per-ID target tracking in every master adapter (the one-outstanding-
     # target rule is gone). A master may have transactions in flight at

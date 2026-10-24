@@ -1,0 +1,56 @@
+# Bridge Configuration: bridge_2x2_rw with MATRIX arbitration
+# (bridge TASK-015, arbitration = "matrix").
+#
+# The same two 32-bit AXI4 masters and two 32-bit AXI4 slaves as
+# bridge_2x2_rw. Every slave arbiter is a Dally & Towles matrix arbiter: one
+# "i outranks j" bit per master pair, the requester that outranks every other
+# requester wins, and the winner drops below everyone at its handshake. So the
+# least recently served requester always wins a contended slot (strongly fair,
+# bounded wait of n-1 grants), with no rotation pointer and no priority-encoder
+# chain in the pick. Connectivity comes from bridge_2x2_rw_matrix_connectivity.csv.
+
+[bridge]
+name = "bridge_2x2_rw_matrix"
+variants = ["no"]
+description = "2 master x 2 slave rw bridge, matrix (least-recently-served) arbitration"
+arbitration = "matrix"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma"
+prefix = "dma_m_axi"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"
+prefix = "sram_s_axi"
+id_width = 5  # {master index, master id}: 4-bit ID + 1 prefix bit (bridge TASK-005, was BRIDGE-016)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x80000000"

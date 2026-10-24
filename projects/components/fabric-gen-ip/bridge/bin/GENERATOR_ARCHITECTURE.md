@@ -154,7 +154,7 @@ example cannot hide here. A `.yaml` ports file still loads through
 | `internal_axil_group` | bool, default true | false: the top exports the aggregated monbus stream (`monbus_agg_*`) instead of instantiating its own monbus group |
 | `mon_group` | table | which `monbus_<p1>_<p2>_group` variant the internal aggregator instantiates |
 | `xbar_pipeline` | bool | registered crossbar (see Fabric Options) |
-| `arbitration`, `qos_aging_shift` | `"rr"` (default) or `"qos"`; int 4 | per-slave arbiter policy |
+| `arbitration`, `qos_aging_shift` | `"rr"` (default), `"qos"` or `"matrix"`; int 4 | per-slave arbiter policy |
 | `defaults` | table | per-port defaults applied before each port's own keys |
 
 ### `[[bridge.masters]]` / `[[bridge.slaves]]`
@@ -427,6 +427,7 @@ Config keys the generators honour beyond the port list; each is a
 |---|---|---|
 | `xbar_pipeline = true` (`[bridge]`) | `CrossbarGenerator(pipeline=True)`: `_generate_pipeline_decls()` declares `xs_<slave>_axi_*` ahead of the routing, `_generate_pipeline_stages()` puts a 2-deep `gaxi_skid_buffer` on every slave-side channel | HAS 6.8a, MAS 2.3 |
 | `arbitration = "qos"`, `qos_aging_shift` | `_generate_arbiter()`: effective priority = AxQOS + age, max wins, equals round-robin | HAS 6.8a, MAS 2.3 |
+| `arbitration = "matrix"` | `_generate_arbiter()`: one "i outranks j" flop per master pair, the requester outranking every other requester wins, the winner drops below all at the handshake (bridge TASK-015) | HAS 6.8a, MAS 2.4 |
 | `cdc = true` (an AXI4 `[[bridge.slaves]]`) | `SlaveAdapterGenerator._generate_cdc_stage()` puts `axi4_cdc_{wr,rd}` between the timing wrapper and the port; the top gains `<slave>_aclk/_aresetn`; the TB template runs the port on `BRIDGE_CDC_PERIOD_NS` | HAS 4.5a, 6.8b |
 | `protocol = "wb4"` (either side) | master: `wb4_to_axi4` front end (`FRONT_END_MODULES`); slave: `axi4_to_wb4` shim component; one signal table `wb4_signals.py` | HAS 4.6 |
 

@@ -42,9 +42,10 @@ Arbiter configuration from the TOML — though here the comments carry the real 
 ```toml
 [bridge]
 # arbiter_type: NOT A KEY. The policy key is `arbitration`: "rr" (default,
-# round-robin) or "qos" (AWQOS / ARQOS + age, round-robin among equals; the
-# age step is 2**qos_aging_shift cycles). Both lock until the address
-# handshake; fixed_priority and weighted exist nowhere in bin/bridge_pkg/ or
+# round-robin), "qos" (AWQOS / ARQOS + age, round-robin among equals; the
+# age step is 2**qos_aging_shift cycles) or "matrix" (least recently served,
+# bridge TASK-015). All three lock until the address handshake;
+# fixed_priority and weighted exist nowhere in bin/bridge_pkg/ or
 # rtl/generated/.
 
 [bridge.arbitration]
@@ -226,6 +227,66 @@ end
 - Peers with similar priority
 - General-purpose interconnects
 - Default choice for most bridges
+
+### Matrix Arbitration (`arbitration = "matrix"`, bridge TASK-015)
+
+#### Algorithm
+
+The matrix arbiter (Dally & Towles, ch. 18.5) keeps one bit per ordered
+master pair: `m[i][j] = 1` means *i outranks j*. The generator stores the
+upper triangle, `n(n-1)/2` flops per arbiter, and reads the lower triangle as
+its complement. Among the requesters, the one that outranks every other
+requester wins; the matrix is a total order, so exactly one does. At the
+slave-side handshake the winner drops below everyone -- its row clears, its
+column sets -- so the least recently served requester always wins the next
+contended slot. Reset ranks the masters by index, lowest first.
+
+```
+4 masters, m[i][j] (i outranks j), row i, column j:
+
+  start           M2 granted         M0 granted
+  . 1 1 1         . 1 1 1            . 0 0 0
+  0 . 1 1   -->   0 . 1 1     -->    1 . 1 1
+  0 0 . 1         0 0 . 0            1 0 . 0
+  0 0 0 .         1 1 1 .            1 1 1 .
+  M0>M1>M2>M3     M0>M1>M3>M2        M1>M3>M2>M0
+```
+
+#### Implementation
+
+As generated for a 3-way arbiter (`bridge_4x4_rw_matrix_xbar`, the
+`periph_slave` AW arbiter; the lock-until-handshake wrapper is the one the
+round-robin uses):
+
+```systemverilog
+logic periph_slave_aw_arb_m_0_1, periph_slave_aw_arb_m_0_2, periph_slave_aw_arb_m_1_2;
+wire periph_slave_aw_arb_win_0 = req[0] && (!req[1] ||  m_0_1) && (!req[2] ||  m_0_2);
+wire periph_slave_aw_arb_win_1 = req[1] && (!req[0] || !m_0_1) && (!req[2] ||  m_1_2);
+wire periph_slave_aw_arb_win_2 = req[2] && (!req[0] || !m_0_2) && (!req[1] || !m_1_2);
+wire [1:0] periph_slave_aw_arb_pick = (win_1 ? 2'd1 : 2'd0) | (win_2 ? 2'd2 : 2'd0);
+// at the handshake: if (gnt == i) m_i_j <= 0; else if (gnt == j) m_i_j <= 1;
+```
+
+The pick is two gate levels for any small `n` (an AND of `n-1` two-input
+ORs per master, then a one-hot encode); the round-robin's pick is a
+priority chain of depth `n` selected by the pointer, a mux chain of depth
+`n` again. Nothing rotates and there is no pointer.
+
+#### Characteristics
+
+**Fairness**: Strong -- least recently served; with `n` persistent requesters no master waits more than `n-1` foreign grants between two of its own (measured: 1 of 1 at 2x2, 2 of 2 at 4x4 three-way, `test_bridge_{2x2,4x4}_rw_matrix_arb.py`)
+**Latency**: Bounded -- the same `(N-1) x transaction_time` as round-robin
+**Throughput**: Optimal -- the port never idles while a request is pending (1.000 W beats per cycle measured at 2x2)
+**State**: `n(n-1)/2` flops per arbiter against the round-robin's `clog2(n)` -- 1 against 1 at two masters, 6 against 2 at four
+**Timing / area**: see "Critical Paths" below -- on ASAP7 the 4x4 crossbar's worst path is 11 percent shorter with the matrix arbiter, for 2 percent more cells; at 2x2 the two are within mapper noise
+
+**Best Use Cases**:
+- Four or more masters at one slave port, where the round-robin's rotation mux is on the critical path
+- An ASIC target: the matrix pick maps to two levels of standard cells
+
+Not applied to the response arbiters (per master, re-arbitrated every beat) or
+to the slave-domain arbiter of a shared CDC slave (`bridge_cdc_slave_arb.sv`,
+which already instantiates `arbiter_matrix`).
 
 ### Fixed-Priority Arbitration
 
@@ -434,6 +495,42 @@ Typical critical paths in the arbiter:
 - 4 masters: ~6-8 logic levels
 - 8 masters: ~8-12 logic levels
 - 16 masters: ~12-16 logic levels
+
+**Measured, ASAP7 (bridge TASK-015, 2026-10-24).** The whole crossbar
+module synthesized flat with Yosys + ABC against the ASAP7 RVT TT library
+and timed with OpenSTA register to register
+(`projects/asic-trials/timing_characterization/work/synth_module.py`); the
+two netlists of a pair differ only in the arbiter (the generator's `rr`
+output is byte-identical before and after the `matrix` policy was added), so
+the difference in the worst path is the arbiter's:
+
+| Crossbar (`<bridge>_xbar`, flattened) | Policy | Cells | Flops | Area (um^2) | ABC delay (ps) / levels | STA worst reg-to-reg (ps) |
+|---|---|---:|---:|---:|---:|---:|
+| `bridge_2x2_rw` | rr | 19,295 | 1,883 | 2,063 | 369 / 17 | 454 |
+| `bridge_2x2_rw_matrix` | matrix | 19,228 | 1,883 | 2,081 | 401 / 18 | 479 |
+| `bridge_2x2_rw_qos` | qos | 20,334 | 1,979 | 2,280 | 748 / 28 | 821 |
+| `bridge_4x4_rw` | rr | 60,685 | 5,311 | 6,389 | 543 / 22 | 610 |
+| `bridge_4x4_rw_matrix` | matrix | 62,103 | 5,321 | 6,532 | 471 / 20 | 542 |
+
+: ASAP7 RVT TT, Yosys 0.62 + ABC at a 1000 ps target, OpenSTA on the mapped netlist (2026-10-24)
+
+| Crossbar | Policy | Cells | Area (um^2) | ABC delay (ps) / levels | STA worst reg-to-reg (ps) |
+|---|---|---:|---:|---:|---:|
+| `bridge_2x2_rw` | rr | 19,279 | 2,061 | 385 / 16 | 461 |
+| `bridge_2x2_rw_matrix` | matrix | 19,336 | 2,088 | 364 / 18 | 445 |
+| `bridge_2x2_rw_qos` | qos | 20,849 | 2,318 | 609 / 24 | 690 |
+| `bridge_4x4_rw` | rr | 62,362 | 6,479 | 458 / 19 | 540 |
+| `bridge_4x4_rw_matrix` | matrix | 60,828 | 6,443 | 437 / 19 | 513 |
+
+: The same, mapped at a 400 ps target (the mapper under pressure)
+
+At 4x4 the matrix arbiter shortens the crossbar's worst register-to-register
+path by 68 ps (11 percent) at the 1000 ps target and 27 ps (5 percent) with
+the mapper pressed at 400 ps, for +2.3 / -2.5 percent cells -- the arbiter's
+rotation chain was the critical path. At 2x2 the arbiter is one bit either
+way and the two land within 5 percent of each other in both directions, which
+is mapper noise, not a difference. QoS-with-aging is the expensive one: its
+effective-priority compare puts 28 levels on the path.
 
 ## Design Notes
 

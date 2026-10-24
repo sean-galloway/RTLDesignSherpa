@@ -304,7 +304,8 @@ class BridgeConfig:
     # skid stage on every slave-side channel inside the xbar (+1 each way,
     # same throughput) for high-fanout or wide configs that miss timing.
     xbar_pipeline: bool = False
-    # bridge TASK-006 (was BRIDGE-017): per-slave arbitration policy, 'rr' (default) or 'qos'
+    # bridge TASK-006 (was BRIDGE-017): per-slave arbitration policy, 'rr' (default), 'qos' or
+    # 'matrix' (bridge TASK-015: least recently served, pairwise priority bits)
     # (AxQOS + aging, round-robin among equals). qos_aging_shift: a waiting
     # request gains one priority level every 2**shift cycles.
     arbitration: str = 'rr'

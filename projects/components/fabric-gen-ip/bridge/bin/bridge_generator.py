@@ -877,7 +877,7 @@ def _emit_bridge_variant(
         mon_group=getattr(config, 'mon_group', None),
         # bridge TASK-006 (was BRIDGE-017): [bridge].xbar_pipeline -> registered crossbar.
         xbar_pipeline=getattr(config, 'xbar_pipeline', False),
-        # bridge TASK-006 (was BRIDGE-017): [bridge].arbitration = "rr" | "qos" (+ qos_aging_shift).
+        # bridge TASK-006 (was BRIDGE-017): [bridge].arbitration = "rr" | "qos" (+ qos_aging_shift) | "matrix" (bridge TASK-015).
         arbitration=getattr(config, 'arbitration', 'rr'),
         qos_aging_shift=getattr(config, 'qos_aging_shift', 4),
         # [bridge].id_track_bits -> per-ID target tracking in the master adapters.

@@ -168,13 +168,20 @@ def write_plan(master, slave_base, n, tag, beats=BEATS):
             for i in range(n)]
 
 
-async def stream_writes(tb, plan, errors, qos=None, beats=BEATS):
+async def stream_writes(tb, plan, errors, qos=None, beats=BEATS, size=None):
     """Issue every burst of the plan concurrently (ids rotate) and wait.
-    `qos` is a dict master -> AWQOS value, default 0."""
+    `qos` is a dict master -> AWQOS value, default 0. `size` is the AWSIZE
+    (log2 bytes per beat): one value for every master, a dict master -> size,
+    or None for 4-byte beats (the 32-bit fixtures)."""
     done = []
 
+    def _size(m):
+        if isinstance(size, dict):
+            return size.get(m, 2)
+        return 2 if size is None else size
+
     async def _one(m, addr, data, txn_id):
-        kw = dict(id=txn_id, size=2)
+        kw = dict(id=txn_id, size=_size(m))
         if qos and m in qos:
             kw['qos'] = qos[m]
         res = await tb.master_wr[m].write_transaction(addr, data, **kw)

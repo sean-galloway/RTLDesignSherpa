@@ -480,7 +480,13 @@ address_map = {
   not until xlast. The RTL comment reads "lock until handshake". Back-to-back
   AWs from different masters can therefore be accepted and their W bursts
   sequenced by the W-owner FIFO.
-- Round-robin arbitration, HARD-CODED. There is no TOML key and no parameter to change it; "configurable" was aspirational.
+- Policy per fabric, `[bridge].arbitration`: `"rr"` (default), `"qos"` (AxQOS + aging,
+  round-robin among equals, bridge TASK-006) or `"matrix"` (least recently served,
+  bridge TASK-015). Decision 2026-10-24: `rr` stays the default -- on ASAP7 the matrix
+  arbiter wins 5-11 percent of the crossbar's worst path only at four masters and is a wash
+  at two, every board build is tuned to round-robin timing, and the FPGA comparison is
+  pending (HAS 5.3, MAS 2.4). Until 2026-10-11 this line read "HARD-CODED"; the key
+  has existed since TASK-006.
 
 **FR-7: Read/Write Independence**
 - Separate read and write paths

@@ -953,7 +953,8 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
   its `pclk` to `aclk`, so it does not cross
 - Crossbar options: `xbar_pipeline = true` (registered slave-side channels --
   needed on the Artix-7 at 100 MHz beyond a plain 2x2, HAS 6.4) and
-  `arbitration = "qos"` with `qos_aging_shift` (HAS 6.8a)
+  `arbitration = "qos"` with `qos_aging_shift`, or `arbitration = "matrix"`
+  (least recently served, bridge TASK-015; HAS 5.3 / MAS 2.4)
 - Plain crossbar: `preset = "xbar"` -- every same-clock AXI4/AXI5 port
   `cut_none`, `rate_buffer = 0`, `id_remap = false` (IDs whole at the
   slaves, `{index, ID}`). Defaults only; explicit keys win. HAS 6.2
@@ -982,7 +983,7 @@ of them is built:
   trace-echo ports too (GitHub #119 L1b).
 - Burst-locked arbitration. The grant releases at the address handshake, as
   item 4 above already said -- this bullet contradicted it directly.
-- (Arbitration policy IS configurable now: `arbitration = "qos"`, HAS 6.8a.)
+- (Arbitration policy IS configurable now: `arbitration = "qos"` or `"matrix"`, MAS 2.4.)
 
 **See:**
 - `projects/components/fabric-gen-ip/bridge/PRD.md` - Complete specification

@@ -75,6 +75,51 @@ converters, unmeasurable until the read converters lost their reassembly
 pool, now miss by 2-3 ns on the Artix-7 and up to 0.7 ns on the Kintex-7, on
 wide response paths that `xbar_pipeline` registers.
 
+### Arbitration Policy on an ASIC Library (ASAP7)
+
+Bridge TASK-015 asked where the matrix arbiter lands against the round-robin
+for the bridge's usual two to eight masters. Measured on the generated
+crossbar module alone (`<bridge>_xbar`, the arbiters' home), flattened,
+Yosys + ABC against the ASAP7 7 nm RVT library at the TT corner, OpenSTA
+register to register on the mapped netlist; the driver is
+`projects/asic-trials/timing_characterization/work/synth_module.py`. The two
+netlists of each pair differ only in the arbiter: adding the `matrix` policy
+left every `rr` and `qos` fixture byte-identical on regeneration.
+
+| Crossbar (`<bridge>_xbar`, flattened) | Policy | Cells | Flops | Area (um^2) | ABC delay (ps) / levels | STA worst reg-to-reg (ps) |
+|---|---|---:|---:|---:|---:|---:|
+| `bridge_2x2_rw` | rr | 19,295 | 1,883 | 2,063 | 369 / 17 | 454 |
+| `bridge_2x2_rw_matrix` | matrix | 19,228 | 1,883 | 2,081 | 401 / 18 | 479 |
+| `bridge_2x2_rw_qos` | qos | 20,334 | 1,979 | 2,280 | 748 / 28 | 821 |
+| `bridge_4x4_rw` | rr | 60,685 | 5,311 | 6,389 | 543 / 22 | 610 |
+| `bridge_4x4_rw_matrix` | matrix | 62,103 | 5,321 | 6,532 | 471 / 20 | 542 |
+
+: ASAP7 RVT TT, Yosys 0.62 + ABC at a 1000 ps target, OpenSTA on the mapped netlist (2026-10-24)
+
+| Crossbar | Policy | Cells | Area (um^2) | ABC delay (ps) / levels | STA worst reg-to-reg (ps) |
+|---|---|---:|---:|---:|---:|
+| `bridge_2x2_rw` | rr | 19,279 | 2,061 | 385 / 16 | 461 |
+| `bridge_2x2_rw_matrix` | matrix | 19,336 | 2,088 | 364 / 18 | 445 |
+| `bridge_2x2_rw_qos` | qos | 20,849 | 2,318 | 609 / 24 | 690 |
+| `bridge_4x4_rw` | rr | 62,362 | 6,479 | 458 / 19 | 540 |
+| `bridge_4x4_rw_matrix` | matrix | 60,828 | 6,443 | 437 / 19 | 513 |
+
+: The same, mapped at a 400 ps target (the mapper under pressure)
+
+Reading: at four masters the matrix arbiter takes 5-11 percent off the
+crossbar's worst path for about 2 percent in cells (the rotation chain of the
+round-robin's pick was the critical path); at two masters the two policies
+are one priority bit either way and land within mapper noise. QoS-with-aging
+costs 28 logic levels and 5 percent of the area on the same 2x2. Fairness is
+the same bound (`n-1` foreign grants between two of a master's own), measured
+1 at 2x2 and 2 at 4x4 three-way (MAS 2.4). The ASIC figures are a proxy, not
+a sign-off: no placement, ideal clock, one corner.
+
+Default policy (PRD FR-6): `rr` stays the default. The matrix arbiter wins
+only where four or more masters contend, every board build is tuned to its
+measured round-robin timing, and the FPGA comparison is pending; choose
+`arbitration = "matrix"` for a wide fabric on an ASIC target.
+
 ### Scaling
 
 | Component | Scales with |

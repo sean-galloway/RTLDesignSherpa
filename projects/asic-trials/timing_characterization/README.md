@@ -350,6 +350,7 @@ projects/asic-trials/timing_characterization/
 ├── work/                        <-- the worked example artifacts
 │   ├── asap7_characterization.xlsx  3-sheet methodology workbook
 │   ├── timing_char_sweep.py     9-primitive 2-point probe driver
+│   ├── synth_module.py          any repo module through the same recipe: cells / area / ABC delay, OpenSTA reg-to-reg (--sta)
 │   ├── timing_char_data.csv     54-row primitive characterization data
 │   ├── abc_sweep.py             11-row STREAM library sweep driver
 │   ├── timings.csv              99-row per-block ASAP7 sweep output
