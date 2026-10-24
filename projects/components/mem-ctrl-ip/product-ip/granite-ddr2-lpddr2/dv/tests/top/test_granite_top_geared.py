@@ -347,6 +347,10 @@ def test_granite_top_geared(request, test_level, num_entries, many):
               "INTAKE_FIFO_DEPTH": os.environ.get("GRANITE_INTAKE_FIFO_DEPTH", "0"),
               "AXI_SKID_DEPTH": os.environ.get("GRANITE_AXI_SKID_DEPTH", "2"),
               "SHARED_ADDR_MAP": os.environ.get("GRANITE_SHARED_ADDR_MAP", "0"),
+              "HAS_PAGE_POLICY": os.environ.get("GRANITE_HAS_PAGE_POLICY", "1"),
+              "DFI_CMD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_CMD_FIFO_DEPTH", "4"),
+              "DFI_WD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_WD_FIFO_DEPTH", "16"),
+              "DFI_RD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_RD_FIFO_DEPTH", "4"),
               # GRANITE_FIXED_TIMINGS=1: T_* = the granite_csr.rdl reset values,
               # which is what this test runs on (it never writes TIMINGS_*).
               "FIXED_TIMINGS": os.environ.get("GRANITE_FIXED_TIMINGS", "0"),

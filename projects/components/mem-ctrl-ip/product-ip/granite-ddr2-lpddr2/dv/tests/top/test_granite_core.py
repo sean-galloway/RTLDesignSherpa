@@ -345,6 +345,10 @@ def test_granite_core(request, test_level):
               "INTAKE_FIFO_DEPTH": os.environ.get("GRANITE_INTAKE_FIFO_DEPTH", "0"),
               "AXI_SKID_DEPTH": os.environ.get("GRANITE_AXI_SKID_DEPTH", "2"),
               "SHARED_ADDR_MAP": os.environ.get("GRANITE_SHARED_ADDR_MAP", "0"),
+              "HAS_PAGE_POLICY": os.environ.get("GRANITE_HAS_PAGE_POLICY", "1"),
+              "DFI_CMD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_CMD_FIFO_DEPTH", "4"),
+              "DFI_WD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_WD_FIFO_DEPTH", "16"),
+              "DFI_RD_FIFO_DEPTH": os.environ.get("GRANITE_DFI_RD_FIFO_DEPTH", "4"),
               # GRANITE_FIXED_TIMINGS=1: the core compares against the T_*
               # constants, so they are set to the values this test drives on
               # the t_*_i ports (cocotb_test_* below) and the DFI model sees

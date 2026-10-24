@@ -531,6 +531,10 @@ def test_granite_char_perf(request):
               "INTAKE_FIFO_DEPTH": os.environ.get("TEST_INTAKE_FIFO_DEPTH", "0"),
               "AXI_SKID_DEPTH": os.environ.get("TEST_AXI_SKID_DEPTH", "2"),
               "SHARED_ADDR_MAP": os.environ.get("TEST_SHARED_ADDR_MAP", "0"),
+              "HAS_PAGE_POLICY": os.environ.get("TEST_HAS_PAGE_POLICY", "1"),
+              "DFI_CMD_FIFO_DEPTH": os.environ.get("TEST_DFI_CMD_FIFO_DEPTH", "4"),
+              "DFI_WD_FIFO_DEPTH": os.environ.get("TEST_DFI_WD_FIFO_DEPTH", "16"),
+              "DFI_RD_FIFO_DEPTH": os.environ.get("TEST_DFI_RD_FIFO_DEPTH", "4"),
               "FIXED_TIMINGS": os.environ.get("TEST_FIXED_TIMINGS", "0")}
     compile_args = [
         "+define+USE_ASYNC_RESET",

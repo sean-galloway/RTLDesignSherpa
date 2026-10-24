@@ -68,6 +68,12 @@ module granite_core
     parameter int INTAKE_FIFO_DEPTH = 0,   // rd-data and wr-data FIFOs in the intakes; 0 = none (the skids feed the ring / store directly; cycle-identical, measured)
     parameter int AXI_SKID_DEPTH   = 2,    // R and W skid depth in the AXI slave shells (2..8); 2 measured cycle-identical to 4
     parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes with an alternating grant: -23 percent on the mixed family, so OFF
+    // Scheduler / DFI knobs (pumice TASK-055), granite defaults = the measured form:
+    parameter bit HAS_PAGE_POLICY   = 1'b1, // 0 = no runtime page-policy engine (close-on-drain alone): measured -8 percent on 8-thread streams, so ON
+    parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
+    parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
+    parameter int DFI_RD_FIFO_DEPTH  = 4,   // DFI plane read-return FIFO (0 = RD_RET_DEPTH x BURST_WORDS, the whole window, before); 4 holds the
+                                            // return in the same-clock form where the ring is always ready; 2 loses beats where dfi_clk runs at 2x aclk
     // Compile-time JEDEC timings (mem-ctrl recovery Phase 3 report 5.10,
     // item 3). 1 = the scheduler plane's timers compare against the T_*
     // constants below and the TIMINGS CSRs are ignored -- a one-part product
@@ -766,6 +772,7 @@ module granite_core
     // Plane 2: command scheduler (external-init mode; init lives in u_init_plane)
     // ======================================================================
     mc_scheduler_plane #(
+        .HAS_PAGE_POLICY    (HAS_PAGE_POLICY),
         .NUM_RANKS     (NUM_RANKS),
         .NUM_BANKS     (NUM_BANKS),
         .ROW_WIDTH     (ROW_WIDTH),
@@ -995,8 +1002,9 @@ module granite_core
         .SUBW_MAX        (SUBW_MAX),
         .BURST_WORDS     (BURST_WORDS),
         .RD_MAX_OUTSTANDING(RD_RET_DEPTH),
-        .RD_FIFO_DEPTH   (RD_RET_DEPTH * BURST_WORDS),
-        .WD_FIFO_DEPTH   (32),
+        .RD_FIFO_DEPTH   ((DFI_RD_FIFO_DEPTH > 0) ? DFI_RD_FIFO_DEPTH : (RD_RET_DEPTH * BURST_WORDS)),
+        .WD_FIFO_DEPTH   (DFI_WD_FIFO_DEPTH),
+        .CMD_FIFO_DEPTH  (DFI_CMD_FIFO_DEPTH),
         .DFI_CDC_EN      (DFI_CDC_EN),
         .CMD_HISTORY_EN  (0),
         .HIST_T_RFC      (0),
