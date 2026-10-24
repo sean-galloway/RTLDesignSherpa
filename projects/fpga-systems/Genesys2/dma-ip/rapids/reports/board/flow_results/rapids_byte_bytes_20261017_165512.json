@@ -1,0 +1,1135 @@
+{
+  "timestamp": "2026-10-17T16:55:12",
+  "design": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "axi_monitors": false,
+    "observers": false,
+    "gen_mon": false,
+    "run_timer": true,
+    "byte_dut": true,
+    "word_crc": false,
+    "aclk_hz": 100000000,
+    "sram_bytes_per_channel": 4096,
+    "peak_bw_gb_s": 3.2
+  },
+  "total": 7,
+  "passed": 7,
+  "failed": 0,
+  "configs": [
+    {
+      "name": "bytes1_off1",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 1,
+      "descs": 1,
+      "total_beats": 1,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.6666666666666666,
+              "eff_bw_gb_s": 2.1333333333333333,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 3,
+                "total": 3,
+                "util": 0.6666666666666666
+              },
+              "bytes": 2,
+              "packets": 2,
+              "byte_bw_gb_s": 0.06666666666666667,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.5,
+              "eff_bw_gb_s": 1.6,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 2,
+                "idle": 0,
+                "engaged": 4,
+                "total": 4,
+                "util": 0.5
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "golden_wr": "0xE2B71064",
+            "wr": "0xE2B71064",
+            "gen": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "golden_wr": "0x95B020F2",
+            "wr": "0x95B020F2",
+            "gen": "0xA2E6077A"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.18181818181818182,
+              "eff_bw_gb_s": 0.5818181818181819,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 9,
+                "idle": 0,
+                "engaged": 11,
+                "total": 11,
+                "util": 0.18181818181818182
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 1.0,
+              "eff_bw_gb_s": 3.2,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 0,
+                "idle": 2,
+                "engaged": 2,
+                "total": 4,
+                "util": 1.0
+              },
+              "bytes": 2,
+              "packets": 2,
+              "byte_bw_gb_s": 0.05
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "golden_rd": "0x1A5A601F",
+            "rd": "0x1A5A601F",
+            "golden_chk": "0xFEDB7106",
+            "chk": "0xFEDB7106"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "golden_rd": "0xA2E6077A",
+            "rd": "0xA2E6077A",
+            "golden_chk": "0xFEDB7106",
+            "chk": "0xFEDB7106"
+          }
+        }
+      },
+      "pkt_bytes": 1,
+      "offset": 1
+    },
+    {
+      "name": "bytes2_off31",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 1,
+      "descs": 1,
+      "total_beats": 1,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.023809523809523808,
+              "eff_bw_gb_s": 0.07619047619047618,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 82,
+                "idle": 0,
+                "engaged": 84,
+                "total": 84,
+                "util": 0.023809523809523808
+              },
+              "bytes": 4,
+              "packets": 2,
+              "byte_bw_gb_s": 0.004761904761904762,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.8,
+              "eff_bw_gb_s": 2.56,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 5,
+                "total": 5,
+                "util": 0.8
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "golden_wr": "0xB4E66357",
+            "wr": "0xB4E66357",
+            "gen": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "golden_wr": "0xADFD5216",
+            "wr": "0xADFD5216",
+            "gen": "0xA2E6077A"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.3333333333333333,
+              "eff_bw_gb_s": 1.0666666666666667,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 8,
+                "idle": 0,
+                "engaged": 12,
+                "total": 12,
+                "util": 0.3333333333333333
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 1.0,
+              "eff_bw_gb_s": 3.2,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 0,
+                "idle": 2,
+                "engaged": 2,
+                "total": 4,
+                "util": 1.0
+              },
+              "bytes": 4,
+              "packets": 2,
+              "byte_bw_gb_s": 0.1
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "golden_rd": "0x70B6F042",
+            "rd": "0x70B6F042",
+            "golden_chk": "0x90031EF1",
+            "chk": "0x90031EF1"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "golden_rd": "0x51A473FC",
+            "rd": "0x51A473FC",
+            "golden_chk": "0x90031EF1",
+            "chk": "0x90031EF1"
+          }
+        }
+      },
+      "pkt_bytes": 2,
+      "offset": 31
+    },
+    {
+      "name": "bytes32_off0",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 1,
+      "descs": 1,
+      "total_beats": 1,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.6666666666666666,
+              "eff_bw_gb_s": 2.1333333333333333,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 3,
+                "total": 3,
+                "util": 0.6666666666666666
+              },
+              "bytes": 64,
+              "packets": 2,
+              "byte_bw_gb_s": 2.1333333333333333,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.5,
+              "eff_bw_gb_s": 1.6,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 2,
+                "idle": 0,
+                "engaged": 4,
+                "total": 4,
+                "util": 0.5
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "golden_wr": "0xD1B6706A",
+            "wr": "0xD1B6706A",
+            "gen": "0x1A5A601F"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "golden_wr": "0x84406CB9",
+            "wr": "0x84406CB9",
+            "gen": "0xA2E6077A"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 2,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.1111111111111111,
+              "eff_bw_gb_s": 0.3555555555555555,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 0,
+                "starv": 16,
+                "idle": 0,
+                "engaged": 18,
+                "total": 18,
+                "util": 0.1111111111111111
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.2222222222222222,
+              "eff_bw_gb_s": 0.711111111111111,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 2,
+                "bp": 7,
+                "starv": 0,
+                "idle": 2,
+                "engaged": 9,
+                "total": 11,
+                "util": 0.2222222222222222
+              },
+              "bytes": 64,
+              "packets": 2,
+              "byte_bw_gb_s": 0.5818181818181819
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x1A5A601F",
+            "golden_rd": "0x1A5A601F",
+            "rd": "0x1A5A601F",
+            "golden_chk": "0xD1B6706A",
+            "chk": "0xD1B6706A"
+          },
+          "1": {
+            "golden": "0xA2E6077A",
+            "golden_rd": "0xA2E6077A",
+            "rd": "0xA2E6077A",
+            "golden_chk": "0x84406CB9",
+            "chk": "0x84406CB9"
+          }
+        }
+      },
+      "pkt_bytes": 32,
+      "offset": 0
+    },
+    {
+      "name": "bytes37_off0",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 2,
+      "descs": 1,
+      "total_beats": 2,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 1.0,
+              "eff_bw_gb_s": 3.2,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 4,
+                "total": 5,
+                "util": 1.0
+              },
+              "bytes": 74,
+              "packets": 2,
+              "byte_bw_gb_s": 1.48,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.8,
+              "eff_bw_gb_s": 2.56,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 5,
+                "total": 5,
+                "util": 0.8
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x70B6F042",
+            "golden_wr": "0x6D1C823F",
+            "wr": "0x6D1C823F",
+            "gen": "0x70B6F042"
+          },
+          "1": {
+            "golden": "0x51A473FC",
+            "golden_wr": "0xF48051A9",
+            "wr": "0xF48051A9",
+            "gen": "0x51A473FC"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 4,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.13333333333333333,
+              "eff_bw_gb_s": 0.4266666666666667,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 4,
+                "bp": 0,
+                "starv": 26,
+                "idle": 0,
+                "engaged": 30,
+                "total": 30,
+                "util": 0.13333333333333333
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.18181818181818182,
+              "eff_bw_gb_s": 0.5818181818181819,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 4,
+                "bp": 18,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 22,
+                "total": 23,
+                "util": 0.18181818181818182
+              },
+              "bytes": 74,
+              "packets": 2,
+              "byte_bw_gb_s": 0.32173913043478264
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x70B6F042",
+            "golden_rd": "0x70B6F042",
+            "rd": "0x70B6F042",
+            "golden_chk": "0x6D1C823F",
+            "chk": "0x6D1C823F"
+          },
+          "1": {
+            "golden": "0x51A473FC",
+            "golden_rd": "0x51A473FC",
+            "rd": "0x51A473FC",
+            "golden_chk": "0xF48051A9",
+            "chk": "0xF48051A9"
+          }
+        }
+      },
+      "pkt_bytes": 37,
+      "offset": 0
+    },
+    {
+      "name": "bytes100_off7",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 4,
+      "descs": 1,
+      "total_beats": 4,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.10666666666666667,
+              "eff_bw_gb_s": 0.3413333333333334,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 66,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 75,
+                "total": 75,
+                "util": 0.10666666666666667
+              },
+              "bytes": 200,
+              "packets": 2,
+              "byte_bw_gb_s": 0.26666666666666666,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.27586206896551724,
+              "eff_bw_gb_s": 0.8827586206896552,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 21,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 29,
+                "total": 30,
+                "util": 0.27586206896551724
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xC8854A27",
+            "golden_wr": "0x9A6517C8",
+            "wr": "0x9A6517C8",
+            "gen": "0xC8854A27"
+          },
+          "1": {
+            "golden": "0x6325A378",
+            "golden_wr": "0xAA30E7D5",
+            "wr": "0xAA30E7D5",
+            "gen": "0x6325A378"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.12121212121212122,
+              "eff_bw_gb_s": 0.3878787878787879,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 58,
+                "idle": 0,
+                "engaged": 66,
+                "total": 66,
+                "util": 0.12121212121212122
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.14035087719298245,
+              "eff_bw_gb_s": 0.44912280701754387,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 49,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 57,
+                "total": 58,
+                "util": 0.14035087719298245
+              },
+              "bytes": 200,
+              "packets": 2,
+              "byte_bw_gb_s": 0.3448275862068965
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xC8854A27",
+            "golden_rd": "0xC8854A27",
+            "rd": "0xC8854A27",
+            "golden_chk": "0x86B48B2B",
+            "chk": "0x86B48B2B"
+          },
+          "1": {
+            "golden": "0x6325A378",
+            "golden_rd": "0x6325A378",
+            "rd": "0x6325A378",
+            "golden_chk": "0x7B07A7E9",
+            "chk": "0x7B07A7E9"
+          }
+        }
+      },
+      "pkt_bytes": 100,
+      "offset": 7
+    },
+    {
+      "name": "bytes96_off17",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 3,
+      "descs": 1,
+      "total_beats": 3,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.05555555555555555,
+              "eff_bw_gb_s": 0.17777777777777776,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 6,
+                "bp": 66,
+                "starv": 36,
+                "idle": 0,
+                "engaged": 108,
+                "total": 108,
+                "util": 0.05555555555555555
+              },
+              "bytes": 192,
+              "packets": 2,
+              "byte_bw_gb_s": 0.17777777777777778,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.3076923076923077,
+              "eff_bw_gb_s": 0.9846153846153847,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 18,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 26,
+                "total": 27,
+                "util": 0.3076923076923077
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x4D6D8043",
+            "golden_wr": "0x2AF925A4",
+            "wr": "0x2AF925A4",
+            "gen": "0x4D6D8043"
+          },
+          "1": {
+            "golden": "0x11F23D2E",
+            "golden_wr": "0x44BDFF2B",
+            "wr": "0x44BDFF2B",
+            "gen": "0x11F23D2E"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 6,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.14545454545454545,
+              "eff_bw_gb_s": 0.46545454545454545,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 47,
+                "idle": 0,
+                "engaged": 55,
+                "total": 55,
+                "util": 0.14545454545454545
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.13043478260869565,
+              "eff_bw_gb_s": 0.41739130434782606,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 6,
+                "bp": 40,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 46,
+                "total": 47,
+                "util": 0.13043478260869565
+              },
+              "bytes": 192,
+              "packets": 2,
+              "byte_bw_gb_s": 0.4085106382978724
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x4D6D8043",
+            "golden_rd": "0xC8854A27",
+            "rd": "0xC8854A27",
+            "golden_chk": "0x1A2E9B64",
+            "chk": "0x1A2E9B64"
+          },
+          "1": {
+            "golden": "0x11F23D2E",
+            "golden_rd": "0x6325A378",
+            "rd": "0x6325A378",
+            "golden_chk": "0x47053396",
+            "chk": "0x47053396"
+          }
+        }
+      },
+      "pkt_bytes": 96,
+      "offset": 17
+    },
+    {
+      "name": "bytes203_off4035",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 7,
+      "descs": 1,
+      "total_beats": 7,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 14,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.1728395061728395,
+              "eff_bw_gb_s": 0.5530864197530865,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 14,
+                "bp": 66,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 81,
+                "total": 81,
+                "util": 0.1728395061728395
+              },
+              "bytes": 406,
+              "packets": 2,
+              "byte_bw_gb_s": 0.5012345679012346,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.175,
+              "eff_bw_gb_s": 0.56,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 14,
+                "bp": 65,
+                "starv": 1,
+                "idle": 1,
+                "engaged": 80,
+                "total": 81,
+                "util": 0.175
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2C6FC95B",
+            "golden_wr": "0x67E11839",
+            "wr": "0x67E11839",
+            "gen": "0x2C6FC95B"
+          },
+          "1": {
+            "golden": "0x6A8C4A4D",
+            "golden_wr": "0x5F846E33",
+            "wr": "0x5F846E33",
+            "gen": "0x6A8C4A4D"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 14,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.11475409836065574,
+              "eff_bw_gb_s": 0.36721311475409835,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 14,
+                "bp": 0,
+                "starv": 108,
+                "idle": 0,
+                "engaged": 122,
+                "total": 122,
+                "util": 0.11475409836065574
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.125,
+              "eff_bw_gb_s": 0.4,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 14,
+                "bp": 98,
+                "starv": 0,
+                "idle": 2,
+                "engaged": 112,
+                "total": 114,
+                "util": 0.125
+              },
+              "bytes": 406,
+              "packets": 2,
+              "byte_bw_gb_s": 0.356140350877193
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0x2C6FC95B",
+            "golden_rd": "0x2C6FC95B",
+            "rd": "0x2C6FC95B",
+            "golden_chk": "0xCB5A64DF",
+            "chk": "0xCB5A64DF"
+          },
+          "1": {
+            "golden": "0x6A8C4A4D",
+            "golden_rd": "0x6A8C4A4D",
+            "rd": "0x6A8C4A4D",
+            "golden_chk": "0x52E88B9F",
+            "chk": "0x52E88B9F"
+          }
+        }
+      },
+      "pkt_bytes": 203,
+      "offset": 4035
+    }
+  ],
+  "board_lock": {
+    "path": "/tmp/rds-board-200300B818A0.lock",
+    "inherited": false
+  },
+  "jtag": {
+    "expected_serial": "200300B818A0",
+    "start": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "end": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "stable": true
+  },
+  "transport": "board-uart",
+  "config": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 8,
+    "sram_depth": 128,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "resp_delay_rd": 0,
+    "resp_delay_wr": 0,
+    "gen_interleave": false,
+    "src": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    },
+    "snk": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 255
+    }
+  }
+}

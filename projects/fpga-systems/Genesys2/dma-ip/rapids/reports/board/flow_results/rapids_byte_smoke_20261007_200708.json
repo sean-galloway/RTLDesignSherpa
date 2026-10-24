@@ -1,0 +1,256 @@
+{
+  "timestamp": "2026-10-07T20:07:08",
+  "design": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 4,
+    "sram_depth": 128,
+    "axi_monitors": false,
+    "observers": false,
+    "gen_mon": false,
+    "byte_dut": true,
+    "word_crc": false,
+    "aclk_hz": 100000000,
+    "sram_bytes_per_channel": 4096,
+    "peak_bw_gb_s": 3.2
+  },
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "configs": [
+    {
+      "name": "smoke_ch2_b4",
+      "active_channels": 2,
+      "channels": [
+        0,
+        1
+      ],
+      "beats": 4,
+      "descs": 1,
+      "total_beats": 4,
+      "xfer_axlen": 8,
+      "xfer_beats": 9,
+      "xfer_axlen_effective": 8,
+      "xfer_beats_effective": 9,
+      "resp_delay": 0,
+      "gen_interleave": false,
+      "source_backpressure": false,
+      "base_seed": 3735928559,
+      "base_seed_label": "default",
+      "sink_pass": true,
+      "source_pass": true,
+      "pass": true,
+      "perf_valid": {
+        "sink": true,
+        "source": true
+      },
+      "sink": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "sin": {
+              "iface": "sin",
+              "util": 0.1111111111111111,
+              "eff_bw_gb_s": 0.3555555555555555,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 63,
+                "starv": 1,
+                "idle": 0,
+                "engaged": 72,
+                "total": 72,
+                "util": 0.1111111111111111
+              },
+              "bytes": 256,
+              "packets": 2,
+              "byte_bw_gb_s": 0.35555555555555557,
+              "launch": 0
+            },
+            "wr": {
+              "iface": "wr",
+              "util": 0.26666666666666666,
+              "eff_bw_gb_s": 0.8533333333333334,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 22,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 30,
+                "total": 31,
+                "util": 0.26666666666666666
+              }
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xC8854A27",
+            "golden_wr": "0x2B90F57C",
+            "wr": "0x2B90F57C",
+            "gen": "0xC8854A27"
+          },
+          "1": {
+            "golden": "0x6325A378",
+            "golden_wr": "0x6D573968",
+            "wr": "0x6D573968",
+            "gen": "0x6325A378"
+          }
+        }
+      },
+      "source": {
+        "errors": [],
+        "warnings": [],
+        "beat_total": 8,
+        "golden_mismatch": false,
+        "perf": {
+          "ifaces": {
+            "rd": {
+              "iface": "rd",
+              "util": 0.1111111111111111,
+              "eff_bw_gb_s": 0.3555555555555555,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 0,
+                "starv": 64,
+                "idle": 0,
+                "engaged": 72,
+                "total": 72,
+                "util": 0.1111111111111111
+              }
+            },
+            "sout": {
+              "iface": "sout",
+              "util": 0.125,
+              "eff_bw_gb_s": 0.4,
+              "peak_bw_gb_s": 3.2,
+              "buckets": {
+                "prod": 8,
+                "bp": 56,
+                "starv": 0,
+                "idle": 1,
+                "engaged": 64,
+                "total": 65,
+                "util": 0.125
+              },
+              "bytes": 256,
+              "packets": 2,
+              "byte_bw_gb_s": 0.39384615384615385
+            }
+          }
+        },
+        "per_channel": {
+          "0": {
+            "golden": "0xC8854A27",
+            "golden_rd": "0xC8854A27",
+            "rd": "0xC8854A27",
+            "golden_chk": "0x2B90F57C",
+            "chk": "0x2B90F57C"
+          },
+          "1": {
+            "golden": "0x6325A378",
+            "golden_rd": "0x6325A378",
+            "rd": "0x6325A378",
+            "golden_chk": "0x6D573968",
+            "chk": "0x6D573968"
+          }
+        }
+      }
+    }
+  ],
+  "board_lock": {
+    "path": "/tmp/rds-board-210292BFA3EE.lock",
+    "inherited": true
+  },
+  "jtag": {
+    "expected_serial": "210292BFA3EE",
+    "start": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "end": {
+      "targets": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "serial": "210292BFA3EEA"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "serial": "200300B818A0B"
+        }
+      ],
+      "devices": [
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/210292BFA3EEA",
+          "device": "xc7a100t_0",
+          "part": "xc7a100t",
+          "idcode": "n/a"
+        },
+        {
+          "target": "localhost:3121/xilinx_tcf/Digilent/200300B818A0B",
+          "device": "xc7k325t_0",
+          "part": "xc7k325t",
+          "idcode": "n/a"
+        }
+      ]
+    },
+    "stable": true
+  },
+  "transport": "board-uart",
+  "config": {
+    "beat_bytes": 32,
+    "data_width": 256,
+    "channels": 4,
+    "sram_depth": 128,
+    "byte_dut": true,
+    "aclk_hz": 100000000,
+    "resp_delay_rd": 0,
+    "resp_delay_wr": 0,
+    "gen_interleave": false,
+    "src": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 15
+    },
+    "snk": {
+      "rd_burst_beats": 9,
+      "wr_burst_beats": 9,
+      "alloc_size": 16,
+      "drain_size": 1,
+      "sched_en": 1,
+      "err_en": 1,
+      "channel_enable": 15
+    }
+  }
+}
