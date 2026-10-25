@@ -57,6 +57,8 @@ module mc_scheduler_plane
     parameter bit HAS_MODE_REGISTER  = 1'b1,
     parameter bit HAS_REFRESH_CTRL   = 1'b1,
     parameter bit HAS_PAGE_POLICY    = 1'b1,
+    parameter bit PP_TIMEOUT_CLOSE   = 1'b1, // mc_page_policy HAS_TIMEOUT_CLOSE (pumice TASK-059)
+    parameter bit PP_TELEMETRY       = 1'b1, // mc_page_policy HAS_TELEMETRY
     parameter int BANK_TW            = 8,    // per-bank timer width (mc_bank_timers TW); 8 = the CSR field width
     parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_bank_pick)
     parameter int RFC_W              = 16,   // mc_bank_pick tRFC / tZQCS recovery counter width (saturating load)
@@ -520,7 +522,9 @@ module mc_scheduler_plane
             mc_page_policy #(
                 .NUM_RANKS(NUM_RANKS),
                 .NUM_BANKS(NUM_BANKS),
-                .ROW_WIDTH(ROW_WIDTH)
+                .ROW_WIDTH(ROW_WIDTH),
+                .HAS_TIMEOUT_CLOSE(PP_TIMEOUT_CLOSE),
+                .HAS_TELEMETRY    (PP_TELEMETRY)
             ) u_page_policy (
                 .aclk              (aclk),
                 .aresetn           (aresetn),

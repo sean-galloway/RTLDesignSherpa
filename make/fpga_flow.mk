@@ -181,6 +181,7 @@ HOST_PROGRAMS := $(sort $(wildcard $(HOST_DIR)/host_*.py))
 HOST_NAMES    := $(patsubst host_%,%,$(basename $(notdir $(HOST_PROGRAMS))))
 
 SEQUENCES ?=
+RUN_ARGS  ?=
 SIM_TESTS ?=
 SIM_ARGS  ?= -q
 
@@ -370,8 +371,22 @@ sim:                ## Run this build's harness sim (cocotb, no board)
 run:                ## Run sequences on the board (SEQUENCES="init write_read")
 	@[ -n "$(RUN_SCRIPT)" ] || \
 	    (echo "No run_*.py found in SEQ_DIR=$(SEQ_DIR)" && false)
-	$(BOARD_LOCKED) $(PYTHON) $(RUN_SCRIPT) --board $(BOARD) --baud $(BAUD) \
+	$(BOARD_LOCKED) $(PYTHON) $(RUN_SCRIPT) --board $(BOARD) --baud $(BAUD) $(RUN_ARGS) \
 	    $(if $(SEQUENCES),--sequences $(SEQUENCES),)
+
+# The smoke is part of the MEASUREMENT. A bitstream's LUT / FF count is quoted
+# only after this passes on it: five granite builds were reported as area wins
+# in one day with a read path synthesis had removed (pumice BUG-031,
+# 2026-10-24); every sim was green, the board said so in twenty seconds.
+# SMOKE_SEQUENCES is the area's bring-up set; RUN_ARGS carries whatever the
+# runner needs to know about this build (the controller, for mem-ctrl).
+SMOKE_SEQUENCES ?= init write_read
+smoke: program      ## Program the FRESH bitstream, then run SMOKE_SEQUENCES on it
+	@[ -n "$(RUN_SCRIPT)" ] || \
+	    (echo "No run_*.py found in SEQ_DIR=$(SEQ_DIR)" && false)
+	@echo "[smoke] $(FLOW): $(SMOKE_SEQUENCES)"
+	$(BOARD_LOCKED) $(PYTHON) $(RUN_SCRIPT) --board $(BOARD) --baud $(BAUD) $(RUN_ARGS) \
+	    --sequences $(SMOKE_SEQUENCES)
 
 seq-list:           ## List the sequences this area offers
 	@[ -n "$(RUN_SCRIPT)" ] || \

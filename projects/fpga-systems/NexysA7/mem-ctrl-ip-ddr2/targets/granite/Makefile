@@ -21,4 +21,9 @@ REGEN_BRIDGES ?= 0
 BRIDGE_REGEN  := bash $(RDS_ROOT)/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/ddr2_char_framework/bin/regen_bridges.sh
 PREBUILD := $(BRIDGE_REGEN) $(if $(filter-out 0,$(REGEN_BRIDGES)),,--check)
 
+# The runner drives THIS controller's regmap (pumice TASK-057); the smoke set
+# includes the full-device memtest because the data path is what this target
+# keeps changing (pumice TASK-059).
+RUN_ARGS        ?= --controller granite
+SMOKE_SEQUENCES ?= init write_read memtest
 include $(RDS_ROOT)/make/fpga_flow.mk

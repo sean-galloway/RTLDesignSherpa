@@ -95,6 +95,10 @@ module mc_bank_fifo_store
     // percent on the concurrent two-threads-per-bank family and cost 4 on the
     // eight-thread streams; this form keeps the streams whole.
     parameter int BANK_CAP_MIXED     = 0,
+    // Age promotion (CSR SCHED_POLICY.age_thresh -> head record age_exceed -> the pick's
+    // aged-first select). 0 compiles the age counter, the per-slot ages and the compare out;
+    // age_exceed is constant 0 and the CSR field is inert (pumice TASK-059).
+    parameter bit HAS_AGE            = 1'b1,
     parameter bit HEAD2_EN           = 1'b1,// 0 = one head record per bank: head2 outputs are constant 0, and the pick
                                             //     core idles a pair for the cycle after each of its column fires (its
                                             //     pop shadow has no second record to serve). A measured trade, not a
@@ -622,10 +626,10 @@ module mc_bank_fifo_store
             r_rd_agex <= '0;
         end else begin
             for (int i = 0; i < NUM_ENTRIES; i++) begin
-                r_wr_agex[i] <= r_wr_valid[i] && r_wr_fdone[i]
+                r_wr_agex[i] <= HAS_AGE && r_wr_valid[i] && r_wr_fdone[i]
                              && (sched_age_thresh_i != 8'd0)
                              && ((r_age_ctr - r_wr_age[i]) >= AGEW'({sched_age_thresh_i, 4'h0}));
-                r_rd_agex[i] <= r_rd_valid[i]
+                r_rd_agex[i] <= HAS_AGE && r_rd_valid[i]
                              && (sched_age_thresh_i != 8'd0)
                              && ((r_age_ctr - r_rd_age[i]) >= AGEW'({sched_age_thresh_i, 4'h0}));
             end

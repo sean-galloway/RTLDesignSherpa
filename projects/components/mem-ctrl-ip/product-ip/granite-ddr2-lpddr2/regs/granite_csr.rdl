@@ -622,7 +622,7 @@ addrmap granite_csr {
 
         field {
             sw = rw; hw = r;
-            desc = "age_threshold mode: age (MC cycles/16) above which a reference is boosted";
+            desc = "age_threshold mode: age (MC cycles/16) above which a reference is boosted. INERT in granite: the store is built with HAS_AGE=0 (no per-slot ages; pumice TASK-059), so this field has no effect; the pick orders by bank state and class only";
         } age_thresh[23:16] = 8'h0;
 
         field { sw = r; hw = na; desc = "Reserved"; } RSVD_31_24[31:24] = 8'h0;

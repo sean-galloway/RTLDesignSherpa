@@ -238,6 +238,12 @@ module granite_char_top #(
 `ifdef GRANITE_BANK_CAP_MIXED
         .BANK_CAP_MIXED     (`GRANITE_BANK_CAP_MIXED),
 `endif
+`ifdef GRANITE_HAS_AGE
+        .HAS_AGE            (`GRANITE_HAS_AGE),
+`endif
+`ifdef GRANITE_PP_TIMEOUT_CLOSE
+        .PP_TIMEOUT_CLOSE   (`GRANITE_PP_TIMEOUT_CLOSE),
+`endif
 `ifdef GRANITE_DFI_CMD_FIFO_DEPTH
         .DFI_CMD_FIFO_DEPTH (`GRANITE_DFI_CMD_FIFO_DEPTH),
 `endif

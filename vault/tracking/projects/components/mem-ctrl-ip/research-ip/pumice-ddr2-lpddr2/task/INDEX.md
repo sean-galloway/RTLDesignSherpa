@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-059** — never recycle a number, even when its item closed.
+**Next ID: TASK-061** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,14 +12,15 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 48 | done (kept for history) |
+| [closed/](closed/) | 49 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
+- **TASK-060** — OPEN 2026-10-24: injector family issuing HALF a DFI burst per transaction, addresses alternating bl-hi, bl-lo, bl-hi, bl-lo (owner's to-do); half-beat with strobes at the board geometry, shorter AxLEN at wider beats; a two-step stride in the generator; both directions, proxy + board.
 - **TASK-047** — dual issue on DFI 1:2: a row command on the other phase of
   the column's DFI word, so the ACT/PRE slot is free rather than well
   placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
@@ -46,8 +47,13 @@ exactly one state by construction rather than by discipline.
   be taken up instead. The `dfi_init_complete` interlock inside it does NOT
   depend on scoria and is a test, not a feature
 
+## Active
+
+(none)
+
 ## Closed
 
+- **TASK-059** — CLOSED 2026-10-24: ASAP7 per-plane baseline on the fixed intake (granite 21 220 / pumice 46 227 cells); `HAS_AGE=0` granite default (-1 443 ASAP7 cells, board 5 631 -> 5 140 LUT / 3 532 -> 3 196 FF, cycle-identical, smoked + charred); `PP_TIMEOUT_CLOSE=0` measured and REJECTED (-8 % column streams: the idle-timeout close is the engine's live function in granite, tr_init 1); `make smoke`. Report 5.19 / 5.20.
 - **TASK-058** — CLOSED 2026-10-24: the store's per-bank cap made conditional
   on the other direction holding entries (`BANK_CAP_MIXED`, granite 6): every
   stream cell cycle-identical, mixed 98.1 -> 106.5 MB/s, no area; pick-core

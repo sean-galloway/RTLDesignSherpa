@@ -1482,6 +1482,83 @@ measurement only after that bitstream has passed the board smoke.
 **Final build** (today's text, cap 6 + `RFC_W` 8, the intake fixed): 5 631
 LUT / 3 532 FF, WNS +0.134 ns, 0 failing endpoints, 0 multi-driven reports.
 
+### 5.19 ASAP7 per-plane baseline on the fixed read intake: granite and pumice (2026-10-24, pumice TASK-059 item 1)
+
+Owner: "1/2/3 please" -- 1 re-measure the ASAP7 planes against the fixed
+read intake as the baseline. Same flow as 5.12 (yosys-slang, planes kept,
+dead output bits pruned, ASAP7 RVT TT), same geometry (64-bit host AXI, 8
+banks, row 13, BL4 x16, 8 entries, RD_RET_DEPTH 32, DFI 2:1, no LPDDR2).
+Granite at today's defaults (cap 6, RFC_W 8, DFI 4 / 16 / 4, page policy
+on), pumice at its FR-FCFS defaults (SCHED_CORE 0, CAM store). Against 5.12,
+only the read intake moved on granite (1 045 -> 1 210 cells, 231 -> 296
+flops): the double driver had grounded part of it for yosys too, though far
+less than for Vivado (5.18).
+
+| plane | granite cells | granite flops | pumice cells | pumice flops |
+|---|---|---|---|---|
+| **top (geared)** | **21 220** | **3 899** | **46 227** | **5 028** |
+| scheduler plane | 7 546 | 1 391 | 30 698 | 2 394 |
+| - arbiter / pick | 2 492 (pick) | 208 | 22 633 (FR-FCFS) | 1 007 |
+| - page policy | 2 516 | 688 | 2 700 | 744 |
+| - bank timers | 1 823 | 320 | 2 273 | 440 |
+| - refresh | 188 | 73 | 336 | 102 |
+| - global timers | 399 | 68 | 390 | 69 |
+| storage | 6 317 (FIFO store) | 806 | 6 162 (two CAMs) | 318 |
+| AXI plane | 4 013 | 932 | 4 898 | 1 288 |
+| - rd intake | 1 210 | 296 | 1 796 | 508 |
+| - wr intake | 1 214 | 316 | 1 571 | 474 |
+| - rd ring | 597 | 144 | 588 | 144 |
+| CSR | 2 156 | 501 | 2 904 | 573 |
+| DFI plane | 852 | 234 | 1 199 | 420 |
+| init | 242 | 35 | 257 | 35 |
+
+Granite's scheduler plane is a quarter of pumice's (the pick core against
+the FR-FCFS arbiter, 2 492 against 22 633 cells); its storage is the same
+size in cells as pumice's two CAMs and 2.5x the flops (the FIFO store holds
+records and queues the CAMs hold in RAM bits: 1 548 against 1 760). The
+page-policy engine and the bank timers are the same block in both. Board
+cross-check of the same text: granite_core 5 631 LUT / 3 532 FF (5.18).
+
+### 5.20 Granite policy compile-outs measured; `make smoke` (2026-10-24, pumice TASK-059 items 2 and 3)
+
+Owner: "1/2/3 please" -- 2 the page-policy engine and the pick arbiter as
+policy measurements, 3 the board smoke on every build whose area is quoted.
+
+**What the shipping configuration actually uses.** Two CSR-driven features
+were traced to the host before anything was built. `SCHED_POLICY.age_thresh`
+is written by no `pumice_char` configuration, so the store's age promotion
+(per-slot 16-bit ages, a shared counter, 16 subtract-compares, the pick's
+aged-first select) has never fired in a measurement. `PAGE_TIMEOUT_CFG.
+tr_init` is written as 1 by the open_page configuration (the 5.15 note's
+"tr_init 0" was the reset value), so the engine's idle-timeout close is
+live in every granite measurement; its drain mask is read only by pumice's
+FR-FCFS arbiter and its auto-precharge outputs are constant in fixed_open.
+Both became compile-time knobs and were measured on the proxy, ASAP7 and
+the board:
+
+| knob | 1 thread | 8 threads | mixed | ASAP7 (cells / flops, vs 19 507 / 3 403) | verdict |
+|---|---|---|---|---|---|
+| `HAS_AGE=0` (store) | identical | identical | identical | 18 042 / 3 339 (store -1 443 / -64) | **granite default** |
+| `PP_TIMEOUT_CLOSE=0` (engine) | col_ilv wr -8.6 % | col_major wr -8.1 % | -2.6 % | 18 930 / 3 211 (sched -747 / -192) | rejected, knob |
+| `PP_TELEMETRY=0` (engine, granite passes 0) | n/a (open outputs) | n/a | n/a | engine 2 516 -> 770 / 688 -> 192 | ASAP7 honesty only |
+
+With the timers compiled out the engine is 4 cells: for granite the engine
+IS the idle-timeout close, and there is nothing else in it to remove. The
+RDL now marks `age_thresh` inert in granite.
+
+**Board, final text** (`HAS_AGE` 0, everything else as 5.18): granite_core
+**5 140 LUT / 3 196 FF** (from 5 631 / 3 532), WNS +0.177, 0 failing
+endpoints, 0 multi-driven reports; `make smoke` PASS (leveled init,
+write_read mismatched 0, 128 MB memtest 32 / 32); char open_page bl8 rd
+577.8 / wr 576.2 MB/s incremental, 333.0 / 291.8 column-major, identical to
+5.18's fixed baseline.
+
+**`make smoke`.** `program` + the area's bring-up sequences (`SMOKE_SEQUENCES`,
+`RUN_ARGS`; granite: `--controller granite`, init write_read memtest). The
+rule, in the handbook: a utilization is quoted only for a bitstream that
+passed it. The candidate build above is the first granite build measured
+that way.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

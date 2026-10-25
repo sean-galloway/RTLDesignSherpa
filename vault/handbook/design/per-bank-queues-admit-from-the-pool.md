@@ -103,6 +103,16 @@ that never finished.
   request's bank, so it had to earn its place with a measurement on both
   families, and did.
 
+- A CSR-visible hook nobody programs still costs its full area. The store's
+  age promotion (`SCHED_POLICY.age_thresh` -> per-slot 16-bit ages, a shared
+  counter, 16 subtract-compares -> the pick's aged-first select) is 1 443
+  ASAP7 cells and 64 flops that no host configuration has ever enabled
+  (every `pumice_char` config leaves `age_thresh` at 0). `HAS_AGE=0` compiles
+  it out, cycle-identical by construction at the default; the field is then
+  inert and says so in the RDL (pumice TASK-059). The test for such a hook
+  is the host: grep the configurations before measuring; a hook with no
+  writer is a knob, not a feature.
+
 ## How to check a design against it
 
 1. List every term in each `*_push_ready`. Anything that names the request

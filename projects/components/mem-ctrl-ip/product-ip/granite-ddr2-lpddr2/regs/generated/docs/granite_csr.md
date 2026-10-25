@@ -692,7 +692,7 @@ request. All hw-readable so they drive the controller core.</p>
 
 #### age_thresh field
 
-<p>age_threshold mode: age (MC cycles/16) above which a reference is boosted</p>
+<p>age_threshold mode: age (MC cycles/16) above which a reference is boosted. INERT in granite: the store is built with HAS_AGE=0 (no per-slot ages; pumice TASK-059), so this field has no effect; the pick orders by bank state and class only</p>
 
 #### RSVD_31_24 field
 

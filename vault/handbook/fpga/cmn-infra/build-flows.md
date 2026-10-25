@@ -197,6 +197,22 @@ Two consequences for the order:
 
 Method and rationale: [[register-testing]].
 
+## A quoted utilization is a SMOKED bitstream (2026-10-24)
+
+`make smoke` = `make program` + the area's bring-up sequences on the board
+(`SMOKE_SEQUENCES`, `RUN_ARGS` per target; granite runs init, write_read and
+the 128 MB memtest through `--controller granite`). A LUT / FF number goes
+in a report only for a bitstream that passed it.
+
+Why: five granite builds in one day (pumice TASK-054..057) were reported as
+area wins, 4 171 -> 3 939 LUT, none run on the board. All five had a
+grounded AR valid (a double continuous driver, BUG-031); no read ever
+issued on silicon and synthesis had folded the dead read side of the store,
+return ring and intake away, which is where the "saving" came from. The
+honest trend was 6 090 -> 5 631. Every simulation was green, because the
+net was dead in the sim configuration too; the board said so in twenty
+seconds. The smoke is part of the measurement, not a step after it.
+
 ## WIDTH is not waived (owner, 2026-10-20)
 
 `LINT_WAIVERS` carried `-Wno-WIDTH` for every flow. Taking it out turned 23 of

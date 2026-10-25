@@ -1,7 +1,7 @@
 Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 | Tool Version     : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
-| Date             : Sat Oct 24 20:13:09 2026
+| Date             : Sat Oct 24 21:02:47 2026
 | Host             : amdtrp running 64-bit Ubuntu 24.04.5 LTS
 | Command          : report_power -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/NexysA7/mem-ctrl-ip-ddr2/targets/granite/fpga/reports/power.txt
 | Design           : granite_char_top
@@ -30,14 +30,14 @@ Table of Contents
 ----------
 
 +--------------------------+--------------+
-| Total On-Chip Power (W)  | 0.802        |
+| Total On-Chip Power (W)  | 0.792        |
 | Design Power Budget (W)  | Unspecified* |
 | Power Budget Margin (W)  | NA           |
-| Dynamic (W)              | 0.695        |
+| Dynamic (W)              | 0.685        |
 | Device Static (W)        | 0.107        |
 | Effective TJA (C/W)      | 4.6          |
-| Max Ambient (C)          | 81.3         |
-| Junction Temperature (C) | 28.7         |
+| Max Ambient (C)          | 81.4         |
+| Junction Temperature (C) | 28.6         |
 | Confidence Level         | Low          |
 | Setting File             | ---          |
 | Simulation Activity File | ---          |
@@ -53,20 +53,20 @@ Table of Contents
 | On-Chip                  | Power (W) | Used     | Available | Utilization (%) |
 +--------------------------+-----------+----------+-----------+-----------------+
 | Clocks                   |     0.065 |        9 |       --- |             --- |
-| Slice Logic              |     0.043 |    81528 |       --- |             --- |
-|   LUT as Logic           |     0.037 |    37094 |     63400 |           58.51 |
+| Slice Logic              |     0.042 |    80483 |       --- |             --- |
+|   LUT as Logic           |     0.036 |    36652 |     63400 |           57.81 |
 |   LUT as Distributed RAM |     0.004 |     1914 |     19000 |           10.07 |
-|   CARRY4                 |     0.001 |     1212 |     15850 |            7.65 |
-|   Register               |    <0.001 |    32989 |    126800 |           26.02 |
-|   F7/F8 Muxes            |    <0.001 |     1310 |     63400 |            2.07 |
-|   Others                 |     0.000 |      492 |       --- |             --- |
-| Signals                  |     0.063 |    57037 |       --- |             --- |
-| Block RAM                |     0.001 |        2 |       135 |            1.48 |
+|   CARRY4                 |     0.001 |     1112 |     15850 |            7.02 |
+|   Register               |    <0.001 |    32654 |    126800 |           25.75 |
+|   F7/F8 Muxes            |    <0.001 |     1268 |     63400 |            2.00 |
+|   Others                 |     0.000 |      491 |       --- |             --- |
+| Signals                  |     0.063 |    56389 |       --- |             --- |
+| Block RAM                |     0.003 |        2 |       135 |            1.48 |
 | MMCM                     |     0.086 |        1 |         6 |           16.67 |
 | DSPs                     |     0.000 |       32 |       240 |           13.33 |
-| I/O                      |     0.436 |       82 |       210 |           39.05 |
+| I/O                      |     0.426 |       82 |       210 |           39.05 |
 | Static Power             |     0.107 |          |           |                 |
-| Total                    |     0.802 |          |           |                 |
+| Total                    |     0.792 |          |           |                 |
 +--------------------------+-----------+----------+-----------+-----------------+
 
 
@@ -80,7 +80,7 @@ Table of Contents
 | Vccaux    |       1.800 |     0.102 |       0.084 |      0.018 |       NA    | Unspecified | NA         |
 | Vcco33    |       3.300 |     0.005 |       0.001 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco25    |       2.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
-| Vcco18    |       1.800 |     0.206 |       0.202 |      0.004 |       NA    | Unspecified | NA         |
+| Vcco18    |       1.800 |     0.200 |       0.196 |      0.004 |       NA    | Unspecified | NA         |
 | Vcco15    |       1.500 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco135   |       1.350 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
 | Vcco12    |       1.200 |     0.000 |       0.000 |      0.000 |       NA    | Unspecified | NA         |
@@ -151,41 +151,41 @@ Table of Contents
 +-----------------------------+-----------+
 | Name                        | Power (W) |
 +-----------------------------+-----------+
-| granite_char_top            |     0.695 |
-|   u_a7ddrphy                |     0.260 |
-|     IOBUF                   |     0.009 |
-|     IOBUFDS                 |     0.023 |
+| granite_char_top            |     0.685 |
+|   u_a7ddrphy                |     0.250 |
+|     IOBUF                   |     0.008 |
+|     IOBUFDS                 |     0.022 |
 |       OBUFTDS               |     0.004 |
-|     IOBUFDS_1               |     0.023 |
+|     IOBUFDS_1               |     0.022 |
 |       OBUFTDS               |     0.004 |
-|     IOBUF_1                 |     0.009 |
-|     IOBUF_10                |     0.009 |
-|     IOBUF_11                |     0.009 |
-|     IOBUF_12                |     0.009 |
-|     IOBUF_13                |     0.009 |
-|     IOBUF_14                |     0.009 |
-|     IOBUF_15                |     0.009 |
-|     IOBUF_2                 |     0.009 |
-|     IOBUF_3                 |     0.009 |
-|     IOBUF_4                 |     0.009 |
-|     IOBUF_5                 |     0.009 |
-|     IOBUF_6                 |     0.009 |
-|     IOBUF_7                 |     0.009 |
-|     IOBUF_8                 |     0.009 |
-|     IOBUF_9                 |     0.009 |
+|     IOBUF_1                 |     0.008 |
+|     IOBUF_10                |     0.008 |
+|     IOBUF_11                |     0.008 |
+|     IOBUF_12                |     0.008 |
+|     IOBUF_13                |     0.008 |
+|     IOBUF_14                |     0.008 |
+|     IOBUF_15                |     0.008 |
+|     IOBUF_2                 |     0.008 |
+|     IOBUF_3                 |     0.008 |
+|     IOBUF_4                 |     0.008 |
+|     IOBUF_5                 |     0.008 |
+|     IOBUF_6                 |     0.008 |
+|     IOBUF_7                 |     0.008 |
+|     IOBUF_8                 |     0.008 |
+|     IOBUF_9                 |     0.008 |
 |     OBUFDS                  |     0.008 |
 |   u_harness                 |     0.167 |
 |     u_bridge                |     0.012 |
 |       u_chargen_apb_adapter |     0.003 |
 |       u_ddr2_apb_adapter    |     0.003 |
 |       u_host_adapter        |     0.003 |
-|       u_xbar                |     0.001 |
+|       u_obs_apb_adapter     |     0.001 |
 |     u_debug_sram            |     0.007 |
 |       u_core                |     0.005 |
 |     u_dfi_mon_ram           |     0.017 |
 |       u_core                |     0.016 |
 |     u_dfi_rddata_delay      |     0.002 |
-|     u_dut                   |     0.116 |
+|     u_dut                   |     0.115 |
 |       u_csr_shim            |     0.002 |
 |       u_ctrl                |     0.023 |
 |       u_engines             |     0.090 |

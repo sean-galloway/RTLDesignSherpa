@@ -52,6 +52,12 @@ module mc_page_policy
     // A row that streamed longer than this is a stream, and its successor
     // stays open until the timer or a conflict closes it.
     parameter int DRAIN_ARM_MAX_COLS = 8,
+    // 0 = no idle-timeout close: the per-bank idle timers and the timeout PRE request are
+    // compiled out; fixed_open then closes rows only on drain (drain_close_ok_o), which is
+    // what the engine does anyway at tr_init 0, the shipping default (pumice TASK-059).
+    parameter bit HAS_TIMEOUT_CLOSE  = 1'b1,
+    // 0 = the stat_* telemetry counters read 0 (a top that wires no *_STATS CSRs).
+    parameter bit HAS_TELEMETRY      = 1'b1,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1
 ) (
@@ -328,6 +334,7 @@ module mc_page_policy
         else                        drain_close_ok_o <= {NUM_BANKS{w_timeout_on}} & r_drain_arm & ~r_keep_open;
     )
 
+    generate if (HAS_TIMEOUT_CLOSE) begin : g_timeout
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
             r_idle              <= '0;
@@ -377,6 +384,15 @@ module mc_page_policy
     // to a marked bank is a MISS, to an unmarked bank an EMPTY. Timeout and
     // refresh closes deliberately do NOT mark: the reopen cost after them is
     // the page-empty class.
+    end else begin : g_no_timeout
+        assign r_idle    = '0;
+        assign r_expired = '0;
+        assign timeout_pre_req_o  = 1'b0;
+        assign timeout_pre_bank_o = '0;
+        wire _unused_to = &{1'b0, tr_init_i};
+    end endgenerate
+
+    generate if (HAS_TELEMETRY) begin : g_telemetry
     logic [NUM_BANKS-1:0] r_conflict_mark;
     // An activation issued for bank b that has not yet seen its column op.
     logic [NUM_BANKS-1:0] r_act_pending;
@@ -433,5 +449,17 @@ module mc_page_policy
             end
         end
     end)
+
+    end else begin : g_no_telemetry
+        assign stat_page_hit_o   = '0;
+        assign stat_page_miss_o  = '0;
+        assign stat_page_empty_o = '0;
+        assign stat_act_o        = '0;
+        assign stat_pre_o        = '0;
+        assign stat_ref_o        = '0;
+        assign stat_ref_busy_o   = '0;
+        assign stat_row_hit_o    = '{default: '0};
+        wire _unused_tele = &{1'b0, demand_i};
+    end endgenerate
 
 endmodule : mc_page_policy

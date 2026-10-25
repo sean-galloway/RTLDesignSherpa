@@ -71,6 +71,8 @@ module granite_core
     // Scheduler / DFI knobs (pumice TASK-055), granite defaults = the measured form:
     parameter bit HAS_PAGE_POLICY   = 1'b1, // 0 = no runtime page-policy engine (close-on-drain alone): measured -8 percent on 8-thread streams, so ON
     parameter int BANK_CAP_MIXED    = 6,    // FIFO store: per-bank cap while the other direction holds entries (pumice TASK-058; 0 = off)
+    parameter bit HAS_AGE           = 1'b0, // store age promotion (CSR age_thresh -> aged-first pick); 0 compiles the ages out (pumice TASK-059)
+    parameter bit PP_TIMEOUT_CLOSE  = 1'b1, // page-policy idle-timeout close; 0 compiles the timers out (inert at tr_init 0, the default)
     parameter int RFC_W             = 8,    // pick core tRFC / tZQCS recovery counter width (16-bit CSR saturates in; DDR2 tRFC <= 35 cycles)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
@@ -505,6 +507,7 @@ module granite_core
             .BANK_FIFO_DEPTH    (BANK_FIFO_DEPTH),
             .HEAD2_EN           (HEAD2_EN),
             .BANK_CAP_MIXED     (BANK_CAP_MIXED),
+            .HAS_AGE            (HAS_AGE),
             .AXI_ID_WIDTH       (IW),
             .AXI_DATA_WIDTH     (DW),
             .NUM_RANKS          (NUM_RANKS),
@@ -777,6 +780,8 @@ module granite_core
     // ======================================================================
     mc_scheduler_plane #(
         .HAS_PAGE_POLICY    (HAS_PAGE_POLICY),
+        .PP_TIMEOUT_CLOSE   (PP_TIMEOUT_CLOSE),
+        .PP_TELEMETRY       (1'b0),   // granite wires no *_STATS CSRs (the stat_* outputs below are open)
         .BANK_TW            (BANK_TW),
         .HAS_STALL_STATS    (1'b0),   // granite wires no STALL_* CSRs (the outputs below are open)
         .RFC_W              (RFC_W),

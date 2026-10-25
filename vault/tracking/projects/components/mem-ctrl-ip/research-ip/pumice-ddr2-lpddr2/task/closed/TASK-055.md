@@ -18,6 +18,9 @@
 > the real design. The ASAP7 per-plane numbers move only in the read intake
 > (1 045 -> 1 210 cells).
 
+
+> **Correction (TASK-059):** "fixed_open, tr_init 0" below is the CSR reset value; the open_page configuration the host programs for every granite measurement writes `tr_init` 1, so the engine's measured value here is the idle-timeout close, not close-on-drain (whose mask the pick core never reads).
+
 **Priority:** P2
 **Status:** closed 2026-10-24 (DFI FIFO depths 4 / 16 / 4 as granite's default: board 4 171 -> 4 107 LUT, cycle-identical everywhere; the page-policy engine measured and kept: -8 percent on 8-thread streams without it)
 **Owner:** TBD
