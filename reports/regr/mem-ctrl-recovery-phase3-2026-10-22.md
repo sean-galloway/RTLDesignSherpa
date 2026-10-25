@@ -1395,6 +1395,93 @@ setting to reach for when concurrent read / write per bank is the workload.
 The right fix for mixed is not a cap but a per-direction share of the pool;
 that is a design item, not a knob.
 
+### 5.18 Granite store fairness lever, pick-core counters, board bring-up (2026-10-24, pumice TASK-058)
+
+Owner: "Do 1/2/3 please" -- the per-direction pool share TASK-057 named as
+the real mixed fix, the pick-core arbitration cones, and board bring-up of
+the day's text.
+
+**Store cap, conditional.** `BANK_CAP_MIXED` (granite 6) caps a bank's queue
+ONLY while the other direction holds any entry; a lone direction keeps
+pool-deep queues. Against the committed grid (board geometry, mismatched 0):
+
+| cell (wr / rd MB/s) | pool-deep | flat cap 6 (5.17) | conditional cap 6 |
+|---|---|---|---|
+| 1 thread, all 4 families | as 5.17 | within a few cycles | **identical** |
+| 8 threads incremental | 556.9 / 557.4 | 534.6 / 556.9 | **identical** |
+| 8 threads row_major | 557.6 / 557.5 | 535.3 / 557.5 | **identical** |
+| 8 threads col_ilv | 533.5 / 543.8 | 508.8 / 534.3 | **identical** |
+| 8 threads col_major | 459.7 / 458.5 | 461.9 / 458.4 | **identical** |
+| mixed, 8 threads (union) | 98.1 | 106.5 | **106.5** |
+
+The flat cap's gain was entirely the share it denied a bank while the other
+direction waited; its cost was entirely the bind on a lone stream.
+Conditioned, it keeps the one and loses the other, so 6 is the default. No
+area: the ASAP7 store is 6 317 comb at 806 flops (6 342 before; a cap-off
+variant of the same text synthesized to 6 599, which brackets this flow's
+abc noise at about 2 percent on a block this size).
+
+**Pick core.** The tRFC / tZQCS recovery counters were 16 bits for the CSR
+field; DDR2 needs 35 cycles. `RFC_W` 8 with a saturating load: ASAP7
+`u_bank_pick` 2 543 comb / 216 flops -> 2 492 / 208, cycle-identical. What
+remains is the arbiter function -- per-pair request / class decode and the
+class-priority select are about 1 500 of the 2 492 cells, the fire-stage
+payload muxes the rest. The next cut would change what it computes (fewer
+classes, no age promotion); that is a policy measurement, not an area item.
+
+**Whole core, ASAP7** (`granite_top_geared`, planes kept, dead bits pruned):
+21 155 comb / 3 842 flops (5.16) -> 21 055 / 3 834. Scheduler plane 7 546
+(page policy 2 516, pick 2 492, bank timers 1 823, global timers 399,
+refresh 188), store 6 317, AXI plane 3 848, CSR 2 156, DFI plane 852, init
+242.
+
+**Board, Nexys A7-100T.** The day's text does not read on silicon, and had
+not since TASK-054: `init` PASS in 0.7 s, every write at rate, no read of any
+length ever returning a beat (pumice **BUG-031**). The host, harness and PHY
+were cleared with the 2026-10-23 pumice bitstream; the read-FIFO depth, the
+same-clock crossing, the AXI depths, snarf and the store backend were cleared
+by knob builds; strict rddata_en-anchored PHY timing in sim passed at the
+board tuple. A commit bisect in detached worktrees (each built and probed with
+its own host) put the boundary inside TASK-054, and splitting that commit put
+it in the AXI plane / intakes, not the store. Root cause: `mc_rd_intake` drove
+`map_req_o` twice (a common assign and the `HAS_ADDR_MAP` branch's constant
+zero). Legal Verilog, lint-clean in Verilator, dead in the board
+configuration; Vivado reported `Synth 8-6859`, had merged the net with the AR
+skid's valid, and tied it to GND. Fix: one driver per generate branch;
+`make bitstream` / `make synth` now fail on that message (it was in every
+build log since TASK-054, four times, and in none before). Fixed text on the
+board: leveled init PASS, `write_read` PASS mismatched 0, **128 MB memtest
+PASS 32 / 32 chunks**; char: PASS, smoke profile at txn_scale 1000, bl8, open_page (the shipping
+default): incremental **rd 577.8 / wr 576.0 MB/s**, col_major 333.0 / 291.8
+(peak 600 at 75 MHz x 64 bits); the proxy's single-thread incremental cell
+on the same text is 569.6 / 568.2. bank_interleave 192.8 / 193.0,
+close_page and inorder 74.6 / 59.8 (the reference corners). The board
+measures the design the proxy measured, on the first granite silicon run
+since 2026-10-12.
+
+**Correction to 5.14 - 5.17 board figures.** With the AR valid grounded,
+synthesis folded the read side of the store, the return ring and the intake
+away, so every granite_core LUT / FF quoted since TASK-054 measured a design
+without its read path. Honest board trend, same flow:
+
+| text | granite_core LUT | FF | WNS |
+|---|---|---|---|
+| before TASK-050 (5.10 baseline) | 9 956 | 5 160 | +0.106 |
+| TASK-053 (last text that read on silicon) | 6 090 | 4 417 | +0.367 |
+| TASK-054 .. TASK-057 as reported | 4 171 .. 3 939 | 2 709 .. 2 567 | (dead read path) |
+| **today, fixed** | **5 631** | **3 532** | +0.134 |
+
+The day's real saving on the board is 459 LUT / 885 FF, not 2 150 / 1 850.
+Every bandwidth and cycle claim stands: the net was dead in simulation, so
+the proxy and the suites measured the real design. The ASAP7 numbers move
+only in the read intake (1 045 -> 1 210 cells, 231 -> 296 flops): the
+planes-kept flow could not fold across the kept hierarchy the way Vivado's
+flattening did. The rule, in the handbook: a board utilization is a
+measurement only after that bitstream has passed the board smoke.
+
+**Final build** (today's text, cap 6 + `RFC_W` 8, the intake fixed): 5 631
+LUT / 3 532 FF, WNS +0.134 ns, 0 failing endpoints, 0 multi-driven reports.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):

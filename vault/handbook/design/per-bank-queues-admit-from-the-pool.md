@@ -91,6 +91,18 @@ that never finished.
   one thread; board builds +0.304 / +0.545 ns before the payload change
   (Phase 3 report section 5.11).
 
+- A per-bank cap is a fairness lever, not a sizing one, and it belongs
+  behind a condition. On the linked-list store a cap buys no area, so the
+  only question is bandwidth: a flat cap of 6 gained 8 percent on the
+  concurrent two-threads-per-bank family (one bank's writes could no longer
+  take the whole pool) and cost 4 percent on the eight-thread streams (the
+  cap bit once per chopped burst). Making the cap apply ONLY while the other
+  direction holds entries (`BANK_CAP_MIXED`, pumice TASK-058) keeps every
+  stream cell cycle-identical to pool-deep and keeps the mixed gain, 98.1 ->
+  106.5 MB/s. The check in step 1 below still applies: the term names the
+  request's bank, so it had to earn its place with a measurement on both
+  families, and did.
+
 ## How to check a design against it
 
 1. List every term in each `*_push_ready`. Anything that names the request

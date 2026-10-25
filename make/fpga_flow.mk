@@ -307,6 +307,7 @@ synth:              ## Synthesis only + utilization + failing-path reports
 	@echo "[synth] $(FLOW) (skip place/route)"
 	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(SYNTH_TCL) || { \
 	    $(_lock_hint); }
+	@$(call _multidriven_scan,$(SELF_DIR)/vivado.log)
 	@$(MAKE) --no-print-directory utilization
 	@$(MAKE) --no-print-directory timing
 
@@ -324,12 +325,28 @@ if [ "$${n:-0}" != "0" ]; then \
     grep 'does not have driver' $(1) | sed 's/^.*WARNING: //' | head -20; fi
 endef
 
+# A net with TWO drivers is one the simulator resolved and synthesis did not.
+# Two continuous assigns on one net are legal Verilog (wired resolution), so
+# Verilator lints them clean and picks one; Vivado reports Synth 8-6859 and
+# ties the net to whichever driver it keeps -- GND, in the case that cost a
+# day: the net had been merged with an AR skid's valid, no read ever issued
+# on the Nexys A7, and every sim was green (granite, pumice BUG-031,
+# 2026-10-24). Nothing intended is ever multi-driven, so this one is FATAL.
+define _multidriven_scan
+n=$$(grep -c 'Synth 8-6859' $(1) 2>/dev/null || true); \
+if [ "$${n:-0}" != "0" ]; then \
+    echo ""; echo "[bitstream] ERROR: $$n MULTI-DRIVEN net report(s) in synthesis -- the bitstream is not the simulated design:"; \
+    grep 'Synth 8-6859' $(1) | sed 's/^.*WARNING: //' | head -20; \
+    exit 1; fi
+endef
+
 bitstream:          ## Full synth/impl/bitgen + all reports (10-30 min)
 	$(call _require_tcl,$(BUILD_TCL),build,BUILD_TCL)
 	@echo "[bitstream] $(FLOW) full flow"
 	@cd $(SELF_DIR) && $(VIVADO_LOCKED) -source $(TCL_DIR)/$(BUILD_TCL) || { \
 	    $(_lock_hint); }
 	@$(call _undriven_scan,$(SELF_DIR)/vivado.log)
+	@$(call _multidriven_scan,$(SELF_DIR)/vivado.log)
 	@echo ""
 	@echo "Bitstream: $(BITSTREAM)"
 	@echo "Reports:   $(REPORTS)"

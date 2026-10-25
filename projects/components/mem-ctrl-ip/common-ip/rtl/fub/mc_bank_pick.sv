@@ -104,6 +104,10 @@ module mc_bank_pick
     // 0 = no stall-cause counters (the eight 32-bit stall_*_o outputs read 0). They feed the
     //     STALL_* CSRs; an integration without those registers leaves them unconnected.
     parameter bit HAS_STALL_STATS = 1'b1,
+    // tRFC / tZQCS recovery counter width. The CSR fields are 16 bits; a value above
+    // the counter's range saturates to its maximum (conservative). DDR2 tRFC at
+    // <= 100 MHz is 35 cycles: 8 bits is ample.
+    parameter int RFC_W = 16,
 
     parameter int RKW  = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1,
     parameter int BKW  = $clog2(NUM_BANKS),
@@ -295,10 +299,15 @@ module mc_bank_pick
     // tRFC / tZQCS recovery counters and the refresh demand blocks
     // (lifted from mc_bank_sched; see that history in MC-003)
     // ======================================================================
-    logic [15:0] r_rfc_cnt, r_zqcs_cnt;
+    logic [RFC_W-1:0] r_rfc_cnt, r_zqcs_cnt;
+    function automatic logic [RFC_W-1:0] sat_rfc(input logic [15:0] t);
+        if (RFC_W >= 16)      return RFC_W'(t);
+        else if (|(t >> RFC_W)) return {RFC_W{1'b1}};
+        else                  return RFC_W'(t);
+    endfunction
     logic        w_rfc_busy, w_zq_busy;
-    assign w_rfc_busy = (r_rfc_cnt  != 16'd0);
-    assign w_zq_busy  = (r_zqcs_cnt != 16'd0);
+    assign w_rfc_busy = (r_rfc_cnt  != '0);
+    assign w_zq_busy  = (r_zqcs_cnt != '0);
 
     // Refresh-episode demand block: while a refresh is requested or draining,
     // no demand op to the affected bank(s) may fire (REFab = all banks,
@@ -316,9 +325,9 @@ module mc_bank_pick
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn))      r_rfc_cnt <= '0;
         else if (refresh_grant_o)
-            r_rfc_cnt <= (cmd_op_o == OP_REFPB && t_rfc_pb_i != 8'd0)
-                         ? {8'h0, t_rfc_pb_i} : t_rfc_i;
-        else if (w_rfc_busy)             r_rfc_cnt <= r_rfc_cnt - 16'd1;
+            r_rfc_cnt <= sat_rfc((cmd_op_o == OP_REFPB && t_rfc_pb_i != 8'd0)
+                                 ? {8'h0, t_rfc_pb_i} : t_rfc_i);
+        else if (w_rfc_busy)             r_rfc_cnt <= r_rfc_cnt - 1'b1;
     )
 
     // tRFC window demand block: the granted refresh closes the bank(s) at the
@@ -345,8 +354,8 @@ module mc_bank_pick
     generate if (HAS_ZQ) begin : g_zq
         `ALWAYS_FF_RST(aclk, aresetn,
             if (`RST_ASSERTED(aresetn))  r_zqcs_cnt <= '0;
-            else if (zq_grant_o)         r_zqcs_cnt <= t_zqcs_i;
-            else if (w_zq_busy)          r_zqcs_cnt <= r_zqcs_cnt - 16'd1;
+            else if (zq_grant_o)         r_zqcs_cnt <= sat_rfc(t_zqcs_i);
+            else if (w_zq_busy)          r_zqcs_cnt <= r_zqcs_cnt - 1'b1;
         )
     end else begin : g_no_zq
         `ALWAYS_FF_RST(aclk, aresetn,

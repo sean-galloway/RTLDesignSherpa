@@ -70,6 +70,8 @@ module granite_core
     parameter bit SHARED_ADDR_MAP  = 1'b0, // 1 = one address mapper for both intakes with an alternating grant: -23 percent on the mixed family, so OFF
     // Scheduler / DFI knobs (pumice TASK-055), granite defaults = the measured form:
     parameter bit HAS_PAGE_POLICY   = 1'b1, // 0 = no runtime page-policy engine (close-on-drain alone): measured -8 percent on 8-thread streams, so ON
+    parameter int BANK_CAP_MIXED    = 6,    // FIFO store: per-bank cap while the other direction holds entries (pumice TASK-058; 0 = off)
+    parameter int RFC_W             = 8,    // pick core tRFC / tZQCS recovery counter width (16-bit CSR saturates in; DDR2 tRFC <= 35 cycles)
     parameter int BANK_TW           = 5,    // per-bank timer width (pumice TASK-056): 5 covers DDR2 at <= 100 MHz (tRC 6), measured cycle-identical; 8 = the CSR field width; a CSR value above the range saturates
     parameter int DFI_CMD_FIFO_DEPTH = 4,   // DFI plane command FIFO (8 before; 4 measured cycle-identical on every cell)
     parameter int DFI_WD_FIFO_DEPTH  = 16,  // DFI plane write-data FIFO (32 before; 16 measured cycle-identical)
@@ -502,6 +504,7 @@ module granite_core
             .NUM_ENTRIES        (NUM_ENTRIES),
             .BANK_FIFO_DEPTH    (BANK_FIFO_DEPTH),
             .HEAD2_EN           (HEAD2_EN),
+            .BANK_CAP_MIXED     (BANK_CAP_MIXED),
             .AXI_ID_WIDTH       (IW),
             .AXI_DATA_WIDTH     (DW),
             .NUM_RANKS          (NUM_RANKS),
@@ -776,6 +779,7 @@ module granite_core
         .HAS_PAGE_POLICY    (HAS_PAGE_POLICY),
         .BANK_TW            (BANK_TW),
         .HAS_STALL_STATS    (1'b0),   // granite wires no STALL_* CSRs (the outputs below are open)
+        .RFC_W              (RFC_W),
         .NUM_RANKS     (NUM_RANKS),
         .NUM_BANKS     (NUM_BANKS),
         .ROW_WIDTH     (ROW_WIDTH),

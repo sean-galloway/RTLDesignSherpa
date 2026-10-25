@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-058** — never recycle a number, even when its item closed.
+**Next ID: TASK-059** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 47 | done (kept for history) |
+| [closed/](closed/) | 48 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -48,6 +48,11 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-058** — CLOSED 2026-10-24: the store's per-bank cap made conditional
+  on the other direction holding entries (`BANK_CAP_MIXED`, granite 6): every
+  stream cell cycle-identical, mixed 98.1 -> 106.5 MB/s, no area; pick-core
+  tRFC / tZQCS counters 8 bits (`RFC_W`); board smoke + memtest + char of the
+  day's text on the Nexys A7 through granite's regmap. Report 5.18.
 - **TASK-057** — CLOSED 2026-10-24: the harness host selects the controller's
   regmap (`DDR2CharDriver(controller="granite")`, `Device.has`, the REF_CTRL
   guard); bank-queue depths 4 and 6 measured against pool-deep on the

@@ -278,15 +278,23 @@ module mc_rd_intake #(
             .row_o      (w_row),
             .col_o      (w_col)
         );
+        // ONE driver per branch. This branch once carried `map_req_o = 1'b0`
+        // beside a common `map_req_o = map_req_o_int` below: two continuous
+        // assigns on one net. Verilator lints that silently; Vivado reports
+        // Synth 8-6859 and resolved it by tying the net -- which it had
+        // merged with the AR skid's valid -- to GND, so the intake never saw
+        // an AR and no read ever issued on the Nexys A7 (pumice BUG-031).
         assign w_map_ok  = 1'b1;
         assign map_req_o = 1'b0;
-        wire _unused_map = &{1'b0, map_grant_i, map_rank_i, map_bank_i, map_row_i, map_col_i};
+        wire _unused_map = &{1'b0, map_grant_i, map_rank_i, map_bank_i, map_row_i, map_col_i,
+                             map_req_o_int};
     end else begin : g_shared_map
         assign w_rank = map_rank_i;
         assign w_bank = map_bank_i;
         assign w_row  = map_row_i;
         assign w_col  = map_col_i;
-        assign w_map_ok = map_grant_i;
+        assign w_map_ok  = map_grant_i;
+        assign map_req_o = map_req_o_int;
         wire _unused_map = &{1'b0, bank_lsb_i, hash_en_i, hash_seed_i};
     end endgenerate
 
@@ -330,7 +338,6 @@ module mc_rd_intake #(
 
     logic w_hit, w_can_admit, w_admit, w_s_load;
     logic fub_arready_nomap, map_req_o_int, map_req_stage_ok;
-    assign map_req_o = map_req_o_int;
 
     // Order-FIFO handshake, declared here because the admit condition below
     // depends on it (the FIFO itself is instantiated further down).

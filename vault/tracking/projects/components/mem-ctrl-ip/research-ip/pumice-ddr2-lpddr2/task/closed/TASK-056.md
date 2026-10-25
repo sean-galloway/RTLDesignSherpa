@@ -7,6 +7,18 @@
 > registers verbatim, 25 of them wired to nothing. Related: TASK-054 / 055
 > (method), handbook `design/variable-part-select-is-a-shifter.md`.
 
+
+> **Correction (2026-10-24 evening, pumice BUG-031 / TASK-058):** the board
+> LUT / FF figures in this file were measured on bitstreams whose read path
+> synthesis had removed -- a double continuous driver on `mc_rd_intake.map_req_o`
+> (TASK-054) tied the AR valid to GND, no read ever issued on silicon, and
+> Vivado folded the dead read side of the store, ring and intake away. The
+> honest board trend is TASK-053 text 6 090 LUT / 4 417 FF -> fixed final text
+> 5 631 LUT / 3 532 FF (report 5.18). Every cycle-count and bandwidth claim in
+> this file stands: the net was dead in simulation, so the simulator measured
+> the real design. The ASAP7 per-plane numbers move only in the read intake
+> (1 045 -> 1 210 cells).
+
 **Priority:** P2
 **Status:** closed 2026-10-24 (board 4 107 -> 4 015 LUT, 2 695 -> 2 575 FF, +0.492 ns; pick core 5 407 -> 2 862 ASAP7 cells; cycle-identical on every cell)
 **Owner:** TBD

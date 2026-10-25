@@ -59,6 +59,7 @@ module mc_scheduler_plane
     parameter bit HAS_PAGE_POLICY    = 1'b1,
     parameter int BANK_TW            = 8,    // per-bank timer width (mc_bank_timers TW); 8 = the CSR field width
     parameter bit HAS_STALL_STATS    = 1'b1, // 0 = the stall_*_o counters read 0 (mc_bank_pick)
+    parameter int RFC_W              = 16,   // mc_bank_pick tRFC / tZQCS recovery counter width (saturating load)
     parameter bit HAS_CMD_HISTORY    = 1'b0,
     // refresh feature reduction (passed to mc_xddr2_refresh_ctrl)
     parameter bit REF_HAS_POSTPONE    = 1'b1,
@@ -715,7 +716,8 @@ module mc_scheduler_plane
             .CLOSE_ON_DRAIN(CLOSE_ON_DRAIN),
             .MAINT_EXTRA_WIDTH(MAINT_EXTRA_WIDTH),
             .LA          (BANK_LA_EFF),
-            .HAS_STALL_STATS(HAS_STALL_STATS)
+            .HAS_STALL_STATS(HAS_STALL_STATS),
+            .RFC_W       (RFC_W)
         ) u_bank_pick (
             .aclk               (aclk),
             .aresetn            (aresetn),

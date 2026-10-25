@@ -42,6 +42,8 @@ def build_runner() -> SequenceRunner:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     ap.add_argument("--board", default="nexys_a7_100t")
+    ap.add_argument("--controller", default="pumice", choices=("pumice", "granite"),
+                    help="which controller sits behind the harness: selects its CSR regmap (granite's is a subset of pumice's since pumice TASK-056)")
     ap.add_argument("--port", default="auto",
                     help="serial port; 'auto' probes this board's ports")
     ap.add_argument("--baud", type=int, default=115200)
@@ -120,7 +122,7 @@ def main(argv=None) -> int:
         label="pumice DDR2 char harness",
     )
 
-    drv = DDR2CharDriver(port=port, baudrate=args.baud)
+    drv = DDR2CharDriver(port=port, baudrate=args.baud, controller=args.controller)
 
     runner.ctx.bus = drv
     runner.ctx.board = board

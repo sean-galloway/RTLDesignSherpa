@@ -477,6 +477,16 @@ The rules this adds:
   `make bitstream` (make/fpga_flow.mk) prints them after every build now, loud and not fatal.
   A net with no driver in synthesis is a net the simulator drove: the bitstream is not the
   design that passed. Verilator does not warn, so no lint gate stands in for this grep.
+- **A net with TWO continuous drivers is the same class, and it is FATAL.** Two
+  `assign`s on one net are legal Verilog (wired resolution), so Verilator lints them
+  clean and keeps one; Vivado reports `Synth 8-6859 multi-driven net` and ties the net
+  to whichever driver it keeps. In `mc_rd_intake` (pumice TASK-054) a common
+  `assign map_req_o = map_req_o_int` sat beside a generate branch's
+  `assign map_req_o = 1'b0`; synthesis had merged the net with the AR skid's valid, kept
+  GND, and no read ever issued on the Nexys A7 while every sim was green, including the
+  PHY model in strict read timing (pumice BUG-031, 2026-10-24; a day of board bisect to
+  find). A generate that drives an output drives it in EVERY branch and nowhere else.
+  `make bitstream` / `make synth` fail on that message now.
 - **The A/B that settles "is it my change or the tree" is a control build from the same
   tree**, not the last known-good bitstream: the stream-g build had also regenerated the
   harness bridge with a changed generator, and only a STREAM_G=0 build from today's tree

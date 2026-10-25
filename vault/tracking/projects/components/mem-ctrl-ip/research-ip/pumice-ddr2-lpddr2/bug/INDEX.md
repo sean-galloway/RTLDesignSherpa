@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-031** — never recycle a number, even when its item closed.
+**Next ID: BUG-032** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 26 | done (kept for history) |
+| [closed/](closed/) | 27 | done (kept for history) |
 | [dropped/](dropped/) | 1 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -35,6 +35,7 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-031** — CLOSED 2026-10-24: granite read none on the Nexys A7 since TASK-054: two continuous drivers on `mc_rd_intake.map_req_o`; Verilator silent, Vivado `Synth 8-6859` and the AR valid tied to GND. One driver per branch; `make bitstream` fails on the message now; verified by leveled init + write_read + 128 MB memtest. Board LUT/FF since TASK-054 corrected (report 5.18).
 - **BUG-029** — the scheduler plane fed the refresh controller's REFpb
   rotor mirror from the command FIFO HEAD (`cmd_op_o == OP_REFPB`) instead of
   the command being granted; the mirror advanced only when the FIFO contents

@@ -6,6 +6,18 @@
 > are sized to the whole read-return window. Related: TASK-053 (the
 > same-clock DFI form), TASK-054 (the knob method), TASK-048 (tr_init 0).
 
+
+> **Correction (2026-10-24 evening, pumice BUG-031 / TASK-058):** the board
+> LUT / FF figures in this file were measured on bitstreams whose read path
+> synthesis had removed -- a double continuous driver on `mc_rd_intake.map_req_o`
+> (TASK-054) tied the AR valid to GND, no read ever issued on silicon, and
+> Vivado folded the dead read side of the store, ring and intake away. The
+> honest board trend is TASK-053 text 6 090 LUT / 4 417 FF -> fixed final text
+> 5 631 LUT / 3 532 FF (report 5.18). Every cycle-count and bandwidth claim in
+> this file stands: the net was dead in simulation, so the simulator measured
+> the real design. The ASAP7 per-plane numbers move only in the read intake
+> (1 045 -> 1 210 cells).
+
 **Priority:** P2
 **Status:** closed 2026-10-24 (DFI FIFO depths 4 / 16 / 4 as granite's default: board 4 171 -> 4 107 LUT, cycle-identical everywhere; the page-policy engine measured and kept: -8 percent on 8-thread streams without it)
 **Owner:** TBD

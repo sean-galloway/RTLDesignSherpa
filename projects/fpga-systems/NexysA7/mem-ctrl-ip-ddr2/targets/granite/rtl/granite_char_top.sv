@@ -205,6 +205,9 @@ module granite_char_top #(
 `ifdef GRANITE_NUM_ENTRIES
         .NUM_ENTRIES        (`GRANITE_NUM_ENTRIES),
 `endif
+`ifdef GRANITE_STORE_BACKEND
+        .STORE_BACKEND      (`GRANITE_STORE_BACKEND),
+`endif
 `ifdef GRANITE_BANK_FIFO_DEPTH
         .BANK_FIFO_DEPTH    (`GRANITE_BANK_FIFO_DEPTH),
 `endif
@@ -231,6 +234,9 @@ module granite_char_top #(
 `endif
 `ifdef GRANITE_BANK_TW
         .BANK_TW            (`GRANITE_BANK_TW),
+`endif
+`ifdef GRANITE_BANK_CAP_MIXED
+        .BANK_CAP_MIXED     (`GRANITE_BANK_CAP_MIXED),
 `endif
 `ifdef GRANITE_DFI_CMD_FIFO_DEPTH
         .DFI_CMD_FIFO_DEPTH (`GRANITE_DFI_CMD_FIFO_DEPTH),

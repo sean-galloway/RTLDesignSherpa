@@ -89,6 +89,12 @@ module mc_bank_fifo_store
 #(
     parameter int NUM_ENTRIES        = 8,   // descriptor slots per direction (the write-data buffer size)
     parameter int BANK_FIFO_DEPTH    = 0,   // per (direction, bank) queue depth; 0 = NUM_ENTRIES (pool-only admission)
+    // Per-bank cap that applies ONLY while the other direction holds entries (0 = off).
+    // A bank queue may then not grow past BANK_CAP_MIXED; a direction streaming alone
+    // keeps pool-deep queues. Measured (pumice TASK-058): a flat cap of 6 gained 8
+    // percent on the concurrent two-threads-per-bank family and cost 4 on the
+    // eight-thread streams; this form keeps the streams whole.
+    parameter int BANK_CAP_MIXED     = 0,
     parameter bit HEAD2_EN           = 1'b1,// 0 = one head record per bank: head2 outputs are constant 0, and the pick
                                             //     core idles a pair for the cycle after each of its column fires (its
                                             //     pop shadow has no second record to serve). A measured trade, not a
@@ -296,7 +302,8 @@ module mc_bank_fifo_store
     assign w_wd_fire   = wd_valid_i && wd_ready_o;
     assign w_fill_done = w_wd_fire && (wd_last_i || (r_wr_bcnt[w_fill_slot] == BCW'(AXI_BEATS_PER_BURST - 1)));
 
-    assign aw_push_ready_o = w_wr_have_free && (r_wq_cnt[aw_push_bank_i] != QCW'(QD));
+    logic w_wr_cap_ok, w_rd_cap_ok;   // conditional per-bank cap (BANK_CAP_MIXED), assigned below the RD slots
+    assign aw_push_ready_o = w_wr_have_free && (r_wq_cnt[aw_push_bank_i] != QCW'(QD)) && w_wr_cap_ok;
     assign wd_ready_o      = w_fill_vld;
 
     // ======================================================================
@@ -537,8 +544,8 @@ module mc_bank_fifo_store
     assign w_ar_fire       = ar_push_valid_i && ar_push_ready_o;
     assign w_rd_issue_fire = rd_issue_valid_i && rd_issue_ready_o;
 
-    assign ar_push_ready_o    = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD)) && rt_alloc_ready_i;
-    assign rd_cam_ins_ready_o = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD));
+    assign ar_push_ready_o    = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD)) && w_rd_cap_ok && rt_alloc_ready_i;
+    assign rd_cam_ins_ready_o = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD)) && w_rd_cap_ok;
     assign rd_issue_ready_o   = rd_iss_ready_i;
     assign rd_iss_valid_o     = w_rd_issue_fire;
     assign rd_iss_ticket_o    = r_rd_ticket[rd_issue_slot_i];
@@ -592,6 +599,18 @@ module mc_bank_fifo_store
             end
         end
     end)
+
+    // the other direction's occupancy, for the conditional cap
+    logic w_any_rd, w_any_wr;
+    always_comb begin
+        w_any_rd = 1'b0; w_any_wr = 1'b0;
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            if (r_rd_valid[i]) w_any_rd = 1'b1;
+            if (r_wr_valid[i]) w_any_wr = 1'b1;
+        end
+    end
+    assign w_wr_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_rd || (int'(r_wq_cnt[aw_push_bank_i]) < BANK_CAP_MIXED);
+    assign w_rd_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_wr || (int'(r_rq_cnt[ar_push_bank_i]) < BANK_CAP_MIXED);
 
     // ======================================================================
     // Age-exceed flags per slot (one-cycle stale, like the reference stores)
