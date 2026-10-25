@@ -96,17 +96,28 @@ def _addr(tb, m: int, s: int, k: int, beats: int) -> int:
 async def open_loop(tb, clk: Cycle, targets: Dict[int, Tuple[int, ...]], gap: int, n: int,
                     beats: int = BEATS) -> Tuple[Dict[int, List[int]], List[str]]:
     """Each master issues n reads, one every `gap` cycles, at its targets in
-    turn. Returns per-master latencies and any data errors."""
+    turn. Returns per-master latencies and any data errors.
+
+    IDs are partitioned per target (bridge TASK-022, measured 2026-10-25):
+    a flat k % 16 rotation against a target cycle of length 3 makes every
+    burst's ID twin (16 bursts back) live at a DIFFERENT slave, so the
+    per-ID same-target gate (bridge_id_remap req_ok, AXI same-ID order)
+    serialized every master behind its slowest read -- 31-58 percent of AR
+    cycles gated while ar_trk_full sat at 0 and no slave R pin ever stalled.
+    A master that wants reads to different slaves in flight uses different
+    IDs; that is what IDs are for. One ID subspace per target keeps every
+    ID on one slave, so the sweep measures the fabric, not the driver's ID
+    policy."""
     lats: Dict[int, List[int]] = {m: [] for m in targets}
     errors: List[str] = []
     futs = []
 
-    async def one(m, s, k):
+    async def one(m, s, k, txn_id):
         addr = _addr(tb, m, s, k, beats)
         bpb = tb.master_data_width[m] // 8
         want = [tb.slave_mem_read(s, addr + b * bpb, byte_count=bpb) for b in range(beats)]
         t0 = clk.now
-        got = await tb.master_rd[m].read_transaction(addr, burst_len=beats, id=k % 16,
+        got = await tb.master_rd[m].read_transaction(addr, burst_len=beats, id=txn_id,
                                                      size=(bpb.bit_length() - 1))
         lats[m].append(clk.now - t0)
         got = [g['data'] if isinstance(g, dict) else g for g in got]
@@ -115,7 +126,10 @@ async def open_loop(tb, clk: Cycle, targets: Dict[int, Tuple[int, ...]], gap: in
 
     for k in range(n):
         for m, ts in targets.items():
-            futs.append(cocotb.start_soon(one(m, ts[k % len(ts)], k)))
+            per_tgt = max(1, 16 // len(ts))
+            t_idx = k % len(ts)
+            futs.append(cocotb.start_soon(one(m, ts[t_idx], k,
+                                              t_idx * per_tgt + (k // len(ts)) % per_tgt)))
         await ClockCycles(tb.clock, gap)
     for _ in range(40000):
         if all(f.done() for f in futs):

@@ -1,0 +1,1616 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sat Oct 24 16:57:53 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/reports/ooc/stream_core_g_8ch/10.0ns/timing_worst.txt
+| Design       : stream_core_g
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.626ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[20]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.345ns  (logic 2.273ns (24.322%)  route 7.072ns (75.678%))
+  Logic Levels:           11  (LUT4=1 LUT6=10)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.507     4.435    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I1_O)        0.043     4.478 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31/O
+                         net (fo=3, routed)           0.738     5.216    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31_n_0
+    SLICE_X95Y72         LUT6 (Prop_lut6_I1_O)        0.043     5.259 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50/O
+                         net (fo=12, routed)          0.863     6.122    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50_n_0
+    SLICE_X102Y92        LUT6 (Prop_lut6_I4_O)        0.043     6.165 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__6/O
+                         net (fo=123, routed)         1.158     7.324    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/i___52_i_1__0_0
+    SLICE_X123Y112       LUT6 (Prop_lut6_I2_O)        0.043     7.367 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/i___45_i_4__0/O
+                         net (fo=1, routed)           0.690     8.057    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/i___45
+    SLICE_X105Y107       LUT6 (Prop_lut6_I5_O)        0.043     8.100 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/i___45_i_3__0/O
+                         net (fo=1, routed)           0.452     8.553    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core_n_817
+    SLICE_X100Y102       LUT6 (Prop_lut6_I5_O)        0.043     8.596 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/i___45/O
+                         net (fo=1, routed)           0.452     9.048    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[20]_i_4_1
+    SLICE_X92Y99         LUT6 (Prop_lut6_I0_O)        0.043     9.091 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[20]_i_13/O
+                         net (fo=1, routed)           0.345     9.436    u_scheduler_group_array/g_shared.u_seq/g_shared.g_seq_rd_data[1]_69[20]
+    SLICE_X92Y98         LUT6 (Prop_lut6_I3_O)        0.043     9.479 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[20]_i_4/O
+                         net (fo=1, routed)           0.360     9.839    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[20]_i_4_n_0
+    SLICE_X92Y98         LUT6 (Prop_lut6_I4_O)        0.043     9.882 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[20]_i_1/O
+                         net (fo=1, routed)           0.000     9.882    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[20]_i_1_n_0
+    SLICE_X92Y98         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[20]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X92Y98         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[20]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X92Y98         FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[20]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.882    
+  -------------------------------------------------------------------
+                         slack                                  0.626    
+
+Slack (MET) :             0.633ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[14]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.371ns  (logic 2.230ns (23.797%)  route 7.141ns (76.203%))
+  Logic Levels:           10  (LUT4=1 LUT6=9)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.507     4.435    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I1_O)        0.043     4.478 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31/O
+                         net (fo=3, routed)           0.738     5.216    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31_n_0
+    SLICE_X95Y72         LUT6 (Prop_lut6_I1_O)        0.043     5.259 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50/O
+                         net (fo=12, routed)          0.673     5.932    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50_n_0
+    SLICE_X103Y85        LUT6 (Prop_lut6_I4_O)        0.043     5.975 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__5/O
+                         net (fo=123, routed)         1.263     7.238    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/i___52_i_1__1_0
+    SLICE_X136Y94        LUT6 (Prop_lut6_I2_O)        0.043     7.281 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/i___47_i_2__1/O
+                         net (fo=1, routed)           0.721     8.002    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core_n_670
+    SLICE_X123Y94        LUT6 (Prop_lut6_I4_O)        0.043     8.045 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/i___47/O
+                         net (fo=1, routed)           0.575     8.621    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[14]_i_3_3
+    SLICE_X112Y94        LUT6 (Prop_lut6_I0_O)        0.043     8.664 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[14]_i_10/O
+                         net (fo=1, routed)           0.766     9.429    u_scheduler_group_array/g_shared.u_seq/g_shared.g_seq_rd_data[2]_70[14]
+    SLICE_X99Y92         LUT6 (Prop_lut6_I1_O)        0.043     9.472 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[14]_i_3/O
+                         net (fo=1, routed)           0.393     9.865    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[14]_i_3_n_0
+    SLICE_X90Y92         LUT6 (Prop_lut6_I3_O)        0.043     9.908 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[14]_i_1/O
+                         net (fo=1, routed)           0.000     9.908    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[14]_i_1_n_0
+    SLICE_X90Y92         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[14]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X90Y92         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[14]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X90Y92         FDCE (Setup_fdce_C_D)        0.066    10.541    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[14]
+  -------------------------------------------------------------------
+                         required time                         10.541    
+                         arrival time                          -9.908    
+  -------------------------------------------------------------------
+                         slack                                  0.633    
+
+Slack (MET) :             0.671ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_b_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.301ns  (logic 2.719ns (29.235%)  route 6.582ns (70.765%))
+  Logic Levels:           13  (CARRY4=1 LUT4=2 LUT5=2 LUT6=8)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y23         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_b_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y23         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOADO[0])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_b_reg/DOADO[0]
+                         net (fo=10, routed)          0.549     2.886    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q2[0]
+    SLICE_X101Y57        LUT4 (Prop_lut4_I2_O)        0.043     2.929 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___9_i_2/O
+                         net (fo=66, routed)          0.300     3.229    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/x_imm_reg[0]
+    SLICE_X103Y55        LUT5 (Prop_lut5_I4_O)        0.043     3.272 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_112/O
+                         net (fo=1, routed)           0.292     3.564    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/u_alu/y_addsub1[0]
+    SLICE_X100Y52        CARRY4 (Prop_carry4_CYINIT_O[3])
+                                                      0.326     3.890 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_108/O[3]
+                         net (fo=1, routed)           0.410     4.300    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/u_alu/y_addsub[3]
+    SLICE_X101Y55        LUT4 (Prop_lut4_I0_O)        0.120     4.420 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_106/O
+                         net (fo=1, routed)           0.321     4.741    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_106_n_0
+    SLICE_X101Y60        LUT6 (Prop_lut6_I2_O)        0.043     4.784 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_82/O
+                         net (fo=1, routed)           0.332     5.117    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_82_n_0
+    SLICE_X101Y68        LUT5 (Prop_lut5_I2_O)        0.043     5.160 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_51/O
+                         net (fo=13, routed)          1.088     6.248    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_51_n_0
+    SLICE_X91Y102        LUT6 (Prop_lut6_I5_O)        0.043     6.291 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__3/O
+                         net (fo=123, routed)         0.918     7.209    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/i___52_i_1__4_0
+    SLICE_X102Y120       LUT6 (Prop_lut6_I2_O)        0.043     7.252 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/r_mmio_rdata[31]_i_71/O
+                         net (fo=1, routed)           0.508     7.760    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[31]_i_35_1
+    SLICE_X84Y117        LUT6 (Prop_lut6_I5_O)        0.043     7.803 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[31]_i_61/O
+                         net (fo=1, routed)           0.368     8.171    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[31]_i_61_n_0
+    SLICE_X83Y113        LUT6 (Prop_lut6_I4_O)        0.043     8.214 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[31]_i_35/O
+                         net (fo=1, routed)           0.322     8.535    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[31]_i_35_n_0
+    SLICE_X83Y112        LUT6 (Prop_lut6_I0_O)        0.043     8.578 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[31]_i_13/O
+                         net (fo=1, routed)           0.687     9.266    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]_5[18]
+    SLICE_X91Y104        LUT6 (Prop_lut6_I3_O)        0.043     9.309 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[31]_i_4/O
+                         net (fo=1, routed)           0.486     9.795    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[31]_i_4_n_0
+    SLICE_X97Y97         LUT6 (Prop_lut6_I3_O)        0.043     9.838 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[31]_i_1/O
+                         net (fo=1, routed)           0.000     9.838    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[31]_i_1_n_0
+    SLICE_X97Y97         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X97Y97         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X97Y97         FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.838    
+  -------------------------------------------------------------------
+                         slack                                  0.671    
+
+Slack (MET) :             0.717ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][0]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.020ns  (logic 1.945ns (21.564%)  route 7.075ns (78.436%))
+  Logic Levels:           19  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=4 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.751     8.655    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X62Y67         LUT4 (Prop_lut4_I0_O)        0.049     8.704 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_done_strobe[0]_i_1__0/O
+                         net (fo=22, routed)          0.385     9.089    u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count_reg[0][3]
+    SLICE_X61Y68         LUT5 (Prop_lut5_I0_O)        0.132     9.221 r  u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count[0][3]_i_1__0/O
+                         net (fo=4, routed)           0.336     9.557    u_axi_read_engine/E[0]
+    SLICE_X61Y68         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/clk
+    SLICE_X61Y68         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X61Y68         FDCE (Setup_fdce_C_CE)      -0.201    10.274    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][0]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -9.557    
+  -------------------------------------------------------------------
+                         slack                                  0.717    
+
+Slack (MET) :             0.717ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][2]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.020ns  (logic 1.945ns (21.564%)  route 7.075ns (78.436%))
+  Logic Levels:           19  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=4 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.751     8.655    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X62Y67         LUT4 (Prop_lut4_I0_O)        0.049     8.704 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_done_strobe[0]_i_1__0/O
+                         net (fo=22, routed)          0.385     9.089    u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count_reg[0][3]
+    SLICE_X61Y68         LUT5 (Prop_lut5_I0_O)        0.132     9.221 r  u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count[0][3]_i_1__0/O
+                         net (fo=4, routed)           0.336     9.557    u_axi_read_engine/E[0]
+    SLICE_X61Y68         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/clk
+    SLICE_X61Y68         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X61Y68         FDCE (Setup_fdce_C_CE)      -0.201    10.274    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][2]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -9.557    
+  -------------------------------------------------------------------
+                         slack                                  0.717    
+
+Slack (MET) :             0.717ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][3]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.020ns  (logic 1.945ns (21.564%)  route 7.075ns (78.436%))
+  Logic Levels:           19  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=4 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.751     8.655    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X62Y67         LUT4 (Prop_lut4_I0_O)        0.049     8.704 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_done_strobe[0]_i_1__0/O
+                         net (fo=22, routed)          0.385     9.089    u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count_reg[0][3]
+    SLICE_X61Y68         LUT5 (Prop_lut5_I0_O)        0.132     9.221 r  u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count[0][3]_i_1__0/O
+                         net (fo=4, routed)           0.336     9.557    u_axi_read_engine/E[0]
+    SLICE_X61Y68         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][3]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/clk
+    SLICE_X61Y68         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][3]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X61Y68         FDCE (Setup_fdce_C_CE)      -0.201    10.274    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[0][3]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -9.557    
+  -------------------------------------------------------------------
+                         slack                                  0.717    
+
+Slack (MET) :             0.719ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[23]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.252ns  (logic 2.273ns (24.567%)  route 6.979ns (75.433%))
+  Logic Levels:           11  (LUT4=1 LUT6=10)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.507     4.435    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I1_O)        0.043     4.478 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31/O
+                         net (fo=3, routed)           0.738     5.216    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31_n_0
+    SLICE_X95Y72         LUT6 (Prop_lut6_I1_O)        0.043     5.259 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50/O
+                         net (fo=12, routed)          0.863     6.122    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50_n_0
+    SLICE_X102Y92        LUT6 (Prop_lut6_I4_O)        0.043     6.165 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__6/O
+                         net (fo=123, routed)         0.964     7.130    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/i___52_i_1__0_0
+    SLICE_X118Y115       LUT6 (Prop_lut6_I2_O)        0.043     7.173 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/r_mmio_rdata[23]_i_61/O
+                         net (fo=1, routed)           0.784     7.957    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[23]_i_27_0
+    SLICE_X103Y105       LUT6 (Prop_lut6_I5_O)        0.043     8.000 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[23]_i_51/O
+                         net (fo=1, routed)           0.433     8.432    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[23]_i_51_n_0
+    SLICE_X93Y103        LUT6 (Prop_lut6_I4_O)        0.043     8.475 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[23]_i_27/O
+                         net (fo=1, routed)           0.452     8.927    u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[23]_i_27_n_0
+    SLICE_X92Y99         LUT6 (Prop_lut6_I0_O)        0.043     8.970 r  u_scheduler_group_array/g_shared.gen_schedulers[1].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[23]_i_13/O
+                         net (fo=1, routed)           0.416     9.386    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]_1[12]
+    SLICE_X97Y100        LUT6 (Prop_lut6_I3_O)        0.043     9.429 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[23]_i_4/O
+                         net (fo=1, routed)           0.318     9.746    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[23]_i_4_n_0
+    SLICE_X95Y100        LUT6 (Prop_lut6_I4_O)        0.043     9.789 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[23]_i_1/O
+                         net (fo=1, routed)           0.000     9.789    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[23]_i_1_n_0
+    SLICE_X95Y100        FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[23]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X95Y100        FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[23]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X95Y100        FDCE (Setup_fdce_C_D)        0.033    10.508    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[23]
+  -------------------------------------------------------------------
+                         required time                         10.508    
+                         arrival time                          -9.789    
+  -------------------------------------------------------------------
+                         slack                                  0.719    
+
+Slack (MET) :             0.747ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[2]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.255ns  (logic 2.273ns (24.561%)  route 6.982ns (75.439%))
+  Logic Levels:           11  (LUT4=2 LUT5=1 LUT6=8)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.391     4.318    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     4.361 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84/O
+                         net (fo=3, routed)           0.353     4.715    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84_n_0
+    SLICE_X93Y58         LUT6 (Prop_lut6_I5_O)        0.043     4.758 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53/O
+                         net (fo=13, routed)          0.885     5.642    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53_n_0
+    SLICE_X98Y72         LUT6 (Prop_lut6_I2_O)        0.043     5.685 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[2]_i_45/O
+                         net (fo=127, routed)         1.223     6.908    u_scheduler_group_array/g_shared.gen_schedulers[6].u_scheduler/u_core/r_mmio_rdata[1]_i_22
+    SLICE_X124Y86        LUT6 (Prop_lut6_I4_O)        0.043     6.951 r  u_scheduler_group_array/g_shared.gen_schedulers[6].u_scheduler/u_core/r_mmio_rdata[2]_i_55/O
+                         net (fo=1, routed)           1.019     7.970    u_scheduler_group_array/g_shared.gen_schedulers[6].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[2]_i_14_0
+    SLICE_X95Y80         LUT6 (Prop_lut6_I1_O)        0.043     8.013 f  u_scheduler_group_array/g_shared.gen_schedulers[6].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[2]_i_26/O
+                         net (fo=1, routed)           0.415     8.429    u_scheduler_group_array/g_shared.gen_schedulers[6].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[2]_i_26_n_0
+    SLICE_X89Y80         LUT6 (Prop_lut6_I5_O)        0.043     8.472 r  u_scheduler_group_array/g_shared.gen_schedulers[6].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[2]_i_14/O
+                         net (fo=1, routed)           0.345     8.817    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]_6[2]
+    SLICE_X89Y80         LUT6 (Prop_lut6_I1_O)        0.043     8.860 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[2]_i_6/O
+                         net (fo=1, routed)           0.502     9.362    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[2]_i_6_n_0
+    SLICE_X94Y73         LUT4 (Prop_lut4_I0_O)        0.043     9.405 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[2]_i_2/O
+                         net (fo=1, routed)           0.344     9.749    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[2]_i_2_n_0
+    SLICE_X94Y72         LUT5 (Prop_lut5_I1_O)        0.043     9.792 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[2]_i_1/O
+                         net (fo=1, routed)           0.000     9.792    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[2]_i_1_n_0
+    SLICE_X94Y72         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[2]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X94Y72         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X94Y72         FDCE (Setup_fdce_C_D)        0.064    10.539    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[2]
+  -------------------------------------------------------------------
+                         required time                         10.539    
+                         arrival time                          -9.792    
+  -------------------------------------------------------------------
+                         slack                                  0.747    
+
+Slack (MET) :             0.772ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[30]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.200ns  (logic 2.273ns (24.707%)  route 6.927ns (75.293%))
+  Logic Levels:           11  (LUT4=1 LUT6=10)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.507     4.435    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I1_O)        0.043     4.478 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31/O
+                         net (fo=3, routed)           0.738     5.216    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31_n_0
+    SLICE_X95Y72         LUT6 (Prop_lut6_I1_O)        0.043     5.259 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50/O
+                         net (fo=12, routed)          0.686     5.945    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50_n_0
+    SLICE_X103Y91        LUT6 (Prop_lut6_I4_O)        0.043     5.988 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__4/O
+                         net (fo=123, routed)         0.930     6.918    u_scheduler_group_array/g_shared.gen_schedulers[3].u_scheduler/u_core/i___52_i_1__2_0
+    SLICE_X131Y101       LUT6 (Prop_lut6_I2_O)        0.043     6.961 f  u_scheduler_group_array/g_shared.gen_schedulers[3].u_scheduler/u_core/i___42_i_5__2/O
+                         net (fo=1, routed)           0.598     7.559    u_scheduler_group_array/g_shared.gen_schedulers[3].u_scheduler/u_core/u_desc_skid/i___42
+    SLICE_X119Y101       LUT6 (Prop_lut6_I5_O)        0.043     7.602 f  u_scheduler_group_array/g_shared.gen_schedulers[3].u_scheduler/u_core/u_desc_skid/i___42_i_3__2/O
+                         net (fo=1, routed)           0.430     8.032    u_scheduler_group_array/g_shared.gen_schedulers[3].u_scheduler/u_core_n_671
+    SLICE_X115Y99        LUT6 (Prop_lut6_I5_O)        0.043     8.075 r  u_scheduler_group_array/g_shared.gen_schedulers[3].u_scheduler/i___42/O
+                         net (fo=1, routed)           0.425     8.500    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[30]_i_4_9
+    SLICE_X108Y99        LUT6 (Prop_lut6_I0_O)        0.043     8.543 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[30]_i_11/O
+                         net (fo=1, routed)           0.748     9.291    u_scheduler_group_array/g_shared.u_seq/g_shared.g_seq_rd_data[3]_71[30]
+    SLICE_X93Y99         LUT6 (Prop_lut6_I0_O)        0.043     9.334 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[30]_i_4/O
+                         net (fo=1, routed)           0.360     9.694    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[30]_i_4_n_0
+    SLICE_X91Y99         LUT6 (Prop_lut6_I4_O)        0.043     9.737 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[30]_i_1/O
+                         net (fo=1, routed)           0.000     9.737    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[30]_i_1_n_0
+    SLICE_X91Y99         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[30]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X91Y99         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[30]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X91Y99         FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[30]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.737    
+  -------------------------------------------------------------------
+                         slack                                  0.772    
+
+Slack (MET) :             0.772ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[16]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.200ns  (logic 2.273ns (24.708%)  route 6.927ns (75.292%))
+  Logic Levels:           11  (LUT4=1 LUT5=1 LUT6=9)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.391     4.318    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     4.361 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84/O
+                         net (fo=3, routed)           0.353     4.715    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84_n_0
+    SLICE_X93Y58         LUT6 (Prop_lut6_I5_O)        0.043     4.758 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53/O
+                         net (fo=13, routed)          1.347     6.105    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53_n_0
+    SLICE_X93Y97         LUT6 (Prop_lut6_I2_O)        0.043     6.148 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_4__3/O
+                         net (fo=127, routed)         0.872     7.020    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/i___52_i_1__4
+    SLICE_X69Y115        LUT6 (Prop_lut6_I1_O)        0.043     7.063 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/i___52_i_6__4/O
+                         net (fo=1, routed)           0.397     7.460    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/i___52_i_6__4_n_0
+    SLICE_X76Y115        LUT5 (Prop_lut5_I3_O)        0.043     7.503 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/i___52_i_2__4/O
+                         net (fo=1, routed)           0.538     8.041    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core_n_681
+    SLICE_X81Y113        LUT6 (Prop_lut6_I3_O)        0.043     8.084 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/i___52/O
+                         net (fo=1, routed)           0.493     8.578    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[16]_i_3_1
+    SLICE_X82Y110        LUT6 (Prop_lut6_I0_O)        0.043     8.621 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[16]_i_9/O
+                         net (fo=1, routed)           0.738     9.359    u_scheduler_group_array/g_shared.u_seq/g_shared.g_seq_rd_data[5]_73[16]
+    SLICE_X93Y97         LUT6 (Prop_lut6_I3_O)        0.043     9.402 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[16]_i_3/O
+                         net (fo=1, routed)           0.292     9.694    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[16]_i_3_n_0
+    SLICE_X93Y96         LUT6 (Prop_lut6_I2_O)        0.043     9.737 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[16]_i_1/O
+                         net (fo=1, routed)           0.000     9.737    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[16]_i_1_n_0
+    SLICE_X93Y96         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[16]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X93Y96         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[16]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X93Y96         FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[16]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.737    
+  -------------------------------------------------------------------
+                         slack                                  0.772    
+
+Slack (MET) :             0.786ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[0]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        8.951ns  (logic 1.893ns (21.149%)  route 7.058ns (78.851%))
+  Logic Levels:           20  (CARRY4=6 LUT2=1 LUT3=3 LUT5=3 LUT6=7)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.334     8.237    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X45Y64         LUT6 (Prop_lut6_I4_O)        0.043     8.280 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_8__1/O
+                         net (fo=1, routed)           0.453     8.733    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_8__1_n_0
+    SLICE_X46Y64         LUT6 (Prop_lut6_I1_O)        0.043     8.776 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_3__2/O
+                         net (fo=14, routed)          0.351     9.126    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_3__2_n_0
+    SLICE_X46Y62         LUT3 (Prop_lut3_I1_O)        0.043     9.169 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.grant_valid_i_1__2/O
+                         net (fo=15, routed)          0.318     9.488    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.grant_valid_i_1__2_n_0
+    SLICE_X45Y60         FDCE                                         r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/gen_multi_channel.u_arbiter/clk
+    SLICE_X45Y60         FDCE                                         r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X45Y60         FDCE (Setup_fdce_C_CE)      -0.201    10.274    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[0]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -9.488    
+  -------------------------------------------------------------------
+                         slack                                  0.786    
+
+Slack (MET) :             0.786ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[1]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        8.951ns  (logic 1.893ns (21.149%)  route 7.058ns (78.851%))
+  Logic Levels:           20  (CARRY4=6 LUT2=1 LUT3=3 LUT5=3 LUT6=7)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.334     8.237    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X45Y64         LUT6 (Prop_lut6_I4_O)        0.043     8.280 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_8__1/O
+                         net (fo=1, routed)           0.453     8.733    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_8__1_n_0
+    SLICE_X46Y64         LUT6 (Prop_lut6_I1_O)        0.043     8.776 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_3__2/O
+                         net (fo=14, routed)          0.351     9.126    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_3__2_n_0
+    SLICE_X46Y62         LUT3 (Prop_lut3_I1_O)        0.043     9.169 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.grant_valid_i_1__2/O
+                         net (fo=15, routed)          0.318     9.488    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.grant_valid_i_1__2_n_0
+    SLICE_X45Y60         FDCE                                         r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/gen_multi_channel.u_arbiter/clk
+    SLICE_X45Y60         FDCE                                         r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[1]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X45Y60         FDCE (Setup_fdce_C_CE)      -0.201    10.274    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[1]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -9.488    
+  -------------------------------------------------------------------
+                         slack                                  0.786    
+
+Slack (MET) :             0.786ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[2]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        8.951ns  (logic 1.893ns (21.149%)  route 7.058ns (78.851%))
+  Logic Levels:           20  (CARRY4=6 LUT2=1 LUT3=3 LUT5=3 LUT6=7)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.334     8.237    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X45Y64         LUT6 (Prop_lut6_I4_O)        0.043     8.280 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_8__1/O
+                         net (fo=1, routed)           0.453     8.733    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_8__1_n_0
+    SLICE_X46Y64         LUT6 (Prop_lut6_I1_O)        0.043     8.776 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_3__2/O
+                         net (fo=14, routed)          0.351     9.126    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_pending_ack_i_3__2_n_0
+    SLICE_X46Y62         LUT3 (Prop_lut3_I1_O)        0.043     9.169 r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.grant_valid_i_1__2/O
+                         net (fo=15, routed)          0.318     9.488    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.grant_valid_i_1__2_n_0
+    SLICE_X45Y60         FDCE                                         r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/gen_multi_channel.u_arbiter/clk
+    SLICE_X45Y60         FDCE                                         r  u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X45Y60         FDCE (Setup_fdce_C_CE)      -0.201    10.274    u_axi_read_engine/gen_multi_channel.u_arbiter/gen_multi_client.r_last_grant_id_reg[2]
+  -------------------------------------------------------------------
+                         required time                         10.274    
+                         arrival time                          -9.488    
+  -------------------------------------------------------------------
+                         slack                                  0.786    
+
+Slack (MET) :             0.805ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[21]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.167ns  (logic 2.273ns (24.796%)  route 6.894ns (75.204%))
+  Logic Levels:           11  (LUT4=1 LUT6=10)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.391     4.318    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     4.361 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84/O
+                         net (fo=3, routed)           0.353     4.715    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84_n_0
+    SLICE_X93Y58         LUT6 (Prop_lut6_I5_O)        0.043     4.758 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53/O
+                         net (fo=13, routed)          1.271     6.028    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53_n_0
+    SLICE_X103Y92        LUT6 (Prop_lut6_I2_O)        0.043     6.071 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_10/O
+                         net (fo=127, routed)         1.156     7.228    u_scheduler_group_array/g_shared.gen_schedulers[0].u_scheduler/u_core/i___52_i_1
+    SLICE_X122Y108       LUT6 (Prop_lut6_I4_O)        0.043     7.271 r  u_scheduler_group_array/g_shared.gen_schedulers[0].u_scheduler/u_core/i___44_i_4/O
+                         net (fo=1, routed)           0.650     7.921    u_scheduler_group_array/g_shared.gen_schedulers[0].u_scheduler/u_core/u_desc_skid/i___44_0
+    SLICE_X105Y107       LUT6 (Prop_lut6_I5_O)        0.043     7.964 r  u_scheduler_group_array/g_shared.gen_schedulers[0].u_scheduler/u_core/u_desc_skid/i___44_i_3/O
+                         net (fo=1, routed)           0.386     8.350    u_scheduler_group_array/g_shared.gen_schedulers[0].u_scheduler/u_core_n_696
+    SLICE_X100Y104       LUT6 (Prop_lut6_I5_O)        0.043     8.393 r  u_scheduler_group_array/g_shared.gen_schedulers[0].u_scheduler/i___44/O
+                         net (fo=1, routed)           0.604     8.997    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[21]_i_3
+    SLICE_X95Y96         LUT6 (Prop_lut6_I0_O)        0.043     9.040 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_mmio_rdata[21]_i_12/O
+                         net (fo=1, routed)           0.337     9.377    u_scheduler_group_array/g_shared.u_seq/g_shared.g_seq_rd_data[0]_68[21]
+    SLICE_X95Y100        LUT6 (Prop_lut6_I5_O)        0.043     9.420 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[21]_i_3/O
+                         net (fo=1, routed)           0.240     9.661    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[21]_i_3_n_0
+    SLICE_X95Y100        LUT6 (Prop_lut6_I3_O)        0.043     9.704 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[21]_i_1/O
+                         net (fo=1, routed)           0.000     9.704    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[21]_i_1_n_0
+    SLICE_X95Y100        FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[21]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X95Y100        FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[21]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X95Y100        FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[21]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.704    
+  -------------------------------------------------------------------
+                         slack                                  0.805    
+
+Slack (MET) :             0.826ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[28]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.146ns  (logic 2.273ns (24.854%)  route 6.873ns (75.146%))
+  Logic Levels:           11  (LUT4=1 LUT6=10)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.391     4.318    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     4.361 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84/O
+                         net (fo=3, routed)           0.353     4.715    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_84_n_0
+    SLICE_X93Y58         LUT6 (Prop_lut6_I5_O)        0.043     4.758 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53/O
+                         net (fo=13, routed)          1.310     6.067    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_53_n_0
+    SLICE_X93Y97         LUT6 (Prop_lut6_I2_O)        0.043     6.110 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_6__5/O
+                         net (fo=127, routed)         0.969     7.079    u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/i___52_i_1__3
+    SLICE_X103Y121       LUT6 (Prop_lut6_I4_O)        0.043     7.122 r  u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/r_mmio_rdata[28]_i_58/O
+                         net (fo=1, routed)           0.566     7.688    u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[28]_i_21_0
+    SLICE_X87Y115        LUT6 (Prop_lut6_I5_O)        0.043     7.731 r  u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[28]_i_42/O
+                         net (fo=1, routed)           0.296     8.027    u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[28]_i_42_n_0
+    SLICE_X86Y114        LUT6 (Prop_lut6_I4_O)        0.043     8.070 r  u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[28]_i_21/O
+                         net (fo=1, routed)           0.465     8.535    u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[28]_i_21_n_0
+    SLICE_X86Y109        LUT6 (Prop_lut6_I0_O)        0.043     8.578 r  u_scheduler_group_array/g_shared.gen_schedulers[4].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[28]_i_10/O
+                         net (fo=1, routed)           0.454     9.032    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]_4[17]
+    SLICE_X86Y106        LUT6 (Prop_lut6_I5_O)        0.043     9.075 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[28]_i_3/O
+                         net (fo=1, routed)           0.565     9.640    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[28]_i_3_n_0
+    SLICE_X99Y100        LUT6 (Prop_lut6_I2_O)        0.043     9.683 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[28]_i_1/O
+                         net (fo=1, routed)           0.000     9.683    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[28]_i_1_n_0
+    SLICE_X99Y100        FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[28]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X99Y100        FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[28]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X99Y100        FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[28]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.683    
+  -------------------------------------------------------------------
+                         slack                                  0.826    
+
+Slack (MET) :             0.836ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_b_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[18]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.136ns  (logic 2.676ns (29.291%)  route 6.460ns (70.709%))
+  Logic Levels:           12  (CARRY4=1 LUT4=2 LUT5=2 LUT6=7)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y23         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_b_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y23         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOADO[0])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_b_reg/DOADO[0]
+                         net (fo=10, routed)          0.549     2.886    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q2[0]
+    SLICE_X101Y57        LUT4 (Prop_lut4_I2_O)        0.043     2.929 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___9_i_2/O
+                         net (fo=66, routed)          0.300     3.229    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/x_imm_reg[0]
+    SLICE_X103Y55        LUT5 (Prop_lut5_I4_O)        0.043     3.272 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_112/O
+                         net (fo=1, routed)           0.292     3.564    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/u_alu/y_addsub1[0]
+    SLICE_X100Y52        CARRY4 (Prop_carry4_CYINIT_O[3])
+                                                      0.326     3.890 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_108/O[3]
+                         net (fo=1, routed)           0.410     4.300    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/u_alu/y_addsub[3]
+    SLICE_X101Y55        LUT4 (Prop_lut4_I0_O)        0.120     4.420 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_106/O
+                         net (fo=1, routed)           0.321     4.741    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_106_n_0
+    SLICE_X101Y60        LUT6 (Prop_lut6_I2_O)        0.043     4.784 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_82/O
+                         net (fo=1, routed)           0.332     5.117    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_82_n_0
+    SLICE_X101Y68        LUT5 (Prop_lut5_I2_O)        0.043     5.160 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_51/O
+                         net (fo=13, routed)          1.088     6.248    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_51_n_0
+    SLICE_X91Y102        LUT6 (Prop_lut6_I5_O)        0.043     6.291 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__3/O
+                         net (fo=123, routed)         0.836     7.126    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/i___52_i_1__4_0
+    SLICE_X103Y118       LUT6 (Prop_lut6_I2_O)        0.043     7.169 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/r_mmio_rdata[18]_i_50/O
+                         net (fo=1, routed)           0.709     7.878    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[18]_i_11_1
+    SLICE_X85Y114        LUT6 (Prop_lut6_I2_O)        0.043     7.921 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[18]_i_27/O
+                         net (fo=1, routed)           0.574     8.495    u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[18]_i_27_n_0
+    SLICE_X85Y110        LUT6 (Prop_lut6_I0_O)        0.043     8.538 r  u_scheduler_group_array/g_shared.gen_schedulers[5].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[18]_i_11/O
+                         net (fo=1, routed)           0.538     9.076    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]_5[10]
+    SLICE_X92Y105        LUT6 (Prop_lut6_I3_O)        0.043     9.119 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[18]_i_3/O
+                         net (fo=1, routed)           0.511     9.630    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[18]_i_3_n_0
+    SLICE_X92Y94         LUT6 (Prop_lut6_I3_O)        0.043     9.673 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[18]_i_1/O
+                         net (fo=1, routed)           0.000     9.673    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[18]_i_1_n_0
+    SLICE_X92Y94         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[18]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X92Y94         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[18]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X92Y94         FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[18]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.673    
+  -------------------------------------------------------------------
+                         slack                                  0.836    
+
+Slack (MET) :             0.852ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+                            (rising edge-triggered cell RAMB18E1 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[12]/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.120ns  (logic 2.230ns (24.453%)  route 6.890ns (75.547%))
+  Logic Levels:           10  (LUT4=1 LUT6=9)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/clk
+    RAMB18_X3Y22         RAMB18E1                                     r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/CLKARDCLK
+  -------------------------------------------------------------------    -------------------
+    RAMB18_X3Y22         RAMB18E1 (Prop_ramb18e1_CLKARDCLK_DOBDO[14])
+                                                      1.800     2.337 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/regs_a_reg/DOBDO[14]
+                         net (fo=7, routed)           0.843     3.180    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/q1[30]
+    SLICE_X90Y55         LUT4 (Prop_lut4_I2_O)        0.043     3.223 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___18_i_1__7/O
+                         net (fo=18, routed)          0.661     3.884    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/DI[0]
+    SLICE_X94Y56         LUT6 (Prop_lut6_I0_O)        0.043     3.927 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28/O
+                         net (fo=6, routed)           0.507     4.435    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_28_n_0
+    SLICE_X94Y56         LUT6 (Prop_lut6_I1_O)        0.043     4.478 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31/O
+                         net (fo=3, routed)           0.738     5.216    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_31_n_0
+    SLICE_X95Y72         LUT6 (Prop_lut6_I1_O)        0.043     5.259 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50/O
+                         net (fo=12, routed)          0.673     5.932    u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/r_scratch_reg_i_50_n_0
+    SLICE_X103Y85        LUT6 (Prop_lut6_I4_O)        0.043     5.975 r  u_scheduler_group_array/g_shared.u_seq/u_gatling/u_regfile/i___12_i_5__5/O
+                         net (fo=123, routed)         1.088     7.063    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/i___52_i_1__1_0
+    SLICE_X133Y90        LUT6 (Prop_lut6_I2_O)        0.043     7.106 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_mmio_rdata[12]_i_47/O
+                         net (fo=1, routed)           0.916     8.022    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[12]_i_12_1
+    SLICE_X119Y90        LUT6 (Prop_lut6_I2_O)        0.043     8.065 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[12]_i_25/O
+                         net (fo=1, routed)           0.336     8.401    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[12]_i_25_n_0
+    SLICE_X117Y90        LUT6 (Prop_lut6_I0_O)        0.043     8.444 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/u_desc_skid/r_mmio_rdata[12]_i_12/O
+                         net (fo=1, routed)           0.743     9.187    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[31]_2[7]
+    SLICE_X99Y91         LUT6 (Prop_lut6_I1_O)        0.043     9.230 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[12]_i_4/O
+                         net (fo=1, routed)           0.384     9.614    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[12]_i_4_n_0
+    SLICE_X92Y94         LUT6 (Prop_lut6_I4_O)        0.043     9.657 r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[12]_i_1/O
+                         net (fo=1, routed)           0.000     9.657    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata[12]_i_1_n_0
+    SLICE_X92Y94         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[12]/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_seq/clk
+    SLICE_X92Y94         FDCE                                         r  u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[12]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X92Y94         FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_seq/r_mmio_rdata_reg[12]
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                          -9.657    
+  -------------------------------------------------------------------
+                         slack                                  0.852    
+
+Slack (MET) :             0.854ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][0]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        8.906ns  (logic 1.953ns (21.928%)  route 6.953ns (78.072%))
+  Logic Levels:           19  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=4 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.658     8.562    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X62Y67         LUT4 (Prop_lut4_I2_O)        0.051     8.613 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_done_strobe[4]_i_1__0/O
+                         net (fo=22, routed)          0.391     9.004    u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count_reg[4][3]
+    SLICE_X57Y66         LUT5 (Prop_lut5_I4_O)        0.138     9.142 r  u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count[4][3]_i_1__0/O
+                         net (fo=4, routed)           0.301     9.443    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][3]_1[0]
+    SLICE_X56Y66         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][0]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/clk
+    SLICE_X56Y66         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][0]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X56Y66         FDCE (Setup_fdce_C_CE)      -0.178    10.297    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][0]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -9.443    
+  -------------------------------------------------------------------
+                         slack                                  0.854    
+
+Slack (MET) :             0.854ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][1]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        8.906ns  (logic 1.953ns (21.928%)  route 6.953ns (78.072%))
+  Logic Levels:           19  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=4 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.658     8.562    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X62Y67         LUT4 (Prop_lut4_I2_O)        0.051     8.613 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_done_strobe[4]_i_1__0/O
+                         net (fo=22, routed)          0.391     9.004    u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count_reg[4][3]
+    SLICE_X57Y66         LUT5 (Prop_lut5_I4_O)        0.138     9.142 r  u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count[4][3]_i_1__0/O
+                         net (fo=4, routed)           0.301     9.443    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][3]_1[0]
+    SLICE_X56Y66         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][1]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/clk
+    SLICE_X56Y66         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][1]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X56Y66         FDCE (Setup_fdce_C_CE)      -0.178    10.297    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][1]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -9.443    
+  -------------------------------------------------------------------
+                         slack                                  0.854    
+
+Slack (MET) :             0.854ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][2]/CE
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        8.906ns  (logic 1.953ns (21.928%)  route 6.953ns (78.072%))
+  Logic Levels:           19  (CARRY4=6 LUT2=1 LUT3=2 LUT4=1 LUT5=4 LUT6=5)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=29977, unset)        0.537     0.537    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/clk
+    SLICE_X118Y75        FDCE                                         r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y75        FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_is_ext_reg/Q
+                         net (fo=110, routed)         0.576     1.372    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/w_desc_is_ext
+    SLICE_X117Y76        LUT3 (Prop_lut3_I1_O)        0.054     1.426 f  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/obs_data0[3]_INST_0_i_14/O
+                         net (fo=7, routed)           0.569     1.995    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/sched_rd_beats[2]__0[3]
+    SLICE_X115Y75        LUT6 (Prop_lut6_I0_O)        0.137     2.132 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83/O
+                         net (fo=1, routed)           0.187     2.319    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1[0][0]_i_83_n_0
+    SLICE_X113Y75        CARRY4 (Prop_carry4_DI[1]_CO[3])
+                                                      0.250     2.569 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58/CO[3]
+                         net (fo=1, routed)           0.000     2.569    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_58_n_0
+    SLICE_X113Y76        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.622 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38/CO[3]
+                         net (fo=1, routed)           0.000     2.622    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_38_n_0
+    SLICE_X113Y77        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.675 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18/CO[3]
+                         net (fo=1, routed)           0.000     2.675    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_18_n_0
+    SLICE_X113Y78        CARRY4 (Prop_carry4_CI_CO[3])
+                                                      0.053     2.728 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9/CO[3]
+                         net (fo=13, routed)          0.843     3.570    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_alloc_tminus1_reg[0][0]_i_9_n_0
+    SLICE_X96Y77         LUT5 (Prop_lut5_I3_O)        0.043     3.613 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/g_skid.g_slot[0].r_data[0][26]_i_6/O
+                         net (fo=4, routed)           0.343     3.956    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats_2_sn_1
+    SLICE_X96Y75         LUT6 (Prop_lut6_I5_O)        0.043     3.999 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31/O
+                         net (fo=1, routed)           0.236     4.235    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_31_n_0
+    SLICE_X96Y75         LUT2 (Prop_lut2_I0_O)        0.043     4.278 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_19__0/O
+                         net (fo=3, routed)           0.293     4.571    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/cfg_axi_rd_xfer_beats[1]_0
+    SLICE_X91Y75         LUT6 (Prop_lut6_I0_O)        0.043     4.614 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0/O
+                         net (fo=2, routed)           0.437     5.051    u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_26__0_n_0
+    SLICE_X89Y75         LUT5 (Prop_lut5_I0_O)        0.051     5.102 r  u_scheduler_group_array/g_shared.gen_schedulers[2].u_scheduler/u_core/r_arb_request[2]_i_18__0/O
+                         net (fo=2, routed)           0.283     5.384    u_sram_controller/r_arb_request_reg[2]_i_3_8
+    SLICE_X88Y73         LUT6 (Prop_lut6_I3_O)        0.136     5.520 r  u_sram_controller/r_arb_request[2]_i_6__0/O
+                         net (fo=1, routed)           0.301     5.822    u_sram_controller/r_arb_request[2]_i_6__0_n_0
+    SLICE_X89Y73         CARRY4 (Prop_carry4_DI[3]_CO[3])
+                                                      0.190     6.012 r  u_sram_controller/r_arb_request_reg[2]_i_3/CO[3]
+                         net (fo=1, routed)           0.000     6.012    u_sram_controller/r_arb_request_reg[2]_i_3_n_0
+    SLICE_X89Y74         CARRY4 (Prop_carry4_CI_CO[0])
+                                                      0.139     6.151 r  u_sram_controller/r_arb_request_reg[2]_i_2/CO[0]
+                         net (fo=2, routed)           0.628     6.778    u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_4_1[0]
+    SLICE_X63Y67         LUT3 (Prop_lut3_I1_O)        0.131     6.909 f  u_axi_read_engine/cfg_sts_rdeng_skid_busy_INST_0_i_7/O
+                         net (fo=2, routed)           0.719     7.628    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_id_reg[0]_1
+    SLICE_X49Y66         LUT6 (Prop_lut6_I1_O)        0.043     7.671 f  u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4/O
+                         net (fo=2, routed)           0.189     7.860    u_axi_read_engine/gen_multi_channel.u_arbiter/cfg_sts_rdeng_skid_busy_INST_0_i_4_n_0
+    SLICE_X48Y65         LUT5 (Prop_lut5_I4_O)        0.043     7.903 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req_i_1/O
+                         net (fo=26, routed)          0.658     8.562    u_axi_read_engine/gen_multi_channel.u_arbiter/r_alloc_req0
+    SLICE_X62Y67         LUT4 (Prop_lut4_I2_O)        0.051     8.613 r  u_axi_read_engine/gen_multi_channel.u_arbiter/r_done_strobe[4]_i_1__0/O
+                         net (fo=22, routed)          0.391     9.004    u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count_reg[4][3]
+    SLICE_X57Y66         LUT5 (Prop_lut5_I4_O)        0.138     9.142 r  u_rd_axi_skid/u_core/r_channel/gen_pipeline_tracking.r_outstanding_count[4][3]_i_1__0/O
+                         net (fo=4, routed)           0.301     9.443    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][3]_1[0]
+    SLICE_X56Y66         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][2]/CE
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=29977, unset)        0.510    10.510    u_axi_read_engine/clk
+    SLICE_X56Y66         FDCE                                         r  u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][2]/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X56Y66         FDCE (Setup_fdce_C_CE)      -0.178    10.297    u_axi_read_engine/gen_pipeline_tracking.r_outstanding_count_reg[4][2]
+  -------------------------------------------------------------------
+                         required time                         10.297    
+                         arrival time                          -9.443    
+  -------------------------------------------------------------------
+                         slack                                  0.854    
+
+
+
+

@@ -1,0 +1,250 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sat Oct 24 16:47:27 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/reports/ooc/stream_core_8ch/10.0ns/utilization_hier.txt
+| Design       : stream_core
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++--------------------------------------------+-----------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+|                  Instance                  |                  Module                 | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs  | RAMB36 | RAMB18 | DSP Blocks |
++--------------------------------------------+-----------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+| stream_core                                |                                   (top) |      32025 |      28809 |    3216 |    0 | 24532 |     16 |      0 |         64 |
+|   (stream_core)                            |                                   (top) |          2 |          2 |       0 |    0 |   137 |      0 |      0 |          0 |
+|   u_axi_read_engine                        |                         axi_read_engine |        362 |        362 |       0 |    0 |   312 |      0 |      0 |          0 |
+|     (u_axi_read_engine)                    |                         axi_read_engine |        224 |        224 |       0 |    0 |   292 |      0 |      0 |          0 |
+|     gen_multi_channel.u_arbiter            | arbiter_round_robin__parameterized1_331 |        138 |        138 |       0 |    0 |    20 |      0 |      0 |          0 |
+|   u_axi_write_engine                       |                        axi_write_engine |        921 |        841 |      80 |    0 |   712 |      0 |      0 |          0 |
+|     (u_axi_write_engine)                   |                        axi_write_engine |        341 |        341 |       0 |    0 |   580 |      0 |      0 |          0 |
+|     gen_multi_channel.u_arbiter            |     arbiter_round_robin__parameterized1 |        194 |        194 |       0 |    0 |    20 |      0 |      0 |          0 |
+|     u_w_phase_txn_fifo                     |          gaxi_fifo_sync__parameterized3 |         56 |         40 |      16 |    0 |    16 |      0 |      0 |          0 |
+|   u_perf_profiler                          |                           perf_profiler |        517 |        325 |     192 |    0 |   316 |      0 |      0 |          0 |
+|     (u_perf_profiler)                      |                           perf_profiler |        140 |        140 |       0 |    0 |   296 |      0 |      0 |          0 |
+|     u_perf_fifo                            |          gaxi_fifo_sync__parameterized6 |        377 |        185 |     192 |    0 |    20 |      0 |      0 |          0 |
+|       (u_perf_fifo)                        |          gaxi_fifo_sync__parameterized6 |        242 |         50 |     192 |    0 |     0 |      0 |      0 |          0 |
+|       read_pointer_inst                    |         counter_bin__parameterized3_295 |         96 |         96 |       0 |    0 |     9 |      0 |      0 |          0 |
+|   u_rd_axi_skid                            |  axi4_master_rd_monlite__parameterized0 |        641 |        641 |       0 |    0 |   636 |      0 |      0 |          0 |
+|     u_core                                 |          axi4_master_rd__parameterized0 |        641 |        641 |       0 |    0 |   636 |      0 |      0 |          0 |
+|       ar_channel                           |    gaxi_skid_buffer__parameterized3_294 |        101 |        101 |       0 |    0 |    94 |      0 |      0 |          0 |
+|       r_channel                            |        gaxi_skid_buffer__parameterized4 |        540 |        540 |       0 |    0 |   542 |      0 |      0 |          0 |
+|   u_rd_bus_meter                           |                           axi_bus_meter |        379 |        379 |       0 |    0 |   403 |      0 |      0 |          0 |
+|     (u_rd_bus_meter)                       |                           axi_bus_meter |        379 |        379 |       0 |    0 |   400 |      0 |      0 |          0 |
+|   u_scheduler_group_array                  |                   scheduler_group_array |      25102 |      22846 |    2256 |    0 | 19643 |      0 |      0 |         64 |
+|     g_shared.gen_schedulers[0].u_scheduler |                               scheduler |       2349 |       2305 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_281 |       1833 |       1833 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_281 |       1046 |       1046 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_282 |        791 |        791 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_279 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_279 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_289 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_280 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_280 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_284 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[1].u_scheduler |               scheduler__parameterized0 |       2412 |       2368 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_267 |       1895 |       1895 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_267 |       1016 |       1016 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_268 |        884 |        884 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_265 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_265 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_275 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_266 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_266 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_270 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[2].u_scheduler |               scheduler__parameterized1 |       2324 |       2280 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_253 |       1807 |       1807 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_253 |       1017 |       1017 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_254 |        795 |        795 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_251 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_251 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_261 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_252 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_252 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_256 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[3].u_scheduler |               scheduler__parameterized2 |       2567 |       2523 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_239 |       2044 |       2044 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_239 |       1253 |       1253 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_240 |        795 |        795 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_237 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_237 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_247 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_238 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_238 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_242 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[4].u_scheduler |               scheduler__parameterized3 |       2306 |       2262 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_225 |       1790 |       1790 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_225 |       1001 |       1001 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_226 |        793 |        793 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_223 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_223 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_233 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_224 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_224 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_228 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[5].u_scheduler |               scheduler__parameterized4 |       2343 |       2299 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_211 |       1827 |       1827 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_211 |       1038 |       1038 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_212 |        793 |        793 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_209 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_209 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_219 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_210 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_210 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_214 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[6].u_scheduler |               scheduler__parameterized5 |       2320 |       2276 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                      scheduler_core_197 |       1804 |       1804 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                      scheduler_core_197 |       1015 |       1015 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                    gaxi_skid_buffer_198 |        793 |        793 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                 stream_run_addr_gen_195 |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                 stream_run_addr_gen_195 |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_205 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_196 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_196 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_200 |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.gen_schedulers[7].u_scheduler |               scheduler__parameterized6 |       2564 |       2520 |      44 |    0 |  2096 |      0 |      0 |          8 |
+|       u_core                               |                          scheduler_core |       2041 |       2041 |       0 |    0 |  1278 |      0 |      0 |          0 |
+|         (u_core)                           |                          scheduler_core |       1251 |       1251 |       0 |    0 |   620 |      0 |      0 |          0 |
+|         u_desc_skid                        |                        gaxi_skid_buffer |        794 |        794 |       0 |    0 |   658 |      0 |      0 |          0 |
+|       g_addrgen.u_rd_addr_gen              |                     stream_run_addr_gen |        274 |        252 |      22 |    0 |   422 |      0 |      0 |          4 |
+|         (g_addrgen.u_rd_addr_gen)          |                     stream_run_addr_gen |        109 |        109 |       0 |    0 |   280 |      0 |      0 |          0 |
+|         u_addr_gen                         |                     dma_address_gen_191 |        124 |        124 |       0 |    0 |   130 |      0 |      0 |          4 |
+|       g_addrgen.u_wr_addr_gen              |                 stream_run_addr_gen_187 |        258 |        236 |      22 |    0 |   389 |      0 |      0 |          4 |
+|         (g_addrgen.u_wr_addr_gen)          |                 stream_run_addr_gen_187 |         96 |         96 |       0 |    0 |   247 |      0 |      0 |          0 |
+|         u_addr_gen                         |                         dma_address_gen |        120 |        120 |       0 |    0 |   130 |      0 |      0 |          4 |
+|     g_shared.u_desc_engine                 |                descriptor_engine_shared |       4927 |       3023 |    1904 |    0 |  1821 |      0 |      0 |          0 |
+|       (g_shared.u_desc_engine)             |                descriptor_engine_shared |        717 |        717 |       0 |    0 |  1661 |      0 |      0 |          0 |
+|       g_ch[0].g_ext.u_ext_fifo             |                          gaxi_fifo_sync |        145 |         17 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[0].g_ext.u_ext_fifo)         |                          gaxi_fifo_sync |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[0].u_desc_fifo                  |          gaxi_fifo_sync__parameterized0 |        309 |        199 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[0].u_desc_fifo)              |          gaxi_fifo_sync__parameterized0 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_181 |        170 |        170 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       g_ch[1].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_127 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[1].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_127 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[1].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_128 |        305 |        195 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[1].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_128 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_175 |        170 |        170 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       g_ch[2].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_129 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[2].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_129 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[2].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_130 |        300 |        190 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[2].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_130 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_169 |        171 |        171 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       g_ch[3].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_131 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[3].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_131 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[3].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_132 |        313 |        203 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[3].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_132 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_163 |        183 |        183 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       g_ch[4].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_133 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[4].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_133 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[4].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_134 |        416 |        306 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[4].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_134 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_157 |        169 |        169 |       0 |    0 |     2 |      0 |      0 |          0 |
+|         write_pointer_inst                 |                         counter_bin_159 |        131 |        131 |       0 |    0 |     4 |      0 |      0 |          0 |
+|       g_ch[5].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_135 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[5].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_135 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[5].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_136 |        303 |        193 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[5].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_136 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_151 |        171 |        171 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       g_ch[6].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_137 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[6].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_137 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[6].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_138 |        301 |        191 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[6].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_138 |        110 |          0 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |        fifo_control__parameterized0_145 |        170 |        170 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       g_ch[7].g_ext.u_ext_fifo             |                      gaxi_fifo_sync_139 |        146 |         18 |     128 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[7].g_ext.u_ext_fifo)         |                      gaxi_fifo_sync_139 |        128 |          0 |     128 |    0 |     0 |      0 |      0 |          0 |
+|       g_ch[7].u_desc_fifo                  |      gaxi_fifo_sync__parameterized0_140 |        816 |        706 |     110 |    0 |    10 |      0 |      0 |          0 |
+|         (g_ch[7].u_desc_fifo)              |      gaxi_fifo_sync__parameterized0_140 |        599 |        489 |     110 |    0 |     0 |      0 |      0 |          0 |
+|         fifo_control_inst                  |            fifo_control__parameterized0 |        193 |        193 |       0 |    0 |     2 |      0 |      0 |          0 |
+|     u_desc_axi_monitor                     |                  axi4_master_rd_monlite |        914 |        914 |       0 |    0 |   973 |      0 |      0 |          0 |
+|       u_core                               |                          axi4_master_rd |        914 |        914 |       0 |    0 |   973 |      0 |      0 |          0 |
+|         ar_channel                         |        gaxi_skid_buffer__parameterized0 |         47 |         47 |       0 |    0 |    78 |      0 |      0 |          0 |
+|         r_channel                          |        gaxi_skid_buffer__parameterized1 |        867 |        867 |       0 |    0 |   895 |      0 |      0 |          0 |
+|     u_monbus_aggregator                    |                          monbus_arbiter |        100 |        100 |       0 |    0 |    81 |      0 |      0 |          0 |
+|       u_arbiter                            |                     arbiter_round_robin |         58 |         58 |       0 |    0 |    25 |      0 |      0 |          0 |
+|   u_sram_controller                        |                         sram_controller |       3098 |       2410 |     688 |    0 |  1016 |     16 |      0 |          0 |
+|     (u_sram_controller)                    |                         sram_controller |        367 |        367 |       0 |    0 |   152 |      0 |      0 |          0 |
+|     gen_channel_units[0].u_channel_unit    |                    sram_controller_unit |        294 |        208 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |               stream_latency_bridge_105 |        101 |         15 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |      gaxi_fifo_sync__parameterized5_106 |        101 |         15 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |      gaxi_fifo_sync__parameterized5_106 |         86 |          0 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                   stream_alloc_ctrl_102 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |      gaxi_fifo_sync__parameterized4_103 |         99 |         99 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |      gaxi_fifo_sync__parameterized4_103 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|     gen_channel_units[1].u_channel_unit    |                  sram_controller_unit_1 |        301 |        215 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                stream_latency_bridge_90 |        101 |         15 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |       gaxi_fifo_sync__parameterized5_91 |        101 |         15 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |       gaxi_fifo_sync__parameterized5_91 |         86 |          0 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                    stream_alloc_ctrl_87 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |       gaxi_fifo_sync__parameterized4_88 |         99 |         99 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |       gaxi_fifo_sync__parameterized4_88 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|       u_drain_ctrl                         |                    stream_drain_ctrl_89 |         50 |         50 |       0 |    0 |    31 |      0 |      0 |          0 |
+|     gen_channel_units[2].u_channel_unit    |                  sram_controller_unit_2 |        301 |        215 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                stream_latency_bridge_75 |        101 |         15 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |       gaxi_fifo_sync__parameterized5_76 |        101 |         15 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |       gaxi_fifo_sync__parameterized5_76 |         86 |          0 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                    stream_alloc_ctrl_72 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |       gaxi_fifo_sync__parameterized4_73 |         99 |         99 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |       gaxi_fifo_sync__parameterized4_73 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|       u_drain_ctrl                         |                    stream_drain_ctrl_74 |         50 |         50 |       0 |    0 |    31 |      0 |      0 |          0 |
+|     gen_channel_units[3].u_channel_unit    |                  sram_controller_unit_3 |        430 |        344 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                stream_latency_bridge_60 |        230 |        144 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |       gaxi_fifo_sync__parameterized5_61 |        230 |        144 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |       gaxi_fifo_sync__parameterized5_61 |        214 |        128 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                    stream_alloc_ctrl_57 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |       gaxi_fifo_sync__parameterized4_58 |        100 |        100 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |       gaxi_fifo_sync__parameterized4_58 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|     gen_channel_units[4].u_channel_unit    |                  sram_controller_unit_4 |        301 |        215 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                stream_latency_bridge_45 |        101 |         15 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |       gaxi_fifo_sync__parameterized5_46 |        101 |         15 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |       gaxi_fifo_sync__parameterized5_46 |         86 |          0 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                    stream_alloc_ctrl_42 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |       gaxi_fifo_sync__parameterized4_43 |         99 |         99 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |       gaxi_fifo_sync__parameterized4_43 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|       u_drain_ctrl                         |                    stream_drain_ctrl_44 |         50 |         50 |       0 |    0 |    31 |      0 |      0 |          0 |
+|     gen_channel_units[5].u_channel_unit    |                  sram_controller_unit_5 |        301 |        215 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                stream_latency_bridge_30 |        101 |         15 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |       gaxi_fifo_sync__parameterized5_31 |        101 |         15 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |       gaxi_fifo_sync__parameterized5_31 |         86 |          0 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                    stream_alloc_ctrl_27 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |       gaxi_fifo_sync__parameterized4_28 |         99 |         99 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |       gaxi_fifo_sync__parameterized4_28 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|       u_drain_ctrl                         |                    stream_drain_ctrl_29 |         50 |         50 |       0 |    0 |    31 |      0 |      0 |          0 |
+|     gen_channel_units[6].u_channel_unit    |                  sram_controller_unit_6 |        302 |        216 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                stream_latency_bridge_15 |        101 |         15 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |       gaxi_fifo_sync__parameterized5_16 |        101 |         15 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |       gaxi_fifo_sync__parameterized5_16 |         86 |          0 |      86 |    0 |     0 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                    stream_alloc_ctrl_12 |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |       gaxi_fifo_sync__parameterized4_13 |        100 |        100 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |       gaxi_fifo_sync__parameterized4_13 |         65 |         65 |       0 |    0 |     1 |      2 |      0 |          0 |
+|       u_drain_ctrl                         |                    stream_drain_ctrl_14 |         50 |         50 |       0 |    0 |    31 |      0 |      0 |          0 |
+|     gen_channel_units[7].u_channel_unit    |                  sram_controller_unit_7 |        501 |        415 |      86 |    0 |   108 |      2 |      0 |          0 |
+|       u_latency_bridge                     |                   stream_latency_bridge |        298 |        212 |      86 |    0 |     9 |      0 |      0 |          0 |
+|         u_skid_buffer                      |          gaxi_fifo_sync__parameterized5 |        298 |        212 |      86 |    0 |     8 |      0 |      0 |          0 |
+|           (u_skid_buffer)                  |          gaxi_fifo_sync__parameterized5 |        214 |        128 |      86 |    0 |     0 |      0 |      0 |          0 |
+|           fifo_control_inst                |                            fifo_control |         73 |         73 |       0 |    0 |     2 |      0 |      0 |          0 |
+|       u_alloc_ctrl                         |                       stream_alloc_ctrl |         51 |         51 |       0 |    0 |    38 |      0 |      0 |          0 |
+|       u_channel_fifo                       |          gaxi_fifo_sync__parameterized4 |        102 |        102 |       0 |    0 |    21 |      2 |      0 |          0 |
+|         (u_channel_fifo)                   |          gaxi_fifo_sync__parameterized4 |         64 |         64 |       0 |    0 |     1 |      2 |      0 |          0 |
+|       u_drain_ctrl                         |                       stream_drain_ctrl |         50 |         50 |       0 |    0 |    31 |      0 |      0 |          0 |
+|   u_wr_axi_skid                            |                  axi4_master_wr_monlite |        578 |        578 |       0 |    0 |   648 |      0 |      0 |          0 |
+|     u_core                                 |                          axi4_master_wr |        578 |        578 |       0 |    0 |   648 |      0 |      0 |          0 |
+|       aw_channel                           |        gaxi_skid_buffer__parameterized3 |        100 |        100 |       0 |    0 |    94 |      0 |      0 |          0 |
+|       b_channel                            |        gaxi_skid_buffer__parameterized6 |         55 |         55 |       0 |    0 |    16 |      0 |      0 |          0 |
+|       w_channel                            |        gaxi_skid_buffer__parameterized5 |        423 |        423 |       0 |    0 |   538 |      0 |      0 |          0 |
+|   u_wr_bus_meter                           |                         axi_bus_meter_0 |        606 |        606 |       0 |    0 |   675 |      0 |      0 |          0 |
+|     (u_wr_bus_meter)                       |                         axi_bus_meter_0 |        606 |        606 |       0 |    0 |   672 |      0 |      0 |          0 |
++--------------------------------------------+-----------------------------------------+------------+------------+---------+------+-------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

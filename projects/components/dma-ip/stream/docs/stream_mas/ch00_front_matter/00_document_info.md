@@ -136,6 +136,7 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.100 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.101 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.102 | 2026-10-24 | seang | `04_scheduler.md`: the scheduler split into the FSM wrapper and `scheduler_core` (stream TASK-020 phase 1, toward stream-g), with the core's sequencing port (Table 2.4.1); bit-exact with the one-module scheduler. |
+| 0.104 | 2026-10-25 | seang | `16_monbus_axil_group.md` retargeted to `monbus_axil4_group_1wr` (stream TASK-019): the AXI-Lite error-FIFO read port (`s_axil_err_*`) is gone; `ERR_SELECT` packets are written to the `MON_GROUP_ERR_*` window, `stream_irq` pulses per record and `MON_ERR_REC_COUNT` counts them. Chapters 1, 3, 4 and 5 and the index follow. |
 | 0.103 | 2026-10-24 | seang | New Chapter 7, stream-g (stream TASK-020): STREAM's schedulers sequenced by gatling firmware -- what is reused from rapids-g, `scheduler_g` on STREAM (the window, the prefetch, the commit wait), the generated tree and the board build, the suites and results; stream BUG-022. |
 
 : STREAM MAS Document Revision History

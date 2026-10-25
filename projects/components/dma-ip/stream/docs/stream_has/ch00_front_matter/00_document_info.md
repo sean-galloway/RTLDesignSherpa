@@ -95,6 +95,7 @@ This Hardware Architecture Specification (HAS) provides a high-level architectur
 | 0.97 | 2026-10-17 | seang | Measured Genesys 2 board builds with `SHARED_ENGINES` 0 and 1: post-route utilization and timing in `ch05_performance/03_resources.md` (STREAM 30,781 -> 29,247 LUTs, 23,079 -> 20,654 flip-flops; BRAM and DSP unchanged), and the 40-configuration board sweep of both in `ch05_performance/01_throughput.md` (40 of 40 on both, line rate on both, the shared build one cycle sooner per run). |
 | 0.98 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.99 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
+| 0.101 | 2026-10-25 | seang | Monitor egress is `monbus_axil4_group_1wr` (stream TASK-019): no `s_axil_err` read port; error records land in the `MON_GROUP_ERR_*` window and `stream_irq` pulses per record. Chapters 2 and 3 and their figures follow. |
 | 0.100 | 2026-10-24 | seang | Chapter 5.4, Choosing STREAM or stream-g (stream TASK-020): the selection guide, the Genesys 2 point profiles (single descriptors, chains, the size sweeps with every channel and one channel busy), the bytes per descriptor at which stream-g is within 10 %, 5 % and 1 % of STREAM, the schedulers-alone bench and the two builds' area and timing. |
 
 : Document Revision History

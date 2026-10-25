@@ -47,9 +47,6 @@ $REPO_ROOT/projects/fpga-systems/Genesys2/dma-ip/stream/rtl/bridges/generated/br
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
-# Rate-matching buffers on upsized paths into shared slaves (bridge W2)
--f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f
-
 # Transaction-ID remap tables in the master adapters (bridge_id_remap)
 -f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f
 

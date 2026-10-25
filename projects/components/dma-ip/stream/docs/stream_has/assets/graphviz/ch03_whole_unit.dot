@@ -19,11 +19,11 @@ digraph stream_whole_unit {
     sga   [label="Scheduler Group Array - scheduler_group_array\nNUM_CHANNELS (8 or 16) x scheduler\n(read and write run concurrently per descriptor)", group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     wr    [label="AXI Write Engine\naxi_write_engine (round-robin\nover channels; data-aware)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     arb   [label="Shared Descriptor Engine\ndescriptor_engine_shared (round-robin\npick, ARID = channel; SHARED_ENGINES=1)", width=3.4, fillcolor="#BFD7EE", group=A, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
-    mon   [label="Observers + MonBus (sideband)\ndesc / rd / wr monitor-lites (USE_AXI_MONITORS),\nbus meters, latency histograms, monbus_arbiter ->\nmonbus_axil4_axil4_group", style="filled,dashed", group=M, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    mon   [label="Observers + MonBus (sideband)\ndesc / rd / wr monitor-lites (USE_AXI_MONITORS),\nbus meters, latency histograms, monbus_arbiter ->\nmonbus_axil4_group_1wr", style="filled,dashed", group=M, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     rd    [label="AXI Read Engine\naxi_read_engine (round-robin\nover channels; space-aware)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     perf  [label="Performance Profiler (sideband)\nperf_profiler: per-channel active\ntimestamps / elapsed times, read\nback through the registers", style="filled,dashed", group=R, peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    mem [label="System Memory / AXI interconnect\nm_axi_desc (AR / R, 256-bit)  |  m_axi_wr (AW, W / B)  |  m_axi_rd (AR / R)  |  m_axil_mon, s_axil_err, stream_irq",
+    mem [label="System Memory / AXI interconnect\nm_axi_desc (AR / R, 256-bit)  |  m_axi_wr (AW, W / B)  |  m_axi_rd (AR / R)  |  m_axil_mon, stream_irq",
          fillcolor="white", width=15.0, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     s_apb -> regs [label="register R/W"];

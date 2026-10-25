@@ -60,7 +60,7 @@ only make sense on that bitstream:
 | Build | Programs |
 |-------|----------|
 | `perf` | `host_characterize`, `host_bus_meters`, `host_desc_perf`, `host_rw_perf`, `host_ext_char`, `host_ext_soak`, `host_probe_multichannel`, `host_verify_descriptors`, `host_status`, `host_perf_json_to_csv` |
-| `mon` | `host_mon_coverage`, `host_mon_compress`, `host_mon_matrix`, `host_mon_err_probe`, `host_mon_fault_probe`, `host_reg_walk` |
+| `mon` | `host_mon_coverage`, `host_mon_compress`, `host_mon_err_window`, `host_mon_matrix`, `host_mon_err_probe`, `host_mon_fault_probe`, `host_reg_walk` |
 | `obs` | `host_obs_campaign`, `host_obs_matrix`, `host_reg_walk` |
 
 : Table 4.2: Per-build host programs

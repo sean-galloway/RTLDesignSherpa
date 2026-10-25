@@ -138,9 +138,20 @@ flops (HAS 5.1 / 5.3). On the mixed-width 4x4, which loses 0.39 of
 capacity under the same traffic, the same queue changed nothing at full
 sweep length, and a four-times-deeper one measured the same -- the short
 GATE sweep had shown a gain that was only the queues absorbing a
-transient. That loss is another stage (bridge TASK-022), and it is the
+transient. That loss was another stage (bridge TASK-022), and it is the
 other half of the lesson: a queue that measures no gain at steady state
-is not too shallow; the block is somewhere else in the stream. It is a TOML key with a minimal default of 0, not a fixture
+is not too shallow; the block is somewhere else in the stream. Measured
+per cycle, the 4x4's return path was clean (every slave R pin 0 percent
+stalled) -- the loss was request SUPPLY, and the first supply block found
+was the measurement's own: the driver rotated transaction IDs `k % 16`
+against a three-target cycle, so each burst's ID twin sat at a different
+slave and the fabric's per-ID same-target gate (AXI orders same-ID
+responses) held a third to a half of all AR cycles while the outstanding
+trackers sat empty. Check the stimulus against the DUT's ordering rules
+before blaming the fabric. With IDs partitioned per target the 4x4 holds
+capacity to 1.4x offered; what remains past 2x is the traffic itself --
+half its beats target one 32-bit port offered 7x -- filling each master's
+shared outstanding table by Little's law. It is a TOML key with a minimal default of 0, not a fixture
 change, because every depth in that generator defaults to its rule minimum
 and is overridden where a measurement says so.
 

@@ -39,7 +39,7 @@ import os as _os
 import sys as _sys
 _sys.path.insert(0, _os.path.dirname(_os.path.abspath(__file__)))
 from stream_addrs import A, compose, write_reg   # noqa: E402  (by name, never offsets)
-from bridge_windows import W                      # noqa: E402  (bridge windows by name)
+from bridge_windows import W, monbus_err_window, monbus_capture_window, _CAPTURE_SLAVE  # noqa: E402  (bridge windows by name)
 
 # Packet types == PKT_MASK bit index (monbus_types.PktType*).
 PKT_ERROR     = 0x0
@@ -88,11 +88,17 @@ class MonitorProgram:
     COMPRESS_EN is written 0 here; the runner's own `compression` flag sets it
     afterwards (read-modify-write, last thing configure_stream does). The
     `compress` attribute is informational, mirroring mon_configs.MonConfig.
+
+    `err_select` is the per-packet-type ERROR-WINDOW route (bit[type] = 1 sends
+    that type to the group's error window, with one irq pulse per record and a
+    MON_ERR_REC_COUNT step, instead of the trace window). 0 keeps every type
+    in the trace, which is what the tally and capture probes want.
     """
     classes: AbstractSet[int]          # normalised to a frozenset
     monitors: Tuple[str, ...] = ALL_MONITORS
     name: str = ""
     compress: bool = False
+    err_select: int = 0
 
     def __post_init__(self):
         object.__setattr__(self, "classes", frozenset(self.classes))
@@ -102,6 +108,8 @@ class MonitorProgram:
         for t in self.classes:
             if not 0 <= t <= 0xF:
                 raise ValueError(f"packet type {t!r} outside 0..15")
+        if not 0 <= self.err_select <= 0xFFFF:
+            raise ValueError(f"err_select {self.err_select!r} outside 16 bits")
         if not self.name:
             object.__setattr__(self, "name", "mon:" + "+".join(
                 _CLASS_NAME.get(t, f"type{t:x}") for t in sorted(self.classes)))
@@ -129,10 +137,12 @@ class MonitorProgram:
                            compose(f"{m}_ENABLE", MON_EN=1 if active else 0, **en_fields)))
             writes.append((A(f"{m}_PKT_MASK"),
                            compose(f"{m}_PKT_MASK", PKT_MASK=self.pkt_mask() if active else 0xFFFF)))
-            # ERR_SELECT=0 routes every type to the bulk trace (tally / capture
-            # memory); ERR_MASK is a per-event-code DROP mask whose reset value
-            # 0xFFFF discards every error event -- the capture "comes back empty".
-            writes.append((A(f"{m}_ERR_CFG"), compose(f"{m}_ERR_CFG", ERR_SELECT=0, ERR_MASK=0)))
+            # ERR_SELECT routes the selected types to the error window (default
+            # 0: every type to the trace -- tally / capture memory); ERR_MASK is a
+            # per-event-code DROP mask whose reset value 0xFFFF discards every
+            # error event -- the capture "comes back empty".
+            writes.append((A(f"{m}_ERR_CFG"),
+                           compose(f"{m}_ERR_CFG", ERR_SELECT=self.err_select, ERR_MASK=0)))
             writes.append((A(f"{m}_MASK1"), compose(f"{m}_MASK1", TIMEOUT_MASK=0, COMPL_MASK=0)))
             writes.append((A(f"{m}_MASK2"), compose(f"{m}_MASK2", THRESH_MASK=0, PERF_MASK=0)))
             writes.append((A(f"{m}_MASK3"), compose(f"{m}_MASK3", ADDR_MASK=0, DEBUG_MASK=0)))
@@ -152,11 +162,22 @@ def route_monbus(bridge, window: str) -> Tuple[int, int]:
     two are exclusive, which is why this takes a name and not a flag. Flush
     watermark 0 = emit every complete record; the default of 16 records sits on
     a short workload until the 1024-cycle flush timeout. Returns (base, limit).
+
+    The ERROR window (ERR_SELECT-routed packets, write-only 1wr group) is
+    programmed alongside, always to comp_sram's top 4 KB: its RDL reset value
+    is a sim address that is dma_axil on this bridge. Watermark 3 beats = one
+    whole record per write.
     """
-    base, limit = W(window)
+    # comp_sram minus its top 4 KB: that is the error window (below), and the
+    # two must not overlap
+    base, limit = monbus_capture_window() if window == _CAPTURE_SLAVE else W(window)
     write_reg(bridge, "MON_GROUP_BASE_ADDR", VALUE=base)
     write_reg(bridge, "MON_GROUP_LIMIT_ADDR", VALUE=limit)
     write_reg(bridge, "MON_GROUP_FLUSH_WATERMARK", VALUE=0)
+    err_base, err_limit = monbus_err_window()
+    write_reg(bridge, "MON_GROUP_ERR_BASE_ADDR", VALUE=err_base)
+    write_reg(bridge, "MON_GROUP_ERR_LIMIT_ADDR", VALUE=err_limit)
+    write_reg(bridge, "MON_GROUP_ERR_FLUSH_WATERMARK", VALUE=3)
     return base, limit
 
 

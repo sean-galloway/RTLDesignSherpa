@@ -23,32 +23,59 @@
 
 # MonBus AXI-Lite Group
 
-**Module:** `monbus_axil4_axil4_group.sv` (documented here under its historical STREAM name `monbus_axil_group`)
-**Location:** `projects/components/dma-ip/stream/rtl/macro/`
+**Module:** `monbus_axil4_group_1wr.sv` (documented here under its historical STREAM name `monbus_axil_group`)
+**Location:** `rtl/amba/ocelus/` (shared AMBA monitor block; STREAM instantiates it unmodified)
 **Category:** MACRO (Integration)
-**Parent:** `stream_top.sv`
+**Parent:** `stream_top_ch8.sv` / `stream_top_ch16.sv`
 **Status:** Implemented
-**Last Updated:** 2025-11-30
+**Last Updated:** 2026-10-25
 
 ---
 
 ## Overview
 
-The `monbus_axil_group` module is the canonical shared monitor bus processing block (RTL source: `rtl/amba/ocelus/monbus_axil4_axil4_group.sv`; formerly `rtl/amba/shared/monbus_axil_group.sv`) instantiated by STREAM for packet filtering and routing. It receives 128-bit monitor bus packets paired with 64-bit timestamps (192-bit atomic group through AXI-Lite skid), filters them per protocol/packet type, and routes to either error/interrupt FIFO or external memory.
+`monbus_axil4_group_1wr` is the monitor-bus egress of STREAM. It takes the
+single merged MonBus stream from `monbus_arbiter`, filters it per protocol, and
+writes everything it keeps to memory over ONE AXI4-Lite write master
+(`m_axil_mon_*`, 64-bit data). It has no slave port. Packets whose type is
+selected by `ERR_SELECT` are written as raw 3-beat records into an ERROR window
+(`MON_GROUP_ERR_BASE_ADDR` .. `MON_GROUP_ERR_LIMIT_ADDR`), one `stream_irq`
+pulse and one `MON_ERR_REC_COUNT` step per record landed; every other packet is
+written to the TRACE window (`MON_GROUP_BASE_ADDR` .. `MON_GROUP_LIMIT_ADDR`),
+raw or compressed. The host reads error records out of the error window.
+
+Until 2026-10-25 (stream TASK-019) STREAM carried the two-port
+`monbus_axil4_axil4_group`, whose error packets sat in an on-chip FIFO the CPU
+drained one beat at a time over an AXI-Lite slave read port (`s_axil_err_*`).
+The read port, its FIFO drain and the level interrupt are gone; the error path
+is now a second memory window on the same write master, so the host sees error
+records in memory exactly as it sees trace records.
 
 ### Key Features
 
-- **128-bit Monitor Packets + 64-bit Timestamps:** Carried atomically through 192-bit AXI-Lite record (3 beats: [127:0] pkt, [63:0] ts, [63:0] spare)
-- **Per-Protocol Filtering:** Configurable packet type masking per AXI/AXIS/CORE protocol
-- **Dual Output Paths:**
-  - Error/Interrupt FIFO (64 entries) - generates interrupt when not empty
-  - Master Write FIFO (32 entries) - writes packets to configurable memory range
-- **Fixed AXI-Lite Record Format:** 3 beats per record (no configurable `cfg_ts_append_*` settings)
-- **Shared Building Block:** Source of truth at `rtl/amba/ocelus/monbus_axil4_axil4_group.sv` (module renamed `monbus_axil4_axil4_group` in the monitor-path move); STREAM instantiates this with zero modifications (drift area 1, commit 13706d10)
+- **128-bit Monitor Packets + 64-bit Timestamps:** each record is three 64-bit
+  beats, TS, HI, LO: `{tag[3:0], source_ts[59:0]}`, `packet[127:64]`,
+  `packet[63:0]` (24 bytes)
+- **Per-Protocol Filtering:** drop masks, event masks and the error select per
+  AXI / AXIS / CORE protocol slot
+- **Two memory windows, one master:**
+  - Error window: `ERR_SELECT`-routed packets, raw records only, never
+    compressed; `irq_out` pulses once per whole record landed; `err_rec_count`
+    counts them
+  - Trace window: everything else, raw 3-beat records or compressor slots
+    (`USE_COMPRESSION`)
+- **Ring windows:** each window is `[base, limit]`, written strictly inside the
+  range; the burst writer rewinds to `base` when the next record would cross
+  `limit`, so a record is never split across the wrap
+- **Shared Building Block:** source of truth `rtl/amba/ocelus/monbus_axil4_group_1wr.sv`
+  over `monbus_group_core_1wr`; STREAM instantiates it with zero modifications
 
 ### Simplified from RAPIDS
 
-RAPIDS has source + sink data paths requiring TWO monitor buses. STREAM has memory-to-memory only, so this module has ONE monitor bus input (no arbitration needed).
+RAPIDS has source + sink data paths requiring TWO monitor buses. STREAM has
+memory-to-memory only, so this module has ONE monitor bus input (no arbitration
+inside the group). RAPIDS carries the same `monbus_axil4_group_1wr` (rapids
+TASK-039).
 
 ---
 
@@ -58,40 +85,46 @@ RAPIDS has source + sink data paths requiring TWO monitor buses. STREAM has memo
 
 ### Figure 2.16.1: MonBus AXI-Lite Group Block Diagram
 
-![MonBus AXI-Lite Group Block Diagram](../assets/graphviz/16_monbus_axil4_axil4_group.png)
+![MonBus AXI-Lite Group Block Diagram](../assets/graphviz/16_monbus_axil4_group_1wr.png)
 
-**Source:** [16_monbus_axil4_axil4_group.dot](../assets/graphviz/16_monbus_axil4_axil4_group.dot)
+**Source:** [16_monbus_axil4_group_1wr.dot](../assets/graphviz/16_monbus_axil4_group_1wr.dot)
 
 ### Filter Decision Tree
 
 ```
 For each incoming packet:
 1. Extract: pkt_type, pkt_protocol, pkt_event_code
-2. Check protocol-specific masks:
-   - pkt_mask: Drop if bit[pkt_type] = 1
-   - err_select: Route to error FIFO if bit[pkt_type] = 1
-   - event_mask: Drop if bit[event_code] = 1
+2. Check the protocol slot's masks:
+   - pkt_mask:   drop if bit[pkt_type] = 1
+   - event mask: drop if bit[pkt_event_code] = 1 (per packet type)
+   - err_select: error path if bit[pkt_type] = 1
 3. Route:
-   - Dropped packets: Consumed silently
-   - Error-selected: To error/interrupt FIFO
-   - Remaining: To master write FIFO
+   - Dropped packets: consumed silently
+   - Error-selected:  error writer FIFO -> error window (raw record, irq pulse)
+   - Remaining:       trace writer FIFO -> trace window (raw or compressed)
 ```
 
 ---
 
 ## Parameters
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `FIFO_DEPTH_ERR` | int | 64 | Error/interrupt FIFO depth |
-| `FIFO_DEPTH_WRITE` | int | 32 | Master write FIFO depth |
-| `ADDR_WIDTH` | int | 32 | AXI address width |
-| `DATA_WIDTH` | int | 32 | AXI data width |
-| `NUM_PROTOCOLS` | int | 3 | AXI, AXIS, CORE |
-| `USE_COMPRESSION` | int | 0 | Build the bulk-trace compressor into the group. 0 compiles it out; the runtime `COMPRESS_EN` bit is then inert. |
-| `USE_HALFBEAT` | int | 0 | Pack two 30-bit slots per 64-bit beat. Only meaningful with `USE_COMPRESSION=1`. |
+| Parameter | Type | Default | STREAM | Description |
+|-----------|------|---------|--------|-------------|
+| `FIFO_DEPTH_ERR` | int | 192 | 192 | Error writer FIFO depth in beats (three per record) |
+| `FIFO_DEPTH_WRITE` | int | 96 | 96 | Trace writer FIFO depth in beats |
+| `ADDR_WIDTH` | int | 32 | 32 | Address width of the write port and both windows |
+| `FLUSH_TIMEOUT_CYCLES` | int | 1024 | 1024 | Trace writer: cycles since the last W before a forced flush |
+| `ERR_FLUSH_TIMEOUT_CYCLES` | int | 64 | 64 | Error writer: the same, shorter |
+| `NUM_PROTOCOLS` | int | 3 | 3 | AXI, AXIS, CORE |
+| `USE_COMPRESSION` | int | 0 | `USE_COMPRESSION` | Trace path: 1 builds the compressor and CAM; the runtime `COMPRESS_EN` bit is inert at 0 |
+| `HALF_BEAT_EN` | int | 0 | `USE_HALFBEAT` | Trace path: pack two 30-bit slots per 64-bit beat (needs `USE_COMPRESSION=1`) |
+| `SKID_DEPTH_AW/W/B` | int | 2 | 2 | Write-leaf skid depths |
 
 : Parameters
+
+There is no `MAX_BURST_BEATS` (the AXI-Lite leaf is single-beat, so it is
+forced to 1 and every record is three AW/W pairs at 8-byte stride) and no
+`S_AXIL_DATA_WIDTH` (there is no read port). The write data is 64 bits.
 
 ### Compression
 
@@ -130,6 +163,7 @@ not restated here:
 |--------|-----------|-------|-------------|
 | `axi_aclk` | input | 1 | AXI clock |
 | `axi_aresetn` | input | 1 | AXI active-low reset |
+| `cam_clear` | input | 1 | Synchronous compressor CAM and statistics clear |
 
 : Clock and Reset
 
@@ -141,88 +175,62 @@ not restated here:
 | `monbus_ready` | output | 1 | Ready to accept |
 | `monbus_packet` | input | 128 | 128-bit monitor packet (protocol-independent structure) |
 | `monbus_timestamp` | input | 64 | 64-bit side-band timestamp (cycle count at packet capture) |
+| `mon_time_out` | output | 64 | Free-running timestamp, driven to every monitor's `i_mon_time` |
 
 : Monitor Bus Input
 
-### AXI-Lite Slave Read Interface
-
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `s_axil_arvalid` | input | 1 | Read address valid |
-| `s_axil_arready` | output | 1 | Read address ready |
-| `s_axil_araddr` | input | ADDR_WIDTH | Read address |
-| `s_axil_arprot` | input | 3 | Protection bits |
-| `s_axil_rvalid` | output | 1 | Read data valid |
-| `s_axil_rready` | input | 1 | Read data ready |
-| `s_axil_rdata` | output | DATA_WIDTH | Read data |
-| `s_axil_rresp` | output | 2 | Read response |
-
-: AXI-Lite Slave Read Interface
-
-### AXI-Lite Master Write Interface
+### AXI-Lite Master Write Interface (`m_axil_mon_*` at the STREAM top)
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
 | `m_axil_awvalid` | output | 1 | Write address valid |
 | `m_axil_awready` | input | 1 | Write address ready |
-| `m_axil_awaddr` | output | ADDR_WIDTH | Write address |
-| `m_axil_awprot` | output | 3 | Protection bits |
+| `m_axil_awaddr` | output | ADDR_WIDTH | Write address (inside the error or the trace window) |
+| `m_axil_awprot` | output | 3 | Protection bits (0) |
 | `m_axil_wvalid` | output | 1 | Write data valid |
 | `m_axil_wready` | input | 1 | Write data ready |
-| `m_axil_wdata` | output | DATA_WIDTH | Write data |
-| `m_axil_wstrb` | output | DATA_WIDTH/8 | Write strobes |
+| `m_axil_wdata` | output | 64 | One record beat |
+| `m_axil_wstrb` | output | 8 | Write strobes (all ones) |
 | `m_axil_bvalid` | input | 1 | Write response valid |
 | `m_axil_bready` | output | 1 | Write response ready |
 | `m_axil_bresp` | input | 2 | Write response |
 
 : AXI-Lite Master Write Interface
 
-### Interrupt Output
+### Interrupt and Error Count
 
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `irq_out` | output | 1 | Interrupt (error FIFO not empty) |
+| `irq_out` | output | 1 | One-cycle pulse per whole error record landed in memory (`stream_irq`) |
+| `err_rec_count` | output | 16 | Whole error records landed, free-running (`MON_ERR_REC_COUNT`) |
 
-: Interrupt Output
+: Interrupt and Error Count
 
-### Configuration Interface
+### Window Configuration
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `cfg_base_addr` | input | ADDR_WIDTH | Base for master writes |
-| `cfg_limit_addr` | input | ADDR_WIDTH | Limit for master writes |
+| Signal | Direction | Width | STREAM register | Description |
+|--------|-----------|-------|-----------------|-------------|
+| `cfg_base_addr` | input | ADDR_WIDTH | `MON_GROUP_BASE_ADDR` | Trace window base |
+| `cfg_limit_addr` | input | ADDR_WIDTH | `MON_GROUP_LIMIT_ADDR` | Trace window limit (inclusive) |
+| `cfg_flush_watermark` | input | 16 | `MON_GROUP_FLUSH_WATERMARK` | Trace writer flush threshold, beats (0 = every complete record) |
+| `cfg_err_base_addr` | input | ADDR_WIDTH | `MON_GROUP_ERR_BASE_ADDR` | Error window base |
+| `cfg_err_limit_addr` | input | ADDR_WIDTH | `MON_GROUP_ERR_LIMIT_ADDR` | Error window limit (inclusive) |
+| `cfg_err_flush_watermark` | input | 16 | `MON_GROUP_ERR_FLUSH_WATERMARK` | Error writer flush threshold, beats (3 = every record) |
+| `cfg_compress_en` | input | 1 | `WRMON_ENABLE.COMPRESS_EN` | Trace path compression (built with `USE_COMPRESSION=1`) |
 
-: Configuration Interface
+: Window Configuration
+
+The two windows must not overlap, and both must be memory the write master
+can reach. The register reset values are sim addresses; a system programs both
+windows before enabling any monitor.
 
 ### Protocol Configuration (per protocol)
 
-**AXI Protocol:**
-
 | Signal | Direction | Width | Description |
 |--------|-----------|-------|-------------|
-| `cfg_axi_pkt_mask` | input | 16 | Drop mask for packet types |
-| `cfg_axi_err_select` | input | 16 | Error FIFO select |
-| `cfg_axi_*_mask` | input | 16 | Per-event-type masks |
-
-: Protocol Configuration
-
-**AXIS Protocol:**
-
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `cfg_axis_pkt_mask` | input | 16 | Drop mask |
-| `cfg_axis_err_select` | input | 16 | Error FIFO select |
-| `cfg_axis_*_mask` | input | 16 | Per-event-type masks |
-
-: Protocol Configuration
-
-**CORE Protocol:**
-
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `cfg_core_pkt_mask` | input | 16 | Drop mask |
-| `cfg_core_err_select` | input | 16 | Error FIFO select |
-| `cfg_core_*_mask` | input | 16 | Per-event-type masks |
+| `cfg_axi_pkt_mask`, `cfg_axis_pkt_mask`, `cfg_core_pkt_mask` | input | 16 | Drop mask for packet types |
+| `cfg_axi_err_select`, `cfg_axis_err_select`, `cfg_core_err_select` | input | 16 | Error-window select per packet type |
+| `cfg_axi_*_mask`, `cfg_axis_*_mask`, `cfg_core_*_mask` | input | 16 | Per-event-type drop masks |
 
 : Protocol Configuration
 
@@ -243,12 +251,13 @@ BUG-036.
 
 ### Debug/Status
 
-| Signal | Direction | Width | Description |
-|--------|-----------|-------|-------------|
-| `err_fifo_full` | output | 1 | Error FIFO full |
-| `write_fifo_full` | output | 1 | Write FIFO full |
-| `err_fifo_count` | output | 8 | Error FIFO count |
-| `write_fifo_count` | output | 8 | Write FIFO count |
+| Signal | Direction | Width | STREAM register | Description |
+|--------|-----------|-------|-----------------|-------------|
+| `err_fifo_full` | output | 1 | `MON_FIFO_STATUS.MON_FIFO_FULL` | Error writer FIFO full |
+| `write_fifo_full` | output | 1 | - | Trace writer FIFO full |
+| `err_fifo_count` | output | 16 | `MON_FIFO_COUNT`, `MON_FIFO_STATUS.MON_FIFO_EMPTY` | Error writer FIFO occupancy, beats |
+| `write_fifo_count` | output | 16 | - | Trace writer FIFO occupancy, beats |
+| `mon_compressor_stat_*` | output | 32 each | `WRMON_COMP_STAT_*` | Compressor statistics |
 
 : Debug/Status
 
@@ -256,92 +265,75 @@ BUG-036.
 
 ## Operation
 
-### Packet Type Filtering
+### Record Format and Windows
 
-```systemverilog
-// Protocol-specific filtering (example: AXI)
-case (pkt_protocol)
-    3'b000: begin // AXI
-        // Check if packet type is dropped
-        pkt_drop = cfg_axi_pkt_mask[pkt_type];
+Every record is 24 bytes, three 64-bit beats written at 8-byte stride in TS,
+HI, LO order:
 
-        // Check if packet goes to error FIFO
-        pkt_to_err_fifo = cfg_axi_err_select[pkt_type] && !pkt_drop;
+| Offset | Beat | Contents |
+|--------|------|----------|
+| +0x00 | 0 | `{tag[3:0], source_ts[59:0]}` (tag 0 = raw record) |
+| +0x08 | 1 | `packet[127:64]` |
+| +0x10 | 2 | `packet[63:0]` |
 
-        // Check individual event masking
-        case (pkt_type)
-            PktTypeError:     pkt_event_masked = cfg_axi_error_mask[pkt_event_code];
-            PktTypeTimeout:   pkt_event_masked = cfg_axi_timeout_mask[pkt_event_code];
-            // ... more packet types
-        endcase
-    end
-endcase
+: Record layout
+
+The error writer and the trace writer each own a `[base, limit]` ring. A writer
+advances by whole records and rewinds to `base` when the next record would cross
+`limit`; a stub shorter than one record at the end of a window is stepped over,
+never split. The error path is always raw; the trace path emits compressor slots
+instead when the compressor is built and enabled (see Compression above).
+
+### Error Records and the Interrupt
+
+`irq_out` is a one-cycle pulse per whole error record that has LANDED (its
+third beat accepted by the memory). It is not a level: the system latches it
+(STREAM exports it as `stream_irq`; a host-side W1C status bit holds it). The
+host then reads `MON_ERR_REC_COUNT` to learn how many records have landed in
+total and reads the new ones out of the error window:
+
+```
+landed   = MON_ERR_REC_COUNT.COUNT                 (16-bit, free-running)
+capacity = (ERR_LIMIT + 1 - ERR_BASE) / 24         (whole records per ring)
+new      = landed - last_seen                      (mod 2^16)
+slot(n)  = ERR_BASE + (n mod capacity) * 24        (record n's address)
 ```
 
-### Master Write Address Generation
+If `new` exceeds `capacity` the ring has wrapped and the oldest records are
+gone: size the error window for the worst-case burst between services, or
+leave `ERR_SELECT` at 0 and read everything from the trace window instead.
 
-```systemverilog
-// Address wraps within configured range
-always_comb begin
-    next_write_addr = current_write_addr + (DATA_WIDTH == 64 ? 8 : 4);
-    if (next_write_addr > cfg_limit_addr) begin
-        next_write_addr = cfg_base_addr;
-    end
-end
-```
+### Trace Window
 
-### Master Write FSM
-
-```systemverilog
-typedef enum logic [2:0] {
-    WRITE_IDLE       = 3'b000,
-    WRITE_ADDR       = 3'b001,
-    WRITE_DATA_LOW   = 3'b010,
-    WRITE_DATA_HIGH  = 3'b011,  // For 32-bit data width only
-    WRITE_RESP       = 3'b100
-} write_state_t;
-```
+Packets not selected for the error path are written to the trace window,
+flushed at `MON_GROUP_FLUSH_WATERMARK` beats or after
+`FLUSH_TIMEOUT_CYCLES` idle cycles, whichever comes first. Watermark 0 flushes
+every complete record. The trace window is a ring as well; the host reads it
+back as a whole and parses the non-zero records (`parse_stream`, ts_mode=1).
 
 ---
 
-## Integration Example
+## Integration
 
-```systemverilog
-monbus_axil_group #(
-    .FIFO_DEPTH_ERR     (64),
-    .FIFO_DEPTH_WRITE   (32),
-    .ADDR_WIDTH         (32),
-    .DATA_WIDTH         (32),
-    .NUM_PROTOCOLS      (3)
-) u_monbus_axil_group (
-    .axi_aclk           (clk),
-    .axi_aresetn        (rst_n),
+`stream_top_ch8` instantiates the group once, inside `USE_AXI_MONITORS`:
 
-    // Monitor bus input
-    .monbus_valid       (stream_mon_valid),
-    .monbus_ready       (stream_mon_ready),
-    .monbus_packet      (stream_mon_packet),
+| Group port | STREAM connection |
+|------------|-------------------|
+| `monbus_*` | `monbus_arbiter` output (scheduler groups + the three monitor-lites) |
+| `m_axil_*` | `m_axil_mon_*` top-level master |
+| `irq_out` | `stream_irq` |
+| `err_rec_count` | `MON_ERR_REC_COUNT.COUNT` (read-only, hardware-written) |
+| `cfg_base_addr`, `cfg_limit_addr`, `cfg_flush_watermark` | `MON_GROUP_BASE_ADDR`, `MON_GROUP_LIMIT_ADDR`, `MON_GROUP_FLUSH_WATERMARK` |
+| `cfg_err_base_addr`, `cfg_err_limit_addr`, `cfg_err_flush_watermark` | `MON_GROUP_ERR_BASE_ADDR`, `MON_GROUP_ERR_LIMIT_ADDR`, `MON_GROUP_ERR_FLUSH_WATERMARK` |
+| `cfg_axi_*` | the three monitors' masks ANDed / `ERR_SELECT` ORed (see above) |
+| `cfg_axis_*`, `cfg_core_*` | drop nothing, select nothing |
+| `err_fifo_full`, `err_fifo_count` | `MON_FIFO_STATUS`, `MON_FIFO_COUNT` |
 
-    // AXI-Lite slave read (for error FIFO access)
-    .s_axil_arvalid     (axil_slave_arvalid),
-    .s_axil_arready     (axil_slave_arready),
-    // ... more slave signals
+: STREAM integration
 
-    // AXI-Lite master write (for logging)
-    .m_axil_awvalid     (axil_master_awvalid),
-    .m_axil_awready     (axil_master_awready),
-    // ... more master signals
-
-    // Interrupt
-    .irq_out            (monbus_interrupt),
-
-    // Configuration
-    .cfg_base_addr      (cfg_monbus_base_addr),
-    .cfg_limit_addr     (cfg_monbus_limit_addr),
-    .cfg_axi_pkt_mask   (cfg_axi_pkt_mask),
-    // ... more protocol configuration
-);
-```
+With `USE_AXI_MONITORS = 0` the group is not built: `m_axil_mon_*` is
+write-inactive, `stream_irq` is 0, `MON_ERR_REC_COUNT` reads 0 and
+`MON_FIFO_STATUS` reads EMPTY.
 
 ---
 
@@ -349,32 +341,50 @@ monbus_axil_group #(
 
 ### Issue 1: Missing Monitor Packets
 
-**Symptom:** Expected events not appearing in FIFO
+**Symptom:** Expected events appear in neither window.
 
 **Root Causes:**
-1. Packet type masked in cfg_*_pkt_mask
-2. Event masked in cfg_*_*_mask
-3. FIFO full (packets dropped)
+1. Packet type dropped by a `PKT_MASK` (the RDL reset drops every type)
+2. Event dropped by an event mask
+3. Monitor not enabled for that packet type
+4. A window pointed at memory the write master cannot reach (writes fail with
+   SLVERR / DECERR and the writer stalls)
 
-**Solution:** Check mask configuration and FIFO status.
+**Solution:** Check the mask and enable registers, then the window addresses
+against the system address map.
 
-### Issue 2: Master Writes Stall
+### Issue 2: Writes Stall, MonBus Backpressures
 
-**Symptom:** Write FIFO fills up, backpressure to monitor bus
+**Symptom:** `MON_FIFO_COUNT` climbs to `FIFO_DEPTH_ERR`, `monbus_ready` drops,
+monitors stall.
 
 **Root Causes:**
-1. AXI-Lite master target not responding
-2. Address range exhausted (wrapping too fast)
+1. The memory behind the master is not responding
+2. Error records selected at a rate the write path cannot sustain
 
-**Solution:** Increase address range or reduce logging rate via masks.
+**Solution:** Fix the memory path; route high-rate types to the trace window
+instead of the error window.
+
+### Issue 3: Interrupt Counted, Record Missing
+
+**Symptom:** `MON_ERR_REC_COUNT` advanced but the slot reads stale or zero.
+
+**Root Cause:** The ring wrapped between services (`new > capacity`), or the
+host computed the slot with a window size that is not a multiple of 24 and
+ignored the step-over stub.
+
+**Solution:** Compute `capacity` with integer division as above; enlarge the
+window or service more often.
 
 ---
 
 ## Related Documentation
 
-- **Parent:** `01_stream_core.md` - Provides monitor bus packets
-- **Packet Format:** Monitor Bus Protocol documentation
-- **Configuration:** `14_apb_config.md` - Register mapping
+- **Parent:** `01_stream_core.md` - provides monitor bus packets
+- **Module reference:** `docs/markdown/rtl-amba/monitor/monbus_axil4_group_1wr.md` and `monbus_group_core_1wr.md`
+- **Packet Format:** `docs/markdown/rtl-amba/includes/ocelus_package_spec.md`
+- **Configuration:** `14_apb_config.md` - register mapping
+
 ---
 
 ## Revision History
@@ -383,9 +393,10 @@ monbus_axil_group #(
 |---------|------|--------|-------------|
 | 0.90 | 2025-11-22 | seang | Initial block specification |
 | 0.91 | 2026-01-02 | seang | Added table captions and figure numbers |
+| 0.92 | 2026-10-25 | seang | Retargeted to `monbus_axil4_group_1wr` (stream TASK-019): the AXI-Lite error-FIFO read port is gone; error records are written to the `MON_GROUP_ERR_*` window, `stream_irq` pulses per record, `MON_ERR_REC_COUNT` counts them |
 
 : MonBus AXI-Lite Group Revision History
 
 ---
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-10-25

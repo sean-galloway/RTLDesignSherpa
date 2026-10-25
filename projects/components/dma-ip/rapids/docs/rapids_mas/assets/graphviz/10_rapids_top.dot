@@ -29,9 +29,9 @@ digraph rapids_top_integration {
     meters [label="Data-Master Bus Meters (sideband)\naxi_bus_meter x 2 (u_rd_bus_meter,\nu_wr_bus_meter): observe m_axi_rd R\nand m_axi_wr W, nothing driven back;\nperf counts read back through rapids_regs", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     cfg    [label="Configuration Mapping\nrapids_config_block x 2 (u_cfg_src, u_cfg_snk)\nhwif_out -> cfg_* per half", group=C, style="filled", fillcolor="white"];
     core   [label="RAPIDS Core - rapids_core (u_core)\nsource half + sink half (see the core figure)", width=6.5, height=0.8, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    mon    [label="Monitor Egress (USE_AXI_MONITORS=1 only)\nmonbus_axil4_axil4_group:\nerror FIFO + capture writer + irq", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    mon    [label="Monitor Egress (USE_AXI_MONITORS=1 only)\nmonbus_axil4_group_1wr:\nerror window + trace window writer, irq", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    bar [label="Module Boundary\ns_axil_err, m_axil_mon, mon_irq  |  m_axi_wr (AW, W / B)  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)\nCXS top only: src_/snk_cxs_link_state, *_cxs_protocol_error, snk_cxs_unsupported (from the planes)",
+    bar [label="Module Boundary\nm_axil_mon, mon_irq, mon_err_rec_count  |  m_axi_wr (AW, W / B)  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)\nCXS top only: src_/snk_cxs_link_state, *_cxs_protocol_error, snk_cxs_unsupported (from the planes)",
          fillcolor="white", width=13.0, fontsize=11, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     // ---- register path, down the center ----

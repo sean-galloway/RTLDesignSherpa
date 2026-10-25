@@ -43,8 +43,8 @@ module rapids_16ch_cxs_top
     parameter int ACLK_MHZ             = 100,
     // Monitor synthesis gates (default 1 = production behavior unchanged).
     //   USE_AXI_MONITORS=0 omits the descriptor-AXI monitor hardware AND the
-    //     top-level monbus_axil4_axil4_group (egress capture/err-drain/IRQ); the
-    //     m_axil_mon_*/mon_irq/s_axil_err_* ports are tied off.
+    //     top-level monbus_axil4_group_1wr (egress capture / error window / IRQ); the
+    //     m_axil_mon_* / mon_irq ports are tied off.
     //   GEN_MON=0 omits the per-channel completion/error MonBus emitters.
     // For an FPGA characterization build that meters externally, set both 0 to
     // reclaim the monitor LUTs and ease timing (mirrors stream_top_ch8).
@@ -357,21 +357,14 @@ module rapids_16ch_cxs_top
     output logic                                          src_cxs_protocol_error,
 
     //-------------------------------------------------------------------------
-    // MonBus AXI-Lite Group (single merged egress; mirrors stream_top_ch8)
-    //   - AXI-Lite error-drain slave (32-bit data): CPU reads err/IRQ FIFO
-    //   - AXI-Lite capture master   (64-bit data): monitor bulk-trace writes
-    //   - Single interrupt output (mon_irq)
+    // MonBus AXI-Lite Group (single merged egress; mirrors stream_top_ch8):
+    // monbus_axil4_group_1wr, write-only (rapids TASK-039)
+    //   - AXI-Lite capture master (64-bit data): error-selected packets as raw
+    //     3-beat records into the error window, everything else into the
+    //     trace window; there is no slave-read side
+    //   - mon_irq: one pulse per whole error record landed; mon_err_rec_count
+    //     counts them. The host reads the records out of the error window.
     //-------------------------------------------------------------------------
-    // AXI-Lite error-drain slave (32-bit)
-    input  logic                                    s_axil_err_arvalid,
-    output logic                                    s_axil_err_arready,
-    input  logic [31:0]                             s_axil_err_araddr,
-    input  logic [2:0]                              s_axil_err_arprot,
-    output logic                                    s_axil_err_rvalid,
-    input  logic                                    s_axil_err_rready,
-    output logic [31:0]                             s_axil_err_rdata,
-    output logic [1:0]                              s_axil_err_rresp,
-
     // AXI-Lite capture master (64-bit)
     output logic                                    m_axil_mon_awvalid,
     input  logic                                    m_axil_mon_awready,
@@ -388,10 +381,15 @@ module rapids_16ch_cxs_top
     // Interrupt output
     output logic                                    mon_irq,
 
-    // Configuration (mirror stream_top_ch8)
+    // Configuration: the trace window and the error window (inclusive bounds;
+    // the error writer wraps to its base past the last whole record)
     input  logic [31:0]                             cfg_mon_base_addr,
     input  logic [31:0]                             cfg_mon_limit_addr,
     input  logic [15:0]                             cfg_mon_flush_watermark,
+    input  logic [31:0]                             cfg_mon_err_base_addr,
+    input  logic [31:0]                             cfg_mon_err_limit_addr,
+    input  logic [15:0]                             cfg_mon_err_flush_watermark,  // beats; 3 = every record
+    output logic [15:0]                             mon_err_rec_count,            // whole error records landed, free-running
 
     //-------------------------------------------------------------------------
     // Status (per-half top-level observation)
@@ -690,14 +688,6 @@ module rapids_16ch_cxs_top
         .snk_plane_mon_ready             (w_snk_plane_mon_ready),
         .snk_plane_mon_packet            (w_snk_plane_mon_packet),
         .snk_plane_mon_timestamp         (w_snk_plane_mon_timestamp),
-        .s_axil_err_arvalid              (s_axil_err_arvalid),
-        .s_axil_err_arready              (s_axil_err_arready),
-        .s_axil_err_araddr               (s_axil_err_araddr),
-        .s_axil_err_arprot               (s_axil_err_arprot),
-        .s_axil_err_rvalid               (s_axil_err_rvalid),
-        .s_axil_err_rready               (s_axil_err_rready),
-        .s_axil_err_rdata                (s_axil_err_rdata),
-        .s_axil_err_rresp                (s_axil_err_rresp),
         .m_axil_mon_awvalid              (m_axil_mon_awvalid),
         .m_axil_mon_awready              (m_axil_mon_awready),
         .m_axil_mon_awaddr               (m_axil_mon_awaddr),
@@ -713,6 +703,10 @@ module rapids_16ch_cxs_top
         .cfg_mon_base_addr               (cfg_mon_base_addr),
         .cfg_mon_limit_addr              (cfg_mon_limit_addr),
         .cfg_mon_flush_watermark         (cfg_mon_flush_watermark),
+        .cfg_mon_err_base_addr           (cfg_mon_err_base_addr),
+        .cfg_mon_err_limit_addr          (cfg_mon_err_limit_addr),
+        .cfg_mon_err_flush_watermark     (cfg_mon_err_flush_watermark),
+        .mon_err_rec_count               (mon_err_rec_count),
         .src_system_idle                 (src_system_idle),
         .src_sched_error                 (src_sched_error),
         .snk_system_idle                 (snk_system_idle),

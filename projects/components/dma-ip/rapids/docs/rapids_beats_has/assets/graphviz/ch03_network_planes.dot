@@ -29,7 +29,7 @@ digraph rapids_network_planes {
     base [label="Tree Base - rapids_top_base (byte) / rapids_beats_top_base (beats)\ncore (sink half | scheduler groups | source half), rapids_regs + rapids_config_block, monbus group\nidentical in the AXIS and CXS tops", width=10.5, group=C, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- boundary bar ----
-    mem [label="Top Boundary - AXI masters to memory\nm_axi_wr  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axil_mon, s_axil_err, mon_irq  |  m_axi_rd",
+    mem [label="Top Boundary - AXI masters to memory\nm_axi_wr  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axil_mon, mon_irq, mon_err_rec_count  |  m_axi_rd",
          fillcolor="white", width=12.0, fontsize=11, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- network in, down the left ----

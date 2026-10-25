@@ -16,7 +16,9 @@
 #   stream_apb    0x0000_0000  8 KB    APB    STREAM config regs
 #   harness_csr   0x0001_0000  4 KB    AXIL   timer / delay / kick / status / tally ctrl
 #   desc_ram      0x0002_0000  64 KB   AXIL   descriptor preload BRAM
-#   stream_err    0x0003_0000  4 KB    AXIL   STREAM in-core-monitor err/IRQ read
+#   stream_err    0x0003_0000  4 KB    AXIL   RESERVED (SLVERR in the harness; the
+#                                            1wr group writes error records into
+#                                            comp_sram's top 4 KB instead)
 #   stream_tally  0x0004_0000  256 KB  AXIL   STREAM tally SRAM  (ends 0x7_FFFF)
 #   dma_axil      0x0008_0000  4 KB    AXIL   DMA s_axi_lite config
 #   slave_err     0x0009_0000  4 KB    AXIL   dma-monitor group err/IRQ read
@@ -148,6 +150,10 @@ user_width  = 0
 base_addr   = "0x00020000"
 addr_range  = "0x00010000"     # 64 KB
 
+# RESERVED. Was the in-core group's AXIL error-FIFO read port; stream_top_ch8
+# now carries monbus_axil4_group_1wr (write-only: error records go to the
+# MON_GROUP_ERR_* window in comp_sram). The slot stays so the map and the
+# generated xbar are untouched; stream_harness answers SLVERR on it.
 [[bridge.slaves]]
 name        = "stream_err"
 prefix      = "stream_err_axi_"

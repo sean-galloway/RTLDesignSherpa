@@ -303,7 +303,8 @@ module stream_harness #(
     //   stream_apb     0x0000_0000  4 KB    APB    STREAM config (auto-conv)
     //   harness_csr    0x0001_0000  256 B   AXIL   timer/delay/kick/status
     //   desc_ram       0x0002_0000  64 KB   AXIL   descriptor preload
-    //   stream_err     0x0003_0000  64 B    AXIL   small err FIFO
+    //   stream_err     0x0003_0000  4 KB    AXIL   reserved (SLVERR); error
+    //                                              records land in comp_sram
     //   stream_tally   0x0004_0000  256 KB  AXIL   master-observer records
     //   dma_axil       0x0008_0000  4 KB    AXIL   DMA bridge port (unused
     //                                              in flows-stream-bridge;
@@ -367,7 +368,7 @@ module stream_harness #(
     `SC_DBG logic                       desc_rvalid, desc_rready;
 
     // ---- Slave-side AXIL wires consumed by the rest of the harness ---------
-    // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err, s4_* stream_tally)
+    // (s1_* harness_csr, s2_* desc_ram, s3_* stream_err [reserved], s4_* stream_tally)
     logic [31:0] s1_awaddr, s1_wdata, s1_araddr, s1_rdata;
     logic [3:0]  s1_wstrb;
     logic [2:0]  s1_awprot, s1_arprot;
@@ -1347,42 +1348,38 @@ module stream_harness #(
     )
 
     // =========================================================================
-    // S3: STREAM err FIFO AXIL slave (wired to stream.s_axil_err_*)
+    // S3: stream_err -- RESERVED slot.
     //
-    // S3 from decoder drives the AXIL read channel of STREAM err FIFO.
-    // Write channel on this slot is unused; tie off with OKAY.
+    // This window was the in-core monbus group's AXIL error-FIFO read port
+    // (monbus_axil4_axil4_group s_axil_err_*). stream_top_ch8 now carries
+    // monbus_axil4_group_1wr, which WRITES error-selected packets as 3-beat
+    // records into an error window in memory (the top 4 KB of comp_sram,
+    // programmed by name through MON_GROUP_ERR_BASE_ADDR/LIMIT_ADDR) and
+    // counts them in MON_ERR_REC_COUNT. Nothing sits behind this slot any more.
+    // The bridge keeps it so the address map and the generated xbar stay as
+    // built (no respin), and the harness answers SLVERR on both channels so a
+    // stale host tool fails loudly instead of reading zeros.
     // =========================================================================
-    logic        s3_err_arvalid, s3_err_arready;
-    logic [31:0] s3_err_araddr;
-    logic [2:0]  s3_err_arprot;
-    logic        s3_err_rvalid,  s3_err_rready;
-    logic [31:0] s3_err_rdata;
-    logic [1:0]  s3_err_rresp;
-
-    assign s3_err_arvalid = s3_arvalid;
-    assign s3_err_araddr  = s3_araddr;
-    assign s3_err_arprot  = s3_arprot;
-    assign s3_arready     = s3_err_arready;
-
-    assign s3_rvalid      = s3_err_rvalid;
-    assign s3_rdata       = s3_err_rdata;
-    assign s3_rresp       = s3_err_rresp;
-    assign s3_err_rready  = s3_rready;
-
-    // Write side on S3: sink with OKAY (host shouldn't write here)
-    logic r_s3_bvalid;
+    logic r_s3_bvalid, r_s3_rvalid;
     `ALWAYS_FF_RST(aclk, aresetn,
         if (`RST_ASSERTED(aresetn)) begin
             r_s3_bvalid <= 1'b0;
+            r_s3_rvalid <= 1'b0;
         end else begin
             if (s3_awvalid && s3_wvalid && !r_s3_bvalid) r_s3_bvalid <= 1'b1;
             else if (s3_bready && r_s3_bvalid)            r_s3_bvalid <= 1'b0;
+            if (s3_arvalid && !r_s3_rvalid)               r_s3_rvalid <= 1'b1;
+            else if (s3_rready && r_s3_rvalid)            r_s3_rvalid <= 1'b0;
         end
     )
     assign s3_awready = !r_s3_bvalid;
     assign s3_wready  = !r_s3_bvalid;
     assign s3_bvalid  = r_s3_bvalid;
     assign s3_bresp   = 2'b10;  // SLVERR
+    assign s3_arready = !r_s3_rvalid;
+    assign s3_rvalid  = r_s3_rvalid;
+    assign s3_rdata   = 32'h0;
+    assign s3_rresp   = 2'b10;  // SLVERR
 
     // =========================================================================
     // S4: stream_tally — monbus_tally_axil at 64-bit.
@@ -2732,16 +2729,6 @@ module stream_harness #(
         .m_axi_wr_bid    (wr_bid),    .m_axi_wr_bresp(wr_bresp),
         .m_axi_wr_buser  (wr_buser),  .m_axi_wr_bvalid(wr_bvalid),
         .m_axi_wr_bready (wr_bready),
-
-        // Err FIFO AXIL slave (host reads via S3)
-        .s_axil_err_arvalid(s3_err_arvalid),
-        .s_axil_err_arready(s3_err_arready),
-        .s_axil_err_araddr (s3_err_araddr),
-        .s_axil_err_arprot (s3_err_arprot),
-        .s_axil_err_rvalid (s3_err_rvalid),
-        .s_axil_err_rready (s3_err_rready),
-        .s_axil_err_rdata  (s3_err_rdata),
-        .s_axil_err_rresp  (s3_err_rresp),
 
         // Monitor data AXIL master. Bridge master monbus_wr -> comp_sram, the
         // capture MEMORY the host downloads and diffs against the Python

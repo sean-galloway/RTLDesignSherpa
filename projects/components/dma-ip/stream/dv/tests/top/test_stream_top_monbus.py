@@ -4,7 +4,7 @@
 #
 # Monbus-group coverage for stream_top_ch8 (USE_AXI_MONITORS=1).
 #
-# stream_top_ch8 contains a monbus_axil4_axil4_group (u_monbus_axil_group) that
+# stream_top_ch8 contains a monbus_axil4_group_1wr (u_monbus_axil_group) that
 # the existing stream_top tests never exercise (they build with monitors off
 # and only sniff the raw pre-group mon bus). This test enables the AXI monitors
 # via CSR, drives real descriptor transfers, and attaches the shared
@@ -14,13 +14,15 @@
 #              m_axil_mon_* and decode as AXI completions (24-byte records,
 #              beat order {tag,ts}, pkt[127:64], pkt[63:0] per the monitor
 #              package spec).
-#   Phase B -- err FIFO + stream_irq: completion packets are routed to the err
-#              FIFO via ERR_CFG.ERR_SELECT; the FIFO filling drives stream_irq,
-#              and draining its records over the 32-bit s_axil_err_* port (the
-#              group's S_AXIL_DATA_WIDTH=32 2:1 read serializer presents each
-#              64-bit slice as two beats) clears the interrupt. The drained
-#              packets must still decode as AXI completions, proving the 32-bit
-#              drain preserves the full 128-bit packet.
+#   Phase B -- error window + stream_irq (stream TASK-019, the write-only group):
+#              completion packets are routed to the error path via
+#              ERR_CFG.ERR_SELECT and land in memory as raw 3-beat records in
+#              the error window (MON_GROUP_ERR_BASE/LIMIT), over the same
+#              master-write port as the trace. stream_irq pulses once per
+#              whole record landed and MON_ERR_REC_COUNT / err_rec_count count
+#              them; the records read back out of the captured writes must
+#              decode as AXI completions, and none of them may appear in the
+#              trace window. There is no slave-read port any more.
 
 import os
 import sys
@@ -57,25 +59,26 @@ MON_EN_VALUE  = 0x7
 # clear to 0 so monitor packets actually flow into the group.
 MON_PKT_MASK_REGS = ('DAXMON_PKT_MASK', 'RDMON_PKT_MASK', 'WRMON_PKT_MASK')
 # Per-monitor ERR_CFG (stream_regs.rdl): ERR_SELECT[3:0] is a bitmask indexed
-# by packet_type selecting which types divert to the err FIFO (bit0=Error,
+# by packet_type selecting which types divert to the error window (bit0=Error,
 # bit1=Completion, ...); ERR_MASK[15:8] reset 0xFF event-masks (drops) error
-# packets. We route COMPLETIONS to the err FIFO (ERR_SELECT=0x2): every
+# packets. We route COMPLETIONS to the error window (ERR_SELECT=0x2): every
 # transfer emits completion packets deterministically, the per-protocol
 # completion masks reset to 0 (not dropped), and ERR_MASK=0xFF keeps the
-# incidental descriptor SLVERR errors out -- so the err FIFO fills cleanly
-# with completions, which drives stream_irq (irq_out = !err_fifo_empty).
+# incidental descriptor SLVERR errors out -- so the error window fills cleanly
+# with completions, which drives stream_irq (one irq_out pulse per record landed).
 MON_ERR_CFG_REGS = ('DAXMON_ERR_CFG', 'RDMON_ERR_CFG', 'WRMON_ERR_CFG')
-ERR_CFG_ROUTE_COMPL = 0xFF02   # ERR_SELECT=0x2 (compl->err FIFO), ERR_MASK=0xFF
-# Rounds of snapshot-and-drain allowed before the err FIFO must be empty. The
-# FIFO saturates during this test, so the backlog behind it needs more than one
-# pass to clear; a handful of rounds is ample for a finite backlog.
-MAX_DRAIN_ROUNDS = 8
-ERR_CFG_NONE        = 0xFF00   # ERR_SELECT=0 (nothing to err FIFO)
+ERR_CFG_ROUTE_COMPL = 0xFF02   # ERR_SELECT=0x2 (compl->error window), ERR_MASK=0xFF
+ERR_CFG_NONE        = 0xFF00   # ERR_SELECT=0 (nothing to the error window)
 
 # Monbus-group flush window (top-level cfg_mon_* inputs on stream_top_ch8).
 MON_BASE  = 0x0000_1000
 MON_LIMIT = 0x0000_5000 - 1
 MON_WMARK = 3           # one raw record = 3 beats -> flush eagerly
+# The error window: a separate region of the same capture memory, 4 KB = 170
+# whole records (the writer wraps to base past the last whole record).
+MON_ERR_BASE  = 0x0001_0000
+MON_ERR_LIMIT = 0x0001_1000 - 1
+MON_ERR_WMARK = 3       # flush every record (the register's reset value)
 
 
 @cocotb.test(timeout_time=2000, timeout_unit="us")
@@ -124,6 +127,9 @@ async def cocotb_test_stream_top_monbus(dut):
     await tb.write_reg('MON_GROUP_BASE_ADDR',       MON_BASE)
     await tb.write_reg('MON_GROUP_LIMIT_ADDR',      MON_LIMIT)
     await tb.write_reg('MON_GROUP_FLUSH_WATERMARK', MON_WMARK)
+    await tb.write_reg('MON_GROUP_ERR_BASE_ADDR',       MON_ERR_BASE)
+    await tb.write_reg('MON_GROUP_ERR_LIMIT_ADDR',      MON_ERR_LIMIT)
+    await tb.write_reg('MON_GROUP_ERR_FLUSH_WATERMARK', MON_ERR_WMARK)
     await ClockCycles(dut.aclk, 5)
 
     # Attach the shared harness to the stream monbus group and consume the
@@ -142,20 +148,17 @@ async def cocotb_test_stream_top_monbus(dut):
         tb.log.info("group instance not reachable; fifo-count probes disabled")
     mon = MonbusGroupHarness(
         dut, dut.aclk,
-        drain_proto="axil", trace_proto="axil",
-        drain_prefix="s_axil_err_", trace_prefix="m_axil_mon_",
-        # stream_top_ch8 wires the group with S_AXIL_DATA_WIDTH=32: the err
-        # drain (s_axil_err_*) is a 32-bit AXIL port whose 2:1 read serializer
-        # presents each 64-bit record slice as two beats (6 beats/record). The
-        # trace (m_axil_mon_*) stays 64-bit.
-        drain_data_width=32,
+        # The write-only group has no drain port: error records land in the
+        # error window through the one 64-bit master-write port (m_axil_mon_*)
+        # and are lifted out of the captured writes by parse_err_records().
+        drain_proto=None, trace_proto="axil",
+        drain_prefix="", trace_prefix="m_axil_mon_",
         group_node=group_node,
         irq_sig=dut.stream_irq,
-        # Per docs/markdown/rtl-amba/includes/ocelus_package_spec.md the group
-        # emits BOTH the bulk-trace (m_mon_axil) AND the single-record drain
-        # (s_mon_axil) as: beat0={tag,source_ts[59:0]}, beat1=packet[127:64],
-        # beat2=packet[63:0] -- i.e. TS_HI_LO on both ports.
-        layout_drain=BeatLayout(order=BeatOrder.TS_HI_LO),
+        err_window=(MON_ERR_BASE, MON_ERR_LIMIT),
+        # Per docs/markdown/rtl-amba/includes/ocelus_package_spec.md both
+        # windows carry raw records as beat0={tag,source_ts[59:0]},
+        # beat1=packet[127:64], beat2=packet[63:0] -- TS_HI_LO.
         layout_trace=BeatLayout(order=BeatOrder.TS_HI_LO),
         log=tb.log,
     )
@@ -176,23 +179,50 @@ async def cocotb_test_stream_top_monbus(dut):
         await tb.wait_for_channel_idle(ch, timeout_us=400)
         assert tb.verify_transfer(src, dst, transfer_size), f"ch{ch} data mismatch"
 
-    def err_fifo_records():
-        """Err-FIFO occupancy in RECORDS (group_core err_fifo_count is records,
-        not beats) via the top-level internal net -- the group instance node
-        isn't reachable from cocotb."""
+    def err_fifo_beats():
+        """Error writer FIFO occupancy in BEATS (three per record) via the
+        top-level internal net -- the group instance node may not be
+        reachable from cocotb."""
         try:
             return int(dut.mon_err_fifo_count.value)
         except (AttributeError, ValueError):
             return None
 
+    def err_rec_count():
+        """The group's free-running count of whole error records landed."""
+        try:
+            return int(dut.mon_err_rec_count.value)
+        except (AttributeError, ValueError):
+            return None
+
+    def write_fifo_beats():
+        try:
+            return int(dut.mon_write_fifo_count.value)
+        except (AttributeError, ValueError):
+            return None
+
+    async def settle_writers(max_rounds: int = 400):
+        """Wait until both writers' FIFOs are empty and no new beat has been
+        captured for 100 cycles."""
+        last = -1
+        for _ in range(max_rounds):
+            await ClockCycles(dut.aclk, 100)
+            n = len(mon.trace_beats)
+            if (err_fifo_beats() or 0) == 0 and (write_fifo_beats() or 0) == 0 and n == last:
+                return
+            last = n
+
     # ----- Phase A: trace path (completions stream out m_axil_mon_*) -----
     tb.log.info("=== Phase A: monbus group trace path (completions) ===")
     for reg in MON_ERR_CFG_REGS:
-        await tb.write_reg(reg, ERR_CFG_NONE)   # nothing routed to err FIFO
+        await tb.write_reg(reg, ERR_CFG_NONE)   # nothing routed to the error window
     mon.start_trace_consumer()
     await drive_transfer(0)
     await ClockCycles(dut.aclk, 4000)
-    mon.stop_trace_consumer()
+    # The trace writer flushes on its own; wait until it has nothing left and
+    # the captured beat count stands still, so Phase B does not inherit the
+    # tail of this phase's records. The consumer keeps running across phases.
+    await settle_writers()
     pkts = mon.parse_trace_records()
     st = mon.get_stats()
     tb.log.info(f"[stream-monbus] trace beats={st.trace_beats} pkts={len(pkts)} "
@@ -205,63 +235,64 @@ async def cocotb_test_stream_top_monbus(dut):
         f"no completion packets; got {sorted({p.get_packet_type_name() for p in pkts})}")
     tb.log.info("Phase A: trace path verified")
 
-    # ----- Phase B: err FIFO + IRQ (completions routed to the err FIFO) -----
-    # Route completion packets to the err FIFO (ERR_SELECT=0x2). The FIFO
-    # filling drives stream_irq (irq_out = !err_fifo_empty); draining its
-    # records over the 32-bit s_axil_err_* port (2:1 read serializer ->
-    # 6 beats/record, recombined by the harness) clears the interrupt and
-    # the drained packets must decode back as AXI completions -- proving the
-    # 32-bit drain preserves the full 128-bit packet (a naive 32-bit truncation
-    # would drop packet_type at bit 127).
-    tb.log.info("=== Phase B: err FIFO + stream_irq ===")
+    # ----- Phase B: error window + IRQ (completions routed to the error path) -----
+    # Route completion packets to the error path (ERR_SELECT=0x2). The group
+    # writes each as a raw 3-beat record into the error window, pulses
+    # stream_irq once per whole record landed (all three B responses back)
+    # and counts it in err_rec_count / MON_ERR_REC_COUNT. The records come
+    # back out of the captured writes and must decode as AXI completions;
+    # the trace window must hold none of them.
+    tb.log.info("=== Phase B: error window + stream_irq ===")
     for reg in MON_ERR_CFG_REGS:
-        await tb.write_reg(reg, ERR_CFG_ROUTE_COMPL)   # completions -> err FIFO
+        await tb.write_reg(reg, ERR_CFG_ROUTE_COMPL)   # completions -> error window
     mon.clear()
     mon.start_irq_watch()
     await drive_transfer(1)
-    await ClockCycles(dut.aclk, 50)
-
-    records = err_fifo_records()
-    irq_live = int(dut.stream_irq.value)
-    tb.log.info(f"[stream-monbus] err FIFO records={records} "
-                f"stream_irq={irq_live} irq_first_cycle={mon.irq_first_cycle}")
-    assert mon.irq_asserted, "stream_irq never asserted with completions routed to err FIFO"
-    assert records and records > 0, "err FIFO empty despite IRQ"
-
-    # Drain every record over the 32-bit port, then confirm the IRQ de-asserts
-    # now that the err FIFO is empty.
-    #
-    # The err FIFO is FIFO_DEPTH_ERR=64 records deep and this traffic produces
-    # ~59-64 completions (cf. Phase A), so the FIFO reaches full and packets
-    # queue up in the capture pipeline behind it. A single snapshot-and-drain
-    # of `records` therefore does NOT empty it: freeing space lets the backed-up
-    # records in flow. Drain in rounds until occupancy actually reaches zero.
-    # The bound is a safety net -- a FIFO that never drains is a real failure,
-    # not something to spin on.
-    drained = []
-    for _ in range(MAX_DRAIN_ROUNDS):
-        pending = err_fifo_records()
-        if not pending:
-            break
-        drained += await mon.drain_records(pending)
-        await ClockCycles(dut.aclk, 20)
-    remaining = err_fifo_records()
-    assert not remaining, (
-        f"err FIFO still holds {remaining} records after {MAX_DRAIN_ROUNDS} drain "
-        f"rounds ({len(drained)} drained) -- it is being refilled faster than drained")
-    await ClockCycles(dut.aclk, 20)
-    irq_after = int(dut.stream_irq.value)
+    # Let the error writer land every record (its FIFO drains to memory on
+    # its own; the flush watermark is one record) and the trace writer finish.
+    await settle_writers()
+    mon.stop_trace_consumer()
     mon.stop_irq_watch()
-    tb.log.info(f"[stream-monbus] err-drained pkts={len(drained)} "
-                f"types={sorted({p.get_packet_type_name() for p in drained})} "
-                f"protocols={sorted({int(p.protocol) for p in drained})} "
-                f"irq_after_drain={irq_after} final_err_records={err_fifo_records()}")
-    assert len(drained) >= 1, "no records drained from the err FIFO"
-    assert all(p.packet_type == PktType.PktTypeCompletion for p in drained), (
-        f"non-completion in err FIFO: {sorted({p.get_packet_type_name() for p in drained})}")
-    assert irq_after == 0, "stream_irq did not clear after draining the err FIFO"
-    mon.stop_fifo_monitor()
-    tb.log.info("=== stream_top monbus-group trace + err-FIFO/IRQ paths verified ===")
+    err_pkts = mon.parse_err_records()
+    trace_pkts = mon.parse_trace_records()
+    st = mon.get_stats()
+    landed = err_rec_count()
+    irq_live = int(dut.stream_irq.value)
+    tb.log.info(f"[stream-monbus] error-window records={len(err_pkts)} "
+                f"err_rec_count={landed} irq_pulses={st.irq_rising_edges} "
+                f"irq_first_cycle={mon.irq_first_cycle} irq_live={irq_live} "
+                f"trace-window records={len(trace_pkts)} "
+                f"err_fifo_beats_left={err_fifo_beats()} "
+                f"types={sorted({p.get_packet_type_name() for p in err_pkts})} "
+                f"protocols={sorted({int(p.protocol) for p in err_pkts})}")
+    assert len(err_pkts) >= 1, "no records landed in the error window"
+    assert all(p.packet_type == PktType.PktTypeCompletion for p in err_pkts), (
+        f"non-completion in the error window: {sorted({p.get_packet_type_name() for p in err_pkts})}")
+    # The per-monitor ERR_SELECT masks govern the group's AXI slot, so every
+    # AXI-protocol completion must be in the error window; the schedulers' and
+    # descriptor engines' own completions carry PROTOCOL_CORE, which no register
+    # routes, and stay in the trace window by design.
+    axi = 0   # ocelus_common_pkg PROTOCOL_AXI
+    assert all(int(p.protocol) == axi for p in err_pkts), (
+        f"non-AXI packet in the error window: protocols {sorted({int(p.protocol) for p in err_pkts})}")
+    assert not any(p.packet_type == PktType.PktTypeCompletion and int(p.protocol) == axi for p in trace_pkts), (
+        "an AXI completion routed to the error path also appeared in the trace window")
+    assert mon.irq_asserted, "stream_irq never pulsed with completions routed to the error window"
+    assert st.irq_rising_edges == len(err_pkts), (
+        f"stream_irq pulsed {st.irq_rising_edges} times for {len(err_pkts)} records (one pulse per record)")
+    assert landed is None or landed == len(err_pkts) % 0x10000, (
+        f"err_rec_count {landed} != {len(err_pkts)} records in the window")
+    assert irq_live == 0, "stream_irq is a pulse per record; it must be low once the records have landed"
+    assert (err_fifo_beats() or 0) == 0, "error writer FIFO did not drain to memory"
+    # Every error-window beat sits on an 8-byte step inside the window, in
+    # write order, wrapping to base past the last whole record.
+    err_beats = [a for (a, _d) in mon.trace_beats if MON_ERR_BASE <= a <= MON_ERR_LIMIT]
+    window_recs = ((MON_ERR_LIMIT + 1 - MON_ERR_BASE) // 8) // 3
+    for k, addr in enumerate(err_beats):
+        rec, slot = divmod(k, 3)
+        expected = MON_ERR_BASE + ((rec % window_recs) * 3 + slot) * 8
+        assert addr == expected, f"error-window beat {k}: addr 0x{addr:08x}, expected 0x{expected:08x}"
+    tb.log.info("=== stream_top monbus-group trace + error-window/IRQ paths verified ===")
 
 
 def _monbus_timing_profiles():
@@ -287,11 +318,6 @@ def test_stream_top_monbus(request, timing_profile, test_level):
     verilog_sources, includes = get_sources_from_filelist(
         repo_root=repo_root_,
         filelist_path='projects/components/dma-ip/stream/rtl/filelists/top/stream_top_ch8.f')
-    # stream_top_ch8.f omits axil4_slave_rd.sv (it normally comes from the
-    # parent stream_char_harness.f). The monbus group's err-FIFO read leaf
-    # needs it when building stream_top_ch8 standalone with USE_AXI_MONITORS=1.
-    verilog_sources = list(verilog_sources) + [
-        os.path.join(repo_root_, 'rtl/amba/axil4/axil4_slave_rd.sv')]
 
     num_channels = int(os.environ.get('NUM_CHANNELS', '8'))
     data_width = int(os.environ.get('DATA_WIDTH', '64'))

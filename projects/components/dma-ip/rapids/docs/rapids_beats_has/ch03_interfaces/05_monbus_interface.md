@@ -194,26 +194,34 @@ Multiple RAPIDS modules generate MonBus packets. Internal arbitration ensures or
 - No packet loss (backpressure if output blocked)
 - Priority boosting for ERROR packets
 
-## Top-Level MonBus Delivery (monbus_axil4_axil4_group)
+## Top-Level MonBus Delivery (monbus_axil4_group_1wr)
 
 At the top level (`rapids_beats_top`, `rapids_beats_cxs_top`), the internal
 MonBus is not exposed as a raw 64-bit port. Instead, when `USE_AXI_MONITORS = 1`,
 the core's single merged stream (`core_mon_*`, which already carries the
-descriptor-monitor and network-plane packets) feeds a `monbus_axil4_axil4_group`.
+descriptor-monitor and network-plane packets) feeds a `monbus_axil4_group_1wr`,
+the write-only monitor group (rapids TASK-039; STREAM carries the same block).
 The data masters `m_axi_rd` and `m_axi_wr` carry no monitors. When
 `USE_AXI_MONITORS = 0`, the group is not built and its outputs are tied off
-(`mon_irq = 0`). The group presents three external interfaces:
+(`mon_irq = 0`, `mon_err_rec_count = 0`). The group presents one bus and two
+sideband outputs:
 
 | Interface | Signals | Purpose |
 |-----------|---------|---------|
-| Error-drain slave | `s_axil_err_ar*`, `s_axil_err_r*` (AXI-Lite, 32-bit read) | CPU reads captured error events from the error FIFO |
-| Capture master | `m_axil_mon_aw*`, `m_axil_mon_w*` (64-bit `wdata`), `m_axil_mon_b*` | Bulk-writes the MonBus trace to system memory |
-| Interrupt | `mon_irq` | Asserts on error/threshold events |
+| Write master | `m_axil_mon_aw*`, `m_axil_mon_w*` (64-bit `wdata`), `m_axil_mon_b*` | Writes every kept packet to memory as a 24-byte record (TS, HI, LO beats): `ERR_SELECT`-routed types into the error window, everything else into the trace window (raw or compressed) |
+| Interrupt | `mon_irq` | One-cycle pulse per whole error record landed; latch it host-side |
+| Error count | `mon_err_rec_count` (16-bit) | Whole error records landed, free-running |
 
 : Top-Level MonBus AXI-Lite Group
 
-The capture region and flush behavior are configured by `cfg_mon_base_addr`,
-`cfg_mon_limit_addr`, and `cfg_mon_flush_watermark`.
+The trace window and its flush behaviour are configured by `cfg_mon_base_addr`,
+`cfg_mon_limit_addr` and `cfg_mon_flush_watermark`; the error window by
+`cfg_mon_err_base_addr`, `cfg_mon_err_limit_addr` and
+`cfg_mon_err_flush_watermark` (3 beats = one record per write). Both are
+top-level input ports on the RAPIDS tops. The windows must not overlap, and each
+is a ring: the writer rewinds to its base when the next record would cross the
+limit, never splitting a record. The host finds error record `n` at
+`err_base + (n mod capacity) * 24` with `capacity = (err_limit + 1 - err_base) / 24`.
 
 ## Integration Notes
 
@@ -222,7 +230,7 @@ The capture region and flush behavior are configured by `cfg_mon_base_addr`,
 Internally, MonBus output connects to:
 
 1. **MonBus Arbiter** - Combines core + rd/wr monitor sources
-2. **monbus_axil4_axil4_group** - Error-drain slave, capture master, and `mon_irq`
+2. **monbus_axil4_group_1wr** - one write master (error window + trace window), `mon_irq`, `mon_err_rec_count`
 3. **Debug FIFO** - Buffered access for debug tools
 
 ### Packet Rate

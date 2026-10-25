@@ -35,8 +35,9 @@
 Beats accelerator. It wraps the register block, config-block adapter, and core
 with a single APB slave for all software access, and adds optional AXI transaction
 monitors whose events are merged with the core's descriptor-monitor packet and
-delivered through a MonBus AXI-Lite group (error-drain slave, capture master,
-and interrupt).
+delivered through a MonBus AXI-Lite group (one write master serving an error
+window and a trace window, an interrupt pulse per error record, and an error
+record count).
 
 The top is generated (rapids TASK-024). `rapids_beats_top_base` holds everything
 described on this page; `bin/gen_plane_tops.py` wraps it with one RX and one TX
@@ -86,7 +87,7 @@ must bound each channel to a single outstanding write, never the default.
 
 ## AXI Monitors (USE_AXI_MONITORS)
 
-When `USE_AXI_MONITORS = 1` the top builds the `monbus_axil4_axil4_group` and
+When `USE_AXI_MONITORS = 1` the top builds the `monbus_axil4_group_1wr` and
 feeds it the core's MonBus stream. That stream carries the scheduler groups'
 completion and error events and two monitor-lite instances per half:
 `axi4_master_rd_monlite` on the half's descriptor read master, inside
@@ -109,16 +110,19 @@ group's AXIS filter slot is fed from `SRC.MON.RDMON_*`, so it filters both
 halves' network packets (a CXS plane's `PROTOCOL_CXS` packets ride the AXIS slot); `*_PKT_MASK` masks on a set bit and resets to all-masked
 (rapids BUG-008 corrected its description). The group provides:
 
-- `s_axil_err_*` -- AXI-Lite (32-bit) **error-drain slave**: CPU reads captured
-  error events from the error FIFO.
-- `m_axil_mon_*` -- AXI-Lite (64-bit) **capture master**: bulk-writes the MonBus
-  trace to system memory (base/limit/watermark from `cfg_mon_*`).
-- `mon_irq` -- interrupt on error/threshold events.
+- `m_axil_mon_*` -- AXI-Lite (64-bit) **write master**: writes every kept
+  packet to system memory as a 24-byte record. `ERR_SELECT`-routed types go to
+  the error window (`cfg_mon_err_base_addr` / `cfg_mon_err_limit_addr` /
+  `cfg_mon_err_flush_watermark`, raw records only), everything else to the
+  trace window (`cfg_mon_base_addr` / `cfg_mon_limit_addr` /
+  `cfg_mon_flush_watermark`, raw or compressed).
+- `mon_irq` -- one-cycle pulse per whole error record landed.
+- `mon_err_rec_count` -- 16-bit count of error records landed, free-running.
 
 When `USE_AXI_MONITORS = 0` the descriptor and network monitor-lites are omitted
 (the AXIS skid stages and CXS receive FIFO stay), the core
 MonBus is dropped (always-ready), and the AXI-Lite group outputs are tied off
-(`s_axil_err` read-inactive, `m_axil_mon` write-inactive, `mon_irq = 0`).
+(`m_axil_mon` write-inactive, `mon_irq = 0`, `mon_err_rec_count = 0`).
 
 ### Monitor registers on a monitors-off build (USE_MON_REGS)
 
@@ -179,9 +183,9 @@ parameter logic [7:0] CXS_IDLE_CYCLES = 8'd32;
 | Network out (AXIS top) | `m_axis_tdata/tstrb/tlast/tid/tdest/tuser/tvalid/tready` | Source egress, `tid` = channel |
 | Network in (CXS top) | `s_cxs_*`, `snk_cxs_link_state`, `snk_cxs_protocol_error`, `snk_cxs_unsupported` | CXS receiver, `CXSSRCID` = channel |
 | Network out (CXS top) | `m_cxs_*`, `src_cxs_link_state`, `src_cxs_protocol_error` | CXS transmitter, `CXSSRCID` = channel |
-| MonBus error-drain slave | `s_axil_err_ar*`, `s_axil_err_r*` | AXI-Lite, 32-bit read |
-| MonBus capture master | `m_axil_mon_aw*`, `m_axil_mon_w*` (64-bit `wdata`), `m_axil_mon_b*` | AXI-Lite write |
-| MonBus interrupt | `mon_irq` | Error/threshold interrupt |
+| MonBus write master | `m_axil_mon_aw*`, `m_axil_mon_w*` (64-bit `wdata`), `m_axil_mon_b*` | AXI-Lite write: error window + trace window |
+| MonBus window config | `cfg_mon_*`, `cfg_mon_err_*` | Trace and error window base / limit / flush watermark |
+| MonBus interrupt | `mon_irq`, `mon_err_rec_count` | Pulse per error record landed; records landed |
 | MonBus config | `cfg_mon_base_addr`, `cfg_mon_limit_addr`, `cfg_mon_flush_watermark` | Capture region + flush watermark |
 | Status | `system_idle`, `sched_error[NC-1:0]` | Aggregate status |
 

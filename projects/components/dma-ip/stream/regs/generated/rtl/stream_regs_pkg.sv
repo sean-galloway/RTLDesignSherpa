@@ -5,7 +5,7 @@ package stream_regs_pkg;
 
     localparam STREAM_REGS_DATA_WIDTH = 32;
     localparam STREAM_REGS_MIN_ADDR_WIDTH = 13;
-    localparam STREAM_REGS_SIZE = 'h126c;
+    localparam STREAM_REGS_SIZE = 'h127c;
 
     typedef struct {
         logic next;
@@ -499,6 +499,14 @@ package stream_regs_pkg;
     } stream_mon_regs__WRMON_PERF_CH_OVERFLOW__in_t;
 
     typedef struct {
+        logic [15:0] next;
+    } stream_mon_regs__MON_ERR_REC_COUNT__COUNT__in_t;
+
+    typedef struct {
+        stream_mon_regs__MON_ERR_REC_COUNT__COUNT__in_t COUNT;
+    } stream_mon_regs__MON_ERR_REC_COUNT__in_t;
+
+    typedef struct {
         stream_mon_regs__MON_FIFO_STATUS__in_t MON_FIFO_STATUS;
         stream_mon_regs__MON_FIFO_COUNT__in_t MON_FIFO_COUNT;
         stream_mon_regs__DAXMON_PERF_STATUS__in_t DAXMON_PERF_STATUS;
@@ -537,6 +545,7 @@ package stream_regs_pkg;
         stream_mon_regs__WRMON_PERF_CH_STARV_IDLE__in_t WRMON_PERF_CH_STARV_IDLE;
         stream_mon_regs__RDMON_PERF_CH_OVERFLOW__in_t RDMON_PERF_CH_OVERFLOW;
         stream_mon_regs__WRMON_PERF_CH_OVERFLOW__in_t WRMON_PERF_CH_OVERFLOW;
+        stream_mon_regs__MON_ERR_REC_COUNT__in_t MON_ERR_REC_COUNT;
     } stream_mon_regs__in_t;
 
     typedef struct {
@@ -1543,6 +1552,30 @@ package stream_regs_pkg;
     } stream_mon_regs__MON_GROUP_FLUSH_WATERMARK__out_t;
 
     typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__MON_GROUP_ERR_BASE_ADDR__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__MON_GROUP_ERR_BASE_ADDR__VALUE__out_t VALUE;
+    } stream_mon_regs__MON_GROUP_ERR_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } stream_mon_regs__MON_GROUP_ERR_LIMIT_ADDR__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__MON_GROUP_ERR_LIMIT_ADDR__VALUE__out_t VALUE;
+    } stream_mon_regs__MON_GROUP_ERR_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } stream_mon_regs__MON_GROUP_ERR_FLUSH_WATERMARK__VALUE__out_t;
+
+    typedef struct {
+        stream_mon_regs__MON_GROUP_ERR_FLUSH_WATERMARK__VALUE__out_t VALUE;
+    } stream_mon_regs__MON_GROUP_ERR_FLUSH_WATERMARK__out_t;
+
+    typedef struct {
         stream_mon_regs__DAXMON_ENABLE__out_t DAXMON_ENABLE;
         stream_mon_regs__DAXMON_TIMEOUT__out_t DAXMON_TIMEOUT;
         stream_mon_regs__DAXMON_LATENCY_THRESH__out_t DAXMON_LATENCY_THRESH;
@@ -1591,6 +1624,9 @@ package stream_regs_pkg;
         stream_mon_regs__MON_GROUP_BASE_ADDR__out_t MON_GROUP_BASE_ADDR;
         stream_mon_regs__MON_GROUP_LIMIT_ADDR__out_t MON_GROUP_LIMIT_ADDR;
         stream_mon_regs__MON_GROUP_FLUSH_WATERMARK__out_t MON_GROUP_FLUSH_WATERMARK;
+        stream_mon_regs__MON_GROUP_ERR_BASE_ADDR__out_t MON_GROUP_ERR_BASE_ADDR;
+        stream_mon_regs__MON_GROUP_ERR_LIMIT_ADDR__out_t MON_GROUP_ERR_LIMIT_ADDR;
+        stream_mon_regs__MON_GROUP_ERR_FLUSH_WATERMARK__out_t MON_GROUP_ERR_FLUSH_WATERMARK;
     } stream_mon_regs__out_t;
 
     typedef struct {

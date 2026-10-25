@@ -21,7 +21,7 @@
 //                                same backing store, so a doorbell write is
 //                                observable by a gate read)
 //   - always-accept AXIL write responder for m_axil_mon_* (monitor egress never
-//                                stalls); s_axil_err_* quiesced. The interface
+//                                stalls); the error window sits above the trace window, unread. The interface
 //                                observers' monbus egress (USE_OBSERVERS=1) gets
 //                                the same treatment, and MON_CAPTURE=1 stores
 //                                whichever stream is live (rapids ISSUE-007).
@@ -1660,15 +1660,14 @@ module rapids_byte_harness #(
         .m_axis_tvalid (m_axis_tvalid),
         .m_axis_tready (m_axis_tready),
 
-        // MonBus AXIL error-drain slave (quiesced: no external reader)
-        .s_axil_err_arvalid (1'b0),
-        .s_axil_err_arready (),
-        .s_axil_err_araddr  (32'h0),
-        .s_axil_err_arprot  (3'h0),
-        .s_axil_err_rvalid  (),
-        .s_axil_err_rready  (1'b1),
-        .s_axil_err_rdata   (),
-        .s_axil_err_rresp   (),
+        // MonBus error window (the write-only group, rapids TASK-039): the
+        // 64 KB above the trace window; nothing on this harness reads it yet
+        .cfg_mon_err_base_addr       (r_cfg_mon_limit_addr + 32'd1),
+        .cfg_mon_err_limit_addr      (r_cfg_mon_limit_addr + 32'h0001_0000),
+        .cfg_mon_err_flush_watermark (16'd3),
+        /* verilator lint_off PINCONNECTEMPTY */
+        .mon_err_rec_count  (),
+        /* verilator lint_on PINCONNECTEMPTY */
 
         // MonBus AXIL capture master (always-accept responder below)
         .m_axil_mon_awvalid (mon_awvalid),

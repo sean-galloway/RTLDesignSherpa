@@ -131,7 +131,7 @@ CSR_BUILD_ID        = H("BUILD_ID")
 
 # Harness timer (the right "DMA is done" signal). The IRQ-on-completion
 # path is not wired by default -- descriptors don't set CTRL_INTERRUPT
-# and no monbus packet type is routed to the err FIFO at boot. The timer
+# and no monbus packet type is routed to the error window at boot. The timer
 # fires when the write-side beat count reaches TIMER_EXPECTED_BEATS.
 CSR_TIMER_CTRL          = H("TIMER_CTRL") # W: bit 0 = clear pulse
 CSR_TIMER_STATUS        = H("TIMER_STATUS") # R: [0]=done [1]=running [2]=pass
@@ -226,20 +226,19 @@ MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
 # silently mean something else here.
 # 0x0F = MON_EN | ERR_EN | COMPL_EN | TIMEOUT_EN (perf and threshold off).
 MON_ENABLE_COMPL_IRQ     = 0x0F
-# MON_ERR_CFG.ERR_SELECT[15:0]: per-packet-type IRQ-vs-bulk route bit.
-#   bit[type] = 1  -> packet of that type goes to the err FIFO IRQ path
-#   bit[type] = 0  -> packet of that type goes to the bulk write FIFO,
-#                      which drains via m_mon_axil into debug_sram
-# Inside monbus_axil4_axil4_group these are *exclusive*:
-#   pkt_to_write_fifo = !pkt_drop && !pkt_to_err_fifo
-# so any type routed to the err FIFO is NOT also captured in debug_sram.
+# MON_ERR_CFG.ERR_SELECT[15:0]: per-packet-type error-vs-trace route bit.
+#   bit[type] = 1  -> packet of that type is written to the ERROR window
+#                      (MON_GROUP_ERR_*; one irq_out pulse per record)
+#   bit[type] = 0  -> packet of that type is written to the TRACE window
+#                      (MON_GROUP_BASE/LIMIT, the capture memory)
+# Inside monbus_axil4_group_1wr the two are *exclusive*, so a type routed
+# to the error window is NOT also in the trace capture.
 #
-# We want every emitted packet captured in the bulk trace SRAM so the
-# post-hang dump in run_config()._snapshot_on_hang() can show what the
-# monitors saw before the wedge. The runner polls TIMER_STATUS.done for
-# completion (not stream_irq), so silencing the IRQ path costs nothing.
-# Was 0x0000_000F (Error / Completion / Threshold / Timeout -> IRQ
-# path); now 0x0 so every type lands in debug_sram.
+# We want every emitted packet in the one trace capture so the post-hang
+# dump in run_config()._snapshot_on_hang() can show what the monitors saw
+# before the wedge. The runner polls TIMER_STATUS.done for completion (not
+# stream_irq), so silencing the error path costs nothing. Was 0x0000_000F
+# (Error / Completion / Threshold / Timeout -> error path); now 0x0.
 MON_ERR_CFG_BULK_TRACE   = 0x0000_0000
 
 
@@ -470,7 +469,7 @@ class CharacterizationRunner:
                           WR_XFER_BEATS=(_wb - 1) & 0xFF)
 
         # Unblock the monbus monitors so packets actually flow out into
-        # debug_sram (and the err FIFO IRQ path). RDL default leaves
+        # the trace window (and the error window / IRQ path). RDL default leaves
         # PKT_MASK = 0xFFFF which silently drops every packet at monbus
         # entry; without clearing it the trace SRAM stays empty and we
         # get zero observability when something hangs. Mirror the TB's
@@ -857,7 +856,7 @@ class CharacterizationRunner:
         self.log(f"  --- Trace counters: wr_ptr={trace['wr_ptr']} "
                  f"overflow={trace['overflow']} ---")
 
-        # 3. Head / tail of the SRAM. The monbus_axil4_axil4_group writes 32-bit
+        # 3. Head / tail of the SRAM. The monbus group writes 32-bit
         # words sequentially; wr_ptr counts WORDS (not bytes). Each
         # monitor record is 3 words: pkt[31:0], pkt[63:32], timestamp[31:0]
         # (plus another 3 for the 128-bit upper half + timestamp[63:32]

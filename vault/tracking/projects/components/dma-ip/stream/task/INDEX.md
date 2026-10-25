@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 19 | done (kept for history) |
+| [closed/](closed/) | 20 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-019** — `monbus_axil4_group_1wr` in place of `monbus_axil4_axil4_group` on both STREAM tops (write-only monitor, records read from memory on irq_out / err_rec_count); RAPIDS twin is rapids TASK-039
 
 ## Active
 
@@ -33,6 +32,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-019** — CLOSED 2026-10-25: `monbus_axil4_group_1wr` on both STREAM tops and stream-g; `MON_GROUP_ERR_*` window + `MON_ERR_REC_COUNT`; records read from memory in sim (top monbus test) and on the Genesys 2 harness (error window = top 4 KB of comp_sram, `dump_monbus.py`); books MAS 0.104 / HAS 0.101 / board 1.5; rapids twin TASK-039
 - **TASK-020** — stream-g: STREAM's schedulers sequenced by gatling firmware (its own image), measured against STREAM on the Genesys 2 the rapids-g way; closed 2026-10-25
 - **TASK-021** — stream-g lone-channel chain plateau (32-80 beats): the one-slot poll tested the chain hook only on a pass's first read; fixed in STREAM's own firmware, board 1,890 -> 1,126 cycles at 32 beats; closed 2026-10-25
 - **TASK-018** — loadable firmware memory as on rapids-g; delivered by TASK-020 phase 4 (stream-g carries rapids-g's loader unchanged, FW_* at 0x3A0-0x3AC); closed 2026-10-24

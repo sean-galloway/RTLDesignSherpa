@@ -20,7 +20,7 @@ digraph rapids_beats_system_integration {
     ddr  [label="DDR Memory - data buffers, descriptor chains, monitor log", fillcolor="white", width=10.8, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     nic_in  -> rapids [xlabel="s_axis_* or s_cxs_*\n(packets in)"];
-    cpu     -> rapids [dir=both, label="s_apb_* config + kick, s_axil_err reads;\nmon_irq back", penwidth=1.8];
+    cpu     -> rapids [dir=both, label="s_apb_* config + kick;\nmon_irq back, error records in memory", penwidth=1.8];
     nic_out -> rapids [color="#1A7A1A", dir=back, xlabel="m_axis_* or m_cxs_*\n(packets out)"];
 
     p_wr  [shape=point, width=0.01, group=L];

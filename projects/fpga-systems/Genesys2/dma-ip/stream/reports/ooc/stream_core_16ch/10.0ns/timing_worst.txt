@@ -1,0 +1,1014 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sat Oct 24 16:53:51 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_timing -max_paths 20 -nworst 1 -sort_by slack -file /mnt/data/github/RTLDesignSherpa/projects/fpga-systems/Genesys2/dma-ip/stream/reports/ooc/stream_core_16ch/10.0ns/timing_worst.txt
+| Design       : stream_core
+| Device       : 7k325t-ffg900
+| Speed File   : -2  PRODUCTION 1.12 2017-02-17
+| Design State : Routed
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Slack (MET) :             0.256ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][157]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_150_155/RAMB_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.547ns  (logic 0.223ns (2.336%)  route 9.324ns (97.664%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X128Y210       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][157]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X128Y210       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][157]/Q
+                         net (fo=33, routed)          9.324    10.084    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_150_155/DIB1
+    SLICE_X126Y87        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_150_155/RAMB_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_150_155/WCLK
+    SLICE_X126Y87        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_150_155/RAMB_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X126Y87        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.135    10.340    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_150_155/RAMB_D1
+  -------------------------------------------------------------------
+                         required time                         10.340    
+                         arrival time                         -10.084    
+  -------------------------------------------------------------------
+                         slack                                  0.256    
+
+Slack (MET) :             0.269ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][16]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[8].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.573ns  (logic 0.259ns (2.705%)  route 9.314ns (97.295%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X122Y208       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][16]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X122Y208       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][16]/Q
+                         net (fo=33, routed)          9.314    10.110    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[8].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/DIA0
+    SLICE_X98Y92         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[8].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[8].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/WCLK
+    SLICE_X98Y92         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[8].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X98Y92         RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.096    10.379    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[8].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA
+  -------------------------------------------------------------------
+                         required time                         10.379    
+                         arrival time                         -10.110    
+  -------------------------------------------------------------------
+                         slack                                  0.269    
+
+Slack (MET) :             0.273ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][260]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/r_slot_c1_reg/D
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.699ns  (logic 1.244ns (12.827%)  route 8.455ns (87.173%))
+  Logic Levels:           19  (LUT2=1 LUT4=6 LUT5=3 LUT6=9)
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X73Y200        FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][260]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X73Y200        FDCE (Prop_fdce_C_Q)         0.223     0.760 f  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][260]/Q
+                         net (fo=49, routed)          0.426     1.186    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][263]_3[219]
+    SLICE_X71Y199        LUT2 (Prop_lut2_I1_O)        0.043     1.229 f  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/i___188_i_3/O
+                         net (fo=816, routed)         0.665     1.894    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/fifo_control_inst/i___119_i_6_1
+    SLICE_X72Y202        LUT6 (Prop_lut6_I0_O)        0.043     1.937 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/fifo_control_inst/i___119_i_16/O
+                         net (fo=1, routed)           0.334     2.271    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/fifo_control_inst/i___119_i_16_n_0
+    SLICE_X69Y200        LUT6 (Prop_lut6_I3_O)        0.043     2.314 f  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/fifo_control_inst/i___119_i_6/O
+                         net (fo=4, routed)           0.479     2.793    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/fifo_control_inst/FSM_sequential_g_ch[9].r_st_reg[9][1]
+    SLICE_X72Y200        LUT4 (Prop_lut4_I0_O)        0.043     2.836 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/fifo_control_inst/i___119_i_1/O
+                         net (fo=165, routed)         0.381     3.217    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_ch[1].r_pend_addr_reg[1][28]
+    SLICE_X78Y200        LUT4 (Prop_lut4_I0_O)        0.043     3.260 f  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/i___90_i_2/O
+                         net (fo=123, routed)         0.518     3.779    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][214]_0
+    SLICE_X77Y197        LUT6 (Prop_lut6_I5_O)        0.043     3.822 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/i___52_i_1/O
+                         net (fo=16, routed)          0.548     4.370    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/w_fifo_wr_valid_15
+    SLICE_X76Y196        LUT5 (Prop_lut5_I3_O)        0.043     4.413 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/counter_bin_curr[2]_i_1__126/O
+                         net (fo=4, routed)           0.457     4.870    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/rdom_wr_ptr_bin[2]
+    SLICE_X76Y196        LUT4 (Prop_lut4_I2_O)        0.049     4.919 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/i___184_i_16/O
+                         net (fo=1, routed)           0.343     5.262    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/w_fifo_count[15]_95[3]
+    SLICE_X77Y196        LUT6 (Prop_lut6_I4_O)        0.136     5.398 f  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/i___184_i_5/O
+                         net (fo=4, routed)           0.437     5.835    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[13].u_desc_fifo/write_pointer_inst/i___181_i_2_0
+    SLICE_X77Y200        LUT6 (Prop_lut6_I3_O)        0.043     5.878 f  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[13].u_desc_fifo/write_pointer_inst/i___181_i_9/O
+                         net (fo=4, routed)           0.433     6.310    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[13].u_desc_fifo/write_pointer_inst/r_rr_ptr_reg[1]_3
+    SLICE_X76Y203        LUT6 (Prop_lut6_I0_O)        0.043     6.353 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[13].u_desc_fifo/write_pointer_inst/i___3_i_2/O
+                         net (fo=5, routed)           0.447     6.800    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[12].u_desc_fifo/write_pointer_inst/FSM_sequential_g_ch[5].r_st[5][2]_i_11_0
+    SLICE_X77Y202        LUT6 (Prop_lut6_I5_O)        0.043     6.843 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[12].u_desc_fifo/write_pointer_inst/i___4_i_1/O
+                         net (fo=4, routed)           0.367     7.209    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[12].u_desc_fifo_n_481
+    SLICE_X77Y203        LUT6 (Prop_lut6_I2_O)        0.043     7.252 r  u_scheduler_group_array/g_shared.u_desc_engine/i___4/O
+                         net (fo=13, routed)          0.327     7.579    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[5].u_desc_fifo/write_pointer_inst/r_rr_ptr_reg[0]_1
+    SLICE_X73Y205        LUT6 (Prop_lut6_I2_O)        0.043     7.622 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[5].u_desc_fifo/write_pointer_inst/r_rr_ptr[1]_i_5/O
+                         net (fo=1, routed)           0.429     8.052    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[4].u_desc_fifo/write_pointer_inst/r_rr_ptr_reg[1]_0
+    SLICE_X73Y204        LUT5 (Prop_lut5_I2_O)        0.043     8.095 f  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[4].u_desc_fifo/write_pointer_inst/r_rr_ptr[1]_i_3/O
+                         net (fo=5, routed)           0.466     8.560    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/r_rr_ptr_reg[1]_0
+    SLICE_X68Y204        LUT4 (Prop_lut4_I1_O)        0.043     8.603 f  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/FSM_sequential_g_ch[7].r_st[7][2]_i_6/O
+                         net (fo=136, routed)         0.675     9.279    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/r_rr_ptr_reg[0]
+    SLICE_X66Y199        LUT4 (Prop_lut4_I3_O)        0.053     9.332 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[15].u_desc_fifo/write_pointer_inst/FSM_sequential_g_ch[15].r_st[15][2]_i_4/O
+                         net (fo=3, routed)           0.367     9.698    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[4].u_desc_fifo/write_pointer_inst/r_slot_c1_reg_2
+    SLICE_X67Y202        LUT5 (Prop_lut5_I4_O)        0.138     9.836 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[4].u_desc_fifo/write_pointer_inst/r_slot_c1_i_2/O
+                         net (fo=1, routed)           0.356    10.193    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[4].u_desc_fifo/write_pointer_inst/r_slot_c1_i_2_n_0
+    SLICE_X67Y204        LUT4 (Prop_lut4_I0_O)        0.043    10.236 r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[4].u_desc_fifo/write_pointer_inst/r_slot_c1_i_1/O
+                         net (fo=1, routed)           0.000    10.236    u_scheduler_group_array/g_shared.u_desc_engine/r_st__0
+    SLICE_X67Y204        FDCE                                         r  u_scheduler_group_array/g_shared.u_desc_engine/r_slot_c1_reg/D
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/clk
+    SLICE_X67Y204        FDCE                                         r  u_scheduler_group_array/g_shared.u_desc_engine/r_slot_c1_reg/C
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X67Y204        FDCE (Setup_fdce_C_D)        0.034    10.509    u_scheduler_group_array/g_shared.u_desc_engine/r_slot_c1_reg
+  -------------------------------------------------------------------
+                         required time                         10.509    
+                         arrival time                         -10.236    
+  -------------------------------------------------------------------
+                         slack                                  0.273    
+
+Slack (MET) :             0.273ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][148]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMA/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.569ns  (logic 0.223ns (2.331%)  route 9.346ns (97.669%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X127Y221       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][148]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X127Y221       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][148]/Q
+                         net (fo=33, routed)          9.346    10.106    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/DIA0
+    SLICE_X142Y121       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMA/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/WCLK
+    SLICE_X142Y121       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMA/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X142Y121       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.096    10.379    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMA
+  -------------------------------------------------------------------
+                         required time                         10.379    
+                         arrival time                         -10.106    
+  -------------------------------------------------------------------
+                         slack                                  0.273    
+
+Slack (MET) :             0.281ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][177]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_168_173/RAMC_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.510ns  (logic 0.223ns (2.345%)  route 9.287ns (97.655%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X119Y223       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][177]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X119Y223       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][177]/Q
+                         net (fo=33, routed)          9.287    10.047    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_168_173/DIC1
+    SLICE_X138Y141       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_168_173/RAMC_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_168_173/WCLK
+    SLICE_X138Y141       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_168_173/RAMC_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X138Y141       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.147    10.328    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_168_173/RAMC_D1
+  -------------------------------------------------------------------
+                         required time                         10.328    
+                         arrival time                         -10.047    
+  -------------------------------------------------------------------
+                         slack                                  0.281    
+
+Slack (MET) :             0.282ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][16]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.559ns  (logic 0.259ns (2.709%)  route 9.300ns (97.291%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X122Y208       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][16]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X122Y208       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][16]/Q
+                         net (fo=33, routed)          9.300    10.096    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/DIA0
+    SLICE_X120Y83        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/WCLK
+    SLICE_X120Y83        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X120Y83        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.096    10.379    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMA
+  -------------------------------------------------------------------
+                         required time                         10.379    
+                         arrival time                         -10.096    
+  -------------------------------------------------------------------
+                         slack                                  0.282    
+
+Slack (MET) :             0.286ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][5]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.511ns  (logic 0.223ns (2.345%)  route 9.288ns (97.655%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X125Y210       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X125Y210       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][5]/Q
+                         net (fo=33, routed)          9.288    10.048    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/DIA1
+    SLICE_X134Y111       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/WCLK
+    SLICE_X134Y111       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X134Y111       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.140    10.335    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1
+  -------------------------------------------------------------------
+                         required time                         10.335    
+                         arrival time                         -10.048    
+  -------------------------------------------------------------------
+                         slack                                  0.286    
+
+Slack (MET) :             0.287ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][8]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.539ns  (logic 0.223ns (2.338%)  route 9.316ns (97.662%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X128Y205       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][8]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X128Y205       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][8]/Q
+                         net (fo=33, routed)          9.316    10.076    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/DIC0
+    SLICE_X122Y84        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/WCLK
+    SLICE_X122Y84        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMC/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X122Y84        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112    10.363    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMC
+  -------------------------------------------------------------------
+                         required time                         10.363    
+                         arrival time                         -10.076    
+  -------------------------------------------------------------------
+                         slack                                  0.287    
+
+Slack (MET) :             0.293ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][34]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMA/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.549ns  (logic 0.259ns (2.712%)  route 9.290ns (97.288%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X118Y208       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][34]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y208       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][34]/Q
+                         net (fo=33, routed)          9.290    10.086    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/DIA0
+    SLICE_X134Y114       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMA/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/WCLK
+    SLICE_X134Y114       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMA/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X134Y114       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.096    10.379    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMA
+  -------------------------------------------------------------------
+                         required time                         10.379    
+                         arrival time                         -10.086    
+  -------------------------------------------------------------------
+                         slack                                  0.293    
+
+Slack (MET) :             0.294ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][50]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_42_47/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.532ns  (logic 0.223ns (2.339%)  route 9.309ns (97.661%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X112Y202       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][50]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X112Y202       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][50]/Q
+                         net (fo=16, routed)          9.309    10.069    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_42_47/DIC0
+    SLICE_X2Y147         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_42_47/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_42_47/WCLK
+    SLICE_X2Y147         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_42_47/RAMC/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X2Y147         RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112    10.363    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_42_47/RAMC
+  -------------------------------------------------------------------
+                         required time                         10.363    
+                         arrival time                         -10.069    
+  -------------------------------------------------------------------
+                         slack                                  0.294    
+
+Slack (MET) :             0.294ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][55]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_48_53/RAMB_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.508ns  (logic 0.259ns (2.724%)  route 9.249ns (97.276%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X120Y202       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][55]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X120Y202       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][55]/Q
+                         net (fo=16, routed)          9.249    10.045    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_48_53/DIB1
+    SLICE_X6Y171         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_48_53/RAMB_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_48_53/WCLK
+    SLICE_X6Y171         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_48_53/RAMB_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X6Y171         RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.135    10.340    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_48_53/RAMB_D1
+  -------------------------------------------------------------------
+                         required time                         10.340    
+                         arrival time                         -10.045    
+  -------------------------------------------------------------------
+                         slack                                  0.294    
+
+Slack (MET) :             0.295ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][15]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[10].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_6_11/RAMC_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.496ns  (logic 0.223ns (2.348%)  route 9.273ns (97.652%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X123Y209       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][15]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X123Y209       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][15]/Q
+                         net (fo=33, routed)          9.273    10.033    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[10].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_6_11/DIC1
+    SLICE_X110Y89        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[10].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_6_11/RAMC_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[10].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_6_11/WCLK
+    SLICE_X110Y89        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[10].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_6_11/RAMC_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X110Y89        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.147    10.328    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[10].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_6_11/RAMC_D1
+  -------------------------------------------------------------------
+                         required time                         10.328    
+                         arrival time                         -10.033    
+  -------------------------------------------------------------------
+                         slack                                  0.295    
+
+Slack (MET) :             0.298ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][84]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_78_83/RAMB/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.529ns  (logic 0.259ns (2.718%)  route 9.270ns (97.282%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X118Y213       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][84]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X118Y213       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][84]/Q
+                         net (fo=33, routed)          9.270    10.066    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_78_83/DIB0
+    SLICE_X136Y119       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_78_83/RAMB/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_78_83/WCLK
+    SLICE_X136Y119       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_78_83/RAMB/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X136Y119       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.111    10.364    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_78_83/RAMB
+  -------------------------------------------------------------------
+                         required time                         10.364    
+                         arrival time                         -10.066    
+  -------------------------------------------------------------------
+                         slack                                  0.298    
+
+Slack (MET) :             0.298ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][18]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMB/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.529ns  (logic 0.223ns (2.340%)  route 9.306ns (97.660%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X128Y207       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][18]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X128Y207       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][18]/Q
+                         net (fo=33, routed)          9.306    10.066    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/DIB0
+    SLICE_X6Y175         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMB/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/WCLK
+    SLICE_X6Y175         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMB/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X6Y175         RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.111    10.364    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[7].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_12_17/RAMB
+  -------------------------------------------------------------------
+                         required time                         10.364    
+                         arrival time                         -10.066    
+  -------------------------------------------------------------------
+                         slack                                  0.298    
+
+Slack (MET) :             0.299ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][38]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.526ns  (logic 0.259ns (2.719%)  route 9.267ns (97.281%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X120Y209       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][38]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X120Y209       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][38]/Q
+                         net (fo=33, routed)          9.267    10.063    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/DIC0
+    SLICE_X6Y149         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/WCLK
+    SLICE_X6Y149         RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMC/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X6Y149         RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112    10.363    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[14].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_30_35/RAMC
+  -------------------------------------------------------------------
+                         required time                         10.363    
+                         arrival time                         -10.063    
+  -------------------------------------------------------------------
+                         slack                                  0.299    
+
+Slack (MET) :             0.301ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][122]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_114_119/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.525ns  (logic 0.223ns (2.341%)  route 9.302ns (97.659%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X119Y204       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][122]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X119Y204       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][122]/Q
+                         net (fo=16, routed)          9.302    10.062    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_114_119/DIC0
+    SLICE_X134Y127       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_114_119/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_114_119/WCLK
+    SLICE_X134Y127       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_114_119/RAMC/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X134Y127       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112    10.363    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_114_119/RAMC
+  -------------------------------------------------------------------
+                         required time                         10.363    
+                         arrival time                         -10.062    
+  -------------------------------------------------------------------
+                         slack                                  0.301    
+
+Slack (MET) :             0.302ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][5]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.496ns  (logic 0.223ns (2.348%)  route 9.273ns (97.652%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X125Y210       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][5]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X125Y210       FDCE (Prop_fdce_C_Q)         0.223     0.760 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][5]/Q
+                         net (fo=33, routed)          9.273    10.033    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/DIA1
+    SLICE_X122Y84        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/WCLK
+    SLICE_X122Y84        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X122Y84        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.140    10.335    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[9].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_0_5/RAMA_D1
+  -------------------------------------------------------------------
+                         required time                         10.335    
+                         arrival time                         -10.033    
+  -------------------------------------------------------------------
+                         slack                                  0.302    
+
+Slack (MET) :             0.305ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][152]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[2].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.520ns  (logic 0.259ns (2.720%)  route 9.261ns (97.280%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X122Y220       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][152]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X122Y220       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][152]/Q
+                         net (fo=33, routed)          9.261    10.057    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[2].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/DIC0
+    SLICE_X98Y110        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[2].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[2].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/WCLK
+    SLICE_X98Y110        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[2].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMC/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X98Y110        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112    10.363    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[2].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_144_149/RAMC
+  -------------------------------------------------------------------
+                         required time                         10.363    
+                         arrival time                         -10.057    
+  -------------------------------------------------------------------
+                         slack                                  0.305    
+
+Slack (MET) :             0.307ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][74]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_66_71/RAMC/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.519ns  (logic 0.259ns (2.721%)  route 9.260ns (97.279%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X114Y207       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][74]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X114Y207       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][74]/Q
+                         net (fo=33, routed)          9.260    10.056    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_66_71/DIC0
+    SLICE_X138Y133       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_66_71/RAMC/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_66_71/WCLK
+    SLICE_X138Y133       RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_66_71/RAMC/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X138Y133       RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.112    10.363    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[1].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_66_71/RAMC
+  -------------------------------------------------------------------
+                         required time                         10.363    
+                         arrival time                         -10.056    
+  -------------------------------------------------------------------
+                         slack                                  0.307    
+
+Slack (MET) :             0.309ns  (required time - arrival time)
+  Source:                 u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][61]/C
+                            (rising edge-triggered cell FDCE clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Destination:            u_scheduler_group_array/g_shared.u_desc_engine/g_ch[3].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_54_59/RAMB_D1/I
+                            (rising edge-triggered cell RAMD32 clocked by core_clk  {rise@0.000ns fall@5.000ns period=10.000ns})
+  Path Group:             core_clk
+  Path Type:              Setup (Max at Slow Process Corner)
+  Requirement:            10.000ns  (core_clk rise@10.000ns - core_clk rise@0.000ns)
+  Data Path Delay:        9.494ns  (logic 0.259ns (2.728%)  route 9.235ns (97.272%))
+  Logic Levels:           0  
+  Clock Path Skew:        -0.027ns (DCD - SCD + CPR)
+    Destination Clock Delay (DCD):    0.510ns = ( 10.510 - 10.000 ) 
+    Source Clock Delay      (SCD):    0.537ns
+    Clock Pessimism Removal (CPR):    0.000ns
+  Clock Uncertainty:      0.035ns  ((TSJ^2 + TIJ^2)^1/2 + DJ) / 2 + PE
+    Total System Jitter     (TSJ):    0.071ns
+    Total Input Jitter      (TIJ):    0.000ns
+    Discrete Jitter          (DJ):    0.000ns
+    Phase Error              (PE):    0.000ns
+
+    Location             Delay type                Incr(ns)  Path(ns)    Netlist Resource(s)
+  -------------------------------------------------------------------    -------------------
+                         (clock core_clk rise edge)
+                                                      0.000     0.000 r  
+                                                      0.000     0.000 r  clk (IN)
+                         net (fo=58510, unset)        0.537     0.537    u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/clk
+    SLICE_X130Y204       FDCE                                         r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][61]/C
+  -------------------------------------------------------------------    -------------------
+    SLICE_X130Y204       FDCE (Prop_fdce_C_Q)         0.259     0.796 r  u_scheduler_group_array/u_desc_axi_monitor/u_core/r_channel/g_skid.g_slot[0].r_data_reg[0][61]/Q
+                         net (fo=16, routed)          9.235    10.031    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[3].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_54_59/DIB1
+    SLICE_X14Y207        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[3].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_54_59/RAMB_D1/I
+  -------------------------------------------------------------------    -------------------
+
+                         (clock core_clk rise edge)
+                                                     10.000    10.000 r  
+                                                      0.000    10.000 r  clk (IN)
+                         net (fo=58510, unset)        0.510    10.510    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[3].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_54_59/WCLK
+    SLICE_X14Y207        RAMD32                                       r  u_scheduler_group_array/g_shared.u_desc_engine/g_ch[3].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_54_59/RAMB_D1/CLK
+                         clock pessimism              0.000    10.510    
+                         clock uncertainty           -0.035    10.475    
+    SLICE_X14Y207        RAMD32 (Setup_ramd32_CLK_I)
+                                                     -0.135    10.340    u_scheduler_group_array/g_shared.u_desc_engine/g_ch[3].g_ext.u_ext_fifo/gen_auto.mem_reg_0_7_54_59/RAMB_D1
+  -------------------------------------------------------------------
+                         required time                         10.340    
+                         arrival time                         -10.031    
+  -------------------------------------------------------------------
+                         slack                                  0.309    
+
+
+
+

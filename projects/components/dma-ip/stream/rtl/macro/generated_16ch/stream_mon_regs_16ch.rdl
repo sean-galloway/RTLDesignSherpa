@@ -20,13 +20,13 @@ regfile stream_mon_regs_16ch {
         desc = "Monitor bus FIFO status indicators";
 
         field {
-            desc = "Monitor FIFO full - 1=FIFO full, 0=space available";
+            desc = "Error writer FIFO full - 1=full (the core stalls its input), 0=space available";
             sw = r;
             hw = w;
         } MON_FIFO_FULL;
 
         field {
-            desc = "Monitor FIFO empty - 1=FIFO empty, 0=data available";
+            desc = "Error writer FIFO empty - 1=no error beats waiting to be written, 0=beats buffered";
             sw = r;
             hw = w;
         } MON_FIFO_EMPTY;
@@ -56,7 +56,7 @@ regfile stream_mon_regs_16ch {
         desc = "Monitor bus FIFO entry count";
 
         field {
-            desc = "FIFO count [15:0] - number of entries in FIFO";
+            desc = "Error writer FIFO occupancy in 64-bit beats (three per record) not yet written to the error window";
             sw = r;
             hw = w;
         } FIFO_COUNT[15:0];
@@ -170,7 +170,7 @@ regfile stream_mon_regs_16ch {
         desc = "Descriptor AXI monitor error selection and filtering";
 
         field {
-            desc = "Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace";
+            desc = "Error select - per-packet-type route: 1=error window (irq per record), 0=trace window";
             sw = rw;
             hw = r;
         } ERR_SELECT[15:0] = 16'h0000;
@@ -338,7 +338,7 @@ regfile stream_mon_regs_16ch {
         desc = "Read engine AXI monitor error selection and filtering";
 
         field {
-            desc = "Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace";
+            desc = "Error select - per-packet-type route: 1=error window (irq per record), 0=trace window";
             sw = rw;
             hw = r;
         } ERR_SELECT[15:0] = 16'h0000;
@@ -506,7 +506,7 @@ regfile stream_mon_regs_16ch {
         desc = "Write engine AXI monitor error selection and filtering";
 
         field {
-            desc = "Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace";
+            desc = "Error select - per-packet-type route: 1=error window (irq per record), 0=trace window";
             sw = rw;
             hw = r;
         } ERR_SELECT[15:0] = 16'h0000;
@@ -1172,5 +1172,15 @@ regfile stream_mon_regs_16ch {
     reg { name = "Monbus group base addr";  desc = "Master-write window inclusive low bound (monbus bulk-trace)";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0004_0000; } MON_GROUP_BASE_ADDR  @ 0x260;
     reg { name = "Monbus group limit addr"; desc = "Master-write window inclusive high bound (monbus bulk-trace)"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0007_FFFF; } MON_GROUP_LIMIT_ADDR @ 0x264;
     reg { name = "Monbus group flush wmark"; desc = "Flush burst once this many beats buffered; 0 = flush every complete record"; field { sw=rw; hw=r; } VALUE[15:0] = 16'h0000; } MON_GROUP_FLUSH_WATERMARK @ 0x268;
+    // Error window (monbus_axil4_group_1wr, stream TASK-019): the packets the
+    // per-monitor ERR_SELECT masks pick are written here as raw 3-beat records,
+    // {tag, source_ts} / packet[127:64] / packet[63:0], never compressed; the
+    // host reads them out of memory on stream_irq (one pulse per record landed)
+    // and MON_ERR_REC_COUNT. The window wraps to its base past the last whole
+    // record. The trace window above takes everything else.
+    reg { name = "Monbus error window base";  desc = "Error-record window inclusive low bound (master write)";  field { sw=rw; hw=r; } VALUE[31:0] = 32'h0008_0000; } MON_GROUP_ERR_BASE_ADDR  @ 0x26C;
+    reg { name = "Monbus error window limit"; desc = "Error-record window inclusive high bound (master write)"; field { sw=rw; hw=r; } VALUE[31:0] = 32'h0008_FFFF; } MON_GROUP_ERR_LIMIT_ADDR @ 0x270;
+    reg { name = "Monbus error flush wmark";  desc = "Flush the error writer once this many beats are buffered; 3 = every record";  field { sw=rw; hw=r; } VALUE[15:0] = 16'h0003; } MON_GROUP_ERR_FLUSH_WATERMARK @ 0x274;
+    reg { name = "Monbus error record count"; desc = "Whole error records landed in the error window (all three beats acknowledged), free-running, wraps at 65536"; field { sw=r; hw=w; } COUNT[15:0]; field { desc = "Reserved"; sw = r; hw = na; } RSVD[31:16] = 16'h0; } MON_ERR_REC_COUNT @ 0x278;
 
 };

@@ -156,7 +156,7 @@ engine cannot introduce a datapath hazard in the other.
 Observability is built in and merges in three levels: a per-half
 `monbus_arbiter` inside each of the source and sink engines, a core-level
 `monbus_arbiter` that merges the two halves, and finally
-`monbus_axil4_axil4_group`, which drains the merged stream to the single
+`monbus_axil4_group_1wr`, which writes the merged stream to memory over the single
 `m_axil_mon` egress. One wire off-chip carries every monitor packet from both
 directions.
 

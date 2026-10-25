@@ -5,17 +5,15 @@
 # Module: dump_monbus_sram
 # Purpose: UART-side dump of the bridge's monbus capture SRAM region.
 #
-# Companion to dump_monbus.py. The two scripts target the two output
-# paths of monbus_axil4_axil4_group:
+# Companion to dump_monbus.py. The two scripts read the two windows of
+# the write-only monbus_axil4_group_1wr:
 #
-#   dump_monbus.py      <- drains the CPU IRQ-facing err_fifo via the
-#                          s_mon_axil_* slave read port (3 beats per
-#                          packet, slice-counter drain semantics).
+#   dump_monbus.py      <- the ERROR window (ERR_SELECT-routed packets,
+#                          one irq_out pulse per record, MON_ERR_REC_COUNT).
 #
-#   dump_monbus_sram.py <- this script. Reads a memory region that
-#                          collected the m_mon_axil_* MASTER writes
-#                          (the bulk monitor-trace dump path used by
-#                          stream_char's debug_sram).
+#   dump_monbus_sram.py <- this script. The TRACE window: the memory region
+#                          that collected the group's bulk m_axil writes
+#                          (comp_sram on the Genesys 2 bridge).
 #
 # Record layout is fixed at 24 bytes (3 × 64-bit beats), TS, HI, LO order
 # (matches parse_stream ts_mode=1 and the monitor package spec):
@@ -68,15 +66,13 @@ from TBClasses.monbus import (  # noqa: E402
     MONBUS_TS_WIDTH,
 )
 
-# Re-use the formatter from the FIFO drain script -- the two scripts
-# decode different transport layers but agree on the on-the-wire
-# representation, so the print format stays identical.
+# Re-use the formatter from the error-window reader -- the two windows
+# share one record format, so the print format stays identical.
 from dump_monbus import format_record  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
-# Fixed record geometry. The variable-mode append knob was removed from
-# monbus_axil4_axil4_group; every record is now 24 bytes (3 × 64-bit beats) in
+# Fixed record geometry: every record is 24 bytes (3 × 64-bit beats) in
 # TS, HI, LO order: {tag,source_ts[59:0]}, packet[127:64], packet[63:0].
 # ---------------------------------------------------------------------------
 
@@ -272,7 +268,7 @@ def dump_json(
         "label": "monbus_sram_dump",
         "schema_version": 1,
         "record_count": len(pairs),
-        "source_format": "monbus_axil4_axil4_group_24B_ts_mode_1",
+        "source_format": "monbus_group_1wr_24B_ts_mode_1",
         "dump_base_addr": f"0x{base_addr:08x}",
         "dump_n_bytes": f"0x{n_bytes:x}",
     }

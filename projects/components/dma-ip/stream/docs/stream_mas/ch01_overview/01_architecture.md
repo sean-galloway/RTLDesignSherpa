@@ -218,9 +218,10 @@ stream_top_ch8 / stream_top_ch16 (Top-Level Wrapper)
 │                             stream_regs_16ch in the 16-channel top)
 ├── stream_config_block      (Register → config signal mapping)
 ├── stream_core              (Main DMA engine - see below)
-└── monbus_axil_group        (USE_AXI_MONITORS=1: MonBus → AXI-Lite)
-    ├── Error FIFO (s_axil_err_* slave read)
-    └── Master Writer (m_axil_mon_* master write)
+└── monbus_axil4_group_1wr   (USE_AXI_MONITORS=1: MonBus → AXI-Lite write)
+    ├── Error writer  (ERR_SELECT packets -> MON_GROUP_ERR_* window, irq per record)
+    └── Trace writer  (everything else   -> MON_GROUP_*     window)
+        both over the one m_axil_mon_* master
 ```
 
 ### Core DMA Engine (stream_core.sv)
@@ -274,9 +275,8 @@ stream_core
 | Descriptor AXI | Master | 256-bit | Fetch descriptors from memory |
 | Data Read AXI | Master | 512-bit | Read source data |
 | Data Write AXI | Master | 512-bit | Write destination data |
-| Error FIFO AXIL | Slave | 32-bit | Read monitor error/interrupt FIFO |
-| Monitor Write AXIL | Master | 32-bit | Write monitor data to memory |
-| IRQ | Output | 1-bit | Interrupt (error FIFO not empty) |
+| Monitor Write AXIL | Master | 64-bit | Write monitor records to memory (error window and trace window) |
+| IRQ | Output | 1-bit | Interrupt pulse, one per error record landed |
 
 : STREAM External Interfaces
 

@@ -124,7 +124,7 @@
 |--------|------|---------|-------|--------|
 | scheduler_group_array | `rtl/macro/scheduler_group_array.sv` | NUM_CHANNELS (8 or 16) scheduler array + descriptor fetch, shared or per channel (`SHARED_ENGINES`) | ~500 | [Done] |
 | apb_config | `rtl/macro/stream_regs.rdl` + generated wrapper (`regs/generated/`) | Config registers | ~350 | [Done] PeakRDL-based |
-| monbus_axil_group | `rtl/amba/ocelus/monbus_axil4_axil4_group.sv` (shared AMBA monitor block) | MonBus + AXIL | ~800 | [Done] |
+| monbus_axil_group | `rtl/amba/ocelus/monbus_axil4_group_1wr.sv` (shared AMBA monitor block, write-only) | MonBus + AXIL write | ~800 | [Done] |
 | stream_top | `rtl/top/stream_top_ch8.sv` | Top-level (8-channel) | ~500 | [Done] |
 | stream_top_ch16 | `rtl/top/stream_top_ch16.sv` | Top-level (16-channel); generated from `stream_top_ch8.sv` by `bin/gen_stream_regs_16ch.py` | ~500 | [Done] |
 | apb_config (16ch) | `rtl/macro/generated_16ch/stream_regs_16ch.rdl` (derived) + `regs/generated_16ch/` | 16-channel config registers | - | [Done] PeakRDL-based |

@@ -149,6 +149,7 @@ Revisions follow the convention x.y, where x is the major version and y is the m
 | 0.12 | 2026-10-20 | seang | Block diagrams redrawn to the repo element key (v3): class fills, double-bordered registered blocks, green return paths and a generated key under each figure. No technical content changed. |
 | 0.13 | 2026-10-20 | seang | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.14 | 2026-10-21 | seang | Scheduler: run-base generators flushed by the channel reset (rapids BUG-017). Registers: per-channel `CH_SCRATCH` at 0x300. |
+| 0.15 | 2026-10-25 | seang | `12_rapids_beats_top.md`: monitor egress is `monbus_axil4_group_1wr` (rapids TASK-039): no `s_axil_err_*` slave; one write master serves an error window (`cfg_mon_err_*`) and the trace window, `mon_irq` pulses per record, `mon_err_rec_count` added. Register descriptions and figures follow. |
 
 : Table 0.2: RAPIDS Beats MAS Document Revision History
 

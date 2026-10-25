@@ -1,6 +1,6 @@
 // How a channel error reaches software in RAPIDS Beats. There is no separate
-// IRQ status register: the interrupt is mon_irq from monbus_axil4_axil4_group
-// (error FIFO not empty), and the per-channel flag is SCHED_ERROR.
+// IRQ status register: the interrupt is mon_irq from monbus_axil4_group_1wr
+// (one pulse per error record landed), and the per-channel flag is SCHED_ERROR.
 // Verified against scheduler_beats.sv, rapids_beats_top.sv (hwif_in, monitor group).
 digraph rapids_beats_error_reporting {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
@@ -14,9 +14,9 @@ digraph rapids_beats_error_reporting {
     sc  [label="Scheduler n - scheduler_beats\nenters CH_ERROR, latches sched_error", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     reg [label="Status Register\nSCHED_ERROR bit n (sticky,\nfrom hwif_in)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     arb [label="MonBus Arbiter Tree\n(group, array, half, core)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    flt [label="Packet Filter - monbus_axil4_axil4_group\nerr_select type -> error FIFO, else -> capture log", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    flt [label="Packet Filter - monbus_axil4_group_1wr\nerr_select type -> error window, else -> trace window", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     fifo [label="Error FIFO\n(packet + timestamp records)", group=R, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
-    cpu [label="Host CPU\nAPB reads (s_apb_*)   |   mon_irq + error-FIFO reads (s_axil_err)", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    cpu [label="Host CPU\nAPB reads (s_apb_*)   |   mon_irq pulse + error-window reads from memory", fillcolor="white", width=7.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     sc  -> reg  [label="sched_error"];
     sc  -> arb  [label="one error packet\n(PktTypeError)"];

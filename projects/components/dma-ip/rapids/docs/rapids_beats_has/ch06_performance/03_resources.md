@@ -98,8 +98,8 @@ logic.
 
 - LUTs: ~1-2K
 - FFs: ~1-2K
-- Function: rd/wr AXI monitors feeding the MonBus AXI-Lite group (error-drain +
-  capture master), monitor perf windows @ 0x1000.
+- Function: rd/wr AXI monitors feeding the MonBus AXI-Lite group (one write
+  master: error window + trace window), monitor perf windows @ 0x1000.
 
 ---
 

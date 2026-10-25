@@ -16,7 +16,7 @@
 //           → stream_regs (PeakRDL registers, 0x100-0x3FF)
 //       → stream_config_block (register mapping)
 //       → stream_core (conditional: monitors enabled/disabled)
-//       → monbus_axil4_axil4_group (monitor bus → AXI-Lite, USE_AXI_MONITORS=1)
+//       → monbus_axil4_group_1wr (monitor bus → AXI-Lite master write, USE_AXI_MONITORS=1)
 //
 //   APB Address Map:
 //     0x000-0x03F: Channel kick-off registers (CHx_CTRL_{LOW,HIGH})
@@ -27,8 +27,10 @@
 //     - APB4 configuration interface with optional CDC
 //     - 3 AXI4 masters (descriptor fetch, read data, write data)
 //     - Configurable AXI transaction monitors (USE_AXI_MONITORS parameter)
-//     - Monitor bus to AXI-Lite conversion (error FIFO + master write)
-//     - Single interrupt output (stream_irq from monbus_axil4_axil4_group)
+//     - Monitor bus to AXI-Lite master writes: error records to the error window,
+//       everything else to the trace window (no slave-read side)
+//     - Single interrupt output (stream_irq from monbus_axil4_group_1wr: one pulse
+//       per error record landed in memory)
 //     - Performance profiler registers (RDL block, PERF_* @ 0x2B0-0x2D8)
 //
 // Parameters:
@@ -46,9 +48,9 @@
 //   - AXI4 master desc (m_axi_desc_*): 256-bit descriptor fetch
 //   - AXI4 master rd (m_axi_rd_*): Parameterizable read data
 //   - AXI4 master wr (m_axi_wr_*): Parameterizable write data
-//   - AXI4-Lite slave (s_axil_err_*): Monitor error/interrupt FIFO reads
 //   - AXI4-Lite master (m_axil_mon_*): Monitor data writes
-//   - Interrupt (stream_irq): Single interrupt output
+//   - Interrupt (stream_irq): one pulse per whole error record landed; the host reads
+//     the record out of the error window (MON_GROUP_ERR_*) and MON_ERR_REC_COUNT
 //
 //-----------------------------------------------------------------------------
 
@@ -94,7 +96,7 @@ module stream_g_top_ch8 #(
     parameter int SHARED_ENGINES = 1,    // 1 = one shared descriptor engine; 0 = one per channel
     parameter int CDC_ENABLE = 1,        // 0 = Same clock (pclk=aclk), 1 = Different clocks (CDC)
     // Bulk-trace MonBus compressor select. Only meaningful when
-    // USE_AXI_MONITORS=1; pass-through to monbus_axil4_axil4_group.USE_COMPRESSION.
+    // USE_AXI_MONITORS=1; pass-through to monbus_axil4_group_1wr.USE_COMPRESSION.
     //   0: raw 3-beat-per-record writer (default, byte-exact prior behaviour)
     //   1: 32-entry LRU CAM-based compressor in front of the writer, 1 beat
     //      per slot with a 4-bit format tag in bits [63:60] of each slot.
@@ -262,19 +264,6 @@ module stream_g_top_ch8 #(
     output logic                                    m_axi_wr_bready,
 
     //-------------------------------------------------------------------------
-    // AXI4-Lite Slave - MonBus Error/Interrupt FIFO Read Interface
-    //-------------------------------------------------------------------------
-    // Slave read interface for error/interrupt FIFO
-    input  logic                                    s_axil_err_arvalid,
-    output logic                                    s_axil_err_arready,
-    input  logic [31:0]                             s_axil_err_araddr,
-    input  logic [2:0]                              s_axil_err_arprot,
-    output logic                                    s_axil_err_rvalid,
-    input  logic                                    s_axil_err_rready,
-    output logic [31:0]                             s_axil_err_rdata,
-    output logic [1:0]                              s_axil_err_rresp,
-
-    //-------------------------------------------------------------------------
     // AXI4-Lite Master - MonBus Master Write Interface
     //-------------------------------------------------------------------------
     // Master write interface for monitor data
@@ -311,7 +300,7 @@ module stream_g_top_ch8 #(
     output logic [31:0]                             mon_compressor_stat_ed_delta_ovf,
 
     //-------------------------------------------------------------------------
-    // Monitor capture region (used by monbus_axil4_axil4_group's master writes when
+    // Monitor capture region (used by monbus_axil4_group_1wr's master writes when
     // USE_AXI_MONITORS=1). The SoC integrator points these at whatever
     // memory region collects the dumped packets -- in stream_char that's
     // debug_sram at 0x0004_0000+. The monbus-group master-write config
@@ -548,11 +537,12 @@ module stream_g_top_ch8 #(
     //-------------------------------------------------------------------------
     logic                                   mon_err_fifo_full;
     logic                                   mon_write_fifo_full;
-    logic [15:0]                            mon_err_fifo_count;     // the group's 16-bit counts
+    logic [15:0]                            mon_err_fifo_count;     // the group's 16-bit counts (beats)
     logic [15:0]                            mon_write_fifo_count;
+    logic [15:0]                            mon_err_rec_count;      // whole error records landed (1wr group)
 
     //-------------------------------------------------------------------------
-    // Monitor Bus (to monbus_axil4_axil4_group)
+    // Monitor Bus (to monbus_axil4_group_1wr)
     //-------------------------------------------------------------------------
     logic                                          mon_valid;
     logic                                          mon_ready;
@@ -1107,15 +1097,19 @@ module stream_g_top_ch8 #(
         // as the two above: nothing drove these hwif_in fields, so they read
         // X in a 4-state simulator and whatever synthesis tied them to. Now
         // that the MON window answers on every default build, they report the
-        // monitor error/interrupt FIFO (the one the host drains over
-        // s_axil_err). On a monitors-off build g_monbus_tieoff ties its full
-        // and count to 0, so the register reads EMPTY=1, count 0. The group
-        // exposes no overflow/underflow flags, so OVFL/UNFL read 0.
+        // group's error writer FIFO (beats, three per record, waiting to be
+        // written to the error window; the host reads the records out of
+        // memory, not out of this FIFO). On a monitors-off build
+        // g_monbus_tieoff ties its full and count to 0, so the register reads
+        // EMPTY=1, count 0. The group exposes no overflow/underflow flags, so
+        // OVFL/UNFL read 0. MON_ERR_REC_COUNT is the group's free-running
+        // count of whole records landed (stream_irq pulses once per record).
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_FULL.next  = mon_err_fifo_full;
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_EMPTY.next = (mon_err_fifo_count == 16'h0000);   // was 8 bits: read empty at 256
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_OVFL.next  = 1'b0;
         hwif_in.MON.MON_FIFO_STATUS.MON_FIFO_UNFL.next  = 1'b0;
         hwif_in.MON.MON_FIFO_COUNT.FIFO_COUNT.next      = mon_err_fifo_count;
+        hwif_in.MON.MON_ERR_REC_COUNT.COUNT.next        = mon_err_rec_count;
 
         // Descriptor AXI monitor perf-window readback (RFC Stage E CSR route;
         // see DAXMON_PERF_CTRL @ 0x2D0 for the run control).
@@ -2232,17 +2226,16 @@ module stream_g_top_ch8 #(
     // Conditional instantiation: Only when USE_AXI_MONITORS=1
     generate
         if (USE_AXI_MONITORS == 1) begin : g_monbus_axil
-            monbus_axil4_axil4_group #(
-                .FIFO_DEPTH_ERR     (64),    // Error/interrupt FIFO depth
-                .FIFO_DEPTH_WRITE   (96),    // Write data FIFO depth (BEATS)
+            // The write-only group (stream TASK-019): error-selected packets go
+            // to the error window as raw 3-beat records, everything else to the
+            // trace window, both over the one 64-bit AXI-Lite master
+            // (m_axil_mon_*; 3 beats/record: {tag,source_ts}, packet[127:64],
+            // packet[63:0]). There is no slave-read side: the host reads error
+            // records out of memory on stream_irq / MON_ERR_REC_COUNT.
+            monbus_axil4_group_1wr #(
+                .FIFO_DEPTH_ERR     (192),   // error writer FIFO, BEATS (64 records)
+                .FIFO_DEPTH_WRITE   (96),    // trace writer FIFO, BEATS
                 .ADDR_WIDTH         (32),    // AXI-Lite address width
-                // Err-FIFO drain (CPU IRQ status read) is 32-bit to match the
-                // 32-bit stream_char host crossbar (s_axil_err_rdata[31:0]).
-                // The group's 2:1 read serializer presents each 64-bit record
-                // slice as two 32-bit beats (low then high) -> 6 beats/record.
-                // The master-write bulk-trace port stays 64-bit (3 beats/record:
-                // {tag,source_ts}, packet[127:64], packet[63:0]).
-                .S_AXIL_DATA_WIDTH  (32),
                 .NUM_PROTOCOLS      (3),     // 3 protocols: desc, rd, wr
                 .USE_COMPRESSION    (USE_MON_COMPRESSION),
                 .HALF_BEAT_EN       (USE_MON_HALFBEAT)
@@ -2260,15 +2253,6 @@ module stream_g_top_ch8 #(
                 // Free-running timestamp counter — broadcast to wrappers
                 .mon_time_out       (mon_time_w),
 
-                // Error/Interrupt FIFO - Slave Read Interface (AXI-Lite)
-                .s_axil_arvalid     (s_axil_err_arvalid),
-                .s_axil_arready     (s_axil_err_arready),
-                .s_axil_araddr      (s_axil_err_araddr),
-                .s_axil_arprot      (s_axil_err_arprot),
-                .s_axil_rvalid      (s_axil_err_rvalid),
-                .s_axil_rready      (s_axil_err_rready),
-                .s_axil_rdata       (s_axil_err_rdata),
-                .s_axil_rresp       (s_axil_err_rresp),
 
                 // Master Write Interface (AXI-Lite)
                 .m_axil_awvalid     (m_axil_mon_awvalid),
@@ -2283,8 +2267,9 @@ module stream_g_top_ch8 #(
                 .m_axil_bready      (m_axil_mon_bready),
                 .m_axil_bresp       (m_axil_mon_bresp),
 
-                // Interrupt Output
+                // Interrupt: one pulse per whole error record landed
                 .irq_out            (stream_irq),
+                .err_rec_count      (mon_err_rec_count),
 
                 // Configuration - Base/Limit Addresses driven from
                 // top-level inputs so the SoC integrator (stream_char
@@ -2297,6 +2282,10 @@ module stream_g_top_ch8 #(
                 .cfg_base_addr      (hwif_out.MON.MON_GROUP_BASE_ADDR.VALUE.value),
                 .cfg_limit_addr     (hwif_out.MON.MON_GROUP_LIMIT_ADDR.VALUE.value),
                 .cfg_flush_watermark (hwif_out.MON.MON_GROUP_FLUSH_WATERMARK.VALUE.value),
+                // Error window (raw records the ERR_SELECT masks pick)
+                .cfg_err_base_addr       (hwif_out.MON.MON_GROUP_ERR_BASE_ADDR.VALUE.value),
+                .cfg_err_limit_addr      (hwif_out.MON.MON_GROUP_ERR_LIMIT_ADDR.VALUE.value),
+                .cfg_err_flush_watermark (hwif_out.MON.MON_GROUP_ERR_FLUSH_WATERMARK.VALUE.value),
                 // Runtime compression enable -- host-controllable via
                 // WRMON_ENABLE.COMPRESS_EN (1=compress, 0=raw 3-beat).
                 .cfg_compress_en     (hwif_out.MON.WRMON_ENABLE.COMPRESS_EN.value),
@@ -2319,7 +2308,7 @@ module stream_g_top_ch8 #(
                 //
                 // Now the AXI slot passes what ANY monitor allows: drop masks are
                 // ANDed (dropped only if all three drop), err_select is ORed
-                // (routed to the err FIFO if any asks). Each monitor still applies
+                // (routed to the error window if any asks). Each monitor still applies
                 // its own mask inside itself, so per-monitor filtering is intact;
                 // the group only stops being a second filter keyed to one of them.
                 // The AXIS and CORE slots are tied to "drop nothing, select
@@ -2395,12 +2384,7 @@ module stream_g_top_ch8 #(
             // Monitors disabled - tie off monitor bus and AXI-Lite interfaces
             assign mon_ready = 1'b1;  // Always ready (backpressure disabled)
             assign stream_irq = 1'b0;  // No interrupts
-
-            // Tie off AXI-Lite slave interface (error FIFO reads)
-            assign s_axil_err_arready = 1'b1;
-            assign s_axil_err_rvalid = 1'b0;
-            assign s_axil_err_rdata = 32'h0;
-            assign s_axil_err_rresp = 2'b00;
+            assign mon_err_rec_count = 16'h0;
 
             // Tie off AXI-Lite master interface (monitor writes)
             assign m_axil_mon_awvalid = 1'b0;

@@ -108,7 +108,7 @@ async def cocotb_test_mon_window_default_readable(dut):
     failures = []
 
     # ---- 1. the window answers, and its status registers read sane --------
-    # MON_FIFO_* report the monitor error FIFO; with no monitors built it is
+    # MON_FIFO_* report the group's error-writer FIFO; with no monitors built it is
     # empty with count 0. EMPTY=1 is the truthful value (0 would claim data).
     for reg in ('MON_FIFO_STATUS', 'MON_FIFO_COUNT', 'RDMON_PERF_STATUS',
                 'WRMON_PERF_STATUS', 'DAXMON_PERF_STATUS'):

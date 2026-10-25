@@ -284,9 +284,9 @@ slave, which is why capacity is summed per slave:
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | uniform | 32 | 0.878 | 0.878 | 0.912 | 18.0 / 52 | 13.8 / 18 | 15.6 / 20 | 27.2 / 44 |
 | uniform | 16 | 1.755 | 1.755 | 1.795 | 20.1 / 52 | 13.8 / 18 | 16.2 / 21 | 28.1 / 45 |
-| uniform | 8 | 3.510 | 2.6 | 2.365 | 72.0 / 275 | 87.8 / 245 | 30.8 / 82 | 108.5 / 279 |
-| uniform | 4 | 7.021 | 3.1 | 2.437 | 134.6 / 390 | 182.2 / 376 | 82.1 / 185 | 213.1 / 410 |
-| uniform | 2 | 14.042 | 4.0 | 2.430 | 335.0 / 491 | 376.0 / 411 | 226.0 / 261 | 409.1 / 475 |
+| uniform | 8 | 3.510 | 2.6 | 2.489 | 72.0 / 241 | 78.3 / 211 | 34.3 / 102 | 98.1 / 293 |
+| uniform | 4 | 7.021 | 3.1 | 2.536 | 131.0 / 377 | 131.1 / 262 | 78.1 / 249 | 198.3 / 437 |
+| uniform | 2 | 14.042 | 4.0 | 2.550 | 313.6 / 443 | 252.9 / 336 | 218.8 / 286 | 394.0 / 507 |
 | permutation | 8 | 2.250 | 2.250 | 2.264 | 18.0 / 18 | 15.0 / 15 | 10.0 / 10 | 10.0 / 10 |
 | permutation | 5 | 3.600 | 3.0 | 3.012 | 88.5 / 150 | 15.0 / 15 | 10.0 / 10 | 10.0 / 10 |
 | permutation | 4 | 4.500 | 3.5 | 3.505 | 112.0 / 194 | 15.0 / 15 | 10.0 / 10 | 10.0 / 10 |
@@ -295,39 +295,58 @@ slave, which is why capacity is summed per slave:
 | hot-spot (ddr0) | 8 | 3.750 | 1.0 | 1.000 | 782.0 / 1070 | 706.1 / 1008 | 727.1 / 1021 | 743.1 / 1037 |
 | hot-spot (ddr0) | 2 | 15.000 | 1.0 | 1.000 | 1157.7 / 1242 | 1113.6 / 1250 | 1120.7 / 1254 | 1136.7 / 1270 |
 
-: Traffic patterns against offered load, `bridge_4x4_rw` (FUNC level, 2026-10-24; latency in cycles, mean / p95 per master)
+: Traffic patterns against offered load, `bridge_4x4_rw` (FUNC level, 2026-10-25; latency in cycles, mean / p95 per master)
 
 The permutation (cpu -> periph, dma0 -> ddr0, dma1 -> sram, gpu -> gpu_mem)
 carries 0.89-1.00 of its per-slave capacity however hard it is driven: four
 flows of four widths cross at once, and only cpu's latency grows because
 its 64-bit reads are eight beats each at the 32-bit periph, the one port it
 oversubscribes. The hot spot keeps ddr0 at 1.000 from every master; all
-four queue behind it equally. Uniform traffic loses more here than on the
-2x2 -- 0.91 of capacity at gap 8, 0.61 from gap 4 on -- and it is NOT the
-2x2's mechanism: `bridge_4x4_rw_rq8`, the same fabric with the 8-beat
-response queues, measures the same curve.
+four queue behind it equally. Uniform traffic holds capacity to 1.4x
+offered on both 4x4 fixtures (2.49 and 2.58 of 2.55 at gap 8) and settles
+to a flat ~2.55 slave beats per cycle from 2.2x offered on (gap 4), with
+the queued fabric a beat's width ahead of the unqueued one. What the loss
+past that point is -- measured per cycle on `bridge_4x4_rw_rq8` (bridge
+TASK-022, 2026-10-25), not inferred: every slave R pin ran 0 percent
+stalled, so the return path (the TASK-021 queues included) never
+backpressures; `sram` and `gpu_mem` sat 84 percent idle, starved of
+requests. Half the uniform beats target the 32-bit `periph` port (offered
+7x its one beat per cycle at gap 2; a 256-bit master's 4-beat read is 32
+beats there). By Little's law each master's 16-entry outstanding table
+then fills with periph reads (dma0's tracker full 28 percent of cycles),
+and a master's single AR channel issues in order, so its reads to the idle
+slaves wait behind periph-bound slots and behind periph's congested AR
+path (gpu's ARs path-blocked 48 percent). No depth moves that wall -- a
+four-times-deeper response queue measured the same -- and a deeper
+outstanding table only delays it. The 4x4 fixtures stay on the 0.55 floor
+past 2x offered as the measured cost of a maximally skewed mix on minimal
+tables, documented, not a defect waiting on a fix.
+
+One loss the measurement did find and fix was in the driver, not the
+fabric: the sweep rotated transaction IDs `k % 16` against a three-target
+cycle, and 16 mod 3 = 1 puts every burst's ID twin (16 bursts back) at a
+DIFFERENT slave. The per-ID same-target gate (`bridge_id_remap`'s
+`req_ok` -- AXI orders same-ID responses, and two slaves cannot order
+between themselves) held 31-58 percent of AR cycles while the trackers sat
+empty; the 2x2 never showed it because 16 mod 2 = 0 keeps the twin on the
+same slave. The driver now partitions IDs per target -- a master that
+wants reads in flight to different slaves uses different IDs; that is what
+IDs are for -- which is what moved the 4x4's uniform curve from 0.61 to
+0.98 of capacity at 1.4x offered. (The shorter GATE sweep, 24 reads per
+master, now reads 0.89 unqueued and 0.97 queued at 3.5x offered: the phase
+ends before the outstanding tables clog, which is the same Little's-law
+wall seen from the other side.)
 
 | Pattern | Gap | Offered | Capacity | Accepted | cpu mean / p95 | dma0 | dma1 | gpu |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | uniform | 16 | 1.755 | 1.755 | 1.795 | 20.9 / 53 | 14.8 / 19 | 16.6 / 21 | 29.1 / 46 |
-| uniform | 8 | 3.510 | 2.6 | 2.440 | 65.8 / 221 | 77.7 / 227 | 27.6 / 65 | 96.0 / 261 |
-| uniform | 4 | 7.021 | 3.1 | 2.457 | 131.5 / 385 | 178.0 / 371 | 74.3 / 167 | 208.7 / 405 |
-| uniform | 2 | 14.042 | 4.0 | 2.454 | 329.8 / 485 | 370.9 / 435 | 220.6 / 256 | 402.9 / 469 |
+| uniform | 8 | 3.510 | 2.6 | 2.575 | 65.6 / 221 | 70.8 / 197 | 29.9 / 79 | 88.7 / 277 |
+| uniform | 4 | 7.021 | 3.1 | 2.604 | 125.0 / 365 | 124.4 / 251 | 72.2 / 227 | 191.2 / 425 |
+| uniform | 2 | 14.042 | 4.0 | 2.591 | 306.3 / 433 | 245.4 / 327 | 211.7 / 279 | 386.5 / 497 |
 | permutation | 2 | 9.000 | 4.0 | 3.619 | 234.4 / 283 | 101.1 / 129 | 96.1 / 124 | 96.1 / 124 |
 | hot-spot (ddr0) | 2 | 15.000 | 1.0 | 1.000 | 1157.8 / 1243 | 1113.9 / 1251 | 1120.9 / 1255 | 1136.9 / 1271 |
 
-: The same sweep on `bridge_4x4_rw_rq8` (`r_queue_depth = 8`, thirteen queues; FUNC level, 2026-10-25). Uniform traffic sits on the same ceiling as the unqueued fabric, 2.44-2.46 slave beats per cycle from 1.4x offered on, whatever the load.
-
-A flat ceiling that does not move with offered load or with the queue
-(32 beats measured the same as 8) is a fixed resource binding, not a
-head-of-line stall between slaves: the candidates are an outstanding limit
-at the slow 32-bit `periph` port, where a 256-bit master's 4-beat read is
-32 beats, and the master adapter's in-order return across its four width
-paths. Filed as bridge TASK-022, to be measured per cycle before anything
-is built; the pattern test holds the 4x4 fixtures to 0.55 of capacity past
-saturation until then. (The shorter GATE sweep, 24 reads per master, had
-shown the queued 4x4 at 0.95 and 0.74 of capacity -- a transient the
-queues absorb, which is why the FUNC curve is the one tabled.)
+: The same sweep on `bridge_4x4_rw_rq8` (`r_queue_depth = 8`, thirteen queues; FUNC level, 2026-10-25). The queues keep the queued fabric a beat's width ahead past saturation; the shared ceiling above 2x offered is the traffic skew at the 32-bit periph port, not the return path (text above).
 
 ### Bandwidth Characterization (measured)
 

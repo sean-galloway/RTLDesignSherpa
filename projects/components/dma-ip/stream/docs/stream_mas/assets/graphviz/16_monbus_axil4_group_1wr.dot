@@ -1,0 +1,48 @@
+// monbus_axil4_group_1wr block diagram - house style (vault/handbook/authoring/block-diagrams.md).
+// The module is rtl/amba; this book shows the group as STREAM instantiates it (stream TASK-019).
+// Wrapper over monbus_group_core_1wr (drawn as one child box): it adds the single
+// protocol leaf that turns the core's AXI4-shaped write FUB into a real AXI4-Lite port.
+// Flows:
+//   capture - monitor bus in at the top -> the core
+//   write   - core -> axil4_master_wr -> the memory write port (bottom bar); the
+//             core aims each record at the error window or the trace window
+// Source of truth: rtl/amba/ocelus/monbus_axil4_group_1wr.sv.
+digraph monbus_axil4_group_1wr {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
+           nodesep="0.45", ranksep="0.60", splines=ortho, newrank=true,
+           label="monbus_axil4_group_1wr - capture core behind one AXI4-Lite write port\n(single clock: axi_aclk, axi_aresetn)",
+           labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    // ---- ports (white) ----
+    min   [group=C, label="Monitor Bus In\nmonbus_valid, monbus_packet,\nmonbus_timestamp / monbus_ready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cfg   [label="Config (runtime input ports)\lcfg_* filter masks and err_select,\lerror window cfg_err_base/limit/flush_watermark,\ltrace window cfg_base/limit/flush_watermark,\l    passed straight to the core\l", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    prm   [label="Parameters (fixed at build)\lFIFO_DEPTH_ERR / FIFO_DEPTH_WRITE: writer FIFOs (beats)\lUSE_COMPRESSION / HALF_BEAT_EN: trace path, see the core\lSKID_DEPTH_*: leaf buffering\l(the core writes single beats: MAX_BURST_BEATS = 1;\lno read port, so no S_AXIL_DATA_WIDTH)\l", fillcolor="white", shape=note];
+
+    // ---- core + leaf ----
+    core  [group=C, label="Capture Core\nmonbus_group_core_1wr - u_core\n(see its diagram: filter, error writer FIFO,\ncompressor, trace writer FIFO, two burst writers,\nerror-first merge)\nMAX_BURST_BEATS forced to 1", width=4.6, peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    wleaf [group=C, label="Write Leaf\naxil4_master_wr - u_axil_wr (single beat)\nskid buffers on AW / W / B\nid, len, burst dropped (single beat)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    // ---- the boundary bar ----
+    outs  [group=C, label="Write Port (to memory: error window | trace window)\nm_axil_aw*, m_axil_w* out / m_axil_b* in   |   irq_out (pulse per error record), err_rec_count, FIFO counts, mon_time_out, mon_compressor_stat_*",
+           fillcolor="white", width=9.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+
+    // ---- capture ----
+    min   -> core  [xlabel="monitor packets\n(valid down, ready up)"];
+    cfg   -> core  [style=dashed, color="#777777", xlabel="cfg_*"];
+
+    // ---- writes ----
+    core  -> wleaf [dir=both, xlabel="FUB AW, W /\nB", penwidth=1.8];
+    wleaf -> outs  [dir=both, xlabel="AW, W out / B in", penwidth=1.8];
+
+    // ---- status ----
+    core  -> outs  [xlabel="irq_out, err_rec_count, status"];
+
+    // ---- rank pinning ----
+    { rank=same; prm; min; cfg; }
+    { rank=same; core; }
+    { rank=same; wleaf; }
+    prm -> min -> cfg [style=invis];
+}

@@ -132,7 +132,10 @@ build has which.
   `slave_tally` the observers.
 - **Capture**, `comp_sram`. The MonBus stream itself, compressed on the mon
   build, downloadable by the host and decoded against the cosim reference;
-  `stream_err` and `slave_err` drain the error and IRQ FIFOs.
+  the top 4 KB of `comp_sram` is the in-core group's ERROR window (STREAM's
+  `monbus_axil4_group_1wr` writes `ERR_SELECT` records there and counts them in
+  `MON_ERR_REC_COUNT`; `dump_monbus.py` reads them back); `slave_err` drains
+  the observers' error / IRQ FIFO. The `stream_err` slot is reserved (SLVERR).
 
 The two optional sources of packets are the DUT's in-core monitors
 (`USE_AXI_MONITORS`) and the interface observers standing on the DUT's

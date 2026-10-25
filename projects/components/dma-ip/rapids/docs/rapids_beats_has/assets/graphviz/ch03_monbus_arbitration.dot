@@ -27,7 +27,7 @@ digraph rapids_beats_monbus_tree {
     oth [label="Other\nHalf\n(same tree)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     t4  [label="Core Arbiter, 2:1\nrapids_core_beats", shape=polygon, sides=4, distortion=0.10, width=14.0, group=C, fillcolor="#BFD7EE", style="filled", fillcolor="#FFF2CC"];
 
-    bar [label="Monitor Egress - monbus_axil4_axil4_group in rapids_beats_top\nerror FIFO (s_axil_err)  |  capture writer (m_axil_mon)  |  mon_irq", fillcolor="white", width=14.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    bar [label="Monitor Egress - monbus_axil4_group_1wr in rapids_beats_top\nerror window + trace window, one writer (m_axil_mon)  |  mon_irq, mon_err_rec_count", fillcolor="white", width=14.0, group=C, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 
     de -> t1 [label="desc events"];
     sc -> t1 [label="sched events"];

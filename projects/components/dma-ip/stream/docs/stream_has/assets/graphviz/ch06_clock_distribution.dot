@@ -12,7 +12,7 @@ digraph stream_clock_distribution {
     aclk [label="aclk, aresetn\n(engine clock)", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     cdc  [label="APB Slave - apb4_slave_cdc (CDC_ENABLE = 1)\nAPB side on pclk, command / response side on aclk\n(CDC_ENABLE = 0: apb4_slave, pclk tied to aclk)", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     eng  [label="Engine (all on aclk)\nregisters, scheduler groups, AXI engines, SRAM,\nmonitors, AXI masters, MonBus group", width=5.5, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    bar  [label="Interfaces\ns_apb_* (pclk)   |   m_axi_desc / rd / wr, m_axil_mon, s_axil_err, stream_irq (aclk)", fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
+    bar  [label="Interfaces\ns_apb_* (pclk)   |   m_axi_desc / rd / wr, m_axil_mon, stream_irq (aclk)", fillcolor="white", width=8.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     pclk -> cdc [label="APB side"];
     aclk -> cdc [label="cmd / rsp side"];
     aclk -> eng [xlabel="clock"];

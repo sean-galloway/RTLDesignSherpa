@@ -2,7 +2,7 @@
 // Replaces assets/mmd/03_monbus_hier.mmd. House style
 // (vault/handbook/authoring/block-diagrams.md: a chain of picks is shallow
 // trapezia). The group was monbus_axil_axil_group in the original figure;
-// it is monbus_axil4_axil4_group in the RTL. Source of truth:
+// it is monbus_axil4_group_1wr in the RTL (write-only, rapids TASK-039). Source of truth:
 // projects/components/dma-ip/rapids/rtl/macro_beats/rapids_core_beats.sv (u_mon_arbiter),
 // projects/components/dma-ip/rapids/rtl/top_beats/rapids_beats_top.sv (u_monbus_axil_group).
 digraph rapids_monbus_hier {
@@ -12,7 +12,7 @@ digraph rapids_monbus_hier {
     srcm  [label="monbus_arbiter\n(SRC half)", shape=polygon, sides=4, distortion=-0.10, style="filled", fillcolor="#FFF2CC"];
     snkm  [label="monbus_arbiter\n(SNK half)", shape=polygon, sides=4, distortion=-0.10, style="filled", fillcolor="#FFF2CC"];
     merge [label="Core merge\nmonbus_arbiter in rapids_core_beats", shape=polygon, sides=4, distortion=-0.10, width=4, style="filled", fillcolor="#FFF2CC"];
-    grp   [label="monbus_axil4_axil4_group\ncapture, error drain, IRQ", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    grp   [label="monbus_axil4_group_1wr\nerror window + trace window, IRQ", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     egr   [label="m_axil_mon  (single egress)", fillcolor="white", width=5, style="rounded,filled,bold", fillcolor="#E2EFDA"];
     srcm -> merge; snkm -> merge;
     merge -> grp; grp -> egr;

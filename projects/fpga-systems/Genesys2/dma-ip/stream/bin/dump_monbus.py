@@ -3,35 +3,39 @@
 # SPDX-FileCopyrightText: 2024-2025 sean galloway
 #
 # Module: dump_monbus
-# Purpose: UART-side drainer for the bridge's monbus AXIL error FIFO.
+# Purpose: UART-side reader of STREAM's in-core monbus ERROR window.
 #
-# Drains the s_mon_axil_* slave port of a monitored bridge over the UART
-# AXI bridge, decodes the 192-bit records ({packet[127:0], source_ts[63:0]})
-# via the shared TBClasses.monbus parser library, and prints one human-
-# readable line per packet.
+# stream_top_ch8 carries monbus_axil4_group_1wr (write-only). Packets whose
+# type is selected in <MON>_ERR_CFG.ERR_SELECT are written as raw 3-beat
+# records into the ERROR window [MON_GROUP_ERR_BASE_ADDR, MON_GROUP_ERR_LIMIT_ADDR]
+# (the top 4 KB of comp_sram on the Genesys 2 bridge, bridge_windows.
+# monbus_err_window()), one irq_out pulse per record, and MON_ERR_REC_COUNT
+# counts them. Everything else goes to the trace window (dump_monbus_sram.py).
+# This tool reads the records back out of that memory and decodes them via
+# the shared TBClasses.monbus parser library, one human-readable line each.
 #
-# Each error-FIFO record drains as three 64-bit beats per the
-# monbus_axil4_axil4_group slice-counter read path (and the monitor package
-# spec, docs/markdown/rtl-amba/includes/ocelus_package_spec.md) -- TS, HI, LO:
+# Record layout is fixed at 24 bytes (3 x 64-bit beats), TS, HI, LO order
+# (the monitor package spec, docs/markdown/rtl-amba/includes/ocelus_package_spec.md):
 #
-#     beat 0:  {tag[3:0], source_ts[59:0]}   (timestamp slice, tag=0 raw)
-#     beat 1:  packet[127:64]                (high half of the monbus packet)
-#     beat 2:  packet[63:0]                  (low half)
+#     +0x00:  {tag[3:0], source_ts[59:0]}   (timestamp slice, tag=0 raw)
+#     +0x08:  packet[127:64]                (high half of the monbus packet)
+#     +0x10:  packet[63:0]                  (low half)
 #
 # Since uart_axi_bridge only does 32-bit reads, each 64-bit beat becomes
 # two consecutive 32-bit reads (little-endian: low 32 bits first). One
-# full packet = 6 × 32-bit UART reads = 3 × 64-bit beats = 1 record. With a
-# 32-bit err-drain (monbus_axil4_axil4_group S_AXIL_DATA_WIDTH=32, as wired in
-# stream_top_ch8) the group's 2:1 read serializer presents the low then high
-# 32-bit half of each slice, so the same 6-read sequence applies.
+# record = 6 x 32-bit UART reads. The window is a ring: the burst writer
+# rewinds to base when the next record would cross the limit (it never
+# splits a record across the wrap), so with 4 KB the 171st record
+# overwrites the first.
 #
 # Usage:
 #     env_python && \
-#     python3 dump_monbus.py --port /dev/ttyUSB1 --base 0xC0000000 --count 10
+#     python3 dump_monbus.py --port /dev/ttyUSB3            # window + count by name
+#     python3 dump_monbus.py --port /dev/ttyUSB3 --base 0x1AF000 --count 10
 #
-# Pure functions (words32_to_beats64, beats_to_packet, read_one_record)
-# are split out from the UART loop so they unit-test without hardware.
-
+# Pure functions (words32_to_beats64, beats_to_packet, read_one_record,
+# drain_loop) are split out from the UART loop so they unit-test without
+# hardware (bin/tests/test_dump_monbus.py).
 import argparse
 import os
 import sys
@@ -73,8 +77,8 @@ from TBClasses.monbus import (  # noqa: E402
 # Constants
 # =============================================================================
 
-# Number of 64-bit beats per error-FIFO record. The monbus_axil4_axil4_group
-# slicer is fixed at 3 (source_ts, packet_hi, packet_lo -- TS, HI, LO order).
+# Number of 64-bit beats per record: fixed at 3 (source_ts, packet_hi,
+# packet_lo -- TS, HI, LO order) by the group's record format.
 BEATS_PER_RECORD = 3
 WORDS_PER_RECORD = BEATS_PER_RECORD * 2  # 6 × 32-bit
 RECORD_BYTES = BEATS_PER_RECORD * 8      # 24
@@ -100,8 +104,8 @@ def words32_to_beats64(words32: Iterable[int]) -> List[int]:
 
 def beats_to_packet(beats_64: List[int]) -> Tuple[MonitorPacket, int]:
     """Reassemble three 64-bit beats into a parsed packet + source
-    timestamp. Beat ordering matches the slicer in
-    rtl/amba/ocelus/monbus_axil4_axil4_group.sv (TS, HI, LO):
+    timestamp. Beat ordering is the group's record format (TS, HI, LO),
+    rtl/amba/ocelus/monbus_group_core_1wr.sv:
         beats_64[0] = {tag[3:0], source_ts[59:0]}   (timestamp slice)
         beats_64[1] = packet[127:64]                (high half)
         beats_64[2] = packet[63:0]                  (low half)
@@ -121,24 +125,14 @@ def beats_to_packet(beats_64: List[int]) -> Tuple[MonitorPacket, int]:
 def read_one_record(
     reader: Callable[[int], Optional[int]],
     base_addr: int,
-    word_stride: int = 0,
 ) -> Tuple[MonitorPacket, int]:
-    """Issue WORDS_PER_RECORD 32-bit reads via the supplied `reader`
-    callable (signature: addr -> int) and return the decoded packet +
-    source timestamp.
-
-    `word_stride`:
-        0 - read every word at the same address (drain semantics
-            against an internal slice counter; the bridge's
-            monbus_axil4_axil4_group slicer ignores address)
-        4 - read at incrementing 32-bit word offsets (works through
-            standard SoC width converters that increment per beat)
-    """
-    if word_stride not in (0, 4):
-        raise ValueError(f"word_stride must be 0 or 4, got {word_stride}")
+    """Issue WORDS_PER_RECORD consecutive 32-bit reads starting at
+    `base_addr` via the supplied `reader` callable (signature: addr -> int)
+    and return the decoded packet + source timestamp. `base_addr` is the
+    record's slot in the error window (base + n * RECORD_BYTES)."""
     words: List[int] = []
     for i in range(WORDS_PER_RECORD):
-        addr = base_addr + (i * word_stride)
+        addr = base_addr + (i * 4)
         val = reader(addr)
         if val is None:
             raise IOError(
@@ -172,29 +166,38 @@ def format_record(pkt: MonitorPacket, source_ts: int) -> str:
 def drain_loop(
     bridge,
     base_addr: int,
-    word_stride: int,
     count: Optional[int],
     follow: bool,
     poll_interval: float,
     out=sys.stdout,
+    capacity: Optional[int] = None,
 ) -> int:
-    """Drain `count` packets (or forever if follow). Returns the number
-    drained. `bridge` is anything with a `.read(addr)` method matching
-    UARTAxiBridge."""
+    """Read `count` records from the error window starting at `base_addr`
+    (record n at base_addr + n * RECORD_BYTES, wrapping at `capacity`
+    records when given) and print one line each. Returns the number
+    printed. `bridge` is anything with a `.read(addr)` method matching
+    UARTAxiBridge.
+
+    An all-zero slot is one the writer has not reached yet: without
+    --follow that ends the read; with --follow the slot is re-polled
+    until a record lands in it (the window is zeroed per run by the host,
+    so a stale record cannot pose as a fresh one)."""
     drained = 0
+    slot = 0
     while True:
         if count is not None and drained >= count:
             break
+        if capacity is not None and slot >= capacity:
+            slot = 0
+        addr = base_addr + slot * RECORD_BYTES
         try:
-            pkt, source_ts = read_one_record(bridge.read, base_addr, word_stride)
+            pkt, source_ts = read_one_record(bridge.read, addr)
         except IOError as e:
             print(f"# read error: {e}", file=sys.stderr)
             if not follow:
                 return drained
             time.sleep(poll_interval)
             continue
-        # If the packet is all-zero, the FIFO was empty and the slicer
-        # returned zeros. Don't print empties.
         if pkt.raw_packet == 0 and source_ts == 0:
             if not follow:
                 break
@@ -202,41 +205,49 @@ def drain_loop(
             continue
         print(format_record(pkt, source_ts), file=out)
         drained += 1
+        slot += 1
     return drained
 
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(
-        description="UART-side drainer for the bridge's monbus AXIL error FIFO.")
+        description="UART-side reader of STREAM's in-core monbus error window.")
     p.add_argument("--port", required=True,
-                   help="UART device path, e.g. /dev/ttyUSB1")
+                   help="UART device path, e.g. /dev/ttyUSB3 (Genesys 2 FT232R)")
     p.add_argument("--baud", type=int, default=115200)
-    p.add_argument("--base", type=lambda s: int(s, 0), required=True,
-                   help="SoC AXIL base address of the bridge's "
-                        "s_mon_axil_* slave port")
-    p.add_argument("--word-stride", type=int, default=4, choices=(0, 4),
-                   help="32-bit address stride between reads (default 4: "
-                        "standard SoC width-converter behaviour; 0: same "
-                        "address every time, relies on bridge's internal "
-                        "slice counter)")
+    p.add_argument("--base", type=lambda s: int(s, 0), default=None,
+                   help="Error window base (default: bridge_windows."
+                        "monbus_err_window(), the top 4 KB of comp_sram)")
     p.add_argument("--count", type=int, default=None,
-                   help="Stop after draining N packets (default: until "
-                        "FIFO drains empty or --follow keeps polling)")
+                   help="Records to read (default: MON_ERR_REC_COUNT from the "
+                        "DUT, by name; capped at the window's capacity)")
     p.add_argument("--follow", action="store_true",
-                   help="Keep polling after the FIFO drains empty")
+                   help="Keep polling an empty slot until a record lands in it")
     p.add_argument("--poll-interval", type=float, default=0.1,
-                   help="Seconds between polls when --follow and FIFO is empty")
+                   help="Seconds between polls when --follow hits an empty slot")
     args = p.parse_args(argv)
+
+    from bridge_windows import monbus_err_window  # noqa: E402
+    from stream_addrs import A                    # noqa: E402  (by name, never offsets)
+    err_base, err_limit = monbus_err_window()
+    capacity = (err_limit + 1 - err_base) // RECORD_BYTES
+    base_addr = err_base if args.base is None else args.base
 
     from uart_axi_bridge import UARTAxiBridge  # noqa: E402
     with UARTAxiBridge(port=args.port, baudrate=args.baud) as bridge:
+        count = args.count
+        if count is None:
+            landed = bridge.read(A("MON_ERR_REC_COUNT")) & 0xFFFF
+            count = min(landed, capacity)
+            print(f"# MON_ERR_REC_COUNT={landed} (window holds {capacity}); "
+                  f"reading {count} from 0x{base_addr:08X}", file=sys.stderr)
         return 0 if drain_loop(
             bridge,
-            base_addr=args.base,
-            word_stride=args.word_stride,
-            count=args.count,
+            base_addr=base_addr,
+            count=count,
             follow=args.follow,
             poll_interval=args.poll_interval,
+            capacity=capacity,
         ) >= 0 else 1
 
 

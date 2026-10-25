@@ -44,7 +44,7 @@
 | **AXI Read Engine** | Read source data to SRAM | AXI read master |
 | **SRAM Buffer** | Temporary data storage | Read/write ports |
 | **AXI Write Engine** | Write SRAM data to destination | AXI write master |
-| **Monitors + MonBus group** | Monitor-lites, `monbus_arbiter`, `monbus_axil4_axil4_group` (USE_AXI_MONITORS = 1) | `m_axil_mon`, `s_axil_err`, `stream_irq` |
+| **Monitors + MonBus group** | Monitor-lites, `monbus_arbiter`, `monbus_axil4_group_1wr` (USE_AXI_MONITORS = 1) | `m_axil_mon`, `stream_irq` |
 | **Performance Profiler** | Per-channel activity timestamps or elapsed times | Register read-back |
 
 ---
@@ -61,7 +61,7 @@ Memory -> AXI Read Engine -> SRAM Buffer -> AXI Write Engine -> Memory
 
 ### Monitoring Flow
 
-Scheduler groups and monitor-lites -> `monbus_arbiter` -> `monbus_axil4_axil4_group` -> error FIFO (`s_axil_err`, `stream_irq`) and capture writes (`m_axil_mon`)
+Scheduler groups and monitor-lites -> `monbus_arbiter` -> `monbus_axil4_group_1wr` -> error-window writes (`ERR_SELECT` packets, `stream_irq` pulse per record) and trace-window writes, both over `m_axil_mon`
 
 ---
 

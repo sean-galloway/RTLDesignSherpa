@@ -214,12 +214,13 @@ re-arms its one-shot error packet when the channel returns to `CH_IDLE`.
 
 There is no separate interrupt status register. A channel error sets that
 channel's sticky `SCHED_ERROR` bit and emits one MonBus error packet. The
-top-level monitor group routes the packet types that its `err_select`
-configuration selects into its error FIFO. For CORE packets that
-configuration is `SRC.MON.WRMON_ERR_CFG.ERR_SELECT`, and bit 0 selects Error.
-`SRC.MON.WRMON_PKT_MASK` bit 0 must also be clear, because the reset value
-masks every type. `mon_irq` is asserted while the error FIFO is not empty.
-Software reads the records out over `s_axil_err`:
+top-level monitor group writes the packet types that its `err_select`
+configuration selects into its error window as 24-byte records. For CORE
+packets that configuration is `SRC.MON.WRMON_ERR_CFG.ERR_SELECT`, and bit 0
+selects Error. `SRC.MON.WRMON_PKT_MASK` bit 0 must also be clear, because the
+reset value masks every type. `mon_irq` pulses once per record landed and
+`mon_err_rec_count` counts them. Software reads the records out of the error
+window:
 
 ### Figure 5.4.2: Error Reporting
 
@@ -251,7 +252,7 @@ void handle_errors(int half) {
     for (int ch = 0; ch < 8; ch++) {
         if (!(faulted & (1u << ch)))
             continue;
-        mon_record_t r = find_error_record(half, ch);   // from the s_axil_err drain
+        mon_record_t r = find_error_record(half, ch);   // from the error window in memory
         recover_channel(half, ch, &r);
     }
 }
@@ -317,7 +318,7 @@ timeout is then reported but never escalates.
 | Validate descriptors before submission | The hardware checks only the window, a null pointer, and the `valid` bit |
 | Set `DESCENG_ADDR0/1` to the real descriptor region | A stray `next_descriptor_ptr` is refused rather than fetched |
 | Size `SCHED_TIMEOUT_CYCLES` x `SCHED_TIMEOUT_LIMIT` above the worst legitimate stall | Avoids false fatal timeouts |
-| Route Error packets to the error FIFO | `mon_irq` reports errors without polling |
+| Route Error packets to the error window | `mon_irq` reports errors without polling |
 
 : Error Prevention Best Practices
 

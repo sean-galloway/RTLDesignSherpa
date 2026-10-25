@@ -49,6 +49,15 @@ _CONFIGS = {
 # in it; only the older NexysA7 stream_char harness used it.
 _CAPTURE_SLAVE = "comp_sram"
 
+# The in-core group is monbus_axil4_group_1wr (write-only): packets selected by
+# <MON>_ERR_CFG.ERR_SELECT land as raw 3-beat records in an ERROR window and are
+# counted in MON_ERR_REC_COUNT; everything else goes to the trace window. Both
+# windows must be memory the group's monbus_wr master can reach, and the only
+# such memory on this bridge is comp_sram, so the error window is carved out of
+# its top. 4 KB = 170 records of 24 B; the burst writer steps over the 16-byte
+# stub at the end rather than splitting a record across the wrap.
+ERR_WINDOW_BYTES = 0x1000
+
 
 @lru_cache(maxsize=None)
 def _slaves(bridge: str = "mon") -> dict:
@@ -89,14 +98,24 @@ def base(name: str, bridge: str = "mon") -> int:
 
 
 def monbus_capture_window() -> Tuple[int, int]:
-    """(base, inclusive_limit) for STREAM's in-core monbus capture memory.
+    """(base, inclusive_limit) for STREAM's in-core monbus TRACE window.
 
-    Always comp_sram: one harness, one bridge, one map. It was hardcoded
+    Always comp_sram, minus the error window at its top. It was hardcoded
     0x40000 for years, which is the TALLY in this bridge -- and the tally's
     write side is SLVERR-terminated now that the observers feed it directly, so
     the old constant aims records at a slave that rejects them.
     """
-    return W(_CAPTURE_SLAVE, bridge="mon")
+    base_, limit = W(_CAPTURE_SLAVE, bridge="mon")
+    return base_, limit - ERR_WINDOW_BYTES
+
+
+def monbus_err_window() -> Tuple[int, int]:
+    """(base, inclusive_limit) for STREAM's in-core monbus ERROR window: the
+    top ERR_WINDOW_BYTES of comp_sram. Program MON_GROUP_ERR_BASE_ADDR /
+    MON_GROUP_ERR_LIMIT_ADDR from this; read records back from the same range
+    (dump_monbus.py)."""
+    base_, limit = W(_CAPTURE_SLAVE, bridge="mon")
+    return limit + 1 - ERR_WINDOW_BYTES, limit
 
 
 if __name__ == "__main__":

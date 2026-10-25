@@ -746,6 +746,44 @@ def _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon"):
 
 
 @cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '80')), timeout_unit="ms")
+async def cocotb_test_stream_mon_err_window(dut):
+    """Completion records -> the ERROR WINDOW (monbus_axil4_group_1wr, stream
+    TASK-019), read back out of comp_sram's top 4 KB and checked against
+    MON_ERR_REC_COUNT -- by running the BOARD'S program
+    (bin/mon_err_window.probe_err_window) over the cosim's UART channel.
+
+    The other mon runs route every type to the trace (tally / capture). This is
+    the other route the group has: ERR_SELECT picks Completions, the group
+    writes each as a 24-byte record into the error window and counts it. The
+    program checks the count advanced, every counted slot holds a non-zero
+    record, every record is an AXI Completion, and none is also in the trace.
+    """
+    import mon_err_window
+
+    tb = StreamHarnessTB(dut)
+    await tb.setup_clocks_and_reset()
+    assert await tb.run_ping_test(), "ping failed - harness not alive over UART"
+
+    ndesc = int(os.environ.get('COMPRESS_DESC', '1'))
+    xfer = int(os.environ.get('COMPRESS_XFER_BYTES', '4096'))
+    log = tb.log
+
+    def run():
+        # built in the worker thread: the runner's constructor reads the bridge
+        return mon_err_window.probe_err_window(
+            tb.bridge, descriptors=ndesc, xfer_bytes=xfer,
+            log=lambda m: log.info(f"[err_window] {m}"))
+
+    res = await cbridge(run)()
+
+    assert res['dma_pass'], f"[err_window] DMA workload did not pass: {res.get('reason')}"
+    assert res['landed'] > 0, f"[err_window] {res.get('reason')}"
+    assert res['ok'], f"[err_window] {res.get('reason')}"
+    dut._log.info(f"[err_window] {res['landed']} Completion record(s) landed in the error "
+                  f"window (count {res['before']} -> {res['after']}) and read back")
+
+
+@cocotb.test(timeout_time=int(os.environ.get('SIM_TIMEOUT_MS', '80')), timeout_unit="ms")
 async def cocotb_test_stream_mon_compress(dut):
     """COMPRESSED records -> comp_sram, decoded with the reference model --
     by running the BOARD'S program (bin/mon_compress.measure_compression) over
@@ -828,3 +866,9 @@ def test_stream_mon_profile(request):
 def test_stream_mon_compress(request):
     """Compressed monbus records land in comp_sram and decode against the model."""
     _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon_compress")
+
+
+def test_stream_mon_err_window(request):
+    """Completion records land in the error window (top 4 KB of comp_sram) and
+    MON_ERR_REC_COUNT matches what is read back (stream TASK-019)."""
+    _run_stream_mon(request, profile=False, testcase="cocotb_test_stream_mon_err_window")

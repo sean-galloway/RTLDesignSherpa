@@ -223,7 +223,7 @@ STREAM Architecture (as implemented)
 (`rtl/stream_regmap.py` / `rtl/stream_regmap_16ch.py`): the 16-channel map
 moves CH_STATE to 0x180 and OBS_CTRL.CAT_SEL to [5:4].
 
-Monitoring uses the shared monbus group modules from `rtl/amba/ocelus/` (e.g. `monbus_axil4_axil4_group.sv`) rather than a STREAM-local reporter.
+Monitoring uses the shared monbus group from `rtl/amba/ocelus/` (`monbus_axil4_group_1wr.sv`, write-only: ERR_SELECT-routed packets go to the MON_GROUP_ERR_* window and count in MON_ERR_REC_COUNT, the rest to the MON_GROUP_* trace window) rather than a STREAM-local reporter.
 
 > **stream-g (2026-10-24, stream TASK-020):** STREAM with its schedulers sequenced by firmware on one gatling per
 > core, built as rapids-g was. `rtl/fub/scheduler.sv` is the FSM + EXT run-base generators around

@@ -66,7 +66,7 @@ from descriptor_builder import DescriptorBuilder, CharConfig
 # broke the perf path when the monitors relocated to 0x1000+).
 from stream_addrs import A, compose as _scompose
 from harness_addrs import H, compose  # by-name harness CSR access (never hardcode offsets)
-from bridge_windows import monbus_capture_window  # capture memory (comp_sram), by name
+from bridge_windows import monbus_capture_window, monbus_err_window  # comp_sram windows, by name
 import obs_addrs as _obs  # observer regblock, by name (both observers share it)
 
 
@@ -76,7 +76,6 @@ import obs_addrs as _obs  # observer regblock, by name (both observers share it)
 STREAM_APB_BASE    = 0x0000_0000
 HARNESS_CSR_BASE   = 0x0001_0000
 DESC_RAM_BASE      = 0x0002_0000
-STREAM_ERR_BASE    = 0x0003_0000
 
 # Harness CSR offsets
 CSR_CTRL              = H("CTRL")
@@ -143,13 +142,14 @@ APB_DESCENG_ADDR1_LIMIT = A("DESCENG_ADDR1_LIMIT")
 APB_AXI_XFER_CONFIG     = A("AXI_XFER_CONFIG")
 
 # Monitor configuration registers (stream_regs.rdl).
-# stream_irq == monbus_axil_group.irq_out == !err_fifo_empty. A packet only
-# reaches the err FIFO if ALL of the following are true:
+# stream_irq == monbus_axil4_group_1wr.irq_out: one pulse per whole error
+# record landed in the MON_GROUP_ERR_* window (counted in MON_ERR_REC_COUNT).
+# A packet only takes the error path if ALL of the following are true:
 #   1. PKT_MASK[pkt_type] == 0     — packet not dropped at monbus entry
 #                                      (RDL default is 16'hFFFF = drop everything!)
 #   2. <MON>_ENABLE bit set         — monitor is allowed to emit that pkt type
 #   3. <MON>_MASK[event_code] == 0  — event code not masked (defaults OK)
-#   4. ERR_CFG.ERR_SELECT[pkt_type]==1 — route that type to err FIFO (default 0!)
+#   4. ERR_CFG.ERR_SELECT[pkt_type]==1 — route that type to the error window (default 0!)
 # Steps 1 and 4 were silently blocking everything.
 # Monitor CSRs were RELOCATED to the 0x1000+ MON regfile (STREAM APB space is
 # now 8 KB / APB_ADDR_WIDTH=13). Addresses from stream_regmap.py; the char
@@ -177,6 +177,9 @@ APB_WRMON_MASK3         = A("WRMON_MASK3")
 APB_MON_GROUP_BASE      = A("MON_GROUP_BASE_ADDR")
 APB_MON_GROUP_LIMIT     = A("MON_GROUP_LIMIT_ADDR")
 APB_MON_GROUP_WM        = A("MON_GROUP_FLUSH_WATERMARK")
+APB_MON_GROUP_ERR_BASE  = A("MON_GROUP_ERR_BASE_ADDR")
+APB_MON_GROUP_ERR_LIMIT = A("MON_GROUP_ERR_LIMIT_ADDR")
+APB_MON_GROUP_ERR_WM    = A("MON_GROUP_ERR_FLUSH_WATERMARK")
 # Capture window: resolved BY NAME per build flavour, not hardcoded. The two
 # flows do NOT share an address here. Perf writes into debug_sram @ 0x40000;
 # the monitor build writes into comp_sram @ 0x1A0000, because in that bridge
@@ -269,12 +272,12 @@ WRMON_COMPRESS_EN_BIT   = 1 << 5
 MON_PKT_MASK_ALLOW_BASIC = 0x0000_FFF0
 
 # ERR_CFG value: route packet types 0..3 (Error, Completion, Threshold, Timeout)
-# to the err FIFO so irq_out fires on any of them. ERR_MASK[15:8] cleared to 0
+# to the error window so irq_out fires on each of them. ERR_MASK[15:8] cleared to 0
 # (default is 0xFF = "mask all error codes 0-7"; we want them to pass through).
 MON_ERR_CFG_ROUTE_ALL   = 0x0000_000F
-# ERR_SELECT=0 routes every packet type to the bulk-trace write FIFO
-# (-> m_axil_mon -> debug_sram, through the compressor) instead of the
-# err FIFO IRQ path. Used by the compression-characterization workload.
+# ERR_SELECT=0 routes every packet type to the trace window
+# (-> m_axil_mon -> comp_sram, through the compressor) instead of the
+# error window / IRQ path. Used by the compression-characterization workload.
 MON_ERR_CFG_BULK_TRACE  = 0x0000_0000
 
 
@@ -1202,8 +1205,8 @@ class StreamHarnessTB(TBBase):
         # mon_err_cfg=BULK_TRACE this exercises the compressor exactly as the
         # FPGA does.
         # mon_err_cfg picks the monbus routing: ROUTE_ALL (default) sends
-        # packets to the err FIFO IRQ path; BULK_TRACE (0) sends them to the
-        # debug_sram bulk-trace path through the compressor -- used by the
+        # packets to the error window / IRQ path; BULK_TRACE (0) sends them to
+        # the trace window through the compressor -- used by the
         # compression-characterization run.
         # timeout_clocks default = 50_000 ≈ 500 us of wait_clocks budget at a
         # 10 ns clock period. Reduced from 500_000 so failures surface fast;
@@ -1286,13 +1289,13 @@ class StreamHarnessTB(TBBase):
         axi_cfg = (15 & 0xFF) | ((15 & 0xFF) << 8)  # rd=16 beats, wr=16 beats
         await self.uart_write(APB_AXI_XFER_CONFIG, axi_cfg)
 
-        # 3e. Unblock completion events all the way to the err FIFO so
-        # monbus_axil_group.irq_out pulses when the DMA retires. FOUR things
+        # 3e. Unblock completion events all the way to the error window so
+        # the group's irq_out pulses when the DMA retires. FOUR things
         # must all be true (see register-group comment above):
         #   PKT_MASK[pkt_type]==0  ← RDL default drops EVERY type, must clear!
         #   ENABLE.COMPL_EN=1      ← monitor must emit completion packets
         #   MASK1 event_code       ← defaults are fine (COMPL_MASK=0)
-        #   ERR_CFG.ERR_SELECT     ← routes pkt type to err FIFO (default 0)
+        #   ERR_CFG.ERR_SELECT     ← routes pkt type to the error window (default 0)
         for pkt_mask_reg, en_reg, err_reg, mask3_reg in (
             (APB_DAXMON_PKT_MASK, APB_DAXMON_ENABLE, APB_DAXMON_ERR_CFG, APB_DAXMON_MASK3),
             (APB_RDMON_PKT_MASK,  APB_RDMON_ENABLE,  APB_RDMON_ERR_CFG,  APB_RDMON_MASK3),
@@ -1319,6 +1322,13 @@ class StreamHarnessTB(TBBase):
         await self.uart_write(APB_MON_GROUP_BASE,  _cap_base)
         await self.uart_write(APB_MON_GROUP_LIMIT, _cap_limit)
         await self.uart_write(APB_MON_GROUP_WM,    0)
+        # Error window (ERR_SELECT-routed packets, write-only group): the top
+        # 4 KB of comp_sram. The RDL reset is a sim address that is dma_axil on
+        # this bridge, so it is always programmed here. 3 beats = one record.
+        _err_base, _err_limit = monbus_err_window()
+        await self.uart_write(APB_MON_GROUP_ERR_BASE,  _err_base)
+        await self.uart_write(APB_MON_GROUP_ERR_LIMIT, _err_limit)
+        await self.uart_write(APB_MON_GROUP_ERR_WM,    3)
 
         # 3a-bis. Program the OBSERVERS' own regblocks. Nothing did this before,
         # so both ran entirely on reset defaults -- and the default

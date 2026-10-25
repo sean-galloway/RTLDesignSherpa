@@ -9,7 +9,7 @@
 -f $REPO_ROOT/rtl/amba/filelists/apb4_slave_cdc.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_2_phase_handshake.f
 -f $REPO_ROOT/rtl/cdc/filelists/cdc_4_phase_handshake.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_group_1wr.f
 $STREAM_ROOT/rtl/includes/stream_pkg.sv
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 -f $STREAM_ROOT/rtl/filelists/macro_g/stream_core_g.f

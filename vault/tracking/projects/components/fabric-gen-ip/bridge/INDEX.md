@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 17 | 4 | 0 |
+| [task/](task/INDEX.md) | 0 | 0 | 18 | 4 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 26 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
@@ -27,11 +27,10 @@ Counts are the item files in each lane directory, not counting the
 
 ## Open (2026-10-25)
 
-| Item | Pri | What is left |
-|---|---|---|
-| [TASK-022](task/open/TASK-022.md) | P3 | the 4x4's uniform-traffic loss past saturation: `r_queue_depth` (TASK-021) changes nothing there -- a flat 2.45 beats/cycle ceiling at FUNC length -- so it is another stage; measure before building (adapter in-order return across width paths, or an outstanding limit at the slow periph port) |
-
-No bug or issue is open.
+Nothing open in any lane. (TASK-022 closed 2026-10-25: the 4x4's
+uniform-traffic ceiling measured -- the driver's ID rotation on the
+per-ID same-target gate, then the traffic's own skew at the 32-bit periph
+port; the driver fixed, the residue documented in HAS 5.1.)
 
 ## The legacy BRIDGE-0xx sequence
 

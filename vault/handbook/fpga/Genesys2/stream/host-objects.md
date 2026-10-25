@@ -26,13 +26,15 @@ are [[flow-layout]]; this is the object model those rules arrange.
 | `MonitorProgram` + `route_monbus` / `arm_addr_ranges` / `set_timeouts` | `bin/stream_monitors.py` | the in-core DAXMON/RDMON/WRMON cones, group routing, addr-range checker | library (runner hooks) |
 | `tally` | `bin/tally.py` | `monbus_tally_axil` CAM load + dense-bin sweep, depth from hardware | library |
 | `mon_compress` | `bin/mon_compress.py` | compression measurement over the runner | library + `main()` |
+| `mon_err_window` | `bin/mon_err_window.py` | the group's ERROR window: `ERR_SELECT` records read back from memory against `MON_ERR_REC_COUNT` | library + `main()` |
+| `bridge_windows` | `bin/bridge_windows.py` | bridge slave windows by name from the TOML; `monbus_capture_window()` (trace) and `monbus_err_window()` (error, top 4 KB of comp_sram) | library |
 | `StreamHarnessTB` | `dv/tbclasses/stream_harness_tb.py` | `stream_harness` over UART | testbench (both builds) |
-| `MonbusGroupHarness` | `bin/TBClasses/scoreboards/monbus_group/` | a monbus group's drain/trace/irq | shared TB collateral |
+| `MonbusGroupHarness` | `bin/TBClasses/scoreboards/monbus_group/` | a monbus group's trace window, error window (or drain port on the two-port groups) and irq | shared TB collateral |
 | `host_*.py` | `build-<n>/host/` | one campaign each | program |
 
 ### When a module is BOTH a library and a program
 
-`bus_meters`, `rw_perf`, `desc_perf`, `stream_ext_suite` and `mon_compress` each
+`bus_meters`, `rw_perf`, `desc_perf`, `stream_ext_suite`, `mon_compress` and `mon_err_window` each
 carry a `main()` AND get imported by other programs (`host_ext_char` imports
 `bus_meters.read_meter`). They cannot sit in a build's `host/`: only entry
 points live there, and only one build would have them.
@@ -142,3 +144,28 @@ Ask which layer it belongs to before writing it:
 - [[flow-layout]] - directories and filename prefixes
 - [[registers-by-name]] - why no object may name an offset
 - [[monitor-board-coverage]] - what the monitor-side devices are for
+
+## The two monbus windows share one memory (stream TASK-019, 2026-10-25)
+
+STREAM's monitor egress is `monbus_axil4_group_1wr`: write-only, no slave
+read port. Everything it keeps goes to memory over the bridge's `monbus_wr`
+master, `ERR_SELECT`-routed packets into the ERROR window and the rest into the
+TRACE window. On `bridge_stream_mon_axil` the only memory that master can reach
+is `comp_sram` (64 KB), so the error window is its top 4 KB
+(`bridge_windows.monbus_err_window()`, 170 records) and the trace window is the
+rest (`monbus_capture_window()`). Three things follow:
+
+- **Program both windows, every run, by name.** The RDL reset values are sim
+  addresses that land on `dma_axil` here. `route_monbus()` and
+  `StreamHarnessTB` write `MON_GROUP_ERR_*` alongside `MON_GROUP_*`, and
+  `route_monbus("comp_sram")` shrinks the trace to exclude the error window;
+  a caller that takes `W("comp_sram")` raw overlaps the two.
+- **The `stream_err` bridge slot is RESERVED, not removed.** Dropping a slave
+  respins the generated xbar, which is how the DE hang arrived last time
+  (the stream bridge respin of 2026-10 that rewrote the xbar under a working
+  design). The harness answers SLVERR on both
+  channels so a stale drain tool fails loudly.
+- **Reads come from memory.** `dump_monbus.py` reads the error window
+  (`MON_ERR_REC_COUNT` says how many), `dump_monbus_sram.py` the trace window;
+  `mon_err_window.probe_err_window` is the one program (cosim and board) that
+  proves count, slots and record types agree.

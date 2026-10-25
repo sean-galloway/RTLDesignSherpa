@@ -8,7 +8,7 @@ Don't override. Generated from: $root
 
 - Absolute Address: 0x0
 - Base Offset: 0x0
-- Size: 0x126C
+- Size: 0x127C
 
 <p>Configuration and status registers for 8-channel STREAM DMA engine with full monitor control</p>
 
@@ -1386,98 +1386,102 @@ by one after each FW_DATA write and each FW_RDATA read.</p>
 
 - Absolute Address: 0x1000
 - Base Offset: 0x1000
-- Size: 0x26C
+- Size: 0x27C
 
 <p>AXI monitor + perf registers (relocatable block, instantiated at 0x1000)</p>
 
-|Offset|        Identifier       |                       Name                       |
-|------|-------------------------|--------------------------------------------------|
-| 0x000|     MON_FIFO_STATUS     |                Monitor FIFO Status               |
-| 0x004|      MON_FIFO_COUNT     |                Monitor FIFO Count                |
-| 0x0C0|      DAXMON_ENABLE      |           Descriptor AXI Monitor Enable          |
-| 0x0C4|      DAXMON_TIMEOUT     |          Descriptor AXI Monitor Timeout          |
-| 0x0C8|  DAXMON_LATENCY_THRESH  |     Descriptor AXI Monitor Latency Threshold     |
-| 0x0CC|     DAXMON_PKT_MASK     |        Descriptor AXI Monitor Packet Mask        |
-| 0x0D0|      DAXMON_ERR_CFG     |   Descriptor AXI Monitor Error Select and Mask   |
-| 0x0D4|       DAXMON_MASK1      |          Descriptor AXI Monitor Masks 1          |
-| 0x0D8|       DAXMON_MASK2      |          Descriptor AXI Monitor Masks 2          |
-| 0x0DC|       DAXMON_MASK3      |          Descriptor AXI Monitor Masks 3          |
-| 0x0E0|       RDMON_ENABLE      |          Read Engine AXI Monitor Enable          |
-| 0x0E4|      RDMON_TIMEOUT      |          Read Engine AXI Monitor Timeout         |
-| 0x0E8|   RDMON_LATENCY_THRESH  |     Read Engine AXI Monitor Latency Threshold    |
-| 0x0EC|      RDMON_PKT_MASK     |        Read Engine AXI Monitor Packet Mask       |
-| 0x0F0|      RDMON_ERR_CFG      |   Read Engine AXI Monitor Error Select and Mask  |
-| 0x0F4|       RDMON_MASK1       |          Read Engine AXI Monitor Masks 1         |
-| 0x0F8|       RDMON_MASK2       |          Read Engine AXI Monitor Masks 2         |
-| 0x0FC|       RDMON_MASK3       |          Read Engine AXI Monitor Masks 3         |
-| 0x100|       WRMON_ENABLE      |          Write Engine AXI Monitor Enable         |
-| 0x104|      WRMON_TIMEOUT      |         Write Engine AXI Monitor Timeout         |
-| 0x108|   WRMON_LATENCY_THRESH  |    Write Engine AXI Monitor Latency Threshold    |
-| 0x10C|      WRMON_PKT_MASK     |       Write Engine AXI Monitor Packet Mask       |
-| 0x110|      WRMON_ERR_CFG      |  Write Engine AXI Monitor Error Select and Mask  |
-| 0x114|       WRMON_MASK1       |         Write Engine AXI Monitor Masks 1         |
-| 0x118|       WRMON_MASK2       |         Write Engine AXI Monitor Masks 2         |
-| 0x11C|       WRMON_MASK3       |         Write Engine AXI Monitor Masks 3         |
-| 0x150|     DAXMON_PERF_CTRL    |    Descriptor AXI Monitor Perf Window Control    |
-| 0x154|    DAXMON_PERF_STATUS   |     Descriptor AXI Monitor Perf Window Status    |
-| 0x158|DAXMON_PERF_WINDOW_CYCLES|     Descriptor AXI Monitor Perf Window Cycles    |
-| 0x15C| DAXMON_PERF_PROD_CYCLES |   Descriptor AXI Monitor Perf Productive Cycles  |
-| 0x160|  DAXMON_PERF_BP_CYCLES  |  Descriptor AXI Monitor Perf Backpressure Cycles |
-| 0x164| DAXMON_PERF_STARV_CYCLES|   Descriptor AXI Monitor Perf Starvation Cycles  |
-| 0x168| DAXMON_PERF_IDLE_CYCLES |      Descriptor AXI Monitor Perf Idle Cycles     |
-| 0x16C|  DAXMON_PERF_BEAT_COUNT |      Descriptor AXI Monitor Perf Beat Count      |
-| 0x170|DAXMON_PERF_BYTE_COUNT_LO|    Descriptor AXI Monitor Perf Byte Count Low    |
-| 0x174|DAXMON_PERF_BYTE_COUNT_HI|    Descriptor AXI Monitor Perf Byte Count High   |
-| 0x178| DAXMON_PERF_BURST_COUNT |      Descriptor AXI Monitor Perf Burst Count     |
-| 0x180|     RDMON_PERF_CTRL     |     Read Datapath Monitor Perf Window Control    |
-| 0x184|    RDMON_PERF_STATUS    |     Read Datapath Monitor Perf Window Status     |
-| 0x188| RDMON_PERF_WINDOW_CYCLES|     Read Datapath Monitor Perf Window Cycles     |
-| 0x18C|  RDMON_PERF_PROD_CYCLES |   Read Datapath Monitor Perf Productive Cycles   |
-| 0x190|   RDMON_PERF_BP_CYCLES  |  Read Datapath Monitor Perf Backpressure Cycles  |
-| 0x194| RDMON_PERF_STARV_CYCLES |   Read Datapath Monitor Perf Starvation Cycles   |
-| 0x198|  RDMON_PERF_IDLE_CYCLES |      Read Datapath Monitor Perf Idle Cycles      |
-| 0x19C|  RDMON_PERF_BEAT_COUNT  |       Read Datapath Monitor Perf Beat Count      |
-| 0x1A0| RDMON_PERF_BYTE_COUNT_LO|     Read Datapath Monitor Perf Byte Count Low    |
-| 0x1A4| RDMON_PERF_BYTE_COUNT_HI|    Read Datapath Monitor Perf Byte Count High    |
-| 0x1A8|  RDMON_PERF_BURST_COUNT |      Read Datapath Monitor Perf Burst Count      |
-| 0x1B0|     WRMON_PERF_CTRL     |    Write Datapath Monitor Perf Window Control    |
-| 0x1B4|    WRMON_PERF_STATUS    |     Write Datapath Monitor Perf Window Status    |
-| 0x1B8| WRMON_PERF_WINDOW_CYCLES|     Write Datapath Monitor Perf Window Cycles    |
-| 0x1BC|  WRMON_PERF_PROD_CYCLES |   Write Datapath Monitor Perf Productive Cycles  |
-| 0x1C0|   WRMON_PERF_BP_CYCLES  |  Write Datapath Monitor Perf Backpressure Cycles |
-| 0x1C4| WRMON_PERF_STARV_CYCLES |   Write Datapath Monitor Perf Starvation Cycles  |
-| 0x1C8|  WRMON_PERF_IDLE_CYCLES |      Write Datapath Monitor Perf Idle Cycles     |
-| 0x1CC|  WRMON_PERF_BEAT_COUNT  |      Write Datapath Monitor Perf Beat Count      |
-| 0x1D0| WRMON_PERF_BYTE_COUNT_LO|    Write Datapath Monitor Perf Byte Count Low    |
-| 0x1D4| WRMON_PERF_BYTE_COUNT_HI|    Write Datapath Monitor Perf Byte Count High   |
-| 0x1D8|  WRMON_PERF_BURST_COUNT |      Write Datapath Monitor Perf Burst Count     |
-| 0x1E0|  RDMON_PERF_CH_PROD_BP  | Read Datapath Per-Channel Productive/Backpressure|
-| 0x1E4| RDMON_PERF_CH_STARV_IDLE|     Read Datapath Per-Channel Starvation/Idle    |
-| 0x1E8|  WRMON_PERF_CH_PROD_BP  |Write Datapath Per-Channel Productive/Backpressure|
-| 0x1EC| WRMON_PERF_CH_STARV_IDLE|    Write Datapath Per-Channel Starvation/Idle    |
-| 0x1F0|  RDMON_PERF_CH_OVERFLOW |    Read Datapath Per-Channel Overflow Stickies   |
-| 0x1F4|  WRMON_PERF_CH_OVERFLOW |   Write Datapath Per-Channel Overflow Stickies   |
-| 0x200|  RDMON_ADDR_RANGE0_LOW  |                RD addr range0 low                |
-| 0x204|  RDMON_ADDR_RANGE0_HIGH |                RD addr range0 high               |
-| 0x208|  RDMON_ADDR_RANGE1_LOW  |                RD addr range1 low                |
-| 0x20C|  RDMON_ADDR_RANGE1_HIGH |                RD addr range1 high               |
-| 0x210|  RDMON_ADDR_RANGE2_LOW  |                RD addr range2 low                |
-| 0x214|  RDMON_ADDR_RANGE2_HIGH |                RD addr range2 high               |
-| 0x218|  RDMON_ADDR_RANGE3_LOW  |                RD addr range3 low                |
-| 0x21C|  RDMON_ADDR_RANGE3_HIGH |                RD addr range3 high               |
-| 0x220|  RDMON_ADDR_RANGE_CTRL  |               RD addr range control              |
-| 0x230|  WRMON_ADDR_RANGE0_LOW  |                WR addr range0 low                |
-| 0x234|  WRMON_ADDR_RANGE0_HIGH |                WR addr range0 high               |
-| 0x238|  WRMON_ADDR_RANGE1_LOW  |                WR addr range1 low                |
-| 0x23C|  WRMON_ADDR_RANGE1_HIGH |                WR addr range1 high               |
-| 0x240|  WRMON_ADDR_RANGE2_LOW  |                WR addr range2 low                |
-| 0x244|  WRMON_ADDR_RANGE2_HIGH |                WR addr range2 high               |
-| 0x248|  WRMON_ADDR_RANGE3_LOW  |                WR addr range3 low                |
-| 0x24C|  WRMON_ADDR_RANGE3_HIGH |                WR addr range3 high               |
-| 0x250|  WRMON_ADDR_RANGE_CTRL  |               WR addr range control              |
-| 0x260|   MON_GROUP_BASE_ADDR   |              Monbus group base addr              |
-| 0x264|   MON_GROUP_LIMIT_ADDR  |              Monbus group limit addr             |
-| 0x268|MON_GROUP_FLUSH_WATERMARK|             Monbus group flush wmark             |
+|Offset|          Identifier         |                       Name                       |
+|------|-----------------------------|--------------------------------------------------|
+| 0x000|       MON_FIFO_STATUS       |                Monitor FIFO Status               |
+| 0x004|        MON_FIFO_COUNT       |                Monitor FIFO Count                |
+| 0x0C0|        DAXMON_ENABLE        |           Descriptor AXI Monitor Enable          |
+| 0x0C4|        DAXMON_TIMEOUT       |          Descriptor AXI Monitor Timeout          |
+| 0x0C8|    DAXMON_LATENCY_THRESH    |     Descriptor AXI Monitor Latency Threshold     |
+| 0x0CC|       DAXMON_PKT_MASK       |        Descriptor AXI Monitor Packet Mask        |
+| 0x0D0|        DAXMON_ERR_CFG       |   Descriptor AXI Monitor Error Select and Mask   |
+| 0x0D4|         DAXMON_MASK1        |          Descriptor AXI Monitor Masks 1          |
+| 0x0D8|         DAXMON_MASK2        |          Descriptor AXI Monitor Masks 2          |
+| 0x0DC|         DAXMON_MASK3        |          Descriptor AXI Monitor Masks 3          |
+| 0x0E0|         RDMON_ENABLE        |          Read Engine AXI Monitor Enable          |
+| 0x0E4|        RDMON_TIMEOUT        |          Read Engine AXI Monitor Timeout         |
+| 0x0E8|     RDMON_LATENCY_THRESH    |     Read Engine AXI Monitor Latency Threshold    |
+| 0x0EC|        RDMON_PKT_MASK       |        Read Engine AXI Monitor Packet Mask       |
+| 0x0F0|        RDMON_ERR_CFG        |   Read Engine AXI Monitor Error Select and Mask  |
+| 0x0F4|         RDMON_MASK1         |          Read Engine AXI Monitor Masks 1         |
+| 0x0F8|         RDMON_MASK2         |          Read Engine AXI Monitor Masks 2         |
+| 0x0FC|         RDMON_MASK3         |          Read Engine AXI Monitor Masks 3         |
+| 0x100|         WRMON_ENABLE        |          Write Engine AXI Monitor Enable         |
+| 0x104|        WRMON_TIMEOUT        |         Write Engine AXI Monitor Timeout         |
+| 0x108|     WRMON_LATENCY_THRESH    |    Write Engine AXI Monitor Latency Threshold    |
+| 0x10C|        WRMON_PKT_MASK       |       Write Engine AXI Monitor Packet Mask       |
+| 0x110|        WRMON_ERR_CFG        |  Write Engine AXI Monitor Error Select and Mask  |
+| 0x114|         WRMON_MASK1         |         Write Engine AXI Monitor Masks 1         |
+| 0x118|         WRMON_MASK2         |         Write Engine AXI Monitor Masks 2         |
+| 0x11C|         WRMON_MASK3         |         Write Engine AXI Monitor Masks 3         |
+| 0x150|       DAXMON_PERF_CTRL      |    Descriptor AXI Monitor Perf Window Control    |
+| 0x154|      DAXMON_PERF_STATUS     |     Descriptor AXI Monitor Perf Window Status    |
+| 0x158|  DAXMON_PERF_WINDOW_CYCLES  |     Descriptor AXI Monitor Perf Window Cycles    |
+| 0x15C|   DAXMON_PERF_PROD_CYCLES   |   Descriptor AXI Monitor Perf Productive Cycles  |
+| 0x160|    DAXMON_PERF_BP_CYCLES    |  Descriptor AXI Monitor Perf Backpressure Cycles |
+| 0x164|   DAXMON_PERF_STARV_CYCLES  |   Descriptor AXI Monitor Perf Starvation Cycles  |
+| 0x168|   DAXMON_PERF_IDLE_CYCLES   |      Descriptor AXI Monitor Perf Idle Cycles     |
+| 0x16C|    DAXMON_PERF_BEAT_COUNT   |      Descriptor AXI Monitor Perf Beat Count      |
+| 0x170|  DAXMON_PERF_BYTE_COUNT_LO  |    Descriptor AXI Monitor Perf Byte Count Low    |
+| 0x174|  DAXMON_PERF_BYTE_COUNT_HI  |    Descriptor AXI Monitor Perf Byte Count High   |
+| 0x178|   DAXMON_PERF_BURST_COUNT   |      Descriptor AXI Monitor Perf Burst Count     |
+| 0x180|       RDMON_PERF_CTRL       |     Read Datapath Monitor Perf Window Control    |
+| 0x184|      RDMON_PERF_STATUS      |     Read Datapath Monitor Perf Window Status     |
+| 0x188|   RDMON_PERF_WINDOW_CYCLES  |     Read Datapath Monitor Perf Window Cycles     |
+| 0x18C|    RDMON_PERF_PROD_CYCLES   |   Read Datapath Monitor Perf Productive Cycles   |
+| 0x190|     RDMON_PERF_BP_CYCLES    |  Read Datapath Monitor Perf Backpressure Cycles  |
+| 0x194|   RDMON_PERF_STARV_CYCLES   |   Read Datapath Monitor Perf Starvation Cycles   |
+| 0x198|    RDMON_PERF_IDLE_CYCLES   |      Read Datapath Monitor Perf Idle Cycles      |
+| 0x19C|    RDMON_PERF_BEAT_COUNT    |       Read Datapath Monitor Perf Beat Count      |
+| 0x1A0|   RDMON_PERF_BYTE_COUNT_LO  |     Read Datapath Monitor Perf Byte Count Low    |
+| 0x1A4|   RDMON_PERF_BYTE_COUNT_HI  |    Read Datapath Monitor Perf Byte Count High    |
+| 0x1A8|    RDMON_PERF_BURST_COUNT   |      Read Datapath Monitor Perf Burst Count      |
+| 0x1B0|       WRMON_PERF_CTRL       |    Write Datapath Monitor Perf Window Control    |
+| 0x1B4|      WRMON_PERF_STATUS      |     Write Datapath Monitor Perf Window Status    |
+| 0x1B8|   WRMON_PERF_WINDOW_CYCLES  |     Write Datapath Monitor Perf Window Cycles    |
+| 0x1BC|    WRMON_PERF_PROD_CYCLES   |   Write Datapath Monitor Perf Productive Cycles  |
+| 0x1C0|     WRMON_PERF_BP_CYCLES    |  Write Datapath Monitor Perf Backpressure Cycles |
+| 0x1C4|   WRMON_PERF_STARV_CYCLES   |   Write Datapath Monitor Perf Starvation Cycles  |
+| 0x1C8|    WRMON_PERF_IDLE_CYCLES   |      Write Datapath Monitor Perf Idle Cycles     |
+| 0x1CC|    WRMON_PERF_BEAT_COUNT    |      Write Datapath Monitor Perf Beat Count      |
+| 0x1D0|   WRMON_PERF_BYTE_COUNT_LO  |    Write Datapath Monitor Perf Byte Count Low    |
+| 0x1D4|   WRMON_PERF_BYTE_COUNT_HI  |    Write Datapath Monitor Perf Byte Count High   |
+| 0x1D8|    WRMON_PERF_BURST_COUNT   |      Write Datapath Monitor Perf Burst Count     |
+| 0x1E0|    RDMON_PERF_CH_PROD_BP    | Read Datapath Per-Channel Productive/Backpressure|
+| 0x1E4|   RDMON_PERF_CH_STARV_IDLE  |     Read Datapath Per-Channel Starvation/Idle    |
+| 0x1E8|    WRMON_PERF_CH_PROD_BP    |Write Datapath Per-Channel Productive/Backpressure|
+| 0x1EC|   WRMON_PERF_CH_STARV_IDLE  |    Write Datapath Per-Channel Starvation/Idle    |
+| 0x1F0|    RDMON_PERF_CH_OVERFLOW   |    Read Datapath Per-Channel Overflow Stickies   |
+| 0x1F4|    WRMON_PERF_CH_OVERFLOW   |   Write Datapath Per-Channel Overflow Stickies   |
+| 0x200|    RDMON_ADDR_RANGE0_LOW    |                RD addr range0 low                |
+| 0x204|    RDMON_ADDR_RANGE0_HIGH   |                RD addr range0 high               |
+| 0x208|    RDMON_ADDR_RANGE1_LOW    |                RD addr range1 low                |
+| 0x20C|    RDMON_ADDR_RANGE1_HIGH   |                RD addr range1 high               |
+| 0x210|    RDMON_ADDR_RANGE2_LOW    |                RD addr range2 low                |
+| 0x214|    RDMON_ADDR_RANGE2_HIGH   |                RD addr range2 high               |
+| 0x218|    RDMON_ADDR_RANGE3_LOW    |                RD addr range3 low                |
+| 0x21C|    RDMON_ADDR_RANGE3_HIGH   |                RD addr range3 high               |
+| 0x220|    RDMON_ADDR_RANGE_CTRL    |               RD addr range control              |
+| 0x230|    WRMON_ADDR_RANGE0_LOW    |                WR addr range0 low                |
+| 0x234|    WRMON_ADDR_RANGE0_HIGH   |                WR addr range0 high               |
+| 0x238|    WRMON_ADDR_RANGE1_LOW    |                WR addr range1 low                |
+| 0x23C|    WRMON_ADDR_RANGE1_HIGH   |                WR addr range1 high               |
+| 0x240|    WRMON_ADDR_RANGE2_LOW    |                WR addr range2 low                |
+| 0x244|    WRMON_ADDR_RANGE2_HIGH   |                WR addr range2 high               |
+| 0x248|    WRMON_ADDR_RANGE3_LOW    |                WR addr range3 low                |
+| 0x24C|    WRMON_ADDR_RANGE3_HIGH   |                WR addr range3 high               |
+| 0x250|    WRMON_ADDR_RANGE_CTRL    |               WR addr range control              |
+| 0x260|     MON_GROUP_BASE_ADDR     |              Monbus group base addr              |
+| 0x264|     MON_GROUP_LIMIT_ADDR    |              Monbus group limit addr             |
+| 0x268|  MON_GROUP_FLUSH_WATERMARK  |             Monbus group flush wmark             |
+| 0x26C|   MON_GROUP_ERR_BASE_ADDR   |             Monbus error window base             |
+| 0x270|   MON_GROUP_ERR_LIMIT_ADDR  |             Monbus error window limit            |
+| 0x274|MON_GROUP_ERR_FLUSH_WATERMARK|             Monbus error flush wmark             |
+| 0x278|      MON_ERR_REC_COUNT      |             Monbus error record count            |
 
 ### MON_FIFO_STATUS register
 
@@ -1497,11 +1501,11 @@ by one after each FW_DATA write and each FW_RDATA read.</p>
 
 #### MON_FIFO_FULL field
 
-<p>Monitor FIFO full - 1=FIFO full, 0=space available</p>
+<p>Error writer FIFO full - 1=full (the core stalls its input), 0=space available</p>
 
 #### MON_FIFO_EMPTY field
 
-<p>Monitor FIFO empty - 1=FIFO empty, 0=data available</p>
+<p>Error writer FIFO empty - 1=no error beats waiting to be written, 0=beats buffered</p>
 
 #### MON_FIFO_OVFL field
 
@@ -1530,7 +1534,7 @@ by one after each FW_DATA write and each FW_RDATA read.</p>
 
 #### FIFO_COUNT field
 
-<p>FIFO count [15:0] - number of entries in FIFO</p>
+<p>Error writer FIFO occupancy in 64-bit beats (three per record) not yet written to the error window</p>
 
 #### RSVD field
 
@@ -1655,7 +1659,7 @@ by one after each FW_DATA write and each FW_RDATA read.</p>
 
 #### ERR_SELECT field
 
-<p>Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace</p>
+<p>Error select - per-packet-type route: 1=error window (irq per record), 0=trace window</p>
 
 #### ERR_MASK field
 
@@ -1843,7 +1847,7 @@ by one after each FW_DATA write and each FW_RDATA read.</p>
 
 #### ERR_SELECT field
 
-<p>Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace</p>
+<p>Error select - per-packet-type route: 1=error window (irq per record), 0=trace window</p>
 
 #### ERR_MASK field
 
@@ -2031,7 +2035,7 @@ by one after each FW_DATA write and each FW_RDATA read.</p>
 
 #### ERR_SELECT field
 
-<p>Error select - per-packet-type route: 1=err FIFO/IRQ, 0=bulk trace</p>
+<p>Error select - per-packet-type route: 1=error window (irq per record), 0=trace window</p>
 
 #### ERR_MASK field
 
@@ -3057,3 +3061,56 @@ that 16-bit per-channel bucket wrapped during the window.</p>
 |Bits|Identifier|Access|Reset|Name|
 |----|----------|------|-----|----|
 |15:0|   VALUE  |  rw  | 0x0 |  — |
+
+### MON_GROUP_ERR_BASE_ADDR register
+
+- Absolute Address: 0x126C
+- Base Offset: 0x26C
+- Size: 0x4
+
+<p>Error-record window inclusive low bound (master write)</p>
+
+|Bits|Identifier|Access| Reset |Name|
+|----|----------|------|-------|----|
+|31:0|   VALUE  |  rw  |0x80000|  — |
+
+### MON_GROUP_ERR_LIMIT_ADDR register
+
+- Absolute Address: 0x1270
+- Base Offset: 0x270
+- Size: 0x4
+
+<p>Error-record window inclusive high bound (master write)</p>
+
+|Bits|Identifier|Access| Reset |Name|
+|----|----------|------|-------|----|
+|31:0|   VALUE  |  rw  |0x8FFFF|  — |
+
+### MON_GROUP_ERR_FLUSH_WATERMARK register
+
+- Absolute Address: 0x1274
+- Base Offset: 0x274
+- Size: 0x4
+
+<p>Flush the error writer once this many beats are buffered; 3 = every record</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|15:0|   VALUE  |  rw  | 0x3 |  — |
+
+### MON_ERR_REC_COUNT register
+
+- Absolute Address: 0x1278
+- Base Offset: 0x278
+- Size: 0x4
+
+<p>Whole error records landed in the error window (all three beats acknowledged), free-running, wraps at 65536</p>
+
+| Bits|Identifier|Access|Reset|Name|
+|-----|----------|------|-----|----|
+| 15:0|   COUNT  |   r  |  —  |  — |
+|31:16|   RSVD   |   r  | 0x0 |  — |
+
+#### RSVD field
+
+<p>Reserved</p>

@@ -101,8 +101,8 @@ that succeeded would tell the host a monitor is configured that does not exist.
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| +0x800 | `MON_FIFO_STATUS` | RO | MonBus capture/error FIFO status |
-| +0x804 | `MON_FIFO_COUNT` | RO | MonBus FIFO occupancy |
+| +0x800 | `MON_FIFO_STATUS` | RO | MonBus group error-writer FIFO status (full / empty) |
+| +0x804 | `MON_FIFO_COUNT` | RO | MonBus group error-writer FIFO occupancy (beats) |
 | +0x8C0-0x8DC | `DAXMON_*` | RW | Descriptor-monitor config (enable/timeout/latency/masks) |
 | +0x8E0-0x8FC | `RDMON_*` | RW | Source-egress AXIS monitor-lite config (same layout; live in the SRC half, rapids TASK-015) |
 | +0x900-0x91C | `WRMON_*` | RW | Sink-ingress AXIS monitor-lite config (same layout; live in the SNK half, rapids TASK-015; the SRC copy's `COMPRESS_EN` drives the group) |

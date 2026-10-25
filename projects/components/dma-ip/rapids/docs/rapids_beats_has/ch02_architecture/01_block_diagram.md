@@ -58,8 +58,9 @@ eight scheduler groups in the array's 9:1 `monbus_arbiter`; the plane's packets
 enter the core on `snk_plane_mon_*` / `src_plane_mon_*` and join the array
 output in the half's 3:1 `monbus_arbiter` (client 1; third input reserved),
 the core merges the two halves, and the top delivers the stream through a
-`monbus_axil4_axil4_group` to an AXI-Lite error-drain slave, an AXI-Lite
-capture master, and a `mon_irq` interrupt. The data masters `m_axi_rd` and
+`monbus_axil4_group_1wr` to one AXI-Lite write master (`m_axil_mon`):
+`ERR_SELECT`-routed packets to an error window, the rest to the trace
+window, with a `mon_irq` pulse per error record landed. The data masters `m_axi_rd` and
 `m_axi_wr` carry no monitors.
 
 ### Figure 2.1.2: rapids_beats_top / rapids_beats_cxs_top Integration

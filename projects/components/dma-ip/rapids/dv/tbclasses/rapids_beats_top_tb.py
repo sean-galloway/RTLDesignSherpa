@@ -41,12 +41,12 @@ quiescent Phase-2 control masters, the AXIS master (s_axis, sink ingress) and
 the AXIS egress capture (m_axis, source egress) -- is the core rig verbatim,
 retargeted to aclk/aresetn.
 
-MonBus egress: the top always instantiates monbus_axil4_axil4_group, which
+MonBus egress: the top always instantiates monbus_axil4_group_1wr, which
 consumes the core's single merged MonBus stream (so the core can never stall on
 monbus backpressure). The group's bulk-capture AXI-Lite MASTER (m_axil_mon_*)
 is backed by a trivial always-accept write responder so any flushed trace record
-completes and the group's write FIFO never fills. The 32-bit error-drain slave
-(s_axil_err_*) is held quiescent. For these BASIC datapath tests the scheduler /
+completes and the group's write FIFO never fills. The error window (the
+write-only group's second range, cfg_mon_err_*) is given a range and left unread. For these BASIC datapath tests the scheduler /
 descriptor AXI monitors are left disabled (register defaults), so the merged
 monbus is essentially idle and m_axil_mon stays inactive regardless.
 """
@@ -200,17 +200,17 @@ class RapidsBeatsTopTB(TBBase):
         self._idle_network_inputs()
         # The egress side and m_axil_mon_* belong to the slave BFMs.
 
-        # MonBus AXI-Lite group: err-drain slave quiescent.
-        d.s_axil_err_arvalid.value = 0
-        d.s_axil_err_araddr.value = 0
-        d.s_axil_err_arprot.value = 0
-        d.s_axil_err_rready.value = 1
 
         # Monitor group flush window: sane constants (never 0/0, which stalls the
         # master path). With monitors disabled these see no traffic anyway.
         d.cfg_mon_base_addr.value = 0x0000_1000
         d.cfg_mon_limit_addr.value = 0x0000_5000 - 1
         d.cfg_mon_flush_watermark.value = 3
+        # the error window of the write-only group (rapids TASK-039): error-
+        # selected records land here; these datapath tests route none
+        d.cfg_mon_err_base_addr.value = 0x0000_5000
+        d.cfg_mon_err_limit_addr.value = 0x0000_6000 - 1
+        d.cfg_mon_err_flush_watermark.value = 3
 
     async def deassert_reset(self):
         self.rst_n.value = 1

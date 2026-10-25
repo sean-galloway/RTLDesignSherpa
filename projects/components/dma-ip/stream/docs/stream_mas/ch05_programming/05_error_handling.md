@@ -286,11 +286,9 @@ void stream_isr(void) {
         }
     }
 
-    // Check monitor FIFO (if using AXI-Lite error FIFO)
-    uint32_t mon_status = regs[0x180/4];
-    if (!(mon_status & MON_FIFO_EMPTY)) {
-        // Process error packets from FIFO
-        process_error_fifo();
+    // Monitor error records landed in the error window since the last service
+    if (read32(STREAM_BASE + MON_ERR_REC_COUNT) != last_err_count) {
+        process_error_window();
     }
 
     // Check completion status
@@ -307,32 +305,49 @@ void stream_isr(void) {
 }
 ```
 
-### Error FIFO Processing (AXI-Lite)
+### Error Window Processing
+
+The monitor group (`monbus_axil4_group_1wr`) writes every `ERR_SELECT`-routed
+packet as a 24-byte record into the error window
+(`MON_GROUP_ERR_BASE_ADDR` .. `MON_GROUP_ERR_LIMIT_ADDR`), pulses `stream_irq`
+once per record landed and counts them in `MON_ERR_REC_COUNT`. The host reads
+the records out of memory; there is no FIFO to drain.
 
 ```c
 /**
- * Read and process error packets from monitor error FIFO
- * (via s_axil_err_* interface)
+ * Read and process the monitor error records landed since the last service.
+ * Record n lives at ERR_BASE + (n mod capacity) * 24, three 64-bit beats:
+ *   +0x00 {tag[3:0], source_ts[59:0]}   +0x08 packet[127:64]   +0x10 packet[63:0]
  */
-void process_error_fifo(void) {
-    volatile uint32_t *err_fifo = (volatile uint32_t *)AXIL_ERR_BASE;
+static uint16_t last_err_count;
 
-    while (1) {
-        // Check if FIFO empty
-        uint32_t status = read32(STREAM_BASE + 0x180);
-        if (status & MON_FIFO_EMPTY) break;
+void process_error_window(void) {
+    const uint32_t err_base  = read32(STREAM_BASE + MON_GROUP_ERR_BASE_ADDR);
+    const uint32_t err_limit = read32(STREAM_BASE + MON_GROUP_ERR_LIMIT_ADDR);
+    const uint32_t capacity  = (err_limit + 1 - err_base) / 24;
+    const uint16_t landed    = read32(STREAM_BASE + MON_ERR_REC_COUNT) & 0xFFFF;
+    uint16_t pending = (uint16_t)(landed - last_err_count);
+    if (pending > capacity) {
+        // the ring wrapped between services: the oldest records are gone
+        last_err_count = (uint16_t)(landed - capacity);
+        pending = capacity;
+    }
 
-        // Read 64-bit packet (two reads)
-        uint32_t pkt_low = err_fifo[0];   // Read from AXIL slave
-        uint32_t pkt_high = err_fifo[1];  // Auto-advances FIFO
+    for (; pending; pending--, last_err_count++) {
+        const uint32_t slot = err_base + (last_err_count % capacity) * 24;
+        volatile uint64_t *rec = (volatile uint64_t *)(uintptr_t)slot;
+        uint64_t source_ts = rec[0] & ((1ULL << 60) - 1);
+        uint64_t pkt_high  = rec[1];     // packet[127:64]
+        uint64_t pkt_low   = rec[2];     // packet[63:0]
 
-        // Parse packet
-        uint8_t pkt_type = (pkt_high >> 24) & 0xFF;
-        uint8_t agent_id = (pkt_high >> 16) & 0xFF;
-        uint8_t channel = (pkt_high >> 8) & 0xFF;
+        // Parse packet (field layout: ocelus_package_spec.md)
+        uint8_t pkt_type = (pkt_high >> 56) & 0x0F;
+        uint8_t agent_id = (pkt_high >> 44) & 0xFF;
+        uint8_t channel  = (pkt_high >> 36) & 0x3F;
 
-        printf("Error packet: type=%02x, agent=%02x, channel=%d, data=%08x\n",
-               pkt_type, agent_id, channel, pkt_low);
+        printf("Error record @%llu: type=%x, agent=%02x, channel=%d, data=%016llx\n",
+               (unsigned long long)source_ts, pkt_type, agent_id, channel,
+               (unsigned long long)pkt_low);
 
         // Handle specific error types
         switch (pkt_type) {

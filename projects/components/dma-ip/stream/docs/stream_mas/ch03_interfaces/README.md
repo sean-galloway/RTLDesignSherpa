@@ -39,10 +39,10 @@ STREAM has seven primary external interfaces:
 - Timing and performance characteristics
 
 ### 02_axil4_interface_spec.md
-- **AXI4-Lite Interfaces (2 total, in monbus_axil_group)**
-  - Error FIFO slave read (s_axil_err_*): 32-bit, read-only
-  - Monitor data master write (m_axil_mon_*): 32-bit, write-only
-- Used for monitor bus packet access and logging
+- **AXI4-Lite Interface (1, in monbus_axil4_group_1wr)**
+  - Monitor record master write (m_axil_mon_*): 64-bit, write-only, into the
+    error window (`MON_GROUP_ERR_*`) and the trace window (`MON_GROUP_*`)
+- Used for monitor bus error reporting and logging; the host reads both windows from memory
 - Part of monbus_axil_group integration (USE_AXI_MONITORS=1)
 
 ### 03_apb_interface_spec.md
@@ -68,11 +68,10 @@ STREAM has seven primary external interfaces:
 | AXI4 Descriptor | Master Read | Output | 256-bit | Descriptor fetch |
 | AXI4 Data Read | Master Read | Output | 512-bit (param) | Source data read |
 | AXI4 Data Write | Master Write | Output | 512-bit (param) | Destination data write |
-| AXIL Error FIFO | Slave Read | Input | 32-bit | Monitor error/interrupt FIFO |
-| AXIL Monitor Write | Master Write | Output | 32-bit | Monitor data to memory |
-| IRQ | Output | Output | 1-bit | Interrupt (error FIFO not empty) |
+| AXIL Monitor Write | Master Write | Output | 64-bit | Monitor records to memory (error and trace windows) |
+| IRQ | Output | Output | 1-bit | Interrupt pulse, one per error record landed |
 
-**Note:** AXIL interfaces are active when USE_AXI_MONITORS=1. MonBus is internal (stream_core → monbus_axil_group).
+**Note:** The AXIL master is active when USE_AXI_MONITORS=1. MonBus is internal (stream_core → monbus_axil4_group_1wr).
 
 ---
 

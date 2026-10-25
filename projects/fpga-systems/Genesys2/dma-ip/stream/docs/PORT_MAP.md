@@ -39,7 +39,7 @@ the harness ties the AXI4-only fields (`awid=0`, `awlen=0`, `awsize=2`,
 | `stream_apb_`           | rw       | APB      | 12†  | 32   | STREAM's APB config slave (`s_apb_*`)                    |
 | `harness_csr_axi_`      | rw       | AXIL     | 32   | 32   | `harness_csr` module (`s1_*`)                            |
 | `desc_ram_axi_`         | rw       | AXIL     | 32   | 32   | `desc_ram.s_axil_*` (host descriptor writes, `s2_*`)     |
-| `stream_err_axi_`       | rw       | AXIL     | 32   | **64** | STREAM's `s_axil_err_*` — monbus IRQ-status FIFO drain (`s3_*`) |
+| `stream_err_axi_`       | rw       | AXIL     | 32   | 32   | RESERVED, SLVERR in the harness (`s3_*`); error records land in comp_sram's top 4 KB |
 | `debug_sram_axi_`       | rw       | AXIL     | 32   | **64** | `debug_sram.rd_*` — host reads STREAM's monbus trace (`s4_*`) |
 | `dma_axil_`             | rw       | AXIL     | 32   | 32   | **TIED OFF** — reserved for Xilinx MCDMA `s_axi_lite`    |
 | `bridge_trace_sram_`    | rw       | AXIL     | 32   | **64** | `u_bridge_trace_sram.rd_*` — host reads bridge's monbus trace (`btr_*`) |
@@ -67,8 +67,8 @@ driven to defaults at the bridge instance via the
 `BRIDGE_MON_CFG_DEFAULTS(P)` macro:
 - `monitor/error/timeout_enable = 1`, `perf_enable = 0` (avoid packet
   congestion — never enable compl+perf together).
-- `axi_err_select = 0` (every packet → write FIFO / bulk trace, none to
-  err FIFO / IRQ).
+- `axi_err_select = 0` (every packet → trace window, none to the error
+  window / IRQ).
 - All `axi_*_mask = 0` (no filtering).
 
 `mon_irq_out` is observed in the harness as `bridge_mon_irq` (currently
@@ -116,14 +116,12 @@ writes those same descriptors as 8 × 32-bit AXIL stores via the bridge
 | Port                          | Carries monbus? | Width | Compliant? |
 | ----------------------------- | --------------- | ----- | ---------- |
 | STREAM `m_axil_mon_*`         | yes (writes)    | 64    | ✓          |
-| STREAM `s_axil_err_*`         | yes (reads)     | 64    | ✓          |
 | `debug_sram.wr_*`             | yes (writes)    | 64    | ✓          |
 | `debug_sram.rd_*`             | yes (reads)     | 64    | ✓ (after task #82 refactor) |
 | `bridge.m_mon_axil_*`         | yes (writes)    | 64    | ✓          |
 | `bridge.s_mon_axil_*`         | yes (reads)     | 64    | ✓          |
 | `bridge_trace_sram.wr_*`      | yes (writes)    | 64    | ✓          |
 | `bridge_trace_sram.rd_*`      | yes (reads)     | 64    | ✓          |
-| Bridge slave `stream_err_axi_`     | yes (fanout to STREAM s_axil_err) | 64 | ✓ |
 | Bridge slave `debug_sram_axi_`     | yes (fanout to debug_sram rd)    | 64 | ✓ |
 | Bridge slave `bridge_trace_sram_`  | yes (fanout to bridge_trace_sram rd) | 64 | ✓ |
 

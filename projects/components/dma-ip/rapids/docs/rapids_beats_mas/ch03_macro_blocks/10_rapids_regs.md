@@ -121,8 +121,8 @@ per-monitor performance counters.
 
 | Offset | Name | Access | Description |
 |--------|------|--------|-------------|
-| 0x1000 | `MON.MON_FIFO_STATUS` | RO | MonBus capture/error FIFO status |
-| 0x1004 | `MON.MON_FIFO_COUNT` | RO | MonBus FIFO occupancy |
+| 0x1000 | `MON.MON_FIFO_STATUS` | RO | MonBus group error-writer FIFO status (full / empty) |
+| 0x1004 | `MON.MON_FIFO_COUNT` | RO | MonBus group error-writer FIFO occupancy (beats) |
 | 0x10C0 | `MON.DAXMON_ENABLE` | RW | Descriptor-monitor enables (incl. `COMPRESS_EN`) |
 | 0x10C4 | `MON.DAXMON_TIMEOUT` | RW | Descriptor-monitor timeout cycles |
 | 0x10C8 | `MON.DAXMON_LATENCY_THRESH` | RW | Descriptor-monitor latency threshold |

@@ -10,7 +10,7 @@ digraph rapids_beats_error_recovery {
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
     irq  [label="mon_irq asserted", fillcolor="white", style="rounded,filled"];
-    rd   [label="Read the error FIFO over s_axil_err;\nread SCHED_ERROR (and CH_STATE) to find channel n"];
+    rd   [label="Read the error records out of the error window\n(up to mon_err_rec_count); read SCHED_ERROR (and CH_STATE) to find channel n"];
     q    [label="Which source does\nthe packet name?", fillcolor="white"];
     axi  [label="Check the address map\nand the target slave"];
     desc [label="Fix the descriptor, or the\nDESCENG_ADDR0/1 windows"];

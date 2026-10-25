@@ -87,7 +87,7 @@ def _make_axi_error_record(event_code=AXIErrorCode.AXI_ERR_RESP_SLVERR,
     )
     beat_lo = raw & ((1 << 64) - 1)
     beat_hi = (raw >> 64) & ((1 << 64) - 1)
-    # TS, HI, LO -- matches the monbus_axil4_axil4_group slicer / spec.
+    # TS, HI, LO -- matches the group's record format / spec.
     return raw, [source_ts, beat_hi, beat_lo]
 
 
@@ -147,37 +147,17 @@ def test_read_one_record_default_stride_increments_addresses():
     raw, _ = _make_axi_error_record()
     words = _record_to_words32(raw, 0x0234_5678_9ABC_DEF0)
     reader = CannedReader(words)
-    pkt, ts = read_one_record(reader, base_addr=0xC000_0000, word_stride=4)
+    pkt, ts = read_one_record(reader, base_addr=0xC000_0000)
     assert pkt.raw_packet == raw
     assert ts == 0x0234_5678_9ABC_DEF0
     # 6 reads at incrementing 32-bit offsets
     assert reader.addrs == [0xC000_0000 + 4 * i for i in range(6)]
 
 
-def test_read_one_record_zero_stride_targets_same_address():
-    raw, _ = _make_axi_error_record(
-        event_code=AXIErrorCode.AXI_ERR_ADDR_RANGE,
-        event_data=0xDEAD_BEEF_DEAD_BEEF,
-        source_ts=0x42,
-    )
-    words = _record_to_words32(raw, 0x42)
-    reader = CannedReader(words)
-    pkt, ts = read_one_record(reader, base_addr=0xC000_0000, word_stride=0)
-    assert pkt.get_event_code_name() == "AXI_ERR_ADDR_RANGE"
-    assert ts == 0x42
-    # All 6 reads at the same base address
-    assert reader.addrs == [0xC000_0000] * 6
-
-
-def test_read_one_record_rejects_invalid_stride():
-    with pytest.raises(ValueError):
-        read_one_record(CannedReader([]), base_addr=0, word_stride=8)
-
-
 def test_read_one_record_raises_on_none():
     reader = CannedReader([0, 0, 0, 0, 0, None])
     with pytest.raises(IOError):
-        read_one_record(reader, base_addr=0, word_stride=4)
+        read_one_record(reader, base_addr=0)
 
 
 # ---------------------------------------------------------------------------
@@ -229,7 +209,6 @@ def test_drain_loop_two_records_finite_count():
     drained = drain_loop(
         bridge,
         base_addr=0xC000_0000,
-        word_stride=4,
         count=2,
         follow=False,
         poll_interval=0,
@@ -254,7 +233,6 @@ def test_drain_loop_stops_on_empty_fifo_when_not_following():
     drained = drain_loop(
         bridge,
         base_addr=0xC000_0000,
-        word_stride=4,
         count=None,
         follow=False,
         poll_interval=0,
@@ -278,7 +256,6 @@ def test_drain_loop_follows_past_empty_to_real_record():
     drained = drain_loop(
         bridge,
         base_addr=0xC000_0000,
-        word_stride=4,
         count=1,
         follow=True,
         poll_interval=0,

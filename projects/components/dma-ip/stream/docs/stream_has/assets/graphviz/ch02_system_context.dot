@@ -10,13 +10,13 @@ digraph stream_system_context {
     cpu    [label="Host CPU\nbuilds descriptor chains in memory,\nprograms and kicks over APB", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     apbic  [label="APB Interconnect", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     stream [label="STREAM - stream_top_ch8 / stream_top_ch16\n8 or 16 channels, one shared data loop\n(read engine -> SRAM -> write engine)", width=6.0, peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    mon    [label="Monitor Consumer\n(error FIFO reader, log memory)", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
+    mon    [label="Monitor Consumer\n(error window + trace window in memory)", fillcolor="white", style="filled,dashed", style="rounded,filled,dashed", fillcolor="#E2EFDA"];
     xbar   [label="AXI Interconnect", fillcolor="white", width=9.0, style="rounded,filled", fillcolor="#E2EFDA"];
     mem    [label="Memory System - source buffers, destination buffers, descriptor chains\n(one or more memory controllers)", fillcolor="white", width=9.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     cpu -> apbic [label="APB (pclk)"];
     apbic -> stream [label="s_apb_* config + kick", penwidth=1.8];
-    stream -> mon [style=dashed, color="#777777", dir=both, xlabel="s_axil_err reads,\nstream_irq"];
+    stream -> mon [style=dashed, color="#777777", dir=both, xlabel="m_axil_mon record writes,\nstream_irq"];
     p_d [shape=point, width=0.01]; p_r [shape=point, width=0.01]; p_w [shape=point, width=0.01]; p_m [shape=point, width=0.01];
     { rank=same; p_d; p_r; p_w; p_m; }
     p_d -> p_r -> p_w -> p_m [style=invis];

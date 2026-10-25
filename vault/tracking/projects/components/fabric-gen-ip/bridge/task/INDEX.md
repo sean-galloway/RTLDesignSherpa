@@ -12,15 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-022** — the 4x4's uniform-traffic loss past saturation: `r_queue_depth` changes nothing there (a flat 2.45 beats/cycle ceiling at FUNC length, 8 and 32 beats alike), so it is another stage; candidates = the master adapter's in-order R return across width paths, or an outstanding limit at the slow periph port -- measure first (2026-10-25)
+Nothing open.
 
 ## Dropped
 
@@ -30,6 +30,7 @@ by construction rather than by discipline.
 - **TASK-001** — trim method from `bridge/CLAUDE.md`; dropped, the file was already compliant and every row of its removal table was falsified by reading the text.
 
 ## Closed
+- **TASK-022** — the 4x4's uniform-traffic loss past saturation, measured per cycle: the return path clean (0 percent stalled), the loss was request supply -- the driver's `k % 16` ID rotation on a 3-target cycle sprang the per-ID same-target gate (31-58 percent of AR cycles; the 2x2 immune, 16 mod 2 = 0); IDs partitioned per target took the 4x4 to 0.98 of capacity at 1.4x offered; the flat ceiling past 2x is the traffic itself (half the beats at the 7x-oversubscribed 32-bit periph port; Little's law on the shared outstanding table) -- documented, stays (2026-10-25)
 - **TASK-021** — head-of-line blocking under uniform traffic past saturation: a shared slave's in-order R output stalls on a busy master while the next master idles (measured per cycle; not the request slots, not the adapter mux); fixed by `[bridge] r_queue_depth`, default 0 -- `bridge_2x2_rw_rq8` 0.67 to 1.00 of capacity at 2x offered, cost measured on ASAP7 and Kintex-7 (2026-10-25)
 - **TASK-020** — `atomic_rr_depth`: the read-return atomic tracker depth as a per-slave key (default 8), in the package and the sizing report; stall measured at 2 and at 8 (2026-10-24)
 - **TASK-016** — buffer sizing rule: every unset max_outstanding / rate_buffer derived from 1 + latency_cycles + modelled round trip (bridge_pkg/sizing.py), skid stages 2, `<bridge>_sizing.json`; the step measured at the boundary (2026-10-24, grouped with TASK-014)

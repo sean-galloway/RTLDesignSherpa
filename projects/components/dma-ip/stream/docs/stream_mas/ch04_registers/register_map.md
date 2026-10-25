@@ -370,8 +370,9 @@ not the bus meters. Some registers in this block are therefore active only when
 configuration and the monitor-group window (`MON_GROUP_*`). The latency
 histograms (`HIST_DATA` / `HIST_TOTAL`, outside this window) are also built only
 with monitors and read 0 otherwise. The FIFO status
-registers report the monitor error FIFO, which a monitors-off build does not
-have; there they read `MON_FIFO_STATUS = 0x2` (EMPTY) and `MON_FIFO_COUNT = 0`.
+registers report the monitor group's error-writer FIFO, which a monitors-off
+build does not have; there they read `MON_FIFO_STATUS = 0x2` (EMPTY),
+`MON_FIFO_COUNT = 0` and `MON_ERR_REC_COUNT = 0`.
 The **datapath perf-window registers** are populated by the in-core
 `axi_bus_meter` instances, which are always built. These are the RDMON / WRMON
 `PERF_CTRL` registers and their `PROD/BP/STARV/IDLE_CYCLES`,
@@ -390,9 +391,11 @@ meters are then unreachable.
 
 #### MON_FIFO_STATUS (0x1000)
 
-Monitor bus FIFO status indicators. These report the monitor error/interrupt
-FIFO (the one drained over `s_axil_err`). The monitor group exposes no overflow
-or underflow flag, so `MON_FIFO_OVFL` and `MON_FIFO_UNFL` read 0. With
+Monitor bus FIFO status indicators. These report the monitor group's error
+writer FIFO (the beats queued for the `MON_GROUP_ERR_*` window; the records
+themselves are read from memory, see `MON_ERR_REC_COUNT`). The monitor group
+exposes no overflow or underflow flag, so `MON_FIFO_OVFL` and `MON_FIFO_UNFL`
+read 0. With
 `USE_AXI_MONITORS = 0` the register reads 0x2 (EMPTY).
 
 | Bits  | Field          | Type | Description                           |

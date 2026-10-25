@@ -35,7 +35,7 @@ This document provides a complete reference for all top-level ports of the STREA
 
 **Note:** This documents `stream_core.sv` which is instantiated inside `stream_top_ch8.sv` (and `stream_top_ch16.sv`, with `NUM_CHANNELS = 16`). The top-level wrapper adds:
 - APB slave interface (replaces apb_valid/ready/addr with standard APB protocol)
-- AXI-Lite interfaces for monitor bus (s_axil_err_*, m_axil_mon_*)
+- The AXI-Lite write master for monitor records (m_axil_mon_*) and `stream_irq`
 - Optional APB CDC crossing (CDC_ENABLE parameter)
 
 For top-level integration, see the [Architecture Overview](01_architecture.md).

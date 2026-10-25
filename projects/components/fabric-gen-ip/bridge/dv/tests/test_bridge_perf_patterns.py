@@ -42,15 +42,24 @@
 # R queue in the crossbar, so the slave hands a burst for a busy master over
 # and serves the next. bridge_2x2_rw_rq8 (8 beats) measures 1.00 of capacity
 # at every load point and is held to the full ACCEPT_FLOOR here. On the
-# mixed-width bridge_4x4_rw_rq8 the same queue changes nothing at FUNC
-# length (2.45 against 2.43 slave beats per cycle at 4x offered, a flat
-# ceiling from 1.4x on; the shorter GATE sweep's 0.95 / 0.74 is a transient
-# the queues absorb, and 32 beats measured the same as 8), so the 4x4's loss
-# is another stage and it is held to KNOWN_UNIFORM_FLOOR with the unqueued
-# fixtures (bridge TASK-022). The default is 0 -- the minimal fabric, by the owner's rule for
-# every depth -- so the unqueued fixtures keep the measured curve and are
-# held to KNOWN_UNIFORM_FLOOR past saturation: the cost of the minimum,
-# documented, not a defect waiting on a fix.
+# mixed-width bridge_4x4_rw_rq8 the queue keeps a beat's width ahead of the
+# unqueued fabric but shares its ~2.55 slave-beats/cycle ceiling past 2x
+# offered (bridge TASK-022, measured per cycle 2026-10-25): every slave R
+# pin runs 0 percent stalled while sram/gpu_mem starve -- half the uniform
+# beats target the 32-bit periph port (7x oversubscribed at gap 2),
+# Little's law fills each master's shared 16-entry outstanding table with
+# periph reads, and a master's single in-order AR channel then cannot
+# supply the idle slaves. Architecturally forced, not a fabric defect, so
+# the 4x4 fixtures are held to KNOWN_UNIFORM_FLOOR with the unqueued ones.
+# The same measurement caught the driver's own ID rotation (k % 16 against
+# a 3-target cycle, so each burst's ID twin sat at a DIFFERENT slave)
+# tripping the per-ID same-target gate on 31-58 percent of AR cycles; the
+# driver now partitions IDs per target (bridge_perf_patterns.open_loop),
+# which is what took the 4x4 from 0.61 to 0.98 of capacity at 1.4x offered.
+# The default is 0 -- the minimal fabric, by the owner's rule for every
+# depth -- so the unqueued fixtures keep the measured curve and are held to
+# KNOWN_UNIFORM_FLOOR past saturation: the cost of the minimum, documented,
+# not a defect waiting on a fix.
 # GATE runs three load points, FUNC and FULL the whole curve (the default
 # is the minimal sweep; the curve is the knob -- bridge TASK-014).
 #

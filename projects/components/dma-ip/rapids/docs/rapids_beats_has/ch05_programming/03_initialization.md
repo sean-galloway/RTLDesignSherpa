@@ -131,8 +131,9 @@ fields. Writing the whole word in both halves does no harm.
 ### Step 4: Optional Monitor and Interrupt Egress
 
 The only interrupt output is `mon_irq`. It comes from the top-level
-`monbus_axil4_axil4_group` and is asserted while that group's error FIFO is
-not empty. The scheduler error and completion packets travel on the CORE
+`monbus_axil4_group_1wr` and pulses once per error record that group has
+written to the error window (`cfg_mon_err_base_addr` .. `cfg_mon_err_limit_addr`);
+`mon_err_rec_count` counts those records. The scheduler error and completion packets travel on the CORE
 protocol. For both halves, the group takes its CORE filter from the **SRC**
 half's `WRMON_*` registers:
 
@@ -140,14 +141,14 @@ half's `WRMON_*` registers:
 // CORE packets: PKT_MASK bit[type] = 1 DROPS that type; reset is 0xFFFF.
 reg_wr(SRC, WRMON_PKT_MASK, ~((1u << 0) | (1u << 1)) & 0xFFFF);  // pass Error, Completion
 
-// ERR_SELECT[3:0] bit[type] = 1 routes that type to the error FIFO (-> mon_irq).
+// ERR_SELECT[3:0] bit[type] = 1 routes that type to the error window (-> mon_irq pulse).
 // Bit 0 = Error.  Bit 1 = Completion, which includes the gen_irq descriptor event.
 reg_wr(SRC, WRMON_ERR_CFG, (0xFF << 8) | (1u << 0));             // keep ERR_MASK reset value
 ```
 
-Packets that are passed but not selected for the error FIFO go to the capture
-path (`m_axil_mon_*`). The group, `mon_irq` and the `s_axil_err_*` drain exist
-only when `USE_AXI_MONITORS = 1`. With `USE_AXI_MONITORS = 0`, `mon_irq` is
+Packets that are passed but not selected for the error window go to the trace
+window, over the same `m_axil_mon_*` master. The group, `mon_irq` and
+`mon_err_rec_count` exist only when `USE_AXI_MONITORS = 1`. With `USE_AXI_MONITORS = 0`, `mon_irq` is
 tied to 0, and software must poll `SCHED_ERROR` and `SCHEDULER_IDLE` instead.
 
 ### Step 5: Build Descriptors
@@ -253,18 +254,19 @@ Software sees completion in one of two ways:
   Do not poll `CHANNEL_IDLE`, `AXI_WR_COMPLETE`, or the SNK half's
   `AXI_RD_COMPLETE`. Those fields are not driven at the top level and
   always read 0 (see the [Register Map](02_register_map.md)).
-- **mon_irq.** If Step 4 routed Completion packets to the error FIFO, every
+- **mon_irq.** If Step 4 routed Completion packets to the error window, every
   descriptor completion lands there, and so does every error. A completion is
   reported as `RAPIDS_EVENT_DESC_COMPLETE`, or as `RAPIDS_EVENT_IRQ` when the
   descriptor's `gen_irq` is set. The descriptor engine's descriptor-loaded
-  completions land there too. `mon_irq` stays high
-  until the records are drained over `s_axil_err_*`.
+  completions land there too. `mon_irq` is a pulse per
+  record; the handler latches it and reads the records out of the error window
+  up to `mon_err_rec_count`.
 
 ```c
 void rapids_irq_handler(void) {
-    // mon_irq == error FIFO not empty: drain every record
-    while (mon_irq_pending()) {
-        mon_record_t r = err_fifo_read();        // s_axil_err_* reads
+    // one mon_irq pulse per record landed: read every record not yet seen
+    while (last_seen != mon_err_rec_count()) {
+        mon_record_t r = err_window_read(last_seen++);   // err_base + (n % capacity) * 24
         if (r.pkt_type == PKT_TYPE_ERROR) {
             handle_channel_error(r.half, r.channel_id);   // see Error Handling
         } else if (r.pkt_type == PKT_TYPE_COMPLETION) {
@@ -309,4 +311,4 @@ void reset_rapids_half(int half) {
 ```
 
 `GLOBAL_RST` drives every channel's reset in that half only. The other half,
-and the shared monitor group's error FIFO, are not affected.
+and the shared monitor group's error window, are not affected.

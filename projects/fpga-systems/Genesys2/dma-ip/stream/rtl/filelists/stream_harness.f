@@ -18,7 +18,6 @@
 -f $REPO_ROOT/rtl/amba/filelists/axi4_slave_wr_crc_check.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_dma_slaves.f
 -f $FRAMEWORK_ROOT/rtl/filelists/instrumentation_mon.f
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
 -f $MISC_ROOT/rtl/filelists/axi4_intf_master_observer.f
 -f $MISC_ROOT/rtl/filelists/axi4_intf_slave_observer.f
 -f $MISC_ROOT/rtl/filelists/char_run_timer.f

@@ -38,6 +38,7 @@
 | 0.15 | 2026-10-20 | RTL Design Sherpa | Section (h2) headings now open a new page, the pipeline default. No technical content changed. |
 | 0.16 | 2026-10-21 | RTL Design Sherpa | Register map: per-channel `CH_SCRATCH[n].SCRATCH` at 0x300 (8 RW bits, storage only). |
 | 0.17 | 2026-10-23 | RTL Design Sherpa | Register map: the rapids-g firmware-load registers `FW_CTRL`, `FW_ADDR`, `FW_DATA`, `FW_RDATA` at 0x3A0-0x3AC (inert outside a rapids-g `FW_WRITABLE` build). Cover version corrected (it read 0.15 since 0.16). |
+| 0.18 | 2026-10-25 | RTL Design Sherpa | Monitor egress is `monbus_axil4_group_1wr` (rapids TASK-039): the AXI-Lite error-drain slave `s_axil_err_*` is gone; `ERR_SELECT` packets are written to an error window (`cfg_mon_err_*` ports), `mon_irq` pulses per record and `mon_err_rec_count` counts them. Chapters 2, 3, 5 and 6 and their figures follow. |
 
 : Document Revision History
 
@@ -84,7 +85,7 @@
   0x100-0x3FF plus monitor regfile @ 0x1000).
 - Refreshed the register map with the actual PeakRDL-generated addresses,
   including the monitor regfile at 0x1000 and `SCHED_TIMEOUT_LIMIT` at 0x208.
-- Added the MonBus AXI-Lite group (error-drain slave `s_axil_err_*`, capture
+- Added the MonBus AXI-Lite group (then two-port: error-drain slave `s_axil_err_*`, capture
   master `m_axil_mon_*`, `mon_irq`) and the USE_AXI_MONITORS-gated rd/wr AXI
   monitors to the block diagram, APB, and MonBus interface chapters.
 - Reflected scheduler recoverable write-progress timeout + B-response commit

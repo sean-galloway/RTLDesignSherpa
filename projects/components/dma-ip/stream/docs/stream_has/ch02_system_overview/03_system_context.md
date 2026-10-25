@@ -113,7 +113,7 @@ Source and destination regions must be accessible via the appropriate AXI master
 
 | Signal | Description |
 |--------|-------------|
-| `stream_irq` | The single interrupt output: the error/interrupt FIFO of `monbus_axil4_axil4_group` is not empty. Tied to 0 when `USE_AXI_MONITORS = 0` |
+| `stream_irq` | The single interrupt output: one pulse per error record `monbus_axil4_group_1wr` lands in the error window. Tied to 0 when `USE_AXI_MONITORS = 0` |
 
 : Interrupt Signals
 
@@ -121,11 +121,14 @@ There is no per-channel interrupt vector, at 8 or at 16 channels.
 
 ### Interrupt Conditions
 
-- A MonBus packet the group classifies as an error or interrupt (for example a
+- A MonBus packet whose type is selected by `ERR_SELECT` (for example a
   descriptor completion with the descriptor's `interrupt` flag, or a channel
-  error) is pushed into the error FIFO, which raises `stream_irq`
-- Software reads the FIFO through `s_axil_err` to find the channel and cause,
-  and the interrupt drops when the FIFO is empty
+  error) is written as a 24-byte record into the error window
+  (`MON_GROUP_ERR_BASE_ADDR` .. `MON_GROUP_ERR_LIMIT_ADDR`); `stream_irq` pulses
+  once when the record has landed
+- Software latches the pulse, reads `MON_ERR_REC_COUNT` for how many records
+  have landed, and reads the new records out of the error window to find the
+  channel and cause
 - Per-channel completion is also visible by polling `AXI_RD_COMPLETE`,
   `AXI_WR_COMPLETE` and `CHANNEL_IDLE`
 

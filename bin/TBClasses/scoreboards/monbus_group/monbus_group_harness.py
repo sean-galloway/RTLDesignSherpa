@@ -52,9 +52,16 @@ class MonbusGroupHarness:
         id_width: int = 8,
         layout_drain: BeatLayout = None,
         layout_trace: BeatLayout = None,
+        err_window=None,
         log=None,
     ) -> None:
-        assert drain_proto in ("axil", "axi4", "wb4"), drain_proto
+        # drain_proto None: a write-only group (monbus_*_group_1wr) with no
+        # slave-read side. Its error records land in memory through the SAME
+        # master-write port as the trace, in the window err_window=(base,
+        # limit) inclusive; parse_err_records() lifts them out of the captured
+        # writes, irq_out pulses once per record landed (stats.irq_rising_edges
+        # counts them) and err_rec_count() reads the group's free-running count.
+        assert drain_proto in (None, "axil", "axi4", "wb4"), drain_proto
         assert trace_proto in ("axil", "axi4"), trace_proto
         self.dut = dut
         self.clock = clock
@@ -75,6 +82,8 @@ class MonbusGroupHarness:
         self.id_width = id_width
         self.layout_drain = layout_drain or BeatLayout(order=BeatOrder.LO_HI_TS)
         self.layout_trace = layout_trace or BeatLayout(order=BeatOrder.TS_HI_LO)
+        self.err_window = tuple(err_window) if err_window else None
+        self.err_packets = []            # records parsed out of the error window
         self.log = log
 
         self._mask = (1 << data_width) - 1
@@ -478,12 +487,42 @@ class MonbusGroupHarness:
         beat (awlen=0); for AXI4 it groups awlen+1 W beats with wlast timing."""
         return [dict(b) for b in self._trace_bursts]
 
+    def _in_err_window(self, addr: int) -> bool:
+        return self.err_window is not None and self.err_window[0] <= addr <= self.err_window[1]
+
+    def parse_err_records(self):
+        """Write-only groups: reassemble the captured writes that landed in the
+        error window (raw 3-beat records, layout_trace order, never compressed)
+        into packets, appended to err_packets and received_packets. Beats are
+        taken in write order, which is record order (the writer never splits a
+        record across the window's wrap). Returns the new packets."""
+        assert self.err_window is not None, "parse_err_records needs err_window=(base, limit)"
+        words = [d for (a, d) in self._trace_beats if self._in_err_window(a)]
+        bpr = self.layout_trace.beats_per_record
+        out = []
+        for i in range(0, len(words) - bpr + 1, bpr):
+            pkt = self._reassemble(words[i:i + bpr], self.layout_trace)
+            if pkt is None:
+                self.stats.skipped_zero_records += 1
+                continue
+            out.append(pkt)
+            self.err_packets.append(pkt)
+            self.received_packets.append(pkt)
+            self.stats.records_parsed += 1
+        return out
+
+    def err_rec_count(self) -> int:
+        """Write-only groups: whole error records landed, free-running (16 bits)."""
+        return self._get(getattr(self.group_node, "err_rec_count", None)) or 0
+
     def parse_trace_records(self):
         """Reassemble captured trace wdata into records and append the decoded
         packets to received_packets. Reassembly honours layout_trace.order
         (the bridge master-write path is LO_HI_TS, same as its drain path);
-        all-zero (padding) records are skipped. Returns the new packets."""
-        words = [d for (_a, d) in self._trace_beats]
+        all-zero (padding) records are skipped. With err_window set, beats that
+        landed in the error window are left to parse_err_records(). Returns the
+        new packets."""
+        words = [d for (a, d) in self._trace_beats if not self._in_err_window(a)]
         bpr = self.layout_trace.beats_per_record
         out = []
         for i in range(0, len(words) - bpr + 1, bpr):
@@ -574,6 +613,7 @@ class MonbusGroupHarness:
 
     def clear(self) -> None:
         self.received_packets = []
+        self.err_packets = []
         self._trace_beats = []
         self._trace_bursts = []
         self.stats = MonbusGroupStats()

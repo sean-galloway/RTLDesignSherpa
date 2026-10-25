@@ -41,11 +41,11 @@ digraph rapids_byte_whole_unit {
     wr_eng [label="AXI Write Engine\naxi_write_engine (round-robin;\nAWADDR beat-aligned, WSTRB\nfrom the buffer, 4 KB cap)", group=L, peripheries=2, style="filled", fillcolor="#D6E4F0"];
     arb    [label="Shared Engines, per half (SHARED_ENGINES = 1)\ndescriptor_engine_shared + ctrlrd_engine_shared\n+ ctrlwr_engine_shared, round-robin over channels\n(SHARED_ENGINES = 0: per-channel engines\n+ arbiter_round_robin x 3)",
             shape=invtrapezium, width=5.2, fillcolor="#BFD7EE", group=C, style="filled", fillcolor="#FFF2CC"];
-    mon    [label="Monitor Bus\nmonbus_arbiter tree (group,\narray, half, core) ->\nmonbus_axil4_axil4_group", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    mon    [label="Monitor Bus\nmonbus_arbiter tree (group,\narray, half, core) ->\nmonbus_axil4_group_1wr", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     rd_eng [label="AXI Read Engine\naxi_read_engine (round-robin;\nARADDR beat-aligned, 4 KB cap)", group=R, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     // ---- boundary bar ----
-    mem [label="System Memory / AXI interconnect\nm_axi_wr (AW, W / B)  |  m_axil_mon, s_axil_err, mon_irq  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)",
+    mem [label="System Memory / AXI interconnect\nm_axi_wr (AW, W / B)  |  m_axil_mon, mon_irq, mon_err_rec_count  |  src_/snk_ m_axi_desc, m_axi_ctrlrd, m_axi_ctrlwr  |  m_axi_rd (AR / R)",
          fillcolor="white", width=18.6, fontsize=11, group=C, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     // ---- sink write data, down the left ----
