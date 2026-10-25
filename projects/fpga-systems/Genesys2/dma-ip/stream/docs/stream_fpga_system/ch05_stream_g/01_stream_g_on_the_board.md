@@ -137,20 +137,23 @@ sim-against-board agreement, and derives the sizes at which stream-g is within 1
 
 ### The simulation against the board
 
-The first chunk run both ways (`gscale1`, the lone channel's 16-descriptor chains from 8 to 1,024
-beats) says what the rest of the campaign is expected to repeat: on STREAM the simulation is the board
-to the cycle on all eight points (233, 310, 559, 1,071, 2,095, 4,143, 8,239, 16,431); on stream-g it is
-not, and the reason is in the design. The firmware's poll loop runs free of the host, so a kick lands at
-a different phase of each hart's loop in the simulation than on the board, and the count moves by a
-poll period or so: 672 against 671 at 8 beats, 820 against 824 at 16, 2,278 against 2,409 at 128,
-4,181 against 4,286 at 256, 8,405 against 8,375 at 512, 16,465 against 16,465 at 1,024. The two
-points under stream TASK-021 move the most and in opposite directions (32 beats: 1,768 simulated
-against 1,897 on the board; 64 beats: 1,927 against 1,737), which places that knee in the interplay
-of the kick's phase with the firmware's staging rather than in a fixed cost. The board figures stand
-as the measurement; the simulation reproduces STREAM exactly and stream-g to within its own
-phase jitter, and the full three-profile campaign (`make sim-gcompare | sim-gscale | sim-gscale1`)
-is recorded under `results/sim/` as it completes.
-
+The harness simulation of each bitstream's design, in the bitstream's own configuration (the perf
+geometry with `USE_AXI_MONITORS=0`; a first pass had taken the package default and built the in-core
+monitors in, which is not this bitstream), reproduces the board. On STREAM the first chunk run both
+ways is the board to the cycle on all eight points (233, 310, 559, 1,071, 2,095, 4,143, 8,239, 16,431
+for the lone channel's chains from 8 to 1,024 beats). On stream-g the traced run of the lone channel's
+16-descriptor chains gives 688 / 1,900 / 1,739 / 2,410 cycles at 16 / 32 / 64 / 128 beats against the
+board's 684 / 1,890 / 1,737 / 2,409, and the residue is the design's own run-to-run spread: the
+firmware's poll loop runs free of the host, so where a hart's pass stands when the kick lands decides
+whether a chain opens on an in-place advance or on a COMPLETE / NEXT_DESC walk, one walk being about
+170 cycles (the board itself gave 1,737 and 1,911-1,935 for the same 64-beat point on different runs,
+with identical first-read to last-read spans). The simulation trace of channel 0's scheduler
+(`bin/sched_trace_timeline.py`, `results/task021_trace_2026-10-24_g.jsonl`) is what settled the
+mechanism behind Table 5.5's one-channel chain column, recorded under stream TASK-021: from 32 beats
+up every second chained head is staged after the running descriptor's last read and walks instead of
+advancing in place, a 216-cycle pair whatever the size, until the data itself outlasts the firmware's
+26-to-106-cycle reaction above about 96 beats. The full three-profile campaign on both designs
+(`make sim-gcompare | sim-gscale | sim-gscale1`) is recorded under `results/sim/` as it completes.
 
 ## Single descriptor per channel (`gcompare`)
 

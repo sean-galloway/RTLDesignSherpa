@@ -1,0 +1,32 @@
+# TASK-021 probe: the lone channel's 16-descriptor chain around 32 beats, with repeats and shorter chains
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes (16 B = one beat)
+chain_ch1_b16_d16,1,16,256B
+chain_ch1_b20_d16,1,16,320B
+chain_ch1_b24_d16,1,16,384B
+chain_ch1_b28_d16,1,16,448B
+chain_ch1_b32_d16,1,16,512B
+chain_ch1_b36_d16,1,16,576B
+chain_ch1_b40_d16,1,16,640B
+chain_ch1_b44_d16,1,16,704B
+chain_ch1_b48_d16,1,16,768B
+chain_ch1_b56_d16,1,16,896B
+chain_ch1_b64_d16,1,16,1024B
+chain_ch1_b80_d16,1,16,1280B
+chain_ch1_b96_d16,1,16,1536B
+chain_ch1_b128_d16,1,16,2048B
+rep1_chain_ch1_b32_d16,1,16,512B
+rep1_chain_ch1_b64_d16,1,16,1024B
+rep2_chain_ch1_b32_d16,1,16,512B
+rep2_chain_ch1_b64_d16,1,16,1024B
+rep3_chain_ch1_b32_d16,1,16,512B
+rep3_chain_ch1_b64_d16,1,16,1024B
+rep4_chain_ch1_b32_d16,1,16,512B
+rep4_chain_ch1_b64_d16,1,16,1024B
+rep5_chain_ch1_b32_d16,1,16,512B
+rep5_chain_ch1_b64_d16,1,16,1024B
+chain_ch1_b32_d2,1,2,512B
+chain_ch1_b64_d2,1,2,1024B
+chain_ch1_b32_d4,1,4,512B
+chain_ch1_b64_d4,1,4,1024B
+chain_ch1_b32_d8,1,8,512B
+chain_ch1_b64_d8,1,8,1024B

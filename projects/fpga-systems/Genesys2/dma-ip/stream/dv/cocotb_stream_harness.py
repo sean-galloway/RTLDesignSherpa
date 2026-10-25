@@ -510,7 +510,51 @@ async def cocotb_test_stream_perf(dut):
                 r = hc.run_one(runner, tb.bridge, cfg, timeout_s, False)
                 rows.append(r)
             return rows
+        # CHAR_TRACE_OUT (stream TASK-021): sample channel 0's scheduler every
+        # clock while the points run and write every change as a JSON line, so
+        # the firmware's staging can be read against the read side's advance.
+        trace_out = os.environ.get('CHAR_TRACE_OUT')
+        trace_task = None
+        if trace_out:
+            from cocotb.triggers import RisingEdge
+            core = dut.u_stream.g_stream_core.u_stream_core
+            sch = core.u_scheduler_group_array.g_shared.gen_schedulers[0].u_scheduler
+            probes = {
+                'state': sch.r_state, 'staged': sch.r_staged, 'armed': sch.r_armed,
+                'wr_en': sch.seq_wr_en, 'wr_addr': sch.seq_wr_addr, 'wr_data': sch.seq_wr_data,
+                'head': sch.u_core.desc_head_valid, 'take': sch.u_core.desc_take, 'launch': sch.u_core.launch,
+                'advance': sch.u_core.wr_advance, 'rd_ahead': sch.u_core.rd_ahead,
+                'exec_done': sch.u_core.exec_complete, 'wr_done': sch.u_core.write_complete,
+                'rd_req': sch.u_core.sched_rd_valid, 'wr_req': sch.u_core.sched_wr_valid,
+                'desc_ar': dut.desc_arvalid, 'desc_arready': dut.desc_arready,
+            }
+            events = []
+
+            async def sampler():
+                cyc, last = 0, {}
+                while True:
+                    await RisingEdge(dut.aclk)
+                    cyc += 1
+                    cur = {}
+                    for k, h in probes.items():
+                        try:
+                            cur[k] = int(h.value)
+                        except ValueError:
+                            cur[k] = -1
+                    if cur != last:
+                        if last:
+                            events.append({'cyc': cyc, **{k: v for k, v in cur.items() if last.get(k) != v}})
+                        else:
+                            events.append({'cyc': cyc, **cur})
+                        last = cur
+            trace_task = cocotb.start_soon(sampler())
         rows = await bridge(_sweep)()
+        if trace_task is not None:
+            trace_task.cancel()
+            with open(trace_out, 'w') as fh:
+                for e in events:
+                    fh.write(json.dumps(e) + '\n')
+            tb.log.info(f"task021 trace: {len(events)} change records -> {trace_out}")
         for r in rows:
             tb.log.info("  " + hc.fmt_row(r))
         with open(out, 'w') as fh:

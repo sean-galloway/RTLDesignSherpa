@@ -97,16 +97,26 @@ def test_stream_g_profile(request, profile, dut, k, n, names):
     log_path = os.path.join(log_dir, f'{name}.log')
     os.makedirs(log_dir, exist_ok=True)
     stream_g = (dut == 'g')
+    # The board's perf geometry, as test_stream_perf builds it: the package
+    # defaults plus USE_AXI_MONITORS=0 -- the package says 1, and a first run of
+    # this file took it, which built the in-core monitors into a sim meant to
+    # match a bitstream that has none (the scope was g_stream_core_mon_enabled).
     rtl_parameters = {
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
         'UART_BAUD': str(SIM_UART_BAUD),
+        'USE_AXI_MONITORS': '0',
         'USE_ROW_COL_MAJOR_ADDRESSING': '1',
         **{kk: str(v) for kk, v in BASE_RTL_PARAMS.items()},
     }
+    # CHAR_POINTS=a,b overrides the chunk's points (any names in the profile, or in
+    # CHAR_CSV_OVERRIDE); CHAR_TRACE_OUT adds the channel-0 scheduler trace (TASK-021).
+    if os.environ.get('CHAR_POINTS'):
+        names = [n for n in os.environ['CHAR_POINTS'].split(',') if n]
     extra_env = {
         'TEST_TYPE': 'char_csv',
-        'CHAR_CSV': os.path.join(CSV_DIR, f'{profile}.csv'),
+        'CHAR_CSV': os.environ.get('CHAR_CSV_OVERRIDE') or os.path.join(CSV_DIR, f'{profile}.csv'),
         'CHAR_CONFIGS': ','.join(names),
+        **({'CHAR_TRACE_OUT': os.environ['CHAR_TRACE_OUT']} if os.environ.get('CHAR_TRACE_OUT') else {}),
         'CHAR_OUT': out_json,
         'SIM_TIMEOUT_MS': os.environ.get('SIM_TIMEOUT_MS', '100'),
         'TEST_STREAM_G': '1' if stream_g else '0',
@@ -143,4 +153,6 @@ def test_stream_g_profile(request, profile, dut, k, n, names):
     with open(out_json) as fh:
         doc = json.load(fh)
     assert [d['config'] for d in doc] == names
+    if os.environ.get('CHAR_POINTS'):
+        return   # an ad-hoc point list is a probe, not the profile's pass/fail
     assert all(d['result']['pass'] for d in doc), [d['config'] for d in doc if not d['result']['pass']]
