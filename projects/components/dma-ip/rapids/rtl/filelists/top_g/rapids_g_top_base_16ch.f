@@ -14,3 +14,7 @@ $REPO_ROOT/projects/components/dma-ip/rapids/regs/generated_16ch/rtl/rapids_regs
 $REPO_ROOT/projects/components/dma-ip/rapids/regs/generated_16ch/rtl/rapids_regs_16ch.sv
 
 -f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/top_g/rapids_g_top_base_common.f
+
+# ---- The base itself, last: it uses the regblock package and the regsel
+#      include dir above ----
+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/top_g/generated/rapids_g_top_base.sv

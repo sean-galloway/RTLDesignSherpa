@@ -179,7 +179,10 @@ filelist_dirs = [
 name = "stream"
 kind = "component"
 rtl_roots = ["projects/components/dma-ip/stream/rtl"]
-filelist_dirs = ["projects/components/dma-ip/stream/rtl/filelists"]
+filelist_dirs = [
+    "projects/components/dma-ip/stream/rtl/filelists",
+    "projects/components/dma-ip/stream/dv/filelists",
+]
 
 [[area]]
 name = "rapids"

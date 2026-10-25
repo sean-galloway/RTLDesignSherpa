@@ -14,6 +14,5 @@ $STREAM_ROOT/rtl/includes/stream_pkg.sv
 -f $REPO_ROOT/projects/components/utility-ip/converters/rtl/filelists/peakrdl_to_cmdrsp.f
 -f $STREAM_ROOT/rtl/filelists/macro_g/stream_core_g.f
 -f $REPO_ROOT/rtl/amba/filelists/monbus_group.f
--f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin_simple_ack.f
-$REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro_g/rapids_g_reg_arb.sv
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro_g/rapids_g_reg_arb.f
 $STREAM_ROOT/rtl/top/stream_config_block.sv

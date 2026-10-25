@@ -62,10 +62,12 @@
 #      this one (rapids_top_base.f = 8 channels, rapids_top_base_16ch.f = 16)
 #      lists its regblock first and puts its regsel include dir on the path. ----
 
-# ---- Config mapping + top ----
+# ---- Config mapping ----
 $REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro_beats/rapids_config_block.sv
 # who pushes into the register command queue: host, SRC gatling, SNK gatling
 +incdir+$REPO_ROOT/projects/components/dma-ip/rapids/rtl/top_g
--f $REPO_ROOT/rtl/common/filelists/arbiter_round_robin_simple_ack.f
-$REPO_ROOT/projects/components/dma-ip/rapids/rtl/macro_g/rapids_g_reg_arb.sv
-$REPO_ROOT/projects/components/dma-ip/rapids/rtl/top_g/generated/rapids_g_top_base.sv
+-f $REPO_ROOT/projects/components/dma-ip/rapids/rtl/filelists/macro_g/rapids_g_reg_arb.f
+# ---- The base (rapids_g_top_base.sv) is listed by the VARIANT filelists
+#      (rapids_g_top_base.f / rapids_g_top_base_16ch.f), not here: it uses the
+#      regblock package and regsel include dir only the variant provides, so
+#      this common file still never compiles alone. ----
