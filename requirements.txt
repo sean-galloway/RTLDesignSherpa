@@ -46,7 +46,7 @@ peakrdl-regblock==1.1.1
 peakrdl-systemrdl==1.0.0
 peakrdl-uvm==2.3.0
 peakrdl_markdown==1.0.3
-pillow==12.3.0
+pillow==13.0.0
 Pint==0.26.1;   python_version >= "3.11"
 Pint==0.24.4; python_version <  "3.11"
 platformdirs==4.13.4
