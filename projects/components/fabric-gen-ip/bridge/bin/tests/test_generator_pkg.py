@@ -3184,3 +3184,85 @@ def test_sizing_report_is_written_beside_the_config(tmp_path):
     rep = json.loads((out / "b" / "b_sizing.json").read_text())
     assert rep['bridge'] == 'b' and rep['ports'] and rep['paths']
     assert {p['key'] for p in rep['ports']} == {'max_outstanding', 'rate_buffer'}
+
+
+# ---------------------------------------------------------------------------
+# bridge TASK-020: atomic_rr_depth
+# ---------------------------------------------------------------------------
+def _atomic_toml(tmp_path, slave_extra="", master_extra="", bridge_extra=""):
+    toml = tmp_path / "a.toml"
+    conn = tmp_path / "a.csv"
+    toml.write_text(f"""
+[bridge]
+name = "a"
+variants = ["no"]
+{bridge_extra}
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["atomic"]
+{master_extra}
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["atomic"]
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+{slave_extra}
+""")
+    conn.write_text("master,s0\nm0,1\n")
+    return str(toml), str(conn)
+
+
+def test_atomic_rr_depth_default_is_reported():
+    cfg = _cfg('bridge_1x2_rw_axi5a')
+    rows = {(r.port, r.key): r for r in cfg.sizing}
+    assert rows[('ddr', 'atomic_rr_depth')].value == 8 and rows[('ddr', 'atomic_rr_depth')].source == 'default'
+    assert cfg.slaves[0].atomic_rr_depth == 8
+
+
+def test_atomic_rr_depth_key_is_taken_and_reported(tmp_path):
+    cfg = load_config(*_atomic_toml(tmp_path, slave_extra="atomic_rr_depth = 2"))
+    r = {(x.port, x.key): x for x in cfg.sizing}[('s0', 'atomic_rr_depth')]
+    assert r.value == 2 and r.source == 'toml'
+
+
+@pytest.mark.parametrize("bad", ["3", "1", "128", "x"])
+def test_atomic_rr_depth_bad_value_rejected(tmp_path, bad):
+    with pytest.raises(ValueError, match="atomic_rr_depth must be"):
+        load_config(*_atomic_toml(tmp_path, slave_extra=f"atomic_rr_depth = {bad!r}" if bad == "x" else f"atomic_rr_depth = {bad}"))
+
+
+def test_atomic_rr_depth_rejected_on_master(tmp_path):
+    with pytest.raises(ValueError, match="slave key"):
+        load_config(*_atomic_toml(tmp_path, master_extra="atomic_rr_depth = 4"))
+
+
+def test_atomic_rr_depth_rejected_on_non_atomic_slave(tmp_path):
+    toml, conn = _write_min_toml(tmp_path, slave_extra='channels = "rd"\natomic_rr_depth = 4')
+    with pytest.raises(ValueError, match="only legal on an axi5 rw slave"):
+        load_config(toml, conn)
+
+
+def test_atomic_rr_depth_reaches_the_tracker_and_the_package(tmp_path):
+    toml, conn = _atomic_toml(tmp_path, slave_extra="atomic_rr_depth = 4")
+    out = tmp_path / "gen"
+    env = dict(os.environ, REPO_ROOT=str(REPO_ROOT))
+    r = subprocess.run([sys.executable, str(BIN_DIR / "bridge_generator.py"), "--ports", toml,
+                        "--connectivity", conn, "--name", "a", "--output-dir", str(out)],
+                       cwd=str(BIN_DIR), env=env, capture_output=True, text=True, timeout=300)
+    assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
+    assert ".DEPTH(4)" in (out / "a" / "s0_adapter.sv").read_text()
+    assert "localparam int S0_ATOMIC_RR_DEPTH = 4;" in (out / "a" / "a_pkg.sv").read_text()

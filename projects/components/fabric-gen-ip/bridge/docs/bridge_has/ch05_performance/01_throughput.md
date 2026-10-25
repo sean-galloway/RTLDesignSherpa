@@ -234,14 +234,15 @@ capacity the permutation keeps both slaves at 1.000 however far it is
 overloaded -- two flows cross the crossbar in parallel with nothing shared
 -- and the hot-spot keeps its one port at 1.000 while latency grows with
 the queue. Uniform traffic past saturation is the finding: 1.61 of 2.0 at
-1.33x offered and 1.35 at 2x. A master's requests leave on one in-order
-stream and each (master, slave) request slot is two deep, so once the slot
-toward a busy slave is full the request behind it, bound for the idle
-slave, waits -- head-of-line blocking that only uniform traffic past
-saturation can show. Filed as bridge TASK-021 (candidates: a slot-depth
-key, which the sizing rule then owns, or per-target issue queues in the
-master adapter); the test holds those points at 0.55 of capacity under that
-ID until it lands.
+1.33x offered and 1.35 at 2x. The master adapter returns R in AR issue
+order across slaves (its response mux follows the AR tracking FIFO's head),
+so a read the idle slave has answered waits behind an earlier read still
+queued at the busy one -- head-of-line blocking on the response path that
+only uniform traffic past saturation can show. The request slots were the
+first suspect and are not it: 4- and 8-deep slots measured the identical
+curve. Filed as bridge TASK-021 (fix direction: select the R source by the
+returned ID, which the remap slot or the per-ID table can carry); the test
+holds those points at 0.55 of capacity under that ID until it lands.
 
 On the mixed-width `bridge_4x4_rw` (cpu 64b, dma0 32b, dma1 128b, gpu
 256b; periph 32b, ddr0 64b, sram 128b, gpu_mem 256b) the same sweep in
@@ -272,8 +273,8 @@ its 64-bit reads are eight beats each at the 32-bit periph, the one port it
 oversubscribes. The hot spot keeps ddr0 at 1.000 from every master; all
 four queue behind it equally. Uniform traffic is the same head-of-line
 story as the 2x2 (bridge TASK-021): 0.91 of capacity at gap 8, 0.61 from
-gap 4 on, four masters' in-order streams each blocked behind their request
-toward whichever slave is busy.
+gap 4 on, each master's responses returning in issue order while a slave it
+is waiting on is busy.
 
 ### Bandwidth Characterization (measured)
 

@@ -1,0 +1,54 @@
+# bridge_1x2_rw_axi5a with atomic_rr_depth = 2 on both slaves (bridge TASK-020):
+# the read-return atomic tracker at each slave port holds two entries instead
+# of the default eight, so the third AtomicLoad / Swap / Compare in flight at a
+# port waits at AWREADY until an earlier one's last R beat frees a slot.
+# test_bridge_1x2_rw_axi5a_rr_depth.py measures that peak against the depth the
+# sizing report states, on this fixture and on the default-depth twin.
+
+[bridge]
+name = "bridge_1x2_rw_axi5a_rr2"
+variants = ["no"]
+description = "AXI5 master x 2 AXI5 slaves rw bridge, read-return atomics native (A5-3b)"
+
+[[bridge.masters]]
+name = "cpu"
+prefix = "cpu_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["trace", "atomic", "unique"]  # unique: #102 item 5 RIDUNQ of an atomic
+
+[[bridge.slaves]]
+name = "ddr"
+prefix = "ddr_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["trace", "atomic"]
+atomic_rr_depth = 2   # bridge TASK-020: two read-return atomics in flight here; the third AW waits
+base_addr = "0x00000000"
+addr_range = "0x80000000"
+
+[[bridge.slaves]]
+name = "sram"  # atomic only: trace drops here (warning)
+prefix = "sram_axi_"
+id_width = 4
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+protocol = "axi5"
+axi5_features = ["atomic"]
+atomic_rr_depth = 2   # bridge TASK-020
+base_addr = "0x80000000"
+# Half the upper space, deliberately: 0xC000_0000 and above decodes to the
+# subtractive slave, so the sign-off test can send a read-return atomic to
+# an unmapped address and check that it is answered (DECERR on B AND R)
+# instead of wedging the port's read path. The wr twin covers all 4 GB.
+addr_range = "0x40000000"

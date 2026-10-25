@@ -212,9 +212,11 @@ port. Read-return classes (AtomicLoad `10xxxx`, AtomicSwap/Compare
   adapter, an extra AR->R tracking slot at the master adapter). Every
   connected atomic slave must be `rw` -- the validator rejects a
   write-only one, since it could never return the data. **Limit:** a
-  slave port holds at most 8 read-return atomics in flight; the ninth
-  atomic AW waits (AWREADY low) until a slot frees. Any number of masters
-  may issue atomics.
+  slave port holds at most `atomic_rr_depth` read-return atomics in flight
+  (per-slave key, power of two 2..64, default 8 -- bridge TASK-020); the
+  next atomic AW waits (AWREADY low) until a slot frees. The depth is in
+  the port's row of `<bridge>_sizing.json` and as `<SLAVE>_ATOMIC_RR_DEPTH`
+  in the package. Any number of masters may issue atomics.
 - On a **write-only** master port there is nowhere to deliver the R beat,
   so the boundary's `axi5_atomic_filter` answers those classes locally
   with **DECERR** -- no slave-side AW handshake, no memory side effect.

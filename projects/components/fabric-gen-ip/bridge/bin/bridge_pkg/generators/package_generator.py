@@ -26,7 +26,8 @@ class PackageGenerator:
 
     def __init__(self, bridge_name: str, id_width: int = 4, addr_width: int = 32, num_masters: int = 1,
                  master_id_width: int = None,
-                 sideband_features: Optional[Iterable[str]] = None):
+                 sideband_features: Optional[Iterable[str]] = None,
+                 extra_params=None):
         """
         Initialize package generator.
 
@@ -41,6 +42,9 @@ class PackageGenerator:
                 bridge) emits the historical structs byte-identically.
         """
         self.bridge_name = bridge_name
+        # bridge TASK-020: (NAME, value, comment) localparams the bridge wants in its
+        # package beside the ID widths -- today each atomic slave's read-return depth
+        self.extra_params = list(extra_params or [])
         self.id_width = id_width
         # bridge TASK-005 (was BRIDGE-016): struct ids are {master index, master id}. id_width is
         # the fabric (xbar) width; master_id_width the widest master's own.
@@ -129,7 +133,7 @@ class PackageGenerator:
             f"    localparam int MASTER_ID_WIDTH = {self.master_id_width};  // widest master-local ID",
             f"    localparam int ID_PREFIX_WIDTH = {prefix_width};  // master-index bits prepended",
             f"    localparam int XBAR_ID_WIDTH   = {self.id_width};  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH",
-        ]
+        ] + [f"    localparam int {n} = {v};  // {c}" for n, v, c in self.extra_params]
 
     def _max_dw(self) -> int:
         """The widest data bus in the bridge: the width-independent aw/ar/b

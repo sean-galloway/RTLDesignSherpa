@@ -135,7 +135,7 @@ match).
 
 | Limit | Value | Why / effect |
 |---|---|---|
-| bridge: read-return atomics in flight per slave port | 8 | the slave adapter's `axi5_atomic_rr_tracker` is built `DEPTH(8)`; the ninth atomic AW stalls until a slot frees (bridge TASK-020 makes it a TOML key). Slows a run, never fails it |
+| bridge: read-return atomics in flight per slave port | `atomic_rr_depth`, default 8 | the slave adapter's `axi5_atomic_rr_tracker` is built to the slave's `atomic_rr_depth` (bridge TASK-020; power of two 2..64); the next atomic AW stalls until a slot frees. The model's atomic masters hold an ID until its atomic completes, so they never exceed their own `max_outstanding` toward one port |
 | bridge: atomic masters per fabric | none | every fabric ID carries its master's index, so atomics from different masters never alias at a slave |
 | model: atomic IDs | the upper half of each atomic master's ID space | atomics use ID MSB = 1; the host keeps that master's read and write IDs below it. An atomic master needs `id_width >= 2` |
 | model: atomics and IDUNQ bursts in flight | one per ID | the AXI5 rules; the master waits rather than violate them |

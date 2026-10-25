@@ -276,6 +276,8 @@ module bridge_1x2_rw_axi5a_ddr_adapter
     // AR. Track them per ID from the AW handshake. An R beat whose RID
     // hits here is routed by the tracker and leaves the read tracker
     // untouched; every other beat routes as before.
+    // Depth = this port's atomic_rr_depth (bridge TASK-020): that many
+    // read-return atomics in flight here; the next atomic AW waits.
     axi5_atomic_rr_tracker #(
         .AXI_ID_WIDTH(ID_WIDTH),
         .DATA_WIDTH(BRIDGE_ID_WIDTH),

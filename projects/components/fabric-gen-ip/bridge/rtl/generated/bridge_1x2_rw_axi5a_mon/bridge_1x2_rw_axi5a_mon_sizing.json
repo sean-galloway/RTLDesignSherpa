@@ -33,6 +33,16 @@
    "warning": null
   },
   {
+   "port": "ddr",
+   "direction": "slave",
+   "key": "atomic_rr_depth",
+   "value": 8,
+   "source": "default",
+   "rule_min": 8,
+   "basis": "read-return atomics in flight at this port (axi5_atomic_rr_tracker); the next atomic AW waits",
+   "warning": null
+  },
+  {
    "port": "sram",
    "direction": "slave",
    "key": "max_outstanding",
@@ -40,6 +50,16 @@
    "source": "rule",
    "rule_min": 8,
    "basis": "1 + latency_cycles 0 + round trip 7 (cpu -> sram, write 7 / read 6)",
+   "warning": null
+  },
+  {
+   "port": "sram",
+   "direction": "slave",
+   "key": "atomic_rr_depth",
+   "value": 8,
+   "source": "default",
+   "rule_min": 8,
+   "basis": "read-return atomics in flight at this port (axi5_atomic_rr_tracker); the next atomic AW waits",
    "warning": null
   }
  ],

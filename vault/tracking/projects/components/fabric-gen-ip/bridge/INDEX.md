@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 2 | 0 | 15 | 4 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 16 | 4 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 26 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
@@ -29,8 +29,7 @@ Counts are the item files in each lane directory, not counting the
 
 | Item | Pri | What is left |
 |---|---|---|
-| [TASK-020](task/open/TASK-020.md) | P3 | the read-return atomic tracker depth (8) as a per-slave TOML key, reported |
-| [TASK-021](task/open/TASK-021.md) | P3 | head-of-line blocking under uniform traffic past saturation: 2-deep request slots behind one in-order request stream per master (found by TASK-014's patterns) |
+| [TASK-021](task/open/TASK-021.md) | P3 | head-of-line blocking under uniform traffic past saturation: the master adapter returns R in AR issue order across slaves; fix = select R by returned ID (request-slot depth measured irrelevant) |
 
 No bug or issue is open.
 

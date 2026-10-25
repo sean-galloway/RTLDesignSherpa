@@ -79,6 +79,7 @@ class SlaveInfo:
     protocol: str = 'axi4'  # Protocol type: 'axi4', 'axi5', 'apb', or 'axil'
     enable_ooo: bool = False  # Slave supports out-of-order responses (use CAM vs FIFO)
     max_outstanding: int = 16  # response tracker depth (PortSpec.max_outstanding)
+    atomic_rr_depth: int = 8   # bridge TASK-020: read-return atomics in flight (axi5_atomic_rr_tracker DEPTH)
     # Timing-wrapper skid depths {aw,w,b,ar,r}; 0 = stage cut (PortSpec.latency)
     skid_depths: Optional[Dict[str, int]] = None
     cdc: bool = False  # bridge TASK-006 (was BRIDGE-017): own clock; axi4_cdc_{wr,rd} before the boundary

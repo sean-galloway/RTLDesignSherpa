@@ -241,6 +241,16 @@ def apply(cfg) -> Tuple[List[SizingRow], List[str]]:
                 v = pow2_ceil(r_min) if r_min else 0
                 port.rate_buffer = v
                 rows.append(SizingRow(port.port_name, 'master', 'rate_buffer', v, 'rule', r_min, r_basis))
+        # bridge TASK-020: an atomic slave's read-return tracker is a depth too;
+        # no loop model (the far end's atomic latency is its own), so it is
+        # reported as pinned or default, never derived
+        if (port.direction == 'slave' and port.protocol == 'axi5'
+                and 'atomic' in (getattr(port, 'axi5_features', None) or [])
+                and getattr(port, 'channels', 'rw') == 'rw'):
+            v = int(getattr(port, 'atomic_rr_depth', 8) or 8)
+            rows.append(SizingRow(port.port_name, 'slave', 'atomic_rr_depth', v,
+                                  'toml' if getattr(port, 'atomic_rr_depth_set', False) else 'default', v,
+                                  'read-return atomics in flight at this port (axi5_atomic_rr_tracker); the next atomic AW waits'))
     cfg.sizing = rows
     cfg.sizing_warnings = warnings
     return rows, warnings

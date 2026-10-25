@@ -226,6 +226,17 @@ def _latency_cycles(value, config_path, where) -> int:
     return v
 
 
+def _atomic_rr_depth(value, config_path, where) -> int:
+    """Validate atomic_rr_depth (bridge TASK-020): a power of two in 2..64."""
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{config_path}: {where} atomic_rr_depth must be an integer, got {value!r}")
+    if v < 2 or v > 64 or (v & (v - 1)):
+        raise ValueError(f"{config_path}: {where} atomic_rr_depth must be a power of two in 2..64, got {v}")
+    return v
+
+
 def _max_burst_beats(value, config_path, where) -> int:
     """Validate a master's max_burst_beats (bridge TASK-016): 1..256."""
     try:
@@ -399,6 +410,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             id_remap=_bool_key(m.get('id_remap', _rm_default), config_path,
                                f"master '{port_name}'", 'id_remap'),
         )
+        if 'atomic_rr_depth' in m:
+            raise ValueError(f"{config_path}: master '{port_name}': atomic_rr_depth is a slave key "
+                             f"(the slave port's read-return atomic tracker)")
         if 'latency_cycles' in m:
             raise ValueError(f"{config_path}: master '{port_name}': latency_cycles is a slave key "
                              f"(the slave's own response latency)")
@@ -467,6 +481,10 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
                 f"Slave '{port_name}': invalid channels '{channels}' "
                 f"(must be 'rw', 'rd', or 'wr')")
 
+        if 'atomic_rr_depth' in s and not (protocol == 'axi5' and 'atomic' in list(s.get('axi5_features', []))
+                                           and s.get('channels', 'rw') == 'rw'):
+            raise ValueError(f"{config_path}: slave '{port_name}': atomic_rr_depth is only legal on an "
+                             f"axi5 rw slave with 'atomic' in axi5_features (the read-return tracker)")
         s_latency, s_depths = _port_timing(s, protocol, bool(s.get('cdc', False)), _skid_base,
                                            config_path, f"slave '{port_name}'", _lat_default)
         port = PortSpec(
@@ -488,6 +506,9 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
             max_outstanding_set=_mo_set or 'max_outstanding' in s,
             latency_cycles=_latency_cycles(
                 s.get('latency_cycles', 0), config_path, f"slave '{port_name}'"),
+            atomic_rr_depth=_atomic_rr_depth(
+                s.get('atomic_rr_depth', 8), config_path, f"slave '{port_name}'"),
+            atomic_rr_depth_set='atomic_rr_depth' in s,
             latency=s_latency,
             skid_depths=s_depths,
             use_monitor=bool(s.get('use_monitor', True)),

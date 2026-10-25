@@ -1,0 +1,4 @@
+# bridge_1x2_rw_axi5a_rr2 plus its protocol checkers (simulation / formal only, GitHub #119 L3)
+-f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists/bridge_1x2_rw_axi5a_rr2.f
+$REPO_ROOT/formal/bridge/axi4_protocol_checker.sv
+$REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/generated/bridge_1x2_rw_axi5a_rr2/bridge_1x2_rw_axi5a_rr2_checkers.sv

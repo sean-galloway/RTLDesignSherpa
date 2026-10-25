@@ -955,6 +955,8 @@ The Bridge AXI4 crossbar connects multiple AXI4 masters to multiple slaves:
   needed on the Artix-7 at 100 MHz beyond a plain 2x2, HAS 6.4) and
   `arbitration = "qos"` with `qos_aging_shift`, or `arbitration = "matrix"`
   (least recently served, bridge TASK-015; HAS 5.3 / MAS 2.4)
+- Atomic slaves: `atomic_rr_depth` (bridge TASK-020; read-return atomics in
+  flight at the port, default 8, reported in the package and the sizing report)
 - Buffer depths (bridge TASK-016): every unset `max_outstanding` / `rate_buffer`
   is derived from the credit-loop rule (`bin/bridge_pkg/sizing.py`; a slave's
   `latency_cycles` hint, a master's `max_burst_beats`), reported beside each

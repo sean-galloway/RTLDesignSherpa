@@ -120,6 +120,7 @@ Each master and slave port carries its own field set in the configuration file.
 | prefix | string | Signal prefix |
 | protocol | enum | `axi4`, `axi5`, `axil`, `axil5`, `apb`, `apb5`, `wb4` -- the exact values `config_validator.valid_protocols` accepts. Note `axil`, not `axi4lite`. |
 | axi5_features | list | On an `axi5` port: any of `nsaid`, `trace`, `mpam`, `mecid`, `unique` (droppable), `chunking` (droppable, 128-bit ports), `wakeup` (AWAKEUP, not path sideband), `poison`, `atomic`, `mte` (connectivity-gated; `mte` 128-bit ports). On an `axil5` port: `user` only. Classes and rules in HAS 4.4. |
+| atomic_rr_depth | int, power of two 2..64 | Optional, default 8. On an `axi5` rw slave with `atomic` in its features: read-return atomics (AtomicLoad / Swap / Compare) in flight at this port, the depth of its `axi5_atomic_rr_tracker`; the next atomic AW waits while it is full (bridge TASK-020). Rejected on any other port. Reported in `<bridge>_sizing.json` and as `<SLAVE>_ATOMIC_RR_DEPTH` in the package. |
 | data_width | int | Port data width |
 | base_addr | hex | Base address (must be 4K-aligned) |
 | addr_range | hex | Address range size (must be multiple of 4K) |

@@ -27,10 +27,12 @@
 # past offered = 1.0; under a permutation the fabric must carry N flows at
 # once, so a serialising stage would show as accepted flattening under N.
 #
-# KNOWN (bridge TASK-021): UNIFORM traffic past saturation. A master's
-# requests go out in order on one stream and each (master, slave) request
-# slot is 2 deep, so once the slot toward a busy slave is full the request
-# behind it, bound for an idle slave, waits -- head-of-line blocking. Measured
+# KNOWN (bridge TASK-021): UNIFORM traffic past saturation. The master
+# adapter returns R in AR issue order across slaves (its response mux follows
+# the AR tracking FIFO's head), so a read that an idle slave has answered
+# waits behind an earlier read still queued at the busy one -- head-of-line
+# blocking on the response path. (4- and 8-deep request slots measured the
+# identical curve: the request slots are not it.) Measured
 # 2026-10-24 (FUNC): bridge_2x2_rw 0.80 of capacity at 1.33x offered, 0.67 at
 # 2x; bridge_2x2_rw_pipe the same; bridge_4x4_rw 0.61 from 0.9x offered on.
 # Permutation and hot-spot hold 1.00 everywhere. Those points are held to

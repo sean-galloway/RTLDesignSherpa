@@ -155,6 +155,7 @@ example cannot hide here. A `.yaml` ports file still loads through
 | `mon_group` | table | which `monbus_<p1>_<p2>_group` variant the internal aggregator instantiates |
 | `xbar_pipeline` | bool | registered crossbar (see Fabric Options) |
 | `arbitration`, `qos_aging_shift` | `"rr"` (default), `"qos"` or `"matrix"`; int 4 | per-slave arbiter policy |
+| `atomic_rr_depth` (slave) | power of two 2..64, default 8 | the read-return atomic tracker depth of an axi5 rw atomic slave (bridge TASK-020); `slave_adapter_generator._atom_tracker_lines`, `<SLAVE>_ATOMIC_RR_DEPTH` in the package |
 | `latency_cycles` (slave), `max_burst_beats` (master) | int 0..4096, default 0; int 1..256, default 16 | the sizing rule's inputs (bridge TASK-016): `bridge_pkg/sizing.py` derives every unset `max_outstanding` and `rate_buffer` from them and the modelled fabric round trip, prints the rule beside each depth and writes `<bridge>_sizing.json` |
 | `defaults` | table | per-port defaults applied before each port's own keys |
 

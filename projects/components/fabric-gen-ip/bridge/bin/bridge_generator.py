@@ -837,6 +837,7 @@ def _emit_bridge_variant(
             protocol=slave_spec.protocol,
             enable_ooo=slave_spec.enable_ooo,
             max_outstanding=getattr(slave_spec, 'max_outstanding', 16),
+            atomic_rr_depth=int(getattr(slave_spec, 'atomic_rr_depth', 8) or 8),
             skid_depths=dict(getattr(slave_spec, 'skid_depths', {}) or {}),
             cdc=bool(getattr(slave_spec, 'cdc', False)),
             timeout_cycles=int(getattr(slave_spec, 'timeout_cycles', 0) or 0),

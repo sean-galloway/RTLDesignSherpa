@@ -243,9 +243,18 @@ class BridgeModuleGenerator:
 
         # Generate package with address width and num_masters
         num_masters = len(self.masters)
+        # bridge TASK-020: each atomic slave port's read-return tracker depth, so a
+        # reader of the package sees the limit without opening the adapter
+        rr_params = [(f"{sl.name.upper()}_ATOMIC_RR_DEPTH", int(getattr(sl, 'atomic_rr_depth', 8) or 8),
+                      f"read-return atomics in flight at slave {sl.name}; the next atomic AW waits")
+                     for sl in self.slaves
+                     if getattr(sl, 'protocol', 'axi4') == 'axi5'
+                     and 'atomic' in (getattr(sl, 'axi5_features', None) or [])
+                     and not getattr(sl, 'internal', False)]
         pkg_gen = PackageGenerator(self.bridge_name, id_width=id_width, addr_width=addr_width, num_masters=num_masters,
                                    master_id_width=fabric_local_id_width(self.masters),
-                                   sideband_features=sideband_union(self.masters, self.slaves))
+                                   sideband_features=sideband_union(self.masters, self.slaves),
+                                   extra_params=rr_params)
         for width in data_widths:
             pkg_gen.add_data_width(width)
 

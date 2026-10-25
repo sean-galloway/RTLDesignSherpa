@@ -745,7 +745,11 @@ class CrossbarGenerator:
                                 masters: List[MasterConfig]) -> List[str]:
         """One 2-deep registered slot per master for this slave's AW or AR
         (full rate: the skid's ready is registered and it reads and writes in
-        one cycle). Its output side is drained by the pin-side arbiter."""
+        one cycle). Its output side is drained by the pin-side arbiter.
+        Two is the depth: 4- and 8-deep slots measured the identical uniform-
+        traffic curve past saturation (bridge TASK-021, 2026-10-24) -- the
+        head-of-line block there is the master adapter's in-order response
+        FIFO, not this slot."""
         lines = [f"    // {ch.upper()} request slots for {slave.name}: arbitration at the slave pins"]
         typ = "axi4_aw_t" if ch == "aw" else "axi4_ar_t"
         for m in masters:

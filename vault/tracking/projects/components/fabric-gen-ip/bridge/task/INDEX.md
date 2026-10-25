@@ -12,16 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 15 | done (kept for history) |
+| [closed/](closed/) | 16 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-020** — make the read-return-atomic tracker depth (8, fixed today) a per-slave TOML key, and report it
-- **TASK-021** — head-of-line blocking under uniform traffic past saturation: 2-deep request slots, a master's one in-order request stream (found by TASK-014's patterns, 2026-10-24)
+- **TASK-021** — head-of-line blocking under uniform traffic past saturation: the master adapter returns R in AR issue order across slaves (request-slot depth measured irrelevant); fix = select R by returned ID (found by TASK-014's patterns, 2026-10-24)
 
 ## Dropped
 
@@ -31,6 +30,7 @@ by construction rather than by discipline.
 - **TASK-001** — trim method from `bridge/CLAUDE.md`; dropped, the file was already compliant and every row of its removal table was falsified by reading the text.
 
 ## Closed
+- **TASK-020** — `atomic_rr_depth`: the read-return atomic tracker depth as a per-slave key (default 8), in the package and the sizing report; stall measured at 2 and at 8 (2026-10-24)
 - **TASK-016** — buffer sizing rule: every unset max_outstanding / rate_buffer derived from 1 + latency_cycles + modelled round trip (bridge_pkg/sizing.py), skid stages 2, `<bridge>_sizing.json`; the step measured at the boundary (2026-10-24, grouped with TASK-014)
 - **TASK-014** — perf methodology: uniform / permutation / hot-spot open-loop sweeps vs offered load on 2x2, 2x2 pipe and 4x4 (test_bridge_perf_patterns.py, HAS 5.1); found the uniform-overload head-of-line case, filed as TASK-021 (2026-10-24)
 - **TASK-015** — matrix arbiter vs round-robin: `arbitration = "matrix"` shipped, measured on ASAP7 (4x4 worst path -11 percent, +2 percent cells; 2x2 a wash), fairness bound equal; `rr` stays default (2026-10-24)

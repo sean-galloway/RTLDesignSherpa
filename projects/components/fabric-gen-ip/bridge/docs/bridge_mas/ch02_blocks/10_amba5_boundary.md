@@ -202,11 +202,16 @@ and fails on the pre-L1b RTL.
 (AWID -> requester index) at every AW handshake with `AWATOP[5]` set, and
 answers combinationally from `RID`. An R beat it claims is routed by its
 tag and does **not** pop the in-order read FIFO; every other beat routes by
-FIFO position as before. The tracker holds **8** entries (`DEPTH(8)`,
-fixed in `slave_adapter_generator.py`; bridge TASK-020 makes it a TOML
-key), so a slave port has at most eight read-return atomics in flight; the
-ninth atomic AW's `awready` is held until an earlier one's last R beat
-frees a slot. The number of atomic masters is not limited: every fabric ID
+FIFO position as before. The tracker's depth is the slave's
+`atomic_rr_depth` (bridge TASK-020; power of two 2..64, default 8, legal
+only on an `axi5` rw slave with `atomic` in its features): a slave port has
+at most that many read-return atomics in flight, and the next atomic AW's
+`awready` is held until an earlier one's last R beat frees a slot. The
+depth is reported beside the other depths in `<bridge>_sizing.json` and as
+`<SLAVE>_ATOMIC_RR_DEPTH` in `<bridge>_pkg.sv`;
+`test_bridge_1x2_rw_axi5a_rr_depth.py` measures the occupancy peak at the
+port's pins against it on the default fixture (8) and on
+`bridge_1x2_rw_axi5a_rr2` (2: the third atomic waits). The number of atomic masters is not limited: every fabric ID
 carries its master's index, so atomics from different masters never share
 an ID at the slave. The bridge BUG-008 (was BRIDGE-010) in-order check skips tracked beats and
 reports, in simulation, an R beat that matches both a tracked atomic and

@@ -193,6 +193,13 @@ class PortSpec:
     # reach it, or single-beat traffic there runs at
     # max_outstanding / (1 + latency + round trip) of the port's peak.
     latency_cycles: int = 0
+    # Slaves (bridge TASK-020): read-return atomics (AtomicLoad / Swap /
+    # Compare) in flight at an AXI5 atomic rw slave port -- the depth of its
+    # axi5_atomic_rr_tracker. The next atomic AW waits (AWREADY low) while
+    # the tracker is full. Power of two 2..64; was a fixed 8. Legal only on
+    # a slave that can take read-return atomics.
+    atomic_rr_depth: int = 8
+    atomic_rr_depth_set: bool = False
     # Masters (bridge TASK-016): the longest write burst this master issues,
     # beats. Sizes the rate buffer (below) to hold one such burst whole.
     max_burst_beats: int = 16
