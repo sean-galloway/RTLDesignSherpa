@@ -1,7 +1,7 @@
 # TASK-020: stream-g, STREAM with its schedulers sequenced by gatling firmware
 
 **Priority:** P2
-**Status:** active -- opened 2026-10-24; phases 1-5 built and green 2026-10-24 (phase 1 committed a85fa3130), phase 6 (board) in progress
+**Status:** CLOSED 2026-10-25 -- all six phases delivered and measured: stream-g on the Genesys 2 with its own firmware, the rapids-g metric set reproduced on STREAM (Genesys 2 book 1.4 ch05, HAS 0.100 5.4, MAS 0.103 ch07), regressions green at every level run, TASK-021 closed; commits a85fa3130, c5f1926f6, 2a2fcb4d0, 7c3274660, 833de614f, 4f50aaa32, c9a0c135c
 **Owner:** sean galloway
 
 ## Why

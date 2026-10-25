@@ -13,8 +13,8 @@ by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 1 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 18 | done (kept for history) |
+| [active/](active/) | 0 | in progress right now |
+| [closed/](closed/) | 19 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
@@ -24,7 +24,7 @@ by construction rather than by discipline.
 
 ## Active
 
-- **TASK-020** — stream-g: STREAM with its schedulers sequenced by gatling firmware, built as rapids-g was (core split, scheduler_g, stream_seq_g, generated tree, firmware, equivalence bench, board); owner asked 2026-10-24
+(none)
 
 ## Deferred
 
@@ -33,6 +33,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-020** — stream-g: STREAM's schedulers sequenced by gatling firmware (its own image), measured against STREAM on the Genesys 2 the rapids-g way; closed 2026-10-25
 - **TASK-021** — stream-g lone-channel chain plateau (32-80 beats): the one-slot poll tested the chain hook only on a pass's first read; fixed in STREAM's own firmware, board 1,890 -> 1,126 cycles at 32 beats; closed 2026-10-25
 - **TASK-018** — loadable firmware memory as on rapids-g; delivered by TASK-020 phase 4 (stream-g carries rapids-g's loader unchanged, FW_* at 0x3A0-0x3AC); closed 2026-10-24
 - **TASK-017** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler (rapids TASK-028 parity); formal ap_desc_skid_bound
