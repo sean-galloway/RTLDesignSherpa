@@ -469,8 +469,16 @@ class ControllerConfig:
         drv.set_page_policy(self.page_policy if self.page_policy is not None else 0)
         if self.t_refi is not None:
             drv.set_refresh_interval(self.t_refi)
-        drv.set_refresh(**(self.refresh if self.refresh is not None
-                           else {"mode": 0, "postpone": 0, "pullin": 0}))
+        # REF_CTRL is pumice's (refresh mode / postpone / pull-in credits);
+        # granite's map has no such register (pumice TASK-056). A config that
+        # ASKS for refresh elasticity on a controller without the register is
+        # a mistake and says so; the default is simply not written.
+        if drv.pumice.has("REF_CTRL"):
+            drv.set_refresh(**(self.refresh if self.refresh is not None
+                               else {"mode": 0, "postpone": 0, "pullin": 0}))
+        elif self.refresh is not None:
+            raise ValueError(f"config asks for refresh={self.refresh} but the "
+                             f"{drv.controller} CSR map has no REF_CTRL")
         # The mode-5 predictor table shape used to be programmed here, before
         # the mode select. Paging mode 5 RETIRED 2026-09-27 (TASK-014), so there
         # is no table and no set_page_access_cfg.

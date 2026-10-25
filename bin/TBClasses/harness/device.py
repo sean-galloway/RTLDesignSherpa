@@ -68,6 +68,12 @@ class Device:
     def registers(self) -> dict:
         return self.regs.registers
 
+    def has(self, reg: str) -> bool:
+        """True when the regmap defines `reg`. A caller programming an optional
+        block (a controller that may lack a register another one has) asks this
+        instead of catching the ValueError a by-name access would raise."""
+        return reg in self.registers
+
     def __repr__(self) -> str:
         return (f"<{type(self).__name__} {self.name!r} "
                 f"@ {self.regs.start_address:#010x}>")

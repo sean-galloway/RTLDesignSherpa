@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-057** — never recycle a number, even when its item closed.
+**Next ID: TASK-058** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -14,7 +14,7 @@ exactly one state by construction rather than by discipline.
 |---|---|---|
 | [open/](open/) | 3 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 46 | done (kept for history) |
+| [closed/](closed/) | 47 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
@@ -48,6 +48,10 @@ exactly one state by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-057** — CLOSED 2026-10-24: the harness host selects the controller's
+  regmap (`DDR2CharDriver(controller="granite")`, `Device.has`, the REF_CTRL
+  guard); bank-queue depths 4 and 6 measured against pool-deep on the
+  linked-list store (no area in it since TASK-054). Report 5.17.
 - **TASK-056** — CLOSED 2026-10-24: pick-core payload by array index (a flat
   `+:` part-select was a barrel shifter, 1 538 of 5 407 cells), stall counters
   a generate (granite off), bank timers 5 bits (`BANK_TW`, saturating), granite

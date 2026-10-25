@@ -79,6 +79,16 @@ HARNESS_REGMAP = os.path.join(
 PUMICE_REGMAP = os.path.join(
     _REPO_ROOT, "projects/components/mem-ctrl-ip/research-ip/"
     "pumice-ddr2-lpddr2/dv/tbclasses/pumice_regmap.py")
+# The granite product CSR (granite_csr.rdl, regenerated under regs/generated/).
+# Since pumice TASK-056 it is a strict SUBSET of pumice's map at the same
+# addresses (35 registers: the telemetry counters and pumice's research /
+# LPDDR2 knobs are gone), so a granite build must be driven through ITS map:
+# a by-name access to a register granite does not have raises in the regmap
+# instead of poking an unmapped address. Select with DDR2CharDriver(controller="granite").
+GRANITE_REGMAP = os.path.join(
+    _REPO_ROOT, "projects/components/mem-ctrl-ip/product-ip/"
+    "granite-ddr2-lpddr2/regs/generated/granite_csr_regmap.py")
+CONTROLLER_REGMAPS = {"pumice": PUMICE_REGMAP, "granite": GRANITE_REGMAP}
 
 # PeakRDL-generated regmap for the traffic generators (chargen_regs, APB slave
 # at 0x000A0000). Sixteen generators -- eight writers and eight readers, one per
@@ -239,8 +249,16 @@ class DDR2CharDriver:
     BUILD_ID_MAGIC = 0x44445232  # ASCII "DDR2"
 
     def __init__(self, port: str = "/dev/ttyUSB1", baudrate: int = 115200,
-                 timeout: float = 1.0, bridge=None):
+                 timeout: float = 1.0, bridge=None, controller: str = "pumice"):
         """Open the harness driver.
+
+        `controller` names the memory controller behind the harness and
+        selects its CSR regmap (CONTROLLER_REGMAPS: "pumice" or "granite").
+        The driver attribute stays `self.pumice` -- the device class and
+        every method on it are by-name and controller-agnostic -- but the
+        names that resolve, and the reset values the shadow assumes, are
+        the selected controller's. Telemetry readers (pumice_char.py's
+        _try_* wrappers) tolerate a register that the map does not have.
 
         By default a real UART bridge is opened on `port`. Inject `bridge`
         (any object with read(addr)->int|None / write(addr,val)->bool) to
@@ -264,8 +282,11 @@ class DDR2CharDriver:
         # pumice controller CSR (APB slave) as its own named Device. Owns the
         # controller runtime knobs (DFI phase, paging, refresh, scheduler) by
         # name; the driver methods below delegate to it. 12-bit APB addr, 32b data.
-        self.pumice = Pumice(self.bridge, "pumice", regs_base=DDR2_APB_BASE,
-                             regmap_file=PUMICE_REGMAP)
+        if controller not in CONTROLLER_REGMAPS:
+            raise ValueError(f"controller must be one of {sorted(CONTROLLER_REGMAPS)}, got {controller!r}")
+        self.controller = controller
+        self.pumice = Pumice(self.bridge, controller, regs_base=DDR2_APB_BASE,
+                             regmap_file=CONTROLLER_REGMAPS[controller])
         # Traffic generators as their own named Device. Sixteen of them -- see
         # CHARGEN_REGMAP. Register names carry the index (WR_GEN3_START_ADDR),
         # so the driver builds the name from a generator argument and nothing

@@ -223,7 +223,7 @@ async def _bringup(dut):
         dut.phy_dfi_init_complete.value = 1
     cocotb.start_soon(_assert_init_complete())
 
-    drv = dc.DDR2CharDriver(bridge=h.make_bridge())
+    drv = dc.DDR2CharDriver(bridge=h.make_bridge(), controller="granite")
     return drv, chan, dfi_slave, memory
 
 

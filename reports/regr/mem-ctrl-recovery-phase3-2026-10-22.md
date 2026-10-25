@@ -1348,6 +1348,53 @@ read-only stubs; its value is that granite's map is now granite's.
 
 **Gates.** Contract battery 12 / 3 strict xfailed (pick core); granite suite 6 / 1 xfailed on the TASK-055 knobs, with BANK_TW 5, on the narrowed CSR and on the final defaults; pumice `run-all-func-both` 218 / 218 both geometries on the shared pick core and plane (pumice keeps TW 8 and its stall counters); lint 0 errors on granite_core and granite_top_geared at every setting and on pumice_core with both cores. Board md5 == working text for the final build.
 
+### 5.17 The harness host drives granite through granite's map; bank-queue depth 4 and 6 (2026-10-24, pumice TASK-057)
+
+Owner: "Do 1/3 for now. For the bank fifos see the perf impact if they are 6 or 4 deep."
+
+**Host.** `DDR2CharDriver(controller="granite")` selects granite's generated
+regmap (`CONTROLLER_REGMAPS`); until now the driver loaded pumice's for any
+controller, which worked only while the two maps were identical. `Device.has`
+answers membership, and the one shared-flow write to a register granite no
+longer has (`REF_CTRL` in the config apply) is guarded: the default is not
+written, a config that asks for refresh elasticity on such a controller
+raises with the controller named. The granite proxy and UART test select
+granite; the granite proxy on granite's map is cycle-identical to the committed grid at 1 and 8 threads and on mixed, the granite UART smoke test passes, and no register-lookup error appears in any log (the telemetry readers fall back to "no telemetry" through their try / except). PUMICE_CHECK
+
+**Bank-queue depth** (`BANK_FIFO_DEPTH`, count-capped on the linked-list
+store, no area in it since TASK-054), against the committed defaults, board
+geometry, mismatched 0 everywhere:
+
+| cell (wr / rd MB/s) | pool-deep (default, 8) | depth 6 | depth 4 |
+|---|---|---|---|
+| 1 thread incremental | 568.2 / 569.6 | 567.2 / 570.1 | 563.6 / 568.0 |
+| 1 thread row_major | 576.5 / 574.4 | identical | identical |
+| 1 thread col_ilv | 460.8 / 452.5 | 460.5 / 454.0 | **384.6 / 417.4** |
+| 1 thread col_major | 311.1 / 358.5 | identical | identical |
+| 8 threads incremental | 556.9 / 557.4 | **534.6 / 556.9** | **429.4 / 475.6** |
+| 8 threads row_major | 557.6 / 557.5 | **535.3 / 557.5** | **429.0 / 476.3** |
+| 8 threads col_ilv | 533.5 / 543.8 | 508.8 / 534.3 | 414.2 / 458.0 |
+| 8 threads col_major | 459.7 / 458.5 | 461.9 / 458.4 | 386.4 / 421.1 |
+| mixed, 8 threads (union) | 98.1 | **106.5** | 65.7 |
+
+Depth 4 is the TASK-050 result again, now on the linked-list store with the
+lean intakes: 23 percent off the eight-thread writes, 15 off the reads, 17
+off one-thread col_ilv, and mixed down a third (it completes now; on the
+position-array store it deadlocked). At BL4 x16 one 8-beat burst is eight
+same-bank entries, so a cap of four blocks the single in-order address
+channel half way through every burst, for every bank behind it. Depth 6 is
+the interesting point: one-thread streams within a few cycles of pool-deep,
+eight-thread writes 4 percent down (the cap bites once per burst instead of
+twice), reads untouched, and **mixed 8 percent UP** -- with two threads per
+bank, a cap keeps one bank's writes from taking every pool slot, which is
+the fairness the pool-deep rule gives away. Since TASK-054 the cap buys no
+area (the queues are lists through the slots, there is no position storage
+to size), so it is a pure policy knob: pool-deep stays granite's default on
+the streams the eight-injector requirement is written for, and 6 is the
+setting to reach for when concurrent read / write per bank is the workload.
+The right fix for mixed is not a cap but a per-direction share of the pool;
+that is a design item, not a knob.
+
 ## 6. Left for later phases
 
 - **Eight injectors per direction** (owner's load point, pumice TASK-043):
