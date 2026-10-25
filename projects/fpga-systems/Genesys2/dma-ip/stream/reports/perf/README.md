@@ -49,7 +49,10 @@ stream-g is within +0.22 % at 1 MB on every config; its cost is a fixed ~140-150
 cycles once per channel before the first read (4 KB single descriptor 303 -> 444
 cycles) and ~1-2 cycles per chained descriptor. Artifacts:
 `build-perf/results/perf_sweep_2026-10-24_{fsm,g}_{1MB,64KB,4KB}.{csv,json}`; the
-write-up is STREAM MAS Chapter 7.4.)*
+write-up is the Genesys 2 book Chapter 5 and STREAM MAS 7.4. 2026-10-25: the point
+profiles and the matrix re-measured on stream-g with STREAM's own firmware (the chain
+hook on both poll reads, stream TASK-021); STREAM cycle-identical to 10-24 on all 96
+points; `results/{gcompare,gscale,gscale1}_2026-10-25_{fsm,g}.*`.)*
 
 ---
 

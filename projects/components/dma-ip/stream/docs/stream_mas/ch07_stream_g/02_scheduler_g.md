@@ -41,7 +41,7 @@ port (Table 2.4.1) instead of by the state machine.
 
 ## The Window
 
-The window is RAPIDS MAS Section 5.2's, word for word and bit for bit, so one firmware image runs both
+The window is RAPIDS MAS Section 5.2's, word for word and bit for bit, so rapids-g's firmware ran on it unchanged on the first day and stream-g's own image (a fork of it, Section 7.3) runs on it now; the two images serve both
 designs. Where STREAM has no counterpart the bit reads as a constant the firmware already handles:
 
 | Word / bit | rapids-g | STREAM |

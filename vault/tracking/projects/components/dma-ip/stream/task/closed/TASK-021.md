@@ -1,7 +1,7 @@
 # TASK-021: stream-g one-channel 16-descriptor chain is slowest at 32 beats a descriptor
 
 **Priority:** P3
-**Status:** open -- filed 2026-10-24 from the stream-g board profiles (TASK-020 phase 6)
+**Status:** CLOSED 2026-10-25 -- root cause the one-slot poll's single chain-hook test; fixed in STREAM's own firmware (`rtl/fw_g/sched_g.S`, the hook on both HEAD_SUM reads), confirmed on the board (32-beat lone-channel chain 1,890 -> 1,126 cycles, plateau gone) and by the stream-g regressions (fub_g 192/192 full, macro_g, top_g); rapids' image untouched by owner ruling
 **Owner:** sean galloway
 
 ## What was measured
@@ -156,6 +156,26 @@ read for 13 and take `one_chain` there too; the two-slot and slot loops already 
 hook on it), in the SHARED image: it needs `gen_rapids_g_fw.py`, both equivalence benches and the stream-g
 board run again, and it would move rapids-g's own numbers only where a head opens late in a pass (its lone-
 channel short chains). Owner's call, since rapids is closed.
+
+
+## Fix (2026-10-24, in STREAM's own image)
+
+Two instructions in the one-slot poll (`stream/rtl/fw_g/sched_g.S`, `one_loop`): the second HEAD_SUM read tests
+`== 13` and takes `one_chain` before the open-head test. rapids' image is untouched (owner: the firmware is not
+common). Harness sim of the board design, lone channel, 16-descriptor chains, cycles before -> after:
+16 beats 688 -> 688, 32 beats 1,900 -> 1,132, 64 beats 1,739 -> 1,312, 128 beats 2,410 -> 2,196 (STREAM: 310,
+559, 1,071, 2,095); 49 of 64 descriptors advance in place against 39 before.
+
+Board, 2026-10-25, the rebuilt bitstream (sha256 d416ce72...), the probe grid, cycles before -> after (read span per
+descriptor in brackets): 16 beats 684 -> 704 (37 -> 37), 20: 1,474 -> 1,124 (79 -> 62), 32: 1,890 -> 1,126 (106 -> 63),
+48: 1,893 -> 1,136 (106 -> 64), 64: 1,911 -> 1,319 (107 -> 75), 80: 1,743 -> 1,567 (104 -> 90), 96: 2,336 -> 1,719
+(134 -> 102), 128: 2,392 -> 2,199 (138 -> 132); five repeats at 32 and 64 beats agree in the read span to the
+cycle. The plateau is gone; what remains is the firmware's one-pass reaction (about 63 cycles a descriptor) until
+the data outlasts it near 96 beats. The 2026-10-25 profiles on both bitstreams (STREAM cycle-identical to 10-24 on
+all 96 points): the lone channel's chain is within 10 / 5 / 1 % of STREAM from 2 KB / 2 KB / 8 KB a descriptor
+(was 4 / 4 / 16 KB), the every-channel-busy chain from 256 B / 256 B / 512 B (was 256 B / 512 B / 1 KB); single
+descriptors unchanged. Regressions on the image: stream fub_g gate 64/64 and rapids fub_g gate 64/64 (rapids'
+image untouched); the full level and the macro_g / top_g gates close the task.
 
 ## What to do
 

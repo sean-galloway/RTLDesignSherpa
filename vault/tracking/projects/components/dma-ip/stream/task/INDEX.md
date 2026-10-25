@@ -12,15 +12,14 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 1 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
-| [closed/](closed/) | 17 | done (kept for history) |
+| [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **TASK-021** — stream-g: a lone channel's 16-descriptor chain is slowest at 32 beats a descriptor (1,897 cycles vs 824 at 16 and 1,737 at 64, board 2026-10-24); find the walk-vs-advance cause (filed 2026-10-24)
 - **TASK-019** — `monbus_axil4_group_1wr` in place of `monbus_axil4_axil4_group` on both STREAM tops (write-only monitor, records read from memory on irq_out / err_rec_count); RAPIDS twin is rapids TASK-039
 
 ## Active
@@ -34,6 +33,7 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **TASK-021** — stream-g lone-channel chain plateau (32-80 beats): the one-slot poll tested the chain hook only on a pass's first read; fixed in STREAM's own firmware, board 1,890 -> 1,126 cycles at 32 beats; closed 2026-10-25
 - **TASK-018** — loadable firmware memory as on rapids-g; delivered by TASK-020 phase 4 (stream-g carries rapids-g's loader unchanged, FW_* at 0x3A0-0x3AC); closed 2026-10-24
 - **TASK-017** — CLOSED 2026-10-18: two-deep descriptor skid in every scheduler (rapids TASK-028 parity); formal ap_desc_skid_bound
 - **TASK-016** — CLOSED 2026-10-03: all three Genesys2 stream builds rebuilt on

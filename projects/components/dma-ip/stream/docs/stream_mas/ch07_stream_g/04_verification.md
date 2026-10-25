@@ -67,6 +67,9 @@ identical simulation logs on all 141 scheduler and stream_core cells); fub_g 64 
 full, all passing; macro_g 159 passed, 12 skipped (1- and 2-channel and
 per-channel-engine cells, which stream-g does not build); top_g 67 passed, 2 skipped (1-channel); the
 product fub 510, macro 684 (+5 by design) and top suites unchanged.
+On STREAM's own firmware image (2026-10-24/25, Section 7.3): fub_g 64 gate and 192 full, macro_g 110 gate
+(12 skipped), top_g 19 gate, all passing from clean-all; rapids-g's fub_g gate 64/64 on its unchanged image
+through the split sequencer filelist.
 
 ## The Genesys 2 (2026-10-24)
 
@@ -133,5 +136,7 @@ the build, the method, the harness and every measured table, is the Genesys 2 bo
 Genesys 2 -- The FPGA System*, Chapter 5); the choice between the designs is STREAM HAS Chapter 5.4. The same points run on the harness simulation through
 the same host code (`make sim-gcompare | sim-gscale | sim-gscale1`, `test_stream_g_profiles.py`, the
 `char_csv` test type), one JSON per chunk under `results/sim/`, so the simulation and the board can be
-compared point for point. One measured point stands against the trend, a lone channel's 16-descriptor
-chain at 32 beats (stream TASK-021).
+compared point for point. The first image's lone-channel chains had a plateau from 32 to 80 beats (stream
+TASK-021): the one-slot poll tested the chain hook only on a pass's first HEAD_SUM read, and a head opened
+mid-pass by the in-place advance fell to JUDGE. STREAM's own firmware (7.3) tests it on both reads; the
+32-beat chain went from 1,890 to 1,126 cycles on the board (STREAM 559).

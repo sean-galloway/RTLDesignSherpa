@@ -228,8 +228,11 @@ Monitoring uses the shared monbus group modules from `rtl/amba/ocelus/` (e.g. `m
 > **stream-g (2026-10-24, stream TASK-020):** STREAM with its schedulers sequenced by firmware on one gatling per
 > core, built as rapids-g was. `rtl/fub/scheduler.sv` is the FSM + EXT run-base generators around
 > `rtl/fub/scheduler_core.sv` (the datapath; bit-exact with the one-module scheduler); `rtl/fub_g/scheduler_g.sv`
-> wraps the same core with the rapids-g register window, bit for bit, so rapids-g's firmware image and its sequencer
-> block `rapids_seq_g` are reused AS IS (the `sched_g_fw.svh` include comes from rapids' generated/fw directory).
+> wraps the same core with the rapids-g register window, bit for bit, so the sequencer block `rapids_seq_g` is reused AS
+> IS (through `rapids_seq_g_core.f`, the block without rapids' image). The FIRMWARE IS STREAM'S OWN (owner 2026-10-24,
+> "rapids and stream firmware shouldn't be common"): `rtl/fw_g/sched_g.S`, built by `bin/gen_stream_g_fw.py` into
+> `rtl/macro_g/generated/fw/sched_g_fw.svh` (`--check`), forked from rapids-g's with the chain hook on both HEAD_SUM
+> reads (TASK-021). Only ONE `sched_g_fw.svh` may be reachable in a build: the Vivado flattener sorts include dirs.
 > Everything above the schedulers is DERIVED by `bin/gen_stream_g.py` (`--check`): `macro_g/generated/
 > scheduler_group_array_g.sv`, `stream_core_g.sv`, `top_g/generated/stream_g_top_ch{8,16}.sv`, from the product
 > files plus the hand-written `macro_g/scheduler_group_array_g_seq.svh`, `top_g/stream_g_top_reg_arb.svh` (host +

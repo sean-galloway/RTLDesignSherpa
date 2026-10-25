@@ -156,7 +156,7 @@ advancing in place, a 216-cycle pair whatever the size, until the data itself ou
 (`make sim-gcompare | sim-gscale | sim-gscale1`, `results/sim/`): on STREAM all 96 points are the board to
 the cycle; on stream-g 3 of 96 are identical and the rest differ by 24 cycles on average and 190 at most,
 every one of them a poll-phase effect, with the largest on the lone channel's short chains. The reason
-the firmware's reaction varies that much is in the shared image's one-slot poll: a chained head that
+the firmware's reaction varies that much is in the one-slot poll of the image stream-g shared with rapids-g on that day: a chained head that
 opens after the pass's first HEAD_SUM read is routed to the full JUDGE path instead of the four-
 instruction chain hook, and in stream-g a chained head opens at the hardware's in-place advance, out
 of phase with the pass, where in rapids-g it opens at the firmware's own take (TASK-021).
@@ -165,59 +165,59 @@ of phase with the pass, where in rapids-g it opens at the firmware's own take (T
 
 | Point | ch | per descriptor | STREAM cycles | stream-g cycles | STREAM MB/s | stream-g MB/s | stream-g / STREAM |
 |---|--:|--:|--:|--:|--:|--:|--:|
-| beat_ch1_b1 | 1 | 16 B | 33 | 167 | 46 | 9 | 19.8 % |
-| beat_ch1_b4 | 1 | 64 B | 39 | 172 | 157 | 35 | 22.7 % |
-| beat_ch1_b16 | 1 | 256 B | 63 | 204 | 388 | 120 | 30.9 % |
-| beat_ch1_b64 | 1 | 1 KB | 111 | 241 | 880 | 405 | 46.1 % |
-| beat_ch1_b256 | 1 | 4 KB | 303 | 445 | 1,289 | 878 | 68.1 % |
-| beat_ch1_b1024 | 1 | 16 KB | 1,071 | 1,234 | 1,459 | 1,266 | 86.8 % |
-| beat_ch1_b4096 | 1 | 64 KB | 4,143 | 4,273 | 1,509 | 1,463 | 97.0 % |
-| beat_ch1_b32768 | 1 | 512 KB | 32,815 | 32,955 | 1,524 | 1,517 | 99.6 % |
-| beat_ch1_b65536 | 1 | 1 MB | 65,583 | 65,722 | 1,525 | 1,522 | 99.8 % |
-| beat_ch2_b1 | 2 | 16 B | 35 | 188 | 87 | 16 | 18.6 % |
-| beat_ch2_b4 | 2 | 64 B | 43 | 210 | 284 | 58 | 20.5 % |
-| beat_ch2_b16 | 2 | 256 B | 79 | 216 | 618 | 226 | 36.6 % |
-| beat_ch2_b64 | 2 | 1 KB | 175 | 318 | 1,116 | 614 | 55.0 % |
-| beat_ch2_b256 | 2 | 4 KB | 559 | 703 | 1,398 | 1,111 | 79.5 % |
-| beat_ch2_b1024 | 2 | 16 KB | 2,095 | 2,242 | 1,492 | 1,394 | 93.4 % |
-| beat_ch2_b4096 | 2 | 64 KB | 8,239 | 8,394 | 1,517 | 1,489 | 98.2 % |
-| beat_ch2_b32768 | 2 | 512 KB | 65,583 | 65,720 | 1,525 | 1,522 | 99.8 % |
-| beat_ch2_b65536 | 2 | 1 MB | 131,119 | 131,257 | 1,525 | 1,524 | 99.9 % |
-| beat_ch4_b1 | 4 | 16 B | 39 | 172 | 157 | 35 | 22.7 % |
-| beat_ch4_b4 | 4 | 64 B | 51 | 215 | 479 | 114 | 23.7 % |
-| beat_ch4_b16 | 4 | 256 B | 111 | 254 | 880 | 384 | 43.7 % |
-| beat_ch4_b64 | 4 | 1 KB | 303 | 439 | 1,289 | 890 | 69.0 % |
-| beat_ch4_b256 | 4 | 4 KB | 1,071 | 1,213 | 1,459 | 1,288 | 88.3 % |
-| beat_ch4_b1024 | 4 | 16 KB | 4,143 | 4,285 | 1,509 | 1,459 | 96.7 % |
-| beat_ch4_b4096 | 4 | 64 KB | 16,431 | 16,570 | 1,522 | 1,509 | 99.2 % |
-| beat_ch4_b32768 | 4 | 512 KB | 131,119 | 131,272 | 1,525 | 1,524 | 99.9 % |
-| beat_ch4_b65536 | 4 | 1 MB | 262,191 | 262,331 | 1,526 | 1,525 | 99.9 % |
-| beat_ch8_b1 | 8 | 16 B | 47 | 205 | 260 | 60 | 22.9 % |
-| beat_ch8_b4 | 8 | 64 B | 67 | 209 | 729 | 234 | 32.1 % |
-| beat_ch8_b16 | 8 | 256 B | 175 | 309 | 1,116 | 632 | 56.6 % |
-| beat_ch8_b64 | 8 | 1 KB | 559 | 701 | 1,398 | 1,114 | 79.7 % |
-| beat_ch8_b256 | 8 | 4 KB | 2,095 | 2,232 | 1,492 | 1,400 | 93.9 % |
-| beat_ch8_b1024 | 8 | 16 KB | 8,239 | 8,396 | 1,517 | 1,489 | 98.1 % |
-| beat_ch8_b4096 | 8 | 64 KB | 32,815 | 32,966 | 1,524 | 1,517 | 99.5 % |
-| beat_ch8_b32768 | 8 | 512 KB | 262,191 | 262,325 | 1,526 | 1,525 | 99.9 % |
-| beat_ch8_b65536 | 8 | 1 MB | 524,335 | 524,470 | 1,526 | 1,525 | 100.0 % |
+| beat_ch1_b1 | 1 | 16 B | 33 | 203 | 46 | 8 | 16.3 % |
+| beat_ch1_b4 | 1 | 64 B | 39 | 210 | 157 | 29 | 18.6 % |
+| beat_ch1_b16 | 1 | 256 B | 63 | 235 | 388 | 104 | 26.8 % |
+| beat_ch1_b64 | 1 | 1 KB | 111 | 262 | 880 | 373 | 42.4 % |
+| beat_ch1_b256 | 1 | 4 KB | 303 | 441 | 1,289 | 886 | 68.7 % |
+| beat_ch1_b1024 | 1 | 16 KB | 1,071 | 1,236 | 1,459 | 1,264 | 86.7 % |
+| beat_ch1_b4096 | 1 | 64 KB | 4,143 | 4,328 | 1,509 | 1,444 | 95.7 % |
+| beat_ch1_b32768 | 1 | 512 KB | 32,815 | 32,990 | 1,524 | 1,516 | 99.5 % |
+| beat_ch1_b65536 | 1 | 1 MB | 65,583 | 65,723 | 1,525 | 1,522 | 99.8 % |
+| beat_ch2_b1 | 2 | 16 B | 35 | 199 | 87 | 15 | 17.6 % |
+| beat_ch2_b4 | 2 | 64 B | 43 | 216 | 284 | 57 | 19.9 % |
+| beat_ch2_b16 | 2 | 256 B | 79 | 224 | 618 | 218 | 35.3 % |
+| beat_ch2_b64 | 2 | 1 KB | 175 | 332 | 1,116 | 588 | 52.7 % |
+| beat_ch2_b256 | 2 | 4 KB | 559 | 710 | 1,398 | 1,100 | 78.7 % |
+| beat_ch2_b1024 | 2 | 16 KB | 2,095 | 2,246 | 1,492 | 1,391 | 93.3 % |
+| beat_ch2_b4096 | 2 | 64 KB | 8,239 | 8,376 | 1,517 | 1,492 | 98.4 % |
+| beat_ch2_b32768 | 2 | 512 KB | 65,583 | 65,716 | 1,525 | 1,522 | 99.8 % |
+| beat_ch2_b65536 | 2 | 1 MB | 131,119 | 131,262 | 1,525 | 1,524 | 99.9 % |
+| beat_ch4_b1 | 4 | 16 B | 39 | 211 | 157 | 29 | 18.5 % |
+| beat_ch4_b4 | 4 | 64 B | 51 | 217 | 479 | 113 | 23.5 % |
+| beat_ch4_b16 | 4 | 256 B | 111 | 269 | 880 | 363 | 41.3 % |
+| beat_ch4_b64 | 4 | 1 KB | 303 | 435 | 1,289 | 898 | 69.7 % |
+| beat_ch4_b256 | 4 | 4 KB | 1,071 | 1,210 | 1,459 | 1,291 | 88.5 % |
+| beat_ch4_b1024 | 4 | 16 KB | 4,143 | 4,289 | 1,509 | 1,457 | 96.6 % |
+| beat_ch4_b4096 | 4 | 64 KB | 16,431 | 16,563 | 1,522 | 1,509 | 99.2 % |
+| beat_ch4_b32768 | 4 | 512 KB | 131,119 | 131,268 | 1,525 | 1,524 | 99.9 % |
+| beat_ch4_b65536 | 4 | 1 MB | 262,191 | 262,338 | 1,526 | 1,525 | 99.9 % |
+| beat_ch8_b1 | 8 | 16 B | 47 | 224 | 260 | 54 | 21.0 % |
+| beat_ch8_b4 | 8 | 64 B | 67 | 224 | 729 | 218 | 29.9 % |
+| beat_ch8_b16 | 8 | 256 B | 175 | 326 | 1,116 | 599 | 53.7 % |
+| beat_ch8_b64 | 8 | 1 KB | 559 | 698 | 1,398 | 1,119 | 80.1 % |
+| beat_ch8_b256 | 8 | 4 KB | 2,095 | 2,242 | 1,492 | 1,394 | 93.4 % |
+| beat_ch8_b1024 | 8 | 16 KB | 8,239 | 8,386 | 1,517 | 1,491 | 98.2 % |
+| beat_ch8_b4096 | 8 | 64 KB | 32,815 | 32,959 | 1,524 | 1,517 | 99.6 % |
+| beat_ch8_b32768 | 8 | 512 KB | 262,191 | 262,343 | 1,526 | 1,525 | 99.9 % |
+| beat_ch8_b65536 | 8 | 1 MB | 524,335 | 524,490 | 1,526 | 1,525 | 100.0 % |
 
-: Table 5.3: One descriptor per channel, 2026-10-24 (peak 1,600 MB/s)
+: Table 5.3: One descriptor per channel, 2026-10-25 (peak 1,600 MB/s)
 
 ## Descriptor chains (`gcompare`)
 
 | Point | ch | chain | STREAM cycles | stream-g cycles | STREAM MB/s | stream-g MB/s | stream-g / STREAM |
 |---|--:|--:|--:|--:|--:|--:|--:|
-| chain_ch1_b1_d16 | 1 | 16 x 16 B | 212 | 759 | 115 | 32 | 27.9 % |
-| chain_ch1_b64_d16 | 1 | 16 x 1 KB | 1,071 | 1,930 | 1,459 | 810 | 55.5 % |
-| chain_ch1_b1024_d16 | 1 | 16 x 16 KB | 16,431 | 16,563 | 1,522 | 1,509 | 99.2 % |
-| chain_ch1_b8192_d4 | 1 | 4 x 128 KB | 32,815 | 32,946 | 1,524 | 1,518 | 99.6 % |
-| chain_ch8_b1_d16 | 8 | 16 x 16 B | 287 | 803 | 681 | 243 | 35.7 % |
-| chain_ch8_b64_d16 | 8 | 16 x 1 KB | 8,239 | 8,284 | 1,517 | 1,509 | 99.5 % |
-| chain_ch8_b1024_d16 | 8 | 16 x 16 KB | 131,119 | 131,253 | 1,525 | 1,524 | 99.9 % |
-| chain_ch8_b8192_d4 | 8 | 4 x 128 KB | 262,191 | 262,226 | 1,526 | 1,525 | 100.0 % |
+| chain_ch1_b1_d16 | 1 | 16 x 16 B | 212 | 685 | 115 | 36 | 30.9 % |
+| chain_ch1_b64_d16 | 1 | 16 x 1 KB | 1,071 | 1,313 | 1,459 | 1,190 | 81.6 % |
+| chain_ch1_b1024_d16 | 1 | 16 x 16 KB | 16,431 | 16,496 | 1,522 | 1,516 | 99.6 % |
+| chain_ch1_b8192_d4 | 1 | 4 x 128 KB | 32,815 | 32,876 | 1,524 | 1,521 | 99.8 % |
+| chain_ch8_b1_d16 | 8 | 16 x 16 B | 287 | 704 | 681 | 277 | 40.8 % |
+| chain_ch8_b64_d16 | 8 | 16 x 1 KB | 8,239 | 8,278 | 1,517 | 1,510 | 99.5 % |
+| chain_ch8_b1024_d16 | 8 | 16 x 16 KB | 131,119 | 131,155 | 1,525 | 1,525 | 100.0 % |
+| chain_ch8_b8192_d4 | 8 | 4 x 128 KB | 262,191 | 262,242 | 1,526 | 1,525 | 100.0 % |
 
-: Table 5.4: Chains of descriptors per channel, 2026-10-24
+: Table 5.4: Chains of descriptors per channel, 2026-10-25
 
 ## The size sweeps (`gscale`, `gscale1`)
 
@@ -226,22 +226,22 @@ Each cell is STREAM cycles / stream-g cycles (1.00 = parity). `single` is one de
 
 | Beats | per descriptor | single, 8 ch | chain, 8 ch | single, 1 ch | chain, 1 ch |
 |--:|--:|--:|--:|--:|--:|
-| 1 | 16 B | 0.23 | 0.36 | 0.17 | 0.33 |
-| 2 | 32 B | 0.26 | 0.36 | 0.18 | 0.33 |
-| 4 | 64 B | 0.30 | 0.67 | 0.22 | 0.28 |
-| 8 | 128 B | 0.42 | 0.68 | 0.26 | 0.35 |
-| 16 | 256 B | 0.55 | 0.91 | 0.32 | 0.38 |
-| 32 | 512 B | 0.69 | 0.98 | 0.36 | 0.29 |
-| 64 | 1 KB | 0.81 | 1.00 | 0.45 | 0.62 |
-| 128 | 2 KB | 0.89 | 1.00 | 0.57 | 0.87 |
-| 256 | 4 KB | 0.94 | 1.00 | 0.69 | 0.97 |
-| 512 | 8 KB | 0.97 | 1.00 | 0.79 | 0.98 |
-| 1024 | 16 KB | 0.98 | 1.00 | 0.88 | 1.00 |
-| 2048 | 32 KB | 0.99 | -- | 0.94 | -- |
-| 4096 | 64 KB | 1.00 | -- | 0.97 | -- |
+| 1 | 16 B | 0.22 | 0.42 | 0.16 | 0.32 |
+| 2 | 32 B | 0.22 | 0.43 | 0.18 | 0.31 |
+| 4 | 64 B | 0.32 | 0.78 | 0.22 | 0.33 |
+| 8 | 128 B | 0.39 | 0.88 | 0.21 | 0.35 |
+| 16 | 256 B | 0.54 | 0.96 | 0.28 | 0.43 |
+| 32 | 512 B | 0.67 | 0.99 | 0.31 | 0.51 |
+| 64 | 1 KB | 0.79 | 0.99 | 0.40 | 0.83 |
+| 128 | 2 KB | 0.89 | 1.00 | 0.50 | 0.95 |
+| 256 | 4 KB | 0.93 | 1.00 | 0.70 | 0.99 |
+| 512 | 8 KB | 0.97 | 1.00 | 0.80 | 1.00 |
+| 1024 | 16 KB | 0.98 | 1.00 | 0.86 | 1.00 |
+| 2048 | 32 KB | 0.99 | -- | 0.92 | -- |
+| 4096 | 64 KB | 1.00 | -- | 0.96 | -- |
 | 8192 | 128 KB | -- | -- | 0.98 | -- |
 | 16384 | 256 KB | -- | -- | 0.99 | -- |
-| 32768 | 512 KB | -- | -- | 1.00 | -- |
+| 32768 | 512 KB | -- | -- | 0.99 | -- |
 | 65536 | 1 MB | -- | -- | 1.00 | -- |
 
 : Table 5.5: STREAM / stream-g cycles over the size sweep (`--` = not in the sweep)
@@ -252,31 +252,37 @@ The smallest bytes per descriptor from which every larger point in the sweep sta
 |---|--:|--:|--:|--:|
 | single descriptor | 1 of 8 | 32 KB | 64 KB | 256 KB |
 | single descriptor | 8 of 8 | 4 KB | 8 KB | 32 KB |
-| 16-descriptor chain | 1 of 8 | 4 KB | 4 KB | 16 KB |
-| 16-descriptor chain | 8 of 8 | 256 B | 512 B | 1 KB |
+| 16-descriptor chain | 1 of 8 | 2 KB | 2 KB | 8 KB |
+| 16-descriptor chain | 8 of 8 | 256 B | 256 B | 512 B |
 
 : Table 5.6: Bytes per descriptor for stream-g to be within 10 %, 5 % and 1 % of STREAM
 
 The difference is a fixed latency, not a rate: about 140 to 170 clocks once per channel between the
 kick and the first read (the firmware's poll, STAGE and ARM and the state walk, against the state
-machine's few cycles), and a clock or two per chained descriptor after it, because STREAM's read-ahead
-prefetch, which stream-g keeps in hardware for a head the firmware has staged, overlaps the next head
-with the running one. With every channel busy the other channels' data hides the cost; alone, a
-descriptor pays it in full, which is why the one-channel bounds sit eight times higher. One point
-stands against the trend: the lone channel's chain at 32 beats (1,897 cycles against 824 at 16 and
-1,737 at 64), measured the same way on both runs of the day; it is stream TASK-021.
+machine's few cycles), and the firmware's reaction to each chained head after it, which STREAM's
+read-ahead prefetch, kept in hardware for a head the firmware has staged, overlaps with the running
+descriptor. With every channel busy the other channels' data hides the cost; alone, a descriptor pays
+it in full, which is why the one-channel bounds sit eight times higher. The first image's one-channel
+chain column had a plateau from 32 to 80 beats (about 106 cycles a descriptor whatever its length,
+1,890 cycles at 32 beats against 559 for STREAM): its poll tested the chain hook only on a pass's
+first HEAD_SUM read, and a head opened by the in-place advance mid-pass fell to the slow path, so every
+second descriptor walked COMPLETE / NEXT_DESC. stream-g's own firmware tests the hook on both reads
+(stream TASK-021); the 32-beat chain is 1,126 cycles now and the column is monotonic. These tables are
+the 2026-10-25 measurement on that firmware; the STREAM side is cycle-identical to 2026-10-24 on all 96
+points, and the first image's profiles are kept beside them.
 
 ## The matrix at three descriptor sizes
 
 `host_characterize.py`'s 40-config matrix (1, 2, 4, 8, 16 descriptors per channel at 1 to 8 channels)
-at 1 MB, 64 KB and 4 KB per descriptor, 240 runs, all passing on both designs; the STREAM bitstream's
-1 MB matrix is cycle-identical to the 2026-10-03 measurement.
+at 1 MB, 64 KB and 4 KB per descriptor, 240 runs, all passing on both designs: the stream-g bitstream of
+2026-10-25 (STREAM's own firmware) against the STREAM bitstream of 2026-10-24, whose 1 MB matrix is
+cycle-identical to the 2026-10-03 measurement.
 
 | per descriptor | 1 desc, 1 ch | 1 desc, 8 ch | 16 desc, 1 ch | 16 desc, 8 ch | mean of 40 |
 |--:|--:|--:|--:|--:|--:|
-| 1 MB | 65,583 / 65,730 (+0.22 %) | 524,335 / 524,476 (+0.03 %) | 1,048,623 / 1,048,771 (+0.01 %) | 8,388,655 / 8,388,688 (+0.00 %) | +0.02 % |
-| 64 KB | 4,143 / 4,299 (+3.77 %) | 32,815 / 32,963 (+0.45 %) | 65,583 / 65,723 (+0.21 %) | 524,335 / 524,371 (+0.01 %) | +0.41 % |
-| 4 KB | 303 / 444 (+46.53 %) | 2,095 / 2,231 (+6.49 %) | 4,143 / 4,170 (+0.65 %) | 32,815 / 32,844 (+0.09 %) | +4.96 % |
+| 1 MB | 65,583 / 65,761 (+0.27 %) | 524,335 / 524,467 (+0.03 %) | 1,048,623 / 1,048,667 (+0.00 %) | 8,388,655 / 8,388,686 (+0.00 %) | +0.02 % |
+| 64 KB | 4,143 / 4,273 (+3.14 %) | 32,815 / 32,957 (+0.43 %) | 65,583 / 65,655 (+0.11 %) | 524,335 / 524,369 (+0.01 %) | +0.30 % |
+| 4 KB | 303 / 456 (+50.50 %) | 2,095 / 2,253 (+7.54 %) | 4,143 / 4,200 (+1.38 %) | 32,815 / 32,844 (+0.09 %) | +4.72 % |
 
 : Table 5.7: Cycles, STREAM / stream-g (stream-g relative to STREAM)
 
@@ -284,8 +290,8 @@ at 1 MB, 64 KB and 4 KB per descriptor, 240 runs, all passing on both designs; t
 
 | What | Where (under `build-perf/`) |
 |---|---|
-| The point profiles | `csv/gcompare.csv`, `csv/gscale.csv`, `csv/gscale1.csv` |
-| Board runs | `results/{gcompare,gscale,gscale1}_2026-10-24_{fsm,g}.{csv,json}`, `results/perf_sweep_2026-10-24_{fsm,g}_{1MB,64KB,4KB}.{csv,json}` |
+| The point profiles | `csv/gcompare.csv`, `csv/gscale.csv`, `csv/gscale1.csv`; `csv/task021_probe.csv` (the finer grid around the chain plateau) |
+| Board runs | `results/{gcompare,gscale,gscale1}_2026-10-25_{fsm,g}.{csv,json}` (STREAM's own firmware), `..._2026-10-24_...` (the first image); `results/perf_sweep_2026-10-{24,25}_{fsm,g}_{1MB,64KB,4KB}.{csv,json}`; `results/task021_probe_2026-10-{24,25}_g.{csv,json}` |
 | Simulation runs | `results/sim/<profile>_<dut>_<k>of<n>.json` |
 | Out-of-context cores | `../reports/ooc/<top>_<ch>ch/10.0ns/` |
 | Tabulation | `../bin/compare_profiles.py` |

@@ -94,4 +94,16 @@ and stream TASK-018 closes with phase 4.
   single descriptor within 10/5/1 % from 4 KB / 8 KB / 32 KB, 16-descriptor chain from 256 B / 512 B /
   1 KB; one channel busy: single 32 KB / 64 KB / 256 KB, chain 4 KB / 4 KB / 16 KB. Filed TASK-021 (the
   lone-channel chain's 32-beat dip).
+- Owner 2026-10-24: "Rapids and stream firmware shouldn't be common." stream-g owns its image now:
+  `rtl/fw_g/sched_g.S` (forked from rapids-g's, header says so), `bin/gen_stream_g_fw.py` (imports rapids'
+  assembler/renderer, writes `rtl/macro_g/generated/fw/sched_g_fw.svh`, `--check`). rapids' `rapids_seq_g.f` split
+  into `rapids_seq_g_core.f` (block + gatling, no image) + the rapids image; stream pulls the core and puts its own
+  fw directory on the path, the only `sched_g_fw.svh` reachable -- the Vivado flattener SORTS include dirs, so two
+  same-named files would have resolved to rapids' in the bitstream regardless of filelist order (verilator -E and
+  the FPGA lint prove each design compiles its own). rapids' firmware source and image are byte-identical to HEAD.
+- 2026-10-25: the profiles and the matrix re-measured on the rebuilt stream-g bitstream (STREAM's own firmware,
+  bit sha256 d416ce72...): lone-channel chain crossovers 2 KB / 2 KB / 8 KB, every-channel-busy chain 256 B /
+  256 B / 512 B, singles unchanged; STREAM side cycle-identical to 10-24 on all 96 points. Board book 1.4 Tables
+  5.3-5.7 regenerated from the 10-25 pair; HAS 5.4 guide and crossovers updated; the 10-24 (first image) results
+  kept beside them.
 

@@ -31,8 +31,8 @@
 ## What stream-g Is
 
 stream-g is STREAM with its scheduler state machines replaced by firmware. The core has one gatling, the
-four-context barrel RV32I core (`projects/components/riscv-ip/gatling-rv32i`), running one firmware image
-for all of its 4, 8 or 16 channels. It is rapids-g (RAPIDS MAS Chapter 5) applied to STREAM: the firmware
+barrel RV32I core (`projects/components/riscv-ip/gatling-rv32i`; one hart per channel at 4 and 8 channels,
+two channels per hart at 16), running STREAM's own firmware image for all of its 4, 8 or 16 channels. It is rapids-g (RAPIDS MAS Chapter 5) applied to STREAM: the firmware
 makes every decision STREAM's state machine makes and does the EXT address arithmetic STREAM's `scheduler`
 does in hardware -- taking a descriptor, validating it, starting it, finishing it, following a chain, and
 the EXT run bases, pushed ahead into a small queue per direction.
@@ -55,7 +55,7 @@ The sequencer block, the register window and the firmware are rapids-g's, used u
 |---|---|---|
 | The sequencer: gatling, instruction ROM (or the loadable BRAM), scratch, window decoder, register mailbox | `rapids/rtl/macro_g/rapids_seq_g.sv` | instantiated as is, one per core |
 | The register window of a scheduler (STATUS, CMD, HEAD_SUM, the bases, FW packets) | RAPIDS MAS Section 5.2 | `scheduler_g` reproduces it bit for bit (Section 7.2) |
-| The firmware image: the executive, the policy table, the two-slot poll, the Z-order algorithm | `rapids/rtl/fw_g/sched_g.S` -> `generated/fw/sched_g_fw.svh` | the same include, through rapids' include directory |
+| The firmware image: the executive, the policy table, the two-slot poll, the Z-order algorithm | STREAM's own, `rtl/fw_g/sched_g.S` built by `bin/gen_stream_g_fw.py` into `rtl/macro_g/generated/fw/sched_g_fw.svh`: forked from rapids-g's on 2026-10-24 (owner: the two designs' firmware is not common), one change so far, the chain hook on both HEAD_SUM reads of the one-slot pass (TASK-021); the sequencer block `rapids_seq_g` is pulled through `rapids_seq_g_core.f`, without rapids' image | its own source and image, forked from rapids-g's; the sequencer block unchanged |
 | The loadable firmware memory and its registers | RAPIDS MAS Section 5.3 | the same registers at the same offsets, one set (one gatling) |
 
 : Table 7.1.1: What stream-g takes from rapids-g

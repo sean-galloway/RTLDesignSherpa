@@ -45,7 +45,7 @@ knowledge of them. The product top ties the FW_* read-back fields to 0: STREAM's
 assignment, and an unassigned member would latch. Every edit matches its anchor the expected number of
 times or the generator fails; `python3 bin/gen_stream_g.py --check` exits 1 when any generated file is
 stale. The filelists are `rtl/filelists/fub_g/`, `macro_g/` and `top_g/`; they pull `rapids_seq_g` and
-gatling through rapids' `macro_g/rapids_seq_g.f`, and the firmware include with it.
+gatling through rapids' `macro_g/rapids_seq_g_core.f`, the block without rapids' image; STREAM's own image (`rtl/fw_g/sched_g.S`, `bin/gen_stream_g_fw.py`, `rtl/macro_g/generated/fw/sched_g_fw.svh`) is first and only on the include path. Two files of that name must never both be reachable: the Vivado flattener sorts include directories, so filelist order would not have chosen between them.
 
 ## The Register Path and the Firmware Load
 
