@@ -3396,3 +3396,64 @@ def test_r_queue_single_slave_path_grants_from_the_queue(tmp_path):
             " && subtractive_axi_rvalid, rq_dma1_master_256b_gpu_mem_slave_rd_valid};") in xbar
     assert "_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id" not in xbar
     assert "rtl/amba/filelists/gaxi_fifo_sync.f" in fl.read_text()
+
+
+def test_mon_group_write_only_emits_1wr(tmp_path):
+    """[bridge.mon_group] write_only = true swaps the two-port
+    monbus_axil4_axil4_group for the write-only monbus_axil4_group_1wr
+    (stream TASK-019's egress, pushed into the generator): the s_mon_axil_*
+    drain surface leaves the bridge top, the trace-window cfgs gain their
+    err-window siblings, mon_err_rec_count appears beside mon_irq_out, and
+    the filelist pulls the 1wr group closure."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc_1wr")
+    mon = gen.parent / "bridge_3x2_rw_mcdc_1wr_mon"
+    top = (mon / "bridge_3x2_rw_mcdc_1wr_mon.sv").read_text()
+    assert "monbus_axil4_group_1wr #(" in top
+    assert "monbus_axil4_axil4_group" not in top
+    assert "s_mon_axil" not in top                    # no slave-read drain
+    assert "cfg_mon_group_err_base_addr" in top
+    assert "cfg_mon_group_err_limit_addr" in top
+    assert "cfg_mon_group_err_flush_watermark" in top
+    assert "mon_err_rec_count" in top
+    assert "mon_irq_out" in top
+    mfl = (fl.parent / "bridge_3x2_rw_mcdc_1wr_mon.f").read_text()
+    assert "rtl/amba/filelists/monbus_axil4_group_1wr.f" in mfl
+    assert "monbus_axil4_axil4_group.f" not in mfl
+
+
+def test_mon_group_write_only_cfg_regblock(tmp_path):
+    """With use_cfg_regblock the group's err window lands in the cfg RDL as
+    MON_GROUP_ERR_{BASE,LIMIT}_ADDR + MON_GROUP_ERR_FLUSH_WATERMARK and the
+    record count as a read-only MON_ERR_REC_COUNT (stream_mon_regs.rdl's
+    shape), and the generated top wires the regblock's hwif to the group."""
+    gen, _ = _generate_fixture(tmp_path, "bridge_1x2_rd_regblock_1wr")
+    mon = gen.parent / "bridge_1x2_rd_regblock_1wr_mon"
+    rdl = (mon / "bridge_1x2_rd_regblock_1wr_mon_cfg.rdl").read_text()
+    assert "MON_GROUP_ERR_BASE_ADDR" in rdl
+    assert "MON_GROUP_ERR_LIMIT_ADDR" in rdl
+    assert "MON_GROUP_ERR_FLUSH_WATERMARK" in rdl
+    assert "MON_ERR_REC_COUNT" in rdl
+    top = (mon / "bridge_1x2_rd_regblock_1wr_mon.sv").read_text()
+    assert "monbus_axil4_group_1wr #(" in top
+    assert "s_mon_axil" not in top
+
+
+def test_mon_group_default_is_1wr(tmp_path):
+    """bridge TASK-023: [bridge.mon_group] omitted (or write_only unset)
+    now selects the write-only monbus_<p>_group_1wr -- the egress stream,
+    rapids and bridge-stress standardized on. write_only = false keeps the
+    two-port monbus_<p1>_<p2>_group; every legacy mon fixture is pinned to
+    it explicitly, so a mon variant without the table emitting the 1wr
+    group is the only new behaviour."""
+    from bridge_pkg.config import MonGroupConfig
+    from bridge_pkg.config_loader import _parse_mon_group
+    assert MonGroupConfig().write_only is True
+    assert MonGroupConfig().module_name == "monbus_axil4_group_1wr"
+    assert _parse_mon_group(None, "t.toml").module_name == "monbus_axil4_group_1wr"
+    two_port = _parse_mon_group({"write_only": False}, "t.toml")
+    assert two_port.module_name == "monbus_axil4_axil4_group"
+    gen, _ = _generate_fixture(tmp_path, "bridge_3x2_rw_mcdc")
+    mon = gen.parent / "bridge_3x2_rw_mcdc_mon"
+    top = (mon / "bridge_3x2_rw_mcdc_mon.sv").read_text()
+    assert "monbus_axil4_axil4_group #(" in top        # pinned write_only = false
+    assert "monbus_axil4_group_1wr" not in top

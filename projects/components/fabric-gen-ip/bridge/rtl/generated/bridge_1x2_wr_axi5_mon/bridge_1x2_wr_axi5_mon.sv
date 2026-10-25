@@ -370,7 +370,7 @@ module bridge_1x2_wr_axi5_mon
     // ============================================================
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
-    // Shared free-running timestamp from monbus_axil4_axil4_group
+    // Shared free-running timestamp from the monbus group
     ocelus_common_pkg::monbus_timestamp_t mon_time_w;
 
     logic                                  monbus_cpu_wr_0_wr_valid;
@@ -386,7 +386,7 @@ module bridge_1x2_wr_axi5_mon
     ocelus_common_pkg::monitor_packet_t   monbus_sram_wr_1_wr_packet;
     ocelus_common_pkg::monbus_timestamp_t monbus_sram_wr_1_wr_timestamp;
 
-    // Arbiter output (-> monbus_axil4_axil4_group input)
+    // Arbiter output (-> monbus group input)
     logic                                  mon_arb_monbus_valid;
     logic                                  mon_arb_monbus_ready;
     ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet;

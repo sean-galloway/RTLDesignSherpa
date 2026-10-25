@@ -35,8 +35,9 @@ TEMPLATE_FIELDS: Dict[str, Tuple[str, ...]] = {
     'msfx': ('_monlite',),
 }
 TEMPLATE_GLOBS: Dict[str, str] = {
-    # monbus_<p1>_<p2>_group: one per [bridge.mon_group] protocol pair.
-    'module_name': 'monbus_*_group',
+    # monbus_<p1>_<p2>_group and the write-only monbus_<p2>_group_1wr: one
+    # per [bridge.mon_group] protocol pair.
+    'module_name': 'monbus_*_group*',
 }
 
 _REF = re.compile(r'\$REPO_ROOT/([A-Za-z0-9_./{}-]+\.(?:f|sv|svh|vlt))')

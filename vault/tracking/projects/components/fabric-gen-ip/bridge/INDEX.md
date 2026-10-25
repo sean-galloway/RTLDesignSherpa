@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 0 | 0 | 18 | 4 | 0 |
+| [task/](task/INDEX.md) | 0 | 0 | 19 | 4 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 26 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
@@ -30,7 +30,9 @@ Counts are the item files in each lane directory, not counting the
 Nothing open in any lane. (TASK-022 closed 2026-10-25: the 4x4's
 uniform-traffic ceiling measured -- the driver's ID rotation on the
 per-ID same-target gate, then the traffic's own skew at the 32-bit periph
-port; the driver fixed, the residue documented in HAS 5.1.)
+port; the driver fixed, the residue documented in HAS 5.1. TASK-023
+closed 2026-10-25: the write-only monbus group is the default emitter,
+`write_only = false` pinned in the legacy mon configs.)
 
 ## The legacy BRIDGE-0xx sequence
 

@@ -23,6 +23,8 @@ bridge_5x3_channels,test_configs/bridge_5x3_channels.toml,test_configs/bridge_5x
 # monbus_<p1>_<p2>_group family. Kept in the batch so `make all`
 # regenerates every monbus-group consumer (CRITICAL RULE #0).
 bridge_1x2_rd_regblock,test_configs/bridge_1x2_rd_regblock.toml,test_configs/bridge_1x2_rd_regblock_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_1x2_rd_regblock_1wr,test_configs/bridge_1x2_rd_regblock_1wr.toml,test_configs/bridge_1x2_rd_regblock_1wr_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
+bridge_3x2_rw_mcdc_1wr,test_configs/bridge_3x2_rw_mcdc_1wr.toml,test_configs/bridge_3x2_rw_mcdc_1wr_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_mix_a,test_configs/bridge_mix_a.toml,test_configs/bridge_mix_a_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_mix_b,test_configs/bridge_mix_b.toml,test_configs/bridge_mix_b_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests
 bridge_mix_c,test_configs/bridge_mix_c.toml,test_configs/bridge_mix_c_connectivity.csv,../rtl/generated,../dv/tbclasses,../dv/tests

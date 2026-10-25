@@ -57,6 +57,13 @@ _GROUP_BASE = 0x0000_1000
 _GROUP_LIMIT = 0x0000_5000 - 1
 _GROUP_WATERMARK = 3            # one record = 3 beats
 
+# Write-only groups (monbus_*_group_1wr): err_select'd records are written to
+# their own window instead of a drain FIFO. It sits just above the trace
+# window; the harness's err_window filter lifts those beats out of the
+# captured trace stream.
+_GROUP_ERR_BASE = 0x0000_5000
+_GROUP_ERR_LIMIT = 0x0000_6000 - 1
+
 _SLAVE_WORD_BYTES = 4           # 32-bit slave data
 _SLAVE_CAP_BYTES = 4096         # Bridge<>TB.SLAVE_MEM_CAP_BYTES seeded window
 
@@ -88,15 +95,19 @@ def _get(handle):
 # harness + stimulus helpers
 # --------------------------------------------------------------------------- #
 def make_harness(dut, tb, block_node=None):
+    # A write-only group (monbus_*_group_1wr) has no s_mon_axil_ drain port;
+    # its err records exit through the write port into the error window.
+    write_only = getattr(dut, "s_mon_axil_arvalid", None) is None
     return MonbusGroupHarness(
         dut, dut.aclk,
-        drain_proto="axil", trace_proto="axil",
+        drain_proto=None if write_only else "axil", trace_proto="axil",
         drain_prefix="s_mon_axil_", trace_prefix="m_mon_axil_",
         group_node=dut.u_mon_axil_group,
         irq_sig=dut.mon_irq_out,
         block_node=block_node,
         layout_drain=_BRIDGE_LAYOUT,
         layout_trace=_BRIDGE_LAYOUT,
+        err_window=(_GROUP_ERR_BASE, _GROUP_ERR_LIMIT) if write_only else None,
         log=tb.log,
     )
 
@@ -152,6 +163,11 @@ def init_group_cfg(dut, *, err_select=0, base=_GROUP_BASE, limit=_GROUP_LIMIT,
     _set(dut, "cfg_mon_group_limit_addr", limit)
     _set(dut, "cfg_mon_group_flush_watermark", watermark)
     _set(dut, "cfg_mon_group_axi_err_select", err_select)
+    # Write-only groups (1wr): the error window. _set no-ops on the pins the
+    # two-port group does not have, so this is safe for both.
+    _set(dut, "cfg_mon_group_err_base_addr", _GROUP_ERR_BASE)
+    _set(dut, "cfg_mon_group_err_limit_addr", _GROUP_ERR_LIMIT)
+    _set(dut, "cfg_mon_group_err_flush_watermark", _GROUP_WATERMARK)
 
 
 def stress_count(default=None):
@@ -308,9 +324,18 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
     await ClockCycles(tb.clock, 5)
 
     mon = make_harness(dut, tb, block_node=block_node)
+    write_only = mon.drain_proto is None
     mon.start_fifo_monitor()
     mon.start_irq_watch()
-    mon.start_drain_pump(record_gap_cycles=pump_gap)
+    if write_only:
+        # Write-only group: the err records exit through the ONE write port
+        # into the error window, so the trace slave model's wready is the
+        # err-path backpressure now (the old drain pump's role), and it
+        # captures the beats parse_err_records() later reassembles.
+        mon.start_trace_consumer(ready_prob=0.08)
+        rec_before = mon.err_rec_count()
+    else:
+        mon.start_drain_pump(record_gap_cycles=pump_gap)
 
     errors = 0
     readable = has_read_master(tb)
@@ -327,9 +352,17 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
             assert "SLVERR" in str(e), f"[ERR_BP] unexpected master error: {e}"
             errors += 1
 
-    mon.stop_drain_pump()
-    await ClockCycles(tb.clock, 50)
-    await mon.drain_until_empty()
+    if write_only:
+        mon.set_trace_ready_prob(1.0)
+        # The err writer flushes on its watermark (3 beats = 1 record) or
+        # its 64-cycle timeout; give the tail room to land, then lift the
+        # err-window beats out of the captured write stream.
+        await ClockCycles(tb.clock, 2000)
+        mon.stop_trace_consumer()
+    else:
+        mon.stop_drain_pump()
+        await ClockCycles(tb.clock, 50)
+        await mon.drain_until_empty()
     mon.stop_fifo_monitor()
     mon.stop_irq_watch()
     st = mon.get_stats()
@@ -348,8 +381,15 @@ async def run_err_bp_phase(dut, tb, cfg_prefixes, block_node, *, mode, n,
     assert st.err_fifo_full_seen, f"[ERR_BP/{mode}] err FIFO never saturated"
     assert mon.irq_asserted, f"[ERR_BP/{mode}] mon_irq_out never asserted"
     assert mon.err_fifo_count() == 0, f"[ERR_BP/{mode}] err FIFO did not drain"
-    pkts = mon.received_packets
+    pkts = mon.parse_err_records() if write_only else mon.received_packets
     assert len(pkts) >= 1, f"[ERR_BP/{mode}] no packets drained"
+    if write_only:
+        # Every record the writer landed parses clean, and the group's
+        # free-running count agrees (delta: the count is free-running and
+        # the phases run back to back).
+        landed = mon.err_rec_count() - rec_before
+        assert landed == len(pkts), (
+            f"[ERR_BP/{mode}] err_rec_count moved {landed}, parsed {len(pkts)} records")
     assert all(p.protocol == ProtocolType.PROTOCOL_AXI for p in pkts)
     assert all(p.packet_type == want for p in pkts), (
         f"[ERR_BP/{mode}] expected {want.name}, got "
@@ -412,6 +452,16 @@ async def run_comprehensive(dut, tb, *, cfg_prefixes, block_ready_path,
                                  reachable=reachable, inject_slverr=True,
                                  want_type=PktType.PktTypeError,
                                  monitor=1, compl=0, error=1, label="REGBLOCK_WR_BP")
+        if getattr(dut, 's_mon_axil_arvalid', None) is None:
+            # Write-only group (1wr): the error window exists -- exercise it.
+            # Route PktTypeError to it (axi_err_select bit 0), the same
+            # selection the pin-driven variants make in init_group_cfg.
+            offs = load_cfg_regmap(tb, cfg_regmap).get_register_offset_map()
+            wr = cfg_axil_master(dut, tb)['write_register']
+            await wr(offs['MON_GROUP_PACK_1'], 0x0001)   # axi_err_select=1, axi_error_mask=0
+            tb.log.info("regblock 1wr: SLVERR error-window phase")
+            await run_err_bp_phase(dut, tb, cfg_prefixes, block_node, mode="slverr", n=n,
+                                   reachable=reachable)
         tb.log.info("comprehensive monitor stress: regblock trace phase passed")
         return
     if not has_compl:
@@ -478,6 +528,13 @@ async def program_regblock_group_window(dut, tb, cfg_regmap,
     await wr(offs['MON_GROUP_BASE_ADDR'], base)
     await wr(offs['MON_GROUP_LIMIT_ADDR'], limit)
     await wr(offs['MON_GROUP_PACK_0'], watermark & 0xFFFF)
+    if 'MON_GROUP_ERR_BASE_ADDR' in offs:
+        # Write-only group (1wr): the error window. A dead window (the
+        # reset default, base == limit == 0) never flushes, so the err
+        # writer would stall the records the ERR_BP phases expect.
+        await wr(offs['MON_GROUP_ERR_BASE_ADDR'], _GROUP_ERR_BASE)
+        await wr(offs['MON_GROUP_ERR_LIMIT_ADDR'], _GROUP_ERR_LIMIT)
+        await wr(offs['MON_GROUP_ERR_FLUSH_WATERMARK'], watermark)
     await ClockCycles(dut.aclk, 5)
     tb.log.info(f"regblock: programmed MON_GROUP window base=0x{base:x} limit=0x{limit:x} "
                 f"watermark={watermark} at 0x{offs['MON_GROUP_BASE_ADDR']:03x}/"

@@ -52,9 +52,12 @@ def build_group_field_map(mon_group_cfg):
     mapping = {}
     pack_idx = 0
     pending = None  # (base, width) waiting for a low-half partner
-    for base, width in mon_group_cfg:
-        if width in (1, 32):
-            # 1-bit and 32-bit fields each get their own solo register.
+    for entry in mon_group_cfg:
+        base, width = entry[0], entry[1]
+        solo = len(entry) > 2   # 3-tuple: named solo reg, never packed
+        if width in (1, 32) or solo:
+            # 1-bit, 32-bit and solo 16-bit fields each get their own
+            # solo register.
             reg = f"MON_GROUP_{base.upper()}"
             mapping[base] = (reg, base)
             # If a 16-bit was pending, flush it as a solo low-half pack.

@@ -61,6 +61,10 @@ class CfgRdlGenerator:
     # Tuple of (base_name, width) for each mon_group_* cfg signal.
     # Pass the bridge generator's _MON_GROUP_CFG list here.
     mon_group_cfg: tuple = ()
+    # Write-only group (monbus_<master>_group_1wr): emit MON_ERR_REC_COUNT,
+    # the hw-written count of whole error records landed in the error
+    # window (stream_mon_regs.rdl's shape).
+    mon_group_write_only: bool = False
 
     def _build_group_regs(self) -> list:
         """Pack mon_group_cfg into 32-bit register descriptors that the
@@ -70,8 +74,10 @@ class CfgRdlGenerator:
         regs = []
         pack_idx = 0
         pending = None  # (base, width)
-        for base, width in self.mon_group_cfg:
-            if width in (1, 32):
+        for entry in self.mon_group_cfg:
+            base, width = entry[0], entry[1]
+            solo = len(entry) > 2   # 3-tuple: named solo reg, never packed
+            if width in (1, 32) or solo:
                 if width == 32:
                     regs.append({
                         'reg': f"MON_GROUP_{base.upper()}",
@@ -79,7 +85,7 @@ class CfgRdlGenerator:
                         'width': 32,
                         'field': base,
                     })
-                else:  # width == 1: solo 1-bit register
+                elif width == 1:
                     regs.append({
                         'reg': f"MON_GROUP_{base.upper()}",
                         'desc': f"mon_group {base} (1-bit)",
@@ -88,6 +94,13 @@ class CfgRdlGenerator:
                         # Default compression ON (project rule: monitors in
                         # use => compress). Harmless when no compressor HW.
                         'reset': "1'h1",
+                    })
+                else:  # solo 16-bit: named register, low half
+                    regs.append({
+                        'reg': f"MON_GROUP_{base.upper()}",
+                        'desc': f"mon_group {base} (16-bit)",
+                        'width': 16,
+                        'fields': [{'name': base, 'hi': 15, 'lo': 0}],
                     })
                 if pending is not None:
                     regs.append({
@@ -143,6 +156,7 @@ class CfgRdlGenerator:
             bridge_name=self.bridge_name,
             adapters=self.adapters,
             group_regs=self._build_group_regs(),
+            mon_group_write_only=self.mon_group_write_only,
             has_subtractive=getattr(self, 'has_subtractive', False),
         )
 

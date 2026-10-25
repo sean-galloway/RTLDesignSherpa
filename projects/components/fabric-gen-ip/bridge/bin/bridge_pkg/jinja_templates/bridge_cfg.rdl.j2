@@ -128,7 +128,8 @@ addrmap {{ bridge_name }}_cfg {
 {% endfor %}
 {% endfor %}
     // ----------------------------------------------------------------
-    // Group cfg — shared across all monitors at the monbus_axil4_axil4_group.
+    // Group cfg — shared across all monitors at the bridge's monbus group
+    // (monbus_<p1>_<p2>_group or, with write_only, monbus_<p2>_group_1wr).
     // Emitted from the bridge generator's _MON_GROUP_CFG tuple: 32-bit
     // fields each get their own MON_GROUP_<NAME> register; 16-bit
     // mask fields are packed two per register as MON_GROUP_PACK_<N>.
@@ -149,6 +150,21 @@ addrmap {{ bridge_name }}_cfg {
     } {{ entry.reg }};
 
 {% endfor %}
+{% if mon_group_write_only %}
+    // ----------------------------------------------------------------
+    // Error-record count (write-only group, monbus_<p>_group_1wr): the
+    // hardware counts whole error records landed in the error window;
+    // the host reads records out of memory prompted by the group's irq
+    // and this count. Mirrors stream_mon_regs.rdl's MON_ERR_REC_COUNT.
+    // ----------------------------------------------------------------
+    reg {
+        name = "MON_ERR_REC_COUNT";
+        desc = "Whole error records landed in the error window (all three beats acknowledged), free-running, wraps at 65536";
+        field { sw = r; hw = w; } COUNT[15:0];
+        field { sw = r; hw = na; } RSVD[31:16] = 16'h0;
+    } MON_ERR_REC_COUNT;
+
+{% endif %}
 {% if has_subtractive %}
     // ----------------------------------------------------------------
     // Unmapped-address status (subtractive catch-all slave, bridge BUG-007 (was BRIDGE-009)).

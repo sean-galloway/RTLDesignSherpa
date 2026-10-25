@@ -51,3 +51,9 @@ channels = "rd"  # Read-only (AR, R channels) - must match master
 base_addr = "0x80000000"
 addr_range = "0x80000000"  # 2GB
 # No interface module = direct connection
+
+# bridge TASK-023: the generator's mon_group default is now the write-only
+# 1wr group; this fixture keeps the two-port monbus_axil4_axil4_group --
+# its DV drains the s_mon_axil_* surface.
+[bridge.mon_group]
+write_only = false

@@ -90,3 +90,9 @@ data_width = 32
 user_width = 0
 base_addr  = "0x40100000"
 addr_range = "0x00010000"
+
+# bridge TASK-023: the generator's mon_group default is now the write-only
+# 1wr group; this fixture keeps the two-port monbus_axil4_axil4_group --
+# its DV drains the s_mon_axil_* surface.
+[bridge.mon_group]
+write_only = false

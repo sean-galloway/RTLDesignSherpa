@@ -49,8 +49,9 @@ except ImportError:
 def _parse_mon_group(raw, config_path: str) -> MonGroupConfig:
     """Build a MonGroupConfig from a TOML/YAML [bridge.mon_group] dict.
 
-    `raw` is None (table omitted -> all defaults = axil/axil) or a dict
-    of overrides. Unknown keys are rejected so typos surface loudly.
+    `raw` is None (table omitted -> all defaults; the write-only 1wr
+    group since bridge TASK-023) or a dict of overrides. Unknown keys
+    are rejected so typos surface loudly.
     """
     if raw is None:
         return MonGroupConfig()
@@ -60,8 +61,9 @@ def _parse_mon_group(raw, config_path: str) -> MonGroupConfig:
             f"{type(raw).__name__}"
         )
     known = {
-        'slave_protocol', 'master_protocol', 'fifo_depth_err',
-        'fifo_depth_write', 'flush_timeout_cycles', 'use_compression',
+        'slave_protocol', 'master_protocol', 'write_only', 'fifo_depth_err',
+        'fifo_depth_write', 'flush_timeout_cycles', 'err_flush_timeout_cycles',
+        'use_compression',
         'axi_id_width', 'axi_user_width', 'max_burst_beats', 's_axil_data_width',
     }
     unknown = set(raw) - known

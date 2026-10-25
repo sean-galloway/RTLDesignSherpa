@@ -139,11 +139,12 @@ class BridgeModuleGenerator:
         # instantiation -- the TOML just picks the build-time default.
         self.use_all_monitors = use_all_monitors
         self.use_no_monitors  = use_no_monitors
-        # mon_group: MonGroupConfig selecting which monbus_<p1>_<p2>_group
-        # variant the internal aggregator instantiates and what slave-read
-        # / master-write surface the bridge top exposes. Imported lazily to
+        # mon_group: MonGroupConfig selecting which monbus group variant
+        # the internal aggregator instantiates and what slave-read /
+        # master-write surface the bridge top exposes. Imported lazily to
         # avoid a hard dependency when callers pass one explicitly; None
-        # falls back to the legacy axil/axil default.
+        # falls back to the MonGroupConfig default (the write-only 1wr
+        # group since bridge TASK-023).
         if mon_group is None:
             from bridge_pkg.config import MonGroupConfig
             mon_group = MonGroupConfig()
@@ -439,6 +440,26 @@ class BridgeModuleGenerator:
         ('compress_en',          1),
     )
 
+    # Write-only group (monbus_<master>_group_1wr, MonGroupConfig.write_only):
+    # the error window the two-port group never had. Appended after
+    # _MON_GROUP_CFG -- write_only bridges are a new register map, so no
+    # legacy layout is disturbed. A 3-tuple's third element marks a 16-bit
+    # field for a SOLO named register instead of a MON_GROUP_PACK_<N> pair:
+    # the err window is programmed by hand, so its regs get real names.
+    _MON_GROUP_ERR_CFG = (
+        ('err_base_addr',       32),
+        ('err_limit_addr',      32),
+        ('err_flush_watermark', 16, 'solo'),
+    )
+
+    @classmethod
+    def group_cfg(cls, mon_group) -> tuple:
+        """The group cfg port list for this mon_group: _MON_GROUP_CFG plus
+        the error-window triple when the group is write-only."""
+        if mon_group is not None and mon_group.write_only:
+            return cls._MON_GROUP_CFG + cls._MON_GROUP_ERR_CFG
+        return cls._MON_GROUP_CFG
+
     # Monbus group ADDR_WIDTH at the bridge top (matches the historical
     # hard-coded 32-bit address window).
     _MON_GROUP_ADDR_WIDTH = 32
@@ -581,15 +602,18 @@ class BridgeModuleGenerator:
             lines.append("    // ============================================================")
             # Slave-read port (IRQ-status / error-FIFO reads). 64-bit data:
             # a CPU drains one error packet (packet + source_ts) in 3 beats
-            # via the group's slice-counter read path.
-            lines.append(
-                f"    // Slave-read port ({self.mon_group.slave_protocol}, "
-                f"IRQ-status reads, 64-bit data)")
-            for suffix, direction, width in sig['slave']:
+            # via the group's slice-counter read path. The write-only group
+            # (write_only) has no drain: error records land in a memory
+            # window instead and the host reads them there.
+            if not self.mon_group.write_only:
                 lines.append(
-                    f"    {direction:<6} logic {self._width_decl(width)} "
-                    f"{sig['s_net']}_{suffix},")
-            lines.append("")
+                    f"    // Slave-read port ({self.mon_group.slave_protocol}, "
+                    f"IRQ-status reads, 64-bit data)")
+                for suffix, direction, width in sig['slave']:
+                    lines.append(
+                        f"    {direction:<6} logic {self._width_decl(width)} "
+                        f"{sig['s_net']}_{suffix},")
+                lines.append("")
             # Master-write port (packet-log writes to memory). 64-bit data
             # so a 128-bit packet record spans whole beats.
             lines.append(
@@ -603,13 +627,23 @@ class BridgeModuleGenerator:
             # monbus group cfg — skipped when use_cfg_regblock=True
             # (the regblock backs these too; see _generate_cfg_regblock_*).
             if not self.use_cfg_regblock:
-                lines.append("    // monbus_axil4_axil4_group cfg")
-                for base, width in self._MON_GROUP_CFG:
+                lines.append(f"    // {mod} cfg")
+                for base, width, *_ in self.group_cfg(self.mon_group):
                     width_decl = "       " if width == 1 else f"[{width-1}:0]"
                     lines.append(f"    input  logic {width_decl} cfg_mon_group_{base},")
-            # IRQ output -- last port, no trailing comma.
-            lines.append("    // IRQ (asserted while error FIFO non-empty)")
-            lines.append("    output logic        mon_irq_out")
+            # IRQ output. On the write-only group it pulses once per error
+            # record landed in the error window, and mon_err_rec_count
+            # counts them (the host's read-back cue) -- that makes it the
+            # last port, so mon_irq_out carries the comma there.
+            if self.mon_group.write_only:
+                lines.append("    // IRQ (one pulse per whole error record landed)")
+                lines.append("    output logic        mon_irq_out,")
+                lines.append("    // Error records landed, free-running -- last port, no trailing comma.")
+                lines.append("    output logic [15:0] mon_err_rec_count")
+            else:
+                # IRQ output -- last port, no trailing comma.
+                lines.append("    // IRQ (asserted while error FIFO non-empty)")
+                lines.append("    output logic        mon_irq_out")
         else:
             # External-aggregator mode: bridge does per-port monitoring +
             # arbitration but expects the integrator's existing
@@ -651,7 +685,7 @@ class BridgeModuleGenerator:
         lines.append("    // ============================================================")
         # Shared timestamp net: monbus_axil4_axil4_group's mon_time_out feeds
         # every wrapper's i_mon_time input.
-        lines.append("    // Shared free-running timestamp from monbus_axil4_axil4_group")
+        lines.append("    // Shared free-running timestamp from the monbus group")
         lines.append("    ocelus_common_pkg::monbus_timestamp_t mon_time_w;")
         lines.append("")
         for w in wrappers:
@@ -660,7 +694,7 @@ class BridgeModuleGenerator:
             lines.append(f"    ocelus_common_pkg::monitor_packet_t   {w.monbus_packet};")
             lines.append(f"    ocelus_common_pkg::monbus_timestamp_t {w.monbus_timestamp};")
         lines.append("")
-        lines.append("    // Arbiter output (-> monbus_axil4_axil4_group input)")
+        lines.append("    // Arbiter output (-> monbus group input)")
         lines.append("    logic                                  mon_arb_monbus_valid;")
         lines.append("    logic                                  mon_arb_monbus_ready;")
         lines.append("    ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet;")
@@ -723,7 +757,7 @@ class BridgeModuleGenerator:
             lines.append("")
         if self.internal_axil_group:
             lines.append("    // cfg_mon_group_* nets")
-            for base, width in self._MON_GROUP_CFG:
+            for base, width, *_ in self.group_cfg(self.mon_group):
                 width_decl = "       " if width == 1 else f"[{width-1}:0]"
                 lines.append(f"    logic {width_decl} cfg_mon_group_{base};")
             lines.append("")
@@ -748,10 +782,12 @@ class BridgeModuleGenerator:
             f"    {self.bridge_name}_cfg_pkg::{self.bridge_name}_cfg__out_t hwif_out;"
         )
         has_sub = any(getattr(sl, 'internal', False) for sl in self.slaves)
-        if has_sub:
-            # hw-written status fields need an hwif_in. Driven from the
-            # subtractive slave's sticky outputs -- the module owns the state,
-            # these registers are only a window onto it.
+        # hw-written status fields need an hwif_in: the subtractive slave's
+        # sticky flags, or the write-only group's MON_ERR_REC_COUNT. Driven
+        # from the source modules -- the registers are only a window.
+        needs_hwif_in = has_sub or (
+            self.mon_group.write_only and self.internal_axil_group)
+        if needs_hwif_in:
             lines.append(
                 f"    {self.bridge_name}_cfg_pkg::{self.bridge_name}_cfg__in_t hwif_in;"
             )
@@ -763,9 +799,12 @@ class BridgeModuleGenerator:
             # cfg_rdl_generator._patch_resp_buffer_reset, for PeakRDL's own
             # struct reset. Every member of __in_t is driven here, so nothing
             # is left undefined by dropping the blanket zero.
-            lines.append("    assign hwif_in.SUBTRACTIVE_STATUS.HIT.next   = unmapped_irq;")
-            lines.append("    assign hwif_in.SUBTRACTIVE_STATUS.COUNT.next = unmapped_count;")
-            lines.append("    assign hwif_in.SUBTRACTIVE_ADDR.ADDR.next    = unmapped_addr;")
+            if has_sub:
+                lines.append("    assign hwif_in.SUBTRACTIVE_STATUS.HIT.next   = unmapped_irq;")
+                lines.append("    assign hwif_in.SUBTRACTIVE_STATUS.COUNT.next = unmapped_count;")
+                lines.append("    assign hwif_in.SUBTRACTIVE_ADDR.ADDR.next    = unmapped_addr;")
+            if self.mon_group.write_only and self.internal_axil_group:
+                lines.append("    assign hwif_in.MON_ERR_REC_COUNT.COUNT.next  = mon_err_rec_count;")
         lines.append(f"    {self.bridge_name}_cfg u_bridge_cfg (")
         lines.append("        .clk            (aclk),")
         lines.append("        .rst            (~aresetn),")
@@ -788,7 +827,7 @@ class BridgeModuleGenerator:
         lines.append("        .s_axil_rready  (s_cfg_axil_rready),")
         lines.append("        .s_axil_rdata   (s_cfg_axil_rdata),")
         lines.append("        .s_axil_rresp   (s_cfg_axil_rresp),")
-        if has_sub:
+        if needs_hwif_in:
             lines.append("        .hwif_in        (hwif_in),")
         lines.append("        .hwif_out       (hwif_out)")
         lines.append("    );")
@@ -805,8 +844,8 @@ class BridgeModuleGenerator:
 
         if self.internal_axil_group:
             lines.append("    // Fan out regblock outputs to mon_group cfg nets")
-            for base, _width in self._MON_GROUP_CFG:
-                hwif = group_hwif_ref(base, self._MON_GROUP_CFG)
+            for base, _width, *_ in self.group_cfg(self.mon_group):
+                hwif = group_hwif_ref(base, self.group_cfg(self.mon_group))
                 lines.append(f"    assign cfg_mon_group_{base} = {hwif};")
             lines.append("")
         return lines
@@ -867,7 +906,10 @@ class BridgeModuleGenerator:
             mg = self.mon_group
             sig = self._mon_group_signals()
             # Parameter list -- id/user/burst params depend on which
-            # sides are axi4 (param names differ per family member).
+            # sides are axi4 (param names differ per family member). The
+            # write-only group has no slave side: no S_AXIL_DATA_WIDTH and
+            # no slave-protocol AXI params, but it adds the error writer's
+            # flush timeout.
             params = [
                 ('FIFO_DEPTH_ERR',       mg.fifo_depth_err),
                 ('FIFO_DEPTH_WRITE',     mg.fifo_depth_write),
@@ -876,16 +918,18 @@ class BridgeModuleGenerator:
                 ('NUM_PROTOCOLS',        3),
                 ('USE_COMPRESSION',      mg.use_compression),
             ]
-            if not mg.slave_is_axi4 and mg.s_axil_data_width != 64:
+            if mg.write_only:
+                params += [('ERR_FLUSH_TIMEOUT_CYCLES', mg.err_flush_timeout_cycles)]
+            elif not mg.slave_is_axi4 and mg.s_axil_data_width != 64:
                 params += [('S_AXIL_DATA_WIDTH', mg.s_axil_data_width)]
-            if mg.slave_is_axi4 and mg.master_is_axi4:
+            if not mg.write_only and mg.slave_is_axi4 and mg.master_is_axi4:
                 params += [
                     ('AXI_ID_WIDTH_S',  mg.axi_id_width),
                     ('AXI_ID_WIDTH_M',  mg.axi_id_width),
                     ('AXI_USER_WIDTH',  mg.axi_user_width),
                     ('MAX_BURST_BEATS', mg.max_burst_beats),
                 ]
-            elif mg.slave_is_axi4:
+            elif mg.slave_is_axi4 and not mg.write_only:
                 params += [
                     ('AXI_ID_WIDTH',   mg.axi_id_width),
                     ('AXI_USER_WIDTH', mg.axi_user_width),
@@ -912,10 +956,11 @@ class BridgeModuleGenerator:
             lines.append("        .monbus_timestamp  (mon_arb_monbus_timestamp),")
             lines.append("        // Free-running timestamp shared with every wrapper's i_mon_time")
             lines.append("        .mon_time_out      (mon_time_w),")
-            lines.append(f"        // Slave-read port ({mg.slave_protocol})")
-            for suffix, _dir, _w in sig['slave']:
-                lines.append(
-                    f"        .{sig['s_wrap']}_{suffix} ({sig['s_net']}_{suffix}),")
+            if not mg.write_only:
+                lines.append(f"        // Slave-read port ({mg.slave_protocol})")
+                for suffix, _dir, _w in sig['slave']:
+                    lines.append(
+                        f"        .{sig['s_wrap']}_{suffix} ({sig['s_net']}_{suffix}),")
             lines.append(f"        // Master-write port ({mg.master_protocol})")
             for suffix, _dir, _w in sig['master']:
                 lines.append(
@@ -925,9 +970,13 @@ class BridgeModuleGenerator:
             lines.append("        // a floating input with no port default on 13 variants.")
             lines.append("        .cam_clear         (1'b0),")
             lines.append("        // IRQ")
-            lines.append("        .irq_out           (mon_irq_out),")
+            if mg.write_only:
+                lines.append("        .irq_out           (mon_irq_out),")
+                lines.append("        .err_rec_count     (mon_err_rec_count),")
+            else:
+                lines.append("        .irq_out           (mon_irq_out),")
             lines.append("        // Group-level cfg")
-            for base, _width in self._MON_GROUP_CFG:
+            for base, _width, *_ in self.group_cfg(self.mon_group):
                 lines.append(f"        .cfg_{base}     (cfg_mon_group_{base}),")
             lines.append("        /* verilator lint_off PINCONNECTEMPTY */")
             lines.append("        .err_fifo_full     (),")

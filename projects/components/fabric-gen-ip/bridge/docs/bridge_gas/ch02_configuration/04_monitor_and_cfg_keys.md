@@ -55,10 +55,24 @@ The `"mon"` variant wraps each enabled port with a `_monlite` timing wrapper. Th
 This table selects the internal monbus aggregation module. See "Bridge-Level TOML Keys" for the full schema. The selected module is:
 
 ```python
-f"monbus_{slave_protocol}_{master_protocol}_group"
+f"monbus_{master_protocol}_group_1wr"                   # write-only (default, bridge TASK-023)
+f"monbus_{slave_protocol}_{master_protocol}_group"      # two-port, write_only = false
 ```
 
-Examples: `monbus_axil4_axil4_group`, `monbus_axi4_axi4_group`.
+Examples: `monbus_axil4_group_1wr`, `monbus_axil4_axil4_group`, `monbus_axi4_axi4_group`.
+
+With the default `write_only = true` the bridge builds the write-only
+group: the `s_mon_axil_*` drain port leaves the bridge top, error-selected
+packets are written to a memory error window driven by the
+`cfg_mon_group_err_*` pins (or, with `use_cfg_regblock`, the
+MON_GROUP_ERR_BASE/LIMIT_ADDR + MON_GROUP_ERR_FLUSH_WATERMARK registers),
+`mon_err_rec_count` counts the records landed (MON_ERR_REC_COUNT in the
+regblock, read-only), and `mon_irq_out` pulses once per record. This is the
+egress stream/rapids standardized on (stream TASK-019 / rapids TASK-039),
+the default since bridge TASK-023. Set `write_only = false` for the
+two-port group -- the `s_mon_axil_*` slave-read drain stays on the bridge
+top (the legacy mon fixtures keep it explicitly; their DV drains that
+surface).
 
 When `internal_axil_group = false`, the bridge still instantiates the `monbus_arbiter` but exposes its aggregated stream as `monbus_agg_*` top-level outputs, letting an external consumer provide the AXIL group.
 

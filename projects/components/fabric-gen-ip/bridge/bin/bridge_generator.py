@@ -930,15 +930,17 @@ def _emit_bridge_variant(
                 addr_width=getattr(s, 'addr_width', 32),
             ))
         # Single source of truth for mon_group_* cfg fields lives in
-        # BridgeModuleGenerator._MON_GROUP_CFG; pass it through so the
-        # RDL schema and the bridge top's hwif_out fan-out stay aligned.
+        # BridgeModuleGenerator._MON_GROUP_CFG (+ its err-window extension
+        # for a write-only group); pass it through so the RDL schema and
+        # the bridge top's hwif_out fan-out stay aligned.
         from bridge_pkg.components.bridge_module_generator import (
             BridgeModuleGenerator as _BridgeModGen,
         )
         cfg_gen = CfgRdlGenerator(
             bridge_name=output_name,
             adapters=adapter_ports,
-            mon_group_cfg=_BridgeModGen._MON_GROUP_CFG,
+            mon_group_cfg=_BridgeModGen.group_cfg(gen.mon_group),
+            mon_group_write_only=gen.mon_group.write_only,
         )
         # The catch-all gets a status window + clear, appended after every
         # existing register so the map is extended, never renumbered.

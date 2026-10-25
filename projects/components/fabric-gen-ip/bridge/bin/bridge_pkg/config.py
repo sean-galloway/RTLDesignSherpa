@@ -57,8 +57,10 @@ class MonGroupConfig:
                                  # for a 32-bit host -- the group splits
                                  # each 64-bit slice low then high)
 
-    Defaults reproduce the axil4/axil4 group so configs that omit the
-    table keep their existing top-level surface and tests.
+    Defaults select the write-only 1wr group (bridge TASK-023): the
+    egress stream, rapids and bridge-stress standardized on. Set
+    `write_only = false` to keep the two-port axil4/axil4 group (the
+    legacy drain's DV depends on its s_mon_axil_* surface).
 
     "axil" is accepted as a deprecated spelling and normalised to "axil4"
     so pre-rename configs keep generating -- but it is normalised at
@@ -66,10 +68,17 @@ class MonGroupConfig:
     """
     slave_protocol: str = "axil4"     # "axil4" | "axi4" -- s_mon read port
     master_protocol: str = "axil4"    # "axil4" | "axi4" -- m_mon write port
+    # Write-only egress (stream TASK-019 / rapids TASK-039's group; the
+    # default since bridge TASK-023): no slave-read drain at all;
+    # error-selected packets go to a memory error window, read back on
+    # irq_out + err_rec_count. The module is monbus_<master>_group_1wr
+    # and slave_protocol is moot. False keeps the two-port group.
+    write_only: bool = True
     # Core sizing (passed as module parameters).
     fifo_depth_err: int = 64
     fifo_depth_write: int = 96        # beats (new family default)
     flush_timeout_cycles: int = 1024
+    err_flush_timeout_cycles: int = 64   # 1wr only: error-writer timeout
     use_compression: int = 0
     # AXI4-only sizing -- ignored when both sides are axil.
     axi_id_width: int = 8             # slave-read and/or master-write id
@@ -109,7 +118,10 @@ class MonGroupConfig:
 
     @property
     def module_name(self) -> str:
-        """Wrapper module from the monbus_<p1>_<p2>_group family."""
+        """Wrapper module: monbus_<p1>_<p2>_group, or the write-only
+        monbus_<p2>_group_1wr when write_only (no slave-read side)."""
+        if self.write_only:
+            return f"monbus_{self.master_protocol}_group_1wr"
         return f"monbus_{self.slave_protocol}_{self.master_protocol}_group"
 
     @property
