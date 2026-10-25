@@ -153,7 +153,13 @@ mechanism behind Table 5.5's one-channel chain column, recorded under stream TAS
 up every second chained head is staged after the running descriptor's last read and walks instead of
 advancing in place, a 216-cycle pair whatever the size, until the data itself outlasts the firmware's
 26-to-106-cycle reaction above about 96 beats. The full three-profile campaign on both designs
-(`make sim-gcompare | sim-gscale | sim-gscale1`) is recorded under `results/sim/` as it completes.
+(`make sim-gcompare | sim-gscale | sim-gscale1`, `results/sim/`): on STREAM all 96 points are the board to
+the cycle; on stream-g 3 of 96 are identical and the rest differ by 24 cycles on average and 190 at most,
+every one of them a poll-phase effect, with the largest on the lone channel's short chains. The reason
+the firmware's reaction varies that much is in the shared image's one-slot poll: a chained head that
+opens after the pass's first HEAD_SUM read is routed to the full JUDGE path instead of the four-
+instruction chain hook, and in stream-g a chained head opens at the hardware's in-place advance, out
+of phase with the pass, where in rapids-g it opens at the firmware's own take (TASK-021).
 
 ## Single descriptor per channel (`gcompare`)
 

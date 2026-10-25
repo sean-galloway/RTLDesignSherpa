@@ -1,0 +1,42 @@
+[
+ {
+  "config": "chain_ch8_b1024_d16",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "chain_ch8_b1024_d16",
+   "num_channels": 8,
+   "descriptors": 16,
+   "total_bytes": 2097152,
+   "cycles": 131119,
+   "seconds": 0.00131119,
+   "throughput_MBps": 1525.3319503656983,
+   "r2r_cycles": 131071,
+   "r2r_MBps": 1525.8905478710012,
+   "w2w_cycles": 131071,
+   "w2w_MBps": 1525.8905478710012,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "chain_ch8_b8192_d4",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "chain_ch8_b8192_d4",
+   "num_channels": 8,
+   "descriptors": 4,
+   "total_bytes": 4194304,
+   "cycles": 262191,
+   "seconds": 0.0026219100000000003,
+   "throughput_MBps": 1525.605379284567,
+   "r2r_cycles": 262143,
+   "r2r_MBps": 1525.8847270382958,
+   "w2w_cycles": 262143,
+   "w2w_MBps": 1525.8847270382958,
+   "pass": true,
+   "timeout": false
+  }
+ }
+]

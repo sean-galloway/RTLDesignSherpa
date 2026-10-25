@@ -1,0 +1,422 @@
+[
+ {
+  "config": "beat_ch1_b1",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b1",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 16,
+   "cycles": 178,
+   "seconds": 1.7800000000000001e-06,
+   "throughput_MBps": 8.572353405898875,
+   "r2r_cycles": 0,
+   "r2r_MBps": 0.0,
+   "w2w_cycles": 0,
+   "w2w_MBps": 0.0,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b4",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b4",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 64,
+   "cycles": 193,
+   "seconds": 1.93e-06,
+   "throughput_MBps": 31.624433290155437,
+   "r2r_cycles": 3,
+   "r2r_MBps": 2034.505208333333,
+   "w2w_cycles": 3,
+   "w2w_MBps": 2034.505208333333,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b16",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b16",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 256,
+   "cycles": 226,
+   "seconds": 2.26e-06,
+   "throughput_MBps": 108.02682522123894,
+   "r2r_cycles": 15,
+   "r2r_MBps": 1627.6041666666665,
+   "w2w_cycles": 15,
+   "w2w_MBps": 1627.6041666666665,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b64",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b64",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 1024,
+   "cycles": 243,
+   "seconds": 2.43e-06,
+   "throughput_MBps": 401.8775720164609,
+   "r2r_cycles": 63,
+   "r2r_MBps": 1550.0992063492063,
+   "w2w_cycles": 63,
+   "w2w_MBps": 1550.0992063492063,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b256",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b256",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 4096,
+   "cycles": 444,
+   "seconds": 4.440000000000001e-06,
+   "throughput_MBps": 879.7860360360359,
+   "r2r_cycles": 255,
+   "r2r_MBps": 1531.862745098039,
+   "w2w_cycles": 255,
+   "w2w_MBps": 1531.862745098039,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b1024",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b1024",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 16384,
+   "cycles": 1221,
+   "seconds": 1.221e-05,
+   "throughput_MBps": 1279.6887796887797,
+   "r2r_cycles": 1023,
+   "r2r_MBps": 1527.370478983382,
+   "w2w_cycles": 1023,
+   "w2w_MBps": 1527.370478983382,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b4096",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b4096",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 65536,
+   "cycles": 4297,
+   "seconds": 4.2970000000000004e-05,
+   "throughput_MBps": 1454.503141726786,
+   "r2r_cycles": 4095,
+   "r2r_MBps": 1526.2515262515262,
+   "w2w_cycles": 4095,
+   "w2w_MBps": 1526.2515262515262,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b32768",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b32768",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 524288,
+   "cycles": 32953,
+   "seconds": 0.00032953,
+   "throughput_MBps": 1517.3125360361726,
+   "r2r_cycles": 32767,
+   "r2r_MBps": 1525.9254737998594,
+   "w2w_cycles": 32767,
+   "w2w_MBps": 1525.9254737998594,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch1_b65536",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch1_b65536",
+   "num_channels": 1,
+   "descriptors": 1,
+   "total_bytes": 1048576,
+   "cycles": 65718,
+   "seconds": 0.00065718,
+   "throughput_MBps": 1521.6531239538633,
+   "r2r_cycles": 65535,
+   "r2r_MBps": 1525.902189669642,
+   "w2w_cycles": 65535,
+   "w2w_MBps": 1525.902189669642,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b1",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b1",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 32,
+   "cycles": 196,
+   "seconds": 1.9600000000000003e-06,
+   "throughput_MBps": 15.570192920918364,
+   "r2r_cycles": 9,
+   "r2r_MBps": 339.08420138888886,
+   "w2w_cycles": 9,
+   "w2w_MBps": 339.08420138888886,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b4",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b4",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 128,
+   "cycles": 194,
+   "seconds": 1.94e-06,
+   "throughput_MBps": 62.92284149484536,
+   "r2r_cycles": 12,
+   "r2r_MBps": 1017.2526041666665,
+   "w2w_cycles": 12,
+   "w2w_MBps": 1017.2526041666665,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b16",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b16",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 512,
+   "cycles": 217,
+   "seconds": 2.17e-06,
+   "throughput_MBps": 225.014400921659,
+   "r2r_cycles": 31,
+   "r2r_MBps": 1575.100806451613,
+   "w2w_cycles": 31,
+   "w2w_MBps": 1575.100806451613,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b64",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b64",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 2048,
+   "cycles": 314,
+   "seconds": 3.14e-06,
+   "throughput_MBps": 622.0143312101911,
+   "r2r_cycles": 127,
+   "r2r_MBps": 1537.8937007874015,
+   "w2w_cycles": 127,
+   "w2w_MBps": 1537.8937007874015,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b256",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b256",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 8192,
+   "cycles": 690,
+   "seconds": 6.900000000000001e-06,
+   "throughput_MBps": 1132.246376811594,
+   "r2r_cycles": 511,
+   "r2r_MBps": 1528.8649706457925,
+   "w2w_cycles": 511,
+   "w2w_MBps": 1528.8649706457925,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b1024",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b1024",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 32768,
+   "cycles": 2229,
+   "seconds": 2.2290000000000002e-05,
+   "throughput_MBps": 1401.9739793629428,
+   "r2r_cycles": 2047,
+   "r2r_MBps": 1526.6243282852954,
+   "w2w_cycles": 2047,
+   "w2w_MBps": 1526.6243282852954,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b4096",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b4096",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 131072,
+   "cycles": 8371,
+   "seconds": 8.371000000000001e-05,
+   "throughput_MBps": 1493.2505077051724,
+   "r2r_cycles": 8191,
+   "r2r_MBps": 1526.0651935050664,
+   "w2w_cycles": 8191,
+   "w2w_MBps": 1526.0651935050664,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b32768",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b32768",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 1048576,
+   "cycles": 65718,
+   "seconds": 0.00065718,
+   "throughput_MBps": 1521.6531239538633,
+   "r2r_cycles": 65535,
+   "r2r_MBps": 1525.902189669642,
+   "w2w_cycles": 65535,
+   "w2w_MBps": 1525.902189669642,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch2_b65536",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch2_b65536",
+   "num_channels": 2,
+   "descriptors": 1,
+   "total_bytes": 2097152,
+   "cycles": 131273,
+   "seconds": 0.00131273,
+   "throughput_MBps": 1523.5425411166043,
+   "r2r_cycles": 131071,
+   "r2r_MBps": 1525.8905478710012,
+   "w2w_cycles": 131071,
+   "w2w_MBps": 1525.8905478710012,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch4_b1",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch4_b1",
+   "num_channels": 4,
+   "descriptors": 1,
+   "total_bytes": 64,
+   "cycles": 206,
+   "seconds": 2.06e-06,
+   "throughput_MBps": 29.62871662621359,
+   "r2r_cycles": 14,
+   "r2r_MBps": 435.9654017857143,
+   "w2w_cycles": 14,
+   "w2w_MBps": 435.9654017857143,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch4_b4",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch4_b4",
+   "num_channels": 4,
+   "descriptors": 1,
+   "total_bytes": 256,
+   "cycles": 186,
+   "seconds": 1.8600000000000002e-06,
+   "throughput_MBps": 131.2584005376344,
+   "r2r_cycles": 17,
+   "r2r_MBps": 1436.1213235294117,
+   "w2w_cycles": 17,
+   "w2w_MBps": 1436.1213235294117,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch4_b16",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch4_b16",
+   "num_channels": 4,
+   "descriptors": 1,
+   "total_bytes": 1024,
+   "cycles": 258,
+   "seconds": 2.5800000000000003e-06,
+   "throughput_MBps": 378.5125968992248,
+   "r2r_cycles": 63,
+   "r2r_MBps": 1550.0992063492063,
+   "w2w_cycles": 63,
+   "w2w_MBps": 1550.0992063492063,
+   "pass": true,
+   "timeout": false
+  }
+ }
+]

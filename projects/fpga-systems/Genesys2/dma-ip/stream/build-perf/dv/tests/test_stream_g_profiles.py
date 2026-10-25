@@ -44,10 +44,13 @@ DUTS = ('fsm', 'g')
 # ~9 us of sim time each at 25 Mbaud. Budget per chunk keeps a cell under the
 # 100 ms cap with the transfer and the warm-up ping on top.
 COST_FIXED, COST_PER_DESC, COST_PER_CH, CHUNK_BUDGET = 140, 14, 12, 4000
+BEATS_PER_OP = 900   # a UART op is ~9 us of sim time; a beat is a cycle, so the transfer counts too
 
 
 def _cost(c):
-    return COST_FIXED + COST_PER_DESC * c.num_channels * c.descriptors_per_channel + COST_PER_CH * c.num_channels
+    beats = (c.transfer_bytes // 16) * c.num_channels * c.descriptors_per_channel
+    return (COST_FIXED + COST_PER_DESC * c.num_channels * c.descriptors_per_channel
+            + COST_PER_CH * c.num_channels + beats // BEATS_PER_OP)
 
 
 def chunks(profile):
@@ -118,7 +121,7 @@ def test_stream_g_profile(request, profile, dut, k, n, names):
         'CHAR_CONFIGS': ','.join(names),
         **({'CHAR_TRACE_OUT': os.environ['CHAR_TRACE_OUT']} if os.environ.get('CHAR_TRACE_OUT') else {}),
         'CHAR_OUT': out_json,
-        'SIM_TIMEOUT_MS': os.environ.get('SIM_TIMEOUT_MS', '100'),
+        'SIM_TIMEOUT_MS': os.environ.get('SIM_TIMEOUT_MS', '300'),   # sim time; the 1 MB x 8 ch point alone is 5.2 ms
         'TEST_STREAM_G': '1' if stream_g else '0',
         'FPGA_CLK_HZ': str(SIM_FPGA_CLK_HZ),
         'UART_BAUD': str(SIM_UART_BAUD),

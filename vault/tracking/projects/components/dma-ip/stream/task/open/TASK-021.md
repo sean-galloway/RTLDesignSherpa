@@ -135,6 +135,28 @@ descriptor with ARM_NEXT, the FSM's own behaviour, keeping the firmware's valida
 heads; (c) leave it: with every channel busy the other channels' data hides the walk (Table 5.5's 8-channel
 chain column is at parity from 64 beats) and a lone channel's short chain is the only case that pays.
 
+
+## Root cause (2026-10-24, the trace read against the firmware)
+
+The windows are identical in rapids-g and stream-g (`seq_attn`, `w_head_open`, HEAD_SUM), and so is the image.
+In the trace, a head that opens on a TAKE is staged 39 cycles later (the next pass's first HEAD_SUM read sees
+13 and takes the chain hook); a head that opens on an in-place ADVANCE is staged 165 cycles later, although
+`desc_head_valid` never dropped and the head was open from the cycle after the advance. The firmware's one-slot
+loop (`sched_g.S`, `one_loop`) explains the difference: the chain hook (`HEAD_SUM == 13 -> one_chain`) is
+tested only on the pass's FIRST HEAD_SUM read; when that read finds the previous head still staged, the loop
+reads SUMMARY, and a head that opened in between is read again and sent to `one_judge` (the full JUDGE path,
+about 150 cycles at 8 clocks an instruction) -- "a head that came after the first read is judged here". In
+rapids-g a chained head opens at the take the firmware's own STAGE caused, so the next pass's first read sees
+it and the hook fires; in stream-g it opens at the hardware's advance, which lands anywhere in the pass, and
+about half the time it lands after the first read.
+
+So: rapids avoids it by construction (no in-place advance), not by a different mechanism; stream-g's extra
+fast path exposes the loop's asymmetry. The fix is two instructions in `one_loop` (test the second HEAD_SUM
+read for 13 and take `one_chain` there too; the two-slot and slot loops already read HEAD_SUM after SUMMARY and
+hook on it), in the SHARED image: it needs `gen_rapids_g_fw.py`, both equivalence benches and the stream-g
+board run again, and it would move rapids-g's own numbers only where a head opens late in a pass (its lone-
+channel short chains). Owner's call, since rapids is closed.
+
 ## What to do
 
 1. Done above: the trace counts advances against walks at 16, 32, 64 and 128 beats.

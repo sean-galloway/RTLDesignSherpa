@@ -498,7 +498,10 @@ async def cocotb_test_stream_perf(dut):
             configs = [byname[n] for n in only]
         tb.log.info(f"=== char_csv: {len(configs)} point(s) of {os.path.basename(csv_path)} ===")
         ok = await tb.run_ping_test()
-        timeout_s = float(os.environ.get('CHAR_TIMEOUT_S', '120'))
+        # run_one's poll budget is WALL time; the sim moves a 1 MB x 8-channel
+        # point through its 524k cycles in minutes, not milliseconds, and a point
+        # that times out leaves its transfer in flight under the next one
+        timeout_s = float(os.environ.get('CHAR_TIMEOUT_S', '3600'))
 
         def _sweep():
             hc.DATA_WIDTH_BYTES = runner_mod.data_width_bytes(tb.bridge)

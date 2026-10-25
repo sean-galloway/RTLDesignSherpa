@@ -1,0 +1,22 @@
+[
+ {
+  "config": "chain_ch8_b2_d16",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "chain_ch8_b2_d16",
+   "num_channels": 8,
+   "descriptors": 16,
+   "total_bytes": 4096,
+   "cycles": 289,
+   "seconds": 2.8900000000000003e-06,
+   "throughput_MBps": 1351.6435986159167,
+   "r2r_cycles": 255,
+   "r2r_MBps": 1531.862745098039,
+   "w2w_cycles": 255,
+   "w2w_MBps": 1531.862745098039,
+   "pass": true,
+   "timeout": false
+  }
+ }
+]
