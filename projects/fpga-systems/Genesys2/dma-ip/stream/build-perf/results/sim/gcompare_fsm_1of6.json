@@ -378,45 +378,5 @@
    "pass": true,
    "timeout": false
   }
- },
- {
-  "config": "beat_ch4_b4",
-  "rd_delay": 0,
-  "wr_delay": 0,
-  "result": {
-   "name": "beat_ch4_b4",
-   "num_channels": 4,
-   "descriptors": 1,
-   "total_bytes": 256,
-   "cycles": 51,
-   "seconds": 5.1e-07,
-   "throughput_MBps": 478.7071078431373,
-   "r2r_cycles": 15,
-   "r2r_MBps": 1627.6041666666665,
-   "w2w_cycles": 15,
-   "w2w_MBps": 1627.6041666666665,
-   "pass": true,
-   "timeout": false
-  }
- },
- {
-  "config": "beat_ch4_b16",
-  "rd_delay": 0,
-  "wr_delay": 0,
-  "result": {
-   "name": "beat_ch4_b16",
-   "num_channels": 4,
-   "descriptors": 1,
-   "total_bytes": 1024,
-   "cycles": 111,
-   "seconds": 1.1100000000000002e-06,
-   "throughput_MBps": 879.7860360360359,
-   "r2r_cycles": 63,
-   "r2r_MBps": 1550.0992063492063,
-   "w2w_cycles": 63,
-   "w2w_MBps": 1550.0992063492063,
-   "pass": true,
-   "timeout": false
-  }
  }
 ]

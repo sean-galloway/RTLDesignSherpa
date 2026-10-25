@@ -1,5 +1,25 @@
 [
  {
+  "config": "chain_ch1_b8192_d4",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "chain_ch1_b8192_d4",
+   "num_channels": 1,
+   "descriptors": 4,
+   "total_bytes": 524288,
+   "cycles": 32880,
+   "seconds": 0.0003288,
+   "throughput_MBps": 1520.6812652068124,
+   "r2r_cycles": 32767,
+   "r2r_MBps": 1525.9254737998594,
+   "w2w_cycles": 32767,
+   "w2w_MBps": 1525.9254737998594,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
   "config": "chain_ch8_b1_d16",
   "rd_delay": 0,
   "wr_delay": 0,
@@ -8,13 +28,13 @@
    "num_channels": 8,
    "descriptors": 16,
    "total_bytes": 2048,
-   "cycles": 665,
-   "seconds": 6.650000000000001e-06,
-   "throughput_MBps": 293.70300751879694,
-   "r2r_cycles": 591,
-   "r2r_MBps": 330.47800338409473,
-   "w2w_cycles": 598,
-   "w2w_MBps": 326.6095317725752,
+   "cycles": 709,
+   "seconds": 7.090000000000001e-06,
+   "throughput_MBps": 275.47602256699577,
+   "r2r_cycles": 631,
+   "r2r_MBps": 309.5285261489699,
+   "w2w_cycles": 637,
+   "w2w_MBps": 306.61302982731553,
    "pass": true,
    "timeout": false
   }

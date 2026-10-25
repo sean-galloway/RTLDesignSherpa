@@ -1,5 +1,25 @@
 [
  {
+  "config": "chain_ch1_b4_d16",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "chain_ch1_b4_d16",
+   "num_channels": 1,
+   "descriptors": 16,
+   "total_bytes": 1024,
+   "cycles": 218,
+   "seconds": 2.1800000000000003e-06,
+   "throughput_MBps": 447.96444954128435,
+   "r2r_cycles": 182,
+   "r2r_MBps": 536.5728021978022,
+   "w2w_cycles": 182,
+   "w2w_MBps": 536.5728021978022,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
   "config": "chain_ch1_b8_d16",
   "rd_delay": 0,
   "wr_delay": 0,

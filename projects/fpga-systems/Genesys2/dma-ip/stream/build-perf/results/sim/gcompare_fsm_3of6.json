@@ -1,5 +1,65 @@
 [
  {
+  "config": "beat_ch8_b256",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch8_b256",
+   "num_channels": 8,
+   "descriptors": 1,
+   "total_bytes": 32768,
+   "cycles": 2095,
+   "seconds": 2.095e-05,
+   "throughput_MBps": 1491.6467780429593,
+   "r2r_cycles": 2047,
+   "r2r_MBps": 1526.6243282852954,
+   "w2w_cycles": 2047,
+   "w2w_MBps": 1526.6243282852954,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch8_b1024",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch8_b1024",
+   "num_channels": 8,
+   "descriptors": 1,
+   "total_bytes": 131072,
+   "cycles": 8239,
+   "seconds": 8.239e-05,
+   "throughput_MBps": 1517.174414370676,
+   "r2r_cycles": 8191,
+   "r2r_MBps": 1526.0651935050664,
+   "w2w_cycles": 8191,
+   "w2w_MBps": 1526.0651935050664,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
+  "config": "beat_ch8_b4096",
+  "rd_delay": 0,
+  "wr_delay": 0,
+  "result": {
+   "name": "beat_ch8_b4096",
+   "num_channels": 8,
+   "descriptors": 1,
+   "total_bytes": 524288,
+   "cycles": 32815,
+   "seconds": 0.00032815000000000003,
+   "throughput_MBps": 1523.693432881304,
+   "r2r_cycles": 32767,
+   "r2r_MBps": 1525.9254737998594,
+   "w2w_cycles": 32767,
+   "w2w_MBps": 1525.9254737998594,
+   "pass": true,
+   "timeout": false
+  }
+ },
+ {
   "config": "beat_ch8_b32768",
   "rd_delay": 0,
   "wr_delay": 0,
@@ -95,26 +155,6 @@
    "r2r_MBps": 1525.9720441921504,
    "w2w_cycles": 16383,
    "w2w_MBps": 1525.9720441921504,
-   "pass": true,
-   "timeout": false
-  }
- },
- {
-  "config": "chain_ch1_b8192_d4",
-  "rd_delay": 0,
-  "wr_delay": 0,
-  "result": {
-   "name": "chain_ch1_b8192_d4",
-   "num_channels": 1,
-   "descriptors": 4,
-   "total_bytes": 524288,
-   "cycles": 32815,
-   "seconds": 0.00032815000000000003,
-   "throughput_MBps": 1523.693432881304,
-   "r2r_cycles": 32767,
-   "r2r_MBps": 1525.9254737998594,
-   "w2w_cycles": 32767,
-   "w2w_MBps": 1525.9254737998594,
    "pass": true,
    "timeout": false
   }
