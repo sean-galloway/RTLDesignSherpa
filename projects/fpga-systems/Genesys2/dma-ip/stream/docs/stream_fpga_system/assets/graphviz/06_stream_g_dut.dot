@@ -1,0 +1,49 @@
+// Figure 5.1 -- the stream-g DUT (stream_g_top_ch8) inside the harness, in the
+// house style (vault/handbook/authoring/block-diagrams.md). What the STREAM_G
+// build changes is the register path and the schedulers; the engines, the
+// SRAM and the masters are the product's. Control runs down the center: the
+// host's APB and the gatling's register mailbox meet at the register arbiter
+// (a genuine many-to-one pick, one access owns the path to its response) and
+// enter the one PeakRDL register block; the schedulers' windows are MMIO on
+// the gatling's data bus, not registers. The firmware memory is a ROM, or a
+// block RAM loaded through FW_CTRL/FW_ADDR/FW_DATA with FW_WRITABLE=1. Read
+// data (register reads) climbs the right in green. Sources:
+// stream/rtl/top_g/generated/stream_g_top_ch8.sv, top_g/stream_g_top_reg_arb.svh,
+// top_g/stream_g_top_fw.svh, macro_g/scheduler_group_array_g_seq.svh,
+// rapids/rtl/macro_g/rapids_seq_g.sv, stream/rtl/fub_g/scheduler_g.sv.
+digraph stream_g_dut {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=12,
+           nodesep="0.90", ranksep="0.62", splines=ortho, newrank=true,
+           label=<<B>stream_g_top_ch8 in the harness (STREAM_G=1): one register path, two masters; the schedulers sequenced by firmware</B>>, labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="white", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="#333333", arrowsize=0.7];
+
+    apb   [group=C, label="Harness APB window (flopped)\nstream_apb from the generated bridge: config, kicks, FW_* load", style="rounded,filled", fillcolor="#E2EFDA"];
+    slv   [group=C, label="APB Slave: command / response queue\napb4_slave - u_apb4_slave (CDC_ENABLE=0)", peripheries=2, fillcolor="#D6E4F0"];
+    arb   [group=C, label="Register Arbiter: host or gatling owns the path to its response\nrapids_g_reg_arb (NM=2) - u_reg_arb", shape=invtrapezium, width=6.5, fillcolor="#FFF2CC"];
+    guard [group=C, label="MON-window guard + peakrdl_to_cmdrsp\n(one access outstanding)", fillcolor="white"];
+    regs  [group=C, label="Register Block (flopped)\nstream_regs (PeakRDL): GLOBAL, SCHED, CHx kicks,\nFW_CTRL / FW_ADDR / FW_DATA / FW_RDATA at 0x3A0-0x3AC", peripheries=2, fillcolor="#D6E4F0"];
+    fwmem [group=R, label="Firmware Memory\nrapids_seq_g r_rom (IMEM 1024 words)\nROM of the generated image (FW_WRITABLE=0), or a\nblock RAM the host loads while FW_CTRL.HOLD holds\nthe harts (FW_WRITABLE=1); FW_CTRL.STREAM_G = 1", shape=cylinder, fillcolor="#E8DFF5"];
+    gat   [group=R, label="4-hart Barrel RV32I + MMIO Decode\ngatling_core inside rapids_seq_g - u_seq\none hart per channel pair; polls each channel's\nSTATUS, STAGEs and ARMs heads, sets EXT run\nbases, COMPLETEs", peripheries=2, fillcolor="#D6E4F0"];
+    win   [group=C, label="Per-channel Window + Datapath Core (x8)\nscheduler_g wraps scheduler_core - u_scheduler\nSTATUS / CMD / HEAD_SUM / base FIFOs as MMIO on the gatling data bus;\nread-ahead prefetch stays hardware (head_ok = staged); the in-place advance wins", peripheries=2, width=7.5, fillcolor="#D6E4F0"];
+    eng   [group=C, label="Descriptor Engine, AXI Read / Write Engines, SRAM (the product's)\ndescriptor_engine_shared, axi_read_engine, axi_write_engine, sram_controller", peripheries=2, width=7.5, fillcolor="#D6E4F0"];
+    bar   [group=C, label="Harness memory model and descriptor RAM (flopped)\nm_axi_desc -> desc_ram  |  m_axi_rd -> LFSR source  |  m_axi_wr -> CRC sink", style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2, width=9];
+
+    apb   -> slv   [penwidth=1.8, xlabel="APB write / read"];
+    slv   -> apb   [color="#1A7A1A", xlabel="PRDATA"];
+    slv   -> arb   [penwidth=1.8, xlabel="host command"];
+    arb   -> slv   [color="#1A7A1A", xlabel="host read data"];
+    arb   -> guard [penwidth=1.8, xlabel="the winner's command"];
+    guard -> regs  [xlabel="register write / read"];
+    regs  -> arb   [color="#1A7A1A", xlabel="read data,\nto its owner"];
+    regs  -> fwmem [style=dashed, color="#777777", xlabel="FW_CTRL.HOLD, FW_ADDR,\nFW_DATA (writable build)"];
+    fwmem -> gat   [dir=both, style=dashed, color="#777777", xlabel="instruction fetch;\nFW_* load / readback"];
+    gat   -> arb   [xlabel="gatling register command\n(12-bit offset)"];
+    regs  -> win   [style=dashed, color="#777777", xlabel="kicks, SCHED config,\nCHANNEL_ENABLE / RESET"];
+    gat   -> win   [dir=both, penwidth=1.8, xlabel="window MMIO: STATUS up;\nSTAGE / ARM / CMD / bases down"];
+    win   -> eng   [xlabel="launch, rd / wr requests, beat totals"];
+    eng   -> win   [color="#1A7A1A", xlabel="head, completion, write_complete"];
+    eng   -> bar   [penwidth=1.8, xlabel="m_axi_desc AR, m_axi_rd AR, m_axi_wr AW + W"];
+    bar   -> eng   [color="#1A7A1A", penwidth=1.8, xlabel="descriptors, R data, B"];
+}

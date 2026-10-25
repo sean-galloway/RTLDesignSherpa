@@ -476,6 +476,49 @@ async def cocotb_test_stream_perf(dut):
         ok &= await tb.run_ext_chain_soak(iterations=iters, seed=seed)
         assert ok, "ext_chain_soak: a mixed chained run dropped beats / stalled"
 
+    elif test_type == 'char_csv':
+        # stream TASK-020 phase 6: the board's point profiles (build-perf/csv/
+        # gcompare|gscale|gscale1.csv) in simulation, point for point, through
+        # the SAME host code the board runs (host_characterize.run_one over the
+        # harness timer), so the sim and the board can be compared cycle for
+        # cycle on STREAM and on stream-g. CHAR_CSV names the profile,
+        # CHAR_CONFIGS (comma list) the chunk of it, CHAR_OUT the JSON written
+        # in host_characterize's --json-output schema.
+        import json
+        from cocotb._bridge import bridge   # the TB's sync-host wrapper (stream_harness_tb)
+        from descriptor_builder import load_configs_from_csv
+        import characterization as runner_mod
+        import host_characterize as hc
+        csv_path = os.environ['CHAR_CSV']
+        out = os.environ['CHAR_OUT']
+        only = [c for c in os.environ.get('CHAR_CONFIGS', '').split(',') if c]
+        configs = load_configs_from_csv(csv_path)
+        if only:
+            byname = {c.name: c for c in configs}
+            configs = [byname[n] for n in only]
+        tb.log.info(f"=== char_csv: {len(configs)} point(s) of {os.path.basename(csv_path)} ===")
+        ok = await tb.run_ping_test()
+        timeout_s = float(os.environ.get('CHAR_TIMEOUT_S', '120'))
+
+        def _sweep():
+            hc.DATA_WIDTH_BYTES = runner_mod.data_width_bytes(tb.bridge)
+            runner = runner_mod.CharacterizationRunner(
+                tb.bridge, data_width=hc.DATA_WIDTH_BYTES * 8, verbose=False)
+            assert runner.ping(), "harness ping failed"
+            rows = []
+            for cfg in configs:
+                r = hc.run_one(runner, tb.bridge, cfg, timeout_s, False)
+                rows.append(r)
+            return rows
+        rows = await bridge(_sweep)()
+        for r in rows:
+            tb.log.info("  " + hc.fmt_row(r))
+        with open(out, 'w') as fh:
+            json.dump([{'config': r['name'], 'rd_delay': 0, 'wr_delay': 0, 'result': r} for r in rows],
+                      fh, indent=1)
+        bad = [r['name'] for r in rows if not r['pass']]
+        assert ok and not bad, f"char_csv: failed points {bad}"
+
     else:
         raise ValueError(f"Unknown TEST_TYPE: {test_type}")
 

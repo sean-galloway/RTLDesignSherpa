@@ -119,3 +119,19 @@ descriptor carries about 24 KB (1,500 beats), within 5 % at about 47 KB, within 
 amortizes the same latency over all its descriptors, so the 16-descriptor columns reach those bounds at a
 sixteenth of the size. The figures are the rapids-g simulation sweep's shape (rapids HAS Table 6.4.9) measured
 on silicon. Artifacts: `build-perf/results/perf_sweep_2026-10-24_{fsm,g}_{1MB,64KB,4KB}.{csv,json}`.
+
+### The point profiles
+
+The rapids-g comparison's three profiles (rapids HAS 6.4: `gcompare`, `gscale`, `gscale1`) exist for
+STREAM as CSV inputs to the board's host program, `build-perf/csv/{gcompare,gscale,gscale1}.csv` (memory to
+memory, so no sink / source / interleave split; 16 bytes a beat): 44 points of single descriptors and
+chains at 1 to 8 channels up to 1 MB a descriptor, the 2x size sweep with every channel busy (24 points)
+and the same sweep with one channel busy (28 points). Both designs ran all three on the Genesys 2 on
+2026-10-24, 192 of 192 points passing on each; `bin/compare_profiles.py <profile> --date 2026-10-24
+--crossover` tabulates STREAM against stream-g and derives the 10 %, 5 % and 1 % sizes. The board side,
+the build, the method, the harness and every measured table, is the Genesys 2 book (*STREAM on the
+Genesys 2 -- The FPGA System*, Chapter 5); the choice between the designs is STREAM HAS Chapter 5.4. The same points run on the harness simulation through
+the same host code (`make sim-gcompare | sim-gscale | sim-gscale1`, `test_stream_g_profiles.py`, the
+`char_csv` test type), one JSON per chunk under `results/sim/`, so the simulation and the board can be
+compared point for point. One measured point stands against the trend, a lone channel's 16-descriptor
+chain at 32 beats (stream TASK-021).

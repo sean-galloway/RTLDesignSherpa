@@ -96,6 +96,14 @@ from the recorded source.
 
 ## Where the results go
 
+
+The STREAM / stream-g comparison has its own entry points: the point profiles under
+`build-perf/csv/` go to the board through `make host-characterize ARGS="--csv csv/<profile>.csv
+--json-output ..."` with `STREAM_G=0` and `1` programmed in turn, and through the harness simulation of
+each design with `make sim-gcompare | sim-gscale | sim-gscale1` (`dv/tests/test_stream_g_profiles.py`,
+the `char_csv` test type, results under `build-perf/results/sim/`); `bin/compare_profiles.py` puts the
+two designs, and the simulation against the board, side by side. Chapter 5 has the method and the numbers.
+
 | Report | Source build | Content |
 |--------|-------------|---------|
 | `reports/perf` | perf | utilization sweeps: channels, descriptors, sizes, latency (the CSV data under `docs/data/`) |

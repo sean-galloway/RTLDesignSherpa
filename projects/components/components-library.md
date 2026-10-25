@@ -46,7 +46,7 @@ Latest revision of every PDF under `projects/components/`.
 | [RAPIDS_Beats_MAS_v0.14.pdf](dma-ip/rapids/docs/RAPIDS_Beats_MAS_v0.14.pdf) | v0.14 | 11.4 MB | `projects/components/dma-ip/rapids/docs/` |
 | [RAPIDS_HAS_v0.94.pdf](dma-ip/rapids/docs/RAPIDS_HAS_v0.94.pdf) | v0.94 | 5.8 MB | `projects/components/dma-ip/rapids/docs/` |
 | [RAPIDS_MAS_v0.84.pdf](dma-ip/rapids/docs/RAPIDS_MAS_v0.84.pdf) | v0.84 | 10.6 MB | `projects/components/dma-ip/rapids/docs/` |
-| [STREAM_HAS_v0.95.pdf](dma-ip/stream/docs/STREAM_HAS_v0.95.pdf) | v0.95 | 3.1 MB | `projects/components/dma-ip/stream/docs/` |
+| [STREAM_HAS_v0.100.pdf](dma-ip/stream/docs/STREAM_HAS_v0.100.pdf) | v0.100 | 3.5 MB | `projects/components/dma-ip/stream/docs/` |
 | [STREAM_MAS_v0.103.pdf](dma-ip/stream/docs/STREAM_MAS_v0.103.pdf) | v0.103 | 15.6 MB | `projects/components/dma-ip/stream/docs/` |
 | [Binary_BCH_HAS_v0.1.pdf](ecc-ip/bch/docs/Binary_BCH_HAS_v0.1.pdf) | v0.1 | 1.7 MB | `projects/components/ecc-ip/bch/docs/` |
 | [Binary_BCH_MAS_v0.1.pdf](ecc-ip/bch/docs/Binary_BCH_MAS_v0.1.pdf) | v0.1 | 1.1 MB | `projects/components/ecc-ip/bch/docs/` |

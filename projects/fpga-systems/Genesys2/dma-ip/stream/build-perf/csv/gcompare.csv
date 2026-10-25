@@ -1,0 +1,49 @@
+# gcompare: STREAM vs stream-g, single descriptors then chains
+#
+# INPUT matrix for: make host-characterize ARGS="--csv csv/<this file>"
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes (16 B = one beat)
+# stream TASK-020 phase 6: rapids-g's profile (flows-rapids/host/byte_perf.py) in STREAM terms
+beat_ch1_b1,1,1,16B
+beat_ch1_b4,1,1,64B
+beat_ch1_b16,1,1,256B
+beat_ch1_b64,1,1,1024B
+beat_ch1_b256,1,1,4096B
+beat_ch1_b1024,1,1,16384B
+beat_ch1_b4096,1,1,65536B
+beat_ch1_b32768,1,1,524288B
+beat_ch1_b65536,1,1,1048576B
+beat_ch2_b1,2,1,16B
+beat_ch2_b4,2,1,64B
+beat_ch2_b16,2,1,256B
+beat_ch2_b64,2,1,1024B
+beat_ch2_b256,2,1,4096B
+beat_ch2_b1024,2,1,16384B
+beat_ch2_b4096,2,1,65536B
+beat_ch2_b32768,2,1,524288B
+beat_ch2_b65536,2,1,1048576B
+beat_ch4_b1,4,1,16B
+beat_ch4_b4,4,1,64B
+beat_ch4_b16,4,1,256B
+beat_ch4_b64,4,1,1024B
+beat_ch4_b256,4,1,4096B
+beat_ch4_b1024,4,1,16384B
+beat_ch4_b4096,4,1,65536B
+beat_ch4_b32768,4,1,524288B
+beat_ch4_b65536,4,1,1048576B
+beat_ch8_b1,8,1,16B
+beat_ch8_b4,8,1,64B
+beat_ch8_b16,8,1,256B
+beat_ch8_b64,8,1,1024B
+beat_ch8_b256,8,1,4096B
+beat_ch8_b1024,8,1,16384B
+beat_ch8_b4096,8,1,65536B
+beat_ch8_b32768,8,1,524288B
+beat_ch8_b65536,8,1,1048576B
+chain_ch1_b1_d16,1,16,16B
+chain_ch1_b64_d16,1,16,1024B
+chain_ch1_b1024_d16,1,16,16384B
+chain_ch1_b8192_d4,1,4,131072B
+chain_ch8_b1_d16,8,16,16B
+chain_ch8_b64_d16,8,16,1024B
+chain_ch8_b1024_d16,8,16,16384B
+chain_ch8_b8192_d4,8,4,131072B

@@ -80,3 +80,18 @@ and stream TASK-018 closes with phase 4.
 - Board left on the STREAM control bitstream (today's tree); `make program STREAM_G=1` puts stream-g back.
 - Board-side host: `harness_addrs.build_info()` reports `stream_g`; the Genesys 2 UART is the FT232R
   (/dev/ttyUSB3), set FPGA_BOARD=genesys2 so autodetect does not scratch-probe the Nexys A7.
+- The rapids-g metric set, on STREAM (owner 2026-10-24: stream-g is the subject, STREAM only as the
+  baseline): the gcompare / gscale / gscale1 profiles as `build-perf/csv/*.csv`, run on both bitstreams
+  (192/192 points each), `bin/compare_profiles.py` (ratios, 10/5/1 % crossovers); the schedulers-alone
+  bench (`fub_g` perf case, 8 and 16 channels); the harness-sim profile runner (`char_csv`,
+  `test_stream_g_profiles.py`, `make sim-g*`) for the sim == board check; out-of-context stream_core vs
+  stream_core_g at 8 and 16 channels (`fpga/tcl/ooc_stream_core.tcl`, `reports/ooc/`). Written up per the
+  owner's placement (2026-10-24, "board details in the board HAS, with all the harness configs and block
+  diagrams"): the Genesys 2 book (*STREAM on the Genesys 2 -- The FPGA System*, rev 1.4) Chapter 5 carries
+  the stream-g build, Figure 5.1 (the DUT's register path in the harness), Figure 5.2 (the A/B method),
+  every measured table and the build-knob tables; STREAM HAS Chapter 5.4 (rev 0.100) keeps the choice
+  (selection guide, schedulers-alone bench, crossovers) and points there, the twin of rapids HAS 6.4. Crossovers (every channel busy):
+  single descriptor within 10/5/1 % from 4 KB / 8 KB / 32 KB, 16-descriptor chain from 256 B / 512 B /
+  1 KB; one channel busy: single 32 KB / 64 KB / 256 KB, chain 4 KB / 4 KB / 16 KB. Filed TASK-021 (the
+  lone-channel chain's 32-beat dip).
+

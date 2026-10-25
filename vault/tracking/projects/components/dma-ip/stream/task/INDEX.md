@@ -2,7 +2,7 @@
 
 # projects/components/dma-ip/stream — tasks
 
-**Next ID: TASK-021** — never recycle a number, even when its item closed.
+**Next ID: TASK-022** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a cleanup. It starts from intent, not from a failure.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 17 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -20,6 +20,7 @@ by construction rather than by discipline.
 
 ## Open
 
+- **TASK-021** — stream-g: a lone channel's 16-descriptor chain is slowest at 32 beats a descriptor (1,897 cycles vs 824 at 16 and 1,737 at 64, board 2026-10-24); find the walk-vs-advance cause (filed 2026-10-24)
 - **TASK-019** — `monbus_axil4_group_1wr` in place of `monbus_axil4_axil4_group` on both STREAM tops (write-only monitor, records read from memory on irq_out / err_rec_count); RAPIDS twin is rapids TASK-039
 
 ## Active

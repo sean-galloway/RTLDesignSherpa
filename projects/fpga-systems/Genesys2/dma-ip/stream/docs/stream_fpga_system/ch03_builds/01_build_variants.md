@@ -37,8 +37,9 @@ is a row in this table:
 | `mon` | 1 | 0 | 8 | the in-core monitors: coverage, compression, error and fault probes |
 | `obs` | 0 | 1 | 4 | the interface observers, watching the same DUT from outside it |
 | `perf` | 0 | 0 | 8 | the datapath itself, with no instrument in the way |
+| `perf`, `STREAM_G=1` | 0 | 0 | 8 | the same, around `stream_g_top_ch8`: the STREAM / stream-g A/B of Chapter 5 (`FW_WRITABLE=1` for a host-loadable firmware memory) |
 
-: Table 3.1: The three builds
+: Table 3.1: The builds
 
 Two near-identical harnesses, one per flavour, used to exist. They were
 retired because a variant that is a copy drifts: the board and the simulation
@@ -85,6 +86,8 @@ once.
 | `mon` | 2026-09-09, `stable/MANIFEST.md` | 60 MHz | all cones plus the error flavour, compression built, 8 channels, `MON_N_PROFILE=32`: WNS +1.513 ns, 139,293 LUTs (68.35%), 0 failed nets; 512 packets in 516 slots on the board, 66.4% smaller than the raw encoding, CRC match, cosim reference within 4 points (2026-10-03 re-measurement: 66.0% / 1.02 slots/packet, within data-dependent noise; bit sha256 `aceec688043ad630879779ddae211814fcc4dc457365d7c06ec95b8a4f348e6b`, WNS +1.914 ns, 86,865 LUTs) |
 | `obs` | 2026-09-07, `stable-obs/MANIFEST.md` | as built | 4 channels, 32-entry tally CAM, WNS +2.191 ns, archived the day a `make clean-all` destroyed the previous obs bitstream and it turned out obs had been synthesizing at 100.01 percent of the LUTs and placing by luck (2026-10-03 re-measurement: `build-obs/results/obs_board_2026-10-03.txt`, bit sha256 `60696ace63fed2c77ad4d3f1f511d06dd85801c9b5a9dac1d4078454192bfa5f`, WNS +3.925 ns, 73,809 LUTs; the observer instrument changed 2026-09-27, commit 78cddb5e2 — lite taps, no perf/debug cone, caps0 bit4/bit5 read 0) |
 | `perf` | current reports on disk | as built | 68,139 LUTs (33.4%), 24 BRAM tiles in `build-perf/fpga/reports`; the sweeps behind `reports/perf` and `reports/ext_addressing` (2026-10-03 re-measurement: `build-perf/results/perf_sweep_2026-10-03.{csv,json}`, bit sha256 `d26f9b7b3ac534a1507ab5a519e728d541b1045cf67000329fbedf77e3b9512c`, WNS +1.175 ns, 64,305 LUTs) |
+| `perf` | 2026-10-24, `build-perf/fpga/bitstream/stream_perf_genesys2_8ch.bit` | 100 MHz | the STREAM side of the Chapter 5 A/B: 66,221 LUTs (32.5 %), 26 BRAM, 64 DSP, WNS +0.790 ns, hold +0.032 ns; bit sha256 `ff9a6b95ff7d58f091e77acd23c5ee8c175d4451e72b75bd060664dc8889452a`; its 1 MB matrix cycle-identical to 2026-10-03 |
+| `perf`, `STREAM_G=1` | 2026-10-24, `build-perf/fpga/bitstream/stream_perf_genesys2_8ch_g.bit` | 100 MHz | stream-g, ROM firmware: 65,472 LUTs (32.1 %), 29 BRAM, 0 DSP, WNS +0.668 ns, hold +0.050 ns; bit sha256 `b403115324623aa04d272c1710c5d0d35eec2bf157060d268300d0d9981687d1`; 192 of 192 profile points and 120 of 120 matrix runs passing |
 
 : Table 3.2: Sign-off builds
 
@@ -104,6 +107,10 @@ sibling of the build directories, outside that blast radius.
 | `OBS_ENABLE_MON_TAPS` | build Makefile, harness generic | arm the observers' MonBus event taps; the observers' meters and histograms count without them |
 | `MON_ERROR_FLAVOR`, `MON_CONES` | build Makefile | which monitor cones are built; the sign-off is the union including error |
 | `MON_N_PROFILE` | build Makefile | tally CAM depth |
+| `STREAM_SHARED_ENGINES` | build Makefile, DUT generic | 1 (default): one descriptor engine fetches for every channel; 0: one per channel behind an arbiter (bitstream `_pce`) |
+| `STREAM_G`, `FW_WRITABLE` | build-perf Makefile, harness define | `STREAM_G=1`: the DUT is `stream_g_top_ch8` (bitstream `_g`, `BUILD_CONFIG.STREAM_G=1`); `FW_WRITABLE=1`: its firmware memory is a block RAM the host loads through `FW_*` (bitstream `_g_fw`) instead of a ROM |
+| `STREAM_CHAR_ILA` | `make bitstream-ila` (fpga/tcl/build_ila.tcl) | marks the host AXI4-Lite, STREAM APB, DUT-master and monitor-writer handshakes for an ILA; the ordinary builds carry no trace of it |
+| `BOARD`, `A7_CLK_MHZ` | build Makefile | the target (genesys2, 8 channels at 100 MHz by default; nexysa7 at 4) and the harness clock, which sets `STREAM_VCO_MHZ` / `STREAM_CLKOUT0_DIVIDE` and `HARNESS_CLK_HZ`; the bitstream name carries `clk<MHz>` when not 100 |
 | `CLKOUT0_DIVIDE` | board top parameter | 100, 80 or 60 MHz harness clock |
 | `stream_env` | host | which build's `host/` layer goes on the Python path (default `mon`; perf sets it explicitly so a perf program cannot import mon's copy of a sibling) |
 

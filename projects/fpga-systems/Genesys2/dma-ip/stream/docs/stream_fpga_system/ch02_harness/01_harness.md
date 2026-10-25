@@ -35,6 +35,11 @@ is the block map.
 
 **Source:** [02_harness_blocks.dot](../assets/graphviz/02_harness_blocks.dot)
 
+The DUT is `stream_top_ch8`, or `stream_g_top_ch8` when the perf build is made with `STREAM_G=1`:
+the same map, the same engines and masters, with the schedulers sequenced by firmware on a gatling
+core; its register path and sequencing structure are Figure 5.1, and the harness around it does not
+change.
+
 ## The host front-end and the bridge
 
 `uart_axil_bridge` turns the UART bytestream into one 32-bit AXI4-Lite

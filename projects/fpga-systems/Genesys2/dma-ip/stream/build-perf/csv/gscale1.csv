@@ -1,0 +1,33 @@
+# gscale1: the 2x size sweep with ONE channel busy
+#
+# INPUT matrix for: make host-characterize ARGS="--csv csv/<this file>"
+# Columns: name, num_channels, descriptors_per_channel, transfer_bytes (16 B = one beat)
+# stream TASK-020 phase 6: rapids-g's profile (flows-rapids/host/byte_perf.py) in STREAM terms
+beat_ch1_b1,1,1,16B
+beat_ch1_b2,1,1,32B
+beat_ch1_b4,1,1,64B
+beat_ch1_b8,1,1,128B
+beat_ch1_b16,1,1,256B
+beat_ch1_b32,1,1,512B
+beat_ch1_b64,1,1,1024B
+beat_ch1_b128,1,1,2048B
+beat_ch1_b256,1,1,4096B
+beat_ch1_b512,1,1,8192B
+beat_ch1_b1024,1,1,16384B
+beat_ch1_b2048,1,1,32768B
+beat_ch1_b4096,1,1,65536B
+beat_ch1_b8192,1,1,131072B
+beat_ch1_b16384,1,1,262144B
+beat_ch1_b32768,1,1,524288B
+beat_ch1_b65536,1,1,1048576B
+chain_ch1_b1_d16,1,16,16B
+chain_ch1_b2_d16,1,16,32B
+chain_ch1_b4_d16,1,16,64B
+chain_ch1_b8_d16,1,16,128B
+chain_ch1_b16_d16,1,16,256B
+chain_ch1_b32_d16,1,16,512B
+chain_ch1_b64_d16,1,16,1024B
+chain_ch1_b128_d16,1,16,2048B
+chain_ch1_b256_d16,1,16,4096B
+chain_ch1_b512_d16,1,16,8192B
+chain_ch1_b1024_d16,1,16,16384B

@@ -10,24 +10,25 @@
 digraph build_variants {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
            nodesep="0.70", ranksep="0.80", splines=ortho, newrank=true,
-           label="One source tree, three bitstreams: the STREAM builds", labelloc=t];
+           label=<<B>One source tree, four bitstreams: the STREAM builds and the stream-g A/B</B>>, labeljust=c, labelloc=t];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    src [group=C, label="Common RTL (one copy, component level)\nstream_genesys2_top + stream_harness\n+ harness_csr + axi_response_delay\ngenerated bridges (regen_bridges.sh),\none tcl set, one XDC; stream_top_ch8;\ngeometry defaults in stream_cfg_pkg", fillcolor="white"];
+    src [group=C, label="Common RTL (one copy, component level)\nstream_genesys2_top + stream_harness\n+ harness_csr + axi_response_delay\ngenerated bridges (regen_bridges.sh),\none tcl set, one XDC; stream_top_ch8 or\nstream_g_top_ch8; geometry defaults in stream_cfg_pkg", fillcolor="white"];
 
-    knobs [label="Parameters (fixed at build; build-<x>/Makefile)\lUSE_AXI_MONITORS (monitors): 1 = in-core rd / wr / desc\l    monitors inside the DUT\lOBS_ENABLE_MON_TAPS (taps): 1 = the interface\l    observers' MonBus taps (their meters and\l    histograms count either way)\lchannels: 8, or 4 on build-obs\lGenerics only, never edits to stream_cfg_pkg:\l    the package is every build's default\l", fillcolor="white"];
+    knobs [label="Parameters (fixed at build; build-<x>/Makefile)\lUSE_AXI_MONITORS (monitors): 1 = in-core rd / wr / desc\l    monitors inside the DUT\lOBS_ENABLE_MON_TAPS (taps): 1 = the interface\l    observers' MonBus taps (their meters and\l    histograms count either way)\lchannels: 8, or 4 on build-obs\lSTREAM_G (perf): 1 = the DUT is stream_g_top_ch8, the\l    schedulers sequenced by gatling firmware; the\l    bitstream takes _g (FW_WRITABLE=1: _g_fw, a loadable\l    firmware memory instead of the ROM)\lGenerics only, never edits to stream_cfg_pkg:\l    the package is every build's default\l", fillcolor="white"];
 
     mon  [label="build-mon\nin-core monitors on,\nobserver taps off, 8 ch\nsign-off 2026-09-09: 60 MHz,\nall cones + error flavour,\nWNS +1.513 ns, 139,293\nLUTs (68%); stable/"];
     obs  [group=C, label="build-obs\nmonitors off,\nobserver taps on, 4 ch\n(8 ch = 99.3% LUTs: the placer\ngives up; both instruments =\n217,761 LUTs > 203,800)\n2026-09-07: WNS +2.191 ns;\nstable-obs/"];
     perf [label="build-perf\nno instrument:\npure throughput, 8 ch;\nthe bare meters sit\noutside the monitor gate\nand keep counting (a\nregression proved it once)"];
+    perfg [label="build-perf, STREAM_G=1\nthe same harness around\nstream_g_top_ch8, 8 ch;\n2026-10-24: WNS +0.668 ns,\n65,472 LUTs, 0 DSPs;\nthe A/B of Chapter 5"];
 
     why  [label="Complementary, not redundant:\nobs has no in-core monitor and mon has\nno taps, so a zero on the other side's\nprobe is structural", fillcolor="white", style="filled,dashed"];
     sim  [label="Cosim (not a bitstream)\nmake sim BUILD=<x>: the SAME host\nprograms over the same UART bytestream,\nagainst the same generics", fillcolor="white", style="filled,dashed"];
 
-    { rank=same; mon; obs; perf; }
-    mon -> obs -> perf [style=invis];
+    { rank=same; mon; obs; perf; perfg; }
+    mon -> obs -> perf -> perfg [style=invis];
     { rank=same; knobs; why; sim; }
     knobs -> why -> sim [style=invis];
     mon -> knobs [style=invis];
@@ -36,5 +37,6 @@ digraph build_variants {
     src -> mon  [xlabel="monitors 1,\ntaps 0"];
     src -> obs  [penwidth=1.8, xlabel="monitors 0,\ntaps 1"];
     src -> perf [xlabel="monitors 0,\ntaps 0"];
+    src -> perfg [xlabel="monitors 0, taps 0,\nSTREAM_G 1"];
     src -> sim  [style=dashed, xlabel="same\ngenerics"];
 }

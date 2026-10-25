@@ -1,0 +1,36 @@
+// render: no-key (process flow, not the hardware element key)
+// Figure 5.2 -- how STREAM and stream-g are compared on this board: one tree,
+// two bitstreams minutes apart, one host program, the same point profiles,
+// and the simulation of each build run through the same host code so the
+// board can be checked cycle for cycle. Sources: build-perf/Makefile
+// (STREAM_G, G_TOKEN), build-perf/csv/*.csv, build-perf/host/host_characterize.py,
+// build-perf/dv/tests/test_stream_g_profiles.py, bin/compare_profiles.py.
+digraph ab_measurement {
+    graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=12,
+           nodesep="1.0", ranksep="0.55", splines=ortho, newrank=true,
+           label=<<B>STREAM against stream-g: same tree, same host program, same points, on the board and in its simulation</B>>, labelloc=t, labeljust=c];
+    node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
+           fillcolor="#D6E4F0", color="black", margin="0.12,0.06"];
+    edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
+
+    tree  [group=C, label="1. One tree, one flow (build-perf, 8 channels, 100 MHz)\nmake bitstream STREAM_G=0  ->  stream_perf_genesys2_8ch.bit\nmake bitstream STREAM_G=1  ->  stream_perf_genesys2_8ch_g.bit\nthe build log scanned for nets without a driver", fillcolor="white"];
+    prof  [group=C, label="2. The point profiles (csv/), one CSV each\ngcompare: singles 16 B .. 1 MB at 1, 2, 4, 8 ch + chains (44 points)\ngscale: 2x sizes, every channel busy (24)    gscale1: 2x sizes, one channel busy (28)\ncolumns: name, channels, descriptors per channel, bytes (16 B = a beat)", fillcolor="white"];
+
+    board [group=L, label="3a. Board (make program STREAM_G=0 | 1)\nhost_characterize --csv csv/<profile>.csv --json-output ...\nper point: stage descriptors, configure, kick, harness timer\n(first descriptor AR -> expected write beats), CRC verdict"];
+    sim   [group=R, label="3b. Simulation of each bitstream's design\nmake sim-gcompare | sim-gscale | sim-gscale1:\nthe same host code (host_characterize.run_one) over the\nUART sim, TEST_TYPE char_csv, one JSON per chunk"];
+
+    cmp   [group=C, label="4. compare_profiles.py <profile> --date <d> --crossover\nper point: STREAM cycles, stream-g cycles, STREAM / stream-g, MB/s, sim == board;\nper shape: the bytes per descriptor from which stream-g stays within 10 %, 5 % and 1 %", fillcolor="white"];
+    out   [group=C, label="5. Where it lands\nresults/<profile>_<date>_{fsm,g}.{csv,json}, results/sim/*.json;\nthis book Chapter 5; STREAM HAS 5.4 (the choice); STREAM MAS 7.4"];
+
+    tree -> prof [style=invis];
+    { rank=same; board; sim; }
+    board -> sim [style=invis];
+
+    tree  -> board [penwidth=1.8, xlabel="two bitstreams,\nprogrammed in turn"];
+    tree  -> sim   [style=dashed, xlabel="same RTL, same\ngenerics (TEST_STREAM_G)"];
+    prof  -> board [xlabel="points"];
+    prof  -> sim   [xlabel="points, chunked"];
+    board -> cmp   [penwidth=1.8, xlabel="board JSON x 2"];
+    sim   -> cmp   [xlabel="sim JSON x 2"];
+    cmp   -> out   [xlabel="tables"];
+}

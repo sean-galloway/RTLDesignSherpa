@@ -66,6 +66,7 @@
 - [Throughput Targets](ch05_performance/01_throughput.md)
 - [Latency Characteristics](ch05_performance/02_latency.md)
 - [Resource Estimates](ch05_performance/03_resources.md)
+- [Choosing STREAM or stream-g](ch05_performance/04_stream_g.md)
 
 ### Chapter 6: Integration
 

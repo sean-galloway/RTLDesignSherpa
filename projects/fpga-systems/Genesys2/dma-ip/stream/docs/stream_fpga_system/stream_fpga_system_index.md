@@ -23,14 +23,15 @@
 
 # STREAM on the Genesys 2 -- The FPGA System
 
-**Version:** 1.3
-**Date:** 2026-10-20
+**Version:** 1.4
+**Date:** 2026-10-24
 **Purpose:** What is on the bench and in the bitstream for the STREAM
 characterization and monitor-validation system: the board, the harness that
 surrounds the DUT, why one RTL source is built three ways (`mon`, `obs`,
 `perf`) and what each build is for, and how a host program becomes a
-measurement. The STREAM scatter-gather DMA is the device under test; its own
-architecture lives in the STREAM HAS/MAS under
+measurement, and (Chapter 5) the board-side comparison of STREAM with
+stream-g, its firmware-sequenced variant. The STREAM scatter-gather DMA is
+the device under test; its own architecture lives in the STREAM HAS/MAS under
 `projects/components/dma-ip/stream/docs/`.
 
 > The measured results live in `reports/` (perf, compression, area, extended
@@ -59,6 +60,10 @@ architecture lives in the STREAM HAS/MAS under
 ### Chapter 4: Host Tools and Flow
 - [The Shared Flow, the Per-Build Host Layers, One Program Two Targets](ch04_host_and_flow/01_host_and_flow.md)
 
+### Chapter 5: STREAM against stream-g on This Board
+
+- [The stream-g Build, the A/B Method, Every Measured Table](ch05_stream_g/01_stream_g_on_the_board.md)
+
 ---
 
 ## Quick Reference
@@ -73,6 +78,8 @@ architecture lives in the STREAM HAS/MAS under
 | The three builds | `build-mon/`, `build-obs/`, `build-perf/` (variables only; the flow is `make/fpga_flow.mk`) |
 | Shared host tools | `bin/` |
 | Per-build host programs | `build-<x>/host/` |
+| The STREAM / stream-g point profiles and their results | `build-perf/csv/{gcompare,gscale,gscale1}.csv`, `build-perf/results/`, `build-perf/results/sim/`; `bin/compare_profiles.py` |
+| Out-of-context core builds, ILA build and capture | `fpga/tcl/ooc_stream_core.tcl` (`reports/ooc/`), `fpga/tcl/build_ila.tcl`, `fpga/tcl/capture_ila.tcl` |
 | Sign-off copies | `stable/` (mon), `stable-obs/` (obs), each with a `MANIFEST.md` |
 | Reports | `reports/perf`, `reports/compression`, `reports/area`, `reports/ext_addressing` |
 

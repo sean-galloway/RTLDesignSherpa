@@ -34,7 +34,7 @@ digraph harness_blocks {
     tally [group=R, label="Packet Tallies + Capture\nmonbus_tally_axil x2: u_stream_tally, u_slave_tally\n(CAM of legal {agent, protocol, type, event})\nsdpram_slave_axil_axil - u_comp_sram (MonBus capture)\nall read back through the bridge", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     tmr   [group=L, label="Run Timer + CRC Verdict\nchar_run_timer - u_char_run_timer\n(utility-ip/misc; also in RAPIDS)\nstart: first m_axi_desc AR\nhandshake (tapped)\nstop: expected write beats\nPASS: every active channel's\nsink CRC == source CRC", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    dut   [group=C, label="DUT - stream_top_ch8 - u_stream\nscatter-gather DMA, 8 channels (4 on build-obs): m_axi_rd -> SRAM -> m_axi_wr\nin-core datapath meters (STREAM perf CSRs); in-core monitors when USE_AXI_MONITORS=1", width=7, penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    dut   [group=C, label="DUT - stream_top_ch8, or stream_g_top_ch8 with STREAM_G=1 (Figure 5.1) - u_stream\nscatter-gather DMA, 8 channels (4 on build-obs): m_axi_rd -> SRAM -> m_axi_wr\nin-core datapath meters (STREAM perf CSRs); in-core monitors when USE_AXI_MONITORS=1", width=7, penwidth=1.8, peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
     mobs  [group=R, label="Master-side Observer\naxi4_intf_master_observer - u_dma_observer\nsnoops STREAM's rd / wr port: bus meters +\nlatency histograms always (read through\nits own obs_apb window); MonBus taps\nonly with OBS_ENABLE_MON_TAPS=1", peripheries=2, style="filled", fillcolor="#D6E4F0"];
 

@@ -131,3 +131,14 @@ PREBUILD := bash $(FRAMEWORK_ROOT)/bin/regen_bridges.sh bridge_stream_mon_axil
 include $(FRAMEWORK_ROOT)/stream.mk
 
 include $(RDS_ROOT)/make/fpga_flow.mk
+
+# stream TASK-020 phase 6: the board's STREAM / stream-g point profiles
+# (csv/gcompare|gscale|gscale1.csv) on the harness sim, both DUTs, chunked;
+# results/sim/<profile>_<dut>_<k>of<n>.json. On the board the same CSVs go
+# through `make host-characterize ARGS="--csv csv/<profile>.csv ..."` with
+# STREAM_G=0 and 1 programmed in turn; bin/compare_profiles.py tabulates.
+SIM_PROFILE_WORKERS ?= 8
+.PHONY: sim-gcompare sim-gscale sim-gscale1
+sim-gcompare sim-gscale sim-gscale1:
+	cd $(SELF_DIR)/dv/tests && $(PYTHON) -m pytest test_stream_g_profiles.py -q -n $(SIM_PROFILE_WORKERS) \
+	    -k "$(patsubst sim-%,%,$@)-" $(SIM_ARGS)

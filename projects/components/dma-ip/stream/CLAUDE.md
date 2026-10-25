@@ -246,7 +246,10 @@ Monitoring uses the shared monbus group modules from `rtl/amba/ocelus/` (e.g. `m
 > host_* nets must precede the APB slave generate block in the generated top -- Verilator resolved a later
 > declaration, Vivado made implicit undriven nets and the board's register path was dead (grep the Vivado log
 > for "does not have driver" after every build). stream BUG-022 (MonBus packets once per state visit) came out
-> of the bench.
+> of the bench. The STREAM-vs-stream-g metrics (rapids HAS 6.4's set): the choice is HAS Chapter 5.4, the board
+> side (build, harness, diagrams, every table) is the Genesys 2 book Chapter 5 (fpga-systems); the board profiles
+> are `build-perf/csv/{gcompare,gscale,gscale1}.csv` through `make host-characterize ARGS="--csv ..."`, the same
+> points in sim through `make sim-gcompare|sim-gscale|sim-gscale1`, tabulated by `bin/compare_profiles.py`.
 
 ---
 
