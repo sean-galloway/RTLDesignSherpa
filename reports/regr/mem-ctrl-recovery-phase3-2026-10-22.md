@@ -1359,7 +1359,7 @@ answers membership, and the one shared-flow write to a register granite no
 longer has (`REF_CTRL` in the config apply) is guarded: the default is not
 written, a config that asks for refresh elasticity on such a controller
 raises with the controller named. The granite proxy and UART test select
-granite; the granite proxy on granite's map is cycle-identical to the committed grid at 1 and 8 threads and on mixed, the granite UART smoke test passes, and no register-lookup error appears in any log (the telemetry readers fall back to "no telemetry" through their try / except). PUMICE_CHECK
+granite; the granite proxy on granite's map is cycle-identical to the committed grid at 1 and 8 threads and on mixed, the granite UART smoke test passes, and no register-lookup error appears in any log (the telemetry readers fall back to "no telemetry" through their try / except). The pumice proxy on the shared host (default controller) is cycle-identical to pumice's 2026-10-23 grid at one thread, which also confirms that today's shared-RTL knobs left pumice's bandwidth untouched.
 
 **Bank-queue depth** (`BANK_FIFO_DEPTH`, count-capped on the linked-list
 store, no area in it since TASK-054), against the committed defaults, board
