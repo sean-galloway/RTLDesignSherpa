@@ -214,3 +214,9 @@ user_width  = 0
 base_addr   = "0x00080000"
 addr_range  = "0x00001000"     # 4 KB (DMA s_axi_lite window)
 
+
+# Write-only monitor egress (monbus_axil4_group_1wr): the slave-read drain
+# is gone; error records land in a memory error window (MON_GROUP_ERR_*),
+# read back on mon_irq_out + MON_ERR_REC_COUNT.
+[bridge.mon_group]
+write_only = true

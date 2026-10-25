@@ -278,18 +278,8 @@ module bridge_stream_char_axil_mon
     output logic [1:0]  s_cfg_axil_rresp,
 
     // ============================================================
-    // monbus_axil4_axil4_group access ports + config + IRQ
+    // monbus_axil4_group_1wr access ports + config + IRQ
     // ============================================================
-    // Slave-read port (axil4, IRQ-status reads, 64-bit data)
-    input  logic         s_mon_axil_arvalid,
-    output logic         s_mon_axil_arready,
-    input  logic [31:0] s_mon_axil_araddr,
-    input  logic [2:0] s_mon_axil_arprot,
-    output logic         s_mon_axil_rvalid,
-    input  logic         s_mon_axil_rready,
-    output logic [63:0] s_mon_axil_rdata,
-    output logic [1:0] s_mon_axil_rresp,
-
     // Master-write port (axil4, packet log writes)
     output logic         m_mon_axil_awvalid,
     input  logic         m_mon_axil_awready,
@@ -303,8 +293,10 @@ module bridge_stream_char_axil_mon
     output logic         m_mon_axil_bready,
     input  logic [1:0] m_mon_axil_bresp,
 
-    // IRQ (asserted while error FIFO non-empty)
+    // IRQ (one pulse per whole error record landed)
     output logic        mon_irq_out,
+    // Error records landed, free-running -- last port, no trailing comma.
+    output logic [15:0] mon_err_rec_count,
     // Unmapped-address status (subtractive slave).
     // unmapped_irq is STICKY: it latches on the first
     // unmapped access and holds until unmapped_clear,
@@ -797,7 +789,7 @@ module bridge_stream_char_axil_mon
     // ============================================================
     // Per-wrapper monbus streams (adapter -> arbiter input)
     // ============================================================
-    // Shared free-running timestamp from monbus_axil4_axil4_group
+    // Shared free-running timestamp from the monbus group
     ocelus_common_pkg::monbus_timestamp_t mon_time_w;
 
     logic                                  monbus_host_0_wr_valid;
@@ -865,7 +857,7 @@ module bridge_stream_char_axil_mon
     ocelus_common_pkg::monitor_packet_t   monbus_dma_axil_5_rd_packet;
     ocelus_common_pkg::monbus_timestamp_t monbus_dma_axil_5_rd_timestamp;
 
-    // Arbiter output (-> monbus_axil4_axil4_group input)
+    // Arbiter output (-> monbus group input)
     logic                                  mon_arb_monbus_valid;
     logic                                  mon_arb_monbus_ready;
     ocelus_common_pkg::monitor_packet_t   mon_arb_monbus_packet;
@@ -1241,6 +1233,9 @@ module bridge_stream_char_axil_mon
     logic [15:0] cfg_mon_group_core_perf_mask;
     logic [15:0] cfg_mon_group_core_debug_mask;
     logic         cfg_mon_group_compress_en;
+    logic [31:0] cfg_mon_group_err_base_addr;
+    logic [31:0] cfg_mon_group_err_limit_addr;
+    logic [15:0] cfg_mon_group_err_flush_watermark;
 
 
     // ---- Slave 6: subtractive (subtractive catch-all, internal) ----
@@ -3072,6 +3067,7 @@ module bridge_stream_char_axil_mon
     assign hwif_in.SUBTRACTIVE_STATUS.HIT.next   = unmapped_irq;
     assign hwif_in.SUBTRACTIVE_STATUS.COUNT.next = unmapped_count;
     assign hwif_in.SUBTRACTIVE_ADDR.ADDR.next    = unmapped_addr;
+    assign hwif_in.MON_ERR_REC_COUNT.COUNT.next  = mon_err_rec_count;
     bridge_stream_char_axil_mon_cfg u_bridge_cfg (
         .clk            (aclk),
         .rst            (~aresetn),
@@ -3449,6 +3445,9 @@ module bridge_stream_char_axil_mon
     assign cfg_mon_group_core_perf_mask = hwif_out.MON_GROUP_PACK_12.core_perf_mask.value;
     assign cfg_mon_group_core_debug_mask = hwif_out.MON_GROUP_PACK_12.core_debug_mask.value;
     assign cfg_mon_group_compress_en = hwif_out.MON_GROUP_COMPRESS_EN.compress_en.value;
+    assign cfg_mon_group_err_base_addr = hwif_out.MON_GROUP_ERR_BASE_ADDR.err_base_addr.value;
+    assign cfg_mon_group_err_limit_addr = hwif_out.MON_GROUP_ERR_LIMIT_ADDR.err_limit_addr.value;
+    assign cfg_mon_group_err_flush_watermark = hwif_out.MON_GROUP_ERR_FLUSH_WATERMARK.err_flush_watermark.value;
 
     // ============================================================
     // Monitor aggregator -- 16 client(s) -> arbiter -> axil_group
@@ -3548,7 +3547,7 @@ module bridge_stream_char_axil_mon
         /* verilator lint_on PINCONNECTEMPTY */
     );
 
-    monbus_axil4_axil4_group #(
+    monbus_axil4_group_1wr #(
         // FIFO_DEPTH_WRITE is in BEATS in the monbus group family;
         // the master-write burst fires on cfg_flush_watermark or timeout.
         .FIFO_DEPTH_ERR      (64),
@@ -3556,7 +3555,8 @@ module bridge_stream_char_axil_mon
         .ADDR_WIDTH          (32),
         .FLUSH_TIMEOUT_CYCLES(1024),
         .NUM_PROTOCOLS       (3),
-        .USE_COMPRESSION     (0)
+        .USE_COMPRESSION     (0),
+        .ERR_FLUSH_TIMEOUT_CYCLES(64)
     ) u_mon_axil_group (
         .axi_aclk          (aclk),
         .axi_aresetn       (aresetn),
@@ -3567,15 +3567,6 @@ module bridge_stream_char_axil_mon
         .monbus_timestamp  (mon_arb_monbus_timestamp),
         // Free-running timestamp shared with every wrapper's i_mon_time
         .mon_time_out      (mon_time_w),
-        // Slave-read port (axil4)
-        .s_axil_arvalid (s_mon_axil_arvalid),
-        .s_axil_arready (s_mon_axil_arready),
-        .s_axil_araddr (s_mon_axil_araddr),
-        .s_axil_arprot (s_mon_axil_arprot),
-        .s_axil_rvalid (s_mon_axil_rvalid),
-        .s_axil_rready (s_mon_axil_rready),
-        .s_axil_rdata (s_mon_axil_rdata),
-        .s_axil_rresp (s_mon_axil_rresp),
         // Master-write port (axil4)
         .m_axil_awvalid (m_mon_axil_awvalid),
         .m_axil_awready (m_mon_axil_awready),
@@ -3594,6 +3585,7 @@ module bridge_stream_char_axil_mon
         .cam_clear         (1'b0),
         // IRQ
         .irq_out           (mon_irq_out),
+        .err_rec_count     (mon_err_rec_count),
         // Group-level cfg
         .cfg_base_addr     (cfg_mon_group_base_addr),
         .cfg_limit_addr     (cfg_mon_group_limit_addr),
@@ -3624,6 +3616,9 @@ module bridge_stream_char_axil_mon
         .cfg_core_perf_mask     (cfg_mon_group_core_perf_mask),
         .cfg_core_debug_mask     (cfg_mon_group_core_debug_mask),
         .cfg_compress_en     (cfg_mon_group_compress_en),
+        .cfg_err_base_addr     (cfg_mon_group_err_base_addr),
+        .cfg_err_limit_addr     (cfg_mon_group_err_limit_addr),
+        .cfg_err_flush_watermark     (cfg_mon_group_err_flush_watermark),
         /* verilator lint_off PINCONNECTEMPTY */
         .err_fifo_full     (),
         .write_fifo_full   (),

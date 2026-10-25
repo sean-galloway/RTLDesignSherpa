@@ -1122,31 +1122,53 @@ module bs_harness_bridge_bs_xil
     logic [7:0]  dut_unmapped_count;
     logic        dut_mon_irq;
 
-    // Ocelus (mon variant): cfg regblock on ext2, error drain on ext3, both
-    // addressed by the offset inside their 64 KB window
-    logic [31:0] w_mon_cfg_awaddr, w_mon_cfg_araddr, w_mon_drain_araddr;
+    // Ocelus (mon variant): cfg regblock on ext2, error window on ext3, both
+    // addressed by the offset inside their 64 KB window. The write-only group
+    // (monbus_axil4_group_1wr) has no drain port: error records are WRITTEN
+    // through its master into a RAM here, the host reads them back through
+    // ext3 (same window, now memory-backed), and MON_ERR_REC_COUNT in the cfg
+    // regblock says how many have landed.
+    logic [31:0] w_mon_cfg_awaddr, w_mon_cfg_araddr;
     assign w_mon_cfg_awaddr   = {16'd0, ext2_axil_awaddr[15:0]};
     assign w_mon_cfg_araddr   = {16'd0, ext2_axil_araddr[15:0]};
-    assign w_mon_drain_araddr = {16'd0, ext3_axil_araddr[15:0]};
 
-    // The group's trace-write master: accepted and answered OKAY. The host
-    // routes every packet class to the error FIFO (axi_err_select), so in
-    // use nothing arrives here; a write that does is dropped, not stalled.
+    // Monitor record RAM: 8 KB, 64-bit words. The error window is
+    // 0x0000..0x0FEF (170 whole 24-byte records; the group wraps past the
+    // last whole record), the trace window 0x1000..0x1FFF (unused while the
+    // host err-selects every AXI class, but a legal window so the trace
+    // writer never stalls). Write side: the group's single-beat AXIL master
+    // (one AW/W pair per beat). Read side: 32-bit reads on ext3, low word
+    // first -- the host's old drain addressing, record k at offset k*24.
+    logic [63:0] mon_ram [0:1023];
+    logic [15:0] dut_err_rec_count;
     logic        m_mon_axil_awvalid, m_mon_axil_wvalid, m_mon_axil_bready, r_mon_bv;
     logic [31:0] m_mon_axil_awaddr;
     logic [2:0]  m_mon_axil_awprot;
     logic [63:0] m_mon_axil_wdata;
     logic [7:0]  m_mon_axil_wstrb;
     logic        r_mon_aw, r_mon_w;
+    logic [31:0] r_mon_awaddr;
+    logic [63:0] r_mon_wdata;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_mon_aw <= 1'b0;
             r_mon_w  <= 1'b0;
             r_mon_bv <= 1'b0;
+            r_mon_awaddr <= '0;
+            r_mon_wdata  <= '0;
         end else begin
-            if (m_mon_axil_awvalid && !r_mon_aw && !r_mon_bv) r_mon_aw <= 1'b1;
-            if (m_mon_axil_wvalid  && !r_mon_w  && !r_mon_bv) r_mon_w  <= 1'b1;
+            // AXIL allows AW and W in either order; the RAM write happens
+            // once both have arrived (single outstanding, like the old sink).
+            if (m_mon_axil_awvalid && !r_mon_aw && !r_mon_bv) begin
+                r_mon_aw     <= 1'b1;
+                r_mon_awaddr <= m_mon_axil_awaddr;
+            end
+            if (m_mon_axil_wvalid && !r_mon_w && !r_mon_bv) begin
+                r_mon_w     <= 1'b1;
+                r_mon_wdata <= m_mon_axil_wdata;
+            end
             if (r_mon_aw && r_mon_w) begin
+                mon_ram[r_mon_awaddr[12:3]] <= r_mon_wdata;
                 r_mon_bv <= 1'b1;
                 r_mon_aw <= 1'b0;
                 r_mon_w  <= 1'b0;
@@ -1155,9 +1177,34 @@ module bs_harness_bridge_bs_xil
             end
         end
     end
-    wire unused_mon = ^{m_mon_axil_awaddr, m_mon_axil_awprot, m_mon_axil_wdata,
-                        m_mon_axil_wstrb, ext2_axil_awaddr[31:16], ext2_axil_araddr[31:16],
-                        ext3_axil_araddr[31:16]};
+
+    // ext3 read port: one 32-bit word per beat, synchronous read so the RAM
+    // infers block RAM on the board. Writes stay SLVERR (read-only window).
+    logic        r_ext3_rv;
+    logic [31:0] r_ext3_rdata;
+    assign ext3_axil_arready = !r_ext3_rv;
+    assign ext3_axil_rvalid  = r_ext3_rv;
+    assign ext3_axil_rresp   = 2'b00;
+    assign ext3_axil_rdata   = r_ext3_rdata;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_ext3_rv    <= 1'b0;
+            r_ext3_rdata <= '0;
+        end else begin
+            if (ext3_axil_arvalid && ext3_axil_arready) begin
+                r_ext3_rv    <= 1'b1;
+                r_ext3_rdata <= ext3_axil_araddr[2]
+                               ? mon_ram[ext3_axil_araddr[12:3]][63:32]
+                               : mon_ram[ext3_axil_araddr[12:3]][31:0];
+            end else if (ext3_axil_rready) begin
+                r_ext3_rv <= 1'b0;
+            end
+        end
+    end
+    wire unused_mon = ^{m_mon_axil_awaddr[31:13], m_mon_axil_awaddr[2:0],
+                        m_mon_axil_awprot, m_mon_axil_wstrb,
+                        ext2_axil_awaddr[31:16], ext2_axil_araddr[31:16],
+                        ext3_axil_araddr[31:13], dut_err_rec_count};
 
     bridge_bs_xil_mon u_dut (
         .aclk, .aresetn,
@@ -1515,7 +1562,7 @@ module bs_harness_bridge_bs_xil
         .ddr_axi_ruser,
         .ddr_axi_rvalid,
         .ddr_axi_rready,
-        // Ocelus: cfg regblock (ext2), error drain (ext3), trace-write sink, IRQ
+        // Ocelus: cfg regblock (ext2), error window RAM (ext3, in-harness), IRQ
         .s_cfg_axil_awvalid (ext2_axil_awvalid), .s_cfg_axil_awready (ext2_axil_awready),
         .s_cfg_axil_awaddr  (w_mon_cfg_awaddr), .s_cfg_axil_awprot  (ext2_axil_awprot),
         .s_cfg_axil_wvalid  (ext2_axil_wvalid),  .s_cfg_axil_wready  (ext2_axil_wready),
@@ -1526,16 +1573,13 @@ module bs_harness_bridge_bs_xil
         .s_cfg_axil_araddr  (w_mon_cfg_araddr), .s_cfg_axil_arprot  (ext2_axil_arprot),
         .s_cfg_axil_rvalid  (ext2_axil_rvalid),  .s_cfg_axil_rready  (ext2_axil_rready),
         .s_cfg_axil_rdata   (ext2_axil_rdata),   .s_cfg_axil_rresp   (ext2_axil_rresp),
-        .s_mon_axil_arvalid (ext3_axil_arvalid), .s_mon_axil_arready (ext3_axil_arready),
-        .s_mon_axil_araddr  (w_mon_drain_araddr), .s_mon_axil_arprot (ext3_axil_arprot),
-        .s_mon_axil_rvalid  (ext3_axil_rvalid),  .s_mon_axil_rready  (ext3_axil_rready),
-        .s_mon_axil_rdata   (ext3_axil_rdata),   .s_mon_axil_rresp   (ext3_axil_rresp),
         .m_mon_axil_awvalid, .m_mon_axil_awready (!r_mon_aw && !r_mon_bv),
         .m_mon_axil_awaddr,  .m_mon_axil_awprot,
         .m_mon_axil_wvalid,  .m_mon_axil_wready  (!r_mon_w && !r_mon_bv),
         .m_mon_axil_wdata,   .m_mon_axil_wstrb,
         .m_mon_axil_bvalid  (r_mon_bv), .m_mon_axil_bready, .m_mon_axil_bresp (2'b00),
         .mon_irq_out        (dut_mon_irq),
+        .mon_err_rec_count  (dut_err_rec_count),
         .unmapped_irq   (dut_unmapped_irq),
         .unmapped_addr  (dut_unmapped_addr),
         .unmapped_count (dut_unmapped_count),

@@ -103,5 +103,5 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/regs/bridge_regblock.vlt
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
 # Monbus arbiter (always present in mon variant)
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
-# Monbus group (monbus_axil4_axil4_group)
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
+# Monbus group (monbus_axil4_group_1wr)
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_group_1wr.f

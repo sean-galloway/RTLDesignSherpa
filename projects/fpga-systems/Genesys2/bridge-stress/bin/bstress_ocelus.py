@@ -5,20 +5,23 @@
 A DUT built as the bridge's monitored variant (TOML `variants = ["mon"]`,
 gen_bs_harness) has an Ocelus monitor on every port. The control block says
 so (STATUS.HAS_MON); the monitors' cfg regblock is the configuration
-bridge's window ext2 and the group's error-FIFO drain window ext3.
+bridge's window ext2 and the write-only group's error-window RAM is ext3.
 
 Per run, before the fill sweep, the host:
-  - empties the error FIFO (a record left by an earlier run is reported
-    and dropped, so a run reports only what it raised);
+  - notes the error-record count (a record left by an earlier run is reported
+    and skipped, so a run reports only what it raised);
   - sets every port's monitor: timeouts on at TIMEOUT_US, errors on unless
     the profile injects them (Profile.errors -- those responses are the
     test, not a finding), completions / thresholds / performance / debug
     off;
-  - routes every AXI packet type to the error FIFO (group axi_err_select),
-    so nothing goes to the trace-write master.
-After the run (and its read sweep) it drains the FIFO and names, for each
-record, the port, the direction, the packet type and event, the AXI ID and
-the address -- on a hang, which transaction never completed and where.
+  - routes every AXI packet type to the error window (group axi_err_select),
+    so nothing goes to the trace window.
+After the run (and its read sweep) it reads the records the count says
+landed from the error window -- a RAM inside the harness filled by the
+write-only group (monbus_axil4_group_1wr), addressed exactly like the old
+drain -- and names, for each record, the port, the direction, the packet
+type and event, the AXI ID and the address -- on a hang, which transaction
+never completed and where.
 
 LIMITS (each reported when it bites):
   - TIMEOUT_US: a transaction outstanding longer is reported as a timeout.
@@ -28,9 +31,9 @@ LIMITS (each reported when it bites):
     (the wrappers' ACLK_MHZ default; their tick LUT has that one entry, so
     freq_sel selects nothing -- bridge BUG-021): exact on aclk, 1.33 us on
     cclk, where a cdc slave several masters share is monitored (bridge W9).
-  - MAX_RECORDS per run are drained; more are counted, not decoded.
-  - A drain read of an empty FIFO stalls the bus (the group holds RVALID),
-    so a record is read only while STATUS.MON_IRQ says one is waiting.
+  - MAX_RECORDS per run are read; more are counted, not decoded. The window
+    holds ERR_CAPACITY records and wraps; a delta past that is reported.
+  - The count is free-running (16 bits); the host tracks it by delta.
 Decoding is the shared TBClasses.monbus.parse.
 """
 from __future__ import annotations
@@ -42,8 +45,9 @@ from TBClasses.harness.device import Device
 from TBClasses.monbus import parse
 
 MON_CFG_BASE = 0x0012_0000           # gen_bs_harness MON_WINDOWS: ext2
-MON_DRAIN_BASE = 0x0013_0000         # ext3
-DRAIN_WORDS = 6                      # 32-bit drain: 3 slices x {low, high}
+MON_DRAIN_BASE = 0x0013_0000         # ext3 -- the error-window RAM now
+DRAIN_WORDS = 6                      # 32-bit reads: 3 slices x {low, high}
+ERR_CAPACITY = 170                   # 4 KB window / 24-byte whole records
 TIMEOUT_US = 2000
 MAX_RECORDS = 64
 UNIT_MASTER, UNIT_SLAVE = 2, 1       # bridge adapters' monitor UNIT_ID
@@ -67,6 +71,8 @@ class Ocelus:
         # report error responses even on a profile that injects them: the
         # sim's self-check that records come back, decoded and attributed
         self.force_errors = False
+        # free-running MON_ERR_REC_COUNT watermark for delta-per-run drains
+        self._last_count = None
 
     @staticmethod
     def regmap_for(area: Path, dut: str) -> Path:
@@ -87,18 +93,39 @@ class Ocelus:
                            freq_sel=0, timeout_cycles=TIMEOUT_US)
         self.cfg.write('MON_GROUP_PACK_0', axi_pkt_mask=0, flush_watermark=0)
         self.cfg.write('MON_GROUP_PACK_1', axi_err_select=0xFFFF, axi_error_mask=0)
+        # Write-only group: the error window is the harness RAM's low 4 KB
+        # (170 whole records), the trace window the upper 4 KB (idle while
+        # every AXI class is err-selected, but legal so the writer never
+        # stalls). Watermark 3 = flush every record.
+        self.cfg.write_word('MON_GROUP_BASE_ADDR', 0x1000)
+        self.cfg.write_word('MON_GROUP_LIMIT_ADDR', 0x1FFF)
+        self.cfg.write_word('MON_GROUP_ERR_BASE_ADDR', 0x0000)
+        self.cfg.write_word('MON_GROUP_ERR_LIMIT_ADDR', ERR_CAPACITY * 24 - 1)
+        self.cfg.write_word('MON_GROUP_ERR_FLUSH_WATERMARK', 3)
 
     def drain(self) -> List:
-        """Every record waiting, up to MAX_RECORDS, decoded."""
+        """The records that landed since the last drain, up to MAX_RECORDS,
+        decoded. The cue is MON_ERR_REC_COUNT's delta (the 1wr group pulses
+        mon_irq per record; a free-running count survives polling)."""
+        count = self.cfg.field('MON_ERR_REC_COUNT', 'COUNT')
+        if self._last_count is None:
+            self._last_count = count
+            return []
+        delta = (count - self._last_count) & 0xFFFF
+        self._last_count = count
+        if delta > ERR_CAPACITY:
+            self.log(f'  ocelus: {delta} records landed, the window holds '
+                     f'{ERR_CAPACITY} -- the oldest were overwritten')
         out = []
-        while self.h.ctl.field('STATUS', 'MON_IRQ'):
-            if len(out) == MAX_RECORDS:
-                self.log(f'  ocelus: MAX_RECORDS ({MAX_RECORDS}) drained; more are waiting')
-                break
-            w = [self.h.bridge.read(MON_DRAIN_BASE + 4 * i) for i in range(DRAIN_WORDS)]
+        # The window is a ring the writer wraps at record granularity: record
+        # number i (0-based, ever) sits at slot (i % ERR_CAPACITY) * 24.
+        first = count - delta
+        for k in range(min(delta, MAX_RECORDS, ERR_CAPACITY)):
+            slot = ((first + k) % ERR_CAPACITY) * 24
+            w = [self.h.bridge.read(MON_DRAIN_BASE + slot + 4 * i) for i in range(DRAIN_WORDS)]
             if any(x is None for x in w):
-                raise IOError('ocelus: drain read failed')
-            # monbus_group_core's slices: {tag, source_ts}, packet[127:64],
+                raise IOError('ocelus: error-window read failed')
+            # monbus_group_core_1wr's record: {tag, source_ts}, packet[127:64],
             # packet[63:0]; each 64-bit slice is two 32-bit reads, low first
             ts, hi, lo = (w[i] | w[i + 1] << 32 for i in (0, 2, 4))
             if lo or hi:

@@ -26,13 +26,13 @@ and EXT_STS0..3 in the control block carry 128 bits of its status in; in a
 build without vendor ports ext0 / ext1 answer SLVERR.
 
 A DUT TOML whose `variants` holds "mon" is built as the bridge's monitored
-variant (<dut>_mon, with `use_cfg_regblock` and a 32-bit error drain): an
-Ocelus monitor on every port. Its cfg regblock is the configuration bridge's
-window ext2 and its error-FIFO drain window ext3, both inside the harness;
-the group's trace-write master gets an always-OKAY sink (the host routes
-every packet class to the error FIFO, so nothing is written there), and its
-IRQ -- a record waiting -- is the control block's STATUS.MON_IRQ. Without it
-ext2 / ext3 answer SLVERR and STATUS.HAS_MON reads 0.
+variant (<dut>_mon, with `use_cfg_regblock` and the write-only
+monbus_axil4_group_1wr): an Ocelus monitor on every port. Its cfg regblock
+is the configuration bridge's window ext2; ext3 is the error window, a RAM
+inside the harness the group's write master fills (the host's old drain
+addressing, now memory-backed), and MON_ERR_REC_COUNT in the cfg regblock
+says how many records have landed. Without it ext2 / ext3 answer SLVERR and
+STATUS.HAS_MON reads 0.
 """
 from __future__ import annotations
 
@@ -96,8 +96,9 @@ EXT_AXIL = [('awaddr', 32, 1), ('awprot', 3, 1), ('awvalid', 1, 1), ('awready', 
             ('rdata', 32, 0), ('rresp', 2, 0), ('rvalid', 1, 0), ('rready', 1, 1)]
 EXT_WINDOWS = ('ext0', 'ext1')
 # Its windows for the DUT's Ocelus monitors (mon variant), inside the harness:
-# ext2 the cfg regblock (s_cfg_axil), ext3 the error-FIFO drain (s_mon_axil,
-# read-only). Each window is 64 KB; the DUT sees the offset inside it.
+# ext2 the cfg regblock (s_cfg_axil), ext3 the error-window RAM (read-only),
+# filled by the write-only group's master. Each window is 64 KB; the DUT
+# sees the offset inside it.
 MON_WINDOWS = ('ext2', 'ext3')
 MON_CFG, MON_DRAIN = MON_WINDOWS
 
@@ -918,33 +919,55 @@ endmodule : bs_harness_{dut}
 
 def mon_glue() -> str:
     """Nets between the configuration bridge and the DUT's Ocelus ports, and
-    the always-OKAY sink on the group's trace-write master."""
+    the error-window RAM on the group's write master (write-only group)."""
     c, d = MON_CFG, MON_DRAIN
-    return f"""    // Ocelus (mon variant): cfg regblock on {c}, error drain on {d}, both
-    // addressed by the offset inside their 64 KB window
-    logic [31:0] w_mon_cfg_awaddr, w_mon_cfg_araddr, w_mon_drain_araddr;
+    return f"""    // Ocelus (mon variant): cfg regblock on {c}, error window on {d}, both
+    // addressed by the offset inside their 64 KB window. The write-only group
+    // (monbus_axil4_group_1wr) has no drain port: error records are WRITTEN
+    // through its master into a RAM here, the host reads them back through
+    // {d} (same window, now memory-backed), and MON_ERR_REC_COUNT in the cfg
+    // regblock says how many have landed.
+    logic [31:0] w_mon_cfg_awaddr, w_mon_cfg_araddr;
     assign w_mon_cfg_awaddr   = {{16'd0, {c}_axil_awaddr[15:0]}};
     assign w_mon_cfg_araddr   = {{16'd0, {c}_axil_araddr[15:0]}};
-    assign w_mon_drain_araddr = {{16'd0, {d}_axil_araddr[15:0]}};
 
-    // The group's trace-write master: accepted and answered OKAY. The host
-    // routes every packet class to the error FIFO (axi_err_select), so in
-    // use nothing arrives here; a write that does is dropped, not stalled.
+    // Monitor record RAM: 8 KB, 64-bit words. The error window is
+    // 0x0000..0x0FEF (170 whole 24-byte records; the group wraps past the
+    // last whole record), the trace window 0x1000..0x1FFF (unused while the
+    // host err-selects every AXI class, but a legal window so the trace
+    // writer never stalls). Write side: the group's single-beat AXIL master
+    // (one AW/W pair per beat). Read side: 32-bit reads on {d}, low word
+    // first -- the host's old drain addressing, record k at offset k*24.
+    logic [63:0] mon_ram [0:1023];
+    logic [15:0] dut_err_rec_count;
     logic        m_mon_axil_awvalid, m_mon_axil_wvalid, m_mon_axil_bready, r_mon_bv;
     logic [31:0] m_mon_axil_awaddr;
     logic [2:0]  m_mon_axil_awprot;
     logic [63:0] m_mon_axil_wdata;
     logic [7:0]  m_mon_axil_wstrb;
     logic        r_mon_aw, r_mon_w;
+    logic [31:0] r_mon_awaddr;
+    logic [63:0] r_mon_wdata;
     always_ff @(posedge aclk or negedge aresetn) begin
         if (!aresetn) begin
             r_mon_aw <= 1'b0;
             r_mon_w  <= 1'b0;
             r_mon_bv <= 1'b0;
+            r_mon_awaddr <= '0;
+            r_mon_wdata  <= '0;
         end else begin
-            if (m_mon_axil_awvalid && !r_mon_aw && !r_mon_bv) r_mon_aw <= 1'b1;
-            if (m_mon_axil_wvalid  && !r_mon_w  && !r_mon_bv) r_mon_w  <= 1'b1;
+            // AXIL allows AW and W in either order; the RAM write happens
+            // once both have arrived (single outstanding, like the old sink).
+            if (m_mon_axil_awvalid && !r_mon_aw && !r_mon_bv) begin
+                r_mon_aw     <= 1'b1;
+                r_mon_awaddr <= m_mon_axil_awaddr;
+            end
+            if (m_mon_axil_wvalid && !r_mon_w && !r_mon_bv) begin
+                r_mon_w     <= 1'b1;
+                r_mon_wdata <= m_mon_axil_wdata;
+            end
             if (r_mon_aw && r_mon_w) begin
+                mon_ram[r_mon_awaddr[12:3]] <= r_mon_wdata;
                 r_mon_bv <= 1'b1;
                 r_mon_aw <= 1'b0;
                 r_mon_w  <= 1'b0;
@@ -953,16 +976,41 @@ def mon_glue() -> str:
             end
         end
     end
-    wire unused_mon = ^{{m_mon_axil_awaddr, m_mon_axil_awprot, m_mon_axil_wdata,
-                        m_mon_axil_wstrb, {c}_axil_awaddr[31:16], {c}_axil_araddr[31:16],
-                        {d}_axil_araddr[31:16]}};
+
+    // {d} read port: one 32-bit word per beat, synchronous read so the RAM
+    // infers block RAM on the board. Writes stay SLVERR (read-only window).
+    logic        r_{d}_rv;
+    logic [31:0] r_{d}_rdata;
+    assign {d}_axil_arready = !r_{d}_rv;
+    assign {d}_axil_rvalid  = r_{d}_rv;
+    assign {d}_axil_rresp   = 2'b00;
+    assign {d}_axil_rdata   = r_{d}_rdata;
+    always_ff @(posedge aclk or negedge aresetn) begin
+        if (!aresetn) begin
+            r_{d}_rv    <= 1'b0;
+            r_{d}_rdata <= '0;
+        end else begin
+            if ({d}_axil_arvalid && {d}_axil_arready) begin
+                r_{d}_rv    <= 1'b1;
+                r_{d}_rdata <= {d}_axil_araddr[2]
+                               ? mon_ram[{d}_axil_araddr[12:3]][63:32]
+                               : mon_ram[{d}_axil_araddr[12:3]][31:0];
+            end else if ({d}_axil_rready) begin
+                r_{d}_rv <= 1'b0;
+            end
+        end
+    end
+    wire unused_mon = ^{{m_mon_axil_awaddr[31:13], m_mon_axil_awaddr[2:0],
+                        m_mon_axil_awprot, m_mon_axil_wstrb,
+                        {c}_axil_awaddr[31:16], {c}_axil_araddr[31:16],
+                        {d}_axil_araddr[31:13], dut_err_rec_count}};
 """
 
 
 def mon_ports() -> str:
     """The DUT's Ocelus port connections (mon variant)."""
     c, d = MON_CFG, MON_DRAIN
-    return f"""        // Ocelus: cfg regblock ({c}), error drain ({d}), trace-write sink, IRQ
+    return f"""        // Ocelus: cfg regblock ({c}), error window RAM ({d}, in-harness), IRQ
         .s_cfg_axil_awvalid ({c}_axil_awvalid), .s_cfg_axil_awready ({c}_axil_awready),
         .s_cfg_axil_awaddr  (w_mon_cfg_awaddr), .s_cfg_axil_awprot  ({c}_axil_awprot),
         .s_cfg_axil_wvalid  ({c}_axil_wvalid),  .s_cfg_axil_wready  ({c}_axil_wready),
@@ -973,16 +1021,13 @@ def mon_ports() -> str:
         .s_cfg_axil_araddr  (w_mon_cfg_araddr), .s_cfg_axil_arprot  ({c}_axil_arprot),
         .s_cfg_axil_rvalid  ({c}_axil_rvalid),  .s_cfg_axil_rready  ({c}_axil_rready),
         .s_cfg_axil_rdata   ({c}_axil_rdata),   .s_cfg_axil_rresp   ({c}_axil_rresp),
-        .s_mon_axil_arvalid ({d}_axil_arvalid), .s_mon_axil_arready ({d}_axil_arready),
-        .s_mon_axil_araddr  (w_mon_drain_araddr), .s_mon_axil_arprot ({d}_axil_arprot),
-        .s_mon_axil_rvalid  ({d}_axil_rvalid),  .s_mon_axil_rready  ({d}_axil_rready),
-        .s_mon_axil_rdata   ({d}_axil_rdata),   .s_mon_axil_rresp   ({d}_axil_rresp),
         .m_mon_axil_awvalid, .m_mon_axil_awready (!r_mon_aw && !r_mon_bv),
         .m_mon_axil_awaddr,  .m_mon_axil_awprot,
         .m_mon_axil_wvalid,  .m_mon_axil_wready  (!r_mon_w && !r_mon_bv),
         .m_mon_axil_wdata,   .m_mon_axil_wstrb,
         .m_mon_axil_bvalid  (r_mon_bv), .m_mon_axil_bready, .m_mon_axil_bresp (2'b00),
-        .mon_irq_out        (dut_mon_irq),"""
+        .mon_irq_out        (dut_mon_irq),
+        .mon_err_rec_count  (dut_err_rec_count),"""
 
 
 def filelist(dut: str, rel: str, ms: List[Port], ss: List[Port], mon: bool = False) -> str:

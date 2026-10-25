@@ -445,6 +445,7 @@
    }
   }
  ],
+ "r_queue_depth": 0,
  "warnings": [
   "master 'dma': max_outstanding = 16 is under the rule's minimum 18 (1 + latency_cycles 0 + round trip 17 (dma -> mem3, write 17 / read 16)); a single-beat stream tops out at 16/18 of the port's peak",
   "master 'acc': max_outstanding = 16 is under the rule's minimum 20 (1 + latency_cycles 0 + round trip 19 (acc -> mem0, write 19 / read 18)); a single-beat stream tops out at 16/20 of the port's peak",

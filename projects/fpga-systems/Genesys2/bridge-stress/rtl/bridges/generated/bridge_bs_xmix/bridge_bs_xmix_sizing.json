@@ -535,6 +535,7 @@
    }
   }
  ],
+ "r_queue_depth": 0,
  "warnings": [
   "master 'cpu': max_outstanding = 16 is under the rule's minimum 18 (1 + latency_cycles 0 + round trip 17 (cpu -> mem2, write 17 / read 16)); a single-beat stream tops out at 16/18 of the port's peak",
   "master 'io': max_outstanding = 16 is under the rule's minimum 19 (1 + latency_cycles 0 + round trip 18 (io -> mem2, write 18 / read 17)); a single-beat stream tops out at 16/19 of the port's peak",

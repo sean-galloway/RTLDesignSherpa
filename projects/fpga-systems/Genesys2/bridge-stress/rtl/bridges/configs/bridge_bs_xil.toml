@@ -52,7 +52,10 @@ use_cfg_regblock = true
 description = "bridge stress model: 2 stress + 2 Xilinx masters x 2 stress slaves, LiteDRAM DDR3 and a Xilinx BRAM controller"
 
 [bridge.mon_group]
-s_axil_data_width = 32
+# Write-only monitor egress (monbus_axil4_group_1wr): the 32-bit error-FIFO
+# drain is gone; error records land in a memory error window (MON_GROUP_ERR_*),
+# read back on mon_irq_out + MON_ERR_REC_COUNT.
+write_only = true
 
 [bridge.clock]
 name = "aclk"

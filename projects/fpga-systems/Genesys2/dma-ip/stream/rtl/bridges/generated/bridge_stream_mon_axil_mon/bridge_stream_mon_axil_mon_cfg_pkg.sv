@@ -5,7 +5,15 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
 
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_DATA_WIDTH = 32;
     localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_MIN_ADDR_WIDTH = 10;
-    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h3ac;
+    localparam BRIDGE_STREAM_MON_AXIL_MON_CFG_SIZE = 'h3bc;
+
+    typedef struct {
+        logic [15:0] next;
+    } bridge_stream_mon_axil_mon_cfg__MON_ERR_REC_COUNT__COUNT__in_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__MON_ERR_REC_COUNT__COUNT__in_t COUNT;
+    } bridge_stream_mon_axil_mon_cfg__MON_ERR_REC_COUNT__in_t;
 
     typedef struct {
         logic next;
@@ -29,6 +37,7 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_ADDR__in_t;
 
     typedef struct {
+        bridge_stream_mon_axil_mon_cfg__MON_ERR_REC_COUNT__in_t MON_ERR_REC_COUNT;
         bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__in_t SUBTRACTIVE_STATUS;
         bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_ADDR__in_t SUBTRACTIVE_ADDR;
     } bridge_stream_mon_axil_mon_cfg__in_t;
@@ -3823,6 +3832,30 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
     } bridge_stream_mon_axil_mon_cfg__MON_GROUP_COMPRESS_EN__out_t;
 
     typedef struct {
+        logic [31:0] value;
+    } bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_BASE_ADDR__err_base_addr__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_BASE_ADDR__err_base_addr__out_t err_base_addr;
+    } bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_BASE_ADDR__out_t;
+
+    typedef struct {
+        logic [31:0] value;
+    } bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_LIMIT_ADDR__err_limit_addr__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_LIMIT_ADDR__err_limit_addr__out_t err_limit_addr;
+    } bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_LIMIT_ADDR__out_t;
+
+    typedef struct {
+        logic [15:0] value;
+    } bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_FLUSH_WATERMARK__err_flush_watermark__out_t;
+
+    typedef struct {
+        bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_FLUSH_WATERMARK__err_flush_watermark__out_t err_flush_watermark;
+    } bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_FLUSH_WATERMARK__out_t;
+
+    typedef struct {
         logic value;
     } bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__CLEAR__out_t;
 
@@ -4064,6 +4097,9 @@ package bridge_stream_mon_axil_mon_cfg_pkg;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_PACK_11__out_t MON_GROUP_PACK_11;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_PACK_12__out_t MON_GROUP_PACK_12;
         bridge_stream_mon_axil_mon_cfg__MON_GROUP_COMPRESS_EN__out_t MON_GROUP_COMPRESS_EN;
+        bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_BASE_ADDR__out_t MON_GROUP_ERR_BASE_ADDR;
+        bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_LIMIT_ADDR__out_t MON_GROUP_ERR_LIMIT_ADDR;
+        bridge_stream_mon_axil_mon_cfg__MON_GROUP_ERR_FLUSH_WATERMARK__out_t MON_GROUP_ERR_FLUSH_WATERMARK;
         bridge_stream_mon_axil_mon_cfg__SUBTRACTIVE_STATUS__out_t SUBTRACTIVE_STATUS;
     } bridge_stream_mon_axil_mon_cfg__out_t;
 endpackage

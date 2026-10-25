@@ -47,7 +47,8 @@ talks to the design over UART through a generated AXI4-Lite bridge.
    commands into AXI4-Lite transactions that program injectors, poll status,
    and read back MonBus tallies.
 4. **Observation** — cache MonBus streams merge through `monbus_arbiter`, are
-   ingested by `monbus_axil4_axil4_group`, and counted by
+   ingested by `monbus_axil4_group_1wr` (write-only: everything lands in the
+   tally record window), and counted by
    `monbus_tally_axil`; the host reads the resulting bin counts.
 
 ## Board and clock

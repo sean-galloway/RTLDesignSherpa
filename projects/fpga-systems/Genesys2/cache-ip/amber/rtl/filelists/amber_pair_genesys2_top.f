@@ -27,7 +27,7 @@
 -f $AMBER_FRAMEWORK_ROOT/rtl/bridges/filelists/bridge_amber_axil.f
 
 # MonBus group + tally
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_group_1wr.f
 -f $MISC_ROOT/rtl/filelists/monbus_tally_axil.f
 
 # Verilator-only Xilinx primitive stubs for lint.

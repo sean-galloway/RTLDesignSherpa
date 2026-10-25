@@ -1099,7 +1099,7 @@ module amber_pair_harness
     );
 
     // ------------------------------------------------------------------
-    // MonBus merge: {amber0, amber1} -> monbus_axil4_axil4_group -> tally
+    // MonBus merge: {amber0, amber1} -> monbus_axil4_group_1wr -> tally
     // ------------------------------------------------------------------
     logic                    arb_vld [2];
     logic                    arb_rdy [2];
@@ -1143,24 +1143,23 @@ module amber_pair_harness
         .last_grant          ()
     );
 
-    // monbus_axil4_axil4_group: record ingest path only.
-    logic [31:0] group_awaddr, group_araddr;
-    logic [2:0]  group_awprot, group_arprot;
+    // monbus_axil4_group_1wr: write-only egress -- everything the arbiter
+    // accepts goes to memory (the tally record ingest below); there is no
+    // slave-read drain to tie off. err_select masks are all zero, so the
+    // error window never receives a record; it is strapped to a dead
+    // null window (base == limit == 0).
+    logic [31:0] group_awaddr;
+    logic [2:0]  group_awprot;
     logic        group_awvalid, group_awready;
-    logic        group_arvalid, group_arready;
     logic [63:0] group_wdata;
     logic [7:0]  group_wstrb;
     logic        group_wvalid, group_wready;
     logic [1:0]  group_bresp;
     logic        group_bvalid, group_bready;
-    logic [63:0] group_rdata;
-    logic [1:0]  group_rresp;
-    logic        group_rvalid, group_rready;
     logic [63:0] mon_time_out_unused;
 
-    monbus_axil4_axil4_group #(
+    monbus_axil4_group_1wr #(
         .ADDR_WIDTH        (32),
-        .S_AXIL_DATA_WIDTH (64),
         .USE_COMPRESSION   (0),
         .HALF_BEAT_EN      (0)
     ) u_group (
@@ -1172,15 +1171,6 @@ module amber_pair_harness
         .monbus_packet(merged_packet),
         .monbus_timestamp(merged_timestamp),
         .mon_time_out (mon_time_out_unused),
-        // err FIFO drain (unused)
-        .s_axil_arvalid(group_arvalid),
-        .s_axil_arready(group_arready),
-        .s_axil_araddr (group_araddr),
-        .s_axil_arprot (group_arprot),
-        .s_axil_rvalid (group_rvalid),
-        .s_axil_rready (group_rready),
-        .s_axil_rdata  (group_rdata),
-        .s_axil_rresp  (group_rresp),
         // bulk capture write -> tally record ingest
         .m_axil_awvalid(group_awvalid),
         .m_axil_awready(group_awready),
@@ -1194,6 +1184,7 @@ module amber_pair_harness
         .m_axil_bready (group_bready),
         .m_axil_bresp  (group_bresp),
         .irq_out       (),
+        .err_rec_count (),
         .cfg_base_addr (32'h0000_0000),
         .cfg_limit_addr(32'hFFFF_FFFF),
         // Flush early and often: the group drains ONLY on flush triggers
@@ -1202,6 +1193,9 @@ module amber_pair_harness
         // ~80% of events under injector load (BUG-004 fidelity finding).
         // 48 beats = 16 records; the 1024-cycle timeout stays as backstop.
         .cfg_flush_watermark(16'd48),
+        .cfg_err_base_addr (32'h0000_0000),
+        .cfg_err_limit_addr(32'h0000_0000),
+        .cfg_err_flush_watermark(16'd3),
         .cfg_compress_en(1'b0),
         .cfg_axi_pkt_mask   (16'h0000),
         .cfg_axi_err_select (16'h0000),
@@ -1241,10 +1235,6 @@ module amber_pair_harness
         .mon_compressor_stat_event_data_ovf(),
         .mon_compressor_stat_ed_delta_ovf()
     );
-
-    // Tie off the err FIFO drain side of the group.
-    assign group_arvalid = 1'b0;
-    assign group_rready  = 1'b1;
 
     // ------------------------------------------------------------------
     // MonBus tally

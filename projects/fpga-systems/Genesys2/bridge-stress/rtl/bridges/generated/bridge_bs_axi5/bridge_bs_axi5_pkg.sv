@@ -16,6 +16,8 @@ package bridge_bs_axi5_pkg;
     localparam int MASTER_ID_WIDTH = 4;  // widest master-local ID
     localparam int ID_PREFIX_WIDTH = 2;  // master-index bits prepended
     localparam int XBAR_ID_WIDTH   = 6;  // MASTER_ID_WIDTH + ID_PREFIX_WIDTH
+    localparam int MEM0_ATOMIC_RR_DEPTH = 8;  // read-return atomics in flight at slave mem0; the next atomic AW waits
+    localparam int MEM2_ATOMIC_RR_DEPTH = 8;  // read-return atomics in flight at slave mem2; the next atomic AW waits
 
     // AXI4 Write Address Channel (width-independent)
     // Note: ID width is 6-bit for this bridge

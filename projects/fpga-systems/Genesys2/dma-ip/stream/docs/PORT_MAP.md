@@ -55,11 +55,14 @@ direct path with no converter.
 
 | Prefix          | Channels | Protocol | Addr | Data | Currently connects to                                                   |
 | --------------- | -------- | -------- | ---- | ---- | ----------------------------------------------------------------------- |
-| `s_mon_axil_`   | rd*      | AXIL     | 32   | **64** | **TIED OFF** — bridge's monbus_axil_group IRQ-status FIFO (host has no 64-bit AXIL path today; bulk trace + `mon_irq_out` is sufficient) |
 | `m_mon_axil_`   | wr       | AXIL     | 32   | **64** | `u_bridge_trace_sram.wr_*` — direct wire, bypasses bridge fabric        |
 
-*`s_mon_axil_` only carries the read channels (`ar`/`r`) — the monbus
-group exposes it as a read-only slave for IRQ-status drain.
+The bridge's monbus group is the write-only `monbus_axil4_group_1wr` (bridge
+TASK-023): the `s_mon_axil_` IRQ-status drain is gone — error records are
+written through `m_mon_axil_` into the group's error window
+(`cfg_mon_group_err_*`, or the MON_GROUP_ERR_* registers when the cfg
+regblock is built) and counted in `mon_err_rec_count`, with `mon_irq_out`
+pulsing once per record.
 
 Per-wrapper monitor cfg: **16 wrappers × 15 cfg signals = 240 inputs**
 (1 master × 2 channels + 7 slaves × 2 channels = 16 wrappers). All
@@ -119,7 +122,6 @@ writes those same descriptors as 8 × 32-bit AXIL stores via the bridge
 | `debug_sram.wr_*`             | yes (writes)    | 64    | ✓          |
 | `debug_sram.rd_*`             | yes (reads)     | 64    | ✓ (after task #82 refactor) |
 | `bridge.m_mon_axil_*`         | yes (writes)    | 64    | ✓          |
-| `bridge.s_mon_axil_*`         | yes (reads)     | 64    | ✓          |
 | `bridge_trace_sram.wr_*`      | yes (writes)    | 64    | ✓          |
 | `bridge_trace_sram.rd_*`      | yes (reads)     | 64    | ✓          |
 | Bridge slave `debug_sram_axi_`     | yes (fanout to debug_sram rd)    | 64 | ✓ |

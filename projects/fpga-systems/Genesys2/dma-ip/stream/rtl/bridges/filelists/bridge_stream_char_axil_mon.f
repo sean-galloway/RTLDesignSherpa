@@ -44,9 +44,6 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/regs/bridge_regblock.vlt
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd.f
 
-# Rate-matching buffers on upsized paths into shared slaves (bridge W2)
--f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_wr_rate_buf.f
-
 # Transaction-ID remap tables in the master adapters (bridge_id_remap)
 -f $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/filelists_static/bridge_id_remap.f
 
@@ -98,5 +95,5 @@ $REPO_ROOT/projects/components/fabric-gen-ip/bridge/rtl/regs/bridge_regblock.vlt
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
 # Monbus arbiter (always present in mon variant)
 -f $REPO_ROOT/rtl/amba/filelists/monbus_arbiter.f
-# Monbus group (monbus_axil4_axil4_group)
--f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_axil4_group.f
+# Monbus group (monbus_axil4_group_1wr)
+-f $REPO_ROOT/rtl/amba/filelists/monbus_axil4_group_1wr.f
