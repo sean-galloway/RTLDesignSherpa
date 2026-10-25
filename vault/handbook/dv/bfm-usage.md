@@ -379,3 +379,37 @@ controller). **Give a memory-model slave aligned INCR only, or model the
 burst yourself in the test** -- and do not read a FIXED / WRAP failure there
 as a DUT bug. Fixing it is an RDS-DV change with ~80 consumers; it needs the
 owner's go-ahead first.
+
+
+## A cycle checker samples AFTER the falling edge (2026-10-25)
+
+A cycle-accurate checker that reads pins has the mirror of the driver hazard
+above. `GAXIMaster` drives `valid`/data right after the rising edge
+(`RisingEdge` then 200 ps); `GAXISlave` drives `ready` AT the falling edge.
+A checker that does `await FallingEdge(clk)` and then reads `rd_ready` races
+the slave's write in the same timestep: whichever coroutine the scheduler
+resumes first wins, and the model records the read a cycle late. On
+`gaxi_age_fifo_sync` that was two `count` mismatches per packet, every
+packet, with every age output correct -- it looked like a FIFO bug and was
+sampling order.
+
+Sample a fixed step past the edge the BFMs drive on, and put any TB-side
+"wrapper mirror" (a process that derives one DUT input from a DUT output the
+way the real instantiating RTL would, e.g. `wr_data_age = youngest + 1`)
+between the two:
+
+```python
+# slave BFM drives ready AT the falling edge
+await FallingEdge(clk); await Timer(2, 'ns')   # wrapper mirror drives here
+await FallingEdge(clk); await Timer(3, 'ns')   # checker samples here
+# outputs = state after every edge so far; inputs = what the next edge latches
+```
+
+and advance the model from those inputs in the RTL's own order. Two things
+the model must then know about this FIFO family: `count` from `fifo_control`
+with `REGISTERED=0` is COMBINATIONAL off the next pointers, so it already
+includes the handshakes in flight this cycle while `wr_ready`/`rd_valid` are
+registered and do not; and a reader "parked" by poking `rd_ready = 0` is
+overwritten by the slave BFM at the next falling edge -- park it with a
+profile whose `ready_delay` is fixed far out (`'parked': ready_delay 400`),
+the same rule as `ready_policy` above: ask the BFM, never drive its pin.

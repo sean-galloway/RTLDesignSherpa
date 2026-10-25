@@ -6,6 +6,7 @@
 - [GAXI Modules Index](gaxi/index.md)
 - [GAXI Synchronous FIFO](gaxi/gaxi_fifo_sync.md)
 - [GAXI Drop FIFO Sync](gaxi/gaxi_drop_fifo_sync.md)
+- [GAXI Age FIFO Sync](gaxi/gaxi_age_fifo_sync.md)
 - [GAXI Register Slice](gaxi/gaxi_regslice.md)
 - [GAXI Skid Buffer](gaxi/gaxi_skid_buffer.md)
 - [GAXI Skid Buffer (Double-Drain)](gaxi/gaxi_skid_buffer_dbldrn.md)

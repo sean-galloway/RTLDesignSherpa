@@ -61,6 +61,7 @@ GAXI is a lightweight valid/ready handshake protocol for streaming data between 
 | **gaxi_fifo_sync** | Synchronous FIFO with mux/flop modes | [gaxi_fifo_sync.md](gaxi_fifo_sync.md) | Documented |
 | **gaxi_fifo_async** | Asynchronous FIFO for clock domain crossing | [gaxi_fifo_async.md](../../rtl-cdc/gaxi_fifo_async.md) | Documented |
 | **gaxi_drop_fifo_sync** | FIFO with drop-by-count and drop-all capability | [gaxi_drop_fifo_sync.md](gaxi_drop_fifo_sync.md) | Documented |
+| **gaxi_age_fifo_sync** | FIFO with a saturating per-entry age, head age, youngest | [gaxi_age_fifo_sync.md](gaxi_age_fifo_sync.md) | Documented |
 
 ### Register Slices (Timing Isolation)
 

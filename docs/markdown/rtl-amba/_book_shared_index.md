@@ -3,6 +3,7 @@
 <!-- Auto-generated link index for PDF build. Regenerate via generate_rtl_pdfs.sh -->
 
 - [GAXI (Generic AXI) Modules](gaxi/README.md)
+- [gaxi_age_fifo_sync](gaxi/gaxi_age_fifo_sync.md)
 - [gaxi_drop_fifo_sync](gaxi/gaxi_drop_fifo_sync.md)
 - [gaxi_fifo_sync](gaxi/gaxi_fifo_sync.md)
 - [gaxi_regslice](gaxi/gaxi_regslice.md)

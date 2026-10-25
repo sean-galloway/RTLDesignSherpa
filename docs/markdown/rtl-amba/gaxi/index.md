@@ -53,6 +53,7 @@ GAXI (Generic AXI) is a simplified valid/ready handshake protocol for streaming 
 | [gaxi_skid_buffer_async.sv](../../rtl-cdc/gaxi_skid_buffer_async.md) | Async elastic buffer | Dual (wr/rd) | Combines skid + async FIFO |
 | [gaxi_skid_buffer_dbldrn.sv](gaxi_skid_buffer_dbldrn.md) | Double-drain skid buffer | Single | Two entries retired per cycle |
 | [gaxi_drop_fifo_sync.sv](gaxi_drop_fifo_sync.md) | Synchronous FIFO with drop | Single | Drop-by-count / drop-all, power-of-2 depth |
+| [gaxi_age_fifo_sync.sv](gaxi_age_fifo_sync.md) | Synchronous FIFO with per-entry age | Single | Saturating decrement, head age, youngest; any depth, mux read |
 | [gaxi_regslice.sv](gaxi_regslice.md) | Single-entry register slice | Single | Timing isolation, fixed 1-cycle |
 
 ---
