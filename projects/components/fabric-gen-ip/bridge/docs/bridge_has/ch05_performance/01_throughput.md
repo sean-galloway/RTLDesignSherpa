@@ -234,15 +234,46 @@ capacity the permutation keeps both slaves at 1.000 however far it is
 overloaded -- two flows cross the crossbar in parallel with nothing shared
 -- and the hot-spot keeps its one port at 1.000 while latency grows with
 the queue. Uniform traffic past saturation is the finding: 1.61 of 2.0 at
-1.33x offered and 1.35 at 2x. The master adapter returns R in AR issue
-order across slaves (its response mux follows the AR tracking FIFO's head),
-so a read the idle slave has answered waits behind an earlier read still
-queued at the busy one -- head-of-line blocking on the response path that
-only uniform traffic past saturation can show. The request slots were the
-first suspect and are not it: 4- and 8-deep slots measured the identical
-curve. Filed as bridge TASK-021 (fix direction: select the R source by the
-returned ID, which the remap slot or the per-ID table can carry); the test
-holds those points at 0.55 of capacity under that ID until it lands.
+1.33x offered and 1.35 at 2x. The mechanism, measured per cycle at the
+ports (2026-10-25): both slaves' R channels sat valid-and-not-ready 31
+percent of the cycles while no master R port ever did. A slave returns R
+in its own order; when its head burst is for the master whose R port the
+other slave's burst is holding, it stalls -- and the master its next burst
+was for sits idle. Head-of-line blocking at the slave's output, which only
+uniform traffic can show: a permutation never shares a master port, a hot
+spot never has a second slave. Two things it is not: the request slots (4-
+and 8-deep slots measured the identical curve) and the master adapter's R
+mux (a single width path on this fixture, selecting nothing).
+
+The fix is a queue per (reading master, shared slave) pair inside the
+crossbar, `[bridge] r_queue_depth` (HAS 6.2, MAS 2.3): the slave hands a
+burst for a busy master into that master's queue and goes on to the next
+master's beats; each master's response arbiter picks among its queue heads.
+`bridge_2x2_rw_rq8` is the reference fixture with 8 beats, two bursts deep:
+
+| Pattern | Gap | Offered | Capacity | Accepted | cpu mean / p95 | dma mean / p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| uniform | 32 | 0.250 | 0.250 | 0.259 | 11.0 / 11 | 15.0 / 15 |
+| uniform | 8 | 1.000 | 1.000 | 1.021 | 11.0 / 11 | 15.0 / 15 |
+| uniform | 5 | 1.600 | 1.600 | 1.613 | 11.0 / 11 | 15.0 / 15 |
+| uniform | 4 | 2.000 | 2.000 | 2.000 | 11.0 / 11 | 15.0 / 15 |
+| uniform | 3 | 2.667 | 2.000 | 2.000 | 35.0 / 56 | 39.0 / 60 |
+| uniform | 2 | 4.000 | 2.000 | 2.000 | 96.5 / 124 | 95.7 / 120 |
+| permutation | 2 | 4.000 | 2.000 | 2.000 | 96.1 / 123 | 91.3 / 115 |
+| hot-spot | 2 | 4.000 | 1.000 | 1.000 | 258.5 / 289 | 250.9 / 281 |
+
+: The same sweep on `bridge_2x2_rw_rq8` (`r_queue_depth = 8`; FUNC level, 2026-10-25). Uniform traffic holds 2.000 at every load past saturation; permutation and hot-spot are unchanged.
+
+Uniform traffic past saturation goes from 0.80 and 0.67 of capacity to
+1.00, and its latency at 2x offered from 159 cycles to 96 -- the same as
+the permutation's, which is what a fabric with nothing shared but the ports
+should show. The price is one cycle of R latency at every load (11 / 15
+against 10 / 14: the queue is a FIFO with a mux read) and the flops
+(HAS 5.3). The default stays 0, by the rule that every depth defaults to
+its minimum; the unqueued fixtures keep the measured curve above, and
+`test_bridge_perf_patterns` holds them to 0.55 of capacity past
+saturation as the documented cost of the minimum, while the queued fixtures
+are held to the full 0.85 floor.
 
 On the mixed-width `bridge_4x4_rw` (cpu 64b, dma0 32b, dma1 128b, gpu
 256b; periph 32b, ddr0 64b, sram 128b, gpu_mem 256b) the same sweep in
@@ -271,10 +302,32 @@ carries 0.89-1.00 of its per-slave capacity however hard it is driven: four
 flows of four widths cross at once, and only cpu's latency grows because
 its 64-bit reads are eight beats each at the 32-bit periph, the one port it
 oversubscribes. The hot spot keeps ddr0 at 1.000 from every master; all
-four queue behind it equally. Uniform traffic is the same head-of-line
-story as the 2x2 (bridge TASK-021): 0.91 of capacity at gap 8, 0.61 from
-gap 4 on, each master's responses returning in issue order while a slave it
-is waiting on is busy.
+four queue behind it equally. Uniform traffic loses more here than on the
+2x2 -- 0.91 of capacity at gap 8, 0.61 from gap 4 on -- and it is NOT the
+2x2's mechanism: `bridge_4x4_rw_rq8`, the same fabric with the 8-beat
+response queues, measures the same curve.
+
+| Pattern | Gap | Offered | Capacity | Accepted | cpu mean / p95 | dma0 | dma1 | gpu |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| uniform | 16 | 1.755 | 1.755 | 1.795 | 20.9 / 53 | 14.8 / 19 | 16.6 / 21 | 29.1 / 46 |
+| uniform | 8 | 3.510 | 2.6 | 2.440 | 65.8 / 221 | 77.7 / 227 | 27.6 / 65 | 96.0 / 261 |
+| uniform | 4 | 7.021 | 3.1 | 2.457 | 131.5 / 385 | 178.0 / 371 | 74.3 / 167 | 208.7 / 405 |
+| uniform | 2 | 14.042 | 4.0 | 2.454 | 329.8 / 485 | 370.9 / 435 | 220.6 / 256 | 402.9 / 469 |
+| permutation | 2 | 9.000 | 4.0 | 3.619 | 234.4 / 283 | 101.1 / 129 | 96.1 / 124 | 96.1 / 124 |
+| hot-spot (ddr0) | 2 | 15.000 | 1.0 | 1.000 | 1157.8 / 1243 | 1113.9 / 1251 | 1120.9 / 1255 | 1136.9 / 1271 |
+
+: The same sweep on `bridge_4x4_rw_rq8` (`r_queue_depth = 8`, thirteen queues; FUNC level, 2026-10-25). Uniform traffic sits on the same ceiling as the unqueued fabric, 2.44-2.46 slave beats per cycle from 1.4x offered on, whatever the load.
+
+A flat ceiling that does not move with offered load or with the queue
+(32 beats measured the same as 8) is a fixed resource binding, not a
+head-of-line stall between slaves: the candidates are an outstanding limit
+at the slow 32-bit `periph` port, where a 256-bit master's 4-beat read is
+32 beats, and the master adapter's in-order return across its four width
+paths. Filed as bridge TASK-022, to be measured per cycle before anything
+is built; the pattern test holds the 4x4 fixtures to 0.55 of capacity past
+saturation until then. (The shorter GATE sweep, 24 reads per master, had
+shown the queued 4x4 at 0.95 and 0.74 of capacity -- a transient the
+queues absorb, which is why the FUNC curve is the one tabled.)
 
 ### Bandwidth Characterization (measured)
 

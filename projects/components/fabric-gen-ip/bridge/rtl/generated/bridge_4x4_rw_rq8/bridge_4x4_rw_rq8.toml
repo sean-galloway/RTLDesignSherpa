@@ -1,0 +1,96 @@
+# bridge_4x4_rw with r_queue_depth = 8 (bridge TASK-021): the read response queue on
+# the mixed-width, partially connected fabric -- four path widths, three slaves per
+# master. test_bridge_perf_patterns measures the uniform curve against the reference.
+
+[bridge]
+name = "bridge_4x4_rw_rq8"
+variants = ["no"]
+r_queue_depth = 8   # bridge TASK-021: an 8-beat R queue per (master, slave) pair
+description = "4x4 bridge configuration"
+
+[bridge.defaults.skid_depths]
+ar = 2
+r = 4
+aw = 2
+w = 4
+b = 2
+
+[[bridge.masters]]
+name = "cpu_master"
+prefix = "cpu_axi_"
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma0_master"
+prefix = "dma0_axi_"
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "dma1_master"
+prefix = "dma1_axi_"
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+
+[[bridge.masters]]
+name = "gpu_master"
+prefix = "gpu_axi_"
+id_width = 8  # wider than a 4-bit remap slot: exercises bridge_id_remap
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+
+[[bridge.slaves]]
+name = "periph_slave"
+prefix = "periph_slave_axi_"
+id_width = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
+addr_width = 32
+data_width = 32
+user_width = 1
+channels = "rw"
+base_addr = "0x00000000"
+addr_range = "0x40000000"
+
+[[bridge.slaves]]
+name = "ddr0_slave"
+prefix = "ddr0_slave_axi_"
+id_width = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
+addr_width = 32
+data_width = 64
+user_width = 1
+channels = "rw"
+base_addr = "0x40000000"
+addr_range = "0x40000000"
+
+[[bridge.slaves]]
+name = "sram_slave"
+prefix = "sram_slave_axi_"
+id_width = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
+addr_width = 32
+data_width = 128
+user_width = 1
+channels = "rw"
+base_addr = "0x80000000"
+addr_range = "0x40000000"
+
+[[bridge.slaves]]
+name = "gpu_mem_slave"
+prefix = "gpu_mem_slave_axi_"
+id_width = 6  # >= {master index, master-local id} (width_utils.xbar_id_width)
+addr_width = 32
+data_width = 256
+user_width = 1
+channels = "rw"
+base_addr = "0xC0000000"
+addr_range = "0x40000000"

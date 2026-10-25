@@ -92,6 +92,7 @@ class BridgeModuleGenerator:
                  use_cfg_regblock: bool = False,
                  mon_group=None,
                  xbar_pipeline: bool = False,
+                 r_queue_depth: int = 0,
                  arbitration: str = 'rr',
                  qos_aging_shift: int = 4,
                  id_track_bits: int = 4):
@@ -126,6 +127,8 @@ class BridgeModuleGenerator:
         self.use_cfg_regblock = use_cfg_regblock
         # bridge TASK-006 (was BRIDGE-017): registered crossbar (see CrossbarGenerator.pipeline).
         self.xbar_pipeline = bool(xbar_pipeline)
+        # bridge TASK-021: read response queues (CrossbarGenerator.r_queue_depth).
+        self.r_queue_depth = int(r_queue_depth or 0)
         # bridge TASK-006 (was BRIDGE-017): arbitration policy for every slave arbiter in the xbar.
         self.arbitration = arbitration
         self.qos_aging_shift = qos_aging_shift
@@ -969,6 +972,7 @@ class BridgeModuleGenerator:
         """
         xbar_gen = CrossbarGenerator(self.bridge_name, self.masters, self.slaves,
                                      pipeline=self.xbar_pipeline,
+                                     r_queue_depth=self.r_queue_depth,
                                      arbitration=self.arbitration,
                                      qos_aging_shift=self.qos_aging_shift)
         return xbar_gen.generate()

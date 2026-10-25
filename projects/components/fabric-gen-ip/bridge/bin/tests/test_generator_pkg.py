@@ -3266,3 +3266,133 @@ def test_atomic_rr_depth_reaches_the_tracker_and_the_package(tmp_path):
     assert r.returncode == 0, r.stdout[-1500:] + r.stderr[-1500:]
     assert ".DEPTH(4)" in (out / "a" / "s0_adapter.sv").read_text()
     assert "localparam int S0_ATOMIC_RR_DEPTH = 4;" in (out / "a" / "a_pkg.sv").read_text()
+
+
+# ---------------------------------------------------------------------
+# Read response queues (bridge TASK-021, [bridge] r_queue_depth)
+# ---------------------------------------------------------------------
+
+def _rq_toml(tmp_path, bridge_extra):
+    """Two masters, two slaves, every path connected -- the shape whose
+    uniform traffic past saturation shows the response-path head-of-line
+    block the queues remove."""
+    toml = tmp_path / "b.toml"
+    conn = tmp_path / "c.csv"
+    toml.write_text(f"""
+[bridge]
+name = "b"
+variants = ["no"]
+{bridge_extra}
+
+[[bridge.masters]]
+name = "m0"
+prefix = "m0_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rd"
+
+[[bridge.masters]]
+name = "m1"
+prefix = "m1_"
+addr_width = 32
+data_width = 32
+id_width = 4
+channels = "rd"
+
+[[bridge.slaves]]
+name = "s0"
+prefix = "s0_"
+addr_width = 32
+data_width = 32
+id_width = 6
+base_addr = "0x0000_0000"
+addr_range = "0x0001_0000"
+channels = "rd"
+
+[[bridge.slaves]]
+name = "s1"
+prefix = "s1_"
+addr_width = 32
+data_width = 32
+id_width = 6
+base_addr = "0x0001_0000"
+addr_range = "0x0001_0000"
+channels = "rd"
+""")
+    conn.write_text("master,s0,s1\nm0,1,1\nm1,1,1\n")
+    return str(toml), str(conn)
+
+
+def test_r_queue_depth_off_by_default(tmp_path):
+    """The rule's minimum is no queue: the default fabric is the unqueued
+    one, and the sizing report says so."""
+    cfg = load_config(*_rq_toml(tmp_path, ""))
+    assert cfg.r_queue_depth == 0
+    assert sizing.as_dict(cfg)['r_queue_depth'] == 0
+
+
+def test_r_queue_depth_key_is_taken(tmp_path):
+    cfg = load_config(*_rq_toml(tmp_path, "r_queue_depth = 8"))
+    assert cfg.r_queue_depth == 8
+    assert sizing.as_dict(cfg)['r_queue_depth'] == 8
+
+
+@pytest.mark.parametrize("bad", ["1", "65", "-4", '"x"'])
+def test_r_queue_depth_bad_value_rejected(tmp_path, bad):
+    with pytest.raises(ValueError, match="r_queue_depth must be"):
+        load_config(*_rq_toml(tmp_path, f"r_queue_depth = {bad}"))
+
+
+def test_r_queue_depth_puts_a_fifo_on_every_master_slave_pair(tmp_path):
+    """bridge_2x2_rw_rq8: one gaxi_fifo_sync of the configured depth per
+    (master, slave) pair of every slave two or more masters read -- the internal
+    subtractive slave excluded, it carries no traffic to block on; its R
+    stays on the direct path beside the queues in the same arbiter. The
+    slave's RREADY for a queued master is the
+    queue's write-side ready keyed on the returned bridge id, not the
+    master's RREADY through the grant; the master's R mux and response
+    arbiter take the queue head. The filelist pulls the FIFO in. The
+    unqueued baseline has none of it."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_2x2_rw_rq8")
+    xbar = (gen / "bridge_2x2_rw_rq8_xbar.sv").read_text()
+    pairs = [(m, s) for m in ("cpu_32b", "dma_32b") for s in ("ddr", "sram")]
+    assert xbar.count("gaxi_fifo_sync #(.DATA_WIDTH($bits(axi4_r_32b_t)), .DEPTH(8)") == len(pairs)
+    for m, s in pairs:
+        assert f"u_rq_{m}_{s} (" in xbar, (m, s)
+        assert f"({m}_r_rgnt_{s} ? rq_{m}_{s}_rd_valid : '0)" in xbar, (m, s)
+        assert f"({m}_r_rgnt_{s} ? rq_{m}_{s}_out.data : 32'b0)" in xbar, (m, s)
+    for s in ("ddr", "sram"):
+        assert (f"assign {s}_axi_rready = (({s}_axi_rid_bridge_id == 0) ? rq_cpu_32b_{s}_wr_ready : '0) |\n"
+                f"        (({s}_axi_rid_bridge_id == 1) ? rq_dma_32b_{s}_wr_ready : '0);") in xbar, s
+        assert f"({s}_axi_rid_bridge_id == 0) && {s}_axi_rid_valid) && {s}_axi_rvalid" not in xbar, s
+    assert "u_rq_cpu_32b_subtractive" not in xbar
+    assert "(cpu_32b_r_rgnt_subtractive ? subtractive_axi_rvalid : '0)" in xbar
+    assert "rtl/amba/filelists/gaxi_fifo_sync.f" in fl.read_text()
+
+    base, base_fl = _generate_fixture(tmp_path / "base", "bridge_2x2_rw")
+    base_xbar = (base / "bridge_2x2_rw_xbar.sv").read_text()
+    assert "u_rq_" not in base_xbar and "gaxi_fifo_sync" not in base_xbar
+    assert "assign ddr_axi_rready = (cpu_32b_r_rgnt_ddr ? cpu_32b_rready : '0) |" in base_xbar
+    assert "gaxi_fifo_sync.f" not in base_fl.read_text()
+
+
+def test_r_queue_single_slave_path_grants_from_the_queue(tmp_path):
+    """bridge_4x4_rw_rq8: every width path of every master reaches one slave,
+    so the response arbiter degenerates to a wire. That wire must be the
+    queue's rd_valid, not the slave's head beat: following the slave's head
+    left a master's queued beats stranded whenever the slave idled or served
+    another master, and every pair hung (2026-10-25). Thirteen queues, one
+    per (reading master, shared slave) pair; a slave with one reader gets
+    none."""
+    gen, fl = _generate_fixture(tmp_path, "bridge_4x4_rw_rq8")
+    xbar = (gen / "bridge_4x4_rw_rq8_xbar.sv").read_text()
+    assert xbar.count("gaxi_fifo_sync #(") == 13
+    assert "wire cpu_master_64b_r_rgnt_ddr0_slave = rq_cpu_master_64b_ddr0_slave_rd_valid;" in xbar
+    assert "wire gpu_master_32b_r_rgnt_periph_slave = rq_gpu_master_32b_periph_slave_rd_valid;" in xbar
+    # the 256b path also carries the internal subtractive slave, so it keeps
+    # an arbiter; the queued pair's request there is the queue head too
+    assert ("assign dma1_master_256b_r_rarb_req = {((subtractive_axi_rid_bridge_id == 2) && subtractive_axi_rid_valid)"
+            " && subtractive_axi_rvalid, rq_dma1_master_256b_gpu_mem_slave_rd_valid};") in xbar
+    assert "_rgnt_ddr0_slave = ((ddr0_slave_axi_rid_bridge_id" not in xbar
+    assert "rtl/amba/filelists/gaxi_fifo_sync.f" in fl.read_text()

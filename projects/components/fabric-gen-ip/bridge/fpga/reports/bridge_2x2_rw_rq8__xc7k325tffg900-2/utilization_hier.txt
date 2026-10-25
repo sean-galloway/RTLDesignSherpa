@@ -1,0 +1,36 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Sun Oct 25 02:18:43 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_utilization -hierarchical -hierarchical_depth 1 -file /mnt/data/github/RTLDesignSherpa/projects/components/fabric-gen-ip/bridge/fpga/reports/bridge_2x2_rw_rq8__xc7k325tffg900-2/utilization_hier.txt
+| Design       : bridge_2x2_rw_rq8
+| Device       : xc7k325tffg900-2
+| Speed File   : -2
+| Design State : Routed
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Utilization Design Information
+
+Table of Contents
+-----------------
+1. Utilization by Hierarchy
+
+1. Utilization by Hierarchy
+---------------------------
+
++---------------------------+---------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+|          Instance         |                 Module                | Total LUTs | Logic LUTs | LUTRAMs | SRLs |  FFs | RAMB36 | RAMB18 | DSP Blocks |
++---------------------------+---------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+| bridge_2x2_rw_rq8         |                                 (top) |       5745 |       5633 |     112 |    0 | 5058 |      0 |      0 |          0 |
+|   (bridge_2x2_rw_rq8)     |                                 (top) |          0 |          0 |       0 |    0 |    0 |      0 |      0 |          0 |
+|   (u_subtractive_adapter) | bridge_2x2_rw_rq8_subtractive_adapter |         61 |         61 |       0 |    0 |   52 |      0 |      0 |          0 |
+|   u_cpu_adapter           |         bridge_2x2_rw_rq8_cpu_adapter |       1324 |       1324 |       0 |    0 | 1230 |      0 |      0 |          0 |
+|   u_ddr_adapter           |         bridge_2x2_rw_rq8_ddr_adapter |        283 |        283 |       0 |    0 |  358 |      0 |      0 |          0 |
+|   u_dma_adapter           |         bridge_2x2_rw_rq8_dma_adapter |       1778 |       1778 |       0 |    0 | 1857 |      0 |      0 |          0 |
+|   u_sram_adapter          |        bridge_2x2_rw_rq8_sram_adapter |        190 |        190 |       0 |    0 |  200 |      0 |      0 |          0 |
+|   u_xbar                  |                bridge_2x2_rw_rq8_xbar |       2052 |       1940 |     112 |    0 | 1316 |      0 |      0 |          0 |
++---------------------------+---------------------------------------+------------+------------+---------+------+------+--------+--------+------------+
+* Note: The sum of lower-level cells may be larger than their parent cells total, due to cross-hierarchy LUT combining
+
+

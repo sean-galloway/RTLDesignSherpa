@@ -879,6 +879,8 @@ def _emit_bridge_variant(
         mon_group=getattr(config, 'mon_group', None),
         # bridge TASK-006 (was BRIDGE-017): [bridge].xbar_pipeline -> registered crossbar.
         xbar_pipeline=getattr(config, 'xbar_pipeline', False),
+        # bridge TASK-021: [bridge].r_queue_depth -> read response queues in the crossbar.
+        r_queue_depth=getattr(config, 'r_queue_depth', 0),
         # bridge TASK-006 (was BRIDGE-017): [bridge].arbitration = "rr" | "qos" (+ qos_aging_shift) | "matrix" (bridge TASK-015).
         arbitration=getattr(config, 'arbitration', 'rr'),
         qos_aging_shift=getattr(config, 'qos_aging_shift', 4),
@@ -1237,6 +1239,10 @@ def _emit_bridge_variant(
     filelist_lines.append("")
     filelist_lines.append("# GAXI skid buffers (used by wrappers and converters)")
     filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/gaxi_skid_buffer.f")
+    if int(getattr(config, 'r_queue_depth', 0) or 0):
+        filelist_lines.append("")
+        filelist_lines.append("# Read response queues in the crossbar (bridge TASK-021, r_queue_depth)")
+        filelist_lines.append("-f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f")
 
     filelist_lines.append("")
     filelist_lines.append("# Width converters (for data width adaptation).")

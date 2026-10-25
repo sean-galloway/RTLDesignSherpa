@@ -11,7 +11,7 @@ Pick the lane before filing:
 
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
-| [task/](task/INDEX.md) | 1 | 0 | 16 | 4 | 0 |
+| [task/](task/INDEX.md) | 1 | 0 | 17 | 4 | 0 |
 | [bug/](bug/INDEX.md) | 0 | 0 | 26 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 0 | 0 | 1 | 0 | 0 |
 
@@ -25,11 +25,11 @@ generator, its generated wrappers/xbars/adapters, and their DV.
 Counts are the item files in each lane directory, not counting the
 `*-000.md` templates (checked 2026-10-23).
 
-## Open (2026-10-23)
+## Open (2026-10-25)
 
 | Item | Pri | What is left |
 |---|---|---|
-| [TASK-021](task/open/TASK-021.md) | P3 | head-of-line blocking under uniform traffic past saturation: the master adapter returns R in AR issue order across slaves; fix = select R by returned ID (request-slot depth measured irrelevant) |
+| [TASK-022](task/open/TASK-022.md) | P3 | the 4x4's uniform-traffic loss past saturation: `r_queue_depth` (TASK-021) changes nothing there -- a flat 2.45 beats/cycle ceiling at FUNC length -- so it is another stage; measure before building (adapter in-order return across width paths, or an outstanding limit at the slow periph port) |
 
 No bug or issue is open.
 

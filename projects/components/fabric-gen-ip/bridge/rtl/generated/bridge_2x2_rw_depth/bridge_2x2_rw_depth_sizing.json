@@ -145,6 +145,7 @@
    }
   }
  ],
+ "r_queue_depth": 0,
  "warnings": [
   "master 'dma': max_outstanding = 4 is under the rule's minimum 9 (1 + latency_cycles 0 + round trip 8 (dma -> ddr, write 8 / read 7)); a single-beat stream tops out at 4/9 of the port's peak",
   "slave 'sram': max_outstanding = 4 is under the rule's minimum 9 (1 + latency_cycles 0 + round trip 8 (cpu -> sram, write 8 / read 7)); a single-beat stream tops out at 4/9 of the port's peak"

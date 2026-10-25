@@ -290,6 +290,12 @@ synth`:
   the master adapters and slave adapters scale with their own counts.
 - **`xbar_pipeline`** adds one 2-deep skid per slave-side channel (MAS 2.3),
   paid in registers, and returns it as the shorter worst path.
+- **`r_queue_depth`** adds one FIFO of that many R beats per (reading
+  master, shared slave) pair (MAS 2.3, bridge TASK-021): on a 2x2 four
+  queues, on the 4x4 thirteen. Flops, almost entirely -- the 2x2 crossbar's
+  count goes from 1,883 to 3,235 at 8 beats on ASAP7 (HAS 5.3), a
+  distributed-RAM candidate on the FPGA -- and it buys the uniform-traffic
+  throughput past saturation (HAS 5.1).
 - **Protocol shims and width converters** are the expensive ports: an APB or
   AXI-Lite slave carries a converter plus its own monitor sandwich, a width
   step carries a converter each way.

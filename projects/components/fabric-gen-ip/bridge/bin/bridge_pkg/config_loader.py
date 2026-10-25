@@ -560,6 +560,16 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     xbar_pipeline = bool(bridge_data.get('xbar_pipeline', False))
     if xbar_pipeline:
         print("  xbar_pipeline: True (registered crossbar, +1 cycle each way)")
+    # bridge TASK-021: read response queues, 0 or 2..64 beats
+    try:
+        r_queue_depth = int(bridge_data.get('r_queue_depth', 0))
+    except (TypeError, ValueError):
+        raise ValueError(f"{config_path}: [bridge].r_queue_depth must be an integer, got "
+                         f"{bridge_data.get('r_queue_depth')!r}")
+    if r_queue_depth and not (2 <= r_queue_depth <= 64):
+        raise ValueError(f"{config_path}: [bridge].r_queue_depth must be 0 (none) or 2..64 beats, got {r_queue_depth}")
+    if r_queue_depth:
+        print(f"  r_queue_depth: {r_queue_depth} (an R queue of {r_queue_depth} beats per (master, slave) pair of every shared slave)")
 
     # bridge TASK-006 (was BRIDGE-017): arbitration policy. 'qos' makes every slave arbiter pick
     # by AxQOS + aging; 'rr' is the round-robin default; 'matrix' (bridge TASK-015) is the
@@ -625,7 +635,7 @@ def _parse_port_data(data: Dict, config_path: str) -> Tuple[List[PortSpec], List
     return (masters, slaves, defaults, connectivity_data, bridge_name,
             variants, internal_axil_group, use_all_monitors,
             use_no_monitors, mon_preset, use_cfg_regblock, mon_group,
-            xbar_pipeline, arbitration, qos_aging_shift, id_track_bits)
+            xbar_pipeline, arbitration, qos_aging_shift, id_track_bits, r_queue_depth)
 
 
 def find_connectivity_csv(yaml_path: str) -> Optional[str]:
@@ -726,13 +736,13 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
          use_cfg_regblock, mon_group, xbar_pipeline,
-         arbitration, qos_aging_shift, id_track_bits) = load_toml_ports(config_path)
+         arbitration, qos_aging_shift, id_track_bits, r_queue_depth) = load_toml_ports(config_path)
     elif config_file.suffix in ['.yaml', '.yml']:
         (masters, slaves, defaults, embedded_connectivity, bridge_name,
          variants, internal_axil_group,
          use_all_monitors, use_no_monitors, mon_preset,
          use_cfg_regblock, mon_group, xbar_pipeline,
-         arbitration, qos_aging_shift, id_track_bits) = load_yaml_ports(config_path)
+         arbitration, qos_aging_shift, id_track_bits, r_queue_depth) = load_yaml_ports(config_path)
     else:
         raise ValueError(f"Unsupported config format: {config_file.suffix}. Use .toml, .yaml, or .yml")
 
@@ -819,6 +829,7 @@ def load_config(config_path: str, connectivity_csv: Optional[str] = None) -> Bri
         use_cfg_regblock=use_cfg_regblock,
         mon_group=mon_group,
         xbar_pipeline=xbar_pipeline,
+        r_queue_depth=r_queue_depth,
         arbitration=arbitration,
         qos_aging_shift=qos_aging_shift,
         id_track_bits=id_track_bits,

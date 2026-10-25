@@ -37,7 +37,8 @@ class CrossbarGenerator:
     """
 
     def __init__(self, bridge_name: str, masters: List[MasterConfig], slaves: List[SlaveInfo],
-                 pipeline: bool = False, arbitration: str = 'rr', qos_aging_shift: int = 4):
+                 pipeline: bool = False, arbitration: str = 'rr', qos_aging_shift: int = 4,
+                 r_queue_depth: int = 0):
         """
         Initialize crossbar generator.
 
@@ -58,6 +59,20 @@ class CrossbarGenerator:
         # request cone (decode -> arbiter -> N-way mux) and the response
         # OR-merge end at a register, at full throughput, +1 cycle each way.
         self.pipeline = bool(pipeline)
+        # bridge TASK-021: response queues. A slave returns R in its own order;
+        # when its head burst is for a master whose R port another slave is
+        # feeding, the slave stalls and the master the slave's NEXT burst was
+        # for sits idle -- head-of-line blocking on the response path, 0.67 of
+        # capacity under uniform traffic past saturation (measured: both
+        # slaves' R channels stalled 31 percent of the cycles while no master
+        # R port was). r_queue_depth > 0 puts a FIFO of that many beats on
+        # every (master, slave) pair of a shared slave: the slave
+        # hands its head burst into the busy master's queue and goes on to
+        # the next; each master's response arbiter then picks among its
+        # queues. 0 (default, the rule's minimum) keeps the direct path.
+        self.r_queue_depth = int(r_queue_depth or 0)
+        if self.r_queue_depth and not (2 <= self.r_queue_depth <= 64):
+            raise ValueError(f"r_queue_depth must be 0 or 2..64, got {r_queue_depth}")
         # bridge TASK-006 (was BRIDGE-017): per-slave arbitration policy. 'rr' is the round-robin
         # the fabric has always had. 'qos' picks the requester with the
         # highest EFFECTIVE priority -- AxQOS plus an age term that grows
@@ -475,7 +490,9 @@ class CrossbarGenerator:
         # Response arbiters (per master width path, B and R): the slave
         # routing blocks gate each slave's BREADY/RREADY with their grants,
         # and the response muxes select by them.
+        lines.extend(self._generate_response_queues())
         lines.extend(self._generate_response_arbiters())
+        lines.extend(self._generate_response_queue_drains())
 
         # Route to each slave
         for slave_idx, slave in enumerate(self.slaves):
@@ -748,8 +765,9 @@ class CrossbarGenerator:
         one cycle). Its output side is drained by the pin-side arbiter.
         Two is the depth: 4- and 8-deep slots measured the identical uniform-
         traffic curve past saturation (bridge TASK-021, 2026-10-24) -- the
-        head-of-line block there is the master adapter's in-order response
-        FIFO, not this slot."""
+        head-of-line block there is at a shared slave's in-order R output,
+        which r_queue_depth (_generate_response_queues) decouples, not this
+        slot."""
         lines = [f"    // {ch.upper()} request slots for {slave.name}: arbitration at the slave pins"]
         typ = "axi4_aw_t" if ch == "aw" else "axi4_ar_t"
         for m in masters:
@@ -957,7 +975,9 @@ class CrossbarGenerator:
                      for m in wr_masters]
             lines.append(f"    assign {prefix}bready = " + " |\n        ".join(terms) + ";")
         if has_read:
-            terms = [f"({self._rgnt(m, suffix, 'r', slave)} ? {m.name}_{suffix}_rready : '0)"
+            terms = [(f"(({prefix}rid_bridge_id == {self.masters.index(m)}) ? {self._rq(m, suffix, slave)}_wr_ready : '0)"
+                      if self._rq_on(m, suffix, slave) else
+                      f"({self._rgnt(m, suffix, 'r', slave)} ? {m.name}_{suffix}_rready : '0)")
                      for m in rd_masters]
             lines.append(f"    assign {prefix}rready = " + " |\n        ".join(terms) + ";")
         lines.append("")
@@ -1333,12 +1353,20 @@ class CrossbarGenerator:
             lines.append(f"    assign {prefix}arvalid = {gnt_or};")
             lines.append("")
 
-            lines.append("    // Rready (slave -> the master whose response arbiter granted it)")
+            if any(self._rq_on(m, suffix, slave) for m in rd_masters):
+                lines.append("    // Rready (slave -> the master whose response arbiter granted it;")
+                lines.append("    // a queued pair: the master's queue has room, bridge TASK-021)")
+            else:
+                lines.append("    // Rready (slave -> the master whose response arbiter granted it)")
             rready_terms = []
             for m in rd_masters:
-                rready_terms.append(
-                    f"({self._rgnt(m, suffix, 'r', slave)} ? {m.name}_{suffix}_rready : '0)"
-                )
+                if self._rq_on(m, suffix, slave):
+                    rready_terms.append(
+                        f"(({prefix}rid_bridge_id == {self.masters.index(m)}) ? {self._rq(m, suffix, slave)}_wr_ready : '0)")
+                else:
+                    rready_terms.append(
+                        f"({self._rgnt(m, suffix, 'r', slave)} ? {m.name}_{suffix}_rready : '0)"
+                    )
             lines.append(f"    assign {prefix}rready = " + " |\n        ".join(rready_terms) + ";")
             lines.append("")
 
@@ -1580,7 +1608,11 @@ class CrossbarGenerator:
         # the R handshake stalls).
         lines.append("    // Rready (master → slave) — gated on rid_valid so the path stays")
         lines.append("    // open through the entire R handshake, not just the AR phase.")
-        lines.append(f"    assign {prefix}rready = {self._rgnt(master, suffix, 'r', slave)} ? {master.name}_{suffix}_rready : '0;")
+        if self._rq_on(master, suffix, slave):
+            lines.append(f"    assign {prefix}rready = ({prefix}rid_bridge_id == {self.masters.index(master)}) ? "
+                         f"{self._rq(master, suffix, slave)}_wr_ready : '0;  // queued pair (bridge TASK-021)")
+        else:
+            lines.append(f"    assign {prefix}rready = {self._rgnt(master, suffix, 'r', slave)} ? {master.name}_{suffix}_rready : '0;")
         lines.append("")
 
         # Bridge ID routing (master → slave) - passes master index for response routing
@@ -1598,6 +1630,92 @@ class CrossbarGenerator:
     def _rgnt(self, master: MasterConfig, suffix: str, ch: str, slave: SlaveInfo) -> str:
         """Name of the response grant: `slave` owns `master`'s `ch` (b|r) path."""
         return f"{master.name}_{suffix}_{ch}_rgnt_{slave.name}"
+
+    def _rq(self, master: MasterConfig, suffix: str, slave: SlaveInfo) -> str:
+        """Name of the (master, slave) read response queue (bridge TASK-021)."""
+        return f"rq_{master.name}_{suffix}_{slave.name}"
+
+    def _rq_on(self, master: MasterConfig, suffix: str, slave: SlaveInfo) -> bool:
+        """A response queue sits between `slave` and `master`'s `suffix` R
+        path when r_queue_depth > 0, the master reads, the slave is read by
+        two or more masters (a slave with one master has nobody behind the
+        head to block), and the slave is neither a CDC lane (its R already
+        crosses through a FIFO of its own) nor the internal subtractive
+        slave (DECERR for unmapped addresses only: no traffic to block on,
+        and a third of the cost on a 2x2)."""
+        if not self.r_queue_depth or master.channels not in ("rd", "rw"):
+            return False
+        if self._is_lane(slave) or getattr(slave, 'internal', False):
+            return False
+        readers = [m for m in self._get_masters_connecting_to_slave(slave)
+                   if m.channels in ("rd", "rw")]
+        return len(readers) >= 2
+
+    def _generate_response_queues(self) -> List[str]:
+        """bridge TASK-021: one FIFO per (master, slave) pair of every shared
+        slave (_rq_on). The slave writes a beat into the queue of the master
+        its returned bridge id names; the master's response arbiter reads the
+        queue heads. Depth r_queue_depth, in beats; a queue at least one
+        burst deep lets the slave hand a whole burst over before it stalls."""
+        if not self.r_queue_depth:
+            return []
+        lines = ["    // ================================================================",
+                 f"    // Read response queues (bridge TASK-021): {self.r_queue_depth} beats per",
+                 "    // (master, slave) pair of every shared slave. A slave hands its head",
+                 "    // burst to a busy master's queue and goes on to the next master's",
+                 "    // beats instead of stalling on it.",
+                 "    // ================================================================", ""]
+        for master in self.masters:
+            mi = self.masters.index(master)
+            for width in self._get_connected_slave_widths(master):
+                suffix = f"{width}b"
+                for _si, slave in self._path_slaves(master, width):
+                    if not self._rq_on(master, suffix, slave):
+                        continue
+                    q, sp = self._rq(master, suffix, slave), self._sp(slave)
+                    typ = f"axi4_r_{width}b_t"
+                    lines.append(f"    {typ} {q}_in, {q}_out;")
+                    lines.append(f"    logic {q}_wr_valid, {q}_wr_ready, {q}_rd_valid, {q}_rd_ready;")
+                    lines.append(f"    assign {q}_in.id   = {sp}rid;")
+                    lines.append(f"    assign {q}_in.data = {sp}rdata;")
+                    lines.append(f"    assign {q}_in.resp = {sp}rresp;")
+                    lines.append(f"    assign {q}_in.last = {sp}rlast;")
+                    lines.append(f"    assign {q}_in.user = {sp}ruser;")
+                    for field, w, feat, base in self._sb_fields('r', self.sb_union):
+                        if feat in self._sb_slave_feats(slave):
+                            src = self._sb_port_to_struct('r', w, f"{sp}{base}", slave.data_width)
+                        else:
+                            src = "'0"
+                        lines.append(f"    assign {q}_in.{field} = {src};")
+                    lines.append(f"    assign {q}_wr_valid = {sp}rvalid && {sp}rid_valid && ({sp}rid_bridge_id == {mi});")
+                    lines.append(f"    gaxi_fifo_sync #(.DATA_WIDTH($bits({typ})), .DEPTH({self.r_queue_depth}), .REGISTERED(0)) u_{q} (")
+                    lines.append(f"        .axi_aclk(aclk), .axi_aresetn(aresetn),")
+                    lines.append(f"        .wr_valid({q}_wr_valid), .wr_ready({q}_wr_ready), .wr_data({q}_in),")
+                    lines.append(f"        .rd_ready({q}_rd_ready), .rd_valid({q}_rd_valid), .rd_data({q}_out),")
+                    lines.append(f"        /* verilator lint_off PINCONNECTEMPTY */")
+                    lines.append(f"        .count()")
+                    lines.append(f"        /* verilator lint_on PINCONNECTEMPTY */")
+                    lines.append(f"    );")
+                    lines.append("")
+        return lines
+
+    def _generate_response_queue_drains(self) -> List[str]:
+        """bridge TASK-021: a queue drains when its master's response arbiter
+        grants it and the master takes the beat. Emitted after the arbiters,
+        which declare the grants (a strict front end rejects a use before
+        the declaration)."""
+        lines = []
+        for master in self.masters:
+            for width in self._get_connected_slave_widths(master):
+                suffix = f"{width}b"
+                for _si, slave in self._path_slaves(master, width):
+                    if self._rq_on(master, suffix, slave):
+                        q = self._rq(master, suffix, slave)
+                        lines.append(f"    assign {q}_rd_ready = {self._rgnt(master, suffix, 'r', slave)} && "
+                                     f"{master.name}_{suffix}_rready;")
+        if lines:
+            lines = ["    // Read response queue drains (bridge TASK-021)"] + lines + [""]
+        return lines
 
     def _generate_response_arbiters(self) -> List[str]:
         """Per master width path and response channel, pick ONE slave.
@@ -1642,9 +1760,17 @@ class CrossbarGenerator:
         n = len(conn)
         own = [f"(({self._sp(sl)}{ch}id_bridge_id == {mi}) && {self._sp(sl)}{ch}id_valid)"
                for _si, sl in conn]
+        # bridge TASK-021: a queued pair's request is its queue head, which
+        # only ever holds this master's beats
+        qd = [ch == 'r' and self._rq_on(master, suffix, sl) for _si, sl in conn]
         if n == 1:
             sl = conn[0][1]
-            lines.append(f"    wire {self._rgnt(master, suffix, ch, sl)} = {own[0]};")
+            # a queued pair's grant is its queue head, never the slave's head
+            # beat: that beat may be another master's, or absent, while this
+            # master's beats wait in the queue (bridge TASK-021: the 4x4 has
+            # one slave per width path, and this grant hung every pair)
+            src = f"{self._rq(master, suffix, sl)}_rd_valid" if qd[0] else own[0]
+            lines.append(f"    wire {self._rgnt(master, suffix, ch, sl)} = {src};")
             lines.append("")
             return lines
         k = max(1, (n - 1).bit_length())
@@ -1652,7 +1778,10 @@ class CrossbarGenerator:
         ready = f"{master.name}_{suffix}_{ch}ready"
         lines.append(f"    // ---- {ch.upper()} response arbiter, master {master.name} {suffix}: "
                      f"round-robin per beat, lock until taken ----")
-        req_bits = ", ".join(f"{own[i]} && {self._sp(conn[i][1])}{ch}valid" for i in reversed(range(n)))
+        req_bits = ", ".join(
+            (f"{self._rq(master, suffix, conn[i][1])}_rd_valid" if qd[i]
+             else f"{own[i]} && {self._sp(conn[i][1])}{ch}valid")
+            for i in reversed(range(n)))
         lines.append(f"    logic [{n-1}:0] {arb}_req;")
         lines.append(f"    assign {arb}_req = {{{req_bits}}};")
         lines.append(f"    logic [{k-1}:0] {arb}_lock, {arb}_rr;")
@@ -1863,52 +1992,29 @@ class CrossbarGenerator:
         lines.append("")
 
         # Generate R channel MUXes (rid, rdata, rresp, rlast, rvalid) - uses bridge_id for response routing
-        lines.append(f"    assign {master.name}_{suffix}_r.id = ")
-        mux_terms = []
-        for slave_idx, slave in connected_slaves:
-            prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rid : '0)")
-        lines.append(" |\n".join(mux_terms) + ";")
-        lines.append("")
+        # bridge TASK-021: a queued pair's beat comes from its queue head
+        def rsrc(slave, prefix, port, zero="'0"):
+            q = self._rq(master, suffix, slave)
+            field = {'rid': 'id', 'rdata': 'data', 'rresp': 'resp', 'rlast': 'last', 'ruser': 'user'}[port]
+            return f"{q}_out.{field}" if self._rq_on(master, suffix, slave) else f"{prefix}{port}"
 
-        lines.append(f"    assign {master.name}_{suffix}_r.data = ")
-        mux_terms = []
-        for slave_idx, slave in connected_slaves:
-            prefix = get_slave_prefix(slave)
-            # Explicitly size the default value to match the slave's data width
-            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rdata : {width}'b0)")
-        lines.append(" |\n".join(mux_terms) + ";")
-        lines.append("")
-
-        lines.append(f"    assign {master.name}_{suffix}_r.resp = ")
-        mux_terms = []
-        for slave_idx, slave in connected_slaves:
-            prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rresp : '0)")
-        lines.append(" |\n".join(mux_terms) + ";")
-        lines.append("")
-
-        lines.append(f"    assign {master.name}_{suffix}_r.last = ")
-        mux_terms = []
-        for slave_idx, slave in connected_slaves:
-            prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rlast : '0)")
-        lines.append(" |\n".join(mux_terms) + ";")
-        lines.append("")
-
-        lines.append(f"    assign {master.name}_{suffix}_r.user = ")
-        mux_terms = []
-        for slave_idx, slave in connected_slaves:
-            prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}ruser : '0)")
-        lines.append(" |\n".join(mux_terms) + ";")
-        lines.append("")
+        for fld, port, zero in (('id', 'rid', "'0"), ('data', 'rdata', f"{width}'b0"),
+                                ('resp', 'rresp', "'0"), ('last', 'rlast', "'0"), ('user', 'ruser', "'0")):
+            lines.append(f"    assign {master.name}_{suffix}_r.{fld} = ")
+            mux_terms = []
+            for slave_idx, slave in connected_slaves:
+                prefix = get_slave_prefix(slave)
+                mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {rsrc(slave, prefix, port)} : {zero})")
+            lines.append(" |\n".join(mux_terms) + ";")
+            lines.append("")
 
         lines.append(f"    assign {master.name}_{suffix}_rvalid = ")
         mux_terms = []
         for slave_idx, slave in connected_slaves:
             prefix = get_slave_prefix(slave)
-            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {prefix}rvalid : '0)")
+            v = (f"{self._rq(master, suffix, slave)}_rd_valid" if self._rq_on(master, suffix, slave)
+                 else f"{prefix}rvalid")
+            mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {v} : '0)")
         lines.append(" |\n".join(mux_terms) + ";")
         lines.append("")
 
@@ -1917,10 +2023,13 @@ class CrossbarGenerator:
             lines.append(f"    assign {master.name}_{suffix}_r.{field} = ")
             mux_terms = []
             for slave_idx, slave in connected_slaves:
-                if feat not in self._sb_slave_feats(slave):
-                    continue
                 prefix = get_slave_prefix(slave)
-                src = self._sb_port_to_struct('r', w, f"{prefix}{base}", slave.data_width)
+                if self._rq_on(master, suffix, slave):
+                    src = f"{self._rq(master, suffix, slave)}_out.{field}"
+                elif feat in self._sb_slave_feats(slave):
+                    src = self._sb_port_to_struct('r', w, f"{prefix}{base}", slave.data_width)
+                else:
+                    continue
                 mux_terms.append(f"        ({self._rgnt(master, suffix, 'r', slave)} ? {src} : '0)")
             lines.append((" |\n".join(mux_terms) if mux_terms else "        '0") + ";")
             lines.append("")

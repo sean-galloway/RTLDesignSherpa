@@ -27,17 +27,30 @@
 # past offered = 1.0; under a permutation the fabric must carry N flows at
 # once, so a serialising stage would show as accepted flattening under N.
 #
-# KNOWN (bridge TASK-021): UNIFORM traffic past saturation. The master
-# adapter returns R in AR issue order across slaves (its response mux follows
-# the AR tracking FIFO's head), so a read that an idle slave has answered
-# waits behind an earlier read still queued at the busy one -- head-of-line
-# blocking on the response path. (4- and 8-deep request slots measured the
-# identical curve: the request slots are not it.) Measured
-# 2026-10-24 (FUNC): bridge_2x2_rw 0.80 of capacity at 1.33x offered, 0.67 at
-# 2x; bridge_2x2_rw_pipe the same; bridge_4x4_rw 0.61 from 0.9x offered on.
-# Permutation and hot-spot hold 1.00 everywhere. Those points are held to
-# KNOWN_UNIFORM_FLOOR of capacity until TASK-021 lands; then delete the row
-# and the 0.85 floor applies again.
+# UNIFORM traffic past saturation on a fabric WITHOUT response queues
+# (bridge TASK-021, measured 2026-10-24/25 at FUNC): a slave returns R in
+# its own order, so when its head burst is for a master whose R port the
+# other slave is feeding, it stalls -- and the master its NEXT burst was for
+# sits idle. Head-of-line blocking on the response path, at the slave's
+# output: both slave R channels stalled 31 percent of the cycles while no
+# master R port was. bridge_2x2_rw holds 0.80 of capacity at 1.33x offered
+# and 0.67 at 2x, bridge_2x2_rw_pipe the same, bridge_4x4_rw 0.61 from 0.9x
+# on. Permutation and hot-spot hold 1.00 everywhere. (4- and 8-deep request
+# slots measured the identical curve; the master adapter's R mux is a single
+# width path on these fixtures: neither is it.)
+# The fix is `[bridge] r_queue_depth` (HAS 5.1 / 6.2): a per-(master, slave)
+# R queue in the crossbar, so the slave hands a burst for a busy master over
+# and serves the next. bridge_2x2_rw_rq8 (8 beats) measures 1.00 of capacity
+# at every load point and is held to the full ACCEPT_FLOOR here. On the
+# mixed-width bridge_4x4_rw_rq8 the same queue changes nothing at FUNC
+# length (2.45 against 2.43 slave beats per cycle at 4x offered, a flat
+# ceiling from 1.4x on; the shorter GATE sweep's 0.95 / 0.74 is a transient
+# the queues absorb, and 32 beats measured the same as 8), so the 4x4's loss
+# is another stage and it is held to KNOWN_UNIFORM_FLOOR with the unqueued
+# fixtures (bridge TASK-022). The default is 0 -- the minimal fabric, by the owner's rule for
+# every depth -- so the unqueued fixtures keep the measured curve and are
+# held to KNOWN_UNIFORM_FLOOR past saturation: the cost of the minimum,
+# documented, not a defect waiting on a fix.
 # GATE runs three load points, FUNC and FULL the whole curve (the default
 # is the minimal sweep; the curve is the knob -- bridge TASK-014).
 #
@@ -59,29 +72,37 @@ from TBClasses.shared.test_levels import level_env, reg_level_grid  # noqa: E402
 
 from bridge2x2_rw_tb import Bridge2x2RwTB                           # noqa: E402
 from bridge2x2_rw_pipe_tb import Bridge2x2RwPipeTB                  # noqa: E402
+from bridge2x2_rw_rq8_tb import Bridge2x2RwRq8TB                    # noqa: E402
 from bridge4x4_rw_tb import Bridge4x4RwTB                           # noqa: E402
+from bridge4x4_rw_rq8_tb import Bridge4x4RwRq8TB                    # noqa: E402
 from bridge_perf_probe import saturate, report                      # noqa: E402
 from bridge_perf_patterns import Roles, PATTERNS, sweep, table      # noqa: E402
 
 FIXTURES = {'bridge_2x2_rw': Bridge2x2RwTB, 'bridge_2x2_rw_pipe': Bridge2x2RwPipeTB,
-            'bridge_4x4_rw': Bridge4x4RwTB}
+            'bridge_2x2_rw_rq8': Bridge2x2RwRq8TB, 'bridge_4x4_rw': Bridge4x4RwTB,
+            'bridge_4x4_rw_rq8': Bridge4x4RwRq8TB}
 # masters, their reach (TOML connectivity), the hot slave
 ROLES = {
     'bridge_2x2_rw':      Roles((0, 1), {0: (0, 1), 1: (0, 1)}, hot=0),
     'bridge_2x2_rw_pipe': Roles((0, 1), {0: (0, 1), 1: (0, 1)}, hot=0),
+    'bridge_2x2_rw_rq8':  Roles((0, 1), {0: (0, 1), 1: (0, 1)}, hot=0),
     # 4x4: cpu 64b, dma0 32b, dma1 128b, gpu 256b; periph 32b, ddr0 64b, sram 128b, gpu_mem 256b
     'bridge_4x4_rw':      Roles((0, 1, 2, 3), {0: (0, 1, 2, 3), 1: (0, 1, 2), 2: (1, 2, 3), 3: (0, 1, 3)}, hot=1),
+    'bridge_4x4_rw_rq8':  Roles((0, 1, 2, 3), {0: (0, 1, 2, 3), 1: (0, 1, 2), 2: (1, 2, 3), 3: (0, 1, 3)}, hot=1),
 }
 SLAVE_PFX = {
     'bridge_2x2_rw': {0: 'ddr_s_axi', 1: 'sram_s_axi'},
     'bridge_2x2_rw_pipe': {0: 'ddr_s_axi', 1: 'sram_s_axi'},
+    'bridge_2x2_rw_rq8': {0: 'ddr_s_axi', 1: 'sram_s_axi'},
     'bridge_4x4_rw': {0: 'periph_slave_axi', 1: 'ddr0_slave_axi', 2: 'sram_slave_axi', 3: 'gpu_mem_slave_axi'},
+    'bridge_4x4_rw_rq8': {0: 'periph_slave_axi', 1: 'ddr0_slave_axi', 2: 'sram_slave_axi', 3: 'gpu_mem_slave_axi'},
 }
 GAPS = {'gate': [16, 4, 2], 'func': [32, 16, 8, 6, 5, 4, 3, 2], 'full': [32, 16, 8, 6, 5, 4, 3, 2]}
 NREADS = {'gate': 24, 'func': 48, 'full': 96}
 ACCEPT_FLOOR = 0.85
 LAT_SLACK = 4
-KNOWN_UNIFORM_FLOOR = 0.55      # bridge TASK-021: head-of-line blocking past saturation
+KNOWN_UNIFORM_FLOOR = 0.55      # unqueued fabric past saturation (bridge TASK-021)
+QUEUED = {'bridge_2x2_rw_rq8'}  # the queue removes the whole loss: the full floor applies
 
 FIXTURE = os.environ.get('BRIDGE_PERF_FIXTURE', 'bridge_2x2_rw')
 
@@ -103,12 +124,13 @@ async def _pattern(dut, pattern):
                accepted=p.accepted, **{f"s{s}_offered": v for s, v in (p.offered_by_slave or {}).items()},
                **{f"m{m}_mean": v for m, v in p.mean_lat.items()},
                **{f"m{m}_p95": v for m, v in p.p95_lat.items()})
-        known = pattern == 'uniform' and p.offered > p.capacity + 1e-9       # TASK-021
+        known = (pattern == 'uniform' and p.offered > p.capacity + 1e-9      # TASK-021
+                 and FIXTURE not in QUEUED)
         floor = (KNOWN_UNIFORM_FLOOR if known else ACCEPT_FLOOR) * p.capacity
         if p.accepted < floor:
             failures.append(f"{pattern} gap {p.gap}: accepted {p.accepted:.3f} slave beats/cycle "
                             f"for {p.offered:.3f} offered, capacity {p.capacity:.3f} (floor {floor:.3f}"
-                            f"{', KNOWN bridge TASK-021' if known else ''})")
+                            f"{', unqueued fabric, bridge TASK-021' if known else ''})")
         if base is None:
             base = dict(p.mean_lat)
         if p.offered <= p.capacity / 2:

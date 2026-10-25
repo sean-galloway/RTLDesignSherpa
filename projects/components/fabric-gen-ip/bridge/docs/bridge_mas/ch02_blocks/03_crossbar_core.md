@@ -423,6 +423,17 @@ The `monbus_axil4_axil4_group` instance:
 - Once granted, bursts flow at 1 beat/cycle
 - Grant held until burst completes (RLAST or WLAST)
 
+**Response-Path Head-of-Line** (bridge TASK-021): a slave returns R in its
+own order, and the response arbiter of the master its head beat is for is
+per beat with lock-until-taken. When that master's R port cannot take the
+beat -- another slave's burst holds it -- the slave stalls, and the
+master its next beats are for idles. Invisible below saturation and under
+permutation or hot-spot traffic; uniform traffic past saturation measures
+it at 0.67 of capacity on the 2x2. `r_queue_depth` (item 2 under
+Mitigation Strategies) decouples the pair and restores 1.00. The 4x4's
+loss under the same traffic (0.61) is not this: the queue measures no
+change there (bridge TASK-022).
+
 ### Critical Paths
 
 The paths that will bite you first:
@@ -459,8 +470,22 @@ The paths that will bite you first:
    way (3/3 against the baseline's 2/2). The routing and mux emitters are
    untouched; they drive `xs_<slave>_axi_*` nets and
    `_generate_pipeline_stages()` joins those to the ports. Off by default.
-2. **Pipelined Arbitration**: Multi-cycle arbiter for >8 masters (not built)
-3. **Hierarchical Crossbar**: For >16 masters, use tree structure (not built)
+2. **Read response queues** -- BUILT (bridge TASK-021, `[bridge] r_queue_depth = N`).
+   One `gaxi_fifo_sync` of N R beats per (reading master, shared slave)
+   pair, between the slave's R port and the master's response arbiter. The
+   slave writes a beat into the queue the returned `rid_bridge_id` names
+   (its RREADY for that master is that queue's write ready, no longer the
+   master's RREADY through the grant); the arbiter's request for the pair
+   is the queue's `rd_valid`, the R mux takes the queue head, and the drain
+   is grant AND the master's RREADY. Not a throughput stage below
+   saturation -- the arbiter, mux and OR-merge are unchanged -- but it
+   removes the head-of-line block at a shared slave's in-order R output
+   (HAS 5.1: `bridge_2x2_rw` 0.67 of capacity at 2x offered uniform,
+   `bridge_2x2_rw_rq8` 1.00). One cycle of R latency (the FIFO's mux read).
+   Not on a CDC lane, which already crosses through its own FIFO, nor on
+   the internal subtractive slave. Off by default (the minimal fabric).
+3. **Pipelined Arbitration**: Multi-cycle arbiter for >8 masters (not built)
+4. **Hierarchical Crossbar**: For >16 masters, use tree structure (not built)
 
 ## Design Notes
 

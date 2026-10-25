@@ -331,6 +331,13 @@ class BridgeConfig:
     # skid stage on every slave-side channel inside the xbar (+1 each way,
     # same throughput) for high-fanout or wide configs that miss timing.
     xbar_pipeline: bool = False
+    # bridge TASK-021: read response queues, beats per (master, slave) pair of
+    # every slave two or more masters read; 0 = none (the rule's minimum). A slave's
+    # R stream is in order; a queue at least one burst deep lets it hand a
+    # burst for a busy master over and serve the next master instead of
+    # stalling, which is the head-of-line loss uniform traffic past
+    # saturation shows (HAS 5.1). Costs M x N x depth x R-beat flops.
+    r_queue_depth: int = 0
     # bridge TASK-006 (was BRIDGE-017): per-slave arbitration policy, 'rr' (default), 'qos' or
     # 'matrix' (bridge TASK-015: least recently served, pairwise priority bits)
     # (AxQOS + aging, round-robin among equals). qos_aging_shift: a waiting

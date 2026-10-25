@@ -113,6 +113,37 @@ that never finished.
   is the host: grep the configurations before measuring; a hook with no
   writer is a knob, not a feature.
 
+## The same shape at an output: the bridge's read response path
+
+The rule's failure is at an admission; the bridge generator met the mirror
+image at an output (bridge TASK-021, 2026-10-24/25). A crossbar slave
+returns R in its own order, into a response arbiter per master. When the
+head burst's master cannot take it -- its R port is carrying the other
+slave's burst -- the slave stalls, and the master its *next* burst was for
+idles. Nothing shows below saturation, nothing under permutation (no
+shared master port) or hot-spot (no second slave) traffic; uniform traffic
+past saturation measured 0.67 of capacity on a 2x2. The
+per-cycle tell was the same as granite's: the source stalled (both slave
+R channels valid-and-not-ready 31 percent of the cycles) while the sinks
+were never busy (no master R port stalled once).
+
+Two wrong suspects first, both refuted by building them: deeper request
+slots (4 and 8 measured the identical curve) and the master adapter's R
+mux (a single width path on the 2x2, selecting nothing). The fix is the
+rule's: a queue per (source, destination) pair, `[bridge] r_queue_depth`,
+so the slave hands the head burst to its master's queue and serves the
+next. 8 beats took the 2x2's uniform traffic to 1.00 of capacity at every
+load, with one cycle of R latency and roughly a doubling of the crossbar's
+flops (HAS 5.1 / 5.3). On the mixed-width 4x4, which loses 0.39 of
+capacity under the same traffic, the same queue changed nothing at full
+sweep length, and a four-times-deeper one measured the same -- the short
+GATE sweep had shown a gain that was only the queues absorbing a
+transient. That loss is another stage (bridge TASK-022), and it is the
+other half of the lesson: a queue that measures no gain at steady state
+is not too shallow; the block is somewhere else in the stream. It is a TOML key with a minimal default of 0, not a fixture
+change, because every depth in that generator defaults to its rule minimum
+and is overridden where a measurement says so.
+
 ## How to check a design against it
 
 1. List every term in each `*_push_ready`. Anything that names the request

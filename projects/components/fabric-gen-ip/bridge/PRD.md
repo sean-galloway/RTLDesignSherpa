@@ -262,7 +262,7 @@ Bridge automates generation of AXI4 crossbar infrastructure:
   it 3 each way (`test_bridge_2x2_rw_pipe_latency`); `preset = "xbar"` makes
   it 0 (`test_bridge_2x2_rw_xbar_preset`). Width converters and the
   APB/AXIL shims add stages on their paths.
-- [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1.
+- [x] Throughput: a master may have transactions in flight at several slaves at once (per-ID tracking, `aw_gate_ok`/`ar_gate_ok`); the old one-target-per-master rule was lifted 2026-10-15 (limitation fixed, GitHub #119 L1). Exceptions: rr_atomic and trace-echo ports, see MAS 2.1. Measured against offered load under uniform, permutation and hot-spot traffic (bridge TASK-014, HAS 5.1); the one loss found, head-of-line blocking at a shared slave's in-order R output under uniform traffic past saturation (0.67 of capacity at 2x on `bridge_2x2_rw`), is removed by `[bridge] r_queue_depth` (bridge TASK-021: 1.00 at every load point with 8 beats; default 0, the minimal fabric).
 - [x] Performance models implemented (bridge_model.py - V1 Flat; in `deprecated/` since 2026-10-18, superseded by the measured perf suite)
 - [x] Fmax ≥ 300 MHz on UltraScale+ FPGAs: measured 2026-10-23 on a Zynq US+ ZU7EV -2, ~375 MHz for the fabric-benchmark 4 x 4 and ~425-450 MHz for the same bridge as `preset = "xbar"` (4.2)
 

@@ -61,11 +61,20 @@ has synthesized yet, and the flow takes minutes to answer for it.
 | `bridge_2x2_rw_pipe` | 5,564 | 4,869 | 0 | +1.14 | 180.8 | 9 |
 | `bridge_2x2_rw_qos` | 5,176 | 3,925 | 0 | +0.48 | 161.6 | 11 |
 | `bridge_2x2_rw_qos_pipe` | 5,886 | 4,933 | 0 | +0.53 | 163.0 | 11 |
+| `bridge_2x2_rw_rq8` | 5,745 | 5,058 | 0 | +1.18 | 182.2 | 7 |
 | `bridge_4x4_rw` | 40,042 | 38,241 | 0 | -0.14 | 146.8 | 13 |
 | `bridge_5x3_channels` | 30,712 | 28,051 | 0 | -0.68 | 136.1 | 15 |
 | `bridge_mix_a` | 7,844 | 6,623 | 0 | +0.30 | 157.1 | 13 |
 
-: Measured utilization and timing, Kintex-7 325T -2 at 6.667 ns
+: Measured utilization and timing, Kintex-7 325T -2 at 6.667 ns (`bridge_2x2_rw_rq8` added 2026-10-25)
+
+`bridge_2x2_rw_rq8` is `bridge_2x2_rw` with `r_queue_depth = 8` (bridge
+TASK-021): four 8-beat read response queues. On the FPGA they are cheap --
+63 more LUTs and 453 more flip-flops on the whole top, the queue storage
+inferred as distributed RAM -- and the worst path shortens from ten logic
+levels to seven, because the slave's RREADY is now a FIFO's write-side
+ready instead of the master's RREADY back through the grant. On ASAP7 the
+same queues are flops (below).
 
 Fmax is an estimate from the register-to-register slack at the constrained
 period; the I/O budget and the reading of each row are in HAS 6.4.
@@ -93,8 +102,24 @@ left every `rr` and `qos` fixture byte-identical on regeneration.
 | `bridge_2x2_rw_qos` | qos | 20,334 | 1,979 | 2,280 | 748 / 28 | 821 |
 | `bridge_4x4_rw` | rr | 60,685 | 5,311 | 6,389 | 543 / 22 | 610 |
 | `bridge_4x4_rw_matrix` | matrix | 62,103 | 5,321 | 6,532 | 471 / 20 | 542 |
+| `bridge_2x2_rw_rq8` | rr, `r_queue_depth = 8` | 27,038 | 3,235 | 3,017 | 379 / 17 | 465 |
+| `bridge_4x4_rw_rq8` | rr, `r_queue_depth = 8` | 135,870 | 18,513 | 15,912 | 508 / 22 | 878 |
 
-: ASAP7 RVT TT, Yosys 0.62 + ABC at a 1000 ps target, OpenSTA on the mapped netlist (2026-10-24)
+: ASAP7 RVT TT, Yosys 0.62 + ABC at a 1000 ps target, OpenSTA on the mapped netlist (2026-10-24; the `rq8` row 2026-10-25)
+
+The last two rows are the read response queue (bridge TASK-021, HAS 5.1).
+On the 2x2 it is four 8-beat `gaxi_fifo_sync` queues, one per (reading
+master, shared slave) pair: 1,352 more flops (four queues of eight 42-bit
+R beats, plus pointers) and 46 percent more area on the crossbar module for
+no change in its worst path (465 against 454 ps). On the 4x4 it is thirteen
+queues of beats up to 256 bits wide: 3.5 times the flops, 2.5 times the
+area, and a worst path of 878 ps against 610 -- ten logic levels behind a
+flop whose clock-to-Q alone is 580 ps, a fan-out problem (one queue's
+ready reaching every bit of a wide ready cone) that buffering or a
+registered ready would take back, not a logic-depth one. The queue buys
+uniform-traffic throughput past saturation and nothing below it, which is
+why the key defaults to 0 and why a wide fabric should take it only with a
+measurement in hand.
 
 | Crossbar | Policy | Cells | Area (um^2) | ABC delay (ps) / levels | STA worst reg-to-reg (ps) |
 |---|---|---:|---:|---:|---:|
@@ -122,8 +147,18 @@ The same pair out of context on the Kintex-7 325T -2 at 10 ns (HAS 6.4 flow,
 |---|---:|---:|---:|---:|---:|---:|
 | `bridge_4x4_rw` | 48,775 | 47,187 | +1.315 | +1.315 | 115.1 | 9 |
 | `bridge_4x4_rw_matrix` | 48,817 | 47,209 | +1.207 | +1.338 | 115.4 | 10 |
+| `bridge_4x4_rw_rq8` | 50,822 | 48,042 | +1.595 | +1.595 | 119.0 | 10 |
 
-: Kintex-7, 4x4, round-robin against matrix
+: Kintex-7, 4x4, round-robin against matrix; `bridge_4x4_rw_rq8` added 2026-10-25
+
+The queued 4x4 (`r_queue_depth = 8`, thirteen queues, bridge TASK-021)
+costs 2,047 LUTs and 855 flip-flops on the FPGA -- 4 percent -- with the
+queue storage in distributed RAM, and closes with more slack than the
+unqueued fabric. The ASAP7 figure above (3.5 times the crossbar's flops,
+a longer worst path) is the same structure without LUT RAM to hide in;
+which library you are on decides whether the key is cheap. On this fabric
+it also buys nothing (HAS 5.1): the 4x4's uniform-traffic loss is not at
+the slaves' outputs.
 
 On the FPGA the two are the same design to within 0.1 percent of LUTs and 23
 ps of register-to-register slack: a LUT6 absorbs either pick in one level,
@@ -144,6 +179,7 @@ choose `arbitration = "matrix"` for a wide fabric on an ASIC target.
 | Slave adapters | O(N), plus a converter and its monitor sandwich for every non-AXI4 or width-stepped port |
 | bridge_id FIFOs | O(N x depth), small LUT arrays, no BRAM |
 | Registered crossbar (`xbar_pipeline`) | one 2-deep skid per slave-side channel |
+| Read response queues (`r_queue_depth`) | one FIFO of that many R beats per (reading master, shared slave) pair: up to M x N queues, distributed RAM on the FPGA, flops on ASAP7 |
 | CDC slave port (`cdc`) | one async FIFO per channel; shared by M masters, M lanes of AW / W / AR FIFOs plus B and R, two `arbiter_matrix` and a W owner FIFO |
 
 : Resource Scaling
@@ -174,6 +210,7 @@ across adversarial patterns is tracked as bridge vault TASK-014.
 | Deeper skid buffers | +registers | +timing margin |
 | Deeper bridge_id FIFOs | +LUTs | +outstanding depth (no OOO support) |
 | Pipeline stages | +registers | +frequency |
+| Read response queues (`r_queue_depth`) | +M x N x depth R beats | uniform-traffic throughput past saturation (0.67 to 1.00 of capacity on the 2x2), +1 cycle R latency |
 | Wider data paths | +routing | +throughput |
 
 : Performance/Resource Trade-offs

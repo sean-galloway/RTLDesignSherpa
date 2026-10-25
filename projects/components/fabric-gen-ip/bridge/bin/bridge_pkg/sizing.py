@@ -261,6 +261,10 @@ def report_lines(cfg) -> List[str]:
     for r in getattr(cfg, 'sizing', []) or []:
         out.append(f"    {r.direction:6} {r.port:<18} {r.key:<15} = {r.value:>3}  [{r.source}]  "
                    f"rule min {r.rule_min}: {r.basis}")
+    rq = int(getattr(cfg, 'r_queue_depth', 0) or 0)
+    out.append(f"    bridge r_queue_depth = {rq:>3}  [{'toml' if rq else 'default'}]  "
+               + (f"{rq}-beat read response queue per (reading master, shared slave) pair (bridge TASK-021)"
+                  if rq else "no read response queues: a shared slave's in-order R can head-of-line block past saturation (bridge TASK-021)"))
     for w in getattr(cfg, 'sizing_warnings', []) or []:
         out.append(f"  WARNING: {w}")
     return out
@@ -279,5 +283,6 @@ def as_dict(cfg) -> Dict:
                   for m in cfg.masters for s in cfg.slaves
                   if _connected(cfg, m, s) and not getattr(s, 'internal', False)
                   for lp in [path_loop(cfg, m, s)]],
+        'r_queue_depth': int(getattr(cfg, 'r_queue_depth', 0) or 0),
         'warnings': list(getattr(cfg, 'sizing_warnings', []) or []),
     }
