@@ -149,7 +149,7 @@ jobs:
       - name: Every committed formal flat matches its sources
         run: python3 bin/formal_status.py --check-flats --json flat_report.json
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: flat-report
