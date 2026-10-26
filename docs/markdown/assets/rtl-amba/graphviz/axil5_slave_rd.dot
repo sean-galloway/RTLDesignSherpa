@@ -17,7 +17,7 @@ digraph axil5_slave_rd {
     prm  [label="Parameters (fixed at build)\lID_WIDTH: 0 = no ID (ID outputs driven 0,\l    ID inputs ignored); IDs carried, not remapped\lENABLE_USER / _TRACE / _POISON: 0 = that\l    group leaves the skid payload and its\l    outputs are driven 0\lPOISON: carried only, never generated or checked\l", fillcolor="white", shape=note];
     top  [label="AXI5-Lite Bus, slave side (s_axil_*)\nfrom the interconnect / master", fillcolor="white", width=4.2, style="rounded,filled", fillcolor="#E2EFDA"];
     ar   [label="AR Skid Buffer\ngaxi_skid_buffer - ar_channel\nSKID_DEPTH_AR (default 2)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
-    r    [label="R Skid Buffer\ngaxi_skid_buffer - r_channel\nSKID_DEPTH_R (default 4)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    r    [label="R Skid Buffer\ngaxi_skid_buffer - r_channel\nSKID_DEPTH_R (default 4)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     busyo [label="Status Output: busy (combinational)\nhigh while a skid buffer holds a beat,\nor s_axil_arvalid / fub_rvalid arriving", fillcolor="white", shape=note];
     bot  [label="Read Completer (fub_*)\nbackend serving reads: AR in at the left, R out at the right", fillcolor="white", width=5.2, style="rounded,filled,bold", fillcolor="#E2EFDA"];
 

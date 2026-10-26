@@ -25,7 +25,7 @@ digraph axi4_master_rd_crc_check {
     agr  [group=R, label="R Address Generator\ndma_address_gen - u_addr_gen_r\nwalks the same descriptor in lockstep", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     exp  [group=R, label="Expected Data (flops)\nshifter_lfsr_fibonacci - u_lfsr (LFSR mode),\naddress hash, or fill pattern", peripheries=2, style="filled", fillcolor="#D6E4F0"];
     chk  [group=R, label="Beat Check + CRC (flops)\ncompare rdata with expected: sticky errors, counts;\ndataint_crc - u_crc over the EXPECTED stream;\nstray beats (no AR owed) flagged", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    dbg  [group=R, label="Mismatch Capture (DBG_FIFO_DEPTH > 0)\ngaxi_fifo_sync - u_dbg_fifo", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    dbg  [group=R, label="Mismatch Capture (DBG_FIFO_DEPTH > 0)\ngaxi_fifo_sync - u_dbg_fifo\nDBG_FIFO_DEPTH entries (mux read)", shape=cylinder, style="filled,dashed", fillcolor="#E8DFF5"];
 
     bar  [label="Memory Under Test (m_axi master port)\nm_axi_ar out   |   m_axi_r in",
           fillcolor="white", width=9.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];

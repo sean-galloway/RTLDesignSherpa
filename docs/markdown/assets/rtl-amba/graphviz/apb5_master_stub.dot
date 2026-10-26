@@ -16,7 +16,7 @@ digraph apb5_master_stub {
     rsp_port [label="Response Port (packed)\nrsp_valid / rsp_ready\nrsp_data = {last, first, pslverr,\nprdata, pruser, pbuser}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} to the side FIFO", style="filled", fillcolor="white"];
-    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake", style="filled", fillcolor="white"];
+    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     core [label="APB5 Master Core\napb5_master - u_apb5_master (see its diagram)\nskids, transfer FSM, PWAKEUP, check bits", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     pack [label="Pack (wiring)\n{fifo last, first, core pslverr,\nprdata, pruser, pbuser}", style="filled", fillcolor="white"];
 

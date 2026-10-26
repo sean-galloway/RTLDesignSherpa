@@ -21,7 +21,7 @@ digraph axis5_master {
 
     fub  [label="FUB Stream Port (upstream)\nfub_axis_tvalid, T fields, twakeup, payload *chk\n/ fub_axis_tready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     pack [label="Pack (wiring)\n{T fields, twakeup, payload check bits}\none TSize-bit word per beat\n(fields present per ENABLE_WAKEUP / _PARITY)", style="filled", fillcolor="white"];
-    skid [label="T Skid Buffer\ngaxi_skid_buffer - t_channel\nDEPTH = SKID_DEPTH, registered ready / valid", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    skid [label="T Skid Buffer\ngaxi_skid_buffer - t_channel\nDEPTH = SKID_DEPTH, registered ready / valid", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     unp  [label="Unpack (wiring)\nper-field slices back to m_axis_t*,\nm_axis_twakeup, carried check bits", style="filled", fillcolor="white"];
     par  [style="filled,dashed", label="Parity Check / Generate (ENABLE_PARITY=1 only)\ndataint_parity, odd, one instance per byte piece\nchecks the carried payload *chk against the outgoing beat;\ngenerates m_axis_tvalidchk, twakeupchk; checks m_axis_treadychk\nany mismatch sets the sticky parity_error flop", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
     bus  [label="AXI5-Stream Master Bus\nm_axis_tvalid, T fields, twakeup, *chk  /  m_axis_tready, m_axis_treadychk\nbusy = (rd_count > 0) | fub_axis_tvalid   |   parity_error (sticky)",

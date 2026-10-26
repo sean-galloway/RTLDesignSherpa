@@ -17,7 +17,7 @@ digraph axis4_slave {
 
     fub  [label="AXI4-Stream Slave Bus (upstream)\ns_axis_tvalid, tdata, tstrb, tlast, tid, tdest, tuser\n/ s_axis_tready", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
     pack [label="Pack (wiring)\n{tdata, tstrb, tlast, tid, tdest, tuser}\none TSize-bit word per beat", style="filled", fillcolor="white"];
-    skid [label="T Skid Buffer\ngaxi_skid_buffer - i_t_channel\nDEPTH = SKID_DEPTH, registered ready / valid", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    skid [label="T Skid Buffer\ngaxi_skid_buffer - i_t_channel\nDEPTH = SKID_DEPTH, registered ready / valid", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     unp  [label="Unpack (wiring)\nper-field slices back to fub_axis_t*", style="filled", fillcolor="white"];
     bus  [label="FUB Stream Port (downstream)\nfub_axis_tvalid, tdata, tstrb, tlast, tid, tdest, tuser  /  fub_axis_tready\nbusy = (rd_count > 0) | s_axis_tvalid",
           fillcolor="white", width=6.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];

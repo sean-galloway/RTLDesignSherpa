@@ -20,8 +20,8 @@ digraph apb5_slave_cdc {
 
     core [label="APB5 Slave Core  (pclk domain)\napb5_slave - u_apb5_slave (see its diagram)\ncompleter FSM, skids, ENABLE_PARITY check bits;\nparity_error_wdata / ctrl out", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    cmdf [label="Command CDC FIFO  (pclk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)", style="filled", fillcolor="white"];
-    rspf [label="Response CDC FIFO  (aclk -> pclk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)", style="filled", fillcolor="white"];
+    cmdf [label="Command CDC FIFO  (pclk -> aclk)\ngaxi_fifo_async - u_cmd_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    rspf [label="Response CDC FIFO  (aclk -> pclk)\ngaxi_fifo_async - u_rsp_cdc_fifo (see its diagram)\nCDC_FIFO_DEPTH = max(DEPTH, 4) entries\nGray pointers, N_FLOP_CROSS = 2\n(USE_JOHNSON = 1: Johnson, any depth)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
     be [label="Backend Interface  (aclk domain: aclk, aresetn)\ncmd_valid / cmd_ready + cmd_* fields (incl. user)   |   rsp_valid / rsp_ready + rsp_* fields (incl. user)",
         fillcolor="white", width=10.5, style="rounded,filled,bold", fillcolor="#E2EFDA"];

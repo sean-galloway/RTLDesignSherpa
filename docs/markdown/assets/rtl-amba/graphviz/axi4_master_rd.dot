@@ -17,7 +17,7 @@ digraph axi4_master_rd {
     fub  [label="FUB Side (requester)\nfub_axi_ar* in  /  fub_axi_r* out", fillcolor="white", width=4.0, style="rounded,filled", fillcolor="#E2EFDA"];
 
     ar   [group=L, label="AR Skid Buffer\ngaxi_skid_buffer - ar_channel\n(DEPTH = SKID_DEPTH_AR)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
-    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - r_channel\n(DEPTH = SKID_DEPTH_R)", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    r    [group=R, label="R Skid Buffer\ngaxi_skid_buffer - r_channel\n(DEPTH = SKID_DEPTH_R)", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     busy [group=C, label="Busy Detect (combinational)\nany AR or R entry held,\nor arvalid / rvalid arriving", style="filled", fillcolor="white"];
 
     mport [label="Module Boundary\nm_axi_ar* out (to the interconnect)  |  busy (to the clock-gate wrapper)  |  m_axi_r* in",

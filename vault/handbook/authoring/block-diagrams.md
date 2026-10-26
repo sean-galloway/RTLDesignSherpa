@@ -10,7 +10,7 @@ block or microarchitecture diagram follows this note: HAS/MAS books,
 `docs/markdown` module pages, README figures, vault notes, FPGA system docs.
 It supersedes the older "diagrams are Mermaid" rule in [[spec-doc-standards]].
 
-**Status: v3 (element key 2026-10-19; reference example, return colour and key rulings the same day), being refined.** The rules came from the memory-controller
+**Status: v3 (element key 2026-10-19; reference example, return colour and key rulings the same day; child-instance class ruling 2026-10-25), being refined.** The rules came from the memory-controller
 family and were proven there. Applying them to other block shapes (an
 arbiter, a CDC block, a FIFO, a bridge, a DMA engine) is in progress with the
 owner, one diagram at a time. When a diagram shows a rule needs restating for
@@ -202,9 +202,9 @@ between its lanes (six had sat across a neighbouring line).
 |---|---|---|---|
 | Interface / boundary | `shape=box, style="rounded,filled"` (bar: `penwidth=2.2`); comb crossing adds `dashed` | `#E2EFDA` green | A port of the drawn unit, and the boundary bar |
 | Combinational | `shape=box` | white | Logic with no state: masks, compares, muxes, decodes |
-| Registered | `shape=box, peripheries=2` | `#D6E4F0` blue | A block whose output is a flop: pipeline and issue registers, counters, sticky flags |
+| Registered | `shape=box, peripheries=2` | `#D6E4F0` blue | A block whose output is a flop: pipeline and issue registers, counters, sticky flags, and a block whose outputs leave through a FIFO or skid child (the reference's intakes end in `gaxi_fifo_sync`) |
 | FSM | `shape=box, style="filled,diagonals", peripheries=2` | `#FCE4D6` peach | A sequencer with named states |
-| Storage | `shape=cylinder` | `#E8DFF5` lavender | FIFO, RAM, CAM, register file |
+| Storage | `shape=cylinder` | `#E8DFF5` lavender | FIFO, RAM, CAM, register file -- including every FIFO or skid child the parent instantiates (`gaxi_fifo_sync - inst`, `gaxi_skid_buffer - inst`), see "Child instances" |
 | Arbiter / pick | `shape=invtrapezium` (rule 9) | `#FFF2CC` gold | A genuine many-to-one pick |
 | Optional | the class's shape, `style` plus `dashed` | the class's fill | Build-dependent (rule 8) |
 | Legend / note | `shape=note` | white | Parameters, notes |
@@ -243,6 +243,50 @@ between its lanes (six had sat across a neighbouring line).
   at DFI cmd FIFO)", "(sampled at store)"). A combinational crossing is where
   timing failures live -- a diagram that hides them hides the one thing the
   reader came to check.
+
+### Child instances: which class (owner ruling 2026-10-25)
+
+A module the parent instantiates is one node, classified from the child's
+RTL, with `module - instance` as the label's second line (`gaxi_skid_buffer -
+ar_channel`). The cases:
+
+- **A FIFO or skid child is a Storage cylinder, whatever its output timing.**
+  `gaxi_fifo_sync`, `gaxi_skid_buffer`, `gaxi_fifo_async`, a CAM, a RAM, a
+  ring. The cylinder says "entries live here"; the label carries the depth,
+  what one entry holds, who pushes and pops, and the read timing ("mux read",
+  or "REGISTERED=1: rd_data flopped"). Its ready and valid outputs are flops
+  in every one of these modules, so the crossing it makes is flopped: state
+  that where the reader needs it, on the bar or the edge ("all crossings
+  flopped (skid / fifo)" in the reference), never by changing the shape. The
+  owner chose this over marking the instance Registered because the key
+  already says Storage is a FIFO, and a reader who sees a cylinder on a lane
+  knows at once that the lane is buffered and where.
+- **A block whose outputs leave through such a child is Registered.** This
+  is the final Registered case: the reference's write and read intakes carry
+  no output flop of their own, but everything they emit leaves through a
+  `gaxi_fifo_sync` queue, so they take the double border and blue. The queue
+  itself is not drawn when it is the block's output stage and nothing else
+  touches it; it is drawn, as a cylinder, when another block reads or pops
+  it.
+- **A non-storage child with flopped outputs is Registered** (`counter_bin`,
+  a register slice, a sticky-flag module). A child arbiter is the trapezium
+  (rule 9). A pure-logic child (an encoder, a decode, `gray2bin`) is white.
+- **A merged box takes the class of what dominates it.** The monbus
+  compressor group (`u_comp_in_skid` + `u_compressor` + `u_packer`) is a
+  Registered dashed box: the skid is one input stage of a registered
+  pipeline, so the node is not a cylinder.
+
+**The failure that set it** (2026-10-25 audit of the rtl-amba diagrams): of
+118 nodes standing for a `gaxi_fifo_sync`, `gaxi_skid_buffer` or
+`gaxi_fifo_async` instance, 98 were cylinders, 12 were Registered double
+boxes (the R skid on six `*_rd` masters and slaves, the T skid on four AXIS
+blocks, `u_dbg_fifo` in `axi4_master_rd_crc_check`, the compressor group)
+and 6 were white (`u_first_last_fifo` on both APB master stubs, both CDC
+FIFOs on both APB slave CDCs). White is the worst of the three: a FIFO drawn
+as Combinational tells the reader the one thing it is not. The AR skid as a
+cylinder beside the R skid as a double box, on the same page, said the two
+were different kinds of thing. Everything except the compressor group was
+swept to the cylinder and re-rendered.
 
 ### The key
 

@@ -16,7 +16,7 @@ digraph apb4_master_stub {
     rsp_port [label="Response Port (packed)\nrsp_valid / rsp_ready\nrsp_data = {last, first, pslverr, prdata}", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
 
     unpk [label="Unpack (wiring)\nAPB fields to the core;\n{last, first} to the side FIFO", style="filled", fillcolor="white"];
-    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake", style="filled", fillcolor="white"];
+    flq  [label="First / Last Side FIFO\ngaxi_fifo_sync - u_first_last_fifo\nDEPTH = CMD_DEPTH + RSP_DEPTH + 2\n(the true outstanding bound)\npush on cmd, pop on rsp handshake", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
     core [label="APB4 Master Core\napb4_master - u_apb4_master (see its diagram)\ncommand skid, transfer FSM, response skid", peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
     pack [label="Pack (wiring)\n{fifo last, first, core pslverr, prdata}", style="filled", fillcolor="white"];
 
