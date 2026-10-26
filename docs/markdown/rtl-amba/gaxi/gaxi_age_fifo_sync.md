@@ -127,7 +127,7 @@ module gaxi_age_fifo_sync #(
 
 A write and a read in one cycle always touch different slots (the same slot would need full and empty at once), so neither disturbs the other's age.
 
-**Why the writer's `age_dec` term matters.** The RTL review (2026-10-25) ran a writer that always presents `youngest + 1`, with `age_dec` on every retirement, under continuous write+retire on one queue: occupancy stayed at one while the head's age climbed by one per cycle, wrapped at `2**AGE_WIDTH`, and the wrapped entry would have jumped ahead of genuinely older entries in other queues. Each write that coincides with a retire was landing one above where it belonged. With the term (`youngest` when `age_dec` is high) an entry's `age_cnt` is exactly its rank plus one under that discipline; the testbench's pool phases check that on every cycle, and the same test with the term switched off fails within a dozen cycles.
+**Why the writer's `age_dec` term matters.** The RTL review (2026-10-25) ran a writer that always presents `youngest + 1`, with `age_dec` on every retirement, under continuous write+retire on one queue: occupancy stayed at one while the head's age climbed by one per cycle, wrapped at `2**AGE_WIDTH`, and the wrapped entry would have jumped ahead of genuinely older entries in other queues. Each write that coincides with a retire was landing one above where it belonged. With the term (`youngest` when `age_dec` is high) and the empty-pool term below, an entry's `age_cnt` is exactly its rank (0 for the oldest entry in the pool); the testbench's pool phases check `age == rank` on every cycle, and the same test with either term switched off fails within a dozen cycles.
 
 ### Valid mask and `youngest`
 
