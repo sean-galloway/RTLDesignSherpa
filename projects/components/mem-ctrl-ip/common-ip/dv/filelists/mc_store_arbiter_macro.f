@@ -12,6 +12,7 @@
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/includes/mc_common_pkg.sv
 
 -f $REPO_ROOT/rtl/amba/filelists/gaxi_fifo_sync.f
+-f $REPO_ROOT/rtl/amba/filelists/gaxi_age_fifo_sync.f
 
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_xddr2_entry_store.sv
 $REPO_ROOT/projects/components/mem-ctrl-ip/common-ip/rtl/fub/mc_bank_fifo_store.sv

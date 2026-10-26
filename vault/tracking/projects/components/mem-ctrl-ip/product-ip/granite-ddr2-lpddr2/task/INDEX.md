@@ -2,7 +2,7 @@
 
 # granite-ddr2-lpddr2 — tasks
 
-**Next ID: TASK-002** — never recycle a number, even when its item closed.
+**Next ID: TASK-003** — never recycle a number, even when its item closed.
 
 Planned work we have decided to do: a feature, a refactor, a migration, a
 cleanup. It starts from intent, not from a failure.
@@ -14,7 +14,7 @@ state by construction rather than by discipline.
 | State | Count | What |
 |---|---|---|
 | [open/](open/) | 0 | accepted, not started |
-| [active/](active/) | 1 | in progress right now |
+| [active/](active/) | 2 | in progress right now |
 | [closed/](closed/) | 0 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
@@ -25,3 +25,5 @@ state by construction rather than by discipline.
   into common macros; `granite_core` built — no storage layer,
   `mc_xddr2_entry_store` seam, reduced refresh options). Remaining: product
   CSR baseline, board + frequency plan. [active/TASK-001.md](active/TASK-001.md).
+- **TASK-002** — bank queues as gaxi_age_fifo_sync (PEEK 2) carrying the pool age;
+  a head's rd_age_thresh is the record's age_exceed. Owner's choice 2026-10-25. [active/TASK-002.md](active/TASK-002.md).

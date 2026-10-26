@@ -48,21 +48,24 @@ async def gaxi_age_fifo_sync_test(dut):
 
 
 def generate_test_params():
-    """(data_width, age_width, depth, test_level) per REG_LEVEL."""
+    """(data_width, age_width, depth, peek, test_level) per REG_LEVEL."""
     reg_level = os.environ.get('REG_LEVEL', 'FUNC').upper()
     if reg_level == 'GATE':
-        return [(8, 4, 4, 'gate')]
+        return [(8, 4, 4, 0, 'gate')]
     if reg_level == 'FUNC':
-        return [(8, 4, 4, 'gate'), (8, 4, 4, 'func'),
-                (32, 8, 8, 'func'), (8, 3, 5, 'func')]
-    return list(product([8, 32], [3, 8], [3, 4, 8, 11], ['gate', 'func', 'full']))
+        return [(8, 4, 4, 0, 'gate'), (8, 4, 4, 0, 'func'),
+                (32, 8, 8, 2, 'func'), (8, 3, 5, 2, 'func'), (8, 4, 4, 3, 'func')]
+    return [(w, a, d, pk, lvl)
+            for w, a, d, pk, lvl in product([8, 32], [3, 8], [3, 4, 8, 11], [0, 2],
+                                            ['gate', 'func', 'full'])
+            if pk < d]
 
 
 params = generate_test_params()
 
 
-@pytest.mark.parametrize("data_width, age_width, depth, test_level", params)
-def test_gaxi_age_fifo_sync(request, data_width, age_width, depth, test_level):
+@pytest.mark.parametrize("data_width, age_width, depth, peek, test_level", params)
+def test_gaxi_age_fifo_sync(request, data_width, age_width, depth, peek, test_level):
     """Parameterized gaxi_age_fifo_sync test."""
     worker_id = os.environ.get('PYTEST_XDIST_WORKER', 'gw0')
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -77,9 +80,10 @@ def test_gaxi_age_fifo_sync(request, data_width, age_width, depth, test_level):
     w_str = TBBase.format_dec(data_width, 3)
     a_str = TBBase.format_dec(age_width, 2)
     d_str = TBBase.format_dec(depth, 3)
+    p_str = TBBase.format_dec(peek, 1)
     reg_level = os.environ.get("REG_LEVEL", "FUNC").upper()
     test_name_plus_params = (f"test_{worker_id}_{dut_name}_w{w_str}_a{a_str}"
-                             f"_d{d_str}_{test_level}_{reg_level}")
+                             f"_d{d_str}_p{p_str}_{test_level}_{reg_level}")
     log_path = os.path.join(log_dir, f'{test_name_plus_params}.log')
     sim_build = sim_build_path(tests_dir, test_name_plus_params)
     os.makedirs(sim_build, exist_ok=True)
@@ -90,6 +94,7 @@ def test_gaxi_age_fifo_sync(request, data_width, age_width, depth, test_level):
         'DATA_WIDTH': str(data_width),
         'AGE_WIDTH': str(age_width),
         'DEPTH': str(depth),
+        'PEEK': str(peek),
     }
     extra_env = {
         'TRACE_FILE': f"{sim_build}/dump.fst",
@@ -103,6 +108,7 @@ def test_gaxi_age_fifo_sync(request, data_width, age_width, depth, test_level):
         'TEST_DATA_WIDTH': str(data_width),
         'TEST_AGE_WIDTH': str(age_width),
         'TEST_DEPTH': str(depth),
+        'TEST_PEEK': str(peek),
     }
     compile_args = ["--trace", "--trace-depth", "99"]
     compile_args.extend(get_coverage_compile_args())

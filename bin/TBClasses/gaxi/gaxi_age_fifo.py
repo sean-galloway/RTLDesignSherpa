@@ -57,7 +57,9 @@ class AgeFifoStats:
     full_cycles: int = 0        # cycles with wr_ready low
     same_cycle_rw: int = 0      # write and read in one cycle
     decr_with_write: int = 0    # decrement in a write cycle
-    pool_rank_checks: int = 0   # entries checked for age == rank + 1 (pool mode)
+    pool_rank_checks: int = 0   # entries checked for age == rank (pool mode)
+    pool_thresh_checks: int = 0 # occupied cycles that had to show rd_age_thresh (pool mode)
+    peek_checks: int = 0        # occupied peek positions checked (PEEK > 0)
     mismatches: int = 0
     first_mismatches: list = field(default_factory=list)
 
@@ -86,13 +88,14 @@ class GaxiAgeFifoTB(TBBase):
         self.DEPTH = self.convert_to_int(os.environ.get('TEST_DEPTH', '4'))
         self.DW = self.convert_to_int(os.environ.get('TEST_DATA_WIDTH', '8'))
         self.AGEW = self.convert_to_int(os.environ.get('TEST_AGE_WIDTH', '4'))
+        self.PEEK = self.convert_to_int(os.environ.get('TEST_PEEK', '0'))
         self.SEED = self.convert_to_int(os.environ.get('SEED', '12345'))
         random.seed(self.SEED)
         self.MAX_DATA = (1 << self.DW) - 1
         self.MAX_AGE = (1 << self.AGEW) - 1
         self.TIMEOUT_CYCLES = 2000
         self.log.info(f"GaxiAgeFifoTB: DEPTH={self.DEPTH} DW={self.DW} "
-                      f"AGEW={self.AGEW} SEED={self.SEED}")
+                      f"AGEW={self.AGEW} PEEK={self.PEEK} SEED={self.SEED}")
 
         self.write_master = GaxiAgeMaster(dut, self.clk, self.DW, self.AGEW, self.log,
                                           timeout_cycles=self.TIMEOUT_CYCLES)
@@ -220,6 +223,18 @@ class GaxiAgeFifoTB(TBBase):
             if exp['rd_valid']:
                 got['rd_data'] = int(dut.rd_data.value)
                 got['rd_data_age'] = int(dut.rd_data_age.value)
+            # Peek positions: entry k+1 behind the head, its payload and its
+            # thresh flag, checked every cycle like the head.
+            for k in range(self.PEEK):
+                ent = self.model[k + 1] if len(self.model) > k + 1 else None
+                exp[f'pk_valid[{k}]'] = 1 if ent else 0
+                got[f'pk_valid[{k}]'] = int(dut.pk_valid[k].value)
+                exp[f'pk_age_thresh[{k}]'] = 1 if (ent and ent[1] == 0) else 0
+                got[f'pk_age_thresh[{k}]'] = int(dut.pk_age_thresh[k].value)
+                if ent:
+                    exp[f'pk_data[{k}]'] = ent[0]
+                    got[f'pk_data[{k}]'] = int(dut.pk_data[k].value)
+                    self.stats.peek_checks += 1
             for key, g in got.items():
                 if exp[key] != g:
                     self._record_mismatch(key, exp[key], g)
@@ -229,16 +244,23 @@ class GaxiAgeFifoTB(TBBase):
             if not exp['wr_ready']:
                 self.stats.full_cycles += 1
 
-            # Pool invariant. Under the one-queue wrapper (age = youngest + 1
-            # at the latching edge, youngest with age_dec, decrement on every
-            # retire) an entry's age must equal its rank + 1: rank 0 is the
-            # head. Anything else is drift, and drift wraps. Exact only when
-            # every rank fits in the age width.
+            # Pool invariants. Under the one-queue wrapper (age = 0 into an
+            # empty queue, else youngest + 1 at the latching edge, youngest
+            # with age_dec; decrement on every retire) an entry's age must
+            # equal its rank: rank 0 is the head. Anything else is drift, and
+            # drift wraps. Exact only when every rank fits in the age width.
+            # And the property the scheduler relies on: whenever the pool is
+            # occupied its oldest head carries rd_age_thresh.
             if self.pool.live_age and self.DEPTH + 1 <= self.MAX_AGE:
                 for rank, e in enumerate(self.model):
                     self.stats.pool_rank_checks += 1
-                    if e[1] != rank + 1:
-                        self._record_mismatch(f"pool rank {rank}", rank + 1, e[1])
+                    if e[1] != rank:
+                        self._record_mismatch(f"pool rank {rank}", rank, e[1])
+                if self.model:
+                    self.stats.pool_thresh_checks += 1
+                    if not got['rd_age_thresh']:
+                        self._record_mismatch("pool oldest head rd_age_thresh", 1,
+                                              got['rd_age_thresh'])
 
             # 3. Advance the model in the RTL's order: the decrement steps
             #    the entries that were valid before the edge, the head
@@ -350,8 +372,9 @@ class GaxiAgeFifoTB(TBBase):
             await self.run_phase(f"random-{prof}", per_phase, prof,
                                  decr_prob=random.choice([0.0, 0.2, 0.5, 1.0]))
 
-        # 2. The N-bank discipline, live: age = youngest + 1 (youngest with
-        #    age_dec), decrement on every read; rank invariant checked.
+        # 2. The N-bank discipline, live: age = 0 into an empty queue, else
+        #    youngest + 1 (youngest with age_dec), decrement on every read;
+        #    rank invariant and oldest-head thresh checked.
         for prof in profiles[:3]:
             await self.run_phase(f"pool-{prof}", per_phase, prof,
                                  decr_on_read=True, age_mode='pool')
@@ -379,7 +402,8 @@ class GaxiAgeFifoTB(TBBase):
             f"{s.decrements} decrements, {s.saturations} saturated-head cycles, "
             f"{s.full_cycles} full cycles, {s.same_cycle_rw} same-cycle r/w, "
             f"{s.decr_with_write} decrement-in-write cycles, "
-            f"{s.pool_rank_checks} pool-rank checks, {s.mismatches} mismatches")
+            f"{s.pool_rank_checks} pool-rank checks, {s.pool_thresh_checks} pool-thresh checks, "
+            f"{s.peek_checks} peek checks, {s.mismatches} mismatches")
         required = {
             'cycles_checked > 100': s.cycles_checked > 100,
             'writes > 0': s.writes > 0,
@@ -392,6 +416,9 @@ class GaxiAgeFifoTB(TBBase):
         }
         if self.DEPTH + 1 <= self.MAX_AGE:
             required['pool_rank_checks > 0'] = s.pool_rank_checks > 0
+            required['pool_thresh_checks > 0'] = s.pool_thresh_checks > 0
+        if self.PEEK > 0:
+            required['peek_checks > 0'] = s.peek_checks > 0
         for name, ok in required.items():
             if not ok:
                 self.errors.append(f"coverage: {name} not met")

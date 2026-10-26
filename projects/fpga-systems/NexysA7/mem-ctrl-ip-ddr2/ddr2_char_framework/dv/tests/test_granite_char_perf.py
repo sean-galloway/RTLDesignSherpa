@@ -396,6 +396,13 @@ async def cocotb_test_granite_perf(dut):
         if page_pol:
             drv.set_page_policy(int(page_pol, 0))
             out["page_policy"] = int(page_pol, 0)
+        # SCHED_POLICY.age_thresh: with the age-FIFO store (2026-10-25) a
+        # non-zero value ENABLES the oldest-first request class (the magnitude
+        # is not read); it needs TEST_HAS_AGE=1 or the field is inert.
+        age_thr = os.environ.get("TEST_AGE_THRESH", "")
+        if age_thr:
+            drv.set_sched_policy(age_thresh=int(age_thr, 0))
+            out["age_thresh"] = int(age_thr, 0)
         drv.set_dfi_phase(rd_phase=int(os.environ.get("TEST_RD_PHASE", "0")),
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)

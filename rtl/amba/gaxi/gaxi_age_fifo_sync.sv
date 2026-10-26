@@ -31,13 +31,30 @@
 //   the largest age_cnt among the valid entries.
 //
 //   Intended use: one of N per-bank queues in front of a scheduler. The
-//   writer sets wr_data_age one above the largest `youngest` across the N
-//   queues, or equal to it when age_dec is high in the same cycle (the pool
-//   is retiring an entry at the edge the new one joins, so it has one fewer
-//   to wait for). age_dec is asserted on every queue whenever any queue
-//   retires an entry. An entry's age_cnt is then the number of retirements
-//   it still has to wait through before it is the oldest thing in the pool,
-//   and rd_age_thresh marks a head that has waited that long.
+//   writer sets wr_data_age to 0 when no queue holds a valid entry, else one
+//   above the largest `youngest` across the N queues, or equal to it when
+//   age_dec is high in the same cycle (the pool is retiring an entry at the
+//   edge the new one joins, so it has one fewer to wait for). The empty
+//   term is not optional: `youngest` reads 0 for an empty pool and for a
+//   saturated entry alike, and the two need different ages -- the first
+//   entry into an empty pool is already the oldest. age_dec is asserted on
+//   every queue whenever any queue retires an entry. An entry's age_cnt is
+//   then the number of retirements it still has to wait through before it
+//   is the oldest thing in the pool, and rd_age_thresh marks a head that
+//   has waited that long.
+//
+//   Under that rule every entry's age_cnt is at most its rank (the number
+//   of older entries still in the pool): a new entry's rank is the count,
+//   youngest + 1 is at most the count, and a retirement lowers age_cnt by
+//   one (or holds it at 0) while lowering the rank by one or zero. So
+//   whenever the pool holds anything, the oldest entry sits at age 0 at
+//   the head of its queue with rd_age_thresh high, from the cycle after the
+//   edge that made it the oldest. The scheduler's request stage can take
+//   the N rd_age_thresh bits as its oldest-first class. Three conditions:
+//   exactly one age_dec per retirement (two pops under one strobe leave the
+//   oldest at age 1), thresh is a priority term over the plain head-valid
+//   requests (the aged head may be timer-blocked), and ties at 0 are
+//   normal and need a tie-break.
 //
 // Features:
 //   - Same pointers, flags and storage as gaxi_fifo_sync; any DEPTH >= 2
@@ -52,6 +69,11 @@
 //     writer's age discipline
 //   - Mux read only: rd_data, rd_data_age, youngest and rd_age_thresh are
 //     combinational off the registers and move the cycle after an edge
+//   - PEEK > 0 exposes the PEEK entries behind the head (pk_valid, pk_data,
+//     pk_age_thresh per position), for a consumer that reads its queue one
+//     or two positions deep -- a scheduler's pop shadow serves a queue from
+//     its second entry in the cycle after a pop, and a behind-the-head flag
+//     (same row behind, nothing behind) is the next entry's bit
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -60,7 +82,9 @@
 //   AGE_WIDTH:   Width of the age counters. Range 1 to 32. Default 8.
 //   DEPTH:       Entries. Range 2 and up; any value, power of two optimal.
 //                Default 4. DEPTH=1 does not elaborate (no address bit).
-//   DW / AGEW / D / AW: derived shorthands, do not override.
+//   PEEK:        Entries behind the head exposed on pk_*. Range 0 to
+//                DEPTH-1. Default 0 (pk_* constant 0, PKN = 1).
+//   DW / AGEW / D / AW / PKN: derived shorthands, do not override.
 //
 //------------------------------------------------------------------------------
 // Ports:
@@ -72,7 +96,8 @@
 //     wr_valid:       Write handshake
 //     wr_data:        Entry payload
 //     wr_data_age:    Age stored with the entry, as given; the writer applies
-//                     the age_dec term (youngest + 1, or youngest with age_dec)
+//                     the pool rule (0 into an empty pool, else youngest + 1,
+//                     or youngest with age_dec)
 //     rd_ready:       Read handshake
 //
 //   Outputs:
@@ -84,11 +109,14 @@
 //     rd_data_age:    Head age_cnt; meaningful only while rd_valid (otherwise
 //                     the retired slot's stale age shows)
 //     rd_age_thresh:  rd_valid && head age_thresh (the head's age_cnt is 0)
+//     pk_valid[k]:    entry k+1 behind the head exists (count > k+1); 0 for k >= PEEK
+//     pk_data[k]:     its payload (meaningful while pk_valid[k])
+//     pk_age_thresh[k]: pk_valid[k] && its age_thresh
 //
 //------------------------------------------------------------------------------
 // Timing:
 //------------------------------------------------------------------------------
-//   Write to rd_valid:            1 cycle
+//   Write to rd_valid / pk_valid: 1 cycle
 //   age_dec to age outputs:       1 cycle (register update, then mux read)
 //   Throughput:                   1 entry per cycle each side
 //
@@ -105,6 +133,17 @@
 //   one per cycle, wrap at 2**AGE_WIDTH, and the wrapped entry jumps the
 //   pool (measured in review, 2026-10-25; the test's pool phases check the
 //   rank invariant that catches it).
+//
+//   The empty-pool term matters just as much. A writer that presents
+//   youngest + 1 into an empty pool lands the first entry at age 1 with
+//   nothing older than it, and every later entry inherits the shift: the
+//   oldest entry then always sits at age 1, rd_age_thresh never rises on
+//   the oldest head, and a request stage driven from the thresh bits never
+//   requests the first command into an idle controller -- nothing fires,
+//   nothing retires, nothing decrements. The rule as first written (header,
+//   doc example and the test's rank check, 2026-10-25 morning) had exactly
+//   this hole; the test's pool phases now check age == rank and that some
+//   head carries thresh whenever the pool is occupied.
 //
 //   The writer rule ties at zero: if youngest is 0 (an entry already
 //   saturated, which out-of-order retirement makes common) and age_dec is
@@ -126,6 +165,12 @@
 //   read) rather than derived from the pointers, so the mask is exact for a
 //   non-power-of-two DEPTH and the max tree needs no pointer arithmetic.
 //
+//   The peek positions are the slots at read address + 1 .. + PEEK (modulo
+//   DEPTH). The occupied slots are contiguous from the read address, so
+//   that slot's valid bit is exactly "entry k+1 exists"; the data and the
+//   thresh flag are read off the same arrays as the head. PEEK >= DEPTH
+//   would wrap a peek onto the head and does not elaborate.
+//
 //   If the writer keeps the one-above-largest discipline the ages in one
 //   queue are non-decreasing from head to tail and `youngest` equals the
 //   tail's age; the tree is kept anyway so the output stays correct under
@@ -135,10 +180,12 @@ module gaxi_age_fifo_sync #(
     parameter int  DATA_WIDTH = 4,
     parameter int  AGE_WIDTH  = 8,
     parameter int  DEPTH      = 4,
+    parameter int  PEEK       = 0,
     parameter int  DW   = DATA_WIDTH,
     parameter int  AGEW = AGE_WIDTH,
     parameter int  D    = DEPTH,
-    parameter int  AW   = $clog2(DEPTH)
+    parameter int  AW   = $clog2(DEPTH),
+    parameter int  PKN  = (PEEK > 0) ? PEEK : 1
 ) (
     input  logic            axi_aclk,
     input  logic            axi_aresetn,
@@ -153,7 +200,11 @@ module gaxi_age_fifo_sync #(
     output logic            rd_valid,       // not empty
     output logic [DW-1:0]   rd_data,
     output logic [AGEW-1:0] rd_data_age,
-    output logic            rd_age_thresh   // head age_cnt has saturated at 0
+    output logic            rd_age_thresh,  // head age_cnt has saturated at 0
+    // the PEEK entries behind the head (constant 0 when PEEK == 0)
+    output logic            pk_valid      [PKN],
+    output logic [DW-1:0]   pk_data       [PKN],
+    output logic            pk_age_thresh [PKN]
 );
 
     // ---------------------------------------------------------------------
@@ -268,6 +319,31 @@ module gaxi_age_fifo_sync #(
 
     assign rd_data_age   = r_age[r_rd_addr];
     assign rd_age_thresh = rd_valid && r_age_thresh[r_rd_addr];
+
+    // ---------------------------------------------------------------------
+    // Peek: the PEEK slots behind the head, modulo DEPTH
+    // ---------------------------------------------------------------------
+    generate
+        if (PEEK >= D) begin : g_peek_bad
+            $error("gaxi_age_fifo_sync: PEEK must be below DEPTH");
+        end
+        for (genvar k = 0; k < PKN; k++) begin : g_peek
+            if (k < PEEK) begin : g_live
+                logic [AW-1:0] w_addr;
+                // AW+1 bits so a non-power-of-two DEPTH wraps exactly
+                logic [AW:0]   w_sum;
+                assign w_sum  = {1'b0, r_rd_addr} + (AW+1)'(k + 1);
+                assign w_addr = (w_sum >= (AW+1)'(D)) ? AW'(w_sum - (AW+1)'(D)) : AW'(w_sum);
+                assign pk_valid[k]      = r_valid[w_addr];
+                assign pk_data[k]       = mem[w_addr];
+                assign pk_age_thresh[k] = r_valid[w_addr] && r_age_thresh[w_addr];
+            end else begin : g_off
+                assign pk_valid[k]      = 1'b0;
+                assign pk_data[k]       = '0;
+                assign pk_age_thresh[k] = 1'b0;
+            end
+        end
+    endgenerate
 
     // ---------------------------------------------------------------------
     // youngest: balanced max tree over the valid entries

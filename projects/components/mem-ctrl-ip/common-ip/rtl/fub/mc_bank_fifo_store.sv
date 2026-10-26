@@ -48,17 +48,32 @@
 //          A commit or issue always names the HEAD of its bank queue: the pick
 //          core fires the head record, or in the one cycle after a pop (the
 //          record's registered latency) the second record, which by then is
-//          the head (mc_bank_pick, r_shadow). So each bank queue is a LINKED
-//          LIST threaded through the slots: one `next` pointer per slot, a
-//          head and a tail per bank. Push appends at the tail, pop follows
-//          the head's `next`, the records read head, next[head] and
-//          next[next[head]]. No position array exists: the first pool-deep
-//          cut kept 8 x 8 positions per direction and packed them on every
-//          pop (~800 LUT on the board, 2026-10-23); the circular form that
-//          replaced it still carried 64 positions and their write decode per
-//          direction (416 flops each). The list is 8 x 3 + 2 x 8 x 3 bits
-//          (pumice TASK-054). The queues are pool-deep by construction and
-//          admission is the pool's, exactly as the entry store's.
+//          the head (mc_bank_pick, r_shadow). Each (direction, bank) queue is
+//          a gaxi_age_fifo_sync (2026-10-25, owner's choice over the linked
+//          list it replaces): the entry is {same-row-as-previous, slot}, the
+//          FIFO exposes its head and the two entries behind it (PEEK = 2),
+//          which is exactly what the records read -- head, second, and the
+//          behind flags from the next position. Beside every entry the FIFO
+//          keeps the POOL AGE: all sixteen queues share one rank space, the
+//          pushed entry's age is 0 into an empty pool, else one above the
+//          largest `youngest` across the queues (or equal to it when a
+//          retirement happens in the same cycle), and every queue steps its
+//          ages toward zero on each commit or issue. The pick fires at most
+//          one command per cycle, so one strobe is one retirement. An
+//          entry's age is then at most its rank among the live entries, the
+//          oldest entry in the pool sits at age 0 at the head of its queue,
+//          and that head's rd_age_thresh is the record's age_exceed: the
+//          pick's aged-first request class is "the oldest thing in the
+//          pool", from the cycle after the retirement that made it so. The
+//          rule and its proof are in the FIFO's header; the CSR
+//          SCHED_POLICY.age_thresh is the enable (non-zero) and its
+//          magnitude is not read. History: a pool-deep position array
+//          (~800 LUT, 2026-10-23), a circular form (416 flops per direction),
+//          then the linked list (8 x 3 + 2 x 8 x 3 bits, pumice TASK-054);
+//          the FIFO form carries NUM_BANKS x QD entries per direction and
+//          is measured against the list on the board. The queues are
+//          pool-deep by construction and admission is the pool's, exactly
+//          as the entry store's.
 //
 //          The fill-order FIFO (the slot each W beat belongs to, AW order) is
 //          circular for the same reason -- it only ever pops its head.
@@ -95,9 +110,10 @@ module mc_bank_fifo_store
     // percent on the concurrent two-threads-per-bank family and cost 4 on the
     // eight-thread streams; this form keeps the streams whole.
     parameter int BANK_CAP_MIXED     = 0,
-    // Age promotion (CSR SCHED_POLICY.age_thresh -> head record age_exceed -> the pick's
-    // aged-first select). 0 compiles the age counter, the per-slot ages and the compare out;
-    // age_exceed is constant 0 and the CSR field is inert (pumice TASK-059).
+    // Oldest-first promotion (CSR SCHED_POLICY.age_thresh != 0 -> head record age_exceed =
+    // "this head is the oldest entry in the pool" -> the pick's aged-first select). 0 ties
+    // the queues' age inputs off so the age column folds to constants; age_exceed is 0 and
+    // the CSR field is inert (pumice TASK-059 measured the stamp form out at 490 LUT).
     parameter bit HAS_AGE            = 1'b1,
     parameter bit HEAD2_EN           = 1'b1,// 0 = one head record per bank: head2 outputs are constant 0, and the pick
                                             //     core idles a pair for the cycle after each of its column fires (its
@@ -214,18 +230,37 @@ module mc_bank_fifo_store
     output logic                busy_o
 );
 
-    localparam int AGEW = 16;
     localparam int BCW  = (AXI_BEATS_PER_BURST > 1) ? $clog2(AXI_BEATS_PER_BURST) : 1;
     localparam int DQ_DEPTH = (NUM_ENTRIES > 1) ? NUM_ENTRIES : 2;
     localparam int QD   = ((BANK_FIFO_DEPTH <= 0) || (BANK_FIFO_DEPTH > NUM_ENTRIES))
                         ? NUM_ENTRIES : BANK_FIFO_DEPTH;
     localparam int QCW  = $clog2(QD + 1);          // per-bank occupancy 0..QD
     localparam int FOW  = $clog2(NUM_ENTRIES + 1); // fill-order occupancy 0..N
+    // Pool age: rank among the live entries of BOTH directions, so at most
+    // 2 * NUM_ENTRIES - 1; the FIFO saturates at 0, the writer clamps at max.
+    localparam int AGEW = $clog2(2 * NUM_ENTRIES);
+    localparam int QDW  = PTRW + 1;                // queue entry = {same-row-as-previous, slot}
+    localparam int QPK  = 2;                       // positions behind the head the records read
+    localparam int QDF  = (QD > QPK) ? QD : QPK + 1; // FIFO depth (PEEK must be below it)
 
     // ======================================================================
-    // Shared age counter
+    // Per-(direction, bank) queues: gaxi_age_fifo_sync, declared here, built
+    // after the slot logic below. Head and two peek positions per queue.
     // ======================================================================
-    logic [AGEW-1:0] r_age_ctr;
+    logic [NUM_BANKS-1:0] w_wq_wr_ready, w_wq_rd_valid, w_wq_thr;
+    logic [QDW-1:0]       w_wq_rd_data [NUM_BANKS];
+    logic [AGEW-1:0]      w_wq_young   [NUM_BANKS];
+    logic                 w_wq_pk_vld  [NUM_BANKS][QPK];
+    logic [QDW-1:0]       w_wq_pk_data [NUM_BANKS][QPK];
+    logic                 w_wq_pk_thr  [NUM_BANKS][QPK];
+    logic [NUM_BANKS-1:0] w_rq_wr_ready, w_rq_rd_valid, w_rq_thr;
+    logic [QDW-1:0]       w_rq_rd_data [NUM_BANKS];
+    logic [AGEW-1:0]      w_rq_young   [NUM_BANKS];
+    logic                 w_rq_pk_vld  [NUM_BANKS][QPK];
+    logic [QDW-1:0]       w_rq_pk_data [NUM_BANKS][QPK];
+    logic                 w_rq_pk_thr  [NUM_BANKS][QPK];
+    logic                 w_age_dec;
+    logic [AGEW-1:0]      w_new_age;
 
     // ======================================================================
     // WR slots
@@ -237,7 +272,6 @@ module mc_bank_fifo_store
     logic [COL_WIDTH-1:0] r_wr_col   [NUM_ENTRIES];
     logic [IW-1:0]        r_wr_id    [NUM_ENTRIES];
     logic                 r_wr_last  [NUM_ENTRIES];
-    logic [AGEW-1:0]      r_wr_age   [NUM_ENTRIES];
     logic [BCW-1:0]       r_wr_bcnt  [NUM_ENTRIES];
 
     // Write-beat BRAM and its prefetch skid: identical to mc_xddr2_entry_store
@@ -285,18 +319,14 @@ module mc_bank_fifo_store
     assign w_fill_vld  = (r_fo_cnt != '0);
     assign w_fill_slot = r_fo[r_fo_rd];
 
-    // Per-bank WR queues as linked lists through the slots: r_wnext[s] is the
-    // slot behind s in its bank's queue (valid while s is not the tail);
-    // r_wsp[s] = s's row equals the row of the slot ahead of it (stored at
-    // push against the bank's registered tail row, 0 when s was pushed into
-    // an empty queue); head / tail / cnt per bank; r_wq_tail_row = row of
-    // the last pushed.
-    logic [PTRW-1:0]      r_wnext       [NUM_ENTRIES];
-    logic                 r_wsp         [NUM_ENTRIES];
-    logic [PTRW-1:0]      r_wq_head     [NUM_BANKS];
-    logic [PTRW-1:0]      r_wq_tail     [NUM_BANKS];
+    // Per-bank WR queue bookkeeping beside the FIFOs: a registered occupancy
+    // (the admission bound and the mixed cap read a flop, not the FIFO's
+    // leading `count`, which would close a loop through the push handshake)
+    // and the row of the last pushed entry, for the same-row-as-previous bit
+    // that rides each queue entry (0 when pushed into an empty queue).
     logic [QCW-1:0]       r_wq_cnt      [NUM_BANKS];
     logic [ROW_WIDTH-1:0] r_wq_tail_row [NUM_BANKS];
+    logic                 w_wq_sp_new;
 
     logic [31:0] w_fill_idx;
     assign w_fill_idx = 32'(w_fill_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_wr_bcnt[w_fill_slot]);
@@ -307,7 +337,8 @@ module mc_bank_fifo_store
     assign w_fill_done = w_wd_fire && (wd_last_i || (r_wr_bcnt[w_fill_slot] == BCW'(AXI_BEATS_PER_BURST - 1)));
 
     logic w_wr_cap_ok, w_rd_cap_ok;   // conditional per-bank cap (BANK_CAP_MIXED), assigned below the RD slots
-    assign aw_push_ready_o = w_wr_have_free && (r_wq_cnt[aw_push_bank_i] != QCW'(QD)) && w_wr_cap_ok;
+    assign aw_push_ready_o = w_wr_have_free && (r_wq_cnt[aw_push_bank_i] != QCW'(QD))
+                           && w_wq_wr_ready[aw_push_bank_i] && w_wr_cap_ok;
     assign wd_ready_o      = w_fill_vld;
 
     // ======================================================================
@@ -380,16 +411,14 @@ module mc_bank_fifo_store
     assign w_dq_rd_ready = w_fetch_last;
 
     // ======================================================================
-    // Per-bank WR FIFO next-state: remove the committed slot wherever it sits,
-    // close up, append the pushed slot. QD-wide, per bank.
+    // Per-bank WR queue strobes: the commit pops its bank's head (a commit
+    // always names the head: see the header), the AW accept pushes the free
+    // slot at its bank's tail. The same-as-previous bit of the pushed entry
+    // compares the incoming row with the registered tail row; it is
+    // meaningful only when something is ahead of it after this cycle's pop.
     // ======================================================================
     logic [BKW-1:0]  w_commit_bank;
     assign w_commit_bank = r_wr_bank[wr_commit_slot_i];
-
-    // Pop = head pointer + 1 (a commit always names the head: see the header);
-    // push writes position rd + cnt. The same-as-previous bit of the pushed
-    // position compares the incoming row with the registered tail row; it is
-    // meaningful only when something is ahead of it after this cycle's pop.
     logic [NUM_BANKS-1:0] w_wq_pop, w_wq_push;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
@@ -397,13 +426,14 @@ module mc_bank_fifo_store
             w_wq_push[b] = w_aw_fire && (aw_push_bank_i == BKW'(b));
         end
     end
+    assign w_wq_sp_new = ((int'(r_wq_cnt[aw_push_bank_i]) - (w_wq_pop[aw_push_bank_i] ? 1 : 0)) > 0)
+                       && (aw_push_row_i == r_wq_tail_row[aw_push_bank_i]);
 
     // ======================================================================
     // WR sequential logic
     // ======================================================================
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
-            r_age_ctr   <= '0;
             r_cm_fbeat  <= '0;
             r_sk_rd     <= 1'b0;
             r_sk_wr     <= 1'b0;
@@ -417,18 +447,12 @@ module mc_bank_fifo_store
                 r_wr_fdone[i] <= 1'b0;
                 r_wr_bcnt [i] <= '0;
                 r_fo[i]       <= '0;
-                r_wnext[i]    <= '0;
-                r_wsp[i]      <= 1'b0;
             end
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_wq_cnt[b]      <= '0;
-                r_wq_head[b]     <= '0;
-                r_wq_tail[b]     <= '0;
                 r_wq_tail_row[b] <= '0;
             end
         end else begin
-            r_age_ctr <= r_age_ctr + 1'b1;
-
             // descriptor insert
             if (w_aw_fire) begin
                 r_wr_valid[w_wr_free_slot] <= 1'b1;
@@ -439,7 +463,6 @@ module mc_bank_fifo_store
                 r_wr_col  [w_wr_free_slot] <= aw_push_col_i;
                 r_wr_id   [w_wr_free_slot] <= aw_push_id_i;
                 r_wr_last [w_wr_free_slot] <= aw_push_last_i;
-                r_wr_age  [w_wr_free_slot] <= r_age_ctr;
             end
 
             // fill-order FIFO: circular; pop (head + 1) at fill-done, push at
@@ -460,22 +483,10 @@ module mc_bank_fifo_store
                 end
             end
 
-            // per-bank linked lists: pop follows the head's next; push appends
-            // at the tail (or becomes the head of an empty queue -- including a
-            // queue emptied by this cycle's pop, where the later assignment
-            // wins over the pop's)
+            // per-bank occupancy and tail row (the queue itself is the FIFO)
             for (int b = 0; b < NUM_BANKS; b++) begin
-                automatic int cnt_after_pop;
-                cnt_after_pop = int'(r_wq_cnt[b]) - (w_wq_pop[b] ? 1 : 0);
-                r_wq_cnt[b] <= QCW'(cnt_after_pop + (w_wq_push[b] ? 1 : 0));
-                if (w_wq_pop[b]) r_wq_head[b] <= r_wnext[r_wq_head[b]];
-                if (w_wq_push[b]) begin
-                    if (cnt_after_pop == 0) r_wq_head[b]           <= w_wr_free_slot;
-                    else                    r_wnext[r_wq_tail[b]]  <= w_wr_free_slot;
-                    r_wq_tail[b]          <= w_wr_free_slot;
-                    r_wsp[w_wr_free_slot] <= (cnt_after_pop > 0) && (aw_push_row_i == r_wq_tail_row[b]);
-                    r_wq_tail_row[b]      <= aw_push_row_i;
-                end
+                r_wq_cnt[b] <= QCW'(int'(r_wq_cnt[b]) - (w_wq_pop[b] ? 1 : 0) + (w_wq_push[b] ? 1 : 0));
+                if (w_wq_push[b]) r_wq_tail_row[b] <= aw_push_row_i;
             end
 
             // fetch engine
@@ -524,13 +535,9 @@ module mc_bank_fifo_store
     logic [ROW_WIDTH-1:0] r_rd_row    [NUM_ENTRIES];
     logic [COL_WIDTH-1:0] r_rd_col    [NUM_ENTRIES];
     logic [RTW-1:0]       r_rd_ticket [NUM_ENTRIES];
-    logic [AGEW-1:0]      r_rd_age    [NUM_ENTRIES];
-    logic [PTRW-1:0]      r_rnext     [NUM_ENTRIES];   // linked lists, as the WR side
-    logic                 r_rsp       [NUM_ENTRIES];
-    logic [PTRW-1:0]      r_rq_head   [NUM_BANKS];
-    logic [PTRW-1:0]      r_rq_tail   [NUM_BANKS];
-    logic [QCW-1:0]       r_rq_cnt    [NUM_BANKS];
+    logic [QCW-1:0]       r_rq_cnt    [NUM_BANKS];     // bookkeeping beside the FIFOs, as the WR side
     logic [ROW_WIDTH-1:0] r_rq_tail_row [NUM_BANKS];
+    logic                 w_rq_sp_new;
 
     logic            w_rd_have_free;
     logic [PTRW-1:0] w_rd_free_slot;
@@ -548,8 +555,10 @@ module mc_bank_fifo_store
     assign w_ar_fire       = ar_push_valid_i && ar_push_ready_o;
     assign w_rd_issue_fire = rd_issue_valid_i && rd_issue_ready_o;
 
-    assign ar_push_ready_o    = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD)) && w_rd_cap_ok && rt_alloc_ready_i;
-    assign rd_cam_ins_ready_o = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD)) && w_rd_cap_ok;
+    assign ar_push_ready_o    = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD))
+                              && w_rq_wr_ready[ar_push_bank_i] && w_rd_cap_ok && rt_alloc_ready_i;
+    assign rd_cam_ins_ready_o = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD))
+                              && w_rq_wr_ready[ar_push_bank_i] && w_rd_cap_ok;
     assign rd_issue_ready_o   = rd_iss_ready_i;
     assign rd_iss_valid_o     = w_rd_issue_fire;
     assign rd_iss_ticket_o    = r_rd_ticket[rd_issue_slot_i];
@@ -564,18 +573,16 @@ module mc_bank_fifo_store
             w_rq_push[b] = w_ar_fire && (ar_push_bank_i == BKW'(b));
         end
     end
+    assign w_rq_sp_new = ((int'(r_rq_cnt[ar_push_bank_i]) - (w_rq_pop[ar_push_bank_i] ? 1 : 0)) > 0)
+                       && (ar_push_row_i == r_rq_tail_row[ar_push_bank_i]);
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_rd_valid[i] <= 1'b0;
-                r_rnext[i]    <= '0;
-                r_rsp[i]      <= 1'b0;
             end
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_rq_cnt[b]      <= '0;
-                r_rq_head[b]     <= '0;
-                r_rq_tail[b]     <= '0;
                 r_rq_tail_row[b] <= '0;
             end
         end else begin
@@ -585,21 +592,11 @@ module mc_bank_fifo_store
                 r_rd_row   [w_rd_free_slot] <= ar_push_row_i;
                 r_rd_col   [w_rd_free_slot] <= ar_push_col_i;
                 r_rd_ticket[w_rd_free_slot] <= rt_alloc_ticket_i;
-                r_rd_age   [w_rd_free_slot] <= r_age_ctr;
             end
             if (w_rd_issue_fire) r_rd_valid[rd_issue_slot_i] <= 1'b0;
             for (int b = 0; b < NUM_BANKS; b++) begin
-                automatic int cnt_after_pop;
-                cnt_after_pop = int'(r_rq_cnt[b]) - (w_rq_pop[b] ? 1 : 0);
-                r_rq_cnt[b] <= QCW'(cnt_after_pop + (w_rq_push[b] ? 1 : 0));
-                if (w_rq_pop[b]) r_rq_head[b] <= r_rnext[r_rq_head[b]];
-                if (w_rq_push[b]) begin
-                    if (cnt_after_pop == 0) r_rq_head[b]           <= w_rd_free_slot;
-                    else                    r_rnext[r_rq_tail[b]]  <= w_rd_free_slot;
-                    r_rq_tail[b]          <= w_rd_free_slot;
-                    r_rsp[w_rd_free_slot] <= (cnt_after_pop > 0) && (ar_push_row_i == r_rq_tail_row[b]);
-                    r_rq_tail_row[b]      <= ar_push_row_i;
-                end
+                r_rq_cnt[b] <= QCW'(int'(r_rq_cnt[b]) - (w_rq_pop[b] ? 1 : 0) + (w_rq_push[b] ? 1 : 0));
+                if (w_rq_push[b]) r_rq_tail_row[b] <= ar_push_row_i;
             end
         end
     end)
@@ -617,26 +614,112 @@ module mc_bank_fifo_store
     assign w_rd_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_wr || (int'(r_rq_cnt[ar_push_bank_i]) < BANK_CAP_MIXED);
 
     // ======================================================================
-    // Age-exceed flags per slot (one-cycle stale, like the reference stores)
+    // Pool age (gaxi_age_fifo_sync's writer rule across all 2 x NUM_BANKS
+    // queues): one retirement strobe per commit or issue -- the pick fires
+    // one command per cycle, so the two are exclusive -- and the pushed age
+    // is 0 into an empty pool, else the pool's largest `youngest` plus one,
+    // or that `youngest` itself when a retirement lands at the same edge.
+    // An AW and an AR accepted in one cycle both take that age and tie,
+    // which the rule allows (age <= rank holds for both). `youngest` is a
+    // balanced max tree over the queues' outputs, one array per level
+    // (handbook: reduction-tree-one-array-per-level). HAS_AGE = 0 ties the
+    // age inputs off; the column folds to constants and age_exceed is 0.
     // ======================================================================
-    logic [NUM_ENTRIES-1:0] r_wr_agex, r_rd_agex;
-    `ALWAYS_FF_RST(aclk, aresetn, begin
-        if (`RST_ASSERTED(aresetn)) begin
-            r_wr_agex <= '0;
-            r_rd_agex <= '0;
-        end else begin
-            for (int i = 0; i < NUM_ENTRIES; i++) begin
-                r_wr_agex[i] <= HAS_AGE && r_wr_valid[i] && r_wr_fdone[i]
-                             && (sched_age_thresh_i != 8'd0)
-                             && ((r_age_ctr - r_wr_age[i]) >= AGEW'({sched_age_thresh_i, 4'h0}));
-                r_rd_agex[i] <= HAS_AGE && r_rd_valid[i]
-                             && (sched_age_thresh_i != 8'd0)
-                             && ((r_age_ctr - r_rd_age[i]) >= AGEW'({sched_age_thresh_i, 4'h0}));
+    localparam int NQ  = 2 * NUM_BANKS;
+    localparam int NQP = 1 << $clog2(NQ);
+    localparam int NQL = $clog2(NQ);
+    logic [AGEW-1:0] w_yleaf [NQP];
+    logic [AGEW-1:0] w_pool_young;
+    logic            w_pool_empty;
+    generate
+        for (genvar i = 0; i < NQP; i++) begin : g_yleaf
+            if (i < NUM_BANKS) begin : g_wr
+                assign w_yleaf[i] = w_wq_young[i];
+            end else if (i < NQ) begin : g_rd
+                assign w_yleaf[i] = w_rq_young[i - NUM_BANKS];
+            end else begin : g_pad
+                assign w_yleaf[i] = '0;
             end
-            if (w_aw_fire) r_wr_agex[w_wr_free_slot] <= 1'b0;
-            if (w_ar_fire) r_rd_agex[w_rd_free_slot] <= 1'b0;
         end
-    end)
+        for (genvar lvl = 0; lvl < NQL; lvl++) begin : g_ylvl
+            localparam int N_OUT = NQP >> (lvl + 1);
+            logic [AGEW-1:0] w_max [N_OUT];
+            for (genvar k = 0; k < N_OUT; k++) begin : g_node
+                logic [AGEW-1:0] w_a, w_b;
+                if (lvl == 0) begin : g_from_leaf
+                    assign w_a = w_yleaf[2*k];
+                    assign w_b = w_yleaf[2*k+1];
+                end else begin : g_from_lvl
+                    assign w_a = g_ylvl[lvl-1].w_max[2*k];
+                    assign w_b = g_ylvl[lvl-1].w_max[2*k+1];
+                end
+                assign w_max[k] = (w_a > w_b) ? w_a : w_b;
+            end
+        end
+        assign w_pool_young = g_ylvl[NQL-1].w_max[0];   // NQ >= 2, so NQL >= 1
+    endgenerate
+    assign w_pool_empty = !((|w_wq_rd_valid) || (|w_rq_rd_valid));
+    assign w_age_dec    = HAS_AGE && (w_wr_commit_fire || w_rd_issue_fire);
+    always_comb begin
+        if (!HAS_AGE || w_pool_empty)            w_new_age = '0;
+        else if (w_age_dec)                      w_new_age = w_pool_young;
+        else if (w_pool_young == {AGEW{1'b1}})   w_new_age = w_pool_young;   // clamp; rank < 2N keeps this unreachable
+        else                                     w_new_age = w_pool_young + 1'b1;
+    end
+
+    generate for (genvar b = 0; b < NUM_BANKS; b++) begin : g_q
+        gaxi_age_fifo_sync #(
+            .DATA_WIDTH (QDW),
+            .AGE_WIDTH  (AGEW),
+            .DEPTH      (QDF),
+            .PEEK       (QPK)
+        ) u_wq (
+            .axi_aclk      (aclk),
+            .axi_aresetn   (aresetn),
+            .age_dec       (w_age_dec),
+            .wr_valid      (w_wq_push[b]),
+            .wr_ready      (w_wq_wr_ready[b]),
+            .wr_data       ({w_wq_sp_new, w_wr_free_slot}),
+            .wr_data_age   (w_new_age),
+            .rd_ready      (w_wq_pop[b]),
+            .count         (),
+            .youngest      (w_wq_young[b]),
+            .rd_valid      (w_wq_rd_valid[b]),
+            .rd_data       (w_wq_rd_data[b]),
+            .rd_data_age   (),
+            .rd_age_thresh (w_wq_thr[b]),
+            .pk_valid      (w_wq_pk_vld[b]),
+            .pk_data       (w_wq_pk_data[b]),
+            .pk_age_thresh (w_wq_pk_thr[b])
+        );
+        gaxi_age_fifo_sync #(
+            .DATA_WIDTH (QDW),
+            .AGE_WIDTH  (AGEW),
+            .DEPTH      (QDF),
+            .PEEK       (QPK)
+        ) u_rq (
+            .axi_aclk      (aclk),
+            .axi_aresetn   (aresetn),
+            .age_dec       (w_age_dec),
+            .wr_valid      (w_rq_push[b]),
+            .wr_ready      (w_rq_wr_ready[b]),
+            .wr_data       ({w_rq_sp_new, w_rd_free_slot}),
+            .wr_data_age   (w_new_age),
+            .rd_ready      (w_rq_pop[b]),
+            .count         (),
+            .youngest      (w_rq_young[b]),
+            .rd_valid      (w_rq_rd_valid[b]),
+            .rd_data       (w_rq_rd_data[b]),
+            .rd_data_age   (),
+            .rd_age_thresh (w_rq_thr[b]),
+            .pk_valid      (w_rq_pk_vld[b]),
+            .pk_data       (w_rq_pk_data[b]),
+            .pk_age_thresh (w_rq_pk_thr[b])
+        );
+    end endgenerate
+    // the CSR field is the enable; the age itself is the FIFO's rank
+    logic w_aged_en;
+    assign w_aged_en = HAS_AGE && (sched_age_thresh_i != 8'd0);
 
     // ======================================================================
     // Records off the FIFO fronts, registered at the edge. A write record is
@@ -645,7 +728,9 @@ module mc_bank_fifo_store
     // is still filling simply has vld = 0, and the filled entries of a bank
     // are a prefix of its queue: behind_empty is "the next position is not
     // filled". behind_same_row is the stored same-as-previous bit of the next
-    // position (filled or pending), the exact close-on-drain term.
+    // position (filled or pending), the exact close-on-drain term. The FIFO's
+    // head is position 0, its peeks are positions 1 and 2; an entry is
+    // {same-row-as-previous, slot}.
     // ======================================================================
     mc_head_rec_t [NUM_BANKS-1:0] w_wr_head, w_wr_head2, w_rd_head, w_rd_head2;
 
@@ -663,28 +748,31 @@ module mc_bank_fifo_store
         for (int b = 0; b < NUM_BANKS; b++) begin
             automatic mc_head_rec_t h, h2;
             automatic logic [PTRW-1:0] s0, s1, s2;
-            automatic logic has1, has2;
+            automatic logic has0, has1, has2, sp1, sp2;
             automatic logic [ROW_WIDTH-1:0] orow;
             orow = bank_open_row_i[b*ROW_WIDTH +: ROW_WIDTH];
-            s0 = r_wq_head[b];
-            s1 = r_wnext[s0];
-            s2 = r_wnext[s1];
-            has1 = (int'(r_wq_cnt[b]) > 1);
-            has2 = (int'(r_wq_cnt[b]) > 2);
+            s0 = w_wq_rd_data[b][PTRW-1:0];
+            s1 = w_wq_pk_data[b][0][PTRW-1:0];
+            s2 = w_wq_pk_data[b][1][PTRW-1:0];
+            sp1 = w_wq_pk_data[b][0][PTRW];
+            sp2 = w_wq_pk_data[b][1][PTRW];
+            has0 = w_wq_rd_valid[b];
+            has1 = w_wq_pk_vld[b][0];
+            has2 = w_wq_pk_vld[b][1];
             h = '0;
-            h.vld             = (r_wq_cnt[b] != '0) && r_wr_fdone[s0];
+            h.vld             = has0 && r_wr_fdone[s0];
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = h.vld && !(has1 && r_wr_fdone[s1]);
-            h.behind_same_row = h.vld && has1 && r_wsp[s1];
-            h.age_exceed      = r_wr_agex[s0];
+            h.behind_same_row = h.vld && has1 && sp1;
+            h.age_exceed      = w_aged_en && w_wq_thr[b];
             h.hit             = bank_row_active_i[b] && (r_wr_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1 && r_wr_fdone[s1];
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = h2.vld && !(has2 && r_wr_fdone[s2]);
-            h2.behind_same_row = h2.vld && has2 && r_wsp[s2];
-            h2.age_exceed      = r_wr_agex[s1];
-            h2.hit             = has1 && r_wsp[s1];  // == head.behind_same_row's bit (header)
+            h2.behind_same_row = h2.vld && has2 && sp2;
+            h2.age_exceed      = w_aged_en && w_wq_pk_thr[b][0];
+            h2.hit             = has1 && sp1;  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             w_wr_head [b] = h;
             w_wr_head2[b] = h2;
@@ -694,29 +782,31 @@ module mc_bank_fifo_store
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
             automatic mc_head_rec_t h, h2;
-            automatic logic [PTRW-1:0] s0, s1, s2;
-            automatic logic has1, has2;
+            automatic logic [PTRW-1:0] s0, s1;
+            automatic logic has0, has1, has2, sp1, sp2;
             automatic logic [ROW_WIDTH-1:0] orow;
             orow = bank_open_row_i[b*ROW_WIDTH +: ROW_WIDTH];
-            s0 = r_rq_head[b];
-            s1 = r_rnext[s0];
-            s2 = r_rnext[s1];
-            has1 = (int'(r_rq_cnt[b]) > 1);
-            has2 = (int'(r_rq_cnt[b]) > 2);
+            s0 = w_rq_rd_data[b][PTRW-1:0];
+            s1 = w_rq_pk_data[b][0][PTRW-1:0];
+            sp1 = w_rq_pk_data[b][0][PTRW];
+            sp2 = w_rq_pk_data[b][1][PTRW];
+            has0 = w_rq_rd_valid[b];
+            has1 = w_rq_pk_vld[b][0];
+            has2 = w_rq_pk_vld[b][1];
             h = '0;
-            h.vld             = (r_rq_cnt[b] != '0);
+            h.vld             = has0;
             h.slot            = MC_HEAD_SLOT_W'(s0);
-            h.behind_empty    = (int'(r_rq_cnt[b]) == 1);
-            h.behind_same_row = h.vld && has1 && r_rsp[s1];
-            h.age_exceed      = r_rd_agex[s0];
+            h.behind_empty    = has0 && !has1;
+            h.behind_same_row = has0 && has1 && sp1;
+            h.age_exceed      = w_aged_en && w_rq_thr[b];
             h.hit             = bank_row_active_i[b] && (r_rd_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1;
             h2.slot            = MC_HEAD_SLOT_W'(s1);
-            h2.behind_empty    = (int'(r_rq_cnt[b]) == 2);
-            h2.behind_same_row = h2.vld && has2 && r_rsp[s2];
-            h2.age_exceed      = r_rd_agex[s1];
-            h2.hit             = has1 && r_rsp[s1];  // == head.behind_same_row's bit (header)
+            h2.behind_empty    = has1 && !has2;
+            h2.behind_same_row = has1 && has2 && sp2;
+            h2.age_exceed      = w_aged_en && w_rq_pk_thr[b][0];
+            h2.hit             = has1 && sp1;  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             w_rd_head [b] = h;
             w_rd_head2[b] = h2;

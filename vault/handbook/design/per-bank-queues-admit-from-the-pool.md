@@ -68,7 +68,7 @@ that never finished.
   burst is eight same-bank entries, so the pop shadow is the common case;
   the single-bank stream halves (292 vs 568 MB/s) and eight threads lose 20
   to 26 percent for 281 LUT. It is a knob (`HEAD2_EN`), default on.
-- The queues are linked lists through the slots (pumice TASK-054): a 3-bit
+- The queues were linked lists through the slots (pumice TASK-054): a 3-bit
   `next` per slot, a same-row-as-predecessor bit per slot, head / tail /
   count per bank. A pool-deep per-bank queue needs no position storage at
   all -- every slot is in exactly one queue at a time, so the slot IS the
@@ -76,6 +76,30 @@ that never finished.
   write decode) became 24 + 8 + 48 + 32 flops; the store went 1 203 -> 806
   flops, cycle-identical on every cell. The fill-order FIFO is circular for
   the same reason as the queues: it only ever pops its head.
+- 2026-10-25 (owner's choice): the queues are `gaxi_age_fifo_sync`
+  instances, one per (direction, bank), entry {same-row-as-previous, slot},
+  `PEEK = 2` so the records read head, second and the behind flags straight
+  off the FIFO. What the form buys is the POOL AGE: all sixteen queues share
+  one rank space (0 into an empty pool, else the pool's largest `youngest`
+  plus one, or that `youngest` when a retirement lands at the same edge; one
+  decrement per commit or issue, which the one-command-per-cycle pick makes
+  exclusive), so the oldest entry in the pool always sits at age 0 at the
+  head of its queue and `rd_age_thresh` IS the record's `age_exceed` -- the
+  pick's aged-first class becomes "oldest in the pool", from the cycle
+  after the retirement. The proof (age <= rank) and the three conditions
+  are in the FIFO's header. Cost: NUM_BANKS x QD entries per direction
+  instead of a pool-sized list, measured against the list on the board. The
+  rule's empty-pool term was missing from the block's first text and its
+  test called the off-by-one correct; `age == rank` and an occupied-pool
+  thresh check guard it now. Measured (granite TASK-002): cycle-identical
+  to the list with the class off at 1 and 8 threads; synth u_core 5 190 ->
+  4 996 LUT, 3 207 -> 3 307 FF (the entry arrays go to LUTRAM, the pointer
+  muxes go); store 2 255 -> 2 160 LUT. The policy lesson is separate from
+  the structure: oldest-in-pool as the TOP select line outranks the
+  direction register, and with reads and writes both live the bus turns
+  around on nearly every pick -- the 8-thread mixed family halved (106.5 ->
+  49.3 MB/s) and stream reads lost 10 percent. An age class belongs inside
+  the direction / alternation choice as the tie-break, not above it.
 - The queues are circular (pop = pointer increment): the pick core always
   fires the head -- it reads the second record only in the one-cycle shadow
   after a pop -- so no pack-on-pop network is needed. The packed pool-deep

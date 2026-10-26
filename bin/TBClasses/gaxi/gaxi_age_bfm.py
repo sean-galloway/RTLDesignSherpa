@@ -115,10 +115,13 @@ class GaxiAgePoolDriver:
     Policies, all settable between phases:
       decr_prob    Bernoulli age_dec strobe per cycle
       decr_on_read age_dec = rd_valid & rd_ready this cycle (the retire strobe)
-      live_age     wr_data_age = youngest + 1, or youngest when age_dec is
-                   high and the writer has the dec term, clamped at max
-    POOL_WRITER_DEC_TERM=0 in the environment drops the dec term: that is the
-    mutation the pool rank check must fail on.
+      live_age     wr_data_age = 0 when the queue is empty (rd_valid low;
+                   the one-queue pool is empty), else youngest + 1, or
+                   youngest when age_dec is high and the writer has the dec
+                   term, clamped at max
+    POOL_WRITER_DEC_TERM=0 in the environment drops the dec term and
+    POOL_WRITER_EMPTY_TERM=0 drops the empty term: those are the mutations the
+    pool rank check must fail on (the second on the very first entry).
     """
 
     def __init__(self, dut, clock, age_width, log):
@@ -130,6 +133,7 @@ class GaxiAgePoolDriver:
         self.decr_on_read = False
         self.live_age = False
         self.has_dec_term = os.environ.get('POOL_WRITER_DEC_TERM', '1') == '1'
+        self.has_empty_term = os.environ.get('POOL_WRITER_EMPTY_TERM', '1') == '1'
         self._task = None
         dut.age_dec.value = 0
 
@@ -156,4 +160,6 @@ class GaxiAgePoolDriver:
             dut.age_dec.value = 1 if strobe else 0
             if self.live_age:
                 bump = 0 if (strobe and self.has_dec_term) else 1
-                dut.wr_data_age.value = min(int(dut.youngest.value) + bump, self.max_age)
+                empty = self.has_empty_term and not int(dut.rd_valid.value)
+                age = 0 if empty else int(dut.youngest.value) + bump
+                dut.wr_data_age.value = min(age, self.max_age)
