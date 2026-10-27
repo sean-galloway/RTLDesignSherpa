@@ -14,7 +14,7 @@ Pick the lane before filing:
 | Lane | open | active | closed | dropped | deferred |
 |---|---|---|---|---|---|
 | [task/](task/INDEX.md) | 0 | 0 | 6 | 0 | 0 |
-| [bug/](bug/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
+| [bug/](bug/INDEX.md) | 2 | 0 | 0 | 0 | 0 |
 | [issue/](issue/INDEX.md) | 1 | 0 | 0 | 0 | 0 |
 
 **The pages at this level are the LEGACY task lane.** They are frozen: close

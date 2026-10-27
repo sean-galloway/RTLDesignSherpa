@@ -200,14 +200,15 @@ async def aperture_probe_test(dut):
     except Exception as e:
         failures.append(f"cycle_injector1 access failed: {e}")
 
-    # tally_cfgw: write the CAM clear/key/load aperture (64-bit AXIL).
+    # tally_cfgw: write the CAM clear/key/load aperture (32-bit registers;
+    # single 32-bit writes only -- see smoke_test's BUG-003 comment).
     # We verify the write completes (no hang); the exact readback of CAM_KEY
     # depends on the generated regblock update timing and is covered by the
     # smoke sequence that checks tally bins.
     try:
-        await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
-        await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_KEY, _default_profile()[0][0])
-        await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 16) | 0)
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_KEY, _default_profile()[0][0])
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 31) | 0)
     except Exception as e:
         failures.append(f"tally_cfgw/cfgr access failed: {e}")
 
@@ -227,11 +228,17 @@ async def smoke_test(dut):
     tb = AmberPairHarnessAXILTest(dut, clk_task)
     await tb.reset()
 
-    # Configure tally legal-set profile
-    await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
+    # Configure tally legal-set profile. The CAM registers are 32-bit and
+    # MUST be written with single 32-bit accesses: a 64-bit decomposition
+    # (write64) writes the high word at +4, which aliases onto the same
+    # register in the 64-bit cfgw port wrapper (it ignores WSTRB and takes
+    # wdata[31:0]), zeroing CAM_KEY before the load and re-firing CAM_LOAD
+    # with INDEX=0/VALID=0 (BUG-003). CAM_LOAD = {VALID[31], INDEX[7:0]}
+    # per tally_regs.rdl.
+    await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_CLEAR, 0)
     for key, idx in _default_profile():
-        await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key)
-        await tb.write64(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 16) | (idx & 0xFFFF))
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_KEY, key)
+        await tb.write32(ADDR_TALLY_CFGW + TALLY_CAM_LOAD, (1 << 31) | (idx & 0xFF))
 
     # Both injectors target the same 4 KB region
     mask = 0x0000_0FFF

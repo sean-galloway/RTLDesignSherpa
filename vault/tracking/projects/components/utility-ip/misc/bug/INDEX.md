@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/misc — bugs
 
-**Next ID: BUG-003** — never recycle a number, even when its item closed.
+**Next ID: BUG-004** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 1 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -22,6 +22,10 @@ by construction rather than by discipline.
 
 - **BUG-002** — the observers' compression statistics nets (`w_comp_stat_*`) are declared and
   read into OBS_COMP_STAT0/1 but never driven; the CSRs read 0 on every build (filed 2026-10-24)
+- **BUG-003** — monbus_tally_axil's cfgw write wrapper ignores WSTRB: a
+  4-byte-strided high-half write clobbers the register and re-fires its
+  swmod actions; the mechanism behind amber BUG-003's empty tally CAM
+  (filed 2026-10-27)
 
 ## Closed
 

@@ -106,7 +106,7 @@ These apertures expose the generated `tally_regs` register block from
 | --- | --- | --- |
 | `0x100` | CAM_CLEAR | Write `CLEAR=1` to clear the legal-set CAM |
 | `0x108` | CAM_KEY | 32-bit key value for CAM load |
-| `0x110` | CAM_LOAD | `{VALID, INDEX[7:0]}` load a key→index mapping |
+| `0x110` | CAM_LOAD | `{VALID[31], INDEX[7:0]}` load a key→index mapping (32-bit write only) |
 | `0x118` | WATCH_CTRL | `{ARM, MASK[15:0]}` watch/control |
 | `0x120` | LATCH_SEL | `{SEL[7:0]}` latch select |
 
