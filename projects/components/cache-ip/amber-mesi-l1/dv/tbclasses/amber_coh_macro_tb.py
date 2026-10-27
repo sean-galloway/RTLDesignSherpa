@@ -112,23 +112,17 @@ class AmberCohMacroTB(AmberSnoopRespTB):
     # ------------------------------------------------------------------
     # Eviction-accounting reconciliation (tiny-geometry adaptation).
     #
-    # The control suite's _score_slice retires a victim slot's old line
-    # UNCONDITIONALLY (self.line_state[evicted] = 'I'). That is sound
-    # only while a line never has two slot claims in one set. The snoop
-    # service leaves {tag, I} corpses in place, and a refill can re-
-    # install the same line at the OTHER way; the set then holds a
-    # corpse beside a live copy (routine at 2-way tiny geometry where
-    # the pool wraps four sets). Evicting the corpse must NOT retire
-    # the line -- the DUT/array keep the live copy. The loop scorer
-    # already retires through _retire_line_at, which checks for other
-    # live copies; the plain-transaction scorer predates that rule.
-    # Rather than perturb the landed suites, the macro reconciles the
-    # txn's set after each plain scoring: any line the accounting
-    # retired to 'I' that still has a LIVE slot copy in the model (the
-    # tap-maintained slot view is exactly what the DUT array holds) gets
-    # its line-level state re-derived from that copy. Only the
-    # over-retired signature is repaired -- every other drift class
-    # still scores as a loud mismatch.
+    # The control suite's _score_slice retires the victim slot's old line
+    # only when the victim slot was VALID pre-install (a dead {tag, I}
+    # slot can hold a stale duplicate of a line whose live copy sits in
+    # another way; retiring it clobbered the live copy's state --
+    # BUG-001/BUG-002). This reconciliation predates that guard and is
+    # kept as a safety net: any line the accounting still retires to 'I'
+    # that has a LIVE slot copy in the model (the tap-maintained slot
+    # view is exactly what the DUT array holds) gets its line-level
+    # state re-derived from that copy. Only the over-retired signature
+    # is repaired -- every other drift class still scores as a loud
+    # mismatch.
     # ------------------------------------------------------------------
     def _score_slice(self, addr, line, set_idx, beat, we, be, wdata, res,
                      rsp_data, sl, label):

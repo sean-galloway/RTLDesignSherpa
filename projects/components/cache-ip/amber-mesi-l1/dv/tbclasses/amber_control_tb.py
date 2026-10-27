@@ -679,7 +679,8 @@ class AmberControlTB(TBBase):
                 way = p['way_oh'].bit_length() - 1
                 new_line = ((p['tag_state'] >> 3) << self.SET_BITS) | p['set']
                 old = self.tags.get((p['set'], way))
-                if old is not None and old != new_line:
+                if old is not None and old != new_line \
+                        and self.slot_state.get((p['set'], way), 'I') != 'I':
                     self.line_state[old] = 'I'
                 self.tags[(p['set'], way)] = new_line
                 dec = self._decode_state(p['tag_state'] & 0x7)
@@ -1059,11 +1060,20 @@ class AmberControlTB(TBBase):
                     self._score(f"{label} install way", p['way_oh'],
                                 1 << model_victim_way)
                     installed_way = model_victim_way
+                    # eviction accounting: only a VALID slot's line is
+                    # genuinely evicted -- a dead {tag, I} slot (snoop
+                    # invalidate leaves the tag in place) can hold a stale
+                    # duplicate of a line that lives in another way, and
+                    # retiring it here would clobber the live copy's state.
+                    # The victim slot's PRE-WRITE state decides, so capture
+                    # it before slot_state is updated to install_state.
+                    victim_slot_state = self.slot_state.get(
+                        (set_idx, model_victim_way), 'I')
                     self.slot_state[(set_idx, model_victim_way)] = \
                         install_state
-                    # eviction accounting
                     evicted = self.tags.get((set_idx, model_victim_way))
-                    if evicted is not None and evicted != line:
+                    if evicted is not None and evicted != line \
+                            and victim_slot_state != 'I':
                         self.line_state[evicted] = 'I'
                     self.tags[(set_idx, model_victim_way)] = line
                 else:

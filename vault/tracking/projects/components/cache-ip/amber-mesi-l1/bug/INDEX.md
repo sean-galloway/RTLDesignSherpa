@@ -12,21 +12,15 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 2 | accepted, not started |
+| [open/](open/) | 0 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
-| [closed/](closed/) | 1 | done (kept for history) |
+| [closed/](closed/) | 3 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
 
-- **BUG-001** — miss_fill FULL soak txn 6040: DUT serves a hit where the
-  oracle expects miss + dirty-victim drain + fill. Deterministic seed 81795;
-  pre-existing (reproduces at 255d8d9f5, 93ce944a2, HEAD). Found by FULL
-  grid v2, 2026-10-12.
-- **BUG-002** — control FULL snoop soak 2126: CRRESP IsShared set where the
-  oracle expects 0. Deterministic seed 41099; pre-existing (reproduces at
-  255d8d9f5, 93ce944a2, HEAD). Found by FULL grid v2, 2026-10-12.
+(none)
 
 ## Active
 
@@ -34,6 +28,15 @@ by construction rather than by discipline.
 
 ## Closed
 
+- **BUG-001** — miss_fill FULL soak txn 6040 (oracle miss + dirty-victim
+  drain vs DUT hit): TB model bug, the BUG-002 stale-corpse eviction
+  clobbering a live duplicate line's state. Masked at HEAD by the #106 RNG
+  shift; proven and fixed via worktree at 7a3fe3000. Closed 2026-10-27.
+- **BUG-002** — control FULL snoop soak 2126 (CRRESP IsShared vs 0): TB
+  eviction accounting retired a live line through a dead {tag, I} corpse
+  slot holding its stale tag; the DUT answered truthfully. Fixed by
+  guarding the retire on the victim slot's pre-write validity (also
+  `_replay_models` and monlite). Closed 2026-10-27.
 - **BUG-003** — tally bins all zero on some seeds ("MonBus observation path
   is silent"): the path was never silent -- two stacked test-side bugs
   (CAM_LOAD VALID at bit 16 vs the regblock's bit 31, and write64's hi-word

@@ -513,7 +513,9 @@ class AmberMonliteTB(AmberFrontendTB):
                 self.slot_state[(set_idx, hit_way)] = 'M'
             self.lru.update(set_idx, hit_way)
         else:
-            if victim_line is not None and victim_line != line:
+            if victim_line is not None and victim_line != line \
+                    and self.slot_state.get((set_idx, victim_way),
+                                            'I') != 'I':
                 self.line_state[victim_line] = 'I'
             self.tags[(set_idx, victim_way)] = line
             self.slot_state[(set_idx, victim_way)] = install
