@@ -86,6 +86,16 @@ rtl_roots = ["projects/components/cache-ip/amber-mesi-l1/rtl"]
 filelist_dirs = ["projects/components/cache-ip/amber-mesi-l1/rtl/filelists"]
 
 [[area]]
+name = "jet"
+kind = "component"
+# cache-ip family. Registered 2026-10-28 with its first RTL, the jet
+# MESI L1 package (jet_pkg extends l1_pkg with MSHR_COUNT and
+# VICTIM_DEPTH per J1/J5), so --check has owned these modules from the
+# first commit rather than discovering them at an audit.
+rtl_roots = ["projects/components/cache-ip/jet-mesi-l1/rtl"]
+filelist_dirs = ["projects/components/cache-ip/jet-mesi-l1/rtl/filelists"]
+
+[[area]]
 name = "cache-common"
 kind = "library"
 # cache-ip family shared home, created 2026-10-11 (owner directive): the MESI

@@ -32,8 +32,9 @@ export CONVERTERS_ROOT=$REPO_ROOT/projects/components/utility-ip/converters
 export DELTA_ROOT=$REPO_ROOT/projects/components/fabric-gen-ip/delta
 export MISC_ROOT=$REPO_ROOT/projects/components/utility-ip/misc
 export AMBER_ROOT=$REPO_ROOT/projects/components/cache-ip/amber-mesi-l1
-# Shared cache-ip core (amber_pkg + the amber_core leaf FUBs + core filelists).
-# Referenced by the cache-common .f filelists and by jet-mesi-l1 when it lands.
+export JET_ROOT=$REPO_ROOT/projects/components/cache-ip/jet-mesi-l1
+# Shared cache-ip core (l1_pkg + the l1_core leaf FUBs + core filelists).
+# Referenced by the cache-common .f filelists and by amber/jet-mesi-l1.
 export CACHE_COMMON_ROOT=$REPO_ROOT/projects/components/cache-ip/common-ip
 # Shared RV32I blocks (rv32i_pkg + decode / imm_gen / ALU) that kestrel and
 # gatling both instantiate; their core filelists -f these through this root.
