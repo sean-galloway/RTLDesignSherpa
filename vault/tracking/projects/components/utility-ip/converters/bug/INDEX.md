@@ -2,7 +2,7 @@
 
 # projects/components/utility-ip/converters — bugs
 
-**Next ID: BUG-016** — never recycle a number, even when its item closed.
+**Next ID: BUG-017** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -12,7 +12,7 @@ by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 1 | accepted, not started |
+| [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 14 | done (kept for history) |
 | [dropped/](dropped/) | 0 | ended without completing |
@@ -21,6 +21,7 @@ by construction rather than by discipline.
 ## Open
 
 - **BUG-010** — peakrdl_to_cmdrsp presents every access to the regblock twice (singlepulse fields fire for 2 cycles)
+- **BUG-016** — axi4_dwidth_to_axil4_wr_chain narrow_within_wide gets 1 narrow beat per wide beat at 128 to 64 (params6/7/8, every level; 64 to 32 and 128 to 32 pass)
 
 
 ## Closed

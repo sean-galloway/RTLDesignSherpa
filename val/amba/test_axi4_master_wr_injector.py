@@ -55,6 +55,8 @@ async def cocotb_test_axi4_master_wr_injector(dut):
         "id_mode_counter":   _id_mode_counter,
         "id_mode_lfsr":      _id_mode_lfsr,
         "hammer_mode":       _hammer_mode,
+        "idx1_bit_order":    _idx1_bit_order,
+        "gap_sweep":         _gap_sweep,
         "fill_mode":         _fill_mode,
         "kb4":               _kb4,
         "kb32":              _kb32,
@@ -273,8 +275,14 @@ async def _gap_no_aw_ahead(tb: WrInjectorTB):
         if (int(tb.dut.m_axi_wvalid.value) and int(tb.dut.m_axi_wready.value)
                 and int(tb.dut.m_axi_wlast.value)):
             wlast_cycles.append(cycle)
-            if len(wlast_cycles) == N:
-                break
+        # Wait for BOTH counts. AXI lets W data reach the port before its AW
+        # is accepted there, so under a slave that holds awready the last
+        # AW can land a cycle or more after the last wlast; stopping at the
+        # sixth wlast missed it (2026-10-28, the address generators gained an
+        # input register and the last AW moved past the last wlast).
+        if len(aw_cycles) == N and len(wlast_cycles) == N:
+            break
+    tb.log.info(f"gap_no_aw_ahead: AW cycles {aw_cycles}, wlast cycles {wlast_cycles}")
     assert len(aw_cycles) == N and len(wlast_cycles) == N, (
         f"saw {len(aw_cycles)} AWs / {len(wlast_cycles)} wlasts, want {N}")
     early = [k for k in range(1, N) if aw_cycles[k] <= wlast_cycles[k - 1]]
@@ -530,6 +538,88 @@ async def _hammer_mode(tb: WrInjectorTB):
         assert int(tb.dut.o_expected_crc_valid.value) == 1
 
 
+async def _idx1_bit_order(tb: WrInjectorTB):
+    """cfg_idx1_bit=1 (pumice TASK-060): dimension 1 is the single bit k of
+    the transaction index, dimension 0 the index with that bit removed. With
+    stride_0 = a burst and stride_1 = half a burst, k = 3 issues the low
+    halves of eight bursts, then their high halves, then the next eight;
+    k = 0 is lo, hi, lo, hi along the line. The W path uses the same index
+    and stays in lockstep with the LFSR stream."""
+    BASE, BL, H = 0x2000, 64, 32
+    for k, N in ((3, 32), (0, 10), (1, 12)):
+        tb.aw_log.clear()
+        tb.w_log.clear()
+        await tb.program(start_addr=BASE, stride_0=BL, stride_1=H, burst_len=1,
+                         txn_count=N, idx1_shift=k, idx1_bit=1)
+        await tb.pulse_start()
+        await tb.wait_done()
+        assert len(tb.aw_log) == N, f"k={k}: AWs got {len(tb.aw_log)}"
+        for n, aw in enumerate(tb.aw_log):
+            half = (n >> k) & 1
+            burst = (n & ((1 << k) - 1)) | ((n >> (k + 1)) << k)
+            want = BASE + burst * BL + half * H
+            assert aw.addr == want, (
+                f"k={k} AW[{n}].addr = 0x{aw.addr:X} want 0x{want:X} "
+                f"(burst {burst}, half {half})")
+        expected = tb.expected_data_words(N)
+        for j, (w, e) in enumerate(zip(tb.w_log, expected)):
+            assert w.data == e, f"k={k} W beat {j}: data 0x{w.data:016X} want 0x{e:016X}"
+        assert int(tb.dut.o_expected_crc_valid.value) == 1
+
+
+async def _gap_sweep(tb: WrInjectorTB):
+    """cfg_gap_sweep=1 (pumice TASK-060): the idle gap after burst n is
+    cfg_wr_gap + (n mod 8), saturating at the port width. Single-beat bursts
+    so each W beat ends a burst; the idle W cycles between beats n and n+1
+    carry the gap plus a constant pipeline bubble. On the back-to-back slave
+    the sweep is checked exactly through differences (the bubble cancels):
+    phases 0..7 rise by one each, and with base 12 phases 3..7 all sit at the
+    4-bit ceiling of 15. Every profile checks completion and the lower bound."""
+    from cocotb.triggers import FallingEdge as _FallingEdge
+
+    async def run(base, n_txn):
+        await tb.program(start_addr=0x400, stride_0=8, burst_len=1,
+                         txn_count=n_txn, wr_gap=base, gap_sweep=1)
+        await tb.pulse_start()
+        cycle, beats, at = 0, 0, []
+        for _ in range(n_txn * 64 + 20000):
+            await _FallingEdge(tb.dut.aclk)
+            cycle += 1
+            if int(tb.dut.m_axi_wvalid.value) and int(tb.dut.m_axi_wready.value):
+                at.append(cycle)
+                beats += 1
+                if beats == n_txn:
+                    break
+        assert beats == n_txn, f"base {base}: only {beats}/{n_txn} W beats seen"
+        await tb.wait_done()
+        return [at[i + 1] - at[i] - 1 for i in range(n_txn - 1)]   # idle after burst i
+
+    # The engine counts a gap from when its W generator emits the burst's last
+    # beat into the output skid, not from the port, so under a stalling slave
+    # two bursts can leave the skid back to back although the generator
+    # paused between them (see _wide_gap). Every profile therefore checks the
+    # span -- the generator cannot get ahead of its own gap counter -- and only
+    # the back-to-back slave checks each gap at the port.
+    strict = os.environ.get("SLAVE_PROFILE") == "backtoback"
+    idle = await run(0, 17)
+    want_total = sum(n % 8 for n in range(16))
+    assert sum(idle) >= want_total, f"base 0: {sum(idle)} idle cycles over the run, want >= {want_total}"
+    if strict:
+        for n, g in enumerate(idle):
+            assert g >= (n % 8), f"base 0: idle after burst {n} = {g}, want >= {n % 8}"
+        for n in range(1, 8):
+            assert idle[n] - idle[n - 1] == 1, f"base 0: idle {idle[:8]} should rise by one per burst"
+        assert idle[8:16] == idle[0:8], f"base 0: the sweep must repeat every 8 bursts: {idle}"
+    idle = await run(12, 9)
+    want_total = sum(min(12 + n, 15) for n in range(8))
+    assert sum(idle) >= want_total, f"base 12: {sum(idle)} idle cycles over the run, want >= {want_total}"
+    if strict:
+        for n, g in enumerate(idle):
+            assert g >= min(12 + (n % 8), 15), f"base 12: idle after burst {n} = {g}, want >= {min(12 + n % 8, 15)}"
+        assert idle[3] - idle[0] == 3, f"base 12: idle {idle} should rise 12, 13, 14, 15"
+        assert idle[3:8] == [idle[3]] * 5, f"base 12: phases 3..7 must saturate at 15: {idle}"
+
+
 async def _fill_mode(tb: WrInjectorTB):
     """data_mode=2: every W beat is cfg_fill_pattern replicated across the
     data bus. o_expected_crc_valid stays low because the CRC pipeline is
@@ -692,7 +782,8 @@ _ALL_TYPES = ["smoke", "multi_burst", "address_walk",
               "wr_gap_inserts_idle", "hash_mode_data",
               "awvalid_no_drop", "id_mode_counter",
               "id_mode_lfsr", "hammer_mode", "fill_mode",
-              "kb4", "kb32", "outstanding_dial", "wide_gap", "gap_no_aw_ahead"]
+              "kb4", "kb32", "outstanding_dial", "wide_gap", "gap_no_aw_ahead",
+              "idx1_bit_order", "gap_sweep"]
 _GATE = ["smoke", "multi_burst", "address_walk"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)

@@ -477,7 +477,8 @@ class DMAAddressGenTB(TBBase):
         results = []
 
         # Interleave: send requests and collect results concurrently
-        # The pipeline is 2-deep, so we can have up to 2 in-flight
+        # The pipeline is 2-deep (3 with INPUT_REG), so up to 3 in flight;
+        # the loop budget below is generous either way
         send_idx = 0
         done_sending = False
 

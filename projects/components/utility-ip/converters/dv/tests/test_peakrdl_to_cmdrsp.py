@@ -62,7 +62,15 @@ class PeakRDLAdapterTB:
 
         await ClockCycles(self.dut.aclk, 5)
         self.dut.aresetn.value = 1
-        await ClockCycles(self.dut.aclk, 2)
+        # The block synchronizes aresetn through a three-stage reset_sync,
+        # so it is still in reset for three more cycles. A command sent
+        # inside that window is taken by a cmd_ready that is only the
+        # reset value of cmd_state and then dropped; INPUT_REG = 1 hung on
+        # exactly that (2026-10-28), and INPUT_REG = 0 had passed only
+        # because its bypass presented the dropped command and the
+        # response FSM acked it anyway. Every real upstream shares the
+        # reset and the synchronizer depth; the TB has to wait it out.
+        await ClockCycles(self.dut.aclk, 6)
 
     async def send_cmd(self, pwrite, paddr, pwdata=0, pstrb=0xF):
         """Send a command through cmd interface"""
@@ -338,8 +346,13 @@ async def peakrdl_adapter_stress(dut):
 # Pytest Integration
 # ==============================================================================
 
-@pytest.mark.parametrize("test_level", reg_level_grid())
-def test_peakrdl_to_cmdrsp(test_level):
+# Both INPUT_REG states: 0 is the bypass every existing consumer builds, 1 is
+# what apb4_to_peakrdl selects (the request issued from the registered
+# command, one cycle after acceptance). The TB polls regblk_req and acks a
+# cycle later, so the same scenarios exercise both.
+@pytest.mark.parametrize("test_level, input_reg",
+                         [(lvl, ir) for lvl in reg_level_grid() for ir in (0, 1)])
+def test_peakrdl_to_cmdrsp(test_level, input_reg):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest entry point for PeakRDL adapter test"""
 
@@ -348,7 +361,7 @@ def test_peakrdl_to_cmdrsp(test_level):
         'rtl_converters': 'projects/components/utility-ip/converters/rtl',
     })
 
-    sim_build = sim_build_path(tests_dir, f'test_peakrdl_to_cmdrsp_{test_level}')
+    sim_build = sim_build_path(tests_dir, f'test_peakrdl_to_cmdrsp_{test_level}_ir{input_reg}')
 
     os.makedirs(sim_build, exist_ok=True)
 
@@ -361,7 +374,8 @@ def test_peakrdl_to_cmdrsp(test_level):
     # Parameters
     parameters = {
         'ADDR_WIDTH': 12,
-        'DATA_WIDTH': 32
+        'DATA_WIDTH': 32,
+        'INPUT_REG': input_reg,
     }
 
     # VCD waveform generation support via WAVES environment variable

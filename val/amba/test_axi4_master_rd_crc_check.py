@@ -41,6 +41,9 @@ async def cocotb_test_axi4_master_rd_crc_check(dut):
         "hash_mode_match":     _hash_mode_match,
         "hash_mode_low_entropy": _hash_mode_low_entropy,
         "hammer_mode":         _hammer_mode,
+        "idx1_bit_order":      _idx1_bit_order,
+        "gap_sweep":           _gap_sweep,
+        "wide_gap":            _wide_gap,
         "fill_mode_match":     _fill_mode_match,
         "fill_mismatch_err_bits": _fill_mismatch_err_bits,
         "arvalid_no_drop":     _arvalid_no_drop,
@@ -404,6 +407,108 @@ async def _hammer_mode(tb: RdCrcCheckTB):
         assert int(tb.dut.o_actual_crc_valid.value) == 0
 
 
+async def _idx1_bit_order(tb: RdCrcCheckTB):
+    """cfg_idx1_bit=1 (pumice TASK-060): AR addresses walk bursts with the
+    half toggling every 2^k transactions -- k = 3 reads the low halves of
+    eight bursts, then their high halves. Address-hash data, since the
+    order is not the memory order."""
+    BASE, BL, H = 0x2000, 64, 32
+    SEEDS = (0x9E3779B9, 0x85EBCA6B, 0xC2B2AE35)
+    for k, N in ((3, 32), (0, 10)):
+        tb.ar_log.clear()
+        tb.return_lfsr_data = True
+        await tb.program(start_addr=BASE, stride_0=BL, stride_1=H, burst_len=1,
+                         txn_count=N, idx1_shift=k, idx1_bit=1, data_mode=1,
+                         hash_seed0=SEEDS[0], hash_seed1=SEEDS[1], hash_seed2=SEEDS[2])
+        await tb.pulse_start()
+        await tb.wait_done()
+        assert len(tb.ar_log) == N, f"k={k}: ARs got {len(tb.ar_log)}"
+        for n, ar in enumerate(tb.ar_log):
+            half = (n >> k) & 1
+            burst = (n & ((1 << k) - 1)) | ((n >> (k + 1)) << k)
+            want = BASE + burst * BL + half * H
+            assert ar.addr == want, (
+                f"k={k} AR[{n}].addr = 0x{ar.addr:X} want 0x{want:X} "
+                f"(burst {burst}, half {half})")
+        assert int(tb.dut.o_data_error.value) == 0
+
+
+async def _gap_sweep(tb: RdCrcCheckTB):
+    """cfg_gap_sweep=1 (pumice TASK-060): the gap after burst n is cfg_rd_gap
+    + (n mod 8), saturating at 15. With one burst in flight the next AR
+    issues only after the previous burst's rlast plus the gap, so the AR
+    spacing carries the gap plus a constant return latency; on the
+    back-to-back slave the differences prove the ramp and the ceiling."""
+    from cocotb.triggers import FallingEdge as _FallingEdge
+
+    async def run(base, n_txn):
+        tb.ar_log.clear()
+        await tb.program(start_addr=0, stride_0=tb.BYTES_PER_BEAT, burst_len=1,
+                         txn_count=n_txn, rd_gap=base, gap_sweep=1, max_outstanding=1)
+        await tb.pulse_start()
+        cycle, ars, at = 0, 0, []
+        for _ in range(n_txn * 64 + 20000):
+            await _FallingEdge(tb.dut.aclk)
+            cycle += 1
+            if int(tb.dut.m_axi_arvalid.value) and int(tb.dut.m_axi_arready.value):
+                at.append(cycle)
+                ars += 1
+                if ars == n_txn:
+                    break
+        assert ars == n_txn, f"base {base}: only {ars}/{n_txn} ARs seen"
+        await tb.wait_done()
+        assert int(tb.dut.o_data_error.value) == 0
+        return [at[i + 1] - at[i] - 1 for i in range(n_txn - 1)]
+
+    strict = os.environ.get("SLAVE_PROFILE") == "backtoback"
+    idle = await run(0, 17)
+    for n, g in enumerate(idle):
+        assert g >= (n % 8), f"base 0: AR spacing after burst {n} = {g}, want >= {n % 8}"
+    if strict:
+        for n in range(1, 8):
+            assert idle[n] - idle[n - 1] == 1, f"base 0: spacing {idle[:8]} should rise by one per burst"
+        assert idle[8:16] == idle[0:8], f"base 0: the sweep must repeat every 8 bursts: {idle}"
+    idle = await run(12, 9)
+    if strict:
+        assert idle[3] - idle[0] == 3, f"base 12: spacing {idle} should rise 12, 13, 14, 15"
+        assert idle[3:8] == [idle[3]] * 5, f"base 12: phases 3..7 must saturate at 15: {idle}"
+
+
+async def _wide_gap(tb: RdCrcCheckTB):
+    """GAP_WIDTH widens cfg_rd_gap past 4 bits, and the full value is honoured
+    (mirrors the writer's wide_gap: the reader took gap << gap_shift from the
+    harness only since 2026-10-25). Built with GAP_WIDTH=11 by the runner for
+    this scenario only, at gap 200 -- a value the 4-bit port cannot express
+    (truncated it would be 8). One burst in flight, so AR(n+1) issues only
+    after rlast(n) plus the gap: the last AR cannot issue before (N-1) gaps
+    have elapsed, and on the back-to-back slave each AR spacing is >= the gap.
+    """
+    from cocotb.triggers import FallingEdge as _FallingEdge
+    GAP, BURST, N = 200, 2, 4
+    tb.ar_log.clear()
+    await tb.program(start_addr=0x400, stride_0=BURST * tb.BYTES_PER_BEAT,
+                     burst_len=BURST, txn_count=N, rd_gap=GAP, max_outstanding=1)
+    await tb.pulse_start()
+    cycle, ars, at = 0, 0, []
+    for _ in range(N * (GAP + 64) + 20000):
+        await _FallingEdge(tb.dut.aclk)
+        cycle += 1
+        if int(tb.dut.m_axi_arvalid.value) and int(tb.dut.m_axi_arready.value):
+            at.append(cycle)
+            ars += 1
+            if ars == N:
+                break
+    assert ars == N, f"only {ars}/{N} ARs seen"
+    assert at[-1] - at[0] >= (N - 1) * GAP, (
+        f"last AR at cycle {at[-1]}, first at {at[0]}: fewer than (N-1) gaps = {(N - 1) * GAP} "
+        f"cycles between them (a 4-bit truncation to {GAP & 0xF} would allow far less)")
+    if os.environ.get("SLAVE_PROFILE") == "backtoback":
+        spacing = [at[k] - at[k - 1] - 1 for k in range(1, N)]
+        assert all(g >= GAP for g in spacing), f"AR spacing {spacing}, want >= {GAP} each"
+    await tb.wait_done()
+    assert int(tb.dut.o_data_error.value) == 0
+
+
 async def _fill_mode_match(tb: RdCrcCheckTB):
     """data_mode=2: the reader expects cfg_fill_pattern on every beat.
     Preload the same replicated pattern and assert a clean compare.
@@ -572,7 +677,7 @@ _ALL_TYPES = ["smoke_match", "multi_burst_match", "address_walk",
               "fill_mismatch_err_bits", "arvalid_no_drop",
               "id_mode_counter", "id_mode_lfsr",
               "kb4", "kb32", "stray_beat_drained", "rready_never_throttles",
-              "outstanding_dial"]
+              "outstanding_dial", "idx1_bit_order", "gap_sweep", "wide_gap"]
 _GATE = ["smoke_match", "multi_burst_match", "data_mismatch_sticky"]
 _FUNC = list(_ALL_TYPES)
 _FULL = list(_ALL_TYPES)
@@ -621,6 +726,12 @@ def test_axi4_master_rd_crc_check(request, test_type, slave_profile):
         # default it does not state stops testing the moment the default moves.
         "MAX_OUTSTANDING": "8",
     }
+    # wide_gap builds the widened gap port; every other scenario keeps the
+    # 4-bit default every existing instance uses (mirrors the writer's runner).
+    if test_type == "wide_gap":
+        parameters["GAP_WIDTH"] = "11"
+        extra_env["GAP_WIDTH"] = "11"
+
 
     enable_waves = bool(int(os.environ.get("WAVES", "0")))
     compile_args = ["+define+USE_ASYNC_RESET", "-Wno-WIDTHTRUNC"]

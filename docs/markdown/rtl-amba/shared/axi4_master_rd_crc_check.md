@@ -47,8 +47,8 @@ The read half of a memory-controller integrity loop has to know what it *should*
 
 - CSR-programmed read workload with the *same descriptor shape* as the write pattern generator (one CSR word drives both)
 - Fully decoupled AR and R paths — two independent `dma_address_gen` instances walk the same descriptor in parallel
-- Two expected-data sources: 32-bit Fibonacci LFSR (phase counter) or address-derived Murmur3-fmix hash (out-of-order-safe)
-- Pipelined compare (two isolated 32-bit multiplies) so the mode-1 hash closes 100 MHz; returned data rides the same stages to align the compare
+- Three expected-data sources: 32-bit Fibonacci LFSR (phase counter), address-derived rotate-XOR hash (out-of-order-safe), or a fill pattern
+- Compare on the R handshake itself: the hash is wiring, the beat address comes from a register, and only the bit-flip popcount is a cycle behind
 - Three AR-ID generation modes: FIXED, COUNTER, LFSR
 - Sticky `o_data_error` on any per-beat data mismatch, mismatch counter, and sticky `o_rresp_error` on non-OKAY R beats
 - CRC-32 over the regenerated LFSR stream (`o_actual_crc`) comparable to the writer's expected CRC
@@ -80,6 +80,7 @@ The read half of a memory-controller integrity loop has to know what it *should*
 | TXN_COUNT_WIDTH | int | 16 | Width of `cfg_txn_count` |
 | INDEX_WIDTH | int | 16 | `dma_address_gen` index width |
 | STRIDE_WIDTH | int | 24 | `dma_address_gen` signed stride width |
+| GAP_WIDTH | int | 4 | Width of `cfg_rd_gap`; 4 gives 0..15 idle cycles. `char_gen_unit` builds 11 (`gap << gap_shift`, up to 1920), the same as the writer |
 | DBG_FIFO_DEPTH | int | 0 | >0 elaborates a debug FIFO capturing per-beat records; 0 ties `dbg_*` off |
 | IW / AW / DW / UW | int | — | Aliases for id/addr/data/user widths |
 
@@ -113,8 +114,13 @@ The read half of a memory-controller integrity loop has to know what it *should*
 | cfg_axi_burst | input | 2 | `arburst` |
 | cfg_lfsr_seed | input | LFSR_WIDTH | Seed override (0 → use param) |
 | cfg_data_mode | input | 1 | 0 = phase-counter LFSR; 1 = address hash (OOO-safe) |
-| cfg_hash_seed0/1/2 | input | 32 each | Murmur3-fmix mixer seeds |
-| cfg_rd_gap | input | 4 | Inter-burst idle cycles (0..15), independent of the writer's gap |
+| cfg_hash_seed0/1/2 | input | 32 each | hash mixer seeds (one per rotate-XOR round) |
+| cfg_hammer_en | input | 1 | Rowhammer pair mode: addresses alternate base / base+stride_0 per transaction |
+| cfg_idx1_shift | input | 4 | Index split (TASK-049): the low k bits of the transaction index go to dimension 0, the rest to dimension 1; 0 = one-dimensional walk |
+| cfg_addr_lfsr | input | 1 | Replace the transaction counter with a maximal INDEX_WIDTH-bit LFSR |
+| cfg_idx1_bit | input | 1 | One-bit split (pumice TASK-060): dimension 1 is the single bit `idx1_shift` of the index, dimension 0 the index with that bit removed |
+| cfg_rd_gap | input | GAP_WIDTH | Inter-burst idle cycles (0..2^GAP_WIDTH-1; 0..15 at the default width), independent of the writer's gap |
+| cfg_gap_sweep | input | 1 | Gap sweep (pumice TASK-060): the gap after burst n is `cfg_rd_gap + (n mod 8)`, saturating at the port width |
 | cfg_start | input | 1 | Pulse to begin the workload |
 | cfg_done | output | 1 | High when all bursts complete and the compare pipeline drains |
 
@@ -176,16 +182,21 @@ A four-state FSM (`S_IDLE`, `S_RUN`, `S_GAP`, `S_DONE`) mirrors the write genera
 
 Two independent `dma_address_gen` instances (`u_addr_gen_ar`, `u_addr_gen_r`) walk the same descriptor. The AR path issues one AR per index as fast as `arready` and the address pipeline allow; `arvalid` stays asserted from its first cycle to the last AR handshake at `cfg_rd_gap = 0`. The R path produces the current burst's base address (popped on `rlast`) so the hash-mode expected-data regen has the right anchor for the following beat. R beats are absorbed only after the AR for that burst is on the wire and the R address generator has produced the base.
 
+Index shaping mirrors the writer exactly (`cfg_idx1_shift`, `cfg_addr_lfsr`, `cfg_idx1_bit`, hammer mode), so a reader programmed like the writer reads the halves of a one-bit-split walk in the writer's order; the address-hash data mode is the one that validates such a walk, since the order is not the memory order. `cfg_gap_sweep` makes the gap after burst n `cfg_rd_gap + (n mod 8)`, saturating at the port width, like the writer's sweep; `GAP_WIDTH` widens the gap port like the writer's, and `char_gen_unit` drives both from `gap << gap_shift`.
+
 ### Expected Data: LFSR vs Address Hash
 
 Muxed by `cfg_data_mode`:
 
 - **Mode 0 (LFSR):** a 32-bit Fibonacci LFSR advances on every accepted R beat — the same logic as the writer, so with the same total beat count the two streams stay phase-aligned and match bit-for-bit. Replicated across the bus for the compare.
-- **Mode 1 (address hash):** each 32-bit slice is a Murmur3-fmix function of the beat's byte address and the three hash seeds — a pure function of the address, so out-of-order returns still validate.
+- **Mode 1 (address hash):** each 32-bit slice is `f_addr_hash32` of the beat's bus-aligned byte address and the three hash seeds, four seeded rotate-XOR rounds identical to the writer's — a pure function of the address, so out-of-order returns still validate. A narrow beat is checked only on the lanes its address selects.
+- **Mode 2 (fill):** `cfg_fill_pattern` replicated across the bus.
 
-### Pipelined Compare
+### Compare at the Handshake
 
-The mode-1 hash chains two 32-bit multiplies — the same ~25 ns / 4-DSP cone as the writer, too slow to feed the per-beat compare combinationally at 100 MHz. Each multiply is isolated in its own register stage (`HSTAGES = 4`); the returned `rdata` rides through the same stages so the compare happens at the pipeline output, aligned with the delayed expected value. Beat/burst accounting stays keyed on the R-beat handshake — only the data compare is delayed. A per-beat mismatch at the pipeline output sets `o_data_error` and increments `o_beats_mismatched`; `rresp` is checked immediately at the R beat (no hash dependency) into `o_rresp_error`. `cfg_done` waits for the compare pipeline to drain (`!(|r_cp_valid)`) so no trailing mismatch is missed.
+The hash is rotates and XORs, so the expected value is available in the cycle the beat arrives and the compare happens on the R handshake: a mismatch sets `o_data_error` and increments `o_beats_mismatched` in the next cycle, and `rresp` is checked at the same beat into `o_rresp_error`. (An earlier text chained two 32-bit multiplies through a four-stage pipeline with `rdata` dragged alongside; that pipeline, its DSPs and its drain condition are gone.)
+
+Two registers keep the cone short at 100 MHz. The beat's byte address is not recomputed from the beat counter every beat: the first beat of a burst sits at the R address generator's base, and `r_beat_addr` holds each later beat's address, advanced by one beat on every handshake (the adder feeds the register, not the hash; without it the beat counter -> adder -> hash -> 64-bit compare path was 18 levels and the largest harness class on the Nexys A7 granite build, 2026-10-28). The per-beat XOR vector is registered before the bit-flip popcount (`r_beat_xor`, TASK-043), so `o_err_bits` lands two cycles after the beat, long before `cfg_done` can be sampled over a bus.
 
 ### CRC Accumulation
 
@@ -224,6 +235,10 @@ sustained once the pipeline is primed. Legal range is 2..8 inclusive, odd
 values included.
 
 Clocking: `aclk`, reset `aresetn` (active-low asynchronous).
+
+Both `dma_address_gen` instances are built with `INPUT_REG = 1` (three cycles
+request to address) and the per-beat address comes from `r_beat_addr`: see
+"Compare at the Handshake" above for the measurements behind both.
 
 No synthesis numbers are quoted here. Frequency and area depend on the target
 device and the parameters you elaborate with; run your own build.
@@ -302,7 +317,7 @@ assign integrity_ok = (rd_actual_crc == wr_expected_crc) && !rd_data_error;
 
 ### Uses
 - **axi4_master_rd.sv** — standard AXI4 read master protocol handler (AR/R skid + compliance)
-- **dma_address_gen.sv** — algorithmic address sequence generator (×2, decoupled AR/R)
+- **dma_address_gen.sv** — algorithmic address sequence generator (×2, decoupled AR/R), built with `INPUT_REG = 1`: the shaped index is registered before the multiplier, three cycles request to address (two without it); see the writer's page for the timing measurement behind it.
 - **shifter_lfsr_fibonacci.sv** — expected-data LFSR and 8-bit AR-ID LFSR
 - **dataint_crc.sv** — CRC-32 accumulator
 - **gaxi_fifo_sync.sv** — optional debug capture FIFO

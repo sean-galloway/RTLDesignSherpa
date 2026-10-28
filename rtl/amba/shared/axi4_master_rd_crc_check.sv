@@ -50,6 +50,14 @@
 //   addr-gen pipeline allow; R consumes at the slave's rvalid rate.
 //   arvalid stays asserted from its first cycle to the last AR handshake
 //   when cfg_rd_gap = 0. cfg_rd_gap > 0 pauses both AR and R together.
+//
+//   Index shaping mirrors the writer: cfg_idx1_shift / cfg_addr_lfsr
+//   (TASK-049), and cfg_idx1_bit (pumice TASK-060: dimension 1 is the single
+//   bit k of the index, dimension 0 the index with that bit removed, so a
+//   reader programmed like the writer reads the halves in the writer's
+//   order). cfg_gap_sweep makes the gap after burst n cfg_rd_gap + (n mod 8),
+//   saturating at the port width, like the writer's sweep. GAP_WIDTH widens
+//   the gap port like the writer's (the harness drives gap << gap_shift).
 //   Multi-id deeper OOO is a v2 extension that needs per-id contexts.
 //
 //   The LFSR + CRC config (seed, polynomial, width) MUST match the writer
@@ -108,6 +116,11 @@ module axi4_master_rd_crc_check #(
     parameter int TXN_COUNT_WIDTH = 16,
     parameter int INDEX_WIDTH     = 16,
     parameter int STRIDE_WIDTH    = 24,
+    // Width of cfg_rd_gap. 4 (0..15 idle cycles) is the original port and
+    // every existing instance's; a wider gap lets a characterization harness
+    // throttle the reader the way it throttles the writer (char_gen_unit
+    // builds 11: gap << gap_shift). Mirrors axi4_master_wr_injector.GAP_WIDTH.
+    parameter int GAP_WIDTH       = 4,
 
     // Legal-AxLEN quantum: AXI beats per DRAM burst; cfg_burst_len MUST be a
     // nonzero integer multiple of this (one AXI burst -> integer DRAM bursts).
@@ -178,6 +191,10 @@ module axi4_master_rd_crc_check #(
     // INDEX_WIDTH-bit LFSR. Both sampled at cfg_start like the rest.
     input  logic [3:0]                          cfg_idx1_shift,
     input  logic                                cfg_addr_lfsr,
+    // idx1_bit = 1 (pumice TASK-060): dimension 1 is the single bit
+    // idx1_shift of the index, dimension 0 the index with that bit removed
+    // (see the header). Ignored in hammer mode.
+    input  logic                                cfg_idx1_bit,
 
     // Data source select: 0 = phase-counter LFSR; 1 = address-derived
     // hash; 2 = fill_pattern replicated across the data bus. In hash
@@ -192,10 +209,13 @@ module axi4_master_rd_crc_check #(
     input  logic [31:0]                         cfg_hash_seed1,
     input  logic [31:0]                         cfg_hash_seed2,
 
-    // Inter-burst idle gap (0..15 cycles between rlast on burst N and
-    // the AR for burst N+1). Independent from the writer's gap so a
-    // sweep can vary R-side pressure separately.
-    input  logic [3:0]                          cfg_rd_gap,
+    // Inter-burst idle gap (0..2^GAP_WIDTH-1 cycles between rlast on burst N
+    // and the AR for burst N+1; 0..15 at the default width). Independent from
+    // the writer's gap so a sweep can vary R-side pressure separately.
+    input  logic [GAP_WIDTH-1:0]                cfg_rd_gap,
+    // gap_sweep = 1 (pumice TASK-060): the gap after burst n is cfg_rd_gap +
+    // (n mod 8), saturating at the port width (see the header).
+    input  logic                                cfg_gap_sweep,
 
     // ---- Runtime cap on bursts in flight ----
     // MAX_OUTSTANDING is the hardware ceiling (queues and counters are built
@@ -316,7 +336,7 @@ module axi4_master_rd_crc_check #(
     logic signed [STRIDE_WIDTH-1:0] r_stride_0, r_stride_1;
     logic [AW-1:0]                r_wrap_0, r_wrap_1;
     logic [7:0]                   r_burst_len;
-    logic [3:0]                   r_rd_gap;
+    logic [GAP_WIDTH-1:0]         r_rd_gap;
     logic [TXN_COUNT_WIDTH-1:0]   r_txn_count;
     logic [IW-1:0]                r_axi_id;
     logic [2:0]                   r_axi_size;
@@ -325,6 +345,9 @@ module axi4_master_rd_crc_check #(
     logic                         r_hammer_en;       // rowhammer address mode
     logic [3:0]                   r_idx1_shift;      // TASK-049 index split (0 = legacy)
     logic                         r_addr_lfsr;       // TASK-049 LFSR index source
+    logic                         r_idx1_bit;        // TASK-060 one-bit split
+    logic                         r_gap_sweep;       // TASK-060 gap walks 0..7 above the base
+    logic [2:0]                   r_gap_phase;       // bursts done mod 8 (the sweep index)
     logic [1:0]                   r_data_mode;       // 0=LFSR, 1=ADDR_HASH, 2=FILL
     logic [31:0]                  r_fill_pattern;
     logic [31:0]                  r_hash_seed0;
@@ -339,7 +362,7 @@ module axi4_master_rd_crc_check #(
     logic [TXN_COUNT_WIDTH-1:0]   r_r_req_count;      // R addr-gen req handshakes
     logic [TXN_COUNT_WIDTH-1:0]   r_bursts_done;      // rlast handshakes
     logic [7:0]                   r_beats_in_burst;   // beat in current R burst
-    logic [3:0]                   r_gap_left;
+    logic [GAP_WIDTH-1:0]         r_gap_left;
 
     //==========================================================================
     // dma_address_gen — two independent instances walking the same
@@ -350,6 +373,14 @@ module axi4_master_rd_crc_check #(
     // addresses alternate base / base+stride_0 per transaction. The mux
     // is applied identically to AR and R to keep the two paths in
     // lockstep.
+    //
+    // The index below is shaped combinationally (LFSR / counter mux, the
+    // idx1_shift split, the lo mask) and the generator's first stage is a
+    // DSP multiply plus the wrap mask. In one clock that was 6 LUT levels +
+    // an unregistered DSP48, 10.5 ns on the Nexys A7 harness at 100 MHz, the
+    // single largest failing class on the board (2026-10-28). INPUT_REG puts a
+    // flop between the two; the address arrives one cycle later, which the
+    // valid/ready plumbing absorbs.
     //==========================================================================
     logic [INDEX_WIDTH-1:0]       w_ar_addr_index;
     logic [INDEX_WIDTH-1:0]       w_r_addr_index;
@@ -374,7 +405,8 @@ module axi4_master_rd_crc_check #(
         .ADDR_WIDTH  (AW),
         .INDEX_WIDTH (INDEX_WIDTH),
         .STRIDE_WIDTH(STRIDE_WIDTH),
-        .TAG_WIDTH   (8)
+        .TAG_WIDTH   (8),
+        .INPUT_REG   (1'b1)
     ) u_addr_gen_ar (
         .i_clk             (aclk),
         .i_rst_n           (aresetn),
@@ -401,7 +433,8 @@ module axi4_master_rd_crc_check #(
         .ADDR_WIDTH  (AW),
         .INDEX_WIDTH (INDEX_WIDTH),
         .STRIDE_WIDTH(STRIDE_WIDTH),
-        .TAG_WIDTH   (8)
+        .TAG_WIDTH   (8),
+        .INPUT_REG   (1'b1)
     ) u_addr_gen_r (
         .i_clk             (aclk),
         .i_rst_n           (aresetn),
@@ -502,12 +535,35 @@ module axi4_master_rd_crc_check #(
     assign w_idx_lo_mask  = (r_idx1_shift == 4'd0) ? {INDEX_WIDTH{1'b1}}
                           : ((INDEX_WIDTH'(1) << r_idx1_shift) - INDEX_WIDTH'(1));
     // hammer mode keeps its legacy meaning: index_0 = counter LSB, index_1 = 0
-    assign w_ar_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_ar_req_count[0]) : (w_ar_idx_raw & w_idx_lo_mask);
-    assign w_r_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_r_req_count[0]) : (w_r_idx_raw & w_idx_lo_mask);
-    assign w_ar_addr_index_1 = (r_hammer_en || (r_idx1_shift == 4'd0)) ? INDEX_WIDTH'(0)
-                              : (w_ar_idx_raw >> r_idx1_shift);
-    assign w_r_addr_index_1 = (r_hammer_en || (r_idx1_shift == 4'd0)) ? INDEX_WIDTH'(0)
-                              : (w_r_idx_raw >> r_idx1_shift);
+    // one-bit split (TASK-060): dimension 1 = bit k, dimension 0 = the index
+    // with bit k squeezed out (low k bits kept, the rest shifted down one)
+    logic [INDEX_WIDTH-1:0] w_idx_bit_lo_mask, w_ar_idx_bit0, w_r_idx_bit0, w_ar_idx_bit1, w_r_idx_bit1;
+    logic [4:0]             w_idx1_shift_p1;
+    assign w_idx_bit_lo_mask = (INDEX_WIDTH'(1) << r_idx1_shift) - INDEX_WIDTH'(1);
+    assign w_idx1_shift_p1   = 5'(r_idx1_shift) + 5'd1;
+    assign w_ar_idx_bit0 = (w_ar_idx_raw & w_idx_bit_lo_mask) | ((w_ar_idx_raw >> w_idx1_shift_p1) << r_idx1_shift);
+    assign w_r_idx_bit0  = (w_r_idx_raw  & w_idx_bit_lo_mask) | ((w_r_idx_raw  >> w_idx1_shift_p1) << r_idx1_shift);
+    assign w_ar_idx_bit1 = (w_ar_idx_raw >> r_idx1_shift) & INDEX_WIDTH'(1);
+    assign w_r_idx_bit1  = (w_r_idx_raw  >> r_idx1_shift) & INDEX_WIDTH'(1);
+    assign w_ar_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_ar_req_count[0])
+                             : r_idx1_bit  ? w_ar_idx_bit0 : (w_ar_idx_raw & w_idx_lo_mask);
+    assign w_r_addr_index   = r_hammer_en ? INDEX_WIDTH'(r_r_req_count[0])
+                             : r_idx1_bit  ? w_r_idx_bit0  : (w_r_idx_raw & w_idx_lo_mask);
+    assign w_ar_addr_index_1 = r_hammer_en ? INDEX_WIDTH'(0)
+                             : r_idx1_bit  ? w_ar_idx_bit1
+                             : (r_idx1_shift == 4'd0) ? INDEX_WIDTH'(0) : (w_ar_idx_raw >> r_idx1_shift);
+    assign w_r_addr_index_1 = r_hammer_en ? INDEX_WIDTH'(0)
+                             : r_idx1_bit  ? w_r_idx_bit1
+                             : (r_idx1_shift == 4'd0) ? INDEX_WIDTH'(0) : (w_r_idx_raw >> r_idx1_shift);
+
+    // gap after the burst now finishing: the base, or base + phase in a sweep,
+    // saturating at the port width
+    localparam int GSW = GAP_WIDTH + 1;
+    logic [GSW-1:0]       w_gap_sum;
+    logic [GAP_WIDTH-1:0] w_gap_now;
+    assign w_gap_sum = GSW'(r_rd_gap) + GSW'(r_gap_phase);
+    assign w_gap_now = !r_gap_sweep ? r_rd_gap
+                     : (w_gap_sum[GSW-1] ? {GAP_WIDTH{1'b1}} : w_gap_sum[GAP_WIDTH-1:0]);
 
     //==========================================================================
     // CRC — over the LFSR stream (NOT rdata). Matches writer-side accounting.
@@ -630,11 +686,22 @@ module axi4_master_rd_crc_check #(
     logic [REPLICATION_FACTOR*32-1:0] w_fill_replicated;
     assign w_fill_replicated = {REPLICATION_FACTOR{r_fill_pattern}};
 
-    // Per-beat byte address for hash mode. Anchored on w_r_addr_result
-    // (current burst's base from the R addr-gen).
+    // Per-beat byte address for hash mode, anchored on w_r_addr_result (the
+    // current burst's base from the R addr-gen, popped on the burst's last
+    // beat). The first beat of a burst sits AT the base; every later beat is
+    // the previous beat's address plus one beat, kept in r_beat_addr and
+    // advanced on the handshake (the FSM below, next to r_beats_in_burst).
+    // It used to be recomputed on every beat as
+    // base + (r_beats_in_burst << r_axi_size): on the Nexys A7 granite build
+    // at 100 MHz (2026-10-28) that adder was the front of the longest
+    // harness path -- beat counter -> adder -> address hash -> 64-bit
+    // compare -> o_beats_mismatched, 18 levels, 9.9 ns, 44 failing
+    // endpoints across the read engines. The adder now feeds a register
+    // instead of the hash; the compare still happens on the R handshake.
+    logic [AW-1:0]                r_beat_addr;   // the next beat's address, while r_in_burst
+    logic                         r_in_burst;    // a beat of this burst taken, its last not yet
     logic [AW-1:0]                w_byte_addr_for_beat;
-    assign w_byte_addr_for_beat = w_r_addr_result
-        + (AW'({{(AW-8){1'b0}}, r_beats_in_burst}) << r_axi_size);
+    assign w_byte_addr_for_beat = r_in_burst ? r_beat_addr : w_r_addr_result;
 
     //-------------------------------------------------------------------------
     // Address hash + per-beat compare, combinational
@@ -675,13 +742,32 @@ module axi4_master_rd_crc_check #(
         return x;
     endfunction
 
+    // Lanes keyed on the BUS-ALIGNED beat address, as the writer places them
+    // (lane s = bytes at aligned + 4s): a narrow beat's data sits in the lanes
+    // its address selects, so a narrow read is checked on exactly those lanes
+    // and the other lanes are ignored (their contents belong to another
+    // transfer). Full-width beats start bus-aligned: unchanged for them.
+    localparam int LANE_B = $clog2(DW / 8);
+    logic [AW-1:0] w_beat_addr_aligned;
+    assign w_beat_addr_aligned = {w_byte_addr_for_beat[AW-1:LANE_B], {LANE_B{1'b0}}};
     logic [DW-1:0] w_hash_expected;
     always_comb begin
         w_hash_expected = '0;
         for (int s = 0; s < REP; s++) begin
             w_hash_expected[s*32 +: 32] =
-                f_addr_hash32(w_byte_addr_for_beat[31:0] + 32'(s * 4));
+                f_addr_hash32(w_beat_addr_aligned[31:0] + 32'(s * 4));
         end
+    end
+    // byte lanes this beat covers (all for a full-width beat)
+    logic [DW/8-1:0] w_lane_en;
+    logic [DW-1:0]   w_lane_mask;
+    always_comb begin
+        if (r_axi_size >= 3'(LANE_B)) w_lane_en = {(DW/8){1'b1}};
+        else begin
+            automatic logic [DW/8:0] ones = ((DW/8+1)'(1) << (1 << r_axi_size)) - (DW/8+1)'(1);
+            w_lane_en = (DW/8)'(ones << w_byte_addr_for_beat[LANE_B-1:0]);
+        end
+        for (int b = 0; b < DW/8; b++) w_lane_mask[b*8 +: 8] = {8{w_lane_en[b]}};
     end
 
     logic [DW-1:0] w_cp_expected;
@@ -696,7 +782,11 @@ module axi4_master_rd_crc_check #(
 
     // Per-beat data mismatch, at the beat itself.
     logic w_cp_mismatch;
-    assign w_cp_mismatch = w_r_beat && (fub_rdata != w_cp_expected);
+    // hash mode compares only the lanes the transfer covers; the other modes
+    // (LFSR phase stream, fill pattern) are full-beat contracts as before
+    assign w_cp_mismatch = w_r_beat && ((r_data_mode == 2'd1)
+                                        ? (((fub_rdata ^ w_cp_expected) & w_lane_mask) != '0)
+                                        : (fub_rdata != w_cp_expected));
 
     // Per-beat bit-flip popcount, accumulated over the run and saturated
     // at all-ones. This quantifies rowhammer-induced bit flips without
@@ -714,7 +804,8 @@ module axi4_master_rd_crc_check #(
         if (`RST_ASSERTED(aresetn))                                     r_beat_xor <= '0;
         else if (cfg_start && ((r_state == S_IDLE) || (r_state == S_DONE)))
                                                                         r_beat_xor <= '0;
-        else                                                            r_beat_xor <= w_r_beat ? (fub_rdata ^ w_cp_expected) : '0;
+        else                                                            r_beat_xor <= w_r_beat ? ((fub_rdata ^ w_cp_expected)
+                                                                                                  & ((r_data_mode == 2'd1) ? w_lane_mask : {DW{1'b1}})) : '0;
     end)
     logic [31:0] w_beat_err_bits;
     assign w_beat_err_bits = 32'($countones(r_beat_xor));
@@ -750,7 +841,7 @@ module axi4_master_rd_crc_check #(
             r_wrap_0           <= '0;
             r_wrap_1           <= '0;
             r_burst_len        <= 8'd0;
-            r_rd_gap           <= 4'd0;
+            r_rd_gap           <= '0;
             r_txn_count        <= '0;
             r_axi_id           <= '0;
             r_axi_size         <= 3'd0;
@@ -759,6 +850,9 @@ module axi4_master_rd_crc_check #(
             r_hammer_en        <= 1'b0;
             r_idx1_shift       <= 4'd0;
             r_addr_lfsr        <= 1'b0;
+            r_idx1_bit         <= 1'b0;
+            r_gap_sweep        <= 1'b0;
+            r_gap_phase        <= 3'd0;
             r_data_mode        <= 2'b00;
             r_fill_pattern     <= 32'd0;
             r_hash_seed0       <= 32'd0;
@@ -771,7 +865,9 @@ module axi4_master_rd_crc_check #(
             r_r_req_count      <= '0;
             r_bursts_done      <= '0;
             r_beats_in_burst   <= 8'd0;
-            r_gap_left         <= 4'd0;
+            r_beat_addr        <= '0;
+            r_in_burst         <= 1'b0;
+            r_gap_left         <= '0;
             o_actual_crc_valid <= 1'b0;
             o_data_error       <= 1'b0;
             o_rresp_error      <= 1'b0;
@@ -802,6 +898,9 @@ module axi4_master_rd_crc_check #(
                         r_hammer_en     <= cfg_hammer_en;
                         r_idx1_shift    <= cfg_idx1_shift;
                         r_addr_lfsr     <= cfg_addr_lfsr;
+                        r_idx1_bit      <= cfg_idx1_bit;
+                        r_gap_sweep     <= cfg_gap_sweep;
+                        r_gap_phase     <= 3'd0;
                         r_data_mode     <= cfg_data_mode;
                         r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
@@ -815,7 +914,8 @@ module axi4_master_rd_crc_check #(
                         r_r_req_count    <= '0;
                         r_bursts_done    <= '0;
                         r_beats_in_burst <= 8'd0;
-                        r_gap_left       <= 4'd0;
+                        r_in_burst       <= 1'b0;
+                        r_gap_left       <= '0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;
@@ -843,15 +943,19 @@ module axi4_master_rd_crc_check #(
                     end
                     // R beat handshake
                     if (w_r_beat) begin
+                        // the next beat's address: this beat's plus one beat
+                        r_in_burst  <= !fub_rlast;
+                        r_beat_addr <= w_byte_addr_for_beat + (AW'(1) << r_axi_size);
                         if (fub_rlast) begin
                             r_beats_in_burst <= 8'd0;
                             r_bursts_done    <= r_bursts_done + 1'b1;
+                            r_gap_phase      <= r_gap_phase + 3'd1;
                             if (r_bursts_done + 1'b1 == r_txn_count) begin
                                 r_state            <= S_DONE;
                                 o_actual_crc_valid <= (r_data_mode == 2'd0);
-                            end else if (r_rd_gap != 4'd0) begin
+                            end else if (w_gap_now != '0) begin
                                 r_state    <= S_GAP;
-                                r_gap_left <= r_rd_gap;
+                                r_gap_left <= w_gap_now;
                             end
                         end else begin
                             r_beats_in_burst <= r_beats_in_burst + 8'd1;
@@ -860,11 +964,11 @@ module axi4_master_rd_crc_check #(
                 end
 
                 S_GAP: begin
-                    if (r_gap_left == 4'd1) begin
+                    if (r_gap_left == GAP_WIDTH'(1)) begin
                         r_state    <= S_RUN;
-                        r_gap_left <= 4'd0;
+                        r_gap_left <= '0;
                     end else begin
-                        r_gap_left <= r_gap_left - 4'd1;
+                        r_gap_left <= r_gap_left - GAP_WIDTH'(1);
                     end
                 end
 
@@ -885,6 +989,9 @@ module axi4_master_rd_crc_check #(
                         r_hammer_en     <= cfg_hammer_en;
                         r_idx1_shift    <= cfg_idx1_shift;
                         r_addr_lfsr     <= cfg_addr_lfsr;
+                        r_idx1_bit      <= cfg_idx1_bit;
+                        r_gap_sweep     <= cfg_gap_sweep;
+                        r_gap_phase     <= 3'd0;
                         r_data_mode     <= cfg_data_mode;
                         r_fill_pattern  <= cfg_fill_pattern;
                         r_hash_seed0    <= cfg_hash_seed0;
@@ -898,7 +1005,8 @@ module axi4_master_rd_crc_check #(
                         r_r_req_count    <= '0;
                         r_bursts_done    <= '0;
                         r_beats_in_burst <= 8'd0;
-                        r_gap_left       <= 4'd0;
+                        r_in_burst       <= 1'b0;
+                        r_gap_left       <= '0;
                         o_actual_crc_valid <= 1'b0;
                         o_data_error       <= 1'b0;
                         o_rresp_error      <= 1'b0;

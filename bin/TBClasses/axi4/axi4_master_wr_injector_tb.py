@@ -212,6 +212,8 @@ class WrInjectorTB(TBBase):
         self.dut.cfg_hammer_en.value        = 0
         self.dut.cfg_idx1_shift.value       = 0
         self.dut.cfg_addr_lfsr.value        = 0
+        self.dut.cfg_idx1_bit.value         = 0
+        self.dut.cfg_gap_sweep.value        = 0
         self.dut.cfg_data_mode.value        = 0
         self.dut.cfg_fill_pattern.value     = 0
         self.dut.cfg_hash_seed0.value       = 0
@@ -257,8 +259,14 @@ class WrInjectorTB(TBBase):
                       hash_seed1: int = 0,
                       hash_seed2: int = 0,
                       id_mode: int = 0,
-                      max_outstanding: int = 0) -> None:
+                      max_outstanding: int = 0,
+                      idx1_shift: int = 0, addr_lfsr: int = 0,
+                      idx1_bit: int = 0, gap_sweep: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
+        self.dut.cfg_idx1_shift.value       = idx1_shift & 0xF
+        self.dut.cfg_addr_lfsr.value        = addr_lfsr & 0x1
+        self.dut.cfg_idx1_bit.value         = idx1_bit & 0x1
+        self.dut.cfg_gap_sweep.value        = gap_sweep & 0x1
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
         self.dut.cfg_addr_wrap_mask_0.value = wrap_mask_0

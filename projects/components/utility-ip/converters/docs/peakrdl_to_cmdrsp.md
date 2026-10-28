@@ -60,8 +60,11 @@ Some background, since the name assumes it: **PeakRDL** is a register descriptio
 |-----------|------|---------|-------------|
 | ADDR_WIDTH | int | 12 | Address width for cmd/rsp interface (4 KB register space) |
 | DATA_WIDTH | int | 32 | Data width (must match PeakRDL generation, typically 32) |
+| INPUT_REG | bit | 0 | 0: a command reaches the register block in the cycle it is accepted, straight off the `cmd_*` inputs. 1: every command is issued from the registered copy one cycle later and the `cmd_*` inputs never reach the register block |
 
-**Note:** These must match the PeakRDL register block generation parameters.
+**Note:** The widths must match the PeakRDL register block generation parameters.
+
+`INPUT_REG = 1` is for a cmd side that is not a flop. `apb4_to_peakrdl` feeds this block from an async FIFO's RAM read, and on the Nexys A7 granite harness at 100 MHz (2026-10-28) that read ran through the address bypass, the register block's decode and its readback mux into the response register in one cycle: 9 levels, 8.6 ns of wire, -0.187 ns. The register costs one cycle per access; `apb4_to_peakrdl` sets it, every other consumer keeps the default.
 
 ---
 
@@ -72,7 +75,8 @@ The full interface — cmd/rsp on one side, PeakRDL passthrough cpuif on the oth
 ```systemverilog
 module peakrdl_to_cmdrsp #(
     parameter int ADDR_WIDTH = 12,  // Address width (match PeakRDL generation)
-    parameter int DATA_WIDTH = 32   // Must match PeakRDL (typically 32)
+    parameter int DATA_WIDTH = 32,  // Must match PeakRDL (typically 32)
+    parameter bit INPUT_REG  = 1'b0 // 1: issue from the registered command only
 ) (
     // Clock and Reset
     input  logic                    aclk,
@@ -170,13 +174,13 @@ module peakrdl_to_cmdrsp #(
 ```
 CMD_IDLE       → Waiting for command
 CMD_WAIT_ACK   → Waiting for register block ack
-CMD_STALLED    → Stalled, retry when stall clears
+CMD_STALLED    → Registered command waiting on the stall
 ```
 
-**Transitions:**
+**Transitions (INPUT_REG = 0):**
 ```
 IDLE:
-  - cmd_valid && !stall → WAIT_ACK
+  - cmd_valid && !stall → WAIT_ACK   (request driven this cycle, off cmd_*)
   - cmd_valid && stall  → STALLED
 
 WAIT_ACK:
@@ -185,6 +189,21 @@ WAIT_ACK:
 STALLED:
   - !stall → WAIT_ACK (retry request)
 ```
+
+**Transitions (INPUT_REG = 1):** every command is registered on acceptance and presented from STALLED.
+```
+IDLE:
+  - cmd_valid → STALLED   (command registered, nothing driven yet)
+
+STALLED:
+  - !stall && ack  → IDLE       (request driven this cycle, acked at once)
+  - !stall && !ack → WAIT_ACK   (request held until the ack)
+
+WAIT_ACK:
+  - regblk_wr_ack || regblk_rd_ack → IDLE
+```
+
+In both modes `regblk_req` is held from the cycle it is first driven through the ack cycle, never a one-cycle strobe (see the source: TASK-064).
 
 ### Response State Machine
 
@@ -268,6 +287,7 @@ Watch the `regblk_req` line in Figure 2: an accept-cycle pulse, low while stalle
 | Write (no stall) | 2 cycles | req → wr_ack → rsp |
 | Read (with stall) | 2 + stall cycles | Depends on PeakRDL arbitration |
 | Write (with stall) | 2 + stall cycles | Depends on PeakRDL arbitration |
+| Any, `INPUT_REG = 1` | + 1 cycle | the request is driven the cycle after acceptance |
 
 ### Throughput
 
@@ -419,7 +439,7 @@ This is one of the cheapest shims you'll ever instantiate — two small FSMs and
 ## Testing
 
 ```bash
-# Run adapter test
+# Run adapter test (the grid covers INPUT_REG = 0 and 1 at every level)
 pytest projects/components/utility-ip/converters/dv/tests/test_peakrdl_to_cmdrsp.py -v
 
 # Test with waveforms

@@ -140,16 +140,21 @@ def generate_dma_address_gen_params():
     Generate test parameters for DMA address generator.
 
     Returns:
-        List of tuples: (test_type, addr_width, index_width, stride_width, tag_width)
+        List of tuples: (test_type, addr_width, index_width, stride_width,
+        tag_width, input_reg)
     """
     test_types = [
         'linear', 'row_major', 'reverse', 'wrap', 'wrap_2d',
         'fixed', 'backpressure', 'throughput',
     ]
     base_params = [
-        # (addr_width, index_width, stride_width, tag_width)
-        (40, 16, 24, 8),      # Default (typical DMA)
-        (32, 12, 16, 4),      # Narrow (smaller DMA)
+        # (addr_width, index_width, stride_width, tag_width, input_reg)
+        # INPUT_REG is run in BOTH states on both widths: 0 is what STREAM and
+        # amber build, 1 is what the characterization injectors build.
+        (40, 16, 24, 8, 0),   # Default (typical DMA)
+        (40, 16, 24, 8, 1),   # Default + input register (injector build)
+        (32, 12, 16, 4, 0),   # Narrow (smaller DMA)
+        (32, 12, 16, 4, 1),   # Narrow + input register
     ]
 
     params = []
@@ -169,11 +174,11 @@ dma_address_gen_params = generate_dma_address_gen_params()
 
 @pytest.mark.parametrize("test_level", reg_level_grid())
 @pytest.mark.parametrize(
-    "test_type, addr_width, index_width, stride_width, tag_width",
+    "test_type, addr_width, index_width, stride_width, tag_width, input_reg",
     dma_address_gen_params
 )
 def test_dma_address_gen(request, test_type, addr_width, index_width,
-                         stride_width, tag_width, test_level):
+                         stride_width, tag_width, input_reg, test_level):
     enable_waves = bool(int(os.environ.get('WAVES', '0')))
     """Pytest wrapper for DMA address generator tests."""
     module, repo_root, tests_dir, log_dir, rtl_dict = get_paths({
@@ -202,7 +207,7 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
 
     test_name_plus_params = (
         f"test_{dut_name}_{test_type}"
-        f"_aw{aw_str}_iw{iw_str}_sw{sw_str}_tw{tw_str}_{test_level}"
+        f"_aw{aw_str}_iw{iw_str}_sw{sw_str}_tw{tw_str}_ir{input_reg}_{test_level}"
     )
 
     # Handle pytest-xdist parallel execution
@@ -221,6 +226,7 @@ def test_dma_address_gen(request, test_type, addr_width, index_width,
         'INDEX_WIDTH': index_width,
         'STRIDE_WIDTH': stride_width,
         'TAG_WIDTH': tag_width,
+        'INPUT_REG': input_reg,
     }
 
     extra_env = {

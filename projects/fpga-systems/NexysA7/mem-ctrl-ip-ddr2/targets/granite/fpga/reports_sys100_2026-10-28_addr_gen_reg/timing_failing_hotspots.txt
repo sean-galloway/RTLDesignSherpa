@@ -1,0 +1,8 @@
+# Failing-endpoint count per parent instance (descending) — post-route
+# count  parent_instance
+    22  u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine
+    12  u_harness/u_dut/u_engines/u_chargen_shim/u_cpuif
+    12  u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[0].u_rd_engine
+    11  u_harness/u_dut/u_ctrl/u_core/u_sched_plane/g_bank_pick.u_bank_pick
+     6  u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[3].u_rd_engine
+     4  u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[2].u_rd_engine

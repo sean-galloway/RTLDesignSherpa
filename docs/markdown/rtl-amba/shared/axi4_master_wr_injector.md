@@ -116,7 +116,12 @@ Bringing up a memory controller means driving it with realistic, deterministic w
 | cfg_lfsr_seed | input | LFSR_WIDTH | Seed override (0 → use `LFSR_SEED` param) |
 | cfg_data_mode | input | 1 | 0 = phase-counter LFSR; 1 = address-derived hash (OOO-safe) |
 | cfg_hash_seed0/1/2 | input | 32 each | Murmur3-fmix mixer seeds (hash mode) |
+| cfg_hammer_en | input | 1 | Rowhammer pair mode: the index is the transaction counter's LSB, so addresses alternate base / base+stride_0 |
+| cfg_idx1_shift | input | 4 | Index split (TASK-049): the low k bits of the transaction index go to dimension 0, the rest to dimension 1; 0 = one-dimensional walk |
+| cfg_addr_lfsr | input | 1 | Replace the transaction counter with a maximal INDEX_WIDTH-bit LFSR (pseudo-random walk inside the wrap region) |
+| cfg_idx1_bit | input | 1 | One-bit split (pumice TASK-060): dimension 1 is the single bit `idx1_shift` of the index, dimension 0 the index with that bit removed |
 | cfg_wr_gap | input | GAP_WIDTH | Inter-burst idle cycles (0..2^GAP_WIDTH-1; 0..15 at the default width) |
+| cfg_gap_sweep | input | 1 | Gap sweep (pumice TASK-060): the gap after burst n is `cfg_wr_gap + (n mod 8)`, saturating at the port width |
 | cfg_start | input | 1 | Pulse to begin the workload |
 | cfg_done | output | 1 | High once all B responses received |
 
@@ -163,7 +168,11 @@ A four-state FSM (`S_IDLE`, `S_RUN`, `S_GAP`, `S_DONE`) sequences a run. On `cfg
 
 ### Decoupled AW and W Address Generation
 
-Two independent `dma_address_gen` instances (`u_addr_gen_aw`, `u_addr_gen_w`) walk the *same* descriptor with the same indices, so both produce the identical address sequence. The AW path issues one AW per index at `awready` rate; the W path produces the current burst's base address for the hash datapath, popped on WLAST. `awvalid` stays continuously asserted from its first cycle to the last AW handshake when `cfg_wr_gap = 0` — the address generator produces one result per cycle once warmed. With a non-zero gap an AW never runs ahead of the previous burst's W: the next AW issues only after the gap and after every earlier burst's last beat has left the generator. An AW pipelined ahead of a gap would reach the slave and wait there for W data the gap is holding, and since AXI4 W follows AW order at the slave, every other master's write behind it would wait too. Outstanding depth is bounded by the slave's `awready` throttling, not by this block. Only `index_0` is walked (`index_1` held at 0); a second instance with a different `cfg_addr_stride_1` would exercise the 2D path.
+Two independent `dma_address_gen` instances (`u_addr_gen_aw`, `u_addr_gen_w`) walk the *same* descriptor with the same indices, so both produce the identical address sequence. The AW path issues one AW per index at `awready` rate; the W path produces the current burst's base address for the hash datapath, popped on WLAST. `awvalid` stays continuously asserted from its first cycle to the last AW handshake when `cfg_wr_gap = 0` — the address generator produces one result per cycle once warmed. With a non-zero gap an AW never runs ahead of the previous burst's W: the next AW issues only after the gap and after every earlier burst's last beat has left the generator. An AW pipelined ahead of a gap would reach the slave and wait there for W data the gap is holding, and since AXI4 W follows AW order at the slave, every other master's write behind it would wait too. Outstanding depth is bounded by the slave's `awready` throttling, not by this block.
+
+The transaction index is shaped before it reaches the address generators. With `cfg_idx1_shift = 0` only `index_0` is walked (`index_1` held at 0). `cfg_idx1_shift = k` feeds the index's low k bits to dimension 0 and the rest to dimension 1, so a two-row alternation inside one bank is `stride_0 = row, wrap_0 = 0, k = 1, stride_1 = burst, wrap_1 = page`. `cfg_idx1_bit = 1` is the one-bit split: dimension 1 is the single bit k of the index and dimension 0 is the index with that bit squeezed out, so `stride_1` toggles every 2^k transactions while `stride_0` keeps walking. With `stride_0` one DRAM burst and `stride_1` half a burst, k = 3 issues the low halves of eight bursts, then their high halves, then the next eight bursts; k = 0 is lo, hi, lo, hi along the line. The same walk under the plain split would need a third dimension. `cfg_addr_lfsr` replaces the counter with an LFSR; hammer mode wins over all of them. The half-burst families in `half_burst_family.py` (the pumice TASK-060 board patterns) are built on the one-bit split.
+
+`cfg_gap_sweep = 1` makes the idle gap after burst n equal to `cfg_wr_gap + (n mod 8)`, saturating at the port width, so the inter-burst delay walks 0..7 above the base and repeats; the AW-behind-W pacing of a non-zero gap applies throughout a sweep. The gap is counted from the W generator, not the port, so under a stalling slave two bursts can still leave the output skid back to back.
 
 ### Data Path: LFSR vs Address Hash
 
@@ -278,7 +287,7 @@ axi4_master_wr_injector #(
 
 ### Uses
 - **axi4_master_wr.sv** — standard AXI4 write master protocol handler (AW/W/B skid + compliance)
-- **dma_address_gen.sv** — algorithmic address sequence generator (×2, decoupled AW/W)
+- **dma_address_gen.sv** — algorithmic address sequence generator (×2, decoupled AW/W), built with `INPUT_REG = 1`: the shaped index is registered before the multiplier, so a request becomes an address three cycles later (two without it). Measured on the Nexys A7 harness at 100 MHz (2026-10-28), the unregistered form was 6 LUT levels plus a DSP48 in one clock, 10.5 ns, the board's largest failing path class.
 - **shifter_lfsr_fibonacci.sv** — LFSR data source and 8-bit AW-ID LFSR
 - **dataint_crc.sv** — CRC-32 accumulator
 - **gaxi_fifo_sync.sv** — show-ahead staging FIFO decoupling the hash pipeline from W

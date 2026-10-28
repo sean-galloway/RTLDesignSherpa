@@ -114,6 +114,9 @@ class RdCrcCheckTB(TBBase):
         # address generator index is the transaction counter LSB, so burst
         # bases alternate start_addr / start_addr+stride_0.
         self.hammer_en: int = 0
+        self._preload_stride_1: int = 0
+        self._preload_idx1_shift: int = 0
+        self._preload_idx1_bit: int = 0
         # Preload geometry — saved on program() so we know what range to
         # fill once pulse_start() is called.
         self._preload_start_addr: int = 0
@@ -191,6 +194,8 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_lfsr_seed.value        = 0
         self.dut.cfg_hammer_en.value        = 0
         self.dut.cfg_idx1_shift.value       = 0
+        self.dut.cfg_idx1_bit.value         = 0
+        self.dut.cfg_gap_sweep.value        = 0
         self.dut.cfg_addr_lfsr.value        = 0
         self.dut.cfg_data_mode.value        = 0
         self.dut.cfg_fill_pattern.value     = 0
@@ -250,7 +255,19 @@ class RdCrcCheckTB(TBBase):
             # counter LSB, so burst bases alternate base / base+stride_0.
             if self.hammer_en:
                 return base + (bi & 1) * self._preload_stride
-            return base + bi * self._preload_stride
+            # Index shaping (TASK-049 split, TASK-060 one-bit split) mirrors
+            # the engine: dimension 0 walks stride_0, dimension 1 stride_1.
+            # Wrap masks are not modelled (no test uses them with a preload).
+            k = self._preload_idx1_shift
+            if self._preload_idx1_bit:
+                idx0 = (bi & ((1 << k) - 1)) | ((bi >> (k + 1)) << k)
+                idx1 = (bi >> k) & 1
+            elif k:
+                idx0 = bi & ((1 << k) - 1)
+                idx1 = bi >> k
+            else:
+                idx0, idx1 = bi, 0
+            return base + idx0 * self._preload_stride + idx1 * self._preload_stride_1
 
         if self.data_mode == 1:
             # Hash mode: data per byte addr (engine reader hashes
@@ -310,8 +327,14 @@ class RdCrcCheckTB(TBBase):
                       hash_seed1: int = 0,
                       hash_seed2: int = 0,
                       id_mode: int = 0,
-                      max_outstanding: int = 0) -> None:
+                      max_outstanding: int = 0,
+                      idx1_shift: int = 0, addr_lfsr: int = 0,
+                      idx1_bit: int = 0, gap_sweep: int = 0) -> None:
         self.dut.cfg_start_addr.value       = start_addr
+        self.dut.cfg_idx1_shift.value       = idx1_shift & 0xF
+        self.dut.cfg_addr_lfsr.value        = addr_lfsr & 0x1
+        self.dut.cfg_idx1_bit.value         = idx1_bit & 0x1
+        self.dut.cfg_gap_sweep.value        = gap_sweep & 0x1
         self.dut.cfg_addr_stride_0.value    = stride_0
         self.dut.cfg_addr_stride_1.value    = stride_1
         self.dut.cfg_addr_wrap_mask_0.value = wrap_mask_0
@@ -329,7 +352,8 @@ class RdCrcCheckTB(TBBase):
         self.dut.cfg_hash_seed0.value       = hash_seed0 & 0xFFFFFFFF
         self.dut.cfg_hash_seed1.value       = hash_seed1 & 0xFFFFFFFF
         self.dut.cfg_hash_seed2.value       = hash_seed2 & 0xFFFFFFFF
-        self.dut.cfg_rd_gap.value           = rd_gap & 0xF
+        # GAP_WIDTH: the build's cfg_rd_gap width (4 unless the runner widens it).
+        self.dut.cfg_rd_gap.value           = rd_gap & ((1 << int(os.environ.get('GAP_WIDTH', '4'))) - 1)
         self.dut.cfg_max_outstanding.value  = max_outstanding
         # Mirror the DUT's seed selection so the preloaded MemoryModel
         # contents phase-lock with what the reader engine expects.
@@ -345,6 +369,9 @@ class RdCrcCheckTB(TBBase):
         # stride_0 is the per-burst byte stride (engine semantics).
         self._preload_start_addr = start_addr
         self._preload_stride     = stride_0 if stride_0 else burst_len * self.BYTES_PER_BEAT
+        self._preload_stride_1   = stride_1
+        self._preload_idx1_shift = idx1_shift & 0xF
+        self._preload_idx1_bit   = idx1_bit & 0x1
         self._preload_burst_len  = burst_len
         self._preload_txn_count  = txn_count
         await RisingEdge(self.dut.aclk)

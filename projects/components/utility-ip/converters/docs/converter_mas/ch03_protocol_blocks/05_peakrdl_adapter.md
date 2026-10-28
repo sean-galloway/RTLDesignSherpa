@@ -40,6 +40,7 @@ PeakRDL generates register blocks with a selectable cpuif, and this adapter mate
 | --- | --- | --- | --- |
 | ADDR_WIDTH | int | 12 | Address width (register-block sized) |
 | DATA_WIDTH | int | 32 | Data width |
+| INPUT_REG | bit | 0 | 1: every request is driven from the registered command, one cycle after acceptance; the `cmd_*` inputs never reach the register block |
 
 : Table 3.20: PeakRDL Adapter Parameters
 
@@ -50,7 +51,8 @@ The full port list, straight from the RTL:
 ```systemverilog
 module peakrdl_to_cmdrsp #(
     parameter int ADDR_WIDTH = 12,  // Address width for cmd/rsp interface
-    parameter int DATA_WIDTH = 32   // Must match PeakRDL generation (typically 32)
+    parameter int DATA_WIDTH = 32,  // Must match PeakRDL generation (typically 32)
+    parameter bit INPUT_REG  = 1'b0 // 1: issue from the registered command only
 ) (
     // Clock and Reset
     input  logic                    aclk,
@@ -128,7 +130,8 @@ Two small FSMs do all the work, from the RTL:
 typedef enum logic [1:0] {
     CMD_IDLE     = 2'b00,   // ready to accept a command
     CMD_WAIT_ACK = 2'b01,   // register block has the request
-    CMD_STALLED  = 2'b10    // req_stall_* asserted; retry
+    CMD_STALLED  = 2'b10    // registered command waiting on req_stall_*
+                            // (INPUT_REG: every command passes here)
 } cmd_state_t;
 
 typedef enum logic {
@@ -142,6 +145,16 @@ out of CMD_STALLED; in CMD_IDLE the request muxes straight from the
 live cmd inputs, so an unstalled single-cycle ack costs no extra
 latency. `cmd_ready = (cmd_state == CMD_IDLE)` gives one outstanding
 command, which is what a register block wants.
+
+With `INPUT_REG = 1` the bypass leg is gone: acceptance only registers
+the command, the request is driven from CMD_STALLED the next cycle (an
+ack in that same cycle completes it, otherwise CMD_WAIT_ACK holds it),
+and the `cmd_*` inputs never reach the register block. One cycle per
+access, bought for a cmd side that is not a flop: `apb4_to_peakrdl`
+feeds this block from an async FIFO's RAM read, and on the Nexys A7
+granite harness at 100 MHz (2026-10-28) that read ran through the
+bypass, the regblock's decode and its readback mux into the response
+register in one cycle (9 levels, 8.6 ns of wire, -0.187 ns).
 
 ### 3.5.6 Resource Utilization
 
@@ -237,7 +250,8 @@ page used to make.
 `peakrdl_to_cmdrsp` above takes a cmd/rsp stream. `apb4_to_peakrdl` is the
 module that produces one from an APB4 slave port, and it crosses clock domains
 while doing it -- APB on `pclk`, the register block on `aclk`. It is a
-two-stage composition and adds no register logic of its own:
+two-stage composition and adds no register logic of its own; it builds
+stage 2 with `INPUT_REG = 1`, since stage 1 hands it a FIFO RAM read:
 
 | Stage | Module | Domain |
 | --- | --- | --- |

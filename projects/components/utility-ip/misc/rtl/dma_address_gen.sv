@@ -7,7 +7,9 @@
 // Module: dma_address_gen
 // Purpose:
 //   Two-dimensional strided address generator with wrap and signed stride
-//   support. 2-stage pipeline for timing closure at high frequencies.
+//   support. 2-stage pipeline for timing closure at high frequencies; an
+//   optional input register (INPUT_REG) makes it 3 so the multiplier sees a
+//   flop, not the requester's index logic.
 //
 // Documentation: projects/components/utility-ip/misc/README.md
 // Subsystem: misc
@@ -63,7 +65,7 @@
 //   - Parameterizable pass-through tag for downstream routing
 //   - Valid/ready handshaking on both request and result interfaces
 //   - Pipeline stall support (backpressure propagation)
-//   - 2-stage pipeline for timing closure at high frequencies
+//   - 2-stage pipeline for timing closure at high frequencies (3 with INPUT_REG)
 //
 //------------------------------------------------------------------------------
 // Parameters:
@@ -92,6 +94,13 @@
 //     Type: int
 //     Range: 1 to 64
 //     Default: 8
+//
+//   INPUT_REG:
+//     Description: Register the request (indices, tag) before the multiply.
+//                  Adds a pipeline stage (latency 3), throughput unchanged.
+//                  Set when the requester's index is combinational.
+//     Type: bit
+//     Default: 0
 //
 //------------------------------------------------------------------------------
 // Ports:
@@ -123,13 +132,15 @@
 //------------------------------------------------------------------------------
 // Timing:
 //------------------------------------------------------------------------------
-//   Latency:     2 cycles
+//   Latency:     2 cycles (3 with INPUT_REG = 1)
 //   Throughput:  1 address/cycle (when pipeline is full)
 //   Clock-to-Q:  Single flip-flop delay on all outputs
 //
 //------------------------------------------------------------------------------
 // Pipeline Structure:
 //------------------------------------------------------------------------------
+//   Stage 0 (INPUT_REG = 1 only): register index_0, index_1 and the tag
+//
 //   Stage 1: Multiply and wrap
 //     - raw_offset_0 = index_0 * stride_0  (signed multiply)
 //     - raw_offset_1 = index_1 * stride_1  (signed multiply)
@@ -191,7 +202,18 @@ module dma_address_gen #(
     parameter int ADDR_WIDTH   = 40,
     parameter int INDEX_WIDTH  = 16,
     parameter int STRIDE_WIDTH = 24,
-    parameter int TAG_WIDTH    = 8
+    parameter int TAG_WIDTH    = 8,
+    // INPUT_REG = 1 registers the request (indices + tag) before the
+    // multiplier: a third pipeline stage, one more cycle of latency, still
+    // one address per clock. Set it when the requester builds the index
+    // combinationally (a mux, a shift, a mask) and the DSP multiply would
+    // otherwise sit at the end of that cone in one clock. Measured on the
+    // Nexys A7 characterization harness at 100 MHz (2026-10-28): the
+    // injectors' shaped index into this multiplier was 6 LUT levels plus an
+    // unregistered DSP48 (3.7 ns) plus the wrap mask, 10.5 ns, 490 failing
+    // endpoints across eight engines. Default 0 keeps every other consumer's
+    // latency as it was.
+    parameter bit INPUT_REG    = 1'b0
 ) (
     input  logic                        i_clk,
     input  logic                        i_rst_n,
@@ -252,6 +274,68 @@ module dma_address_gen #(
     localparam int PRODUCT_WIDTH = INDEX_WIDTH + STRIDE_WIDTH;
 
     // =========================================================================
+    // Ready chain (declared up front: stage 0 needs stage 1's ready)
+    // =========================================================================
+    logic w_s1_ready;
+    logic w_s2_ready;
+
+    // =========================================================================
+    // Stage 0 (optional, INPUT_REG): register the request before the multiply
+    // =========================================================================
+    // The multiplier's operands come from w_s0_*: the request ports straight
+    // through when INPUT_REG = 0, a flop when INPUT_REG = 1. The flop stage
+    // is a plain pipeline register (ready = empty or the next stage accepts),
+    // so throughput stays one request per clock either way.
+    // =========================================================================
+
+    logic                        w_s0_valid;
+    logic [INDEX_WIDTH-1:0]      w_s0_index_0;
+    logic [INDEX_WIDTH-1:0]      w_s0_index_1;
+    logic [TAG_WIDTH-1:0]        w_s0_tag;
+
+    generate
+        if (INPUT_REG) begin : g_input_reg
+            logic                        r_s0_valid;
+            logic [INDEX_WIDTH-1:0]      r_s0_index_0;
+            logic [INDEX_WIDTH-1:0]      r_s0_index_1;
+            logic [TAG_WIDTH-1:0]        r_s0_tag;
+            logic                        w_s0_ready;
+
+            assign w_s0_ready  = !r_s0_valid || w_s1_ready;
+            assign o_req_ready = w_s0_ready;
+
+            `ALWAYS_FF_RST(i_clk, i_rst_n,
+                if (`RST_ASSERTED(i_rst_n)) begin
+                    r_s0_valid   <= 1'b0;
+                    r_s0_index_0 <= '0;
+                    r_s0_index_1 <= '0;
+                    r_s0_tag     <= '0;
+                end else begin
+                    if (i_req_valid && w_s0_ready) begin
+                        r_s0_valid   <= 1'b1;
+                        r_s0_index_0 <= i_req_index_0;
+                        r_s0_index_1 <= i_req_index_1;
+                        r_s0_tag     <= i_req_tag;
+                    end else if (w_s1_ready) begin
+                        r_s0_valid <= 1'b0;
+                    end
+                end
+            )
+
+            assign w_s0_valid   = r_s0_valid;
+            assign w_s0_index_0 = r_s0_index_0;
+            assign w_s0_index_1 = r_s0_index_1;
+            assign w_s0_tag     = r_s0_tag;
+        end else begin : g_input_live
+            assign o_req_ready  = w_s1_ready;
+            assign w_s0_valid   = i_req_valid;
+            assign w_s0_index_0 = i_req_index_0;
+            assign w_s0_index_1 = i_req_index_1;
+            assign w_s0_tag     = i_req_tag;
+        end
+    endgenerate
+
+    // =========================================================================
     // Stage 1: Compute stride offsets (signed multiply + optional wrap)
     // =========================================================================
     //
@@ -264,8 +348,8 @@ module dma_address_gen #(
     logic signed [PRODUCT_WIDTH:0] w_s1_raw_offset_0;
     logic signed [PRODUCT_WIDTH:0] w_s1_raw_offset_1;
 
-    assign w_s1_raw_offset_0 = $signed({1'b0, i_req_index_0}) * i_cfg_stride_0;
-    assign w_s1_raw_offset_1 = $signed({1'b0, i_req_index_1}) * i_cfg_stride_1;
+    assign w_s1_raw_offset_0 = $signed({1'b0, w_s0_index_0}) * i_cfg_stride_0;
+    assign w_s1_raw_offset_1 = $signed({1'b0, w_s0_index_1}) * i_cfg_stride_1;
 
     // Apply wrap masks (power-of-2 wrap via bitwise AND on the offset)
     // Wrap constrains the offset magnitude, then the sign is preserved for
@@ -298,11 +382,7 @@ module dma_address_gen #(
     logic [TAG_WIDTH-1:0]        r_s1_tag;
 
     // S1 ready when S1 is empty or S2 can accept
-    logic w_s1_ready;
-    logic w_s2_ready;
-
     assign w_s1_ready  = !r_s1_valid || w_s2_ready;
-    assign o_req_ready = w_s1_ready;
 
     `ALWAYS_FF_RST(i_clk, i_rst_n,
         if (`RST_ASSERTED(i_rst_n)) begin
@@ -312,12 +392,12 @@ module dma_address_gen #(
             r_s1_base_addr <= '0;
             r_s1_tag       <= '0;
         end else begin
-            if (i_req_valid && w_s1_ready) begin
+            if (w_s0_valid && w_s1_ready) begin
                 r_s1_valid     <= 1'b1;
                 r_s1_offset_0  <= w_s1_offset_0;
                 r_s1_offset_1  <= w_s1_offset_1;
                 r_s1_base_addr <= i_cfg_base_addr;
-                r_s1_tag       <= i_req_tag;
+                r_s1_tag       <= w_s0_tag;
             end else if (w_s2_ready) begin
                 r_s1_valid <= 1'b0;
             end

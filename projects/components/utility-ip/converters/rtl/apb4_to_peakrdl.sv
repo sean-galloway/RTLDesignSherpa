@@ -148,9 +148,16 @@ module apb4_to_peakrdl #(
     );
 
     // Stage 2: CMD/RSP (aclk) -> PeakRDL passthrough (cpuif)
+    // INPUT_REG: the command FIFO above is a mux-read async FIFO, so its
+    // rd_data is a RAM read, not a flop. Without the register the FIFO read,
+    // the regblock's address decode and its readback mux into the response
+    // register were one cycle (Nexys A7 granite harness at 100 MHz,
+    // 2026-10-28: 9 levels, 8.6 ns of wire, -0.187 ns). One cycle per
+    // access, behind a CDC that already costs several.
     peakrdl_to_cmdrsp #(
         .ADDR_WIDTH (ADDR_WIDTH),
-        .DATA_WIDTH (DATA_WIDTH)
+        .DATA_WIDTH (DATA_WIDTH),
+        .INPUT_REG  (1'b1)
     ) u_cpuif (
         .aclk             (aclk),
         .aresetn            (w_aresetn),

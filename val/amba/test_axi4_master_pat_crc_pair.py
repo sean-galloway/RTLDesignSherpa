@@ -57,6 +57,8 @@ async def _setup(dut):
     dut.cfg_hash_seed2.value       = 0
     dut.cfg_wr_gap.value           = 0
     dut.cfg_rd_gap.value           = 0
+    dut.cfg_idx1_bit.value         = 0
+    dut.cfg_gap_sweep.value        = 0
     # 0 = use the built MAX_OUTSTANDING. Driven explicitly: the engines test
     # this against zero to pick their limit, so leaving it floating wedges
     # both address channels on an X with no error reported anywhere.

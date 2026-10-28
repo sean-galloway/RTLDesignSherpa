@@ -17,7 +17,19 @@
 
 module peakrdl_to_cmdrsp #(
     parameter int ADDR_WIDTH = 12,  // Address width for cmd/rsp interface
-    parameter int DATA_WIDTH = 32   // Must match PeakRDL generation (typically 32)
+    parameter int DATA_WIDTH = 32,  // Must match PeakRDL generation (typically 32)
+    // 0: a command is presented to the register block in the cycle it is
+    //    accepted, straight off the cmd inputs (the original behaviour; the
+    //    registered copy serves only a stalled retry).
+    // 1: every command is issued from the registered copy, one cycle after
+    //    acceptance, and the cmd inputs never reach the register block.
+    //    Measured need (Nexys A7 granite harness at 100 MHz, 2026-10-28):
+    //    with the cmd side fed by apb4_slave_cdc's async FIFO, the FIFO's
+    //    RAM read ran through this block's address bypass, the regblock's
+    //    decode and its readback mux into r_rsp_prdata in one cycle, 9
+    //    levels and 8.6 ns of wire, 12 failing endpoints. Costs one cycle
+    //    per access and the command registers that already existed.
+    parameter bit INPUT_REG  = 1'b0
 ) (
     // Clock and Reset
     input  logic                    aclk,
@@ -90,7 +102,8 @@ module peakrdl_to_cmdrsp #(
     typedef enum logic [1:0] {
         CMD_IDLE       = 2'b00,  // Ready to accept command
         CMD_WAIT_ACK   = 2'b01,  // Waiting for register block ack
-        CMD_STALLED    = 2'b10   // Stalled, retry when stall clears
+        CMD_STALLED    = 2'b10   // Registered command waiting on the stall
+                                 // (INPUT_REG: every command passes here)
     } cmd_state_t;
 
     cmd_state_t cmd_state, cmd_state_next;
@@ -139,6 +152,10 @@ module peakrdl_to_cmdrsp #(
     )
 
 
+    // The registered command may be presented (its direction is not stalled)
+    logic w_reg_cmd_clear;
+    assign w_reg_cmd_clear = r_cmd_pwrite ? !regblk_req_stall_wr : !regblk_req_stall_rd;
+
     // =========================================================================
     // Command State Machine (Combinational)
     // =========================================================================
@@ -148,9 +165,12 @@ module peakrdl_to_cmdrsp #(
         case (cmd_state)
             CMD_IDLE: begin
                 if (cmd_valid) begin
-                    // Check if register block can accept request
-                    if (cmd_pwrite && !regblk_req_stall_wr) begin
-                        // Write accepted immediately
+                    if (INPUT_REG) begin
+                        // Registered this cycle, presented from CMD_STALLED
+                        cmd_state_next = CMD_STALLED;
+                    end else if (cmd_pwrite && !regblk_req_stall_wr) begin
+                        // Check if register block can accept request:
+                        // write accepted immediately
                         cmd_state_next = CMD_WAIT_ACK;
                     end else if (!cmd_pwrite && !regblk_req_stall_rd) begin
                         // Read accepted immediately
@@ -170,11 +190,12 @@ module peakrdl_to_cmdrsp #(
             end
 
             CMD_STALLED: begin
-                // Re-check stall conditions with registered command
-                if (r_cmd_pwrite && !regblk_req_stall_wr) begin
-                    cmd_state_next = CMD_WAIT_ACK;
-                end else if (!r_cmd_pwrite && !regblk_req_stall_rd) begin
-                    cmd_state_next = CMD_WAIT_ACK;
+                // Re-check stall conditions with registered command. With
+                // INPUT_REG the request is already presented from here, so
+                // an ack in this same cycle completes the command.
+                if (w_reg_cmd_clear) begin
+                    cmd_state_next = (INPUT_REG && (regblk_wr_ack || regblk_rd_ack))
+                                   ? CMD_IDLE : CMD_WAIT_ACK;
                 end
                 // Stay in STALLED if still blocked
             end
@@ -186,6 +207,11 @@ module peakrdl_to_cmdrsp #(
     // =========================================================================
     // Command ready - can accept new command when idle
     // =========================================================================
+    // During the three cycles of the internal reset synchronizer this is the
+    // reset value of cmd_state, i.e. high, while nothing is captured. Every
+    // consumer's upstream shares aresetn and a synchronizer of the same depth,
+    // so no command can arrive in that window; a testbench has to wait it out
+    // (the block's own test lost its first command there, 2026-10-28).
     assign cmd_ready = (cmd_state == CMD_IDLE);
 
     // =========================================================================
@@ -224,14 +250,22 @@ module peakrdl_to_cmdrsp #(
     // request-timing change -- so any future attempt must be validated
     // through an INTEGRATED path (stream build-mon's obs_apb window), not
     // the standalone converter tests.
+    //
+    // INPUT_REG: the request is raised from CMD_STALLED, off the registered
+    // command, once its direction is not stalled; the hold-until-ack above
+    // still applies (CMD_WAIT_ACK keeps it up when the ack is later).
     assign regblk_req = (cmd_state == CMD_WAIT_ACK) ||
-                        ((cmd_state == CMD_IDLE) && cmd_valid);
+                        (INPUT_REG ? ((cmd_state == CMD_STALLED) && w_reg_cmd_clear)
+                                   : ((cmd_state == CMD_IDLE) && cmd_valid));
 
-    // Mux between current command and registered command
-    assign regblk_req_is_wr = (cmd_state == CMD_IDLE) ? cmd_pwrite : r_cmd_pwrite;
-    assign regblk_addr      = (cmd_state == CMD_IDLE) ? cmd_paddr : r_cmd_paddr;
-    assign regblk_wr_data   = (cmd_state == CMD_IDLE) ? cmd_pwdata : r_cmd_pwdata;
-    assign regblk_wr_biten  = (cmd_state == CMD_IDLE) ?
+    // Mux between current command and registered command. With INPUT_REG the
+    // bypass leg is gone and the register block sees only the flops.
+    logic w_bypass;
+    assign w_bypass = !INPUT_REG && (cmd_state == CMD_IDLE);
+    assign regblk_req_is_wr = w_bypass ? cmd_pwrite : r_cmd_pwrite;
+    assign regblk_addr      = w_bypass ? cmd_paddr : r_cmd_paddr;
+    assign regblk_wr_data   = w_bypass ? cmd_pwdata : r_cmd_pwdata;
+    assign regblk_wr_biten  = w_bypass ?
                                 strb_to_biten(cmd_pstrb) :
                                 r_cmd_wr_biten;
 
