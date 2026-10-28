@@ -68,6 +68,7 @@ FSM-free. The state is:
 | issue-order ticket FIFO | maps the next DFI return to the slot that issued |
 | BRAM | the burst data, one slot per in-flight read |
 | fetch pointer + 2-deep skid | runs ahead of head across the synchronous-read BRAM |
+| per-slot `shadow` + `src` | read combining: a shadow slot drains its source slot's beats |
 
 The prefetch skid is the same one `mc_rd_cmd_cam` uses, under the same
 1-cycle BRAM read-latency contract.
@@ -76,11 +77,28 @@ The prefetch skid is the same one `mc_rd_cmd_cam` uses, under the same
 
 | Group | Direction | Purpose |
 |---|---|---|
-| `alloc_*` | in / out | with the CAM insert, in AR order; returns `alloc_ticket_o` (= ring tail). `alloc_ready_o` is the ring-not-full backpressure that gates AR acceptance |
+| `alloc_*` | in / out | with the CAM insert, in AR order; returns `alloc_ticket_o` (= ring tail). `alloc_ready_o` is the ring-not-full backpressure that gates AR acceptance. `alloc_merge_i` / `alloc_src_i`: this ticket is a shadow of `alloc_src_i` (read combining) |
 | `issue_*` | in | from the CAM when the column issues: pushes the ticket into the issue-order FIFO |
 | `dfi_ret_*` | in | the in-order DFI return stream: data, last, resp |
 | `drain_*` | out | AR-order drain to `mc_rd_intake` |
 | `occ_o` / `busy_o` | out | occupancy and any-in-flight, for observation |
+
+## Read combining (pumice TASK-060)
+
+A ticket allocated with `alloc_merge_i` is a **shadow** of an older ticket
+whose read has not issued: the CAM found the same `{bank,row,col}` and took no
+entry. A shadow is never pushed to the issue FIFO and never filled. It becomes
+ready in the cycle its *source's* last return beat lands, and the fetch reads
+its beats from the source's slot (`r_src`), so the drain hands the same burst
+out twice -- source first, shadow later, both in AR order, since the shadow is
+younger. The intake frames each read's own AxLEN from the beats it is given.
+
+The source slot's data has to outlive the source's own drain, so the source is
+**pinned**: the tail refuses to re-allocate a slot that an unfetched shadow
+still points at (`alloc_ready_o` drops for that one slot). The pin releases
+when the shadow's last beat is fetched. No deadlock: a shadow's fetch waits on
+its source's return and on the R drain, neither of which waits on an
+allocation. Any number of shadows may point at one source.
 
 ## Sizing
 
@@ -106,8 +124,18 @@ timing paths, not latency.
 
 ## Verification
 
-No directed unit test today: `test_pumice_rd_return_ring.py` (depth-8 and
-depth-32 configurations at 1 and 4 beats per burst) was removed from the pumice area 2026-10-13 (pumice tests target only pumice DUTs); no common-ip replacement exists yet. The ring is exercised through `pumice_core` and `pumice_top`. The block asserts on a return with
-no outstanding ticket and on an issue notify when the issue FIFO is empty —
-both would be a ticket-accounting break rather than a data error, so they are
-caught structurally rather than by a data mismatch downstream.
+Directed unit test: `common-ip/dv/tests/fub/test_mc_rd_return_ring.py`
+(depth 8, at 1 and 4 beats per burst). Its `pin` cell is the read-combining
+hazard -- a shadow whose last beats are still unfetched in its source's slot
+while the tail wants that slot; `alloc_ready_o` must stay low through the
+drain stall -- and its `random` cell is a model-driven walk (shadows of
+random unissued sources, issues out of order, returns in issue order, a
+drain that stalls at random) checked beat by beat in AR order. Mutation
+(2026-10-27): with the pin removed the walk returns the ninth read's beats
+on a shadow and the directed cell sees the early allocation; both fail, so
+the pin is load-bearing and the checks are live. The ring is also exercised
+through `pumice_core` and `pumice_top`. The block asserts on a return with
+no outstanding ticket, on an issue notify when the issue FIFO is empty, and
+on a shadow whose source is not a live, unreturned, non-shadow slot — ticket
+accounting breaks, caught structurally rather than by a data mismatch
+downstream.

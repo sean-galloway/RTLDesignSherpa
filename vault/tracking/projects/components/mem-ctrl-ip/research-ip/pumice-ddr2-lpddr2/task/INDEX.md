@@ -2,7 +2,7 @@
 
 # pumice — tasks
 
-**Next ID: TASK-061** — never recycle a number, even when its item closed.
+**Next ID: TASK-063** — never recycle a number, even when its item closed.
 
 Planned work we decided to do: a feature, a refactor, a migration, a cleanup. It starts from INTENT -- nothing is wrong, we want something different.
 
@@ -12,15 +12,16 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 4 | accepted, not started |
-| [active/](active/) | 0 | in progress right now |
+| [open/](open/) | 5 | accepted, not started |
+| [active/](active/) | 1 | in progress right now |
 | [closed/](closed/) | 49 | done (kept for history) |
 | [dropped/](dropped/) | 4 | ended without completing |
 | [deferred/](deferred/) | 1 | parked pending a named condition |
 
 ## Open
 
-- **TASK-060** — OPEN 2026-10-24: injector family issuing HALF a DFI burst per transaction, addresses alternating bl-hi, bl-lo, bl-hi, bl-lo (owner's to-do); half-beat with strobes at the board geometry, shorter AxLEN at wider beats; a two-step stride in the generator; both directions, proxy + board.
+- **TASK-062** — OPEN 2026-10-25: ocelus on the memory controllers (owner): a monbus port out of granite and pumice, axi_monitor_lite on the slave port plus a controller event source (first event: the TASK-061 age invariant as an ERROR), through the ocelus monbus arbiter; the shared decoder on the sim side.
+- **TASK-061** — OPEN 2026-10-25: age-carrying per-bank FIFO for granite (owner's spec: push age = 1 + greatest head age across the N bank FIFOs; `age_decr` on any pop decrements every age toward 0, saturating) -- the scheduler level below FR-FCFS without CAMs; no earlier spec found in the tree.
 - **TASK-047** — dual issue on DFI 1:2: a row command on the other phase of
   the column's DFI word, so the ACT/PRE slot is free rather than well
   placed (bounded gain: 1 slot in 9 on bank walks; nothing on streams).
@@ -49,7 +50,7 @@ exactly one state by construction rather than by discipline.
 
 ## Active
 
-(none)
+- **TASK-060** — ACTIVE 2026-10-25: half-burst injector family with a rotation index i=0..7 (the two halves of a DRAM burst i+1 transactions apart; eight threads, one window each) -- pure injector programming; needs a pumice write combiner at CAM insert (merge on matching uncommitted {bank,row,col}) plus a merge counter so aggregation is seen and its knee measured. Reads later.
 
 ## Closed
 

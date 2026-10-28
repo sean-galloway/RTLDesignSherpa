@@ -362,7 +362,8 @@ module granite_core
     logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
     logic [DW-1:0]       snarf_rd_data;
     logic                ar_push_valid, ar_push_ready;
-    logic                rt_alloc_ready, rd_cam_ins_ready;
+    logic                rt_alloc_ready, rd_cam_ins_ready, rt_alloc_merge;
+    logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_src;
     logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket, rd_iss_ticket;
     logic                rd_iss_valid, rd_iss_ready;
     logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
@@ -486,6 +487,8 @@ module granite_core
         .rd_iss_valid_i     (rd_iss_valid),
         .rd_iss_ticket_i    (rd_iss_ticket),
         .rd_cam_ins_ready_i (rd_cam_ins_ready),
+        .rt_alloc_merge_i   (rt_alloc_merge),   // no read combiner on either granite store: tied 0
+        .rt_alloc_src_i     (rt_alloc_src),
         .rd_dfi_ret_valid_i (w_ret_v),
         .rd_dfi_ret_ready_o (w_ret_rdy),
         .rd_dfi_ret_data_i  (w_ret_data),
@@ -601,7 +604,13 @@ module granite_core
         assign w_rd_sch_agex  = '0;
         assign w_rd_sch_qos   = '0;
         assign w_rd_sch_hrel  = '0;
+        assign rt_alloc_merge = 1'b0;   // no read combiner on the FIFO store
+        assign rt_alloc_src   = '0;
     end else begin : g_entry_store
+        // mc_xddr2_entry_store has no read combiner either: the shadow alloc
+        // is a pumice (mc_storage_plane) feature
+        assign rt_alloc_merge = 1'b0;
+        assign rt_alloc_src   = '0;
         // ======================================================================
         // Plane 1b: storage-lite entry store (N=1 in-order seam)
         // ======================================================================

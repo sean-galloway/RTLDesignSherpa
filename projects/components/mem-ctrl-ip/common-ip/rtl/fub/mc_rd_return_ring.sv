@@ -29,6 +29,16 @@
 //          from mc_rd_cmd_cam (same 1-cycle read latency contract; see the
 //          note at the BRAM process).
 //
+//          Read combining (pumice TASK-060): a ticket may be allocated as a
+//          SHADOW of an older ticket whose read has not issued (the CAM found
+//          the same {bank,row,col}). A shadow is never issued and never
+//          filled: it becomes ready when its SOURCE's return completes, and
+//          the fetch reads its beats from the source's slot. The source slot
+//          is PINNED -- the tail will not re-allocate it -- until every shadow
+//          of it has been fetched, which is what keeps the source's data alive
+//          past the source's own drain. AR order is unchanged: the shadow is
+//          younger than its source, so it drains after it.
+//
 // Documentation: docs/uarch/PUMICE_AXI4_IFC_UARCH.md
 `timescale 1ns / 1ps
 
@@ -53,6 +63,10 @@ module mc_rd_return_ring #(
     input  logic                alloc_valid_i,
     output logic                alloc_ready_o,     // ring not full
     output logic [TW-1:0]       alloc_ticket_o,
+    // read combining: this allocation is a shadow of alloc_src_i (an older
+    // allocated ticket whose read has not issued). Tie 0 without a combiner.
+    input  logic                alloc_merge_i,
+    input  logic [TW-1:0]       alloc_src_i,
 
     //=========================================================================
     // Issue notify (from the CAM, when the column issues): ticket -> issue_q
@@ -88,14 +102,27 @@ module mc_rd_return_ring #(
     logic [OCW-1:0]  r_occ;                        // allocated, not yet freed
     logic            r_ready [DEPTH];              // slot data complete
     logic [1:0]      r_resp  [DEPTH];
+    logic            r_shadow[DEPTH];              // allocated as a shadow, not yet fully fetched
+    logic [TW-1:0]   r_src   [DEPTH];              // slot whose beats this one drains (itself unless a shadow)
 
     logic w_full, w_empty;
     assign w_full  = (r_occ == OCW'(DEPTH));
     assign w_empty = (r_occ == '0);
 
     // ---- allocate ----------------------------------------------------------
-    logic w_alloc;
-    assign alloc_ready_o  = !w_full;
+    // The tail slot is PINNED while an unfetched shadow still points at it:
+    // the shadow reads the source's beats at fetch time, after the source has
+    // drained and freed, so the slot must not be re-filled until then. No
+    // deadlock: the shadow's fetch waits on its source's return (already
+    // issued, or issuing from the CAM regardless of this port) and on the R
+    // drain, neither of which waits on an allocation.
+    logic w_alloc, w_tail_pinned;
+    always_comb begin
+        w_tail_pinned = 1'b0;
+        for (int i = 0; i < DEPTH; i++)
+            if (r_shadow[i] && (r_src[i] == r_tail)) w_tail_pinned = 1'b1;
+    end
+    assign alloc_ready_o  = !w_full && !w_tail_pinned;
     assign alloc_ticket_o = r_tail;
     assign w_alloc        = alloc_valid_i && alloc_ready_o;
 
@@ -178,8 +205,12 @@ module mc_rd_return_ring #(
     assign w_room       = (r_credits != 2'd0) || w_dr_fire;
     assign w_fetch      = w_room && w_fptr_ready;
 
+    // a shadow fetches its SOURCE's beats; any other slot fetches its own
+    logic [TW-1:0] w_fsrc;
+    assign w_fsrc = r_src[r_fptr];
+
     logic [31:0] w_dr_idx;
-    assign w_dr_idx = 32'(r_fptr) * 32'(AXI_BEATS_PER_BURST) + 32'(r_fbeat);
+    assign w_dr_idx = 32'(w_fsrc) * 32'(AXI_BEATS_PER_BURST) + 32'(r_fbeat);
 
     // the head is FREED when its last beat is consumed by the drain
     logic w_free;
@@ -197,35 +228,46 @@ module mc_rd_return_ring #(
             r_credits <= 2'(SKID_DEPTH);
             r_if_valid <= 1'b0; r_if_blast <= 1'b0; r_if_resp <= 2'b00;
             for (int i = 0; i < DEPTH; i++) begin
-                r_ready[i] <= 1'b0;
-                r_resp [i] <= 2'b00;
+                r_ready [i] <= 1'b0;
+                r_resp  [i] <= 2'b00;
+                r_shadow[i] <= 1'b0;
+                r_src   [i] <= TW'(i);
             end
         end else begin
-            // allocate: claim the tail slot (its stale ready bit is cleared)
-            if (w_alloc) begin
-                r_ready[r_tail] <= 1'b0;
-                r_tail          <= r_tail + 1'b1;
-            end
-
-            // return-fill: mark the slot complete on the last beat
+            // return-fill: mark the slot complete on the last beat, and every
+            // shadow of it with it (a shadow is allocated before its source
+            // issues, so it is registered long before this return)
             if (w_ret_fire) begin
                 if (dfi_ret_last_i) begin
                     r_ready[w_iq_rd_ticket] <= 1'b1;
                     r_resp [w_iq_rd_ticket] <= dfi_ret_resp_i;
                     r_ret_beat <= '0;
+                    for (int i = 0; i < DEPTH; i++)
+                        if (r_shadow[i] && (r_src[i] == w_iq_rd_ticket)) r_ready[i] <= 1'b1;
                 end else begin
                     r_ret_beat <= r_ret_beat + 1'b1;
                 end
+            end
+
+            // allocate: claim the tail slot (its stale ready bit is cleared).
+            // After the return-fill so the clear wins on the slot being
+            // claimed; a freed slot is never a shadow (cleared at fetch).
+            if (w_alloc) begin
+                r_ready [r_tail] <= 1'b0;
+                r_shadow[r_tail] <= alloc_merge_i;
+                r_src   [r_tail] <= alloc_merge_i ? alloc_src_i : r_tail;
+                r_tail           <= r_tail + 1'b1;
             end
 
             // fetch stage 1: issue the BRAM read of the fetch slot's next beat
             r_if_valid <= w_fetch;
             if (w_fetch) begin
                 r_if_blast <= (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1));
-                r_if_resp  <= r_resp[r_fptr];
+                r_if_resp  <= r_resp[w_fsrc];
                 if (r_fbeat == BCW'(AXI_BEATS_PER_BURST - 1)) begin
                     r_fbeat <= '0;
                     r_fptr  <= r_fptr + 1'b1;      // slot fully fetched: next slot
+                    r_shadow[r_fptr] <= 1'b0;      // a shadow releases its source's pin
                 end else begin
                     r_fbeat <= r_fbeat + 1'b1;
                 end
@@ -273,6 +315,12 @@ module mc_rd_return_ring #(
               else $error("RD_RING @%0t: DFI return beat with NO ticket in flight", $time);
             assert (!(issue_valid_i && w_empty))
               else $error("RD_RING @%0t: issue of ticket %0d with the ring EMPTY", $time, issue_ticket_i);
+            // a shadow's source must be an allocated, unreturned, non-shadow
+            // slot: anything else never makes the shadow ready
+            assert (!(w_alloc && alloc_merge_i
+                      && (r_shadow[alloc_src_i] || r_ready[alloc_src_i]
+                          || (OCW'(TW'(alloc_src_i - r_head)) >= r_occ))))
+              else $error("RD_RING @%0t: shadow of ticket %0d which is not a live source", $time, alloc_src_i);
         end
 `endif
 

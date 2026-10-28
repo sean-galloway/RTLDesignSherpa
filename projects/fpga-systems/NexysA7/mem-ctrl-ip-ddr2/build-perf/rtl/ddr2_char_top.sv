@@ -126,6 +126,18 @@ module ddr2_char_top #(
     localparam int  MMCM_CO1  = 4;     // sys2x     = 200 MHz (DDR2-400)
     localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 200 MHz
     localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+`elsif PUMICE_SYS_50
+    // 50 MHz / DDR2-200 profile (owner, 2026-10-25: "get this running at 50
+    // MHz", while the 75 MHz route-dominated miss is cleaned up). DRAM CK =
+    // 100 MHz is BELOW the MT47H64M16 125 MHz minimum (tCK max 8 ns, DLL on);
+    // the part runs there in practice but it is out of JEDEC spec -- a bring-up
+    // point, not a design point. PUMICE_SYS_50=1 selects it (create_project.tcl);
+    // SYS_100 wins over it.
+    localparam real MMCM_MULT = 8.0;   // VCO = 800 MHz
+    localparam real MMCM_CO0  = 16.0;  // sys       = 50 MHz
+    localparam int  MMCM_CO1  = 8;     // sys2x     = 100 MHz (DDR2-200)
+    localparam int  MMCM_CO2  = 8;     // sys2x_dqs = 100 MHz
+    localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
 `elsif PUMICE_SYS_75
     localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
     localparam real MMCM_CO0  = 8.0;   // sys       = 75 MHz
@@ -340,6 +352,8 @@ module ddr2_char_top #(
 `endif
 `ifdef PUMICE_SYS_100
         .FPGA_CLK_HZ     (100_000_000)  // sys = 100 MHz -> UART baud divisor (timing build)
+`elsif PUMICE_SYS_50
+        .FPGA_CLK_HZ     (50_000_000)   // sys = 50 MHz  -> UART baud divisor (bring-up point)
 `elsif PUMICE_SYS_75
         .FPGA_CLK_HZ     (75_000_000)   // sys = 75 MHz  -> UART baud divisor
 `else

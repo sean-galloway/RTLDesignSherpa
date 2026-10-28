@@ -212,6 +212,8 @@ module pumice_core_tb_top
         // stat_ref counts host idle time too, so this is the one a measured
         // refresh cost comes from.
         .stat_ref_busy_o(stat_ref_busy),
+        .stat_merge_o       (),   // write-merge counter (pumice TASK-060): not observed here
+        .stat_rd_merge_o    (),   // read-merge counter (pumice TASK-060): not observed here
         .stat_row_hit_o(stat_row_hit),
         // CSR-backed MR values at their RDL resets (MR0 0x0433 = BL8/CL3/tWR3);
         // no runtime MR retune in this TB, init_restart tied off.

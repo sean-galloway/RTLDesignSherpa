@@ -2,7 +2,7 @@
 
 # pumice — bugs
 
-**Next ID: BUG-032** — never recycle a number, even when its item closed.
+**Next ID: BUG-033** — never recycle a number, even when its item closed.
 
 A DEFECT with a reproduction: something behaves wrongly and we can say what correct looks like. If you cannot state the expected behaviour, it is an ISSUE, not a bug.
 
@@ -15,7 +15,7 @@ exactly one state by construction rather than by discipline.
 | [open/](open/) | 2 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 27 | done (kept for history) |
-| [dropped/](dropped/) | 1 | ended without completing |
+| [dropped/](dropped/) | 2 | ended without completing |
 | [deferred/](deferred/) | 0 | parked pending a named condition |
 
 ## Open
@@ -114,5 +114,7 @@ exactly one state by construction rather than by discipline.
   documented design point
 
 ## Dropped
+
+- **BUG-032** — DROPPED 2026-10-25: misfiled as a pre-existing 75 MHz miss; HEAD + harness-only closes at +0.123 ns / 0 failing. The miss is the TASK-060 `mc_wr_data_cam` rewrite (tracked in TASK-060).
 
 - **BUG-015** (was `PUMICE-038`) — the reader's ADDR_HASH compare is inert in the char sim build

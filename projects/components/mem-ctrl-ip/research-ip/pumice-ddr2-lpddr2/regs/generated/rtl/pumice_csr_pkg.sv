@@ -246,6 +246,22 @@ package pumice_csr_pkg;
     } pumice_csr__REF_STATS_REF_BUSY__in_t;
 
     typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STORE_STATS_MERGE__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STORE_STATS_MERGE__VAL__in_t VAL;
+    } pumice_csr__STORE_STATS_MERGE__in_t;
+
+    typedef struct {
+        logic [31:0] next;
+    } pumice_csr__STORE_STATS_RD_MERGE__VAL__in_t;
+
+    typedef struct {
+        pumice_csr__STORE_STATS_RD_MERGE__VAL__in_t VAL;
+    } pumice_csr__STORE_STATS_RD_MERGE__in_t;
+
+    typedef struct {
         pumice_csr__STATUS__in_t STATUS;
         pumice_csr__STATUS_HISTORY__in_t STATUS_HISTORY;
         pumice_csr__TEMP_DERATE_RANK0__in_t TEMP_DERATE_RANK0;
@@ -268,6 +284,8 @@ package pumice_csr_pkg;
         pumice_csr__STALL_BANKTIMER__in_t STALL_BANKTIMER;
         pumice_csr__STALL_NOREQ__in_t STALL_NOREQ;
         pumice_csr__REF_STATS_REF_BUSY__in_t REF_STATS_REF_BUSY;
+        pumice_csr__STORE_STATS_MERGE__in_t STORE_STATS_MERGE;
+        pumice_csr__STORE_STATS_RD_MERGE__in_t STORE_STATS_RD_MERGE;
     } pumice_csr__in_t;
 
     typedef struct {

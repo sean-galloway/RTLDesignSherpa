@@ -234,6 +234,9 @@ module char_gen_unit #(
     // Writer gap: BLEN_TXN.gap (4 bits) << BLEN_TXN.gap_shift (3 bits), up to
     // 15 << 7 = 1920 idle cycles between bursts.
     localparam int WR_GAP_WIDTH = 4 + 7;
+    // Reader gap: the same gap << gap_shift (the reader ignored gap_shift until
+    // 2026-10-25; the two generators now take the identical pacing program).
+    localparam int RD_GAP_WIDTH = 4 + 7;
 
     localparam int WR_ORDER_DEPTH = 1 << $clog2(NUM_GEN * GEN_MAX_OUTSTANDING);
 
@@ -382,6 +385,8 @@ module char_gen_unit #(
             .cfg_hammer_en        (cfg_i.WR_GEN[g].AXI_ATTR.hammer_en.value),
             .cfg_idx1_shift       (cfg_i.WR_GEN[g].AXI_ATTR.idx1_shift.value),
             .cfg_addr_lfsr        (cfg_i.WR_GEN[g].AXI_ATTR.addr_lfsr.value),
+            .cfg_idx1_bit         (cfg_i.WR_GEN[g].AXI_ATTR.idx1_bit.value),
+            .cfg_gap_sweep        (cfg_i.WR_GEN[g].AXI_ATTR.gap_sweep.value),
             .cfg_lfsr_seed        (cfg_i.WR_GEN[g].LFSR_SEED.seed.value),
             .cfg_data_mode        (cfg_i.WR_GEN[g].AXI_ATTR.data_mode.value),
             .cfg_fill_pattern     (cfg_i.WR_GEN[g].FILL_PATTERN.pattern.value),
@@ -439,6 +444,7 @@ module char_gen_unit #(
             .STRIDE_WIDTH       (STRIDE_WIDTH),
             .BURST_LEN_MULTIPLE (BURST_LEN_MULTIPLE),
             .MAX_OUTSTANDING    (GEN_MAX_OUTSTANDING),
+            .GAP_WIDTH          (RD_GAP_WIDTH),
             // Only generator 0 carries the debug FIFO; see the note above.
             .DBG_FIFO_DEPTH     ((g == 0) ? RD_DBG_FIFO_DEPTH : 0)
         ) u_rd_engine (
@@ -458,13 +464,16 @@ module char_gen_unit #(
             .cfg_hammer_en        (cfg_i.RD_GEN[g].AXI_ATTR.hammer_en.value),
             .cfg_idx1_shift       (cfg_i.RD_GEN[g].AXI_ATTR.idx1_shift.value),
             .cfg_addr_lfsr        (cfg_i.RD_GEN[g].AXI_ATTR.addr_lfsr.value),
+            .cfg_idx1_bit         (cfg_i.RD_GEN[g].AXI_ATTR.idx1_bit.value),
+            .cfg_gap_sweep        (cfg_i.RD_GEN[g].AXI_ATTR.gap_sweep.value),
             .cfg_lfsr_seed        (cfg_i.RD_GEN[g].LFSR_SEED.seed.value),
             .cfg_data_mode        (cfg_i.RD_GEN[g].AXI_ATTR.data_mode.value),
             .cfg_fill_pattern     (cfg_i.RD_GEN[g].FILL_PATTERN.pattern.value),
             .cfg_hash_seed0       (cfg_i.RD_GEN[g].HASH_SEED0.seed.value),
             .cfg_hash_seed1       (cfg_i.RD_GEN[g].HASH_SEED1.seed.value),
             .cfg_hash_seed2       (cfg_i.RD_GEN[g].HASH_SEED2.seed.value),
-            .cfg_rd_gap           (cfg_i.RD_GEN[g].BLEN_TXN.gap.value),
+            .cfg_rd_gap           (RD_GAP_WIDTH'(cfg_i.RD_GEN[g].BLEN_TXN.gap.value)
+                                   << cfg_i.RD_GEN[g].BLEN_TXN.gap_shift.value),
             .cfg_max_outstanding  (w_rd_os_limit[g]),
             .cfg_start            (rd_go_i[g]),
             .cfg_done             (w_rd_done[g]),

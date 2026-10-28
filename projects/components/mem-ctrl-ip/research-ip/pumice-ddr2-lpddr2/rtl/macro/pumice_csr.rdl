@@ -946,6 +946,27 @@ addrmap pumice_csr {
         field { sw = r; hw = w; desc = "REF commands issued with work pending"; } VAL[31:0];
     } REF_STATS_REF_BUSY @ 0x17C;
 
+    reg {
+        name = "Store Stats: Write Merges";
+        desc = "TASK-060. Writes COMBINED into an older uncommitted write to the same
+                {bank,row,col} in the wr CAM (two partial writes, one DRAM burst, two
+                Bs). Free-running; read as a delta around a run. With PAGE_STATS_HIT
+                (column ops) the aggregation ratio is (host writes - merges) / host
+                writes per column op. 0 when WR_MERGE_EN = 0.";
+        field { sw = r; hw = w; desc = "write merges performed"; } VAL[31:0];
+    } STORE_STATS_MERGE @ 0x18C;
+
+    reg {
+        name = "Store Stats: Read Merges";
+        desc = "TASK-060. Reads COMBINED into an older unissued read of the same
+                {bank,row,col} in the rd CAM (one DRAM burst, returned twice through
+                the return ring, each read framed to its own AxLEN). Free-running;
+                read as a delta around a run. With PAGE_STATS_HIT (column ops) the
+                aggregation ratio is (host reads - merges) / host reads per column
+                op. 0 when RD_MERGE_EN = 0.";
+        field { sw = r; hw = w; desc = "read merges performed"; } VAL[31:0];
+    } STORE_STATS_RD_MERGE @ 0x190;
+
     //=========================================================================
     // LPDDR2 Mode-Register OP Data (0x180 – 0x18F)
     // CSR-backed OP values for the init sequencer's LPDDR2 MRW chain — the

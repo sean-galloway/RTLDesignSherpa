@@ -173,22 +173,34 @@ set _sys100 0
 if {[info exists ::env(PUMICE_SYS_100)] && $::env(PUMICE_SYS_100) ne ""} {
     set _sys100 [expr {$::env(PUMICE_SYS_100) ne "0"}]
 }
+# PUMICE_SYS_50=1: the 50 MHz / DDR2-200 bring-up profile (owner, 2026-10-25,
+# while the 75 MHz route-dominated miss is cleaned up). DRAM CK 100 MHz is below
+# the JEDEC DDR2 minimum; a bring-up point, not a design point. SYS_100 wins.
+set _sys50 0
+if {[info exists ::env(PUMICE_SYS_50)] && $::env(PUMICE_SYS_50) ne ""} {
+    set _sys50 [expr {$::env(PUMICE_SYS_50) ne "0"}]
+}
 if {$_sys100} {
     lappend current_defines "PUMICE_SYS_100"
     set _freq_note "100.00 MHz (PUMICE_SYS_100 -- TIMING build, not a board point)"
+} elseif {$_sys50} {
+    lappend current_defines "PUMICE_SYS_50"
+    set _freq_note "50.00 MHz (PUMICE_SYS_50 -- bring-up point, DDR2 CK 100 MHz below JEDEC min)"
 } elseif {$_sys75} {
     lappend current_defines "PUMICE_SYS_75"
     set _freq_note "75.00 MHz (PUMICE_SYS_75 -- the board design point)"
 } else {
     set _freq_note "66.67 MHz (PUMICE_SYS_75=0 -- NOT the board design point)"
 }
-# PUMICE_SCHED_CORE=0|1: pumice pick core for A/B timing builds (default 1 =
-# BANK_PICK, the shipping core since recovery Phase 2; 0 = FRFCFS research).
+# PUMICE_SCHED_CORE=0|1: pumice pick core for A/B timing builds. Unset, the
+# top binds SCHED_CORE 0 = FRFCFS (ddr2_char_top.sv; owner 2026-10-22); 1 =
+# BANK_PICK is granite's core. The banner used to claim the default was 1
+# while the elaboration log bound 0 (caught 2026-10-27).
 if {[info exists ::env(PUMICE_SCHED_CORE)] && $::env(PUMICE_SCHED_CORE) ne ""} {
     lappend current_defines "PUMICE_SCHED_CORE=$::env(PUMICE_SCHED_CORE)"
     set _freq_note "$_freq_note, SCHED_CORE=$::env(PUMICE_SCHED_CORE)"
 } else {
-    set _freq_note "$_freq_note, SCHED_CORE=1 (BANK_PICK)"
+    set _freq_note "$_freq_note, SCHED_CORE=0 (FRFCFS, the top's default)"
 }
 # Say it loudly and unconditionally. "Which clock is this .bit" must never be
 # inferred from a board log two hundred lines in.

@@ -78,6 +78,8 @@ oldest-first once complete.
 | `BL`            | 4              | Beats per burst (`BCW = $clog2(BL)`)            |
 | `AGE_WIDTH`     | 16             | Free-running age counter width                  |
 | `N_SRAM_SLOTS`  | `NUM_ENTRIES`  | SRAM data slots (may be `< NUM_ENTRIES`)        |
+| `RD_RET_DEPTH`  | 32             | `mc_rd_return_ring` depth: the ticket width `TW` |
+| `MERGE_EN`      | 0 (1 in `pumice_core`) | Read combining (TASK-060): a read matching a live entry's `{bank,row,col}` takes no entry and rides that entry's burst through the return ring |
 
 ## Entry state (per slot)
 
@@ -101,9 +103,35 @@ older. The burst data lives in a distributed-RAM array `r_sram[N_SRAM_SLOTS*BL]`
 
 ### Insert (from `mc_rd_intake` `ar_push`, AR order)
 
-`ins_valid_i` / `ins_ready_o` with `{bank, row, col, id}`. `ins_ready_o` is
-`w_have_free` (any `!r_valid[i]`). On fire the slot is allocated, `r_issued` /
-`r_ready` cleared, key/id captured, and `r_age <= r_age_ctr`.
+`ins_valid_i` / `ins_ready_o` with `{bank, row, col, id, qos, ticket}`.
+`ins_ready_o` is `w_have_free` (any `!r_valid[i]`). On fire the slot is
+allocated, key / id / ticket captured, and `r_age <= r_age_ctr`. The ticket is
+the return ring's tail slot, allocated in the same cycle (`mc_axi4_plane`
+gates the ring's alloc on the CAM's ready and the CAM's insert on the ring's).
+
+### Read combining (`MERGE_EN`, pumice TASK-060)
+
+Every live entry is a read that has not issued (issue frees the entry), so an
+insert whose `{bank,row,col}` equals a live entry's is a second read of a DRAM
+burst still to come. With `MERGE_EN` that insert **allocates nothing**:
+`ins_merge_o` goes high with `ins_merge_ticket_o` = the matched entry's ticket,
+and the ring allocates the new ticket as a *shadow* of it (see
+`mc_rd_return_ring`). One column command issues; the ring hands the burst out
+twice, in AR order; `mc_rd_intake` frames each read's own AxLEN from it.
+`stat_merge_o` counts the merges (`STORE_STATS_RD_MERGE`).
+
+Two properties follow from the key being the exact column word:
+
+* a read of a *different beat window* of the same burst (a wider geometry,
+  where a half burst is a shorter AxLEN at a higher start address) has a
+  different column and issues its own burst -- which is required, because the
+  intake forwards the first `AxLEN + 1` beats of whatever burst it is handed;
+* on the board (one AXI beat per DRAM burst) two narrow halves of a beat map
+  to the same column and merge.
+
+The merge decision is not in `ins_ready_o`: a merge still waits for a free
+entry, so the compare cone never reaches the admit path. The window is "the
+first read has not issued", shorter than the write combiner's "not committed".
 
 ### Scheduler lookups (N, keyed `{bank, row}`)
 

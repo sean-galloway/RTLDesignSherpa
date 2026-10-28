@@ -1,0 +1,189 @@
+Copyright 1986-2022 Xilinx, Inc. All Rights Reserved. Copyright 2022-2025 Advanced Micro Devices, Inc. All Rights Reserved.
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+| Tool Version : Vivado v.2025.1 (lin64) Build 6140274 Wed May 21 22:58:25 MDT 2025
+| Date         : Tue Oct 27 16:55:38 2026
+| Host         : amdtrp running 64-bit Ubuntu 24.04.5 LTS
+| Command      : report_timing -sort_by group -max_paths 20 -path_type summary -file /tmp/claude-1000/-mnt-data-github-RTLDesignSherpa/af42be44-f9ae-4bc5-806e-3e1980146142/scratchpad/p75/fpga/reports/timing_worst.txt
+| Design       : ddr2_char_top
+| Device       : 7a100t-csg324
+| Speed File   : -1  PRODUCTION 1.23 2018-06-13
+| Design State : Physopt postRoute
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Timing Report
+
+Startpoint                     Endpoint                       Slack(ns)     
+----------------------------------------------------------------------------
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[6]/D
+                                                              -5.630        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[1]/D
+                                                              -5.628        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[5]/D
+                                                              -5.618        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pop_reg[7][1]/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[4]/D
+                                                              -5.600        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[2]/D
+                                                              -5.585        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[0]/D
+                                                              -5.548        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[2]/D
+                                                              -5.502        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[1]/D
+                                                              -5.488        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[7]/D
+                                                              -5.481        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[3]/D
+                                                              -5.465        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[5][1]/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_act_q_reg[1]/D
+                                                              -5.458        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[0]/D
+                                                              -5.458        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pop_reg[7][1]/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_col_q_reg[3]/D
+                                                              -5.432        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[6]/D
+                                                              -5.417        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[4]/D
+                                                              -5.360        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[5][1]/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_act_q_reg[6]/D
+                                                              -5.309        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[5]/D
+                                                              -5.287        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[0][2]_replica_1/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_pre_q_reg[7]/D
+                                                              -5.234        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[5][1]/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_act_q_reg[4]/D
+                                                              -5.159        
+u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_rd_pop_reg[5][1]/C
+                               u_harness/u_dut/u_ctrl/u_core/u_core/u_sched_plane/g_arbiter.u_arbiter/r_wr_act_q_reg[0]/D
+                                                              -5.151        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/r_r_req_count_reg[10]/CLR
+                                                              -0.169        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/r_r_req_count_reg[11]/CLR
+                                                              -0.169        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/r_r_req_count_reg[12]/CLR
+                                                              -0.169        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/r_r_req_count_reg[13]/CLR
+                                                              -0.169        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/r_r_req_count_reg[14]/CLR
+                                                              -0.167        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/r_r_req_count_reg[15]/CLR
+                                                              -0.167        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/u_idx_lfsr_ar/r_lfsr_reg[14]/CLR
+                                                              -0.083        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/u_idx_lfsr_r/r_lfsr_reg[11]/CLR
+                                                              -0.081        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/u_idx_lfsr_r/r_lfsr_reg[12]/CLR
+                                                              -0.081        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_rd_engine[1].u_rd_engine/u_idx_lfsr_r/r_lfsr_reg[13]/CLR
+                                                              -0.081        
+u_harness/r_rst_sync_reg/C     u_harness/u_dut/u_engines/u_gen_unit/g_wr_engine[2].u_wr_engine/r_w_req_count_reg[0]/CLR
+                                                              0.071         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][13][13]/CLR
+                                                              0.139         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][13][17]/CLR
+                                                              0.139         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][13][19]/CLR
+                                                              0.139         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][13][21]/CLR
+                                                              0.139         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][13][22]/CLR
+                                                              0.139         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][12][17]/CLR
+                                                              0.142         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][12][1]/CLR
+                                                              0.142         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][12][20]/CLR
+                                                              0.142         
+u_harness/u_harness_csr/r_clear_stats_pulse_reg/C
+                               u_harness/u_dut/u_engines/u_hist_wr/r_hist_reg[0][12][29]/CLR
+                                                              0.142         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[1]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[1]/D
+                                                              3.446         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[10]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[10]/D
+                                                              3.526         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[2]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[2]/D
+                                                              3.528         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[5]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[5]/D
+                                                              3.634         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[0]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[0]/D
+                                                              3.640         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[4]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[4]/D
+                                                              3.643         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[6]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[6]/D
+                                                              3.752         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[9]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[9]/D
+                                                              3.880         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[8]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[8]/D
+                                                              3.908         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[3]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[3]/D
+                                                              4.042         
+u_harness/u_led_status_driver/u_hs/r_req_tog_reg/C
+                               u_harness/u_led_status_driver/u_hs/r_req_sync_reg[0]/D
+                                                              4.109         
+u_harness/u_led_status_driver/u_hs/r_src_data_hold_reg[7]/C
+                               u_harness/u_led_status_driver/u_hs/r_dst_data_reg[7]/D
+                                                              4.300         
+r_rst_meta_reg/C               r_rst_sync_reg/D               9.272         
+u_harness/u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_harness/u_led_status_driver/r_led_reg[0]/CE
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/r_dst_data_reg[0]/C
+                               u_harness/u_led_status_driver/r_led_reg[0]/D
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_harness/u_led_status_driver/r_led_reg[10]/CE
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_harness/u_led_status_driver/r_led_reg[11]/CE
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_harness/u_led_status_driver/r_led_reg[12]/CE
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/r_dst_data_reg[12]/C
+                               u_harness/u_led_status_driver/r_led_reg[12]/D
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_harness/u_led_status_driver/r_led_reg[13]/CE
+                                                              13333332.000  
+u_harness/u_led_status_driver/u_hs/dst_valid_reg/C
+                               u_harness/u_led_status_driver/r_led_reg[14]/CE
+                                                              13333332.000  
+
+
+

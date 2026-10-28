@@ -471,7 +471,8 @@ module scoria_core
     logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
     logic [DW-1:0]       snarf_rd_data;
     logic                ar_push_valid, ar_push_ready;
-    logic                rt_alloc_ready, rd_cam_ins_ready;
+    logic                rt_alloc_ready, rd_cam_ins_ready, rt_alloc_merge;
+    logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_src;
     logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket, rd_iss_ticket;
     logic                rd_iss_valid, rd_iss_ready;
     logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
@@ -597,6 +598,8 @@ module scoria_core
         .rd_iss_valid_i     (rd_iss_valid),
         .rd_iss_ticket_i    (rd_iss_ticket),
         .rd_cam_ins_ready_i (rd_cam_ins_ready),
+        .rt_alloc_merge_i   (rt_alloc_merge),
+        .rt_alloc_src_i     (rt_alloc_src),
         // DFI return stream
         .rd_dfi_ret_valid_i (w_ret_v),
         .rd_dfi_ret_ready_o (w_ret_rdy),
@@ -642,6 +645,8 @@ module scoria_core
         .wd_last_i          (wd_last),
         .wr_done_valid_o    (wr_done_valid),
         .wr_done_id_o       (wr_done_id),
+        .stat_merge_o       (),   // write-merge counter (pumice TASK-060): not observed here
+        .stat_rd_merge_o    (),   // read-merge counter (pumice TASK-060): not observed here
         // snarf
         .snarf_probe_valid_i(snarf_probe_valid),
         .snarf_probe_bank_i (snarf_bank),
@@ -670,6 +675,8 @@ module scoria_core
         .rd_iss_valid_o     (rd_iss_valid),
         .rd_iss_ticket_o    (rd_iss_ticket),
         .rd_cam_ins_ready_o (rd_cam_ins_ready),
+        .rd_ins_merge_o     (rt_alloc_merge),
+        .rd_ins_merge_ticket_o(rt_alloc_src),
         // scheduler -> CAMs
         .sched_age_thresh_i (sched_age_thresh_i),
         .wr_commit_valid_i  (w_wr_commit_v),

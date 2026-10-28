@@ -126,6 +126,8 @@ module pumice_top
     logic [31:0] w_stat_row_hit [NUM_BANKS];   // per-bank row hits (BUG-020)
     logic [31:0] w_stat_act, w_stat_pre, w_stat_ref;
     logic [31:0] w_stat_ref_busy;   // TASK-012: REFs with work pending
+    logic [31:0] w_stat_merge;      // TASK-060: write merges in the wr CAM
+    logic [31:0] w_stat_rd_merge;   // TASK-060: read merges in the rd CAM
     // training plane status
     logic [DFI_DATA_WIDTH-1:0] w_mrr32_data, w_mrr40_data;
     logic                      w_cal_busy, w_cal_done, w_cal_err;
@@ -141,6 +143,8 @@ module pumice_top
         hwif_in.STALL_BANKTIMER.VAL.next = w_stall_banktimer;
         hwif_in.STALL_NOREQ.VAL.next = w_stall_noreq;
         hwif_in.PAGE_STATS_HIT.VAL.next    = w_stat_page_hit;
+        hwif_in.STORE_STATS_MERGE.VAL.next = w_stat_merge;
+        hwif_in.STORE_STATS_RD_MERGE.VAL.next = w_stat_rd_merge;
         // Per-bank row hits. These were in the register map, in the MAS and
         // in the generated docs with NOTHING driving them -- pumice_top had
         // zero hwif_in.OBS_* assignments, so all 35 OBS_* registers read 0
@@ -318,6 +322,8 @@ module pumice_top
         .stat_pre_o         (w_stat_pre),
         .stat_ref_o         (w_stat_ref),
         .stat_ref_busy_o    (w_stat_ref_busy),
+        .stat_merge_o       (w_stat_merge),
+        .stat_rd_merge_o    (w_stat_rd_merge),
         .bank_lsb_i         (hwif_out.ADDR_MAP.bank_lsb.value),
         .hash_en_i          (hwif_out.ADDR_MAP.hash_en.value),
         .hash_seed_i        (hwif_out.ADDR_MAP.hash_seed.value),

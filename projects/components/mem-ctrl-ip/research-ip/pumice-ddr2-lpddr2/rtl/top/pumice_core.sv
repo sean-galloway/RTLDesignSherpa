@@ -60,6 +60,8 @@ module pumice_core
     // branches tie the LPDDR2 machinery off (231 LUT / 518 FF on the board,
     // mem-ctrl recovery Phase 3 report 5.10).
     parameter bit HAS_LPDDR2 = 1'b1,
+    parameter bit WR_MERGE_EN = 1'b1, // write combining in the wr CAM: two partial writes to one DRAM burst commit once (pumice TASK-060)
+    parameter bit RD_MERGE_EN = 1'b1, // read combining in the rd CAM: two reads of one unissued DRAM burst issue once, the ring returns it twice (pumice TASK-060)
     parameter bit DFI_CDC_EN = 1'b1, // 0 = aclk and dfi_clk are one clock: no DFI crossing, synchronous FIFOs
     parameter bit CLOSE_ON_DRAIN = 1'b1, // last same-row column carries auto-precharge.
                                          // Off since BUG-027 (the "youngest schedulable"
@@ -170,6 +172,8 @@ module pumice_core
     output logic [31:0]                stat_pre_o,
     output logic [31:0]                stat_ref_o,
     output logic [31:0]                stat_ref_busy_o,   // TASK-012
+    output logic [31:0]                stat_merge_o,      // TASK-060: write merges
+    output logic [31:0]                stat_rd_merge_o,   // TASK-060: read merges
 
     input  logic [4:0]                 bank_lsb_i,
     input  logic                       hash_en_i,
@@ -393,7 +397,8 @@ module pumice_core
     logic                snarf_rd_valid, snarf_rd_ready, snarf_rd_last;
     logic [DW-1:0]       snarf_rd_data;
     logic                ar_push_valid, ar_push_ready;
-    logic                rt_alloc_ready, rd_cam_ins_ready;
+    logic                rt_alloc_ready, rd_cam_ins_ready, rt_alloc_merge;
+    logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_src;
     logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_ticket, rd_iss_ticket;
     logic                rd_iss_valid, rd_iss_ready;
     logic [BKW-1:0]      ar_push_bank;  logic [ROW_WIDTH-1:0] ar_push_row;
@@ -519,6 +524,8 @@ module pumice_core
         .rd_iss_valid_i     (rd_iss_valid),
         .rd_iss_ticket_i    (rd_iss_ticket),
         .rd_cam_ins_ready_i (rd_cam_ins_ready),
+        .rt_alloc_merge_i   (rt_alloc_merge),
+        .rt_alloc_src_i     (rt_alloc_src),
         // DFI return stream
         .rd_dfi_ret_valid_i (w_ret_v),
         .rd_dfi_ret_ready_o (w_ret_rdy),
@@ -550,7 +557,9 @@ module pumice_core
         .N_SRAM_SLOTS  (N_SRAM_SLOTS),
         .N_SCHED_LU    (N_LU),
         .AGE_WIDTH     (AGE_WIDTH),
-        .RD_RET_DEPTH  (RD_RET_DEPTH)
+        .RD_RET_DEPTH  (RD_RET_DEPTH),
+        .WR_MERGE_EN   (WR_MERGE_EN),
+        .RD_MERGE_EN   (RD_MERGE_EN)
     ) u_store_plane (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -571,6 +580,8 @@ module pumice_core
         .wd_last_i          (wd_last),
         .wr_done_valid_o    (wr_done_valid),
         .wr_done_id_o       (wr_done_id),
+        .stat_merge_o       (stat_merge_o),
+        .stat_rd_merge_o    (stat_rd_merge_o),
         // snarf
         .snarf_probe_valid_i(snarf_probe_valid),
         .snarf_probe_bank_i (snarf_bank),
@@ -599,6 +610,8 @@ module pumice_core
         .rd_iss_valid_o     (rd_iss_valid),
         .rd_iss_ticket_o    (rd_iss_ticket),
         .rd_cam_ins_ready_o (rd_cam_ins_ready),
+        .rd_ins_merge_o     (rt_alloc_merge),
+        .rd_ins_merge_ticket_o(rt_alloc_src),
         // scheduler -> CAMs
         .sched_age_thresh_i (sched_age_thresh_i),
         .wr_commit_valid_i  (w_wr_commit_v),

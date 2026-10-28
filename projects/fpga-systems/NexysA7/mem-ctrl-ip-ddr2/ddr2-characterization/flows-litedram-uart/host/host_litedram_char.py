@@ -124,18 +124,21 @@ def run(drv: LiteDRAMCharDriver, *, profile: Optional[str], level: str,
     A profile in pumice_char names (configs x scenarios); the configs are
     pumice CSR presets that mean nothing here, so only the scenario half is
     taken and every record is tagged 'litedram'."""
-    conc = None
+    conc = sc_over = sc_sweep = None
     if profile:
         p = pc.RUN_PROFILES[profile]
         level, families = p["level"], p["families"]
         conc = p.get("concurrent")
+        # the Scenario override / sweep are part of the scenario half too
+        # (the half-burst thread profiles, pumice TASK-060)
+        sc_over, sc_sweep = p.get("sc_over"), p.get("sc_sweep")
     else:
         families = None
     return pc.run_matrix(drv, configs=[LITEDRAM], level=level,
                          families=families, txn_scale=txn_scale,
                          base_addr=base_addr, timeout_s=timeout_s,
                          clk_mhz=LITEDRAM_CLK_MHZ, progress=progress,
-                         concurrent=conc)
+                         concurrent=conc, sc_over=sc_over, sc_sweep=sc_sweep)
 
 
 def main() -> int:

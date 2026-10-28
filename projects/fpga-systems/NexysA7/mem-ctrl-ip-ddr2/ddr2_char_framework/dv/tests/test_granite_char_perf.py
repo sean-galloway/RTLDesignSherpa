@@ -306,6 +306,10 @@ async def cocotb_test_granite_perf(dut):
         return out_d
 
     def measure_family(fam_key):
+        if fam_key in pmf.CONC_FAMILIES:
+            return pmf.measure_conc(fam_key, drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn,
+                                    gap=gap, clk_mhz=clk_mhz, hist_mean=lambda h, t: 0.0,
+                                    diag=diag, host_diag=_host_diag, always_diag=always_diag)
         if fam_key == "mixed":
             # no AR->R latency histogram on this proxy: report 0.0 for it
             return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,

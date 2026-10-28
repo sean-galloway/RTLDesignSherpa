@@ -81,6 +81,8 @@ Don't override. Generated from: $root
 | 0x180|       LP_MR1_OP       |           LPDDR2 MR1 OP Data           |
 | 0x184|       LP_MR2_OP       |           LPDDR2 MR2 OP Data           |
 | 0x188|       LP_MR3_OP       |           LPDDR2 MR3 OP Data           |
+| 0x18C|   STORE_STATS_MERGE   |        Store Stats: Write Merges       |
+| 0x190|  STORE_STATS_RD_MERGE |        Store Stats: Read Merges        |
 | 0xFF0|           ID          |                Module ID               |
 | 0xFF4|         BUILD         |               Build Hash               |
 
@@ -2036,6 +2038,47 @@ JESD209-2F default 0x02 = DS 40ohm.</p>
 #### RSVD field
 
 <p>Reserved</p>
+
+### STORE_STATS_MERGE register
+
+- Absolute Address: 0x18C
+- Base Offset: 0x18C
+- Size: 0x4
+
+<p>TASK-060. Writes COMBINED into an older uncommitted write to the same
+{bank,row,col} in the wr CAM (two partial writes, one DRAM burst, two
+Bs). Free-running; read as a delta around a run. With PAGE_STATS_HIT
+(column ops) the aggregation ratio is (host writes - merges) / host
+writes per column op. 0 when WR_MERGE_EN = 0.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>write merges performed</p>
+
+### STORE_STATS_RD_MERGE register
+
+- Absolute Address: 0x190
+- Base Offset: 0x190
+- Size: 0x4
+
+<p>TASK-060. Reads COMBINED into an older unissued read of the same
+{bank,row,col} in the rd CAM (one DRAM burst, returned twice through
+the return ring, each read framed to its own AxLEN). Free-running;
+read as a delta around a run. With PAGE_STATS_HIT (column ops) the
+aggregation ratio is (host reads - merges) / host reads per column
+op. 0 when RD_MERGE_EN = 0.</p>
+
+|Bits|Identifier|Access|Reset|Name|
+|----|----------|------|-----|----|
+|31:0|    VAL   |   r  |  —  |  — |
+
+#### VAL field
+
+<p>read merges performed</p>
 
 ### ID register
 

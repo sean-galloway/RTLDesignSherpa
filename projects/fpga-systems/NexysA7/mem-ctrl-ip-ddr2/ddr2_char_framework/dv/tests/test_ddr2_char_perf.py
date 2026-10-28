@@ -73,6 +73,8 @@ import ddr2_char as dc                                    # noqa: E402
 import pumice_char as pc                                  # noqa: E402
 import pumice_master as pm
 import perf_mixed_family as pmf                                # noqa: E402
+import perf_half_rot_family as phr                             # noqa: E402
+import half_burst_family as hbf                                # noqa: E402  (build-perf/host, shared with the board)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # Only the named helpers: importing the uart test's test_* functions would make
@@ -614,6 +616,24 @@ async def cocotb_test_pumice_perf(dut):
         return out
 
     def measure_family(fam_key):
+        if hbf.is_half_family(fam_key):
+            # the four board patterns (TASK-060): TEST_HALF_BURSTS DRAM bursts per
+            # thread (2 x that in host transactions), TEST_HALF_THREADS active threads
+            return hbf.measure_dict(drv, dc, pm, pc, geom, fam=fam_key,
+                                    n_bursts=int(os.environ.get("TEST_HALF_BURSTS", "32"), 0),
+                                    n_gen=n_gen, burst_bytes=DRAM_BL * DRAM_DEVICE_BYTES,
+                                    clk_mhz=clk_mhz, hist_mean=_hist_mean_cycles, diag=diag,
+                                    host_diag=_host_diag, always_diag=always_diag,
+                                    threads=os.environ.get("TEST_HALF_THREADS", "1"),
+                                    seed_fields=lambda t: pmf.seed_fields(t, seed=pmf.PERF_SEED),
+                                    reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1")
+        if fam_key.startswith("half_rot"):
+            return phr.measure(drv, dc, pm, pc, geom, d=phr.parse_distance(fam_key), n_gen=n_gen,
+                               burst_bytes=DRAM_BL * DRAM_DEVICE_BYTES,
+                               clk_mhz=clk_mhz, hist_mean=_hist_mean_cycles, diag=diag,
+                               host_diag=_host_diag, always_diag=always_diag,
+                               reads=os.environ.get("TEST_HALF_ROT_READS", "1") == "1",
+                               threads=os.environ.get("TEST_HALF_ROT_THREADS"))
         if fam_key == "mixed":
             return pmf.measure(drv, dc, pm, geom, n_gen=n_gen, blen=blen, txn=txn, gap=gap,
                                clk_mhz=clk_mhz, hist_mean=_hist_mean_cycles, diag=diag,

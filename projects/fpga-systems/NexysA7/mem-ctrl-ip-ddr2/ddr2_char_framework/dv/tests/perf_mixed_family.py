@@ -191,3 +191,94 @@ def measure(drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
         "rd_lat_cyc": round(hist_mean(rd_hist, rd_tot), 1),
         "clk_mhz": round(clk_mhz, 4),
     }
+
+
+# ---- conc_*: the board's 1 writer + 1 reader (2026-10-26) ------------------
+# The board's `concurrent` profile runs one writer and one reader from one GO
+# on adjacent power-of-two regions; on granite's map two adjacent regions of
+# a whole walk are the SAME banks at different rows (conc_rows), and a walk
+# that fits one page puts the reader in the NEXT BANK at the same row
+# (conc_banks). Both collapsed on the board (54 / 45 MB/s combined against
+# pumice's 553 / 571 through the same harness) while every single-direction
+# stream ran at 96 percent of peak, so this is the proxy for that cell.
+# Writer = generator 0, reader = generator 1 (needs TEST_NUM_GEN >= 2).
+CONC_FAMILIES = ("conc_rows", "conc_banks")
+
+
+def conc_programs(fam, geom, dc, *, blen, txn, gap, seed=PERF_SEED):
+    """(writer program, reader program) for one conc family."""
+    beat_bytes = 1 << dc.AXI_SIZE_8
+    stride = blen * beat_bytes
+    span = txn * stride
+    span = 1 << max(0, (span - 1).bit_length())       # the board rounds up to pow2
+    if fam == "conc_rows":
+        wr_start, rd_start, wrap = 0, span, 0          # adjacent regions, whole walk
+    elif fam == "conc_banks":
+        wr_start, rd_start = 0, geom.bank_stride        # next bank, same row
+        wrap = geom.page_bytes - 1                      # ... each walk inside its page
+    else:
+        raise ValueError(fam)
+    common = dict(burst_len=blen, txn_count=txn, stride_0=stride, wrap_mask_0=wrap, gap=gap,
+                  id_mode=dc.ID_MODE_FIXED, axi_size=dc.AXI_SIZE_8, data_mode=True)
+    wr = dict(start_addr=wr_start, gen=0, **common, **seed_fields(0, 0, seed))
+    rd = dict(start_addr=rd_start, gen=1, **common, **seed_fields(1, 1, seed))
+    return wr, rd
+
+
+def measure_conc(fam, drv, dc, pm, geom, *, n_gen, blen, txn, gap, clk_mhz,
+                 hist_mean, diag=None, host_diag=None, always_diag=False,
+                 timeout_s=120, seed=PERF_SEED):
+    """One writer and one reader from one GO; the same record shape as mixed."""
+    assert n_gen >= 2, f"{fam} needs >= 2 generators (TEST_NUM_GEN={n_gen})"
+    beat_bytes = 1 << dc.AXI_SIZE_8
+    bytes_dir = txn * blen * beat_bytes
+    wr_prog, rd_prog = conc_programs(fam, geom, dc, blen=blen, txn=txn, gap=gap, seed=seed)
+
+    # Untimed pre-pass: the reader's region, written by generator 1's write engine.
+    drv.freeze_trace(True)
+    drv.program_wr_engine(**rd_prog)
+    drv.start_wr(0b10)
+    pre_ok = pm.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    if not pre_ok and diag is not None and host_diag is not None:
+        diag[f"{fam}_prepass"] = host_diag(drv)
+
+    drv.program_wr_engine(**wr_prog)
+    drv.program_rd_engine(**rd_prog)
+    drv.clear_stats()
+    drv.timer_clear()
+    drv.freeze_trace(False)
+    drv.go(wr_mask=0b01, rd_mask=0b10)
+    wr_ok = pm.wait_engine(drv, "wr", timeout_s=timeout_s, ignore_error=True)
+    rd_ok = pm.wait_engine(drv, "rd", timeout_s=timeout_s, ignore_error=True)
+    if (not (wr_ok and rd_ok) or always_diag) and diag is not None and host_diag is not None:
+        diag[fam] = host_diag(drv)
+    drv.freeze_trace(True)
+    t = drv.timer()
+    w_first, w_last = int(t.w_first), int(t.w_last)
+    r_first, r_last = int(t.r_first), int(t.r_last)
+    wr_cycles = max(w_last - w_first, 0)
+    rd_cycles = max(r_last - r_first, 0)
+    mixed_cycles = max(max(w_last, r_last) - min(w_first, r_first), 0)
+    meters = drv.perf_meters()
+    wr_util = meters["wr"].prod / max(wr_cycles, 1)
+    rd_util = meters["rd"].prod / max(rd_cycles, 1)
+    wr_hist, wr_tot = drv.perf_hist_dump(dc.HIST_BUS_WR, dc.HIST_METRIC_0)
+    rd_hist, rd_tot = drv.perf_hist_dump(dc.HIST_BUS_RD, dc.HIST_METRIC_0)
+    mism = drv.beats_mismatched()
+    return {
+        "family": fam, "stride": wr_prog["stride_0"], "wrap": wr_prog["wrap_mask_0"],
+        "wr_start": wr_prog["start_addr"], "rd_start": rd_prog["start_addr"],
+        "seed": seed, "wr_seeds": [wr_prog["lfsr_seed"]], "rd_seeds": [rd_prog["lfsr_seed"]],
+        "txn": txn, "burst_len": blen, "num_gen": 2,
+        "bytes_moved": 2 * bytes_dir, "prepass_ok": bool(pre_ok),
+        "wr_ok": bool(wr_ok), "rd_ok": bool(rd_ok), "mismatched": int(mism),
+        "wr_cycles": int(wr_cycles), "rd_cycles": int(rd_cycles),
+        "mixed_cycles": int(mixed_cycles),
+        "wr_util": round(float(wr_util), 4), "rd_util": round(float(rd_util), 4),
+        "wr_bw_mb_s": round(bytes_dir / wr_cycles * clk_mhz, 1) if wr_cycles else 0.0,
+        "rd_bw_mb_s": round(bytes_dir / rd_cycles * clk_mhz, 1) if rd_cycles else 0.0,
+        "mixed_bw_mb_s": round(2 * bytes_dir / mixed_cycles * clk_mhz, 1) if mixed_cycles else 0.0,
+        "wr_lat_cyc": round(hist_mean(wr_hist, wr_tot), 1),
+        "rd_lat_cyc": round(hist_mean(rd_hist, rd_tot), 1),
+        "clk_mhz": round(clk_mhz, 4),
+    }

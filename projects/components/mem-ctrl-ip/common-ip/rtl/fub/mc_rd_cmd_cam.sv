@@ -22,6 +22,19 @@
 //          trip and eight entries bounded read bandwidth by Little's law to
 //          ~180 MB/s on the board. See design/README.md.)
 //
+//          Read combining (MERGE_EN, pumice TASK-060): an insert whose
+//          {bank,row,col} matches a LIVE entry (admitted, not yet issued)
+//          allocates nothing. Its ticket is handed to the return ring as a
+//          SHADOW of the matched entry's ticket: one DRAM burst is issued, the
+//          ring hands its beats out twice, in AR order, and the intake frames
+//          each read's own AxLEN from them. The window is "the first read has
+//          not issued" -- shorter than the writer's "not committed", because a
+//          read entry frees at issue. The key is the exact column word: a read
+//          of a different beat window of the same DRAM burst has a different
+//          column and issues its own burst, which is what the intake's
+//          first-N-beats framing requires. On the board (one beat per burst)
+//          two narrow halves of a beat share the column and merge.
+//
 // Age (wrap-safe via rel = age_ctr - entry_age):
 //   * issue-side oldest/lookups -> oldest valid entry [max rel]
 //
@@ -39,6 +52,10 @@ module mc_rd_cmd_cam #(
     parameter int AXI_ID_WIDTH    = 8,
     parameter int AGE_WIDTH       = 16,
     parameter int RD_RET_DEPTH    = 32,   // mc_rd_return_ring DEPTH (ticket space)
+    // Read combining (pumice TASK-060): 1 = an insert matching a live entry's
+    // {bank,row,col} takes no entry and rides that entry's DRAM burst through
+    // the return ring (ins_merge_o). 0 = every read is its own burst.
+    parameter bit MERGE_EN        = 1'b0,
 
     parameter int IW    = AXI_ID_WIDTH,
     parameter int BKW   = $clog2(NUM_BANKS),
@@ -59,6 +76,13 @@ module mc_rd_cmd_cam #(
     input  logic [IW-1:0]                 ins_id_i,
     input  logic [3:0]                    ins_qos_i,     // AxQOS (QOS_EN pick)
     input  logic [TW-1:0]                 ins_ticket_i,  // return-ring slot
+    // Read combining (MERGE_EN): this insert matches a live entry. Combinational
+    // on ins_valid_i, taken by the ring with its alloc in the same cycle: the
+    // new ticket becomes a SHADOW of ins_merge_ticket_o and the CAM allocates
+    // nothing. Constant 0 when MERGE_EN = 0. Not in ins_ready_o: a merge still
+    // waits for a free entry, so the match cone never reaches the ready path.
+    output logic                          ins_merge_o,
+    output logic [TW-1:0]                 ins_merge_ticket_o,
 
     //=========================================================================
     // Scheduler lookups (N generic, keyed {bank,row}) — oldest match
@@ -118,6 +142,9 @@ module mc_rd_cmd_cam #(
     input  logic                          iss_ready_i,
     output logic [TW-1:0]                 iss_ticket_o,
 
+    // read-combining telemetry (free-running): merges performed
+    output logic [31:0]                   stat_merge_o,
+
     output logic                          busy_o
 );
 
@@ -161,6 +188,32 @@ module mc_rd_cmd_cam #(
     logic w_ins_fire;
     assign ins_ready_o = w_have_free;
     assign w_ins_fire  = ins_valid_i && ins_ready_o;
+
+    // ---- read combining: insert-time match against live entries ------------
+    // Every live entry is unissued (issue frees), so any match is a burst
+    // still to come. With MERGE_EN two live entries never share a key (the
+    // second always merged), so the priority of the scan is moot.
+    logic            w_mg_hit;
+    logic [PTRW-1:0] w_mg_slot;
+    logic            w_ins_alloc;    // an insert that takes an entry
+    always_comb begin
+        w_mg_hit  = 1'b0;
+        w_mg_slot = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--)
+            if (MERGE_EN && r_valid[i] && (r_bank[i] == ins_bank_i)
+                && (r_row[i] == ins_row_i) && (r_col[i] == ins_col_i)) begin
+                w_mg_hit  = 1'b1;
+                w_mg_slot = PTRW'(i);
+            end
+    end
+    assign ins_merge_o        = ins_valid_i && w_mg_hit;
+    assign ins_merge_ticket_o = r_ticket[w_mg_slot];
+    assign w_ins_alloc        = w_ins_fire && !w_mg_hit;
+
+    `ALWAYS_FF_RST(aclk, aresetn,
+        if (`RST_ASSERTED(aresetn))      stat_merge_o <= 32'h0;
+        else if (w_ins_fire && w_mg_hit) stat_merge_o <= stat_merge_o + 32'h1;
+    )
 
     // ---- issue: free the entry, forward its ticket -------------------------
     logic w_issue_fire;
@@ -261,7 +314,7 @@ module mc_rd_cmd_cam #(
             for (int i = 0; i < NUM_ENTRIES; i++)
                 r_age_exceed[i] <= r_valid[i] && (age_thresh_i != 8'd0)
                                 && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
-            if (w_ins_fire) r_age_exceed[w_free_slot] <= 1'b0;
+            if (w_ins_alloc) r_age_exceed[w_free_slot] <= 1'b0;
         end
     )
 
@@ -282,8 +335,8 @@ module mc_rd_cmd_cam #(
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
 
-            // insert
-            if (w_ins_fire) begin
+            // insert (a merged read takes no entry: its ticket shadows the match)
+            if (w_ins_alloc) begin
                 r_valid [w_free_slot] <= 1'b1;
                 r_bank  [w_free_slot] <= ins_bank_i;
                 r_row   [w_free_slot] <= ins_row_i;
@@ -311,6 +364,10 @@ module mc_rd_cmd_cam #(
         if (aresetn) begin
             assert (!(w_issue_fire && !r_valid[issue_slot_i]))
               else $error("RD_CAM @%0t: issue of slot %0d which is NOT valid", $time, issue_slot_i);
+            // a merge target must be live: a shadow of a ticket that already
+            // returned would never become ready in the ring
+            assert (!(w_ins_fire && w_mg_hit && !r_valid[w_mg_slot]))
+              else $error("RD_CAM @%0t: merge into slot %0d which is NOT valid", $time, w_mg_slot);
         end
 `endif
 

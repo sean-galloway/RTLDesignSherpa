@@ -35,6 +35,8 @@ module mc_storage_plane #(
     // Independent of NUM_ENTRIES (the scheduling window): a read's CAM entry
     // frees at issue, its ring slot at R-drain. Power of 2.
     parameter int RD_RET_DEPTH    = 32,
+    parameter bit WR_MERGE_EN     = 1'b0,  // mc_wr_data_cam MERGE_EN: write combining (pumice TASK-060)
+    parameter bit RD_MERGE_EN     = 1'b0,  // mc_rd_cmd_cam MERGE_EN: read combining through the return ring (pumice TASK-060)
 
     // Derived
     parameter int IW   = AXI_ID_WIDTH,
@@ -69,6 +71,8 @@ module mc_storage_plane #(
     // commit-done notification back to the WR intake
     output logic                wr_done_valid_o,
     output logic [IW-1:0]       wr_done_id_o,
+    output logic [31:0]         stat_merge_o,      // write merges performed (free-running)
+    output logic [31:0]         stat_rd_merge_o,   // read merges performed (free-running)
 
     //=========================================================================
     // RD intake -> WR data CAM (snarf probe / hit / data stream)
@@ -107,6 +111,10 @@ module mc_storage_plane #(
     output logic                rd_iss_valid_o,
     output logic [$clog2(RD_RET_DEPTH)-1:0] rd_iss_ticket_o,
     output logic                rd_cam_ins_ready_o,
+    // Read combining (RD_MERGE_EN): the insert this cycle rides an older live
+    // read's burst; the ring allocates its ticket as a shadow of rd_ins_merge_ticket_o.
+    output logic                rd_ins_merge_o,
+    output logic [$clog2(RD_RET_DEPTH)-1:0] rd_ins_merge_ticket_o,
 
     //=========================================================================
     // Scheduler -> CAMs
@@ -191,7 +199,8 @@ module mc_storage_plane #(
         .AXI_DATA_WIDTH(DW),
         .AXI_BEATS_PER_BURST            (AXI_BEATS_PER_BURST),
         .AGE_WIDTH     (AGE_WIDTH),
-        .N_SRAM_SLOTS  (N_SRAM_SLOTS)
+        .N_SRAM_SLOTS  (N_SRAM_SLOTS),
+        .MERGE_EN      (WR_MERGE_EN)
     ) u_wr_cam (
         .aclk               (aclk),
         .aresetn            (aresetn),
@@ -259,6 +268,7 @@ module mc_storage_plane #(
         .cm_rd_last_o       (wr_cm_rd_last_o),
         .commit_done_valid_o(wr_done_valid_o),
         .commit_done_id_o   (wr_done_id_o),
+        .stat_merge_o       (stat_merge_o),
         .busy_o             (w_wrc_busy)
     );
 
@@ -276,7 +286,8 @@ module mc_storage_plane #(
         .COL_WIDTH     (COL_WIDTH),
         .AXI_ID_WIDTH  (IW),
         .AGE_WIDTH     (AGE_WIDTH),
-        .RD_RET_DEPTH  (RD_RET_DEPTH)
+        .RD_RET_DEPTH  (RD_RET_DEPTH),
+        .MERGE_EN      (RD_MERGE_EN)
     ) u_rd_cam (
         .aclk       (aclk),
         .aresetn    (aresetn),
@@ -288,6 +299,9 @@ module mc_storage_plane #(
         .ins_id_i   (ar_push_id_i),
         .ins_qos_i  (ar_push_qos_i),
         .ins_ticket_i(rt_alloc_ticket_i),
+        .ins_merge_o       (rd_ins_merge_o),
+        .ins_merge_ticket_o(rd_ins_merge_ticket_o),
+        .stat_merge_o      (stat_rd_merge_o),
         // legacy sched-lookup / oldest ports unused (scheduler reads sch_*).
         .sched_lu_valid_i('0),
         .sched_lu_bank_i ('0),

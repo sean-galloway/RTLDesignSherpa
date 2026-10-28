@@ -96,6 +96,8 @@ The CSR exposes the following observation counters (described in §6.3):
 
 - `OBS_ROW_HIT[8]` — per-bank ROW HITS, free-running (subtract two reads).
 - `PAGE_STATS_HIT` / `PAGE_STATS_MISS` / `PAGE_STATS_EMPTY` — global page-outcome counters.
+- `STORE_STATS_MERGE` — writes combined into an older uncommitted write to the same `{bank,row,col}` (TASK-060, `WR_MERGE_EN`); with `PAGE_STATS_HIT` it gives column ops per host write.
+- `STORE_STATS_RD_MERGE` — reads combined into an older unissued read of the same `{bank,row,col}` (TASK-060, `RD_MERGE_EN`): one DRAM burst, returned twice through the return ring; with `PAGE_STATS_HIT` it gives column ops per host read.
 - `SCHED_STATS_ACT` / `SCHED_STATS_PRE` — activations and closes.
 - `REF_STATS_REF` / `REF_STATS_REF_BUSY` — refreshes, and those that fired with work pending.
 - `STALL_*` — stall-cause attribution.

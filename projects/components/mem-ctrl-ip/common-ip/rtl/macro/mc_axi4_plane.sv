@@ -169,6 +169,10 @@ module mc_axi4_plane #(
     input  logic                rd_iss_valid_i,
     input  logic [$clog2(RD_RET_DEPTH)-1:0] rd_iss_ticket_i,
     input  logic                rd_cam_ins_ready_i,
+    // read combining: the CAM's insert this cycle shadows an older ticket
+    // (tie 0 on a store without a read combiner)
+    input  logic                rt_alloc_merge_i,
+    input  logic [$clog2(RD_RET_DEPTH)-1:0] rt_alloc_src_i,
 
     //=========================================================================
     // DFI return stream -> return ring
@@ -534,6 +538,8 @@ module mc_axi4_plane #(
         .alloc_valid_i   (ar_push_valid_o && rd_cam_ins_ready_i),
         .alloc_ready_o   (rt_alloc_ready_o),
         .alloc_ticket_o  (rt_alloc_ticket_o),
+        .alloc_merge_i   (rt_alloc_merge_i),
+        .alloc_src_i     (rt_alloc_src_i),
         .issue_valid_i   (rd_iss_valid_i),
         .issue_ready_o   (rd_iss_ready_o),
         .issue_ticket_i  (rd_iss_ticket_i),

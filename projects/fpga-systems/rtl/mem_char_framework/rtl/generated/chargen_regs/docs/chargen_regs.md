@@ -156,6 +156,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -363,6 +365,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -570,6 +574,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -777,6 +783,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -984,6 +992,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1191,6 +1201,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1398,6 +1410,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1605,6 +1619,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -1815,6 +1831,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2063,6 +2081,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2311,6 +2331,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2559,6 +2581,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -2807,6 +2831,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -3055,6 +3081,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -3303,6 +3331,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 
@@ -3551,6 +3581,8 @@ Don't override. Generated from: $root
 |23:18|max_outstanding|  rw  | 0x0 |  — |
 |27:24|   idx1_shift  |  rw  | 0x0 |  — |
 |  28 |   addr_lfsr   |  rw  | 0x0 |  — |
+|  29 |    idx1_bit   |  rw  | 0x0 |  — |
+|  30 |   gap_sweep   |  rw  | 0x0 |  — |
 
 ### LFSR_SEED register
 

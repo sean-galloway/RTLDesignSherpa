@@ -645,8 +645,18 @@ class DDR2CharDriver:
                         lfsr_seed, hash_seed0, hash_seed1, hash_seed2,
                         max_outstanding: int = 0,
                         idx1_shift: int = 0, addr_lfsr: bool = False,
+                        idx1_bit: bool = False, gap_sweep: bool = False,
                         gen: int = 0) -> None:
         """Stage one generator's config by name (pfx = WR|RD, gen = 0..7).
+
+        `idx1_bit` / `gap_sweep` (pumice TASK-060): with idx1_bit, dimension 1
+        is the SINGLE bit idx1_shift of the transaction index and dimension 0
+        the index with that bit removed, so stride_1 toggles every 2^k
+        transactions while stride_0 keeps walking (stride_0 = a DRAM burst,
+        stride_1 = half a burst, k = 3: the low halves of eight bursts, then
+        their high halves, then the next eight). gap_sweep makes the idle gap
+        after burst n `gap + (n mod 8)`, saturating, so the inter-burst delay
+        walks 0..7 above the base and repeats.
 
         `idx1_shift` / `addr_lfsr` (TASK-049) shape the address index before
         the two-dimensional generator: idx1_shift = k feeds the index's low k
@@ -696,7 +706,8 @@ class DDR2CharDriver:
                 axi_size=axi_size, axi_burst=axi_burst,
                 data_mode=1 if data_mode else 0,
                 max_outstanding=max_outstanding & 0x3F,
-                idx1_shift=idx1_shift & 0xF, addr_lfsr=1 if addr_lfsr else 0)
+                idx1_shift=idx1_shift & 0xF, addr_lfsr=1 if addr_lfsr else 0,
+                idx1_bit=1 if idx1_bit else 0, gap_sweep=1 if gap_sweep else 0)
         r.write_word(f"{n}_LFSR_SEED",  lfsr_seed)
         r.write_word(f"{n}_HASH_SEED0", hash_seed0)
         r.write_word(f"{n}_HASH_SEED1", hash_seed1)
@@ -723,6 +734,8 @@ class DDR2CharDriver:
                           max_outstanding: int = 0,
                           idx1_shift:    int = 0,
                           addr_lfsr:     bool = False,
+                          idx1_bit:      bool = False,
+                          gap_sweep:     bool = False,
                           gen:           int = 0) -> None:
         self._program_engine(
             "WR", gen=gen,
@@ -733,7 +746,8 @@ class DDR2CharDriver:
             axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
             hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2,
             max_outstanding=max_outstanding,
-            idx1_shift=idx1_shift, addr_lfsr=addr_lfsr)
+            idx1_shift=idx1_shift, addr_lfsr=addr_lfsr,
+            idx1_bit=idx1_bit, gap_sweep=gap_sweep)
 
     def program_rd_engine(self, *,
                           start_addr:    int,
@@ -756,6 +770,8 @@ class DDR2CharDriver:
                           max_outstanding: int = 0,
                           idx1_shift:    int = 0,
                           addr_lfsr:     bool = False,
+                          idx1_bit:      bool = False,
+                          gap_sweep:     bool = False,
                           gen:           int = 0) -> None:
         self._program_engine(
             "RD", gen=gen,
@@ -766,7 +782,8 @@ class DDR2CharDriver:
             axi_burst=axi_burst, data_mode=data_mode, lfsr_seed=lfsr_seed,
             hash_seed0=hash_seed0, hash_seed1=hash_seed1, hash_seed2=hash_seed2,
             max_outstanding=max_outstanding,
-            idx1_shift=idx1_shift, addr_lfsr=addr_lfsr)
+            idx1_shift=idx1_shift, addr_lfsr=addr_lfsr,
+            idx1_bit=idx1_bit, gap_sweep=gap_sweep)
 
     # ----- Run control -----------------------------------------------------
     # Launch is one write to GO in chargen_regs, not the harness CTRL bits

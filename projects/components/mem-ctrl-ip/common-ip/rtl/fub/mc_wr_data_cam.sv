@@ -34,6 +34,17 @@ module mc_wr_data_cam #(
     parameter int N_SRAM_SLOTS    = NUM_ENTRIES,  // may be < NUM_ENTRIES
     // bursts allowed in the commit drain queue, incl. the one being fetched
     parameter int WR_DRAIN_AHEAD  = 2,
+    // Write combining (pumice TASK-060). 1 = a write whose {bank,row,col} matches a
+    // live, unscheduled, un-merged entry MERGES into it at fill time: its bytes are
+    // written into the entry's SRAM slot under their strobes, the strobes are ORed,
+    // the entry commits ONCE as one DRAM burst and answers TWO Bs (its own id, then
+    // the merged id). The merge window is "the first half has not committed": a
+    // commit decided before the merge is seen waits for the merge fill (bounded,
+    // behind the DFI write-staged gate), a target that is gone by fill time falls
+    // back to a fresh entry. Blocked while another live write carries the merged
+    // write's AXI id (same-id B order) or any snarf stream is in flight. 0 = today's
+    // behaviour, bit for bit.
+    parameter bit MERGE_EN        = 1'b0,
 
     // Derived
     parameter int IW    = AXI_ID_WIDTH,
@@ -154,6 +165,8 @@ module mc_wr_data_cam #(
     // Commit-done strobe (on evict) -> drives wr_intake B response
     output logic                          commit_done_valid_o,
     output logic [IW-1:0]                 commit_done_id_o,
+    // write-combining telemetry (free-running): merges performed
+    output logic [31:0]                   stat_merge_o,
 
     output logic                          busy_o
 );
@@ -183,6 +196,9 @@ module mc_wr_data_cam #(
                                                       // => clean 1 cmd/clock).
     logic                    r_agg   [NUM_ENTRIES];   // part of a split host burst
     logic                    r_last  [NUM_ENTRIES];   // final sub of that burst
+    logic                    r_mgv   [NUM_ENTRIES];   // a second write merged in: commit owes a 2nd B
+    logic [IW-1:0]           r_mgid  [NUM_ENTRIES];   // ... with this AXI id
+    logic                    r_mgfill[NUM_ENTRIES];   // merge fill in progress: the drain fetch waits
     logic [AGE_WIDTH-1:0]    r_age_ctr;
 
     // Age-order matrix: r_older[i][j] = entry i was inserted strictly before
@@ -225,10 +241,14 @@ module mc_wr_data_cam #(
     // boundaries (beat-0 of the next burst prefetches while the current tail
     // drains). {strb,data} stay in the same word so a read returns them
     // atomically (strobes in sync with data).
-    localparam int SRW = DW + SW;
+    // Data only in the BRAM (byte-enable writes, so a merge lands its strobed bytes
+    // without a read-modify-write); the strobes live in flops beside it, ORed on a
+    // merge, and are snapshotted at fetch issue into the skid tag with the data.
+    localparam int SRW = DW;
     (* ram_style = "block" *)
-    logic [SRW-1:0]  r_mem [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
-    logic [SRW-1:0]  r_rd_q;    // BRAM read-data register (output of the sync read)
+    logic [DW-1:0]   r_mem  [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    logic [SW-1:0]   r_strb [N_SRAM_SLOTS*AXI_BEATS_PER_BURST];
+    logic [DW-1:0]   r_rd_q;    // BRAM read-data register (output of the sync read)
 
     // ---- 2-deep prefetch skid FIFO (cross-burst) ---------------------------
     // Decouples FETCH from CONSUME so beat-0 of the NEXT burst can be prefetched
@@ -240,6 +260,9 @@ module mc_wr_data_cam #(
     // loses a beat.
     localparam int SKID_DEPTH = 2;
     logic [SRW-1:0]  r_sk_data  [SKID_DEPTH];
+    logic [SW-1:0]   r_sk_strb  [SKID_DEPTH]; // strobes (flops), snapshotted at issue
+    logic            r_sk_mgv   [SKID_DEPTH]; // entry owes a second B
+    logic [IW-1:0]   r_sk_mgid  [SKID_DEPTH]; // ... with this id
     logic            r_sk_iscm  [SKID_DEPTH]; // commit (else snarf)
     logic [PTRW-1:0] r_sk_slot  [SKID_DEPTH]; // entry slot (eviction / SRAM free)
     logic            r_sk_blast [SKID_DEPTH]; // last beat of the burst
@@ -271,6 +294,9 @@ module mc_wr_data_cam #(
     logic            r_if_agg;
     logic            r_if_slast;
     logic [IW-1:0]   r_if_id;
+    logic [SW-1:0]   r_if_strb;
+    logic            r_if_mgv;
+    logic [IW-1:0]   r_if_mgid;
 
     // ---- free-slot allocation ----------------------------------------------
     logic            w_have_free;
@@ -286,35 +312,127 @@ module mc_wr_data_cam #(
     end
 
     // ---- fill FIFO (slots pending data) ------------------------------------
+    // Record = {merge, bank, row, col, id, qos, slot}. A merge record allocated no
+    // entry at insert; it carries the write's key so the fill engine can find its
+    // target (or allocate afresh if the target is gone) when the data arrives.
+    localparam int FQW = 1 + BKW + ROW_WIDTH + COL_WIDTH + IW + 4 + PTRW;
     logic             w_fq_wr_valid, w_fq_wr_ready, w_fq_rd_valid, w_fq_rd_ready;
-    logic [PTRW-1:0]  w_fq_wr_slot,  w_fq_rd_slot;
-
-    assign ins_ready_o   = w_have_free && w_fq_wr_ready;
-    assign w_fq_wr_valid = ins_valid_i && w_have_free;
-    assign w_fq_wr_slot  = w_free_slot;
-
-    gaxi_fifo_sync #(.DATA_WIDTH(PTRW), .DEPTH(NUM_ENTRIES)) u_fill_q (
+    logic [PTRW-1:0]  w_fq_rd_slot;
+    logic [FQW-1:0]   w_fq_wr_data,  w_fq_rd_data;
+    logic             w_fq_merge;
+    logic [BKW-1:0]   w_fq_bank;
+    logic [ROW_WIDTH-1:0] w_fq_row;
+    logic [COL_WIDTH-1:0] w_fq_col;
+    logic [IW-1:0]    w_fq_id;
+    logic [3:0]       w_fq_qos;
+    // declared here (used by the fill-time merge decision below, assigned in the
+    // commit section): the arbiter's commit accept this cycle
+    logic w_commit_fire, w_dq_pop;
+    // ---- insert-time merge candidate (pumice TASK-060) ------------------------
+    // Youngest live, unscheduled, un-merged, non-split entry with the same key.
+    // No entry is allocated for a merge; the decision is re-made at fill time
+    // against the live entry (the arbiter sees sch_valid one cycle stale, so an
+    // entry can still be committed after we chose it -- the fill side handles it).
+    logic [NUM_ENTRIES-1:0] w_mg_match;
+    logic                   w_mg_found, w_mg_idclash, w_sn_idle, w_mg_hit;
+    logic                   w_fb_alloc;   // fill-time fallback allocation this cycle
+    always_comb begin
+        automatic logic [NUM_ENTRIES-1:0] yg;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            w_mg_match[i] = MERGE_EN && r_valid[i] && !r_sched[i] && !r_mgv[i] && !r_mgfill[i]
+                            && !r_agg[i] && !ins_agg_i
+                            && (r_bank[i] == ins_bank_i) && (r_row[i] == ins_row_i)
+                            && (r_col[i] == ins_col_i);
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic y = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++)
+                if ((j != i) && w_mg_match[j] && !r_older[j][i]) y = 1'b0;
+            yg[i] = w_mg_match[i] && y;
+        end
+        w_mg_found = |yg;
+        // another live write with the merged write's id (not the target) would get
+        // its B after ours although its AW came first -- same-id B order forbids it
+        w_mg_idclash = 1'b0;
+        for (int j = 0; j < NUM_ENTRIES; j++)
+            if (r_valid[j] && !yg[j] && (r_id[j] == ins_id_i)) w_mg_idclash = 1'b1;
+    end
+    assign w_mg_hit = w_mg_found && !w_mg_idclash && w_sn_idle;
+    assign ins_ready_o   = (w_have_free || w_mg_hit) && w_fq_wr_ready && !w_fb_alloc;
+    assign w_fq_wr_valid = ins_valid_i && ins_ready_o;
+    assign w_fq_wr_data  = {w_mg_hit, ins_bank_i, ins_row_i, ins_col_i, ins_id_i, ins_qos_i,
+                            (w_mg_hit ? PTRW'(0) : w_free_slot)};
+    gaxi_fifo_sync #(.DATA_WIDTH(FQW), .DEPTH(NUM_ENTRIES)) u_fill_q (
         .axi_aclk   (aclk),
         .axi_aresetn(aresetn),
         .wr_valid   (w_fq_wr_valid),
         .wr_ready   (w_fq_wr_ready),
-        .wr_data    (w_fq_wr_slot),
+        .wr_data    (w_fq_wr_data),
         .rd_ready   (w_fq_rd_ready),
         .count      (),
         .rd_valid   (w_fq_rd_valid),
-        .rd_data    (w_fq_rd_slot)
+        .rd_data    (w_fq_rd_data)
     );
-
-    logic w_ins_fire;
-    assign w_ins_fire = ins_valid_i && ins_ready_o;
+    assign {w_fq_merge, w_fq_bank, w_fq_row, w_fq_col, w_fq_id, w_fq_qos, w_fq_rd_slot} = w_fq_rd_data;
+    logic w_ins_fire, w_ins_alloc;
+    assign w_ins_fire  = ins_valid_i && ins_ready_o;
+    assign w_ins_alloc = w_ins_fire && !w_mg_hit;          // allocates an entry
 
     // ---- fill engine : write burst into SRAM[ptr] --------------------------
     // On the first beat a free SRAM slot must be available (pre-allocate).
     logic [BCW-1:0] r_fill_beat;
-    assign wd_ready_o = w_fq_rd_valid && (r_fill_beat != '0 || w_slot_free_found);
+    // ---- fill-time merge decision (first beat of a merge record) -------------
+    // Re-find the target from the record's key among the LIVE entries. Gone, or
+    // being committed this very cycle, or now carrying another merge, or an id
+    // clash that arose meanwhile -> fall back to a fresh entry for this write.
+    logic [NUM_ENTRIES-1:0] w_mgt_match;
+    logic                   w_mgt_found, w_mgt_idclash;
+    logic [PTRW-1:0]        w_mgt_slot;
+    always_comb begin
+        automatic logic [NUM_ENTRIES-1:0] yg;
+        for (int i = 0; i < NUM_ENTRIES; i++)
+            w_mgt_match[i] = MERGE_EN && r_valid[i] && !r_sched[i] && !r_mgv[i] && !r_mgfill[i]
+                             && !r_agg[i] && r_fdone[i]
+                             && !(w_commit_fire && (commit_slot_i == PTRW'(i)))
+                             && (r_bank[i] == w_fq_bank) && (r_row[i] == w_fq_row)
+                             && (r_col[i] == w_fq_col);
+        for (int i = 0; i < NUM_ENTRIES; i++) begin
+            automatic logic y = 1'b1;
+            for (int j = 0; j < NUM_ENTRIES; j++)
+                if ((j != i) && w_mgt_match[j] && !r_older[j][i]) y = 1'b0;
+            yg[i] = w_mgt_match[i] && y;
+        end
+        w_mgt_found = |yg;
+        w_mgt_slot  = '0;
+        for (int i = NUM_ENTRIES-1; i >= 0; i--) if (yg[i]) w_mgt_slot = PTRW'(i);
+        w_mgt_idclash = 1'b0;
+        for (int j = 0; j < NUM_ENTRIES; j++)
+            if (r_valid[j] && !yg[j] && (r_id[j] == w_fq_id)) w_mgt_idclash = 1'b1;
+    end
+    logic            w_fill_first;
+    logic            w_fill_merge_now;   // first beat: this record merges into w_mgt_slot
+    logic            r_fill_merge;       // latched for beats 2..N
+    logic [PTRW-1:0] r_fill_eslot;       // latched entry slot for beats 2..N
+    logic            w_fill_merge;       // this beat is a merge write
+    logic [PTRW-1:0] w_fill_eslot;       // entry slot this beat belongs to
+    assign w_fill_first     = (r_fill_beat == '0);
+    assign w_fill_merge_now = w_fq_merge && w_mgt_found && !w_mgt_idclash && w_sn_idle;
+    assign w_fill_merge     = w_fill_first ? w_fill_merge_now : r_fill_merge;
+    assign w_fill_eslot     = w_fill_first ? (w_fill_merge_now ? w_mgt_slot
+                                             : (w_fq_merge ? w_free_slot : w_fq_rd_slot))
+                                           : r_fill_eslot;
+    // a merge record whose target is gone allocates its own entry on its first beat
+    assign w_fb_alloc = w_fq_rd_valid && w_fill_first && w_fq_merge && !w_fill_merge_now
+                        && wd_valid_i && w_have_free && w_slot_free_found;
+    assign wd_ready_o = w_fq_rd_valid
+                        && (!w_fill_first
+                            || (w_fill_merge_now ? 1'b1
+                                : (w_slot_free_found && (!w_fq_merge || w_have_free))));
     logic w_wd_fire;
     assign w_wd_fire = wd_valid_i && wd_ready_o;
     assign w_fq_rd_ready = w_wd_fire && wd_last_i;
+    // byte enables: a merge writes only its strobed bytes; a fresh fill writes all
+    logic [SW-1:0] w_fill_we;
+    assign w_fill_we = w_fill_merge ? wd_strb_i : {SW{1'b1}};
 
     // ---- snarf youngest-match (combinational) ------------------------------
     // Read-your-write forwarding is LIMITED to the safe case: the read may snarf
@@ -478,7 +596,7 @@ module mc_wr_data_cam #(
             for (int i = 0; i < NUM_ENTRIES; i++)
                 r_age_exceed[i] <= r_valid[i] && (age_thresh_i != 8'd0)
                                 && (w_rel[i] >= AGE_WIDTH'({age_thresh_i, 4'h0}));
-            if (w_ins_fire) r_age_exceed[w_free_slot] <= 1'b0;
+            if (w_ins_alloc || w_fb_alloc) r_age_exceed[w_free_slot] <= 1'b0;
         end
     )
 
@@ -528,7 +646,6 @@ module mc_wr_data_cam #(
     // writes let the second fire into the cmd FIFO while the CAM refused it:
     // a DRAM WR whose data never drains (the DFI staged gate then holds for
     // ever -- measured 29373-cycle hold, AW/W/AR timeouts).
-    logic w_commit_fire, w_dq_pop;
     logic [PTRW:0] w_dq_occ_next;
     assign w_commit_fire = commit_valid_i && w_dq_wr_ready
                          && (r_dq_occ < (PTRW+1)'(WR_DRAIN_AHEAD));
@@ -569,10 +686,9 @@ module mc_wr_data_cam #(
 
     // Fill target SRAM slot: allocate a free slot on the first beat, else reuse
     // the slot already recorded in the entry's ptr.
-    logic            w_fill_first;
     logic [SPTRW-1:0] w_fill_slot;
-    assign w_fill_first = (r_fill_beat == '0);
-    assign w_fill_slot  = w_fill_first ? w_slot_free : r_ptr[w_fq_rd_slot];
+    assign w_fill_slot  = w_fill_merge ? r_ptr[w_fill_eslot]
+                        : (w_fill_first ? w_slot_free : r_ptr[w_fill_eslot]);
 
     // Engine state: just a burst beat-counter each — NO active/slot FSM. Both
     // readers stream straight off their request-FIFO head (stable until popped),
@@ -600,6 +716,9 @@ module mc_wr_data_cam #(
     // entry is_cm tag routes each beat to the right consumer, and a stalled
     // consumer of one stream can head-of-line-block a beat of the other.
     logic            w_hd_vld, w_hd_iscm, w_hd_blast, w_hd_agg, w_hd_slast;
+    logic            w_hd_mgv;
+    logic [IW-1:0]   w_hd_mgid;
+    logic [SW-1:0]   w_hd_strb;
     logic [SRW-1:0]  w_hd_data;
     logic [IW-1:0]   w_hd_id;
     assign w_hd_vld   = (r_sk_cnt != 2'd0);
@@ -609,12 +728,27 @@ module mc_wr_data_cam #(
     assign w_hd_agg   = r_sk_agg  [r_sk_rd];
     assign w_hd_slast = r_sk_slast[r_sk_rd];
     assign w_hd_id    = r_sk_id   [r_sk_rd];
+    assign w_hd_mgv   = r_sk_mgv  [r_sk_rd];
+    assign w_hd_mgid  = r_sk_mgid [r_sk_rd];
+    assign w_hd_strb  = r_sk_strb [r_sk_rd];
+    // no snarf stream anywhere (queued, in flight, or at the skid head): a merge
+    // must not change data a read ordered before it is about to be forwarded
+    assign w_sn_idle  = !w_sq_rd_valid && !(r_if_valid && !r_if_iscm) && !(w_hd_vld && !w_hd_iscm);
 
     logic w_cm_fire, w_sn_fire, w_pop, w_room;
-    assign cm_rd_valid_o    = w_hd_vld &&  w_hd_iscm;
+    // A beat that will push the done queue (the burst-last of the final sub)
+    // waits for room there. A merged burst takes two pops of that queue, so a
+    // drain of one burst per cycle -- open row, single-beat bursts, every pair
+    // merged -- overran the 4-deep queue and the overrun pushes, which are B
+    // responses, were lost (board open_page/half_pair write hang, TASK-060).
+    // Room only grows between a raise and the fire (pops add it, only this
+    // fire takes it), so valid never drops once asserted.
+    logic w_dn_would_push, w_dn_wr_ready;
+    assign w_dn_would_push  = w_hd_blast && (!w_hd_agg || w_hd_slast);
+    assign cm_rd_valid_o    = w_hd_vld &&  w_hd_iscm && (!w_dn_would_push || w_dn_wr_ready);
     assign snarf_rd_valid_o = w_hd_vld && !w_hd_iscm;
     assign cm_rd_data_o     = w_hd_data[DW-1:0];
-    assign cm_rd_strb_o     = w_hd_data[SRW-1:DW];
+    assign cm_rd_strb_o     = w_hd_strb;
     assign snarf_rd_data_o  = w_hd_data[DW-1:0];
     assign cm_rd_last_o     = w_hd_blast;
     assign snarf_rd_last_o  = w_hd_blast;
@@ -633,7 +767,9 @@ module mc_wr_data_cam #(
     // snarf wins the port when commit is idle OR snarf has waited too long;
     // commit wins otherwise. The two are mutually exclusive by construction.
     assign w_sn_fetch = w_room && w_sq_rd_valid && (!w_dq_rd_valid || w_sn_starved);
-    assign w_cm_fetch = w_room &&  w_dq_rd_valid && !w_sn_fetch;
+    // the drain never reads a slot whose merge fill is still landing (bounded wait;
+    // the DFI write-staged gate holds the WR command until its data is staged)
+    assign w_cm_fetch = w_room &&  w_dq_rd_valid && !w_sn_fetch && !r_mgfill[w_dq_rd_slot];
     assign w_issue    = w_cm_fetch || w_sn_fetch;
     assign w_rd_idx   = w_cm_fetch ? w_cm_idx : w_sn_idx;
     assign w_dq_rd_ready = w_cm_fetch && (r_cm_fbeat == BCW'(AXI_BEATS_PER_BURST-1));
@@ -642,12 +778,29 @@ module mc_wr_data_cam #(
     // B consolidation: one B per host burst, strobed on the FINAL sub-command's
     // commit-last (agg && slast). Non-split bursts (agg=0) always strobe. Sourced
     // from the CARRIED tag (the drain FIFO head has already advanced past it).
-    assign commit_done_valid_o = w_cm_fire && w_hd_blast &&
-                                 (!w_hd_agg || w_hd_slast);
-    assign commit_done_id_o    = w_hd_id;
-
+    // One B per host burst, strobed on the FINAL sub-command's commit-last (agg &&
+    // slast); non-split bursts always strobe. A merged entry owes a SECOND B with
+    // the merged write's id, so the done rides a small queue and drains one id per
+    // cycle: {id} then {mgid}.
+    logic           w_dn_push, w_dn_rd_valid, w_dn_mgv;
+    logic [IW-1:0]  w_dn_id, w_dn_mgid;
+    logic           r_dn_second;
+    assign w_dn_push = w_cm_fire && w_dn_would_push;
+    gaxi_fifo_sync #(.DATA_WIDTH(1 + 2*IW), .DEPTH(4)) u_done_q (
+        .axi_aclk   (aclk),
+        .axi_aresetn(aresetn),
+        .wr_valid   (w_dn_push),
+        .wr_ready   (w_dn_wr_ready),
+        .wr_data    ({w_hd_mgv, w_hd_mgid, w_hd_id}),
+        .rd_ready   (commit_done_valid_o && (!w_dn_mgv || r_dn_second)),
+        .count      (),
+        .rd_valid   (w_dn_rd_valid),
+        .rd_data    ({w_dn_mgv, w_dn_mgid, w_dn_id})
+    );
+    assign commit_done_valid_o = w_dn_rd_valid;
+    assign commit_done_id_o    = r_dn_second ? w_dn_mgid : w_dn_id;
     assign busy_o = w_old_found || w_sq_rd_valid || w_dq_rd_valid || w_fq_rd_valid
-                    || w_hd_vld || r_if_valid;
+                    || w_hd_vld || r_if_valid || w_dn_rd_valid;
 
     // ---- sequential --------------------------------------------------------
     `ALWAYS_FF_RST(aclk, aresetn,
@@ -664,12 +817,18 @@ module mc_wr_data_cam #(
             r_credits   <= 2'(SKID_DEPTH);
             r_if_valid  <= 1'b0;
             r_sn_wait   <= 5'd0;
+            r_dn_second <= 1'b0;
+            r_fill_merge <= 1'b0;
+            r_fill_eslot <= '0;
+            stat_merge_o <= 32'h0;
             for (int i = 0; i < NUM_ENTRIES; i++) begin
                 r_valid[i] <= 1'b0;
                 r_pv[i]    <= 1'b0;
                 r_fdone[i] <= 1'b0;
                 r_sched[i] <= 1'b0;
                 r_older[i] <= '0;
+                r_mgv[i]   <= 1'b0;
+                r_mgfill[i]<= 1'b0;
             end
         end else begin
             r_age_ctr <= r_age_ctr + 1'b1;
@@ -683,17 +842,22 @@ module mc_wr_data_cam #(
             r_sp_len   <= snarf_probe_len_i;
 
             // insert : allocate + capture key/id/age; fill not yet done
-            if (w_ins_fire) begin
+            if (w_ins_alloc || w_fb_alloc) begin
+                // a normal insert, or a merge record whose target is gone allocating
+                // its own entry at its first data beat (never both in one cycle:
+                // ins_ready_o is held off while w_fb_alloc)
                 r_valid[w_free_slot] <= 1'b1;
-                r_bank [w_free_slot] <= ins_bank_i;
-                r_row  [w_free_slot] <= ins_row_i;
-                r_col  [w_free_slot] <= ins_col_i;
-                r_id   [w_free_slot] <= ins_id_i;
-                r_qos   [w_free_slot] <= ins_qos_i;
+                r_bank [w_free_slot] <= w_fb_alloc ? w_fq_bank : ins_bank_i;
+                r_row  [w_free_slot] <= w_fb_alloc ? w_fq_row  : ins_row_i;
+                r_col  [w_free_slot] <= w_fb_alloc ? w_fq_col  : ins_col_i;
+                r_id   [w_free_slot] <= w_fb_alloc ? w_fq_id   : ins_id_i;
+                r_qos  [w_free_slot] <= w_fb_alloc ? w_fq_qos  : ins_qos_i;
                 r_age  [w_free_slot] <= r_age_ctr;
                 r_fdone[w_free_slot] <= 1'b0;
-                r_agg  [w_free_slot] <= ins_agg_i;
-                r_last [w_free_slot] <= ins_last_i;
+                r_agg  [w_free_slot] <= w_fb_alloc ? 1'b0 : ins_agg_i;
+                r_last [w_free_slot] <= w_fb_alloc ? 1'b1 : ins_last_i;
+                r_mgv  [w_free_slot] <= 1'b0;
+                r_mgfill[w_free_slot] <= 1'b0;
                 // age matrix: the new slot is the YOUNGEST -> older than nobody,
                 // and every other slot is older than it.
                 for (int j = 0; j < NUM_ENTRIES; j++) begin
@@ -707,13 +871,34 @@ module mc_wr_data_cam #(
             // snarfable only once every beat is staged in SRAM.
             if (w_wd_fire) begin
                 if (w_fill_first) begin
-                    r_ptr[w_fq_rd_slot]  <= w_slot_free;
-                    r_pv [w_fq_rd_slot]  <= 1'b1;
-                    r_sram_occ[w_slot_free] <= 1'b1;
+                    r_fill_merge <= w_fill_merge_now;
+                    r_fill_eslot <= w_fill_eslot;
+                    if (!w_fill_merge_now) begin
+                        r_ptr[w_fill_eslot]  <= w_slot_free;
+                        r_pv [w_fill_eslot]  <= 1'b1;
+                        r_sram_occ[w_slot_free] <= 1'b1;
+                    end else begin
+                        // merging: the target leaves the schedulable set until the
+                        // merged bytes have landed (a commit already decided waits
+                        // on r_mgfill at the drain fetch instead)
+                        r_fdone [w_fill_eslot] <= 1'b0;
+                        r_mgfill[w_fill_eslot] <= 1'b1;
+                    end
                 end
                 r_fill_beat <= wd_last_i ? '0 : (r_fill_beat + 1'b1);
-                if (wd_last_i) r_fdone[w_fq_rd_slot] <= 1'b1;
+                if (wd_last_i) begin
+                    r_fdone[w_fill_eslot] <= 1'b1;
+                    if (w_fill_merge) begin
+                        r_mgfill[w_fill_eslot] <= 1'b0;
+                        r_mgv   [w_fill_eslot] <= 1'b1;
+                        r_mgid  [w_fill_eslot] <= w_fq_id;
+                        stat_merge_o <= stat_merge_o + 32'h1;
+                    end
+                end
             end
+            // done queue: {id} then {mgid}
+            if (commit_done_valid_o)
+                r_dn_second <= w_dn_mgv && !r_dn_second;
 
             // ---- 2-deep prefetch skid pipeline --------------------------------
             // Stage 1 (issue): pick a beat, issue the BRAM read, latch its tag as
@@ -729,6 +914,9 @@ module mc_wr_data_cam #(
                 r_if_agg   <= w_cm_fetch ? r_agg [w_dq_rd_slot] : 1'b0;
                 r_if_slast <= w_cm_fetch ? r_last[w_dq_rd_slot] : 1'b0;
                 r_if_id    <= w_cm_fetch ? r_id  [w_dq_rd_slot] : r_id[w_sq_rd_slot];
+                r_if_mgv   <= w_cm_fetch ? r_mgv [w_dq_rd_slot] : 1'b0;
+                r_if_mgid  <= r_mgid[w_dq_rd_slot];
+                r_if_strb  <= r_strb[w_rd_idx];
             end
 
             // advance the fetch beat pointer; wrap at the last beat of the burst
@@ -752,6 +940,9 @@ module mc_wr_data_cam #(
                 r_sk_agg  [r_sk_wr] <= r_if_agg;
                 r_sk_slast[r_sk_wr] <= r_if_slast;
                 r_sk_id   [r_sk_wr] <= r_if_id;
+                r_sk_mgv  [r_sk_wr] <= r_if_mgv;
+                r_sk_mgid [r_sk_wr] <= r_if_mgid;
+                r_sk_strb [r_sk_wr] <= r_if_strb;
                 r_sk_wr             <= r_sk_wr + 1'b1;
             end
             if (w_pop) r_sk_rd <= r_sk_rd + 1'b1;
@@ -783,6 +974,8 @@ module mc_wr_data_cam #(
                 r_pv   [w_dq_rd_slot]  <= 1'b0;
                 r_fdone[w_dq_rd_slot]  <= 1'b0;
                 r_sched[w_dq_rd_slot]  <= 1'b0;
+                r_mgv  [w_dq_rd_slot]  <= 1'b0;
+                r_mgfill[w_dq_rd_slot] <= 1'b0;
                 r_sram_occ[r_ptr[w_dq_rd_slot]] <= 1'b0;  // free SRAM slot
             end
         end
@@ -809,8 +1002,13 @@ module mc_wr_data_cam #(
     // mis-routed B/eviction, with no elaboration error.
     // -------------------------------------------------------------------------
     always_ff @(posedge aclk) begin
-        if (w_wd_fire)                r_mem[w_fill_idx] <= {wd_strb_i, wd_data_i};
-        if (w_cm_fetch || w_sn_fetch) r_rd_q            <= r_mem[w_rd_idx];
+        for (int b = 0; b < SW; b++)
+            if (w_wd_fire && w_fill_we[b]) r_mem[w_fill_idx][b*8 +: 8] <= wd_data_i[b*8 +: 8];
+        if (w_cm_fetch || w_sn_fetch) r_rd_q <= r_mem[w_rd_idx];
+    end
+    // strobes: flops, ORed on a merge (a fresh fill replaces)
+    always_ff @(posedge aclk) begin
+        if (w_wd_fire) r_strb[w_fill_idx] <= w_fill_merge ? (r_strb[w_fill_idx] | wd_strb_i) : wd_strb_i;
     end
 
 endmodule : mc_wr_data_cam

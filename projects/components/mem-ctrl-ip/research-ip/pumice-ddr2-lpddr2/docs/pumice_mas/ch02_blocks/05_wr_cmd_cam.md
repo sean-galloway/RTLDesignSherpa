@@ -65,6 +65,7 @@ data to the DFI write path, and self-generates the B-completion strobe on evict.
 | `BL`            | 4              | Beats per burst (`BCW = $clog2(BL)`)            |
 | `AGE_WIDTH`     | 16             | Free-running age counter width                  |
 | `N_SRAM_SLOTS`  | `NUM_ENTRIES`  | SRAM data slots (may be `< NUM_ENTRIES`)        |
+| `MERGE_EN`      | 0 (1 in `pumice_top`) | Write combining (TASK-060): a partial write merges into an older uncommitted write to the same `{bank,row,col}` |
 
 ## Entry state (per slot)
 
@@ -150,6 +151,29 @@ the write intake's B-response path, and the entry is evicted:
 `r_valid`/`r_pv`/`r_fdone`/`r_sched` cleared and the SRAM slot freed. There is no
 separate `b_pending`/`b_complete` window and no `xbank_timers` completion driver —
 completion is simply "the committed burst finished streaming to DFI."
+
+### Write combining (`MERGE_EN`, pumice TASK-060)
+
+With `MERGE_EN = 1` an insert whose `{bank,row,col}` matches a live entry that
+is unscheduled, not itself merged, not part of a split burst, and fully filled
+takes no entry of its own: its fill record carries the key, and at fill time
+the engine re-finds the target among the live entries (the arbiter sees
+`sch_valid` one cycle stale, so the target can have been committed meanwhile;
+a target that is gone, being committed this cycle, or now carrying another
+merge falls back to a fresh entry allocated at the first data beat). A merge
+writes only its strobed bytes into the target's SRAM slot (byte-enable write,
+no read-modify-write), ORs the strobes, and marks the entry as owing a second
+B with the merged write's id. A commit decided before the merge is seen waits
+for the merge fill to land (`r_mgfill`, bounded, behind the DFI write-staged
+gate). The commit-done rides a small queue and drains one id per cycle, the
+entry's own id first and then the merged id, so same-id B order holds; a
+merge is refused while another live write carries the merged write's id, or
+while any snarf stream is queued or in flight (a merge must not change data a
+read ordered before it is about to be forwarded). `stat_merge_o` counts merges
+performed and surfaces as `STORE_STATS_MERGE`; with `PAGE_STATS_HIT` (column
+ops) it gives the aggregation per host write directly. Measured on the proxy
+at one thread, the merge window is a few clocks after the first half arrives:
+two halves up to four transactions apart merge, eight apart do not.
 
 ## De-FSM'd sequencing
 

@@ -128,12 +128,12 @@ addrmap chargen_regs {
         field { sw = rw; hw = r; } burst_len[7:0]   = 0;
         field { sw = rw; hw = r; } txn_count[23:8]  = 0;
         field { sw = rw; hw = r; } gap[27:24]       = 0;
-        // Write generators only: the idle gap between bursts is
-        // gap << gap_shift cycles (0..15 x 1..128). 0 -- the reset value --
-        // keeps the original 0..15. A 4-bit gap cannot throttle a writer
-        // below what a slow memory absorbs (the Genesys 2 fabric benchmark's
-        // W3 mix needs ~960 idle cycles between 16-beat bursts). The read
-        // generators ignore it.
+        // Both directions (readers since 2026-10-25; before that write
+        // generators only): the idle gap between bursts is gap << gap_shift
+        // cycles (0..15 x 1..128). 0 -- the reset value -- keeps the original
+        // 0..15. A 4-bit gap cannot throttle a generator below what a slow
+        // memory absorbs (the Genesys 2 fabric benchmark's W3 mix needs ~960
+        // idle cycles between 16-beat bursts).
         field { sw = rw; hw = r; } gap_shift[30:28] = 0;
     };
 
@@ -174,6 +174,16 @@ addrmap chargen_regs {
         // validate only with the address-hash data mode.
         field { sw = rw; hw = r; } idx1_shift[27:24]     = 0;
         field { sw = rw; hw = r; } addr_lfsr[28:28]      = 0;
+        // pumice TASK-060. idx1_bit = 1 makes dimension 1 the SINGLE bit
+        // idx1_shift of the transaction index and dimension 0 the index with
+        // that bit removed: stride_1 toggles every 2^k transactions while
+        // stride_0 keeps walking (stride_0 = a DRAM burst, stride_1 = half a
+        // burst, k = 3: the low halves of eight bursts, then their high
+        // halves, then the next eight). gap_sweep = 1 makes the idle gap
+        // after burst n gap + (n mod 8), saturating, so the inter-burst
+        // delay walks 0..7 above the base and repeats. Both directions.
+        field { sw = rw; hw = r; } idx1_bit[29:29]       = 0;
+        field { sw = rw; hw = r; } gap_sweep[30:30]      = 0;
     };
 
     //=========================================================================
