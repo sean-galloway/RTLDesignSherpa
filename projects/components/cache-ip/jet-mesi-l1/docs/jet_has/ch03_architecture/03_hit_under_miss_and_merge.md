@@ -23,32 +23,41 @@
 
 # Hit-Under-Miss and Miss Merging
 
-**Stub: open until J2 and J3 decide.** This chapter records the decision landscape for hit-under-miss scope and miss merging policy. No architecture is recorded here until J2 and J3 close.
+**Stub at 0.1–0.2; J2 and J3 CLOSED 2026-10-28.** This chapter records the
+hit-under-miss and merging decisions and what they drive.
 
-## J2: hit-under-miss scope
+## J2: hit-under-miss scope (DECIDED 2026-10-28, Sean)
 
-The candidates from the jet PRD are:
+**Reads AND writes to any resident line proceed while fills are in
+flight.**
 
-| Candidate | Implication |
-|---|---|
-| Hits to any resident line | Maximum concurrency; must check every access against all pending addresses for hazards. |
-| Hits only to lines not conflicting with a pending fill | Simpler hazard logic; may artificially serialize accesses to the same set. |
-| Reads-only hit-under-miss | Writes still block; lower replay complexity, smaller write-ordering exposure. |
+- A pending-fill line cannot be "hit": its tag installs only at fill
+  commit, so an access to it is the J3 merge case, not a hit.
+- A doomed victim stays hittable until the fill's commit tag-write lands:
+  its array copy is intact and its MESI state still valid until then.
+- The data array (inherited `l1_data_array`: two read ports, one write
+  port) serves hits on port A and snoop/bypass reads on port B; the single
+  write port arbitrates **fill beats over CPU write hits** — fills must
+  retire for the J5/J6 liveness argument, write hits can wait a cycle.
 
-The choice determines the hazard logic between the fill port and the hit port and the replay queue structure.
+## J3: miss merging policy (DECIDED 2026-10-28, Sean)
 
-## J3: miss merging policy
+**Exact-line aliases merge; no in-flight class escalation.**
 
-The candidates from the jet PRD are:
+- Same class joins: a second read miss onto an outstanding read fill shares
+  the fill and responds at commit; a second write miss onto an outstanding
+  write fill merges its data at commit (amber's D-4 write-merge semantics).
+- Cross-class waits: a write miss behind an outstanding read fill stalls
+  until that fill commits, then issues its own upgrade (CLEAN_UNIQUE) — the
+  outstanding entry's class is never mutated (no RNSD→RU escalation). A
+  read behind an outstanding write fill simply waits and hits the committed
+  M line.
+- Merging never issues duplicate memory traffic for one line; the merge
+  match is one exact-address comparator per MSHR entry (J1).
 
-| Candidate | Implication |
-|---|---|
-| Merge only exact-line aliases | Simplest match; no partial-forwarding complexity. |
-| Merge line plus offset range | Allows forwarding partial data from a pending fill; more hazard cases. |
-| No merging | Issue duplicate fetches and dedupe on return; highest memory traffic, simplest table. |
+## What these decisions drive
 
-The choice drives memory traffic, MSHR occupancy, and fairness.
-
-## Status
-
-No architecture recorded. J2 must decide the hit-under-miss scope; J3 must decide the merge policy. The architecture here will be written after both close.
+- the hit/pending hazard exclusion (same comparators as the merge match);
+- the W-port arbiter (fill beats > write hits);
+- the per-entry merged-requester list (who responds when the fill commits);
+- the cross-class stall rule in the allocation path (J6 strict stall).

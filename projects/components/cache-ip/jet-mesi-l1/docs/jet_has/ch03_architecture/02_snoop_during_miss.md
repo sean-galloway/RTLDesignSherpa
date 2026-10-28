@@ -23,30 +23,42 @@
 
 # Snoop During Miss
 
-**Stub: open until J4 and J5 decide.** This chapter records the decision landscape for ordering guarantees and snoop handling while one or more misses are outstanding. No architecture is recorded here until J4 and J5 close.
+**Stub at 0.1–0.2; J4 and J5 CLOSED 2026-10-28.** This chapter records the
+ordering and snoop-during-miss decisions and what they drive.
 
-## The J4 ordering problem
+## The J4 ordering decision (DECIDED 2026-10-28, Sean)
 
-When the cache has outstanding misses, it must still answer three questions:
+**Out-of-order fill completion, in-issue-order CPU responses.** The GAXI
+slave (amber D2) carries no ID field, so responses release in issue order
+through a response-sequence queue; fills and MSHRs complete out of order
+internally. No ID sideband is added to the CPU port.
 
-1. Does a snoop to a pending line see the post-fill state, respond from the fill data, or respond that the line is not present?
-2. Are CPU-side responses returned in issue order, or out-of-order with ID tags?
-3. What happens when a snoop arrives while a victim write-back for the same line is in flight?
+**Snoop-on-pending-line: amber's pending-fill bypass, generalized per MSHR
+entry.** A probe against a pending line is answered at the post-fill state
+(the bypass answers from the fill data once beats have landed; PF_GUARD
+semantics included — the bypass only promises data the fill can actually
+deliver). The snoop's own state effect is applied after the fill commits,
+exactly as amber orders it. A snoop is never stalled waiting on a fill
+(Chinnakonda §7.8: holding the snoop can deadlock the system).
 
-The jet PRD calls out the snoop-during-miss requirement explicitly: a probe against a pending line must see the post-fill state or stall cleanly.
+## The J5 eviction decision (DECIDED 2026-10-28, Sean)
 
-## The J5 eviction problem
+**Dirty victim captured to a global writeback buffer at miss start; the
+fill proceeds immediately; the drain engine writes back oldest-first,
+independently of any fill.** Buffer depth `VICTIM_DEPTH` ∈ 1–4, default 2.
 
-A dirty victim displaced by an outstanding fill must write back without deadlocking against the fill. The victim buffer depth (0 = block like amber, 1–4 = decouple) and the ordering between fill return and victim drain are J5.
+- Snoop-on-writeback-buffer keeps amber's SINK_WB_ACK semantics: the snoop
+  is served from the buffer (the §10.8 "snarfing" pattern), so a snoop
+  never blocks on the drain path.
+- Buffer full stalls only new dirty-victim misses; drains always complete
+  (the memory write path is always drainable), so the §8.2 victim-buffer
+  deadlock is closed by construction.
 
-## Background material
+## What these decisions drive
 
-Chinnakonda, *Designing a Multiprocessor Cache Subsystem*:
+- a response-sequence queue between the MSHRs and the GAXI response port;
+- per-MSHR-entry bypass comparators feeding the snoop responder;
+- the writeback buffer (tag + line data + state) and its drain-oldest-first
+  arbiter;
+- the J6 formal liveness targets (ch06/02).
 
-- §7.8 (file 7.7) "Forward Progress Guarantees" shows that a snoop matching a pending miss must still be responded to; holding it until the fill completes can deadlock the system. The response may indicate "not present" if data has not yet arrived, or forward from fill buffers if data has arrived.
-- §8.2 "Deadlocks" lists the victim-buffer deadlock: if a fill cannot proceed because no victim buffer is available, and a snoop matching the fill buffer needs forwarding, the architecture must either forward from the fill buffer or reserve a victim buffer per fill.
-- §10.8 (file 10.6) "Forward Progress of Snoop responses" discusses "snarfing" data from victim/write buffers so that a snoop response can make forward progress even when the normal write-back path is blocked.
-
-## Status
-
-No architecture recorded. J4 must decide the ordering and snoop-during-miss policy; J5 must decide the victim buffer depth and the fill/victim ordering. The architecture here will be written after both close.

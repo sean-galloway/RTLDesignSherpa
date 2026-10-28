@@ -23,13 +23,13 @@
 
 # jet — Lockup-Free MESI Snoopy L1 Cache — Hardware Architecture Specification
 
-**Version:** 0.2
-**Date:** 2026-10-11
-**Status:** 0.2: owner rulings inherited from amber/onyx recorded — RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. Otherwise the same skeleton: purpose, context, and the decision landscape are real content; chapters shaped by the open J-rows are explicit stubs.
+**Version:** 0.3
+**Date:** 2026-10-28
+**Status:** 0.3: J1–J7 CLOSED (Sean, 2026-10-28). All seven decisions are recorded in the PRD and in ch03/ch05/ch06; the cycle-level architecture moves to the jet MAS.
 
-**Scope:** The architecture of `jet` (pair-rig top) and `jet_ace` (onyx-rig top) as a lockup-free upgrade of `amber`. This book records what is inherited unchanged from amber, the research question jet exists to answer, and the open decisions that must close before the architecture can be fixed. It does not invent answers for J1–J7.
+**Scope:** The architecture of `jet` (pair-rig top) and `jet_ace` (onyx-rig top) as a lockup-free upgrade of `amber`. This book records what is inherited unchanged from amber, the research question jet exists to answer, and the decided J-rows that shape the MSHR delta.
 
-**How this book relates to its sources.** The [jet PRD](../../PRD.md) is the binding requirements document. The [amber HAS](../../../amber-mesi-l1/docs/amber_has/amber_has_index.md) is the inherited architecture: amber's core, interfaces, parameters, and integration rules apply unless a J-row explicitly overrides them. The open J-rows are jet's deltas; this 0.2 HAS records their decision landscape, not their answers. The [GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) reset-macro, array-syntax, no-bespoke-SRAM, and filelist rules apply throughout.
+**How this book relates to its sources.** The [jet PRD](../../PRD.md) is the binding requirements document. The [amber HAS](../../../amber-mesi-l1/docs/amber_has/amber_has_index.md) is the inherited architecture: amber's core, interfaces, parameters, and integration rules apply unless a J-row explicitly overrides them. The J-rows are jet's deltas; this 0.3 HAS records their rulings and what each drives. The [GLOBAL_REQUIREMENTS.md](../../../../../../GLOBAL_REQUIREMENTS.md) reset-macro, array-syntax, no-bespoke-SRAM, and filelist rules apply throughout.
 
 ---
 
@@ -54,9 +54,9 @@
 
 ### Chapter 3: Architecture
 
-- [MSHR Organization](ch03_architecture/01_mshr_organization.md) — stub, blocked on J1
-- [Snoop During Miss](ch03_architecture/02_snoop_during_miss.md) — stub, blocked on J4/J5
-- [Hit-Under-Miss and Miss Merging](ch03_architecture/03_hit_under_miss_and_merge.md) — stub, blocked on J2/J3
+- [MSHR Organization](ch03_architecture/01_mshr_organization.md) — J1 decided 2026-10-28
+- [Snoop During Miss](ch03_architecture/02_snoop_during_miss.md) — J4/J5 decided 2026-10-28
+- [Hit-Under-Miss and Miss Merging](ch03_architecture/03_hit_under_miss_and_merge.md) — J2/J3 decided 2026-10-28
 
 ### Chapter 4: Interfaces
 
@@ -65,13 +65,13 @@
 
 ### Chapter 5: Parameters
 
-- [jet_pkg and Build-Time Geometry](ch05_parameters/01_parameters.md) — stub, blocked on J1/J5
+- [jet_pkg and Build-Time Geometry](ch05_parameters/01_parameters.md) — J1/J5 decided 2026-10-28
 
 ### Chapter 6: Integration
 
 - [Clocking and Reset](ch06_integration/01_clocking_reset.md)
-- [Verification Strategy](ch06_integration/02_verification.md) — stub, blocked on J5/J6
-- [Characterization](ch06_integration/03_characterization.md) — stub, blocked on J7
+- [Verification Strategy](ch06_integration/02_verification.md) — J5/J6 decided 2026-10-28
+- [Characterization](ch06_integration/03_characterization.md) — J7 decided 2026-10-28
 - [Future Hooks](ch06_integration/04_future_hooks.md)
 
 ---
@@ -80,7 +80,7 @@
 
 | Figure | Source | Subject |
 |---|---|---|
-| 2.1 | `assets/graphviz/01_block_diagram.dot` | the planned whole unit, drawn from the prose in [Chapter 2.4](ch02_overview/04_block_diagram.md); exact modules and depths follow J1/J5 |
+| 2.1 | `assets/graphviz/01_block_diagram.dot` | the planned whole unit, drawn from the prose in [Chapter 2.4](ch02_overview/04_block_diagram.md); J1/J5 are decided, so the module set is fixed — the diagram gets its real MSHR/writeback-buffer depths when the MAS lands |
 
 : Table 0.0: Figures and their sources
 
@@ -102,5 +102,5 @@
 
 ---
 
-**Last Updated:** 2026-10-11
+**Last Updated:** 2026-10-28
 **Maintained By:** jet architecture

@@ -23,28 +23,35 @@
 
 # jet_pkg and Build-Time Geometry
 
-**Stub: open until J1 and J5 decide.** This chapter records the inherited parameter discipline and the pending jet additions. No parameter values are fixed here until J1 and J5 close.
+**Stub at 0.1–0.2; J1–J6 CLOSED 2026-10-28.** This chapter records the
+inherited parameter discipline and the jet additions as decided.
 
 ## Inherited geometry
 
 jet inherits the entire `amber_pkg` geometry. See [amber HAS ch05](../../../../amber-mesi-l1/docs/amber_has/ch05_parameters/01_parameters.md) for the core parameters, derived quantities, package contents, and the rule that the rig is not a parameter.
 
-## Pending jet additions
+## Jet additions (decided 2026-10-28)
 
-The following parameters are jet-specific and cannot be defined until the named J-rows close:
+Only two of the once-pending rows remain elaboration parameters; the other
+five decisions fixed BEHAVIOR, not knobs, and are constants in `jet_pkg`:
 
-| Parameter | Blocked by | What it controls |
+| Parameter | Range / value | What it controls |
 |---|---|---|
-| `MSHR_COUNT` | J1 | Number of outstanding misses the cache can track. |
-| `MSHR_ASSOC` | J1 | Full-associative, direct-mapped-by-index, or CAM organization of the MSHR file. |
-| `MERGE_POLICY` | J3 | Exact-line, range, or no merging. |
-| `HIT_UNDER_MISS` | J2 | All resident lines, non-conflicting lines, or read-only. |
-| `VICTIM_DEPTH` | J5 | Victim buffer depth for dirty evictions behind fills (0 = block like amber, 1–4 = decouple). |
-| `RESPONSE_ORDER` | J4 | In-order CPU responses or out-of-order with ID tags. |
-| `CONGESTION_POLICY` | J6 | Stall, drop-and-retry, or throttle when MSHRs are full. |
+| `MSHR_COUNT` | 2–16, default 4 (J1) | Number of outstanding misses; the J7 sweep knob. |
+| `VICTIM_DEPTH` | 1–4, default 2 (J5) | Writeback-buffer depth for dirty evictions behind fills. |
 
-: Table 5.0: Pending jet parameters
+| Fixed behavior | Value | From |
+|---|---|---|
+| MSHR organization | fully associative CAM by line address | J1 |
+| Merge policy | exact-line aliases, no class escalation | J3 |
+| Hit-under-miss | reads + writes to any resident line | J2 |
+| Response order | out-of-order fills, in-issue-order responses | J4 |
+| Congestion policy | strict stall; snoop priority over new CPU accepts | J6 |
+
+: Table 5.0: jet parameters and fixed behaviors
 
 ## Status
 
-No parameter values recorded. `jet_pkg` will extend `amber_pkg` after J1–J6 close. Until then, the amber_pkg defaults are the working baseline.
+`jet_pkg` extends `amber_pkg` with `MSHR_COUNT` and `VICTIM_DEPTH` plus the
+MSHR-entry type definitions; the amber_pkg defaults remain the working
+baseline for everything else.

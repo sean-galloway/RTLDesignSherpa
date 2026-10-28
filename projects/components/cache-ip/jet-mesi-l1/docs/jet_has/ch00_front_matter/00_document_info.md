@@ -26,9 +26,9 @@
 | Field | Value |
 |-------|-------|
 | Title | jet — Lockup-Free MESI Snoopy L1 Cache — Hardware Architecture Specification |
-| Version | 0.2 |
-| Date | 2026-10-11 |
-| Status | 0.2: owner rulings inherited from amber/onyx recorded — RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. Otherwise the same skeleton: purpose, context, and the decision landscape are real content; chapters shaped by open J-rows are stubs. |
+| Version | 0.3 |
+| Date | 2026-10-28 |
+| Status | 0.3: J1–J7 CLOSED (Sean, 2026-10-28) — MSHR organization, hit-under-miss scope, merge policy, ordering, writeback buffering, congestion policy, and the measured claim are all recorded in the PRD and in ch03/ch05/ch06. The cycle-level architecture moves to the jet MAS next. |
 | Scope | `jet` and `jet_ace` tops, the inherited `amber_core`, the MSHR delta, interfaces, parameters, and integration rules for the pair rig and the onyx rig. |
 | Not in scope | Speculative prefetching, adaptive replacement, QoS policies, multi-banked parallelism beyond MSHRs, directory-based coherence, L2/L3, ECC, TLBs, multi-port CPU issue, ACE DVM and barrier semantics. |
 
@@ -70,9 +70,10 @@
 |---------|------|--------|
 | 0.1 | 2026-10-11 | Skeleton HAS. States purpose, context, and the open decision landscape for J1–J7. Records amber inheritance for interfaces, parameters, clock/reset, and observation. |
 | 0.2 | 2026-10-11 | Owner rulings inherited from amber/onyx recorded: RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. |
+| 0.3 | 2026-10-28 | J1–J7 decided (Sean): full-assoc CAM MSHRs (default 4, range 2–16); hit-under-miss for reads+writes to any resident line; exact-line merge without escalation; out-of-order fills with in-order responses; decoupled writeback buffer (default 2, range 1–4); strict-stall congestion with snoop priority; the measured claim frozen (trace suite + Genesys2 pair rig, four MonBus metrics, MSHR sweep). |
 
 : Table 0.3: Revision history
 
 ## How to read this book
 
-Chapter 1 states purpose and scope. Chapter 2 is the system shape: use cases, features, context, and a prose block diagram. Chapter 3 is the architecture delta over amber; at 0.1 it is a set of stubs that record the J1–J5 decision landscape and cite the background material that will inform each decision. Chapter 4 is the pin-level interface inventory; the contracts themselves are inherited from amber HAS ch04, with jet-specific stress noted. Chapter 5 is the parameter package; at 0.1 it lists inherited geometry and the pending jet additions. Chapter 6 is integration: clock/reset, verification, characterization, and future hooks.
+Chapter 1 states purpose and scope. Chapter 2 is the system shape: use cases, features, context, and a prose block diagram. Chapter 3 is the architecture delta over amber; at 0.3 it records the J1–J5 rulings and what each drives, with citations to the background material behind each choice. Chapter 4 is the pin-level interface inventory; the contracts themselves are inherited from amber HAS ch04, with jet-specific stress noted. Chapter 5 is the parameter package: inherited geometry plus the two decided jet parameters. Chapter 6 is integration: clock/reset, verification, characterization, and future hooks.

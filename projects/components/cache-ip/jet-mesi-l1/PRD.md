@@ -21,15 +21,14 @@
 
 <!-- End Header -->
 
-# jet — Product Requirements (DRAFT)
+# jet — Product Requirements
 
-**Version:** 0.1 (draft, 2026-10-04)
-**Status:** scaffold only — inherits every DECIDED row of
-[amber's PRD](../amber-mesi-l1/PRD.md). Decided inherited rows so far: D8
+**Version:** 0.2 (2026-10-28)
+**Status:** decisions CLOSED — J1–J7 ruled 2026-10-28 (Sean), recorded in
+the table below; inherits every DECIDED row of
+[amber's PRD](../amber-mesi-l1/PRD.md). Earlier inherited rows: D8
 observation (`*_monlite`, 2026-10-04) and D4 snoop transport (ACE-shaped
-AC/CD/CR per the onyx D7 contract, 2026-10-05). The rows below are the
-deltas jet must decide for itself; all are OPEN until they record a name
-and a date.
+AC/CD/CR per the onyx D7 contract, 2026-10-05).
 
 ## 1. Purpose
 
@@ -42,13 +41,13 @@ actually buy in latency and bandwidth, in simulation and on board?
 
 | # | Decision | Candidates | What it drives |
 |---|---|---|---|
-| J1 | MSHR organization | OPEN: full associativity keyed by address vs direct-mapped by line index vs CAM of pending lines; capacity 2–16 entries as an elaboration parameter | the miss queue, merge logic, formal surface |
-| J2 | Hit-under-miss scope | OPEN: hits to any resident line (default) vs hits only to lines not conflicting with a pending fill vs reads-only (writes still block) | hazard logic between fill port and hit port |
-| J3 | Miss merging policy | OPEN: merge only exact-line aliases (default) vs merge line + offset range vs no merging (issue duplicate fetches, dedupe on return) | memory traffic, MSHR occupancy, fairness |
-| J4 | Ordering guarantees | OPEN: CPU-side responses in-issue-order vs out-of-order with ID tags; snoop-during-miss handling (a probe against a pending line must see the post-fill state or stall cleanly) | response path complexity, protocol proofs, consumer expectations |
-| J5 | Eviction under misses | OPEN: a dirty victim behind an outstanding fill must write back without deadlocking against the fill; victim buffer depth (0 = block like amber, 1–4 = decouple) | write-back path, the classic lockup-free deadlock corner |
-| J6 | Congestion/fairness | OPEN: policy when MSHRs are full — stall new misses (strict) vs drop-and-retry vs throttle CPU-side accepts; plus snoop-vs-fill arbitration priority | starvation/liveness proofs |
-| J7 | The measured claim | OPEN: define the experiment now — same trace suite + same board as amber, report hit latency distribution, miss concurrency, bandwidth, and MSHR occupancy from MonBus capture | what "jet is faster by X" must mean, reproducibly |
+| J1 | MSHR organization | **DECIDED 2026-10-28 (Sean): fully associative CAM keyed by line address, capacity an elaboration parameter 2–16, default 4.** Merge and hazard checks are exact-address comparators over N entries (the same shape as amber's tag hit-compare); smallest formal surface. Sizing per Chinnakonda §10.10: at 8-beat fills and ~50–100-cycle memory latency, 4–13 entries cover the bandwidth window — the count is itself the J7 sweep knob. Liveness rule: a fill once started always retires; MSHR-full stalls new misses; deadlock-free because no speculative/prefetch entries exist | the miss queue, merge logic, formal surface |
+| J2 | Hit-under-miss scope | **DECIDED 2026-10-28 (Sean): reads AND writes to any resident line proceed during fills.** A pending-fill line cannot "hit" (its tag installs at commit — that is the J3 merge case); a doomed victim stays hittable until the fill's commit tag-write lands (array copy intact, state still valid). The single W port arbitrates fill beats over write hits — fills must retire for J5/J6 liveness, write hits can wait a cycle | hazard logic between fill port and hit port |
+| J3 | Miss merging policy | **DECIDED 2026-10-28 (Sean): exact-line aliases merge; no in-flight class escalation.** Same class joins (read+read share the fill; write+write merge data at commit per amber's D-4 semantics). Cross-class waits: a write miss behind an outstanding read fill stalls until commit, then issues its own upgrade; a read behind a write fill waits and hits the committed M line. No RNSD→RU mutation of an outstanding entry | memory traffic, MSHR occupancy, fairness |
+| J4 | Ordering guarantees | **DECIDED 2026-10-28 (Sean): out-of-order fill completion, in-issue-order CPU responses.** The GAXI slave (amber D2) has no ID field, so responses release in issue order through a response-sequence queue while fills/MSHRs complete out of order internally. Snoop-on-pending-line keeps amber's answer-at-post-fill-state pending-fill bypass, generalized per MSHR entry (PF_GUARD included) | response path complexity, protocol proofs, consumer expectations |
+| J5 | Eviction under misses | **DECIDED 2026-10-28 (Sean): dirty victim captured to a global writeback buffer at miss start (victim_load); the fill proceeds immediately; the drain engine writes back oldest-first, independently.** Buffer depth an elaboration parameter 1–4, default 2. Snoop-on-buffer keeps amber's SINK_WB_ACK semantics. Buffer full stalls only new dirty-victim misses; drains always complete, so no deadlock | write-back path, the classic lockup-free deadlock corner |
+| J6 | Congestion/fairness | **DECIDED 2026-10-28 (Sean): strict stall — MSHR full stalls new CPU misses, writeback-buffer full stalls only dirty-victim misses; snoops arbitrate ahead of new CPU accepts** (a snoop never waits behind a fill that waits behind a snoop — the pair-rig deadlock class). No drop-and-retry (GAXI has no retry); no watermark (no consumer for a spare entry — snoops do not allocate MSHRs). Formal liveness targets: oldest MSHR entry always retires; drains always complete; snoop service never blocked by CPU congestion | starvation/liveness proofs |
+| J7 | The measured claim | **DECIDED 2026-10-28 (Sean): the experiment is frozen now — amber's cache_sim trace suite and the Genesys2 pair rig, identical traces on both caches.** Four metrics from MonBus tally capture: hit-latency distribution under a background miss stream, MSHR occupancy histogram, sustained fill bandwidth, drain/writeback overlap. MSHR count swept 2/4/8/16 so the occupancy→bandwidth curve is itself a result. cache_sim gains a concurrency model, or the gap is documented as a finding | what "jet is faster by X" must mean, reproducibly |
 
 ## 3. Success criteria (additions to amber's)
 

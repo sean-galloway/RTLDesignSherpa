@@ -23,36 +23,47 @@
 
 # MSHR Organization
 
-**Stub: open until J1 decides.** This chapter records the decision landscape for the MSHR organization. No architecture is recorded here until J1 closes.
+**Stub at 0.1–0.2; J1 CLOSED 2026-10-28.** This chapter records the MSHR organization decision and what it drives.
 
-## Candidates
+## Decision (J1, DECIDED 2026-10-28, Sean)
 
-The jet PRD lists three candidate organizations:
+**Fully associative CAM keyed by line address; capacity an elaboration
+parameter `MSHR_COUNT` in 2–16, default 4.**
 
-| Candidate | Implication |
-|---|---|
-| Full associativity keyed by address | Simple merge logic; scales poorly with entry count; CAM or pseudo-CAM cost. |
-| Direct-mapped by line index | Cheap indexing; bank-conflict hotspots; index conflicts can waste entries. |
-| CAM of pending lines | Flexible placement; match-by-address for merge; higher area and timing pressure. |
+Rationale: merge (J3) and hazard (J2) checks are exact-address comparators
+over N valid entries — the same shape as amber's per-way tag hit-compare,
+which already scales to 4 ways. At N ≤ 16 the CAM is small; the formal
+surface is just "the set of outstanding lines", one valid bit and one line
+address per entry. Direct-mapped-by-index would still pay the tag compare
+for merge while wasting entries on index conflicts; set-indexed banks sit
+between the two without beating either.
 
-Capacity is an elaboration parameter in the range 2–16 entries.
+## Sizing
+
+Chinnakonda, *Designing a Multiprocessor Cache Subsystem*, §10.10 (file
+10.8): derive outstanding-buffer count from average loaded latency, bus
+width, and line size. At 64 B lines over a 64-bit bus (8 beats),
+~50–100-cycle memory latency, and a streaming miss rate of ~1 per 10
+cycles, 4–13 entries cover the bandwidth window. The default is 4; the DV
+grid sweeps 2/4/8/16 so the occupancy→bandwidth curve is itself a J7
+result.
+
+## Liveness (allocation rule)
+
+Per Chinnakonda §8.2: buffer reservation must let the oldest non-
+speculative access always make progress. Jet has no speculative or
+prefetch entries (PRD non-goals), so the rule collapses to: **a fill once
+started always retires; MSHR-full stalls new miss allocation (J6 strict
+stall)**. No reservation pool is needed.
 
 ## What the decision drives
 
-J1 drives:
-
-- the miss queue structure and its match logic;
-- the merge logic for J3;
-- the hazard logic for J2;
-- the formal surface (which addresses can be outstanding simultaneously);
-- the parameterization of `jet_pkg`.
-
-## Background material
-
-Chinnakonda, *Designing a Multiprocessor Cache Subsystem*, §10.10 (file 10.8) "Number of outstanding accesses in L2" gives a sizing rule: derive the number of outstanding buffers from average loaded latency, bus width, and cache line size, then scale by expected efficiency. The L2 numbers are larger than jet's L1 MSHR file, but the same latency/bandwidth reasoning is the sizing input for J1.
-
-§8.2 "Deadlocks" notes that buffer reservation is often required so that the oldest non-speculative access can always make progress. The J1 organization must reserve enough structure to avoid the deadlock where a new miss cannot allocate because all MSHRs are held by younger speculative entries.
-
-## Status
-
-No architecture recorded. J1 must decide the organization, capacity parameter, and reservation rule.
+- the miss queue structure: one CAM row per entry
+  {valid, line addr, fill class, expected install state, requester
+  sequence tag};
+- the merge logic for J3 (exact-line match = one comparator per entry);
+- the hazard logic for J2 (hit-vs-pending-fill exclusion = the same
+  comparators);
+- the formal surface (which addresses can be outstanding simultaneously:
+  any N distinct lines);
+- `jet_pkg` parameterization (`MSHR_COUNT`).

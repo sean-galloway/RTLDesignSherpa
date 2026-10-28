@@ -23,8 +23,35 @@
 
 # Characterization
 
-**Stub: open until J7 decides.** This chapter will define the measurement protocol for the pair-rig and onyx-rig experiments.
+**Stub at 0.1–0.2; J7 CLOSED 2026-10-28.** This chapter defines the
+measurement protocol for the pair-rig experiment as ruled.
 
-At 0.1 the requirement is clear: characterize the same trace suite and the same board as amber, report hit latency distribution, miss concurrency, bandwidth, and MSHR occupancy from MonBus capture, and compare against amber with identical observation conditions.
+## The frozen experiment (J7, DECIDED 2026-10-28, Sean)
 
-The exact sweep matrix, fmax reporting methodology, and observer-cost quantification will be written once J7 closes.
+Same trace suite and same board as amber — the cache_sim trace corpus and
+the Genesys2 pair rig — with identical traces driven at both caches and
+identical observation conditions (amber D8 `*_monlite` taps, MonBus tally
+capture).
+
+**Four metrics, all from MonBus evidence:**
+
+1. **Hit-latency distribution** under a background miss stream (the
+   hit-under-miss win: hit latency with fills outstanding vs amber's
+   blocked pipeline).
+2. **MSHR occupancy histogram** (how much of the file the workload
+   actually uses).
+3. **Sustained fill bandwidth** (lines/cycle under streaming misses,
+   amber vs jet).
+4. **Drain/writeback overlap** (drain cycles hidden under fills vs
+   amber's serialized victim handling).
+
+**Sweep:** `MSHR_COUNT` ∈ {2, 4, 8, 16} at default geometry — the
+occupancy→bandwidth curve is itself a result.
+
+**Model cross-check:** cache_sim gains a concurrency model predicting
+jet's occupancy and bandwidth numbers, or the model gap is documented as
+a finding (per the PRD success criteria).
+
+fmax reporting methodology and observer-cost quantification follow the
+amber rig's conventions (and inherit its rig-upgrade work, formal
+TASK-001) when the board sweep runs.

@@ -33,9 +33,14 @@ wood).
 
 ## Status
 
-**Scaffolded 2026-10-04** — README + PRD only. `rtl/`, `dv/`, `docs/` are
-placeholders; no RTL, no testbench. Depends on amber: this IP starts the day
-amber's PRD decisions are DECIDED, reusing its protocol and arrays.
+**Decisions closed 2026-10-28** — J1–J7 ruled (Sean) and recorded in
+[PRD.md](PRD.md) and the HAS (v0.3): full-associative CAM MSHRs (default 4,
+range 2–16), hit-under-miss for reads+writes to any resident line,
+exact-line merge without escalation, out-of-order fills with in-order
+responses, decoupled writeback buffer (default 2, range 1–4), strict-stall
+congestion with snoop priority, and the frozen measurement experiment.
+`rtl/`, `dv/` are still placeholders; implementation follows the design
+spec (`docs/superpowers/specs/2026-10-28-jet-mshr-design.md`).
 
 ## What it adds over amber
 

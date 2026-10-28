@@ -27,23 +27,17 @@
 
 This 0.1 Hardware Architecture Specification is the first architectural checkpoint for `jet`, the lockup-free upgrade of the `amber` blocking MESI snoopy L1 cache. Its job is to fix the parts of jet that are already decided, make the research question explicit, and leave an honest trace of the open decisions (J1–J7) so that later revisions can show exactly what closed and why.
 
-At 0.1 the following are real content:
+At 0.3 the following are real content:
 
 - the purpose of the IP and the measured claim it must support;
 - the system context, use cases, and key features;
 - the inherited contracts from amber and onyx;
-- the observation requirements that J7 will turn into experiments;
-- the decision landscape for J1–J7, with citations to the background material that will inform each choice.
+- the observation requirements that J7 turned into a frozen experiment;
+- the J1–J7 rulings (2026-10-28, Sean), recorded per chapter with what
+  each drives.
 
-The following are stubs at 0.1 and are labeled as such in the chapters they shape:
-
-- MSHR organization (J1);
-- hit-under-miss scope (J2);
-- miss merging policy (J3);
-- ordering and snoop-during-miss guarantees (J4);
-- eviction under misses (J5);
-- congestion and fairness policy (J6);
-- the measured claim itself (J7).
+No J-row remains open. The cycle-level micro-architecture the rulings
+enable is MAS content, not HAS content.
 
 ## Research question
 
@@ -66,4 +60,6 @@ jet reuses amber's DECIDED rows: the MESI protocol, the shared core, the tag/dat
 
 ## Boundary with the MAS
 
-This HAS records architecture-level decisions and open questions. When J1–J7 close, the micro-architecture and signal contracts will move into the jet MAS. Until then, this book deliberately stays above the cycle-by-cycle detail.
+This HAS records architecture-level decisions. With J1–J7 closed
+(2026-10-28), the micro-architecture and signal contracts move into the jet
+MAS; this book deliberately stays above the cycle-by-cycle detail.
