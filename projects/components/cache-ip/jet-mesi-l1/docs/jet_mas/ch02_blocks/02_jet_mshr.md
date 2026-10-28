@@ -65,8 +65,8 @@ J7 experiment).
 
 - **Set oversubscription (§9.10.2):** a set with WAYS outstanding victim
   claims refuses further allocs to that set until one commits. The claim
-  count is a per-set counter bank next to the CAM (SETS counters, 2 bits at
-  4 ways).
+  count is a per-set counter bank next to the CAM (SETS counters, 3 bits at
+  4 ways — `$clog2(WAYS+1)`; the cap value WAYS itself must be representable)
 - **Cross-class wait (J3):** a write miss matching an RNSD entry does not
   allocate; lookup reports STALL-until-commit. A read miss matching an RU
   entry merges (it will hit the committed M line).
