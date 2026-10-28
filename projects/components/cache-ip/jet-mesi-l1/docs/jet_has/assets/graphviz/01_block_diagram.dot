@@ -1,50 +1,108 @@
-// jet MESI L1 (non-blocking) whole-unit block diagram, PLANNED -- house
-// style per vault/handbook/authoring/block-diagrams.md. No jet RTL exists;
-// this draws only the expected shape that HAS ch02/04 states in prose. Block
-// depths and the exact module split wait on decisions J1 (MSHR
-// organization) and J5 (victim buffering).
-digraph jet_planned {
+// jet MESI L1 whole-unit block diagram -- house style per
+// vault/handbook/authoring/block-diagrams.md. No jet RTL exists yet: this is
+// the decided architecture (J1-J7 closed 2026-10-28, HAS 0.3 / MAS 0.1),
+// drawn over amber's landed whole unit. Blocks that exist in amber and are
+// reused unchanged are labeled as such; jet's deltas are the MSHR file
+// (MAB), the writeback buffer, and the response sequencer.
+digraph jet_whole_unit {
     graph [rankdir=TB, bgcolor="white", fontname="Helvetica", fontsize=11,
-           nodesep="0.50", ranksep="0.60", splines=ortho,
-           label="jet non-blocking MESI L1 - whole unit (planned; shape per HAS 2.4, depths open until J1 / J5)",
+           nodesep="0.40", ranksep="0.62", splines=ortho,
+           label=<<B>jet MESI L1 - whole unit (planned; J1-J7 decided 2026-10-28, HAS 0.3 / MAS 0.1)</B>>,
            labelloc=t, labeljust=c];
     node  [fontname="Helvetica", fontsize=10, shape=box, style=filled,
            fillcolor="white", color="black", margin="0.12,0.06"];
     edge  [fontname="Helvetica", fontsize=9, color="black", arrowsize=0.7];
 
-    cpu  [label="CPU / STREAM\nGAXI master", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
-    peer [label="Peer cache (pair rig) or onyx CCU (ACE rig)\nACE snoop master", fillcolor="white", style="rounded,filled", fillcolor="#E2EFDA"];
+    cpu  [group=C, label="CPU / STREAM\nGAXI master", style="rounded,filled", fillcolor="#E2EFDA"];
+    peer [group=R, label="Peer jet cache (pair rig) or onyx CCU (ACE rig)\nACE snoop master", style="rounded,filled", fillcolor="#E2EFDA"];
 
-    core [label="Cache Core (inherited unchanged from amber)\nl1_core: GAXI front end, control, tag / data arrays,\nreplacement engine", peripheries=2, style="filled", fillcolor="#D6E4F0"];
-    snp  [label="Snoop Responder (inherited from amber)\nAC in, CR / CD out\nnew: also inspects the MSHR file and victim buffer (J4)", style="filled", fillcolor="white"];
+    fe   [group=C, label="CPU Front End + Response Sequencer\nl1_cpu_frontend (amber) + jet_rsp_seq (new) - FUBs\nGAXI slave; responses release in issue order (J4)",
+          peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    hz   [label="Snoop Hazard Checks\nMSHR CAM + WB compare (combinational)",
+          style="filled", fillcolor="white"];
+    snp  [group=R, label="Snoop Responder\nl1_snoop_resp - FUB (amber, unchanged)\nAC in, CR / CD out; port B of both arrays",
+          peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
 
-    mshr [label="MSHR File (planned, J1 / J2)\noutstanding-miss table, merge logic, hazard logic", style="filled", fillcolor="white"];
-    vic  [label="Victim Buffer (planned, J5)\ndeeper than amber's depth 1: holds dirty victims\nwhose fills have not returned", shape=cylinder, style="filled", fillcolor="#E8DFF5"];
-    mon  [label="Cache-Event Observer (inherited from amber)\nl1_monlite, extended with the J7 measurement classes\n(observed, nothing driven back)", style="filled,dashed", peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    repl [label="Replacement\nl1_repl - FUB (amber, unchanged)\nLRU / tree-PLRU / FIFO / random",
+          peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    ctrl [group=C, label="Lookup / Commit Control\njet_control - FUB (new)\nclassify hit / miss-alloc / merge / stall;\nper-entry miss contexts, commit pipeline",
+          peripheries=2, style="filled,diagonals", fillcolor="#FCE4D6"];
+    mon  [label="Cache-Event Observer\nl1_monlite (amber) + J7 classes (new)\n(observed, nothing driven back)",
+          peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
 
-    fab  [label="Fabric Master Stack\nAXI4 (pair rig) / ACE (onyx rig)\nmultiple outstanding transactions", peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    arr  [group=C, label="Tag + Data Arrays\nl1_tag_array + l1_data_array - sdpram_core each (amber, unchanged)\nport A: CPU lookup / hit / write merge / fill beats\nport B: snoop lookup / downgrade / CD read",
+          width=6.0, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    bar  [label="Rig edge - memory (pair rig) or onyx CCU (ACE rig)  |  MonBus out",
-          fillcolor="white", width=8, height=0.5, fontsize=11, shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    mshr [label="MSHR File (MAB, J1)\njet_mshr - FUB (new)\nfull-assoc CAM, MSHR_COUNT 2-16 (default 8)\n{line, class, victim way, merge list}",
+          shape=cylinder, style="filled", fillcolor="#E8DFF5"];
+    wb   [width=3.6, label="Writeback Buffer (J5)\njet_wb_buffer - FUB (new)\nVICTIM_DEPTH 1-4 (default 2)\naddress held to BRESP; oldest-first drains",
+          shape=cylinder, style="filled", fillcolor="#E8DFF5"];
 
-    cpu  -> core [dir=both, xlabel="request / response"];
-    core -> mshr [dir=both, xlabel="misses out /\nfill data in"];
-    core -> vic  [xlabel="dirty victims"];
-    mshr -> fab  [dir=both, xlabel="fill reads /\nread data"];
-    vic  -> fab  [xlabel="write-backs"];
-    fab  -> bar  [dir=both, xlabel="AXI4 / ACE"];
+    fill  [group=L, label="Fill Engine\nl1_fill - FUB (amber, unchanged)\nAXI4 read sequencing, single ID:\nfills serialize on the memory port",
+           peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    issue [label="ACE Issue Map\njet_ace_issue - FUB (jet_ace_top only)\nARSNOOP / AWSNOOP stamping",
+           peripheries=2, style="filled,dashed", fillcolor="#D6E4F0"];
+    drain [group=R, label="Drain Engine\nl1_drain - FUB (amber, unchanged)\nAXI4 write sequencing",
+           peripheries=2, style="filled", fillcolor="#D6E4F0"];
 
+    rdt [group=L, label="Read Transport\naxi4_master_rd_monlite\n(axi4ace_master_rd_monlite in jet_ace_top)",
+         peripheries=2, style="filled", fillcolor="#D6E4F0"];
+    wrt [group=R, label="Write Transport\naxi4_master_wr_monlite\n(axi4ace_master_wr_monlite in jet_ace_top)",
+         peripheries=2, style="filled", fillcolor="#D6E4F0"];
+
+    marb [label="MonBus Merge\nmonbus_arbiter (3 clients)", shape=polygon, sides=4, distortion=0.10,
+          width=2.8, height=0.5, style="filled", fillcolor="#FFF2CC"];
+
+    bar [group=C, label="Rig-top edge - m_axi_* to memory (jet_top) or to onyx as ACE (jet_ace_top)  |  MonBus out",
+         style="rounded,filled", fillcolor="#E2EFDA", penwidth=2.2,
+         width=11, height=0.5, fontsize=11];
+
+    // ---- CPU request flow (center) ----
+    cpu  -> fe   [dir=both, xlabel="request / response\n(in issue order, J4)"];
+    fe   -> ctrl [dir=both, xlabel="request / completion"];
+    ctrl -> arr  [dir=both, xlabel="port A: lookup,\nhit / write merge"];
+    repl -> ctrl [style=dashed, color="#777777", dir=both, xlabel="victim way"];
+
+    // ---- miss handling: MSHR file and writeback buffer ----
+    ctrl -> mshr [dir=both, xlabel="miss alloc /\nmerge match (J3)"];
+    ctrl -> wb   [taillabel="  victim capture\n  (at alloc, J5)"];
+    arr  -> wb   [xlabel="victim beats"];
+    mshr -> fill [dir=both, xlabel="fill launch (RNSD / RU)\n/ retire"];
+    arr  -> fill [dir=back, color="#1A7A1A", xlabel="fill beats"];
+    wb   -> drain [dir=both, xlabel="write-back launch /\nBRESP retire"];
+
+    // ---- fabric transports ----
+    fill  -> rdt   [dir=both, xlabel="AR / R"];
+    drain -> wrt   [dir=both, xlabel="AW / W / B"];
+    issue -> rdt   [style=dashed, color="#777777", xlabel="ARSNOOP"];
+    issue -> wrt   [style=dashed, color="#777777", xlabel="AWSNOOP"];
+    rdt   -> bar   [dir=both, xlabel="Read (AR / R)"];
+    wrt   -> bar   [dir=both, xlabel="Write (AW / W / B)"];
+
+    // ---- snoop column ----
     peer -> snp  [dir=both, xlabel="AC / CR, CD"];
-    core -> snp  [dir=both, style=dashed, color="#777777", xlabel="port B"];
-    snp  -> mshr [style=dashed, color="#777777", xlabel="inspect (J4)"];
-    snp  -> vic  [style=dashed, color="#777777", xlabel="inspect (J4)"];
-    core -> mon  [style=dashed, color="#777777", xlabel="cache events"];
-    mon  -> bar  [xlabel="MonBus packets"];
+    snp  -> arr  [dir=both, xlabel="port B"];
+    snp  -> hz   [style=dashed, color="#777777", xlabel="snoop addr"];
+    hz   -> mshr [style=dashed, color="#777777", constraint=false, xlabel="pending-fill match:\npost-fill state (J4)"];
+    hz   -> wb   [style=dashed, color="#777777", xlabel="snarf\n(SINK_WB_ACK, J5)"];
+
+    // ---- observation ----
+    ctrl -> mon  [style=dashed, color="#777777", headlabel="cache events  "];
+    mon  -> marb [xlabel="client 0"];
+    rdt  -> marb [style=dashed, color="#777777", xlabel="client 1"];
+    wrt  -> marb [style=dashed, color="#777777", xlabel="client 2"];
+    marb -> bar  [penwidth=1.8, xlabel="MonBus packets"];
 
     { rank=same; cpu; peer; }
-    { rank=same; core; snp; }
-    { rank=same; mon; mshr; vic; }
+    { rank=same; fe; snp; }
+    { rank=same; repl; ctrl; mon; }
+    { rank=same; mshr; wb; }
+    { rank=same; fill; issue; drain; }
+    { rank=same; rdt; wrt; }
     cpu -> peer [style=invis];
-    core -> snp [style=invis];
-    mon -> mshr -> vic [style=invis];
+    fe -> snp [style=invis];
+    repl -> ctrl -> mon [style=invis];
+    mshr -> wb [style=invis];
+    fill -> issue -> drain [style=invis];
+    rdt -> wrt [style=invis];
 }

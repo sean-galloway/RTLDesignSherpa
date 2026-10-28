@@ -23,23 +23,39 @@
 
 # Block Diagram
 
-This chapter is a stub at 0.1. The exact block diagram cannot be drawn until J1 (MSHR organization) and J5 (eviction/victim buffering) close, because those decisions change the shape, depth, and connection of the buffers between the cache core and the fabric masters.
-
-Figure 2.1 draws the expected shape from the prose below and nothing more. It is marked planned: no jet RTL exists, and the MSHR file and victim buffer have no depth yet.
+At 0.3 the J1–J7 rulings fix the shape, depth, and connection of every
+block, and Figure 2.1 draws exactly that: amber's landed whole unit with
+jet's three additions — the MSHR file (MAB), the writeback buffer, and the
+response sequencer — on the flows the decisions give them. No jet RTL
+exists yet; the figure is marked planned and is the contract the MAS
+elaborates.
 
 ### Figure 2.1: jet whole unit (planned)
 
-![jet non-blocking MESI L1, planned whole unit: inherited amber core and snoop responder, new MSHR file and deeper victim buffer, fabric master stack](../assets/graphviz/01_block_diagram.png)
+![jet non-blocking MESI L1, planned whole unit: inherited amber core and snoop responder, MSHR file, writeback buffer, response sequencer, fabric master stack](../assets/graphviz/01_block_diagram.png)
 
 **Source:** [01_block_diagram.dot](../assets/graphviz/01_block_diagram.dot)
 
-Expected shape, described in prose:
+Reading the figure:
 
-- The `amber_core` block (now `l1_core` in `cache-ip/common-ip`) is reused unchanged: CPU-side GAXI slave, tag/data arrays, replacement engine, and snoop responder.
-- Between the core and the fabric masters sits the **MSHR file**: the table of outstanding misses, the merge logic, and the hazard logic that implements J2.
-- The **victim buffer** is deeper than amber's: it must hold dirty victims displaced by fills that have not yet returned, per J5.
-- The **fabric master stack** (AXI4 for the pair rig, ACE for the onyx rig) sees multiple outstanding transactions instead of one.
-- The **ACE-shaped snoop port** (AC/CD/CR) is inherited from amber, but the snoop responder must now inspect the MSHR file and victim buffers, per J4.
-- The **monlite observer** is inherited from amber and is extended to emit the J7 measurement classes.
-
-Once J1 and J5 decide, this chapter will be replaced by a figure showing the exact modules, buffer depths, and datapaths.
+- **CPU flow (center).** Requests enter from the GAXI master through the
+  front end into `jet_control`'s lookup stage (hit / miss-alloc / merge /
+  stall classify); hits are served from the arrays' port A. Responses
+  release through the response sequencer in issue order (J4).
+- **Miss flow (left).** A miss allocates an MSHR entry (J1: full-assoc CAM,
+  exact-line match) claiming its victim way at alloc — the set
+  oversubscription cap of WAYS outstanding per set applies. The fill engine
+  launches the fill; fill beats return up the green lane straight into the
+  data array (the MAB scheme: no line data in the MSHR). Merged requesters
+  ride the entry's merge list and are served at commit (J3).
+- **Write-back flow (right).** A dirty victim is captured into the
+  writeback buffer at alloc (J5); the drain engine empties the buffer
+  oldest-first, independently of any fill. The entry's address is held
+  until BRESP.
+- **Snoop column (right).** The inherited snoop responder works the
+  arrays' port B; the hazard-check block compares the snoop against the
+  MSHR CAM (answer at the post-fill state, J4) and the writeback buffer
+  (snarf, SINK_WB_ACK, J5). A snoop never waits behind a fill or a drain.
+- **Observation.** The monlite observer taps the control block (now
+  including MSHR alloc/merge/retire and buffer occupancy, the J7 classes)
+  and merges with the transport observers into the MonBus out.

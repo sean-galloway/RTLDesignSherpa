@@ -43,7 +43,7 @@ binding family convention; the ACE spec only requires per-channel ordering.
 The contracts themselves do not change, but the internal concurrency does. With multiple outstanding misses:
 
 - The snoop port and the fabric masters must honor the same no-ID in-order CR/CD obligations under MSHR concurrency.
-- A snoop may now match a pending fill in the MSHR file or a dirty victim in the write-back path. The contract still requires a response; how that response is produced is the J4/J5 decision.
-- The CPU-side GAXI slave must still present responses that satisfy the ordering guarantee chosen by J4 (in-order or out-of-order with ID tags).
+- A snoop may now match a pending fill in the MSHR file or a dirty victim in the write-back path. The contract still requires a response; per the J4/J5 rulings that response comes from the per-entry pending-fill bypass (post-fill state) or from the writeback buffer (snarf, SINK_WB_ACK semantics).
+- The CPU-side GAXI slave presents responses in issue order (J4: no ID field exists, so out-of-order internal completion is re-sequenced before the response port).
 
-The binding reference for these obligations is the jet PRD J4 row.
+The binding record for these obligations is the jet PRD J4 row.

@@ -37,4 +37,7 @@ The following items are explicitly out of scope for jet v1.0 but are recorded as
 
 ## Closing J1–J7
 
-Closing the open J-rows will produce either a revised HAS or the MAS, depending on whether the decisions stay at architecture level or move into micro-architecture. Until then, the current directions are recorded in the stub chapters of this book.
+J1–J7 closed 2026-10-28 (Sean); the rulings are recorded in this book (ch03,
+ch05, ch06) and the binding PRD table, and the cycle-level architecture they
+enable lives in the [jet MAS](../../jet_mas/jet_mas_index.md). The hooks
+above remain open — none of the rulings closes them.
