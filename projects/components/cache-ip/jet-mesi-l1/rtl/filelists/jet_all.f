@@ -4,3 +4,4 @@
 # Starts with the package; each later task appends its own filelist here.
 
 -f $JET_ROOT/rtl/filelists/jet_pkg.f
+-f $JET_ROOT/rtl/filelists/jet_mshr.f
