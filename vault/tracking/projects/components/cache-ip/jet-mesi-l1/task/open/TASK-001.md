@@ -13,7 +13,7 @@ decomposition and phasing.
 
 Phases per the spec:
 
-1. `jet_pkg` + `jet_mshr` (full-assoc CAM, `MSHR_COUNT` 2–16 default 4) +
+1. `jet_pkg` + `jet_mshr` (full-assoc CAM, `MSHR_COUNT` 2–16 default 8) +
    unit TB.
 2. `jet_wb_buffer` (`VICTIM_DEPTH` 1–4 default 2) + unit TB; drain-engine
    integration.

@@ -70,7 +70,7 @@
 |---------|------|--------|
 | 0.1 | 2026-10-11 | Skeleton HAS. States purpose, context, and the open decision landscape for J1–J7. Records amber inheritance for interfaces, parameters, clock/reset, and observation. |
 | 0.2 | 2026-10-11 | Owner rulings inherited from amber/onyx recorded: RACK/WACK omitted from the contract; CD-before-CR confirmed as the family convention. |
-| 0.3 | 2026-10-28 | J1–J7 decided (Sean): full-assoc CAM MSHRs (default 4, range 2–16); hit-under-miss for reads+writes to any resident line; exact-line merge without escalation; out-of-order fills with in-order responses; decoupled writeback buffer (default 2, range 1–4); strict-stall congestion with snoop priority; the measured claim frozen (trace suite + Genesys2 pair rig, four MonBus metrics, MSHR sweep). |
+| 0.3 | 2026-10-28 | J1–J7 decided (Sean): full-assoc CAM MSHRs (default 8 — amended from 4 same-day per the Chinnakonda sizing formula — range 2–16); hit-under-miss for reads+writes to any resident line; exact-line merge without escalation; out-of-order fills with in-order responses; decoupled writeback buffer (default 2, range 1–4); strict-stall congestion with snoop priority; the measured claim frozen (trace suite + Genesys2 pair rig, four MonBus metrics, MSHR sweep). |
 
 : Table 0.3: Revision history
 

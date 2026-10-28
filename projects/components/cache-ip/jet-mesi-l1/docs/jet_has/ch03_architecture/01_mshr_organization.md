@@ -25,10 +25,11 @@
 
 **Stub at 0.1–0.2; J1 CLOSED 2026-10-28.** This chapter records the MSHR organization decision and what it drives.
 
-## Decision (J1, DECIDED 2026-10-28, Sean)
+**Decision (J1, DECIDED 2026-10-28, Sean)**
 
 **Fully associative CAM keyed by line address; capacity an elaboration
-parameter `MSHR_COUNT` in 2–16, default 4.**
+parameter `MSHR_COUNT` in 2–16, default 8** (default amended from 4 the
+same day per the sizing below).
 
 Rationale: merge (J3) and hazard (J2) checks are exact-address comparators
 over N valid entries — the same shape as amber's per-way tag hit-compare,
@@ -41,12 +42,22 @@ between the two without beating either.
 ## Sizing
 
 Chinnakonda, *Designing a Multiprocessor Cache Subsystem*, §10.10 (file
-10.8): derive outstanding-buffer count from average loaded latency, bus
-width, and line size. At 64 B lines over a 64-bit bus (8 beats),
-~50–100-cycle memory latency, and a streaming miss rate of ~1 per 10
-cycles, 4–13 entries cover the bandwidth window. The default is 4; the DV
-grid sweeps 2/4/8/16 so the occupancy→bandwidth curve is itself a J7
-result.
+10.8) and §9.10.4: entries ≈ miss occupancy ÷ line-return time, plus ~2
+margin. At the pair rig's ~50–100-cycle memory latency plus an 8-beat fill
+(occupancy ≈ 58–108 cycles) and an 8 B/cycle return path (one line per 8
+cycles), the formula centers on 8–16 entries. The default is 8 (ruled
+2026-10-28, amended from 4 the same day per this formula); the range 2–16
+and the 2/4/8/16 sweep stand.
+
+## Hazards the organization must carry
+
+- **Set oversubscription (§9.10.2, frontend victimization):** each
+  in-flight miss claims its victim way at alloc, so misses to one set are
+  capped at WAYS outstanding; the (WAYS+1)-th stalls until a set-mate
+  commits and frees a way claim. Without this, two fills could claim the
+  same victim way.
+- **Merge/hazard match:** exact-line CAM (J3, and the J2 hit/pending
+  exclusion).
 
 ## Liveness (allocation rule)
 

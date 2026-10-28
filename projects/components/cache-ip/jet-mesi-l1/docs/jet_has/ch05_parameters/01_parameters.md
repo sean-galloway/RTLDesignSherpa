@@ -37,7 +37,7 @@ five decisions fixed BEHAVIOR, not knobs, and are constants in `jet_pkg`:
 
 | Parameter | Range / value | What it controls |
 |---|---|---|
-| `MSHR_COUNT` | 2–16, default 4 (J1) | Number of outstanding misses; the J7 sweep knob. |
+| `MSHR_COUNT` | 2–16, default 8 (J1) | Number of outstanding misses; the J7 sweep knob. |
 | `VICTIM_DEPTH` | 1–4, default 2 (J5) | Writeback-buffer depth for dirty evictions behind fills. |
 
 | Fixed behavior | Value | From |

@@ -34,7 +34,7 @@ wood).
 ## Status
 
 **Decisions closed 2026-10-28** — J1–J7 ruled (Sean) and recorded in
-[PRD.md](PRD.md) and the HAS (v0.3): full-associative CAM MSHRs (default 4,
+[PRD.md](PRD.md) and the HAS (v0.3): full-associative CAM MSHRs (default 8,
 range 2–16), hit-under-miss for reads+writes to any resident line,
 exact-line merge without escalation, out-of-order fills with in-order
 responses, decoupled writeback buffer (default 2, range 1–4), strict-stall
