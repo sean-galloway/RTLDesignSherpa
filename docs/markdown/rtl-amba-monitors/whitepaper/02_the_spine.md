@@ -32,6 +32,21 @@ per packet type. The packet layout is fixed
 ([monitor_package_spec.md](../../rtl-amba/includes/monitor_package_spec.md)); everything
 else on this page is a knob.
 
+For the opening incident, the memory ring is the important sink. Steering the
+bridge, DMA, and stream error records there gives software one evidence area
+to inspect. Using each record's timestamp and source identity, it reconstructs
+the decode error followed by the two timeouts. This is more useful after a
+failure than a set of independent status bits that says only that each block
+eventually objected.
+
+Two kinds of order matter. The ring's physical order is the order in which the
+group arbitrated and accepted records; delivery delays can place a later event
+ahead of an earlier one from another source. The timestamp records when the
+event was observed. With the proposed global usync time base, software can
+compare and merge records from different groups in event-time order at
+microsecond resolution. Ocelus keeps both orders rather than pretending that
+arrival at a drain is always the order in which events occurred.
+
 > **Plane framing:** The spine is the output plane in action —
 > `monbus_arbiter` merges streams from every protocol-plane port, and the
 > `monbus_group` family filters and drains them off-chip. The ports themselves

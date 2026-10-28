@@ -21,18 +21,24 @@
 
 <!-- End Header -->
 
-# Ocelus as a Design Surface
+# Ocelus: Reconstructing What Happened
 
 **Audience:** SoC integrators deciding how to instrument a design with the
 RTL Design Sherpa monitor system -- branded Ocelus. **Not** a status snapshot of what is in the
 tree (that is [overview.md](../../rtl-amba/overview.md)) and not a port list (those are the
-per-module pages under [monitor/](../../rtl-amba/monitor/)). This paper sits one level up:
-here is the fabric in five planes, here is a real implementation end to end,
-here are the six axes the integrator owns, and here is what each choice costs.
+per-module pages under [monitor/](../../rtl-amba/monitor/)). This paper starts with an SoC
+failure and follows the evidence: how passive monitors turn independent symptoms into an
+ordered error history, how a shared microsecond time base connects events across the chip,
+and how the five fabric planes deliver that history to software. It then works through a real
+implementation end to end, the axes the integrator owns, and what each choice costs.
 
-**Version:** 1.5, 2026-10-20. Numbers are from the tree at 2026-10-12;
-each is cited to the page or report it comes from. Revision 1.1 makes the
-recommendation explicit: the lite monitor is the realistic choice on every
-port, and the full monitor is the exception you justify. Revision 1.2 (2026-10-12) brands the monitor system Ocelus and adds the standing comparison against Nexus (IEEE-ISTO 5001). Revision 1.3 (2026-10-20) redraws the block diagrams to the repo element key; no numbers or text changed. Revision 1.4 (2026-10-20) renames the PDF the Ocelus White Paper and starts every numbered section on its own page. Revision 1.5 (2026-10-20) reframes the paper around the five planes (protocol, error, debug, perf, output) with a new overview chapter and an end-to-end implementation figure, makes clear the fabric is not limited to simple interface tracking, and consolidates every citation into the closing references chapter.
+**Version:** 0.9, 2026-10-26. Ocelus and this paper remain at version 0.9
+until Ocelus has been validated in silicon. Numbers are from the tree at
+2026-10-12; each is cited to the page or report it comes from. The paper
+recommends the lite monitor on every port, with the full monitor as the
+exception requiring justification. It frames Ocelus as five planes (protocol,
+error, debug, perf, output), connects them through an SoC incident and a
+memory-resident error history, distinguishes event order from drain order,
+and presents the proposed global usync time base.
 
 ---

@@ -21,21 +21,20 @@
 
 <!-- End Header -->
 
-# Ocelus as a Design Surface
+# Ocelus: Reconstructing What Happened
 
-The Ocelus white paper — Ocelus, branded Ocelus — as a book: one
-chapter per file, in reading order, built to
-`docs/pdfs/Ocelus_White_Paper.pdf` by
+The Ocelus white paper as a book: one chapter per file, in reading order,
+built to `docs/pdfs/Ocelus_White_Paper.pdf` by
 `docs/markdown/generate_rtl_pdfs.sh monitor-wp` -- the same flow as every RTL
-library book. Revision 1.2 (2026-10-12); the revision is read from the front
-matter, so bump it there.
+library book. Revision 0.9 (2026-10-26); Ocelus remains at 0.9 until silicon
+validation. The revision is read from the front matter, so update it there.
 
 This list is the build order: every `.md` link on this page is inlined into
 the PDF in sequence, which is why orientation lives in `overview.md` beside
 this file rather than here.
 
-0. [The Ocelus as a Design Surface](00_front_matter.md)
-1. [Overview: a monitor fabric, in five planes](01_overview.md)
+0. [Ocelus: Reconstructing What Happened](00_front_matter.md)
+1. [Overview: from an SoC failure to a usable history](01_overview.md)
 2. [The spine](02_the_spine.md)
 3. [Which monitor: the lite, unless you can say why not](03_which_monitor.md)
 4. [Identity space allocation](04_identity_space_allocation.md)

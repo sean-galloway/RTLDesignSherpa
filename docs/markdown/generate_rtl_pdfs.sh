@@ -149,7 +149,7 @@ fi
 # embeds without caption encoding). The index IS the chapter order.
 if want monitor-wp; then
   WP_REV="$(grep -oE '^\*\*Version:\*\* [0-9]+\.[0-9]+' rtl-amba-monitors/whitepaper/00_front_matter.md | grep -oE '[0-9]+\.[0-9]+' | head -1)"
-  build_book "Ocelus White Paper" "Ocelus as a Design Surface — Rev ${WP_REV:-?}" \
+  build_book "Ocelus White Paper" "Reconstructing What Happened — Rev ${WP_REV:-?}" \
              rtl-amba-monitors/whitepaper/index.md Ocelus_White_Paper
 fi
 

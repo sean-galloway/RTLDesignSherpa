@@ -1,4 +1,31 @@
-# Overview: a monitor fabric, in five planes
+# Overview: from an SoC failure to a usable history
+
+An SoC failure usually arrives as a sequence, not as one isolated error. A
+malformed descriptor sends a DMA transaction to an unmapped address. The
+bridge rejects it. The DMA later times out waiting for completion, and the
+stream waiting for that data times out in turn. Every monitor has seen
+something real, but three disconnected alarms leave software to guess which
+event came first and which are consequences.
+
+Now give those events a common microsecond time base and collect the error
+records in a reserved memory region:
+
+| Time (µs) | Source | Event |
+|---:|---|---|
+| 18,442,731 | AXI bridge | Address decode error |
+| 18,442,935 | DMA channel 2 | Completion timeout |
+| 18,443,002 | Output stream | Data timeout |
+
+The list does not prove causality by itself. It does something immediately
+useful: it puts the earliest observed fault in front of the engineer, preserves
+the sequence that followed, and associates each record with its source. The
+investigation starts with the bridge and the descriptor instead of with three
+unrelated interrupt handlers. A history in memory is also available for
+postmortem capture when no live host can service each event as it arrives.
+
+That is the SoC-level purpose of Ocelus. The monitors, timestamps, identities,
+aggregation tree, and drains are not ends in themselves; together they turn
+distributed symptoms into evidence software can read in context.
 
 Ocelus — from the Latin *ocellus*, "little eye"; a bee's simple always-on
 eye — is the repository's monitor fabric: the blocks, the packet format, and

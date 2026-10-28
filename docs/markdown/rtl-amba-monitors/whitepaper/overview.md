@@ -26,11 +26,13 @@
 **What it is:** Ocelus -- from the Latin ocellus, "little eye"; a bee's
 simple always-on eye -- seen from one level up, for an SoC
 integrator deciding how to instrument a design, not for someone looking up a
-port. Revision 1.5 reframes the paper around the five planes the fabric is
-sliced into -- protocol, error, debug, perf, output -- and opens with an
-end-to-end implementation figure (the characterized three-port monitored
-read bridge). It is a general monitor fabric, not simple interface
-tracking: in-core monitors inside blocks like STREAM and RAPIDS,
+port. Revision 0.9, the pre-silicon release, opens with an SoC incident and
+follows its error records into a memory-resident history. It explains why a shared global usync time
+base matters across blocks, distinguishes event time from drain order, and
+then connects the story to the five planes -- protocol, error, debug, perf,
+output -- and an end-to-end implementation figure (the characterized
+three-port monitored read bridge). It is a general monitor fabric, not simple
+interface tracking: in-core monitors inside blocks like STREAM and RAPIDS,
 in-datapath meters and pass-through observers all emit onto the same
 spine. It names the spine (ports, arbiter tree, group, two drains), the six
 axes the integrator owns (identity allocation, insertion points, timestamp
@@ -41,7 +43,7 @@ every port; the full monitor is the exception you justify.
 
 **Read it:** [index.md](index.md) is the chapter list in order; the branded
 PDF is `docs/pdfs/Ocelus_White_Paper.pdf`. Start with chapter 1,
-"Overview: a monitor fabric, in five planes", or chapter 3,
+"Overview: from an SoC failure to a usable history", or chapter 3,
 "Which monitor", if you only have five minutes. All citations are
 consolidated in the closing references chapter.
 

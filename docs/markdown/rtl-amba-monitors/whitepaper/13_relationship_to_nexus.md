@@ -62,7 +62,7 @@ Three structural differences follow:
    reads the same drains.)
 2. **Information policy.** Nexus pays pins, serialization logic, and external
    capture hardware to stream continuously. Ocelus emits edge-triggered
-   packets only, which is what makes the Revision 1.1 posture affordable:
+   packets only, which is what makes the 0.9 posture affordable:
    lite monitor on every port, full monitor only where justified
    ([chapter 10](10_what_it_costs.md)).
 3. **Loop closure.** Nexus is open loop: data leaves and nothing in the system
