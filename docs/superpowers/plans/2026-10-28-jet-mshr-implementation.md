@@ -91,7 +91,7 @@ Expected: clean. Commit `env_python`, `bin/filelists.toml`, the jet rtl/dv scaff
 
 **Interfaces:**
 - Consumes: `jet_pkg` (Task 1).
-- Produces (used by `jet_control`, Tasks 5–7) — module `jet_mshr #(parameter MSHR_COUNT, SETS, WAYS, LINE_W, SEQ_W)`:
+- Produces (used by `jet_control`, Tasks 5–7) — module `jet_mshr #(parameter int MSHR_COUNT = jet_pkg::MSHR_COUNT, SETS, WAYS, LINE_W, SEQ_W)`. House-idiom elaboration range check (cf. `l1_tag_array.sv:125`): an `initial` block `$error`s when `MSHR_COUNT` is outside 2–16 (the J1 range; the package carries only the default — SV package parameters can't be overridden, so the check belongs at the module, which is also what makes the J7 2/4/8/16 sweep possible).
   - Alloc: `alloc_i`, `alloc_line_i[LINE_W-1:0]`, `alloc_set_i[SET_W-1:0]`, `alloc_cls_i[1:0]`, `alloc_install_i`, `alloc_victim_way_i[WAY_W-1:0]`, `alloc_wb_slot_i`, `alloc_wb_valid_i`, `alloc_seq_i[SEQ_W-1:0]` → `alloc_gnt_o`, `alloc_idx_o[MW-1:0]`; stall reasons `full_o`, `set_full_o`.
   - Two combinational CAM probes: lookup side (`lkup_line_i` → `lkup_match_o`, `lkup_match_idx_o`, `lkup_match_cls_o`) and snoop side (`sn_line_i` → `sn_match_o`, `sn_match_idx_o`, `sn_beats_rcvd_o`, `sn_install_o`). Same-cycle alloc/match resolve alloc-first (entry visible to the match from the alloc cycle).
   - `merge_i`, `merge_idx_i`, `merge_seq_i`; `beat_i`, `beat_idx_i`, `beat_num_i`; `sn_eff_i`, `sn_eff_idx_i`, `sn_eff_value_i[1:0]`; `retire_i`, `retire_idx_i`.
@@ -123,7 +123,7 @@ Entry array `[MSHR_COUNT]`; CAM compare per MAS ch02/02's alloc/match same-cycle
 
 **Interfaces:**
 - Consumes: `jet_pkg` (Task 1); `l1_drain`'s existing victim-side interface from `common-ip/rtl/fub/l1_victim.sv` (the buffer presents the SAME drain-side interface shape so `l1_drain` works unchanged — the buffer is a `VICTIM_DEPTH`-deep FIFO behind an `l1_victim`-compatible head).
-- Produces — module `jet_wb_buffer #(parameter VICTIM_DEPTH, LINE_W, LINE_BYTES, BUS_WIDTH)`:
+- Produces — module `jet_wb_buffer #(parameter int VICTIM_DEPTH = jet_pkg::VICTIM_DEPTH, LINE_W, LINE_BYTES, BUS_WIDTH)`. House-idiom elaboration range check: an `initial` block `$error`s when `VICTIM_DEPTH` is outside 1–4 (the J5 range).
   - Capture (from `jet_control`, beats read off data-array port B): `cap_i`, `cap_line_i[LINE_W-1:0]`, `cap_beat_i`, `cap_beat_data_i[BUS_WIDTH-1:0]` → `cap_gnt_o`, `cap_slot_o`; `wb_full_o`.
   - Drain side (to `l1_drain`): oldest-valid `drain_req_o`, `drain_line_o`, per-beat `drain_beat_data_o`, `drain_accept_i`; `drain_done_i` (BRESP) retires the entry.
   - Snarf (to the snoop path): `sn_line_i` → `sn_hit_o`, `sn_data_o` (full line), `sn_bresp_cycle_o` (entry retires this cycle — answer still valid, Review Focus 3); `sn_eff_i` records the post-snoop state effect on the entry.
