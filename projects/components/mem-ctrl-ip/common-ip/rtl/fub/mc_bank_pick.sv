@@ -465,6 +465,9 @@ module mc_bank_pick
     logic [NPAIR-1:0] w_sel, w_sel_above, w_below_mask, w_hint_vec;
     logic [NPAIR-1:0] w_pick_final, w_pick_onehot;
     logic             w_rd_col_any, w_wr_col_any;
+    logic             w_rd_col_pend, w_wr_col_pend;   // columns coming in a direction (pre stale mask)
+    logic             r_rd_col_more, r_wr_col_more;   // last cycle's column fire left a same-row entry behind it
+    logic             w_xdir_ok;                      // the other direction's columns may be taken
     logic             w_hint_ok, w_hint_is_col;
     logic             w_pick_vld;
     logic [PAIRW-1:0] w_pick_pair;
@@ -562,6 +565,10 @@ module mc_bank_pick
     assign w_self_stale = (r_hold ? r_stale_win : (r_spec_taken ? r_stale_spec : r_stale_pick))
                         | r_stale_fire;
     logic [NPAIR-1:0] w_stale_if;               // per pair: its request would be stale after a fire
+    // Direction batch exhausted: the CSR cap (0 = no cap) reached, the row
+    // gate below releases and the direction register's own cap logic flips.
+    logic             w_dir_batch_done;
+    assign w_dir_batch_done = (dir_batch_max_i != 8'd0) && (r_dir_batch >= dir_batch_max_i);
     always_comb begin
         for (int p = 0; p < NPAIR; p++) w_stale_if[p] = (r_cls[p] != CL_COL) || !w_cand[p].behind_same_row;
     end
@@ -576,10 +583,34 @@ module mc_bank_pick
             w_req_aged   [p] = w_req_ok[p] && r_aged[p];
         end
         w_rd_col_any = 1'b0; w_wr_col_any = 1'b0;
+        w_rd_col_pend = 1'b0; w_wr_col_pend = 1'b0;
         for (int b = 0; b < NUM_BANKS; b++) begin
             if (w_req_col[2*b])   w_rd_col_any = 1'b1;
             if (w_req_col[2*b+1]) w_wr_col_any = 1'b1;
+            // pending = a registered column request with its sink open, the
+            // stale masks NOT applied: the direction still has columns coming
+            // even while the pair that just fired is masked for two cycles
+            if (r_req[2*b]   && (r_cls[2*b]   == CL_COL) && rd_issue_ready_i) w_rd_col_pend = 1'b1;
+            if (r_req[2*b+1] && (r_cls[2*b+1] == CL_COL) && w_wr_sink_ok)     w_wr_col_pend = 1'b1;
         end
+        // The cycle after a column fire the fired pair's request register is
+        // EMPTY (decode lags the fire by one cycle; trace 2026-10-26, cycle
+        // 63343: req 0010, the read pair alone), so r_req cannot say "more
+        // columns coming" at the one cycle it matters. The fire stage knew:
+        // the candidate's behind_same_row at the fire is a column behind it.
+        if (r_rd_col_more) w_rd_col_pend = 1'b1;
+        if (r_wr_col_more) w_wr_col_pend = 1'b1;
+        // Direction stickiness (sim trace 2026-10-26, conc_banks): the
+        // fall-through to the OTHER direction's columns ran every time the
+        // current direction's only column was stale-masked (two cycles after
+        // each fire); the other column was then picked and HELD through its
+        // turnaround timer while the first direction's next column came back
+        // and waited its turn -- one flip per column, tWTR+1 one way and the
+        // PHY-floor tRTW (~21) the other: 216 cycles per 8-column burst,
+        // 21.5 MB/s a side on the board and in the proxy. Hold the direction
+        // while it has pending columns, until the batch cap (16 on granite,
+        // a read-only CSR) lets the other direction in.
+        w_xdir_ok = !(r_dir ? w_wr_col_pend : w_rd_col_pend) || w_dir_batch_done;
 
         // the hint is a request of its own class (a column hint whose sink
         // has no room is dropped; the decode re-presents it)
@@ -602,7 +633,7 @@ module mc_bank_pick
         else if (r_last_was_row) begin
             if (w_hint_ok && w_hint_is_col)    w_sel = w_hint_vec;
             else if (|w_req_col_dir)           w_sel = w_req_col_dir;
-            else if (|w_req_col)               w_sel = w_req_col;
+            else if (|w_req_col && w_xdir_ok)  w_sel = w_req_col;
             else if (w_hint_ok)                w_sel = w_hint_vec;
             else                               w_sel = w_req_row;
         end else begin
@@ -610,7 +641,8 @@ module mc_bank_pick
             else if (|w_req_row)               w_sel = w_req_row;
             else if (w_hint_ok)                w_sel = w_hint_vec;
             else if (|w_req_col_dir)           w_sel = w_req_col_dir;
-            else                               w_sel = w_req_col;
+            else if (w_xdir_ok)                w_sel = w_req_col;
+            else                               w_sel = '0;
         end
 
         // round-robin: lowest index at or above the (effective) rotor, else lowest overall
@@ -868,7 +900,20 @@ module mc_bank_pick
     // demand-blocked, or whose bank is gated beyond the lookahead is released
     // and the decode re-presents it.
     logic             w_hold_next;
-    assign w_hold_next = w_win_vld && w_class_ok && !w_blocked && w_win_la_ok && !w_dmd_fire;
+    // A held winner that is a column of the OTHER direction, waiting on the
+    // turnaround timer, yields as soon as the current direction has a column
+    // pending again (trace 2026-10-26, cycles 63343-63347: the read column
+    // was picked in the one cycle the writer's next entry was not yet
+    // visible, then HELD through tWTR while the writer's column sat ready
+    // from the next cycle on; after it fired the writer paid tRTW ~21, one
+    // flip per column). Dropping the hold re-runs the select, which takes
+    // the current direction's column; the other direction keeps its turn
+    // when nothing in the current direction is pending.
+    logic             w_win_xdir_col;
+    assign w_win_xdir_col = w_win_vld && (w_win_cls == CL_COL) && (w_sel_is_wr != r_dir)
+                         && (r_dir ? w_wr_col_pend : w_rd_col_pend) && !w_dir_batch_done;
+    assign w_hold_next = w_win_vld && w_class_ok && !w_blocked && w_win_la_ok && !w_dmd_fire
+                      && !w_win_xdir_col;
 
     logic w_ovr_safe;
     assign w_ovr_safe = (w_ovr_op == OP_PRE) ? bank_pre_ready_i[RK0][w_ovr_bank] : 1'b1;
@@ -1035,6 +1080,8 @@ module mc_bank_pick
             r_last_was_row <= 1'b0;
             r_wrfire0   <= 1'b0;
             r_rdfire0   <= 1'b0;
+            r_wr_col_more <= 1'b0;
+            r_rd_col_more <= 1'b0;
             r_actfire0      <= 1'b0;
             r_actfire0_bank <= '0;
         end else begin
@@ -1073,7 +1120,7 @@ module mc_bank_pick
             if (w_col_fire_now && (w_sel_is_wr != r_dir)) begin
                 r_dir       <= w_sel_is_wr;
                 r_dir_batch <= 8'd1;
-            end else if ((r_dir ? !w_wr_col_any : !w_rd_col_any)
+            end else if ((r_dir ? !w_wr_col_pend : !w_rd_col_pend)
                          && (r_dir ? w_rd_col_any : w_wr_col_any)) begin
                 r_dir       <= ~r_dir;
                 r_dir_batch <= '0;
@@ -1095,6 +1142,8 @@ module mc_bank_pick
 
             r_wrfire0 <= w_col_fire_now &&  w_sel_is_wr;
             r_rdfire0 <= w_col_fire_now && !w_sel_is_wr;
+            r_wr_col_more <= w_col_fire_now &&  w_sel_is_wr && w_win_bsr;
+            r_rd_col_more <= w_col_fire_now && !w_sel_is_wr && w_win_bsr;
             r_actfire0      <= w_dmd_fire && w_fis_act;
             r_actfire0_bank <= w_sel_bank;
         end

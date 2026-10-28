@@ -128,19 +128,41 @@ module mc_global_timers
     logic [7:0] r_trtw_cnt;
     logic [7:0] r_tccd_cnt;
 
-    // Which tFAW slot an ACT would claim: the one with the smallest remaining
-    // count. A function of registers only, so it resolves early -- which the
-    // readiness timing below depends on.
-    logic [NUM_RANKS-1:0][1:0] w_slot_pick;
+    // Which tFAW slot an ACT claims: the one with the smallest remaining
+    // count -- held in a REGISTER (2026-10-27). The search itself (three
+    // 8-bit compares in series and the index mux) sat between the slot
+    // registers and the install mux and the readiness flop, and at 100 MHz
+    // on the board that was 10 LUT hops and 7.2 ns of wire (granite TASK-003
+    // census, -0.241 ns, twelve endpoints). Two searches now run from the
+    // registers in parallel, over all four slots and over the three the
+    // current pick does not name, and the ACT strobe only selects between
+    // them at the end: the pick for next cycle is the minimum of next
+    // cycle's slots, because a uniform count-down keeps the order and an
+    // ACT only takes the claimed slot out of it (it lands at t_faw_i, above
+    // every slot installed earlier). Where the saturating count-down makes
+    // two slots tie at 0 the registered pick may name the other one; both
+    // are free, and every output here is a function of the slot VALUES, so
+    // the published windows are the same cycle for cycle. Proved in
+    // formal/mc_common/mc_global_timers.
+    logic [NUM_RANKS-1:0][1:0] r_slot_pick;
+    logic [NUM_RANKS-1:0][1:0] w_pick_all, w_pick_other;
     always_comb begin
         automatic logic [7:0] slot_min;
         for (int unsigned k = 0; k < NUM_RANKS; k++) begin
-            slot_min       = 8'hFF;
-            w_slot_pick[k] = 2'd0;
+            slot_min        = 8'hFF;
+            w_pick_all[k]   = 2'd0;
             for (int unsigned i = 0; i < 4; i++) begin
                 if (r_faw_slots[k][i] < slot_min) begin
-                    slot_min       = r_faw_slots[k][i];
-                    w_slot_pick[k] = 2'(i);
+                    slot_min      = r_faw_slots[k][i];
+                    w_pick_all[k] = 2'(i);
+                end
+            end
+            slot_min        = 8'hFF;
+            w_pick_other[k] = 2'd0;
+            for (int unsigned i = 0; i < 4; i++) begin
+                if ((2'(i) != r_slot_pick[k]) && (r_faw_slots[k][i] < slot_min)) begin
+                    slot_min        = r_faw_slots[k][i];
+                    w_pick_other[k] = 2'(i);
                 end
             end
         end
@@ -169,7 +191,7 @@ module mc_global_timers
                 w_faw_nxt[k][i] = (r_faw_slots[k][i] > 8'd0)
                                   ? r_faw_slots[k][i] - 8'd1 : 8'd0;
             // ... and an ACT installs t_faw_i into the slot it claims.
-            if (w_act_rank[k]) w_faw_nxt[k][w_slot_pick[k]] = t_faw_i;
+            if (w_act_rank[k]) w_faw_nxt[k][r_slot_pick[k]] = t_faw_i;
 
             w_trrd_nxt[k] = w_act_rank[k] ? t_rrd_i
                           : ((r_trrd_cnt[k] > 8'd0) ? r_trrd_cnt[k] - 8'd1 : 8'd0);
@@ -185,12 +207,15 @@ module mc_global_timers
     `ALWAYS_FF_RST(mc_clk, mc_rst_n, begin
         if (`RST_ASSERTED(mc_rst_n)) begin
             r_faw_slots <= '0;
+            r_slot_pick <= '0;
             r_trrd_cnt  <= '0;
             r_twtr_cnt  <= 8'd0;
             r_trtw_cnt  <= 8'd0;
             r_tccd_cnt  <= 8'd0;
         end else begin
             r_faw_slots <= w_faw_nxt;
+            for (int unsigned k = 0; k < NUM_RANKS; k++)
+                r_slot_pick[k] <= w_act_rank[k] ? w_pick_other[k] : w_pick_all[k];
             r_trrd_cnt  <= w_trrd_nxt;
             r_twtr_cnt  <= w_twtr_nxt;
             r_trtw_cnt  <= w_trtw_nxt;
@@ -220,7 +245,7 @@ module mc_global_timers
             for (int unsigned i = 0; i < 4; i++) begin
                 if (r_faw_slots[k][i] <= 8'd1) begin
                     any_free_all = 1'b1;
-                    if (2'(i) != w_slot_pick[k]) any_free_other = 1'b1;
+                    if (2'(i) != r_slot_pick[k]) any_free_other = 1'b1;
                 end
             end
             // On an ACT the claimed slot is about to hold t_faw_i, so it only

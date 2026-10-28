@@ -524,7 +524,11 @@ module mc_scheduler_plane
                 .NUM_BANKS(NUM_BANKS),
                 .ROW_WIDTH(ROW_WIDTH),
                 .HAS_TIMEOUT_CLOSE(PP_TIMEOUT_CLOSE),
-                .HAS_TELEMETRY    (PP_TELEMETRY)
+                .HAS_TELEMETRY    (PP_TELEMETRY),
+                // the bank-pick core's command row is a slot lookup at the end
+                // of its fire cone: the predictor reads it a cycle late (the
+                // parameter's note); the FR-FCFS core is unchanged
+                .PRED_CMD_REG     (SCHED_CORE == MC_SCHED_BANK_PICK)
             ) u_page_policy (
                 .aclk              (aclk),
                 .aresetn           (aresetn),

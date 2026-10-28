@@ -58,6 +58,19 @@ module mc_page_policy
     parameter bit HAS_TIMEOUT_CLOSE  = 1'b1,
     // 0 = the stat_* telemetry counters read 0 (a top that wires no *_STATS CSRs).
     parameter bit HAS_TELEMETRY      = 1'b1,
+    // 1 = the mistake predictor and the telemetry see the issued command one
+    // cycle late, through a register. The idle timers' re-warm and the close
+    // request keep the live stream (the request's live veto is what keeps a
+    // bank from being asked to close in the cycle after its own command). With
+    // the bank-pick core the command's row is an 8:1 slot lookup at the end of
+    // the fire cone, and the predictor's row compare into r_keep_open was the
+    // second-worst 100 MHz path on the board (15 LUTs, 7.5 ns of wire; granite
+    // TASK-003 census 2026-10-27, -0.706 ns). The predictor's verdict is the
+    // same: it reads the registered row image, which the delayed command sees
+    // in the same relative state (an ACT's bank is closed in the image both
+    // when it fires and a cycle later). The telemetry counts the same events a
+    // cycle later. Default 0: the FR-FCFS core and pumice are unchanged.
+    parameter bit PRED_CMD_REG       = 1'b0,
     parameter int BKW = $clog2(NUM_BANKS),
     parameter int RKW = (NUM_RANKS > 1) ? $clog2(NUM_RANKS) : 1
 ) (
@@ -195,12 +208,62 @@ module mc_page_policy
 
 
 
-    // ---- issued-stream decodes ---------------------------------------------
+    // ---- the issued stream as the PREDICTOR and the TELEMETRY see it ------
+    // (live, or one cycle late with PRED_CMD_REG; the idle timers and the
+    // close request below read cmd_valid_i / cmd_bank_i directly)
+    logic                 w_pc_valid;
+    dram_op_e             w_pc_op;
+    logic [BKW-1:0]       w_pc_bank;
+    logic [ROW_WIDTH-1:0] w_pc_row;
+    logic                 w_pc_ap, w_pc_to, w_pc_demand;
+    generate if (PRED_CMD_REG) begin : g_pred_cmd_reg
+        logic                 r_pc_valid;
+        dram_op_e             r_pc_op;
+        logic [BKW-1:0]       r_pc_bank;
+        logic [ROW_WIDTH-1:0] r_pc_row;
+        logic                 r_pc_ap, r_pc_to, r_pc_demand;
+        `ALWAYS_FF_RST(aclk, aresetn, begin
+            if (`RST_ASSERTED(aresetn)) begin
+                r_pc_valid  <= 1'b0;
+                r_pc_op     <= OP_NOP;
+                r_pc_bank   <= '0;
+                r_pc_row    <= '0;
+                r_pc_ap     <= 1'b0;
+                r_pc_to     <= 1'b0;
+                r_pc_demand <= 1'b0;
+            end else begin
+                r_pc_valid  <= cmd_valid_i;
+                r_pc_op     <= cmd_op_i;
+                r_pc_bank   <= cmd_bank_i;
+                r_pc_row    <= cmd_row_i;
+                r_pc_ap     <= cmd_ap_i;
+                r_pc_to     <= pre_is_timeout_i;
+                r_pc_demand <= demand_i;
+            end
+        end)
+        assign w_pc_valid  = r_pc_valid;
+        assign w_pc_op     = r_pc_op;
+        assign w_pc_bank   = r_pc_bank;
+        assign w_pc_row    = r_pc_row;
+        assign w_pc_ap     = r_pc_ap;
+        assign w_pc_to     = r_pc_to;
+        assign w_pc_demand = r_pc_demand;
+    end else begin : g_pred_cmd_live
+        assign w_pc_valid  = cmd_valid_i;
+        assign w_pc_op     = cmd_op_i;
+        assign w_pc_bank   = cmd_bank_i;
+        assign w_pc_row    = cmd_row_i;
+        assign w_pc_ap     = cmd_ap_i;
+        assign w_pc_to     = pre_is_timeout_i;
+        assign w_pc_demand = demand_i;
+    end endgenerate
+
+    // ---- issued-stream decodes (predictor / telemetry view) ----------------
     logic w_is_col, w_is_act, w_is_pre, w_is_ref;
-    assign w_is_col = cmd_valid_i && is_column_op(cmd_op_i);
-    assign w_is_act = cmd_valid_i && (cmd_op_i == OP_ACT);
-    assign w_is_pre = cmd_valid_i && ((cmd_op_i == OP_PRE) || (cmd_op_i == OP_PREA));
-    assign w_is_ref = cmd_valid_i && is_refresh_op(cmd_op_i);
+    assign w_is_col = w_pc_valid && is_column_op(w_pc_op);
+    assign w_is_act = w_pc_valid && (w_pc_op == OP_ACT);
+    assign w_is_pre = w_pc_valid && ((w_pc_op == OP_PRE) || (w_pc_op == OP_PREA));
+    assign w_is_ref = w_pc_valid && is_refresh_op(w_pc_op);
 
     // ---- per-bank idle timers (fixed_open / adapt_time) --------------------
     // A bank's timer arms while its row is open and RELOADS on any command to
@@ -238,8 +301,8 @@ module mc_page_policy
     // conflict PREs read as timeout closes and the mark was never cleared
     // (col_ilv 306 -> 254 MB/s in the full-family run, BUG-030).
     logic w_pre_was_timeout, w_is_apcol;
-    assign w_pre_was_timeout = w_is_pre && pre_is_timeout_i;
-    assign w_is_apcol        = cmd_valid_i && cmd_ap_i;   // RDA / WRA: a predicted close too
+    assign w_pre_was_timeout = w_is_pre && w_pc_to;
+    assign w_is_apcol        = w_pc_valid && w_pc_ap;   // RDA / WRA: a predicted close too
 
     // ---- mistake predictor (pumice BUG-030) ---------------------------------
     // A timeout close whose row the very next ACT to that bank reopens was a
@@ -290,14 +353,14 @@ module mc_page_policy
                     r_drain_arm[b] <= 1'b0;
                     r_row_cols[b]  <= '0;
                 end
-                if (w_is_pre && (int'(cmd_bank_i) == b)) begin
+                if (w_is_pre && (int'(w_pc_bank) == b)) begin
                     r_to_closed[b] <= w_pre_was_timeout;
                     if (!w_pre_was_timeout) r_keep_open[b] <= 1'b0;   // a real row change
                 end
-                if (w_is_apcol && (int'(cmd_bank_i) == b))
+                if (w_is_apcol && (int'(w_pc_bank) == b))
                     r_to_closed[b] <= 1'b1;                           // auto-precharge: a predicted close
-                if (w_is_act && (int'(cmd_bank_i) == b) && r_to_closed[b]
-                    && (cmd_row_i == r_last_row[b]))
+                if (w_is_act && (int'(w_pc_bank) == b) && r_to_closed[b]
+                    && (w_pc_row == r_last_row[b]))
                     r_keep_open[b] <= 1'b1;                           // we closed a row we needed
                 // drain-close evidence: an ACT to a different row than the
                 // last one, after a SHORT-lived row, arms it; an ACT reopening
@@ -314,12 +377,12 @@ module mc_page_policy
                 // short-row path the 256-column rows never armed, and the
                 // FR-FCFS core paid an explicit PRE per switch (758 per 16 384
                 // columns: 539 vs the per-bank core's 557 MB/s).
-                if (w_is_act && (int'(cmd_bank_i) == b)) begin
-                    r_drain_arm[b] <= r_last_vld[b] && (cmd_row_i != r_last_row[b])
+                if (w_is_act && (int'(w_pc_bank) == b)) begin
+                    r_drain_arm[b] <= r_last_vld[b] && (w_pc_row != r_last_row[b])
                                       && ((r_row_cols[b] <= COLCW'(DRAIN_ARM_MAX_COLS))
                                           || !r_to_closed[b]);
                     r_row_cols[b]  <= '0;
-                end else if (w_is_col && (int'(cmd_bank_i) == b)
+                end else if (w_is_col && (int'(w_pc_bank) == b)
                              && (r_row_cols[b] != {COLCW{1'b1}}))
                     r_row_cols[b]  <= r_row_cols[b] + COLCW'(1);
                 if (!w_timeout_on) r_keep_open[b] <= 1'b0;
@@ -411,7 +474,7 @@ module mc_page_policy
             for (int b = 0; b < NUM_BANKS; b++) stat_row_hit_o[b] <= 32'h0;
         end else begin
             if (w_is_pre && !w_pre_was_timeout)
-                r_conflict_mark[cmd_bank_i] <= 1'b1;
+                r_conflict_mark[w_pc_bank] <= 1'b1;
 
             if (w_is_col) stat_page_hit_o <= stat_page_hit_o + 32'h1;
 
@@ -424,18 +487,18 @@ module mc_page_policy
             // The re-activation case (open -> timeout close -> reopen, with no
             // column op in between) simply sets the flag twice, which is why
             // this counts correctly where col_ops - ACT does not.
-            if (w_is_act) r_act_pending[cmd_bank_i] <= 1'b1;
+            if (w_is_act) r_act_pending[w_pc_bank] <= 1'b1;
             if (w_is_col) begin
-                if (r_act_pending[cmd_bank_i])
-                    r_act_pending[cmd_bank_i] <= 1'b0;
+                if (r_act_pending[w_pc_bank])
+                    r_act_pending[w_pc_bank] <= 1'b0;
                 else
-                    stat_row_hit_o[cmd_bank_i] <= stat_row_hit_o[cmd_bank_i] + 32'h1;
+                    stat_row_hit_o[w_pc_bank] <= stat_row_hit_o[w_pc_bank] + 32'h1;
             end
             if (w_is_act) begin
                 stat_act_o <= stat_act_o + 32'h1;
-                if (r_conflict_mark[cmd_bank_i]) begin
+                if (r_conflict_mark[w_pc_bank]) begin
                     stat_page_miss_o <= stat_page_miss_o + 32'h1;
-                    r_conflict_mark[cmd_bank_i] <= 1'b0;
+                    r_conflict_mark[w_pc_bank] <= 1'b0;
                 end else begin
                     stat_page_empty_o <= stat_page_empty_o + 32'h1;
                 end
@@ -445,7 +508,7 @@ module mc_page_policy
                 stat_ref_o <= stat_ref_o + 32'h1;
                 // Sampled at the REF's own issue cycle, so it reflects demand
                 // at the moment the refresh took the command slot.
-                if (demand_i) stat_ref_busy_o <= stat_ref_busy_o + 32'h1;
+                if (w_pc_demand) stat_ref_busy_o <= stat_ref_busy_o + 32'h1;
             end
         end
     end)

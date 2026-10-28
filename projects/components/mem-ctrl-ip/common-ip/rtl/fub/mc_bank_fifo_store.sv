@@ -92,6 +92,20 @@
 //          threads lost 23% (429 vs 557 MB/s) while the mixed family
 //          deadlocked (2026-10-23, report 5.10).
 //
+//          Admission hold (2026-10-27): a push lands in a one-entry register
+//          per direction and is admitted from it a cycle later. The intake's
+//          AW / AR meta FIFOs read their RAM by a pointer, so the bank, the
+//          row compare and every per-bank admission check (pool slot, queue
+//          occupancy, FIFO ready, mixed cap) were one cone from that pointer
+//          into all sixteen bank FIFOs' flags: 12 LUTs and 7.9 ns of wire at
+//          100 MHz on the board (granite TASK-003 census, -0.346 ns, 40
+//          endpoints). The hold's ready is "empty or draining", registers
+//          only; one push per cycle as before; one cycle more from the AXI
+//          handshake to the record. The pops decode by comparing the fired
+//          slot with each queue's live head (a slot sits in exactly one
+//          queue) instead of r_*_bank[slot] -> bank: the slot is the fire
+//          cone's latest signal and sat in front of an 8:1 mux.
+//
 //          The FR-FCFS core's N-wide vectors are not produced here; this
 //          backend pairs with SCHED_CORE = BANK_PICK (granite_core checks).
 
@@ -331,15 +345,44 @@ module mc_bank_fifo_store
     logic [31:0] w_fill_idx;
     assign w_fill_idx = 32'(w_fill_slot) * 32'(AXI_BEATS_PER_BURST) + 32'(r_wr_bcnt[w_fill_slot]);
 
-    logic w_aw_fire, w_wd_fire, w_fill_done;
-    assign w_aw_fire   = aw_push_valid_i && aw_push_ready_o;
+    // ---- WR admission hold (header): the AW is taken into a register, and
+    //      admitted into the pool and its bank queue from there --------------
+    logic                 r_awh_vld;
+    logic [BKW-1:0]       r_awh_bank;
+    logic [ROW_WIDTH-1:0] r_awh_row;
+    logic [COL_WIDTH-1:0] r_awh_col;
+    logic [IW-1:0]        r_awh_id;
+    logic                 r_awh_last;
+    logic w_aw_take, w_aw_fire, w_wd_fire, w_fill_done;
+    logic w_wr_cap_ok, w_rd_cap_ok;   // conditional per-bank cap (BANK_CAP_MIXED), assigned below the RD slots
+    // admit: the held AW enters the pool and its bank queue (registers only)
+    assign w_aw_fire   = r_awh_vld && w_wr_have_free && (r_wq_cnt[r_awh_bank] != QCW'(QD))
+                       && w_wq_wr_ready[r_awh_bank] && w_wr_cap_ok;
+    assign aw_push_ready_o = !r_awh_vld || w_aw_fire;
+    assign w_aw_take   = aw_push_valid_i && aw_push_ready_o;
     assign w_wd_fire   = wd_valid_i && wd_ready_o;
     assign w_fill_done = w_wd_fire && (wd_last_i || (r_wr_bcnt[w_fill_slot] == BCW'(AXI_BEATS_PER_BURST - 1)));
-
-    logic w_wr_cap_ok, w_rd_cap_ok;   // conditional per-bank cap (BANK_CAP_MIXED), assigned below the RD slots
-    assign aw_push_ready_o = w_wr_have_free && (r_wq_cnt[aw_push_bank_i] != QCW'(QD))
-                           && w_wq_wr_ready[aw_push_bank_i] && w_wr_cap_ok;
     assign wd_ready_o      = w_fill_vld;
+
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_awh_vld  <= 1'b0;
+            r_awh_bank <= '0;
+            r_awh_row  <= '0;
+            r_awh_col  <= '0;
+            r_awh_id   <= '0;
+            r_awh_last <= 1'b0;
+        end else if (w_aw_take) begin
+            r_awh_vld  <= 1'b1;
+            r_awh_bank <= aw_push_bank_i;
+            r_awh_row  <= aw_push_row_i;
+            r_awh_col  <= aw_push_col_i;
+            r_awh_id   <= aw_push_id_i;
+            r_awh_last <= aw_push_last_i;
+        end else if (w_aw_fire) begin
+            r_awh_vld  <= 1'b0;
+        end
+    end)
 
     // ======================================================================
     // WR commit -> drain queue (slots drain in scheduler commit order).
@@ -417,17 +460,25 @@ module mc_bank_fifo_store
     // compares the incoming row with the registered tail row; it is
     // meaningful only when something is ahead of it after this cycle's pop.
     // ======================================================================
-    logic [BKW-1:0]  w_commit_bank;
-    assign w_commit_bank = r_wr_bank[wr_commit_slot_i];
+    // The popped queue is the one whose live HEAD is the committed slot (a
+    // slot sits in exactly one queue, and a commit names a head; in the
+    // pick's pop-shadow cycle the FIFO already shows the second record's
+    // slot at its head). See the header for why this is not r_wr_bank[slot].
     logic [NUM_BANKS-1:0] w_wq_pop, w_wq_push;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
-            w_wq_pop [b] = w_wr_commit_fire && (w_commit_bank == BKW'(b));
-            w_wq_push[b] = w_aw_fire && (aw_push_bank_i == BKW'(b));
+            w_wq_pop [b] = w_wr_commit_fire && w_wq_rd_valid[b]
+                         && (w_wq_rd_data[b][PTRW-1:0] == wr_commit_slot_i);
+            w_wq_push[b] = w_aw_fire && (r_awh_bank == BKW'(b));
         end
     end
-    assign w_wq_sp_new = ((int'(r_wq_cnt[aw_push_bank_i]) - (w_wq_pop[aw_push_bank_i] ? 1 : 0)) > 0)
-                       && (aw_push_row_i == r_wq_tail_row[aw_push_bank_i]);
+    // same-row-as-previous: the held AW's row against its bank's tail row,
+    // when the queue holds an entry. Whether this cycle's pop empties the
+    // queue does not enter: the bit is read at positions 1 and 2 only (the
+    // records below), never at the head, and an entry pushed into a queue
+    // emptied under it IS the head. (The pop term put the fire cone on the
+    // FIFOs' data inputs, 2026-10-27.)
+    assign w_wq_sp_new = (r_wq_cnt[r_awh_bank] != '0) && (r_awh_row == r_wq_tail_row[r_awh_bank]);
 
     // ======================================================================
     // WR sequential logic
@@ -458,11 +509,11 @@ module mc_bank_fifo_store
                 r_wr_valid[w_wr_free_slot] <= 1'b1;
                 r_wr_fdone[w_wr_free_slot] <= 1'b0;
                 r_wr_bcnt [w_wr_free_slot] <= '0;
-                r_wr_bank [w_wr_free_slot] <= aw_push_bank_i;
-                r_wr_row  [w_wr_free_slot] <= aw_push_row_i;
-                r_wr_col  [w_wr_free_slot] <= aw_push_col_i;
-                r_wr_id   [w_wr_free_slot] <= aw_push_id_i;
-                r_wr_last [w_wr_free_slot] <= aw_push_last_i;
+                r_wr_bank [w_wr_free_slot] <= r_awh_bank;
+                r_wr_row  [w_wr_free_slot] <= r_awh_row;
+                r_wr_col  [w_wr_free_slot] <= r_awh_col;
+                r_wr_id   [w_wr_free_slot] <= r_awh_id;
+                r_wr_last [w_wr_free_slot] <= r_awh_last;
             end
 
             // fill-order FIFO: circular; pop (head + 1) at fill-done, push at
@@ -486,7 +537,7 @@ module mc_bank_fifo_store
             // per-bank occupancy and tail row (the queue itself is the FIFO)
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_wq_cnt[b] <= QCW'(int'(r_wq_cnt[b]) - (w_wq_pop[b] ? 1 : 0) + (w_wq_push[b] ? 1 : 0));
-                if (w_wq_push[b]) r_wq_tail_row[b] <= aw_push_row_i;
+                if (w_wq_push[b]) r_wq_tail_row[b] <= r_awh_row;
             end
 
             // fetch engine
@@ -551,30 +602,53 @@ module mc_bank_fifo_store
             end
     end
 
-    logic w_ar_fire, w_rd_issue_fire;
-    assign w_ar_fire       = ar_push_valid_i && ar_push_ready_o;
+    // ---- RD admission hold (header): the AR is taken into a register with
+    //      the ring ticket the plane allocates at the handshake, and admitted
+    //      into the pool and its bank queue from there ----------------------
+    logic                 r_arh_vld;
+    logic [BKW-1:0]       r_arh_bank;
+    logic [ROW_WIDTH-1:0] r_arh_row;
+    logic [COL_WIDTH-1:0] r_arh_col;
+    logic [RTW-1:0]       r_arh_ticket;
+    logic w_ar_take, w_ar_fire, w_rd_issue_fire;
+    assign w_ar_fire       = r_arh_vld && w_rd_have_free && (r_rq_cnt[r_arh_bank] != QCW'(QD))
+                           && w_rq_wr_ready[r_arh_bank] && w_rd_cap_ok;
+    assign rd_cam_ins_ready_o = !r_arh_vld || w_ar_fire;
+    assign ar_push_ready_o    = rd_cam_ins_ready_o && rt_alloc_ready_i;
+    assign w_ar_take       = ar_push_valid_i && ar_push_ready_o;
     assign w_rd_issue_fire = rd_issue_valid_i && rd_issue_ready_o;
-
-    assign ar_push_ready_o    = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD))
-                              && w_rq_wr_ready[ar_push_bank_i] && w_rd_cap_ok && rt_alloc_ready_i;
-    assign rd_cam_ins_ready_o = w_rd_have_free && (r_rq_cnt[ar_push_bank_i] != QCW'(QD))
-                              && w_rq_wr_ready[ar_push_bank_i] && w_rd_cap_ok;
     assign rd_issue_ready_o   = rd_iss_ready_i;
     assign rd_iss_valid_o     = w_rd_issue_fire;
     assign rd_iss_ticket_o    = r_rd_ticket[rd_issue_slot_i];
 
-    logic [BKW-1:0]  w_issue_bank;
-    assign w_issue_bank = r_rd_bank[rd_issue_slot_i];
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            r_arh_vld    <= 1'b0;
+            r_arh_bank   <= '0;
+            r_arh_row    <= '0;
+            r_arh_col    <= '0;
+            r_arh_ticket <= '0;
+        end else if (w_ar_take) begin
+            r_arh_vld    <= 1'b1;
+            r_arh_bank   <= ar_push_bank_i;
+            r_arh_row    <= ar_push_row_i;
+            r_arh_col    <= ar_push_col_i;
+            r_arh_ticket <= rt_alloc_ticket_i;
+        end else if (w_ar_fire) begin
+            r_arh_vld    <= 1'b0;
+        end
+    end)
 
+    // pop by the live head (see the WR side), push from the hold
     logic [NUM_BANKS-1:0] w_rq_pop, w_rq_push;
     always_comb begin
         for (int b = 0; b < NUM_BANKS; b++) begin
-            w_rq_pop [b] = w_rd_issue_fire && (w_issue_bank == BKW'(b));
-            w_rq_push[b] = w_ar_fire && (ar_push_bank_i == BKW'(b));
+            w_rq_pop [b] = w_rd_issue_fire && w_rq_rd_valid[b]
+                         && (w_rq_rd_data[b][PTRW-1:0] == rd_issue_slot_i);
+            w_rq_push[b] = w_ar_fire && (r_arh_bank == BKW'(b));
         end
     end
-    assign w_rq_sp_new = ((int'(r_rq_cnt[ar_push_bank_i]) - (w_rq_pop[ar_push_bank_i] ? 1 : 0)) > 0)
-                       && (ar_push_row_i == r_rq_tail_row[ar_push_bank_i]);
+    assign w_rq_sp_new = (r_rq_cnt[r_arh_bank] != '0) && (r_arh_row == r_rq_tail_row[r_arh_bank]);
 
     `ALWAYS_FF_RST(aclk, aresetn, begin
         if (`RST_ASSERTED(aresetn)) begin
@@ -588,15 +662,15 @@ module mc_bank_fifo_store
         end else begin
             if (w_ar_fire) begin
                 r_rd_valid [w_rd_free_slot] <= 1'b1;
-                r_rd_bank  [w_rd_free_slot] <= ar_push_bank_i;
-                r_rd_row   [w_rd_free_slot] <= ar_push_row_i;
-                r_rd_col   [w_rd_free_slot] <= ar_push_col_i;
-                r_rd_ticket[w_rd_free_slot] <= rt_alloc_ticket_i;
+                r_rd_bank  [w_rd_free_slot] <= r_arh_bank;
+                r_rd_row   [w_rd_free_slot] <= r_arh_row;
+                r_rd_col   [w_rd_free_slot] <= r_arh_col;
+                r_rd_ticket[w_rd_free_slot] <= r_arh_ticket;
             end
             if (w_rd_issue_fire) r_rd_valid[rd_issue_slot_i] <= 1'b0;
             for (int b = 0; b < NUM_BANKS; b++) begin
                 r_rq_cnt[b] <= QCW'(int'(r_rq_cnt[b]) - (w_rq_pop[b] ? 1 : 0) + (w_rq_push[b] ? 1 : 0));
-                if (w_rq_push[b]) r_rq_tail_row[b] <= ar_push_row_i;
+                if (w_rq_push[b]) r_rq_tail_row[b] <= r_arh_row;
             end
         end
     end)
@@ -610,8 +684,8 @@ module mc_bank_fifo_store
             if (r_wr_valid[i]) w_any_wr = 1'b1;
         end
     end
-    assign w_wr_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_rd || (int'(r_wq_cnt[aw_push_bank_i]) < BANK_CAP_MIXED);
-    assign w_rd_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_wr || (int'(r_rq_cnt[ar_push_bank_i]) < BANK_CAP_MIXED);
+    assign w_wr_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_rd || (int'(r_wq_cnt[r_awh_bank]) < BANK_CAP_MIXED);
+    assign w_rd_cap_ok = (BANK_CAP_MIXED == 0) || !w_any_wr || (int'(r_rq_cnt[r_arh_bank]) < BANK_CAP_MIXED);
 
     // ======================================================================
     // Pool age (gaxi_age_fifo_sync's writer rule across all 2 x NUM_BANKS
@@ -839,7 +913,7 @@ module mc_bank_fifo_store
     assign wr_done_id_o    = w_hd_id;
 
     always_comb begin
-        busy_o = w_dq_rd_valid || w_hd_vld || r_if_valid;
+        busy_o = w_dq_rd_valid || w_hd_vld || r_if_valid || r_awh_vld || r_arh_vld;
         for (int i = 0; i < NUM_ENTRIES; i++)
             if (r_wr_valid[i] || r_rd_valid[i]) busy_o = 1'b1;
     end
