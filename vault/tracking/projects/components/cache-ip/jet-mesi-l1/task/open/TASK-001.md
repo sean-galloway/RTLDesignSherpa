@@ -7,7 +7,8 @@
 Filed 2026-10-28, the day J1–J7 closed (Sean) and the design spec
 `docs/superpowers/specs/2026-10-28-jet-mshr-design.md` was written. The PRD
 (v0.2) and HAS (v0.3) record the rulings; the spec carries the module
-decomposition and phasing.
+decomposition and phasing. Implementation plan:
+`docs/superpowers/plans/2026-10-28-jet-mshr-implementation.md` (2026-10-28).
 
 ## Scope
 
