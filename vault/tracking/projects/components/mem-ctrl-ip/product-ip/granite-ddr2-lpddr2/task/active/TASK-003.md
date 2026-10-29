@@ -507,3 +507,29 @@ cannot be placed away. The default directive remains the one the flow
 ships, and its bitstream closes. The design moves that would buy real
 margin are the ones recorded above as not mine to take alone: the LA=3
 pick pipeline split, or a scheduler-plane pblock.
+
+### 2026-10-29, the 100 MHz bitstream on the board: not a board point
+
+The closing bitstream (repeat build of b8665155e, WNS +0.004) programmed
+and ran init, but read leveling found no (bitslip, tap) eye at all and the
+write_read smoke mismatched every beat (512 of 512; memtest not reached).
+The clock plan is the cause, not the controller: `GRANITE_SYS_100` keeps
+sys2x at 150 MHz (DDR2-300) under a 100 MHz sys, a 3:2 ratio, and the
+LiteDRAM a7ddrphy serializers run with `CLKDIV = sys_clk, CLK = sys2x_clk`
+(OSERDESE2 DDR, width 4), which requires sys2x to be exactly 2x sys and
+phase-locked. The 75 MHz plan has that (150 = 2 x 75); the 100 MHz plan
+does not, so the PHY cannot capture anything. The pumice harness already
+says this of its own 100 MHz profile ("a timing build, not a board point:
+no DDR2 calibration tuple exists for it") and pairs 100 MHz with a 200 MHz
+sys2x (DDR2-400, VCO 800).
+
+So the 100 MHz close is a controller-timing result; a board number at
+100 MHz sys needs the DDR2-400 clock plan (sys2x 200 MHz, idelay /4), a
+build that closes the PHY and DFI-adapter paths at 5 ns, a DDR2-400 init
+(CL3 at 200 MHz is legal for the MT47H64M16HR-25E; the host's cycle
+derivation takes the MC clock and ck_per_mc=2), and a fresh calibration
+tuple. The peak moves from 600 to 800 MB/s, so it is a different operating
+point from the 75 MHz LiteDRAM A/B, not a faster version of the same one.
+Not started: the harness clock plan is the framework owner's, and the
+measurement point is a decision. Smoke log in the session scratch
+(`board100/smoke.log`).
