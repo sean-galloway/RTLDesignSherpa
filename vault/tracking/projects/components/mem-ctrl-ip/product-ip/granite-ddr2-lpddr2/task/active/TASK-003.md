@@ -533,3 +533,39 @@ point from the 75 MHz LiteDRAM A/B, not a faster version of the same one.
 Not started: the harness clock plan is the framework owner's, and the
 measurement point is a decision. Smoke log in the session scratch
 (`board100/smoke.log`).
+
+### 2026-10-29, the committed RTL (SET_LAG) on the board at 75 MHz: unchanged, as the proxy said
+
+Fresh 75 MHz build of the tree at e88a0e2d9 (the b8665155e timer change in,
+default plan, DDR2-300): WNS +1.235 ns, 0 of 107,853, 36,386 LUTs. Smoke
+(init, write_read, memtest) passed on the cached 75 MHz leveling; four
+profiles, zero mismatches in every cell. CSVs
+`char_granite_setlag75_{open_min,concurrent,multigen,paging_grade}_2026-10-29.csv`.
+The LiteDRAM mixed-traffic rows below are the 2026-10-04 CSVs scaled by 0.75
+(they were logged against a constant 100 MHz; the board clock was 75), the
+same correction as the 2026-10-26 table; its streams are the 2026-10-13 soak.
+
+| MB/s, 75 MHz, peak 600 | LiteDRAM | granite 26 Oct (final) | granite 29 Oct (committed) |
+|---|---|---|---|
+| open_page streams wr / rd: incremental | 554 / 564 | 576 / 578 | 576 / 578 |
+| open_page streams wr / rd: row_major | 569 / 579 | 578 / 580 | 578 / 580 |
+| open_page streams wr / rd: col_major (thrash) | 304 / 386 | 292 / 333 | 292 / 333 |
+| open_page streams wr / rd: col_major_interleaved | 277 / 280 | 512 / 514 | 512 / 514 |
+| stream read latency, cycles | 48 | 50 | 50 |
+| concurrent 1w+1r combined: incremental | 248 | 568 | 569 |
+| concurrent 1w+1r combined: row_major | 286 | 576 | 576 |
+| concurrent 1w+1r combined: col_major | 248 | 213 | 213 |
+| concurrent 1w+1r combined: col_major_interleaved | 246 | 402 | 400 |
+| concurrent read latency, cycles (incremental / row_major) | 190 / 107 | 78 / 79 | 80 / 79 |
+| multigen 1w+2r combined: incremental | 279 | 385 | 385 |
+| multigen 1w+2r combined: row_major | 316 | 516 | 509 |
+| multigen 1w+2r combined: col_major | 281 | 246 | 246 |
+| multigen 1w+2r combined: col_major_interleaved | 247 | 270 | 270 |
+
+Every cell is within noise of 2026-10-26 (multigen row_major 509 vs 516 is
+the widest, 1.4 percent), which is what the cycle-identical perf proxy
+predicted for SET_LAG. Against LiteDRAM: ahead on every streaming cell but
+the page-thrash read (333 vs 386), ahead 1.3 to 2.3x on the page-friendly
+mixed cells, and behind on the two thrash cells under mixed traffic
+(col_major 213 vs 248 at 1w+1r, 246 vs 281 at 1w+2r): those are the
+within-bank-order / page-policy cells, not the direction logic.
