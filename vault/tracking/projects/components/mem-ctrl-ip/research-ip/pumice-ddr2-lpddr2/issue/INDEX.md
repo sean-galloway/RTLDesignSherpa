@@ -2,7 +2,7 @@
 
 # pumice — issues
 
-**Next ID: ISSUE-025** — never recycle a number, even when its item closed.
+**Next ID: ISSUE-026** — never recycle a number, even when its item closed.
 
 An anomaly, risk, or open question not yet diagnosed. It RESOLVES INTO a bug, a task, or a recorded no-action.
 
@@ -12,7 +12,7 @@ exactly one state by construction rather than by discipline.
 
 | State | Count | What |
 |---|---|---|
-| [open/](open/) | 3 | accepted, not started |
+| [open/](open/) | 4 | accepted, not started |
 | [active/](active/) | 0 | in progress right now |
 | [closed/](closed/) | 18 | done (kept for history) |
 | [dropped/](dropped/) | 3 | ended without completing |
@@ -20,6 +20,7 @@ exactly one state by construction rather than by discipline.
 
 ## Open
 
+- **ISSUE-025** — half_threads grades 16/32 cells ok=0 on a latency-histogram 1:1 gap of 7 to 40 returns (data clean, same on granite and pumice, 2026-10-27 and 10-29); the ok flag and exit code are wrong, the numbers are not. [open/ISSUE-025.md](open/ISSUE-025.md).
 - **ISSUE-024** — the perf proxies' `wait_engine` is a wall-clock deadline;
   on a loaded machine the framework suite fails "did not complete" cells
   that pass alone (10 of 222 on 2026-10-23, 10 / 10 re-run). Bound the wait
