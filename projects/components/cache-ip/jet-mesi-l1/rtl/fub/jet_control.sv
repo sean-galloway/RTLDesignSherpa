@@ -155,10 +155,19 @@
 //   landed at the grant (a snoop never waits on a fill), and the state
 //   effect is recorded in the entry's pend_eff (invalidate dominates a
 //   later downgrade -- I-sticks, via the shadow this module keeps as the
-//   record's only driver).  An array hit answers at the installed state
-//   with the downgrade/invalidate on the tag write port at the end of the
-//   service; a tag hit on a claimed way is the doomed victim's stale tag
-//   (amber's stale-victim rule: the Invalid row, no effect).  Snoops
+//   record's only driver).  Task 9 adds the pre-AR boundary to that
+//   answer (the amber BUG-002 analog): an entry whose fill AR has not
+//   been accepted yet -- launch unaccepted, or the engine's AR
+//   outstanding (fill_ar_done_i low) -- is answered at the Invalid row
+//   with no data and no effect.  On the pair rig the fabric holds such an
+//   AR until the snooping transaction completes, so the fill's data
+//   necessarily post-dates the snoop; since jet has no replay path, the
+//   no-effect answer is what keeps the fabric's same-line kill from
+//   dropping a write fill's merge at the commit.  An array hit answers
+//   at the installed state with the downgrade/invalidate on the tag write
+//   port at the end of the service; a tag hit on a claimed way is the
+//   doomed victim's stale tag (amber's stale-victim rule: the Invalid
+//   row, no effect).  Snoops
 //   arbitrate ahead of new CPU accepts (the lookup stage holds through
 //   the grant and the service), and the commit pipeline never starts
 //   during a service (the pend record must land before the commit's
@@ -388,6 +397,10 @@ module jet_control
     input  logic [MW-1:0]               fill_beat_idx_i,
     input  logic [BEAT_W-1:0]           fill_beat_num_i,
     input  logic                        fill_done_i,
+    // the in-flight fill's AR acceptance on the memory side (the
+    // transport/m_axi handshake, from the rig top): the pre-AR snoop
+    // rule's progress input -- see the snoop-path note in the header
+    input  logic                        fill_ar_done_i,
 
     // commit pipeline observability
     output logic                        cmt_busy_o,
@@ -478,6 +491,12 @@ module jet_control
     logic [ADDR_WIDTH-1:0]   r_fill_addr;
     logic [1:0]              r_fill_cls;
     logic [MW-1:0]           r_fill_idx;
+    // in-flight fill's AR acceptance (Task 9, the pre-AR rule): set by
+    // fill_ar_done_i, cleared at fill_done_i.  The engine is
+    // single-outstanding and ARs issue in launch (completion-queue)
+    // order, so the AR in flight belongs to the oldest un-done
+    // completion-queue fill.
+    logic                    r_ar_done;
     // drain arbiter: present drain_start when the WB head is valid and no
     // drain is outstanding (the real l1_drain samples it in D_IDLE, Task 8)
     logic                    r_drain_busy;
@@ -781,7 +800,29 @@ module jet_control
     // that data exists NOW), then the pending fill (the post-fill state --
     // the fill's answer would otherwise be a promise), then the arrays
     assign w_src_wb    = wb_sn_hit_i;
-    assign w_src_mshr  = ~w_src_wb & mshr_sn_match_i;
+    // Pre-AR rule (Task 9; the amber BUG-002 analog): a snoop matching an
+    // MSHR entry whose fill AR has not been accepted yet is answered at
+    // the Invalid row with no data and NO effect -- on the pair rig the
+    // fabric holds that AR until the snooping transaction completes, so
+    // the fill's data necessarily post-dates the snoop, and the entry's
+    // own grant re-resolves it against the winner's committed line.  jet
+    // has no replay path, so recording a pend_eff here would silently
+    // drop a write fill's merge at the commit (the killed-write-fill
+    // demote corner) -- answering I keeps the corner off the rig.  An
+    // entry is pre-AR while its launch is unaccepted (the hold register
+    // or the presenting fast path) and while the engine's AR for it is
+    // outstanding (the oldest un-done completion-queue fill).
+    logic [MW-1:0] w_launch_idx;
+    logic          w_mshr_pre_ar;
+    assign w_launch_idx = r_fill_pend ? r_fill_idx : mshr_alloc_idx_i;
+    assign w_mshr_pre_ar =
+        mshr_sn_match_i
+        & ((fill_start_o & (fill_cls_o != JET_CLS_CU)
+            & (mshr_sn_match_idx_i == w_launch_idx))
+           | ((r_fq_undone != '0) & ~r_ar_done
+              & (r_fq_cls[r_fq_done_ptr] != JET_CLS_CU)
+              & (mshr_sn_match_idx_i == r_fq_idx[r_fq_done_ptr])));
+    assign w_src_mshr  = ~w_src_wb & mshr_sn_match_i & ~w_mshr_pre_ar;
     assign w_src_array = ~w_src_wb & ~w_src_mshr & w_sn_thit
                          & ~w_sn_tclaimed;
     assign w_sn_src    = w_src_wb    ? SRC_WB
@@ -1263,6 +1304,7 @@ module jet_control
             r_fill_addr  <= '0;
             r_fill_cls   <= '0;
             r_fill_idx   <= '0;
+            r_ar_done    <= 1'b0;
             r_drain_busy <= 1'b0;
             r_upgr_valid <= 1'b0;
             r_upgr_line  <= '0;
@@ -1357,6 +1399,15 @@ module jet_control
                 r_fill_idx  <= w_accept_upgr ? '0 : mshr_alloc_idx_i;
             end else if (fill_accept_i) begin
                 r_fill_pend <= 1'b0;
+            end
+            // in-flight fill's AR acceptance (the pre-AR rule's progress
+            // input): the AR handshake belongs to the oldest un-done
+            // completion-queue fill; the next fill's AR cannot issue
+            // before the current fill's done (single-outstanding engine)
+            if (fill_done_i) begin
+                r_ar_done <= 1'b0;
+            end else if (fill_ar_done_i) begin
+                r_ar_done <= 1'b1;
             end
             // drain arbiter stub
             if (drain_start_o) begin
@@ -1700,6 +1751,13 @@ module jet_control
     assert property (@(posedge clk) disable iff (!rst_n)
         (((r_sn_state == SN_DATA) && (r_sn_src == SRC_MSHR)) |-> r_sn_allb))
         else $error("jet_control: PF_GUARD violated (CD before the fill beat landed)");
+
+    // Pre-AR rule (Task 9): a snoop matching an entry whose fill AR has
+    // not been accepted is answered at the Invalid row -- the MSHR source
+    // is suppressed and no effect is recorded.
+    assert property (@(posedge clk) disable iff (!rst_n)
+        ((w_sn_gnt & w_mshr_pre_ar & ~w_src_wb) |-> (w_sn_src == SRC_NONE)))
+        else $error("jet_control: pre-AR pending fill answered as a live fill");
 
     // A deferred effect is recorded only on a live (claimed) entry -- the
     // matched entry cannot retire mid-service (commits are blocked).

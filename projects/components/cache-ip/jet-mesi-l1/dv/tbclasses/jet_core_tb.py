@@ -378,6 +378,17 @@ class JetCoreTB(AmberControlTB):
                     and int(uc.sn_ready_o.value):
                 self._mon_snoop_grant(u, uc)
 
+            # 3b. fill AR acceptance (the Task-9 pre-AR rule's progress
+            #     input): the engine's outstanding AR belongs to the
+            #     oldest un-done entry launch.  Observed AFTER the grant:
+            #     a grant in the AR-handshake cycle still sees pre-AR
+            #     (r_ar_done registers at the cycle's end).
+            if int(d.m_axi_arvalid.value) and int(d.m_axi_arready.value):
+                for item in self.launch_q:
+                    if not item['done'] and item['kind'] == 'entry':
+                        item['e']['ar'] = True
+                        break
+
             # 4. fill beats (registered into beats_rcvd at the cycle's
             #    end -- after the grant resolution)
             if int(uc.fill_beat_valid_i.value):
@@ -518,7 +529,8 @@ class JetCoreTB(AmberControlTB):
 
         e = {'line': line, 'set': set_idx, 'cls': cls, 'way': way,
              'idx': idx, 'pend': None, 'beats': set(), 'done': False,
-             'pd': False, 'alloc_cyc': self.cyc, 'launch_cyc': None}
+             'pd': False, 'ar': False, 'alloc_cyc': self.cyc,
+             'launch_cyc': None}
         self.entries[line] = e
         self.entry_by_idx[idx] = line
         self.unlaunched.append(e)
@@ -648,29 +660,38 @@ class JetCoreTB(AmberControlTB):
             if (res.crresp >> CRRESP_DT) & 1:
                 cd = self.wb[line]
         elif line in self.entries:
-            # pending-fill bypass at the post-fill state, PF_GUARDed
             e = self.entries[line]
-            self.pf_grants += 1
-            if e['cls'] == JET_CLS_RU:
-                res = oracle_step('IM', name, pending=e['pend'])
+            if not e['ar']:
+                # the Task-9 pre-AR rule (the amber BUG-002 analog): the
+                # entry's fill AR has not been accepted, so the fill's
+                # data necessarily post-dates this snoop -- the answer is
+                # the Invalid row with no effect and no data (jet has no
+                # replay path; a pend_eff here would drop a write fill's
+                # merge at the commit)
+                res = oracle_step('I', name)
             else:
-                st = 'IS_I' if e['pend'] == 'I' else 'IS'
-                res = oracle_step(st, name, fill='S',
-                                  pending=None if e['pend'] == 'I'
-                                  else e['pend'])
-            crresp = res.crresp
-            if len(e['beats']) < self.FILL_BEATS:
-                crresp &= CRRESP_NO_DT_MASK
-            # pend_eff with I-sticks
-            if e['pend'] != 'I':
-                if res.next_state == 'IS_I':
-                    e['pend'] = 'I'
+                # pending-fill bypass at the post-fill state, PF_GUARDed
+                self.pf_grants += 1
+                if e['cls'] == JET_CLS_RU:
+                    res = oracle_step('IM', name, pending=e['pend'])
                 else:
-                    e['pend'] = res.pending
-            res = res._replace(crresp=crresp)
-            if (crresp >> CRRESP_DT) & 1:
-                # the fill data (merges land at the commit, after)
-                cd = self._mem_line(line)
+                    st = 'IS_I' if e['pend'] == 'I' else 'IS'
+                    res = oracle_step(st, name, fill='S',
+                                      pending=None if e['pend'] == 'I'
+                                      else e['pend'])
+                crresp = res.crresp
+                if len(e['beats']) < self.FILL_BEATS:
+                    crresp &= CRRESP_NO_DT_MASK
+                # pend_eff with I-sticks
+                if e['pend'] != 'I':
+                    if res.next_state == 'IS_I':
+                        e['pend'] = 'I'
+                    else:
+                        e['pend'] = res.pending
+                res = res._replace(crresp=crresp)
+                if (crresp >> CRRESP_DT) & 1:
+                    # the fill data (merges land at the commit, after)
+                    cd = self._mem_line(line)
         elif self.upgr['valid'] and line == self.upgr['line']:
             # the in-flight upgrade's line: legitimately resident S until
             # the CU commit lands; the effect writes the tag (array hit)

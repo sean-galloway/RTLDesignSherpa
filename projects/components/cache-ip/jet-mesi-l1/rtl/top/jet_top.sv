@@ -764,7 +764,8 @@ module jet_top
         .fill_beat_valid_i       (eng_fill_beat_valid),
         .fill_beat_idx_i         (r_flight_idx),
         .fill_beat_num_i         (eng_fill_beat_idx),
-        .fill_done_i             (eng_fill_done)
+        .fill_done_i             (eng_fill_done),
+        .fill_ar_done_i          (m_axi_arvalid & m_axi_arready)
     );
 
     // ------------------------------------------------------------------
@@ -1103,12 +1104,40 @@ module jet_top
     // ------------------------------------------------------------------
     // Pair-rig coherence sideband (D-8): one pulse per fill launch
     // (accept) / dirty-drain start.  Pure observation output.
+    //   The sideband carries ONE event per cycle; jet (unlike amber's
+    //   blocking FSM, where MISS_DRAIN and MISS_FILL are separate states)
+    // fires the drain arbiter and the launch adapter concurrently -- the
+    // cycle a victim capture completes, drain_start_o and the held fill's
+    // accept coincide.  The fill launch wins the slot (the fabric queues
+    // it -- dropping it would hang the fill's AR); the drain's
+    // WRITE_BACK pulse replays the next cycle (the fabric never queues
+    // WRITE_BACK, so the one-cycle delay is invisible downstream).
     // ------------------------------------------------------------------
-    assign coh_req_valid = w_fill_accept | ctrl_drain_start;
-    assign coh_req_addr  = ctrl_drain_start ? wb_drain_addr
-                                            : ctrl_fill_addr;
-    assign coh_req_type  = ctrl_drain_start ? 3'(AMBER_ACE_WRITE_BACK)
-                                            : eng_fill_class;
+    logic                  r_wb_coh_pend;
+    logic [ADDR_WIDTH-1:0] r_wb_coh_addr;
+
+    `ALWAYS_FF_RST(aclk, w_aresetn,
+        if (`RST_ASSERTED(w_aresetn)) begin
+            r_wb_coh_pend <= 1'b0;
+            r_wb_coh_addr <= '0;
+        end else begin
+            // set on the collision; held while fill launches keep winning
+            // the slot (the pulse is informational -- the fabric never
+            // queues WRITE_BACK -- so the delay is invisible downstream)
+            r_wb_coh_pend <= (ctrl_drain_start & w_fill_accept)
+                             | (r_wb_coh_pend & w_fill_accept);
+            if (ctrl_drain_start & w_fill_accept) begin
+                r_wb_coh_addr <= wb_drain_addr;
+            end
+        end
+    )
+
+    assign coh_req_valid = w_fill_accept | ctrl_drain_start | r_wb_coh_pend;
+    assign coh_req_addr  = w_fill_accept ? ctrl_fill_addr
+                         : r_wb_coh_pend ? r_wb_coh_addr
+                                         : wb_drain_addr;
+    assign coh_req_type  = w_fill_accept ? eng_fill_class
+                                         : 3'(AMBER_ACE_WRITE_BACK);
 
     // ------------------------------------------------------------------
     // Status roll-ups
@@ -1509,6 +1538,23 @@ module jet_top
         ((w_fill_accept & (ctrl_fill_cls != JET_CLS_CU)
           & ~(ctrl_mshr_alloc & mshr_alloc_gnt)) |-> r_pend_valid))
         else $error("jet_top: held fill launch with no pending alloc record");
+
+    // The D-8 sideband never drops a fill launch (a drain-start collision
+    // replays the WRITE_BACK the next cycle -- see the sideband note).
+    assert property (@(posedge aclk) disable iff (!w_aresetn)
+        (w_fill_accept |-> (coh_req_valid
+                            && (coh_req_type != 3'(AMBER_ACE_WRITE_BACK)))))
+        else $error("jet_top: fill launch dropped from the coh sideband");
+    // a drain-start/fill-launch collision registers the replay
+    assert property (@(posedge aclk) disable iff (!w_aresetn)
+        ((ctrl_drain_start & w_fill_accept) |=> r_wb_coh_pend))
+        else $error("jet_top: collided drain start not replayed");
+    // a pending replay always drives the sideband when no fill wins
+    wire w_wb_replay_fires = r_wb_coh_pend & ~w_fill_accept;
+    assert property (@(posedge aclk) disable iff (!w_aresetn)
+        (w_wb_replay_fires |-> (coh_req_valid
+                                && (coh_req_type == 3'(AMBER_ACE_WRITE_BACK)))))
+        else $error("jet_top: pending WRITE_BACK replay not driven");
     // pragma translate_on
 
 endmodule : jet_top

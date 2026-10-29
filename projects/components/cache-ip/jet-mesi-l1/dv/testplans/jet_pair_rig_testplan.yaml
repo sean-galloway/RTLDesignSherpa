@@ -1,0 +1,86 @@
+# Testplan for the jet pair rig (Task 9)
+# Maps the spec's "amber_pair_fabric hosts two jets" deliverable to the
+# pair-rig DV: two jet_top caches + the jet_pair_fabric snoopy manager +
+# one shared sdpram_slave_axi4_axi4 memory, coherent end-to-end.  The
+# scoreboard is the JetCoreTB event-stream machinery instantiated per
+# cache (oracle lockstep at every snoop grant, commit tag-write parity,
+# issue-order response scoring) plus the fabric layer (coh_req queue
+# tracking, grant/kill observation on the dbg taps, PassDirty absorption
+# into the memory model) and the per-cache ACE compliance checker
+# (CR only after CDLAST, check_cr_order per transaction -- the onyx D7
+# subset).
+
+module: jet_pair_fabric
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/top/jet_pair_fabric.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_pair_rig.py
+
+# Contract: amber's pair-rig scenario suite re-run on two jets, plus the
+# jet-specific ships-in-the-night corner (a pre-BRESP WriteBack meeting a
+# clean-invalidating snoop to the same line, answered from the WB buffer
+# snapshot).  The fabric kill rule fires on the peer's ungranted same-line
+# fills exactly as in amber; on jet those fills are pre-AR (the fabric
+# holds their AR), so the jet_control pre-AR rule answers them at the
+# Invalid row with no effect and no data loss (jet has no replay path).
+
+parameters:
+  - name: SETS / WAYS / LINE_BYTES / BUS_WIDTH
+    default: (16,2) and (128,4) cells, 64 B lines / 64-bit bus
+    description: geometry grid (tiny formal config + pkg default)
+  - name: USE_MONITOR
+    default: 1 (a nomon gate cell per geometry re-runs the gate suite)
+    description: observer present-vs-absent equivalence
+
+scenarios:
+  - name: InitWalk
+    level: all
+    what: Both caches walk the D-3 init concurrently after the shared
+      reset; CPU requests presented mid-walk are held until the walk
+      completes.
+    status: covered
+  - name: PassDirtyForwarding
+    level: all
+    what: M -> remote-fill PassDirty forwarding -- fill data comes from
+      the peer's CD, not the (poisoned) memory; the memory AR is
+      suppressed; the fabric absorbs the forwarded line to memory.
+    status: covered
+  - name: UpgradeInvalidatesPeer
+    level: all
+    what: An S->M upgrade (CLEAN_UNIQUE) MakeInvalids the peer; the
+      peer's later read misses and the fabric forwards the dirty line.
+    status: covered
+  - name: DirtyEvictionWriteback
+    level: all
+    what: A dirty eviction WriteBack (through jet's WB buffer and the
+      l1_drain engine) is visible to the memory AND to the peer.
+    status: covered
+  - name: EDowngradeReadShared
+    level: all
+    what: E->S downgrade on a ReadShared snoop (tag-word promotion
+      backdoor -- the CPU path never installs E).
+    status: covered
+  - name: SimultaneousSameLineMisses
+    level: all
+    what: Simultaneous same-line misses from both CPUs serialize fairly
+      (round-robin grants) and both complete with correct data; the
+      peer's pre-AR pending fill answers the snoop at the Invalid row
+      with no effect (no replay needed on jet).
+    status: covered
+  - name: PairShipsInTheNight
+    level: all
+    what: A pre-BRESP WriteBack of a dirty victim meets the peer's
+      clean-invalidating request for the same line: the snoop is answered
+      from the WB buffer snapshot (DT+PD), the buffer entry retires at
+      BRESP, and the forwarded data reaches the peer and (via the
+      absorption) the memory.
+    status: covered
+  - name: RandomDualCpuLockstep
+    level: func+
+    what: Randomized dual-CPU traffic against the 2-cache lockstep
+      model (per-cache oracle lockstep + fabric rules), 0 mismatches.
+    status: covered
+  - name: MonbusPresentVsAbsent
+    level: func (nomon gate cell)
+    what: USE_MONITOR=0: identical functional results, observer silent.
+    status: covered

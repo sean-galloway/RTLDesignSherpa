@@ -336,7 +336,7 @@ next cycle (all holds bounded, no deposit is ever dropped).
 | `repl_*` | out/in | victim request/way from `l1_repl` |
 | `mshr_*` | out/in | alloc/match/retire to `jet_mshr` |
 | `wb_*` | out/in | capture/drain-status to `jet_wb_buffer` |
-| `fill_*` / `drain_*` | out/in | engine launch/done |
+| `fill_*` / `drain_*` | out/in | engine launch/done (incl. `fill_ar_done_i`, the AR-acceptance progress input of the Task-9 pre-AR snoop rule — ch02/05) |
 | `cpl_*` | out | completions to `jet_rsp_seq` (seq tag, data) |
 | `sn_*` | in/out | snoop service interface from `l1_snoop_resp` |
 | `mon_*` | out | MonBus event taps (ch04) |

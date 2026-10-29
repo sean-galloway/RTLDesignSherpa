@@ -23,8 +23,8 @@
 
 # DV Plan: the Ladder and the Scoreboard
 
-**Status:** planned contract. The ladder mirrors amber's (Pattern-B cocotb
-GATE/FUNC/FULL grids, per amber D9):
+**Status:** landed through Task 9 (the pair rig). The ladder mirrors
+amber's (Pattern-B cocotb GATE/FUNC/FULL grids, per amber D9):
 
 ## The ladder
 
@@ -40,7 +40,11 @@ GATE/FUNC/FULL grids, per amber D9):
    properties (fill starts within W cycles of alloc, responses release in
    tag order, no response crosses an earlier tag).
 3. **`jet_top` / pair-rig TBs** — amber's pair rig with two jets; the
-   coherence stress suite re-run.
+   coherence stress suite re-run (`jet_pair_rig_tb`, Task 9: two
+   `jet_top`s + `jet_pair_fabric` + one shared sdpram; the per-cache
+   event-stream scoreboard instantiated per side plus the fabric layer
+   and the onyx-D7 ACE compliance checkers, plus the
+   `pair_ships_in_the_night` WB-snarf corner).
 
 ## The BUG-001/002 lesson, applied at the start
 

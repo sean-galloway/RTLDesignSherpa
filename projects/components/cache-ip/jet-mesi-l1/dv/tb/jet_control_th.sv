@@ -114,6 +114,9 @@ module jet_control_th
     input  logic [MW-1:0]               fill_beat_idx_i,
     input  logic [BEAT_W-1:0]           fill_beat_num_i,
     input  logic                        fill_done_i,
+    // the burst server's burst-start pulse (the stub's model of the
+    // engine's AR acceptance -- the pre-AR rule's progress input)
+    input  logic                        fill_ar_done_i,
     output logic                        fill_start_o,
     output logic [ADDR_WIDTH-1:0]       fill_addr_o,
     output logic [1:0]                  fill_cls_o,
@@ -445,7 +448,8 @@ module jet_control_th
         .fill_beat_valid_i       (fill_beat_valid_i),
         .fill_beat_idx_i         (fill_beat_idx_i),
         .fill_beat_num_i         (fill_beat_num_i),
-        .fill_done_i             (fill_done_i)
+        .fill_done_i             (fill_done_i),
+        .fill_ar_done_i          (fill_ar_done_i)
     );
 
     // ------------------------------------------------------------------

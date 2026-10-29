@@ -304,6 +304,7 @@ class JetControlTB(TBBase):
         d.fill_beat_idx_i.value = 0
         d.fill_beat_num_i.value = 0
         d.fill_done_i.value = 0
+        d.fill_ar_done_i.value = 0
         d.fillbeat_wr_en.value = 0
         d.fillbeat_wr_addr.value = 0
         d.fillbeat_wr_way.value = 0
@@ -446,6 +447,12 @@ class JetControlTB(TBBase):
             if not self._fill_serve_q:
                 continue
             line, cls, entry = self._fill_serve_q.popleft()
+            # the burst start IS the stub's model of the engine's AR
+            # acceptance (single-outstanding, in accept order): pulse the
+            # pre-AR rule's progress input for exactly one cycle
+            d.fill_ar_done_i.value = 1
+            await self._drive_pt()
+            d.fill_ar_done_i.value = 0
             if entry is not None:
                 # never write fill beats while a victim capture is reading
                 # the data array (the fill-engine contract)
@@ -1914,13 +1921,23 @@ class JetControlTB(TBBase):
         self._snoop_eff_model(entry, 'M', SN_READ_UNIQUE)
         self.fill_done_latency = saved
         await self._await_commit(entry, label='pfg:commit')
-        # (c) RNSD fill with ZERO beats landed: ReadShared answers the
-        # post-fill S row ({IS}) -- never the Invalid row -- with no
-        # effect (a fixed-point snoop).
+        # (c) RNSD fill launched with ZERO beats landed: ReadShared
+        # answers the post-fill S row ({IS}) -- never the Invalid row --
+        # with no effect (a fixed-point snoop).  The wait for the fill
+        # accept makes the case post-AR (the Task-9 pre-AR rule answers
+        # an unlaunched fill at the Invalid row -- pinned by
+        # snoop_pre_ar_entry); the zero-beat post-fill row is this pin.
         rd = await self._req(self._compose_addr(0x111, 14), 0, 0xFF, 0,
                              label='pfg:rd_miss')
         self._score("pfg: read miss allocs RNSD", rd['cls']['alloc'], 1)
         entry2 = self.entries[-1]
+        for _ in range(self.REQ_TIMEOUT * 4):
+            await self._drive_pt()
+            await self._settle()
+            if entry2['fill_accepted']:
+                break
+        else:
+            raise RuntimeError("pfg: the fill was never accepted")
         res = await self._snoop(entry2['line'], SN_READ_SHARED, 'pfg:rs0',
                                 ref='S', deliver=False)
         self._score("pfg: zero-beat answer is the S row (never Invalid)",
@@ -1931,6 +1948,45 @@ class JetControlTB(TBBase):
         await self._await_commit(entry2, label='pfg:commit2')
         await self._wait_releases(r0, 2)
         self.scenarios['snoop_pf_guard'] = True
+
+    async def _scen_snoop_pre_ar_entry(self):
+        """snoop_pre_ar_entry (Task 9, the amber BUG-002 analog): a snoop
+        matching an entry whose fill has not been accepted yet (the launch
+        held by the stub) is answered at the INVALID row -- no data, and
+        NO pend_eff record.  jet has no replay path: on the pair rig the
+        fabric holds such a fill's AR until the snooping transaction
+        completes, so the fill's data necessarily post-dates the snoop,
+        and a recorded invalidate would silently drop a write fill's
+        merge at the commit.  The fill then proceeds normally: the commit
+        installs M with the write merged."""
+        r0 = self.release_count
+        saved_accept = self.fill_accept_latency
+        self.fill_accept_latency = 12   # hold the launch (pre-AR window)
+        wdata = 0x0DDC_0FFE_E010_0000
+        wr = await self._req(self._compose_addr(0x120, 18), 1, 0xFF,
+                             wdata, label='prear:wr_miss')
+        self._score("prear: write miss allocs RU", wr['cls']['alloc'], 1)
+        entry = self.entries[-1]
+        line = entry['line']
+        self._score("prear: fill not yet accepted",
+                    entry['fill_accepted'], False)
+        # the snoop grant lands while the launch is held: the Invalid row,
+        # no data, no effect
+        res = await self._snoop(line, SN_READ_UNIQUE, 'prear:ru',
+                                ref='I', deliver=False)
+        self._score("prear: answered at the Invalid row",
+                    res['crresp'], _sn_crresp('I', SN_READ_UNIQUE))
+        self._score("prear: no pend_eff recorded", entry['pend'], None)
+        # release the launch; the fill completes and installs M with the
+        # write merged (a recorded invalidate would have dropped it)
+        self.fill_accept_latency = saved_accept
+        await self._await_commit(entry, label='prear:commit')
+        rd = await self._req(self._compose_addr(0x120, 18), 0, 0xFF, 0,
+                             label='prear:rd_back')
+        self._score("prear: line hit after the commit (installed, not "
+                    "invalidated)", rd['cls']['hit'], 1)
+        await self._wait_releases(r0, 2)
+        self.scenarios['snoop_pre_ar_entry'] = True
 
     async def _scen_snoop_snarf_bresp_race(self):
         """snoop_snarf_bresp_race (Review Focus 3): a snoop matching a WB
@@ -2256,6 +2312,7 @@ class JetControlTB(TBBase):
         await self._scen_pend_eff_applied_after_install()
         await self._scen_snoop_hit_pending_entry()
         await self._scen_snoop_pf_guard()
+        await self._scen_snoop_pre_ar_entry()
         await self._scen_snoop_snarf_bresp_race()
         await self._scen_snoop_priority()
         await self._scen_anti_livelock_window()

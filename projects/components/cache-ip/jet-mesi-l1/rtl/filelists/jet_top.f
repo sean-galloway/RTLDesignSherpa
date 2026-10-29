@@ -38,6 +38,9 @@
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_monlite.f
 
+# Pair-rig bench memory slave (AXI4 SDP RAM, complete closure)
+-f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
+
 # House AXI4 transports (D3), boundary reset sync, MonBus arbiter (D-7)
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_rd_monlite.f
 -f $REPO_ROOT/rtl/amba/filelists/axi4_master_wr_monlite.f
