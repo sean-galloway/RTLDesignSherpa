@@ -1,0 +1,89 @@
+# Testplan for jet_monlite (drop-and-count MonBus observer for J7 metrics,
+# MAS ch04 jet extension).
+#
+# The observer is exercised through the jet_monlite_th unit harness: a
+# programmable stub drives the MSHR/WB/stall taps and a functional-side
+# counter increments on alloc pulses.  Run:
+#   pytest projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_monlite.py
+#
+# The grid has a second dimension, mon_cfg, selecting USE_MONITOR=1 (tap)
+# or USE_MONITOR=0 (notap).
+
+module: jet_monlite
+rtl_files:
+  - projects/components/cache-ip/jet-mesi-l1/rtl/fub/jet_monlite.sv
+  - projects/components/cache-ip/jet-mesi-l1/rtl/top/jet_top.sv
+test_files:
+  - projects/components/cache-ip/jet-mesi-l1/dv/tests/test_jet_monlite.py
+
+parameters:
+  - name: SETS / WAYS / MSHR_COUNT
+    default: 128 / 4 / 8
+    description: J1 default geometry.
+  - name: USE_MONITOR
+    default: 1
+    description: >
+      1 = observer live (tap cells); 0 = outputs tied off (notap cells,
+      house gen_no_monitor idiom) -- the "absent" half of the
+      present-vs-absent measurement-integrity pin.
+
+scenarios:
+  - name: EventCounts
+    level: gate (tap)
+    what: >
+      Directed pulse sequence (alloc, alloc, merge, retire, retire) with
+      hand-computed payload expectations: MSHR_ALLOC carries set index,
+      fill class, and occupancy-after; MSHR_MERGE carries entry index,
+      merge depth, and entry age (cycles since alloc); MSHR_RETIRE carries
+      entry index, occupancy-before, and fill latency (alloc cycle ->
+      retire cycle).  The strict stream matcher predicts the received
+      packets packet-for-packet (class, payload, timestamp == firing
+      cycle, acceptance cycle).
+    status: covered
+  - name: OccupancyGaugeTracks
+    level: gate (tap)
+    what: >
+      MSHR occupancy and WB occupancy taps are stepped through values;
+      the observer emits a gauge event on every change.  The received
+      gauge payloads equal the driven tap values, and the last-emitted
+      gauge values equal the current taps at the end of the scenario.
+    status: covered
+  - name: DropAndCount
+    level: func (tap)
+    what: >
+      monbus_ready held low through a 6-alloc burst forces the 4-deep
+      queue over: dropped_count accumulates (sampled > 0 while stalled,
+      saturating 8-bit).  On release the DROPPED report is the next
+      packet, its count equals the tap sample, and the tap clears after
+      emission.  The strict stream matcher replays the fired-class trace
+      through an exact queue model and requires the predicted received
+      stream to equal the observed packets (class, payload, timestamp,
+      acceptance cycle, report counts).
+    status: covered
+  - name: ObserverTransparency
+    level: func (tap)
+    what: >
+      The same alloc-pulse stimulus run twice -- once with monbus_ready
+      free, once with monbus_ready stalled -- produces identical advances
+      of the functional-side counter (the observer never stalls or
+      perturbs the measured path).  The backpressured run drops packets,
+      which the drop report accounts for.
+    status: covered
+  - name: ObserverSilent
+    level: all (notap)
+    what: >
+      USE_MONITOR=0: monbus_valid never asserts, dropped_count stays
+      zero, and the functional-side counter still advances on alloc
+      pulses -- the absent configuration is behaviorally the harness
+      alone.
+    status: covered
+
+gaps:
+  - >
+    Only the tag-full stall class (STALL_TAG_FULL) is instrumented at
+    this unit level; the other J6 stall reasons are observable on the
+    same ctrl_stall_i/reason_i taps and can be added without changing
+    the harness interface.  The event map also lists WB_CAPTURE /
+    WB_RETIRE, HIT_UNDER_MISS, and SNOOP_SRC classes; these are carried
+    forward to the jet_top integration suite where the real control/MSHR
+    sequence produces them.

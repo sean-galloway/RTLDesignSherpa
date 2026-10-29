@@ -197,7 +197,21 @@ module jet_mshr
     output logic                        cpl_wb_valid_o,
 
     // MonBus occupancy gauge (J7)
-    output logic [MW:0]                 occupancy_o
+    output logic [MW:0]                 occupancy_o,
+
+    // MonBus event taps (J7): one-cycle pulses at the alloc/merge/retire
+    // points, qualified so the observer never needs to decode internal
+    // handshakes.  alloc_idx_o is the granted index in the alloc cycle;
+    // merge_depth_o is the post-append merge count; retire_idx_o is the
+    // retiring entry.
+    output logic                        alloc_o,
+    output logic [SET_W-1:0]            alloc_set_o,
+    output logic [1:0]                  alloc_cls_o,
+    output logic                        merge_o,
+    output logic [MW-1:0]               merge_idx_o,
+    output logic [MW:0]                 merge_depth_o,
+    output logic                        retire_o,
+    output logic [MW-1:0]               retire_idx_o
 );
 
     // Elaboration-time range checks (house idiom, cf. l1_tag_array). The
@@ -357,6 +371,24 @@ module jet_mshr
     end
 
     // =========================================================================
+    // Event taps (MonBus, J7): combinational pulses at the operation points.
+    // The alloc index is the free slot selected combinationally; the merge
+    // depth is the post-append count so the observer can record how many
+    // waiters the entry now holds.
+    // =========================================================================
+    wire w_retire_live = retire_i & r_valid[retire_idx_i];
+
+    assign alloc_o      = alloc_gnt_o;
+    assign alloc_set_o  = alloc_set_i;
+    assign alloc_cls_o  = alloc_cls_i;
+    assign merge_o      = merge_i
+                          & (r_merge_count[merge_idx_i] < (MW+1)'(MSHR_COUNT));
+    assign merge_idx_o  = merge_idx_i;
+    assign merge_depth_o = r_merge_count[merge_idx_i] + 1'b1;
+    assign retire_o     = w_retire_live;
+    assign retire_idx_o = retire_idx_i;
+
+    // =========================================================================
     // Entry updates. Field ops (merge/beat/sn_eff) and retire target live
     // entries; alloc targets a free one, so retire and alloc never collide
     // on an index. Alloc reinitializes every field (stale merge slots are
@@ -419,7 +451,6 @@ module jet_mshr
     // nets -- the counter holds.
     // =========================================================================
     wire [SET_W-1:0] w_retire_set = r_line[retire_idx_i][SET_W-1:0];
-    wire             w_retire_live = retire_i & r_valid[retire_idx_i];
 
     `ALWAYS_FF_RST(clk, rst_n,
         if (`RST_ASSERTED(rst_n)) begin

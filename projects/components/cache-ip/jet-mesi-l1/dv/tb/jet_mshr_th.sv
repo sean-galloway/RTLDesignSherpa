@@ -99,7 +99,17 @@ module jet_mshr_th
     output logic                        cpl_wb_valid_o,
 
     // MonBus occupancy gauge (J7)
-    output logic [MW:0]                 occupancy_o
+    output logic [MW:0]                 occupancy_o,
+
+    // MonBus event taps (J7)
+    output logic                        alloc_o,
+    output logic [SET_W-1:0]            alloc_set_o,
+    output logic [1:0]                  alloc_cls_o,
+    output logic                        merge_o,
+    output logic [MW-1:0]               merge_idx_o,
+    output logic [MW:0]                 merge_depth_o,
+    output logic                        retire_o,
+    output logic [MW-1:0]               retire_idx_o
 );
 
     jet_mshr #(

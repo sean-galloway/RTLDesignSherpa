@@ -64,4 +64,19 @@ package jet_pkg;
         JET_PEND_INVALIDATE_I = 2'b10    // invalidate expected state
     } jet_pend_eff_t;
 
+    // ------------------------------------------------------------------
+    // MonBus event codes for the J7 metrics extension (MAS ch04).  These
+    // live in the jet extension space (8'h10+) so they share the 128-bit
+    // house packet with the amber base classes without overlap.
+    // ------------------------------------------------------------------
+    typedef enum logic [7:0] {
+        JET_EV_MSHR_ALLOC       = 8'h10,   // MSHR entry allocated
+        JET_EV_MSHR_MERGE       = 8'h11,   // request merged onto an entry
+        JET_EV_MSHR_RETIRE      = 8'h12,   // MSHR entry retired
+        JET_EV_MSHR_OCCUPANCY   = 8'h13,   // MSHR occupancy gauge sample
+        JET_EV_WB_OCCUPANCY     = 8'h14,   // WB buffer occupancy gauge sample
+        JET_EV_STALL_TAG_FULL   = 8'h15,   // response-sequencer tag-full stall
+        JET_EV_HIT_UNDER_MISS   = 8'h16    // hit while misses are outstanding
+    } jet_event_t;
+
 endpackage : jet_pkg

@@ -466,6 +466,16 @@ module jet_top
     logic [1:0]                 mshr_cpl_pend_eff;
     logic [MSHR_COUNT*SEQ_W-1:0] mshr_cpl_merge_seqs;
     logic [MW:0]                mshr_occupancy;
+    // MSHR: J7 MonBus event taps
+    logic                       mshr_alloc_ev;
+    logic [SET_W-1:0]           mshr_alloc_ev_set;
+    logic [1:0]                 mshr_alloc_ev_cls;
+    logic [MW-1:0]              mshr_alloc_ev_idx;
+    logic                       mshr_merge_ev;
+    logic [MW-1:0]              mshr_merge_ev_idx;
+    logic [MW:0]                mshr_merge_ev_depth;
+    logic                       mshr_retire_ev;
+    logic [MW-1:0]              mshr_retire_ev_idx;
     // MSHR: snoop probe + deferred-effect record
     logic [LINE_W-1:0]          ctrl_mshr_sn_line;
     logic                       ctrl_mshr_sn_eff;
@@ -825,8 +835,18 @@ module jet_top
         .cpl_merge_count_o (mshr_cpl_merge_count),
         .cpl_wb_slot_o     (),
         .cpl_wb_valid_o    (),
-        .occupancy_o       (mshr_occupancy)
+        .occupancy_o       (mshr_occupancy),
+        .alloc_o           (mshr_alloc_ev),
+        .alloc_set_o       (mshr_alloc_ev_set),
+        .alloc_cls_o       (mshr_alloc_ev_cls),
+        .merge_o           (mshr_merge_ev),
+        .merge_idx_o       (mshr_merge_ev_idx),
+        .merge_depth_o     (mshr_merge_ev_depth),
+        .retire_o          (mshr_retire_ev),
+        .retire_idx_o      (mshr_retire_ev_idx)
     );
+
+    assign mshr_alloc_ev_idx = mshr_alloc_idx;
 
     // ------------------------------------------------------------------
     // Writeback buffer (J5)
@@ -1467,29 +1487,71 @@ module jet_top
     );
 
     // ------------------------------------------------------------------
-    // D-7 MonBus arbiter: {l1_monlite, rd_monlite, wr_monlite} -> the one
-    // MonBus port pair
+    // J7 MonBus observer: MSHR alloc/merge/retire, occupancy gauges,
+    // tag-full stall events.
     // ------------------------------------------------------------------
-    logic                    arb_vld [3];
-    logic                    arb_rdy [3];
-    ocelus_common_pkg::monitor_packet_t   arb_pkt [3];
-    ocelus_common_pkg::monbus_timestamp_t arb_ts  [3];
+    logic        j7_mon_valid;
+    logic        j7_mon_ready;
+    logic [127:0] j7_mon_packet;
+    logic [63:0]  j7_mon_timestamp;
+
+    jet_monlite #(
+        .MSHR_COUNT  (MSHR_COUNT),
+        .SETS        (SETS),
+        .WAYS        (WAYS),
+        .USE_MONITOR (USE_MONITOR)
+    ) u_jet_monlite (
+        .clk                 (aclk),
+        .rst_n               (w_aresetn),
+        .mshr_alloc_i        (mshr_alloc_ev),
+        .mshr_alloc_set_i    (mshr_alloc_ev_set),
+        .mshr_alloc_cls_i    (mshr_alloc_ev_cls),
+        .mshr_alloc_idx_i    (mshr_alloc_ev_idx),
+        .mshr_merge_i        (mshr_merge_ev),
+        .mshr_merge_idx_i    (mshr_merge_ev_idx),
+        .mshr_merge_depth_i  (mshr_merge_ev_depth),
+        .mshr_retire_i       (mshr_retire_ev),
+        .mshr_retire_idx_i   (mshr_retire_ev_idx),
+        .mshr_occupancy_i    (mshr_occupancy),
+        .wb_occupancy_i      (wb_occupancy),
+        .ctrl_stall_i        (ctrl_lkup_stall),
+        .ctrl_stall_reason_i (ctrl_lkup_stall_reason),
+        .i_mon_time          (i_mon_time),
+        .monbus_valid        (j7_mon_valid),
+        .monbus_ready        (j7_mon_ready),
+        .monbus_packet       (j7_mon_packet),
+        .monbus_timestamp    (j7_mon_timestamp),
+        .dropped_count       ()
+    );
+
+    // ------------------------------------------------------------------
+    // D-7 MonBus arbiter: {l1_monlite, rd_monlite, wr_monlite, jet_monlite}
+    // -> the one MonBus port pair
+    // ------------------------------------------------------------------
+    logic                    arb_vld [4];
+    logic                    arb_rdy [4];
+    ocelus_common_pkg::monitor_packet_t   arb_pkt [4];
+    ocelus_common_pkg::monbus_timestamp_t arb_ts  [4];
 
     assign arb_vld[0] = core_mon_valid;
     assign arb_vld[1] = rd_mon_valid;
     assign arb_vld[2] = wr_mon_valid;
+    assign arb_vld[3] = j7_mon_valid;
     assign core_mon_ready = arb_rdy[0];
     assign rd_mon_ready   = arb_rdy[1];
     assign wr_mon_ready   = arb_rdy[2];
+    assign j7_mon_ready   = arb_rdy[3];
     assign arb_pkt[0] = core_mon_packet;
     assign arb_pkt[1] = rd_mon_packet;
     assign arb_pkt[2] = wr_mon_packet;
+    assign arb_pkt[3] = j7_mon_packet;
     assign arb_ts[0]  = core_mon_timestamp;
     assign arb_ts[1]  = rd_mon_timestamp;
     assign arb_ts[2]  = wr_mon_timestamp;
+    assign arb_ts[3]  = j7_mon_timestamp;
 
     monbus_arbiter #(
-        .CLIENTS            (3),
+        .CLIENTS            (4),
         .INPUT_SKID_ENABLE  (1),
         .OUTPUT_SKID_ENABLE (1),
         .INPUT_SKID_DEPTH   (2),

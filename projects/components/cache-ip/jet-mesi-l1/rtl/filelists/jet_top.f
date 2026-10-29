@@ -38,6 +38,9 @@
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_snoop_resp.f
 -f $CACHE_COMMON_ROOT/rtl/filelists/l1_monlite.f
 
+# Jet J7 MonBus observer (glue in jet RTL; does NOT modify common-ip)
+-f $JET_ROOT/rtl/filelists/jet_monlite.f
+
 # Pair-rig bench memory slave (AXI4 SDP RAM, complete closure)
 -f $REPO_ROOT/rtl/amba/filelists/sdpram_slave_axi4_axi4.f
 

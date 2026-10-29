@@ -839,7 +839,15 @@ module jet_ace_top
         .cpl_merge_count_o (mshr_cpl_merge_count),
         .cpl_wb_slot_o     (),
         .cpl_wb_valid_o    (),
-        .occupancy_o       (mshr_occupancy)
+        .occupancy_o       (mshr_occupancy),
+        .alloc_o           (),
+        .alloc_set_o       (),
+        .alloc_cls_o       (),
+        .merge_o           (),
+        .merge_idx_o       (),
+        .merge_depth_o     (),
+        .retire_o          (),
+        .retire_idx_o      ()
     );
 
     // ------------------------------------------------------------------

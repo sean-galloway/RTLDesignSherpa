@@ -273,6 +273,14 @@ module jet_control_th
     logic                       mshr_cpl_install_nc;
     logic [WB_W-1:0]            mshr_cpl_wb_slot_nc;
     logic                       mshr_cpl_wb_valid_nc;
+    logic                       mshr_alloc_ev_nc;
+    logic [SET_W-1:0]           mshr_alloc_ev_set_nc;
+    logic [1:0]                 mshr_alloc_ev_cls_nc;
+    logic                       mshr_merge_ev_nc;
+    logic [MW-1:0]              mshr_merge_ev_idx_nc;
+    logic [MW:0]                mshr_merge_ev_depth_nc;
+    logic                       mshr_retire_ev_nc;
+    logic [MW-1:0]              mshr_retire_ev_idx_nc;
     // WB buffer: control <-> buffer
     logic                       ctrl_wb_cap;
     logic [LINE_W-1:0]          ctrl_wb_cap_line;
@@ -510,7 +518,15 @@ module jet_control_th
         .cpl_merge_count_o (mshr_cpl_merge_count),
         .cpl_wb_slot_o     (mshr_cpl_wb_slot_nc),
         .cpl_wb_valid_o    (mshr_cpl_wb_valid_nc),
-        .occupancy_o       (mshr_occupancy_o)
+        .occupancy_o       (mshr_occupancy_o),
+        .alloc_o           (mshr_alloc_ev_nc),
+        .alloc_set_o       (mshr_alloc_ev_set_nc),
+        .alloc_cls_o       (mshr_alloc_ev_cls_nc),
+        .merge_o           (mshr_merge_ev_nc),
+        .merge_idx_o       (mshr_merge_ev_idx_nc),
+        .merge_depth_o     (mshr_merge_ev_depth_nc),
+        .retire_o          (mshr_retire_ev_nc),
+        .retire_idx_o      (mshr_retire_ev_idx_nc)
     );
 
     // ------------------------------------------------------------------
