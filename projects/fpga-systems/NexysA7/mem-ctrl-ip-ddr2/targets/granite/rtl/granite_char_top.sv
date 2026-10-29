@@ -71,17 +71,31 @@ module granite_char_top #(
         end
     )
 
-    // Clock generation for the a7ddrphy (1:2 / nphases=2) at 300 MT/s.
+`ifdef GRANITE_DFI4_100
+`define GRANITE_DFI4_ANY
+`elsif GRANITE_DFI4
+`define GRANITE_DFI4_ANY
+`endif
+    // Clock generation for the a7ddrphy. Default and GRANITE_SYS_100: 1:2
+    // (nphases=2). GRANITE_DFI4 / GRANITE_DFI4_100: 1:4 (nphases=4), see
+    // the plans below.
     // Granite A7 plan: 75 MHz sys / 300 MT/s DDR2-300.
     // IDELAYCTRL needs a dedicated 200 MHz ref.
     //   * DDR2_CHAR_SYNTH: real MMCME2_BASE + BUFGs + IDELAYCTRL (Vivado).
     //   * else (verilator/cocotb): all clocks alias CLK100MHZ, locked=1.
     wire w_sys, w_sys2x, w_sys2x_dqs, w_idelay;
+    // GRANITE_DFI4: the four-phase a7ddrphy (nphases=4) serializes on sys4x
+    // (= 4 x sys) with sys4x_dqs at 90 degrees; sys2x stays for its own
+    // logic. In the MMCM the 90-degree output slot (CLKOUT2) carries the
+    // DQS clock in both plans, so under DFI4 it runs at 4x and CLKOUT4 adds
+    // sys4x. w_sys2x_dqs is then unused.
+    wire w_sys4x, w_sys4x_dqs;
     wire w_clk_locked;
     (* mark_debug = "true" *) wire w_idelay_rdy;
 
 `ifdef DDR2_CHAR_SYNTH
     wire w_sys_i, w_sys2x_i, w_sys2x_dqs_i, w_idelay_i, w_clkfb_i, w_clkfb;
+    wire w_sys4x_i;
 `ifdef GRANITE_SYS_66
     // Optional 66.67 MHz known-good fallback (same as pumice default).
     localparam real MMCM_MULT = 8.0;   // VCO = 800 MHz
@@ -89,6 +103,25 @@ module granite_char_top #(
     localparam int  MMCM_CO1  = 6;     // sys2x     = 133.3 MHz (DDR2-266)
     localparam int  MMCM_CO2  = 6;     // sys2x_dqs = 133.3 MHz
     localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+    localparam int  MMCM_CO4  = 4;     // CLKOUT4 unused in the 1:2 plans
+`elsif GRANITE_DFI4_100
+    // 100 MHz sys, DFI 1:4: sys2x 200, sys4x 400 = DDR2-800 (CK 400 MHz),
+    // BL8, peak 1.6 GB/s. VCO 800.
+    localparam real MMCM_MULT = 8.0;   // VCO = 800 MHz
+    localparam real MMCM_CO0  = 8.0;   // sys       = 100 MHz
+    localparam int  MMCM_CO1  = 4;     // sys2x     = 200 MHz
+    localparam int  MMCM_CO2  = 2;     // sys4x_dqs = 400 MHz (90 deg)
+    localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+    localparam int  MMCM_CO4  = 2;     // sys4x     = 400 MHz
+`elsif GRANITE_DFI4
+    // 75 MHz sys, DFI 1:4: sys2x 150, sys4x 300 = DDR2-600 (CK 300 MHz),
+    // BL8, peak 1.2 GB/s. VCO 600, idelay 200 (/3).
+    localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
+    localparam real MMCM_CO0  = 8.0;   // sys       = 75 MHz
+    localparam int  MMCM_CO1  = 4;     // sys2x     = 150 MHz
+    localparam int  MMCM_CO2  = 2;     // sys4x_dqs = 300 MHz (90 deg)
+    localparam int  MMCM_CO3  = 3;     // idelay    = 200 MHz (/3)
+    localparam int  MMCM_CO4  = 2;     // sys4x     = 300 MHz
 `elsif GRANITE_SYS_100
     // 100 MHz sys / 200 MHz sys2x = DDR2-400 (granite 100 MHz board point,
     // same plan as pumice's PUMICE_SYS_100). sys2x MUST be exactly 2 x sys:
@@ -100,6 +133,7 @@ module granite_char_top #(
     localparam int  MMCM_CO1  = 4;     // sys2x     = 200 MHz (DDR2-400)
     localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 200 MHz
     localparam int  MMCM_CO3  = 4;     // idelay    = 200 MHz (/4)
+    localparam int  MMCM_CO4  = 4;     // CLKOUT4 unused in the 1:2 plans
 `else
     // DEFAULT: 75 MHz sys / 150 MHz sys2x = DDR2-300 (Granite A7 plan).
     localparam real MMCM_MULT = 6.0;   // VCO = 600 MHz
@@ -107,6 +141,7 @@ module granite_char_top #(
     localparam int  MMCM_CO1  = 4;     // sys2x     = 150 MHz (DDR2-300)
     localparam int  MMCM_CO2  = 4;     // sys2x_dqs = 150 MHz
     localparam int  MMCM_CO3  = 3;     // idelay    = 200 MHz (/3)
+    localparam int  MMCM_CO4  = 3;     // CLKOUT4 unused in the 1:2 plans
 `endif
     MMCME2_BASE #(
         .CLKIN1_PERIOD   (10.0),
@@ -116,7 +151,8 @@ module granite_char_top #(
         .CLKOUT1_DIVIDE  (MMCM_CO1),
         .CLKOUT2_DIVIDE  (MMCM_CO2),
         .CLKOUT2_PHASE   (90.0),
-        .CLKOUT3_DIVIDE  (MMCM_CO3)
+        .CLKOUT3_DIVIDE  (MMCM_CO3),
+        .CLKOUT4_DIVIDE  (MMCM_CO4)
     ) u_mmcm (
         .CLKIN1   (CLK100MHZ),
         .CLKFBIN  (w_clkfb),
@@ -126,7 +162,7 @@ module granite_char_top #(
         .CLKOUT1  (w_sys2x_i),    .CLKOUT1B(),
         .CLKOUT2  (w_sys2x_dqs_i),.CLKOUT2B(),
         .CLKOUT3  (w_idelay_i),   .CLKOUT3B(),
-        .CLKOUT4  (), .CLKOUT5(), .CLKOUT6(),
+        .CLKOUT4  (w_sys4x_i), .CLKOUT5(), .CLKOUT6(),
         .LOCKED   (w_clk_locked),
         .PWRDWN   (1'b0),
         .RST      (~CPU_RESETN)
@@ -134,13 +170,23 @@ module granite_char_top #(
     BUFG u_bufg_fb  (.I(w_clkfb_i),      .O(w_clkfb));
     BUFG u_bufg_sys (.I(w_sys_i),        .O(w_sys));
     BUFG u_bufg_2x  (.I(w_sys2x_i),      .O(w_sys2x));
-    BUFG u_bufg_2xd (.I(w_sys2x_dqs_i),  .O(w_sys2x_dqs));
     BUFG u_bufg_idly(.I(w_idelay_i),     .O(w_idelay));
+`ifdef GRANITE_DFI4_ANY
+    BUFG u_bufg_4x  (.I(w_sys4x_i),      .O(w_sys4x));
+    BUFG u_bufg_4xd (.I(w_sys2x_dqs_i),  .O(w_sys4x_dqs));   // CLKOUT2 at 4x under DFI4
+    assign w_sys2x_dqs = 1'b0;
+`else
+    BUFG u_bufg_2xd (.I(w_sys2x_dqs_i),  .O(w_sys2x_dqs));
+    assign w_sys4x     = 1'b0;
+    assign w_sys4x_dqs = 1'b0;
+`endif
     IDELAYCTRL u_idelayctrl (.REFCLK(w_idelay), .RST(~w_clk_locked), .RDY(w_idelay_rdy));
 `else
     assign w_sys       = CLK100MHZ;
     assign w_sys2x     = CLK100MHZ;
     assign w_sys2x_dqs = CLK100MHZ;
+    assign w_sys4x     = CLK100MHZ;
+    assign w_sys4x_dqs = CLK100MHZ;
     assign w_idelay    = CLK100MHZ;
     assign w_idelay_rdy = 1'b1;
     assign w_clk_locked = 1'b1;
@@ -160,13 +206,33 @@ module granite_char_top #(
     assign CG = w_seg[6];
 
     // Flat DFI wires (harness <-> adapter <-> a7ddrphy)
+`ifdef GRANITE_DFI4_ANY
+    // DFI 1:4 moves 128 bits per MC cycle (4 phases x 2 device beats x 16);
+    // a 64-bit host port at the same clock would cap the harness at half
+    // the DRAM peak (600 of 1200 MB/s at 75 MHz, measured in the proxy), so
+    // the engines and the host port run at the core width (GEAR-1 in the
+    // geared top, converters bypassed).
+    localparam int AXI_DATA_WIDTH  = 128;
+`else
     localparam int AXI_DATA_WIDTH  = 64;
+`endif
     localparam int DRAM_BEAT_WIDTH = 32;
     localparam int DRAM_DEVICE_WIDTH = 16;
+`ifdef GRANITE_DFI4_ANY
+    // DFI 1:4 with BL8: one BL8 burst (8 device beats, 4 DFI phases of 2) per
+    // MC cycle, so one column command per cycle fills the bus (at BL4 it
+    // would fill half of it: TASK-003 item 6).
+    localparam int DFI_RATE        = 4;
+`else
     localparam int DFI_RATE        = 2;
+`endif
     localparam int DFI_DATA_WIDTH  = DFI_RATE * DRAM_BEAT_WIDTH;
     localparam int DFI_STRB_WIDTH  = DFI_DATA_WIDTH / 8;
+`ifdef GRANITE_DFI4_ANY
+    localparam int DRAM_BL         = 8;
+`else
     localparam int DRAM_BL         = 4;
+`endif
     localparam int BURST_LEN_MULTIPLE = (DRAM_BL * DRAM_DEVICE_WIDTH) / AXI_DATA_WIDTH;
     localparam int DFI_ADDR_BUS_W  = ROW_WIDTH * DFI_RATE;
     localparam int DFI_BANK_BUS_W  = 3 * DFI_RATE;
@@ -400,10 +466,17 @@ module granite_char_top #(
         .sys_rst         (sys_rst_p),
         .sys2x_clk       (sys2x_clk),
         .sys2x_rst       (sys2x_rst_p),
+`ifdef GRANITE_DFI4_ANY
+        .sys4x_clk       (w_sys4x),
+        .sys4x_rst       (sys2x_rst_p),
+        .sys4x_dqs_clk   (w_sys4x_dqs),
+        .sys4x_dqs_rst   (sys2x_dqs_rst_p),
+`else
         .sys2x_clk_1     (sys2x_clk),
         .sys2x_rst_1     (sys2x_rst_p),
         .sys2x_dqs_clk   (sys2x_dqs_clk),
         .sys2x_dqs_rst   (sys2x_dqs_rst_p),
+`endif
 
         .dfi_p0_address(w_p0_addr), .dfi_p0_bank(w_p0_bank),
         .dfi_p0_cas_n(w_p0_cas_n), .dfi_p0_cs_n(w_p0_cs_n),

@@ -263,13 +263,11 @@ module mc_bank_fifo_store
     // ======================================================================
     logic [NUM_BANKS-1:0] w_wq_wr_ready, w_wq_rd_valid, w_wq_thr;
     logic [QDW-1:0]       w_wq_rd_data [NUM_BANKS];
-    logic [AGEW-1:0]      w_wq_young   [NUM_BANKS];
     logic                 w_wq_pk_vld  [NUM_BANKS][QPK];
     logic [QDW-1:0]       w_wq_pk_data [NUM_BANKS][QPK];
     logic                 w_wq_pk_thr  [NUM_BANKS][QPK];
     logic [NUM_BANKS-1:0] w_rq_wr_ready, w_rq_rd_valid, w_rq_thr;
     logic [QDW-1:0]       w_rq_rd_data [NUM_BANKS];
-    logic [AGEW-1:0]      w_rq_young   [NUM_BANKS];
     logic                 w_rq_pk_vld  [NUM_BANKS][QPK];
     logic [QDW-1:0]       w_rq_pk_data [NUM_BANKS][QPK];
     logic                 w_rq_pk_thr  [NUM_BANKS][QPK];
@@ -705,12 +703,41 @@ module mc_bank_fifo_store
     logic [AGEW-1:0] w_yleaf [NQP];
     logic [AGEW-1:0] w_pool_young;
     logic            w_pool_empty;
+    // Per-queue tail age, tracked HERE rather than read off the FIFO's
+    // `youngest` (a max tree over its entry array). This store is the pool
+    // writer, so it knows every push and every decrement: a queue's newest
+    // entry is its tail, it leaves last, and its age is the queue's largest
+    // -- the register loads the pushed age (the same-cycle age_dec term is
+    // already in it), steps toward zero with age_dec like the entry does,
+    // and reads 0 while the queue is empty. Exact under the writer rule,
+    // and it takes the FIFO's entry array and tree out of the pool-age
+    // path: with HAS_AGE on the board that path (entry age -> queue tree
+    // -> 16-queue max -> +1 -> every entry's age register) was 19 LUT
+    // levels, -1.5 ns at 75 MHz (2026-10-29). The FIFO's `youngest` output
+    // is left unconnected and its tree is pruned.
+    logic [AGEW-1:0] r_wq_tail_age [NUM_BANKS];
+    logic [AGEW-1:0] r_rq_tail_age [NUM_BANKS];
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                r_wq_tail_age[b] <= '0;
+                r_rq_tail_age[b] <= '0;
+            end
+        end else begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                if (w_wq_push[b] && w_wq_wr_ready[b])            r_wq_tail_age[b] <= w_new_age;
+                else if (w_age_dec && (r_wq_tail_age[b] != '0)) r_wq_tail_age[b] <= r_wq_tail_age[b] - 1'b1;
+                if (w_rq_push[b] && w_rq_wr_ready[b])            r_rq_tail_age[b] <= w_new_age;
+                else if (w_age_dec && (r_rq_tail_age[b] != '0)) r_rq_tail_age[b] <= r_rq_tail_age[b] - 1'b1;
+            end
+        end
+    end)
     generate
         for (genvar i = 0; i < NQP; i++) begin : g_yleaf
             if (i < NUM_BANKS) begin : g_wr
-                assign w_yleaf[i] = w_wq_young[i];
+                assign w_yleaf[i] = w_wq_rd_valid[i] ? r_wq_tail_age[i] : '0;
             end else if (i < NQ) begin : g_rd
-                assign w_yleaf[i] = w_rq_young[i - NUM_BANKS];
+                assign w_yleaf[i] = w_rq_rd_valid[i - NUM_BANKS] ? r_rq_tail_age[i - NUM_BANKS] : '0;
             end else begin : g_pad
                 assign w_yleaf[i] = '0;
             end
@@ -757,7 +784,7 @@ module mc_bank_fifo_store
             .wr_data_age   (w_new_age),
             .rd_ready      (w_wq_pop[b]),
             .count         (),
-            .youngest      (w_wq_young[b]),
+            .youngest      (),
             .rd_valid      (w_wq_rd_valid[b]),
             .rd_data       (w_wq_rd_data[b]),
             .rd_data_age   (),
@@ -781,7 +808,7 @@ module mc_bank_fifo_store
             .wr_data_age   (w_new_age),
             .rd_ready      (w_rq_pop[b]),
             .count         (),
-            .youngest      (w_rq_young[b]),
+            .youngest      (),
             .rd_valid      (w_rq_rd_valid[b]),
             .rd_data       (w_rq_rd_data[b]),
             .rd_data_age   (),
@@ -791,9 +818,41 @@ module mc_bank_fifo_store
             .pk_age_thresh (w_rq_pk_thr[b])
         );
     end endgenerate
-    // the CSR field is the enable; the age itself is the FIFO's rank
-    logic w_aged_en;
+    // The CSR field is the enable AND the starvation bound. A head with the
+    // FIFO's thresh bit is the oldest entry in the pool; it becomes the
+    // pick's aged class only after it has been passed over for
+    // sched_age_thresh - 1 cycles (so 1 = the moment it is oldest, the
+    // 2026-10-25 form; larger values let the hint / rotor / direction
+    // choices run until the oldest head has actually waited). Measured
+    // without the bound (granite TASK-003 item 5, 2026-10-29): the aged
+    // tie-break at 8 streaming threads cost 9 to 12 percent on every
+    // stream, because there is always an oldest head and it always won.
+    // One saturating counter per queue head, cleared on pop or when the
+    // head is no longer oldest.
+    logic       w_aged_en;
+    logic [7:0] r_wq_wait [NUM_BANKS];
+    logic [7:0] r_rq_wait [NUM_BANKS];
+    logic [NUM_BANKS-1:0] w_wq_aged, w_rq_aged;
     assign w_aged_en = HAS_AGE && (sched_age_thresh_i != 8'd0);
+    `ALWAYS_FF_RST(aclk, aresetn, begin
+        if (`RST_ASSERTED(aresetn)) begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                r_wq_wait[b] <= '0;
+                r_rq_wait[b] <= '0;
+            end
+        end else begin
+            for (int b = 0; b < NUM_BANKS; b++) begin
+                if (w_wq_pop[b] || !w_wq_thr[b])      r_wq_wait[b] <= '0;
+                else if (r_wq_wait[b] != 8'hFF)       r_wq_wait[b] <= r_wq_wait[b] + 8'd1;
+                if (w_rq_pop[b] || !w_rq_thr[b])      r_rq_wait[b] <= '0;
+                else if (r_rq_wait[b] != 8'hFF)       r_rq_wait[b] <= r_rq_wait[b] + 8'd1;
+            end
+        end
+    end)
+    generate for (genvar b = 0; b < NUM_BANKS; b++) begin : g_aged
+        assign w_wq_aged[b] = w_aged_en && (r_wq_wait[b] >= (sched_age_thresh_i - 8'd1));
+        assign w_rq_aged[b] = w_aged_en && (r_rq_wait[b] >= (sched_age_thresh_i - 8'd1));
+    end endgenerate
 
     // ======================================================================
     // Records off the FIFO fronts, registered at the edge. A write record is
@@ -838,14 +897,14 @@ module mc_bank_fifo_store
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = h.vld && !(has1 && r_wr_fdone[s1]);
             h.behind_same_row = h.vld && has1 && sp1;
-            h.age_exceed      = w_aged_en && w_wq_thr[b];
+            h.age_exceed      = w_wq_aged[b] && w_wq_thr[b];
             h.hit             = bank_row_active_i[b] && (r_wr_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1 && r_wr_fdone[s1];
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = h2.vld && !(has2 && r_wr_fdone[s2]);
             h2.behind_same_row = h2.vld && has2 && sp2;
-            h2.age_exceed      = w_aged_en && w_wq_pk_thr[b][0];
+            h2.age_exceed      = w_wq_aged[b] && w_wq_pk_thr[b][0];
             h2.hit             = has1 && sp1;  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             w_wr_head [b] = h;
@@ -872,14 +931,14 @@ module mc_bank_fifo_store
             h.slot            = MC_HEAD_SLOT_W'(s0);
             h.behind_empty    = has0 && !has1;
             h.behind_same_row = has0 && has1 && sp1;
-            h.age_exceed      = w_aged_en && w_rq_thr[b];
+            h.age_exceed      = w_rq_aged[b] && w_rq_thr[b];
             h.hit             = bank_row_active_i[b] && (r_rd_row[s0] == orow);
             h2 = '0;
             h2.vld             = has1;
             h2.slot            = MC_HEAD_SLOT_W'(s1);
             h2.behind_empty    = has1 && !has2;
             h2.behind_same_row = has1 && has2 && sp2;
-            h2.age_exceed      = w_aged_en && w_rq_pk_thr[b][0];
+            h2.age_exceed      = w_rq_aged[b] && w_rq_pk_thr[b][0];
             h2.hit             = has1 && sp1;  // == head.behind_same_row's bit (header)
             if (!HEAD2_EN) h2 = '0;
             w_rd_head [b] = h;

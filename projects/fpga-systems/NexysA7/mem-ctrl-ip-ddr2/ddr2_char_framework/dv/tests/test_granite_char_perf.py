@@ -411,8 +411,15 @@ async def cocotb_test_granite_perf(dut):
                           wr_phase=int(os.environ.get("TEST_WR_PHASE", "0")),
                           gear_ratio=GEAR_RATIO, bl=DRAM_BL)
         # Real DDR2-650 timings derived at the 75 MHz board clock (like the board).
+        # The derived tRTW follows the SAME alignment the controller was
+        # configured with above (TEST_T_RDDATA_EN / TEST_RDDATA_DELAY /
+        # TEST_T_PHY_WRLAT); a fixed 4/0/0 here with another tuple on the
+        # controller is the pumice BUG-014 shape one layer up.
         out["timings"] = drv.set_jedec_timings(
-            float(FPGA_CLK_HZ), t_rddata_en=4, rddata_delay=0, t_phy_wrlat=0)
+            float(FPGA_CLK_HZ),
+            t_rddata_en=int(os.environ.get("TEST_T_RDDATA_EN", "4")),
+            rddata_delay=int(os.environ.get("TEST_RDDATA_DELAY", "0")),
+            t_phy_wrlat=int(os.environ.get("TEST_T_PHY_WRLAT", "0")))
         drv.set_refresh_interval(t_refi)
         for fam_key in fam_names:
             out["families"][fam_key] = measure_family(fam_key)

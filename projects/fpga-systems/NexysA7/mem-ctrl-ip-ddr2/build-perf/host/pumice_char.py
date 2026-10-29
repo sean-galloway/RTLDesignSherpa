@@ -513,7 +513,12 @@ class ControllerConfig:
         # the result would depend on suite order rather than on the config.
         drv.set_sched_policy(
             order_mode=self.order_mode if self.order_mode is not None else 0,
-            age_thresh=self.age_thresh if self.age_thresh is not None else 0,
+            # CHAR_AGE_THRESH=<n> (env) fills the field for every config that
+            # leaves it unset: granite's store reads it as an enable for the
+            # oldest-in-pool class (HAS_AGE builds, TASK-003 item 5), pumice
+            # as 16*n cycles under order_mode 3. Default 0 = off, as before.
+            age_thresh=(self.age_thresh if self.age_thresh is not None
+                        else int(os.environ.get("CHAR_AGE_THRESH", "0") or 0, 0)),
             prio_sub=self.prio_sub if self.prio_sub is not None else 0,
             row_sel=self.row_sel if self.row_sel is not None else 0,
             col_sel=self.col_sel if self.col_sel is not None else 0,

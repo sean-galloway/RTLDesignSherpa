@@ -684,3 +684,145 @@ FRFCFS snapshot (3,666) the pick core and the age-FIFO store cost +2.0k
 LUT and bought the mixed-traffic column. LiteDRAM's controller is 2.3x
 smaller in LUTs but holds its queues in 12 block RAMs where granite holds
 them in logic by policy (2 RAMB36 for the whole core).
+
+### 2026-10-29, item 5: the aged class as a within-class tie-break with a starvation bound
+
+Owner: "003: finish this one." Three changes, all measured:
+
+1. **Placement.** `mc_bank_pick`'s select no longer puts the aged requests
+   at the top; the direction / alternation / hint choice runs first and an
+   aged pair among what it left in the set goes ahead of the rotor (a hint
+   is a single pair, so it is kept or left alone). With the ages compiled
+   out `r_aged` is zero and the select is unchanged.
+2. **The bound.** The store's `sched_age_thresh` field was an enable only
+   (its magnitude unread), and the FIFO's thresh bit marks the oldest
+   entry in the pool, which always exists: the class fired on every pick.
+   Now one saturating counter per queue head counts the cycles the oldest
+   head has been passed over, and the head joins the aged class at
+   `thresh - 1` cycles (1 = the moment it is oldest, the old form).
+3. **Timing.** The first `HAS_AGE=1` board build missed by 1.528 ns (682
+   endpoints, all `g_q[*].u_rq -> g_q[*].u_*q` age registers, 19 levels,
+   75 percent route): each queue's `youngest` was a max tree over its
+   entry array, then the 16-queue max, then +1, then every entry's age
+   write. The store now tracks each queue's tail age in its own register
+   (it is the pool writer: push loads the age, age_dec steps it, empty
+   reads 0; exact, the FIFO's tree is left unconnected). Rebuilt: WNS
+   +0.064 ns, 37,287 LUT / 32,541 FF against 36,386 / 33,715 without the
+   ages. Still the thinnest margin in the design at 75 MHz; not a 100 MHz
+   form.
+
+Proxy, eight threads (wr / rd cycles, the four stream families, ages
+off = 17640 / 17646, 17625 / 17626, 18430 / 18073, 21434 / 21443):
+
+| thresh | incremental | row_major | col_ilv | col_major |
+|---|---|---|---|---|
+| 1 (oldest-first always) | 19324 / 20028 | 19530 / 20034 | 19510 / 20365 | 21437 / 21443 |
+| 8, 32, 128 (the bound) | 17645 / 17646 | 17622 / 17634 | 18356 / 18074 | 21381 / 21443 |
+
+Thresh 1 is 9 to 12 percent down on every stream, as bad as the
+top-of-select form (the oldest head always wins and the rotor's spread is
+lost); from 8 up the families are back to the ages-off cycles. The
+store's tracked tail age is cycle-identical to the FIFO's max tree at
+eight threads (thresh 1, all four families); at one thread the two differ
+by about 20 cycles on three families, the same families and size as the
+proxy's own run-to-run drift below, so not attributed.
+
+Board, granite 75 MHz, `HAS_AGE=1` bitstream, `CHAR_AGE_THRESH` 0 / 1 / 16
+/ 64 (`char_granite_age{0,1,16,64}_75_*_2026-10-29.csv`), 49 cells each,
+all clean. Against thresh 0 (= ages off; itself within 0.9 percent of the
+`setlag75` baseline on every cell):
+
+| thresh | mean delta | worst cell | cells > 2 percent down |
+|---|---|---|---|
+| 1 (oldest-first always) | -2.1 percent | 1w+1r col_major_interleaved 200 -> 139 (-30), col_major 106 -> 92, incremental 282 -> 262; mixed latencies +20 to +40 percent | 15 of 64 |
+| 16 | +0.2 percent | none down; open_page half_pair thr3 285/285 vs 255/280 (up) | 0 |
+| 64 | -0.0 percent | incremental 1w+1r 282 -> 276 | 2 |
+
+So the aged class has no bandwidth upside at any setting and costs the
+mixed cells when it fires on every pick; with the bound at 16 or more it
+is a starvation guarantee at no measured cost. Decision taken here:
+`HAS_AGE` stays 0 as the product default (area and the 0.064 ns margin),
+the bound form is what `HAS_AGE=1` builds get, and a product that wants
+the guarantee sets `age_thresh` >= 16. The "CSR weights on the select"
+half of item 5 is NOT built: with the tie-break neutral at the bound and
+nothing to buy on the bandwidth side, a weight form has no measured
+target; the owner's call whether to pursue it for latency-tail fairness
+(the profiles measure average latency only).
+
+**Proxy determinism, settled the same day.** Three runs of the HAS_AGE 0
+proxy on 2026-10-29 gave three col_major read counts (3464, 3443, 3448)
+and two row_major write counts (2154, 2133), which looked like the
+tie-break or the store edit moving cycles. They are not: an A/A pair
+(same tree, same env) is identical on all four families; the store edit
+swapped for HEAD's is identical; the progress probe on vs off moves
+col_major read by 5. What changed between the runs was the HOST's command
+sequence before and during a run (the BUILD_CONFIG reads
+`set_jedec_timings` now does for the clock ratio, the probe's meter reads),
+and every host transaction takes simulated UART time, so the phase's start
+moves against the refresh counter (tREFI 585) and a refresh lands inside
+or outside the measured window: the moves are 2 to 21 cycles, one tRFC.
+Rule for this proxy: "cycle-identical" is only meaningful between runs
+with the same host sequence; a host-side change re-baselines, an RTL A/B
+must hold the host fixed (as the store A/B above did).
+
+### 2026-10-29, item 6: DFI 1:4 built, timed and brought up to one defect
+
+Owner: "003: finish this one." The 1:4 point exists in the tree and on
+the board; it is NOT characterized, for one reason given at the end.
+
+**What is in.** Two four-phase a7ddrphy netlists
+(`rtl-vivado/a7ddrphy/a7ddrphy_nph4_{75,100}_generated.v`, LiteDRAM
+2024.12, `bin/elaborate_a7ddrphy_nph4.py --nphases 4 --sys-clk`; they
+differ in rdphase / wrphase / tap constants, so one per sys clock),
+`GRANITE_DFI4` (75 MHz sys, CK 300, DDR2-600, peak 1.2 GB/s) and
+`GRANITE_DFI4_100` (CK 400, DDR2-800, 1.6 GB/s) plans in
+`granite_char_top` (sys4x / sys4x_dqs from the MMCM, DFI_RATE 4, BL8,
+and a 128-bit host AXI: the proxy at 1:4 with the 64-bit port wrote
+streams at 589 MB/s, the port's own ceiling at 75 MHz), the stub with
+both clock port sets, the project script selecting netlist and define,
+and the host deriving ck_per_mc from BUILD_CONFIG and CL from MR0 with
+DFI / PHY phase and write-bitslip env knobs on every flow.
+
+| build, 75 MHz | WNS | LUT | FF |
+|---|---|---|---|
+| 1:4 BL8, 64-bit host | +0.763 | 44,149 | 43,413 |
+| 1:4 BL8, 128-bit host (GEAR-1, converters bypassed) | +1.177 | 39,833 | 35,449 |
+
+**Board.** The 1:4 bitstreams initialize (`dfi_rate=4 gear=2 bl=8
+beat=32b clk=75.00MHz`), the init sequence completes, writes land. The
+joint probe (fixed for the 128-bit stride; its first form strode by the
+64-bit beat and overlapped its own transactions, a 3-of-8 floor that
+cost an hour) finds the read gate at wrlat 1 / t_rddata_en 1 /
+rddata_delay 1 or 2, controller read phase 1 with bitslip 0 (phase 0
+with bitslip 6, 2 with 2, 3 with 4: one phase = two bitslips), tap eye
+14 to 30. In every one of those cells exactly ONE 128-bit beat per read
+transaction is wrong, at a transaction boundary: a run of two adjacent
+transactions has 1 wrong beat, the same transaction read three times in
+one run (stride 0) has 3, a junk transaction followed by a real one has
+4 + 1, and a single transaction read alone has 1 whether it is the first
+or the second written. Not moved by: read phase 0..3, read bitslip 0..7,
+PHY rdphase CSR 0..3, write bitslip 0..3, IDELAY tap 0..30, tWR +1..+8,
+tRP +2/+4, seed, transaction count 1..16, lane-asymmetric bitslip
+(worse). The tap sweep says the analog eye is real and wide; the beat is
+digital. Also seen: a burst-length-2 (and 1) write transaction hangs the
+write engine at the 128-bit geometry (burst-length 4 runs). The 1:4
+proxy sim (TEST_DFI_RATE=4 TEST_DRAM_BL=8 TEST_DRAM_BEAT_BYTES=4
+TEST_DRAM_DEVICE_BYTES=2) writes every family at the port ceiling and
+returns NO read data for any t_rddata_en 2..6 (the UART smoke: `act 0,
+valid False`), no slave-model warnings.
+
+**Next step, not taken today:** a waveform of the DFI read return at
+DFI_RATE 4 / BL_WORDS 1 in the sim (the proxy's read hang is the cheaper
+reproduction) and, on the board, which beat of the transaction is the
+wrong one (the harness has no first-mismatch index register; adding one
+to `char_gen_unit` is the small change that would have shortened this).
+Both symptoms point at the same place: the rd aligner's one-word capture
+window at 1:4 (EN_CYC = BL_WORDS = 1) against a PHY whose read valid is
+one cycle wide but whose last word for a run arrives after the strobe
+goes idle. Until that is fixed the 1:4 numbers do not exist; the 1:2
+DDR2-400 point (800 MB/s peak, 772 / 774 measured) stands as granite's
+100 MHz board point.
+
+Scratch for the next session: `board75_dfi4w/` (bitstreams, probes
+`probe_fixed.py`, `exp_which.py`, `exp_tap.py`, logs), `board75_dfi4/`
+(64-bit host), `litex/venv310` (the LiteX environment).
