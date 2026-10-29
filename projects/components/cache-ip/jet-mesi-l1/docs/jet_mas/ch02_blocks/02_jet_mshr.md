@@ -72,7 +72,11 @@ J7 experiment).
   entry merges (it will hit the committed M line).
 - **Alloc/match same cycle:** an alloc and a snoop match against the same
   line in one cycle resolve alloc-first (the entry is visible to the snoop
-  compare from the alloc cycle — the snoop must see the pending fill).
+  compare from the alloc cycle — the snoop must see the pending fill). The
+  lookup probe also carries the alloc-first overlay; jet_control's classify
+  instead consumes the overlay-free `lkup_reg_match_o/idx/cls` triple (the
+  classify drives the alloc from the match outcome — using the overlay
+  version would close a combinational loop through the alloc).
 
 ## Occupancy gauge
 

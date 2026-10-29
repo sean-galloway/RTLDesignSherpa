@@ -63,10 +63,13 @@
 //   - A granted alloc and a release can occur in the same cycle; the net
 //     occupancy change is zero and the freed tag is immediately reusable.
 //   - Deposit is never gated by rsp_ready_i (the deadlock-freedom property).
-//   - A completion deposited to the current release pointer in the same cycle
-//     that rsp_ready_i is high becomes visible on rsp_valid_o/rsp_data_o in
-//     that cycle and is released on the next rising edge; no backpressure path
-//     ever blocks the deposit.
+//   - A deposit to the current (not-yet-valid) release pointer completes
+//     that record; it becomes visible the cycle after the deposit and is
+//     released on the next rising edge with rsp_ready_i high.  A deposit
+//     to a VALID head tag in its release cycle (the freed slot re-granted
+//     and immediately completed by the lookup stage) survives: the release
+//     retires the old record, the deposit creates the new one (the
+//     sequential block orders release before deposit for exactly this).
 //
 //------------------------------------------------------------------------------
 // Related Modules:
@@ -162,21 +165,29 @@ module jet_rsp_seq
                 r_data[s] <= '0;
             end
         end else begin
-            // Deposit: write the completion record.  A deposit to the
-            // current release pointer becomes visible on the response port
-            // combinationally and is released on the next clock edge.
-            if (cpl_i) begin
-                r_valid[cpl_tag_i] <= 1'b1;
-                r_data[cpl_tag_i]  <= cpl_data_i;
-            end
-
-            // Release: advance the pointer and free the slot.
+            // Release: advance the pointer and free the slot.  Ordered
+            // BEFORE the deposit so a same-cycle deposit to the re-granted
+            // tag survives: when the ring is full, tag_gnt_o grants the
+            // slot being freed by this very release, and the new request's
+            // completion may land on that tag immediately (the lookup
+            // stage deposits hits in the accept cycle) -- the release
+            // retires the OLD record (its response left on the wire this
+            // cycle), the deposit creates the NEW one.
             if (w_release) begin
                 r_valid[r_rel_tag] <= 1'b0;
                 if (r_rel_tag == SEQ_W'(RSP_DEPTH - 1))
                     r_rel_tag <= '0;
                 else
                     r_rel_tag <= r_rel_tag + 1'b1;
+            end
+
+            // Deposit: write the completion record.  A deposit to an
+            // invalid head slot completes it; the release comes on a later
+            // edge (w_release is gated by rsp_valid_o, so a not-yet-
+            // deposited head never releases).
+            if (cpl_i) begin
+                r_valid[cpl_tag_i] <= 1'b1;
+                r_data[cpl_tag_i]  <= cpl_data_i;
             end
 
             // Tag alloc: advance the alloc pointer on a grant.

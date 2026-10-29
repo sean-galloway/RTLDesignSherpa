@@ -44,10 +44,14 @@ package jet_pkg;
     // Fill request class issued by jet to the memory/interconnect port.
     // Mirrors the amber read-miss classes but is kept jet-specific so
     // future multi-fill-ID work can extend it without touching l1_pkg.
+    // JET_CLS_CU (added with jet_control, Task 5) is the J3 upgrade issue:
+    // a write whose line turned out resident-S after the wait launches a
+    // CleanUnique -- no fill data, no MSHR entry.
     // ------------------------------------------------------------------
     typedef enum logic [1:0] {
         JET_CLS_RNSD = 2'b00,   // ReadNotSharedDirty (shared intent)
-        JET_CLS_RU   = 2'b01    // ReadUnique (exclusive intent)
+        JET_CLS_RU   = 2'b01,   // ReadUnique (exclusive intent)
+        JET_CLS_CU   = 2'b10    // CleanUnique (upgrade; no fill data)
     } jet_fill_class_t;
 
     // ------------------------------------------------------------------

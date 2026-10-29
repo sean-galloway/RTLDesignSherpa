@@ -154,6 +154,9 @@ module jet_mshr
     // Lookup-side CAM probe (merge? / cross-class wait classify)
     input  logic [LINE_W-1:0]           lkup_line_i,
     output logic                        lkup_match_o,
+    output logic                        lkup_reg_match_o,
+    output logic [MW-1:0]               lkup_reg_match_idx_o,
+    output logic [1:0]                  lkup_reg_match_cls_o,
     output logic [MW-1:0]               lkup_match_idx_o,
     output logic [1:0]                  lkup_match_cls_o,
 
@@ -290,6 +293,23 @@ module jet_mshr
     assign lkup_match_cls_o = (|w_lkup_hits) ? r_cls[lkup_match_idx_o]
                                              : alloc_cls_i;
 
+    // Registered-entries-only match (no alloc overlay): jet_control's
+    // classify drives the alloc from the match outcome, so it must see
+    // the pre-alloc match or the two would form a combinational loop
+    // (the overlay makes lkup_match_* structurally alloc-dependent).
+    assign lkup_reg_match_o = |w_lkup_hits;
+
+    always_comb begin
+        lkup_reg_match_idx_o = '0;
+        for (int e = MSHR_COUNT - 1; e >= 0; e--) begin
+            if (w_lkup_hits[e]) begin
+                lkup_reg_match_idx_o = MW'(e);
+            end
+        end
+    end
+
+    assign lkup_reg_match_cls_o = r_cls[lkup_reg_match_idx_o];
+
     always_comb begin
         sn_match_o     = 1'b0;
         sn_match_idx_o = '0;
@@ -417,5 +437,30 @@ module jet_mshr
             end
         end
     )
+
+    // =========================================================================
+    // Simulation-only contract checks (Task 5 integration hardening)
+    // =========================================================================
+    // pragma translate_off
+    // A granted alloc whose line already matches a valid entry is a
+    // contract violation (the lookup stage must merge onto it instead).
+    logic [MSHR_COUNT-1:0] w_alloc_hits;
+
+    always_comb begin
+        for (int e = 0; e < MSHR_COUNT; e++) begin
+            w_alloc_hits[e] = r_valid[e] & (r_line[e] == alloc_line_i);
+        end
+    end
+
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (alloc_gnt_o |-> !(|w_alloc_hits)))
+        else $error("jet_mshr: granted alloc duplicates a live entry's line");
+
+    // jet_control owns the address decode; the claim bank trusts
+    // alloc_set_i, so it must match the line's set field.
+    assert property (@(posedge clk) disable iff (!rst_n)
+        (alloc_gnt_o |-> (alloc_set_i == alloc_line_i[SET_W-1:0])))
+        else $error("jet_mshr: alloc_set_i inconsistent with alloc_line_i");
+    // pragma translate_on
 
 endmodule : jet_mshr

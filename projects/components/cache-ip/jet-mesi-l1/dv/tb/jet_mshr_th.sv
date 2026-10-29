@@ -56,6 +56,9 @@ module jet_mshr_th
     // Lookup-side CAM probe (merge / cross-class classify)
     input  logic [LINE_W-1:0]           lkup_line_i,
     output logic                        lkup_match_o,
+    output logic                        lkup_reg_match_o,
+    output logic [MW-1:0]               lkup_reg_match_idx_o,
+    output logic [1:0]                  lkup_reg_match_cls_o,
     output logic [MW-1:0]               lkup_match_idx_o,
     output logic [1:0]                  lkup_match_cls_o,
 

@@ -7,3 +7,4 @@
 -f $JET_ROOT/rtl/filelists/jet_mshr.f
 -f $JET_ROOT/rtl/filelists/jet_wb_buffer.f
 -f $JET_ROOT/rtl/filelists/jet_rsp_seq.f
+-f $JET_ROOT/rtl/filelists/jet_control.f

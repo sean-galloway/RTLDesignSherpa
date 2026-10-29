@@ -93,6 +93,55 @@ The sticky CTRL_ERROR contract is inherited: a reserved state encoding or
 an unreachable transition drops the pipeline to ERROR, exactly as amber's
 (the DV illegal-state scenario pins it).
 
+## Task 5 implementation notes (lookup stage, as landed)
+
+The lookup stage is combinational classify around a small amount of
+sequential state (init walk, victim-capture engine, fill-launch hold,
+drain-arbiter stub, upgrade tracker, claimed-way scoreboard) — there is no
+global FSM; a stalled request is simply not accepted and retried next
+cycle. Where the table above was silent, the landing pinned:
+
+- **Upgrades classify at lookup.** An S-write hit launches `JET_CLS_CU`
+  (jet_pkg extension) to the fill engine; no MSHR entry, no victim. One
+  upgrade is outstanding at a time (single tracker); a write to its line
+  waits as `cross_class_wait`, and the upgrade's (set, way) counts as a
+  claim for victim selection.
+- **The pending-fill hazard is a claimed-way scoreboard** in jet_control
+  (per live MSHR entry: the claimed set+way). A tag hit on a claimed way
+  is suppressed (the doomed victim's data is being captured/overwritten)
+  and the request falls to the miss path.
+- **The WB drain race is a STALL** under the `wb_full_dirty_victim`
+  reason: a miss whose line sits in the WB buffer (or is mid-capture)
+  waits for the drain — the refetch must not race the outstanding
+  writeback (§10.10.1). Bounded by the drain.
+- **Write-hit W-port yield is a hold, not an accept**: during a fill beat
+  stream the write hit is simply not accepted (`lkup_wr_yield_o` marks
+  it); it retries next cycle and lands when the stream releases the port.
+- **Merge-list full** (an entry already carrying MSHR_COUNT requesters)
+  stalls `mshr_full`.
+- **The fill launch is a one-deep hold register** (`fill_start` held until
+  `fill_accept`); an alloc/upgrade with the register occupied holds (not a
+  congestion stall).
+- **Fill-engine contract:** the engine must not write an entry's fill
+  beats before that entry's victim capture has completed
+  (`cap_busy_o` low) — the beats land in the claimed victim way.
+- **Victim policy is updated at the alloc** (claim == the update); the
+  commit must not `repl_update` again at install. With LRU/FIFO this
+  makes back-to-back claims in a set distinct; RANDOM would need a
+  claimed-way mask (recorded gap).
+- **jet_mshr** grew the overlay-free lookup probe
+  (`lkup_reg_match_o/idx/cls`): the classify drives the alloc from the
+  match outcome, so it must see the registered-entries-only match or the
+  two would form a combinational loop through the alloc-first overlay.
+  Two `translate_off` assertions pin the integration: a granted alloc
+  never duplicates a live entry's line, and `alloc_set_i` is always the
+  alloc line's own set field.
+- **jet_rsp_seq** orders release before deposit in its sequential block:
+  when the ring is full and a release frees the head slot, the freed tag
+  is re-granted in the same cycle and the lookup stage may deposit the new
+  request's hit completion immediately — the deposit must survive the
+  release (the old record's response left on the wire that cycle).
+
 ## W-port arbitration
 
 One write port feeds: fill beats (fill engine), hit/merged store data
